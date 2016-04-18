@@ -10,6 +10,8 @@ import FlatButton from 'material-ui/FlatButton'
 import RaisedButton from 'material-ui/RaisedButton'
 import Divider from 'material-ui/Divider'
 
+import StoragePage from './Storage'
+
 import IconButton from 'material-ui/IconButton'
 import IconNavigationApps from 'material-ui/svg-icons/navigation/apps'
 import IconNavigationMenu from 'material-ui/svg-icons/navigation/menu'
@@ -53,7 +55,8 @@ const decoration = [
         parent: null,
         text: { en_US: 'Storage' },
         icon: IconDeviceStorage,
-        themeColor: 'blueGrey' 
+        themeColor: 'blueGrey', 
+        content: StoragePage
       },
       {
         name: 'ETHERNET',
@@ -327,7 +330,7 @@ class Navigation extends React.Component {
                   { navSelect.name === 'WINSUN_STORE' && <CardPage />}
                 </div>
                 <div style={this.pageAnimationStyle(navSelect.name === 'STORAGE')}>
-                  { navSelect.name === 'STORAGE' && <PaperPage />}
+                  { navSelect.name === 'STORAGE' && <StoragePage /> }
                 </div>
               </div>
             </div>
