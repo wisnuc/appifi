@@ -1,0 +1,61 @@
+a {
+  color: #ff4081;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+html {
+  font-family: 'Roboto', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+body, h1, h2, h3, h4, h5, h6 {
+  margin: 0;
+}
+
+body {
+  font-size: 15px;
+  line-height: 24px;
+  background-color: #FAFAFA;
+  overflow: hidden;
+}
+
+.login-enter {
+  opacity: 0.01;
+}
+
+.login-enter.login-enter-active {
+  opacity: 1;
+  transition: opacity 1s ease-in 1s;
+}
+
+.login-leave {
+  opacity: 1;
+}
+
+.login-leave.login-leave-active {
+  opacity: 0.01;
+  transition: opacity 1s ease-in;
+}
+ 
+.nav-enter {
+  opacity: 0.01;
+}
+
+.nav-enter.nav-enter-active {
+  opacity: 1;
+  transition: opacity 1s ease-in 1s;
+}
+
+.nav-leave {
+  opacity: 1;
+}
+
+.nav-leave.nav-leave-active {
+  opacity: 0.01;
+  transition: opacity 1s ease-in;
+}
+ 
