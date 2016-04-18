@@ -138,6 +138,23 @@ class Navigation extends React.Component {
     super(props)
   }
 
+  componentWillMount() {
+
+    let debug = true
+    let navlist = window.store.getState().navigation.nav
+    debug && console.log(navlist)
+
+    let menu = this.menuSelect(navlist)
+    debug && console.log(menu)
+
+    let dec = decoration.find(item => item.name === menu.name) 
+    debug && console.log(dec)
+
+    if (dec !== undefined && dec.themeColor !== undefined) {
+      dispatch({type: 'THEME_COLOR', color: dec.themeColor})
+    }
+  }
+
   handleToggle() {
     dispatch({type: 'NAV_MENU_TOGGLE'})
   }
@@ -243,7 +260,7 @@ class Navigation extends React.Component {
 
     console.log(window.store.getState())
 
-    let state = window.store.getState().nav
+    let state = window.store.getState().navigation
 
     let leftNavStyle = {
       display: 'block',

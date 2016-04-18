@@ -1,12 +1,12 @@
 import { combineReducers } from 'redux'
 import themeColor from './themeColor'
 import login from './login'
-import nav from './nav'
+import navigation from './navigation'
  
 const reducer = combineReducers({
   themeColor,
   login,
-  nav,
+  navigation,
 })
 
 export default reducer
