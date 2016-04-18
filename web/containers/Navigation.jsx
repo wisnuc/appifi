@@ -127,7 +127,7 @@ const PaperPage = () => {
   )
 }
  
-class NavFrame extends React.Component {
+class Navigation extends React.Component {
 
   /* this must be declared for component accessing context */
   static contextTypes = {
@@ -321,4 +321,4 @@ class NavFrame extends React.Component {
   } 
 }
 
-export default NavFrame
+export default Navigation

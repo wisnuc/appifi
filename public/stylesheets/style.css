@@ -29,7 +29,7 @@ body {
 
 .login-enter.login-enter-active {
   opacity: 1;
-  transition: opacity 1s ease-in 1s;
+  transition: opacity 1s linear 1s;
 }
 
 .login-leave {
@@ -38,7 +38,7 @@ body {
 
 .login-leave.login-leave-active {
   opacity: 0.01;
-  transition: opacity 1s ease-in;
+  transition: opacity 1s linear;
 }
  
 .nav-enter {
@@ -47,7 +47,7 @@ body {
 
 .nav-enter.nav-enter-active {
   opacity: 1;
-  transition: opacity 1s ease-in 1s;
+  transition: opacity 1s linear 1s;
 }
 
 .nav-leave {
@@ -56,6 +56,6 @@ body {
 
 .nav-leave.nav-leave-active {
   opacity: 0.01;
-  transition: opacity 1s ease-in;
+  transition: opacity 1s linear;
 }
  

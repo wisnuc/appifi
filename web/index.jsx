@@ -1,9 +1,9 @@
 import React from 'react'
 import ReactDom from 'react-dom'
 import { createStore } from 'redux'
-import Login from './containers/login'
+import Login from './containers/Login'
 import reducer from './reducers/index'
-import NavFrame from './containers/navFrame'
+import Navigation from './containers/Navigation'
 import CSSTransition from 'react-addons-css-transition-group'
 import injectTapEventPlugin from 'react-tap-event-plugin'
 injectTapEventPlugin()
@@ -40,11 +40,11 @@ class App extends React.Component {
           { !loggedin && <Login /> }
         </CSSTransition>
         <CSSTransition transitionName='nav' transitionEnterTimeout={2000} transitinLeavTimeout={1000}>
-          { loggedin && <NavFrame /> }
+          { loggedin && <Navigation /> }
         </CSSTransition>
      </div>
     )
-    // return store.getState().login.state === 'LOGGEDIN'  ? <NavFrame /> : <Login /> 
+    // return store.getState().login.state === 'LOGGEDIN'  ? <Navigation /> : <Login /> 
   }
 }
 

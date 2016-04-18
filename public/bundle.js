@@ -58,17 +58,17 @@
 
 	var _redux = __webpack_require__(166);
 
-	var _login = __webpack_require__(177);
+	var _Login = __webpack_require__(389);
 
-	var _login2 = _interopRequireDefault(_login);
+	var _Login2 = _interopRequireDefault(_Login);
 
 	var _index = __webpack_require__(217);
 
 	var _index2 = _interopRequireDefault(_index);
 
-	var _navFrame = __webpack_require__(221);
+	var _Navigation = __webpack_require__(388);
 
-	var _navFrame2 = _interopRequireDefault(_navFrame);
+	var _Navigation2 = _interopRequireDefault(_Navigation);
 
 	var _reactAddonsCssTransitionGroup = __webpack_require__(289);
 
@@ -132,15 +132,15 @@
 	        _react2.default.createElement(
 	          _reactAddonsCssTransitionGroup2.default,
 	          { transitionName: 'login', transitionEnterTimeout: 2000, transitionLeaveTimeout: 1000 },
-	          !loggedin && _react2.default.createElement(_login2.default, null)
+	          !loggedin && _react2.default.createElement(_Login2.default, null)
 	        ),
 	        _react2.default.createElement(
 	          _reactAddonsCssTransitionGroup2.default,
 	          { transitionName: 'nav', transitionEnterTimeout: 2000, transitinLeavTimeout: 1000 },
-	          loggedin && _react2.default.createElement(_navFrame2.default, null)
+	          loggedin && _react2.default.createElement(_Navigation2.default, null)
 	        )
 	      );
-	      // return store.getState().login.state === 'LOGGEDIN'  ? <NavFrame /> : <Login />
+	      // return store.getState().login.state === 'LOGGEDIN'  ? <Navigation /> : <Login />
 	    }
 	  }]);
 
@@ -20866,138 +20866,7 @@
 	}
 
 /***/ },
-/* 177 */
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-
-	Object.defineProperty(exports, "__esModule", {
-	  value: true
-	});
-
-	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
-
-	var _react = __webpack_require__(1);
-
-	var _react2 = _interopRequireDefault(_react);
-
-	var _TextField = __webpack_require__(178);
-
-	var _TextField2 = _interopRequireDefault(_TextField);
-
-	var _FlatButton = __webpack_require__(192);
-
-	var _FlatButton2 = _interopRequireDefault(_FlatButton);
-
-	var _Paper = __webpack_require__(212);
-
-	var _Paper2 = _interopRequireDefault(_Paper);
-
-	var _CircularProgress = __webpack_require__(215);
-
-	var _CircularProgress2 = _interopRequireDefault(_CircularProgress);
-
-	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-	function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
-
-	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
-
-	var Login = function (_React$Component) {
-	  _inherits(Login, _React$Component);
-
-	  function Login(props) {
-	    _classCallCheck(this, Login);
-
-	    return _possibleConstructorReturn(this, Object.getPrototypeOf(Login).call(this, props));
-	  }
-
-	  _createClass(Login, [{
-	    key: 'submit',
-	    value: function submit() {
-	      window.store.dispatch({
-	        type: "LOGIN"
-	      });
-
-	      setTimeout(function () {
-	        window.store.dispatch({
-	          type: 'LOGIN_SUCCESS'
-	        });
-	      }, 1000);
-	    }
-	  }, {
-	    key: 'render',
-	    value: function render() {
-
-	      var pageStyle = {
-	        display: 'flex',
-	        alignItems: 'center',
-	        justifyContent: 'center',
-	        minHeight: '100vh',
-	        minWidth: '100vw',
-	        backgroundImage: 'url(images/party_orig.jpg)',
-	        backgroundSize: 'cover'
-	      };
-
-	      var paperStyle = {
-	        display: 'flex',
-	        flexDirection: 'column',
-	        alignItems: 'center',
-	        justifyContent: 'center',
-	        height: 120,
-	        width: 300,
-	        padding: 10
-	      };
-
-	      var err = void 0,
-	          state = window.store.getState().login.state;
-
-	      switch (state) {
-
-	        case 'REJECTED':
-	          err = 'Incorrect password';
-	          break;
-
-	        case 'TIMEOUT':
-	          err = 'Server timeout';
-	          break;
-
-	        case 'ERROR':
-	          err = 'Server internal error, please retry';
-	          break;
-
-	        case 'READY':
-	        case 'BUSY':
-	        default:
-	          err = null;
-	          break;
-	      }
-
-	      var busy = state === 'BUSY';
-	      console.log("state is " + state);
-
-	      return _react2.default.createElement(
-	        'div',
-	        { className: 'container', style: pageStyle },
-	        _react2.default.createElement(
-	          _Paper2.default,
-	          { style: paperStyle, zDepth: 4 },
-	          busy && _react2.default.createElement(_CircularProgress2.default, null),
-	          !busy && _react2.default.createElement(_TextField2.default, { stype: { marginBottom: 10 }, hintText: 'password', type: 'password', fullWidth: true, errorText: err }),
-	          !busy && _react2.default.createElement(_FlatButton2.default, { style: { marginTop: 10 }, label: 'UNLOCK', onTouchTap: this.submit })
-	        )
-	      );
-	    }
-	  }]);
-
-	  return Login;
-	}(_react2.default.Component);
-
-	exports.default = Login;
-
-/***/ },
+/* 177 */,
 /* 178 */
 /***/ function(module, exports, __webpack_require__) {
 
@@ -25988,473 +25857,7 @@
 	exports.default = reducer;
 
 /***/ },
-/* 221 */
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-
-	Object.defineProperty(exports, "__esModule", {
-	  value: true
-	});
-
-	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
-
-	var _react = __webpack_require__(1);
-
-	var _react2 = _interopRequireDefault(_react);
-
-	var _reactDom = __webpack_require__(32);
-
-	var _reactDom2 = _interopRequireDefault(_reactDom);
-
-	var _AppBar = __webpack_require__(222);
-
-	var _AppBar2 = _interopRequireDefault(_AppBar);
-
-	var _Menu = __webpack_require__(240);
-
-	var _Tabs = __webpack_require__(258);
-
-	var _Paper = __webpack_require__(212);
-
-	var _Paper2 = _interopRequireDefault(_Paper);
-
-	var _Card = __webpack_require__(263);
-
-	var _FlatButton = __webpack_require__(192);
-
-	var _FlatButton2 = _interopRequireDefault(_FlatButton);
-
-	var _RaisedButton = __webpack_require__(275);
-
-	var _RaisedButton2 = _interopRequireDefault(_RaisedButton);
-
-	var _Divider = __webpack_require__(277);
-
-	var _Divider2 = _interopRequireDefault(_Divider);
-
-	var _IconButton = __webpack_require__(224);
-
-	var _IconButton2 = _interopRequireDefault(_IconButton);
-
-	var _apps = __webpack_require__(279);
-
-	var _apps2 = _interopRequireDefault(_apps);
-
-	var _menu = __webpack_require__(229);
-
-	var _menu2 = _interopRequireDefault(_menu);
-
-	var _storage = __webpack_require__(280);
-
-	var _storage2 = _interopRequireDefault(_storage);
-
-	var _settingsEthernet = __webpack_require__(281);
-
-	var _settingsEthernet2 = _interopRequireDefault(_settingsEthernet);
-
-	var _toys = __webpack_require__(282);
-
-	var _toys2 = _interopRequireDefault(_toys);
-
-	var _systemUpdate = __webpack_require__(283);
-
-	var _systemUpdate2 = _interopRequireDefault(_systemUpdate);
-
-	var _security = __webpack_require__(284);
-
-	var _security2 = _interopRequireDefault(_security);
-
-	var _lock = __webpack_require__(285);
-
-	var _lock2 = _interopRequireDefault(_lock);
-
-	var _accessTime = __webpack_require__(286);
-
-	var _accessTime2 = _interopRequireDefault(_accessTime);
-
-	var _powerSettingsNew = __webpack_require__(287);
-
-	var _powerSettingsNew2 = _interopRequireDefault(_powerSettingsNew);
-
-	var _lang = __webpack_require__(288);
-
-	var _lang2 = _interopRequireDefault(_lang);
-
-	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-	function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
-
-	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
-
-	/* This list must be consistent with the list defined in reducer */
-	var decoration = [{
-	  name: 'APP',
-	  parent: null,
-	  text: { en_US: 'App', zh_CN: 'Ying Yong' },
-	  icon: _apps2.default,
-	  themeColor: 'orange'
-	}, {
-	  name: 'INSTALLED_APPS',
-	  parent: 'APP',
-	  text: { en_US: 'Installed Apps' }
-	}, {
-	  name: 'WINSUN_STORE',
-	  parent: 'APP',
-	  text: { en_US: 'WinSun Store' }
-	}, {
-	  name: 'DOCKER_HUB',
-	  parent: 'APP',
-	  text: { en_US: 'Docker Hub' }
-	}, {
-	  name: 'STORAGE',
-	  parent: null,
-	  text: { en_US: 'Storage' },
-	  icon: _storage2.default,
-	  themeColor: 'blueGrey'
-	}, {
-	  name: 'ETHERNET',
-	  parent: null,
-	  text: { en_US: 'Ethernet' },
-	  icon: _settingsEthernet2.default
-	}, {
-	  name: 'COOLING',
-	  parent: null,
-	  text: { en_US: 'Cooling' },
-	  icon: _toys2.default
-	}, {
-	  name: 'DATETIME',
-	  parent: null,
-	  text: { en_US: 'Date & Time' },
-	  icon: _accessTime2.default
-	}, {
-	  name: 'SYSUPDATE',
-	  parent: null,
-	  text: { en_US: 'System Update' },
-	  icon: _systemUpdate2.default
-	}, {
-	  name: 'PASSWORD',
-	  parent: null,
-	  text: { en_US: 'Password' },
-	  icon: _security2.default
-	}, {
-	  name: 'POWEROFF',
-	  parent: null,
-	  text: { en_US: 'Power Off' },
-	  icon: _powerSettingsNew2.default
-	}];
-
-	var dispatch = function dispatch(action) {
-	  window.store.dispatch(action);
-	  console.log(action);
-	};
-
-	var CardPage = function CardPage() {
-	  return _react2.default.createElement(
-	    'div',
-	    { style: { position: 'relative', opacity: 100, transition: 'all 400ms ease' } },
-	    _react2.default.createElement(
-	      _Card.Card,
-	      null,
-	      _react2.default.createElement(_Card.CardTitle, { title: 'Card title', subtitle: 'Card subtitle' }),
-	      _react2.default.createElement(
-	        _Card.CardText,
-	        null,
-	        'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec mattis pretium massa. Aliquam erat volutpat. Nulla facilisi. Donec vulputate interdum sollicitudin. Nunc lacinia auctor quam sed pellentesque. Aliquam dui mauris, mattis quis lacus id, pellentesque lobortis odio.'
-	      ),
-	      _react2.default.createElement(
-	        _Card.CardActions,
-	        null,
-	        _react2.default.createElement(_FlatButton2.default, { label: 'Action1' })
-	      )
-	    )
-	  );
-	};
-
-	var PaperPage = function PaperPage() {
-	  return _react2.default.createElement(
-	    _Paper2.default,
-	    { style: { padding: 16 } },
-	    _react2.default.createElement(
-	      'h2',
-	      null,
-	      'Hello World'
-	    ),
-	    _react2.default.createElement(_Divider2.default, null),
-	    _react2.default.createElement(
-	      'p',
-	      null,
-	      'This is the best part'
-	    )
-	  );
-	};
-
-	var NavFrame = function (_React$Component) {
-	  _inherits(NavFrame, _React$Component);
-
-	  function NavFrame(props) {
-	    _classCallCheck(this, NavFrame);
-
-	    var _this = _possibleConstructorReturn(this, Object.getPrototypeOf(NavFrame).call(this, props));
-
-	    _this.buildTabItem = function (item) {
-	      return _react2.default.createElement(_Tabs.Tab, {
-	        style: { width: 180, fontWeight: 900 },
-	        key: item.name,
-	        label: (0, _lang.langText)(item.text),
-	        value: item.name,
-	        onActive: function onActive() {
-	          return dispatch({ type: 'NAV_SELECT', select: item.name });
-	        }
-	      });
-	    };
-
-	    _this.buildMenuItem = function (item) {
-
-	      var iconProps = void 0,
-	          fontStyle = void 0,
-	          leftIcon = void 0;
-
-	      if (item.selected) {
-	        iconProps = {
-	          style: {
-	            fill: _this.getColor('primary1Color')
-	          }
-	        };
-	        fontStyle = {
-	          color: _this.getColor('primary1Color')
-	        };
-	      }
-	      leftIcon = _react2.default.createElement(item.icon, iconProps);
-	      return _react2.default.createElement(_Menu.MenuItem, {
-	        key: item.name,
-	        primaryText: (0, _lang.langText)(item.text),
-	        leftIcon: leftIcon,
-	        innerDivStyle: fontStyle,
-	        onTouchTap: function onTouchTap() {
-	          dispatch({ type: 'NAV_SELECT', select: item.name });
-	          dispatch({ type: 'THEME_COLOR', color: item.themeColor ? item.themeColor : 'cyan' });
-	          console.log('dispatch lime');
-	        }
-	      });
-	    };
-
-	    return _this;
-	  }
-
-	  /* this must be declared for component accessing context */
-
-
-	  _createClass(NavFrame, [{
-	    key: 'handleToggle',
-	    value: function handleToggle() {
-	      dispatch({ type: 'NAV_MENU_TOGGLE' });
-	    }
-	  }, {
-	    key: 'getColor',
-	    value: function getColor(name) {
-	      return this.context.muiTheme.palette[name];
-	    }
-	  }, {
-	    key: 'menuSelect',
-	    value: function menuSelect(navList) {
-	      return navList.find(function (item) {
-	        return item.parent === null && item.selected;
-	      });
-	    }
-	  }, {
-	    key: 'navSelect',
-	    value: function navSelect(navList) {
-
-	      var menu = this.menuSelect(navList);
-	      var nav = navList.find(function (item) {
-	        return item.parent === menu.name && item.selected;
-	      });
-
-	      return nav !== undefined ? nav : menu;
-	    }
-	  }, {
-	    key: 'getTabList',
-	    value: function getTabList(navList) {
-
-	      var parent = navList.find(function (navItem) {
-	        return navItem.parent === null && navItem.selected;
-	      });
-	      var list = navList.filter(function (navItem) {
-	        return navItem.parent === parent.name;
-	      });
-	      return list;
-	    }
-
-	    // this must be an fat arrow function
-
-	  }, {
-	    key: 'buildTabs',
-	    value: function buildTabs(tabList) {
-
-	      var selectedName = tabList.find(function (item) {
-	        return item.selected === true;
-	      }).name;
-	      return _react2.default.createElement(
-	        'div',
-	        { style: { display: 'flex', justifyContent: 'center' } },
-	        _react2.default.createElement(
-	          _Tabs.Tabs,
-	          { inkBarStyle: { backgroundColor: 'white', height: 4 }, value: selectedName },
-	          tabList.map(this.buildTabItem)
-	        )
-	      );
-	    }
-
-	    // this must be an fat arrow function since it is used
-	    // in array function callback
-
-	  }, {
-	    key: 'buildMenu',
-	    value: function buildMenu(navList) {
-
-	      var list = navList.filter(function (item) {
-	        return item.parent === null;
-	      }).map(function (item) {
-	        var selected = navList.find(function (navItem) {
-	          return navItem.name === item.name;
-	        }).selected;
-	        return Object.assign({}, item, { selected: selected });
-	      });
-
-	      return _react2.default.createElement(
-	        _Menu.Menu,
-	        null,
-	        list.map(this.buildMenuItem)
-	      );
-	    }
-	  }, {
-	    key: 'pageAnimationStyle',
-	    value: function pageAnimationStyle(visible) {
-
-	      return {
-	        position: 'relative',
-	        top: visible ? 0 : '200px',
-	        opacity: visible ? 100 : 0,
-	        transition: 'all 300ms ease-out'
-	      };
-	    }
-	  }, {
-	    key: 'render',
-	    value: function render() {
-
-	      console.log(window.store.getState());
-
-	      var state = window.store.getState().nav;
-
-	      var leftNavStyle = {
-	        display: 'block',
-	        position: 'fixed',
-	        height: '100%',
-	        transition: 'all 200ms ease',
-	        padding: 6
-	      };
-
-	      var contentStyle = {
-	        display: 'block',
-	        transition: 'margin-left 300ms ease',
-	        padding: 24
-	      };
-
-	      if (state.menu) {
-	        leftNavStyle.left = 0;
-	        contentStyle.marginLeft = 240;
-	      } else {
-	        leftNavStyle.left = '-100%';
-	        contentStyle.marginLeft = 0;
-	      }
-
-	      var navList = state.nav.map(function (item, index) {
-	        return Object.assign({}, item, decoration[index]);
-	      });
-
-	      var menuSelect = this.menuSelect(navList);
-	      var navSelect = this.navSelect(navList);
-
-	      var tabList = this.getTabList(navList);
-	      var hasTabs = tabList.length !== 0;
-
-	      var tabAnimationStyle = {
-	        position: 'relative',
-	        height: hasTabs ? 50 : 0,
-	        top: hasTabs ? 0 : '-100px', // double height
-	        opacity: hasTabs ? 100 : 0,
-	        transition: 'all 300ms ease'
-	      };
-
-	      return _react2.default.createElement(
-	        'div',
-	        null,
-	        _react2.default.createElement(
-	          'div',
-	          null,
-	          _react2.default.createElement(
-	            _Paper2.default,
-	            { style: { backgroundColor: this.getColor('primary1Color') }, rounded: false, zDepth: 1 },
-	            _react2.default.createElement(_AppBar2.default, { onLeftIconButtonTouchTap: this.handleToggle, zDepth: 0, title: 'WISNUC Cloud' }),
-	            _react2.default.createElement(
-	              'div',
-	              { style: tabAnimationStyle },
-	              hasTabs && this.buildTabs(tabList)
-	            )
-	          )
-	        ),
-	        _react2.default.createElement(
-	          'div',
-	          null,
-	          _react2.default.createElement(
-	            'div',
-	            { style: leftNavStyle },
-	            this.buildMenu(navList)
-	          ),
-	          _react2.default.createElement(
-	            'div',
-	            { style: contentStyle },
-	            _react2.default.createElement(
-	              'div',
-	              { style: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%' } },
-	              _react2.default.createElement(
-	                'div',
-	                { style: { width: '90%', maxWidth: 1084 } },
-	                _react2.default.createElement(
-	                  'div',
-	                  { style: this.pageAnimationStyle(navSelect.name === 'INSTALLED_APPS') },
-	                  navSelect.name === 'INSTALLED_APPS' && _react2.default.createElement(CardPage, null)
-	                ),
-	                _react2.default.createElement(
-	                  'div',
-	                  { style: this.pageAnimationStyle(navSelect.name === 'WINSUN_STORE') },
-	                  navSelect.name === 'WINSUN_STORE' && _react2.default.createElement(CardPage, null)
-	                ),
-	                _react2.default.createElement(
-	                  'div',
-	                  { style: this.pageAnimationStyle(navSelect.name === 'STORAGE') },
-	                  navSelect.name === 'STORAGE' && _react2.default.createElement(PaperPage, null)
-	                )
-	              )
-	            )
-	          )
-	        )
-	      );
-	    }
-	  }]);
-
-	  return NavFrame;
-	}(_react2.default.Component);
-
-	NavFrame.contextTypes = {
-	  muiTheme: _react2.default.PropTypes.object.isRequired
-	};
-	exports.default = NavFrame;
-
-/***/ },
+/* 221 */,
 /* 222 */
 /***/ function(module, exports, __webpack_require__) {
 
@@ -44257,6 +43660,605 @@
 	    primary1Color: primary1Color, primary2Color: primary2Color, pickerHeaderColor: pickerHeaderColor
 	  });
 	};
+
+/***/ },
+/* 388 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	Object.defineProperty(exports, "__esModule", {
+	  value: true
+	});
+
+	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+	var _react = __webpack_require__(1);
+
+	var _react2 = _interopRequireDefault(_react);
+
+	var _reactDom = __webpack_require__(32);
+
+	var _reactDom2 = _interopRequireDefault(_reactDom);
+
+	var _AppBar = __webpack_require__(222);
+
+	var _AppBar2 = _interopRequireDefault(_AppBar);
+
+	var _Menu = __webpack_require__(240);
+
+	var _Tabs = __webpack_require__(258);
+
+	var _Paper = __webpack_require__(212);
+
+	var _Paper2 = _interopRequireDefault(_Paper);
+
+	var _Card = __webpack_require__(263);
+
+	var _FlatButton = __webpack_require__(192);
+
+	var _FlatButton2 = _interopRequireDefault(_FlatButton);
+
+	var _RaisedButton = __webpack_require__(275);
+
+	var _RaisedButton2 = _interopRequireDefault(_RaisedButton);
+
+	var _Divider = __webpack_require__(277);
+
+	var _Divider2 = _interopRequireDefault(_Divider);
+
+	var _IconButton = __webpack_require__(224);
+
+	var _IconButton2 = _interopRequireDefault(_IconButton);
+
+	var _apps = __webpack_require__(279);
+
+	var _apps2 = _interopRequireDefault(_apps);
+
+	var _menu = __webpack_require__(229);
+
+	var _menu2 = _interopRequireDefault(_menu);
+
+	var _storage = __webpack_require__(280);
+
+	var _storage2 = _interopRequireDefault(_storage);
+
+	var _settingsEthernet = __webpack_require__(281);
+
+	var _settingsEthernet2 = _interopRequireDefault(_settingsEthernet);
+
+	var _toys = __webpack_require__(282);
+
+	var _toys2 = _interopRequireDefault(_toys);
+
+	var _systemUpdate = __webpack_require__(283);
+
+	var _systemUpdate2 = _interopRequireDefault(_systemUpdate);
+
+	var _security = __webpack_require__(284);
+
+	var _security2 = _interopRequireDefault(_security);
+
+	var _lock = __webpack_require__(285);
+
+	var _lock2 = _interopRequireDefault(_lock);
+
+	var _accessTime = __webpack_require__(286);
+
+	var _accessTime2 = _interopRequireDefault(_accessTime);
+
+	var _powerSettingsNew = __webpack_require__(287);
+
+	var _powerSettingsNew2 = _interopRequireDefault(_powerSettingsNew);
+
+	var _lang = __webpack_require__(288);
+
+	var _lang2 = _interopRequireDefault(_lang);
+
+	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+	function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+	/* This list must be consistent with the list defined in reducer */
+	var decoration = [{
+	  name: 'APP',
+	  parent: null,
+	  text: { en_US: 'App', zh_CN: 'Ying Yong' },
+	  icon: _apps2.default,
+	  themeColor: 'orange'
+	}, {
+	  name: 'INSTALLED_APPS',
+	  parent: 'APP',
+	  text: { en_US: 'Installed Apps' }
+	}, {
+	  name: 'WINSUN_STORE',
+	  parent: 'APP',
+	  text: { en_US: 'WinSun Store' }
+	}, {
+	  name: 'DOCKER_HUB',
+	  parent: 'APP',
+	  text: { en_US: 'Docker Hub' }
+	}, {
+	  name: 'STORAGE',
+	  parent: null,
+	  text: { en_US: 'Storage' },
+	  icon: _storage2.default,
+	  themeColor: 'blueGrey'
+	}, {
+	  name: 'ETHERNET',
+	  parent: null,
+	  text: { en_US: 'Ethernet' },
+	  icon: _settingsEthernet2.default
+	}, {
+	  name: 'COOLING',
+	  parent: null,
+	  text: { en_US: 'Cooling' },
+	  icon: _toys2.default
+	}, {
+	  name: 'DATETIME',
+	  parent: null,
+	  text: { en_US: 'Date & Time' },
+	  icon: _accessTime2.default
+	}, {
+	  name: 'SYSUPDATE',
+	  parent: null,
+	  text: { en_US: 'System Update' },
+	  icon: _systemUpdate2.default
+	}, {
+	  name: 'PASSWORD',
+	  parent: null,
+	  text: { en_US: 'Password' },
+	  icon: _security2.default
+	}, {
+	  name: 'POWEROFF',
+	  parent: null,
+	  text: { en_US: 'Power Off' },
+	  icon: _powerSettingsNew2.default
+	}];
+
+	var dispatch = function dispatch(action) {
+	  window.store.dispatch(action);
+	  console.log(action);
+	};
+
+	var CardPage = function CardPage() {
+	  return _react2.default.createElement(
+	    'div',
+	    { style: { position: 'relative', opacity: 100, transition: 'all 400ms ease' } },
+	    _react2.default.createElement(
+	      _Card.Card,
+	      null,
+	      _react2.default.createElement(_Card.CardTitle, { title: 'Card title', subtitle: 'Card subtitle' }),
+	      _react2.default.createElement(
+	        _Card.CardText,
+	        null,
+	        'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec mattis pretium massa. Aliquam erat volutpat. Nulla facilisi. Donec vulputate interdum sollicitudin. Nunc lacinia auctor quam sed pellentesque. Aliquam dui mauris, mattis quis lacus id, pellentesque lobortis odio.'
+	      ),
+	      _react2.default.createElement(
+	        _Card.CardActions,
+	        null,
+	        _react2.default.createElement(_FlatButton2.default, { label: 'Action1' })
+	      )
+	    )
+	  );
+	};
+
+	var PaperPage = function PaperPage() {
+	  return _react2.default.createElement(
+	    _Paper2.default,
+	    { style: { padding: 16 } },
+	    _react2.default.createElement(
+	      'h2',
+	      null,
+	      'Hello World'
+	    ),
+	    _react2.default.createElement(_Divider2.default, null),
+	    _react2.default.createElement(
+	      'p',
+	      null,
+	      'This is the best part'
+	    )
+	  );
+	};
+
+	var Navigation = function (_React$Component) {
+	  _inherits(Navigation, _React$Component);
+
+	  function Navigation(props) {
+	    _classCallCheck(this, Navigation);
+
+	    var _this = _possibleConstructorReturn(this, Object.getPrototypeOf(Navigation).call(this, props));
+
+	    _this.buildTabItem = function (item) {
+	      return _react2.default.createElement(_Tabs.Tab, {
+	        style: { width: 180, fontWeight: 900 },
+	        key: item.name,
+	        label: (0, _lang.langText)(item.text),
+	        value: item.name,
+	        onActive: function onActive() {
+	          return dispatch({ type: 'NAV_SELECT', select: item.name });
+	        }
+	      });
+	    };
+
+	    _this.buildMenuItem = function (item) {
+
+	      var iconProps = void 0,
+	          fontStyle = void 0,
+	          leftIcon = void 0;
+
+	      if (item.selected) {
+	        iconProps = {
+	          style: {
+	            fill: _this.getColor('primary1Color')
+	          }
+	        };
+	        fontStyle = {
+	          color: _this.getColor('primary1Color')
+	        };
+	      }
+	      leftIcon = _react2.default.createElement(item.icon, iconProps);
+	      return _react2.default.createElement(_Menu.MenuItem, {
+	        key: item.name,
+	        primaryText: (0, _lang.langText)(item.text),
+	        leftIcon: leftIcon,
+	        innerDivStyle: fontStyle,
+	        onTouchTap: function onTouchTap() {
+	          dispatch({ type: 'NAV_SELECT', select: item.name });
+	          dispatch({ type: 'THEME_COLOR', color: item.themeColor ? item.themeColor : 'cyan' });
+	          console.log('dispatch lime');
+	        }
+	      });
+	    };
+
+	    return _this;
+	  }
+
+	  /* this must be declared for component accessing context */
+
+
+	  _createClass(Navigation, [{
+	    key: 'handleToggle',
+	    value: function handleToggle() {
+	      dispatch({ type: 'NAV_MENU_TOGGLE' });
+	    }
+	  }, {
+	    key: 'getColor',
+	    value: function getColor(name) {
+	      return this.context.muiTheme.palette[name];
+	    }
+	  }, {
+	    key: 'menuSelect',
+	    value: function menuSelect(navList) {
+	      return navList.find(function (item) {
+	        return item.parent === null && item.selected;
+	      });
+	    }
+	  }, {
+	    key: 'navSelect',
+	    value: function navSelect(navList) {
+
+	      var menu = this.menuSelect(navList);
+	      var nav = navList.find(function (item) {
+	        return item.parent === menu.name && item.selected;
+	      });
+
+	      return nav !== undefined ? nav : menu;
+	    }
+	  }, {
+	    key: 'getTabList',
+	    value: function getTabList(navList) {
+
+	      var parent = navList.find(function (navItem) {
+	        return navItem.parent === null && navItem.selected;
+	      });
+	      var list = navList.filter(function (navItem) {
+	        return navItem.parent === parent.name;
+	      });
+	      return list;
+	    }
+
+	    // this must be an fat arrow function
+
+	  }, {
+	    key: 'buildTabs',
+	    value: function buildTabs(tabList) {
+
+	      var selectedName = tabList.find(function (item) {
+	        return item.selected === true;
+	      }).name;
+	      return _react2.default.createElement(
+	        'div',
+	        { style: { display: 'flex', justifyContent: 'center' } },
+	        _react2.default.createElement(
+	          _Tabs.Tabs,
+	          { inkBarStyle: { backgroundColor: 'white', height: 4 }, value: selectedName },
+	          tabList.map(this.buildTabItem)
+	        )
+	      );
+	    }
+
+	    // this must be an fat arrow function since it is used
+	    // in array function callback
+
+	  }, {
+	    key: 'buildMenu',
+	    value: function buildMenu(navList) {
+
+	      var list = navList.filter(function (item) {
+	        return item.parent === null;
+	      }).map(function (item) {
+	        var selected = navList.find(function (navItem) {
+	          return navItem.name === item.name;
+	        }).selected;
+	        return Object.assign({}, item, { selected: selected });
+	      });
+
+	      return _react2.default.createElement(
+	        _Menu.Menu,
+	        null,
+	        list.map(this.buildMenuItem)
+	      );
+	    }
+	  }, {
+	    key: 'pageAnimationStyle',
+	    value: function pageAnimationStyle(visible) {
+
+	      return {
+	        position: 'relative',
+	        top: visible ? 0 : '200px',
+	        opacity: visible ? 100 : 0,
+	        transition: 'all 300ms ease-out'
+	      };
+	    }
+	  }, {
+	    key: 'render',
+	    value: function render() {
+
+	      console.log(window.store.getState());
+
+	      var state = window.store.getState().nav;
+
+	      var leftNavStyle = {
+	        display: 'block',
+	        position: 'fixed',
+	        height: '100%',
+	        transition: 'all 200ms ease',
+	        padding: 6
+	      };
+
+	      var contentStyle = {
+	        display: 'block',
+	        transition: 'margin-left 300ms ease',
+	        padding: 24
+	      };
+
+	      if (state.menu) {
+	        leftNavStyle.left = 0;
+	        contentStyle.marginLeft = 240;
+	      } else {
+	        leftNavStyle.left = '-100%';
+	        contentStyle.marginLeft = 0;
+	      }
+
+	      var navList = state.nav.map(function (item, index) {
+	        return Object.assign({}, item, decoration[index]);
+	      });
+
+	      var menuSelect = this.menuSelect(navList);
+	      var navSelect = this.navSelect(navList);
+
+	      var tabList = this.getTabList(navList);
+	      var hasTabs = tabList.length !== 0;
+
+	      var tabAnimationStyle = {
+	        position: 'relative',
+	        height: hasTabs ? 50 : 0,
+	        top: hasTabs ? 0 : '-100px', // double height
+	        opacity: hasTabs ? 100 : 0,
+	        transition: 'all 300ms ease'
+	      };
+
+	      return _react2.default.createElement(
+	        'div',
+	        null,
+	        _react2.default.createElement(
+	          'div',
+	          null,
+	          _react2.default.createElement(
+	            _Paper2.default,
+	            { style: { backgroundColor: this.getColor('primary1Color') }, rounded: false, zDepth: 1 },
+	            _react2.default.createElement(_AppBar2.default, { onLeftIconButtonTouchTap: this.handleToggle, zDepth: 0, title: 'WISNUC Cloud' }),
+	            _react2.default.createElement(
+	              'div',
+	              { style: tabAnimationStyle },
+	              hasTabs && this.buildTabs(tabList)
+	            )
+	          )
+	        ),
+	        _react2.default.createElement(
+	          'div',
+	          null,
+	          _react2.default.createElement(
+	            'div',
+	            { style: leftNavStyle },
+	            this.buildMenu(navList)
+	          ),
+	          _react2.default.createElement(
+	            'div',
+	            { style: contentStyle },
+	            _react2.default.createElement(
+	              'div',
+	              { style: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%' } },
+	              _react2.default.createElement(
+	                'div',
+	                { style: { width: '90%', maxWidth: 1084 } },
+	                _react2.default.createElement(
+	                  'div',
+	                  { style: this.pageAnimationStyle(navSelect.name === 'INSTALLED_APPS') },
+	                  navSelect.name === 'INSTALLED_APPS' && _react2.default.createElement(CardPage, null)
+	                ),
+	                _react2.default.createElement(
+	                  'div',
+	                  { style: this.pageAnimationStyle(navSelect.name === 'WINSUN_STORE') },
+	                  navSelect.name === 'WINSUN_STORE' && _react2.default.createElement(CardPage, null)
+	                ),
+	                _react2.default.createElement(
+	                  'div',
+	                  { style: this.pageAnimationStyle(navSelect.name === 'STORAGE') },
+	                  navSelect.name === 'STORAGE' && _react2.default.createElement(PaperPage, null)
+	                )
+	              )
+	            )
+	          )
+	        )
+	      );
+	    }
+	  }]);
+
+	  return Navigation;
+	}(_react2.default.Component);
+
+	Navigation.contextTypes = {
+	  muiTheme: _react2.default.PropTypes.object.isRequired
+	};
+	exports.default = Navigation;
+
+/***/ },
+/* 389 */
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+
+	Object.defineProperty(exports, "__esModule", {
+	  value: true
+	});
+
+	var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+	var _react = __webpack_require__(1);
+
+	var _react2 = _interopRequireDefault(_react);
+
+	var _TextField = __webpack_require__(178);
+
+	var _TextField2 = _interopRequireDefault(_TextField);
+
+	var _FlatButton = __webpack_require__(192);
+
+	var _FlatButton2 = _interopRequireDefault(_FlatButton);
+
+	var _Paper = __webpack_require__(212);
+
+	var _Paper2 = _interopRequireDefault(_Paper);
+
+	var _CircularProgress = __webpack_require__(215);
+
+	var _CircularProgress2 = _interopRequireDefault(_CircularProgress);
+
+	function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+	function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+	function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+	function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+	var Login = function (_React$Component) {
+	  _inherits(Login, _React$Component);
+
+	  function Login(props) {
+	    _classCallCheck(this, Login);
+
+	    return _possibleConstructorReturn(this, Object.getPrototypeOf(Login).call(this, props));
+	  }
+
+	  _createClass(Login, [{
+	    key: 'submit',
+	    value: function submit() {
+	      window.store.dispatch({
+	        type: "LOGIN"
+	      });
+
+	      setTimeout(function () {
+	        window.store.dispatch({
+	          type: 'LOGIN_SUCCESS'
+	        });
+	      }, 1000);
+	    }
+	  }, {
+	    key: 'render',
+	    value: function render() {
+
+	      var pageStyle = {
+	        display: 'flex',
+	        alignItems: 'center',
+	        justifyContent: 'center',
+	        minHeight: '100vh',
+	        minWidth: '100vw',
+	        backgroundImage: 'url(images/party_orig.jpg)',
+	        backgroundSize: 'cover'
+	      };
+
+	      var paperStyle = {
+	        display: 'flex',
+	        flexDirection: 'column',
+	        alignItems: 'center',
+	        justifyContent: 'center',
+	        height: 120,
+	        width: 300,
+	        padding: 10
+	      };
+
+	      var err = void 0,
+	          state = window.store.getState().login.state;
+
+	      switch (state) {
+
+	        case 'REJECTED':
+	          err = 'Incorrect password';
+	          break;
+
+	        case 'TIMEOUT':
+	          err = 'Server timeout';
+	          break;
+
+	        case 'ERROR':
+	          err = 'Server internal error, please retry';
+	          break;
+
+	        case 'READY':
+	        case 'BUSY':
+	        default:
+	          err = null;
+	          break;
+	      }
+
+	      var busy = state === 'BUSY';
+	      console.log("state is " + state);
+
+	      return _react2.default.createElement(
+	        'div',
+	        { className: 'container', style: pageStyle },
+	        _react2.default.createElement(
+	          _Paper2.default,
+	          { style: paperStyle, zDepth: 4 },
+	          busy && _react2.default.createElement(_CircularProgress2.default, null),
+	          !busy && _react2.default.createElement(_TextField2.default, { stype: { marginBottom: 10 }, hintText: 'password', type: 'password', fullWidth: true, errorText: err }),
+	          !busy && _react2.default.createElement(_FlatButton2.default, { style: { marginTop: 10 }, label: 'UNLOCK', onTouchTap: this.submit })
+	        )
+	      );
+	    }
+	  }]);
+
+	  return Login;
+	}(_react2.default.Component);
+
+	exports.default = Login;
 
 /***/ }
 /******/ ]);
