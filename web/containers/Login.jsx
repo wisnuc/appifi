@@ -70,7 +70,6 @@ class Login extends React.Component {
     }
 
     let busy = (state === 'BUSY')
-    console.log("state is " + state);
 
     return (
       <div className="container" style={pageStyle} >

@@ -340,17 +340,21 @@ let hues = [
 export default (color) => {
 
   if (palette[color] === undefined) {
-
     console.log('warning: invalid color passed to palette -> ' + color)
     return cyan
   }
 
-  let primary1Color = palette[color][500]
-  let primary2Color = palette[color][700]
-  let pickerHeaderColor = palette[color][500]
+  let primary1Color = palette[color][600]
+  let primary2Color = palette[color][900]
+  let pickerHeaderColor = palette[color][600]
+  let accent1Color = colors.pinkA200
+
+  if (color === 'orange' || color === 'deepOrange')
+    accent1Color = colors.teal600
+    
 
   return Object.assign({}, cyan, {
-    primary1Color, primary2Color, pickerHeaderColor    
+    primary1Color, primary2Color, pickerHeaderColor, accent1Color
   })
 }
 

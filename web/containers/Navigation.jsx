@@ -1,6 +1,8 @@
 import React from 'react'
 import ReactDom from 'react-dom'
 
+import { mixin, dispatch } from '../utils/utils'
+
 import AppBar from 'material-ui/AppBar'
 import { Menu, MenuItem } from 'material-ui/Menu'
 import { Tabs, Tab } from 'material-ui/Tabs'
@@ -10,6 +12,7 @@ import FlatButton from 'material-ui/FlatButton'
 import RaisedButton from 'material-ui/RaisedButton'
 import Divider from 'material-ui/Divider'
 
+import InstalledAppsPage from './InstalledApps'
 import StoragePage from './Storage'
 
 import IconButton from 'material-ui/IconButton'
@@ -26,6 +29,9 @@ import IconActionPowerSettingsNew from 'material-ui/svg-icons/action/power-setti
 
 import lang, { langText } from '../utils/lang'
 
+import CSSTransition from 'react-addons-css-transition-group'
+import ReactCSSTransitionGroup from 'react-addons-css-transition-group'            
+
 /* This list must be consistent with the list defined in reducer */
 const decoration = [
       {
@@ -33,12 +39,13 @@ const decoration = [
         parent: null,
         text: { en_US: 'App', zh_CN: 'Ying Yong' },
         icon: IconNavigationApps,
-        themeColor: 'orange'
+        themeColor: 'cyan',
       },
       {
         name: 'INSTALLED_APPS',
         parent: 'APP',
         text: { en_US: 'Installed Apps' },
+        content: InstalledAppsPage
       },
       {
         name: 'WINSUN_STORE',
@@ -96,16 +103,10 @@ const decoration = [
       } 
     ]
 
-const dispatch = (action) => {
-  window.store.dispatch(action)
-  console.log(action)
-}
-
-const CardPage = () => {
+const CardPage = ({ title }) => {
   return (
-    <div style={{position:'relative', opacity: 100, transition: 'all 400ms ease'}}>  
     <Card>
-      <CardTitle title="Card title" subtitle="Card subtitle" />
+      <CardTitle title={title} subtitle="Card subtitle" />
       <CardText>
         Lorem ipsum dolor sit amet, consectetur adipiscing elit.
         Donec mattis pretium massa. Aliquam erat volutpat. Nulla facilisi.
@@ -116,20 +117,9 @@ const CardPage = () => {
         <FlatButton label="Action1" />
       </CardActions>
     </Card>
-    </div>
   )
 }
 
-const PaperPage = () => {
-  return (
-    <Paper style={{padding: 16}}>
-      <h2>Hello World</h2>
-      <Divider />
-      <p>This is the best part</p>
-    </Paper>
-  )
-}
- 
 class Navigation extends React.Component {
 
   /* this must be declared for component accessing context */
@@ -137,13 +127,9 @@ class Navigation extends React.Component {
     muiTheme: React.PropTypes.object.isRequired,
   }
 
-  constructor(props) {
-    super(props)
-  }
-
   componentWillMount() {
 
-    let debug = true
+    let debug = false
     let navlist = window.store.getState().navigation.nav
     debug && console.log(navlist)
 
@@ -233,7 +219,6 @@ class Navigation extends React.Component {
               onTouchTap={ () => {
                 dispatch({type: 'NAV_SELECT', select: item.name })
                 dispatch({type: 'THEME_COLOR', color: item.themeColor ? item.themeColor : 'cyan'})
-                console.log('dispatch lime')
               }} 
             />)
   }
@@ -249,45 +234,24 @@ class Navigation extends React.Component {
     return <Menu>{ list.map(this.buildMenuItem) }</Menu>
   }
 
-  pageAnimationStyle(visible) {
+  renderContentPage(navSelect) {
 
-    return {
-      position: 'relative',
-      top: visible ? 0 : '200px',
-      opacity: visible ? 100 : 0,
-      transition: 'all 300ms ease-out'
-    } 
+    return (
+      <div style={{width: '100%'}} >
+        <ReactCSSTransitionGroup transitionName="content" transitionEnterTimeout={300} transitionLeaveTimeout={1}>
+          { navSelect.content !== undefined ? React.createElement(navSelect.content, {key: navSelect.name}) : <CardPage /> }
+        </ReactCSSTransitionGroup>
+      </div>
+    )
   }
 
   render() {
 
-    console.log(window.store.getState())
+    let debug = true 
+
+    debug && console.log(window.store.getState())
 
     let state = window.store.getState().navigation
-
-    let leftNavStyle = {
-      display: 'block',
-      position: 'fixed',
-      height: '100%',
-      transition: 'all 200ms ease',
-      padding: 6      
-    }
-
-    let contentStyle = {
-      display: 'block',
-      transition: 'margin-left 300ms ease',
-      padding: 24
-    }
-
-    if (state.menu) {
-      leftNavStyle.left = 0
-      contentStyle.marginLeft = 240
-    }
-    else {
-      leftNavStyle.left = '-100%'
-      contentStyle.marginLeft = 0
-    }
-
     let navList = state.nav.map((item, index) => {
       return Object.assign({}, item, decoration[index])
     })
@@ -297,41 +261,60 @@ class Navigation extends React.Component {
 
     let tabList = this.getTabList(navList)
     let hasTabs = tabList.length !== 0
+    let contentTop = hasTabs ? (64 + 50) : 64
+
+    let leftNavStyle = {
+      display: 'block',
+      position: 'fixed',
+      // height: '100%',
+      transition: 'all 200ms ease',
+      padding: 6,   // for alignment of icons
+      left: state.menu ? 0 : '-100%'
+    }
+
+    let contentStyle = {
+      marginTop: contentTop,
+      display: 'block',
+      transition: 'margin-left 300ms ease',
+      padding: 24,
+      marginLeft: state.menu ? 240 : 0
+    }
 
     let tabAnimationStyle = {
       position: 'relative',
       height: hasTabs ? 50 : 0,
-      top: hasTabs ? 0 : '-100px', // double height
+      top: hasTabs ? 0 : '-200px', // double height
       opacity: hasTabs ? 100 : 0,
       transition: 'all 300ms ease'
     }
+
+    let paperNavStyle = { 
+      position: 'fixed', 
+      top: 0, 
+      left: 0, 
+      width:'100%', 
+      backgroundColor:this.getColor('primary1Color'),
+      display: 'flex',
+      flexDirection: 'column',
+      zIndex: 100 
+    } 
  
     return (
       <div>
-        <div>
-        <Paper style={{backgroundColor:this.getColor('primary1Color') }} rounded={false} zDepth={1}>
+        <Paper style={paperNavStyle} rounded={false} zDepth={2}>
           <AppBar onLeftIconButtonTouchTap={this.handleToggle} zDepth={0} title='WISNUC Cloud' />
           <div style={tabAnimationStyle}>
             { hasTabs && this.buildTabs(tabList) }
           </div>
         </Paper>
-        </div>
-        <div>
+        <div style={{transition: 'all 200ms ease'}}>
           <div style={leftNavStyle}>
             { this.buildMenu(navList) }
           </div>
           <div style={contentStyle}>
             <div style={{display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', width: '100%'}}>
-              <div style={{width: '90%', maxWidth:1084}}>
-                <div style={this.pageAnimationStyle(navSelect.name === 'INSTALLED_APPS')}>
-                  { navSelect.name === 'INSTALLED_APPS' && <CardPage />}
-                </div>
-                <div style={this.pageAnimationStyle(navSelect.name === 'WINSUN_STORE')}>
-                  { navSelect.name === 'WINSUN_STORE' && <CardPage />}
-                </div>
-                <div style={this.pageAnimationStyle(navSelect.name === 'STORAGE')}>
-                  { navSelect.name === 'STORAGE' && <StoragePage /> }
-                </div>
+              <div style={{width: '90%', maxWidth:1084, position: 'relative'}}>
+                { this.renderContentPage(navSelect) }
               </div>
             </div>
           </div>

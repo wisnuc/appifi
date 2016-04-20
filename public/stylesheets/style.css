@@ -1,10 +1,25 @@
-a {
-  color: #ff4081;
-  text-decoration: none;
-}
 
-a:hover {
-  text-decoration: underline;
+/** css reset **/
+
+html, body, div, span, object, iframe,
+h1, h2, h3, h4, h5, h6, p, blockquote, pre,
+abbr, address, cite, code,
+del, dfn, em, img, ins, kbd, q, samp,
+small, strong, sub, sup, var,
+b, i,
+dl, dt, dd, ol, ul, li,
+fieldset, form, label, legend,
+table, caption, tbody, tfoot, thead, tr, th, td,
+article, aside, canvas, details, figcaption, figure, 
+footer, header, hgroup, menu, nav, section, summary,
+time, mark, audio, video {
+ margin:0;
+ padding:0;
+ border:0;
+ outline:0;
+ font-size:100%;
+ vertical-align:baseline;
+ background:transparent;
 }
 
 html {
@@ -12,15 +27,12 @@ html {
   -webkit-font-smoothing: antialiased;
 }
 
-body, h1, h2, h3, h4, h5, h6 {
-  margin: 0;
-}
-
 body {
   font-size: 15px;
   line-height: 24px;
   background-color: #FAFAFA;
-  overflow: hidden;
+  overflow-y: scroll;
+  overflow-x: hidden;
 }
 
 .login-enter {
@@ -29,7 +41,7 @@ body {
 
 .login-enter.login-enter-active {
   opacity: 1;
-  transition: opacity 1s linear 1s;
+  transition: opacity 4s linear 1s;
 }
 
 .login-leave {
@@ -57,5 +69,30 @@ body {
 .nav-leave.nav-leave-active {
   opacity: 0.01;
   transition: opacity 1s linear;
+}
+
+/** content page **/
+.content-enter {
+  position: absolute;
+  top: 200px; 
+  width: 100%;
+  opacity: 0.01;
+}
+
+.content-enter.content-enter-active {
+  position: absolute;
+  top: 0px;
+  width: 100%; 
+  opacity: 1;
+  transition: all 300ms ease-out 
+}
+
+.content-leave {
+  opacity: 1;
+}
+
+.content-leave.content-leave-active {
+  opacity: 0;
+  transition: opacity 1ms ease-out 
 }
  

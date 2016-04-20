@@ -36,10 +36,14 @@ class App extends React.Component {
 
     return (
       <div>
-        <CSSTransition transitionName='login' transitionEnterTimeout={2000} transitionLeaveTimeout={1000}>
+        <CSSTransition 
+          transitionName='login'
+          transitionEnterTimeout={1000}
+          transitionLeaveTimeout={1000}
+        >
           { !loggedin && <Login /> }
         </CSSTransition>
-        <CSSTransition transitionName='nav' transitionEnterTimeout={2000} transitionLeaveTimeout={1000}>
+        <CSSTransition transitionName='nav' transitionEnterTimeout={2000} transitionLeaveTimeout={1000} >
           { loggedin && <Navigation /> }
         </CSSTransition>
      </div>

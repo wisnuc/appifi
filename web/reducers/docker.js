@@ -29,7 +29,7 @@ const sendImagesRequest = () => request
 
 const reducer = (state = defaultState, action) => {
 
-  let debug = true
+  let debug = false
   let warning = true
 
   let newState, creq, ireq

@@ -1,5 +1,5 @@
 
-const color = (state = 'deepOrange', action) => {
+const color = (state = 'cyan', action) => {
 
   switch (action.type) {
     case 'THEME_COLOR':

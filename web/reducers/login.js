@@ -1,3 +1,4 @@
+import { mixin } from '../utils/utils'
 
 const defaultState = {
 
@@ -18,8 +19,6 @@ const loginState = (state = defaultState, action) => {
       })
 
     case 'LOGIN': // when user click the login button
-
-      console.log("reducer update state")
       return Object.assign({}, state, {
         state: 'BUSY',
         username: action.username,

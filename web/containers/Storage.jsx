@@ -4,10 +4,6 @@ import { Paper, Divider } from 'material-ui'
 
 class Storage extends React.Component {
 
- 
-   
-
-
   render() {
 
     const headerStyle = {
