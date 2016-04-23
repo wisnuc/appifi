@@ -15,24 +15,22 @@ class ContainerCard extends React.Component {
   buildCardItem = (container, index) => {
 
     return ( 
-      <div>
-        <Card key={index} style={{marginBottom: '24px'}} >
-          <CardHeader title={container.Names[0].slice(1)} subtitle={'State: ' + container.State} actAsExpander={true} showExpandableButton={true} />
-          <CardActions style={{backgroundColor: '#EEEEEE'}}>
-            <FlatButton label="Start" secondary={true} disabled={ container.State === 'running'} /> 
-            <FlatButton label="Stop" secondary={true} disabled={ container.State !== 'running'} />
-          </CardActions>
-          <CardText expandable={true}>
-            <h3>Container Name</h3>
-            <h3>Environment Variables</h3>
-            <h3>Network Ports</h3>
-            <h3>Data Volume</h3>       
-          </CardText>
-          <CardActions expandable={true}>
-            <RaisedButton label="Delete" />
-          </CardActions>
-        </Card>
-      </div>
+      <Card key={index} style={{marginBottom: '24px'}} >
+        <CardHeader title={container.Names[0].slice(1)} subtitle={'State: ' + container.State} actAsExpander={true} showExpandableButton={true} />
+        <CardActions style={{backgroundColor: '#EEEEEE'}}>
+          <FlatButton label="Start" secondary={true} disabled={ container.State === 'running'} /> 
+          <FlatButton label="Stop" secondary={true} disabled={ container.State !== 'running'} />
+        </CardActions>
+        <CardText expandable={true}>
+          <h3>Container Name</h3>
+          <h3>Environment Variables</h3>
+          <h3>Network Ports</h3>
+          <h3>Data Volume</h3>       
+        </CardText>
+        <CardActions expandable={true}>
+          <RaisedButton label="Delete" />
+        </CardActions>
+      </Card>
     )
   }
  
@@ -57,13 +55,13 @@ class ContainerCard extends React.Component {
             .filter((item, index) => index % 3 === 0)
             .map(this.buildCardItem)}
       </div>
-      <div style={{width:24}} />
+      <div style={{ width:24 }} />
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
         { containers
             .filter((item, index) => index % 3 === 1)
             .map(this.buildCardItem)}
       </div>
-      <div style={{width:24}} />
+      <div style={{ width:24 }} />
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
         { containers
             .filter((item, index) => index % 3 === 2)

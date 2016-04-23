@@ -63,7 +63,7 @@ const reducer = (state = defaultState, action) => {
                         containers: action.res.body, 
                         containersRequest: null 
                       })
-      console.log(newState)
+      debug && console.log(newState)
       return newState
 
     case 'DOCKER_IMAGES_RESPONSE':
@@ -80,7 +80,7 @@ const reducer = (state = defaultState, action) => {
                         images: action.res.body,
                         imagesRequest: null
                       })
-      console.log(newState)
+      debug && console.log(newState)
       return newState 
 
     default:

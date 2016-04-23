@@ -14,17 +14,21 @@ const menu = (state = true, action) => {
 
 
 let navDefault = [
-  { name: 'APP', parent: null, selected: true }, 
-  { name: 'INSTALLED_APPS', parent: 'APP', selected: true },
-  { name: 'WINSUN_STORE', parent: 'APP', selected: false },
-  { name: 'DOCKER_HUB', parent: 'APP', selected: false },
-  { name: 'STORAGE', parent: null, selected: false },
-  { name: 'ETHERNET', parent: null, selected: false },
-  { name: 'COOLING', parent: null, selected: false },
-  { name: 'DATETIME', parent: null, selected: false },
-  { name: 'SYSUPDATE', parent: null, selected: false },
-  { name: 'PASSWORD', parent: null, selected: false },
-  { name: 'POWEROFF', parent: null, selected: false },  
+  { name: 'APP', parent: null,              selected: true }, 
+  { name: 'INSTALLED_APPS', parent: 'APP',  selected: true },
+  { name: 'WINSUN_STORE', parent: 'APP',    selected: false },
+  { name: 'DOCKER_HUB', parent: 'APP',      selected: false },
+  { name: 'STORAGE', parent: null,          selected: false },
+  { name: 'VOLUMES', parent: 'STORAGE',     selected: true },
+  { name: 'DRIVES', parent: 'STORAGE',      selected: false },
+  { name: 'MOUNTS', parent: 'STORAGE',      selected: false },
+  { name: 'PORTS', parent: 'STORAGE',       selected: false },
+  { name: 'ETHERNET', parent: null,         selected: false },
+  { name: 'COOLING', parent: null,          selected: false },
+  { name: 'DATETIME', parent: null,         selected: false },
+  { name: 'SYSUPDATE', parent: null,        selected: false },
+  { name: 'PASSWORD', parent: null,         selected: false },
+  { name: 'POWEROFF', parent: null,         selected: false },  
 ] 
   
 const nav = (state = navDefault, action) => {

@@ -13,7 +13,7 @@ import RaisedButton from 'material-ui/RaisedButton'
 import Divider from 'material-ui/Divider'
 
 import InstalledAppsPage from './InstalledApps'
-import StoragePage from './Storage'
+import Storage from './Storage'
 
 import IconButton from 'material-ui/IconButton'
 import IconNavigationApps from 'material-ui/svg-icons/navigation/apps'
@@ -36,68 +36,76 @@ import ReactCSSTransitionGroup from 'react-addons-css-transition-group'
 const decoration = [
       {
         name: 'APP',
-        parent: null,
         text: { en_US: 'App', zh_CN: 'Ying Yong' },
         icon: IconNavigationApps,
         themeColor: 'cyan',
       },
       {
         name: 'INSTALLED_APPS',
-        parent: 'APP',
         text: { en_US: 'Installed Apps' },
         content: InstalledAppsPage
       },
       {
         name: 'WINSUN_STORE',
-        parent: 'APP',
         text: { en_US: 'WinSun Store' },
       },
       {
         name: 'DOCKER_HUB', 
-        parent: 'APP',
         text: { en_US: 'Docker Hub' },
       },
       {
         name: 'STORAGE',
-        parent: null,
         text: { en_US: 'Storage' },
         icon: IconDeviceStorage,
         themeColor: 'blueGrey', 
-        content: StoragePage
+      },
+      {
+        name: 'VOLUMES',
+        text: { en_US: 'Volumes' },
+        content: Storage.Volumes
+      },
+      {
+        name: 'DRIVES',
+        text: { en_US: 'Drives' },
+        content: Storage.Drives
+      },
+      {
+        name: 'MOUNTS',
+        text: { en_US: 'Mounts' },
+        content: Storage.Mounts
+      },
+      {
+        name: 'PORTS',
+        text: { en_US: 'Ports' },
+        content: Storage.Ports
       },
       {
         name: 'ETHERNET',
-        parent: null,
         text: { en_US: 'Ethernet' },
         icon: IconActionSettingsEthernet,
       },
       {
         name: 'COOLING',
-        parent: null,
         text: { en_US: 'Cooling' },
         icon: IconHardwareToys,
       },
       {
         name: 'DATETIME',
-        parent: null,
         text: { en_US: 'Date & Time' },
         icon: IconDeviceAccessTime,
       },
       {
         name: 'SYSUPDATE',
-        parent: null,
         text: { en_US: 'System Update', },
         icon: IconNotificationSystemUpdate,
       },
       {
         name: 'PASSWORD',
-        parent: null,
         text: { en_US: 'Password', },
         icon: IconHardwareSecurity,
       },
       {
         name: 'POWEROFF',
-        parent: null,
         text: { en_US: 'Power Off', },
         icon: IconActionPowerSettingsNew,
       } 
@@ -184,6 +192,10 @@ class Navigation extends React.Component {
 
   buildTabs(tabList) {
 
+    let debug = false
+
+    debug && console.log(tabList)
+
     let selectedName = tabList.find(item => item.selected === true).name
     return ( 
       <div style={{display: 'flex', justifyContent: 'center'}}>
@@ -236,7 +248,12 @@ class Navigation extends React.Component {
 
   renderContentPage(navSelect) {
 
+    let debug = false
+
+    debug && console.log(navSelect)
+
     return (
+
       <div style={{width: '100%'}} >
         <ReactCSSTransitionGroup transitionName="content" transitionEnterTimeout={300} transitionLeaveTimeout={1}>
           { navSelect.content !== undefined ? React.createElement(navSelect.content, {key: navSelect.name}) : <CardPage /> }
