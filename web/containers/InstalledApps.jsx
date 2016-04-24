@@ -8,10 +8,6 @@ import IconAVStop from 'material-ui/svg-icons/av/stop'
 
 class ContainerCard extends React.Component {
 
-  constructor(props) {
-    super(props)
-  }
-
   buildCardItem = (container, index) => {
 
     return ( 

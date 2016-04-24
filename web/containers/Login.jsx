@@ -1,16 +1,30 @@
 import React from 'react'
 
-import TextField from 'material-ui/TextField'
-import FlatButton from 'material-ui/FlatButton'
-import Paper from 'material-ui/Paper';
-import CircularProgress from 'material-ui/CircularProgress';
+import Transition from '../utils/transition'
+import { Paper, TextField, FlatButton, CircularProgress } from 'material-ui'
 
+const pageStyle = {
+  display : 'flex',
+  flexDirection: 'column',
+  alignItems : 'center',
+  justifyContent : 'center',
+  minHeight : '100vh',
+  minWidth : '100vw',
+//      backgroundImage : 'url(images/party_orig.jpg)',
+//      backgroundSize : 'cover'
+}
+
+const paperStyle = {
+  display : 'flex',
+  flexDirection : 'column',
+  alignItems: 'center',
+  justifyContent: 'center',
+  height: 120,
+  width: 300,
+  padding: 10
+}
 
 class Login extends React.Component {
-
-  constructor(props) {
-    super(props)
-  }
 
   submit() {
     window.store.dispatch({
@@ -25,26 +39,6 @@ class Login extends React.Component {
   }
 
   render() {
-
-    const pageStyle = {
-      display : 'flex',
-      alignItems : 'center',
-      justifyContent : 'center',
-      minHeight : '100vh',
-      minWidth : '100vw',
-      backgroundImage : 'url(images/party_orig.jpg)',
-      backgroundSize : 'cover'
-    }
-  
-    const paperStyle = {
-      display : 'flex',
-      flexDirection : 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      height: 120,
-      width: 300,
-      padding: 10
-    }
 
     let err, state = window.store.getState().login.state
 
@@ -72,12 +66,17 @@ class Login extends React.Component {
     let busy = (state === 'BUSY')
 
     return (
-      <div className="container" style={pageStyle} >
-        <Paper style={paperStyle} zDepth={4}>
-          { busy && <CircularProgress /> }
-          { !busy && <TextField  stype={{marginBottom: 10}} hintText="password" type="password" fullWidth={true} errorText={err} />}
-          { !busy && <FlatButton style={{marginTop: 10}} label='UNLOCK' onTouchTap={this.submit} />}
-        </Paper>
+      <div style={pageStyle}>
+        <Transition opts={['login-title', true, true, true, 350, 1000, 1000]}>
+          <div style={{height:"64px"}}><h1>Yes, My Lord?</h1></div>
+        </Transition>
+        <Transition opts={['login-dialog', true, true, true, 350, 1000, 1000]}>
+          <Paper style={paperStyle} zDepth={1}>
+            { busy && <CircularProgress /> }
+            { !busy && <TextField  stype={{marginBottom: 10}} hintText="password" type="password" fullWidth={true} errorText={err} />}
+            { !busy && <FlatButton style={{marginTop: 10}} label='UNLOCK ME' onTouchTap={this.submit} />}
+          </Paper>
+        </Transition>
       </div>
     )
   }

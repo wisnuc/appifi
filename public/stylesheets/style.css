@@ -1,5 +1,14 @@
+/*
+YUI 3.18.1 (build f7e7bcb)
+Copyright 2014 Yahoo! Inc. All rights reserved.
+Licensed under the BSD License.
+http://yuilibrary.com/license/
+*/
 
+html{color:#000;background:#FFF}body,div,dl,dt,dd,ul,ol,li,h1,h2,h3,h4,h5,h6,pre,code,form,fieldset,legend,input,textarea,p,blockquote,th,td{margin:0;padding:0}table{border-collapse:collapse;border-spacing:0}fieldset,img{border:0}address,caption,cite,code,dfn,em,strong,th,var{font-style:normal;font-weight:normal}ol,ul{list-style:none}caption,th{text-align:left}h1,h2,h3,h4,h5,h6{font-size:100%;font-weight:normal}q:before,q:after{content:''}abbr,acronym{border:0;font-variant:normal}sup{vertical-align:text-top}sub{vertical-align:text-bottom}input,textarea,select{font-family:inherit;font-size:inherit;font-weight:inherit;*font-size:100%}legend{color:#000}#yui3-css-stamp.cssreset{display:none}
 /** css reset **/
+
+/** endof css reset **/
 
 html {
   font-family: 'Roboto', sans-serif;
@@ -31,7 +40,124 @@ body {
   opacity: 0.01;
   transition: opacity 1s linear;
 }
- 
+
+.login-dialog-appear {
+  margin-top: 100px;
+  opacity: 0.01;
+}
+
+.login-dialog-appear.login-dialog-appear-active {
+  margin-top: 0px;
+  opacity: 1;
+  transition: all 300ms ease;
+}
+
+.login-dialog-leave {
+  margin-top: 0px;
+  opacity: 1;
+}
+
+
+.login-dialog-leave.login-dialog-leave-active {
+  margin-top: 0px;
+  opacity: 0.01;
+  transition: opacity 500ms linear;
+}
+
+.login-title-appear {
+  margin-bottom: 100px;
+  opacity: 0.01;
+}
+
+.login-title-appear.login-title-appear-active {
+  margin-bottom: 0px;
+  opacity: 1;
+  transition: all 100ms ease;
+}
+
+.login-title-leave {
+  opacity: 1;
+}
+
+.login-title-leave.login-title-leave-active {
+  opacity: 0.01;
+  transition: opacity 500ms linear;
+}
+
+/**
+.appbar-appear {
+  opacity: 0.01;
+}
+
+.appbar-appear.appbar-appear-active {
+  opacity: 1;
+  transition: opacity 5s linear;
+}
+**/
+
+.appbar-enter {
+  opacity: 0.01;
+  position: absolute;
+  width: 100%;
+  top: -64px;
+}
+
+.appbar-enter.appbar-enter-active {
+  opacity: 1;
+  position: absolute;
+  width: 100%;
+  top: 0px;
+  transition: all 250ms ease;
+}
+
+.tabs-appear {
+  position: relative;
+  opacity: 0.01;
+  top: -50px;
+  width: 100%;
+}
+
+.tabs-appear.tabs-appear-active {
+  position: relative;
+  opacity: 1;
+  top: 0px;
+  width: 100%;
+  transition: all 250ms ease 250ms;
+}
+
+.tabs-enter {
+  position: relative;
+  opacity: 0.01;
+  top: -50px;
+  width: 100%;
+}
+
+.tabs-enter.tabs-enter-active {
+  opacity: 1;
+  position: relative;
+  top: 0px;
+  width: 100%;
+  transition: all 300ms ease 150ms;
+}
+
+.left-nav-enter {
+  left: -200px;
+}
+
+.left-nav-enter.left-nav-enter-active {
+  left: 0px;
+  transition: left 350ms ease;
+}
+
+.left-nav-leave {
+  left: 0px;
+}
+
+.left-nav-leave.left-nav-leave-active {
+  left: -200px;
+  transition: left 350ms ease-out;
+}
+
 .nav-enter {
   opacity: 0.01;
 }
@@ -51,9 +177,25 @@ body {
 }
 
 /** content page **/
+.content-appear {
+
+  position: absolute;
+  top: 500px;
+  width: 100%;
+  opacity: 0.01;
+}
+
+.content-appear.content-appear-active {
+  position: absolute;
+  top: 0px;
+  width: 100%;
+  opacity: 1;
+  transition: all 500ms ease 1000ms;
+}
+
 .content-enter {
   position: absolute;
-  top: 200px; 
+  top: 50px; 
   width: 100%;
   opacity: 0.01;
 }
@@ -63,9 +205,10 @@ body {
   top: 0px;
   width: 100%; 
   opacity: 1;
-  transition: all 300ms ease-out 
+  transition: all 250ms ease 200ms 
 }
 
+/**
 .content-leave {
   opacity: 1;
 }
@@ -74,4 +217,5 @@ body {
   opacity: 0;
   transition: opacity 1ms ease-out 
 }
- 
+**/ 
+

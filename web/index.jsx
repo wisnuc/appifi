@@ -33,7 +33,7 @@ class App extends React.Component {
   render() {
 
     let loggedin = store.getState().login.state === 'LOGGEDIN'
-
+{/*
     return (
       <div>
         <CSSTransition 
@@ -48,7 +48,13 @@ class App extends React.Component {
         </CSSTransition>
      </div>
     )
-    // return store.getState().login.state === 'LOGGEDIN'  ? <Navigation /> : <Login /> 
+    return (
+      <div>
+        { store.getState().login.state === 'LOGGEDIN'  ? <Navigation /> : <Login /> }
+      </div>
+    )
+*/}
+    return (<div><div><Navigation /></div></div>)
   }
 }
 

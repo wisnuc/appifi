@@ -1,13 +1,13 @@
 import React from 'react'
 import ReactDom from 'react-dom'
 
+import Transition from '../utils/transition'
 import { mixin, dispatch } from '../utils/utils'
 
-import AppBar from 'material-ui/AppBar'
+import { AppBar, Paper, TextField, CircularProgress } from 'material-ui'
 import { Menu, MenuItem } from 'material-ui/Menu'
 import { Tabs, Tab } from 'material-ui/Tabs'
-import Paper from 'material-ui/Paper'
-import {Card, CardActions, CardHeader, CardMedia, CardTitle, CardText} from 'material-ui/Card'
+import { Card, CardActions, CardHeader, CardMedia, CardTitle, CardText } from 'material-ui/Card'
 import FlatButton from 'material-ui/FlatButton'
 import RaisedButton from 'material-ui/RaisedButton'
 import Divider from 'material-ui/Divider'
@@ -38,7 +38,7 @@ const decoration = [
         name: 'APP',
         text: { en_US: 'App', zh_CN: 'Ying Yong' },
         icon: IconNavigationApps,
-        themeColor: 'cyan',
+        themeColor: 'lime',
       },
       {
         name: 'INSTALLED_APPS',
@@ -111,6 +111,163 @@ const decoration = [
       } 
     ]
 
+/*****************************************************************************
+ * 
+ * Styles
+ *
+ *****************************************************************************/
+
+const loginPageStyle = {
+  display : 'flex',
+  flexDirection: 'column',
+  alignItems : 'center',
+  justifyContent : 'center',
+  minHeight : '100vh',
+  minWidth : '100vw',
+//      backgroundImage : 'url(images/party_orig.jpg)',
+//      backgroundSize : 'cover'
+}
+
+const loginDialogStyle = {
+  display : 'flex',
+  flexDirection : 'column',
+  alignItems: 'center',
+  justifyContent: 'center',
+  height: 120,
+  width: 300,
+  padding: 10
+}
+
+/*****************************************************************************
+ *
+ * Functions
+ *
+ *****************************************************************************/
+
+const loginErrorText = () => {
+
+  let err, state = window.store.getState().login.state
+
+  switch (state) {
+    
+    case 'REJECTED':
+      err = 'Incorrect password'
+      break
+
+    case 'TIMEOUT':
+      err = 'Server timeout'
+      break
+
+    case 'ERROR':
+      err = 'Server internal error, please retry'
+      break
+
+    case 'READY':
+    case 'BUSY':
+    default:
+      err = null
+      break
+  }
+
+  return err
+}
+
+const loginSubmit = () => {
+
+  window.store.dispatch({
+    type: "LOGIN"
+  })
+  
+  setTimeout(() => {
+    window.store.dispatch({
+      type: 'LOGIN_SUCCESS'
+    })
+  }, 1000)
+}
+
+const loginBusy = () => {
+
+  let state = window.store.getState().login.state
+  return state === 'BUSY'
+}
+
+const loggedIn = () => {
+
+  return window.store.getState().login.state === 'LOGGEDIN'
+}
+
+const pageStyle = () => {
+
+  return {
+    display : 'flex',
+    flexDirection: 'column',
+    alignItems : 'center',
+    // justifyContent : 'center',
+    minHeight : '100vh',
+  //  minWidth : '100vw',
+  //      backgroundImage : 'url(images/party_orig.jpg)',
+  //      backgroundSize : 'cover'
+  }
+}
+ 
+class Login extends React.Component {
+
+  submit() {
+    window.store.dispatch({
+      type: "LOGIN"
+    })
+    
+    setTimeout(() => {
+      window.store.dispatch({
+        type: 'LOGIN_SUCCESS'
+      })
+    }, 1000)
+  }
+
+  render() {
+
+    let err, state = window.store.getState().login.state
+
+    switch (state) {
+      
+      case 'REJECTED':
+        err = 'Incorrect password'
+        break
+
+      case 'TIMEOUT':
+        err = 'Server timeout'
+        break
+
+      case 'ERROR':
+        err = 'Server internal error, please retry'
+        break
+
+      case 'READY':
+      case 'BUSY':
+      default:
+        err = null
+        break
+    }
+
+    let busy = (state === 'BUSY')
+
+    return (
+      <div style={loginPageStyle}>
+        <Transition opts={['login-title', true, true, true, 350, 1000, 1000]}>
+          <div style={{height:"64px"}}><h1>Yes, My Lord?</h1></div>
+        </Transition>
+        <Transition opts={['login-dialog', true, true, true, 350, 1000, 1000]}>
+          <Paper style={loginDialogStyle} zDepth={1}>
+            { busy && <CircularProgress /> }
+            { !busy && <TextField  stype={{marginBottom: 10}} hintText="password" type="password" fullWidth={true} errorText={err} />}
+            { !busy && <FlatButton style={{marginTop: 10}} label='UNLOCK ME' onTouchTap={this.submit} />}
+          </Paper>
+        </Transition>
+      </div>
+    )
+  }
+}
+
 const CardPage = ({ title }) => {
   return (
     <Card>
@@ -134,7 +291,7 @@ class Navigation extends React.Component {
   static contextTypes = {
     muiTheme: React.PropTypes.object.isRequired,
   }
-
+/**
   componentWillMount() {
 
     let debug = false
@@ -150,6 +307,18 @@ class Navigation extends React.Component {
     if (dec !== undefined && dec.themeColor !== undefined) {
       dispatch({type: 'THEME_COLOR', color: dec.themeColor})
     }
+  }
+**/
+  submit() {
+    window.store.dispatch({
+      type: "LOGIN"
+    })
+    
+    setTimeout(() => {
+      window.store.dispatch({
+        type: 'LOGIN_SUCCESS'
+      })
+    }, 1000)
   }
 
   handleToggle() {
@@ -182,7 +351,7 @@ class Navigation extends React.Component {
   // this must be an fat arrow function
   buildTabItem = (item) => { 
     return (<Tab 
-              style={{width:180, fontWeight: 900}} 
+              style={{width:180}}
               key={item.name} 
               label={langText(item.text)} 
               value={item.name}
@@ -197,8 +366,9 @@ class Navigation extends React.Component {
     debug && console.log(tabList)
 
     let selectedName = tabList.find(item => item.selected === true).name
+    let style = {display: 'flex', justifyContent: 'center', backgroundColor:this.getColor('primary1Color') }
     return ( 
-      <div style={{display: 'flex', justifyContent: 'center'}}>
+      <div style={style}>
         <Tabs inkBarStyle={{backgroundColor:'white', height:4}} value={selectedName}>
           { tabList.map(this.buildTabItem) }
         </Tabs>
@@ -255,9 +425,9 @@ class Navigation extends React.Component {
     return (
 
       <div style={{width: '100%'}} >
-        <ReactCSSTransitionGroup transitionName="content" transitionEnterTimeout={300} transitionLeaveTimeout={1}>
+        <Transition opts={['content', true, true, false, 1000, 1500, 5000]}>
           { navSelect.content !== undefined ? React.createElement(navSelect.content, {key: navSelect.name}) : <CardPage /> }
-        </ReactCSSTransitionGroup>
+        </Transition>
       </div>
     )
   }
@@ -283,10 +453,11 @@ class Navigation extends React.Component {
     let leftNavStyle = {
       display: 'block',
       position: 'fixed',
-      // height: '100%',
+      height: '100%',
       transition: 'all 200ms ease',
       padding: 6,   // for alignment of icons
-      left: state.menu ? 0 : '-100%'
+      left: state.menu ? 0 : '-100%',
+      top: 114,
     }
 
     let contentStyle = {
@@ -296,16 +467,19 @@ class Navigation extends React.Component {
       padding: 24,
       marginLeft: state.menu ? 240 : 0
     }
-
+/*
     let tabAnimationStyle = {
       position: 'relative',
-      height: hasTabs ? 50 : 0,
+      // height: hasTabs ? 50 : 0,
       top: hasTabs ? 0 : '-200px', // double height
       opacity: hasTabs ? 100 : 0,
       transition: 'all 300ms ease'
     }
-
-    let paperNavStyle = { 
+*/
+    let tabAnimationStyle = {
+      position: 'relative',
+    }
+/*    let paperNavStyle = { 
       position: 'fixed', 
       top: 0, 
       left: 0, 
@@ -314,28 +488,159 @@ class Navigation extends React.Component {
       display: 'flex',
       flexDirection: 'column',
       zIndex: 100 
-    } 
- 
+    }*/
+    let paperNavStyle = { 
+      position: 'fixed', 
+      left: 0, 
+      width:'100%', 
+      // backgroundColor:this.getColor('primary1Color'),
+      backgroundColor: "#FF0000",
+      display: 'flex',
+      flexDirection: 'column',
+      zIndex: 100,
+//      height: '168px' 
+    }
+
+
     return (
       <div>
-        <Paper style={paperNavStyle} rounded={false} zDepth={2}>
-          <AppBar onLeftIconButtonTouchTap={this.handleToggle} zDepth={0} title='WISNUC Cloud' />
-          <div style={tabAnimationStyle}>
-            { hasTabs && this.buildTabs(tabList) }
-          </div>
-        </Paper>
-        <div style={{transition: 'all 200ms ease'}}>
-          <div style={leftNavStyle}>
-            { this.buildMenu(navList) }
-          </div>
-          <div style={contentStyle}>
-            <div style={{display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', width: '100%'}}>
+        {/* container for login layout */}
+        <div id='login-container' style={{ 
+            position: 'fixed',
+            display : 'flex', 
+            flexDirection: 'column', 
+            alignItems : 'center',
+            justifyContent : 'center',
+            minHeight : '100vh',
+            minWidth : '100vw',
+        }}>
+          <Transition opts={['login-title', true, true, false, 350, 5000, 500]}>
+            { !loggedIn() && 
+              <div style={{ 
+                height:"64px", 
+                verticalAlign:"bottom",
+                fontSize: 48,
+                fontWeight: 400,
+              }}>
+                Yes, My Lord?
+              </div> 
+            }
+          </Transition> 
+          <Transition opts={['login-dialog', true, true, false, 350, 1000, 500]}>
+            { !loggedIn() && 
+              <Paper style={loginDialogStyle} zDepth={2}>
+                { loginBusy() && 
+                  <CircularProgress /> 
+                }
+                { !loginBusy() && 
+                  <TextField 
+                    stype={{marginBottom: 10}} 
+                    hintText="password" 
+                    type="password" 
+                    fullWidth={true} 
+                    errorText={loginErrorText()} />
+                }
+                { !loginBusy() && 
+                  <FlatButton 
+                    style={{marginTop: 10}} 
+                    label='UNLOCK ME' 
+                    onTouchTap={this.submit} />
+                }
+              </Paper> 
+            }
+          </Transition>   
+        </div> 
+        {/* end of login layout container */}
+
+        {/* appbar */}
+        <div style={{position: 'fixed', top: 0, width: '100%', zIndex:100 }}>
+          <Transition opts={['appbar', false, true, false, 5000, 250, 5000]}>
+            { loggedIn() &&
+              <Paper rounded={false} zDepth={2} style={{
+                backgroundColor:this.getColor('primary1Color')
+                // transition: 'height 1s ease'
+              }}>
+                <AppBar onLeftIconButtonTouchTap={this.handleToggle} zDepth={0} title='WISNUC Cloud' />
+                { hasTabs &&
+                  <Transition opts={['tabs', true, true, false, 500, 500, 5000 ]}>
+                  <div key={menuSelect.name}>
+                    { this.buildTabs(tabList) }
+                  </div>
+                  </Transition>
+                }
+              </Paper>
+            }
+          </Transition>
+        </div>
+        {/* end of appbar */}
+
+        {/* left-nav */} 
+        <div style={{
+          display: 'block',
+          position: 'fixed', 
+          top: hasTabs ? 114 : 64, 
+          transition: 'top 300ms ease'
+        }}>
+          <Transition opts={['left-nav', false, true, true, 5000, 400, 400]}>
+            { loggedIn() && state.menu && 
+              <div id="left-nav-container" style={{
+                display: 'block',
+                position: 'absolute',
+                height: '100%',
+                padding: 6,   // for alignment of icons
+                // left: 0,
+                // transition: 'all 900ms linear'
+              }}>
+                { this.buildMenu(navList) }
+              </div>
+            }
+          </Transition> 
+        </div> 
+        {/* end of left-nav */}
+
+        {/* content container */}
+        { loggedIn() && 
+          <div style={{
+            marginTop: contentTop,
+            display: 'block',
+            transition: 'all 300ms ease',
+            padding: 24,
+            marginLeft: state.menu ? 240 : 0,
+            minHeight: '100vh'
+          }}>
+            <div style={{
+              display:'flex', 
+              flexDirection:'column', 
+              alignItems:'center', 
+              justifyContent:'center', 
+              width: '100%'}}>
               <div style={{width: '90%', maxWidth:1084, position: 'relative'}}>
                 { this.renderContentPage(navSelect) }
               </div>
             </div>
           </div>
-        </div>
+        }
+     {/* 
+       { loggedIn() && (
+        <div style={ loggedIn() ? {} : { display: 'none'} }>
+         <div style={{transition: 'all 200ms ease'}}>
+            <div style={leftNavStyle}>
+              { this.buildMenu(navList) }
+            </div>
+            <div style={contentStyle}>
+              <div style={{
+                display:'flex', 
+                flexDirection:'column', 
+                alignItems:'center', 
+                justifyContent:'center', 
+                width: '100%'}}>
+                <div style={{width: '90%', maxWidth:1084, position: 'relative'}}>
+                  { this.renderContentPage(navSelect) }
+                </div>
+              </div>
+            </div>
+          </div>
+        </div> ) } */}
       </div>
     )
   } 
