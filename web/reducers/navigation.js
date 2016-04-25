@@ -15,9 +15,8 @@ const menu = (state = true, action) => {
 
 let navDefault = [
   { name: 'APP', parent: null,              selected: true }, 
-  { name: 'INSTALLED_APPS', parent: 'APP',  selected: true },
-  { name: 'WINSUN_STORE', parent: 'APP',    selected: false },
-  { name: 'DOCKER_HUB', parent: 'APP',      selected: false },
+  { name: 'APPSTORE', parent: 'APP',        selected: true },
+  { name: 'INSTALLED_APPS', parent: 'APP',  selected: false },
   { name: 'STORAGE', parent: null,          selected: false },
   { name: 'VOLUMES', parent: 'STORAGE',     selected: true },
   { name: 'DRIVES', parent: 'STORAGE',      selected: false },

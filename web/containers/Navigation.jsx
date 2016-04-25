@@ -41,17 +41,13 @@ const decoration = [
         themeColor: 'lime',
       },
       {
+        name: 'APPSTORE',
+        text: { en_US: 'App Store' },
+      },
+      {
         name: 'INSTALLED_APPS',
         text: { en_US: 'Installed Apps' },
         content: InstalledAppsPage
-      },
-      {
-        name: 'WINSUN_STORE',
-        text: { en_US: 'WinSun Store' },
-      },
-      {
-        name: 'DOCKER_HUB', 
-        text: { en_US: 'Docker Hub' },
       },
       {
         name: 'STORAGE',
@@ -380,7 +376,11 @@ class Navigation extends React.Component {
   // in array function callback
   buildMenuItem = (item) => {
 
-    let iconProps, fontStyle, leftIcon
+    let iconProps, leftIcon 
+    let fontStyle = {
+      fontSize: 14,
+      fontWeight: 40
+    }
 
     if (item.selected) {
       iconProps = {
@@ -388,10 +388,9 @@ class Navigation extends React.Component {
           fill: this.getColor('primary1Color')
         }
       }
-      fontStyle = {
-        color: this.getColor('primary1Color')
-      }
+      fontStyle.color = this.getColor('primary1Color')
     }
+
     leftIcon = React.createElement(item.icon, iconProps) 
     return (<MenuItem 
               key={item.name} 
@@ -425,7 +424,7 @@ class Navigation extends React.Component {
     return (
 
       <div style={{width: '100%'}} >
-        <Transition opts={['content', true, true, false, 1000, 1500, 5000]}>
+        <Transition opts={['content', true, true, false, 2000, 1500, 5000]}>
           { navSelect.content !== undefined ? React.createElement(navSelect.content, {key: navSelect.name}) : <CardPage /> }
         </Transition>
       </div>
@@ -554,7 +553,7 @@ class Navigation extends React.Component {
 
         {/* appbar */}
         <div style={{position: 'fixed', top: 0, width: '100%', zIndex:100 }}>
-          <Transition opts={['appbar', false, true, false, 5000, 250, 5000]}>
+          <Transition opts={['appbar', true, true, false, 5000, 350, 5000]}>
             { loggedIn() &&
               <Paper rounded={false} zDepth={2} style={{
                 backgroundColor:this.getColor('primary1Color')
@@ -562,7 +561,7 @@ class Navigation extends React.Component {
               }}>
                 <AppBar onLeftIconButtonTouchTap={this.handleToggle} zDepth={0} title='WISNUC Cloud' />
                 { hasTabs &&
-                  <Transition opts={['tabs', true, true, false, 500, 500, 5000 ]}>
+                  <Transition opts={['tabs', true, true, false, 500, 650, 5000 ]}>
                   <div key={menuSelect.name}>
                     { this.buildTabs(tabList) }
                   </div>
@@ -603,10 +602,10 @@ class Navigation extends React.Component {
           <div style={{
             marginTop: contentTop,
             display: 'block',
-            transition: 'all 300ms ease',
+            // transition: 'all 300ms ease',
             padding: 24,
-            marginLeft: state.menu ? 240 : 0,
-            minHeight: '100vh'
+            // marginLeft: state.menu ? 240 : 0,
+            // minHeight: '100vh'
           }}>
             <div style={{
               display:'flex', 
