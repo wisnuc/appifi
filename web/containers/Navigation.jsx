@@ -12,6 +12,7 @@ import FlatButton from 'material-ui/FlatButton'
 import RaisedButton from 'material-ui/RaisedButton'
 import Divider from 'material-ui/Divider'
 
+import AppStorePage from './AppStore'
 import InstalledAppsPage from './InstalledApps'
 import Storage from './Storage'
 
@@ -43,6 +44,7 @@ const decoration = [
       {
         name: 'APPSTORE',
         text: { en_US: 'App Store' },
+        content: AppStorePage,
       },
       {
         name: 'INSTALLED_APPS',
@@ -79,6 +81,7 @@ const decoration = [
         name: 'ETHERNET',
         text: { en_US: 'Ethernet' },
         icon: IconActionSettingsEthernet,
+        themeColor: 'teal'
       },
       {
         name: 'COOLING',
@@ -559,7 +562,18 @@ class Navigation extends React.Component {
                 backgroundColor:this.getColor('primary1Color')
                 // transition: 'height 1s ease'
               }}>
-                <AppBar onLeftIconButtonTouchTap={this.handleToggle} zDepth={0} title='WISNUC Cloud' />
+                <AppBar onLeftIconButtonTouchTap={this.handleToggle} zDepth={0} title='WISNUC Cloud'>
+                  <IconButton 
+                    style={{margin:8, marginRight:-16}} 
+                    tooltip="lock screen" 
+                    onTouchTap={() => {
+                      console.log('lock')
+                      window.store.dispatch({type: 'LOGOUT'})
+                    }}
+                  >
+                    <IconActionLock color='#FFF' />
+                  </IconButton>
+                </AppBar>
                 { hasTabs &&
                   <Transition opts={['tabs', true, true, false, 500, 650, 5000 ]}>
                   <div key={menuSelect.name}>

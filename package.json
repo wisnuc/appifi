@@ -28,6 +28,7 @@
     "babel-preset-stage-0": "^6.5.0",
     "babel-preset-stage-2": "^6.5.0",
     "react-addons-css-transition-group": "^15.0.1",
+    "react-click-outside": "^2.1.0",
     "webpack": "^1.12.14",
     "webpack-dev-server": "^1.14.1"
   }

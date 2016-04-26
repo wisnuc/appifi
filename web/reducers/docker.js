@@ -1,7 +1,9 @@
 import request from 'superagent'
 import { mixin, dispatch } from '../utils/utils'
 
-const baseUrl = 'http://localhost:3000/dockerapi'
+const baseUrl = 'http://localhost:3000'
+const dockerApiUrl = baseUrl + '/dockerapi'
+const dockerHubUrl = baseUrl + '/dockerhub'
 
 const defaultState = {
 
@@ -9,23 +11,32 @@ const defaultState = {
   containersRequest: null,
 
   images: null,
-  imagesRequest: null
+  imagesRequest: null,
+
+  repos: null,
+  reposRequest: null,
 }
 
 const sendContainersRequest = () => request
-                                  .get(baseUrl + '/containers/json?all=1')
+                                  .get(dockerApiUrl + '/containers/json?all=1')
                                   .set('Accept', 'application/json')
                                   .end((err, res) => dispatch({
                                     type: 'DOCKER_CONTAINERS_RESPONSE', err, res
                                   }))
 
 const sendImagesRequest = () => request
-                              .get(baseUrl + '/images/json')
+                              .get(dockerApiUrl + '/images/json')
                               .set('Accept', 'application/json')
                               .end((err, res) => dispatch({
                                 type: 'DOCKER_IMAGES_RESPONSE', err, res
                               }))
 
+const sendReposRequest = () => request
+                                .get(dockerHubUrl)
+                                .set('Accept', 'application/json')
+                                .end((err, res) => dispatch({
+                                  type: 'DOCKER_REPOS_RESPONSE', err, res
+                                }))
 
 const reducer = (state = defaultState, action) => {
 
@@ -39,7 +50,8 @@ const reducer = (state = defaultState, action) => {
     case 'LOGIN_SUCCESS':       
       return mixin(state, { 
         containersRequest : sendContainersRequest(),
-        imagesRequest : sendImagesRequest()
+        imagesRequest : sendImagesRequest(),
+        reposRequest : sendReposRequest()
       })
 
     case 'DOCKER_CONTAINERS_REQUEST':
@@ -71,7 +83,7 @@ const reducer = (state = defaultState, action) => {
       debug && console.log('docker images response:')
       debug && console.log(action.res)
 
-      if (action.err){
+      if (action.err) {
         warning && console.log('docker images response error: ' + action.err)
         dispatch({type: 'DOCKER_IMAGES_RESPONSE' })
         return state
@@ -79,6 +91,18 @@ const reducer = (state = defaultState, action) => {
       newState = mixin(state, {
                         images: action.res.body,
                         imagesRequest: null
+                      })
+      debug && console.log(newState)
+      return newState 
+
+    case 'DOCKER_REPOS_RESPONSE':
+      
+      if (action.err) {
+        warning && console.log('docker repos response error: ' + action.err)
+      }
+      newState = mixin(state, {
+                        repos: action.res.body,
+                        reposRequest: null
                       })
       debug && console.log(newState)
       return newState 

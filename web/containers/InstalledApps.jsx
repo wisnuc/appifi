@@ -1,13 +1,57 @@
 import React from 'react'
 
 import { Paper, Avatar } from 'material-ui'
-import {List, ListItem} from 'material-ui/List'
+import { List, ListItem } from 'material-ui/List'
 import { Card, CardActions, CardHeader, CardMedia, CardTitle, CardText } from 'material-ui/Card'
 import { Tabs, Tab } from 'material-ui/Tabs'
 import { FloatingActionButton, IconButton, FlatButton, RaisedButton, Toggle, CircularProgress } from 'material-ui'
 import IconAVPlayArrow from 'material-ui/svg-icons/av/play-arrow'
 import IconAVStop from 'material-ui/svg-icons/av/stop'
 import CommunicationEmail from 'material-ui/svg-icons/communication/email'
+import reactClickOutside from 'react-click-outside'
+
+class ListRowLeft extends React.Component {
+
+  static propTypes = {
+    selected: React.PropTypes.bool.isRequired,
+    avatar: React.PropTypes.string.isRequired,
+    title: React.PropTypes.string.isRequired,
+    text: React.PropTypes.string.isRequired,
+    onClick: React.PropTypes.func.isRequired,
+    onClickOutside: React.PropTypes.func.isRequired,
+  }
+ 
+  handleClickOutside() {
+
+    if (!this.props.selected) return
+    console.log('click outside')
+    this.props.onClickOutside()
+  }
+ 
+  render() {
+    return (
+      <div 
+        style={{
+          height: '100%',// TODO 
+          flexGrow:1,
+          display: 'flex', 
+          alignItems: 'center', 
+          padding:8,
+        }} 
+        onClick={()=>this.props.onClick()}
+      >
+        <Avatar style={{marginLeft:8, marginRight:24}} src={this.props.avatar} />
+        <div style={{fontSize:14, fontWeight:600, width:200}}>{this.props.title}</div>
+        <div style={{fontSize:14, fontWeight:300, color:'gray'}}>{this.props.text}</div>
+      </div>
+    )
+  }
+}
+
+let EnhancedListRowLeft = reactClickOutside(ListRowLeft)
+
+let selected = -1
+
 
 class ContainerCard extends React.Component {
 
@@ -44,36 +88,46 @@ class ContainerCard extends React.Component {
   }
 
   buildRowItem = (container, index) => {
-    
+   
     return (
       <Paper
         style={{
+          width: index===selected ? '100%':'96%',
+          height: index===selected ? '240px' : 'auto',
+          marginTop: index===selected ? 24:0,
+          marginBottom: index===selected ? 24:0,
           display: 'flex',
           flexDirection: 'row',
           alignItems: 'center',
-          justifyContent: 'space-between'
         }}
         rounded={false}
+        zDepth={index===selected ? 2:1}
       >
-        <div style={{ display: 'flex', alignItems: 'center', padding:8 }}>
-          <Avatar style={{marginLeft:8, marginRight:24}} src="http://lorempixel.com/100/100/nature/" />
-          <span style={{fontSize:16, fontWeight:700}}>{container.Names[0].slice(1)}</span>
-        </div>
+        <EnhancedListRowLeft
+          selected={selected === index ? true : false}
+          avatar='http://lorempixel.com/100/100/nature/'
+          title={container.Names[0].slice(1)}
+          text='Hello World!'
+          onClick={() => {
+            selected = selected === index ? -1 : index
+            window.store.dispatch({type: 'trigger'})
+          }}
+          onClickOutside={() => {
+            console.log('onClickOutside ...')
+            if (selected === index) {
+              console.log(selected)
+              console.log(index)
+              selected = -1
+              window.store.dispatch({type: 'trigger'})
+            }
+          }}
+        /> 
         <div style={{ display: 'flex', alignItems: 'center', padding:8 }}>
           <FlatButton label="start" />
         </div>
       </Paper>
     )
   }
-
-  fillUpper() {
-  }
-
-  fillLower() {
-  }
-
-  fillActive() {
-  } 
 
   render () {
 
@@ -90,7 +144,7 @@ class ContainerCard extends React.Component {
     }
     
     return (
-      <div>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         { containers.map(this.buildRowItem) }
       </div>
     )
