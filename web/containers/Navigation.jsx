@@ -12,8 +12,8 @@ import FlatButton from 'material-ui/FlatButton'
 import RaisedButton from 'material-ui/RaisedButton'
 import Divider from 'material-ui/Divider'
 
-import AppStorePage from './AppStore'
-import InstalledAppsPage from './InstalledApps'
+import AppStoreRender from './AppStore'
+import InstalledAppsRender from './InstalledApps'
 import Storage from './Storage'
 
 import IconButton from 'material-ui/IconButton'
@@ -44,12 +44,12 @@ const decoration = [
       {
         name: 'APPSTORE',
         text: { en_US: 'App Store' },
-        content: AppStorePage,
+        render: AppStoreRender,
       },
       {
         name: 'INSTALLED_APPS',
         text: { en_US: 'Installed Apps' },
-        content: InstalledAppsPage
+        render: InstalledAppsRender
       },
       {
         name: 'STORAGE',
@@ -60,22 +60,22 @@ const decoration = [
       {
         name: 'VOLUMES',
         text: { en_US: 'Volumes' },
-        content: Storage.Volumes
+        // render: Storage.Volumes
       },
       {
         name: 'DRIVES',
         text: { en_US: 'Drives' },
-        content: Storage.Drives
+        // render: Storage.Drives
       },
       {
         name: 'MOUNTS',
         text: { en_US: 'Mounts' },
-        content: Storage.Mounts
+        // render: Storage.Mounts
       },
       {
         name: 'PORTS',
         text: { en_US: 'Ports' },
-        content: Storage.Ports
+        // render: Storage.Ports
       },
       {
         name: 'ETHERNET',
@@ -208,79 +208,44 @@ const pageStyle = () => {
   //      backgroundSize : 'cover'
   }
 }
- 
-class Login extends React.Component {
-
-  submit() {
-    window.store.dispatch({
-      type: "LOGIN"
-    })
-    
-    setTimeout(() => {
-      window.store.dispatch({
-        type: 'LOGIN_SUCCESS'
-      })
-    }, 1000)
-  }
-
-  render() {
-
-    let err, state = window.store.getState().login.state
-
-    switch (state) {
-      
-      case 'REJECTED':
-        err = 'Incorrect password'
-        break
-
-      case 'TIMEOUT':
-        err = 'Server timeout'
-        break
-
-      case 'ERROR':
-        err = 'Server internal error, please retry'
-        break
-
-      case 'READY':
-      case 'BUSY':
-      default:
-        err = null
-        break
-    }
-
-    let busy = (state === 'BUSY')
-
-    return (
-      <div style={loginPageStyle}>
-        <Transition opts={['login-title', true, true, true, 350, 1000, 1000]}>
-          <div style={{height:"64px"}}><h1>Yes, My Lord?</h1></div>
-        </Transition>
-        <Transition opts={['login-dialog', true, true, true, 350, 1000, 1000]}>
-          <Paper style={loginDialogStyle} zDepth={1}>
-            { busy && <CircularProgress /> }
-            { !busy && <TextField  stype={{marginBottom: 10}} hintText="password" type="password" fullWidth={true} errorText={err} />}
-            { !busy && <FlatButton style={{marginTop: 10}} label='UNLOCK ME' onTouchTap={this.submit} />}
-          </Paper>
-        </Transition>
-      </div>
-    )
-  }
-}
 
 const CardPage = ({ title }) => {
+
   return (
-    <Card>
-      <CardTitle title={title} subtitle="Card subtitle" />
-      <CardText>
-        Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-        Donec mattis pretium massa. Aliquam erat volutpat. Nulla facilisi.
-        Donec vulputate interdum sollicitudin. Nunc lacinia auctor quam sed pellentesque.
-        Aliquam dui mauris, mattis quis lacus id, pellentesque lobortis odio.
-      </CardText>
-      <CardActions>
-        <FlatButton label="Action1" />
-      </CardActions>
-    </Card>
+    <div>
+      <Card>
+        <CardTitle title={title} subtitle="Card subtitle" />
+        <CardText>
+          Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+          Donec mattis pretium massa. Aliquam erat volutpat. Nulla facilisi.
+          Donec vulputate interdum sollicitudin. Nunc lacinia auctor quam sed pellentesque.
+          Aliquam dui mauris, mattis quis lacus id, pellentesque lobortis odio.
+        </CardText>
+        <CardActions>
+          <FlatButton label="Action1" />
+        </CardActions>
+      </Card>
+    </div>
+  )
+}
+
+const renderCardPage = (navSelect) => {
+
+  return (
+    <div key={navSelect}>
+      <Card>
+        <CardTitle title='Placeholder Page' subtitle="Card subtitle" />
+        <CardText>
+          Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+          Donec mattis pretium massa. Aliquam erat volutpat. Nulla facilisi.
+          Donec vulputate interdum sollicitudin. Nunc lacinia auctor quam sed pellentesque.
+          Aliquam dui mauris, mattis quis lacus id, pellentesque lobortis odio.
+        </CardText>
+        <CardActions>
+          <FlatButton label="Action1" />
+        </CardActions>
+      </Card>
+    </div>
   )
 }
 
@@ -428,7 +393,8 @@ class Navigation extends React.Component {
 
       <div style={{width: '100%'}} >
         <Transition opts={['content', true, true, false, 2000, 1500, 5000]}>
-          { navSelect.content !== undefined ? React.createElement(navSelect.content, {key: navSelect.name}) : <CardPage /> }
+          { navSelect.render !== undefined ? React.createElement(navSelect.render, {key: navSelect.name}) : 
+            <CardPage /> }
         </Transition>
       </div>
     )
@@ -503,12 +469,13 @@ class Navigation extends React.Component {
 //      height: '168px' 
     }
 
-
     return (
       <div>
         {/* container for login layout */}
         <div id='login-container' style={{ 
+            // backgroundColor: 'gray', // for test
             position: 'fixed',
+            top: 0, // VERY IMPORTANT!
             display : 'flex', 
             flexDirection: 'column', 
             alignItems : 'center',
@@ -516,7 +483,7 @@ class Navigation extends React.Component {
             minHeight : '100vh',
             minWidth : '100vw',
         }}>
-          <Transition opts={['login-title', true, true, false, 350, 5000, 500]}>
+          <Transition opts={['login-title', true, true, false, 100, 1000, 100]}>
             { !loggedIn() && 
               <div style={{ 
                 height:"64px", 
@@ -528,8 +495,8 @@ class Navigation extends React.Component {
               </div> 
             }
           </Transition> 
-          <Transition opts={['login-dialog', true, true, false, 350, 1000, 500]}>
-            { !loggedIn() && 
+          <Transition opts={['login-dialog', true, true, false, 100, 1000, 100]}>
+            { !loggedIn() && <div> 
               <Paper style={loginDialogStyle} zDepth={2}>
                 { loginBusy() && 
                   <CircularProgress /> 
@@ -549,22 +516,22 @@ class Navigation extends React.Component {
                     onTouchTap={this.submit} />
                 }
               </Paper> 
-            }
+            </div> }
           </Transition>   
         </div> 
         {/* end of login layout container */}
 
         {/* appbar */}
         <div style={{position: 'fixed', top: 0, width: '100%', zIndex:100 }}>
-          <Transition opts={['appbar', true, true, false, 5000, 350, 5000]}>
-            { loggedIn() &&
+          <Transition opts={['appbar', false, true, true, 300, 600, 400]}>
+            { loggedIn() && <div style={{transition: 'all 300ms ease'}}>
               <Paper rounded={false} zDepth={2} style={{
                 backgroundColor:this.getColor('primary1Color')
                 // transition: 'height 1s ease'
               }}>
                 <AppBar onLeftIconButtonTouchTap={this.handleToggle} zDepth={0} title='WISNUC Cloud'>
                   <IconButton 
-                    style={{margin:8, marginRight:-16}} 
+                    style={{margin:8, marginRight:-16 /* TODO */ }} 
                     tooltip="lock screen" 
                     onTouchTap={() => {
                       console.log('lock')
@@ -575,14 +542,16 @@ class Navigation extends React.Component {
                   </IconButton>
                 </AppBar>
                 { hasTabs &&
-                  <Transition opts={['tabs', true, true, false, 500, 650, 5000 ]}>
-                  <div key={menuSelect.name}>
-                    { this.buildTabs(tabList) }
-                  </div>
+                  <Transition opts={ /* enter delay 300ms to let appbar update first */
+                    ['tabs', false, true, false, 300, 600, 5000 ]
+                  }>
+                    <div key={menuSelect.name}>
+                      { this.buildTabs(tabList) }
+                    </div>
                   </Transition>
                 }
               </Paper>
-            }
+            </div> }
           </Transition>
         </div>
         {/* end of appbar */}
@@ -612,48 +581,34 @@ class Navigation extends React.Component {
         {/* end of left-nav */}
 
         {/* content container */}
-        { loggedIn() && 
-          <div style={{
-            marginTop: contentTop,
-            display: 'block',
-            // transition: 'all 300ms ease',
-            padding: 24,
-            // marginLeft: state.menu ? 240 : 0,
-            // minHeight: '100vh'
-          }}>
-            <div style={{
-              display:'flex', 
-              flexDirection:'column', 
-              alignItems:'center', 
-              justifyContent:'center', 
-              width: '100%'}}>
-              <div style={{width: '90%', maxWidth:1084, position: 'relative'}}>
-                { this.renderContentPage(navSelect) }
-              </div>
-            </div>
+        <div id="content-container-flex" style={{
+          width: '100%',
+          marginTop: contentTop,
+          // marginLeft: state.menu ? 240 : 0,
+          padding: 24,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+        }}> 
+          <div id="content-container-width-limited" 
+            style={{
+              width:'80%', 
+              maxWidth:1084, 
+              position: 'relative', // VERY IMPORTANT! TODO Why?
+            }}
+          >
+            <Transition opts={['content', false, true, true, 300, 1200, 100]}>
+              { loggedIn() &&
+                ( navSelect.render !== undefined ? 
+                  /* React.createElement(navSelect.render, {key: navSelect.name}) : */
+                  navSelect.render(navSelect) : 
+                  /* React.createElement(CardPage, {key: navSelect.name})) */
+                  renderCardPage(navSelect.name)
+                )
+              }
+            </Transition>
           </div>
-        }
-     {/* 
-       { loggedIn() && (
-        <div style={ loggedIn() ? {} : { display: 'none'} }>
-         <div style={{transition: 'all 200ms ease'}}>
-            <div style={leftNavStyle}>
-              { this.buildMenu(navList) }
-            </div>
-            <div style={contentStyle}>
-              <div style={{
-                display:'flex', 
-                flexDirection:'column', 
-                alignItems:'center', 
-                justifyContent:'center', 
-                width: '100%'}}>
-                <div style={{width: '90%', maxWidth:1084, position: 'relative'}}>
-                  { this.renderContentPage(navSelect) }
-                </div>
-              </div>
-            </div>
-          </div>
-        </div> ) } */}
+        </div>
       </div>
     )
   } 

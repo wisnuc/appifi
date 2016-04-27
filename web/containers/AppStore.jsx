@@ -1,27 +1,30 @@
 import React from 'react'
+import Progress from './Progress'
+
 
 const getStore = () => window.store.getState().docker
 
-const AppStore = () => {
+
+
+let render = () => {
 
   let loading = getStore().reposRequest !== null
-
   if (loading) {
-    return <h1>loading</h1>
+    return <Progress key='appstore_loading' text='loading' />
   }
-  
-  if (!getStore().repos.length) {
-    return <h1>network error, please reload</h1>
+
+  let repos = getStore().repos;
+  if (repos.length === 0) {
+    return <h1>It seems that your computer can not connect to docker hub (hub.docker.com)</h1>
   }
 
   return (
-    <div>
-      { <span style={{fontSize:28, fontWeight:100}}>Recommended</span> }
+    <div key='appstore'>
+      <span style={{fontSize:28, fontWeight:'100'}}>Recommended</span>
       { getStore().repos.map((repo) => <h1>{repo.name}</h1>) }
     </div>
   )
 }
 
-export default AppStore
-
+export default render
 

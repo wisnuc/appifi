@@ -194,6 +194,8 @@ class InstalledApps extends React.Component {
   }
 }
 
-export default InstalledApps
+export default () => {
+  return <InstalledApps key='installed-apps-list' />
+}
 
 

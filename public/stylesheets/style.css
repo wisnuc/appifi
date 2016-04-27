@@ -8,60 +8,17 @@ http://yuilibrary.com/license/
 html{color:#000;background:#FFF}body,div,dl,dt,dd,ul,ol,li,h1,h2,h3,h4,h5,h6,pre,code,form,fieldset,legend,input,textarea,p,blockquote,th,td{margin:0;padding:0}table{border-collapse:collapse;border-spacing:0}fieldset,img{border:0}address,caption,cite,code,dfn,em,strong,th,var{font-style:normal;font-weight:normal}ol,ul{list-style:none}caption,th{text-align:left}h1,h2,h3,h4,h5,h6{font-size:100%;font-weight:normal}q:before,q:after{content:''}abbr,acronym{border:0;font-variant:normal}sup{vertical-align:text-top}sub{vertical-align:text-bottom}input,textarea,select{font-family:inherit;font-size:inherit;font-weight:inherit;*font-size:100%}legend{color:#000}#yui3-css-stamp.cssreset{display:none}
 /** css reset **/
 
-/** endof css reset **/
-
 html {
-  font-family: 'Roboto', sans-serif;
-  -webkit-font-smoothing: antialiased;
-  background: #FAFAFA;
+font-family: 'Roboto', Serif;
+-webkit-font-smoothing: antialiased;
+background: #FAFAFA;
 }
 
 body {
-  font-size: 20px;
-  line-height: 32px;
-  overflow-y: scroll;
-  overflow-x: hidden;
-}
-
-.login-enter {
-  opacity: 0.01;
-}
-
-.login-enter.login-enter-active {
-  opacity: 1;
-  transition: opacity 4s linear 1s;
-}
-
-.login-leave {
-  opacity: 1;
-}
-
-.login-leave.login-leave-active {
-  opacity: 0.01;
-  transition: opacity 1s linear;
-}
-
-.login-dialog-appear {
-  margin-top: 100px;
-  opacity: 0.01;
-}
-
-.login-dialog-appear.login-dialog-appear-active {
-  margin-top: 0px;
-  opacity: 1;
-  transition: all 300ms ease;
-}
-
-.login-dialog-leave {
-  margin-top: 0px;
-  opacity: 1;
-}
-
-
-.login-dialog-leave.login-dialog-leave-active {
-  margin-top: 0px;
-  opacity: 0.01;
-  transition: opacity 500ms linear;
+font-size: 20px;
+line-height: 32px;
+overflow-y: scroll;
+overflow-x: hidden;
 }
 
 .login-title-appear {
@@ -75,11 +32,55 @@ body {
   transition: all 100ms ease;
 }
 
+.login-title-enter {
+  margin-bottom: 100px;
+  opacity: 0.01;
+}
+
+.login-title-enter.login-title-enter-active {
+  margin-bottom: 0px;
+  opacity: 1;
+  transition: all 600ms ease 550ms;
+}
+
 .login-title-leave {
   opacity: 1;
 }
 
 .login-title-leave.login-title-leave-active {
+  opacity: 0.01;
+  transition: opacity 100ms ease;
+}
+
+.login-dialog-appear {
+  margin-top: 100px;
+  opacity: 0.01;
+}
+
+.login-dialog-appear.login-dialog-appear-active {
+  margin-top: 0px;
+  opacity: 1;
+  transition: all 600ms ease 550ms;
+}
+
+.login-dialog-enter {
+  margin-top: 100px;
+  opacity: 0.01;
+}
+
+.login-dialog-enter.login-dialog-enter-active {
+  margin-top: 0px;
+  opacity: 1;
+  transition: all 600ms ease 550ms;
+}
+
+.login-dialog-leave {
+  margin-top: 0px;
+  opacity: 1;
+}
+
+.login-dialog-leave.login-dialog-leave-active {
+  margin-top: 0px;
   opacity: 0.01;
   transition: opacity 500ms linear;
 }
@@ -105,7 +106,22 @@ body {
   position: absolute;
   width: 100%;
   top: 0px;
-  transition: all 300ms ease;
+  transition: all 300ms ease 300ms;
+}
+
+.appbar-leave {
+  opacity: 1;
+  position: absolute;
+  width: 100%;
+  top: 0px;
+}
+
+.appbar-leave.appbar-leave-active {
+  opacity: 0;
+  position: absolute;
+  width: 100%;
+  top: -64px;
+  transition: all 300ms ease 100ms;
 }
 
 .tabs-appear {
@@ -135,7 +151,7 @@ body {
   position: relative;
   top: 0px;
   width: 100%;
-  transition: all 300ms ease 150ms;
+  transition: all 300ms ease 300ms;
 }
 
 .left-nav-enter {
@@ -188,12 +204,12 @@ body {
   top: 0px;
   width: 100%;
   opacity: 1;
-  transition: all 500ms ease 1000ms;
+  transition: all 300ms ease;
 }
 
 .content-enter {
   position: absolute;
-  top: 50px; 
+  top: 80px; 
   width: 100%;
   opacity: 0.01;
 }
@@ -203,17 +219,22 @@ body {
   top: 0px;
   width: 100%; 
   opacity: 1;
-  transition: all 250ms ease 200ms 
+  transition: all 600ms ease 550ms;
 }
 
-/**
 .content-leave {
+  position: absolute;
+  top: 0px;
+  width: 100%;
   opacity: 1;
 }
 
 .content-leave.content-leave-active {
-  opacity: 0;
-  transition: opacity 1ms ease-out 
+  position: absolute;
+  top: 800px;
+  width: 100%;
+  opacity: 0.01;
+  transition: all 100ms ease-out 
 }
-**/ 
+
 
