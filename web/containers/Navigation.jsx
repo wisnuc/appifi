@@ -60,7 +60,7 @@ const decoration = [
       {
         name: 'VOLUMES',
         text: { en_US: 'Volumes' },
-        // render: Storage.Volumes
+        render: Storage.Volumes
       },
       {
         name: 'DRIVES',
@@ -489,7 +489,7 @@ class Navigation extends React.Component {
                 height:"64px", 
                 verticalAlign:"bottom",
                 fontSize: 48,
-                fontWeight: 400,
+                fontWeight: 100,
               }}>
                 Yes, My Lord?
               </div> 

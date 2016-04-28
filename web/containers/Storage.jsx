@@ -239,31 +239,78 @@ let renderPortRow = (port) => {
 let renderATAPorts = () => {
 
   return (
-  <Paper>
-    <Table selectable={false}>
-      <TableHeader enableSelectAll={false} displaySelectAll={false} adjustForCheckbox={false} >
-        <TableRow>
-          <TableHeaderColumn style={portColStyle[0]}>Port</TableHeaderColumn>
-          <TableHeaderColumn style={portColStyle[1]}>Dev Name</TableHeaderColumn>
-          <TableHeaderColumn style={portColStyle[2]}>Disk</TableHeaderColumn>
-          <TableHeaderColumn style={portColStyle[3]}>FileSystem</TableHeaderColumn>
-          <TableHeaderColumn style={portColStyle[4]}>Mounted</TableHeaderColumn>
-          <TableHeaderColumn style={portColStyle[5]}>Operation</TableHeaderColumn>
-        </TableRow>
-      </TableHeader>
-      <TableBody displayRowCheckbox={false}>
-        { getStore().storage.ata_ports.map((port) => renderPortRow(port)) }
-      </TableBody>
-    </Table>
-  </Paper>
+    <Paper>
+      <Table selectable={false}>
+        <TableHeader enableSelectAll={false} displaySelectAll={false} adjustForCheckbox={false} >
+          <TableRow>
+            <TableHeaderColumn style={portColStyle[0]}>Port</TableHeaderColumn>
+            <TableHeaderColumn style={portColStyle[1]}>Dev Name</TableHeaderColumn>
+            <TableHeaderColumn style={portColStyle[2]}>Disk</TableHeaderColumn>
+            <TableHeaderColumn style={portColStyle[3]}>FileSystem</TableHeaderColumn>
+            <TableHeaderColumn style={portColStyle[4]}>Mounted</TableHeaderColumn>
+            <TableHeaderColumn style={portColStyle[5]}>Operation</TableHeaderColumn>
+          </TableRow>
+        </TableHeader>
+        <TableBody displayRowCheckbox={false}>
+          { getStore().storage.ata_ports.map((port) => renderPortRow(port)) }
+        </TableBody>
+      </Table>
+    </Paper>
   )
 }
-
 
 let Mounts = renderMounts
 let Ports = renderATAPorts
 let Volumes = renderVolumes
 let Drives = renderDrives
+
+/*
+ * Target -> mount a file system on certain mount point
+ * 
+ * State:
+ * 
+ * dedicated mountpoint mounted (a file system) -> tell user OK -> let user choose to unmount
+ * dedicated mountpoint not mounted, 
+    1. candidate (a previously used file system exist) (1) reuse it (direct mount) (2) do not reuse it
+    2. candidate (a file system exist but not previously used) -> (2) format and use this filesystem.
+    3. no candidate, but there are disks
+      a) 1 disk -> create btrfs and mount it 
+      b) 2 disks -> create btrfs on one or both and mount it
+    4. no disks -> tell user what to do.     
+ * 
+ * dedicated mountpoint is defined as a systemd mount unit file
+ * mounted means it has a valid setting and the corresponding volume exists.
+ * not mounted means the setting is not valid, volume does not exist, volume exist in file but not exist in system
+ * the volume exist in file and system but the volume is broken
+
+    docker mount unit file -> 
+      nonexist, bad format, bad volume format, empty volume | valid format { api: property -> null or valid uuid }
+    docker mount unit file service status -> services status -> [{name, status}] post new status to update
+      started, not started (error existed?)
+
+    existing volume on system -> a collection, including
+      -> volume defined for docker
+      -> volume not defined for docker
+    just data, decision made in client
+
+    if volume already set for docker mount
+      if it non exist -> tell user to install back the disk, or clear settings.
+      if it exist but bad -> tell user the problem and try a fix if possible
+      if it exist and ok -> should start it and then docker automatically
+  
+    
+    docker service status
+
+    
+ */
+
+let renderStorage = () => {
+
+  return (
+    <div/> 
+  )
+}
+
 
 export default { 
   Volumes: renderVolumes, 

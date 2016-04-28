@@ -12,7 +12,7 @@ const Progress = ({mount, text}) => {
       justifyContent: 'center',
     }}>
       <div style={{
-        padding: 24,
+        padding: 32,
         fontSize: '28px',
         fontWeight: '100',
       }}>{text}</div>

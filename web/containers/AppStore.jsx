@@ -1,16 +1,26 @@
 import React from 'react'
-import Progress from './Progress'
 
+import { Card, CardTitle, CardHeader, CardMedia, CardAction, CardText } from 'material-ui/Card'
+
+import Progress from './Progress'
 
 const getStore = () => window.store.getState().docker
 
-
+let renderCard = (repo) => {
+  
+  return (
+    <Card style={{width:240, marginTop:18, marginRight:18}}>
+      <CardHeader title={repo.name} />
+      <CardText>Hello World</CardText>
+    </Card>
+  )  
+}
 
 let render = () => {
 
   let loading = getStore().reposRequest !== null
   if (loading) {
-    return <Progress key='appstore_loading' text='loading' />
+    return <Progress key='appstore_loading' text='Loading Apps from AppStore' />
   }
 
   let repos = getStore().repos;
@@ -19,9 +29,15 @@ let render = () => {
   }
 
   return (
-    <div key='appstore'>
-      <span style={{fontSize:28, fontWeight:'100'}}>Recommended</span>
-      { getStore().repos.map((repo) => <h1>{repo.name}</h1>) }
+    <div key='appstore' >
+      <div style={{fontSize:28, fontWeight:'100'}}>Recommended</div>
+      <div style={{
+        display: 'flex',
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+      }}>
+        { getStore().repos.map(renderCard) }
+      </div>
     </div>
   )
 }
