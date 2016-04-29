@@ -17,7 +17,8 @@
     "react-dom": "^15.0.1",
     "redux": "^3.3.1",
     "serve-favicon": "~2.3.0",
-    "superagent": "^1.8.3"
+    "superagent": "^1.8.3",
+    "systemd-unitfile": "0.0.2"
   },
   "devDependencies": {
     "babel-core": "^6.7.4",
@@ -27,8 +28,10 @@
     "babel-preset-react-hmre": "^1.1.1",
     "babel-preset-stage-0": "^6.5.0",
     "babel-preset-stage-2": "^6.5.0",
+    "material-ui": "^0.15.0-beta.2",
     "react-addons-css-transition-group": "^15.0.1",
     "react-click-outside": "^2.1.0",
+    "react-tap-event-plugin": "^1.0.0",
     "webpack": "^1.12.14",
     "webpack-dev-server": "^1.14.1"
   }

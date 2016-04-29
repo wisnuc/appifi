@@ -21,6 +21,7 @@ app.use('/users', require('routes/users'))
 app.use('/storage', require('routes/storage'))
 app.use('/dockerapi', require('routes/dockerapi')) 
 app.use('/dockerhub', require('routes/dockerhub'))
+app.use('/services', require('routes/services'))
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
