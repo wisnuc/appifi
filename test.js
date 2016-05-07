@@ -11,8 +11,9 @@ var createStore = require('redux').createStore
 
 const reducer = (state = [], msg) => {
 
-  if (msg.type !== 'type') return state
+  console.log(msg)
 
+  if (msg.type !== 'type') return state
   if (msg.status === 'Downloading') {
 
     let index = state.findIndex(item => item.id === msg.id)
@@ -92,7 +93,7 @@ rl.on('line', (line) => {
 })
 
 var req = request
-  .post('http://127.0.0.1:1688/images/create?fromImage=owncloud')
+  .post('http://127.0.0.1:1688/images/create?fromImage=owncloud&tag=latest')
   .pipe(transform)
 
 
