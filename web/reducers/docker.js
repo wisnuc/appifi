@@ -1,9 +1,10 @@
 import request from 'superagent'
 import { mixin, dispatch } from '../utils/utils'
 
-const baseUrl = 'http://localhost:3000'
+const baseUrl = ''
 const dockerApiUrl = baseUrl + '/dockerapi'
 const dockerHubUrl = baseUrl + '/dockerhub'
+const appEngineUrl = baseUrl + '/appengine'
 
 const defaultState = {
 
@@ -38,6 +39,16 @@ const sendReposRequest = () => request
                                   type: 'DOCKER_REPOS_RESPONSE', err, res
                                 }))
 
+const stateNull = (state) => {
+
+  return state.containers === null &&
+    state.containersRequest === null &&
+    state.images === null &&
+    state.imagesRequest === null &&
+    state.repos === null &&
+    state.reposRequest === null
+}
+
 const reducer = (state = defaultState, action) => {
 
   let debug = false
@@ -47,16 +58,20 @@ const reducer = (state = defaultState, action) => {
 
   switch (action.type) {
 
-    case 'LOGIN_SUCCESS':       
-      return mixin(state, { 
-        containersRequest : sendContainersRequest(),
-        imagesRequest : sendImagesRequest(),
-        reposRequest : sendReposRequest()
-      })
+    // case 'LOGIN_SUCCESS':       
+    case 'SYSTEM_OPERATION_RESPONSE':
+      if (stateNull) {
+        return mixin(state, { 
+          containersRequest : sendContainersRequest(),
+          imagesRequest : sendImagesRequest(),
+          reposRequest : sendReposRequest()
+        })
+      }
+      return state
 
     case 'DOCKER_CONTAINERS_REQUEST':
       if (state.containersRequest) return state
-      return mixin(state, {containersRequest : contianersRequest()})
+      return mixin(state, {containersRequest : containersRequest()})
 
     case 'DOCKER_IMAGES_REQUEST':
       if (state.imagesRequest) return state
@@ -69,7 +84,9 @@ const reducer = (state = defaultState, action) => {
 
       if (action.err) {
         warning && console.log('docker containers response error: ' + action.err)
-        return mixin(state, {containerReqest})
+        return mixin(state, {
+          containersRequest: null
+        })
       } 
       newState = mixin(state, { 
                         containers: action.res.body, 

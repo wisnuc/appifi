@@ -2,56 +2,94 @@ import request from 'superagent'
 import { mixin, dispatch } from '../utils/utils'
 // import deepFreeze from 'deep-freeze'
 
-const baseUrl = 'http://localhost:3000/storage'
+const baseUrl = '/system'
 
-const defaultState = {
-  
+const defaultState = { 
   storage: null,
   storageRequest: null,
-
 }
 
-const sendStorageRequest = () => 
-  request
-    .get(baseUrl)
+const sendOperation = (state, operation) => {
+
+  let debug = false
+
+  debug && console.log('---- sendOperation')
+  debug && console.log(operation)
+
+  if (state.storageRequest) {
+    return state
+  }
+
+  let handle = request
+    .post(baseUrl)
+    .send(operation)
     .set('Accept', 'application/json')
     .end((err, res) => {
+      debug && console.log('--- operation response')
+      debug && console.log(res)
       dispatch({
-        type: 'STORAGE_RESPONSE',
-        err: err,
-        res: res
+        type: 'SYSTEM_OPERATION_RESPONSE',
+        err,
+        res
       })
     })
 
+  return Object.assign({}, state, { 
+    storageRequest: { operation, handle }
+  })
+}
+
+const processOperationResponse = (state, err, res) => {
+
+  let {operation, args} = state.storageRequest.operation
+
+  /*
+  console.log('operation response') 
+  console.log(operation)
+  console.log(args)
+  console.log(err)
+  console.log(res.body)
+  */
+  switch (operation) {
+    case 'get':
+      break
+    case 'daemonStart':
+      break
+    case 'daemonStop':
+      break
+    default:
+      break
+  }
+  return
+}
+
 const reducer = (state = {}, action) => {
 
-  let debug = false
+  let debug = false 
   let warning = true
 
   switch (action.type) {
     
     case 'LOGIN_SUCCESS':
-      return mixin(state, {
-        storageRequest: sendStorageRequest()
-      })
+      return sendOperation(state, { operation: 'get' })
 
-    case 'STORAGE_RESPONSE':
-      if (action.err) {
-        warning && console.log('storage request err: ' + action.res)
+    case 'SYSTEM_OPERATION_RESPONSE':
+
+      processOperationResponse(state, action.err, action.res)
+
+      if (action.err)
         return mixin(state, {
-          storageRequest: sendStorageRequest()
+          storage: action.err,
+          storageRequest: null
         })
-      }
 
-      debug && console.log(action.res.body)
-
-      let newState = mixin(state, {
+      return mixin(state, {
         storage: action.res.body,
         storageRequest: null
       })
 
-//      deepFreeze(newState.storage)
-      return newState
+    case 'SYSTEM_OPERATION':
+      return sendOperation(state, action.operation)
 
     default:
       return state
@@ -59,3 +97,4 @@ const reducer = (state = {}, action) => {
 }
 
 export default reducer 
+

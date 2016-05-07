@@ -5,6 +5,7 @@ var logger = require('morgan');
 var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
 
+var supervisor = require('lib/supervisor')
 
 var app = express();
 
@@ -22,6 +23,7 @@ app.use('/storage', require('routes/storage'))
 app.use('/dockerapi', require('routes/dockerapi')) 
 app.use('/dockerhub', require('routes/dockerhub'))
 app.use('/services', require('routes/services'))
+app.use('/system', require('routes/system'))
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

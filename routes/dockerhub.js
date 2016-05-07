@@ -40,7 +40,7 @@ router.get('/', function(req, res, next) {
   })
 
   taskQueue.drain = () => {
-    console.log(resultList)
+//    console.log(resultList)
     res.status(200).json(resultList)
   }
 

@@ -4,26 +4,44 @@ import { Card, CardTitle, CardHeader, CardMedia, CardAction, CardText } from 'ma
 
 import Progress from './Progress'
 
-const getStore = () => window.store.getState().docker
+const dockerStore = () => window.store.getState().docker
+const systemStore = () => window.store.getState().storage
 
 let renderCard = (repo) => {
   
   return (
     <Card style={{width:240, marginTop:18, marginRight:18}}>
       <CardHeader title={repo.name} />
-      <CardText>Hello World</CardText>
+      <CardText>Install</CardText>
     </Card>
   )  
 }
 
 let render = () => {
 
-  let loading = getStore().reposRequest !== null
-  if (loading) {
-    return <Progress key='appstore_loading' text='Loading Apps from AppStore' />
+  let { repos, reposRequest } = dockerStore() 
+  let { storage } = systemStore()
+
+  if (!storage) {
+    return <Progress key='appstore_loading' text='Retrieving Information from AppStation' busy={true} />
   }
 
-  let repos = getStore().repos;
+  if (!storage.daemon.running) {
+    if (storage.volumes.length === 0) {
+      return <Progress key='appstore_loading' text='For starting AppEngine, you need to create a disk volume.' busy={false} />      
+    }
+    return <Progress key='appstore_loading' text='AppEngine not started' busy={false} />
+  }
+
+  let loading = reposRequest !== null
+
+  if (repos === null && reposRequest === null) // TODO
+    return <Progress key='appstore_loading' text='unexpected state, something wrong' />
+
+  if (loading) {
+    return <Progress key='appstore_loading' text='Loading Apps from AppStore' busy={true} />
+  }
+
   if (repos.length === 0) {
     return <h1>It seems that your computer can not connect to docker hub (hub.docker.com)</h1>
   }
@@ -36,7 +54,7 @@ let render = () => {
         flexDirection: 'row',
         flexWrap: 'wrap',
       }}>
-        { getStore().repos.map(renderCard) }
+        { dockerStore().repos.map(renderCard) }
       </div>
     </div>
   )

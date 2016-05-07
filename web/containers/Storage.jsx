@@ -1,9 +1,76 @@
 import React from 'react'
 import { Card, CardTitle, CardHeader, CardText, CardMedia } from 'material-ui/Card'
 import { Table, TableBody, TableHeader, TableHeaderColumn, TableRow, TableRowColumn } from 'material-ui/Table'
-import { FlatButton, RaisedButton, Paper } from 'material-ui'
+import { FlatButton, RaisedButton, FloatingActionButton, Paper, Divider } from 'material-ui'
+import IconAVStop from 'material-ui/svg-icons/av/stop'
+import IconAVPlayArrow from 'material-ui/svg-icons/av/play-arrow'
 
 let getStore = () => window.store.getState().storage
+
+class DialogExampleModal extends React.Component {
+
+  state = {
+    open: false,
+  };
+
+  handleOpen = () => {
+    this.setState({open: true});
+  };
+
+  handleClose = () => {
+    this.setState({open: false});
+  };
+
+  render() {
+    const actions = [
+      <FlatButton
+        label="Cancel"
+        primary={true}
+        onTouchTap={this.handleClose}
+      />,
+      <FlatButton
+        label="Submit"
+        primary={true}
+        disabled={true}
+        onTouchTap={this.handleClose}
+      />,
+    ];
+
+    return (
+      <div>
+        <RaisedButton label="Modal Dialog" onTouchTap={this.handleOpen} />
+        <Dialog
+          title="Dialog With Actions"
+          actions={actions}
+          modal={true}
+          open={this.state.open}
+        >
+          Only actions can close this dialog.
+        </Dialog>
+      </div>
+    );
+  }
+}
+
+let renderStorageNonAvail = () => {
+
+  let storage = getStore().storage
+  let request = getStore().storageRequest
+
+  if (storage === null) {
+    if (request)
+      return <div>busy requesting data</div>
+    else
+      return <div>state not defined</div>
+  }
+
+  if (storage instanceof Error) {
+    console.log(storage.stack)
+    return <div>{`${storage.name}: ${storage.message}`}, retry please</div>
+  }
+
+  return null
+}
 
 let findDiskForPort= (port) => {
 
@@ -42,32 +109,206 @@ let renderVolumeDeviceRow = (device) => {
 }
 
 let renderVolumeRow = (volume) => {
+
+  let {ports, blocks, volumes, mounts, swaps, usages, daemon} = getStore().storage
+  let request = getStore().storageRequest
+
+  let dividerStyle = {
+    marginTop: 16,
+    marginBottom: 16,
+  }
+
+  let pStyle = {
+    display: 'flex',
+    flexDirection: 'row',
+    fontSize: 16,
+    lineHeight: 1.5
+  }
+
+  let rowStyle = {
+    width: '100%',
+    display: 'flex',
+    flexDirection: 'row',
+  }
+
+  let leftColStyle = {
+    flex: 1,
+    fontSize: 24,
+    fontWeight: 100
+  }
+
+  let rightColStyle = {
+    flex: 2,
+  }
+
+  let LabeledText = ({label, text}) => (<div style={pStyle}><div style={{flex:1, fontWeight:100}}>{label}:</div><div style={{flex:2}}>{text}</div></div>)
+  let Spacer = () => <div style={{height:32}} />
+  let usage = usages.find(u => u.mountpoint.endsWith(volume.uuid))
+
+  let running = daemon.volume ? true : false
+  let runningOnMe = daemon.volume === volume.uuid ? true : false
+
+  console.log('request')
+  console.log(request)
+
+  let daemonStartingOnMe = (request) => {
+    if (request) {
+      let op = request.operation
+      return (op.operation === 'daemonStart' && op.args && op.args.length && op.args[0] === volume.uuid) ? true : false
+    } 
+    return false
+  }
+
+  let daemonStoppingOnMe = (request) => {
+    if (request) {
+      let op = request.operation
+      return (op.operation === 'daemonStop' && op.args && op.args.length && op.args[0] === volume.uuid) ? true : false
+    } 
+    return false
+  }
+
+  let daemonOperatingOnMe = (request) => daemonStartingOnMe(request) || daemonStoppingOnMe(request)
+
+  let daemonStart = (uuid) => {
+
+    console.log('daemonStart')
+    console.log(uuid)
+
+    window.store.dispatch({ 
+      type: 'SYSTEM_OPERATION',
+      operation: { 
+        operation: 'daemonStart',
+        args: [uuid]
+      }
+    })
+  }
+
+
+  let daemonStop = (uuid) => {
+    window.store.dispatch({
+      type: 'SYSTEM_OPERATION',
+      operation: {
+        operation: 'daemonStop',
+        args: [uuid]
+      }
+    }) 
+  }
+
+  let statusHint = () => {
+     
+  }
+
   return (
-    <Card key={volume.uuid}>
-      <CardHeader title={volume.label} subtitle={'uuid: ' + volume.uuid}>
-        <div>used: {volume.used}</div>
-        <div>devices: {volume.total}</div>
-      </CardHeader>
-      <CardText>
-        <Table selectable={false}>
-          <TableHeader enableSelectAll={false} displaySelectAll={false} adjustForCheckbox={false} >
-            <TableRow>
-              <TableHeaderColumn>ID</TableHeaderColumn>
-              <TableHeaderColumn>Path</TableHeaderColumn>
-              <TableHeaderColumn>Size</TableHeaderColumn>
-              <TableHeaderColumn>Used</TableHeaderColumn>
-            </TableRow>
-          </TableHeader>
-          <TableBody displayRowCheckbox={false}>
-            { volume.devices.map(device => renderVolumeDeviceRow(device)) }
-          </TableBody>
-        </Table>
-      </CardText>
-    </Card>
+  <div>
+    <Paper style={{
+        width: '100%',
+    }}>
+      {/* title bar */}
+      <div id='card-title-bar' style={{
+          display: 'flex',
+          flexDirection: 'row',   
+          alignItems: 'center',
+          padding: '16px'
+      }}>
+        <div style={{fontSize: 28, fontWeight:100, flexGrow:1}}>Btrfs File System (RAID)</div>
+              </div>
+      {/* general */}
+      <div id='card-important' style={{padding:'16px' }}>
+        <div style={rowStyle}>
+          <div style={leftColStyle}>General Information</div>
+          <div style={rightColStyle}>
+            <LabeledText label='label' text={volume.label ? volume.label : '(none)'} />
+            <LabeledText label='volume uuid' text={volume.uuid} />
+            <LabeledText label='number of disks' text={volume.total} />
+            <LabeledText label='mount point' text='/run/wisnuc/volumes/xxxxxx' />
+         </div>
+        </div>
+      </div>
+
+      {/* general */}
+      <div id='card-important' style={{padding:'16px', backgroundColor:'#FAFAFA', }}>
+        <div style={rowStyle}>
+          <div style={leftColStyle}>Status</div>
+          <div style={rightColStyle}>
+            <div style={{fontWeight: 100, lineHeight:1.5, fontSize:16}}>AppEngine is running on this volume</div>
+            <RaisedButton 
+              style={{marginTop:16}} 
+              label='start' 
+              primary={true} 
+              disabled={running} 
+              onTouchTap={() => daemonStart(volume.uuid)} 
+            />
+            <RaisedButton 
+              style={{marginTop:16, marginLeft:24}} 
+              label='stop' 
+              secondary={true} 
+              disabled={!runningOnMe} 
+              onTouchTap={() => daemonStop(volume.uuid)} 
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* card text, don't set this container width !!! */}
+      <div id='card-text' style={{margin:'16px'}}>
+       <div style={rowStyle}>
+          <div style={leftColStyle}>Overall Usage</div>
+          <div style={rightColStyle}>
+            <LabeledText label='data size' text={usage.overall.deviceSize} />
+            <LabeledText label='device allocated' text={usage.overall.deviceAllocated} />
+            <LabeledText label='device unallocated' text={usage.overall.deviceUnallocated} />
+            <LabeledText label='device missing' text={usage.overall.deviceMissing} />
+            <LabeledText label='used space' text={usage.overall.used} />
+            <LabeledText label='free space (estimated)' text={usage.overall.free} />
+            <LabeledText label='free space (minimal)' text={usage.overall.freeMin} />
+            <LabeledText label='data ratio' text={usage.overall.dataRatio} />
+            <LabeledText label='metadata ratio' text={usage.overall.metadataRatio} />
+            <LabeledText label='global reserve (total)' text={usage.overall.globalReserve} />
+            <LabeledText label='global reserve (used)' text={usage.overall.globalReserveUsed} />
+          </div>
+        </div>
+        <Spacer />
+        <div style={rowStyle}>
+          <div style={leftColStyle}>System</div>
+          <div style={rightColStyle}>
+            <LabeledText label='mode' text={usage.system.mode} />
+            <LabeledText label='size' text={usage.system.size} />
+            <LabeledText label='used' text={usage.system.used} />
+          </div>
+        </div>
+        <Spacer />
+        <div style={rowStyle}>
+          <div style={leftColStyle}>Metadata</div>
+          <div style={rightColStyle}>
+            <LabeledText label='mode' text={usage.metadata.mode} />
+            <LabeledText label='size' text={usage.metadata.size} />
+            <LabeledText label='used' text={usage.metadata.used} />
+          </div>
+        </div>
+        <Spacer />
+        <div style={rowStyle}>
+          <div style={leftColStyle}>Data</div>
+          <div style={rightColStyle}>
+            <LabeledText label='mode' text={usage.data.mode} />
+            <LabeledText label='size' text={usage.data.size} />
+            <LabeledText label='used' text={usage.data.used} />
+          </div>
+        </div>
+      </div>
+    </Paper>
+  </div>
   )
 }
 
-let renderVolumes = () => <div>{ getStore().storage.volumes.map(volume => renderVolumeRow(volume)) }</div>
+let renderVolumes = () => {
+
+  let nonavail = renderStorageNonAvail()
+  if (nonavail) return nonavail
+
+  let {ports, blocks, volumes, mounts, swaps, daemon} = getStore().storage
+
+  return <div>{ volumes.map(volume => renderVolumeRow(volume)) }</div>
+}
 
 let buildDiskList = () => {
 
