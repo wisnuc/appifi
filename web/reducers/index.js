@@ -4,6 +4,7 @@ import login from './login'
 import navigation from './navigation'
 import docker from './docker'
 import storage from './storage'
+import store from './store'
  
 const reducer = combineReducers({
   themeColor,
@@ -11,6 +12,7 @@ const reducer = combineReducers({
   navigation,
   docker,
   storage,
+  store
 })
 
 export default reducer

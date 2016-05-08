@@ -1,44 +1,107 @@
 import request from 'superagent'
-import { mixin, dispatch } from '../utils/utils'
+import { dispatch } from '../utils/utils'
 
-const baseUrl = ''
-const dockerApiUrl = baseUrl + '/dockerapi'
-const dockerHubUrl = baseUrl + '/dockerhub'
-const appEngineUrl = baseUrl + '/appengine'
+const dockerUrl = '/docker'
 
 const defaultState = {
 
-  containers: null,  
-  containersRequest: null,
-
-  images: null,
-  imagesRequest: null,
-
-  repos: null,
-  reposRequest: null,
+  docker: null,
+  request: null
 }
 
-const sendContainersRequest = () => request
-                                  .get(dockerApiUrl + '/containers/json?all=1')
-                                  .set('Accept', 'application/json')
-                                  .end((err, res) => dispatch({
-                                    type: 'DOCKER_CONTAINERS_RESPONSE', err, res
-                                  }))
+const sendOperation = (state, operation) => {
 
-const sendImagesRequest = () => request
-                              .get(dockerApiUrl + '/images/json')
-                              .set('Accept', 'application/json')
-                              .end((err, res) => dispatch({
-                                type: 'DOCKER_IMAGES_RESPONSE', err, res
-                              }))
+  let debug = false
 
-const sendReposRequest = () => request
-                                .get(dockerHubUrl)
-                                .set('Accept', 'application/json')
-                                .end((err, res) => dispatch({
-                                  type: 'DOCKER_REPOS_RESPONSE', err, res
-                                }))
+  debug && console.log('---- sendOperation')
+  debug && console.log(operation)
 
+  if (state.request) {
+    return state
+  }
+
+  let handle = request
+    .post(dockerUrl)
+    .send(operation)
+    .set('Accept', 'application/json')
+    .end((err, res) => {
+      debug && console.log('--- operation response')
+      debug && console.log(res)
+      dispatch({
+        type: 'DOCKER_OPERATION_RESPONSE',
+        err,
+        res
+      })
+    })
+
+  return Object.assign({}, state, { 
+    request: { operation, handle }
+  })
+}
+
+const processOperationResponse = (state, err, res) => {
+
+  let {operation, args} = state.request.operation
+
+  /*
+  console.log('operation response') 
+  console.log(operation)
+  console.log(args)
+  console.log(err)
+  console.log(res.body)
+  */
+  switch (operation) {
+    case 'get':
+      break
+    case 'daemonStart':
+      break
+    case 'daemonStop':
+      break
+    default:
+      break
+  }
+  return
+}
+
+const reducer = (state = defaultState, action) => {
+
+  let debug = false 
+  let warning = true
+
+  switch (action.type) {
+    
+    case 'DOCKERD_STARTED':
+      return sendOperation(state, { operation: 'get' })
+
+    case 'DOCKER_OPERATION_RESPONSE':
+
+      processOperationResponse(state, action.err, action.res)
+      if (action.err)
+        return Object.assign({}, state, {
+            docker: action.err,
+            request: null
+          })
+
+      return Object.assign({}, state, {
+          docker: action.res.body,
+          request: null
+        })
+
+    case 'DOCKER_OPERATION':
+      if (!action.operation) {
+        console.log('Bad DOCKER_OPERATION')
+        console.log(action)
+      }
+      return sendOperation(state, action.operation)
+
+    default:
+      return state
+  }
+}
+
+export default reducer 
+
+/**
 const stateNull = (state) => {
 
   return state.containers === null &&
@@ -112,22 +175,11 @@ const reducer = (state = defaultState, action) => {
       debug && console.log(newState)
       return newState 
 
-    case 'DOCKER_REPOS_RESPONSE':
-      
-      if (action.err) {
-        warning && console.log('docker repos response error: ' + action.err)
-      }
-      newState = mixin(state, {
-                        repos: action.res.body,
-                        reposRequest: null
-                      })
-      debug && console.log(newState)
-      return newState 
-
-    default:
+   default:
       return state
   }
 }
 
 export default reducer
+**/
 

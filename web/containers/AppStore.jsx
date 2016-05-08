@@ -3,9 +3,8 @@ import React from 'react'
 import { Card, CardTitle, CardHeader, CardMedia, CardAction, CardText } from 'material-ui/Card'
 
 import Progress from './Progress'
+import { store, dispatch } from '../utils/utils'
 
-const dockerStore = () => window.store.getState().docker
-const systemStore = () => window.store.getState().storage
 
 let renderCard = (repo) => {
   
@@ -19,31 +18,33 @@ let renderCard = (repo) => {
 
 let render = () => {
 
-  let { repos, reposRequest } = dockerStore() 
-  let { storage } = systemStore()
+  let state = store().getState()
+  let { repos, request } = state.store
+  let { storage } = state.storage
 
-  if (!storage) {
-    return <Progress key='appstore_loading' text='Retrieving Information from AppStation' busy={true} />
+  if (!storage || storage instanceof Error) {
+    return <Progress key='appstore_loading' text='Connecting to AppStation' busy={true} />
   }
 
   if (!storage.daemon.running) {
     if (storage.volumes.length === 0) {
-      return <Progress key='appstore_loading' text='For starting AppEngine, you need to create a disk volume.' busy={false} />      
+      return <Progress key='appstore_loading' text='AppEngine not started. For starting AppEngine, you need to create a disk volume first.' busy={false} />      
     }
     return <Progress key='appstore_loading' text='AppEngine not started' busy={false} />
   }
 
-  let loading = reposRequest !== null
-
-  if (repos === null && reposRequest === null) // TODO
-    return <Progress key='appstore_loading' text='unexpected state, something wrong' />
-
-  if (loading) {
+  if (repos === null) {
+    if (request === null) 
+      dispatch({ type: 'STORE_RELOAD'  })
     return <Progress key='appstore_loading' text='Loading Apps from AppStore' busy={true} />
   }
 
+  if (repos instanceof Error) { // TODO
+    return <Progress key='appstore_loading' text='Error loading Apps from AppStore' busy={false} />
+  }
+
   if (repos.length === 0) {
-    return <h1>It seems that your computer can not connect to docker hub (hub.docker.com)</h1>
+    return <Progress key='appstore_loading' text='It seems that your computer can not connect to docker hub (hub.docker.com)' busy={false} />
   }
 
   return (
@@ -54,7 +55,7 @@ let render = () => {
         flexDirection: 'row',
         flexWrap: 'wrap',
       }}>
-        { dockerStore().repos.map(renderCard) }
+        { repos.map(renderCard) }
       </div>
     </div>
   )

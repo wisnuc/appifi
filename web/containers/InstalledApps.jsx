@@ -10,6 +10,9 @@ import IconAVStop from 'material-ui/svg-icons/av/stop'
 import CommunicationEmail from 'material-ui/svg-icons/communication/email'
 import reactClickOutside from 'react-click-outside'
 
+import { store, dispatch } from '../utils/utils'
+
+
 class ListRowLeft extends React.Component {
 
   static propTypes = {
@@ -131,10 +134,25 @@ class ContainerCard extends React.Component {
 
   render () {
 
-    let docker = window.store.getState().docker
+    let state = store().getState()
+    let { docker, request } = state.docker
 
-    if (docker.containersRequest) {
+    if (request) { // TODO
       return <div><CircularProgress size={2} /></div>
+    }
+
+    if (docker === null) {
+      dispatch({ 
+        type: 'DOCKER_OPERATION', 
+        operation: {
+          operation: 'get'
+        }
+      })
+      return <div><CircularProgress size={1} /></div>
+    }
+
+    if (docker instanceof Error) {
+      return <div>Error loading Installed Apps</div>
     }
 
     let containers = docker.containers
