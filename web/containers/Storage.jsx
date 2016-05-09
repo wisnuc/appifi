@@ -5,6 +5,11 @@ import { FlatButton, RaisedButton, FloatingActionButton, Paper, Divider } from '
 import IconAVStop from 'material-ui/svg-icons/av/stop'
 import IconAVPlayArrow from 'material-ui/svg-icons/av/play-arrow'
 
+import { LabeledText, Spacer } from './CustomViews'
+
+console.log(LabeledText)
+console.log(Spacer)
+
 let getStore = () => window.store.getState().storage
 
 class DialogExampleModal extends React.Component {
@@ -113,18 +118,6 @@ let renderVolumeRow = (volume) => {
   let {ports, blocks, volumes, mounts, swaps, usages, daemon} = getStore().storage
   let request = getStore().storageRequest
 
-  let dividerStyle = {
-    marginTop: 16,
-    marginBottom: 16,
-  }
-
-  let pStyle = {
-    display: 'flex',
-    flexDirection: 'row',
-    fontSize: 16,
-    lineHeight: 1.5
-  }
-
   let rowStyle = {
     width: '100%',
     display: 'flex',
@@ -141,15 +134,13 @@ let renderVolumeRow = (volume) => {
     flex: 2,
   }
 
-  let LabeledText = ({label, text}) => (<div style={pStyle}><div style={{flex:1, fontWeight:100}}>{label}:</div><div style={{flex:2}}>{text}</div></div>)
-  let Spacer = () => <div style={{height:32}} />
   let usage = usages.find(u => u.mountpoint.endsWith(volume.uuid))
 
   let running = daemon.volume ? true : false
   let runningOnMe = daemon.volume === volume.uuid ? true : false
 
-  console.log('request')
-  console.log(request)
+//  console.log('request')
+//  console.log(request)
 
   let daemonStartingOnMe = (request) => {
     if (request) {
@@ -192,10 +183,6 @@ let renderVolumeRow = (volume) => {
         args: [uuid]
       }
     }) 
-  }
-
-  let statusHint = () => {
-     
   }
 
   return (
@@ -551,7 +538,6 @@ let renderStorage = () => {
     <div/> 
   )
 }
-
 
 export default { 
   Volumes: renderVolumes, 
