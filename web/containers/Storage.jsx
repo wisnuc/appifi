@@ -197,7 +197,7 @@ let renderVolumeRow = (volume) => {
           alignItems: 'center',
           padding: '16px'
       }}>
-        <div style={{fontSize: 28, fontWeight:100, flexGrow:1}}>Btrfs File System (RAID)</div>
+        <div style={{fontSize: 24, fontWeight:100, flexGrow:1}}>Btrfs File System (RAID)</div>
               </div>
       {/* general */}
       <div id='card-important' style={{padding:'16px' }}>

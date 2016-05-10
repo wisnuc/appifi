@@ -3,7 +3,7 @@ import React from 'react'
 let labeledTextStyle = {
   display: 'flex',
   flexDirection: 'row',
-  fontSize: 16,
+  fontSize: 14,
   lineHeight: 1.5
 }
 

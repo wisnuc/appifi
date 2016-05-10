@@ -187,6 +187,19 @@ class ContainerCard extends React.Component {
                 <LabeledText label='status' text={container.Status} right={4}/>
               </div>
             </div>
+            <div>
+              <FlatButton label="uninstall" 
+                onTouchTap = { () => {
+                  dispatch({
+                    type: 'DOCKER_OPERATION',
+                    operation: {
+                      operation: 'containerRemove',
+                      args: [container.Id]
+                    }
+                  })  
+                }}
+              />
+            </div>
           </div>
         }
       </Paper>

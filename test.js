@@ -93,7 +93,7 @@ rl.on('line', (line) => {
 })
 
 var req = request
-  .post('http://127.0.0.1:1688/images/create?fromImage=owncloud&tag=latest')
+  .post('http://127.0.0.1:1688/images/create?fromImage=busybox&tag=latest')
   .pipe(transform)
 
 
