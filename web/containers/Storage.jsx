@@ -126,7 +126,7 @@ let renderVolumeRow = (volume) => {
 
   let leftColStyle = {
     flex: 1,
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 100
   }
 
@@ -138,9 +138,6 @@ let renderVolumeRow = (volume) => {
 
   let running = daemon.volume ? true : false
   let runningOnMe = daemon.volume === volume.uuid ? true : false
-
-//  console.log('request')
-//  console.log(request)
 
   let daemonStartingOnMe = (request) => {
     if (request) {
@@ -187,18 +184,22 @@ let renderVolumeRow = (volume) => {
 
   return (
   <div>
+    <div style={{fontSize: 28, fontWeight:100}}>Btrfs File System (RAID)</div>
     <Paper style={{
+        marginTop: '16px',
         width: '100%',
     }}>
       {/* title bar */}
+      {/*
       <div id='card-title-bar' style={{
           display: 'flex',
           flexDirection: 'row',   
           alignItems: 'center',
           padding: '16px'
-      }}>
-        <div style={{fontSize: 24, fontWeight:100, flexGrow:1}}>Btrfs File System (RAID)</div>
-              </div>
+      }}>*/}
+      
+      {/*  <div style={{fontSize: 24, fontWeight:100, flexGrow:1}}>Btrfs File System (RAID)</div> */}
+      {/* </div> */}
       {/* general */}
       <div id='card-important' style={{padding:'16px' }}>
         <div style={rowStyle}>

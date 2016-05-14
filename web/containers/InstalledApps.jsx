@@ -86,7 +86,7 @@ let selected = -1
 class ContainerCard extends React.Component {
 
   static rowStyleUnselected = {
-          width: '97%',
+          width: 'calc(100% - 24px)',
           height: 'auto',
           marginTop: 0,
           marginBottom: 0,
@@ -235,9 +235,26 @@ class ContainerCard extends React.Component {
       return <div/>
     }
     
+    let banner
+    if (containers.length === 0) {
+      banner = `no app installed`
+    }
+    else if (containers.length === 1) {
+      banner = `1 app installed`
+    }
+    else (
+      banner = `${containers.length} apps installed`
+    )
+
+    // TODO marginLeft not accurate
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        { containers.map(this.buildRowItem) }
+      <div>
+        <div style={{ fontSize:14, marginLeft:30 }} >
+          { banner }
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop:16 }}>
+          { containers.map(this.buildRowItem) }
+        </div>
       </div>
     )
   }
