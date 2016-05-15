@@ -4,7 +4,7 @@ var storage = require('lib/storage')
 
 router.get('/', function(req, res) {
 
-  // TODO busy
+  return res.status(200).json(storage.get())
 
   storage((err, result) => {
     if (err) {

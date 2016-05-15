@@ -1,7 +1,18 @@
 const express = require('express')
-const supervisor = require('lib/supervisor')
+const storage = require('lib/supervisor')
 
 const router = express.Router()
+
+router.get('/', (req, res) => {
+
+  res.status(200).json(storage.get())
+})
+
+router.get('/head', (req, res) => {
+
+  console.log(storage.head())
+  res.status(200).json(storage.head())
+})
 
 router.post('/', (req, res) => { 
   supervisor(req.body, (err, result) => {

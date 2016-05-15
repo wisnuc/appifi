@@ -5,8 +5,83 @@ import { mixin, dispatch } from '../utils/utils'
 const baseUrl = '/system'
 
 const defaultState = { 
+
   storage: null,
   storageRequest: null,
+}
+
+let status = -2
+
+// either timeout or req is set, but not both
+let timeout = null
+let req = null
+
+const get = () => {
+
+  timeout = null
+  req = request
+    .get(baseUrl)
+    .set('Accept', 'application/json')
+    .end((err, res) => {
+
+      req = null
+      if (err) {
+        // schedule another get
+        timeout = setTimeout(() => get(), 300)
+        return
+      }
+      
+      status = res.body.head
+      // schedule another head
+      timeout = setTimeout(() => head(), 300)
+      dispatch({
+        type: 'STORAGE_UPDATE', 
+        storage: res.body
+      })
+    })
+}
+
+const head = () => {
+
+  timeout = null
+  req = request
+    .get(baseUrl + '/head')
+    .set('Accept', 'application/json')
+    .end((err, res) => {
+
+      req = null
+      if (err) {
+        // schedule another head
+        timeout = setTimeout(() => head(), 300)
+        return
+      }
+    
+      if (status === res.body.head) {
+        // schedule another head
+        timeout = setTimeout(() => head(), 300)
+        return
+      }
+
+      timeout = setTimeout(() => get(), 0)
+    })  
+}
+
+const startPolling = () => {
+
+  status = -2
+  timeout = null
+  req = null
+  get()
+}
+
+const stopPolling = () => {
+
+  if (timeout) clearTimeout(timeout)
+  if (req) req.abort()
+
+  status = -2
+  timeout = null
+  req = null
 }
 
 const sendOperation = (state, operation) => {
@@ -71,7 +146,10 @@ const reducer = (state = {}, action) => {
   switch (action.type) {
     
     case 'LOGIN_SUCCESS':
-      return sendOperation(state, { operation: 'get' })
+
+      startPolling()
+      return state
+      // return sendOperation(state, { operation: 'get' })
 
     case 'SYSTEM_OPERATION_RESPONSE':
 
