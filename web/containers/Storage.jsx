@@ -115,7 +115,8 @@ let renderVolumeDeviceRow = (device) => {
 
 let renderVolumeRow = (volume) => {
 
-  let {ports, blocks, volumes, mounts, swaps, usages, daemon} = getStore().storage
+  let {ports, blocks, volumes, mounts, swaps, usages} = getStore().storage
+  let daemon = // TODO
   let request = getStore().storageRequest
 
   let rowStyle = {

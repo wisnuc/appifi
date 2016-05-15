@@ -138,7 +138,7 @@ const processOperationResponse = (state, err, res) => {
   return
 }
 
-const reducer = (state = {}, action) => {
+const reducer = (state = defaultState, action) => {
 
   let debug = false 
   let warning = true
@@ -150,6 +150,10 @@ const reducer = (state = {}, action) => {
       startPolling()
       return state
       // return sendOperation(state, { operation: 'get' })
+
+    case 'STORAGE_UPDATE':
+      console.log('storage_update')
+      return Object.assign({}, state, { storage: action.storage })
 
     case 'SYSTEM_OPERATION_RESPONSE':
 
