@@ -7,12 +7,20 @@ import Progress from './Progress'
 import { store, dispatch } from '../utils/utils'
 
 
+const cardTitle = (repo) => {
+
+  if (repo.namespace === 'library')
+    return <CardTitle titleStyle={{fontSize:24, fontWeight:100}} title={repo.alias} subtitle='official' />
+  else
+    return <CardTitle titleStyle={{fontSize:24, fontWeight:100}} title={repo.alias} subtitle={repo.namespace} />
+}
+
 let renderCard = (repo) => {
   
   return (
-    <Card style={{width:240, marginTop:18, marginRight:18}}>
-      <CardTitle title={repo.name} />
-      <CardMedia style={{height:240}} ><img src={`/images/${repo.imageLink}`} /></CardMedia>
+    <Card style={{width:220, marginTop:24, marginRight:24}}>
+      { cardTitle(repo) }
+      <CardMedia style={{padding:16, display:'flex', alignItems:'center', justifyContent:'center'}} ><img src={`/images/${repo.imageLink}`} /></CardMedia>
       <CardActions>
         <FlatButton label="Install" primary={true} />
         <FlatButton label="Detail" primary={true} />
@@ -56,7 +64,7 @@ let render = () => {
 
   return (
     <div key='appstore' >
-      <div style={{fontSize:28, fontWeight:'100'}}>Recommended</div>
+      <div style={{fontSize:28, fontWeight:'100'}}>Recommended Apps</div>
       <div style={{
         display: 'flex',
         flexDirection: 'row',

@@ -62,9 +62,12 @@ const stoppingMe = (container) => {
           request.operation.args[0] === container.Id)
 }
 
-const BusyFlatButton = ({ busy, label, disabled, onTouchTap }) => {
+const containerRunning = (container) => {
 
-  let style = {
+  
+}
+
+const containerButtonStyle = {
     width: 92,
     height: 40,
     display: 'flex',
@@ -73,10 +76,37 @@ const BusyFlatButton = ({ busy, label, disabled, onTouchTap }) => {
     justifyContent: 'center' 
   }
 
+
+const BusyFlatButton = ({ busy, label, disabled, onTouchTap }) => {
+
   if (busy)
-    return <div style={style}><CircularProgress size={0.5} /></div>
+    return <div style={containerButtonStyle}><CircularProgress size={0.5} /></div>
   
-  return <div><FlatButton style={style} label={label} disabled={disabled} onTouchTap={onTouchTap} /></div> 
+  return <div style={containerButtonStyle}><FlatButton label={label} disabled={disabled} onTouchTap={onTouchTap} /></div> 
+}
+
+const OpenButton = ({container}) => {
+
+  const openable = (container) =>
+    (container.State === 'running' &&
+      container.Ports.length &&
+      container.Ports[0].Type === 'tcp' &&
+      container.Ports[0].PublicPort) 
+
+
+  if (!openable(container)) return <div style={containerButtonStyle} /> 
+
+  let url = `http://${window.location.hostname}:${container.Ports[0].PublicPort}`
+  let onOpen = () => {
+    console.log(url)
+    window.open(url)
+  }
+
+  return (
+    <div style={containerButtonStyle}>
+      <FlatButton label="open" primary={true} onTouchTap={ onOpen } />
+    </div>
+  )
 }
 
 class ListRowLeft extends React.Component {
@@ -209,8 +239,7 @@ class ContainerCard extends React.Component {
                 })
               }}
             />
-            {/* <FlatButton label="restart" disabled={buttonDisabled[container.State].restart} /> */}
-            
+            <OpenButton container={container} /> 
           </div>
         </div>
         { index === selected && 

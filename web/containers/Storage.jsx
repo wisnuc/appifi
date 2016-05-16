@@ -44,7 +44,7 @@ class DialogExampleModal extends React.Component {
 
     return (
       <div>
-        <RaisedButton label="Modal Dialog" onTouchTap={this.handleOpen} />
+        <FlatButton label="Modal Dialog" onTouchTap={this.handleOpen} />
         <Dialog
           title="Dialog With Actions"
           actions={actions}
@@ -225,14 +225,14 @@ let renderVolumeRow = (volume) => {
           <div style={leftColStyle}>Status</div>
           <div style={rightColStyle}>
             <div style={{fontWeight: 100, lineHeight:1.5, fontSize:16}}>AppEngine is running on this volume</div>
-            <RaisedButton 
+            <FlatButton 
               style={{marginTop:16}} 
               label='start' 
               primary={true} 
               disabled={running} 
               onTouchTap={() => daemonStart(volume.uuid)} 
             />
-            <RaisedButton 
+            <FlatButton 
               style={{marginTop:16, marginLeft:24}} 
               label='stop' 
               secondary={true} 
