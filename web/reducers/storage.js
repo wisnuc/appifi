@@ -2,87 +2,17 @@ import request from 'superagent'
 import { mixin, dispatch } from '../utils/utils'
 // import deepFreeze from 'deep-freeze'
 
+import pollingMachine from './polling'
+
 const baseUrl = '/system'
 
 const defaultState = { 
 
   storage: null,
-  storageRequest: null,
+  request: null,
 }
 
-let status = -2
-
-// either timeout or req is set, but not both
-let timeout = null
-let req = null
-
-const get = () => {
-
-  timeout = null
-  req = request
-    .get(baseUrl)
-    .set('Accept', 'application/json')
-    .end((err, res) => {
-
-      req = null
-      if (err) {
-        // schedule another get
-        timeout = setTimeout(() => get(), 300)
-        return
-      }
-      
-      status = res.body.head
-      // schedule another head
-      timeout = setTimeout(() => head(), 300)
-      dispatch({
-        type: 'STORAGE_UPDATE', 
-        storage: res.body
-      })
-    })
-}
-
-const head = () => {
-
-  timeout = null
-  req = request
-    .get(baseUrl + '/head')
-    .set('Accept', 'application/json')
-    .end((err, res) => {
-
-      req = null
-      if (err) {
-        // schedule another head
-        timeout = setTimeout(() => head(), 300)
-        return
-      }
-    
-      if (status === res.body.head) {
-        // schedule another head
-        timeout = setTimeout(() => head(), 300)
-        return
-      }
-
-      timeout = setTimeout(() => get(), 0)
-    })  
-}
-
-const startPolling = () => {
-
-  status = -2
-  timeout = null
-  req = null
-  get()
-}
-
-const stopPolling = () => {
-
-  if (timeout) clearTimeout(timeout)
-  if (req) req.abort()
-
-  status = -2
-  timeout = null
-  req = null
-}
+let polling = pollingMachine('/system', 'STORAGE_UPDATE', 1000)
 
 const sendOperation = (state, operation) => {
 
@@ -91,7 +21,7 @@ const sendOperation = (state, operation) => {
   debug && console.log('---- sendOperation')
   debug && console.log(operation)
 
-  if (state.storageRequest) {
+  if (state.request) {
     return state
   }
 
@@ -110,21 +40,14 @@ const sendOperation = (state, operation) => {
     })
 
   return Object.assign({}, state, { 
-    storageRequest: { operation, handle }
+    request: { operation, handle }
   })
 }
 
 const processOperationResponse = (state, err, res) => {
 
-  let {operation, args} = state.storageRequest.operation
+  let {operation, args} = state.request.operation
 
-  /*
-  console.log('operation response') 
-  console.log(operation)
-  console.log(args)
-  console.log(err)
-  console.log(res.body)
-  */
   switch (operation) {
     case 'get':
       break
@@ -146,14 +69,12 @@ const reducer = (state = defaultState, action) => {
   switch (action.type) {
     
     case 'LOGIN_SUCCESS':
-
-      startPolling()
+      polling.start()
       return state
-      // return sendOperation(state, { operation: 'get' })
 
     case 'STORAGE_UPDATE':
       console.log('storage_update')
-      return Object.assign({}, state, { storage: action.storage })
+      return Object.assign({}, state, { storage: action.data })
 
     case 'SYSTEM_OPERATION_RESPONSE':
 
@@ -162,12 +83,12 @@ const reducer = (state = defaultState, action) => {
       if (action.err)
         return mixin(state, {
           storage: action.err,
-          storageRequest: null
+          request: null
         })
 
       return mixin(state, {
         storage: action.res.body,
-        storageRequest: null
+        request: null
       })
 
     case 'SYSTEM_OPERATION':

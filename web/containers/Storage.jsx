@@ -11,6 +11,7 @@ console.log(LabeledText)
 console.log(Spacer)
 
 let getStore = () => window.store.getState().storage
+let dockerStore = () => window.store.getState().docker
 
 class DialogExampleModal extends React.Component {
 
@@ -60,7 +61,7 @@ class DialogExampleModal extends React.Component {
 let renderStorageNonAvail = () => {
 
   let storage = getStore().storage
-  let request = getStore().storageRequest
+  let request = getStore().request
 
   if (storage === null) {
     if (request)
@@ -116,8 +117,11 @@ let renderVolumeDeviceRow = (device) => {
 let renderVolumeRow = (volume) => {
 
   let {ports, blocks, volumes, mounts, swaps, usages} = getStore().storage
-  let daemon = // TODO
-  let request = getStore().storageRequest
+  let dockerState = dockerStore().docker
+
+  console.log(dockerState)
+
+  let request = getStore().request
 
   let rowStyle = {
     width: '100%',
@@ -137,8 +141,9 @@ let renderVolumeRow = (volume) => {
 
   let usage = usages.find(u => u.mountpoint.endsWith(volume.uuid))
 
-  let running = daemon.volume ? true : false
-  let runningOnMe = daemon.volume === volume.uuid ? true : false
+  // let running = daemon.volume ? true : false
+  let running = dockerState.status > 0
+  let runningOnMe = dockerState.volume === volume.uuid ? true : false
 
   let daemonStartingOnMe = (request) => {
     if (request) {
@@ -164,7 +169,7 @@ let renderVolumeRow = (volume) => {
     console.log(uuid)
 
     window.store.dispatch({ 
-      type: 'SYSTEM_OPERATION',
+      type: 'DOCKER_OPERATION',
       operation: { 
         operation: 'daemonStart',
         args: [uuid]
@@ -175,7 +180,7 @@ let renderVolumeRow = (volume) => {
 
   let daemonStop = (uuid) => {
     window.store.dispatch({
-      type: 'SYSTEM_OPERATION',
+      type: 'DOCKER_OPERATION',
       operation: {
         operation: 'daemonStop',
         args: [uuid]
@@ -294,7 +299,7 @@ let renderVolumes = () => {
   let nonavail = renderStorageNonAvail()
   if (nonavail) return nonavail
 
-  let {ports, blocks, volumes, mounts, swaps, daemon} = getStore().storage
+  let {ports, blocks, volumes, mounts, swaps} = getStore().storage
 
   return <div>{ volumes.map(volume => renderVolumeRow(volume)) }</div>
 }

@@ -21,12 +21,14 @@ let render = () => {
   let state = store().getState()
   let { repos, request } = state.store
   let { storage } = state.storage
+  let { docker } = state.docker
 
   if (!storage || storage instanceof Error) {
     return <Progress key='appstore_loading' text='Connecting to AppStation' busy={true} />
   }
 
-  if (!storage.daemon.running) {
+//  if (!storage.daemon.running) {
+  if (docker.status <= 0) {
     if (storage.volumes.length === 0) {
       return <Progress key='appstore_loading' text='AppEngine not started. For starting AppEngine, you need to create a disk volume first.' busy={false} />      
     }
