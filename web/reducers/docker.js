@@ -17,8 +17,7 @@ const sendOperation = (state, operation) => {
 
   let debug = true
 
-  debug && console.log('---- sendOperation')
-  debug && console.log(operation)
+  debug && console.log('[DOCKER] sendOperation')
 
   if (state.request) {
     return state
@@ -38,9 +37,11 @@ const sendOperation = (state, operation) => {
       })
     })
 
-  return Object.assign({}, state, { 
+  let s = Object.assign({}, state, { 
     request: { operation, handle }
   })
+  console.log(s)
+  return s
 }
 
 const processOperationResponse = (state, err, res) => {
@@ -75,7 +76,8 @@ const reducer = (state = defaultState, action) => {
 
     case 'DOCKER_UPDATE':
       console.log('docker_update')
-      return Object.assign({}, state, { docker: action.data })
+      // TODO this is dirty, maybe we need a queue
+      return Object.assign({}, state, { docker: action.data, request: null })
 
     case 'DOCKER_OPERATION':
       if (!action.operation) {
@@ -88,7 +90,8 @@ const reducer = (state = defaultState, action) => {
     case 'DOCKER_OPERATION_RESPONSE':
       processOperationResponse(state, action.err, action.res)
       // TODO
-      return Object.assign({}, state, { request: null })
+      // return Object.assign({}, state, { request: null })
+      return state
 
     default:
       return state

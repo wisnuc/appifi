@@ -1,6 +1,7 @@
 import React from 'react'
 
-import { Card, CardTitle, CardHeader, CardMedia, CardAction, CardText } from 'material-ui/Card'
+import { Card, CardTitle, CardHeader, CardMedia, CardActions, CardText } from 'material-ui/Card'
+import { FlatButton, RaisedButton } from 'material-ui'
 
 import Progress from './Progress'
 import { store, dispatch } from '../utils/utils'
@@ -10,8 +11,12 @@ let renderCard = (repo) => {
   
   return (
     <Card style={{width:240, marginTop:18, marginRight:18}}>
-      <CardHeader title={repo.name} />
-      <CardText>Install</CardText>
+      <CardTitle title={repo.name} />
+      <CardMedia style={{height:240}} ><img src={`/images/${repo.imageLink}`} /></CardMedia>
+      <CardActions>
+        <FlatButton label="Install" primary={true} />
+        <FlatButton label="Detail" primary={true} />
+      </CardActions>
     </Card>
   )  
 }

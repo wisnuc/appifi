@@ -16,7 +16,7 @@ import { store, dispatch } from '../utils/utils'
 
 const buttonDisabled = {
 
-  created:{
+  created: {
       start: false,
       stop: true,
       restart: true
@@ -39,6 +39,44 @@ const buttonDisabled = {
       stop: true,
       restart: true
     }
+}
+
+const startingMe = (container) => {
+  
+  let { request } = store().getState().docker
+  console.log(request)
+  return (request && 
+          request.operation && 
+          request.operation.operation === 'containerStart' && 
+          request.operation.args[0] && 
+          request.operation.args[0] === container.Id)
+}
+
+const stoppingMe = (container) => {
+
+  let { request } = store().getState().docker
+  return (request && 
+          request.operation &&
+          request.operation.operation === 'containerStop' && 
+          request.operation.args[0] && 
+          request.operation.args[0] === container.Id)
+}
+
+const BusyFlatButton = ({ busy, label, disabled, onTouchTap }) => {
+
+  let style = {
+    width: 92,
+    height: 40,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center' 
+  }
+
+  if (busy)
+    return <div style={style}><CircularProgress size={0.5} /></div>
+  
+  return <div><FlatButton style={style} label={label} disabled={disabled} onTouchTap={onTouchTap} /></div> 
 }
 
 class ListRowLeft extends React.Component {
@@ -148,8 +186,8 @@ class ContainerCard extends React.Component {
               }
             }}
           /> 
-          <div style={{ display: 'flex', alignItems: 'center', padding:8 }}>
-            <FlatButton label="start" disabled={buttonDisabled[container.State].start} 
+          <div style={{ display: 'flex', alignItems: 'center', padding:8 }}> 
+            <BusyFlatButton busy={startingMe(container)} label="start" disabled={buttonDisabled[container.State].start} 
               onTouchTap={ () => {
                 dispatch({
                   type: 'DOCKER_OPERATION',
@@ -160,7 +198,7 @@ class ContainerCard extends React.Component {
                 })
               }}
             />
-            <FlatButton label="stop" disabled={buttonDisabled[container.State].stop} 
+            <BusyFlatButton busy={stoppingMe(container)} FlatButton label="stop" disabled={buttonDisabled[container.State].stop} 
               onTouchTap ={ () => {
                 dispatch({
                   type: 'DOCKER_OPERATION',
@@ -171,7 +209,8 @@ class ContainerCard extends React.Component {
                 })
               }}
             />
-            <FlatButton label="restart" disabled={buttonDisabled[container.State].restart} />
+            {/* <FlatButton label="restart" disabled={buttonDisabled[container.State].restart} /> */}
+            
           </div>
         </div>
         { index === selected && 
@@ -210,10 +249,6 @@ class ContainerCard extends React.Component {
 
     let state = store().getState()
     let { docker, request } = state.docker
-
-    if (request) { // TODO
-      return <div><CircularProgress size={2} /></div>
-    }
 
     if (docker === null) {
       dispatch({ 

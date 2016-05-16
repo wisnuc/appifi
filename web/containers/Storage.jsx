@@ -297,7 +297,10 @@ let renderVolumeRow = (volume) => {
 let renderVolumes = () => {
 
   let nonavail = renderStorageNonAvail()
-  if (nonavail) return nonavail
+  if (nonavail) {
+    console.log('volume render nonavail')
+    return nonavail
+  }
 
   let {ports, blocks, volumes, mounts, swaps} = getStore().storage
 
