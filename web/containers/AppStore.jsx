@@ -22,7 +22,15 @@ let renderCard = (repo) => {
       { cardTitle(repo) }
       <CardMedia style={{padding:16, display:'flex', alignItems:'center', justifyContent:'center'}} ><img src={`/images/${repo.imageLink}`} /></CardMedia>
       <CardActions>
-        <FlatButton label="Install" primary={true} />
+        <FlatButton label="Install" primary={true} onTouchTap={() => {
+          dispatch({
+            type: 'DOCKER_OPERATION',
+            operation: {
+              operation: 'appInstall',
+              args: [repo.name, 'latest']
+            } 
+          })
+        }}/>
         <FlatButton label="Detail" primary={true} />
       </CardActions>
     </Card>

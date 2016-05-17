@@ -33,28 +33,7 @@ class App extends React.Component {
   render() {
 
     let loggedin = store.getState().login.state === 'LOGGEDIN'
-{/*
-    return (
-      <div>
-        <CSSTransition 
-          transitionName='login'
-          transitionEnterTimeout={1000}
-          transitionLeaveTimeout={1000}
-        >
-          { !loggedin && <Login /> }
-        </CSSTransition>
-        <CSSTransition transitionName='nav' transitionEnterTimeout={2000} transitionLeaveTimeout={1000} >
-          { loggedin && <Navigation /> }
-        </CSSTransition>
-     </div>
-    )
-    return (
-      <div>
-        { store.getState().login.state === 'LOGGEDIN'  ? <Navigation /> : <Login /> }
-      </div>
-    )
-*/}
-    return (<div><div><Navigation /></div></div>)
+    return (<div><Navigation /></div>)
   }
 }
 
