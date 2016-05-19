@@ -1,7 +1,7 @@
 import React from 'react'
 
 import { Card, CardTitle, CardHeader, CardMedia, CardActions, CardText } from 'material-ui/Card'
-import { FlatButton, RaisedButton } from 'material-ui'
+import { FlatButton, RaisedButton, Paper, Dialog } from 'material-ui'
 
 import Progress from './Progress'
 import { store, dispatch } from '../utils/utils'
@@ -15,12 +15,22 @@ const cardTitle = (repo) => {
     return <CardTitle titleStyle={{fontSize:24, fontWeight:100}} title={repo.alias} subtitle={repo.namespace} />
 }
 
+const cardHeader = (repo) => {
+
+  if (repo.namespace === 'library')
+    return <CardHeader title={repo.alias} subtitle='official' />
+  else 
+    return <CardHeader title={repo.alias} subtitle={repo.namespace} />
+}
+
 let renderCard = (repo) => {
   
   return (
-    <Card style={{width:220, marginTop:24, marginRight:24}}>
-      { cardTitle(repo) }
-      <CardMedia style={{padding:16, display:'flex', alignItems:'center', justifyContent:'center'}} ><img src={`/images/${repo.imageLink}`} /></CardMedia>
+    <Card style={{width:160, marginTop:16, marginRight:16}}>
+      {/* cardTitle(repo) */}
+      <CardMedia style={{padding:16, display:'flex', alignItems:'center' }} ><img src={`/images/${repo.imageLink}`}  /></CardMedia>
+      { cardHeader(repo) }
+      {/*
       <CardActions>
         <FlatButton label="Install" primary={true} onTouchTap={() => {
           dispatch({
@@ -33,8 +43,62 @@ let renderCard = (repo) => {
         }}/>
         <FlatButton label="Detail" primary={true} />
       </CardActions>
+      */}
     </Card>
   )  
+}
+
+let renderCard2 = (repo) => {
+  
+  return (
+    <Paper>
+      <div style={{padding:16, display:'flex', alignItems:'center' }} onTouchTap><img src={`/images/${repo.imageLink}`} /></div>
+      <div>{repo.alias}</div>
+    </Paper>
+  )
+}
+
+class AppCard extends React.Component {
+
+  static propTypes = {
+    repo: React.PropTypes.object.isRequired
+  } 
+
+  state = {
+    open: false
+  }
+
+  handleOpen = () => {
+    this.setState({open: true});
+  }
+
+  handleClose = () => {
+    this.setState({open: false});
+  }
+
+  render() {
+    
+    let repo = this.props.repo
+
+    return (
+    <div>
+      <Paper>
+        <div style={{padding:16, display:'flex', alignItems:'center' }} onTouchTap={this.handleOpen}><img src={`/images/${repo.imageLink}`} /></div>
+        <div>{repo.alias}</div>
+      </Paper> 
+      <Dialog
+        style={{overflowY: scroll}}
+        title="Dialog With Actions"
+        actions={null}
+        modal={false}
+        open={this.state.open}
+        onRequestClose={this.handleClose}
+      >
+        The actions in this window were passed in as an array of React objects.
+      </Dialog> 
+    </div>
+    )
+  }
 }
 
 let render = () => {
@@ -78,7 +142,7 @@ let render = () => {
         flexDirection: 'row',
         flexWrap: 'wrap',
       }}>
-        { repos.map(renderCard) }
+        { repos.map(repo => { return <AppCard repo={repo} />}) }
       </div>
     </div>
   )

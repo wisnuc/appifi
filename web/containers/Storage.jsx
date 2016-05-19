@@ -119,8 +119,6 @@ let renderVolumeRow = (volume) => {
   let {ports, blocks, volumes, mounts, swaps, usages} = getStore().storage
   let dockerState = dockerStore().docker
 
-  console.log(dockerState)
-
   let request = getStore().request
 
   let rowStyle = {

@@ -9,16 +9,16 @@ html{color:#000;background:#FFF}body,div,dl,dt,dd,ul,ol,li,h1,h2,h3,h4,h5,h6,pre
 /** css reset **/
 
 html {
-font-family: 'Roboto', Serif;
--webkit-font-smoothing: antialiased;
-background: #FAFAFA;
+  font-family: 'Roboto', Serif;
+  -webkit-font-smoothing: antialiased;
+  background: #FAFAFA;
+  overflow-y: scroll;
+  overflow-x: hidden;
 }
 
 body {
-font-size: 20px;
-line-height: 32px;
-overflow-y: scroll;
-overflow-x: hidden;
+  font-size: 20px;
+  line-height: 32px;
 }
 
 .login-title-appear {

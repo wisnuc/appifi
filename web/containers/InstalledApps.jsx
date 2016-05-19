@@ -44,7 +44,6 @@ const buttonDisabled = {
 const startingMe = (container) => {
   
   let { request } = store().getState().docker
-  console.log(request)
   return (request && 
           request.operation && 
           request.operation.operation === 'containerStart' && 
