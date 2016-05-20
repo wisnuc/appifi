@@ -32,7 +32,7 @@
     "babel-preset-react-hmre": "^1.1.1",
     "babel-preset-stage-0": "^6.5.0",
     "babel-preset-stage-2": "^6.5.0",
-    "material-ui": "^0.15.0-beta.2",
+    "material-ui": "^0.15.0",
     "react-addons-css-transition-group": "^15.0.1",
     "react-click-outside": "^2.1.0",
     "react-tap-event-plugin": "^1.0.0",

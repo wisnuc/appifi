@@ -8,6 +8,8 @@ import CSSTransition from 'react-addons-css-transition-group'
 import injectTapEventPlugin from 'react-tap-event-plugin'
 injectTapEventPlugin()
 
+import AppBar from 'material-ui/AppBar'
+
 var store = createStore(reducer) 
 
 import getMuiTheme from 'material-ui/styles/getMuiTheme'
@@ -33,7 +35,8 @@ class App extends React.Component {
   render() {
 
     let loggedin = store.getState().login.state === 'LOGGEDIN'
-    return (<div><Navigation /></div>)
+//    return (<div><Navigation /></div>)
+    return <div><AppBar style={{ position: 'fixed', display:'flex', flexDirection:'row' }} title='title3' /></div>
   }
 }
 

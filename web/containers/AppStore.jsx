@@ -2,6 +2,7 @@ import React from 'react'
 
 import { Card, CardTitle, CardHeader, CardMedia, CardActions, CardText } from 'material-ui/Card'
 import { FlatButton, RaisedButton, Paper, Dialog } from 'material-ui'
+// import IconStarRate from 'material-ui/
 
 import Progress from './Progress'
 import { store, dispatch } from '../utils/utils'
@@ -51,7 +52,7 @@ let renderCard = (repo) => {
 let renderCard2 = (repo) => {
   
   return (
-    <Paper>
+    <Paper style={{width:160, marginTop:16, marginRight:16}}>
       <div style={{padding:16, display:'flex', alignItems:'center' }} onTouchTap><img src={`/images/${repo.imageLink}`} /></div>
       <div>{repo.alias}</div>
     </Paper>
@@ -82,19 +83,31 @@ class AppCard extends React.Component {
 
     return (
     <div>
-      <Paper>
-        <div style={{padding:16, display:'flex', alignItems:'center' }} onTouchTap={this.handleOpen}><img src={`/images/${repo.imageLink}`} /></div>
-        <div>{repo.alias}</div>
+      <Paper style={{width:160, marginTop:16, marginRight:8}}>
+        <div style={{padding:16, display:'flex', alignItems:'center' }} onTouchTap={this.handleOpen}>
+          <img style={{width:128, height:128}} src={`/images/${repo.imageLink}`} />
+        </div>
+        <div style={{paddingLeft:16, paddingRight:16, paddingBottom:16}}>
+          <div style={{fontSize:16, fontWeight:100, lineHeight:'18px'}}>{repo.alias}</div>
+        </div>
       </Paper> 
       <Dialog
         style={{overflowY: scroll}}
-        title="Dialog With Actions"
         actions={null}
         modal={false}
         open={this.state.open}
         onRequestClose={this.handleClose}
       >
-        The actions in this window were passed in as an array of React objects.
+        <div style={{display: 'flex', flexDirection: 'row'}}>
+          <div><img src={`/images/${repo.imageLink}`} /></div>
+          <div style={{marginLeft: 16}} >
+            <div style={{fontSize: 28, fontWeight: 100}}>{ repo.alias }</div>
+            <div style={{fontSize: 14, fontWeight: 500}}>{ repo.user }</div>
+          </div>
+        </div>
+        <div>
+          { repo.description }
+        </div>
       </Dialog> 
     </div>
     )

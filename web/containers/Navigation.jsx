@@ -521,8 +521,10 @@ class Navigation extends React.Component {
         </div> 
         {/* end of login layout container */}
 
+        <AppBar title="title" />
         {/* appbar */}
         <div style={{position: 'fixed', top: 0, width: '100%', zIndex:100 }}>
+          <AppBar title="Hello World" />
           <Transition opts={['appbar', false, true, true, 300, 600, 400]}>
             { loggedIn() && <div style={{transition: 'all 300ms ease'}}>
               <Paper rounded={false} zDepth={2} style={{
@@ -531,7 +533,7 @@ class Navigation extends React.Component {
               }}>
                 <AppBar onLeftIconButtonTouchTap={this.handleToggle} zDepth={0} title='WISNUC Cloud'>
                   <IconButton 
-                    style={{margin:8, marginRight:-16 /* TODO */ }} 
+                    style={{margin:8, marginRight:-16 }} 
                     tooltip="lock screen" 
                     onTouchTap={() => {
                       console.log('lock')
