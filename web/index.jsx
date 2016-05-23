@@ -35,8 +35,8 @@ class App extends React.Component {
   render() {
 
     let loggedin = store.getState().login.state === 'LOGGEDIN'
-//    return (<div><Navigation /></div>)
-    return <div><AppBar style={{ position: 'fixed', display:'flex', flexDirection:'row' }} title='title3' /></div>
+      return (<div><Navigation /></div>)
+//    return <div><AppBar style={{ position: 'fixed', display:'flex', flexDirection:'row' }} title='title3' /></div>
   }
 }
 
