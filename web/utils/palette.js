@@ -315,6 +315,7 @@ let cyan = {
   shadowColor: colors.fullBlack
 }
 
+/**
 let hues = [
   'red',          // 4
   'pink',         // 340
@@ -336,6 +337,7 @@ let hues = [
   'grey',         //
   'blueGrey'      //
 ]
+**/
 
 export default (color) => {
 

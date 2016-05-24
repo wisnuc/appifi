@@ -33,8 +33,7 @@ let navDefault = [
 const nav = (state = navDefault, action) => {
 
   switch (action.type) {
-
-  case 'NAV_SELECT':
+  case 'NAV_SELECT': {
 
       // find select
     let select = state.find((item) => {
@@ -97,8 +96,8 @@ const nav = (state = navDefault, action) => {
       })
 
       return result
-    }      
-    break
+    }
+  }
 
   default:
     return state

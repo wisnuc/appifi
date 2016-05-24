@@ -44,6 +44,7 @@ const sendOperation = (state, operation) => {
   return s
 }
 
+/*
 const processOperationResponse = (state, err, res) => {
 
   let {operation, args} = state.request.operation
@@ -60,11 +61,12 @@ const processOperationResponse = (state, err, res) => {
   }
   return
 }
+*/
 
 const reducer = (state = defaultState, action) => {
 
-  let debug = false 
-  let warning = true
+  // let debug = false 
+  // let warning = true
 
   switch (action.type) {
     
@@ -88,7 +90,7 @@ const reducer = (state = defaultState, action) => {
     return sendOperation(state, action.operation)
 
   case 'DOCKER_OPERATION_RESPONSE':
-    processOperationResponse(state, action.err, action.res)
+    // processOperationResponse(state, action.err, action.res)
       // TODO
       // return Object.assign({}, state, { request: null })
     return state

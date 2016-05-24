@@ -79,7 +79,7 @@ function pollingMachine(url, actionType, period) {
 
   const started = () => {
 
-    return (timemount !== null || req !== null)
+    return (timeout !== null || req !== null)
   }
 
   return {start, started, stop}

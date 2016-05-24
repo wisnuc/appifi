@@ -44,6 +44,7 @@ const sendOperation = (state, operation) => {
   })
 }
 
+/*
 const processOperationResponse = (state, err, res) => {
 
   let {operation, args} = state.request.operation
@@ -60,14 +61,14 @@ const processOperationResponse = (state, err, res) => {
   }
   return
 }
+*/
 
 const reducer = (state = defaultState, action) => {
 
-  let debug = false 
-  let warning = true
+  // let debug = false 
+  // let warning = true
 
-  switch (action.type) {
-    
+  switch (action.type) { 
   case 'LOGIN_SUCCESS':
     polling.start()
     return state
@@ -78,7 +79,7 @@ const reducer = (state = defaultState, action) => {
 
   case 'SYSTEM_OPERATION_RESPONSE':
 
-    processOperationResponse(state, action.err, action.res)
+    // processOperationResponse(state, action.err, action.res)
 
     if (action.err)
       return mixin(state, {
