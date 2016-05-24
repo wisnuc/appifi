@@ -255,24 +255,7 @@ class Navigation extends React.Component {
   static contextTypes = {
     muiTheme: React.PropTypes.object.isRequired,
   }
-/**
-  componentWillMount() {
 
-    let debug = false
-    let navlist = window.store.getState().navigation.nav
-    debug && console.log(navlist)
-
-    let menu = this.menuSelect(navlist)
-    debug && console.log(menu)
-
-    let dec = decoration.find(item => item.name === menu.name) 
-    debug && console.log(dec)
-
-    if (dec !== undefined && dec.themeColor !== undefined) {
-      dispatch({type: 'THEME_COLOR', color: dec.themeColor})
-    }
-  }
-**/
   submit() {
     window.store.dispatch({
       type: "LOGIN"
@@ -435,28 +418,11 @@ class Navigation extends React.Component {
       padding: 24,
       marginLeft: state.menu ? 240 : 0
     }
-/*
-    let tabAnimationStyle = {
-      position: 'relative',
-      // height: hasTabs ? 50 : 0,
-      top: hasTabs ? 0 : '-200px', // double height
-      opacity: hasTabs ? 100 : 0,
-      transition: 'all 300ms ease'
-    }
-*/
-    let tabAnimationStyle = {
+
+   let tabAnimationStyle = {
       position: 'relative',
     }
-/*    let paperNavStyle = { 
-      position: 'fixed', 
-      top: 0, 
-      left: 0, 
-      width:'100%', 
-      backgroundColor:this.getColor('primary1Color'),
-      display: 'flex',
-      flexDirection: 'column',
-      zIndex: 100 
-    }*/
+
     let paperNavStyle = { 
       position: 'fixed', 
       left: 0, 
@@ -471,18 +437,7 @@ class Navigation extends React.Component {
 
     return (
       <div>
-        {/* container for login layout */}
-        <div id='login-container' style={{ 
-            // backgroundColor: 'gray', // for test
-            position: 'fixed',
-            top: 0, // VERY IMPORTANT!
-            display : 'flex', 
-            flexDirection: 'column', 
-            alignItems : 'center',
-            justifyContent : 'center',
-            minHeight : '100vh',
-            minWidth : '100vw',
-        }}>
+        <div id='login-container' className='login-container-style' >
           <Transition opts={['login-title', true, true, false, 100, 1000, 100]}>
             { !loggedIn() && 
               <div style={{ 
@@ -497,7 +452,7 @@ class Navigation extends React.Component {
           </Transition> 
           <Transition opts={['login-dialog', true, true, false, 100, 1000, 100]}>
             { !loggedIn() && <div> 
-              <Paper style={loginDialogStyle} zDepth={2}>
+              <Paper className='login-paper-style' zDepth={2}>
                 { loginBusy() && 
                   <CircularProgress /> 
                 }
@@ -522,7 +477,7 @@ class Navigation extends React.Component {
         {/* end of login layout container */}
 
         {/* appbar */}
-        <div style={{position: 'fixed', top: 0, width: '100%', zIndex:100 }}>
+        <div id='appbar-container' className='appbar-container-style' >
           <Transition opts={['appbar', false, true, true, 300, 600, 400]}>
             { loggedIn() && <div style={{transition: 'all 300ms ease'}}>
               <Paper rounded={false} zDepth={2} style={{

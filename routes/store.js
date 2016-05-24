@@ -1,13 +1,15 @@
-const express = require('express')
-const store = require('lib/store')
+import express from 'express'
+import store from 'lib/store'
 
 const router = express.Router()
 
 router.get('/', (req, res) => { 
-  store((err, result) => {
-    err ? res.status(500).json(err) :
-      res.status(200).json(result)
-  })
+  res.status(200).json(store.get())
+})
+
+router.post('/', (req, res) => {
+  res.status(200).json(store.refresh())
 })
 
 module.exports = router
+

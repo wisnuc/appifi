@@ -7,8 +7,6 @@ import IconAVPlayArrow from 'material-ui/svg-icons/av/play-arrow'
 
 import { LabeledText, Spacer } from './CustomViews'
 
-console.log(LabeledText)
-console.log(Spacer)
 
 let getStore = () => window.store.getState().storage
 let dockerStore = () => window.store.getState().docker

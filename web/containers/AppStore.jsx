@@ -2,7 +2,6 @@ import React from 'react'
 
 import { Card, CardTitle, CardHeader, CardMedia, CardActions, CardText } from 'material-ui/Card'
 import { FlatButton, RaisedButton, Paper, Dialog } from 'material-ui'
-// import IconStarRate from 'material-ui/
 
 import Progress from './Progress'
 import { store, dispatch } from '../utils/utils'
@@ -28,23 +27,8 @@ let renderCard = (repo) => {
   
   return (
     <Card style={{width:160, marginTop:16, marginRight:16}}>
-      {/* cardTitle(repo) */}
       <CardMedia style={{padding:16, display:'flex', alignItems:'center' }} ><img src={`/images/${repo.imageLink}`}  /></CardMedia>
       { cardHeader(repo) }
-      {/*
-      <CardActions>
-        <FlatButton label="Install" primary={true} onTouchTap={() => {
-          dispatch({
-            type: 'DOCKER_OPERATION',
-            operation: {
-              operation: 'appInstall',
-              args: [repo.name, 'latest']
-            } 
-          })
-        }}/>
-        <FlatButton label="Detail" primary={true} />
-      </CardActions>
-      */}
     </Card>
   )  
 }
@@ -117,15 +101,15 @@ class AppCard extends React.Component {
 let render = () => {
 
   let state = store().getState()
-  let { repos, request } = state.store
+  let { appstore, request } = state.store
   let { storage } = state.storage
   let { docker } = state.docker
+
 
   if (!storage || storage instanceof Error) {
     return <Progress key='appstore_loading' text='Connecting to AppStation' busy={true} />
   }
 
-//  if (!storage.daemon.running) {
   if (docker.status <= 0) {
     if (storage.volumes.length === 0) {
       return <Progress key='appstore_loading' text='AppEngine not started. For starting AppEngine, you need to create a disk volume first.' busy={false} />      
@@ -133,17 +117,26 @@ let render = () => {
     return <Progress key='appstore_loading' text='AppEngine not started' busy={false} />
   }
 
-  if (repos === null) {
+  if (appstore === null) {
     if (request === null) 
       dispatch({ type: 'STORE_RELOAD'  })
     return <Progress key='appstore_loading' text='Loading Apps from AppStore' busy={true} />
   }
 
-  if (repos instanceof Error) { // TODO
-    return <Progress key='appstore_loading' text='Error loading Apps from AppStore' busy={false} />
+  if (appstore.status === 'error') {
+    return <div>Error loading appstore, please refresh</div>
   }
 
-  if (repos.length === 0) {
+  if (appstore.status === 'init') {
+    return <div>Server status error, probably you need to restart server</div>
+  } 
+
+  if (appstore.status === 'refreshing') {
+    return <Progress key='appstore_loading' text='Loading Apps from AppStore' busy={true} />
+  }
+
+  // Assert status is success
+  if (appstore.apps.length === 0) {
     return <Progress key='appstore_loading' text='It seems that your computer can not connect to docker hub (hub.docker.com)' busy={false} />
   }
 
@@ -155,7 +148,7 @@ let render = () => {
         flexDirection: 'row',
         flexWrap: 'wrap',
       }}>
-        { repos.map(repo => { return <AppCard repo={repo} />}) }
+        { appstore.apps.map(repo => { return <AppCard repo={repo} />}) }
       </div>
     </div>
   )

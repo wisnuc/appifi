@@ -24,6 +24,35 @@ body {
   display: flex;
 }
 
+/** see Navigation **/
+.login-paper-style {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 120px;
+  width: 300px;
+  padding: 10px;
+}
+
+.login-container-style {
+  position: fixed;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  min-width: 100vw;
+}
+
+.appbar-container-style {
+  position: fixed;
+  top: 0;
+  width: 100%;
+  z-index: 100;
+}
+
 .login-title-appear {
   margin-bottom: 100px;
   opacity: 0.01;

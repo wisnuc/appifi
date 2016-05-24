@@ -1,42 +1,36 @@
 import React from 'react'
 import ReactDom from 'react-dom'
 import { createStore } from 'redux'
+
 import Login from './containers/Login'
 import reducer from './reducers/index'
 import Navigation from './containers/Navigation'
-import CSSTransition from 'react-addons-css-transition-group'
 import injectTapEventPlugin from 'react-tap-event-plugin'
-injectTapEventPlugin()
-
-import AppBar from 'material-ui/AppBar'
-
-var store = createStore(reducer) 
-
 import getMuiTheme from 'material-ui/styles/getMuiTheme'
-
 import palette from './utils/palette'
 
+injectTapEventPlugin()
+
+let store = createStore(reducer) 
+
 class App extends React.Component {
-
-  getChildContext() {
-
-    const muiTheme = getMuiTheme({
-      palette: palette(window.store.getState().themeColor)
-    });
-
-    return {muiTheme};
-  }
 
   /* this must be declared for Components exporting context */  
   static childContextTypes = {
     muiTheme: React.PropTypes.object.isRequired,
   }
 
-  render() {
+  getChildContext() {
 
-    let loggedin = store.getState().login.state === 'LOGGEDIN'
-      return (<div><Navigation /></div>)
-//    return <div><AppBar style={{ position: 'fixed', display:'flex', flexDirection:'row' }} title='title3' /></div>
+    let muiTheme = getMuiTheme({
+      palette: palette(window.store.getState().themeColor)
+    });
+
+    return {muiTheme};
+  }
+
+  render() {
+    return (<div><Navigation /></div>)
   }
 }
 
@@ -47,6 +41,4 @@ const render = () => {
 store.subscribe(render)
 window.store = store
 render()
-
-
 
