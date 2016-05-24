@@ -67,7 +67,7 @@ let palette = {
     A400: colors.deepPurpleA400,
     A700: colors.deepPurpleA700
   },
- indigo : {
+  indigo : {
     50: colors.indigo50,
     100: colors.indigo100,
     200: colors.indigo200,
@@ -115,7 +115,7 @@ let palette = {
     A400: colors.lightBlueA400,
     A700: colors.lightBlueA700
   },
- cyan : {
+  cyan : {
     50: colors.cyan50,
     100: colors.cyan100,
     200: colors.cyan200,
@@ -163,7 +163,7 @@ let palette = {
     A400: colors.greenA400,
     A700: colors.greenA700
   },
- lightGreen : {
+  lightGreen : {
     50: colors.lightGreen50,
     100: colors.lightGreen100,
     200: colors.lightGreen200,
@@ -211,7 +211,7 @@ let palette = {
     A400: colors.yellowA400,
     A700: colors.yellowA700
   },
- amber : {
+  amber : {
     50: colors.amber50,
     100: colors.amber100,
     200: colors.amber200,
@@ -269,7 +269,7 @@ let palette = {
     600: colors.brown600,
     700: colors.brown700,
     800: colors.brown800,
-    900: colors.brown900,
+    900: colors.brown900
   },
   grey : {
     50: colors.grey50,
@@ -281,7 +281,7 @@ let palette = {
     600: colors.grey600,
     700: colors.grey700,
     800: colors.grey800,
-    900: colors.grey900,
+    900: colors.grey900
   },
   blueGrey : {
     50: colors.blueGrey50,
@@ -293,8 +293,8 @@ let palette = {
     600: colors.blueGrey600,
     700: colors.blueGrey700,
     800: colors.blueGrey800,
-    900: colors.blueGrey900,
-  },
+    900: colors.blueGrey900
+  }
 }
 
 
@@ -312,7 +312,7 @@ let cyan = {
   disabledColor: fade(colors.darkBlack, 0.3),
   pickerHeaderColor: colors.cyan500,
   clockCircleColor: fade(colors.darkBlack, 0.07),
-  shadowColor: colors.fullBlack,
+  shadowColor: colors.fullBlack
 }
 
 let hues = [

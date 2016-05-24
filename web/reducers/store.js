@@ -24,35 +24,35 @@ const reducer = (state = defaultState, action) => {
 
   switch (action.type) {
 
-    case 'STORE_RELOAD':
+  case 'STORE_RELOAD':
 
-      console.log('STORE_RELOAD dispatched')
+    console.log('STORE_RELOAD dispatched')
 
-      if (state.request || state.timeout) return state
-      return Object.assign({}, state, { request: reload() })
+    if (state.request || state.timeout) return state
+    return Object.assign({}, state, { request: reload() })
 
-    case 'STORE_RELOAD_RESPONSE':
+  case 'STORE_RELOAD_RESPONSE':
       
-      if (action.err) {
-        return Object.assign({}, state, {
-          repos: action.err, //TODO
-          request: null
-        })
-      }
-
-      
-
+    if (action.err) {
       return Object.assign({}, state, {
-        appstore: action.res.body,
+        repos: action.err, //TODO
         request: null
       })
-  
-    case 'DOCKERD_STARTED':
-      setTimeout(() => dispatch({ type: 'STORE_RELOAD' }), 0)
-      break
+    }
 
-    default:
-      return state
+      
+
+    return Object.assign({}, state, {
+      appstore: action.res.body,
+      request: null
+    })
+  
+  case 'DOCKERD_STARTED':
+    setTimeout(() => dispatch({ type: 'STORE_RELOAD' }), 0)
+    break
+
+  default:
+    return state
   }
 }
 

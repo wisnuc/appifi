@@ -9,7 +9,7 @@ const baseUrl = '/system'
 const defaultState = { 
 
   storage: null,
-  request: null,
+  request: null
 }
 
 let polling = pollingMachine('/system', 'STORAGE_UPDATE', 1000)
@@ -49,14 +49,14 @@ const processOperationResponse = (state, err, res) => {
   let {operation, args} = state.request.operation
 
   switch (operation) {
-    case 'get':
-      break
-    case 'daemonStart':
-      break
-    case 'daemonStop':
-      break
-    default:
-      break
+  case 'get':
+    break
+  case 'daemonStart':
+    break
+  case 'daemonStop':
+    break
+  default:
+    break
   }
   return
 }
@@ -68,34 +68,34 @@ const reducer = (state = defaultState, action) => {
 
   switch (action.type) {
     
-    case 'LOGIN_SUCCESS':
-      polling.start()
-      return state
+  case 'LOGIN_SUCCESS':
+    polling.start()
+    return state
 
-    case 'STORAGE_UPDATE':
-      console.log('storage_update')
-      return Object.assign({}, state, { storage: action.data })
+  case 'STORAGE_UPDATE':
+    console.log('storage_update')
+    return Object.assign({}, state, { storage: action.data })
 
-    case 'SYSTEM_OPERATION_RESPONSE':
+  case 'SYSTEM_OPERATION_RESPONSE':
 
-      processOperationResponse(state, action.err, action.res)
+    processOperationResponse(state, action.err, action.res)
 
-      if (action.err)
-        return mixin(state, {
-          storage: action.err,
-          request: null
-        })
-
+    if (action.err)
       return mixin(state, {
-        storage: action.res.body,
+        storage: action.err,
         request: null
       })
 
-    case 'SYSTEM_OPERATION':
-      return sendOperation(state, action.operation)
+    return mixin(state, {
+      storage: action.res.body,
+      request: null
+    })
 
-    default:
-      return state
+  case 'SYSTEM_OPERATION':
+    return sendOperation(state, action.operation)
+
+  default:
+    return state
   }
 }
 

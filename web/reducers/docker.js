@@ -49,14 +49,14 @@ const processOperationResponse = (state, err, res) => {
   let {operation, args} = state.request.operation
 
   switch (operation) {
-    case 'get':
-      break
-    case 'daemonStart':
-      break
-    case 'daemonStop':
-      break
-    default:
-      break
+  case 'get':
+    break
+  case 'daemonStart':
+    break
+  case 'daemonStop':
+    break
+  default:
+    break
   }
   return
 }
@@ -70,31 +70,31 @@ const reducer = (state = defaultState, action) => {
     
     // case 'DOCKERD_STARTED':
     //  return sendOperation(state, { operation: 'get' })
-    case 'LOGIN_SUCCESS':
-      polling.start()
-      return state
+  case 'LOGIN_SUCCESS':
+    polling.start()
+    return state
 
-    case 'DOCKER_UPDATE':
-      console.log('docker_update')
+  case 'DOCKER_UPDATE':
+    console.log('docker_update')
       // TODO this is dirty, maybe we need a queue
-      return Object.assign({}, state, { docker: action.data, request: null })
+    return Object.assign({}, state, { docker: action.data, request: null })
 
-    case 'DOCKER_OPERATION':
-      if (!action.operation) {
-        console.log('Bad DOCKER_OPERATION')
-        console.log(action)
-        return state
-      }
-      return sendOperation(state, action.operation)
+  case 'DOCKER_OPERATION':
+    if (!action.operation) {
+      console.log('Bad DOCKER_OPERATION')
+      console.log(action)
+      return state
+    }
+    return sendOperation(state, action.operation)
 
-    case 'DOCKER_OPERATION_RESPONSE':
-      processOperationResponse(state, action.err, action.res)
+  case 'DOCKER_OPERATION_RESPONSE':
+    processOperationResponse(state, action.err, action.res)
       // TODO
       // return Object.assign({}, state, { request: null })
-      return state
+    return state
 
-    default:
-      return state
+  default:
+    return state
   }
 }
 
