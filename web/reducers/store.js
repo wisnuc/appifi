@@ -5,8 +5,11 @@ const storeUrl = '/store'
 
 const defaultState = {
 
+  /** err & result of request **/
+  error: null,
   appstore: null,
 
+  /** request is either fired or scheduled **/
   timeout: null,
   request: null
 }
@@ -20,10 +23,17 @@ const reload = () =>
       type: 'STORE_RELOAD_RESPONSE', err, res
     }))
 
+const refresh = () =>
+  request
+    .post(storeUrl)
+    .set('Accept', 'application/json')
+    .end((err, res) => dispatchh({
+      type: 'STORE_REFRESH_RESPONSE', err, res
+    }))
+
 const reducer = (state = defaultState, action) => {
 
   switch (action.type) {
-
   case 'STORE_RELOAD':
 
     console.log('STORE_RELOAD dispatched')
@@ -39,8 +49,6 @@ const reducer = (state = defaultState, action) => {
         request: null
       })
     }
-
-      
 
     return Object.assign({}, state, {
       appstore: action.res.body,

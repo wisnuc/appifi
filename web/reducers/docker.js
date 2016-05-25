@@ -44,34 +44,10 @@ const sendOperation = (state, operation) => {
   return s
 }
 
-/*
-const processOperationResponse = (state, err, res) => {
-
-  let {operation, args} = state.request.operation
-
-  switch (operation) {
-  case 'get':
-    break
-  case 'daemonStart':
-    break
-  case 'daemonStop':
-    break
-  default:
-    break
-  }
-  return
-}
-*/
-
 const reducer = (state = defaultState, action) => {
 
-  // let debug = false 
-  // let warning = true
 
   switch (action.type) {
-    
-    // case 'DOCKERD_STARTED':
-    //  return sendOperation(state, { operation: 'get' })
   case 'LOGIN_SUCCESS':
     polling.start()
     return state

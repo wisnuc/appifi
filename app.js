@@ -5,8 +5,6 @@ var logger = require('morgan')
 var cookieParser = require('cookie-parser')
 var bodyParser = require('body-parser')
 
-// var supervisor = require('lib/supervisor')
-
 var app = express()
 
 // uncomment after placing your favicon in /public
