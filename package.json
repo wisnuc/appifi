@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "start": "NODE_PATH=. nodemon --exec babel-node ./bin/www",
-    "webpack": "webpack-dev-server --progress --inline --hot"
+    "webpack": "webpack-dev-server --progress --inline --hot",
+    "lint": "node node_modules/eslint/bin/eslint.js ."
   },
   "dependencies": {
     "body-parser": "~1.13.2",

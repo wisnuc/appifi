@@ -4,13 +4,13 @@ import apps from './lib/apps'
 try {
 
   let json = JSON.stringify(apps, null, '  ')
-  fs.writeFile("./hosted/apps.json", json, function(err) {
+  fs.writeFile('./hosted/apps.json', json, function(err) {
     if(err) {
-      return console.log(err);
+      return console.log(err)
     }
 
-    console.log("The file was saved!");
-  }); 
+    console.log('The file was saved!')
+  })
 }
 catch (e) {
   console.log(e)
