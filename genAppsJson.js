@@ -1,5 +1,5 @@
 import fs from 'fs'
-import apps from './lib/apps'
+import apps from './hosted/apps'
 
 try {
 

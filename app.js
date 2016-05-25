@@ -5,8 +5,11 @@ var logger = require('morgan')
 var cookieParser = require('cookie-parser')
 var bodyParser = require('body-parser')
 
-var app = express()
+let app = express()
 
+/*
+ * middlewares
+ */
 // uncomment after placing your favicon in /public
 //app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
 app.use(logger('dev', {
@@ -21,10 +24,21 @@ app.use(bodyParser.urlencoded({ extended: false }))
 app.use(cookieParser())
 app.use(express.static(path.join(__dirname, 'public')))
 
+/*
+ * module init
+ */ 
+// require('lib/storage')
+// require('lib/docker')
+import appstore from 'lib/appstore'
+appstore.init()
+
+/*
+ * routes
+ */
 app.use('/', require('routes/index'))
 app.use('/storage', require('routes/storage'))
 app.use('/docker', require('routes/docker'))
-app.use('/store', require('routes/store'))
+app.use('/appstore', require('routes/appstore'))
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

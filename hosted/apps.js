@@ -1,5 +1,6 @@
 
 /** app definition in javascript, easier to be maintained than json **/
+/*
 export default [
   {
     name: 'library/busybox',
@@ -50,6 +51,47 @@ export default [
     name: 'library/wordpress',
     alias: 'wordpress',
     image: 'wordpress.png'
+  }
+]
+*/
+
+export default [
+  {
+    appname: 'busybox',
+    components: [
+      {
+        name: 'busybox',
+        namespace: 'library',
+        imageLink: 'busybox.png',
+        tag: 'latest',
+        repo: null,
+        overlay: true,
+        config: {},
+        volumes: []
+      }
+    ]
+  },
+  {
+    appname: 'owncloud',
+    components: [
+      {
+        name: 'owncloud',
+        namespace: 'library',
+        imageLink: 'owncloud.png',
+        tag: 'latest',
+        repo: null,
+        overlay: true,
+        config: {
+          HostConfig: {
+            RestartPolicy: {
+              Name: 'unless-stopped'
+            },
+            PublishAllPorts: true
+          } 
+        },
+        volumes: []
+      } 
+    ]
   }
 ]
 

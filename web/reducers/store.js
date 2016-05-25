@@ -1,7 +1,7 @@
 const request = require('superagent')
 import { dispatch } from '../utils/utils'
 
-const storeUrl = '/store'
+const storeUrl = '/appstore'
 
 const defaultState = {
 
