@@ -4,7 +4,7 @@ import { mixin, dispatch } from '../utils/utils'
 
 import pollingMachine from './polling'
 
-const baseUrl = '/system'
+const endpoint = '/storage'
 
 const defaultState = { 
 
@@ -12,7 +12,7 @@ const defaultState = {
   request: null
 }
 
-let polling = pollingMachine('/system', 'STORAGE_UPDATE', 1000)
+let polling = pollingMachine(endpoint, 'STORAGE_UPDATE', 1000)
 
 const sendOperation = (state, operation) => {
 

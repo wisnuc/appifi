@@ -22,7 +22,7 @@ app.use(cookieParser())
 app.use(express.static(path.join(__dirname, 'public')))
 
 app.use('/', require('routes/index'))
-app.use('/system', require('routes/system'))
+app.use('/storage', require('routes/storage'))
 app.use('/docker', require('routes/docker'))
 app.use('/store', require('routes/store'))
 
