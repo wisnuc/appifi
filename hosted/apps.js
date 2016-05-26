@@ -72,7 +72,7 @@ export default [
     ]
   },
   {
-    appname: 'owncloud',
+    appname: 'ownCloud',
     components: [
       {
         name: 'owncloud',

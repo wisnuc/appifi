@@ -6,105 +6,160 @@ import { FlatButton, RaisedButton, Paper, Dialog } from 'material-ui'
 import Progress from './Progress'
 import { store, dispatch } from '../utils/utils'
 
+const formatNumber = (num) => {
 
-const cardTitle = (repo) => {
-
-  if (repo.namespace === 'library')
-    return <CardTitle titleStyle={{fontSize:24, fontWeight:100}} title={repo.alias} subtitle='official' />
-  else
-    return <CardTitle titleStyle={{fontSize:24, fontWeight:100}} title={repo.alias} subtitle={repo.namespace} />
+  if (num > 999999) {
+    return (num/1000000).toFixed(1) + 'M'
+  }
+  else if (num > 999) {
+    return (num/1000).toFixed(1) + 'K'
+  }
+  return num
 }
 
-const cardHeader = (repo) => {
+const appInstalled = (app) => {
 
-  if (repo.namespace === 'library')
-    return <CardHeader title={repo.alias} subtitle='official' />
-  else 
-    return <CardHeader title={repo.alias} subtitle={repo.namespace} />
+  let { containers } = store().getState().docker.docker
+
+/*
+ * appifi-metadata-appname: appname
+ */
+  return containers.find(contr => contr.Labels['appifi-metadata-appname'] === app.appname) 
+    ? true : false
 }
 
-let renderCard = (repo) => {
+const appInstalling = (app) => {
+
+  return false
+}
+
+const InstallingBoard = ({}) => {
+
   
-  return (
-    <Card style={{width:160, marginTop:16, marginRight:16}}>
-      <CardMedia style={{padding:16, display:'flex', alignItems:'center' }} ><img src={`/images/${repo.imageLink}`}  /></CardMedia>
-      { cardHeader(repo) }
-    </Card>
-  )  
 }
 
-let renderCard2 = (repo) => {
-  
-  return (
-    <Paper style={{width:160, marginTop:16, marginRight:16}}>
-      <div style={{padding:16, display:'flex', alignItems:'center' }} onTouchTap><img src={`/images/${repo.imageLink}`} /></div>
-      <div>{repo.alias}</div>
-    </Paper>
-  )
-}
-
-class AppCard extends React.Component {
-
-  static propTypes = {
-    repo: React.PropTypes.object.isRequired
-  } 
-
-  state = {
-    open: false
-  }
-
-  handleOpen = () => {
-    this.setState({open: true});
-  }
-
-  handleClose = () => {
-    this.setState({open: false});
-  }
-
-  render() {
-    
-    let repo = this.props.repo
-
-    return (
+const SelectedApp = ({
+    imgSrc, 
+    title, 
+    subtitle,
+    stars,
+    pulls,
+    buttonDisabled,
+    buttonLabel,
+    buttonOnTouchTap,
+    showInstalling,
+    description
+  }) => (
     <div>
-      <Paper style={{width:160, marginTop:16, marginRight:8}}>
-        <div style={{padding:16, display:'flex', alignItems:'center' }} onTouchTap={this.handleOpen}>
-          <img style={{width:128, height:128}} src={`/images/${repo.imageLink}`} />
-        </div>
-        <div style={{paddingLeft:16, paddingRight:16, paddingBottom:16}}>
-          <div style={{fontSize:16, fontWeight:100, lineHeight:'18px'}}>{repo.alias}</div>
-        </div>
-      </Paper> 
-      <Dialog
-        style={{overflowY: scroll}}
-        actions={null}
-        modal={false}
-        open={this.state.open}
-        onRequestClose={this.handleClose}
-      >
-        <div style={{display: 'flex', flexDirection: 'row'}}>
-          <div><img src={`/images/${repo.imageLink}`} /></div>
-          <div style={{marginLeft: 16}} >
-            <div style={{fontSize: 28, fontWeight: 100}}>{ repo.alias }</div>
-            <div style={{fontSize: 14, fontWeight: 500}}>{ repo.user }</div>
+      <div style={{display: 'flex', flexDirection: 'row'}}>
+        <div><img src={imgSrc} /></div>
+        <div style={{marginLeft: 16, width:'100%', display:'flex', flexDirection:'column', alignItems:'stretch', justifyContent:'space-between'}} >
+          <div>
+            <div style={{display:'flex', alignItems:'center', justifyContent:'space-between'}}>
+              <div style={{fontSize:28, fontWeight:100, lineHeight:'32px'}}>{title}</div>
+              <div style={{fontSize:14, fontWeight:900, lineHeight:'32px'}}>{subtitle}</div>
+            </div>
+            <div style={{height:8}} /> 
+            <div style={{width:160, display:'flex', alignItems:'center'}}>
+              <div style={{flex:1, fontSize:14, fontWeight:900, lineHeight:'18px', color:'gray'}}>{'\u2605 ' + formatNumber(stars)}</div>
+              <div style={{flex:1, fontSize:14, fontWeight:900, lineHeight:'18px', color:'gray'}}>{'\u2198 ' + formatNumber(pulls)}</div> 
+            </div>
+            <div style={{height:16}} />
+            <div>{description}</div>
+          </div>
+          <div>
+            <RaisedButton style={{width:120}} label={buttonLabel} primary={true} disabled={buttonDisabled} onTouchTap={buttonOnTouchTap}/>
           </div>
         </div>
-        <div>
-          { repo.description }
-        </div>
-      </Dialog> 
+      </div>
     </div>
-    )
+  )
+
+/* equivalent to container component */
+const renderSelectedApp = (app) => {
+  
+  if (!app) return null
+
+  let buttonDisabled, buttonLabel, buttonOnTouchTap
+
+  if (appInstalled(app)) {
+    buttonDisabled = false
+    buttonLabel = 'UNINSTALL'
+    buttonOnTouchTap = () => {
+      console.log('uninstall app')
+    }
   }
+  else if (appInstalling(app)) {
+    buttonDisabled = true
+    buttonLabel = 'INSTALLING'
+    buttonOnTouchTap = () => {}
+  }
+  else {
+    buttonDisabled = false
+    buttonLabel = 'INSTALL'
+    buttonOnTouchTap = () => {
+      console.log('install app')
+    }
+  }
+
+  return (
+    <SelectedApp
+      imgSrc={`/images/${app.components[0].imageLink}`}
+      title={app.appname}
+      subtitle={app.components[0].namespace}
+      stars={app.components[0].repo.star_count}
+      pulls={app.components[0].repo.pull_count}
+      buttonDisabled={buttonDisabled}
+      buttonLabel={buttonLabel}
+      buttonOnTouchTap={buttonOnTouchTap}
+      description={app.components[0].repo.description}
+    /> 
+  )
 }
+const AppCard = ({
+    imgSrc,
+    title,
+    stars,
+    pulls,
+    status,
+    onTouchTap
+  }) => (
+    <Paper style={{width:160, marginTop:16, marginRight:8}}>
+      <div 
+        style={{padding:16, display:'flex', alignItems:'center' }} 
+        onTouchTap={onTouchTap}
+      >
+        <img style={{width:128, height:128}} src={imgSrc} />
+      </div>
+      <div style={{paddingLeft:16, paddingRight:16, paddingBottom:16}} >
+        <div style={{fontSize:16, fontWeight:500, lineHeight:'28px'}}>{title}</div>
+        <div style={{display:'flex'}}>
+          <div style={{flex:1, fontSize:12, fontWeight:100, lineHeight:'14px', color:'gray'}}>{'\u2605 ' + formatNumber(stars)}</div>
+          <div style={{flex:1, fontSize:12, fontWeight:100, lineHeight:'14px', color:'gray'}}>{'\u2198 ' + formatNumber(pulls)}</div>
+        </div>
+      </div>
+    </Paper> 
+  )
+
+const renderAppCard = (app) => (
+    <AppCard
+      key={app.appname}
+      imgSrc={`/images/${app.components[0].imageLink}`} 
+      title={app.appname}
+      stars={app.components[0].repo.star_count}
+      pulls={app.components[0].repo.pull_count}
+      onTouchTap={() => dispatch({
+        type: 'STORE_SELECTEDAPP',
+        selectedApp: app
+      })}
+    />
+  )
 
 let render = () => {
 
-  let state = store().getState()
-  let { appstore, request } = state.store
-  let { storage } = state.storage
-  let { docker } = state.docker
-
+  let { error, appstore, request, timeout, selectedApp } = store().getState().store
+  let { storage } = store().getState().storage
+  let { docker } = store().getState().docker
 
   if (!storage || storage instanceof Error) {
     return <Progress key='appstore_loading' text='Connecting to AppStation' busy={true} />
@@ -148,8 +203,20 @@ let render = () => {
         flexDirection: 'row',
         flexWrap: 'wrap',
       }}>
-        { appstore.apps.map(repo => { return <AppCard repo={repo} />}) }
+        { appstore.apps.map(app => renderAppCard(app)) }
       </div>
+      <Dialog
+        style={{overflowY: scroll}}
+        actions={null}
+        modal={false}
+        open={selectedApp !== null}
+        onRequestClose={() => dispatch({
+          type: 'STORE_SELECTEDAPP',
+          selectedApp: null
+        })}
+      >
+        { renderSelectedApp(selectedApp) }
+      </Dialog>
     </div>
   )
 }

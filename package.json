@@ -3,8 +3,9 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "start": "NODE_PATH=. nodemon --exec babel-node ./bin/www",
+    "start": "NODE_PATH=. nodemon --exec babel-node --ignore web --ignore public/bundle.js ./bin/www",
     "webpack": "webpack-dev-server --progress --inline --hot",
+    "unit": "NODE_PATH=. node_modules/.bin/mocha --compilers js:babel-core/register --recursive",
     "lint": "node node_modules/eslint/bin/eslint.js ."
   },
   "dependencies": {
@@ -36,6 +37,7 @@
     "eslint": "^2.10.2",
     "eslint-plugin-react": "^5.1.1",
     "material-ui": "^0.15.0",
+    "mocha": "^2.5.3",
     "react-addons-css-transition-group": "^15.0.2",
     "react-click-outside": "^2.1.0",
     "react-tap-event-plugin": "^1.0.0",

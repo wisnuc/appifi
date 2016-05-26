@@ -15,7 +15,7 @@
     ]
   },
   {
-    "appname": "owncloud",
+    "appname": "ownCloud",
     "components": [
       {
         "name": "owncloud",

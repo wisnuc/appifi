@@ -11,7 +11,10 @@ const defaultState = {
 
   /** request is either fired or scheduled **/
   timeout: null,
-  request: null
+  request: null,
+
+  /** for detail page display, modal **/
+  selectedApp: null
 }
 
 
@@ -54,8 +57,14 @@ const reducer = (state = defaultState, action) => {
       appstore: action.res.body,
       request: null
     })
+
+  case 'STORE_SELECTEDAPP':
+    
+    return Object.assign({}, state, {
+      selectedApp: action.selectedApp
+    })
   
-  case 'DOCKERD_STARTED':
+  case 'DOCKERD_STARTED': // TODO
     setTimeout(() => dispatch({ type: 'STORE_RELOAD' }), 0)
     break
 
