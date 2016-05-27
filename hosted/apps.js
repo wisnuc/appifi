@@ -92,6 +92,29 @@ export default [
         volumes: []
       } 
     ]
-  }
+  },
+  {
+    appname: 'calibre',
+    components: [
+      {
+        name: 'aptalca/docker-rdp-calibre',
+        namespace: 'aptalca',
+        imageLink: 'calibre.png',
+        tag: 'latest',
+        repo: null,
+        overlay: true,
+        config: {
+          HostConfig: {
+            RestartPolicy: {
+              Name: 'unless-stopped'
+            },
+            PublishAllPorts: true
+          }
+        },
+        volumes: []
+      }
+    ]
+  },
+  
 ]
 

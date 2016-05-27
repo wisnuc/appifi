@@ -47,7 +47,6 @@ const SelectedApp = ({
     buttonDisabled,
     buttonLabel,
     buttonOnTouchTap,
-    showInstalling,
     description
   }) => (
     <div>
@@ -57,14 +56,13 @@ const SelectedApp = ({
           <div>
             <div style={{display:'flex', alignItems:'center', justifyContent:'space-between'}}>
               <div style={{fontSize:28, fontWeight:100, lineHeight:'32px'}}>{title}</div>
-              <div style={{fontSize:14, fontWeight:900, lineHeight:'32px'}}>{subtitle}</div>
+              <div style={{width:160, display:'flex', alignItems:'center'}}>
+                <div style={{flex:1, fontSize:14, fontWeight:900, lineHeight:'18px', color:'gray'}}>{'\u2605 ' + formatNumber(stars)}</div>
+                <div style={{flex:1, fontSize:14, fontWeight:900, lineHeight:'18px', color:'gray'}}>{'\u2198 ' + formatNumber(pulls)}</div> 
+              </div>
             </div>
-            <div style={{height:8}} /> 
-            <div style={{width:160, display:'flex', alignItems:'center'}}>
-              <div style={{flex:1, fontSize:14, fontWeight:900, lineHeight:'18px', color:'gray'}}>{'\u2605 ' + formatNumber(stars)}</div>
-              <div style={{flex:1, fontSize:14, fontWeight:900, lineHeight:'18px', color:'gray'}}>{'\u2198 ' + formatNumber(pulls)}</div> 
-            </div>
-            <div style={{height:16}} />
+            <div style={{fontSize:14, fontWeight:500, lineHeight:'32px'}}>{subtitle}</div>
+            <div style={{height:8}} />
             <div>{description}</div>
           </div>
           <div>
@@ -116,6 +114,7 @@ const renderSelectedApp = (app) => {
     /> 
   )
 }
+
 const AppCard = ({
     imgSrc,
     title,
@@ -140,6 +139,14 @@ const AppCard = ({
       </div>
     </Paper> 
   )
+
+class AppCardContainer extends React.Component {
+
+
+  render() {
+    return 
+  }
+}
 
 const renderAppCard = (app) => (
     <AppCard
