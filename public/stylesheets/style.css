@@ -226,7 +226,7 @@ body {
 .content-appear {
 
   position: absolute;
-  top: 500px;
+  top: 50px;
   width: 100%;
   opacity: 0.01;
 }
@@ -241,7 +241,7 @@ body {
 
 .content-enter {
   position: absolute;
-  top: 80px; 
+  top: 50px; 
   width: 100%;
   opacity: 0.01;
 }
@@ -263,7 +263,7 @@ body {
 
 .content-leave.content-leave-active {
   position: absolute;
-  top: 800px;
+  top: 50px;
   width: 100%;
   opacity: 0.01;
   transition: all 100ms ease-out 

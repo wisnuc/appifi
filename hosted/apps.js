@@ -3,21 +3,6 @@
 /*
 export default [
   {
-    name: 'library/busybox',
-    alias: 'busybox',
-    image: 'busybox.png'
-  },
-  {
-    name: 'aptalca/docker-rdp-calibre',
-    alias: 'calibre',
-    image: 'calibre.png'
-  },
-  {
-    name: 'library/elasticsearch',
-    alias: 'elasticsearch',
-    image: 'elasticsearch.png'
-  },
-  {
     name: 'library/httpd',
     alias: 'apache',
     image: 'apache.png'
@@ -97,7 +82,7 @@ export default [
     appname: 'calibre',
     components: [
       {
-        name: 'aptalca/docker-rdp-calibre',
+        name: 'docker-rdp-calibre',
         namespace: 'aptalca',
         imageLink: 'calibre.png',
         tag: 'latest',
@@ -115,6 +100,190 @@ export default [
       }
     ]
   },
-  
+  {
+    appname: 'elasticsearch',
+    components: [
+      {
+        name: 'elasticsearch',
+        namespace: 'library',
+        imageLink: 'elasticsearch.png',
+        tag: 'latest',
+        repo: null,
+        overlay: true,
+        config: {
+          HostConfig: {
+            RestartPolicy: {
+              Name: 'unless-stopped'
+            },
+            PublishAllPorts: true
+          }
+        },
+        volumes: []
+      }
+    ]
+  }, 
+  {
+    appname: 'apache',
+    components: [
+      {
+        name: 'httpd',
+        namespace: 'library',
+        imageLink: 'apache.png',
+        tag: 'latest',
+        repo: null,
+        overlay: true,
+        config: {
+          HostConfig: {
+            RestartPolicy: {
+              Name: 'unless-stopped'
+            },
+            PublishAllPorts: true
+          }
+        },
+        volumes: [] 
+      }
+    ]
+  },
+  {
+    appname: 'solr',
+    components: [
+      {
+        name: 'solr',
+        namespace: 'library',
+        imageLink: 'solr.png',
+        tag: 'latest',
+        repo: null,
+        overlay: true,
+        config: {
+          HostConfig: {
+            RestartPolicy: {
+              Name: 'unless-stopped'
+            },
+            PublishAllPorts: true
+          },
+        },
+        volumes: []
+      }
+    ]   
+  },
+  {
+    appname: 'redis',
+    components: [
+      {
+        name: 'redis',
+        namespace: 'library',
+        imageLink: 'redis.png',
+        tag: 'latest',
+        repo: null,
+        overlay: true,
+        config: {
+          HostConfig: {
+            RestartPolicy: {
+              Name: 'unless-stopped'
+            },
+            PublishAllPorts: true
+          }
+        },
+        volumes: []
+      }
+    ]
+  },
+  {
+    appname: 'transmission',
+    components: [
+      {
+        name: 'transmission',
+        namespace: 'dperson',
+        imageLink: 'transmission.png',
+        tag: 'latest',
+        repo: null,
+        overlay: true,
+        config: {
+          HostConfig: {
+            RestartPolicy: {
+              Name: 'unless-stopped'
+            },
+            PublishAllPorts: true
+          }
+        },
+        volumes: []
+      }
+    ]
+  },
+  {
+    appname: 'postgres',
+    components: [
+      {
+        name: 'postgres',
+        namespace: 'library',
+        imageLink: 'postgresql.png',
+        tag: 'latest',
+        repo: null,
+        overlay: true,
+        config: {
+          HostConfig: {
+            RestartPolicy: {
+              Name: 'unless-stopped'
+            },
+            PublishAllPorts: true
+          }
+        },
+        volumes: []
+      }
+    ]
+  },
+  {
+    appname: 'wordpress',
+    components: [
+      {
+        name: 'wordpress',
+        namespace: 'library',
+        imageLink: 'wordpress.png',
+        tag: 'latest',
+        repo: null,
+        overlay: true,
+        config: {
+          HostConfig: {
+            RestartPolicy: {
+              Name: 'unless-stopped'
+            },
+            PublishAllPorts: true
+          }
+        },
+        volumes: []
+      }
+    ]
+  },
 ]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

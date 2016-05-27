@@ -552,7 +552,7 @@ class Navigation extends React.Component {
               position: 'relative', // VERY IMPORTANT! TODO Why?
             }}
           >
-            <Transition opts={['content', false, true, true, 300, 1200, 100]}>
+            <Transition opts={['content', false, true, false, 300, 1200, 100]}>
               { loggedIn() &&
                 ( navSelect.render !== undefined ? 
                   /* React.createElement(navSelect.render, {key: navSelect.name}) : */
