@@ -142,7 +142,6 @@ const AppCard = ({
 
 class AppCardContainer extends React.Component {
 
-
   render() {
     return 
   }

@@ -153,7 +153,8 @@ let selected = -1
 class ContainerCard extends React.Component {
 
   static rowStyleUnselected = {
-          width: 'calc(100% - 24px)',
+          // width: 'calc(100% - 24px)',
+          width: '98%',
           height: 'auto',
           marginTop: 0,
           marginBottom: 0,
