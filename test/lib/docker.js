@@ -19,7 +19,7 @@ setTimeout(() => {
     console.log(appstore.get())
     let hello = new testing.appInstTask(appstore.get().apps[7])
     hello.on('end', () => { 
-      let d = hello.display()
+      let d = hello.getState()
       console.log(hello)
       console.log(JSON.stringify(d, null, '  '))
     })
