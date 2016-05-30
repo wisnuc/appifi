@@ -96,7 +96,13 @@ const renderSelectedApp = (app) => {
     buttonDisabled = false
     buttonLabel = 'INSTALL'
     buttonOnTouchTap = () => {
-      console.log('install app')
+      dispatch({
+        type: 'DOCKER_OPERATION',
+        operation: {
+          operation: 'appInstall',
+          args: [app.appname]
+        } 
+      })
     }
   }
 

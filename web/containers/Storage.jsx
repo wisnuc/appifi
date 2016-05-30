@@ -139,7 +139,7 @@ let renderVolumeRow = (volume) => {
 
   // let running = daemon.volume ? true : false
   let running = dockerState.status > 0
-  let runningOnMe = dockerState.volume === volume.uuid ? true : false
+  let runningOnMe = (dockerState.daemon && dockerState.daemon.volume === volume.uuid) ? true : false
 
   let daemonStartingOnMe = (request) => {
     if (request) {

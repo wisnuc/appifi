@@ -30,7 +30,9 @@ app.use(express.static(path.join(__dirname, 'public')))
 // require('lib/storage')
 // require('lib/docker')
 import appstore from 'lib/appstore'
+import docker from 'lib/docker'
 appstore.init()
+docker.init()
 
 /*
  * routes
