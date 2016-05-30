@@ -1,5 +1,5 @@
 const express = require('express')
-const storage = require('lib/storage')
+import storage from 'lib/storage'
 
 const router = express.Router()
 

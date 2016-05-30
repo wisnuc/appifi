@@ -106,17 +106,19 @@ const renderSelectedApp = (app) => {
     }
   }
 
+  let repo = app.components[0].repo
+
   return (
     <SelectedApp
       imgSrc={`/images/${app.components[0].imageLink}`}
       title={app.appname}
       subtitle={app.components[0].namespace}
-      stars={app.components[0].repo.star_count}
-      pulls={app.components[0].repo.pull_count}
+      stars={repo ? repo.star_count : 'n/a'}
+      pulls={repo ? repo.pull_count : 'n/a'}
       buttonDisabled={buttonDisabled}
       buttonLabel={buttonLabel}
       buttonOnTouchTap={buttonOnTouchTap}
-      description={app.components[0].repo.description}
+      description={repo ? repo.description : 'n/a'}
     /> 
   )
 }

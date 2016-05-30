@@ -43,6 +43,7 @@ export default [
 export default [
   {
     appname: 'busybox',
+    flavor: 'vanilla',
     components: [
       {
         name: 'busybox',
@@ -58,6 +59,7 @@ export default [
   },
   {
     appname: 'ownCloud',
+    flavor: 'vanilla',
     components: [
       {
         name: 'owncloud',
@@ -80,6 +82,7 @@ export default [
   },
   {
     appname: 'calibre',
+    flavor: 'vanilla',
     components: [
       {
         name: 'docker-rdp-calibre',
@@ -102,6 +105,7 @@ export default [
   },
   {
     appname: 'elasticsearch',
+    flavor: 'vanilla',
     components: [
       {
         name: 'elasticsearch',
@@ -124,6 +128,7 @@ export default [
   }, 
   {
     appname: 'apache',
+    flavor: 'vanilla',
     components: [
       {
         name: 'httpd',
@@ -146,6 +151,7 @@ export default [
   },
   {
     appname: 'solr',
+    flavor: 'vanilla',
     components: [
       {
         name: 'solr',
@@ -168,6 +174,7 @@ export default [
   },
   {
     appname: 'redis',
+    flavor: 'vanilla',
     components: [
       {
         name: 'redis',
@@ -190,6 +197,7 @@ export default [
   },
   {
     appname: 'transmission',
+    flavor: 'vanilla',
     components: [
       {
         name: 'transmission',
@@ -212,6 +220,7 @@ export default [
   },
   {
     appname: 'postgres',
+    flavor: 'vanilla',
     components: [
       {
         name: 'postgres',
@@ -234,6 +243,7 @@ export default [
   },
   {
     appname: 'wordpress',
+    flavor: 'vanilla',
     components: [
       {
         name: 'wordpress',
