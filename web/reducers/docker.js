@@ -20,6 +20,7 @@ const sendOperation = (state, operation) => {
   debug && console.log('[DOCKER] sendOperation')
 
   if (state.request) {
+    console.log('docker sendOperation busy')
     return state
   }
 
@@ -28,8 +29,6 @@ const sendOperation = (state, operation) => {
     .send(operation)
     .set('Accept', 'application/json')
     .end((err, res) => {
-      debug && console.log('--- operation response')
-      debug && console.log(res)
       dispatch({
         type: 'DOCKER_OPERATION_RESPONSE',
         err,
@@ -66,9 +65,8 @@ const reducer = (state = defaultState, action) => {
     return sendOperation(state, action.operation)
 
   case 'DOCKER_OPERATION_RESPONSE':
-    // processOperationResponse(state, action.err, action.res)
-      // TODO
-      // return Object.assign({}, state, { request: null })
+    // neglect request response
+    state.request = null
     return state
 
   default:
