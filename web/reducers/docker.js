@@ -48,7 +48,7 @@ const reducer = (state = defaultState, action) => {
 
   switch (action.type) {
   case 'LOGIN_SUCCESS':
-    polling.start()
+    // polling.start()
     return state
 
   case 'DOCKER_UPDATE':
@@ -62,6 +62,9 @@ const reducer = (state = defaultState, action) => {
       console.log(action)
       return state
     }
+    console.log('docker send operation')
+    console.log(action.operation)
+    console.log('docker send operation')
     return sendOperation(state, action.operation)
 
   case 'DOCKER_OPERATION_RESPONSE':

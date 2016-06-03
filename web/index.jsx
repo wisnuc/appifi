@@ -38,7 +38,14 @@ const render = () => {
   ReactDom.render(<App/>, document.getElementById('app'))
 }
 
-store.subscribe(render)
+let mem = null
+store.subscribe(() => {
+
+  if (mem !== store.getState()) {
+    mem = store.getState()
+    render()
+  }
+})
 window.store = store
 render()
 

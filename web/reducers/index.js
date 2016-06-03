@@ -1,10 +1,11 @@
 import { combineReducers } from 'redux'
+
 import themeColor from './themeColor'
 import login from './login'
 import navigation from './navigation'
 import docker from './docker'
 import storage from './storage'
-import store from './store'
+import appstore from './appstore'
 import server from './server'
  
 const reducer = combineReducers({
@@ -13,7 +14,7 @@ const reducer = combineReducers({
   navigation,
   docker,
   storage,
-  store,
+  appstore,
   server
 })
 

@@ -119,7 +119,8 @@ let renderVolumeDeviceRow = (device) => {
 let renderVolumeRow = (volume) => {
 
   let {ports, blocks, volumes, mounts, swaps, usages} = getStore()
-  let dockerState = dockerStore().docker
+//  let dockerState = dockerStore().docker
+  let daemon = window.store.getState().server.state.daemon
 
   let request = getRequest()
 
@@ -142,8 +143,8 @@ let renderVolumeRow = (volume) => {
   let usage = usages.find(u => u.mountpoint.endsWith(volume.uuid))
 
   // let running = daemon.volume ? true : false
-  let running = dockerState.status > 0
-  let runningOnMe = (dockerState.daemon && dockerState.daemon.volume === volume.uuid) ? true : false
+  let running = daemon !== null
+  let runningOnMe = (daemon && daemon.volume === volume.uuid) ? true : false
 
   let daemonStartingOnMe = (request) => {
     if (request) {

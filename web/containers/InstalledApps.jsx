@@ -12,7 +12,8 @@ import CommunicationEmail from 'material-ui/svg-icons/communication/email'
 import reactClickOutside from 'react-click-outside'
 
 import { LabeledText, Spacer } from './CustomViews'
-import { store, dispatch } from '../utils/utils'
+
+import { dispatch, dockerStore, dockerState } from '../utils/storeState'
 
 const buttonDisabled = {
 
@@ -43,7 +44,7 @@ const buttonDisabled = {
 
 const startingMe = (container) => {
   
-  let { request } = store().getState().docker
+  let { request } = dockerStore()
   return (request && 
           request.operation && 
           request.operation.operation === 'containerStart' && 
@@ -53,7 +54,7 @@ const startingMe = (container) => {
 
 const stoppingMe = (container) => {
 
-  let { request } = store().getState().docker
+  let { request } = dockerStore()
   return (request && 
           request.operation &&
           request.operation.operation === 'containerStop' && 
@@ -276,16 +277,11 @@ class ContainerCard extends React.Component {
 
   render () {
 
-    let state = store().getState()
-    let { docker, request } = state.docker
+    let docker = dockerState()
+    let { request } = dockerStore()
 
     if (docker === null) {
-      dispatch({ 
-        type: 'DOCKER_OPERATION', 
-        operation: {
-          operation: 'get'
-        }
-      })
+      
       return <div><CircularProgress size={1} /></div>
     }
 

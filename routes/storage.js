@@ -1,11 +1,7 @@
-const express = require('express')
+import express from 'express'
 import storage from 'lib/storage'
 
 const router = express.Router()
-
-router.get('/', (req, res) => res.status(200).json(storage.get()))
-
-router.get('/status', (req, res) => res.status(200).json(storage.status()))
 
 router.post('/', (req, res) => { 
   storage(req.body, (err, result) => {

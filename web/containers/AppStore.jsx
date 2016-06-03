@@ -3,8 +3,10 @@ import React from 'react'
 import { Card, CardTitle, CardHeader, CardMedia, CardActions, CardText } from 'material-ui/Card'
 import { FlatButton, RaisedButton, Paper, Dialog } from 'material-ui'
 
+// TODO
 import Progress from './Progress'
-import { store, dispatch } from '../utils/utils'
+
+import { dispatch, appstoreStore, dockerState, storageState, appstoreState } from '../utils/storeState'
 
 const formatNumber = (num) => {
 
@@ -19,7 +21,7 @@ const formatNumber = (num) => {
 
 const appInstalled = (app) => {
 
-  let { containers } = store().getState().docker.docker
+  let { containers } = dockerState()
 
 /*
  * appifi-metadata-appname: appname
@@ -171,41 +173,45 @@ const renderAppCard = (app) => (
 
 let render = () => {
 
-  let { error, appstore, request, timeout, selectedApp } = store().getState().store
-  let { storage } = store().getState().storage
-  let { docker } = store().getState().docker
+
+  let { error, request, timeout, selectedApp } = appstoreStore()
+  let appstore = appstoreState()
+  let storage = storageState()
+  let docker = dockerState()
 
   if (!storage || storage instanceof Error) {
     return <Progress key='appstore_loading' text='Connecting to AppStation' busy={true} />
   }
 
-  if (docker.status <= 0) {
+  if (docker === null) {
     if (storage.volumes.length === 0) {
       return <Progress key='appstore_loading' text='AppEngine not started. For starting AppEngine, you need to create a disk volume first.' busy={false} />      
     }
     return <Progress key='appstore_loading' text='AppEngine not started' busy={false} />
   }
 
+  /*
+    appstore 
+    null (supposed to be initial state)
+    RELOADING
+    ERROR
+    [] // success
+  */
+
   if (appstore === null) {
-    if (request === null) 
-      dispatch({ type: 'STORE_RELOAD'  })
     return <Progress key='appstore_loading' text='Loading Apps from AppStore' busy={true} />
   }
 
-  if (appstore.status === 'error') {
+  if (appstore === 'ERROR') {
     return <div>Error loading appstore, please refresh</div>
   }
 
-  if (appstore.status === 'init') {
-    return <div>Server status error, probably you need to restart server</div>
-  } 
-
-  if (appstore.status === 'refreshing') {
+  if (appstore === 'LOADING') {
     return <Progress key='appstore_loading' text='Loading Apps from AppStore' busy={true} />
   }
 
   // Assert status is success
-  if (appstore.apps.length === 0) {
+  if (appstore.length === 0) {
     return <Progress key='appstore_loading' text='It seems that your computer can not connect to docker hub (hub.docker.com)' busy={false} />
   }
 
@@ -217,7 +223,7 @@ let render = () => {
         flexDirection: 'row',
         flexWrap: 'wrap',
       }}>
-        { appstore.apps.map(app => renderAppCard(app)) }
+        { appstore.map(app => renderAppCard(app)) }
       </div>
       <Dialog
         style={{overflowY: scroll}}

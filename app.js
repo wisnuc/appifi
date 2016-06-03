@@ -27,14 +27,14 @@ app.use(express.static(path.join(__dirname, 'public')))
 /*
  * module init
  */ 
-// require('lib/storage')
-// require('lib/docker')
+import server from 'lib/server'
 import appstore from 'lib/appstore'
 import docker from 'lib/docker'
 import storage from 'lib/storage'
+
 storage.init()
-appstore.init()
 docker.init()
+appstore.init()
 
 /*
  * routes

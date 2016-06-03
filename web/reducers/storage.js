@@ -8,18 +8,15 @@ const endpoint = '/storage'
 
 const defaultState = { 
 
-  storage: null,
-  request: null
+  request: null,
+  operation: null,
+  error: null,
+  result: null
 }
 
 let polling = pollingMachine(endpoint, 'STORAGE_UPDATE', 1000)
 
 const sendOperation = (state, operation) => {
-
-  let debug = false
-
-  debug && console.log('---- sendOperation')
-  debug && console.log(operation)
 
   if (state.request) {
     return state
@@ -30,67 +27,49 @@ const sendOperation = (state, operation) => {
     .send(operation)
     .set('Accept', 'application/json')
     .end((err, res) => {
-      debug && console.log('--- operation response')
-      debug && console.log(res)
       dispatch({
-        type: 'SYSTEM_OPERATION_RESPONSE',
+        type: 'STORAGE_OPERATION_RESPONSE',
         err,
         res
       })
     })
 
-  return Object.assign({}, state, { 
-    request: { operation, handle }
-  })
-}
-
-/*
-const processOperationResponse = (state, err, res) => {
-
-  let {operation, args} = state.request.operation
-
-  switch (operation) {
-  case 'get':
-    break
-  case 'daemonStart':
-    break
-  case 'daemonStop':
-    break
-  default:
-    break
+  return {
+    request: handle,
+    operation,
+    error: null,
+    result: null,
   }
-  return
 }
-*/
 
 const reducer = (state = defaultState, action) => {
 
-  // let debug = false 
-  // let warning = true
 
   switch (action.type) { 
   case 'LOGIN_SUCCESS':
-    polling.start()
+//    polling.start()
     return state
-
+/*
   case 'STORAGE_UPDATE':
     console.log('storage_update')
     return Object.assign({}, state, { storage: action.data })
+*/
+  case 'STORAGE_OPERATION_RESPONSE':
 
-  case 'SYSTEM_OPERATION_RESPONSE':
-
-    // processOperationResponse(state, action.err, action.res)
-
-    if (action.err)
-      return mixin(state, {
-        storage: action.err,
-        request: null
-      })
-
-    return mixin(state, {
-      storage: action.res.body,
-      request: null
-    })
+    if (action.err) {
+      return {
+        request: null,
+        operaton: state.operation,
+        error: action.err,
+        result: null
+      }
+    }
+    return {
+      request: null,
+      operation: state.operation,
+      error: null,
+      result: action.res.body
+    }    
 
   case 'SYSTEM_OPERATION':
     return sendOperation(state, action.operation)
