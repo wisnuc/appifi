@@ -8,7 +8,9 @@ import IconAVPlayArrow from 'material-ui/svg-icons/av/play-arrow'
 import { LabeledText, Spacer } from './CustomViews'
 
 
-let getStore = () => window.store.getState().storage
+// let getStore = () => window.store.getState().storage
+let getStore = () => window.store.getState().server.state.storage
+let getRequest = () => window.store.getState().storage.request
 let dockerStore = () => window.store.getState().docker
 
 class DialogExampleModal extends React.Component {
@@ -58,14 +60,16 @@ class DialogExampleModal extends React.Component {
 
 let renderStorageNonAvail = () => {
 
-  let storage = getStore().storage
-  let request = getStore().request
+  let storage = getStore()
 
   if (storage === null) {
+/*
     if (request)
       return <div>busy requesting data</div>
     else
       return <div>state not defined</div>
+*/
+    return <div>storage not available</div> // FIXME
   }
 
   if (storage instanceof Error) {
@@ -79,7 +83,7 @@ let renderStorageNonAvail = () => {
 let findDiskForPort= (port) => {
 
   let debug = false
-  let blocks = getStore().storage.blocks
+  let blocks = getStore().blocks
 
   debug && console.log(blocks)
 
@@ -114,10 +118,10 @@ let renderVolumeDeviceRow = (device) => {
 
 let renderVolumeRow = (volume) => {
 
-  let {ports, blocks, volumes, mounts, swaps, usages} = getStore().storage
+  let {ports, blocks, volumes, mounts, swaps, usages} = getStore()
   let dockerState = dockerStore().docker
 
-  let request = getStore().request
+  let request = getRequest()
 
   let rowStyle = {
     width: '100%',
@@ -298,14 +302,14 @@ let renderVolumes = () => {
     return nonavail
   }
 
-  let {ports, blocks, volumes, mounts, swaps} = getStore().storage
+  let {ports, blocks, volumes, mounts, swaps} = getStore()
 
   return <div>{ volumes.map(volume => renderVolumeRow(volume)) }</div>
 }
 
 let buildDiskList = () => {
 
-  let blocks = getStore().storage.blocks
+  let blocks = getStore().blocks
 
   let disks = blocks
               .filter((block) => block.props.devtype === 'disk')
@@ -411,7 +415,7 @@ let renderMounts = () => {
         </TableRow>
       </TableHeader>
       <TableBody displayRowCheckbox={false}>
-        { getStore().storage.mounts.map((mount) => renderMountRow(mount)) }
+        { getStore().mounts.map((mount) => renderMountRow(mount)) }
       </TableBody>
     </Table>
   )
@@ -486,7 +490,7 @@ let renderATAPorts = () => {
           </TableRow>
         </TableHeader>
         <TableBody displayRowCheckbox={false}>
-          { getStore().storage.ata_ports.map((port) => renderPortRow(port)) }
+          { getStore().ata_ports.map((port) => renderPortRow(port)) }
         </TableBody>
       </Table>
     </Paper>
