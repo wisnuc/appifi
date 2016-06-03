@@ -7,6 +7,7 @@ import docker from './docker'
 import storage from './storage'
 import appstore from './appstore'
 import server from './server'
+import installed from './installed'
  
 const reducer = combineReducers({
   themeColor,
@@ -15,6 +16,7 @@ const reducer = combineReducers({
   docker,
   storage,
   appstore,
+  installed,
   server
 })
 

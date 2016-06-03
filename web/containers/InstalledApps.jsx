@@ -154,7 +154,7 @@ let selected = -1
 class ContainerCard extends React.Component {
 
   static rowStyleUnselected = {
-          // width: 'calc(100% - 24px)',
+          // width: 'calc(100% - 24px)', TODO
           width: '98%',
           height: 'auto',
           marginTop: 0,
@@ -205,7 +205,8 @@ class ContainerCard extends React.Component {
             text={container.Status}
             onClick={() => {
               selected = selected === index ? -1 : index
-              window.store.dispatch({type: 'trigger'})
+              console.log('dispatch')
+              dispatch({type: 'trigger'})
             }}
             onClickOutside={() => {
               console.log('onClickOutside ...')
@@ -213,7 +214,7 @@ class ContainerCard extends React.Component {
                 console.log(selected)
                 console.log(index)
                 selected = -1
-                window.store.dispatch({type: 'trigger'})
+                dispatch({type: 'trigger'})
               }
             }}
           /> 
@@ -323,9 +324,6 @@ class ContainerCard extends React.Component {
 class InstalledApps extends React.Component {
 
   render() {
-
-    let state = window.store.getState().docker
-
     return (
       <div>
         <ContainerCard />

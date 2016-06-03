@@ -6,7 +6,8 @@
     "start": "NODE_PATH=. nodemon --exec babel-node --ignore web --ignore public/bundle.js ./bin/www",
     "webpack": "webpack-dev-server --progress --inline --hot",
     "unit": "NODE_PATH=. node_modules/.bin/mocha --compilers js:babel-core/register --recursive",
-    "lint": "node node_modules/eslint/bin/eslint.js ."
+    "lint": "node node_modules/eslint/bin/eslint.js .",
+    "lintfix": "node node_modules/eslint/bin/eslint.js --fix ."
   },
   "dependencies": {
     "body-parser": "~1.13.2",

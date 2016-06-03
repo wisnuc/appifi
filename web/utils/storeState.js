@@ -9,6 +9,7 @@ export const loginStore = () => localStore() ? localStore().login : null
 export const navigationStore = () => localStore() ? localStore().navigation : null
 export const storageStore = () => localStore() ? localStore().storage : null
 export const appstoreStore = () => localStore() ? localStore().appstore : null
+export const installedStore = () => localStore() ? localStore().installed : null
 
 export const serverState = () => {
   let server = window.store.getState().server

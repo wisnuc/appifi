@@ -173,7 +173,6 @@ const renderAppCard = (app) => (
 
 let render = () => {
 
-
   let { error, request, timeout, selectedApp } = appstoreStore()
   let appstore = appstoreState()
   let storage = storageState()
