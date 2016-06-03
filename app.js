@@ -43,6 +43,7 @@ app.use('/', require('routes/index'))
 app.use('/storage', require('routes/storage'))
 app.use('/docker', require('routes/docker'))
 app.use('/appstore', require('routes/appstore'))
+app.use('/server', require('routes/server'))
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
