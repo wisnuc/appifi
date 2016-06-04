@@ -19,7 +19,7 @@ export const serverState = () => {
 export const storageState = () => serverState() ? serverState().storage : null
 export const dockerState = () => serverState() ? serverState().docker : null 
 export const appstoreState = () => serverState() ? serverState().appstore : null
-export const taskStates = () => serverState() ? serverState().taskStates : null
+export const taskStates = () => serverState() ? serverState().tasks : null
 
 export const dispatch = (action) => window.store.dispatch(action)
 

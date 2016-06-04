@@ -37,7 +37,7 @@ class App extends React.Component {
 const render = () => {
   ReactDom.render(<App/>, document.getElementById('app'))
 }
-
+/* TODO this will suppress containercard display change, maybe some material ui components are stateful, retry in future
 let mem = null
 store.subscribe(() => {
 
@@ -46,6 +46,8 @@ store.subscribe(() => {
     render()
   }
 })
+*/
+store.subscribe(render)
 window.store = store
 render()
 

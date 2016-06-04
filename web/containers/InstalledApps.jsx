@@ -206,7 +206,7 @@ class ContainerCard extends React.Component {
             onClick={() => {
               selected = selected === index ? -1 : index
               console.log('dispatch')
-              dispatch({type: 'trigger'})
+              dispatch({type: 'INCREMENT'})
             }}
             onClickOutside={() => {
               console.log('onClickOutside ...')
@@ -214,7 +214,7 @@ class ContainerCard extends React.Component {
                 console.log(selected)
                 console.log(index)
                 selected = -1
-                dispatch({type: 'trigger'})
+                dispatch({type: 'INCREMENT'})
               }
             }}
           /> 

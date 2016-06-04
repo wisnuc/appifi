@@ -6,7 +6,7 @@ import { FlatButton, RaisedButton, Paper, Dialog } from 'material-ui'
 // TODO
 import Progress from './Progress'
 
-import { dispatch, appstoreStore, dockerState, storageState, appstoreState } from '../utils/storeState'
+import { dispatch, appstoreStore, dockerState, storageState, appstoreState, taskStates } from '../utils/storeState'
 
 const formatNumber = (num) => {
 
@@ -21,22 +21,18 @@ const formatNumber = (num) => {
 
 const appInstalled = (app) => {
 
-  let { containers } = dockerState()
-
-/*
- * appifi-metadata-appname: appname
- */
-  return containers.find(contr => contr.Labels['appifi-metadata-appname'] === app.appname) 
-    ? true : false
+  let installed = dockerState().installed
+  return installed.find(inst => inst.recipeKeyString === app.key) ? true : false
 }
 
 const appInstalling = (app) => {
 
-  return false
+  let tasks = taskStates()
+  if (!tasks || !tasks.length) return false
+  return tasks.find(t => t.type === 'appInstall' && t.id === app.key) ? true : false
 }
 
 const InstallingBoard = ({}) => {
-
   
 }
 
@@ -102,7 +98,7 @@ const renderSelectedApp = (app) => {
         type: 'DOCKER_OPERATION',
         operation: {
           operation: 'appInstall',
-          args: [app.appname]
+          args: [app.key]
         } 
       })
     }
@@ -149,13 +145,6 @@ const AppCard = ({
       </div>
     </Paper> 
   )
-
-class AppCardContainer extends React.Component {
-
-  render() {
-    return 
-  }
-}
 
 const renderAppCard = (app) => (
     <AppCard
