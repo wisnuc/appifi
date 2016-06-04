@@ -1,6 +1,5 @@
 import React from 'react'
 import ReactDom from 'react-dom'
-
 import Transition from '../utils/transition'
 import { mixin, dispatch } from '../utils/utils'
 

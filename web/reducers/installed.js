@@ -1,20 +1,16 @@
 
 const defaultState = {
-  selectedContainerCard: null
+  select: null
 }
 
 const reducer = (state = defaultState, action) => {
 
   switch (action.type) {
-  case 'CONTAINERCARD_SELECT':
-    return Object.assign({}, state, {
-      selectedContainerCard : action.containerId
-    })
+  case 'INSTALLED_SELECT':
+    return Object.assign({}, state, { select: action.select })
 
-  case 'CONTAINERCARD_UNSELECT':
-    return Object.assign({}, state, {
-      selectedContainerCard: null
-    })
+  case 'INSTALLED_DESELECT':
+    return Object.assign({}, state, { select: null })
 
   default:
     return state

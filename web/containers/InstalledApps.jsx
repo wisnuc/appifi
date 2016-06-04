@@ -12,7 +12,7 @@ import IconAVStop from 'material-ui/svg-icons/av/stop'
 // import reactClickOutside from 'react-click-outside'
 
 import { LabeledText, Spacer } from './CustomViews'
-import { dispatch, dockerStore, dockerState } from '../utils/storeState'
+import { dispatch, dockerStore, dockerState, installedStore } from '../utils/storeState'
 
 const buttonDisabled = {
 
@@ -72,7 +72,7 @@ const containerButtonStyle = {
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center' 
-  }
+}
 
 const BusyFlatButton = ({ busy, label, disabled, onTouchTap }) => {
 
@@ -140,7 +140,7 @@ const renderHeaderRight = (container) => {
     <div style={{ display: 'flex', alignItems: 'center', padding:8 }}> 
       <BusyFlatButton busy={startingMe(container)} label="start" disabled={buttonDisabled[container.State].start} 
         onTouchTap={startButtonTap} />
-      <BusyFlatButton busy={stoppingMe(container)} FlatButton label="stop" disabled={buttonDisabled[container.State].stop} 
+      <BusyFlatButton busy={stoppingMe(container)} label="stop" disabled={buttonDisabled[container.State].stop} 
         onTouchTap ={stopButtonTap} />
       <OpenButton container={container} /> 
     </div>
@@ -148,14 +148,25 @@ const renderHeaderRight = (container) => {
 }
 
 // change definition to container id
-let selected = null
+// let selected = null
 
 const renderContainerCardHeader = (container) => {
 
   let avatar = 'http://lorempixel.com/100/100/nature/'
   let onClick = () => {
-    selected = selected === container.Id ? null : container.Id
-    dispatch({type: 'INCREMENT'})
+    let select = installedStore().select
+    if (select && select.type === 'container' && select.id === container.Id) {
+      dispatch({type: 'INSTALLED_DESELECT'})
+    }
+    else {
+      dispatch({
+        type: 'INSTALLED_SELECT',
+        select: {
+          type: 'container',
+          id: container.Id
+        }
+      })
+    }
   }
 
   return (
@@ -210,78 +221,59 @@ const renderContainerCardFooter = (container) => {
 
 const renderContainerCard = (container) => {
 
-  let unselect = { width: '98%', marginTop: 0, marginBottom: 0 }
-  let select = { width: '100%', marginTop: 24, marginBottom: 24 }
+  let deselected = { width: '98%', marginTop: 0, marginBottom: 0 }
+  let selected = { width: '100%', marginTop: 24, marginBottom: 24 }
 
-  let s = container.Id === selected   
+  let select = installedStore().select
+  let me = (select && select.type === 'container' && select.id === container.Id)
 
   return (
-    <Paper style={ s ? select : unselect } key={container.Id} rounded={false} zDepth={ s ? 2 : 1 } >
+    <Paper style={ me ? selected : deselected } key={container.Id} rounded={false} zDepth={ me ? 2 : 1 } >
       { renderContainerCardHeader(container) }
-      { s && renderContainerCardContent(container) } 
-      { s && renderContainerCardFooter(container) }
+      { me && renderContainerCardContent(container) } 
+      { me && renderContainerCardFooter(container) }
     </Paper>
   )
 }
 
-class ContainerCard extends React.Component {
+const PAGEKEY = 'installed-apps-list'
 
+const renderInstalledApps = () => {
 
-  render () {
+  let docker = dockerState()
+  let { request } = dockerStore()
 
-    let docker = dockerState()
-    let { request } = dockerStore()
+  if (docker === null) {      
+    return <div key={PAGEKEY}><CircularProgress size={1} /></div>
+  }
 
-    if (docker === null) {      
-      return <div><CircularProgress size={1} /></div>
-    }
+  let containers = docker.containers
+  if (!containers.length) {
+    return <div key={PAGEKEY} />
+  }
+  
+  let banner
+  if (containers.length === 0) {
+    banner = `no app installed`
+  }
+  else if (containers.length === 1) {
+    banner = `1 app installed`
+  }
+  else (
+    banner = `${containers.length} apps installed`
+  )
 
-    if (docker instanceof Error) {
-      return <div>Error loading Installed Apps</div>
-    }
-
-    let containers = docker.containers
-
-    if (!containers.length) {
-      return <div/>
-    }
-    
-    let banner
-    if (containers.length === 0) {
-      banner = `no app installed`
-    }
-    else if (containers.length === 1) {
-      banner = `1 app installed`
-    }
-    else (
-      banner = `${containers.length} apps installed`
-    )
-
-    // TODO marginLeft not accurate
-    return (
-      <div>
-        <div style={{ fontSize:14, marginLeft:30 }} >
-          { banner }
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop:16 }}>
-          { containers.map(renderContainerCard) }
-        </div>
+  // TODO marginLeft not accurate
+  return (
+    <div key={PAGEKEY}>
+      <div style={{ fontSize:14, marginLeft:30 }} >{ banner }</div>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop:16 }}>
+        { containers.map(renderContainerCard) }
       </div>
-    )
-  }
+    </div>
+  ) 
 }
 
-class InstalledApps extends React.Component {
-
-  render() {
-    return (
-        <ContainerCard />
-    )
-  }
-}
-
-export default () => {
-  return <InstalledApps key='installed-apps-list' />
-}
+export default renderInstalledApps
 
 
