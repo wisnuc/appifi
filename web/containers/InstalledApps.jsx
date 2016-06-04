@@ -8,11 +8,10 @@ import { FloatingActionButton, IconButton, FlatButton, RaisedButton, Toggle, Cir
 
 import IconAVPlayArrow from 'material-ui/svg-icons/av/play-arrow'
 import IconAVStop from 'material-ui/svg-icons/av/stop'
-import CommunicationEmail from 'material-ui/svg-icons/communication/email'
-import reactClickOutside from 'react-click-outside'
+
+// import reactClickOutside from 'react-click-outside'
 
 import { LabeledText, Spacer } from './CustomViews'
-
 import { dispatch, dockerStore, dockerState } from '../utils/storeState'
 
 const buttonDisabled = {
@@ -63,8 +62,7 @@ const stoppingMe = (container) => {
 }
 
 const containerRunning = (container) => {
-
-  
+ 
 }
 
 const containerButtonStyle = {
@@ -75,7 +73,6 @@ const containerButtonStyle = {
     alignItems: 'center',
     justifyContent: 'center' 
   }
-
 
 const BusyFlatButton = ({ busy, label, disabled, onTouchTap }) => {
 
@@ -88,7 +85,7 @@ const BusyFlatButton = ({ busy, label, disabled, onTouchTap }) => {
 const OpenButton = ({container}) => {
 
   const openable = (container) =>
-    (container.State === 'running' &&
+    ( container.State === 'running' &&
       container.Ports.length &&
       container.Ports[0].Type === 'tcp' &&
       container.Ports[0].PublicPort) 
@@ -97,10 +94,7 @@ const OpenButton = ({container}) => {
   if (!openable(container)) return <div style={containerButtonStyle} /> 
 
   let url = `http://${window.location.hostname}:${container.Ports[0].PublicPort}`
-  let onOpen = () => {
-    console.log(url)
-    window.open(url)
-  }
+  let onOpen = () => window.open(url) 
 
   return (
     <div style={containerButtonStyle}>
@@ -109,180 +103,136 @@ const OpenButton = ({container}) => {
   )
 }
 
-class ListRowLeft extends React.Component {
+const renderHeaderLeft = (avatar, title, text, onClick) => {
 
-  static propTypes = {
-    selected: React.PropTypes.bool.isRequired,
-    avatar: React.PropTypes.string.isRequired,
-    title: React.PropTypes.string.isRequired,
-    text: React.PropTypes.string.isRequired,
-    onClick: React.PropTypes.func.isRequired,
-    onClickOutside: React.PropTypes.func.isRequired,
-  }
- 
-  handleClickOutside() {
+  let style = { height: '100%', flexGrow:1, display: 'flex', alignItems: 'center', padding:8 }
 
-    if (!this.props.selected) return
-    console.log('click outside')
-    this.props.onClickOutside()
-  }
- 
-  render() {
-    return (
-      <div 
-        style={{
-          height: '100%',// TODO 
-          flexGrow:1,
-          display: 'flex', 
-          alignItems: 'center', 
-          padding:8,
-        }} 
-        onClick={()=>this.props.onClick()}
-      >
-        <Avatar style={{marginLeft:8, marginRight:24}} src={this.props.avatar} />
-        <div style={{fontSize:14, fontWeight:600, width:200}}>{this.props.title}</div>
-        <div style={{fontSize:14, fontWeight:300, color:'gray'}}>{this.props.text}</div>
-      </div>
-    )
-  }
+  return (
+    <div style={style} onClick={onClick} >
+      <Avatar style={{marginLeft:8, marginRight:24}} src={avatar} />
+      <div style={{fontSize:14, fontWeight:600, width:200}}>{title}</div>
+      <div style={{fontSize:14, fontWeight:300, color:'gray'}}>{text}</div>
+    </div>
+  )
 }
 
-let EnhancedListRowLeft = reactClickOutside(ListRowLeft)
+const renderHeaderRight = (container) => {
 
-let selected = -1
+  let startButtonTap = () => 
+    dispatch({
+      type: 'DOCKER_OPERATION',
+      operation: {
+        operation: 'containerStart',
+        args: [container.Id]
+      }
+    })
+
+  let stopButtonTap = () => 
+    dispatch({
+      type: 'DOCKER_OPERATION',
+      operation: {
+        operation: 'containerStop',
+        args: [container.Id]
+      }
+    })
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', padding:8 }}> 
+      <BusyFlatButton busy={startingMe(container)} label="start" disabled={buttonDisabled[container.State].start} 
+        onTouchTap={startButtonTap} />
+      <BusyFlatButton busy={stoppingMe(container)} FlatButton label="stop" disabled={buttonDisabled[container.State].stop} 
+        onTouchTap ={stopButtonTap} />
+      <OpenButton container={container} /> 
+    </div>
+  )
+}
+
+// change definition to container id
+let selected = null
+
+const renderContainerCardHeader = (container) => {
+
+  let avatar = 'http://lorempixel.com/100/100/nature/'
+  let onClick = () => {
+    selected = selected === container.Id ? null : container.Id
+    dispatch({type: 'INCREMENT'})
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center' }}>
+      { renderHeaderLeft(avatar, container.Image, container.Status, onClick) }
+      { renderHeaderRight(container) }
+    </div>
+  ) 
+}
+
+const renderContainerCardContent = (container) => {
+
+  let ccdRowStyle = { width: '100%', display: 'flex', flexDirection: 'row', }
+  let ccdLeftColStyle = { flex: 1, fontSize: 24, fontWeight: 100 }
+  let ccdRightColStyle = { flex: 3 }
+
+  return (
+    <div style={{padding:16}}>
+      <div style={ccdRowStyle}>
+        <div style={ccdLeftColStyle}>General</div>
+        <div style={ccdRightColStyle}>
+          <LabeledText label='container name' text={container.Names[0].slice(1)} right={4}/>
+          <LabeledText label='container id' text={container.Id} right={4}/>
+          <LabeledText label='image' text={container.Image} right={4}/>
+          <LabeledText label='image id' text={container.ImageID.slice(7)} right={4}/>
+          <LabeledText label='state' text={container.State} right={4}/>
+          <LabeledText label='status' text={container.Status} right={4}/>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const renderContainerCardFooter = (container) => {
+
+  let onTouchTap = () => {
+    dispatch({
+      type: 'DOCKER_OPERATION',
+      operation: {
+        operation: 'containerDelete',
+        args: [container.Id]
+      }
+    })  
+  }
+
+  return (
+    <div style={{padding:8}}>
+      <FlatButton label="uninstall" onTouchTap = {onTouchTap} />
+    </div>
+  )  
+}
+
+const renderContainerCard = (container) => {
+
+  let unselect = { width: '98%', marginTop: 0, marginBottom: 0 }
+  let select = { width: '100%', marginTop: 24, marginBottom: 24 }
+
+  let s = container.Id === selected   
+
+  return (
+    <Paper style={ s ? select : unselect } key={container.Id} rounded={false} zDepth={ s ? 2 : 1 } >
+      { renderContainerCardHeader(container) }
+      { s && renderContainerCardContent(container) } 
+      { s && renderContainerCardFooter(container) }
+    </Paper>
+  )
+}
 
 class ContainerCard extends React.Component {
 
-  static rowStyleUnselected = {
-          // width: 'calc(100% - 24px)', TODO
-          width: '98%',
-          height: 'auto',
-          marginTop: 0,
-          marginBottom: 0,
-        }
-
-  static rowStyleSelected = {
-          width: '100%',
-          height: '240px',
-          marginTop: 24,
-          marginBottom: 24,
-        }
-
-  static rowStyle = {
-          width: '100%',
-          display: 'flex',
-          flexDirection: 'row',
-        }
-
-  static leftColStyle = {
-          flex: 1,
-          fontSize: 24,
-          fontWeight: 100
-        }
-
-  static rightColStyle = {
-          flex: 3,
-        }
-
-  buildRowItem = (container, index) => {
-   
-    return (
-      <Paper
-        style={ index === selected ? ContainerCard.rowStyleSelected : ContainerCard.rowStyleUnselected }
-        key={ index }
-        rounded={false}
-        zDepth={ index === selected ? 2:1}
-      >
-        <div style={{
-          display: 'flex',
-          flexDirection: 'row',
-          alignItems: 'center'
-        }}>
-          <EnhancedListRowLeft
-            selected={selected === index ? true : false}
-            avatar='http://lorempixel.com/100/100/nature/'
-            title={container.Image}
-            text={container.Status}
-            onClick={() => {
-              selected = selected === index ? -1 : index
-              console.log('dispatch')
-              dispatch({type: 'INCREMENT'})
-            }}
-            onClickOutside={() => {
-              console.log('onClickOutside ...')
-              if (selected === index) {
-                console.log(selected)
-                console.log(index)
-                selected = -1
-                dispatch({type: 'INCREMENT'})
-              }
-            }}
-          /> 
-          <div style={{ display: 'flex', alignItems: 'center', padding:8 }}> 
-            <BusyFlatButton busy={startingMe(container)} label="start" disabled={buttonDisabled[container.State].start} 
-              onTouchTap={ () => {
-                dispatch({
-                  type: 'DOCKER_OPERATION',
-                  operation: {
-                    operation: 'containerStart',
-                    args: [container.Id]
-                  }
-                })
-              }}
-            />
-            <BusyFlatButton busy={stoppingMe(container)} FlatButton label="stop" disabled={buttonDisabled[container.State].stop} 
-              onTouchTap ={ () => {
-                dispatch({
-                  type: 'DOCKER_OPERATION',
-                  operation: {
-                    operation: 'containerStop',
-                    args: [container.Id]
-                  }
-                })
-              }}
-            />
-            <OpenButton container={container} /> 
-          </div>
-        </div>
-        { index === selected && 
-          <div style={{padding:16}}>
-            <div style={ContainerCard.rowStyle}>
-              <div style={ContainerCard.leftColStyle}>General</div>
-              <div style={ContainerCard.rightColStyle}>
-                <LabeledText label='container name' text={container.Names[0].slice(1)} right={4}/>
-                <LabeledText label='container id' text={container.Id} right={4}/>
-                <LabeledText label='image' text={container.Image} right={4}/>
-                <LabeledText label='image id' text={container.ImageID.slice(7)} right={4}/>
-                <LabeledText label='state' text={container.State} right={4}/>
-                <LabeledText label='status' text={container.Status} right={4}/>
-              </div>
-            </div>
-            <div>
-              <FlatButton label="uninstall" 
-                onTouchTap = { () => {
-                  dispatch({
-                    type: 'DOCKER_OPERATION',
-                    operation: {
-                      operation: 'containerRemove',
-                      args: [container.Id]
-                    }
-                  })  
-                }}
-              />
-            </div>
-          </div>
-        }
-      </Paper>
-    )
-  }
 
   render () {
 
     let docker = dockerState()
     let { request } = dockerStore()
 
-    if (docker === null) {
-      
+    if (docker === null) {      
       return <div><CircularProgress size={1} /></div>
     }
 
@@ -314,7 +264,7 @@ class ContainerCard extends React.Component {
           { banner }
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop:16 }}>
-          { containers.map(this.buildRowItem) }
+          { containers.map(renderContainerCard) }
         </div>
       </div>
     )
@@ -325,9 +275,7 @@ class InstalledApps extends React.Component {
 
   render() {
     return (
-      <div>
         <ContainerCard />
-      </div> 
     )
   }
 }

@@ -29,7 +29,7 @@ const appInstalling = (app) => {
 
   let tasks = taskStates()
   if (!tasks || !tasks.length) return false
-  return tasks.find(t => t.type === 'appInstall' && t.id === app.key) ? true : false
+  return tasks.find(t => t.type === 'appInstall' && t.id === app.key && t.status === 'started') ? true : false
 }
 
 const InstallingBoard = ({}) => {
@@ -168,7 +168,7 @@ let render = () => {
   let docker = dockerState()
 
   if (!storage || storage instanceof Error) {
-    return <Progress key='appstore_loading' text='Connecting to AppStation' busy={true} />
+    return <div key='appstore'><Progress key='appstore_loading' text='Connecting to AppStation' busy={true} /></div>
   }
 
   if (docker === null) {
@@ -185,7 +185,6 @@ let render = () => {
     ERROR
     [] // success
   */
-
   if (appstore === null) {
     return <Progress key='appstore_loading' text='Loading Apps from AppStore' busy={true} />
   }
