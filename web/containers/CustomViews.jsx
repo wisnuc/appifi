@@ -8,9 +8,12 @@ let labeledTextStyle = {
 }
 
 const LabeledText = ({label, text, right}) => 
-  ( <div style={labeledTextStyle}>
-      <div style={{flex:1, fontWeight:100}}>{label}:</div>
-    <div style={{flex:right ? right : 2}}>{text}</div></div>)
+  ( 
+    <div style={labeledTextStyle}>
+      <div style={{flex:1, fontWeight:100, fontFamily:'monospace', opacity:'0.54'}}>{label}:</div>
+      <div style={{flex:right, fontFamily:'monospace', opacity:'0.87'}}>{text}</div>
+    </div>
+  )
 
 const Spacer = () => <div style={{height:32}} />
 

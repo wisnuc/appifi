@@ -1,4 +1,5 @@
 import { dispatch } from '../utils/utils'
+import deepFreeze from 'deep-freeze'
 import pollingMachine from './polling'
 
 const serverUrl = '/server'
@@ -17,12 +18,17 @@ const server = (state = {
 
   case 'SERVER_UPDATE':
     console.log('SERVER_UPDATE')
-    return Object.assign({}, 
+    let newState = Object.assign({}, 
             state, 
             {
               state: action.data,
               request: null
             })
+    // deepFreeze(newState.state)
+    // console.log('--- action data')
+    // console.log(action.data)
+    // console.log('<<< action data')
+    return newState
 
   default:
     return state

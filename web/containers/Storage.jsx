@@ -132,8 +132,8 @@ let renderVolumeRow = (volume) => {
 
   let leftColStyle = {
     flex: 1,
-    fontSize: 20,
-    fontWeight: 100
+    fontSize: 24,
+    opacity: 0.54
   }
 
   let rightColStyle = {
@@ -210,12 +210,12 @@ let renderVolumeRow = (volume) => {
       {/* general */}
       <div id='card-important' style={{padding:'16px' }}>
         <div style={rowStyle}>
-          <div style={leftColStyle}>General Information</div>
+          <div style={leftColStyle}>General</div>
           <div style={rightColStyle}>
-            <LabeledText label='label' text={volume.label ? volume.label : '(none)'} />
-            <LabeledText label='volume uuid' text={volume.uuid} />
-            <LabeledText label='number of disks' text={volume.total} />
-            <LabeledText label='mount point' text='/run/wisnuc/volumes/xxxxxx' />
+            <LabeledText label='label' text={volume.label ? volume.label : '(none)'} right={2} />
+            <LabeledText label='volume uuid' text={volume.uuid} right={2} />
+            <LabeledText label='number of disks' text={volume.total} right={2} />
+            <LabeledText label='mount point' text='/run/wisnuc/volumes/xxxxxx' right={2}/>
          </div>
         </div>
       </div>
@@ -249,44 +249,44 @@ let renderVolumeRow = (volume) => {
        <div style={rowStyle}>
           <div style={leftColStyle}>Overall Usage</div>
           <div style={rightColStyle}>
-            <LabeledText label='data size' text={usage.overall.deviceSize} />
-            <LabeledText label='device allocated' text={usage.overall.deviceAllocated} />
-            <LabeledText label='device unallocated' text={usage.overall.deviceUnallocated} />
-            <LabeledText label='device missing' text={usage.overall.deviceMissing} />
-            <LabeledText label='used space' text={usage.overall.used} />
-            <LabeledText label='free space (estimated)' text={usage.overall.free} />
-            <LabeledText label='free space (minimal)' text={usage.overall.freeMin} />
-            <LabeledText label='data ratio' text={usage.overall.dataRatio} />
-            <LabeledText label='metadata ratio' text={usage.overall.metadataRatio} />
-            <LabeledText label='global reserve (total)' text={usage.overall.globalReserve} />
-            <LabeledText label='global reserve (used)' text={usage.overall.globalReserveUsed} />
+            <LabeledText label='data size' text={usage.overall.deviceSize} right={2} />
+            <LabeledText label='device allocated' text={usage.overall.deviceAllocated} right={2} />
+            <LabeledText label='device unallocated' text={usage.overall.deviceUnallocated} right={2} />
+            <LabeledText label='device missing' text={usage.overall.deviceMissing} right={2} />
+            <LabeledText label='used space' text={usage.overall.used} right={2} />
+            <LabeledText label='free space (estimated)' text={usage.overall.free} right={2} />
+            <LabeledText label='free space (minimal)' text={usage.overall.freeMin} right={2} />
+            <LabeledText label='data ratio' text={usage.overall.dataRatio} right={2} />
+            <LabeledText label='metadata ratio' text={usage.overall.metadataRatio} right={2} />
+            <LabeledText label='global reserve (total)' text={usage.overall.globalReserve} right={2} />
+            <LabeledText label='global reserve (used)' text={usage.overall.globalReserveUsed} right={2} />
           </div>
         </div>
         <Spacer />
         <div style={rowStyle}>
           <div style={leftColStyle}>System</div>
           <div style={rightColStyle}>
-            <LabeledText label='mode' text={usage.system.mode} />
-            <LabeledText label='size' text={usage.system.size} />
-            <LabeledText label='used' text={usage.system.used} />
+            <LabeledText label='mode' text={usage.system.mode} right={2} />
+            <LabeledText label='size' text={usage.system.size} right={2} />
+            <LabeledText label='used' text={usage.system.used} right={2} />
           </div>
         </div>
         <Spacer />
         <div style={rowStyle}>
           <div style={leftColStyle}>Metadata</div>
           <div style={rightColStyle}>
-            <LabeledText label='mode' text={usage.metadata.mode} />
-            <LabeledText label='size' text={usage.metadata.size} />
-            <LabeledText label='used' text={usage.metadata.used} />
+            <LabeledText label='mode' text={usage.metadata.mode} right={2} />
+            <LabeledText label='size' text={usage.metadata.size} right={2} />
+            <LabeledText label='used' text={usage.metadata.used} right={2} />
           </div>
         </div>
         <Spacer />
         <div style={rowStyle}>
           <div style={leftColStyle}>Data</div>
           <div style={rightColStyle}>
-            <LabeledText label='mode' text={usage.data.mode} />
-            <LabeledText label='size' text={usage.data.size} />
-            <LabeledText label='used' text={usage.data.used} />
+            <LabeledText label='mode' text={usage.data.mode} right={2} />
+            <LabeledText label='size' text={usage.data.size} right={2} />
+            <LabeledText label='used' text={usage.data.used} right={2} />
           </div>
         </div>
       </div>

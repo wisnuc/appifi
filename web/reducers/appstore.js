@@ -58,8 +58,7 @@ const reducer = (state = defaultState, action) => {
       request: null
     })
 
-  case 'STORE_SELECTEDAPP':
-    
+  case 'STORE_SELECTEDAPP':    
     return Object.assign({}, state, {
       selectedApp: action.selectedApp
     })

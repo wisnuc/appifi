@@ -1,6 +1,6 @@
 import React from 'react'
 
-import { Paper, Avatar } from 'material-ui'
+import { Paper, Avatar, LinearProgress, Divider } from 'material-ui'
 import { List, ListItem } from 'material-ui/List'
 import { Card, CardActions, CardHeader, CardMedia, CardTitle, CardText } from 'material-ui/Card'
 import { Tabs, Tab } from 'material-ui/Tabs'
@@ -12,7 +12,7 @@ import IconAVStop from 'material-ui/svg-icons/av/stop'
 // import reactClickOutside from 'react-click-outside'
 
 import { LabeledText, Spacer } from './CustomViews'
-import { dispatch, dockerStore, dockerState, installedStore } from '../utils/storeState'
+import { dispatch, dockerStore, dockerState, taskStates, installedStore } from '../utils/storeState'
 
 const buttonDisabled = {
 
@@ -41,7 +41,18 @@ const buttonDisabled = {
     }
 }
 
-const startingMe = (container) => {
+// TODO
+const requesting = (operation, args) => {
+
+  let req = dockerStore().request
+  if (!req || !req.operation) return false
+
+  if (req.operation === operation &&
+      req.args[0] === arg0) return true
+  return false
+}
+
+const containerStartingMe = (container) => {
   
   let { request } = dockerStore()
   return (request && 
@@ -51,7 +62,17 @@ const startingMe = (container) => {
           request.operation.args[0] === container.Id)
 }
 
-const stoppingMe = (container) => {
+const installedStartingMe = (installed) => {
+
+  let { request } = dockerStore()
+  return (request &&
+          request.operation &&
+          request.operation.operation === 'installedStart' &&
+          request.operation.args[0] &&
+          request.operation.args[0] === installed.uuid)
+}
+
+const containerStoppingMe = (container) => {
 
   let { request } = dockerStore()
   return (request && 
@@ -59,6 +80,16 @@ const stoppingMe = (container) => {
           request.operation.operation === 'containerStop' && 
           request.operation.args[0] && 
           request.operation.args[0] === container.Id)
+}
+
+const installedStoppingMe = (installed) => {
+
+  let { request } = dockerStore()
+  return (request &&
+          request.operation &&
+          request.operation.operation === 'installedStop' &&
+          request.operation.args[0] &&
+          request.operation.args[0] === installed.uuid)
 }
 
 const containerRunning = (container) => {
@@ -104,9 +135,7 @@ const OpenButton = ({container}) => {
 }
 
 const renderHeaderLeft = (avatar, title, text, onClick) => {
-
   let style = { height: '100%', flexGrow:1, display: 'flex', alignItems: 'center', padding:8 }
-
   return (
     <div style={style} onClick={onClick} >
       <Avatar style={{marginLeft:8, marginRight:24}} src={avatar} />
@@ -116,7 +145,7 @@ const renderHeaderLeft = (avatar, title, text, onClick) => {
   )
 }
 
-const renderHeaderRight = (container) => {
+const renderContainerHeaderRight = (container) => {
 
   let startButtonTap = () => 
     dispatch({
@@ -138,17 +167,14 @@ const renderHeaderRight = (container) => {
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', padding:8 }}> 
-      <BusyFlatButton busy={startingMe(container)} label="start" disabled={buttonDisabled[container.State].start} 
+      <BusyFlatButton busy={containerStartingMe(container)} label="start" disabled={buttonDisabled[container.State].start} 
         onTouchTap={startButtonTap} />
-      <BusyFlatButton busy={stoppingMe(container)} label="stop" disabled={buttonDisabled[container.State].stop} 
+      <BusyFlatButton busy={containerStoppingMe(container)} label="stop" disabled={buttonDisabled[container.State].stop} 
         onTouchTap ={stopButtonTap} />
       <OpenButton container={container} /> 
     </div>
   )
 }
-
-// change definition to container id
-// let selected = null
 
 const renderContainerCardHeader = (container) => {
 
@@ -172,7 +198,77 @@ const renderContainerCardHeader = (container) => {
   return (
     <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center' }}>
       { renderHeaderLeft(avatar, container.Image, container.Status, onClick) }
-      { renderHeaderRight(container) }
+      { renderContainerHeaderRight(container) }
+    </div>
+  ) 
+}
+
+// TODO this function may be implemented in backend
+const installedMainContainer = (installed) => {
+
+  let containers = dockerState().containers
+  let compo = installed.recipe.components[0]
+  let image = `${compo.namespace}/${compo.name}`
+  return containers.filter(c => installed.containerIds.find(id => id === c.Id))
+          .find(c => c.Image === image)
+}
+
+const renderInstalledHeaderRight = (installed) => {
+
+  let startButtonTap = () => 
+    dispatch({
+      type: 'DOCKER_OPERATION',
+      operation: {
+        operation: 'installedStart',
+        args: [installed.uuid]
+      }
+    })
+
+  let stopButtonTap = () => 
+    dispatch({
+      type: 'DOCKER_OPERATION',
+      operation: {
+        operation: 'installedStop',
+        args: [installed.uuid]
+      }
+    })
+
+  let container = installedMainContainer(installed)
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', padding:8 }}> 
+      <BusyFlatButton busy={installedStartingMe(installed)} label="start" disabled={buttonDisabled[container.State].start} 
+        onTouchTap={startButtonTap} />
+      <BusyFlatButton busy={installedStoppingMe(installed)} label="stop" disabled={buttonDisabled[container.State].stop} 
+        onTouchTap ={stopButtonTap} />
+      <OpenButton container={container} /> 
+    </div>
+  )
+}
+
+const renderInstalledCardHeader = (installed) => {
+
+  let avatar = `/images/${installed.recipe.components[0].imageLink}`
+  let onClick = () => {
+    let select = installedStore().select
+    if (select && select.type === 'installed' && select.id === installed.uuid) {
+      dispatch({type: 'INSTALLED_DESELECT'})
+    }
+    else {
+      dispatch({
+        type: 'INSTALLED_SELECT',
+        select: {
+          type: 'installed',
+          id: installed.uuid
+        }
+      })
+    }
+  }
+
+  let container = installedMainContainer(installed)
+  return (
+    <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center' }}>
+      { renderHeaderLeft(avatar, installed.recipe.appname, container.Status, onClick) }
+      { renderInstalledHeaderRight(installed) }
     </div>
   ) 
 }
@@ -180,7 +276,7 @@ const renderContainerCardHeader = (container) => {
 const renderContainerCardContent = (container) => {
 
   let ccdRowStyle = { width: '100%', display: 'flex', flexDirection: 'row', }
-  let ccdLeftColStyle = { flex: 1, fontSize: 24, fontWeight: 100 }
+  let ccdLeftColStyle = { flex: 1, fontSize: 24, fontWeight: 900, opacity:'0.54' }
   let ccdRightColStyle = { flex: 3 }
 
   return (
@@ -236,44 +332,207 @@ const renderContainerCard = (container) => {
   )
 }
 
+const renderInstalledCard = (installed) => {
+
+  let deselected = { width: '98%', marginTop: 0, marginBottom: 0 }
+  let selected = { width: '100%', marginTop: 24, marginBottom: 24 }
+
+  let select = installedStore().select
+  let me = (select && select.type === 'installed' && select.id === installed.uuid)
+
+  let container = installedMainContainer(installed)
+  return (
+    <Paper style={ me ? selected : deselected } key={installed.uuid} rounded={false} zDepth={ me ? 2 : 1 } >
+      { renderInstalledCardHeader(installed) }
+      { me && renderContainerCardContent(container) }
+    </Paper>
+  ) 
+}
+
+const renderInstallingHeaderLeft = (avatar, title, onClick) => {
+
+  let style = { height: '100%', flexGrow:1, display: 'flex', alignItems: 'center', padding:8 }
+  return (
+    <div style={style} onClick={onClick} >
+      <Avatar style={{marginLeft:8, marginRight:24}} src={avatar} />
+      <div style={{fontSize:14, fontWeight:600, width:200}}>{title}</div>
+      <div style={{fontSize:14, fontWeight:300, width:200, color:'gray'}}>Installing</div>
+      <div style={{width:200}}><LinearProgress mode='indeterminate' color='red' /></div>
+    </div>
+  )
+}
+
+const renderInstallingHeaderRight = (task) => {
+
+  let stopButtonTap = () => 
+    dispatch({
+      type: 'DOCKER_OPERATION',
+      operation: {
+        operation: 'containerStop',
+        args: [task.uuid]
+      }
+    })
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', padding:8 }}> 
+      <BusyFlatButton busy={false} label="stop" disabled={true} 
+        onTouchTap ={stopButtonTap} />
+    </div>
+  )
+}
+
+const renderInstallingCardHeader = (task) => {
+
+  let avatar = `/images/${task.recipe.components[0].imageLink}`
+  let onClick = () => {
+    let select = installedStore().select
+    if (select && select.type === 'installed' && select.id === task.uuid) {
+      dispatch({type: 'INSTALLED_DESELECT'})
+    }
+    else {
+      dispatch({
+        type: 'INSTALLED_SELECT',
+        select: {
+          type: 'installed',
+          id: task.uuid
+        }
+      })
+    }
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center' }}>
+      { renderInstallingHeaderLeft(avatar, task.recipe.appname, onClick) }
+      { renderInstallingHeaderRight(task) }
+    </div>
+  ) 
+}
+
+const renderInstallingCardContentJob = (compo, job) => {
+
+  let threadText = (t) => {
+    if (t.progress) {
+      let {current, total} = t.progressDetail
+      return `${t.status} ( ${current} / ${total} )`
+    } 
+    return t.status
+  }
+
+  let ccdRowStyle = { width: '100%', display: 'flex', flexDirection: 'row', }
+  let ccdLeftColStyle = { flex: 1, fontSize: 24, fontWeight: 100 }
+  let ccdRightColStyle = { flex: 3 }
+
+  return (
+    <div style={ccdRowStyle}>
+      <div style={ccdLeftColStyle}>Installing {compo.name}</div>
+      <div style={ccdRightColStyle}>
+        { job.image.threads && job.image.threads.map(t => <LabeledText label={t.id} text={threadText(t)} right={4} />) }
+        {/*
+        <LabeledText label='container name' text={container.Names[0].slice(1)} right={4}/>
+        <LabeledText label='container id' text={container.Id} right={4}/>
+        <LabeledText label='image' text={container.Image} right={4}/>
+        <LabeledText label='image id' text={container.ImageID.slice(7)} right={4}/>
+        <LabeledText label='state' text={container.State} right={4}/>
+        <LabeledText label='status' text={container.Status} right={4}/>
+        */}
+      </div>
+    </div>
+  )
+}
+
+const renderInstallingCardContent = (task) => {
+
+  return (
+    <div style={{padding:16}}>
+      { task.jobs.map((j, index) => renderInstallingCardContentJob(task.recipe.components[index], j)) }
+    </div>
+  )
+}
+
+ 
+
+const renderInstallingCard = (task) => {
+
+  let deselected = { width: '98%', marginTop: 0, marginBottom: 0 }
+  let selected = { width: '100%', marginTop: 24, marginBottom: 24 }
+
+  let select = installedStore().select
+  let me = (select && select.type === 'installed' && select.id === task.uuid)
+
+  return (
+    <Paper style={ me ? selected : deselected } key={task.uuid} rounded={false} zDepth={ me ? 2 : 1 } >
+      { renderInstallingCardHeader(task) }
+      { me && (<Divider />) }
+      { me && renderInstallingCardContent(task) }
+    </Paper>
+  ) 
+}
+
+/******************************************************************************
+
+  Three elements renders in this page
+
+  1) installing task + no containers
+  2) installing task + partly installed containers (transient)
+  3) installed task success + all installed containers
+  4) installed task failed + partly installed containers
+  5) unmanaged containers (orphan)
+
+  in case 2, 3, and 4, there would be a matching uuid between installeds and tasks
+
+  case 3/4 should be considered as truly-installed (properInstalleds)
+  case 2 shoudl be considered as installing
+
+*******************************************************************************/
+
+const getInstallingTasks = () => taskStates().filter(t => t.type === 'appInstall' && t.status ==='started')
+
+const getProperInstalleds = () => {
+  
+  let { installeds } = dockerState()
+  let tasks = getInstallingTasks()
+
+  return installeds.filter(inst => 
+    undefined === tasks.find(t => t.uuid === inst.uuid))
+}
+
+const getOrphanContainers = () => {
+
+  let { installeds, containers } = dockerState()
+
+  let installedContainerIds = 
+    installeds.reduce((prev, inst) => 
+      [...prev, ...inst.containerIds], [])
+
+  let orphans = containers.filter(c => !installedContainerIds.find(i => i === c.Id)) 
+  return orphans
+}
+
 const PAGEKEY = 'installed-apps-list'
 
-const renderInstalledApps = () => {
+const renderMyAppsPage = () => {
 
   let docker = dockerState()
-  let { request } = dockerStore()
-
   if (docker === null) {      
     return <div key={PAGEKEY}><CircularProgress size={1} /></div>
   }
 
+  let installeds = docker.installeds
   let containers = docker.containers
-  if (!containers.length) {
-    return <div key={PAGEKEY} />
-  }
   
-  let banner
-  if (containers.length === 0) {
-    banner = `no app installed`
-  }
-  else if (containers.length === 1) {
-    banner = `1 app installed`
-  }
-  else (
-    banner = `${containers.length} apps installed`
-  )
-
   // TODO marginLeft not accurate
   return (
     <div key={PAGEKEY}>
-      <div style={{ fontSize:14, marginLeft:30 }} >{ banner }</div>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop:16 }}>
-        { containers.map(renderContainerCard) }
+      {/* <div style={{ fontSize:14, marginLeft:30 }} >Installing</div> */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop:0 }}>
+        { getInstallingTasks().map(renderInstallingCard) }
+        { getProperInstalleds().map(renderInstalledCard) }
+        { getOrphanContainers().map(renderContainerCard) }
       </div>
     </div>
   ) 
 }
 
-export default renderInstalledApps
+export default renderMyAppsPage
 
 

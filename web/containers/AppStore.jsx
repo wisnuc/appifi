@@ -21,8 +21,8 @@ const formatNumber = (num) => {
 
 const appInstalled = (app) => {
 
-  let installed = dockerState().installed
-  return installed.find(inst => inst.recipeKeyString === app.key) ? true : false
+  let installeds = dockerState().installeds
+  return installeds.find(inst => inst.recipeKeyString === app.key)
 }
 
 const appInstalling = (app) => {
@@ -77,12 +77,28 @@ const renderSelectedApp = (app) => {
   if (!app) return null
 
   let buttonDisabled, buttonLabel, buttonOnTouchTap
+  let installed = appInstalled(app)
 
-  if (appInstalled(app)) {
+  if (installed) {
     buttonDisabled = false
     buttonLabel = 'UNINSTALL'
     buttonOnTouchTap = () => {
       console.log('uninstall app')
+      dispatch({
+        type: 'STORE_SELECTEDAPP',
+        selectedApp: null
+      })
+      dispatch({
+        type: 'NAV_SELECT',
+        select: 'INSTALLED_APPS'
+      })
+      dispatch({
+        type: 'INSTALLED_SELECT',
+        select: {
+          type: 'installed',
+          id: installed.uuid 
+        }
+      })
     }
   }
   else if (appInstalling(app)) {
@@ -201,6 +217,9 @@ let render = () => {
   if (appstore.length === 0) {
     return <Progress key='appstore_loading' text='It seems that your computer can not connect to docker hub (hub.docker.com)' busy={false} />
   }
+
+  console.log('dialog')
+  console.log(selectedApp)
 
   return (
     <div key='appstore' >
