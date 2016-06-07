@@ -194,7 +194,7 @@ let renderVolumeRow = (volume) => {
 
   return (
   <div>
-    <div style={{fontSize: 28, fontWeight:100}}>Btrfs File System (RAID)</div>
+    <div style={{fontSize: 20, opacity:0.87}}>Btrfs Disk Volumes</div>
     <Paper style={{
         marginTop: '16px',
         width: '100%',
