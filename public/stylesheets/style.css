@@ -60,7 +60,7 @@ body {
 
 .login-title-appear.login-title-appear-active {
   margin-bottom: 0px;
-  opacity: 1;
+  opacity: 0.54;
   transition: all 100ms ease;
 }
 
@@ -71,7 +71,7 @@ body {
 
 .login-title-enter.login-title-enter-active {
   margin-bottom: 0px;
-  opacity: 1;
+  opacity: 0.54;
   transition: all 600ms ease 550ms;
 }
 
@@ -146,6 +146,33 @@ body {
   position: absolute;
   width: 100%;
   top: 0px;
+}
+
+.drive-card-appear {
+  opacity: 0.01;
+}
+
+.drive-card-appear.drive-card-appear-active {
+  opacity: 1;
+  transition: opacity 3000ms ease 300ms;
+}
+
+.drive-card-enter {
+  opacity: 0.01;
+}
+
+.drive-card-enter.drive-card-enter-active {
+  opacity: 1;
+  transition: opacity 1000ms ease 1000ms;
+}
+
+.drive-card-leave {
+  opacity: 1;
+}
+
+.drive-card-leave.drive-card-leave-active {
+  opacity: 0.01;
+  transition: opacity 300ms ease;
 }
 
 .appbar-leave.appbar-leave-active {
@@ -267,6 +294,40 @@ body {
   width: 100%;
   opacity: 0.01;
   transition: all 100ms ease-out 
+}
+
+
+/** stepper fix **/
+.horizontal-stepper-display-fix {
+  display: flex;
+  flex-direction: row;
+}
+
+.example-appear {
+  opacity: 0.01;
+}
+
+.example-appear.example-appear-active {
+  opacity: 1;
+  transition: opacity 300ms ease-in;
+}
+
+.example-enter {
+  opacity: 0.01;
+}
+
+.example-enter.example-enter-active {
+  opacity: 1;
+  transition: opacity 300ms ease-in;
+}
+
+.example-leave {
+  opacity: 1;
+}
+
+.example-leave.example-leave-active {
+  opacity: 0.01;
+  transition: opacity 300ms ease-in;
 }
 
 

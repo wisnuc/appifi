@@ -64,17 +64,17 @@ const decoration = [
       {
         name: 'DRIVES',
         text: { en_US: 'Drives' },
-        // render: Storage.Drives
+        render: Storage.Drives
       },
       {
         name: 'MOUNTS',
         text: { en_US: 'Mounts' },
-        // render: Storage.Mounts
+        render: Storage.Mounts
       },
       {
         name: 'PORTS',
         text: { en_US: 'Ports' },
-        // render: Storage.Ports
+        render: Storage.Ports
       },
       {
         name: 'ETHERNET',
@@ -443,9 +443,8 @@ class Navigation extends React.Component {
                 height:"64px", 
                 verticalAlign:"bottom",
                 fontSize: 48,
-                fontWeight: 100,
               }}>
-                Yes, My Lord?
+                <div>你好，主人！</div>
               </div> 
             }
           </Transition> 

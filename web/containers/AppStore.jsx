@@ -19,17 +19,17 @@ const formatNumber = (num) => {
   return num
 }
 
+// return installed 
 const appInstalled = (app) => {
-
   let installeds = dockerState().installeds
   return installeds.find(inst => inst.recipeKeyString === app.key)
 }
 
+// return task
 const appInstalling = (app) => {
-
   let tasks = taskStates()
   if (!tasks || !tasks.length) return false
-  return tasks.find(t => t.type === 'appInstall' && t.id === app.key && t.status === 'started') ? true : false
+  return tasks.find(t => t.type === 'appInstall' && t.id === app.key && t.status === 'started')
 }
 
 const InstallingBoard = ({}) => {
@@ -44,6 +44,7 @@ const SelectedApp = ({
     pulls,
     buttonDisabled,
     buttonLabel,
+    buttonText,
     buttonOnTouchTap,
     description
   }) => (
@@ -63,7 +64,8 @@ const SelectedApp = ({
             <div style={{height:8}} />
             <div>{description}</div>
           </div>
-          <div>
+          <div style={{display:'flex', alignItems:'center', justifyContent:'space-between'}}>
+            <div>{buttonText}</div>
             <RaisedButton style={{width:120}} label={buttonLabel} primary={true} disabled={buttonDisabled} onTouchTap={buttonOnTouchTap}/>
           </div>
         </div>
@@ -76,14 +78,15 @@ const renderSelectedApp = (app) => {
   
   if (!app) return null
 
-  let buttonDisabled, buttonLabel, buttonOnTouchTap
+  let buttonDisabled, buttonLabel, buttonText, buttonOnTouchTap
   let installed = appInstalled(app)
+  let installing = appInstalling(app)
 
   if (installed) {
     buttonDisabled = false
-    buttonLabel = 'UNINSTALL'
+    buttonLabel = 'SEE DETAIL'
+    buttonText = 'This app is already installed'
     buttonOnTouchTap = () => {
-      console.log('uninstall app')
       dispatch({
         type: 'STORE_SELECTEDAPP',
         selectedApp: null
@@ -101,14 +104,32 @@ const renderSelectedApp = (app) => {
       })
     }
   }
-  else if (appInstalling(app)) {
-    buttonDisabled = true
-    buttonLabel = 'INSTALLING'
-    buttonOnTouchTap = () => {}
+  else if (installing) {
+    buttonDisabled = false
+    buttonLabel = 'SEE DETAIL'
+    buttonText = 'This app is installing.'
+    buttonOnTouchTap = () => {
+      dispatch({
+        type: 'STORE_SELECTEDAPP',
+        selectedApp: null
+      })
+      dispatch({
+        type: 'NAV_SELECT',
+        select: 'INSTALLED_APPS'
+      })
+      dispatch({
+        type: 'INSTALLED_SELECT',
+        select: {
+          type: 'installed',
+          id: installing.uuid 
+        }
+      })
+    }
   }
   else {
     buttonDisabled = false
     buttonLabel = 'INSTALL'
+    buttonText = 'This app is not installed.'
     buttonOnTouchTap = () => {
       dispatch({
         type: 'DOCKER_OPERATION',
@@ -131,6 +152,7 @@ const renderSelectedApp = (app) => {
       pulls={repo ? repo.pull_count : 'n/a'}
       buttonDisabled={buttonDisabled}
       buttonLabel={buttonLabel}
+      buttonText={buttonText}
       buttonOnTouchTap={buttonOnTouchTap}
       description={repo ? repo.description : 'n/a'}
     /> 
@@ -153,10 +175,10 @@ const AppCard = ({
         <img style={{width:128, height:128}} src={imgSrc} />
       </div>
       <div style={{paddingLeft:16, paddingRight:16, paddingBottom:16}} >
-        <div style={{fontSize:16, fontWeight:500, lineHeight:'28px'}}>{title}</div>
+        <div style={{fontSize:16, lineHeight:'28px', opacity:0.87}}>{title}</div>
         <div style={{display:'flex'}}>
-          <div style={{flex:1, fontSize:12, fontWeight:100, lineHeight:'14px', color:'gray'}}>{'\u2605 ' + formatNumber(stars)}</div>
-          <div style={{flex:1, fontSize:12, fontWeight:100, lineHeight:'14px', color:'gray'}}>{'\u2198 ' + formatNumber(pulls)}</div>
+          <div style={{flex:1, fontSize:12, lineHeight:'18px', opacity:0.54}}>{'\u2605 ' + formatNumber(stars)}</div>
+          <div style={{flex:1, fontSize:12, lineHeight:'18px', opacity:0.54}}>{'\u2198 ' + formatNumber(pulls)}</div>
         </div>
       </div>
     </Paper> 
@@ -176,6 +198,8 @@ const renderAppCard = (app) => (
     />
   )
 
+const PAGEKEY = 'appstore-page-key'
+
 let render = () => {
 
   let { error, request, timeout, selectedApp } = appstoreStore()
@@ -184,14 +208,17 @@ let render = () => {
   let docker = dockerState()
 
   if (!storage || storage instanceof Error) {
-    return <div key='appstore'><Progress key='appstore_loading' text='Connecting to AppStation' busy={true} /></div>
+    return <div key={PAGEKEY}><Progress key='appstore_loading' text='Connecting to AppStation' busy={true} /></div>
   }
 
   if (docker === null) {
+
+    console.log(`[AppStore] docker is null`)
     if (storage.volumes.length === 0) {
+      console.log(`[AppStore] storage no volume`)
       return <Progress key='appstore_loading' text='AppEngine not started. For starting AppEngine, you need to create a disk volume first.' busy={false} />      
     }
-    return <Progress key='appstore_loading' text='AppEngine not started' busy={false} />
+    return <div key={PAGEKEY}><Progress key='appstore_loading' text='AppEngine not started' busy={false} /></div>
   }
 
   /*

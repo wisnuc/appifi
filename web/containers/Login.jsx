@@ -68,7 +68,11 @@ class Login extends React.Component {
     return (
       <div style={pageStyle}>
         <Transition opts={['login-title', true, true, true, 350, 1000, 1000]}>
-          <div style={{height:"64px"}}><h1>Yes, My Lord?</h1></div>
+          <div style={{height:"64px", opacity:0.54}}>
+            <h1>你好，主人</h1>
+            <h1>かしこまりました、ご主人様</h1>
+            <h1>Yes, My Lord?</h1>
+          </div>
         </Transition>
         <Transition opts={['login-dialog', true, true, true, 350, 1000, 1000]}>
           <Paper style={paperStyle} zDepth={1}>

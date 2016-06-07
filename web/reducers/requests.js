@@ -10,3 +10,7 @@ const defaultState = {
   docker: null,
   appstore: null
 }
+
+const reducers = (state = [] ) => {
+
+}

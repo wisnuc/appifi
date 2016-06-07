@@ -139,8 +139,8 @@ const renderHeaderLeft = (avatar, title, text, onClick) => {
   return (
     <div style={style} onClick={onClick} >
       <Avatar style={{marginLeft:8, marginRight:24}} src={avatar} />
-      <div style={{fontSize:14, fontWeight:600, width:200}}>{title}</div>
-      <div style={{fontSize:14, fontWeight:300, color:'gray'}}>{text}</div>
+      <div style={{fontSize:20, opacity:0.87, width:200}}>{title}</div>
+      <div style={{fontSize:15, opacity:0.54}}>{text}</div>
     </div>
   )
 }
@@ -276,13 +276,13 @@ const renderInstalledCardHeader = (installed) => {
 const renderContainerCardContent = (container) => {
 
   let ccdRowStyle = { width: '100%', display: 'flex', flexDirection: 'row', }
-  let ccdLeftColStyle = { flex: 1, fontSize: 24, fontWeight: 900, opacity:'0.54' }
+  let ccdLeftColStyle = { flex: 1, fontSize: 15, opacity:0.87 }
   let ccdRightColStyle = { flex: 3 }
 
   return (
     <div style={{padding:16}}>
       <div style={ccdRowStyle}>
-        <div style={ccdLeftColStyle}>General</div>
+        <div style={ccdLeftColStyle}>{container.Image}</div>
         <div style={ccdRightColStyle}>
           <LabeledText label='container name' text={container.Names[0].slice(1)} right={4}/>
           <LabeledText label='container id' text={container.Id} right={4}/>
@@ -324,7 +324,7 @@ const renderContainerCard = (container) => {
   let me = (select && select.type === 'container' && select.id === container.Id)
 
   return (
-    <Paper style={ me ? selected : deselected } key={container.Id} rounded={false} zDepth={ me ? 2 : 1 } >
+    <Paper style={ me ? selected : deselected } key={container.Id} rounded={false} zDepth={ me ? 2 : 0 } >
       { renderContainerCardHeader(container) }
       { me && renderContainerCardContent(container) } 
       { me && renderContainerCardFooter(container) }
@@ -344,6 +344,7 @@ const renderInstalledCard = (installed) => {
   return (
     <Paper style={ me ? selected : deselected } key={installed.uuid} rounded={false} zDepth={ me ? 2 : 1 } >
       { renderInstalledCardHeader(installed) }
+      { me && (<Divider />) }
       { me && renderContainerCardContent(container) }
     </Paper>
   ) 
@@ -355,9 +356,9 @@ const renderInstallingHeaderLeft = (avatar, title, onClick) => {
   return (
     <div style={style} onClick={onClick} >
       <Avatar style={{marginLeft:8, marginRight:24}} src={avatar} />
-      <div style={{fontSize:14, fontWeight:600, width:200}}>{title}</div>
-      <div style={{fontSize:14, fontWeight:300, width:200, color:'gray'}}>Installing</div>
-      <div style={{width:200}}><LinearProgress mode='indeterminate' color='red' /></div>
+      <div style={{fontSize:14, fontWeight:600, width:200, opacity:0.87}}>{title}</div>
+      <div style={{fontSize:14, fontWeight:300, width:200, opacity:0.54}}>Installing</div>
+      <LinearProgress mode='indeterminate' color='red' />
     </div>
   )
 }
@@ -419,12 +420,12 @@ const renderInstallingCardContentJob = (compo, job) => {
   }
 
   let ccdRowStyle = { width: '100%', display: 'flex', flexDirection: 'row', }
-  let ccdLeftColStyle = { flex: 1, fontSize: 24, fontWeight: 100 }
+  let ccdLeftColStyle = { flex: 1, fontSize: 24, fontWeight: 500, opacity:0.54 }
   let ccdRightColStyle = { flex: 3 }
 
   return (
     <div style={ccdRowStyle}>
-      <div style={ccdLeftColStyle}>Installing {compo.name}</div>
+      <div style={ccdLeftColStyle}>{compo.name}</div>
       <div style={ccdRightColStyle}>
         { job.image.threads && job.image.threads.map(t => <LabeledText label={t.id} text={threadText(t)} right={4} />) }
         {/*
@@ -514,6 +515,8 @@ const renderMyAppsPage = () => {
 
   let docker = dockerState()
   if (docker === null) {      
+    // TODO
+    return <div /> 
     return <div key={PAGEKEY}><CircularProgress size={1} /></div>
   }
 

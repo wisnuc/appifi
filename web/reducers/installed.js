@@ -6,6 +6,14 @@ const defaultState = {
 const reducer = (state = defaultState, action) => {
 
   switch (action.type) {
+  case 'NAV_SELECT':
+    if (action.select !== 'INSTALLED_APPS' && state.select !== null) {
+      return Object.assign({}, state, { select: null })
+    }
+    else {
+      return state
+    }
+
   case 'INSTALLED_SELECT':
     return Object.assign({}, state, { select: action.select })
 

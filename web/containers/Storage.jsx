@@ -1,12 +1,16 @@
 import React from 'react'
 import { Card, CardTitle, CardHeader, CardText, CardMedia } from 'material-ui/Card'
 import { Table, TableBody, TableHeader, TableHeaderColumn, TableRow, TableRowColumn } from 'material-ui/Table'
-import { FlatButton, RaisedButton, FloatingActionButton, Paper, Divider } from 'material-ui'
+import { FlatButton, RaisedButton, FloatingActionButton, Avatar, Paper, Divider, Checkbox } from 'material-ui'
 import IconAVStop from 'material-ui/svg-icons/av/stop'
 import IconAVPlayArrow from 'material-ui/svg-icons/av/play-arrow'
 
 import { LabeledText, Spacer } from './CustomViews'
+import { dispatch, storageStore, storageState, dockerState } from '../utils/storeState'
+import Transition from '../utils/transition'
+import ReactCSSTransitionGroup from 'react-addons-css-transition-group'
 
+import FlipMove from 'react-flip-move'
 
 // let getStore = () => window.store.getState().storage
 let getStore = () => window.store.getState().server.state.storage
@@ -120,7 +124,7 @@ let renderVolumeRow = (volume) => {
 
   let {ports, blocks, volumes, mounts, swaps, usages} = getStore()
 //  let dockerState = dockerStore().docker
-  let daemon = window.store.getState().server.state.daemon
+  let docker = dockerState()
 
   let request = getRequest()
 
@@ -132,7 +136,7 @@ let renderVolumeRow = (volume) => {
 
   let leftColStyle = {
     flex: 1,
-    fontSize: 24,
+    fontSize: 20,
     opacity: 0.54
   }
 
@@ -142,9 +146,8 @@ let renderVolumeRow = (volume) => {
 
   let usage = usages.find(u => u.mountpoint.endsWith(volume.uuid))
 
-  // let running = daemon.volume ? true : false
-  let running = daemon !== null
-  let runningOnMe = (daemon && daemon.volume === volume.uuid) ? true : false
+  let running = docker !== null
+  let runningOnMe = (docker && docker.volume === volume.uuid) ? true : false
 
   let daemonStartingOnMe = (request) => {
     if (request) {
@@ -305,13 +308,16 @@ let renderVolumes = () => {
 
   let {ports, blocks, volumes, mounts, swaps} = getStore()
 
-  return <div>{ volumes.map(volume => renderVolumeRow(volume)) }</div>
+  if (volumes && volumes.length) {
+    return <div>{ volumes.map(volume => renderVolumeRow(volume)) }</div>
+  }
+
+  return <div>no volumes detected, please create a volume.</div>
 }
 
-let buildDiskList = () => {
+let buildDrives = () => {
 
   let blocks = getStore().blocks
-
   let disks = blocks
               .filter((block) => block.props.devtype === 'disk')
               .map((block) => {
@@ -331,7 +337,6 @@ let buildDiskList = () => {
   })
 
   disks.sort((a, b) => a.block.name.localeCompare(b.block.name))
-
   return disks
 }
 
@@ -364,27 +369,6 @@ let renderDriveCard = (drive) => {
       </CardTitle>
     </Card>
   )    
-}
-
-let renderDrives = () => {
-
-  return (
-    <div>
-      <table style={{width: '100%'}}>
-        <tbody>
-          <tr>
-            <td style={{width: '30%', verticalAlign: 'top', fontSize: '36px' }}>hello</td>
-            <td style={{verticalAlign: 'top'}}>world</td>
-          </tr>
-          <tr>
-            <td >hello</td>
-            <td>world</td>
-          </tr>
-        </tbody>
-      </table>
-      { buildDiskList().map((drive) => renderDriveCard(drive)) }   
-    </div>
-  )
 }
 
 let renderMountRow = (mount) => {
@@ -491,10 +475,343 @@ let renderATAPorts = () => {
           </TableRow>
         </TableHeader>
         <TableBody displayRowCheckbox={false}>
-          { getStore().ata_ports.map((port) => renderPortRow(port)) }
+          { getStore().ports.map((port) => renderPortRow(port)) }
         </TableBody>
       </Table>
     </Paper>
+  )
+}
+
+const renderDriveHeaderLeft = (avatar, title, text, onClick) => {
+
+  let style = { height: '100%', flexGrow:1, display: 'flex', alignItems: 'center', padding:8 }
+  return (
+    <div style={style} onClick={onClick} >
+      <Avatar style={{marginLeft:8, marginRight:24}} src={avatar} />
+      <div style={{fontSize:15, fontWeight:'bold', opacity:0.87, width:200}}>{title}</div>
+      <div style={{fontSize:13, opacity:0.54}}>{text}</div>
+    </div>
+  )
+}
+
+/*
+const renderDriveHeaderRight = (container) => {
+
+  let startButtonTap = () => 
+    dispatch({
+      type: 'DOCKER_OPERATION',
+      operation: {
+        operation: 'containerStart',
+        args: [container.Id]
+      }
+    })
+
+  let stopButtonTap = () => 
+    dispatch({
+      type: 'DOCKER_OPERATION',
+      operation: {
+        operation: 'containerStop',
+        args: [container.Id]
+      }
+    })
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', padding:8 }}> 
+      <BusyFlatButton busy={containerStartingMe(container)} label="start" disabled={buttonDisabled[container.State].start} 
+        onTouchTap={startButtonTap} />
+      <BusyFlatButton busy={containerStoppingMe(container)} label="stop" disabled={buttonDisabled[container.State].stop} 
+        onTouchTap ={stopButtonTap} />
+      <OpenButton container={container} /> 
+    </div>
+  )
+}
+*/
+
+const driveIsNewVolumeCandidate = (drive) => {
+  
+  let storage = storageStore()
+
+  if (storage.creatingVolume && 
+      storage.newVolumeCandidates.find(candi => candi === driveKey(drive))) 
+    return true
+  return false
+}
+
+const renderDriveHeaderRight = (drive) => {
+
+  const renderAddRemoveButton = (label, onTouchTap) => 
+    (
+      <ReactCSSTransitionGroup
+        transitionName="example" 
+        transitionAppear={true}
+        transitionEnter={true}
+        transitionLeave={true}
+        transitionAppearTimeout={300}
+        transitionEnterTimeout={300} 
+        transitionLeaveTimeout={300}
+      >
+        <div><FlatButton style={{marginRight:16}} label={label} onTouchTap={onTouchTap} primary={label==='add'} /></div>
+      </ReactCSSTransitionGroup>
+    )
+  
+
+  if (storageStore().creatingVolume === 2) {
+    if (driveIsNewVolumeCandidate(drive)) {
+      return renderAddRemoveButton('remove', () => {
+        dispatch({
+          type: 'STORAGE_REMOVE_NEW_VOLUME_CANDIDATE',
+          data: driveKey(drive)
+        })
+      })
+    } 
+    else {
+      return renderAddRemoveButton('add', () => {
+        dispatch({
+          type: 'STORAGE_ADD_NEW_VOLUME_CANDIDATE',
+          data: driveKey(drive)
+        })
+      })
+    }
+  }
+  else {
+    return <div />
+  }
+}
+
+const driveKey = (drive) => drive.block.props.id_serial
+
+const driveExpanded = (drive) => {
+
+  console.log('driveExpanded')
+  console.log(storageStore())
+  return storageStore().expansions.find(exp => 
+    exp.type === 'drive' && exp.id === driveKey(drive))
+}
+
+
+const renderDriveCardHeader = (drive) => {
+
+  let avatar = 'http://lorempixel.com/100/100/nature/'
+  let onClick = () => {
+    dispatch({
+      type: 'STORAGE_CARD_EXPANSION_TOGGLE',
+      data: {
+        type: 'drive',
+        id: driveKey(drive)
+      }
+    })
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center' }}>
+      { renderDriveHeaderLeft(avatar, drive.block.props.id_model, drive.block.props.id_serial, onClick) }
+      { renderDriveHeaderRight(drive) }
+    </div>
+  ) 
+}
+
+const renderDriveCardContent = (drive) => {
+
+  let ccdRowStyle = { width: '100%', display: 'flex', flexDirection: 'row', }
+  let ccdLeftColStyle = { flex: 1, fontSize: 15, opacity:0.87 }
+  let ccdRightColStyle = { flex: 3 }
+
+  return (
+    <div style={{padding:16}}>
+      <div style={ccdRowStyle}>
+        <div style={ccdLeftColStyle}>General</div>
+        <div style={ccdRightColStyle}>
+          <LabeledText label='container name' text='hello' right={4}/>
+          <LabeledText label='container id' text='hello' right={4}/>
+          <LabeledText label='image' text='hello' right={4}/>
+          <LabeledText label='image id' text='hello' right={4}/>
+          <LabeledText label='state' text='hello' right={4}/>
+          <LabeledText label='status' text='hello' right={4}/>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const renderContainerCard = (container) => {
+
+  let deselected = { width: '98%', marginTop: 0, marginBottom: 0 }
+  let selected = { width: '100%', marginTop: 24, marginBottom: 24 }
+
+  let select = installedStore().select
+  let me = (select && select.type === 'container' && select.id === container.Id)
+
+  return (
+    <Paper style={ me ? selected : deselected } key={container.Id} rounded={false} zDepth={ me ? 2 : 0 } >
+      { renderContainerCardHeader(container) }
+      { me && renderContainerCardContent(container) } 
+      { me && renderContainerCardFooter(container) }
+    </Paper>
+  )
+}
+
+const renderDriveCard2 = (drive) => {
+
+  console.log(drive)
+
+  let deselected = { width: '100%', marginTop: 0, marginBottom: 0 }
+  let selected = { width: '100%', marginTop: 24, marginBottom: 24 }
+
+  let expanded = driveExpanded(drive)
+
+  console.log(driveKey(drive))
+  let key = driveKey(drive)
+
+  // paper key TODO
+  return (
+    <div key={key} style={{transition:'top 300ms'}}>
+    <Paper key={key} style={ expanded ? selected : deselected } rounded={false} zDepth={ expanded ? 2 : 1 } >
+      { renderDriveCardHeader(drive) }
+      { expanded && renderDriveCardContent(drive) } 
+      {/* me && renderContainerCardFooter(container) */}
+    </Paper>
+    </div>
+  )
+}
+
+let renderDrives = () => {
+
+  let drives = buildDrives()
+  return drives.map(drive => renderDriveCard2(drive)) 
+}
+
+let renderNonCandidateDrives = () => {
+
+  let drives = buildDrives()
+  let filtered = drives.filter(drive => 
+    !storageStore().newVolumeCandidates.find(candi => candi === driveKey(drive))) 
+
+  return filtered.map(drive => renderDriveCard2(drive))
+}
+
+let renderCandidateDrives = () => {
+
+  let drives = buildDrives()
+
+  let filtered = []
+
+  storageStore().newVolumeCandidates.forEach(candi => {
+    let drive = drives.find(d => driveKey(d) === candi)
+    if (drive) filtered.push(drive)
+  })
+
+  return filtered.map(drive => renderDriveCard2(drive))
+/*
+  let filtered = drives.filter(drive => 
+    storageStore().newVolumeCandidates.find(candi => candi === driveKey(drive))) 
+
+  return filtered.map(drive => renderDriveCard2(drive))
+*/
+}
+
+let candidateBlknames = () => {
+
+  let { blocks } = storageState()
+  let serials = storageStore().newVolumeCandidates  
+  let filtered = blocks.filter(blk => serials.find(ser => ser === blk.props.id_serial))
+  return filtered.map(blk => blk.props.devname)
+}
+
+let renderAll = () => {
+
+  let {creatingVolume, newVolumeCandidates} = storageStore()
+
+  let containerStyle = {
+    // display: 'flex', 
+    // flexDirection:'column', 
+    // alignItems:'stretch',
+  }
+
+  let creatingVolumeStyle = Object.assign({}, containerStyle, {
+    zIndex: -1,
+    backgroundColor:'#DDDDDD',
+    padding:16,
+    transition: 'all 300ms ease 300ms'
+  })
+
+  let nonCreatingVolumeStyle = Object.assign({}, containerStyle, {
+    zIndex: -1,
+    backgroundColor:'transparent',
+    padding:0,
+    transition: 'all 300ms ease 300ms'
+  })
+
+  let createNewVolume = () => {
+    dispatch({
+      type: 'STORAGE_CREATE_VOLUME_START'
+    })
+    setTimeout(() => 
+      dispatch({
+        type: 'STORAGE_CREATE_VOLUME_STARTED'
+      }), 600)
+  }
+
+  let cancelCreatingNewVolume = () => dispatch({
+    type: 'STORAGE_CREATE_VOLUME_CANCEL'
+  })
+  
+  let mainButtonLabel = creatingVolume ? 'cancel' : 'new volume'
+  let mainButtonOnTouchTap = creatingVolume ? cancelCreatingNewVolume : createNewVolume
+  
+  let showRaid0Button = creatingVolume === 2 && newVolumeCandidates.length > 0 
+  let raid0ButtonOnTouchTap = () => dispatch({
+    type: 'STORAGE_OPERATION',
+    data: {
+      operation: 'mkfs_btrfs',
+      args: [
+        {
+          mode: 'single',
+          blknames: candidateBlknames()
+        }
+      ]
+    }
+  })
+
+  let showRaid1Button = creatingVolume === 2 && newVolumeCandidates.length > 1
+  let raid1ButtonOnTouchTap = () => dispatch({
+    type: 'STORAGE_OPERATION',
+    data: {
+      operation: 'mkfs_btrfs',
+      args: [
+        {
+          mode: 'raid1',
+          blknames: candidateBlknames()
+        }
+      ]
+    }
+  })
+
+  return (
+    <div> 
+      { renderVolumes() }
+      <div key='new-volume-container' style={creatingVolume ? creatingVolumeStyle : nonCreatingVolumeStyle}>
+        <ReactCSSTransitionGroup style={{display:'flex', alignItems: 'center'}}
+          transitionName="example" 
+          transitionAppear={true}
+          transitionEnter={true}
+          transitionLeave={true}
+          transitionAppearTimeout={300}
+          transitionEnterTimeout={300} 
+          transitionLeaveTimeout={300}
+        >
+          <div><RaisedButton style={{width:'auto'}} label={mainButtonLabel} onTouchTap={mainButtonOnTouchTap}  /></div>
+          { showRaid0Button && <div><RaisedButton style={{marginLeft:16}} label='creating raid0 volume' secondary={true} onTouchTap={raid0ButtonOnTouchTap} /></div> }
+          { showRaid1Button && <div><RaisedButton style={{marginLeft:16}} label='creating raid1 volume' secondary={true} onTouchTap={raid1ButtonOnTouchTap} /></div> }
+        </ReactCSSTransitionGroup>
+        <FlipMove style={{marginTop:16}} enterAnimation='fade' leaveAnimation='fade' easing='cubic-bezier(0.23, 1, 0.32, 1)' duration={350} staggerDelayBy={0}>
+          { renderCandidateDrives() }
+        </FlipMove>
+      </div>
+      <div style={{height:16}} />
+      <div style={ creatingVolume ? {padding:16, transition:'all 300ms ease 300ms'} : {padding:0, transition:'all 300ms ease 300ms'}}>
+        { renderNonCandidateDrives() }
+      </div>
+    </div>
   )
 }
 
@@ -551,7 +868,8 @@ let renderStorage = () => {
 }
 
 export default { 
-  Volumes: renderVolumes, 
+//  Volumes: renderVolumes, 
+  Volumes: renderAll,
   Drives: renderDrives, 
   Mounts: renderMounts, 
   Ports: renderATAPorts 
