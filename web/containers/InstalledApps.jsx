@@ -189,7 +189,7 @@ const renderContainerCardHeader = (container) => {
 
   return (
     <div style={{display:'flex', alignItems: 'center'}}>
-      <BouncyCardHeaderLeft avatar={avatar} title={container.Image} onClick={onClick}>
+      <BouncyCardHeaderLeft title={container.Image} onClick={onClick}>
         <BouncyCardHeaderLeftText text={container.Status} />
       </BouncyCardHeaderLeft>
       { renderContainerHeaderRight(container) }
