@@ -97,10 +97,6 @@ const installedStoppingMe = (installed) => {
           request.operation.args[0] === installed.uuid)
 }
 
-const containerRunning = (container) => {
- 
-}
-
 const containerButtonStyle = {
     width: 92,
     height: 40,
@@ -302,21 +298,14 @@ const renderContainerCardContent = (container) => {
 
 const renderContainerCardFooter = (container) => {
 
-  let onTouchTap = () => {
-    dispatch({
-      type: 'DOCKER_OPERATION',
-      operation: {
-        operation: 'containerDelete',
-        args: [container.Id]
-      }
-    })  
-  }
+  let onTouchTap = () => dispatch({ type: 'DOCKER_OPERATION', operation: { operation: 'containerDelete', args: [container.Id] }})   
+  return (<div style={{padding:8}}><FlatButton label="uninstall" onTouchTap={onTouchTap} /></div>)  
+}
 
-  return (
-    <div style={{padding:8}}>
-      <FlatButton label="uninstall" onTouchTap = {onTouchTap} />
-    </div>
-  )  
+const renderInstalledCardFooter = (installed) => {
+
+  let onTouchTap = () => dispatch({ type: 'DOCKER_OPERATION', operation: { operation: 'appUninstall', args: [installed.uuid] }})
+  return (<div style={{padding:8}}><FlatButton label='uninstall' onTouchTap={onTouchTap} /></div>)
 }
 
 const renderContainerCard = (container) => {
@@ -330,7 +319,9 @@ const renderContainerCard = (container) => {
   return (
     <Paper style={ me ? selected : deselected } key={container.Id} rounded={false} zDepth={ me ? 2 : 1 } >
       { renderContainerCardHeader(container) }
+      { me && <Divider /> }
       { me && renderContainerCardContent(container) } 
+      { me && <Divider /> }
       { me && renderContainerCardFooter(container) }
     </Paper>
   )
@@ -348,8 +339,10 @@ const renderInstalledCard = (installed) => {
   return (
     <Paper style={ me ? selected : deselected } key={installed.uuid} rounded={false} zDepth={ me ? 2 : 1 } >
       { renderInstalledCardHeader(installed) }
-      { me && (<Divider />) }
+      { me && <Divider /> }
       { me && renderContainerCardContent(container) }
+      { me && <Divider /> }
+      { me && renderInstalledCardFooter(installed) }
     </Paper>
   ) 
 }
@@ -413,23 +406,19 @@ const renderInstallingCardContentJob = (compo, job) => {
     return t.status
   }
 
-  let ccdRowStyle = { width: '100%', display: 'flex', flexDirection: 'row', }
-  let ccdLeftColStyle = { flex: 1, fontSize: 24, fontWeight: 500, opacity:0.54 }
-  let ccdRightColStyle = { flex: 3 }
+  let ccdRowStyle = {display: 'flex'}
+  let ccdLeftColStyle = {paddingTop:16, paddingBottom:16, width:200}
+  let ccdRightColStyle = {paddingTop:16, paddingBottom:16, flex:3}
 
   return (
     <div style={ccdRowStyle}>
-      <div style={ccdLeftColStyle}>{compo.name}</div>
+      <div style={{width:56}} />
+      <div style={ccdLeftColStyle}>
+        <div style={{fontSize:20, fontWeight:500, opacity:0.87}}>{compo.name}</div>
+        <div style={{fontSize:15, fotnWeight:300, opacity:0.54}}>{compo.namespace}</div>
+      </div>
       <div style={ccdRightColStyle}>
         { job.image.threads && job.image.threads.map(t => <LabeledText label={t.id} text={threadText(t)} right={4} />) }
-        {/*
-        <LabeledText label='container name' text={container.Names[0].slice(1)} right={4}/>
-        <LabeledText label='container id' text={container.Id} right={4}/>
-        <LabeledText label='image' text={container.Image} right={4}/>
-        <LabeledText label='image id' text={container.ImageID.slice(7)} right={4}/>
-        <LabeledText label='state' text={container.State} right={4}/>
-        <LabeledText label='status' text={container.Status} right={4}/>
-        */}
       </div>
     </div>
   )
@@ -438,7 +427,7 @@ const renderInstallingCardContentJob = (compo, job) => {
 const renderInstallingCardContent = (task) => {
 
   return (
-    <div style={{padding:16}}>
+    <div>
       { task.jobs.map((j, index) => renderInstallingCardContentJob(task.recipe.components[index], j)) }
     </div>
   )

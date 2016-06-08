@@ -33,7 +33,7 @@ import CSSTransition from 'react-addons-css-transition-group'
 import ReactCSSTransitionGroup from 'react-addons-css-transition-group'            
 
 /* This list must be consistent with the list defined in reducer */
-const decoration = [
+export const decoration = [
       {
         name: 'APP',
         text: { en_US: 'App', zh_CN: 'Ying Yong' },
@@ -55,7 +55,7 @@ const decoration = [
         text: { en_US: 'Storage' },
         icon: IconDeviceStorage,
         render: Storage.Volumes,
-        themeColor: 'blueGrey', 
+        themeColor: 'grey', 
       },
 /*
       {
@@ -485,7 +485,7 @@ class Navigation extends React.Component {
                 backgroundColor:this.getColor('primary1Color')
                 // transition: 'height 1s ease'
               }}>
-                <AppBar id='appbar' className='appbar-fix' onLeftIconButtonTouchTap={this.handleToggle} zDepth={0} title='WISNUC Cloud'>
+                <AppBar id='appbar' className='appbar-fix' onLeftIconButtonTouchTap={this.handleToggle} zDepth={0} title={'WISNUC Appifi'}>
                   <IconButton 
                     style={{margin:8, marginRight:-16 }} 
                     tooltip="lock screen" 

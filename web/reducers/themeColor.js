@@ -1,5 +1,6 @@
+import { decoration } from '../containers/Navigation'
 
-const color = (state = 'lime', action) => {
+const color = (state = decoration[0].themeColor, action) => {
 
   switch (action.type) {
   case 'THEME_COLOR':

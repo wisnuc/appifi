@@ -509,7 +509,67 @@ const driveIsNewVolumeCandidate = (drive) => {
   return false
 }
 
+const drivePartitionAsRoot = (drive) => {
+
+  let rootMount = storageState().mounts.find(mnt => mnt.mountpoint === '/')
+
+  return rootMount ? 
+    drive.children.find(part => part.props.devname === rootMount.device) : 
+      null
+}
+
+const driveHasPartitionsAsSwap = (drive) => {
+
+  const swap = (partition) => 
+    storageState().swaps.find(swp => 
+      swp.filename === partition.props.devname)
+
+  return drive.children.find(part => swap(part)) ? true : false
+}
+
+const driveIsRemovable = (drive) => drive.block.sysfsProps[0].attrs.removable === '1'
+const driveIsUSB = (drive) => drive.block.props.id_bus === 'usb'
+
+// this function returns null as OK and a string as disallowance reason
+const driveIsAllowedForNewVolumeCandidate = (drive) => {
+
+  if (drivePartitionAsRoot(drive))
+    return 'drive contains root partition'
+
+  if (driveHasPartitionsAsSwap(drive))
+    return 'drive contains swap partition'
+
+  if (driveIsUSB(drive))
+    return 'drive is USB drive'
+
+  return null
+}
+
+const DriveCardHeaderRightButton = ({label, disabled, primary, onTouchTap}) => {
+
+  return (
+    <ReactCSSTransitionGroup
+      transitionName="example" 
+      transitionAppear={true}
+      transitionEnter={true}
+      transitionLeave={true}
+      transitionAppearTimeout={300}
+      transitionEnterTimeout={300} 
+      transitionLeaveTimeout={300}
+    >
+      <div><FlatButton style={{marginRight:16}} label={label} disabled={disabled} onTouchTap={onTouchTap} primary={primary} /></div>
+    </ReactCSSTransitionGroup>
+  )
+}
+
+const DriveCardHeaderRightText = ({text}) => {
+
+  return <div>{text}</div>
+}
+
 const renderDriveHeaderRight = (drive) => {
+
+  if (storageStore().creatingVolume !== 2) return null
 
   const renderAddRemoveButton = (label, onTouchTap) => 
     (
@@ -522,33 +582,33 @@ const renderDriveHeaderRight = (drive) => {
         transitionEnterTimeout={300} 
         transitionLeaveTimeout={300}
       >
-        <div><FlatButton style={{marginRight:16}} label={label} onTouchTap={onTouchTap} primary={label==='add'} /></div>
+        <div><FlatButton style={{marginRight:16}} label={label} onTouchTap={onTouchTap} /></div>
       </ReactCSSTransitionGroup>
     )
   
+  let disallow = driveIsAllowedForNewVolumeCandidate(drive)
+  if (disallow) {
+    return <div>{disallow}</div>
+  } 
 
-  if (storageStore().creatingVolume === 2) {
-    if (driveIsNewVolumeCandidate(drive)) {
-      return renderAddRemoveButton('remove', () => {
-        dispatch({
-          type: 'STORAGE_REMOVE_NEW_VOLUME_CANDIDATE',
-          data: driveKey(drive)
-        })
+  if (driveIsNewVolumeCandidate(drive)) {
+    return renderAddRemoveButton('remove', () => {
+      dispatch({
+        type: 'STORAGE_REMOVE_NEW_VOLUME_CANDIDATE',
+        data: driveKey(drive)
       })
-    } 
-    else {
-      return renderAddRemoveButton('add', () => {
-        dispatch({
-          type: 'STORAGE_ADD_NEW_VOLUME_CANDIDATE',
-          data: driveKey(drive)
-        })
-      })
-    }
-  }
+    })
+  } 
   else {
-    return <div />
+    return renderAddRemoveButton('add', () => {
+      dispatch({
+        type: 'STORAGE_ADD_NEW_VOLUME_CANDIDATE',
+        data: driveKey(drive)
+      })
+    })
   }
 }
+
 
 const driveKey = (drive) => drive.block.props.id_serial
 
@@ -560,33 +620,81 @@ const volumeExpanded = (volume) =>
   storageStore().expansions.find(exp => 
     exp.type === 'volume' && exp.id === volume.uuid)
 
+const creatingVolumeSubmitted = () => {
+
+  let { creatingVolume, operation } = storageStore()
+  let submitted
+
+  if (creatingVolume === 2 &&
+      operation &&
+      operation.request &&
+      operation.data.operation === 'mkfs_btrfs') {
+    submitted = true
+  }
+  else {
+    submitted = false
+  }
+
+  console.log(`submitted ${submitted}`)
+  return submitted
+}
+
+const creatingVolumeFinished = () => {
+
+  let { creatingVolume, operation } = storageStore()
+
+  let finished
+  if (creatingVolume === 2 &&
+      operation &&
+      operation.request === null &&
+      operation.data.operation === 'mkfs_btrfs') {
+    finished = true
+  }
+  else {
+    finished = false
+  }
+
+  console.log(`finished ${finished}`)
+  return finished
+}
+
 const renderDriveCardHeader = (drive) => {
 
-  let avatar = 'http://lorempixel.com/100/100/nature/'
-  let onClick = () => {
-    dispatch({
-      type: 'STORAGE_CARD_EXPANSION_TOGGLE',
-      data: {
-        type: 'drive',
-        id: driveKey(drive)
-      }
-    })
+  const onClick = () => dispatch({ type: 'STORAGE_CARD_EXPANSION_TOGGLE', data: { type: 'drive', id: driveKey(drive) } }) 
+  const removeButtonOnTouchTap = () => dispatch({ type: 'STORAGE_REMOVE_NEW_VOLUME_CANDIDATE', data: driveKey(drive) })
+  const addButtonOnTouchTap =  () => dispatch({ type: 'STORAGE_ADD_NEW_VOLUME_CANDIDATE', data: driveKey(drive) })
+
+  let { creatingVolume } = storageStore()
+  let middleText
+
+  let disallowed = driveIsAllowedForNewVolumeCandidate(drive)
+  if (creatingVolume) {
+    middleText = disallowed ? 'This drive can not be added to new volume, ' + disallowed : 'This drive can be added to new volume'
   }
+  else {
+    middleText = `Size: ${drive.block.sysfsProps[0].attrs.size} (in 512 byte blocks)`
+  }
+
+  let isCandidate = driveIsNewVolumeCandidate(drive)
+  let buttonLabel = isCandidate ? 'remove' : 'add'
+  let buttonOnTouchTap = isCandidate ? removeButtonOnTouchTap : addButtonOnTouchTap
 
   return (
     <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center' }}>
       <BouncyCardHeaderLeft title={drive.block.props.id_model} onClick={onClick}>
-        <BouncyCardHeaderLeftText text={drive.block.props.id_serial_short} />
+        <BouncyCardHeaderLeftText text={middleText} />
       </BouncyCardHeaderLeft>
-
-      { renderDriveHeaderRight(drive) }
+      { creatingVolume ? (
+        <DriveCardHeaderRightButton label={buttonLabel} disabled={disallowed} primary={true} onTouchTap={buttonOnTouchTap} />
+      ) : (
+        null
+      )}
     </div>
   ) 
 }
 
 const renderPartition = (block) => {
-
-  
+ 
   return (
     <div>
       <div style={{display:'flex'}}>
@@ -676,8 +784,6 @@ const renderContainerCard = (container) => {
 }
 
 const renderDriveCard2 = (drive) => {
-
-  console.log(drive)
 
   let deselected = { width: '100%', marginTop: 0, marginBottom: 0 }
   let selected = { width: '100%', marginTop: 16, marginBottom: 16 }
@@ -810,6 +916,14 @@ let renderAll = () => {
     }
   })
 
+  let bannerText = () => {
+    
+    if (!creatingVolume) return 'Disks'
+    if (creatingVolumeSubmitted()) return 'Submitting request to server'
+    if (creatingVolumeFinished()) return 'Finished'
+    return 'Click ADD button to add disk to new volume'
+  }
+
   return (
     <div> 
       <div style={{fontSize:16, opacity:0.54}}>Volumes</div>
@@ -828,11 +942,14 @@ let renderAll = () => {
           transitionLeaveTimeout={300}
         >
           <div style={{fontSize:16, opacity:0.54, flexGrow:1}}>
-            { creatingVolume ? 'Click ADD button to add disk to new volume' : 'Disks' }
+            { bannerText() }
           </div>
-          { showRaid1Button && <div><RaisedButton style={{marginRight:16}} label='creating raid1 volume' secondary={true} onTouchTap={raid1ButtonOnTouchTap} /></div> }
-          { showRaid0Button && <div><RaisedButton style={{marginRight:16}} label='creating raid0 volume' secondary={true} onTouchTap={raid0ButtonOnTouchTap} /></div> }
-          <div><RaisedButton label={mainButtonLabel} onTouchTap={mainButtonOnTouchTap} /></div>
+          { showRaid1Button && <div><RaisedButton style={{marginRight:16}} label='creating raid1 volume' secondary={true} 
+            disabled={creatingVolumeSubmitted() || creatingVolumeFinished() } onTouchTap={raid1ButtonOnTouchTap} /></div> }
+          { showRaid0Button && <div><RaisedButton style={{marginRight:16}} label='creating raid0 volume' secondary={true} 
+            disabled={creatingVolumeSubmitted() || creatingVolumeFinished() } onTouchTap={raid0ButtonOnTouchTap} /></div> }
+          <div><RaisedButton label={mainButtonLabel} 
+            disabled={creatingVolumeSubmitted() || creatingVolumeFinished() } onTouchTap={mainButtonOnTouchTap} /></div>
         </ReactCSSTransitionGroup>
         <div style={{height: creatingVolume ? 16 : 8, transition:'300ms'}} />
         <FlipMove style={{marginTop:0}} enterAnimation='fade' leaveAnimation='fade' easing='cubic-bezier(0.23, 1, 0.32, 1)' duration={350} staggerDelayBy={0}>

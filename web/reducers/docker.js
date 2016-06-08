@@ -28,7 +28,7 @@ const sendOperation = (state, operation) => {
         type: 'DOCKER_OPERATION_RESPONSE',
         err,
         res
-      }), 3000)
+      }), 1600)
     })
 
   let s = Object.assign({}, state, { 

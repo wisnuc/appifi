@@ -258,7 +258,7 @@ let render = () => {
 
   return (
     <div key='appstore' >
-      <div style={{fontSize:28, fontWeight:'100'}}>Recommended Apps</div>
+      <div style={{fontSize:16, opacity:0.54}}>Recommended Apps</div>
       <div style={{
         display: 'flex',
         flexDirection: 'row',

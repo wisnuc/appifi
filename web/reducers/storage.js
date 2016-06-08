@@ -16,8 +16,13 @@ const defaultState = {
 
 const operation = (state = null, action) => {
 
+  let tmp
+
   switch(action.type) {
   case 'STORAGE_OPERATION': {
+
+    console.log('STORAGE_OPERATION')
+    console.log(action.data)
 
     if (state && (state.timeout || state.request)) {
       return state
@@ -45,14 +50,24 @@ const operation = (state = null, action) => {
     let message = action.err ? action.err.message : null
     let response = action.err ? null : action.res
 
-    return {
+    tmp =  {
       timeout: null,
       request: null,
       errno, 
       message, 
       response,
-      data: action.data      
+      data: state.data
     }
+
+    console.log('STORAGE_OPERATION_RESPONSE')
+    console.log(tmp)
+
+    if (state.data.operation === 'mkfs_btrfs') {
+      setTimeout(() => dispatch({
+        type: 'STORAGE_CREATE_VOLUME_CANCEL'  
+      }), 1000)
+    }
+    return tmp
   }
 
   default:
@@ -117,7 +132,13 @@ const reducer = (state = {
     return state
 
   case 'STORAGE_CREATE_VOLUME_CANCEL':
+    
+    if (state.operation && state.operation.request) {
+      state.operation.request.abort() // TODO
+    }
+
     return Object.assign({}, state, { 
+      operation: null,
       creatingVolume: 0, 
       newVolumeCandidates: [],
       expansions: state.expansions.filter(exp => exp.type !== 'drive')
