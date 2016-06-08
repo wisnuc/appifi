@@ -54,8 +54,10 @@ const decoration = [
         name: 'STORAGE',
         text: { en_US: 'Storage' },
         icon: IconDeviceStorage,
+        render: Storage.Volumes,
         themeColor: 'blueGrey', 
       },
+/*
       {
         name: 'VOLUMES',
         text: { en_US: 'Volumes' },
@@ -76,6 +78,7 @@ const decoration = [
         text: { en_US: 'Ports' },
         render: Storage.Ports
       },
+*/
       {
         name: 'ETHERNET',
         text: { en_US: 'Ethernet' },
