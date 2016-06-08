@@ -12,10 +12,18 @@ import ReactCSSTransitionGroup from 'react-addons-css-transition-group'
 
 import FlipMove from 'react-flip-move'
 
+import { 
+  BouncyCardHeaderLeft,
+  BouncyCardHeaderLeftText
+} from '../components/bouncy'
+
 // let getStore = () => window.store.getState().storage
 let getStore = () => window.store.getState().server.state.storage
 let getRequest = () => window.store.getState().storage.request
 let dockerStore = () => window.store.getState().docker
+
+let shrinkedCardStyle = { width: '100%', marginTop: 0, marginBottom: 0 }
+let expandedCardStyle = { width: '100%', marginTop: 24, marginBottom: 24 }
 
 class DialogExampleModal extends React.Component {
 
@@ -33,17 +41,8 @@ class DialogExampleModal extends React.Component {
 
   render() {
     const actions = [
-      <FlatButton
-        label="Cancel"
-        primary={true}
-        onTouchTap={this.handleClose}
-      />,
-      <FlatButton
-        label="Submit"
-        primary={true}
-        disabled={true}
-        onTouchTap={this.handleClose}
-      />,
+      <FlatButton label="Cancel" primary={true} onTouchTap={this.handleClose} />,
+      <FlatButton label="Submit" primary={true} disabled={true} onTouchTap={this.handleClose} />,
     ];
 
     return (
@@ -67,12 +66,6 @@ let renderStorageNonAvail = () => {
   let storage = getStore()
 
   if (storage === null) {
-/*
-    if (request)
-      return <div>busy requesting data</div>
-    else
-      return <div>state not defined</div>
-*/
     return <div>storage not available</div> // FIXME
   }
 
@@ -120,10 +113,9 @@ let renderVolumeDeviceRow = (device) => {
   )
 }
 
-let renderVolumeRow = (volume) => {
+let renderVolumeCard = (volume) => {
 
-  let {ports, blocks, volumes, mounts, swaps, usages} = getStore()
-//  let dockerState = dockerStore().docker
+  let {ports, blocks, volumes, mounts, swaps, usages} = storageState()
   let docker = dockerState()
 
   let request = getRequest()
@@ -192,124 +184,137 @@ let renderVolumeRow = (volume) => {
     }) 
   }
 
+  let bannerText = () => {
+    if (!running) {
+      return 'AppEngine is not running. Click START button to  start it on this volume.'
+    }
+    else if (runningOnMe) {
+      return 'AppEngine is running on this volume'
+    }
+    else {
+      return 'AppEngine is running on other volume'
+    }
+  }
+
+  let expanded = volumeExpanded(volume)
+
+  let volumeCardOnClick = () => 
+    dispatch({
+      type: 'STORAGE_CARD_EXPANSION_TOGGLE',
+      data: {
+        type: 'volume',
+        id: volume.uuid
+      }
+    })
+
   return (
-  <div>
-    <div style={{fontSize: 20, opacity:0.87}}>Btrfs Disk Volumes</div>
-    <Paper style={{
-        marginTop: '16px',
-        width: '100%',
-    }}>
-      {/* title bar */}
-      {/*
-      <div id='card-title-bar' style={{
-          display: 'flex',
-          flexDirection: 'row',   
-          alignItems: 'center',
-          padding: '16px'
-      }}>*/}
-      
-      {/*  <div style={{fontSize: 24, fontWeight:100, flexGrow:1}}>Btrfs File System (RAID)</div> */}
-      {/* </div> */}
-      {/* general */}
-      <div id='card-important' style={{padding:'16px' }}>
-        <div style={rowStyle}>
-          <div style={leftColStyle}>General</div>
-          <div style={rightColStyle}>
-            <LabeledText label='label' text={volume.label ? volume.label : '(none)'} right={2} />
-            <LabeledText label='volume uuid' text={volume.uuid} right={2} />
-            <LabeledText label='number of disks' text={volume.total} right={2} />
-            <LabeledText label='mount point' text='/run/wisnuc/volumes/xxxxxx' right={2}/>
-         </div>
-        </div>
-      </div>
-
-      {/* general */}
-      <div id='card-important' style={{padding:'16px', backgroundColor:'#FAFAFA', }}>
-        <div style={rowStyle}>
-          <div style={leftColStyle}>Status</div>
-          <div style={rightColStyle}>
-            <div style={{fontWeight: 100, lineHeight:1.5, fontSize:16}}>AppEngine is running on this volume</div>
-            <FlatButton 
-              style={{marginTop:16}} 
-              label='start' 
-              primary={true} 
-              disabled={running} 
-              onTouchTap={() => daemonStart(volume.uuid)} 
-            />
-            <FlatButton 
-              style={{marginTop:16, marginLeft:24}} 
-              label='stop' 
-              secondary={true} 
-              disabled={!runningOnMe} 
-              onTouchTap={() => daemonStop(volume.uuid)} 
-            />
+    <div>
+      <Paper style={expanded ? expandedCardStyle : shrinkedCardStyle} zDepth={expanded ? 2 : 1}>
+        <div style={{display:'flex', alignItems: 'center'}} >
+          <BouncyCardHeaderLeft title='btrfs' onClick={volumeCardOnClick}>
+            <BouncyCardHeaderLeftText text={bannerText()} />
+          </BouncyCardHeaderLeft>
+          <div>
+            <RaisedButton style={{marginRight:16}} label='start' primary={true} disabled={running} 
+              onTouchTap={() => daemonStart(volume.uuid)} />
+            <RaisedButton style={{marginRight:16}} label='stop' secondary={true} disabled={!runningOnMe} 
+              onTouchTap={() => daemonStop(volume.uuid)} />
           </div>
         </div>
-      </div>
-
-      {/* card text, don't set this container width !!! */}
-      <div id='card-text' style={{margin:'16px'}}>
-       <div style={rowStyle}>
-          <div style={leftColStyle}>Overall Usage</div>
-          <div style={rightColStyle}>
-            <LabeledText label='data size' text={usage.overall.deviceSize} right={2} />
-            <LabeledText label='device allocated' text={usage.overall.deviceAllocated} right={2} />
-            <LabeledText label='device unallocated' text={usage.overall.deviceUnallocated} right={2} />
-            <LabeledText label='device missing' text={usage.overall.deviceMissing} right={2} />
-            <LabeledText label='used space' text={usage.overall.used} right={2} />
-            <LabeledText label='free space (estimated)' text={usage.overall.free} right={2} />
-            <LabeledText label='free space (minimal)' text={usage.overall.freeMin} right={2} />
-            <LabeledText label='data ratio' text={usage.overall.dataRatio} right={2} />
-            <LabeledText label='metadata ratio' text={usage.overall.metadataRatio} right={2} />
-            <LabeledText label='global reserve (total)' text={usage.overall.globalReserve} right={2} />
-            <LabeledText label='global reserve (used)' text={usage.overall.globalReserveUsed} right={2} />
+        { expanded ? (<div>
+        <Divider />
+        <div>
+          <div style={{display:'flex'}}>
+            <div style={{width:56}} /> 
+            <div style={{paddingTop:16, paddingBottom:16, width:200,
+              fontSize:16, fontWeight:'bold', opacity:0.54}}>General</div>
+            <div style={{paddingTop:16, paddingBottom:16, flex:3}}>
+              <LabeledText label='label' text={volume.label ? volume.label : '(none)'} right={2} />
+              <LabeledText label='volume uuid' text={volume.uuid} right={2} />
+              <LabeledText label='number of disks' text={volume.total} right={2} />
+              <LabeledText label='mount point' text='/run/wisnuc/volumes/xxxxxx' right={2}/>
+            </div>
           </div>
         </div>
-        <Spacer />
-        <div style={rowStyle}>
-          <div style={leftColStyle}>System</div>
-          <div style={rightColStyle}>
-            <LabeledText label='mode' text={usage.system.mode} right={2} />
-            <LabeledText label='size' text={usage.system.size} right={2} />
-            <LabeledText label='used' text={usage.system.used} right={2} />
+        <Divider />
+        <div>
+          <div style={{display:'flex'}}>
+            <div style={{width:56}} /> 
+            <div style={{paddingTop:16, paddingBottom:16, width:200,
+              fontSize:16, fontWeight:'bold', opacity:0.54}}>Usage</div>
+            <div style={{paddingTop:16, paddingBottom:16, flex:3}}>
+              <LabeledText label='data size' text={usage.overall.deviceSize} right={2} />
+              <LabeledText label='device allocated' text={usage.overall.deviceAllocated} right={2} />
+              <LabeledText label='device unallocated' text={usage.overall.deviceUnallocated} right={2} />
+              <LabeledText label='device missing' text={usage.overall.deviceMissing} right={2} />
+              <LabeledText label='used space' text={usage.overall.used} right={2} />
+              <LabeledText label='free space (estimated)' text={usage.overall.free} right={2} />
+              <LabeledText label='free space (minimal)' text={usage.overall.freeMin} right={2} />
+              <LabeledText label='data ratio' text={usage.overall.dataRatio} right={2} />
+              <LabeledText label='metadata ratio' text={usage.overall.metadataRatio} right={2} />
+              <LabeledText label='global reserve (total)' text={usage.overall.globalReserve} right={2} />
+              <LabeledText label='global reserve (used)' text={usage.overall.globalReserveUsed} right={2} />
+            </div>
           </div>
         </div>
-        <Spacer />
-        <div style={rowStyle}>
-          <div style={leftColStyle}>Metadata</div>
-          <div style={rightColStyle}>
-            <LabeledText label='mode' text={usage.metadata.mode} right={2} />
-            <LabeledText label='size' text={usage.metadata.size} right={2} />
-            <LabeledText label='used' text={usage.metadata.used} right={2} />
+        <div>
+          <div style={{display:'flex'}}>
+            <div style={{width:56}} /> 
+            <div style={{paddingTop:16, paddingBottom:16, width:200,
+              fontSize:16, fontWeight:'bold', opacity:0.54}}>System</div>
+            <div style={{paddingTop:16, paddingBottom:16, flex:3}}>
+              <LabeledText label='mode' text={usage.system.mode} right={2} />
+              <LabeledText label='size' text={usage.system.size} right={2} />
+              <LabeledText label='used' text={usage.system.used} right={2} />
+            </div>
           </div>
         </div>
-        <Spacer />
-        <div style={rowStyle}>
-          <div style={leftColStyle}>Data</div>
-          <div style={rightColStyle}>
-            <LabeledText label='mode' text={usage.data.mode} right={2} />
-            <LabeledText label='size' text={usage.data.size} right={2} />
-            <LabeledText label='used' text={usage.data.used} right={2} />
+        <div>
+          <div style={{display:'flex'}}>
+            <div style={{width:56}} /> 
+            <div style={{paddingTop:16, paddingBottom:16, width:200,
+              fontSize:16, fontWeight:'bold', opacity:0.54}}>Metadata</div>
+            <div style={{paddingTop:16, paddingBottom:16, flex:3}}>
+              <LabeledText label='mode' text={usage.metadata.mode} right={2} />
+              <LabeledText label='size' text={usage.metadata.size} right={2} />
+              <LabeledText label='used' text={usage.metadata.used} right={2} />
+            </div>
           </div>
         </div>
-      </div>
-    </Paper>
-  </div>
-  )
+        <div>
+          <div style={{display:'flex'}}>
+            <div style={{width:56}} /> 
+            <div style={{paddingTop:16, paddingBottom:16, width:200,
+              fontSize:16, fontWeight:'bold', opacity:0.54}}>Data</div>
+            <div style={{paddingTop:16, paddingBottom:16, flex:3}}>
+              <LabeledText label='mode' text={usage.data.mode} right={2} />
+              <LabeledText label='size' text={usage.data.size} right={2} />
+              <LabeledText label='used' text={usage.data.used} right={2} />
+            </div>
+          </div>
+        </div>
+        </div>) : null }
+      </Paper>
+    </div>
+    )
 }
 
 let renderVolumes = () => {
 
-  let nonavail = renderStorageNonAvail()
-  if (nonavail) {
-    console.log('volume render nonavail')
-    return nonavail
+  let storage = storageState()
+  if (storage === null) {
+    return <div>storage not available</div> // FIXME
   }
 
-  let {ports, blocks, volumes, mounts, swaps} = getStore()
+  if (storage instanceof Error) {
+    console.log(storage.stack)
+    return <div>{`${storage.name}: ${storage.message}`}, retry please</div>
+  }
+
+  let {ports, blocks, volumes, mounts, swaps} = storage
 
   if (volumes && volumes.length) {
-    return <div>{ volumes.map(volume => renderVolumeRow(volume)) }</div>
+    return <div>{ volumes.map(volume => renderVolumeCard(volume)) }</div>
   }
 
   return <div>no volumes detected, please create a volume.</div>
@@ -494,39 +499,6 @@ const renderDriveHeaderLeft = (avatar, title, text, onClick) => {
   )
 }
 
-/*
-const renderDriveHeaderRight = (container) => {
-
-  let startButtonTap = () => 
-    dispatch({
-      type: 'DOCKER_OPERATION',
-      operation: {
-        operation: 'containerStart',
-        args: [container.Id]
-      }
-    })
-
-  let stopButtonTap = () => 
-    dispatch({
-      type: 'DOCKER_OPERATION',
-      operation: {
-        operation: 'containerStop',
-        args: [container.Id]
-      }
-    })
-
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', padding:8 }}> 
-      <BusyFlatButton busy={containerStartingMe(container)} label="start" disabled={buttonDisabled[container.State].start} 
-        onTouchTap={startButtonTap} />
-      <BusyFlatButton busy={containerStoppingMe(container)} label="stop" disabled={buttonDisabled[container.State].stop} 
-        onTouchTap ={stopButtonTap} />
-      <OpenButton container={container} /> 
-    </div>
-  )
-}
-*/
-
 const driveIsNewVolumeCandidate = (drive) => {
   
   let storage = storageStore()
@@ -580,14 +552,13 @@ const renderDriveHeaderRight = (drive) => {
 
 const driveKey = (drive) => drive.block.props.id_serial
 
-const driveExpanded = (drive) => {
-
-  console.log('driveExpanded')
-  console.log(storageStore())
-  return storageStore().expansions.find(exp => 
+const driveExpanded = (drive) => 
+  storageStore().expansions.find(exp => 
     exp.type === 'drive' && exp.id === driveKey(drive))
-}
 
+const volumeExpanded = (volume) => 
+  storageStore().expansions.find(exp => 
+    exp.type === 'volume' && exp.id === volume.uuid)
 
 const renderDriveCardHeader = (drive) => {
 
@@ -604,8 +575,31 @@ const renderDriveCardHeader = (drive) => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center' }}>
-      { renderDriveHeaderLeft(avatar, drive.block.props.id_model, drive.block.props.id_serial, onClick) }
+      <BouncyCardHeaderLeft title={drive.block.props.id_model} onClick={onClick}>
+        <BouncyCardHeaderLeftText text={drive.block.props.id_serial_short} />
+      </BouncyCardHeaderLeft>
+
       { renderDriveHeaderRight(drive) }
+    </div>
+  ) 
+}
+
+const renderPartition = (block) => {
+
+  
+  return (
+    <div>
+      <div style={{display:'flex'}}>
+        <div style={{width:56}} /> 
+        <div style={{paddingTop:16, paddingBottom:16, width:200,
+          fontSize:16, fontWeight:'bold', opacity:0.54}}>General</div>
+        <div style={{paddingTop:16, paddingBottom:16, flex:3}}>
+          <LabeledText label='device name' text={drive.block.props.devname} right={4} />
+          <LabeledText label='device path' text={drive.block.props.devpath} right={4} />
+          <LabeledText label='device type' text={drive.block.props.devtype} right={4} />
+          { drive.block.props.id_fs_type ? <LabeledText label='fstype' text={drive.block.props.id_fs_type} right={4} /> : null }
+        </div>
+      </div>
     </div>
   ) 
 }
@@ -615,20 +609,51 @@ const renderDriveCardContent = (drive) => {
   let ccdRowStyle = { width: '100%', display: 'flex', flexDirection: 'row', }
   let ccdLeftColStyle = { flex: 1, fontSize: 15, opacity:0.87 }
   let ccdRightColStyle = { flex: 3 }
+  let block = drive.block
 
   return (
-    <div style={{padding:16}}>
-      <div style={ccdRowStyle}>
-        <div style={ccdLeftColStyle}>General</div>
-        <div style={ccdRightColStyle}>
-          <LabeledText label='container name' text='hello' right={4}/>
-          <LabeledText label='container id' text='hello' right={4}/>
-          <LabeledText label='image' text='hello' right={4}/>
-          <LabeledText label='image id' text='hello' right={4}/>
-          <LabeledText label='state' text='hello' right={4}/>
-          <LabeledText label='status' text='hello' right={4}/>
+    <div>
+      <Divider />
+      <div>
+        <div style={{display:'flex'}}>
+          <div style={{width:56}} /> 
+          <div style={{paddingTop:16, paddingBottom:16, width:200,
+            fontSize:16, fontWeight:'bold', opacity:0.54}}>Disk Information</div>
+          <div style={{paddingTop:16, paddingBottom:16, flex:3}}>
+            <LabeledText label='device name' text={block.props.devname} right={4} />
+            <LabeledText label='device path' text={block.props.devpath} right={4} />
+            <LabeledText label='device type' text={block.props.devtype} right={4} />
+            <LabeledText label='bus' text={block.props.id_bus} right={4} />
+            <LabeledText label='size (block)' text={block.sysfsProps[0].attrs.size} right={4} />
+            <LabeledText label='removable' text={block.sysfsProps[0].attrs.removable === '1' ? 'yes' : 'no'} right={4} />
+          </div>
         </div>
       </div>
+      <Divider />
+      { block.props.id_part_table_type ? (
+        <div style={{display:'flex'}}>
+          <div style={{width:56}} /> 
+          <div style={{paddingTop:16, paddingBottom:16, width:200,
+            fontSize:16, fontWeight:'bold', opacity:0.54}}>Partition Table</div>
+          <div style={{paddingTop:16, paddingBottom:16, flex:3}}>
+            <LabeledText label='type' text={block.props.id_part_table_type} right={4} />
+            <LabeledText label='uuid' text={block.props.id_part_table_uuid} right={4} />
+          </div>
+        </div> 
+        ) : null } 
+      { block.props.id_fs_type ? (
+        <div style={{display:'flex'}}>
+          <div style={{width:56}} /> 
+          <div style={{paddingTop:16, paddingBottom:16, width:200,
+            fontSize:16, fontWeight:'bold', opacity:0.54}}>File System</div>
+          <div style={{paddingTop:16, paddingBottom:16, flex:3}}>
+            <LabeledText label='type' text={block.props.id_fs_type} right={4} />
+            <LabeledText label='usage' text={block.props.id_fs_usage} right={4} />
+            <LabeledText label='uuid (volume)' text={block.props.id_fs_uuid} right={4} />
+            <LabeledText label='uuid (disk)' text={block.props.id_fs_uuid_sub} right={4} />
+          </div>
+        </div> 
+        ) : null } 
     </div>
   )
 }
@@ -655,7 +680,7 @@ const renderDriveCard2 = (drive) => {
   console.log(drive)
 
   let deselected = { width: '100%', marginTop: 0, marginBottom: 0 }
-  let selected = { width: '100%', marginTop: 24, marginBottom: 24 }
+  let selected = { width: '100%', marginTop: 16, marginBottom: 16 }
 
   let expanded = driveExpanded(drive)
 
@@ -668,7 +693,6 @@ const renderDriveCard2 = (drive) => {
     <Paper key={key} style={ expanded ? selected : deselected } rounded={false} zDepth={ expanded ? 2 : 1 } >
       { renderDriveCardHeader(drive) }
       { expanded && renderDriveCardContent(drive) } 
-      {/* me && renderContainerCardFooter(container) */}
     </Paper>
     </div>
   )
@@ -788,7 +812,11 @@ let renderAll = () => {
 
   return (
     <div> 
+      <div style={{fontSize:16, opacity:0.54}}>Volumes</div>
+      <div style={{height:8}} />
       { renderVolumes() }
+      {/* <div style={{marginTop:16, fontSize:16, opacity:0.54}}>Disks</div> */}
+      <div style={{height:32}} />
       <div key='new-volume-container' style={creatingVolume ? creatingVolumeStyle : nonCreatingVolumeStyle}>
         <ReactCSSTransitionGroup style={{display:'flex', alignItems: 'center'}}
           transitionName="example" 
@@ -799,18 +827,23 @@ let renderAll = () => {
           transitionEnterTimeout={300} 
           transitionLeaveTimeout={300}
         >
-          <div><RaisedButton style={{width:'auto'}} label={mainButtonLabel} onTouchTap={mainButtonOnTouchTap}  /></div>
-          { showRaid0Button && <div><RaisedButton style={{marginLeft:16}} label='creating raid0 volume' secondary={true} onTouchTap={raid0ButtonOnTouchTap} /></div> }
-          { showRaid1Button && <div><RaisedButton style={{marginLeft:16}} label='creating raid1 volume' secondary={true} onTouchTap={raid1ButtonOnTouchTap} /></div> }
+          <div style={{fontSize:16, opacity:0.54, flexGrow:1}}>
+            { creatingVolume ? 'Click ADD button to add disk to new volume' : 'Disks' }
+          </div>
+          { showRaid1Button && <div><RaisedButton style={{marginRight:16}} label='creating raid1 volume' secondary={true} onTouchTap={raid1ButtonOnTouchTap} /></div> }
+          { showRaid0Button && <div><RaisedButton style={{marginRight:16}} label='creating raid0 volume' secondary={true} onTouchTap={raid0ButtonOnTouchTap} /></div> }
+          <div><RaisedButton label={mainButtonLabel} onTouchTap={mainButtonOnTouchTap} /></div>
         </ReactCSSTransitionGroup>
-        <FlipMove style={{marginTop:16}} enterAnimation='fade' leaveAnimation='fade' easing='cubic-bezier(0.23, 1, 0.32, 1)' duration={350} staggerDelayBy={0}>
+        <div style={{height: creatingVolume ? 16 : 8, transition:'300ms'}} />
+        <FlipMove style={{marginTop:0}} enterAnimation='fade' leaveAnimation='fade' easing='cubic-bezier(0.23, 1, 0.32, 1)' duration={350} staggerDelayBy={0}>
           { renderCandidateDrives() }
         </FlipMove>
       </div>
-      <div style={{height:16}} />
+      {/* <div style={{height: creatingVolume ? 16 : 0}} /> */}
       <div style={ creatingVolume ? {padding:16, transition:'all 300ms ease 300ms'} : {padding:0, transition:'all 300ms ease 300ms'}}>
         { renderNonCandidateDrives() }
       </div>
+      <div style={{height:600}} />
     </div>
   )
 }

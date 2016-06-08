@@ -14,6 +14,11 @@ import IconAVStop from 'material-ui/svg-icons/av/stop'
 import { LabeledText, Spacer } from './CustomViews'
 import { dispatch, dockerStore, dockerState, taskStates, installedStore } from '../utils/storeState'
 
+import {
+  BouncyCardHeaderLeftText,
+  BouncyCardHeaderLeft
+} from '../components/bouncy'
+
 const buttonDisabled = {
 
   created: {
@@ -107,10 +112,8 @@ const containerButtonStyle = {
 
 const BusyFlatButton = ({ busy, label, disabled, onTouchTap }) => {
 
-  if (busy)
-    return <div style={containerButtonStyle}><CircularProgress size={0.5} /></div>
-  
-  return <div style={containerButtonStyle}><FlatButton label={label} disabled={disabled} onTouchTap={onTouchTap} /></div> 
+  if (busy) return (<div style={containerButtonStyle}><CircularProgress size={0.5} /></div>)
+  return (<div style={containerButtonStyle}><FlatButton label={label} disabled={disabled} onTouchTap={onTouchTap} /></div>)
 }
 
 const OpenButton = ({container}) => {
@@ -130,17 +133,6 @@ const OpenButton = ({container}) => {
   return (
     <div style={containerButtonStyle}>
       <FlatButton label="open" primary={true} onTouchTap={ onOpen } />
-    </div>
-  )
-}
-
-const renderHeaderLeft = (avatar, title, text, onClick) => {
-  let style = { height: '100%', flexGrow:1, display: 'flex', alignItems: 'center', padding:8 }
-  return (
-    <div style={style} onClick={onClick} >
-      <Avatar style={{marginLeft:8, marginRight:24}} src={avatar} />
-      <div style={{fontSize:20, opacity:0.87, width:200}}>{title}</div>
-      <div style={{fontSize:15, opacity:0.54}}>{text}</div>
     </div>
   )
 }
@@ -196,8 +188,10 @@ const renderContainerCardHeader = (container) => {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center' }}>
-      { renderHeaderLeft(avatar, container.Image, container.Status, onClick) }
+    <div style={{display:'flex', alignItems: 'center'}}>
+      <BouncyCardHeaderLeft avatar={avatar} title={container.Image} onClick={onClick}>
+        <BouncyCardHeaderLeftText text={container.Status} />
+      </BouncyCardHeaderLeft>
       { renderContainerHeaderRight(container) }
     </div>
   ) 
@@ -267,7 +261,9 @@ const renderInstalledCardHeader = (installed) => {
   let container = installedMainContainer(installed)
   return (
     <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center' }}>
-      { renderHeaderLeft(avatar, installed.recipe.appname, container.Status, onClick) }
+      <BouncyCardHeaderLeft avatar={avatar} title={installed.recipe.appname} onClick={onClick}>
+        <BouncyCardHeaderLeftText text={container.Status} />
+      </BouncyCardHeaderLeft>
       { renderInstalledHeaderRight(installed) }
     </div>
   ) 
@@ -275,14 +271,22 @@ const renderInstalledCardHeader = (installed) => {
 
 const renderContainerCardContent = (container) => {
 
-  let ccdRowStyle = { width: '100%', display: 'flex', flexDirection: 'row', }
-  let ccdLeftColStyle = { flex: 1, fontSize: 15, opacity:0.87 }
-  let ccdRightColStyle = { flex: 3 }
+  let ccdRowStyle = {display: 'flex'}
+  let ccdLeftColStyle = {paddingTop:16, paddingBottom:16, width: 200}
+  let ccdRightColStyle = {paddingTop:16, paddingBottom:16, flex: 3}
+  let split = container.Image.split('/')
+  let namespace = split[0]
+  if (namespace === 'library') namespace = 'official'
+  let name = split[1]
 
   return (
-    <div style={{padding:16}}>
+    <div>
       <div style={ccdRowStyle}>
-        <div style={ccdLeftColStyle}>{container.Image}</div>
+        <div style={{width:56}} />
+        <div style={ccdLeftColStyle}>
+          <div style={{fontSize:20, fontWeight:500, opacity:0.87}}>{name}</div>
+          <div style={{fontSize:15, fotnWeight:300, opacity:0.54}}>{namespace}</div>
+        </div>
         <div style={ccdRightColStyle}>
           <LabeledText label='container name' text={container.Names[0].slice(1)} right={4}/>
           <LabeledText label='container id' text={container.Id} right={4}/>
@@ -324,7 +328,7 @@ const renderContainerCard = (container) => {
   let me = (select && select.type === 'container' && select.id === container.Id)
 
   return (
-    <Paper style={ me ? selected : deselected } key={container.Id} rounded={false} zDepth={ me ? 2 : 0 } >
+    <Paper style={ me ? selected : deselected } key={container.Id} rounded={false} zDepth={ me ? 2 : 1 } >
       { renderContainerCardHeader(container) }
       { me && renderContainerCardContent(container) } 
       { me && renderContainerCardFooter(container) }
@@ -348,19 +352,6 @@ const renderInstalledCard = (installed) => {
       { me && renderContainerCardContent(container) }
     </Paper>
   ) 
-}
-
-const renderInstallingHeaderLeft = (avatar, title, onClick) => {
-
-  let style = { height: '100%', flexGrow:1, display: 'flex', alignItems: 'center', padding:8 }
-  return (
-    <div style={style} onClick={onClick} >
-      <Avatar style={{marginLeft:8, marginRight:24}} src={avatar} />
-      <div style={{fontSize:14, fontWeight:600, width:200, opacity:0.87}}>{title}</div>
-      <div style={{fontSize:14, fontWeight:300, width:200, opacity:0.54}}>Installing</div>
-      <LinearProgress mode='indeterminate' color='red' />
-    </div>
-  )
 }
 
 const renderInstallingHeaderRight = (task) => {
@@ -402,8 +393,11 @@ const renderInstallingCardHeader = (task) => {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center' }}>
-      { renderInstallingHeaderLeft(avatar, task.recipe.appname, onClick) }
+    <div style={{display:'flex',alignItems: 'center', justifyContent:'space-between'}}>
+      <BouncyCardHeaderLeft avatar={avatar} title={task.recipe.appname} onClick={onClick}>
+        <BouncyCardHeaderLeftText text='Installing...' width={200} />
+        <LinearProgress mode='indeterminate' style={{maxWidth:300}} />
+      </BouncyCardHeaderLeft>
       { renderInstallingHeaderRight(task) }
     </div>
   ) 
