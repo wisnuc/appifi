@@ -3,18 +3,29 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "start": "NODE_PATH=. nodemon --exec babel-node --ignore web --ignore public/bundle.js ./bin/www",
-    "webpack": "webpack-dev-server --progress --inline --hot",
+    "start": "NODE_PATH=. node_modules/.bin/nodemon --exec node_modules/.bin/babel-node --ignore web --ignore public/bundle.js ./bin/www",
+    "build-assets": "node_modules/.bin/webpack -c ./webpack.config.js",
+    "webpack": "node_modules/.bin/webpack-dev-server --progress --inline --hot",
     "unit": "NODE_PATH=. node_modules/.bin/mocha --compilers js:babel-core/register --recursive",
-    "lint": "node node_modules/eslint/bin/eslint.js .",
-    "lintfix": "node node_modules/eslint/bin/eslint.js --fix ."
+    "lint": "node_modules/.bin/eslint .",
+    "lintfix": "node_modules/.bin/eslint --fix ."
+  },
+  "directories": {
+    "bin": "./bin"
+  },
+  "bugs": {
+    "url": "https://github.com/wisnuc/appifi/issues"
   },
   "dependencies": {
+    "babel-cli": "^6.9.0",
     "body-parser": "~1.13.2",
+    "canonical-json": "0.0.4",
     "cookie-parser": "~1.3.5",
     "debug": "~2.2.0",
+    "deepmerge": "^0.2.10",
     "express": "~4.13.1",
     "morgan": "~1.6.1",
+    "nodemon": "^1.9.2",
     "react": "^15.0.1",
     "react-dom": "^15.0.1",
     "redux": "^3.3.1",
@@ -35,6 +46,7 @@
     "babel-preset-react-hmre": "^1.1.1",
     "babel-preset-stage-0": "^6.5.0",
     "babel-preset-stage-2": "^6.5.0",
+    "deep-freeze": "0.0.1",
     "eslint": "^2.10.2",
     "eslint-plugin-react": "^5.1.1",
     "material-ui": "^0.15.0",
@@ -42,6 +54,7 @@
     "node-uuid": "^1.4.7",
     "react-addons-css-transition-group": "^15.0.2",
     "react-click-outside": "^2.1.0",
+    "react-flip-move": "^2.3.0",
     "react-tap-event-plugin": "^1.0.0",
     "validator": "^5.3.0",
     "webpack": "^1.12.14",
