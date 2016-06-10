@@ -1,9 +1,10 @@
 {
-  "name": "conductor",
-  "version": "0.0.0",
+  "name": "appifi",
+  "version": "0.1.0",
   "private": true,
   "scripts": {
     "start": "NODE_PATH=. nodemon --exec babel-node --ignore web --ignore public/bundle.js ./bin/www",
+    "production": "NODE_PATH=. node node_modules/.bin/babel-node ./bin/www",
     "webpack": "webpack-dev-server --progress --inline --hot",
     "unit": "NODE_PATH=. node_modules/.bin/mocha --compilers js:babel-core/register --recursive",
     "lint": "node node_modules/eslint/bin/eslint.js .",
