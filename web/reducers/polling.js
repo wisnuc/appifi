@@ -86,3 +86,4 @@ function pollingMachine(url, actionType, period) {
 }
 
 export default pollingMachine
+

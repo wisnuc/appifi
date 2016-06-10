@@ -242,6 +242,7 @@ let renderVolumeCard = (volume) => {
             <div style={{width:56}} /> 
             <div style={{paddingTop:16, paddingBottom:16, width:200,
               fontSize:16, fontWeight:'bold', opacity:0.54}}>Usage</div>
+            { usage.overall ? (
             <div style={{paddingTop:16, paddingBottom:16, flex:3}}>
               <LabeledText label='data size' text={usage.overall.deviceSize} right={2} />
               <LabeledText label='device allocated' text={usage.overall.deviceAllocated} right={2} />
@@ -253,8 +254,9 @@ let renderVolumeCard = (volume) => {
               <LabeledText label='data ratio' text={usage.overall.dataRatio} right={2} />
               <LabeledText label='metadata ratio' text={usage.overall.metadataRatio} right={2} />
               <LabeledText label='global reserve (total)' text={usage.overall.globalReserve} right={2} />
-              <LabeledText label='global reserve (used)' text={usage.overall.globalReserveUsed} right={2} />
+              <LabeledText label='global reserve (used)' text={usage.overall.globalReserveUsed} right={2} /> 
             </div>
+            ) : null }
           </div>
         </div>
         <div>
