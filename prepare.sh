@@ -27,7 +27,12 @@ mv appifi appifi-tarball
 cd appifi-tarball
 
 npm install
+
 node_modules/.bin/webpack -p
+
+mkdir -p build
+npm run build
+
 rm .gitignore
 rm build/.gitignore
 
