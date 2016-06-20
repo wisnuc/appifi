@@ -22,15 +22,15 @@ app.use(logger('dev', {
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: false }))
 app.use(cookieParser())
-app.use(express.static(path.join(__dirname, 'public')))
+app.use(express.static(path.join(__dirname, '../public')))
 
 /*
  * module init
  */ 
-import server from 'lib/server'
-import appstore from 'lib/appstore'
-import docker from 'lib/docker'
-import storage from 'lib/storage'
+import server from './lib/server'
+import appstore from './lib/appstore'
+import docker from './lib/docker'
+import storage from './lib/storage'
 
 storage.init()
 docker.init()
@@ -39,11 +39,11 @@ appstore.init()
 /*
  * routes
  */
-app.use('/', require('routes/index'))
-app.use('/storage', require('routes/storage'))
-app.use('/docker', require('routes/docker'))
-app.use('/appstore', require('routes/appstore'))
-app.use('/server', require('routes/server'))
+app.use('/', require('./routes/index'))
+app.use('/storage', require('./routes/storage'))
+app.use('/docker', require('./routes/docker'))
+app.use('/appstore', require('./routes/appstore'))
+app.use('/server', require('./routes/server'))
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

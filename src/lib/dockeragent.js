@@ -2,7 +2,7 @@ import http from 'http'
 import stream from 'stream'
 import readline from 'readline'
 import events from 'events'
-import { HttpStatusError } from 'lib/error'
+import { HttpStatusError } from '../lib/error'
 
 /*
  * This class uses a transform as input inot which user write data, and redirect data

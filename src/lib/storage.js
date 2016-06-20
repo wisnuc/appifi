@@ -1,8 +1,8 @@
 const child = require('child_process')
 
 import { toLines } from './utils'
-import { storeState, storeDispatch } from 'lib/reducers'
-import { probeDaemon } from 'lib/docker'
+import { storeState, storeDispatch } from '../lib/reducers'
+import { probeDaemon } from '../lib/docker'
 
 const udevInfo = require('./udevInfoAsync')
 const probeMounts = require('./procMountsAsync')

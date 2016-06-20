@@ -1,6 +1,6 @@
 import { createStore, combineReducers } from 'redux'
 
-import { containersToApps } from 'lib/dockerApps'
+import { containersToApps } from '../lib/dockerApps'
 
 const storage = (state = null, action) => {
 

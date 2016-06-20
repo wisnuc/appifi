@@ -1,5 +1,5 @@
 const express = require('express')
-import docker from 'lib/docker'
+import docker from '../lib/docker'
 
 const router = express.Router()
 

@@ -1,5 +1,5 @@
 import express from 'express'
-import appstore from 'lib/appstore'
+import appstore from '../lib/appstore'
 
 const router = express.Router()
 

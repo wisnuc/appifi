@@ -1,5 +1,5 @@
 import express from 'express'
-import storage from 'lib/storage'
+import storage from '../lib/storage'
 
 const router = express.Router()
 

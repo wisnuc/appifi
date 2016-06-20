@@ -1,8 +1,8 @@
 import fs from 'fs'
 import child from 'child_process'
 
-import { toLines, delay } from 'lib/utils'
-import { createStore, combineReducers } from 'lib/reduced'
+import { toLines, delay } from '../lib/utils'
+import { createStore, combineReducers } from '../lib/reduced'
 import appstore from './appstore' // TODO
 
 import { containerStart, containerStop, containerCreate, containerDelete } from './dockerapi'
@@ -11,7 +11,7 @@ import { dockerEventsAgent, DockerEvents } from './dockerEvents'
 import { AppInstallTask } from './dockerTasks'
 
 import { calcRecipeKeyString, appMainContainer } from './dockerApps'
-import { storeState, storeDispatch } from 'lib/reducers'
+import { storeState, storeDispatch } from '../lib/reducers'
 
 const dockerUrl = 'http://127.0.0.1:1688'
 const dockerPidFile = '/run/wisnuc/app/docker.pid'

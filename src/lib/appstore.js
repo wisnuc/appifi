@@ -1,9 +1,9 @@
 import clone from 'clone'
 import request from 'superagent'
 
-import localRecipes from 'hosted/apps'
-import { validateRecipe, calcRecipeKeyString } from 'lib/dockerApps'
-import { storeState, storeDispatch } from 'lib/reducers'
+import localRecipes from '../hosted/apps'
+import { validateRecipe, calcRecipeKeyString } from '../lib/dockerApps'
+import { storeState, storeDispatch } from '../lib/reducers'
 
 const jsonRecipesUrl = 'https://raw.githubusercontent.com/wisnuc/appifi/master/hosted/apps.json'
 
