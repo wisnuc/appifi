@@ -29,6 +29,7 @@ cd appifi-tarball
 npm install
 node_modules/.bin/webpack -p
 rm .gitignore
+rm build/.gitignore
 
 git add *
 git add .[!.]*
