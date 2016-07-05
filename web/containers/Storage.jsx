@@ -612,7 +612,8 @@ const renderDriveHeaderRight = (drive) => {
 }
 
 
-const driveKey = (drive) => drive.block.props.id_serial
+//const driveKey = (drive) => drive.block.props.id_serial
+const driveKey = (drive) => drive.block.props.devname
 
 const driveExpanded = (drive) => 
   storageStore().expansions.find(exp => 
@@ -898,7 +899,8 @@ let renderAll = () => {
       args: [
         {
           mode: 'single',
-          blknames: candidateBlknames()
+//          blknames: candidateBlknames() 
+          blknames: storageStore().newVolumeCandidates 
         }
       ]
     }
@@ -912,7 +914,8 @@ let renderAll = () => {
       args: [
         {
           mode: 'raid1',
-          blknames: candidateBlknames()
+//          blknames: candidateBlknames()
+          blknames: storageStore().newVolumeCandidates
         }
       ]
     }
