@@ -61,16 +61,7 @@ const tasks = (state = [], action) => {
     })
     return [...state, action.task]
   }
-/*
-  case 'TASK_UPDATE': {
-    let index = state.findIndex(t => t.type === action.task.type && t.id === action.task.id)
-    if (index === -1) {
-      console.log(`ERROR: TASK_UPDATE, task not found, type: ${action.task.type}, id: ${action.task.id}`)
-      return state
-    }
-    return [...state.slice(0, index), action.data, ...state.slice(index + 1)]
-  }
-*/
+
   case 'TASK_REMOVE':
     let index = state.findIndex(t => t.type === action.task.type && t.id === action.task.id)
     if (index === -1) {

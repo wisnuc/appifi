@@ -237,24 +237,21 @@ let render = () => {
     [] // success
   */
   if (appstore === null) {
-    return <Progress key='appstore_loading' text='Loading Apps from AppStore' busy={true} />
+    return <Progress key='appstore_loading' text='AppStore not started' busy={false} />
   }
 
-  if (appstore === 'ERROR') {
+  if (appstore.status === 'ERROR') { // TODO
     return <div>Error loading appstore, please refresh</div>
   }
 
-  if (appstore === 'LOADING') {
+  if (appstore.status === 'LOADING') {
     return <Progress key='appstore_loading' text='Loading Apps from AppStore' busy={true} />
   }
 
   // Assert status is success
-  if (appstore.length === 0) {
+  if (appstore.result.length === 0) {
     return <Progress key='appstore_loading' text='It seems that your computer can not connect to docker hub (hub.docker.com)' busy={false} />
   }
-
-  console.log('dialog')
-  console.log(selectedApp)
 
   return (
     <div key='appstore' >
@@ -264,7 +261,7 @@ let render = () => {
         flexDirection: 'row',
         flexWrap: 'wrap',
       }}>
-        { appstore.map(app => renderAppCard(app)) }
+        { appstore.result.map(app => renderAppCard(app)) }
       </div>
       <Dialog
         style={{overflowY: scroll}}
