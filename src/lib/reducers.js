@@ -114,20 +114,17 @@ let store = createStore(combineReducers({
   tasks
 }))
 
-store.subscribe(() => console.log(store.getState()))
+// store.subscribe(() => console.log(store.getState()))
 
 console.log(`reducers module initialized`)
 
 export const storeState = () => store.getState()
 export const storeDispatch = (action) => {
 
-  console.log(':: Dispatching action')
-  console.log(action)
   store.dispatch(action)
 }
 
 export const storeSubscribe = (f) => store.subscribe(f)
-// export { store }
 
 
 

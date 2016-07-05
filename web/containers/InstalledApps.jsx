@@ -410,6 +410,9 @@ const renderInstallingCardContentJob = (compo, job) => {
   let ccdLeftColStyle = {paddingTop:16, paddingBottom:16, width:200}
   let ccdRightColStyle = {paddingTop:16, paddingBottom:16, flex:3}
 
+  // FIXME workaround
+  // let key = `${compo.namespace}::${compo.name}`
+
   return (
     <div style={ccdRowStyle}>
       <div style={{width:56}} />
@@ -418,7 +421,7 @@ const renderInstallingCardContentJob = (compo, job) => {
         <div style={{fontSize:15, fotnWeight:300, opacity:0.54}}>{compo.namespace}</div>
       </div>
       <div style={ccdRightColStyle}>
-        { job.image.threads && job.image.threads.map(t => <LabeledText label={t.id} text={threadText(t)} right={4} />) }
+        { job.image.threads && job.image.threads.map(t => <LabeledText key={t.id} label={t.id} text={threadText(t)} right={4} />) }
       </div>
     </div>
   )

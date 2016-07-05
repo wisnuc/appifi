@@ -5,7 +5,8 @@ import localRecipes from '../hosted/apps'
 import { validateRecipe, calcRecipeKeyString } from '../lib/dockerApps'
 import { storeState, storeDispatch } from '../lib/reducers'
 
-const jsonRecipesUrl = 'https://raw.githubusercontent.com/wisnuc/appifi/master/hosted/apps.json'
+// const jsonRecipesUrl = 'https://raw.githubusercontent.com/wisnuc/appifi/master/hosted/apps.json'
+const jsonRecipesUrl = 'https://raw.githubusercontent.com/wisnuc/appifi-recipes/master/release.json'
 
 let useLocalRecipes = false
 
@@ -38,6 +39,8 @@ async function retrieveRecipes() {
   }
 
   recipes.filter(recipe => validateRecipe(recipe)) 
+  
+  info('recipes retrieved')
   return recipes 
 }
 
@@ -109,6 +112,7 @@ export async function refreshAppStore() {
       type: 'APPSTORE_UPDATE',
       data: 'ERROR'
     })
+    return
   }
 
   storeDispatch({
@@ -127,9 +131,15 @@ function getApp(recipeKeyString) {
 
 export default {
 
+  // init is called in app init
   init: () => {
     info('loading')
-    refreshAppStore().then(r => {}).catch(e => {})
+    refreshAppStore().then(r => {
+      info('loading success')
+    }).catch(e => {
+      console.log(e) 
+      info('loading failed')
+    })
   },
   get: () => memo,
   

@@ -97,9 +97,6 @@ export default {
 
   get: () => {
     let f = facade()
-//    console.log('>>>> facade')
-//    console.log(JSON.stringify(f, null, '  '))
-//    console.log('<<<< facade')
     return f
   },
 }
