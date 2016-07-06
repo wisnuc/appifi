@@ -10,8 +10,6 @@ const pageStyle = {
   justifyContent : 'center',
   minHeight : '100vh',
   minWidth : '100vw',
-//      backgroundImage : 'url(images/party_orig.jpg)',
-//      backgroundSize : 'cover'
 }
 
 const paperStyle = {

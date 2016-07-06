@@ -7,6 +7,7 @@ import { FlatButton, RaisedButton, Paper, Dialog } from 'material-ui'
 import Progress from './Progress'
 
 import { dispatch, appstoreStore, dockerState, storageState, appstoreState, taskStates } from '../utils/storeState'
+import imagePrefix from '../utils/imagePrefix'
 
 const formatNumber = (num) => {
 
@@ -145,7 +146,7 @@ const renderSelectedApp = (app) => {
 
   return (
     <SelectedApp
-      imgSrc={`/images/${app.components[0].imageLink}`}
+      imgSrc={imagePrefix(`/images/${app.components[0].imageLink}`)}
       title={app.appname}
       subtitle={app.components[0].namespace}
       stars={repo ? repo.star_count : 'n/a'}
@@ -184,19 +185,24 @@ const AppCard = ({
     </Paper> 
   )
 
-const renderAppCard = (app) => (
+const renderAppCard = (app) => {
+
+  let repo = app.components[0].repo
+
+  return (
     <AppCard
       key={app.appname}
-      imgSrc={`/images/${app.components[0].imageLink}`} 
+      imgSrc={imagePrefix(`/images/${app.components[0].imageLink}`)} 
       title={app.appname}
-      stars={app.components[0].repo.star_count}
-      pulls={app.components[0].repo.pull_count}
+      stars={repo ? repo.star_count : 'n/a'}
+      pulls={repo ? repo.pull_count : 'n/a'}
       onTouchTap={() => dispatch({
         type: 'STORE_SELECTEDAPP',
         selectedApp: app
       })}
     />
   )
+}
 
 const PAGEKEY = 'appstore-page-key'
 
@@ -226,7 +232,7 @@ let render = () => {
   }
 
   if (appstore.status === 'ERROR') { // TODO
-    return <div>Error loading appstore, please refresh</div>
+    return <div key='appstore_loading'>Error loading appstore, please refresh</div>
   }
 
   if (appstore.status === 'LOADING') {

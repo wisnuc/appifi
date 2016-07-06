@@ -90,6 +90,7 @@ const facade = () => {
 
   return {
     status,
+    config: storeState().serverConfig,
     storage: storeState().storage,
     docker: dockerFacade(storeState().docker),
     appstore: appstoreFacade(storeState().appstore),

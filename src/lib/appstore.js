@@ -6,7 +6,18 @@ import { validateRecipe, calcRecipeKeyString } from '../lib/dockerApps'
 import { storeState, storeDispatch } from '../lib/reducers'
 
 // const jsonRecipesUrl = 'https://raw.githubusercontent.com/wisnuc/appifi/master/hosted/apps.json'
+
 const jsonRecipesUrl = 'https://raw.githubusercontent.com/wisnuc/appifi-recipes/master/release.json'
+
+const getJsonRecipesUrl = () => {
+
+  let url = (storeState().serverConfig && storeState().serverConfig.appstoreMaster === true) ?
+    'https://raw.githubusercontent.com/wisnuc/appifi-recipes/master/release.json' :
+    'https://raw.githubusercontent.com/wisnuc/appifi-recipes/release/release.json'
+
+  info(`using ${url}`)
+  return url
+}
 
 let useLocalRecipes = false
 
@@ -33,7 +44,7 @@ async function retrieveRecipes() {
   }
   else {
     info('retrieve json recipes')
-    let jsonRecipes = await retrieveText(jsonRecipesUrl)
+    let jsonRecipes = await retrieveText(getJsonRecipesUrl())
     if (jsonRecipes instanceof Error) return jsonRecipes
 
     info('parse json recipes')
@@ -119,6 +130,7 @@ export async function refreshAppStore() {
 
   let recipes = await retrieveRecipes()
   if (recipes instanceof Error) {
+    console.log(recipes)
     storeDispatch({
       type: 'APPSTORE_UPDATE',
       data: {
@@ -132,6 +144,7 @@ export async function refreshAppStore() {
 
   let repoMap = await retrieveRepoMap(recipes)
   if (repoMap instanceof Error) { // TODO this seems unnecessary
+    console.log(repoMap)
     storeDispatch({
       type: 'APPSTORE_UPDATE',
       data: {
@@ -166,6 +179,11 @@ export default {
   init: () => {
     info('loading')
     refreshAppStore().then(r => {
+      if (r instanceof Error) {
+        info('failed loading appstore')
+        console.log(r)
+        return
+      }
       info('loading success')
     }).catch(e => {
       console.log(e) 

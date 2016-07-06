@@ -1,11 +1,19 @@
-var express = require('express')
 var path = require('path')
+var express = require('express')
 // var favicon = require('serve-favicon')
 var logger = require('morgan')
 var cookieParser = require('cookie-parser')
 var bodyParser = require('body-parser')
 
 let app = express()
+
+/**
+process.argv.forEach(function (val, index, array) {
+  if (val === '--appstore-master') {
+    global.config.appstoreMaster = true
+  }
+});
+**/
 
 /*
  * middlewares
@@ -26,11 +34,23 @@ app.use(express.static(path.join(__dirname, '../public')))
 
 /*
  * module init
- */ 
+ */
+import { storeDispatch } from './lib/reducers'
 import server from './lib/server'
 import appstore from './lib/appstore'
 import docker from './lib/docker'
 import storage from './lib/storage'
+
+
+process.argv.forEach(function (val, index, array) {
+  if (val === '--appstore-master') {
+    storeDispatch({
+      type: 'SERVER_CONFIG',
+      key: 'appstoreMaster',
+      value: true
+    })
+  }
+});
 
 storage.init()
 docker.init()

@@ -13,6 +13,7 @@ import IconAVStop from 'material-ui/svg-icons/av/stop'
 
 import { LabeledText, Spacer } from './CustomViews'
 import { dispatch, dockerStore, dockerState, taskStates, installedStore } from '../utils/storeState'
+import imagePrefix from '../utils/imagePrefix'
 
 import {
   BouncyCardHeaderLeftText,
@@ -237,7 +238,7 @@ const renderInstalledHeaderRight = (installed) => {
 
 const renderInstalledCardHeader = (installed) => {
 
-  let avatar = `/images/${installed.recipe.components[0].imageLink}`
+  let avatar = imagePrefix(`/images/${installed.recipe.components[0].imageLink}`)
   let onClick = () => {
     let select = installedStore().select
     if (select && select.type === 'installed' && select.id === installed.uuid) {
@@ -368,7 +369,7 @@ const renderInstallingHeaderRight = (task) => {
 
 const renderInstallingCardHeader = (task) => {
 
-  let avatar = `/images/${task.recipe.components[0].imageLink}`
+  let avatar = imagePrefix(`/images/${task.recipe.components[0].imageLink}`)
   let onClick = () => {
     let select = installedStore().select
     if (select && select.type === 'installed' && select.id === task.uuid) {
