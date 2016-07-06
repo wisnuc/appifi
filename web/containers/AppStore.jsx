@@ -216,26 +216,11 @@ let render = () => {
     console.log(`[AppStore] docker is null`)
     if (storage.volumes.length === 0) {
       console.log(`[AppStore] storage no volume`)
-/* 
-      dispatch({
-        type: 'NAV_SELECT',
-        select: 'STORAGE'
-      })
-*/
-      // return <Progress key='appstore_loading' text='AppEngine not started. For starting AppEngine, you need to create a disk volume first.' busy={false} />      
-      // return <div key={PAGEKEY} style={{fontSize:16, opacity:0.87}}>For running AppEngine, you need to create a volume first.</div>
       return null
     }
     return <div key={PAGEKEY}><Progress key='appstore_loading' text='AppEngine not started' busy={false} /></div>
   }
 
-  /*
-    appstore 
-    null (supposed to be initial state)
-    RELOADING
-    ERROR
-    [] // success
-  */
   if (appstore === null) {
     return <Progress key='appstore_loading' text='AppStore not started' busy={false} />
   }

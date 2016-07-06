@@ -164,15 +164,19 @@ async function refreshStorage() {
 
 async function createVolume(blknames, opts) {
  
+  info('createVolume')
+  info(`blknames: ${blknames.join(',')}`)
+  
+  let { mode } = opts
+  if (mode === undefined) mode = 'single'
+  if (mode !== 'single' && mode !== 'raid0' && mode !== 'raid1') return new Error('invalid mode, only single, raid0, raid1 are supported')
+
   let debug = true
 
   if (!blknames.length) throw new InvalidError('device names empty')
 
   // undupe
   blknames = blknames.filter((blkname, index, self) => index === self.indexOf(blkname))
-
-  debug && console.log('---- blknames')
-  debug && console.log(blknames)
 
   // probe storage
   let storage = await probeStorage()
@@ -186,24 +190,23 @@ async function createVolume(blknames, opts) {
 
   // find mounted mountpoints
   let mps = blknamesMounted(blknames, storage.blocks, storage.volumes, storage.mounts)
-  debug && console.log('---- blknames mounted:')
-  debug && console.log(mps)
+  info(`blknames mounted: ${mps.join(' ')}`)
 
   // umount mounted
   await Promise.all(mps.map(mp => new Promise((resolve, reject) => {
     child.exec(`umount ${mp}`, (err, stdout, stderr) => 
       err ? reject(err) : resolve(stdout))
   })))
-  debug && console.log('---- unmount mounted blknames successfully')
 
+  info('unmount mounted blknames successfully')
 
   let stdout = await new Promise((resolve, reject) => {
-    child.exec(`mkfs.btrfs -f ${blknames.join(' ')}`, (err, stdout, stderr) => {
+    child.exec(`mkfs.btrfs -d ${mode} -f ${blknames.join(' ')}`, (err, stdout, stderr) => {
       err ? reject(err) : resolve(stdout)
     })   
   })
 
-  debug && console.log('---- mkfs.btrfs successfully')
+  info('mkfs.btrfs successfully')
 
   storage = await probeStorageWithUsages()
   return storage.volumes.find(vol => 
@@ -289,7 +292,6 @@ async function operation(req) {
   if (req && req.operation) { 
 
     info(`operation: ${req.operation}`)
-    console.log(req.args)
 
     args = (req.args && Array.isArray(req.args)) ? req.args : [] 
     switch (req.operation) {

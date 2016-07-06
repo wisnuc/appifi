@@ -25,6 +25,15 @@ const dockerVolumeBlocks = () => {
   return running.devices.map(dev => dev.path)
 }
 
+const volumeMountpoint = (volume) => {
+
+  let { mounts } = storageState()
+  if (mounts === null) return null
+  let m = mounts.find(mnt => volume.devices.find(dev => dev.path === mnt.device))
+  if (m === undefined) return null
+  return m.mountpoint
+}
+
 // drive is an object
 // {
 //    block: -> refer to block 
@@ -227,6 +236,7 @@ let renderVolumeCard = (volume) => {
   let shrinkedCardStyle = { width: '100%', marginTop: 0, marginBottom: 0 }
   let expandedCardStyle = { width: '100%', marginTop: 24, marginBottom: 24 }
 
+
   return (
     <div key={volume.uuid}>
       <Paper style={expanded ? expandedCardStyle : shrinkedCardStyle} zDepth={expanded ? 2 : 1}>
@@ -254,7 +264,7 @@ let renderVolumeCard = (volume) => {
               <LabeledText label='label' text={volume.label ? volume.label : '(none)'} right={2} />
               <LabeledText label='volume uuid' text={volume.uuid} right={2} />
               <LabeledText label='number of disks' text={volume.total} right={2} />
-              <LabeledText label='mount point' text='/run/wisnuc/volumes/xxxxxx' right={2}/>
+              <LabeledText label='mount point' text={volumeMountpoint(volume)} right={2}/>
             </div>
           </div>
         </div>
@@ -546,18 +556,28 @@ let renderAll = () => {
   
   let mainButtonLabel = creatingVolume ? 'cancel' : 'new volume'
   let mainButtonOnTouchTap = creatingVolume ? cancelCreatingNewVolume : createNewVolume
+
+  let showSingleButton = creatingVolume === 2 && newVolumeCandidates.length > 0
+  let singleButtonOnTouchTap = () => dispatch({
+    type: 'STORAGE_OPERATION',
+    data: {
+      operation: 'mkfs_btrfs',
+      args: [{
+        mode: 'single',
+        blknames: storageStore().newVolumeCandidates
+      }]
+    }
+  })
   
-  let showRaid0Button = creatingVolume === 2 && newVolumeCandidates.length > 0 
+  let showRaid0Button = creatingVolume === 2 && newVolumeCandidates.length > 1
   let raid0ButtonOnTouchTap = () => dispatch({
     type: 'STORAGE_OPERATION',
     data: {
       operation: 'mkfs_btrfs',
-      args: [
-        {
-          mode: 'single',
-          blknames: storageStore().newVolumeCandidates 
-        }
-      ]
+      args: [{
+        mode: 'raid0',
+        blknames: storageStore().newVolumeCandidates 
+      }]
     }
   })
 
@@ -566,12 +586,10 @@ let renderAll = () => {
     type: 'STORAGE_OPERATION',
     data: {
       operation: 'mkfs_btrfs',
-      args: [
-        {
-          mode: 'raid1',
-          blknames: storageStore().newVolumeCandidates
-        }
-      ]
+      args: [{
+        mode: 'raid1',
+        blknames: storageStore().newVolumeCandidates
+      }]
     }
   })
 
@@ -603,10 +621,14 @@ let renderAll = () => {
           <div style={{fontSize:16, opacity:0.54, flexGrow:1}}>
             { bannerText() }
           </div>
-          { showRaid1Button && <div><RaisedButton style={{marginRight:16}} label='creating raid1 volume' secondary={true} 
+
+          { showRaid1Button && <div><RaisedButton style={{marginRight:16}} label='create raid1 volume' secondary={true} 
             disabled={creatingVolumeSubmitted() || creatingVolumeFinished() } onTouchTap={raid1ButtonOnTouchTap} /></div> }
-          { showRaid0Button && <div><RaisedButton style={{marginRight:16}} label='creating raid0 volume' secondary={true} 
+          { showRaid0Button && <div><RaisedButton style={{marginRight:16}} label='create raid0 volume' secondary={true} 
             disabled={creatingVolumeSubmitted() || creatingVolumeFinished() } onTouchTap={raid0ButtonOnTouchTap} /></div> }
+          { showSingleButton && <div><RaisedButton style={{marginRight:16}} label='create single volume' secondary={true} 
+            disabled={creatingVolumeSubmitted() || creatingVolumeFinished() } onTouchTap={singleButtonOnTouchTap} /></div> }         
+
           <div><RaisedButton label={mainButtonLabel} 
             disabled={creatingVolumeSubmitted() || creatingVolumeFinished() } onTouchTap={mainButtonOnTouchTap} /></div>
         </ReactCSSTransitionGroup>
