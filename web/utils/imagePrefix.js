@@ -8,8 +8,6 @@ const imagePrefix = (imagePath) => {
   }
   else 
     url = 'https://raw.githubusercontent.com/wisnuc/appifi-recipes/release' + imagePath
-  
-  console.log(url)
   return url
 }
 

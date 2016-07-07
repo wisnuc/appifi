@@ -28,6 +28,7 @@
     "babel-preset-react-hmre": "^1.1.1",
     "babel-preset-stage-0": "^6.5.0",
     "body-parser": "~1.13.2",
+    "bonjour": "^3.5.0",
     "canonical-json": "0.0.4",
     "chai": "^3.5.0",
     "clone": "^1.0.2",

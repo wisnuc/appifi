@@ -1,6 +1,7 @@
 import { createStore, combineReducers } from 'redux'
 
-import { containersToApps } from '../lib/dockerApps'
+import { containersToApps } from './dockerApps'
+import dockerStateObserver from './dockerStateObserver'
 
 const serverConfig = (state = {}, action) => {
 
@@ -26,18 +27,21 @@ const storage = (state = null, action) => {
 
 const docker = (state = null, action) => {
 
+  let newState
+
   switch(action.type) {
   case 'DAEMON_START':
-    return {
+    newState = {
       pid: action.data.pid,
       volume: action.data.volume,
       events: action.data.events,
       data: null,
       computed: null
     }
+    break
 
   case 'DOCKER_UPDATE':
-    return Object.assign({}, 
+    newState = Object.assign({}, 
       state, 
       {
         data: action.data
@@ -47,13 +51,19 @@ const docker = (state = null, action) => {
           installeds: containersToApps(action.data.containers)
         }
       })
+    break
 
   case 'DAEMON_STOP': 
-    return null
+    newState = null
+    break
 
   default: 
-    return state
+    newState = state
+    break
   }
+
+  dockerStateObserver(newState, state)
+  return newState
 }
 
 const tasks = (state = [], action) => {
@@ -117,7 +127,7 @@ let store = createStore(combineReducers({
   tasks
 }))
 
-store.subscribe(() => console.log(store.getState()))
+// store.subscribe(() => console.log(store.getState()))
 
 console.log(`reducers module initialized`)
 
