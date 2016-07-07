@@ -16,15 +16,15 @@ git rev-parse HEAD > .revision
 
 cd -
 
-echo ":: cloning appifi-tarball repository"
-git clone https://github.com/wisnuc/appifi-tarball.git
+echo ":: cloning appifi-release repository"
+git clone https://github.com/wisnuc/appifi-release.git
 
 rm -rf appifi/.git
-mv appifi-tarball/.git appifi/.git
-rm -rf appifi-tarball
-mv appifi appifi-tarball
+mv appifi-release/.git appifi/.git
+rm -rf appifi-release
+mv appifi appifi-release
 
-cd appifi-tarball
+cd appifi-release
 
 npm install
 
