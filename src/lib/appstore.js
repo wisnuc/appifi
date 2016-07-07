@@ -165,18 +165,10 @@ export async function refreshAppStore() {
   })
 }
 
-// TODO move to elsewhere
-function getApp(recipeKeyString) {
-
-  if (memo.status !== 'success') return null
-  let app = memo.apps.find(app => recipeKeyString === calcRecipeKeyString(app))
-  return app ? clone(app) : null 
-}
-
 export default {
 
   // init is called in app init
-  init: () => {
+  reload: () => {
     info('loading')
     refreshAppStore().then(r => {
       if (r instanceof Error) {
@@ -190,10 +182,6 @@ export default {
       info('loading failed')
     })
   },
-  get: () => memo,
-  
-  /* server side use */
-  getApp
 }
 
 

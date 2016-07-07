@@ -115,6 +115,13 @@ const BusyFlatButton = ({ busy, label, disabled, onTouchTap }) => {
 
 const OpenButton = ({container}) => {
 
+  let port
+  if (container.State === 'running') {
+    let portObj = container.Ports.find(p => p.Type === 'tcp' && p.PublicPort !== undefined)
+    if (portObj) port = portObj.PublicPort 
+  }
+
+/*
   const openable = (container) =>
     ( container.State === 'running' &&
       container.Ports.length &&
@@ -123,10 +130,12 @@ const OpenButton = ({container}) => {
 
 
   if (!openable(container)) return <div style={containerButtonStyle} /> 
+*/
+ 
+  if (!port) return <div style={containerButtonStyle} /> 
 
-  let url = `http://${window.location.hostname}:${container.Ports[0].PublicPort}`
+  let url = `http://${window.location.hostname}:${port}`
   let onOpen = () => window.open(url) 
-
   return (
     <div style={containerButtonStyle}>
       <FlatButton label="open" primary={true} onTouchTap={ onOpen } />

@@ -7,7 +7,7 @@
     "build": "babel src --out-dir build",
     "devel": "nodemon --exec babel-node --ignore web --ignore public/bundle.js src/app.js",
     "devel-appstore": "nodemon --exec babel-node --ignore web --ignore public/bundle.js src/app.js --appstore-master",
-    "webpack": "webpack-dev-server --progress --inline --hot",
+    "webpack": "webpack --watch --watch-poll",
     "unit": "NODE_PATH=. node_modules/.bin/mocha --compilers js:babel-core/register --recursive",
     "lint": "node node_modules/eslint/bin/eslint.js .",
     "lintfix": "node node_modules/eslint/bin/eslint.js --fix ."

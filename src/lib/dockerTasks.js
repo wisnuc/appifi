@@ -1,12 +1,17 @@
 import events from 'events'
+
 import deepmerge from 'deepmerge'
 import UUID from 'node-uuid'
+
 import pullImage from './pullImage'
 import { containerCreate, containerStart } from './dockerapi'
 import containerCreateDefaultOpts from './containerDefault'
 
+
 import task from './task'
 import { calcRecipeKeyString, installAppifiLabel } from './dockerApps'
+import { storeState } from './reducers'
+import { dockerAppdataDir } from './docker'
 
 function info(text) {
   console.log(`[docker task] ${text}`)
@@ -131,6 +136,18 @@ class AppInstallTask extends task {
     })
   }
 
+  processBinds(recipeKeyString, opt) {
+    if (!opt || !opt.HostConfig || !opt.HostConfig.Binds) return opt
+    let subpath = recipeKeyString.replace(/:/g, '/') 
+    opt.HostConfig.Binds = opt.HostConfig.Binds.map(bind => (dockerAppdataDir() + '/' + subpath + bind))
+    return opt
+  }
+
+  processPortBindings(recipeKeyString, opt) {
+    return opt
+  }
+
+  // 
   async createAndStartContainers() {
 
     // in reverse order
@@ -138,7 +155,9 @@ class AppInstallTask extends task {
       let job = this.jobs[i]
       let opt = deepmerge(containerCreateDefaultOpts(), job.compo.config)
       opt.Image = `${job.compo.namespace}/${job.compo.name}`
-     
+      opt = this.processBinds(this.id, opt)
+      opt = this.processPortBindings(this.id, opt)     
+
       // opt.Labels['appifi-signature'] = this.id
       installAppifiLabel(opt.Labels, this.uuid, this.recipe)
 

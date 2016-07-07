@@ -19,6 +19,11 @@ const dockerUrl = 'http://127.0.0.1:1688'
 const dockerPidFile = '/run/wisnuc/app/docker.pid'
 const dockerVolumesDir = '/run/wisnuc/volumes'
 
+const dockerAppdataDir = () => {
+
+  if (!storeState().docker || !storeState().docker.volume) return null
+  return `${dockerVolumesDir}/${storeState().docker.volume}/wisnuc/appdata`
+}
 
 function info(message){
   console.log(`[docker] ${message}`)
@@ -117,12 +122,11 @@ async function daemonStart(uuid) {
   let mountpoint = `${dockerVolumesDir}/${uuid}`
   let execRootDir = `${mountpoint}/wisnuc/r`
   let graphDir = `${mountpoint}/wisnuc/g`
-
-  console.log(execRootDir)
-  console.log(graphDir)
+  let appDataDir =`${dockerVolumesDir}/${uuid}/wisnuc/appdata` 
 
   await mkdirpAsync(execRootDir)
   await mkdirpAsync(graphDir)
+  await mkdirpAsync(appDataDir)
 
   let opts = {
     cwd: mountpoint,
@@ -481,5 +485,5 @@ export default {
   },
 }
 
-export { daemonStart, probeDaemon }
+export { daemonStart, probeDaemon, dockerAppdataDir }
 

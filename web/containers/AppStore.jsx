@@ -232,7 +232,8 @@ let render = () => {
   }
 
   if (appstore.status === 'ERROR') { // TODO
-    return <div key='appstore_loading'>Error loading appstore, please refresh</div>
+    return (<div key='appstore_loading'>Error loading appstore, please refresh</div>
+    )
   }
 
   if (appstore.status === 'LOADING') {

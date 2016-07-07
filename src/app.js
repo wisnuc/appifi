@@ -54,7 +54,7 @@ process.argv.forEach(function (val, index, array) {
 
 storage.init()
 docker.init()
-appstore.init()
+appstore.reload()
 
 /*
  * routes
