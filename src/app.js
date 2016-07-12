@@ -41,7 +41,6 @@ import appstore from './lib/appstore'
 import docker from './lib/docker'
 import storage from './lib/storage'
 
-
 process.argv.forEach(function (val, index, array) {
   if (val === '--appstore-master') {
     storeDispatch({
