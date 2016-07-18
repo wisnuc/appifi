@@ -24,6 +24,3 @@ export const configState = () => serverState() ? serverState().config : null
 
 export const dispatch = (action) => window.store.dispatch(action)
 
-
-
-

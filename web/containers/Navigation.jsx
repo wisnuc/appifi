@@ -57,28 +57,6 @@ export const decoration = [
         render: Storage.Volumes,
         themeColor: 'grey', 
       },
-/*
-      {
-        name: 'VOLUMES',
-        text: { en_US: 'Volumes' },
-        render: Storage.Volumes
-      },
-      {
-        name: 'DRIVES',
-        text: { en_US: 'Drives' },
-        render: Storage.Drives
-      },
-      {
-        name: 'MOUNTS',
-        text: { en_US: 'Mounts' },
-        render: Storage.Mounts
-      },
-      {
-        name: 'PORTS',
-        text: { en_US: 'Ports' },
-        render: Storage.Ports
-      },
-*/
       {
         name: 'ETHERNET',
         text: { en_US: 'Ethernet' },
@@ -146,28 +124,22 @@ const loginDialogStyle = {
 const loginErrorText = () => {
 
   let err, state = window.store.getState().login.state
-
   switch (state) {
-    
     case 'REJECTED':
       err = 'Incorrect password'
       break
-
     case 'TIMEOUT':
       err = 'Server timeout'
       break
-
     case 'ERROR':
       err = 'Server internal error, please retry'
       break
-
     case 'READY':
     case 'BUSY':
     default:
       err = null
       break
   }
-
   return err
 }
 
@@ -436,18 +408,14 @@ class Navigation extends React.Component {
     return (
       <div>
         <div id='login-container' className='login-container-style' >
-          <Transition opts={['login-title', true, true, false, 100, 1000, 100]}>
+          <Transition opts={['login-title', true, true, false, 1000, 1000, 100]}>
             { !loggedIn() && 
-              <div style={{ 
-                height:"64px", 
-                verticalAlign:"bottom",
-                fontSize: 48,
-              }}>
+              <div style={{ height:"64px", verticalAlign:"bottom", fontSize: 48, opacity:0.87 }}>
                 <div>你好，主人！</div>
               </div> 
             }
           </Transition> 
-          <Transition opts={['login-dialog', true, true, false, 100, 1000, 100]}>
+          <Transition opts={['login-dialog', true, true, false, 3000, 1000, 100]}>
             { !loggedIn() && <div> 
               <Paper className='login-paper-style' zDepth={2}>
                 { loginBusy() && 

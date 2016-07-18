@@ -413,7 +413,7 @@ async function appUninstall(uuid) {
   }
 }
 
-async function _operation(req) {
+async function operationAsync(req) {
 
   info(`operation: ${req.operation}`)  
 
@@ -473,7 +473,7 @@ export default {
   },
 
   operation: (req, callback) => {
-    _operation(req)
+    operationAsync(req)
       .then(r => {
         console.log(r)
         r instanceof Error ? callback(r) : callback(null, r)

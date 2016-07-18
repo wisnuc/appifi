@@ -15,18 +15,14 @@ let store = createStore(reducer)
 
 class App extends React.Component {
 
-  /* this must be declared for Components exporting context */  
   static childContextTypes = {
     muiTheme: React.PropTypes.object.isRequired,
   }
 
   getChildContext() {
-
-    let muiTheme = getMuiTheme({
+    return getMuiTheme({
       palette: palette(window.store.getState().themeColor)
     });
-
-    return {muiTheme};
   }
 
   render() {
@@ -37,16 +33,7 @@ class App extends React.Component {
 const render = () => {
   ReactDom.render(<App/>, document.getElementById('app'))
 }
-/* TODO this will suppress containercard display change, maybe some material ui components are stateful, retry in future
-let mem = null
-store.subscribe(() => {
 
-  if (mem !== store.getState()) {
-    mem = store.getState()
-    render()
-  }
-})
-*/
 store.subscribe(render)
 window.store = store
 render()

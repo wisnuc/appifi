@@ -5,12 +5,11 @@ import localRecipes from '../hosted/apps'
 import { validateRecipe, calcRecipeKeyString } from '../lib/dockerApps'
 import { storeState, storeDispatch } from '../lib/reducers'
 
-// const jsonRecipesUrl = 'https://raw.githubusercontent.com/wisnuc/appifi/master/hosted/apps.json'
-
-const jsonRecipesUrl = 'https://raw.githubusercontent.com/wisnuc/appifi-recipes/master/release.json'
+function info(text) {
+  console.log(`[appstore] ${text}`)
+}
 
 const getJsonRecipesUrl = () => {
-
   let url = (storeState().serverConfig && storeState().serverConfig.appstoreMaster === true) ?
     'https://raw.githubusercontent.com/wisnuc/appifi-recipes/master/release.json' :
     'https://raw.githubusercontent.com/wisnuc/appifi-recipes/release/release.json'
@@ -20,10 +19,6 @@ const getJsonRecipesUrl = () => {
 }
 
 let useLocalRecipes = false
-
-function info(text) {
-  console.log(`[appstore] ${text}`)
-}
 
 // retrieve text/plain file from url
 async function retrieveText(url) {

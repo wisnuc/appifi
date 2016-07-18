@@ -1,8 +1,8 @@
 import { should, expect, assert } from 'chai'
 import sinon from 'sinon'
 
-import appstore from 'lib/appstore'
-import { unit } from 'lib/appstore'
+import appstore from '../lib/appstore'
+import { unit } from '../lib/appstore'
 
 import request from 'superagent'
 

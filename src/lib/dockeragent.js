@@ -64,8 +64,7 @@ class agent extends events {
     this.aborted = false
     this.closed = false
 
-    this.req = http
-      .request(options, (res) => { 
+    this.req = http.request(options, (res) => { 
         if (res.statusCode === 200) {    
           let conn = new connection(res)
           conn.on('json', data => this.emit('json', data))
@@ -94,20 +93,5 @@ const get = (path, callback) => new agent('GET', path, callback)
 const post = (path, callback) => new agent('POST', path, callback)
 
 export default {get, post}
-
-/**
-get('/events', (err, agent) => {
-
-  if (err) {
-    console.log(err)
-    return
-  }
-
-  agent.on('json', data => console.log(data))
-  agent.on('close', () => console.log('close'))
-
-  setTimeout(() => agent.abort(), 30000)
-})
-**/
 
 
