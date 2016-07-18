@@ -1,89 +1,52 @@
 import request from 'superagent'
 import { dispatch } from '../utils/utils'
 
-function pollingMachine(url, actionType, period) {
+class Polling {
 
-  let status = 0
+  constructor(url, actionType, period) {
 
-  // either timeout or req is set, but not both
-  let timeout = null
-  let req = null
+    this.url = url
+    this.actionType = actionType
+    this.period = period
 
-  const get = () => {
+    this.status = 0
+    this.timeout = 0
+    this.req = null
+  }
 
-    timeout = null
-    req = request
-      .get(url)
+  get(status) {
+    this.timeout = 0
+    this.req = request.get(this.url + (status ? '/status' : ''))
       .set('Accept', 'application/json')
       .end((err, res) => {
-
-        req = null
-        if (err) {
-          // schedule another get
-          timeout = setTimeout(() => get(), period)
-          return
-        }
-        
-        status = res.body.status
-        // schedule another getStatus
-        timeout = setTimeout(() => getStatus(), period)
-        dispatch({
-          type: actionType, 
-          data: res.body
-        })
+        this.req = null
+        if (!err && res.ok && !status) { // requesting_state
+          this.status = res.body.status
+          dispatch({ type: this.actionType, data: res.body })
+          this.timeout = setTimeout(() => this.get(true), this.period)
+        } 
+        else if (!err && res.ok && status && this.status !== res.body.status) // requesting_status
+          this.timeout = setTimeout(() => this.get(false), 0)
+        else
+          this.timeout = setTimeout(() => this.get(status), this.period)
       })
   }
 
-  const getStatus = () => {
-
-    timeout = null
-    req = request
-      .get(url + '/status')
-      .set('Accept', 'application/json')
-      .end((err, res) => {
-
-        req = null
-        if (err) {
-          // schedule another head
-          timeout = setTimeout(() => getStatus(), period)
-          return
-        }
-      
-        if (status === res.body.status) {
-          // schedule another head
-          timeout = setTimeout(() => getStatus(), period)
-          return
-        }
-
-        timeout = setTimeout(() => get(), 0)
-      })  
+  start() {
+    this.status = 0
+    this.timeout = 0
+    this.req = null
+    this.get(false)
   }
 
-  const start = () => {
+  stop() {
+    if (this.timeout) clearTimeout(this.timeout)
+    if (this.req) req.abort()
 
-    status = 0 
-    timeout = null
-    req = null
-    get()
+    this.status = 0
+    this.timeout = 0
+    this.req = null
   }
-
-  const stop = () => {
-
-    if (timeout) clearTimeout(timeout)
-    if (req) req.abort()
-
-    status = 0
-    timeout = null
-    req = null
-  }
-
-  const started = () => {
-
-    return (timeout !== null || req !== null)
-  }
-
-  return {start, started, stop}
 }
 
-export default pollingMachine
-
+export default (url, actionType, period) => new Polling(url, actionType, period)

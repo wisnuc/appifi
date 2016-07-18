@@ -1,40 +1,33 @@
 import React from 'react'
 import ReactDom from 'react-dom'
+
+import injectTapEventPlugin from 'react-tap-event-plugin'
+import MuiThemeProvider from 'material-ui/styles/MuiThemeProvider'
+import getMuiTheme from 'material-ui/styles/getMuiTheme'
+
 import { createStore } from 'redux'
 
-import Login from './containers/Login'
 import reducer from './reducers/index'
 import Navigation from './containers/Navigation'
-import injectTapEventPlugin from 'react-tap-event-plugin'
-import getMuiTheme from 'material-ui/styles/getMuiTheme'
 import palette from './utils/palette'
 
 injectTapEventPlugin()
 
-let store = createStore(reducer) 
+// creat store (a.k.a world in the sense of functional programming)
+window.store = createStore(reducer) 
 
-class App extends React.Component {
+// theme
+const muiTheme = () => getMuiTheme({ palette: palette(window.store.getState().themeColor)}) 
 
-  static childContextTypes = {
-    muiTheme: React.PropTypes.object.isRequired,
-  }
+// root component
+const App = () => <MuiThemeProvider muiTheme={muiTheme()}><Navigation /></MuiThemeProvider>
 
-  getChildContext() {
-    return getMuiTheme({
-      palette: palette(window.store.getState().themeColor)
-    });
-  }
+// render method
+const render = () => ReactDom.render(<App/>, document.getElementById('app'))
 
-  render() {
-    return (<div><Navigation /></div>)
-  }
-}
-
-const render = () => {
-  ReactDom.render(<App/>, document.getElementById('app'))
-}
-
+// subscribe render
 store.subscribe(render)
-window.store = store
+
+// first render
 render()
 
