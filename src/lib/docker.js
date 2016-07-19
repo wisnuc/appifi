@@ -151,7 +151,7 @@ async function daemonStart(uuid) {
     if (signal !== undefined) console.log(`daemon exits with signal ${signal}`)
   })
 
-  await delay(1000)
+  await delay(3000)
 
   if (dockerDaemon === null) throw 'docker daemon stopped right after started'
   dockerDaemon.unref()
