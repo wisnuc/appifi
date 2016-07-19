@@ -274,7 +274,7 @@ let renderVolumeCard = (volume) => {
             <div style={{width:56}} /> 
             <div style={{paddingTop:16, paddingBottom:16, width:200,
               fontSize:16, fontWeight:'bold', opacity:0.54}}>Usage</div>
-            { usage.overall ? (
+            { (usage && usage.overall) ? (
             <div style={{paddingTop:16, paddingBottom:16, flex:3}}>
               <LabeledText label='data size' text={usage.overall.deviceSize} right={2} />
               <LabeledText label='device allocated' text={usage.overall.deviceAllocated} right={2} />
@@ -297,9 +297,9 @@ let renderVolumeCard = (volume) => {
             <div style={{paddingTop:16, paddingBottom:16, width:200,
               fontSize:16, fontWeight:'bold', opacity:0.54}}>System</div>
             <div style={{paddingTop:16, paddingBottom:16, flex:3}}>
-              <LabeledText label='mode' text={usage.system.mode} right={2} />
-              <LabeledText label='size' text={usage.system.size} right={2} />
-              <LabeledText label='used' text={usage.system.used} right={2} />
+              <LabeledText label='mode' text={(usage && usage.system) ? usage.system.mode : 'n/a'} right={2} />
+              <LabeledText label='size' text={(usage && usage.system) ? usage.system.size : 'n/a'} right={2} />
+              <LabeledText label='used' text={(usage && usage.system) ? usage.system.used : 'n/a'} right={2} />
             </div>
           </div>
         </div>
@@ -309,9 +309,9 @@ let renderVolumeCard = (volume) => {
             <div style={{paddingTop:16, paddingBottom:16, width:200,
               fontSize:16, fontWeight:'bold', opacity:0.54}}>Metadata</div>
             <div style={{paddingTop:16, paddingBottom:16, flex:3}}>
-              <LabeledText label='mode' text={usage.metadata.mode} right={2} />
-              <LabeledText label='size' text={usage.metadata.size} right={2} />
-              <LabeledText label='used' text={usage.metadata.used} right={2} />
+              <LabeledText label='mode' text={(usage && usage.metadata) ? usage.metadata.mode : 'n/a'} right={2} />
+              <LabeledText label='size' text={(usage && usage.metadata) ? usage.metadata.size : 'n/a'} right={2} />
+              <LabeledText label='used' text={(usage && usage.metadata) ? usage.metadata.used : 'n/a'} right={2} />
             </div>
           </div>
         </div>
@@ -321,9 +321,9 @@ let renderVolumeCard = (volume) => {
             <div style={{paddingTop:16, paddingBottom:16, width:200,
               fontSize:16, fontWeight:'bold', opacity:0.54}}>Data</div>
             <div style={{paddingTop:16, paddingBottom:16, flex:3}}>
-              <LabeledText label='mode' text={usage.data.mode} right={2} />
-              <LabeledText label='size' text={usage.data.size} right={2} />
-              <LabeledText label='used' text={usage.data.used} right={2} />
+              <LabeledText label='mode' text={(usage && usage.data) ? usage.data.mode : 'n/a'} right={2} />
+              <LabeledText label='size' text={(usage && usage.data) ? usage.data.size : 'n/a'} right={2} />
+              <LabeledText label='used' text={(usage && usage.data) ? usage.data.used : 'n/a'} right={2} />
             </div>
           </div>
         </div>
