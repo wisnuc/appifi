@@ -24,10 +24,6 @@ const server = (state = {
               state: action.data,
               request: null
             })
-    // deepFreeze(newState.state)
-    // console.log('--- action data')
-    // console.log(action.data)
-    // console.log('<<< action data')
     return newState
 
   default:
@@ -36,3 +32,4 @@ const server = (state = {
 }
 
 export default server
+
