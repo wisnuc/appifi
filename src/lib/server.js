@@ -1,5 +1,5 @@
-import { storeState, storeDispatch, storeSubscribe } from '../lib/reducers'
-import { calcRecipeKeyString } from '../lib/dockerApps'
+import { storeState, storeDispatch, storeSubscribe } from './reducers'
+import { calcRecipeKeyString } from './dockerApps'
 
 let status = 0
 
