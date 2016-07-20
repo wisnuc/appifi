@@ -133,8 +133,8 @@ const renderSelectedApp = (app) => {
     buttonText = 'This app is not installed.'
     buttonOnTouchTap = () => {
       dispatch({
-        type: 'DOCKER_OPERATION',
-        operation: {
+        type: 'SERVEROP_REQUEST',
+        data: {
           operation: 'appInstall',
           args: [app.key]
         } 

@@ -3,9 +3,9 @@ import ReactCSSTransitionGroup from 'react-addons-css-transition-group'
 import FlipMove from 'react-flip-move'
 
 import { Card, CardTitle, CardHeader, CardText, CardMedia } from 'material-ui/Card'
-import { FlatButton, RaisedButton, Avatar, Paper, Divider } from 'material-ui'
+import { FlatButton, RaisedButton, Avatar, Paper, Divider, CircularProgress } from 'material-ui'
 
-import { dispatch, storageStore, storageState, dockerState } from '../utils/storeState'
+import { dispatch, storageStore, serverOpStore, storageState, dockerState } from '../utils/storeState'
 import { LabeledText, Spacer } from './CustomViews'
 import { BouncyCardHeaderLeft, BouncyCardHeaderLeftText } from '../components/bouncy'
 
@@ -166,54 +166,31 @@ let renderVolumeCard = (volume) => {
   let { ports, blocks, volumes, mounts, swaps, usages } = storageState()
   let docker = dockerState()
 
-  let { request } = storageStore()
-
-  console.log('>>>>')
-  console.log(request)
-  console.log('<<<<')
-
   let usage = usages.find(u => u.mountpoint.endsWith(volume.uuid))
 
   let running = docker !== null
   let runningOnMe = (docker && docker.volume === volume.uuid) ? true : false
+  let daemonStartingOnMe = (op) => (op && op.operation === 'daemonStart' && op.args && op.args.length && op.args[0] === volume.uuid) ? true : false
+  let daemonStoppingOnMe = (op) => (op && op.operation === 'daemonStop' && op.args && op.args.length && op.args[0] === volume.uuid) ? true : false
+  let daemonOperatingOnMe = (op) => daemonStartingOnMe(op) || daemonStoppingOnMe(op)
 
-  let daemonStartingOnMe = (request) => {
-    if (request) {
-      let op = request.operation
-      return (op.operation === 'daemonStart' && op.args && op.args.length && op.args[0] === volume.uuid) ? true : false
-    } 
-    return false
-  }
-
-  let daemonStoppingOnMe = (request) => {
-    if (request) {
-      let op = request.operation
-      return (op.operation === 'daemonStop' && op.args && op.args.length && op.args[0] === volume.uuid) ? true : false
-    } 
-    return false
-  }
-
-  let daemonOperatingOnMe = (request) => daemonStartingOnMe(request) || daemonStoppingOnMe(request)
-
-  let daemonStart = (uuid) => {
+  let daemonStart = (uuid) => 
     dispatch({ 
-      type: 'DOCKER_OPERATION',
-      operation: { 
+      type: 'SERVEROP_REQUEST',
+      data: { 
         operation: 'daemonStart',
         args: [uuid]
       }
     })
-  }
 
-  let daemonStop = (uuid) => {
+  let daemonStop = (uuid) => 
     dispatch({
-      type: 'DOCKER_OPERATION',
-      operation: {
+      type: 'SERVEROP_REQUEST',
+      data: {
         operation: 'daemonStop',
         args: [uuid]
       }
     }) 
-  }
 
   let bannerText = () => {
     if (!running) {
@@ -241,7 +218,6 @@ let renderVolumeCard = (volume) => {
   let shrinkedCardStyle = { width: '100%', marginTop: 0, marginBottom: 0 }
   let expandedCardStyle = { width: '100%', marginTop: 24, marginBottom: 24 }
 
-
   return (
     <div key={volume.uuid}>
       <Paper style={expanded ? expandedCardStyle : shrinkedCardStyle} zDepth={expanded ? 2 : 1}>
@@ -249,13 +225,16 @@ let renderVolumeCard = (volume) => {
           <BouncyCardHeaderLeft title='btrfs' onClick={volumeCardOnClick}>
             <BouncyCardHeaderLeftText text={bannerText()} />
           </BouncyCardHeaderLeft>
-          <div>
-            <RaisedButton style={{marginRight:16}} label='start' primary={true} 
+          <div style={{display:'flex', alignItems:'center'}}>
+            { daemonOperatingOnMe(serverOpStore()) && <div style={{width:48, height:48, marginRight:16}}><CircularProgress size={0.5} /></div> }
+            { !daemonOperatingOnMe(serverOpStore()) &&
+            <RaisedButton style={{width:96, marginRight:16}} label='start' primary={true} 
               disabled={running || storageStore().creatingVolume !== 0} 
-              onTouchTap={() => daemonStart(volume.uuid)} />
-            <RaisedButton style={{marginRight:16}} label='stop' secondary={true} 
+              onTouchTap={() => daemonStart(volume.uuid)} /> }
+            { !daemonOperatingOnMe(serverOpStore()) &&
+            <RaisedButton style={{width:96, marginRight:16}} label='stop' secondary={true} 
               disabled={!runningOnMe || storageStore().creatingVolume !== 0} 
-              onTouchTap={() => daemonStop(volume.uuid)} />
+              onTouchTap={() => daemonStop(volume.uuid)} /> }
           </div>
         </div>
         { expanded ? (<div>

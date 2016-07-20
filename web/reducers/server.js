@@ -1,4 +1,6 @@
 import { dispatch } from '../utils/utils'
+
+import request from 'superagent'
 import deepFreeze from 'deep-freeze'
 import pollingMachine from './polling'
 
@@ -26,16 +28,47 @@ const serverOp = (state = null, action) => {
 
   switch(action.type) {
   case 'SERVEROP_REQUEST':
-    if (state) return state  
+
+    if (state) return state // TODO snack message 
     let agent = request.post('/server')
       .send(action.data)
       .set('Accept', 'application/json')
       .end((err, res) => dispatch({ type: 'SERVEROP_RESPONSE', err, res }))   
-
+    polling.stop()
     return Object.assign({}, action.data, { agent })
   
   case 'SERVEROP_RESPONSE':
-    return null
+ 
+    if (action.err) {
+      setTimeout(() => dispatch({
+        type: 'SNACKBAR_OPEN', 
+        data: `ERROR, op: ${state.operation}, err: ${action.err.message}`
+      }), 0)
+    }
+    else if (!action.res.ok) {
+      setTimeout(() => dispatch({
+        type: 'SNACKBAR_OPEN',
+        data: `ERROR, op: ${state.operation}, err: 'BAD http response'`
+      }), 0)
+    }
+    else if (action.res.body.err) {
+      setTimeout(() => dispatch({
+        type: 'SNACKBAR_OPEN',
+        data: `ERROR, op: ${state.operation}, err: ${action.res.body.err}`
+      }), 0)
+    }
+    else {
+      setTimeout(() => dispatch({
+        type: 'SNACKBAR_OPEN',
+        data: `${state.operation} SUCCESS`
+      }), 0)
+    } 
+    polling.start()
+    return Object.assign({}, state, { agent: null })
+
+  case 'SERVER_UPDATE':
+    if (state && !state.agent) return null
+    return state
 
   default:
     return state

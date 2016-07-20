@@ -12,7 +12,7 @@ import IconAVStop from 'material-ui/svg-icons/av/stop'
 // import reactClickOutside from 'react-click-outside'
 
 import { LabeledText, Spacer } from './CustomViews'
-import { dispatch, dockerStore, dockerState, taskStates, installedStore } from '../utils/storeState'
+import { dispatch, dockerStore, serverOpStore, dockerState, taskStates, installedStore } from '../utils/storeState'
 import imagePrefix from '../utils/imagePrefix'
 
 import {
@@ -47,55 +47,44 @@ const buttonDisabled = {
     }
 }
 
-// TODO
-const requesting = (operation, args) => {
-
-  let req = dockerStore().request
-  if (!req || !req.operation) return false
-
-  if (req.operation === operation &&
-      req.args[0] === arg0) return true
-  return false
-}
-
 const containerStartingMe = (container) => {
   
-  let { request } = dockerStore()
-  return (request && 
-          request.operation && 
-          request.operation.operation === 'containerStart' && 
-          request.operation.args[0] && 
-          request.operation.args[0] === container.Id)
+  let op = serverOpStore()
+  return (op&& 
+          op.operation && 
+          op.operation.operation === 'containerStart' && 
+          op.operation.args[0] && 
+          op.operation.args[0] === container.Id)
 }
 
 const installedStartingMe = (installed) => {
 
-  let { request } = dockerStore()
-  return (request &&
-          request.operation &&
-          request.operation.operation === 'installedStart' &&
-          request.operation.args[0] &&
-          request.operation.args[0] === installed.uuid)
+  let op = serverOpStore()
+  return (op &&
+          op.operation &&
+          op.operation.operation === 'installedStart' &&
+          op.operation.args[0] &&
+          op.operation.args[0] === installed.uuid)
 }
 
 const containerStoppingMe = (container) => {
 
-  let { request } = dockerStore()
-  return (request && 
-          request.operation &&
-          request.operation.operation === 'containerStop' && 
-          request.operation.args[0] && 
-          request.operation.args[0] === container.Id)
+  let op = serverOpStore()
+  return (op && 
+          op.operation &&
+          op.operation.operation === 'containerStop' && 
+          op.operation.args[0] && 
+          op.operation.args[0] === container.Id)
 }
 
 const installedStoppingMe = (installed) => {
 
-  let { request } = dockerStore()
-  return (request &&
-          request.operation &&
-          request.operation.operation === 'installedStop' &&
-          request.operation.args[0] &&
-          request.operation.args[0] === installed.uuid)
+  let op = serverOpStore()
+  return (op &&
+          op.operation &&
+          op.operation.operation === 'installedStop' &&
+          op.operation.args[0] &&
+          op.operation.args[0] === installed.uuid)
 }
 
 const containerButtonStyle = {
@@ -147,8 +136,8 @@ const renderContainerHeaderRight = (container) => {
 
   let startButtonTap = () => 
     dispatch({
-      type: 'DOCKER_OPERATION',
-      operation: {
+      type: 'SERVEROP_REQUEST',
+      data: {
         operation: 'containerStart',
         args: [container.Id]
       }
@@ -156,8 +145,8 @@ const renderContainerHeaderRight = (container) => {
 
   let stopButtonTap = () => 
     dispatch({
-      type: 'DOCKER_OPERATION',
-      operation: {
+      type: 'SERVEROP_REQUEST',
+      data: {
         operation: 'containerStop',
         args: [container.Id]
       }
@@ -217,8 +206,8 @@ const renderInstalledHeaderRight = (installed) => {
 
   let startButtonTap = () => 
     dispatch({
-      type: 'DOCKER_OPERATION',
-      operation: {
+      type: 'SERVEROP_REQUEST',
+      data: {
         operation: 'installedStart',
         args: [installed.uuid]
       }
@@ -226,8 +215,8 @@ const renderInstalledHeaderRight = (installed) => {
 
   let stopButtonTap = () => 
     dispatch({
-      type: 'DOCKER_OPERATION',
-      operation: {
+      type: 'SERVEROP_REQUEST',
+      data: {
         operation: 'installedStop',
         args: [installed.uuid]
       }
@@ -308,13 +297,13 @@ const renderContainerCardContent = (container) => {
 
 const renderContainerCardFooter = (container) => {
 
-  let onTouchTap = () => dispatch({ type: 'DOCKER_OPERATION', operation: { operation: 'containerDelete', args: [container.Id] }})   
+  let onTouchTap = () => dispatch({ type: 'SERVEROP_REQUEST', data: { operation: 'containerDelete', args: [container.Id] }})   
   return (<div style={{padding:8}}><FlatButton label="uninstall" onTouchTap={onTouchTap} /></div>)  
 }
 
 const renderInstalledCardFooter = (installed) => {
 
-  let onTouchTap = () => dispatch({ type: 'DOCKER_OPERATION', operation: { operation: 'appUninstall', args: [installed.uuid] }})
+  let onTouchTap = () => dispatch({ type: 'SERVEROP_REQUEST', data: { operation: 'appUninstall', args: [installed.uuid] }})
   return (<div style={{padding:8}}><FlatButton label='uninstall' onTouchTap={onTouchTap} /></div>)
 }
 
@@ -359,9 +348,10 @@ const renderInstalledCard = (installed) => {
 
 const renderInstallingHeaderRight = (task) => {
 
+  // FIXME
   let stopButtonTap = () => 
     dispatch({
-      type: 'DOCKER_OPERATION',
+      type: 'SERVEROP_REQUEST',
       operation: {
         operation: 'containerStop',
         args: [task.uuid]

@@ -4,7 +4,7 @@ import increment from './increment'
 import themeColor from './themeColor'
 import login from './login'
 import navigation from './navigation'
-import docker from './docker'
+// import docker from './docker'
 import storage from './storage'
 import appstore from './appstore'
 import installed from './installed'
@@ -15,7 +15,7 @@ const reducer = combineReducers({
   themeColor,
   login,
   navigation,
-  docker,
+//  docker,
   storage,
   appstore,
   installed,

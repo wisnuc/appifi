@@ -5,6 +5,8 @@ installedStart, installedStop, appInstall, appUninstall } from './docker'
 
 let status = 0
 
+const info = (text) => console.log(`[server] ${text}`)
+
 storeSubscribe(() => {
   status++
   console.log(`[server] status updated: ${status}`)
@@ -157,7 +159,7 @@ export default {
     return f
   },
 
-  operation: (req) => {
+  operation: (req, callback) => {
     operationAsync(req)
       .then(r => callback(null)) 
       .catch(e => callback(e))

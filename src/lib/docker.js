@@ -170,7 +170,9 @@ async function daemonStop() {
   if (daemon.running) { 
     info(`sending term signal to ${daemon.pid}`)
     process.kill(daemon.pid)  
-  }      
+  }
+
+  await delay(2000) 
 }
 
 function appStatus(recipeKeyString) {
@@ -275,8 +277,8 @@ async function init() {
   }
 
   while (!storeState().storage) {
-    info('wait 200ms for storage module init')
-    await delay(200)
+    info('wait 500ms for storage module init')
+    await delay(500)
   }
 
   let storage = storeState().storage

@@ -60,7 +60,7 @@ appstore.reload()
  */
 app.use('/', require('./routes/index'))
 app.use('/storage', require('./routes/storage'))
-app.use('/docker', require('./routes/docker'))
+// app.use('/docker', require('./routes/docker'))
 app.use('/appstore', require('./routes/appstore'))
 app.use('/server', require('./routes/server'))
 
