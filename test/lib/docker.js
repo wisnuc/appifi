@@ -1,26 +1,26 @@
+import chai from 'chai'
+import chaiAsPromised from 'chai-as-promised'
 
-import appstore from 'lib/appstore'
-import docker from 'lib/docker'
+chai.use(chaiAsPromised);
 
-import { testing } from 'lib/docker'
+import { expect, should } from 'chai'
+import sinon from 'sinon'
+import { testing } from '../../src/lib/reducers'
+import { daemonStartOperation } from '../../src/lib/docker'
 
-/*
-let hello = new testing.imageCreateTask('ubuntu', 'latest', null)
-hello.on('update', () => {
-  console.log(hello.getState())
+async function hello(world) {
+
+  if (world) return 'world'
+  else throw new Error('shit')
+}
+
+describe('docker', () => {
+
+  it('hello false', () => 
+    expect(hello(false)).to.eventually.be.rejected)
+
+  it('hello true', () => 
+    expect(hello(true)).to.eventually.be.fulfilled)
 })
 
-hello.on('end', () => {
-  console.log(hello.getState())
-})
-*/
-appstore.init()
-setTimeout(() => {
-    console.log(appstore.get())
-    let hello = new testing.appInstTask(appstore.get().apps[7])
-    hello.on('end', () => { 
-      let d = hello.getState()
-      console.log(hello)
-      console.log(JSON.stringify(d, null, '  '))
-    })
-  }, 30000)
+

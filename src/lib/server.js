@@ -1,5 +1,7 @@
 import { storeState, storeDispatch, storeSubscribe } from './reducers'
 import { calcRecipeKeyString } from './dockerApps'
+import { daemonStart, daemonStop, daemonStartOperation, containerStart, containerStop, containerDelete,
+installedStart, installedStop, appInstall, appUninstall } from './docker'
 
 let status = 0
 
@@ -98,6 +100,52 @@ const facade = () => {
   } 
 }
 
+const operationAsync = async (req) => {
+
+  info(`operation: ${req.operation}`)
+
+  let f, args
+
+  if (req && req.operation) {
+    
+    args = (req.args && Array.isArray(req.args)) ? req.args : []
+
+    switch (req.operation) {
+    case 'daemonStart':
+      f = daemonStartOperation
+      break 
+    case 'daemonStop':
+      f = daemonStop
+      break
+    case 'containerStart':
+      f = containerStart
+      break
+    case 'containerStop':
+      f = containerStop
+      break
+    case 'containerDelete':
+      f = containerDeleteCommand
+      break
+    case 'installedStart':
+      f = installedStart
+      break
+    case 'installedStop':
+      f = installedStop
+      break
+    case 'appInstall':
+      f = appInstall
+      break
+    case 'appUninstall':
+      f = appUninstall
+      break
+    default:
+      info(`operation not implemented, ${req.operation}`)
+    }
+  }
+
+  return f ? await f(...args) : null // TODO
+}
+
 export default {
 
   status: () => {
@@ -108,6 +156,12 @@ export default {
     let f = facade()
     return f
   },
+
+  operation: (req) => {
+    operationAsync(req)
+      .then(r => callback(null)) 
+      .catch(e => callback(e))
+  }
 }
 
 console.log('server module initialized')

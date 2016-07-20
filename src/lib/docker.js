@@ -1,5 +1,6 @@
 import fs from 'fs'
 import child from 'child_process'
+import Promise from 'bluebird'
 
 import mkdirp from 'mkdirp'
 
@@ -25,7 +26,7 @@ const dockerAppdataDir = () => {
   return `${dockerVolumesDir}/${storeState().docker.volume}/wisnuc/appdata`
 }
 
-function info(message){
+function info(message) {
   console.log(`[docker] ${message}`)
 }
 
@@ -295,16 +296,15 @@ async function init() {
 
 async function daemonStartOperation(uuid) {
 
-  if (storeState().docker) {
-    info('WARNING: daemon already started')
-    return
-  }
+  if (storeState().docker) 
+    throw new Error('daemon already started') 
 
   let storage = storeState().storage
   let volume = storage.volumes.find(vol => vol.uuid === uuid)
-  if (!volume || volume.missing) {
-    return
-  }
+  if (!volume)
+    throw new Error('volume not found')
+  if (volume.missing)
+    throw new Error('volume missing')
 
   await daemonStart(volume.uuid)
 }
@@ -485,5 +485,24 @@ export default {
   },
 }
 
-export { daemonStart, probeDaemon, dockerAppdataDir }
+export { 
+
+  daemonStart, 
+  daemonStop,
+  daemonStartOperation,
+
+  containerStart,
+  containerStop,
+  containerDelete,
+
+  installedStart,
+  installedStop,
+
+  appInstall,
+  appUninstall,
+
+  probeDaemon, 
+  dockerAppdataDir 
+}
+
 

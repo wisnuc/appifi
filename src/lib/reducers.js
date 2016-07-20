@@ -132,12 +132,11 @@ let store = createStore(combineReducers({
 console.log(`reducers module initialized`)
 
 export const storeState = () => store.getState()
-export const storeDispatch = (action) => {
-
-  store.dispatch(action)
-}
-
+export const storeDispatch = (action) => store.dispatch(action)
 export const storeSubscribe = (f) => store.subscribe(f)
+
+export const testing = { store }
+
 
 
 
