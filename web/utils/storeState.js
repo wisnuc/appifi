@@ -10,6 +10,8 @@ export const navigationStore = () => localStore() ? localStore().navigation : nu
 export const storageStore = () => localStore() ? localStore().storage : null
 export const appstoreStore = () => localStore() ? localStore().appstore : null
 export const installedStore = () => localStore() ? localStore().installed : null
+export const serverOpStore = () => localStore() ? localStore().serverOp : null
+export const snackbarStore = () => localStore() ? localStore().snackbar : null
 
 export const serverState = () => {
   let server = window.store.getState().server

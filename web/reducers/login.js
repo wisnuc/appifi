@@ -1,4 +1,4 @@
-// import { mixin } from '../utils/utils'
+import { dispatch } from '../utils/utils'
 
 const defaultState = {
 
@@ -43,6 +43,13 @@ const loginState = (state = defaultState, action) => {
     })
 
   case 'LOGIN_SUCCESS':
+
+    setTimeout(() => {
+      dispatch({
+        type: 'SNACKBAR_OPEN',
+        data: 'login success'
+      })
+    }, 0)
     return  Object.assign({}, state, {
       state: 'LOGGEDIN'
     })

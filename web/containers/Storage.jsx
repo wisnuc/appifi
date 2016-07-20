@@ -168,6 +168,10 @@ let renderVolumeCard = (volume) => {
 
   let { request } = storageStore()
 
+  console.log('>>>>')
+  console.log(request)
+  console.log('<<<<')
+
   let usage = usages.find(u => u.mountpoint.endsWith(volume.uuid))
 
   let running = docker !== null
@@ -190,6 +194,7 @@ let renderVolumeCard = (volume) => {
   }
 
   let daemonOperatingOnMe = (request) => daemonStartingOnMe(request) || daemonStoppingOnMe(request)
+
   let daemonStart = (uuid) => {
     dispatch({ 
       type: 'DOCKER_OPERATION',

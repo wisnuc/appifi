@@ -1,6 +1,6 @@
 import { storeState, storeDispatch, storeSubscribe } from './reducers'
 import { calcRecipeKeyString } from './dockerApps'
-import { daemonStart, daemonStop, daemonStartOperation, containerStart, containerStop, containerDelete,
+import { daemonStart, daemonStop, daemonStartOp, containerStart, containerStop, containerDelete,
 installedStart, installedStop, appInstall, appUninstall } from './docker'
 
 let status = 0
@@ -112,7 +112,7 @@ const operationAsync = async (req) => {
 
     switch (req.operation) {
     case 'daemonStart':
-      f = daemonStartOperation
+      f = daemonStartOp
       break 
     case 'daemonStop':
       f = daemonStop

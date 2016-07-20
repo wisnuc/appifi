@@ -294,7 +294,7 @@ async function init() {
   await daemonStart(volume.uuid)
 }
 
-async function daemonStartOperation(uuid) {
+async function daemonStartOp(uuid) {
 
   if (storeState().docker) 
     throw new Error('daemon already started') 
@@ -424,7 +424,7 @@ async function operationAsync(req) {
     switch (req.operation) {
 
     case 'daemonStart':
-      f = daemonStartOperation
+      f = daemonStartOp
       break 
     case 'daemonStop':
       f = daemonStop
@@ -489,7 +489,7 @@ export {
 
   daemonStart, 
   daemonStop,
-  daemonStartOperation,
+  daemonStartOp,
 
   containerStart,
   containerStop,

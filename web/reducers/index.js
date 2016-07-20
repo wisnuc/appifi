@@ -7,9 +7,8 @@ import navigation from './navigation'
 import docker from './docker'
 import storage from './storage'
 import appstore from './appstore'
-import server from './server'
 import installed from './installed'
-
+import { server, serverOp, snackbar } from './server'
  
 const reducer = combineReducers({
   increment,
@@ -20,7 +19,9 @@ const reducer = combineReducers({
   storage,
   appstore,
   installed,
-  server
+  server,
+  serverOp,
+  snackbar
 })
 
 export default reducer

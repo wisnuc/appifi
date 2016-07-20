@@ -6,10 +6,7 @@ const serverUrl = '/server'
 
 let polling = pollingMachine(serverUrl, 'SERVER_UPDATE', 1000)
 
-const server = (state = {
-    state: null,
-    request: null,
-  }, action) => {
+const server = (state = { state: null }, action) => {
   
   switch(action.type) {
   case 'LOGIN_SUCCESS':
@@ -18,18 +15,44 @@ const server = (state = {
 
   case 'SERVER_UPDATE':
     console.log('SERVER_UPDATE')
-    let newState = Object.assign({}, 
-            state, 
-            {
-              state: action.data,
-              request: null
-            })
-    return newState
+    return { state: action.data }
 
   default:
     return state
   }
 }
 
-export default server
+const serverOp = (state = null, action) => {
+
+  switch(action.type) {
+  case 'SERVEROP_REQUEST':
+    if (state) return state  
+    let agent = request.post('/server')
+      .send(action.data)
+      .set('Accept', 'application/json')
+      .end((err, res) => dispatch({ type: 'SERVEROP_RESPONSE', err, res }))   
+
+    return Object.assign({}, action.data, { agent })
+  
+  case 'SERVEROP_RESPONSE':
+    return null
+
+  default:
+    return state
+  }
+}
+
+const snackbar = (state = { open: false, message: '' }, action) => {
+
+  switch(action.type) {
+  case 'SNACKBAR_OPEN':
+    return { open: true, message: action.data }
+  case 'SNACKBAR_CLOSE':
+    return { open: false, message: '' }
+  default:
+    return state
+  }
+}
+
+export { server, serverOp, snackbar }
 

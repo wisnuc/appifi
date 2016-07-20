@@ -3,10 +3,11 @@ import ReactDom from 'react-dom'
 import Transition from '../utils/transition'
 import { mixin, dispatch } from '../utils/utils'
 
-import { AppBar, Paper, TextField, CircularProgress } from 'material-ui'
+import { AppBar, Paper, TextField, CircularProgress, Snackbar } from 'material-ui'
 import { Menu, MenuItem } from 'material-ui/Menu'
 import { Tabs, Tab } from 'material-ui/Tabs'
 import { Card, CardActions, CardHeader, CardMedia, CardTitle, CardText } from 'material-ui/Card'
+
 import FlatButton from 'material-ui/FlatButton'
 import RaisedButton from 'material-ui/RaisedButton'
 import Divider from 'material-ui/Divider'
@@ -31,6 +32,8 @@ import lang, { langText } from '../utils/lang'
 
 import CSSTransition from 'react-addons-css-transition-group'
 import ReactCSSTransitionGroup from 'react-addons-css-transition-group'            
+
+import { snackbarStore } from '../utils/storeState'
 
 /* This list must be consistent with the list defined in reducer */
 export const decoration = [
@@ -529,6 +532,13 @@ class Navigation extends React.Component {
             </Transition>
           </div>
         </div>
+        <Snackbar 
+          open={snackbarStore().open} 
+          message={snackbarStore().message} 
+          autoHideDuration={4000} 
+          onRequestClose={() => dispatch({
+            type: 'SNACKBAR_CLOSE' 
+          })} />
       </div>
     )
   } 
