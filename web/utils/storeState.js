@@ -12,6 +12,7 @@ export const appstoreStore = () => localStore() ? localStore().appstore : null
 export const installedStore = () => localStore() ? localStore().installed : null
 export const serverOpStore = () => localStore() ? localStore().serverOp : null
 export const snackbarStore = () => localStore() ? localStore().snackbar : null
+export const themeStore = () => localStore() ? localStore().themeColor : null
 
 export const serverState = () => {
   let server = window.store.getState().server
