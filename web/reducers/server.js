@@ -39,7 +39,8 @@ const serverOp = (state = null, action) => {
   
   case 'SERVEROP_RESPONSE':
  
-    if (action.err) {
+    if (state.mute) { }
+    else if (action.err) {
       setTimeout(() => dispatch({
         type: 'SNACKBAR_OPEN', 
         data: `ERROR, op: ${state.operation}, err: ${action.err.message}`
@@ -63,12 +64,20 @@ const serverOp = (state = null, action) => {
         data: `${state.operation} SUCCESS`
       }), 0)
     } 
-    polling.start()
+
+    if (state.operation === 'mkfs_btrfs') {
+      setTimeout(() => {
+        dispatch({type: 'STORAGE_CREATE_VOLUME_END'})
+        setTimeout(() => polling.start(), 1000)
+      }, 1000)
+    }
+    else 
+      polling.start()
+
     return Object.assign({}, state, { agent: null })
 
   case 'SERVER_UPDATE':
-    if (state && !state.agent) return null
-    return state
+    return (state && !state.agent) ? null : state
 
   default:
     return state

@@ -9,12 +9,16 @@ import { Tabs, Tab } from 'material-ui/Tabs'
 import { Card, CardActions, CardHeader, CardMedia, CardTitle, CardText } from 'material-ui/Card'
 
 import FlatButton from 'material-ui/FlatButton'
-import RaisedButton from 'material-ui/RaisedButton'
 import Divider from 'material-ui/Divider'
 
 import AppStoreRender from './AppStore'
 import InstalledAppsRender from './InstalledApps'
 import Storage from './Storage'
+import Network from './Network'
+import TimeDate from './TimeDate'
+import Password from './Password'
+import SysUpdate from './SysUpdate'
+import PowerOff from './PowerOff'
 
 import IconButton from 'material-ui/IconButton'
 import IconNavigationApps from 'material-ui/svg-icons/navigation/apps'
@@ -64,7 +68,8 @@ export const decoration = [
         name: 'ETHERNET',
         text: { en_US: 'Ethernet' },
         icon: IconActionSettingsEthernet,
-        themeColor: 'teal'
+        render: Network,
+        themeColor: 'teal',
       },
       {
         name: 'COOLING',
@@ -72,24 +77,28 @@ export const decoration = [
         icon: IconHardwareToys,
       },
       {
-        name: 'DATETIME',
+        name: 'TIMEDATE',
         text: { en_US: 'Date & Time' },
         icon: IconDeviceAccessTime,
+        render: TimeDate
       },
       {
         name: 'SYSUPDATE',
-        text: { en_US: 'System Update', },
+        text: { en_US: 'Update', },
         icon: IconNotificationSystemUpdate,
+        render: SysUpdate
       },
       {
         name: 'PASSWORD',
         text: { en_US: 'Password', },
         icon: IconHardwareSecurity,
+        render: Password,
       },
       {
-        name: 'POWEROFF',
-        text: { en_US: 'Power Off', },
+        name: 'POWER',
+        text: { en_US: 'Power', },
         icon: IconActionPowerSettingsNew,
+        render: PowerOff
       } 
     ]
 
@@ -281,10 +290,6 @@ class Navigation extends React.Component {
 
   buildTabs(tabList) {
 
-    let debug = false
-
-    debug && console.log(tabList)
-
     let selectedName = tabList.find(item => item.selected === true).name
     let style = {display: 'flex', justifyContent: 'center', backgroundColor:this.getColor('primary1Color') }
     return ( 
@@ -341,16 +346,10 @@ class Navigation extends React.Component {
 
   renderContentPage(navSelect) {
 
-    let debug = false
-
-    debug && console.log(navSelect)
-
     return (
-
       <div style={{width: '100%'}} >
-        <Transition opts={['content', true, true, false, 2000, 1500, 5000]}>
-          { navSelect.render !== undefined ? React.createElement(navSelect.render, {key: navSelect.name}) : 
-            <CardPage /> }
+        <Transition opts={['content', true, true, false, 1000, 1000, 5000]}>
+          { navSelect.render !== undefined ? React.createElement(navSelect.render, { key: navSelect.name }) : <CardPage /> }
         </Transition>
       </div>
     )
@@ -411,14 +410,28 @@ class Navigation extends React.Component {
     return (
       <div>
         <div id='login-container' className='login-container-style' >
-          <Transition opts={['login-title', true, true, false, 1000, 1000, 100]}>
+          <ReactCSSTransitionGroup
+            transitionName="login-title" 
+            transitionAppear={true}
+            transitionEnter={true}
+            transitionLeave={false}
+            transitionAppearTimeout={350}
+            transitionEnterTimeout={600} 
+          >
             { !loggedIn() && 
-              <div style={{ height:"64px", verticalAlign:"bottom", fontSize: 48, opacity:0.87 }}>
+              <div style={{ height:"64px", verticalAlign:"bottom", fontSize: 48}}>
                 <div>你好，主人！</div>
               </div> 
             }
-          </Transition> 
-          <Transition opts={['login-dialog', true, true, false, 3000, 1000, 100]}>
+          </ReactCSSTransitionGroup> 
+          <ReactCSSTransitionGroup
+            transitionName="login-dialog" 
+            transitionAppear={true}
+            transitionEnter={true}
+            transitionLeave={false}
+            transitionAppearTimeout={350}
+            transitionEnterTimeout={600} 
+          >
             { !loggedIn() && <div> 
               <Paper className='login-paper-style' zDepth={2}>
                 { loginBusy() && 
@@ -440,7 +453,7 @@ class Navigation extends React.Component {
                 }
               </Paper> 
             </div> }
-          </Transition>   
+          </ReactCSSTransitionGroup>   
         </div> 
         {/* end of login layout container */}
 
@@ -520,7 +533,7 @@ class Navigation extends React.Component {
               position: 'relative', // VERY IMPORTANT! TODO Why?
             }}
           >
-            <Transition opts={['content', false, true, false, 300, 1200, 100]}>
+            <Transition opts={['content', false, true, false, 300, 600, 100]}>
               { loggedIn() &&
                 ( navSelect.render !== undefined ? 
                   /* React.createElement(navSelect.render, {key: navSelect.name}) : */

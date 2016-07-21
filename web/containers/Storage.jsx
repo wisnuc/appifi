@@ -91,9 +91,7 @@ const driveHasPartitionsAsSwap = (drive) => {
 }
 
 const driveIsInDockerVolume = (drive) => !!dockerVolumeBlocks().find(blk => blk === drive.block.props.devname)
-
 const driveIsRemovable = (drive) => drive.block.sysfsProps[0].attrs.removable === '1'
-
 const driveIsUSB = (drive) => drive.block.props.id_bus === 'usb'
 
 // this function returns null as OK and a string as disallowance reason
@@ -127,13 +125,11 @@ const volumeExpanded = (volume) =>
 
 const creatingVolumeSubmitted = () => {
 
-  let { creatingVolume, operation } = storageStore()
+  let { creatingVolume } = storageStore()
+  let op = serverOpStore()
   let submitted
 
-  if (creatingVolume === 2 &&
-      operation &&
-      operation.request &&
-      operation.data.operation === 'mkfs_btrfs') {
+  if (creatingVolume === 2 && op && op.agent && op.operation === 'mkfs_btrfs') {
     submitted = true
   }
   else {
@@ -145,13 +141,11 @@ const creatingVolumeSubmitted = () => {
 
 const creatingVolumeFinished = () => {
 
-  let { creatingVolume, operation } = storageStore()
+  let { creatingVolume } = storageStore()
+  let op = serverOpStore()
   let finished
 
-  if (creatingVolume === 2 &&
-      operation &&
-      operation.request === null &&
-      operation.data.operation === 'mkfs_btrfs') {
+  if (creatingVolume === 2 && op && op.agent === null && op.operation === 'mkfs_btrfs') { 
     finished = true
   }
   else {
@@ -535,7 +529,7 @@ let renderAll = () => {
   }
 
   let cancelCreatingNewVolume = () => dispatch({
-    type: 'STORAGE_CREATE_VOLUME_CANCEL'
+    type: 'STORAGE_CREATE_VOLUME_END'
   })
   
   let mainButtonLabel = creatingVolume ? 'cancel' : 'new volume'
@@ -543,7 +537,7 @@ let renderAll = () => {
 
   let showSingleButton = creatingVolume === 2 && newVolumeCandidates.length > 0
   let singleButtonOnTouchTap = () => dispatch({
-    type: 'STORAGE_OPERATION',
+    type: 'SERVEROP_REQUEST',
     data: {
       operation: 'mkfs_btrfs',
       args: [{
@@ -555,7 +549,7 @@ let renderAll = () => {
   
   let showRaid0Button = creatingVolume === 2 && newVolumeCandidates.length > 1
   let raid0ButtonOnTouchTap = () => dispatch({
-    type: 'STORAGE_OPERATION',
+    type: 'SERVEROP_REQUEST',
     data: {
       operation: 'mkfs_btrfs',
       args: [{
@@ -567,7 +561,7 @@ let renderAll = () => {
 
   let showRaid1Button = creatingVolume === 2 && newVolumeCandidates.length > 1
   let raid1ButtonOnTouchTap = () => dispatch({
-    type: 'STORAGE_OPERATION',
+    type: 'SERVEROP_REQUEST',
     data: {
       operation: 'mkfs_btrfs',
       args: [{

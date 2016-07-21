@@ -2,79 +2,6 @@ import request from 'superagent'
 import { mixin, dispatch } from '../utils/utils'
 // import deepFreeze from 'deep-freeze'
 
-const endpoint = '/storage'
-
-const defaultState = { 
-
-  request: null,
-
-  // view state
-  creatingVolume: 0,
-  expansions: [],
-  newVolumeCandidates: []
-}
-
-const operation = (state = null, action) => {
-
-  let tmp
-
-  switch(action.type) {
-  case 'STORAGE_OPERATION': {
-
-    console.log('STORAGE_OPERATION')
-    console.log(action.data)
-
-    if (state && (state.timeout || state.request)) {
-      return state
-    }
-
-    return {
-      timeout: null,
-      request: request
-        .post(endpoint)
-        .send(action.data)
-        .end((err, res) => dispatch({
-          type: 'STORAGE_OPERATION_RESPONSE', 
-          err, res})),
-
-      errno: 0,
-      message: null,
-      response: null,
-      data: action.data
-    }
-  }
-
-  case 'STORAGE_OPERATION_RESPONSE': {
-    
-    let errno = action.err ? (action.err.errno ? action.err.errno : -1) : 0
-    let message = action.err ? action.err.message : null
-    let response = action.err ? null : action.res
-
-    tmp =  {
-      timeout: null,
-      request: null,
-      errno, 
-      message, 
-      response,
-      data: state.data
-    }
-
-    console.log('STORAGE_OPERATION_RESPONSE')
-    console.log(tmp)
-
-    if (state.data.operation === 'mkfs_btrfs') {
-      setTimeout(() => dispatch({
-        type: 'STORAGE_CREATE_VOLUME_CANCEL'  
-      }), 1000)
-    }
-    return tmp
-  }
-
-  default:
-    return state
-  }
-}
-
 const card_expansion_toggle = (state, data) => {
 
   let index = state.expansions.findIndex(exp => exp.type === data.type && exp.id === data.id)
@@ -131,14 +58,8 @@ const reducer = (state = {
       return Object.assign({}, state, { creatingVolume: 2 })
     return state
 
-  case 'STORAGE_CREATE_VOLUME_CANCEL':
-    
-    if (state.operation && state.operation.request) {
-      state.operation.request.abort() // TODO
-    }
-
+  case 'STORAGE_CREATE_VOLUME_END': 
     return Object.assign({}, state, { 
-      operation: null,
       creatingVolume: 0, 
       newVolumeCandidates: [],
       expansions: state.expansions.filter(exp => exp.type !== 'drive')
@@ -158,15 +79,6 @@ const reducer = (state = {
   }
 }
 
-const mergedReducer = (state, action) => {
-
-  let newState = reducer(state, action)
-  let operationNewState = operation(state === undefined ? undefined : state.operation, action)
-
-  if (operationNewState === (state=== undefined ? undefined : state.operation)) return newState
-  return Object.assign({}, newState, { operation: operationNewState })
-}
-
-export default mergedReducer
+export default reducer
 
 

@@ -54,56 +54,56 @@ body {
 }
 
 .login-title-appear {
-  margin-bottom: 100px;
+  margin-bottom: 50px;
   opacity: 0.01;
 }
 
 .login-title-appear.login-title-appear-active {
   margin-bottom: 0px;
-  opacity: 0.54;
-  transition: all 100ms ease;
+  opacity: 0.87;
+  transition: all 300ms ease;
 }
 
 .login-title-enter {
-  margin-bottom: 100px;
+  margin-bottom: 50px;
   opacity: 0.01;
 }
 
 .login-title-enter.login-title-enter-active {
   margin-bottom: 0px;
   opacity: 0.54;
-  transition: all 600ms ease 550ms;
+  transition: all 300ms ease 300ms;
 }
 
 .login-title-leave {
-  opacity: 1;
+  opacity: 0.87;
 }
 
 .login-title-leave.login-title-leave-active {
   opacity: 0.01;
-  transition: opacity 100ms ease;
+  transition: all 100ms ease;
 }
 
 .login-dialog-appear {
-  margin-top: 100px;
+  margin-top: 50px;
   opacity: 0.01;
 }
 
 .login-dialog-appear.login-dialog-appear-active {
   margin-top: 0px;
   opacity: 1;
-  transition: all 600ms ease 550ms;
+  transition: all 300ms ease;
 }
 
 .login-dialog-enter {
-  margin-top: 100px;
+  margin-top: 50px;
   opacity: 0.01;
 }
 
 .login-dialog-enter.login-dialog-enter-active {
   margin-top: 0px;
   opacity: 1;
-  transition: all 600ms ease 550ms;
+  transition: all 300ms ease 300ms;
 }
 
 .login-dialog-leave {
@@ -278,7 +278,7 @@ body {
   top: 0px;
   width: 100%; 
   opacity: 1;
-  transition: all 600ms ease 550ms;
+  transition: all 300ms ease 300ms;
 }
 
 .content-leave {

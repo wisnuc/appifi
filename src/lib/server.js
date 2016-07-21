@@ -1,7 +1,12 @@
+import Promise from 'bluebird'
+
 import { storeState, storeDispatch, storeSubscribe } from './reducers'
 import { calcRecipeKeyString } from './dockerApps'
 import { daemonStart, daemonStop, daemonStartOp, containerStart, containerStop, containerDelete,
-installedStart, installedStop, appInstall, appUninstall } from './docker'
+  installedStart, installedStop, appInstall, appUninstall } from './docker'
+import { mkfsBtrfsOperation } from './storage'
+import network from './eth'
+import timedate from './timedate'
 
 let status = 0
 
@@ -98,8 +103,29 @@ const facade = () => {
     storage: storeState().storage,
     docker: dockerFacade(storeState().docker),
     appstore: appstoreFacade(storeState().appstore),
-    tasks: tasksFacade(storeState().tasks)
+    tasks: tasksFacade(storeState().tasks),
+    network: storeState().network,
+    timeDate: storeState().timeDate,
   } 
+}
+
+const networkUpdate = async () => storeDispatch({
+  type: 'NETWORK_UPDATE',
+  data: (await network())
+})
+
+const timeDateUpdate = async () => storeDispatch({
+  type: 'TIMEDATE_UPDATE',
+  data: (await Promise.promisify(timedate)())
+})
+
+
+const systemReboot = async () => {
+
+}
+
+const systemPowerOff = async () => {
+
 }
 
 const operationAsync = async (req) => {
@@ -139,6 +165,15 @@ const operationAsync = async (req) => {
       break
     case 'appUninstall':
       f = appUninstall
+      break
+    case 'mkfs_btrfs':
+      f = mkfsBtrfsOperation
+      break
+    case 'networkUpdate':
+      f = networkUpdate
+      break
+    case 'timeDateUpdate':
+      f = timeDateUpdate
       break
     default:
       info(`operation not implemented, ${req.operation}`)

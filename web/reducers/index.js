@@ -9,18 +9,21 @@ import storage from './storage'
 import appstore from './appstore'
 import installed from './installed'
 import { server, serverOp, snackbar } from './server'
+import network from './network'
+import timeDate from './timeDate'
  
 const reducer = combineReducers({
   increment,
   themeColor,
   login,
   navigation,
-//  docker,
   storage,
   appstore,
   installed,
   server,
   serverOp,
+  network,
+  timeDate,
   snackbar
 })
 

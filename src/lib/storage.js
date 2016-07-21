@@ -330,3 +330,6 @@ export default {
       .catch(e => callback(e)),
 }
 
+export {
+  mkfsBtrfsOperation
+}

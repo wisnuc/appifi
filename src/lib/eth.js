@@ -1,4 +1,5 @@
 var path = require('path')
+var os = require('os')
 
 var Promise = require('bluebird')
 var fs = Promise.promisifyAll(require('fs'))
@@ -87,10 +88,13 @@ const enumerateNetworkInterfacesAsync = async () => {
 }
 
 //// temporary test code
-enumerateNetworkInterfacesAsync()
-  .then(r => console.log(JSON.stringify(r, null, '  ')))
-  .catch(e => console.log(e))
+// enumerateNetworkInterfacesAsync()
+//   .then(r => console.log(JSON.stringify(r, null, '  ')))
+//   .catch(e => console.log(e))
 
-
+export default async () => {
+  let nets = await enumerateNetworkInterfacesAsync()
+  return { nets, os: os.networkInterfaces() }
+}
 
 

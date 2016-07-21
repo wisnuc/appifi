@@ -7,7 +7,7 @@ router.get('/', (req, res) => res.status(200).json(server.get()))
 router.get('/status', (req, res) => res.status(200).json(server.status()))
 
 router.post('/', (req, res) => {
-  console.log(req.body)
+
   server.operation(req.body, (err, result) => 
     err ? res.status(200).json({
         err: err.message,

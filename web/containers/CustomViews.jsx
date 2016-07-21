@@ -7,11 +7,11 @@ let labeledTextStyle = {
   lineHeight: 1.5
 }
 
-const LabeledText = ({label, text, right}) => 
+const LabeledText = ({label, text, right, styleOverlay}) => 
   ( 
-    <div style={labeledTextStyle}>
+    <div style={styleOverlay ? Object.assign({}, labeledTextStyle, styleOverlay) : labeledTextStyle}>
       <div style={{flex:1, fontWeight:100, fontFamily:'monospace', opacity:'0.54'}}>{label}:</div>
-      <div style={{flex:right, fontFamily:'monospace', opacity:'0.87'}}>{text}</div>
+      <div style={{flex:(right || 2), fontFamily:'monospace', opacity:'0.87'}}>{text}</div>
     </div>
   )
 

@@ -118,13 +118,35 @@ const increment = (state = 0, action) => {
   }
 }
 
+const network = (state = null, action) => {
+
+  switch(action.type) {
+  case 'NETWORK_UPDATE':
+    return action.data
+  default:
+    return state
+  }
+}
+
+const timeDate = (state = null, action) => {
+
+  switch(action.type) {
+  case 'TIMEDATE_UPDATE':
+    return action.data
+  default:
+    return state
+  }
+}
+
 let store = createStore(combineReducers({
   increment,
   serverConfig,
   storage,
   docker,
   appstore,
-  tasks
+  tasks,
+  network,
+  timeDate
 }))
 
 // store.subscribe(() => console.log(store.getState()))
