@@ -1,3 +1,5 @@
+import child from 'child_process'
+
 import Promise from 'bluebird'
 
 import { storeState, storeDispatch, storeSubscribe } from './reducers'
@@ -120,14 +122,16 @@ const timeDateUpdate = async () => storeDispatch({
 })
 
 
-const systemReboot = async () => {
-
-}
-
-const systemPowerOff = async () => {
-
-}
-
+const systemReboot = async () => 
+  new Promise((resolve, reject) => 
+    child.exec('reboot', (err, stdout, stderr) => 
+      err ? reject(err) : resolve(null)))
+  
+const systemPowerOff = async () => 
+  new Promise((resolve, reject) => 
+    child.exec('poweroff', (err, stdout, stderr) => 
+      err ? reject(err) : resolve(null)))
+ 
 const operationAsync = async (req) => {
 
   info(`operation: ${req.operation}`)
@@ -174,6 +178,12 @@ const operationAsync = async (req) => {
       break
     case 'timeDateUpdate':
       f = timeDateUpdate
+      break
+    case 'systemReboot':
+      f = systemReboot
+      break
+    case 'systemPowerOff':
+      f = systemPowerOff
       break
     default:
       info(`operation not implemented, ${req.operation}`)
