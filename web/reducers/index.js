@@ -10,6 +10,7 @@ import appstore from './appstore'
 import installed from './installed'
 import { server, serverOp, snackbar } from './server'
 import network from './network'
+import cooling from './cooling'
 import timeDate from './timeDate'
  
 const reducer = combineReducers({
@@ -23,6 +24,7 @@ const reducer = combineReducers({
   server,
   serverOp,
   network,
+  cooling,
   timeDate,
   snackbar
 })

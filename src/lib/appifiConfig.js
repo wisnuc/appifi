@@ -6,12 +6,12 @@ import validator from 'validator'
 const configFilePath = '/etc/wisnuc.json'
 
 // log
-const info = (text) => console.log(`[docker config] ${text}`)
+const info = (text) => console.log(`[appifi config] ${text}`)
 
 // global
 var config = {}
 
-const writeConfig = () => fs.writeFile(configFilePath, config, err => {})
+const writeConfig = () => fs.writeFile(configFilePath, JSON.stringify(config, null, ' '), err => {})
 
 const getConfig = (name) => config[name]
 
@@ -30,8 +30,8 @@ const initConfig = () => {
 
   // read config file
   try {
-    x = fs.readFileSync(configFilePath) 
-    x = JSON.parse(x)
+    x = fs.readFileSync(configFilePath, { encoding: 'utf8' }) 
+    x = JSON.parse(x.toString())
 
     y = x.version
     if (y === 1) 
@@ -56,8 +56,12 @@ const initConfig = () => {
       config.barcelonaFanScale = 50
       writeback = true
     }
+
+    info(`config initialized`)
   }
   catch (e) {
+    console.log(e)
+    info(`config file not found or io error, use default`)
     config = {
       version: 1,
       lastUsedVolume: null,
@@ -67,44 +71,8 @@ const initConfig = () => {
   }
 
   if (writeback) writeConfig()
+  console.log(config)
 }
 
-async function readConfig() {
-
-  return new Promise((resolve) => { // never reject
-  
-    fs.readFile(configFilePath, (err, data) => {
-
-      let def = { lastUsedVolume: null }
-      if (err) {
-        info('WARNING: error reading docker config file, using default')
-        resolve(def)
-      }
-      else {
-        try {
-          let r = JSON.parse(data.toString())
-          resolve(r)
-        }
-        catch (e) {
-          info('WARNING: error parsing docker config file, using default')
-          info(data.toString())
-          resolve(def)
-        }
-      }
-    })
-  })
-}
-
-async function saveConfig(config) {
-
-  return new Promise((resolve) => { // never reject
-
-    fs.writeFile(configFilePath, JSON.stringify(config, null, '  '), (err) => {
-      if (err) console.log(err)
-      resolve()
-    }) 
-  })  
-}
-
-export { readConfig, saveConfig, initConfig, setConfig, getConfig }
+export { initConfig, setConfig, getConfig }
 

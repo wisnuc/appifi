@@ -6,9 +6,17 @@ import ArrowUp from 'material-ui/svg-icons/hardware/keyboard-arrow-up'
 import ArrowDown from 'material-ui/svg-icons/hardware/keyboard-arrow-down'
 
 import palette from '../utils/palette'
-import { themeStore } from '../utils/storeState'
+import { dispatch, themeStore, barcelonaState } from '../utils/storeState'
 
 const Cooling = () => {
+
+  let barcelona = barcelonaState()
+
+  if (!barcelona || !barcelona.hasOwnProperty('fanSpeed') || !barcelona.hasOwnProperty('fanScale')) {
+    return (
+      <div key='cooling-content-page'>This function is not available on this device.</div>
+    )
+  }
 
   const colors = palette(themeStore())
   const titleStyle = {
@@ -35,8 +43,6 @@ const Cooling = () => {
     justifyContent:'center'
   }
 
-  console.log(colors)
-
   return (
     <div >
       <div style={{display:'flex'}}>
@@ -46,10 +52,22 @@ const Cooling = () => {
           <div style={{height:48}} />
           <div style={{width:240, height:144, 
             display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center'}}>
-            <FlatButton icon={<ArrowUp />} primary={true} />
+            <FlatButton icon={<ArrowUp />} primary={true} onTouchTap={() => dispatch({
+              type: 'SERVEROP_REQUEST',
+              data: {
+                operation: 'barcelonaFanScaleUpdate',
+                args: [barcelona.fanScale > 90 ? 100 : barcelona.fanScale + 10]
+              }
+            })}/>
             <div style={{fontSize:34, margin:8, 
-              opacity:0.54, display:'flex', justifyContent:'center'}}>100%</div>
-            <FlatButton icon={<ArrowDown />} primary={true} />
+              opacity:0.54, display:'flex', justifyContent:'center'}}>{'' + barcelona.fanScale + '%'}</div>
+            <FlatButton icon={<ArrowDown />} primary={true} onTouchTap={() => dispatch({
+              type: 'SERVEROP_REQUEST',
+              data: {
+                operation: 'barcelonaFanScaleUpdate',
+                args: [barcelona.fanScale < 10 ? 0 : barcelona.fanScale - 10]
+              }
+            })}/>
           </div>
           <div style={footerStyle}>
             <div>Click arrow to</div>
@@ -62,7 +80,7 @@ const Cooling = () => {
           <div style={{height:48}} />
           <div style={{width:240, height:144, fontSize:56, opacity:0.87,
             display:'flex', alignItems: 'center', justifyContent: 'center',
-            color: colors.primary1Color }}>2937</div>
+            color: colors.primary1Color }}>{'' + barcelona.fanSpeed}</div>
           <div style={footerStyle}>unit: RPM</div>
         </Paper>
       </div>

@@ -138,6 +138,18 @@ const timeDate = (state = null, action) => {
   }
 }
 
+const barcelona = (state = {}, action) => {
+
+  switch(action.type) {
+  case 'BARCELONA_FANSPEED_UPDATE':
+    return Object.assign({}, state, { fanSpeed: action.data })
+  case 'BARCELONA_FANSCALE_UPDATE':
+    return Object.assign({}, state, { fanScale: action.data })
+  default:
+    return state
+  }  
+}
+
 let store = createStore(combineReducers({
   increment,
   serverConfig,
@@ -146,7 +158,8 @@ let store = createStore(combineReducers({
   appstore,
   tasks,
   network,
-  timeDate
+  timeDate,
+  barcelona
 }))
 
 // store.subscribe(() => console.log(store.getState()))

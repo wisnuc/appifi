@@ -9,7 +9,7 @@ import { createStore, combineReducers } from '../lib/reduced'
 import appstore from './appstore' // TODO
 
 import { containerStart, containerStop, containerCreate, containerDelete } from './dockerapi'
-import { readConfig, saveConfig } from './dockerConfig'
+import { getConfig, setConfig } from './appifiConfig'
 import { dockerEventsAgent, DockerEvents } from './dockerEvents'
 import { AppInstallTask } from './dockerTasks'
 
@@ -106,6 +106,7 @@ function dispatchDaemonStart(pid, volume, agent) {
     })
   })
 
+  setConfig('lastUsedVolume', volume)
   storeDispatch({
     type: 'DAEMON_START',
     data: { pid, volume, events }
@@ -250,28 +251,18 @@ async function init() {
     })
   })
 
-  let config = await readConfig()
 
   let daemon = await probeDaemon()
   if (daemon.running) {
     info(`daemon already running with pid ${daemon.pid} and volume ${daemon.volume}`)   
-
-    if (config.lastUsedVolume !== daemon.volume) {
-      config.lastUsedVolume = daemon.volume
-      saveConfig(config)
-        .then(() => info('docker config saved')) // no result? TODO
-        .catch(e => {
-          info('ERROR: failed saving docker config')
-          info(e)
-        })  
-    } 
 
     let agent = await dockerEventsAgent() 
     dispatchDaemonStart(daemon.pid, daemon.volume, agent)
     return
   }
 
-  if (!config.lastUsedVolume) {
+  let lastUsedVolume = getConfig('lastUsedVolume')
+  if (lastUsedVolume) {
     info('last used volume not set, docker daemon not started')
     return
   }
@@ -282,14 +273,14 @@ async function init() {
   }
 
   let storage = storeState().storage
-  let volume = storage.volumes.find(vol => vol.uuid === config.lastUsedVolume)
+  let volume = storage.volumes.find(vol => vol.uuid === lastUsedVolume)
   if (!volume) {
-    info(`last used volume (${config.lastUsedVolume}) not found, docker daemon not started`)
+    info(`last used volume (${lastUsedVolume}) not found, docker daemon not started`)
     return
   }
 
   if (volume.missing) {
-    info(`last used volume (${config.lastUsedVolume}) has missing drive, docker daemon not started`)
+    info(`last used volume (${lastUsedVolume}) has missing drive, docker daemon not started`)
     return
   }
 

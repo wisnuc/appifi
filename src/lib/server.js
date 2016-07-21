@@ -6,6 +6,7 @@ import { daemonStart, daemonStop, daemonStartOp, containerStart, containerStop, 
   installedStart, installedStop, appInstall, appUninstall } from './docker'
 import { mkfsBtrfsOperation } from './storage'
 import network from './eth'
+import { setFanScale, updateFanSpeed } from './barcelona'
 import timedate from './timedate'
 
 let status = 0
@@ -106,6 +107,7 @@ const facade = () => {
     tasks: tasksFacade(storeState().tasks),
     network: storeState().network,
     timeDate: storeState().timeDate,
+    barcelona: storeState().barcelona
   } 
 }
 
@@ -114,11 +116,12 @@ const networkUpdate = async () => storeDispatch({
   data: (await network())
 })
 
+
+
 const timeDateUpdate = async () => storeDispatch({
   type: 'TIMEDATE_UPDATE',
   data: (await Promise.promisify(timedate)())
 })
-
 
 const systemReboot = async () => {
 
@@ -172,9 +175,16 @@ const operationAsync = async (req) => {
     case 'networkUpdate':
       f = networkUpdate
       break
+    case 'barcelonaFanScaleUpdate':
+      f = setFanScale
+      break
+    case 'barcelonaFanSpeedUpdate':
+      f = updateFanSpeed
+      break
     case 'timeDateUpdate':
       f = timeDateUpdate
       break
+  
     default:
       info(`operation not implemented, ${req.operation}`)
     }
