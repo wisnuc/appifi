@@ -31,7 +31,7 @@ const nav = (state = navDefault, action) => {
   switch (action.type) {
   case 'NAV_SELECT': {
 
-    console.log(action)
+    console.log(`NAV_SELECT: ${action.select}`)
       // find select
     let select = state.find((item) => {
       return item.name === action.select

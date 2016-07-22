@@ -77,30 +77,35 @@ export const decoration = [
         text: { en_US: 'Cooling' },
         icon: IconHardwareToys,
         render: Cooling,
+        themeColor: 'indigo'
       },
       {
         name: 'TIMEDATE',
         text: { en_US: 'Date & Time' },
         icon: IconDeviceAccessTime,
-        render: TimeDate
+        render: TimeDate,
+        themeColor: 'brown'
       },
       {
         name: 'SYSUPDATE',
         text: { en_US: 'Update', },
         icon: IconNotificationSystemUpdate,
-        render: SysUpdate
+        render: SysUpdate,
+        themeColor: 'blue'
       },
       {
         name: 'PASSWORD',
         text: { en_US: 'Password', },
         icon: IconHardwareSecurity,
         render: Password,
+        themeColor: 'red'
       },
       {
         name: 'POWER',
         text: { en_US: 'Power', },
         icon: IconActionPowerSettingsNew,
-        render: PowerOff
+        render: PowerOff,
+        themeColor: 'green'
       } 
     ]
 
@@ -472,7 +477,9 @@ class Navigation extends React.Component {
                     style={{margin:8, marginRight:-16 }} 
                     tooltip="lock screen" 
                     onTouchTap={() => {
-                      console.log('lock')
+                      window.store.dispatch({type: 'NAV_SELECT', select: 'APP'}) 
+                      window.store.dispatch({type: 'NAV_SELECT', select: 'APPSTORE' })
+                      window.store.dispatch({type: 'THEME_COLOR', color: decoration[0].themeColor})
                       window.store.dispatch({type: 'LOGOUT'})
                     }}
                   >
