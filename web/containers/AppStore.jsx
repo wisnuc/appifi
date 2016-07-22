@@ -3,7 +3,6 @@ import React from 'react'
 import { Card, CardTitle, CardHeader, CardMedia, CardActions, CardText } from 'material-ui/Card'
 import { FlatButton, RaisedButton, Paper, Dialog } from 'material-ui'
 
-// TODO
 import Progress from './Progress'
 
 import { dispatch, appstoreStore, dockerState, storageState, appstoreState, taskStates } from '../utils/storeState'
@@ -31,10 +30,6 @@ const appInstalling = (app) => {
   let tasks = taskStates()
   if (!tasks || !tasks.length) return false
   return tasks.find(t => t.type === 'appInstall' && t.id === app.key && t.status === 'started')
-}
-
-const InstallingBoard = ({}) => {
-  
 }
 
 const SelectedApp = ({
@@ -225,7 +220,7 @@ const RenderBanner = ({text, busy, refresh}) => {
 
 const render = () => {
 
-  let { error, request, timeout, selectedApp } = appstoreStore()
+  let { selectedApp } = appstoreStore()
   let appstore = appstoreState()
   let storage = storageState()
   let docker = dockerState()
