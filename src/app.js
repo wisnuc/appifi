@@ -36,6 +36,8 @@ app.use(express.static(path.join(__dirname, '../public')))
  * module init
  */
 import { storeDispatch } from './lib/reducers'
+import { initConfig, getConfig } from './lib/appifiConfig'
+import { setFanScale, updateFanSpeed, pollingPowerButton } from './lib/barcelona'
 import server from './lib/server'
 import appstore from './lib/appstore'
 import docker from './lib/docker'
@@ -50,6 +52,13 @@ process.argv.forEach(function (val, index, array) {
     })
   }
 });
+
+initConfig()
+
+// code for barcelona, harmless for other platfrom
+updateFanSpeed()
+pollingPowerButton()
+setFanScale(getConfig('barcelonaFanScale'))
 
 storage.init()
 docker.init()

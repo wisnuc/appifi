@@ -15,6 +15,7 @@ import AppStoreRender from './AppStore'
 import InstalledAppsRender from './InstalledApps'
 import Storage from './Storage'
 import Network from './Network'
+import Cooling from './Cooling'
 import TimeDate from './TimeDate'
 import Password from './Password'
 import SysUpdate from './SysUpdate'
@@ -75,6 +76,7 @@ export const decoration = [
         name: 'COOLING',
         text: { en_US: 'Cooling' },
         icon: IconHardwareToys,
+        render: Cooling,
       },
       {
         name: 'TIMEDATE',
