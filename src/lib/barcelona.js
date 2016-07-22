@@ -17,10 +17,11 @@ const updateFanSpeed = () =>
     .then(data => {
       let fanSpeed = parseInt(data.toString().trim())
       storeDispatch({
-	type: 'BARCELONA_FANSPEED_UPDATE',
-	data: fanSpeed
+        type: 'BARCELONA_FANSPEED_UPDATE',
+        data: fanSpeed
       })
     })
+    .catch(e => {}) // suppress nodejs red warning
 
 var powerButtonCounter = 0
 
@@ -34,7 +35,10 @@ const pollingPowerButton = () =>
         }
         else
           powerButtonCounter = 0
-      }), 1000)
+      })
+      .catch(e => {}) // suppress nodejs red warning
+
+  , 1000)
 
 const setFanScale = async (scale) => {
 

@@ -262,7 +262,7 @@ async function init() {
   }
 
   let lastUsedVolume = getConfig('lastUsedVolume')
-  if (lastUsedVolume) {
+  if (!lastUsedVolume) {
     info('last used volume not set, docker daemon not started')
     return
   }

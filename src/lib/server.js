@@ -9,6 +9,7 @@ import { daemonStart, daemonStop, daemonStartOp, containerStart, containerStop, 
 import { mkfsBtrfsOperation } from './storage'
 import network from './eth'
 import { setFanScale, updateFanSpeed } from './barcelona'
+import appstore from './appstore'
 import timedate from './timedate'
 
 let status = 0
@@ -118,22 +119,19 @@ const networkUpdate = async () => storeDispatch({
   data: (await network())
 })
 
-
-
 const timeDateUpdate = async () => storeDispatch({
   type: 'TIMEDATE_UPDATE',
   data: (await Promise.promisify(timedate)())
 })
 
-const systemReboot = async () => 
-  new Promise((resolve, reject) => 
-    child.exec('reboot', (err, stdout, stderr) => 
-      err ? reject(err) : resolve(null)))
-  
-const systemPowerOff = async () => 
-  new Promise((resolve, reject) => 
-    child.exec('poweroff', (err, stdout, stderr) => 
-      err ? reject(err) : resolve(null)))
+const shutdown = (cmd) =>
+  setTimeout(() => {
+    child.exec('echo "PWRD_LED 3" > /proc/BOARD_io', err => {})
+    child.exec(`${cmd}`, err => {})
+  }, 1000)
+
+const systemReboot = async () => shutdown('reboot') 
+const systemPowerOff = async () => shutdown('poweroff')
  
 const operationAsync = async (req) => {
 
@@ -193,6 +191,9 @@ const operationAsync = async (req) => {
       break
     case 'systemPowerOff':
       f = systemPowerOff
+      break
+    case 'appstoreRefresh':
+      f = appstore.reload
       break
 
     default:

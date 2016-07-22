@@ -206,69 +206,74 @@ const renderAppCard = (app) => {
 
 const PAGEKEY = 'appstore-page-key'
 
-let render = () => {
+const RenderBanner = ({text, busy, refresh}) => {
+  return (
+    <div style={{display:'flex', alignItems:'center', justifyContent:'space-between'}}>
+      <div style={{display:'flex', alignItems:'center'}}>
+        <div style={{fontSize:16, opacity:0.54}}>{text}</div>
+        { busy && <CircularProgress size={0.4} /> }
+      </div> 
+      { refresh && <RaisedButton label='refresh' onTouchTap={() => dispatch({
+          type: 'SERVEROP_REQUEST',
+          data: {
+            operation: 'appstoreRefresh'
+          }
+        })}/> }
+    </div>
+  ) 
+}
+
+const render = () => {
 
   let { error, request, timeout, selectedApp } = appstoreStore()
   let appstore = appstoreState()
   let storage = storageState()
   let docker = dockerState()
 
-  if (!storage || storage instanceof Error) {
-    return <div key={PAGEKEY}><Progress key='appstore_loading' text='Connecting to AppStation' busy={true} /></div>
+  if (!storage || typeof storage === 'string') {
+    return <div key={PAGEKEY}><Progress key='appstore_loading' text='Server not ready' busy={false} /></div>
   }
-
-  if (docker === null) {
-
-    console.log(`[AppStore] docker is null`)
-    if (storage.volumes.length === 0) {
-      console.log(`[AppStore] storage no volume`)
-      return null
-    }
+  else if (storage.volumes.length === 0) {
+    return <div key={PAGEKEY}><Progress key='appstore_loading' text='Please create a volume before using AppStore' busy={false} /></div>
+  }
+  else if (!docker) {
     return <div key={PAGEKEY}><Progress key='appstore_loading' text='AppEngine not started' busy={false} /></div>
   }
-
-  if (appstore === null) {
-    return <Progress key='appstore_loading' text='AppStore not started' busy={false} />
+  else if (!appstore) {
+    return <div key={PAGEKEY}><Progress key='appstore_loading' text='Server error: AppStore not started' busy={false} /></div>
   }
-
-  if (appstore.status === 'ERROR') { // TODO
-    return (<div key='appstore_loading'>Error loading appstore, please refresh</div>
-    )
+  else if (appstore.status === 'ERROR') {
+    return <RenderBanner text='AppStore Error, failed loading recipes from github.com' refresh={true} />
   }
-
-  if (appstore.status === 'LOADING') {
-    return <Progress key='appstore_loading' text='Loading Apps from AppStore' busy={true} />
+  else if (appstore.status === 'LOADING') {
+    return <div key={PAGEKEY}><Progress key='appstore_loading' text='Loading Apps from AppStore' busy={true} /></div>
   }
-
-  // Assert status is success
-  if (appstore.result.length === 0) {
-    return <Progress key='appstore_loading' text='It seems that your computer can not connect to docker hub (hub.docker.com)' busy={false} />
+  else if (appstore.result
+            .reduce((prev, curr) => prev.concat(curr.components), [])
+            .every(compo => compo.repo === null)) {
+    return <RenderBanner text='AppStore Error, failed loading repository information from hub.docker.com' refresh={true} />
   }
 
   return (
     <div key='appstore-content-page' >
-      <div style={{display:'flex', alignItems:'center', justifyContent:'space-between'}}>
-        <div style={{fontSize:16, opacity:0.54}}>Recommended Apps</div>
+      <RenderBanner text='Recommended Apps' refresh={true} />
+      <div>
+        <div style={{display: 'flex', flexWrap: 'wrap'}}>
+          { appstore.result.map(app => renderAppCard(app)) }
+        </div>
+        <Dialog
+          style={{overflowY: scroll}}
+          actions={null}
+          modal={false}
+          open={selectedApp !== null}
+          onRequestClose={() => dispatch({
+            type: 'STORE_SELECTEDAPP',
+            selectedApp: null
+          })}
+        >
+          { renderSelectedApp(selectedApp) }
+        </Dialog>
       </div>
-      <div style={{
-        display: 'flex',
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-      }}>
-        { appstore.result.map(app => renderAppCard(app)) }
-      </div>
-      <Dialog
-        style={{overflowY: scroll}}
-        actions={null}
-        modal={false}
-        open={selectedApp !== null}
-        onRequestClose={() => dispatch({
-          type: 'STORE_SELECTEDAPP',
-          selectedApp: null
-        })}
-      >
-        { renderSelectedApp(selectedApp) }
-      </Dialog>
     </div>
   )
 }
