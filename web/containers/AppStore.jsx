@@ -3,29 +3,18 @@ import React from 'react'
 import { Card, CardTitle, CardHeader, CardMedia, CardActions, CardText } from 'material-ui/Card'
 import { FlatButton, RaisedButton, Paper, Dialog } from 'material-ui'
 
-import Progress from './Progress'
+import JumbotronText from './JumbotronText'
 
 import { dispatch, appstoreStore, dockerState, storageState, appstoreState, taskStates } from '../utils/storeState'
 import imagePrefix from '../utils/imagePrefix'
 
-const formatNumber = (num) => {
+const formatNumber = (num) => 
+  (num > 999999) ? (num/1000000).toFixed(1) + 'M' : 
+    (num > 999) ? (num/1000).toFixed(1) + 'K' : num
 
-  if (num > 999999) {
-    return (num/1000000).toFixed(1) + 'M'
-  }
-  else if (num > 999) {
-    return (num/1000).toFixed(1) + 'K'
-  }
-  return num
-}
+const appInstalled = (app) => 
+  dockerState().installeds.find(inst => inst.recipeKeyString === app.key)
 
-// return installed 
-const appInstalled = (app) => {
-  let installeds = dockerState().installeds
-  return installeds.find(inst => inst.recipeKeyString === app.key)
-}
-
-// return task
 const appInstalling = (app) => {
   let tasks = taskStates()
   if (!tasks || !tasks.length) return false
@@ -199,10 +188,11 @@ const renderAppCard = (app) => {
   )
 }
 
-const PAGEKEY = 'appstore-page-key'
+const PAGEKEY = 'appstore-content-page'
+const JUMBOKEY = 'appstore-content-page-jumbo-text'
+const APPSKEY = 'appstore-content-apps'
 
-const RenderBanner = ({text, busy, refresh}) => {
-  return (
+const RenderBanner = ({text, busy, refresh}) => (
     <div style={{display:'flex', alignItems:'center', justifyContent:'space-between'}}>
       <div style={{display:'flex', alignItems:'center'}}>
         <div style={{fontSize:16, opacity:0.54}}>{text}</div>
@@ -216,7 +206,6 @@ const RenderBanner = ({text, busy, refresh}) => {
         })}/> }
     </div>
   ) 
-}
 
 const render = () => {
 
@@ -226,31 +215,31 @@ const render = () => {
   let docker = dockerState()
 
   if (!storage || typeof storage === 'string') {
-    return <div key={PAGEKEY}><Progress key='appstore_loading' text='Server not ready' busy={false} /></div>
+    return <div key={PAGEKEY}><JumbotronText key={JUMBOKEY} text='Server not ready' /></div>
   }
   else if (storage.volumes.length === 0) {
-    return <div key={PAGEKEY}><Progress key='appstore_loading' text='Please create a volume before using AppStore' busy={false} /></div>
+    return <div key={PAGEKEY}><JumbotronText key={JUMBOKEY} text='Please create a volume before using AppStore' /></div>
   }
   else if (!docker) {
-    return <div key={PAGEKEY}><Progress key='appstore_loading' text='AppEngine not started' busy={false} /></div>
+    return <div key={PAGEKEY}><JumbotronText key={JUMBOKEY} text='AppEngine not started' /></div>
   }
   else if (!appstore) {
-    return <div key={PAGEKEY}><Progress key='appstore_loading' text='Server error: AppStore not started' busy={false} /></div>
+    return <div key={PAGEKEY}><JumbotronText key={JUMBOKEY} text='Server error: AppStore not started' /></div>
   }
   else if (appstore.status === 'ERROR') {
-    return <RenderBanner text='AppStore Error, failed loading recipes from github.com' refresh={true} />
+    return <div key={APPSKEY}><RenderBanner text='AppStore Error, failed loading recipes from github.com' refresh={true} /></div>
   }
   else if (appstore.status === 'LOADING') {
-    return <div key={PAGEKEY}><Progress key='appstore_loading' text='Loading Apps from AppStore' busy={true} /></div>
+    return <div key={PAGEKEY}><JumbotronText key={JUMBOKEY} text='Loading Apps from AppStore' busy={true} /></div>
   }
   else if (appstore.result
             .reduce((prev, curr) => prev.concat(curr.components), [])
             .every(compo => compo.repo === null)) {
-    return <RenderBanner text='AppStore Error, failed loading repository information from hub.docker.com' refresh={true} />
+    return <div key={APPSKEY}><RenderBanner text='AppStore Error, failed loading repository information from hub.docker.com' refresh={true} /></div>
   }
 
   return (
-    <div key='appstore-content-page' >
+    <div key={APPSKEY} >
       <RenderBanner text='Recommended Apps' refresh={true} />
       <div>
         <div style={{display: 'flex', flexWrap: 'wrap'}}>
