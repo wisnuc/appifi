@@ -13,15 +13,14 @@ const reducer = (state = null, action) => {
           mute: true
         },
       }), 1000)
-      return state
     }
     else {
       if (state) {
         clearInterval(state)
         return null
       } 
-      return state
     }
+    return state
 
   default:
     return state

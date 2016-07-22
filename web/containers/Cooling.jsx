@@ -14,7 +14,9 @@ const Cooling = () => {
 
   if (!barcelona || !barcelona.hasOwnProperty('fanSpeed') || !barcelona.hasOwnProperty('fanScale')) {
     return (
-      <div key='cooling-content-page'>This function is not available on this device.</div>
+      <div key='cooling-content-page'>
+        <div style={{fontSize:16, opacity:0.54, marginBottom:16}}>Feature is not available for this device</div>
+      </div>
     )
   }
 
@@ -44,7 +46,8 @@ const Cooling = () => {
   }
 
   return (
-    <div >
+    <div key='cooling-content-page'>
+      <div style={{fontSize:16, opacity:0.54, marginBottom:16}}>Fan Control</div>
       <div style={{display:'flex'}}>
         <Paper style={{padding:0}}>
           <div style={titleStyle}>SCALE</div>
@@ -70,8 +73,8 @@ const Cooling = () => {
             })}/>
           </div>
           <div style={footerStyle}>
-            <div>Click arrow to</div>
-            <div>adjust fan speed</div>
+            <div>click arrow to adjust</div>
+            <div>the driving force of motor</div>
           </div>
         </Paper>
         <Paper style={{padding:0, marginLeft:24}}>

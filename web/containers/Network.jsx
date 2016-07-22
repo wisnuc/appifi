@@ -101,7 +101,7 @@ const render = () => {
   }
 
   return (
-    <div key='network-content-page-key'>
+    <div key='network-content-page'>
       <div style={{display: 'flex', alignItems: 'center', justifyContent:'space-between'}}>
         <div style={{fontSize:16, opacity:0.54}}>Network Interfaces</div>
         <FlatButton label='refresh' onTouchTap={() => dispatch({type: 'SERVEROP_REQUEST', data: { operation: 'networkUpdate' }})} />

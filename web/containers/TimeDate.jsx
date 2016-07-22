@@ -22,15 +22,6 @@ export default () => (
     <Paper style={{padding:16}}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent:'space-between', marginBottom:16 }}>
         <div style={{fontSize:24, opacity:0.87}}>Date and Time</div>
-        <FlatButton 
-          label='refresh' 
-          onTouchTap={() => dispatch({
-            type: 'SERVEROP_REQUEST',
-            data: {
-              operation: 'timeDateUpdate',
-            }
-          })} 
-        />
       </div>
       { timeDateState() && renderTimeDate(timeDateState()) }
     </Paper>
