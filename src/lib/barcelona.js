@@ -59,5 +59,8 @@ const setFanScale = async (scale) => {
   })
 }
 
+// workaround
+child.exec('echo "PWR_LED 1" > /proc/BOARD_io', err => {})
+
 export {updateFanSpeed, pollingPowerButton, setFanScale}
 
