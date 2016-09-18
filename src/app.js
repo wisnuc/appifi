@@ -27,6 +27,7 @@ app.use(logger('dev', {
     return false
   }
 }))
+
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: false }))
 app.use(cookieParser())
@@ -35,13 +36,13 @@ app.use(express.static(path.join(__dirname, '../public')))
 /*
  * module init
  */
-import { storeDispatch } from './lib/reducers'
-import { initConfig, getConfig } from './lib/appifiConfig'
-import { setFanScale, updateFanSpeed, pollingPowerButton } from './lib/barcelona'
-import server from './lib/server'
-import appstore from './lib/appstore'
-import docker from './lib/docker'
-import storage from './lib/storage'
+import { storeDispatch } from './appifi/lib/reducers'
+import { initConfig, getConfig } from './appifi/lib/appifiConfig'
+import { setFanScale, updateFanSpeed, pollingPowerButton } from './appifi/lib/barcelona'
+import server from './appifi/lib/server'
+import appstore from './appifi/lib/appstore'
+import docker from './appifi/lib/docker'
+import storage from './appifi/lib/storage'
 
 process.argv.forEach(function (val, index, array) {
   if (val === '--appstore-master') {
@@ -67,9 +68,9 @@ appstore.reload()
 /*
  * routes
  */
-app.use('/', require('./routes/index'))
-app.use('/appstore', require('./routes/appstore'))
-app.use('/server', require('./routes/server'))
+app.use('/', require('./appifi/routes/index'))
+app.use('/appstore', require('./appifi/routes/appstore'))
+app.use('/server', require('./appifi/routes/server'))
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
