@@ -132,6 +132,11 @@ const shutdown = (cmd) =>
 
 const systemReboot = async () => shutdown('reboot') 
 const systemPowerOff = async () => shutdown('poweroff')
+
+const daemonStartOp2 = async () => {
+
+
+}
  
 const operationAsync = async (req) => {
 
@@ -148,6 +153,7 @@ const operationAsync = async (req) => {
       f = daemonStartOp
       break 
     case 'daemonStop':
+      console.log('opeartionAsync: daemonStop')
       f = daemonStop
       break
     case 'containerStart':

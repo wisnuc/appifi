@@ -42,25 +42,38 @@ async function mkdirpAsync(dirpath) {
 async function probeDaemon() {
 
   return await new Promise((resolve) => { // TODO never reject?
-    child.exec('ps aux | grep docker | grep "docker daemon"', (err, stdout) => { // stderr not used
+    child.exec('ps aux | grep docker | grep "dockerd"', (err, stdout) => { // stderr not used
+
+/**
+
+dockerd --exec-root=/run/wisnuc/volumes/12a23977-dbe1-437f-af4e-a431290581eb/wisnuc/r --graph=/run/wisnuc/volumes/12a23977-dbe1-437f-af4e-a431290581eb/wisnuc/g --host=127.0.0.1:1688 --pidfile=/run/wisnuc/app/docker.pid
+
+00  [ 'root',
+01    '1519',
+02    '0.0',
+03    '1.0',
+04    '627256',
+05    '42060',
+06    '?',
+07    'Ssl',
+08    '16:50',
+09    '0:00',
+10    'dockerd',
+11    '--exec-root=/run/wisnuc/volumes/12a23977-dbe1-437f-af4e-a431290581eb/wisnuc/r',
+12    '--graph=/run/wisnuc/volumes/12a23977-dbe1-437f-af4e-a431290581eb/wisnuc/g',
+13    '--host=127.0.0.1:1688',
+14    '--pidfile=/run/wisnuc/app/docker.pid' ]
+**/
 
       /** the assumption is only one instance of daemon now **/
       let cmdline = toLines(stdout).find(line => {
-      /*  [ 'root', '12670', '0.0', '1.9', '555028', '39444', '?', 'Ssl', 'May03', '0:25', 'docker', 'daemon', // 12 total
-            '--exec-root="/run/wisnuc/volumes/da2ba49b-1d16-4f6e-8005-bfaedd110814/root"', 
-            '--graph="/run/wisnuc/volumes/da2ba49b-1d16-4f6e-8005-bfaedd110814/graph"',
-            '--host="127.0.0.1:1688"',
-            '--pidfile="/run/wisnuc/app/docker.pid"' ] */
-        // console.log(line)
-        let p = line.split(/\s+/)
-        // console.log(p)
-        if (p.length === 16 &&
-            p[10] === 'docker' && 
-            p[11] === 'daemon' &&
-            p[12].startsWith('--exec-root=/run/wisnuc/volumes/') && 
-            p[13].startsWith('--graph=/run/wisnuc/volumes/') &&
-            p[14] === '--host=127.0.0.1:1688' &&
-            p[15] === '--pidfile=/run/wisnuc/app/docker.pid') return true
+        let p = line.split(/\s+/).map(l => l.trim()).slice(10)
+        if (p.length === 5 &&
+            p[0] === 'dockerd' && 
+            p[1].startsWith('--exec-root=/run/wisnuc/volumes/') && 
+            p[2].startsWith('--graph=/run/wisnuc/volumes/') &&
+            p[3] === '--host=127.0.0.1:1688' &&
+            p[4] === '--pidfile=/run/wisnuc/app/docker.pid') return true
         return false
       })
 
@@ -71,18 +84,7 @@ async function probeDaemon() {
 
       let p = cmdline.split(/\s+/)
       let pid = parseInt(p[1])
-      let pp = p[12].split(/\//)
-/**
-[ '--exec-root=',
-  'run',
-  'wisnuc',
-  'volumes',
-  'faa48687-8b84-42ce-b625-ab49cf9e7830',
-  'wisnuc',
-  'docker',
-  'root' ]
-**/
-
+      let pp = p[11].split(/\//)
       let volume = pp[4]
 
       info(`probeDaemon, docker is running with pid: ${pid}, volume:${volume}`)
