@@ -50,6 +50,9 @@ router.post('/', auth.jwt(), (req, res) => {
 
 router.post('/:libUUID', auth.jwt(), (req, res) => {
 
+  // FIXME check content type, 'Content-Type: multipart/form-data'
+  //                                          application/json
+
   let repo = Models.getModel('repo')
 
   const forest = Models.getModel('forest')
@@ -89,6 +92,7 @@ router.post('/:libUUID', auth.jwt(), (req, res) => {
     }
 
     forest.createFile(user.uuid, file.path, node, `${sha256}`, (err, newNode) => {
+      // check error code FIXME should return success if EEXIST
       if (err) return res.status(500).json({}) // TODO
 
       let entry = {

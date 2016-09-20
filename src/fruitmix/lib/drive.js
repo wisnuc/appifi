@@ -205,7 +205,7 @@ class Drive extends IndexedTree {
 
     if (!targetNode.userWritable(userUUID)) {
       let error = new Error('createFile: operation not permitted')
-      error.code = 'EPERM'
+      error.code = 'EACCESS'
       return process.nextTick(callback, error)
     } 
 

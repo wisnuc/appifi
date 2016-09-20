@@ -1,6 +1,7 @@
+import path from 'path'
 import fs from 'fs'
 import child from 'child_process'
-import Promise from 'bluebird'
+import Debug from 'debug'
 
 import mkdirp from 'mkdirp'
 
@@ -16,6 +17,8 @@ import { AppInstallTask } from './dockerTasks'
 import { calcRecipeKeyString, appMainContainer } from './dockerApps'
 import { storeState, storeDispatch } from '../lib/reducers'
 
+const debug = Debug('docker')
+
 const dockerUrl = 'http://127.0.0.1:1688'
 const dockerPidFile = '/run/wisnuc/app/docker.pid'
 const dockerVolumesDir = '/run/wisnuc/volumes'
@@ -26,14 +29,14 @@ const dockerAppdataDir = () => {
   return `${dockerVolumesDir}/${storeState().docker.volume}/wisnuc/appdata`
 }
 
-function info(message) {
-  console.log(`[docker] ${message}`)
+const dockerFruitmixDir = (uuid) => {
+  return path.join(dockerVolumesDir, uuid, 'wisnuc', 'fruitmix') 
 }
 
-async function mkdirpAsync(dirpath) {
+// TODO change to debug module
+const info = (message) => console.log(`[docker] ${message}`)
 
-  return new Promise(resolve => mkdirp(dirpath, err => err ? resolve(err) : resolve(null)))
-}
+const mkdirpAsync = Promise.promisify(mkdirp)
 
 /*
  * async function, return { running: false } or { running: true, pid, volume }, may return error
@@ -41,29 +44,9 @@ async function mkdirpAsync(dirpath) {
  */
 async function probeDaemon() {
 
-  return await new Promise((resolve) => { // TODO never reject?
+  return await new Promise((resolve, reject) => { // TODO never reject?
     child.exec('ps aux | grep docker | grep "dockerd"', (err, stdout) => { // stderr not used
-
-/**
-
-dockerd --exec-root=/run/wisnuc/volumes/12a23977-dbe1-437f-af4e-a431290581eb/wisnuc/r --graph=/run/wisnuc/volumes/12a23977-dbe1-437f-af4e-a431290581eb/wisnuc/g --host=127.0.0.1:1688 --pidfile=/run/wisnuc/app/docker.pid
-
-00  [ 'root',
-01    '1519',
-02    '0.0',
-03    '1.0',
-04    '627256',
-05    '42060',
-06    '?',
-07    'Ssl',
-08    '16:50',
-09    '0:00',
-10    'dockerd',
-11    '--exec-root=/run/wisnuc/volumes/12a23977-dbe1-437f-af4e-a431290581eb/wisnuc/r',
-12    '--graph=/run/wisnuc/volumes/12a23977-dbe1-437f-af4e-a431290581eb/wisnuc/g',
-13    '--host=127.0.0.1:1688',
-14    '--pidfile=/run/wisnuc/app/docker.pid' ]
-**/
+      if (err) return reject(err)
 
       /** the assumption is only one instance of daemon now **/
       let cmdline = toLines(stdout).find(line => {
@@ -127,10 +110,12 @@ async function daemonStart(uuid) {
   let execRootDir = `${mountpoint}/wisnuc/r`
   let graphDir = `${mountpoint}/wisnuc/g`
   let appDataDir =`${dockerVolumesDir}/${uuid}/wisnuc/appdata` 
+  let fruitmixDir= `${dockerVolumesDir}/${uuid}/wisnuc/fruitmix`
 
   await mkdirpAsync(execRootDir)
   await mkdirpAsync(graphDir)
   await mkdirpAsync(appDataDir)
+  await mkdirpAsync(fruitmixDir)
 
   let opts = {
     cwd: mountpoint,
@@ -140,8 +125,6 @@ async function daemonStart(uuid) {
  
   let args = [
     'daemon', 
-//    `--exec-root=${mountpoint}/root`, 
-//    `--graph=${mountpoint}/graph`, 
     `--exec-root=${execRootDir}`,
     `--graph=${graphDir}`,
     '--host=127.0.0.1:1688',  
@@ -149,6 +132,14 @@ async function daemonStart(uuid) {
   ]
 
   let dockerDaemon = child.spawn('docker', args, opts)
+
+  dockerDaemon.on('error', err => {
+
+    console.log('dockerDaemon error >>>>')
+    console.log(err)
+    console.log('dockerDaemon error <<<<')
+  })
+
   dockerDaemon.on('exit', (code, signal) => {
     dockerDaemon = null
     if (code !== undefined) console.log(`daemon exits with exitcode ${code}`)
@@ -172,10 +163,18 @@ async function daemonStop() {
   let daemon = await probeDaemon()
   if (daemon.running) { 
     info(`sending term signal to ${daemon.pid}`)
-    process.kill(daemon.pid)  
+
+    console.log(typeof daemon.pid)
+
+    try {
+      process.kill(daemon.pid)  
+    }
+    catch (e) {
+      console.log(e)
+    }
   }
 
-  await delay(2000) 
+  await delay(5000) 
 }
 
 function appStatus(recipeKeyString) {
@@ -244,7 +243,7 @@ async function appInstall(recipeKeyString) {
   })
 }
 
-async function init() {
+async function initAsync() {
 
   // mkdir -p
   await new Promise((resolve, reject) => {
@@ -457,9 +456,10 @@ async function operationAsync(req) {
 export default {
 
   init: () => {
-    init()
+    initAsync()
       .then(r => { // r undefined
         info(`initialized`)
+        debug('docker initialized')
       })
       .catch(e => {
         info('ERROR: init failed')
@@ -497,7 +497,8 @@ export {
   appUninstall,
 
   probeDaemon, 
-  dockerAppdataDir 
+  dockerAppdataDir, 
+  dockerFruitmixDir
 }
 
 
