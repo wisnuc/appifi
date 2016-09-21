@@ -1,7 +1,6 @@
 import fs from 'fs'
 import path from 'path'
 
-import Promise from 'bluebird'
 import paths from './paths'
 import models from '../models/models'
 import { createUserModelAsync } from '../models/userModel'
@@ -12,10 +11,6 @@ import createUUIDLog from './uuidlog'
 import { createDocumentStore } from './documentStore'
 import { createMediaShareStore } from './mediaShareStore'
 import createMedia from './media'
-
-let initialized = false
-
-const avail = (req, res, next) => initialized ? next() : res.status(503).end()  
 
 const initAsync = async (sysroot) => {
 
@@ -31,33 +26,38 @@ const initAsync = async (sysroot) => {
   let userModel = await createUserModelAsync(userModelPath, tmpPath)
   models.setModel('user', userModel)
 
+  // create and set drive model
   let driveModelPath = path.join(modelPath, 'drives.json')
   let driveModel = await createDriveModelAsync(driveModelPath, tmpPath)
   models.setModel('drive', driveModel)
 
+  // create uuid log 
   let logpath = paths.get('log')
   let log = createUUIDLog(logpath)
   models.setModel('log', log)
 
+  // create forest
   let forest = createDrive()
   models.setModel('forest', forest)
 
+  // create repo
   let repo = createRepo(paths, driveModel, forest)
   models.setModel('repo', repo)
   repo.init(err => err ? console.log(err) : null)
 
+  // create document store
   let docPath = paths.get('documents')
   let docstore = await Promise.promisify(createDocumentStore)(docPath, tmpPath)
 
+  // create mediashare store
   let mediasharePath = paths.get('mediashare')  
   let mediashareArchivePath = paths.get('mediashareArchive')
-  
   let msstore = createMediaShareStore(mediasharePath, mediashareArchivePath, tmpPath, docstore) 
 
+  // create media ???
   let media = createMedia(msstore)
   models.setModel('media', media)
 
-  initialized = true
 }
 
 const deinit = () => {
@@ -66,13 +66,9 @@ const deinit = () => {
   paths.unsetRoot()  
 }
 
-const system = {
-  avail,
-  init: (sysroot, callback) => 
-    initAsync(sysroot)
-      .then(r => callback(null))
-      .catch(e => callback(e))
+export default {
+  init: (sysroot, callback) => initAsync(sysroot).asCallback(callback),
+  deinit
 }
 
-export default system
 

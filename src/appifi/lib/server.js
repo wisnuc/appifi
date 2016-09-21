@@ -5,12 +5,14 @@ import Promise from 'bluebird'
 import { storeState, storeDispatch, storeSubscribe } from './reducers'
 import { calcRecipeKeyString } from './dockerApps'
 import { daemonStart, daemonStop, daemonStartOp, containerStart, containerStop, containerDelete,
-  installedStart, installedStop, appInstall, appUninstall } from './docker'
+  installedStart, installedStop, appInstall, appUninstall, dockerFruitmixDir } from './docker'
 import { mkfsBtrfsOperation } from './storage'
 import network from './eth'
 import { setFanScale, updateFanSpeed } from './barcelona'
 import appstore from './appstore'
 import timedate from './timedate'
+
+import { createFruitmix } from '../../fruitmix/fruitmix'
 
 let status = 0
 
@@ -132,6 +134,15 @@ const shutdown = (cmd) =>
 
 const systemReboot = async () => shutdown('reboot') 
 const systemPowerOff = async () => shutdown('poweroff')
+
+const daemonStartOp2 = async (uuid) => {
+
+  await daemonStartOp(uuid)
+  
+  let fruitRoot = dockerFruitmixDir(uuid)
+  let fruitmix = createFruitmix(fruitRoot)
+
+}
  
 const operationAsync = async (req) => {
 
@@ -145,7 +156,7 @@ const operationAsync = async (req) => {
 
     switch (req.operation) {
     case 'daemonStart':
-      f = daemonStartOp
+      f = daemonStartOp2
       break 
     case 'daemonStop':
       f = daemonStop
@@ -201,7 +212,11 @@ const operationAsync = async (req) => {
     }
   }
 
-  return f ? await f(...args) : null // TODO
+  if (f) {
+    return await f(...args)
+  }
+  
+  return null
 }
 
 export default {

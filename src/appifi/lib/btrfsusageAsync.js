@@ -160,6 +160,6 @@ const btrfs_usage = async (mountpoint) => {
 
 module.exports = btrfs_usage
 
-btrfs_usage('/run/wisnuc/volumes/79575a8e-673f-4d00-92ee-c338023ec754').then((result) => console.log(result))
+// btrfs_usage('/run/wisnuc/volumes/79575a8e-673f-4d00-92ee-c338023ec754').then((result) => console.log(result))
 
 
