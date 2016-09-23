@@ -3685,18 +3685,6 @@
       "from": "xxhash@>=0.2.4 <0.3.0",
       "resolved": "https://registry.npmjs.org/xxhash/-/xxhash-0.2.4.tgz"
     },
-    "xxhashjs": {
-      "version": "0.2.1",
-      "from": "xxhashjs@>=0.2.1 <0.3.0",
-      "resolved": "https://registry.npmjs.org/xxhashjs/-/xxhashjs-0.2.1.tgz",
-      "dependencies": {
-        "cuint": {
-          "version": "0.2.2",
-          "from": "cuint@latest",
-          "resolved": "https://registry.npmjs.org/cuint/-/cuint-0.2.2.tgz"
-        }
-      }
-    },
     "yargs": {
       "version": "3.10.0",
       "from": "yargs@>=3.10.0 <3.11.0",
