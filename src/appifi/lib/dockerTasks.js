@@ -109,6 +109,7 @@ class AppInstallTask extends task {
             if (e) {
               this.errno = e.errno
               this.message = e.message
+              console.error(e)
               info(`appInstall ${this.recipe.appname} failed`)
             }
             else {

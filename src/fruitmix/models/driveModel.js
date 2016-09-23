@@ -1,5 +1,6 @@
 import Promise from 'bluebird'
 
+import UUID from 'node-uuid'
 import validator from 'validator'
 
 import { openOrCreateCollectionAsync } from './collection'
@@ -33,6 +34,7 @@ class DriveModel {
 
   constructor(collection) {
     this.collection = collection
+    this.hash = UUID.v4()
   }
 
   // this function requires the uuid to be passed in
@@ -54,6 +56,8 @@ class DriveModel {
 
     // this function returns err or undefined
     this.collection.updateAsync(list, [...list, conf]).asCallback(callback)
+    // FIXME
+    this.hash = UUID.v4()
   }
 }
 

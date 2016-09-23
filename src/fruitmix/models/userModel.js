@@ -79,6 +79,7 @@ class UserModel extends EventEmitter{
   constructor(collection) {
     super()
     this.collection = collection
+    this.hash = UUID.v4()
   }
 
   createUser(props, callback) {
@@ -151,6 +152,7 @@ class UserModel extends EventEmitter{
       .updateAsync(list, [...list, newUser]) 
       .asCallback(err => { 
         if (err) return callback(err) 
+        this.hash = UUID.v4()
         process.nextTick(() => this.emit('userCreated', newUser))
         callback(null, newUser)
       }) 
@@ -223,6 +225,7 @@ class UserModel extends EventEmitter{
       .updateAsync(list, [...list.slice(0, index),  update, ...list.slice(index + 1)])
       .asCallback(err => {
         if (err) return callback(err)
+        this.hash = UUID.v4()
         process.nextTick(() => this.emit('userUpdated', user, update))
         callback(null, update)
       })

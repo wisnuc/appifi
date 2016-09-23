@@ -15,17 +15,17 @@ const router = Router()
 
 **/
 
-let rollover = UUID.v4()
 
-const smbUserList = ()  => {
+const userList = ()  => {
 
   let umod = models.getModel('user')
-
-  return umod.collection.list
-    .filter(user => user.smbUsername && user.smbPassword && user.smbLastChangeTime)
-    .sort((a, b) => a.smbUsername.localeCompare(b.smbUsername))
+  return umod.collection.list.sort((a, b) => a.uuid.localeCompare(b.uuid))
 }
 
+
+// xxxxxxxx-xxxx-Mxxx-Nxxx-xxxxxxxxxxxx <- hyphen and M are removed, then prefixed with letter x
+const uuidToUnixName = (uuid) => 
+  ['x', ...uuid.split('-').map((s, i) => i === 2 ? s.slice(1) : s)].join('')
 
 const shareList = (userList) => {
 
@@ -33,12 +33,6 @@ const shareList = (userList) => {
   let dmod = models.getModel('drive')
   let ulist = umod.collection.list
   let dlist = dmod.collection.list
-
-  let nmap = new Map()
-  ulist.forEach(user => {
-    if (user.smbUsername && user.smbPassword && user.smbLastChangeTime)
-      nmap.set(user.uuid, user.smbUsername)
-  })
 
   let shares = [] 
   dlist.forEach(drive => {
@@ -48,36 +42,34 @@ const shareList = (userList) => {
     if (drive.fixedOwner === true) {
 
       let owner = ulist.find(user => user.home === drive.uuid)
-      if (owner && owner.smbUsername && owner.smbPassword && owner.smbLastChangeTime) {
-        let shareName = owner.smbUsername
+      if (owner) {
+        let shareName = drive.uuid.slice(0, 8)
         let sharePath = '/drives/' + drive.uuid
-        let writelist = [owner.uuid, ...drive.writelist].sort()
+        let writelist = [owner.uuid, ...drive.writelist]
+          .sort()
           .filter((item, index, array) => !index || item !== array[index - 1])
-          .map(uuid => nmap.get(uuid))
-          .filter(name => !!name)
+          .map(uuidToUnixName)
 
-        let validUsers = [owner.uuid, ...drive.writelist, ...drive.readlist].sort()        
+        let validUsers = [owner.uuid, ...drive.writelist, ...drive.readlist]
+          .sort()        
           .filter((item, index, array) => !index || item !== array[index - 1])
-          .map(uuid => nmap.get(uuid))
-          .filter(name => !!name)
+          .map(uuidToUnixName)
 
         shares.push({ name: shareName, path: sharePath, writelist, validUsers })
       }
     } 
     else if (drive.fixedOwner === false) {
 
-      let shareName = drive.uuid
+      let shareName = drive.uuid.slice(0, 8)
       let sharePath = '/drives/' + drive.uuid 
       
       let writelist = [...drive.owner, ...drive.writelist].sort()
         .filter((item, index, array) => !index || item !== array[index - 1])
-        .map(uuid => nmap.get(uuid))
-        .filter(name => !!name)
+        .map(uuidToUnixName)
 
       let validUsers = [...drive.owner, ...drive.writelist, ...drive.readlist].sort()        
         .filter((item, index, array) => !index || item !== array[index - 1])
-        .map(uuid => nmap.get(uuid))
-        .filter(name => !!name)
+        .map(uuidToUnixName)
 
       if (validUsers.length > 0) {
         shares.push({ name: shareName, path: sharePath, writelist, validUsers })
@@ -88,11 +80,20 @@ const shareList = (userList) => {
   return shares
 }
 
-router.get('/rollover', (req, res) => res.status(200).send(rollover.toString()))
+router.get('/rollover', (req, res) => {
+
+  let umod = models.getModel('user')
+  let dmod = models.getModel('drive')
+
+  let rollover = umod.hash + ':' + dmod.hash
+
+  res.status(200).send(rollover)
+})
 
 router.get('/conf', (req, res) => {
 
   let global =  '[global]\n' +
+                '  username map = /usernamemap.txt\n' +
                 '  workgroup = WORKGROUP\n' +
                 '  netbios name = SAMBA\n' +
                 '  map to guest = Bad User\n' +
@@ -131,7 +132,7 @@ router.get('/createUsers', (req, res) => {
 
   let uid = 2000
 
-  let script = smbUserList().reduce((prev, curr) => prev + line(curr.smbUsername, uid++), shebang)
+  let script = userList().reduce((prev, curr) => prev + line(uuidToUnixName(curr.uuid), uid++), shebang)
 
   res.status(200).send(script)
 })
@@ -142,10 +143,16 @@ router.get('/database', (req, res) => {
     `${username}:${userid.toString()}:XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX:${password.toUpperCase()}:[U          ]:LCT-${sec.toString(16).toUpperCase()}:\n`
 
   let uid = 2000
-  let database = smbUserList().reduce((prev, user) => 
-    prev + line(user.smbUsername, uid++, user.smbPassword, user.smbLastChangeTime), '')
+  let database = userList().reduce((prev, user) => 
+    prev + line(uuidToUnixName(user.uuid), uid++, user.smbPassword, Math.floor(user.lastChangeTime / 1000)), '')
 
   res.status(200).send(database)
+})
+
+router.get('/usernamemap', (req, res) => {
+
+  let map = userList().reduce((prev, user) => prev + `${uuidToUnixName(user.uuid)} = "${user.username}"\n`, '')
+  res.status(200).send(map)
 })
 
 export default router
