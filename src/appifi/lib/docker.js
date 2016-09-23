@@ -4,6 +4,7 @@ import child from 'child_process'
 import Debug from 'debug'
 
 import mkdirp from 'mkdirp'
+import request from 'superagent'
 
 import { toLines, delay } from '../lib/utils'
 import { createStore, combineReducers } from '../lib/reduced'
@@ -24,59 +25,44 @@ const dockerPidFile = '/run/wisnuc/app/docker.pid'
 const dockerVolumesDir = '/run/wisnuc/volumes'
 
 const dockerAppdataDir = () => {
-
   if (!storeState().docker || !storeState().docker.volume) return null
   return `${dockerVolumesDir}/${storeState().docker.volume}/wisnuc/appdata`
 }
 
-const dockerFruitmixDir = (uuid) => {
-  return path.join(dockerVolumesDir, uuid, 'wisnuc', 'fruitmix') 
+const dockerFruitmixDir = () => {
+
+  if (!storeState().docker || !storeState().docker.volume) return null
+  return `${dockerVolumesDir}/${storeState().docker.volume}/wisnuc/fruitmix`
 }
 
 // TODO change to debug module
 const info = (message) => console.log(`[docker] ${message}`)
 
 const mkdirpAsync = Promise.promisify(mkdirp)
+Promise.promisifyAll(fs)
 
-/*
- * async function, return { running: false } or { running: true, pid, volume }, may return error
- * in future
- */
-async function probeDaemon() {
-
-  return await new Promise((resolve, reject) => { // TODO never reject?
-    child.exec('ps aux | grep docker | grep "dockerd"', (err, stdout) => { // stderr not used
-      if (err) return reject(err)
-
-      /** the assumption is only one instance of daemon now **/
-      let cmdline = toLines(stdout).find(line => {
-        let p = line.split(/\s+/).map(l => l.trim()).slice(10)
-        if (p.length === 5 &&
-            p[0] === 'dockerd' && 
-            p[1].startsWith('--exec-root=/run/wisnuc/volumes/') && 
-            p[2].startsWith('--graph=/run/wisnuc/volumes/') &&
-            p[3] === '--host=127.0.0.1:1688' &&
-            p[4] === '--pidfile=/run/wisnuc/app/docker.pid') return true
-        return false
-      })
-
-      if (!cmdline) {
-        info(`probeDaemon docker is not running`)
-        return resolve({running: false})
+const probeDaemon2 = (callback) => {
+  request
+    .get('http://localhost:1688/info')
+    .set('Accept', 'application/json')
+    .end((err, res) => {
+      if (err || !res.ok) {
+        callback(null, { running: false })
       }
-
-      let p = cmdline.split(/\s+/)
-      let pid = parseInt(p[1])
-      let pp = p[11].split(/\//)
-      let volume = pp[4]
-
-      info(`probeDaemon, docker is running with pid: ${pid}, volume:${volume}`)
-      resolve({running: true, pid, volume})
+      else {
+        let volume = res.body.DockerRootDir.split('/')[4]
+        console.log(`probeDaemon Success, volume: ${volume}`)
+        callback(null, {
+          running: true,
+          volume
+        })
+      }
     })
-  }) 
 }
 
-function dispatchDaemonStart(pid, volume, agent) {
+const probeDaemon = Promise.promisify(probeDaemon2)
+
+function dispatchDaemonStart(volume, agent) {
 
   let events = new DockerEvents(agent)
   events.on('update', state => {
@@ -85,6 +71,7 @@ function dispatchDaemonStart(pid, volume, agent) {
       data: state
     })
   })
+
   events.on('end', () => {
     storeDispatch({
       type: 'DAEMON_STOP'
@@ -92,9 +79,10 @@ function dispatchDaemonStart(pid, volume, agent) {
   })
 
   setConfig('lastUsedVolume', volume)
+
   storeDispatch({
     type: 'DAEMON_START',
-    data: { pid, volume, events }
+    data: { volume, events }
   })  
 }
 
@@ -152,30 +140,39 @@ async function daemonStart(uuid) {
   dockerDaemon.unref()
 
   let agent = await dockerEventsAgent() 
-  dispatchDaemonStart(dockerDaemon.pid, uuid, agent)
+  dispatchDaemonStart(uuid, agent)
 }
 
-/*
- * kill daemon anyway; TODO be nicer
- */
-async function daemonStop() {
 
-  let daemon = await probeDaemon()
-  if (daemon.running) { 
-    info(`sending term signal to ${daemon.pid}`)
+const daemonStop2 = (volume, callback) => {
 
-    console.log(typeof daemon.pid)
+  fs.readFile('/run/wisnuc/app/docker.pid', (err, data) => {
 
-    try {
-      process.kill(daemon.pid)  
+    if (err && err.code === 'ENOENT') 
+      return callback(null) 
+    else if (err) {
+      return callback(err)
     }
-    catch (e) {
-      console.log(e)
-    }
-  }
+    else {
+      let pid = parseInt(data.toString())
+      process.kill(pid)
 
-  await delay(5000) 
+      let timer = setInterval(() => {
+        try {
+          process.kill(pid, 0)
+        }
+        catch (e) {
+          // supposed error code is 'ESRCH', see man 2 kill
+          clearInterval(timer)
+          callback()
+        }
+      }, 1000)
+    } 
+  })
 }
+
+
+const daemonStop = Promise.promisify(daemonStop2)
 
 function appStatus(recipeKeyString) {
 
@@ -252,13 +249,12 @@ async function initAsync() {
     })
   })
 
-
   let daemon = await probeDaemon()
   if (daemon.running) {
     info(`daemon already running with pid ${daemon.pid} and volume ${daemon.volume}`)   
 
     let agent = await dockerEventsAgent() 
-    dispatchDaemonStart(daemon.pid, daemon.volume, agent)
+    dispatchDaemonStart(daemon.volume, agent)
     return
   }
 

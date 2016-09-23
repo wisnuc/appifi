@@ -32,7 +32,7 @@ const docker = (state = null, action) => {
   switch(action.type) {
   case 'DAEMON_START':
     newState = {
-      pid: action.data.pid,
+      // pid: action.data.pid,
       volume: action.data.volume,
       events: action.data.events,
       data: null,
@@ -62,7 +62,7 @@ const docker = (state = null, action) => {
     break
   }
 
-  dockerStateObserver(newState, state)
+  process.nextTick(() => dockerStateObserver(newState, state))
   return newState
 }
 

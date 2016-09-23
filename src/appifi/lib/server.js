@@ -83,7 +83,7 @@ const dockerFacade = (docker) => {
   if (!docker) return null
   
   let facade = {}
-  facade.pid = docker.pid
+  // facade.pid = docker.pid
   facade.volume = docker.volume
   
   if (docker.data) {
@@ -156,7 +156,7 @@ const operationAsync = async (req) => {
 
     switch (req.operation) {
     case 'daemonStart':
-      f = daemonStartOp2
+      f = daemonStartOp
       break 
     case 'daemonStop':
       f = daemonStop

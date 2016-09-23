@@ -1,5 +1,11 @@
 import child from 'child_process'
+
+import Debug from 'debug'
 import deepEqual from 'deep-equal'
+import { createFruitmix } from '../../fruitmix/fruitmix'
+import { dockerFruitmixDir } from './docker'
+
+const debug = Debug('appifi:dockerStateObserver')
 
 import createAdvertiser from './advertiser'
 
@@ -63,7 +69,26 @@ const addAdvertising = (advertising, services) => {
   return advertising
 }
 
+let fruitmixInstance = null
+
 const dockerStateObserver = (newState, state) => {
+
+  let cvol = state && state.volume
+  let nvol = newState && newState.volume
+
+  if (cvol !== nvol) {
+
+    debug(`current: ${cvol}, new: ${nvol}`)
+
+    if (cvol === null) {
+      let fruitdir = dockerFruitmixDir(nvol)
+      fruitmixInstance = createFruitmix(fruitdir) 
+    }
+    else {
+      fruitmixInstance.stop()
+      fruitmixInstance = null
+    }
+  }
 
   if (newState !== null && newState.data!== null && newState.computed !== null) {
 

@@ -40,26 +40,27 @@ const pollingPowerButton = () =>
 
   , 1000)
 
-const setFanScale = async (scale) => {
+const setFanScale = (SCALE) => 
+  (async (scale) => {
 
-  if (!(typeof scale === 'number'))
-    throw new Error(`scale ${scale} is not a number`)
+    if (!(typeof scale === 'number'))
+      throw new Error(`scale ${scale} is not a number`)
 
-  let fanScale = Math.floor(scale)
+    let fanScale = Math.floor(scale)
 
-  if (fanScale < 0 || fanScale > 100)
-    throw new Error(`fanScale ${fanScale} out of range`)
+    if (fanScale < 0 || fanScale > 100)
+      throw new Error(`fanScale ${fanScale} out of range`)
 
-  await childExecAsync(`echo ${fanScale} > ${FAN_IO}`)
+    await childExecAsync(`echo ${fanScale} > ${FAN_IO}`)
 
-  setConfig('barcelonaFanScale', fanScale)
-  storeDispatch({
-    type: 'BARCELONA_FANSCALE_UPDATE',
-    data: fanScale
-  })
-}
+    setConfig('barcelonaFanScale', fanScale)
+    storeDispatch({
+      type: 'BARCELONA_FANSCALE_UPDATE',
+      data: fanScale
+    })
+  })(SCALE).then(() => {}).catch(e => {}) // dirty TODO
 
-// workaround
+// workaround FIXME
 child.exec('echo "PWR_LED 1" > /proc/BOARD_io', err => {})
 
 export {updateFanSpeed, pollingPowerButton, setFanScale}

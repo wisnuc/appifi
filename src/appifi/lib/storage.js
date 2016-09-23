@@ -1,4 +1,5 @@
-const child = require('child_process')
+import child from 'child_process'
+
 
 import { toLines } from './utils'
 import { storeState, storeDispatch } from '../lib/reducers'

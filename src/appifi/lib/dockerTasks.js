@@ -11,7 +11,7 @@ import containerCreateDefaultOpts from './containerDefault'
 import task from './task'
 import { calcRecipeKeyString, installAppifiLabel } from './dockerApps'
 import { storeState } from './reducers'
-import { dockerAppdataDir } from './docker'
+import { dockerAppdataDir, dockerFruitmixDir } from './docker'
 
 function info(text) {
   console.log(`[docker task] ${text}`)
@@ -137,7 +137,18 @@ class AppInstallTask extends task {
   }
 
   processBinds(recipeKeyString, opt) {
+
+    // dirty works TODO
+    if (recipeKeyString === 'dockerhub:wisnuc:sambad:latest:vanilla') {
+      opt.HostConfig.Binds = [
+        dockerFruitmixDir() + '/drives:/drives'
+      ]
+
+      return opt
+    }
+
     if (!opt || !opt.HostConfig || !opt.HostConfig.Binds) return opt
+
     let subpath = recipeKeyString.replace(/:/g, '/') 
     opt.HostConfig.Binds = opt.HostConfig.Binds.map(bind => (dockerAppdataDir() + '/' + subpath + bind))
     return opt

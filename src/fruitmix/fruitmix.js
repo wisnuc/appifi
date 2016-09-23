@@ -1,37 +1,36 @@
 import path from 'path'
 import http from 'http'
+import dgram from 'dgram'
 import EventEmitter from 'events'
 import Debug from 'debug'
-
 import system from './lib/system'
 import models from './models/models'
 import app from './app'
 
-let debug = Debug('fruitmix')
+const debug = Debug('fruitmix:createFruitmix')
 
 class Fruitmix extends EventEmitter {
 
-  constructor(system, app, server, port) {
+  constructor(system, app, server, udp) {
+
     super()
 
     this.system = system
     this.app = app
     this.server = server 
-    this.port = port
-
-    let umod = models.getModel('user')
-    umod.on('smbChange', console.log('smbChanged from user model'))
+    this.udp = udp
   }
 
   stop() {
     this.server.close()
+    this.udp.close()
     this.system.deinit()
   }
 }
 
 const createFruitmix = (sysroot) => {
 
-  console.log('creating fruitmix')
+  debug(sysroot)
 
   let server, port = 3721 
 
@@ -62,11 +61,27 @@ const createFruitmix = (sysroot) => {
     }
   })
 
-  server.on('listening', () => debug('Listening on Port ' + port))
+  server.on('listening', () => debug('Http Server Listening on Port ' + port))
+  server.on('close', () => debug('Http Server Closed'))
+
   server.listen(port)
 
-  debug('fruitmix created')
-  return new Fruitmix(system, app, server, port)
+  let udp = dgram.createSocket('udp4')
+    
+  udp.on('listening', () => {
+    var address = udp.address();
+    debug('UDP Server listening on ' + address.address + ":" + address.port)
+  })
+
+  udp.on('message', function (message, remote) {
+    debug(remote.address + ':' + remote.port + ' - ' + message)
+  })
+
+  udp.on('close', () => debug('UDP Server closed'))
+
+  udp.bind(port)
+
+  return new Fruitmix(system, app, server, udp)
 }
 
 export { createFruitmix }

@@ -7,14 +7,6 @@ var bodyParser = require('body-parser')
 
 let app = express()
 
-/**
-process.argv.forEach(function (val, index, array) {
-  if (val === '--appstore-master') {
-    global.config.appstoreMaster = true
-  }
-});
-**/
-
 /*
  * middlewares
  */

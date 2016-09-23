@@ -1,25 +1,21 @@
 import crypto from 'crypto'
+import EventEmitter from 'events'
+
 import bcrypt from 'bcryptjs'
 import UUID from 'node-uuid'
 import validator from 'validator'
-import Promise from 'bluebird'
 
 import { throwBusy, throwInvalid } from '../util/throw'
 import { openOrCreateCollectionAsync} from './collection'
 
 const isUUID = (x) => typeof x === 'string' && validator.isUUID(x)
 
-const validateUnixUserName = (text) => 
-  /[a-zA-Z][a-zA-Z0-9_-]*/.test(text)
-
-const smbEncryptPassword = (text) => 
+const md4Encrypt = (text) => 
   crypto.createHash('md4')
     .update(Buffer.from(text, 'utf16le'))
     .digest('hex')
     .toUpperCase()
 
-const epochTimeInSeconds = () => 
-  Math.floor((new Date().getTime() / 1000))
 
 /** Schema
 {
@@ -29,8 +25,6 @@ const epochTimeInSeconds = () =>
     uuid: { type: String, unique: true, required: true },
 *   username: { type: String, unique: true, required: true },
 x   password: { type: String, required: true },
-
-*   smbUsername: 
 x   smbPassword:
 x   smbLastChangeTime:
 
@@ -57,9 +51,7 @@ x   type: // string, 'local' or 'remote'
 x   uuid: { type: String, unique: true, required: true },
     username: { type: String, unique: true, required: true },
     password: { type: String, required: true },
-
-    smbUsername: 
-    smbPassword:
+x   smbPassword:
 x   smbLastChangeTime:
 
     avatar: { type: String, required: true },
@@ -82,9 +74,10 @@ Promise.promisifyAll(bcrypt)
 // TODO
 const validateAvatar = (avatar) => true
 
-class UserModel {
+class UserModel extends EventEmitter{
 
   constructor(collection) {
+    super()
     this.collection = collection
   }
 
@@ -100,8 +93,6 @@ class UserModel {
       type,         // *
       username,     // *
       password,     // *
-      smbUsername,  // o 
-      smbPassword,  // o
       avatar,       // o
       email,        // o
       isAdmin,      // o
@@ -109,24 +100,10 @@ class UserModel {
 
     if (type !== 'local' && type !== 'remote')
       return einval('invalid user type')
-    if (typeof username !== 'string' || !username.length)
+    if (typeof username !== 'string' || !username.length || list.find(u => u.username === username))
       return einval('invalid username')
     if (typeof password !== 'string' || !password.length)
       return einval('invalid password')
-
-    if (smbUsername) {
-      if (typeof smbUsername !== 'string' || !validateUnixUserName(smbUsername))
-        return einval('invalid smbUsername')
-      if (list.find(u => u.smbUsername === smbUsername))
-        return einval('invalid smbUseranme')
-    }
-    if (smbPassword && (typeof smbPassword !== 'string' || !smbPassword.length))
-      return einval('invalid smbPassword')
-    if (!!smbUsername !== !!smbPassword)
-      return einval('smbUsername and smbPassword must be provided together')
-
-    smbUsername = smbUsername || null
-    smbPassword = smbPassword || null
 
     if (avatar && (typeof avatar !== 'string' || avatar.length === 0))
       return einval('invalid avatar')
@@ -146,14 +123,8 @@ class UserModel {
     let uuid = UUID.v4()
     let salt = bcrypt.genSaltSync(10) 
     let passwordEncrypted = bcrypt.hashSync(password, salt)
-
-    let smbPasswordEncrypted = null
-    let smbLastChangeTime = null
-
-    if (smbPassword) {
-      smbPasswordEncrypted = smbEncryptPassword(smbPassword)
-      smbLastChangeTime = epochTimeInSeconds()
-    }    
+    let smbPasswordEncrypted = md4Encrypt(password)
+    let lastChangeTime = new Date().getTime()
 
     if (this.collection.locked) 
       return ebusy('locked')
@@ -166,9 +137,8 @@ class UserModel {
       uuid: UUID.v4(),
       username, 
       password: passwordEncrypted, 
-      smbUsername,
       smbPassword: smbPasswordEncrypted,
-      smbLastChangeTime,
+      lastChangeTime,
       avatar,
       email,
       isAdmin,
@@ -179,8 +149,11 @@ class UserModel {
 
     this.collection
       .updateAsync(list, [...list, newUser]) 
-      .asCallback(err => 
-        err ? callback(err) : callback(null, newUser)) 
+      .asCallback(err => { 
+        if (err) return callback(err) 
+        process.nextTick(() => this.emit('userCreated', newUser))
+        callback(null, newUser)
+      }) 
   }
 
   updateUser(userUUID, props, callback) {
@@ -198,8 +171,6 @@ class UserModel {
     // only following field are allowed 
     // username
     // password
-    // smbUsername
-    // smbPassword
     // avatar
     // email
 
@@ -209,9 +180,11 @@ class UserModel {
 
     // username
     if (username) {
-      if (typeof username !== 'string' || !username.length) 
+      if (typeof username !== 'string' || !username.length || 
+        list.filter(u => u.uuid !== userUUID).find(other => other.username === username)) 
         return einval('invalid username')
-      change.username = username   
+      change.username = username
+      change.lastChangeTime = new Date().getTime()
     }
 
     // password
@@ -219,32 +192,9 @@ class UserModel {
       if (password !== 'string' || !password.length) 
         return einval('invalid password')
       change.password = bcrypt.hashSync(password, bcrypt.genSaltSync(10))
+      change.smbPassword = md4Encrypt(password)
+      change.lastChangeTime = new Date().getTime()
     }
-
-    // smbUsername
-    if (smbUsername === undefined) {}
-    else if (smbUsername === null) 
-      change.smbUsername = null
-    else if (typeof smbUsername === 'string' && validateUnixName(smbUsername)) {
-
-      if (list.filter(u => u.uuid !== userUUID).find(u => u.smbUsername === smbUsername))
-        return einval('invalid smbUsername')
-
-      change.smbUsername = smbUsername
-    }
-    else
-      return einval('invalid smbUsername')
-
-    // smbPassword & lct
-    if (smbPassword === undefined) {}
-    else if (smbPassword === null)
-      change.smbPassword = null
-    else if (typeof smbPassword === 'string' && !smbPassword.length) {
-      change.smbPassword = smbEncryptPassword(smbPassword)
-      change.smbLastChangeTiem = epochTimeInSeconds()
-    }
-    else 
-      return einval('invalid smbPassword')
 
     // avatar
     if (avatar === undefined) {}
@@ -267,20 +217,20 @@ class UserModel {
     // merge
     let update = Object.assign({}, user, change)
 
-    // smb check
-    if (update.smbUsername === null && update.smbPassword === null && update.smbLastChangeTime === null) {}
-    else if (!!update.smbUsername && !!update.smbPassword && update.smbLastChangeTime) {}
-    else 
-      return einval('invalid combination of smb username, password, lct')
-
     let index = list.findIndex(u => u.uuid === userUUID)
-   
-    this.collection.updateAsync(list, [...list.slice(0, index),  update, ...list.slice(index + 1)])
-      .asCallback(err => err ? callback(err) : callback(null, update))
+  
+    this.collection
+      .updateAsync(list, [...list.slice(0, index),  update, ...list.slice(index + 1)])
+      .asCallback(err => {
+        if (err) return callback(err)
+        process.nextTick(() => this.emit('userUpdated', user, update))
+        callback(null, update)
+      })
   }
 
   // to be refactored
   async deleteUser(uuid) {
+
     if(typeof uuid !== 'string') throwInvalid('invalid uuid')
     if(this.collection.locked) throwBusy()
     if(this.collection.list.find((v)=>v.uuid==uuid).length==0) throwInvalid('invalid uuid')
