@@ -1,40 +1,39 @@
+var fs = require('fs')
+var webpack = require('webpack')
 
 module.exports = {
 
   // base dir for resolving entry option
   context: __dirname,
-  entry: ['./src/app'],
+  entry: ['./build/app'],
   node: {
     __filename: false,
     __dirname: false,
   },
+
   target: 'node',
+
   output: {
     path: __dirname,
-    publicPath: 'bin/',
     filename: 'appifi.js'
   },
 
-  module: {
-    preloaders: [
-      { test: /\.node$/, loader: 'node-loader' },
-      { test: /\.json$/, loader: 'json-loader' },
-    ],
-
-    loaders: [
-      {
-        test: /\.js$/,
-        exclude: /node_modules/,
-        loader: ['babel'],
-        query: {
-          presets: ['es2015', 'bluebird'],
-          plugins: [
-            "transform-async-to-bluebird", 
-            "transform-promise-to-bluebird",
-            "transform-runtime"]
-        }
-      },
-    ]
+  externals: { 
+//    "body-parser": "commonjs body-parser",
+//    "express": "commonjs express",
+    "fs-xattr": "commonjs fs-xattr",
+    "xxhash": "commonjs xxhash"
   },
+
+  module: {
+    preLoaders: [
+      { test: /\.json$/, loader: 'json' },
+      { test: /\.node$/, loader: 'node' },
+    ],
+  },
+
+  plugins: [
+    new webpack.DefinePlugin({ "global.GENTLY": false })
+  ],
 }
 
