@@ -29,5 +29,37 @@ router.post('/', auth.jwt(), (req, res) => {
   }) 
 })
 
+router.post('/:shareUUID/update', auth.jwt(), (req, res) => {
+
+  try {
+  let Media = Models.getModel('media')
+  let user = req.user
+  let shareUUID = req.params.shareUUID
+
+  Media.updateMediaShare(user.uuid, shareUUID, req.body, (err, doc) => {
+
+    if (err) console.log(err)
+
+    if (err) return res.status(500).json({err})
+    res.status(200).json(doc)
+  })
+
+  } catch (e) {
+    console.log(e)
+  }
+})
+
+router.delete('/:shareUUID', auth.jwt(), (req, res) => {
+
+  let Media = Models.getModel('media')
+  let user = req.user
+  let shareUUID = req.params.shareUUID
+
+  Media.deleteMediaShare(user.uuid, shareUUID, err => {
+    if (err) return res.status(500).json({err})
+    return res.status(200).end()
+  })
+})
+
 export default router
 

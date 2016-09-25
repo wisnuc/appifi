@@ -1,5 +1,8 @@
+import EventEmitter from 'events'
+
 import UUID from 'node-uuid'
 import validator from 'validator'
+import deepEqual from 'deep-equal'
 
 /**
 
@@ -40,7 +43,7 @@ import validator from 'validator'
 **/
 
 const isUUID = (uuid) => (typeof uuid === 'string') ? validator.isUUID(uuid) : false
-const isSHA1 = (sha1) => (typeof sha1 === 'string') ? /[a-f0-9]{64}/.test(sha1) : false
+const isSHA256 = (sha256) => (typeof sha256 === 'string') ? /[a-f0-9]{64}/.test(sha256) : false
 
 // this function generate a mediashare doc
 const createMediaShareDoc = (userUUID, obj) => {
@@ -54,17 +57,33 @@ const createMediaShareDoc = (userUUID, obj) => {
 
   // validate, sort, dedup, and must not be the user itself
   viewers = viewers
-    .filter(viewer => viewer !== userUUID) 
     .filter(isUUID)
+    .filter(viewer => viewer !== userUUID) // remove self ?
     .sort()
     .filter((item, index, array) => !index || item !== array[index - 1])
 
   // album must be true or false, defaults to false
   if (!album) album = null
-  //  {
-  //    title: string
-  //    text: string
-  //  }
+  else {
+
+    //  {
+    //    title: string
+    //    text: string
+    //  }
+
+    let obj = {}
+    if (typeof album.title === 'string')
+      obj.title = album.title
+    else 
+      obj.title = ''
+
+    if (typeof album.text === 'string')
+      obj.text = album.text
+    else
+      obj.text = ''
+
+    album = obj
+  }
 
   // sticky must be true or false, defaults to false
   if (typeof sticky !== 'boolean') sticky = false
@@ -75,7 +94,7 @@ const createMediaShareDoc = (userUUID, obj) => {
 
     let time = new Date().getTime()
     contents = contents
-      .filter(isSHA1)
+      .filter(isSHA256)
       .filter((item, index, array) => index === array.indexOf(item))
       .map(digest => ({
         author: userUUID,
@@ -107,11 +126,178 @@ const createMediaShareDoc = (userUUID, obj) => {
   }
 }
 
-class Media {
+/**
+  each op contains:
+  {
+    op: 'add', 'delete', or 'update', add, delete for array, update for non-array
+  }
+**/
+
+const sortDedup = (isType) => {
+  return (arr) => {
+    return [...arr]
+      .filter(isType)
+      .sort()
+      .filter((item, index, arr) => !index || item !== arr[index - 1])
+  }
+}
+
+
+const subtractUUIDArray = (a, b) => {
+ 
+  let aa = [...a]
+  let dirty = false
+
+  b.forEach(item => {
+    let index = aa.indexOf(item)
+    if (index !== -1) {
+      dirty = true
+      aa.splice(index, 1) 
+    }
+  }) 
+
+  return dirty ? aa : a 
+}
+
+const subtractContentArray = (userUUID, a, b) => {
+
+  let aa = [...a]
+  let dirty = false
+
+  b.forEach(digest => {
+    let index = aa.findIndex(x => x.digest === digest)
+    if (index !== -1) {
+      dirty = true
+      aa.splice(index, 1)
+    }
+  })
+
+  return dirty ? aa : a 
+}
+
+const addUUIDArray = (a, b) => {
+  
+  let c = sortDedup(isUUID)([...a, ...b])    
+  return deepEqual(a, c) ? a : c 
+}
+
+const updateMediaShareDoc = (userUUID, doc, ops) => {
+
+  let op
+  let { maintainers, viewers, album, sticky, contents } = doc
+
+  if (userUUID === doc.author) {
+
+    op = ops.find(op => op.path === 'maintainers' && op.op === 'delete') 
+    if (op && Array.isArray(op.value)) {
+      maintainers = subtractUUIDArrray(maintainers, sortDedup(isUUID)(op.value))
+    }
+
+    op = ops.find(op => op.path === 'maintainers' && op.op === 'add') 
+    if (op && Array.isArray(op.value)) {
+      maintainers = addUUIDArray(maintainers, sortDedup(isSHA256)(op.value).filter(x => x !== doc.author))
+    }
+
+    op = ops.find(op => op.path === 'viewers' && op.op === 'delete')
+    if (op && Array.isArray(op.value)) {
+      viewers = subtractUUIDArray(viewers, sortDedup(isUUID)(op.value))
+    }
+
+    op = ops.find(op => op.path === 'viewers' && op.op === 'add') 
+    if (op && Array.isArray(op.value)) {
+      viewers = addUUIDArray(viewers, sortDedup(isUUID)(op.value).filter(x => x !== doc.author))
+    }
+
+    op = ops.find(op => op.path === 'album' && op.op === 'replace') 
+    if (op && typeof op.value === 'object') {
+      let title = typeof op.value.title === 'string' ? op.value.title : ''
+      let text = typeof op.value.text === 'string' ? op.value.text : ''   
+
+      if (title !== album.title || text !== album.text) album = { title, text }
+    }
+
+    op = ops.find(op => op.path === 'sticky' && op.op === 'replace')
+    if (op && typeof op.value === 'boolean' && op.value !== sticky) {
+      sticky = op.value
+    }
+  }
+
+  if (userUUID === doc.author || doc.maintainers.indexOf(userUUID) !== -1) {
+
+    op = ops.find(op => op.path === 'contents' && op.op === 'delete') 
+    if (op && Array.isArray(op.value)) {
+
+      let c = [...contents]
+      let dirty = false
+
+      sortDedup(isSHA256)(op.value)
+        .forEach(digest => {
+          let index = c.findIndex(x => 
+            x.digest === digest && ( userUUID === doc.author || userUUID === x.creator)) 
+
+          if (index !== -1) {
+            c.splice(index, 1)
+            dirty = true
+          }
+        })
+
+      if (dirty) contents = c 
+    }
+
+    op = ops.find(op => op.path === 'contents' && op.op === 'add')
+    if (op && Array.isArray(op.value)) {
+
+      let c = [...contents]
+      let dirty = false
+
+      sortDedup(isSHA256)(op.value)
+        .forEach(digest => {
+          let index = c.findIndex(x => x.digest === digest)
+          if (index !== -1) return
+
+          c.push({
+            digest: b,
+            creator: userUUID,
+            ctime: new Date().getTime() 
+          })              
+          dirty = true
+        })
+
+      if (dirty) contents = c 
+    }
+  }
+
+  if (maintainers === doc.maintainers &&
+      viewers === doc.viewers &&
+      album === doc.album &&
+      sticky === doc.sticky &&
+      contents === doc.contents) 
+
+    // nothing changed
+    return doc
+
+  return {
+    doctype: doc.doctype,
+    docversion: doc.docversion,
+    uuid: doc.uuid,
+    author: doc.userUUID,
+    maintainers,
+    viewers,
+    album,
+    sticky,
+    ctime: doc.ctime,
+    mtime: new Date().getTime(),
+    contents
+  }
+}
+
+class Media extends EventEmitter {
 
   // shareMap stores uuid (key) => share (value)
   // mediaMap stores media/content digest (key) => (containing) share Set (value), each containing share Set contains share
   constructor(shareStore, talkStore) {
+
+    super()
 
     this.shareStore = shareStore
     this.talkStore = talkStore
@@ -125,6 +311,15 @@ class Media {
     // each remote talk has its viewer (a local user), creator, and media digest, as its unique identifier
     this.remoteMap = new Map()      // user -> user's remote talks
                                     // each talsk has creator and media digest as its unique identifier
+  }
+
+  load() {
+    this.shareStore.retrieveAll((err, shares) => {
+      shares.forEach(share => {
+        this.indexShare(share)
+      })
+      this.emit('shareStoreLoaded')
+    }) 
   }
 
   // add a share to index maps
@@ -164,28 +359,56 @@ class Media {
     this.shareStore.store(doc, (err, share) => {
       if (err) return callback(err)
       this.indexShare(share)      
-      callback(null, doc)
+      callback(null, share)
     })
   } catch (e) {
     console.log(e)
   }
   }
 
-  // archive a mediashare and unindex
-  deleteMediaShare(uuid, callback) {
+  // FIXME permission check
+  updateMediaShare(userUUID, shareUUID, ops, callback) {
+  try {
 
-    this.shareStore.archive(uuid, err => {
+    let share = this.shareMap.get(shareUUID)
+    console.log('====')
+    console.log(share)
+    console.log('userUUID ' + userUUID)
+    console.log('shareUUID ' + shareUUID)
+    console.log(this.shareMap)
+    console.log('====')
+    if (!share) return callback('ENOENT') // FIXME
+
+    if (share.doc.author !== userUUID)
+      return callback('EACCESS')
+
+    let doc = updateMediaShareDoc(userUUID, share.doc, ops) 
+    if (doc === share.doc) 
+      return callback(null, share)
+
+    this.shareStore.store(doc, (err, newShare) => {
       if (err) return callback(err)
-      share.contents.forEach(cont => {
-        let shareSet = this.mediaMap.get(cont.digest)
-        if (!shareSet) throw new Error('structural error')
-        shareSet.delete(share)
-        if (shareSet.size === 0) { // the last entries for this media's shareSet has been removed
-          this.mediaMap.delete(cont.digest)
-        }
-      })
+      this.unindexShare(share) 
+      this.indexShare(newShare)
+      callback(null, share)
+    })
+     
+  } catch (e) {
+    console.log(e)
+  }
+  }
 
-      this.shareMap.delete(uuid) 
+  // archive a mediashare and unindex
+  // FIXME permission check
+  deleteMediaShare(userUUID, shareUUID, callback) {
+
+    let share = this.shareMap.get(shareUUID)
+    if (!share) return callback('ENOENT')
+
+    this.shareStore.archive(shareUUID, err => {
+      if (err) return callback(err)
+      this.unindexShare(share)
+      this.shareMap.delete(shareUUID) 
       callback(null)
     })
   }
@@ -221,6 +444,9 @@ class Media {
   }
 }
 
+export default (shareStore, talkStore) => {
+  let media = new Media(shareStore, talkStore)
+  media.load()
+  return media
+}
 
-
-export default (shareStore, talkStore) => new Media(shareStore, talkStore)

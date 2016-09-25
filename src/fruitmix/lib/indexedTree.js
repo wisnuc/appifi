@@ -372,8 +372,26 @@ class IndexedTree extends EventEmitter {
     this.deleteNode(node)
   }
 
+/**
   deleteSubTree(node) {
     node.postVisit(n => this.deleteNode(n)) 
+  }
+**/
+
+  deleteSubTree(node) {
+
+    if (node.parent === null) return
+
+    node.postVisit(n => {
+      if (n.isFile()) {
+        this.fileHashUninstall(n) 
+      } 
+      else if (n.isDirectory()) {
+        this.shared.delete(n)
+      }
+    })
+
+    node.detach()
   }
 
   findNodeByUUID(uuid) {
