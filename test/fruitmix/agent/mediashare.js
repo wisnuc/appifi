@@ -36,6 +36,8 @@ const img001Path = path.join(process.cwd(), 'tmptest', 'drives', drv001UUID, '20
 
 let fakeDoc001 = '{"doctype":"mediashare","docversion":"1.0","uuid":"50981afc-c667-46a5-8b46-e6762fb68f97","author":"9f93db43-02e6-4b26-8fae-7d6f51da12af","maintainers":[],"viewers":[],"album":null,"sticky":false,"ctime":1474792612765,"mtime":1474792612765,"contents":[{"author":"9f93db43-02e6-4b26-8fae-7d6f51da12af","digest":"7803e8fa1b804d40d412bcd28737e3ae027768ecc559b51a284fbcadcd0e21be","time":1474792612765}]}'
 
+let fakeDoc001CTime = 1474792612765
+let fakeDoc001MTime = 1474792612765
 let fakeDoc001UUID = '50981afc-c667-46a5-8b46-e6762fb68f97'
 let fakeDoc001Hash = '839ad39d3fd8bcc8673c49030162128bb1d7fa96f60182947be8c4191b33aaff'
 
@@ -124,7 +126,7 @@ const copyFileAsync = Promise.promisify(copyFile)
 
 describe(path.basename(__filename), function() {
 
-  describe('test mediashare', function() {
+  describe('test create mediashare', function() {
   
     let token
     let cwd = process.cwd()
@@ -209,47 +211,47 @@ describe(path.basename(__filename), function() {
 
 
     it('doc/single should have doctype as mediashare', () => 
-      postMediaShareAsync(single).should.eventually.have.property('doctype', 'mediashare'))
+      postMediaShareAsync(single).should.eventually.have.deep.property('doc.doctype', 'mediashare'))
 
     it('doc/single should have docversion as 1.o', () => 
-      postMediaShareAsync(single).should.eventually.have.property('docversion', '1.0'))
+      postMediaShareAsync(single).should.eventually.have.deep.property('doc.docversion', '1.0'))
 
     it('doc/single should have uuid', () => 
-      postMediaShareAsync(single).should.eventually.have.property('uuid')
+      postMediaShareAsync(single).should.eventually.have.deep.property('doc.uuid')
         .to.satisfy(uuid => typeof uuid === 'string' && validator.isUUID(uuid)))
 
     it('doc/single should have userUUID as author', () => 
-      postMediaShareAsync(single).should.eventually.have.property('author').to.equal(userUUID))
+      postMediaShareAsync(single).should.eventually.have.deep.property('doc.author').to.equal(userUUID))
 
     it('doc/single should have empty maintainers', () =>
-      postMediaShareAsync(single).should.eventually.have.property('maintainers').to.deep.equal([]))
+      postMediaShareAsync(single).should.eventually.have.deep.property('doc.maintainers').to.deep.equal([]))
 
     it('doc/single should have empty viewers', () =>
-      postMediaShareAsync(single).should.eventually.have.property('viewers').to.deep.equal([]))
+      postMediaShareAsync(single).should.eventually.have.deep.property('doc.viewers').to.deep.equal([]))
   
     it('doc/single should have null album', () =>
-      postMediaShareAsync(single).should.eventually.have.property('album').to.be.null)
+      postMediaShareAsync(single).should.eventually.have.deep.property('doc.album').to.be.null)
     
     it('doc/single should have false sticky', () =>
-      postMediaShareAsync(single).should.eventually.have.property('sticky').to.be.false)
+      postMediaShareAsync(single).should.eventually.have.deep.property('doc.sticky').to.be.false)
 
     it('doc/single should have ctime', () => 
-      postMediaShareAsync(single).should.eventually.have.property('ctime').to.be.a('number'))
+      postMediaShareAsync(single).should.eventually.have.deep.property('doc.ctime').to.be.a('number'))
 
     it('doc/single should have mtime', () =>
-      postMediaShareAsync(single).should.eventually.have.property('mtime').to.be.a('number'))
+      postMediaShareAsync(single).should.eventually.have.deep.property('doc.mtime').to.be.a('number'))
 
     it('doc/single should have 1 item in contents', () => 
-      postMediaShareAsync(single).should.eventually.have.deep.property('contents.length').to.equal(1))
+      postMediaShareAsync(single).should.eventually.have.deep.property('doc.contents.length').to.equal(1))
 
     it('doc/single contents[0] should have author as userUUID', () =>
-      postMediaShareAsync(single).should.eventually.have.deep.property('contents[0].author', userUUID))
+      postMediaShareAsync(single).should.eventually.have.deep.property('doc.contents[0].author', userUUID))
 
     it('doc/single contents[0] should have the same digest as given', () =>
-      postMediaShareAsync(single).should.eventually.have.deep.property('contents[0].digest', single.contents[0]))
+      postMediaShareAsync(single).should.eventually.have.deep.property('doc.contents[0].digest', single.contents[0]))
 
     it('doc/single contnets[0] should have time', () => 
-      postMediaShareAsync(single).should.eventually.have.deep.property('contents[0].time').to.be.a('number'))
+      postMediaShareAsync(single).should.eventually.have.deep.property('doc.contents[0].time').to.be.a('number'))
 
 /**
 
@@ -384,36 +386,11 @@ describe(path.basename(__filename), function() {
         .expect(200)
         .end((err, res) => {
           if (err) return callback(err)
-          console.log(res.body)
           callback(null, res.body)
         })
     }
 
     const updateAsync = Promise.promisify(update)
-
-    const postMediaShare = (post, callback) => {
-
-      request(app)
-        .post('/mediashare')
-        .send(post)
-        .set('Authorization', 'JWT ' + token)
-        .set('Accept', 'application/json')
-        .expect(200)
-        .end((err, res) => {
-          if (err) return callback(err)
-          callback(null, res.body)
-        })
-    }
-
-    const postMediaShareAsync = Promise.promisify(postMediaShare)
-
-    const single = {
-      maintainers: [],
-      viewers: [],
-      contents: [
-        '7803e8fa1b804d40d412bcd28737e3ae027768ecc559b51a284fbcadcd0e21be' 
-      ],
-    }
 
     const ops001 = [
       {
@@ -423,51 +400,16 @@ describe(path.basename(__filename), function() {
       }
     ]
 
-    it('add viewer', () => 
-      updateAsync(userUUID, ops001).should.eventually.have.property('doctype', 'mediashare'))
+    it('001 add 1 viewer should add new viewer', () => 
+      updateAsync(userUUID, ops001).should.eventually.have.deep.property('doc.viewers')
+        .that.deep.equals(ops001[0].value))
 
-    it('doc/single should have doctype as mediashare', () => 
-      postMediaShareAsync(single).should.eventually.have.property('doctype', 'mediashare'))
+    it('001 add 1 viewer should keep ctime', () => 
+      updateAsync(userUUID, ops001).should.eventually.have.deep.property('doc.ctime')
+        .that.equals(fakeDoc001CTime))
 
-    it('doc/single should have docversion as 1.o', () => 
-      postMediaShareAsync(single).should.eventually.have.property('docversion', '1.0'))
-
-    it('doc/single should have uuid', () => 
-      postMediaShareAsync(single).should.eventually.have.property('uuid')
-        .to.satisfy(uuid => typeof uuid === 'string' && validator.isUUID(uuid)))
-
-    it('doc/single should have userUUID as author', () => 
-      postMediaShareAsync(single).should.eventually.have.property('author').to.equal(userUUID))
-
-    it('doc/single should have empty maintainers', () =>
-      postMediaShareAsync(single).should.eventually.have.property('maintainers').to.deep.equal([]))
-
-    it('doc/single should have empty viewers', () =>
-      postMediaShareAsync(single).should.eventually.have.property('viewers').to.deep.equal([]))
-  
-    it('doc/single should have null album', () =>
-      postMediaShareAsync(single).should.eventually.have.property('album').to.be.null)
-    
-    it('doc/single should have false sticky', () =>
-      postMediaShareAsync(single).should.eventually.have.property('sticky').to.be.false)
-
-    it('doc/single should have ctime', () => 
-      postMediaShareAsync(single).should.eventually.have.property('ctime').to.be.a('number'))
-
-    it('doc/single should have mtime', () =>
-      postMediaShareAsync(single).should.eventually.have.property('mtime').to.be.a('number'))
-
-    it('doc/single should have 1 item in contents', () => 
-      postMediaShareAsync(single).should.eventually.have.deep.property('contents.length').to.equal(1))
-
-    it('doc/single contents[0] should have author as userUUID', () =>
-      postMediaShareAsync(single).should.eventually.have.deep.property('contents[0].author', userUUID))
-
-    it('doc/single contents[0] should have the same digest as given', () =>
-      postMediaShareAsync(single).should.eventually.have.deep.property('contents[0].digest', single.contents[0]))
-
-    it('doc/single contnets[0] should have time', () => 
-      postMediaShareAsync(single).should.eventually.have.deep.property('contents[0].time').to.be.a('number'))
-
+    it('001 add 1 viewer should change mtime', () => 
+      updateAsync(userUUID, ops001).should.eventually.have.deep.property('doc.mtime')
+        .that.not.equals(fakeDoc001MTime))
   })
 })

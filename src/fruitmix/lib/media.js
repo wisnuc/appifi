@@ -271,12 +271,12 @@ const updateMediaShareDoc = (userUUID, doc, ops) => {
       viewers === doc.viewers &&
       album === doc.album &&
       sticky === doc.sticky &&
-      contents === doc.contents) 
+      contents === doc.contents) {
 
-    // nothing changed
     return doc
+  }
 
-  return {
+  let update = {
     doctype: doc.doctype,
     docversion: doc.docversion,
     uuid: doc.uuid,
@@ -289,6 +289,9 @@ const updateMediaShareDoc = (userUUID, doc, ops) => {
     mtime: new Date().getTime(),
     contents
   }
+
+  // console.log(update)
+  return update
 }
 
 class Media extends EventEmitter {
@@ -371,12 +374,6 @@ class Media extends EventEmitter {
   try {
 
     let share = this.shareMap.get(shareUUID)
-    console.log('====')
-    console.log(share)
-    console.log('userUUID ' + userUUID)
-    console.log('shareUUID ' + shareUUID)
-    console.log(this.shareMap)
-    console.log('====')
     if (!share) return callback('ENOENT') // FIXME
 
     if (share.doc.author !== userUUID)
@@ -390,7 +387,7 @@ class Media extends EventEmitter {
       if (err) return callback(err)
       this.unindexShare(share) 
       this.indexShare(newShare)
-      callback(null, share)
+      callback(null, newShare)
     })
      
   } catch (e) {
