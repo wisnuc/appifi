@@ -41,7 +41,14 @@ public/bundle.js
 # release folder
 release/
 
+# appifi.js
+appifi.js
+assets/
+xxhash.node
+xattr.node
+
 # 
+
 family/
 fruitfiles/
 tmpTestFoder/

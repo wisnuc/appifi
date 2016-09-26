@@ -23,7 +23,6 @@ app.use(logger('dev', {
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: false }))
 app.use(cookieParser())
-app.use(express.static(path.join(__dirname, '../public')))
 
 /*
  * module init
@@ -60,7 +59,21 @@ appstore.reload()
 /*
  * routes
  */
-app.use('/', require('./appifi/routes/index'))
+// app.use('/', require('./appifi/routes/index'))
+
+app.get('/', (req, res) => {
+  res.set('Content-Type', 'text/html').send(assets.indexHtml)
+})
+
+app.get('/index.html', (req, res) => {
+  res.set('Content-Type', 'text/html').send(assets.indexHtml)
+})
+
+app.get('/bundle.js', (req, res) => {
+  res.set('Content-Type', 'application/javascript').send(assets.bundlejs)
+})
+
+app.use('/stylesheets', require('./appifi/routes/stylesheets'))
 app.use('/appstore', require('./appifi/routes/appstore'))
 app.use('/server', require('./appifi/routes/server'))
 

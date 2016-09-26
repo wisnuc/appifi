@@ -4,7 +4,6 @@ const auth = require('../middleware/auth').default
 const uuid = require('node-uuid')
 var url = require('url')
 var spawnSync = require('child_process').spawnSync
-var xattr = require('fs-xattr')
 
 router.get('/', auth.jwt(), (req, res) => {
 

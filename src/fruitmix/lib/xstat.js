@@ -1,6 +1,7 @@
 import fs from 'fs'
 import Promise from 'bluebird'
-import xattr from 'fs-xattr'
+console.log('xstat import fs-xattr')
+const xattr = require('fs-xattr')
 import UUID from 'node-uuid'
 import validator from 'validator'
 import shallowequal from 'shallowequal'

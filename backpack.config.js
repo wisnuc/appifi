@@ -5,7 +5,7 @@ module.exports = {
 
   // base dir for resolving entry option
   context: __dirname,
-  entry: ['./build/app'],
+  entry: ['./assets.js'],
   node: {
     __filename: false,
     __dirname: false,
@@ -19,21 +19,35 @@ module.exports = {
   },
 
   externals: { 
-//    "body-parser": "commonjs body-parser",
-//    "express": "commonjs express",
-    "fs-xattr": "commonjs fs-xattr",
-    "xxhash": "commonjs xxhash"
+    "../build/Release/hash": "commonjs ./xxhash.node",
+    "./build/Release/xattr": "commonjs ./xattr.node", 
   },
 
   module: {
     preLoaders: [
       { test: /\.json$/, loader: 'json' },
-      { test: /\.node$/, loader: 'node' },
     ],
+
+    loaders: [
+      {
+        test: /\.js$/,
+        exclude: /node_modules/,
+        loader: 'babel-loader',
+        query: {
+          presets: ['es2015', 'bluebird'],
+          plugins: [
+            "transform-async-to-bluebird", 
+            "transform-promise-to-bluebird",
+            "transform-runtime"
+          ]
+        }
+      }
+    ]
   },
 
   plugins: [
-    new webpack.DefinePlugin({ "global.GENTLY": false })
+    new webpack.DefinePlugin({ "global.GENTLY": false }),
+    new webpack.DefinePlugin({ "global.WEBPACK": true })
   ],
 }
 

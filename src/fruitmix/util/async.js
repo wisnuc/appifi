@@ -3,7 +3,9 @@ import Promise from 'bluebird'
 import mkdirp from 'mkdirp'
 import rimraf from 'rimraf'
 import fs from 'fs'
-import xattr from 'fs-xattr'
+
+console.log('async require fs-xattr')
+const xattr = require('fs-xattr')
 
 Promise.promisifyAll(fs)
 Promise.promisifyAll(xattr)
