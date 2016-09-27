@@ -50,7 +50,6 @@ class Repo extends EventEmitter {
         this.hashMagicWorker.start(node.namepath(), node.uuid)
       })
     })
-
   }
 
   async initAsync() {

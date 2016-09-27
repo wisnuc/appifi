@@ -1,3 +1,4 @@
+var assets = require('../assets')
 var path = require('path')
 var express = require('express')
 // var favicon = require('serve-favicon')
@@ -61,9 +62,11 @@ appstore.reload()
  */
 // app.use('/', require('./appifi/routes/index'))
 
-app.get('/', (req, res) => {
-  res.set('Content-Type', 'text/html').send(assets.indexHtml)
-})
+app.get('/', (req, res) => 
+  res.set('Content-Type', 'text/html').send(assets.indexHtml))
+
+app.get('/favicon.ico', (req, res) => 
+  res.set('Content-Type', 'image/x-icon').send(assets.favicon))
 
 app.get('/index.html', (req, res) => {
   res.set('Content-Type', 'text/html').send(assets.indexHtml)

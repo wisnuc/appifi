@@ -25,6 +25,7 @@ const commands = [
   'base64 public/stylesheets/Roboto-Medium-webfont.woff > assets/robotoMedium.base64',
   'base64 public/stylesheets/Roboto-Bold-webfont.woff > assets/robotoBold.base64',
   'base64 public/stylesheets/Roboto-Black-webfont.woff > assets/robotoBlack.base64',
+  'base64 public/favicon.ico > assets/favicon.base64',
 
    // other assets
   'cp public/index.html assets/index.html.raw',

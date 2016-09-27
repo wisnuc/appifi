@@ -30,4 +30,16 @@ router.get('/:digest/download', auth.jwt(), (req, res) => {
   res.status(200).sendFile(filepath)
 })
 
+router.get('/:digest/thumbnail', auth.jwt(), (req, res) => {
+
+  const forest = Models.getModel('forest')
+  const user = req.user
+  const digest = req.params.digest
+
+ 
+})
+
+router.get('/thumbnail', auth.jwt(), (req, res) => {
+})
+
 export default router

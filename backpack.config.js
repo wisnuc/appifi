@@ -19,13 +19,14 @@ module.exports = {
   },
 
   externals: { 
-    "../build/Release/hash": "commonjs ./xxhash.node",
-    "./build/Release/xattr": "commonjs ./xattr.node", 
+    "../build/Release/hash": `commonjs ./bin/xxhash.node`,
+    "./build/Release/xattr": `commonjs ./bin/xattr.node`, 
   },
 
   module: {
     preLoaders: [
       { test: /\.json$/, loader: 'json' },
+      { test: /\.node$/, loader: 'node' },
     ],
 
     loaders: [

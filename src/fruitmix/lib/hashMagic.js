@@ -1,7 +1,6 @@
 import fs from 'fs'
-
-var EventEmitter = require('events')
-var child = require('child_process')
+import child from 'child_process'
+import EventEmitter from 'events'
 
 class HashMagic extends EventEmitter {
 
