@@ -19,6 +19,8 @@ import media from './routes/media'
 import mediashare from './routes/mediashare'
 import samba from './routes/samba'
 
+import winsun from './routes/winsun'
+
 let app = express()
 
 let env = app.get('env')
@@ -52,6 +54,7 @@ app.use('/mediashare', mediashare)
 
 app.use('/authtest', require('./routes/authtest'))
 app.use('/samba', samba)
+app.use('/winsun', winsun)
 
 // app.use('/library', require('./routes/library'))
 // app.use('/mediashare', require('./routes/mediashare'))

@@ -1,7 +1,6 @@
 import fs from 'fs'
-import Promise from 'bluebird'
-console.log('xstat import fs-xattr')
-const xattr = require('fs-xattr')
+
+import xattr from 'fs-xattr'
 import UUID from 'node-uuid'
 import validator from 'validator'
 import shallowequal from 'shallowequal'
@@ -34,7 +33,7 @@ const TimestampMismatch = (text) =>
   Object.assign((new Error(text || 'timestamp mismatch')), { code: 'ETIMESTAMPMISMATCH' })
 
 const readTimeStamp = (target, callback) =>
-  fs.stat(target, (err, stats) => 
+  fs.lstat(target, (err, stats) => 
     err ? callback(err) : callback(null, stats.mtime.getTime()))
 
 // test uuid, return true or false, accept undefined
@@ -129,7 +128,7 @@ const readXstat = (target, ...args) => {
   }
 
   let parsed, valid
-  fs.stat(target, (err, stats) => {
+  fs.lstat(target, (err, stats) => {
 
     if (err) return callback(err)
     if (!(stats.isDirectory() || stats.isFile())) return callback(new Error('not a folder or file'))

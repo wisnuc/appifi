@@ -58,6 +58,8 @@ const getPath = (name) => {
   case 'etc':
   case 'tmp':
     return join(name)
+  case 'root':
+    return root
   default:
     throw new Error(`unknown fruitmix path name: ${name}`)
   }
