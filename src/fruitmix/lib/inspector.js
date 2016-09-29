@@ -7,9 +7,15 @@ import fs from 'fs'
 // ENOENT
 // EMISMATCH
 
-const EMISMATCH = 'EMISMATCH'
-const ENOTDIR = 'ENOTDIR'
-const EAGAIN = 'EAGAIN'
+// const EMISMATCH = 'EMISMATCH'
+
+
+const ERROR = (code, _text) => 
+  ((cb, text) => cb(Object.assign(new Error(text || _text), { code })))
+  
+const ENOTDIR = ERROR('ENOTDIR', 'not a directory')
+const EMISMATCH = ERROR('EMISMATCH', 'uuid mismatch')
+const EAGAIN = ERROR('EAGAIN', 'try again')
 
 const inspect = (target, uuid, callback) => {
 
@@ -19,8 +25,8 @@ const inspect = (target, uuid, callback) => {
   readXstat(target, (err, xstat) => {
     
     if (abort) return
-    if (xstat.uuid !== uuid) return error('uuid mismatch', EMISMATCH)
-    if (!xstat.isDirectory()) return error('not a directory', ENOTDIR)
+    if (xstat.uuid !== uuid) return EMISMATCH(callback)
+    if (!xstat.isDirectory()) return ENOTDIR(callback)
 
     let timestamp = xstat.mtime.getTime()
 
@@ -48,8 +54,8 @@ const inspect = (target, uuid, callback) => {
  
         if (abort) return
         if (err) return callback(err)
-        if (xstat2.uuid !== uuid) return error('uuid mismatch', EMISMATCH)
-        if (!xstat2.isDirectory()) return error('not a directory', ENOTDIR)
+        if (xstat2.uuid !== uuid) return EMISMATCH(callback)
+        if (!xstat2.isDirectory()) return ENOTDIR(callback)
         if (xstat2.mtime.getTime() !== timestamp) return error('timestamp changed during operation', EAGAIN)
 
         callback(null, { timestamp, xstats })

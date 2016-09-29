@@ -202,6 +202,9 @@ class Repo extends EventEmitter {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+  inspect(uuid) {
+    console.log(`something requested to inspect node with uuid: ${uuid}`)
+  }
 }
 
 const createRepo = (paths, driveModel, forest) => new Repo(paths, driveModel, forest)

@@ -53,9 +53,8 @@ const scan2 = (root, callback) => {
 
     if (err) return callback(err)
     nodes.forEach(node => {
-      visit(node, n => n.path = n.path.slice(root.length))
+      visit(node, n => n.path = n.path.slice(root.length + 1))
     })     
-
     callback(null, nodes)
   })
 }
