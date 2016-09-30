@@ -461,6 +461,17 @@ class Drive extends IndexedTree {
         return node.namepath()
     }
   }
+
+  readMediaPath(digest) {
+
+    let digestObj = this.hashMap.get(digest)
+    if (!digestObj) return
+
+    for (let i = 0; i < digestObj.nodes.length; i++) {
+      let node = digestObj.nodes[i]
+      return node.namepath()
+    }
+  }
 }
 
 export { createDrive }

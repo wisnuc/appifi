@@ -11,6 +11,7 @@ import createUUIDLog from './uuidlog'
 import { createDocumentStore } from './documentStore'
 import { createMediaShareStore } from './mediaShareStore'
 import createMedia from './media'
+import createThumbnailer from './thumbnail'
 
 const initAsync = async (sysroot) => {
 
@@ -58,6 +59,8 @@ const initAsync = async (sysroot) => {
   let media = createMedia(msstore)
   models.setModel('media', media)
 
+  let thumbnailer = createThumbnailer()
+  models.setModel('thumbnailer', thumbnailer)
 }
 
 const deinit = () => {
