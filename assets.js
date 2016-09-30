@@ -98,4 +98,4 @@ module.exports = {
   favicon
 }
 
-setTimeout(() => require('./src/app'), 1000)
+// setTimeout(() => require('./src/app'), 1000)
