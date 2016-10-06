@@ -1,10 +1,8 @@
 import path from 'path'
 import EventEmitter from 'events'
 
-import mkdirp from 'mkdirp'
-import { fs, mkdirpAsync, rimrafAsync } from '../util/async'
+import { fs, mkdirp, mkdirpAsync, rimrafAsync } from '../util/async'
 
-import { readXstat, readXstatAsync } from './xstat'
 import { createDrive } from './drive'
 import createHashMagic from './hashMagic'
 
@@ -19,6 +17,9 @@ class Repo extends EventEmitter {
     this.paths = paths
     this.driveModel = driveModel
     this.forest = forest
+
+    this.hashMagicConcurrent = 1
+    this.hashMagicJobs = []
 
     this.forest.on('driveCached', () => console.log(`driveCached: ${drive.uuid}`))
     this.forest.on('hashlessAdded', node => {

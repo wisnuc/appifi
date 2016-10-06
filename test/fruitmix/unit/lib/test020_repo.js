@@ -129,6 +129,7 @@ describe(path.basename(__filename), function() {
     })      
   
     it('should create a repo, with paths, driveModel, drive, and state properly set', function() {
+
       let driveModel = models.getModel('drive')
       let forest = createDrive()
       let repo = createRepo(paths, driveModel, forest)

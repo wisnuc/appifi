@@ -1,8 +1,6 @@
 import path from 'path'
 import crypto from 'crypto'
 
-import Promise from 'bluebird'
-
 import { expect } from 'chai'
 import UUID from 'node-uuid'
 import validator from 'validator'
