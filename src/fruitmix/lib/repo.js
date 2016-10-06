@@ -1,13 +1,10 @@
 import path from 'path'
 import EventEmitter from 'events'
 
-import Promise from 'bluebird'
-
 import mkdirp from 'mkdirp'
 import { fs, mkdirpAsync, rimrafAsync } from '../util/async'
 
 import { readXstat, readXstatAsync } from './xstat'
-
 import { createDrive } from './drive'
 import createHashMagic from './hashMagic'
 
@@ -30,8 +27,6 @@ class Repo extends EventEmitter {
     })
 
     this.state = 'IDLE' // 'INITIALIZING', 'INITIALIZED', 'DEINITIALIZING',
-
-    this.scanners = []
 
     this.hashMagicWorker = createHashMagic()
     this.hashMagicWorker.on('end', ret => {
@@ -158,8 +153,7 @@ class Repo extends EventEmitter {
           name: dpath  
         })
 
-        this.forest.scan(root, () => 
-          console.log(`[repo] createFruitmidxDrive: scan (newly created) root finished: ${root.uuid}`))
+        this.forest.scan(root, () => console.log(`[repo] createFruitmidxDrive: scan (newly created) root finished: ${root.uuid}`))
         
         callback(null, conf)
       })

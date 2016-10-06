@@ -372,12 +372,6 @@ class IndexedTree extends EventEmitter {
     this.deleteNode(node)
   }
 
-/**
-  deleteSubTree(node) {
-    node.postVisit(n => this.deleteNode(n)) 
-  }
-**/
-
   deleteSubTree(node) {
 
     if (node.parent === null) return

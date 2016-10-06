@@ -8,6 +8,7 @@ import UUID from 'node-uuid'
 import validator from 'validator'
 
 import mkdirp from 'mkdirp' // FIXME
+import rimraf from 'rimraf'
 
 import uuids from '../util/uuids'
 import { rimrafAsync, mkdirpAsync, fs, xattr } from '../util/async'
@@ -270,74 +271,73 @@ describe(path.basename(__filename), function() {
       }) 
     })
   })
-/**
-  describe('test import file', function() {
-    
-    let drive
-
-    beforeEach(function(done) {
-      rimrafAsync('tmptest')
-        .then(() => mkdirpAsync('tmptest/driveroot/folder1'))
-        .then(() => mkdirpAsync('tmptest/tmp'))
-        .then(() => fs.writeFileAsync('tmptest/tmp/testfile', 'hello world'))
-        .then(() => {
-          drive = createDrive(fixed01)
-          drive.on('driveCached', drv => {
-            done()
-          })
-          drive.setRootpath(path.join(cwd, 'tmptest/driveroot'))
-        })
-        .catch(e => done(e))
-    })
-
-    afterEach(function() {
-      drive = undefined
-    })
-
-    it('should import a new file into root folder', function(done) {
-      let srcpath = path.join(cwd, 'tmptest/tmp/testfile')
-      let dstpath = path.join(cwd, 'tmptest/driveroot/test')
-      drive.importFile(uuid1, srcpath, drive.root, 'test', (err, node) => {
-        expect(node.parent).to.equal(drive.root)
-        expect(node.name).to.equal('test')
-        expect(node.owner).to.deep.equal([uuid1])
-        expect(node.hasOwnProperty('writelist')).to.be.false
-        expect(node.hasOwnProperty('readlist')).to.be.false
-
-        xattr.get(dstpath, 'user.fruitmix', (err, attr) => {
-          if (err) return done(err)
-          expect(JSON.parse(attr)).to.deep.equal({
-            owner: [uuid1],
-            uuid: node.uuid
-          })
-          done()
-        })
-      })
-    })
-
-    it('should import a new file into non-root folder', function(done) {
-      let srcpath = path.join(cwd, 'tmptest/tmp/testfile')
-      let dstpath = path.join(cwd, 'tmptest/driveroot/folder1/test')
-      let folder1 = drive.root.children[0]
-      drive.importFile(uuid1, srcpath, folder1, 'test', (err, node) => {
-        expect(node.parent).to.equal(folder1)
-        expect(node.name).to.equal('test')
-        expect(node.owner).to.deep.equal([uuid1])
-        expect(node.hasOwnProperty('writelist')).to.be.false
-        expect(node.hasOwnProperty('readlist')).to.be.false
-
-        xattr.get(dstpath, 'user.fruitmix', (err, attr) => {
-          if (err) return done(err)
-          expect(JSON.parse(attr)).to.deep.equal({
-            owner: [uuid1],
-            uuid: node.uuid
-          })
-          done()
-        })
-      })
-    })
-  })
-**/
-  /* end of all groups */
 })
 
+describe(path.basename(__filename) + ': testing inspect', function() {
+
+  const createForest = (props, callback)  => {
+    let forest = createDrive() 
+    let node = forest.createNode(null, props)
+    forest.requestInspection(node)
+    forest.once('inspectionsFinished', () => {
+      callback(null, forest)
+    })
+  }
+
+  describe('test inspect for drive', function() {
+
+    let { uuid, owner, writelist, readlist } = fixed01
+    let props = {
+      uuid: uuid1,
+      type: 'folder',
+      owner: [uuid2],
+      writelist:[uuid3],
+      readlist:[uuid4],
+      name: path.join(cwd, 'tmptest')
+    } 
+
+    beforeEach(function() {
+      return (async () => {
+        await rimrafAsync('tmptest')
+        await mkdirpAsync('tmptest/folder1/folder2')
+        await mkdirpAsync('tmptest/folder3')
+      })()
+    })
+
+    it('should create a forest', function(done) {
+      createForest(props, (err, forest) => {
+        console.log(forest)
+        done()
+      })
+    })
+/**
+    it('should build cache on simple folder hierarchy w/o xattr', function(done) {
+
+      const named = (list, name) => {
+        let l = list.find(l => l.name === name)
+        if (!l) throw new Error('named item not found in list')
+        return l
+      }
+
+      let fired = false
+      let forest = createDrive()
+      let node = forest.createNode(null, props)
+      forest.requestInspection(node) 
+      forest.on('inspectionsFinished', () => {
+
+        if (!fired) {
+          fired = true
+          rimraf('tmptest/folder1', err => {
+            if (err) return done(err)
+            forest.requestInspection(node) 
+          })
+        }
+        else {
+          console.log(forest.roots[0].getChildren())
+          done()
+        }
+      })
+    })
+**/
+  })
+})

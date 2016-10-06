@@ -9,6 +9,14 @@ import { IndexedTree } from './indexedTree'
 import { mapXstatToObject } from './util'
 import { visit } from './visitors'
 
+const ERROR = (code, _text) => (text => Object.assign(new Error(text || _text), { code }))
+
+const EFAIL = ERROR('EFAIL', 'operation failed') 
+const EINVAL = ERROR('EINVAL', 'invalid argument')
+const EINTR = ERROR('EINTR', 'operation interrupted')
+const ENOENT = ERROR('ENOENT', 'entry not found')
+const EMISMATCH = ERROR('EMISMATCH', 'uuid mismatch')
+
 const driveVisitor = (dir, node, entry, callback) => {
 
   let entrypath = path.join(dir, entry)
@@ -31,33 +39,14 @@ class Drive extends IndexedTree {
   constructor(conf) {
     const proto = {}
     super(proto)
+
+    this.inspections = new Map()
   }
 
   // uuid, type, name, owner, readlist, writelist
   // rootpath
   attachDrive(props, rootpath) {
     let node = this.createNode(null, props)
-  }
-
-  buildCache() {
-
-    if (this.cacheState !== 'NONE') throw new Error('buildCache can only be called when cacheState is NONE')
-
-    this.cacheState = 'CREATING'
-    this.createNode(null, {
-      uuid: this.uuid,
-      type: 'folder',
-      owner: this.owner,
-      writelist: this.writelist,
-      readlist: this.readlist,
-      name: this.rootpath
-    })
-
-    let drive = this
-    visit(this.rootpath, this.root, driveVisitor, () => {
-      drive.cacheState = 'CREATED'
-      drive.emit('driveCached', drive)
-    })
   }
 
   scan(node, callback) {
@@ -76,6 +65,144 @@ class Drive extends IndexedTree {
     }
 
     visit(node.namepath(), node, visitor, () => callback(null))
+  }
+
+  inspect(node) {
+
+    let finished = false
+    let uuid = node.uuid
+
+    let target = node.namepath()
+    let mtime = node.mtime
+    let mtime1, mtime2, children = []
+
+    fs.stat(target, (err, stats) => {
+
+      if (finished) return
+      if (err) return finish(err) 
+      if (stats.mtime.getTime() === mtime) return finish(null)
+
+      mtime1 = stats.mtime.getTime()
+      fs.readdir(target, (err, entries) => {
+
+        if (finished) return
+        if (err) return finish(err)  
+        if (entries.length === 0) {
+          readXstatAgain()
+        }
+        else {
+          let count = entries.length
+          entries.forEach(entry => {
+            readXstat(path.join(target, entry), (err, xstat) => {
+              if (finished) return
+              if (!err) children.push(xstat) // bypass error
+              if (!--count) readXstatAgain()
+            })
+          })
+        }
+      })
+
+      function readXstatAgain() {
+
+        fs.stat(target, (err, stat2) => {
+          if (finished) return
+          if (err) return finish(err)
+          mtime2 = stat2.mtime.getTime() 
+          finish(null)
+        })
+      }
+    }) // end of readXstat
+
+    const finish = (err) => {  
+
+      // target path or name change is irrelevant
+      // if node is deleted, blame where it is deleted failing to remove this job
+      // so timestamp check should be enough
+     
+      if (err) {
+        this.requestInspection(node.parent.uuid)
+        finishJob(false)
+      } 
+      else if (mtime1 === mtime) {
+        finishJob(false)
+      }
+      else if (mtime1 !== mtime2) {
+        finishJob(true)
+      }
+      else {
+        // compare children, create a map first
+        let map = new Map()
+        children.forEach(xstat => map.set(xstat.uuid, xstat))
+
+        // first round, remove all children not found in xstats
+        node.getChildren()
+          .filter(child => !map.has(child.uuid))
+          .forEach(child => this.deleteSubTree(child))
+
+        // second round, update existing thing if necessary
+        node.getChildren().forEach(child => {
+          
+          let xstat = map.get(child.uuid)
+          this.updateNode(child, mapXstatToObject(xstat))
+          if (xstat.isDirectory() && xstat.mtime.getTime() !== child.mtime)
+            this.requestInspection(child) // TODO
+
+          map.delete(child.uuid)
+        })
+
+        // third round, add new node
+        Array.from(map.values()).forEach(xstat => {
+          let child = this.createNode(node, mapXstatToObject(xstat)) 
+          if (xstat.isDirectory())
+            this.requestInspection(child) // TODO
+        })
+
+        node.mtime = mtime2
+        finishJob(false)
+      }
+    }
+
+    const finishJob = (again) => {
+      let job = this.inspections.get(node)
+      if (again || job.again) {
+        job.again = false
+        job.abort = inspect(node)
+      }
+      else {
+        this.inspections.delete(node)
+        if (this.inspections.size === 0) {
+          this.emit('inspectionsFinished')
+        }
+      }
+    }
+
+    function abort() {
+      finished = true    
+    }
+  }
+
+  // a job is key value pair
+  // key:   uuid
+  // value: { abort, again }
+
+  // callback is optional TODO
+  requestInspection(node, callback) {
+
+    console.log(`requestInspection ${node.uuid} ${node.name}`)
+
+    // find job with the same uuid (aka, inspecting the same node)
+    let job = this.inspections.get(node)
+
+    // creat a job if not found
+    if (!job) {
+      this.inspections.set(node, {
+        abort: this.inspect(node),
+        again: false
+      })
+    }
+    else if (!job.again) {
+      job.again = true 
+    }
   }
 
   // v createFolder   targetNode (parent), new name
