@@ -40,7 +40,7 @@ class Drive extends IndexedTree {
     const proto = {}
     super(proto)
 
-    this.inspections = new Map()
+    this.collations = new Map()
   }
 
   // uuid, type, name, owner, readlist, writelist
@@ -67,7 +67,7 @@ class Drive extends IndexedTree {
     visit(node.namepath(), node, visitor, () => callback(null))
   }
 
-  inspect(node) {
+  collate(node) {
 
     let finished = false
     let uuid = node.uuid
@@ -118,9 +118,8 @@ class Drive extends IndexedTree {
       // target path or name change is irrelevant
       // if node is deleted, blame where it is deleted failing to remove this job
       // so timestamp check should be enough
-     
       if (err) {
-        this.requestInspection(node.parent.uuid)
+        this.requestCollation(node.parent)
         finishJob(false)
       } 
       else if (mtime1 === mtime) {
@@ -145,7 +144,7 @@ class Drive extends IndexedTree {
           let xstat = map.get(child.uuid)
           this.updateNode(child, mapXstatToObject(xstat))
           if (xstat.isDirectory() && xstat.mtime.getTime() !== child.mtime)
-            this.requestInspection(child) // TODO
+            this.requestCollation(child) // TODO
 
           map.delete(child.uuid)
         })
@@ -154,7 +153,7 @@ class Drive extends IndexedTree {
         Array.from(map.values()).forEach(xstat => {
           let child = this.createNode(node, mapXstatToObject(xstat)) 
           if (xstat.isDirectory())
-            this.requestInspection(child) // TODO
+            this.requestCollation(child) // TODO
         })
 
         node.mtime = mtime2
@@ -163,15 +162,15 @@ class Drive extends IndexedTree {
     }
 
     const finishJob = (again) => {
-      let job = this.inspections.get(node)
+      let job = this.collations.get(node)
       if (again || job.again) {
         job.again = false
-        job.abort = inspect(node)
+        job.abort = collate(node)
       }
       else {
-        this.inspections.delete(node)
-        if (this.inspections.size === 0) {
-          this.emit('inspectionsFinished')
+        this.collations.delete(node)
+        if (this.collations.size === 0) {
+          this.emit('collationsFinished')
         }
       }
     }
@@ -186,23 +185,25 @@ class Drive extends IndexedTree {
   // value: { abort, again }
 
   // callback is optional TODO
-  requestInspection(node, callback) {
+  requestCollation(node, callback) {
 
-    console.log(`requestInspection ${node.uuid} ${node.name}`)
+    console.log(`requestCollation ${node.uuid} ${node.name}`)
 
-    // find job with the same uuid (aka, inspecting the same node)
-    let job = this.inspections.get(node)
+    // find job with the same uuid (aka, collating the same node)
+    let job = this.collations.get(node)
 
     // creat a job if not found
     if (!job) {
-      this.inspections.set(node, {
-        abort: this.inspect(node),
+      this.collations.set(node, {
+        abort: this.collate(node),
         again: false
       })
     }
     else if (!job.again) {
       job.again = true 
     }
+    
+    return this
   }
 
   // v createFolder   targetNode (parent), new name

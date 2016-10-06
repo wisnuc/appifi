@@ -114,7 +114,7 @@ const nodeProperties = {
 
   preVisitFind(func) {
     if (func(this)) return this
-    if(this.children === undefined) return undefined
+    if (this.getChildren().length === 0) return undefined
     return this.children.find(child => child.preVisitFind(func))
   },
 
