@@ -1,13 +1,14 @@
 import fs from 'fs'
 import child from 'child_process'
-import EventEmiter from 'events'
+import EventEmitter from 'events'
 
 import { readXstat } from './xstat'
 
 // always 8 fields, trailing with size in bytes
-const identifyFormatString = '"%m|%w|%h|%[EXIF:Orientation]|%[EXIF:DateTime]|%[EXIF:Make]|%[EXIF:Model]|%b"'
+// !!! don't double quote the string
+const identifyFormatString = '%m|%w|%h|%[EXIF:Orientation]|%[EXIF:DateTime]|%[EXIF:Make]|%[EXIF:Model]|%b'
 
-export const validateExifDateTime = (str) {
+export const validateExifDateTime = (str) => {
 
   // "2016:09:19 10:07:05"
   if (str.length !== 19)
@@ -51,7 +52,7 @@ export const parseIdentifyOutput = (data) => {
     obj.exifOrientation = orient
 
   // 4: exifDateTime (optional)
-  if (validateExifDateTime(split[4])
+  if (validateExifDateTime(split[4]))
     obj.exifDateTime = split[4]
 
   // 5: exifMake
@@ -63,7 +64,8 @@ export const parseIdentifyOutput = (data) => {
     obj.exifModel = split[6]
 
   let size
-  if (split[1].endsWith('B')) size = parseInt(split[1])
+  if (split[7].endsWith('B')) 
+    size = parseInt(split[7])
   if (Number.isInteger(size) && size > 0)
     obj.size = size
   else 
@@ -87,12 +89,13 @@ export const createIdentifyWorker = (target, uuid, digest, callback) => {
 
     // readXstat guarantees the target is either a regular file or a folder, but not others
     // so is safe to return EISDIR as error code
-    if (!xstat.isDirectory())       
+    if (xstat.isDirectory())       
       return CALLBACK(Object.assign(new Error('target must be a file'), { code: 'EISDIR' }))
 
     if (xstat.uuid !== uuid)
       return CALLBACK(Object.assign(new Error('uuid mismatch'), { code: 'EMISMATCH' }))
 
+    console.log(xstat, digest)
     if (xstat.hash !== digest)
       return CALLBACK(Object.assign(new Error('digest mismatch'), { code: 'EHASHMISMATCH' }))
 
@@ -107,12 +110,15 @@ export const createIdentifyWorker = (target, uuid, digest, callback) => {
     spawn.on('close', code => {
       spawn = null
       if (finished) return
-      if (code !== 0 || !meta)
+      if (code !== 0 || !meta) {
+        console.log(`code ${code}`)
+        console.log(meta)
         CALLBACK(Object.assign(new Error('identify failed')), { code: 'EFAIL' }) 
+      }
       else
         CALLBACK(null, meta) 
     })
-  }
+  })
 
   return () => {
     if (finished) return
@@ -132,13 +138,18 @@ export const createIdentifyWorker = (target, uuid, digest, callback) => {
 class MetaBuilder extends EventEmitter {
 
   constructor(forest, limit = 1) {
+
+    super()
     
     this.forest = forest
     this.limit = limit
     this.running = [] // job array
     this.pending = [] // digest array
 
-    this.forest.on('meta', this.handle)
+    this.forest.on('meta', digest => {
+      this.handle(digest)
+    })
+
     this.aborted = false
   }
 
@@ -147,7 +158,7 @@ class MetaBuilder extends EventEmitter {
     let digestObj = this.forest.findDigestObject(digest)
 
     if (!digestObj) return null
-    if (!digestObj.nodes || digesetObj.nodes.length === 0) return null
+    if (!digestObj.nodes || digestObj.nodes.length === 0) return null
     if (digestObj.meta) return null
 
     let node = digestObj.nodes[0]
@@ -173,14 +184,16 @@ class MetaBuilder extends EventEmitter {
 
   jobDone(err, meta, job) {
 
+   
     this.running.splice(this.running.indexOf(job), 1)     
+
     if (!this.running.length && !this.pending.length) {
       // this is the right place to emit
-      this.emit('metaBuilderStopped') 
+      process.nextTick(() => this.emit('metaBuilderStopped'))
     }
 
+    // if aborted, no schedule
     if (err && err.code === 'EABORT') return
-
     process.nextTick(() => this.schedule())
 
     if (err) {
@@ -193,7 +206,7 @@ class MetaBuilder extends EventEmitter {
       if (!digestObj) return
       if (!digestObj.nodes || digestObj.nodes.length === 0) return
       if (digestObj.meta) return
-      if (digestObj.nodes.indexOf(job.node) === -1) return
+      if (!digestObj.nodes.find(node => node.uuid === job.uuid)) return
 
       digestObj.meta = meta 
     }
