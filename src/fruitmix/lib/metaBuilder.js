@@ -95,7 +95,6 @@ export const createIdentifyWorker = (target, uuid, digest, callback) => {
     if (xstat.uuid !== uuid)
       return CALLBACK(Object.assign(new Error('uuid mismatch'), { code: 'EMISMATCH' }))
 
-    console.log(xstat, digest)
     if (xstat.hash !== digest)
       return CALLBACK(Object.assign(new Error('digest mismatch'), { code: 'EHASHMISMATCH' }))
 

@@ -81,16 +81,31 @@ describe(path.basename(__filename), function() {
     
   })())
 
-  it('should do something', function(done) {
+  it('should extract meta/exif for img001', function(done) {
 
     let mock = new Forest()    
     let builder = createMetaBuilder(mock)    
+    let onceStarted = false
     
-    builder.on('metaBuilderStarted', () => console.log('metaBuilderStarted'))
+    builder.on('metaBuilderStarted', () => {
+
+      expect(builder.running.length).to.equal(1)
+      expect(builder.pending.length).to.equal(0)
+
+      expect(builder.running[0].digest).to.equal(img001Hash)
+      expect(builder.running[0].uuid).to.equal(img001UUID)
+      expect(builder.running[0].abort).to.be.a('function')
+
+      onceStarted = true
+    })
+
     builder.on('metaBuilderStopped', () => {
-      console.log('metaBuilderStopped')
-      console.log(builder) 
-      console.log(digestObj)
+  
+      expect(onceStarted).to.be.true
+    
+      expect(builder.running.length).to.equal(0)
+      expect(builder.pending.length).to.equal(0)
+
       expect(digestObj.meta).to.deep.equal({ 
         format: 'JPEG',
         width: 3264,
@@ -103,6 +118,7 @@ describe(path.basename(__filename), function() {
       })
       done()
     })
+
     mock.emit('meta', img001Hash)
   })
 })
