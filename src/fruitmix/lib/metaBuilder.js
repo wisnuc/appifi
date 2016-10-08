@@ -74,7 +74,7 @@ export const parseIdentifyOutput = (data) => {
 
 // uuid and digest is required because this function should
 // check if uuid and digest matches.
-// EISDIR w/o syscall, EMISMATCH
+// EISDIR w/o errno, EMISMATCH
 export const createIdentifyWorker = (target, uuid, digest, callback) => {
 
   let finished = false
@@ -129,7 +129,7 @@ export const createIdentifyWorker = (target, uuid, digest, callback) => {
   }
 }
 
-class MetaWatcher extends EventEmitter {
+class MetaBuilder extends EventEmitter {
 
   constructor(forest, limit = 1) {
     
@@ -138,12 +138,15 @@ class MetaWatcher extends EventEmitter {
     this.running = [] // job array
     this.pending = [] // digest array
 
-    this.forest.on('meta', this.handler)
+    this.forest.on('meta', this.handle)
+    this.aborted = false
   }
 
   createJob(digest) {
     
+    // TODO
     let digestObj = this.forest.hashMap.get(digest)
+
     if (!digestObj) return null
     if (!digestObj.nodes || digesetObj.nodes.length === 0) return null
     if (digestObj.meta) return null
@@ -156,7 +159,7 @@ class MetaWatcher extends EventEmitter {
         let job = {
           digest,
           uuid: node.uuid,
-          abort: createIdentifyWorker(node.namepath(), digest, (err, meta) => 
+          abort: createIdentifyWorker(node.namepath(), node.uuid, digest, (err, meta) => 
             this.jobDone(err, meta, job)) 
         }
         return job
@@ -169,9 +172,13 @@ class MetaWatcher extends EventEmitter {
 
   jobDone(err, meta, job) {
 
-    if (err && err.code === 'EABORT') return
-
     this.running.splice(this.running.indexOf(job), 1)     
+    if (!this.running.length && !this.pending.length) {
+      // this is the right place to emit
+      this.emit('metaBuilderStopped') 
+    }
+
+    if (err && err.code === 'EABORT') return
     process.nextTick(() => this.schedule())
 
     if (err) {
@@ -179,9 +186,11 @@ class MetaWatcher extends EventEmitter {
     } 
     else {
 
+      // TODO
       let digestObj = this.forest.hashMap.get(job.digest)
+
       if (!digestObj) return
-      if (!digestObj.nodes) return
+      if (!digestObj.nodes || digestObj.nodes.length === 0) return
       if (digestObj.meta) return
       if (digestObj.nodes.indexOf(job.node) === -1) return
 
@@ -189,38 +198,48 @@ class MetaWatcher extends EventEmitter {
     }
   }
 
-  schedule() {
+  createAndEnqueueJob(digest) {
   
-    if (!this.running.length && !this.pending.length)
-      this.emit('metaWorkerStopped') 
-
-    while (this.limit - this.running.length > 0 && this.pending.length) {
-      let digest = this.pending.shift()
-      let job = this.createJob(digest)
-      if (job) this.running.push(job)
+    let job = this.createJob(digest)
+    if (job) {
+      this.running.push(job)
+      if (this.running.length === 1 && this.pending.length === 0) {
+        this.emit('metaBuilderStarted')
+      }
     }
   }
 
-  handler(digest) {
+  schedule() {
+    while (this.limit - this.running.length > 0 && this.pending.length) {
+      let digest = this.pending.shift()
+      this.createAndEnqueueJob(digest)
+    }
+  }
+
+  handle(digest) {
+
+    if (this.aborted) return
     
     if (this.running.find(r => r.digest === digest)) 
       return
     if (this.pending.find(dgst => dgst === digest))
       return
 
-    if (this.running.length >= this.limit) {
+    if (this.running.length >= this.limit)
       this.pending.push(digest)
-    } 
-    else {
-      let job = this.createJob(digest)
-      if (job) {
-        this.running.push(job)
-        if (this.running.length === 1 && this.pending.length === 0) {
-          this.emit('metaWorkerStarted')
-        }
-      }
-    }
+    else 
+      this.createAndEnqueueJob(digest)
   }
+
+  abort() {
+
+    this.pending = []
+    this.running.forEach(job => job.abort())
+    this.aborted = true
+  }
+
 }
 
-export const createMetaWatcher = (forest, limit) => new MetaWatcher(forest, limit)
+export const createMetaBuilder = (forest, limit) => new MetaBuilder(forest, limit)
+
+
