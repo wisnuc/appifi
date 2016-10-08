@@ -144,30 +144,31 @@ class MetaBuilder extends EventEmitter {
 
   createJob(digest) {
     
-    // TODO
-    let digestObj = this.forest.hashMap.get(digest)
+    let digestObj = this.forest.findDigestObject(digest)
 
     if (!digestObj) return null
     if (!digestObj.nodes || digesetObj.nodes.length === 0) return null
     if (digestObj.meta) return null
 
-    switch(digestObj.type) {
+    let node = digestObj.nodes[0]
+    let uuid = node.uuid
+    let target = node.namepath()
+    let abort
 
-      case 'JPEG': {
-        let node = digestObj.nodes[0]
-        let target = node.namepath()
-        let job = {
-          digest,
-          uuid: node.uuid,
-          abort: createIdentifyWorker(node.namepath(), node.uuid, digest, (err, meta) => 
-            this.jobDone(err, meta, job)) 
-        }
-        return job
-      } 
+    switch(digestObj.type) {
+      case 'JPEG': 
+        abort = createIdentifyWorker(target, uuid, digest, (err, meta) => this.jobDone(err, meta, job)) 
+        break
 
       default:
         return null
     } 
+
+    let job = { digest, uuid, abort }
+    this.running.push(job)
+    if (this.running.length === 1 && this.pending.length === 0) {
+      this.emit('metaBuilderStarted')
+    }
   }
 
   jobDone(err, meta, job) {
@@ -179,6 +180,7 @@ class MetaBuilder extends EventEmitter {
     }
 
     if (err && err.code === 'EABORT') return
+
     process.nextTick(() => this.schedule())
 
     if (err) {
@@ -186,8 +188,7 @@ class MetaBuilder extends EventEmitter {
     } 
     else {
 
-      // TODO
-      let digestObj = this.forest.hashMap.get(job.digest)
+      let digestObj = this.forest.findDigestObject(job.digest)
 
       if (!digestObj) return
       if (!digestObj.nodes || digestObj.nodes.length === 0) return
@@ -198,21 +199,10 @@ class MetaBuilder extends EventEmitter {
     }
   }
 
-  createAndEnqueueJob(digest) {
-  
-    let job = this.createJob(digest)
-    if (job) {
-      this.running.push(job)
-      if (this.running.length === 1 && this.pending.length === 0) {
-        this.emit('metaBuilderStarted')
-      }
-    }
-  }
-
   schedule() {
     while (this.limit - this.running.length > 0 && this.pending.length) {
       let digest = this.pending.shift()
-      this.createAndEnqueueJob(digest)
+      this.createJob(digest)
     }
   }
 
@@ -228,7 +218,7 @@ class MetaBuilder extends EventEmitter {
     if (this.running.length >= this.limit)
       this.pending.push(digest)
     else 
-      this.createAndEnqueueJob(digest)
+      this.createJob(digest)
   }
 
   abort() {

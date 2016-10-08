@@ -391,6 +391,10 @@ class IndexedTree extends EventEmitter {
   findNodeByUUID(uuid) {
     return this.uuidMap.get(uuid)
   }
+
+  findDigestObject(digest) {
+    return this.hashMap.get(digest)
+  }
 }
 
 export { nodeProperties, IndexedTree } 
