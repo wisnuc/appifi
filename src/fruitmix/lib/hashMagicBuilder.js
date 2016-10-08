@@ -2,8 +2,10 @@ import fs from 'fs'
 import child from 'child_process'
 import EventEmitter from 'events'
 
-import { readXstat } from './xstat'
+import { readXstat, updateXattrHashMagic } from './xstat'
 
+// this function is responsible for update xattr of target file
+// and returns xstat after updateXattrHashMagic succeeds.
 export const createWorker = (target, uuid, callback) => {
 
   let finished = false
@@ -19,8 +21,8 @@ export const createWorker = (target, uuid, callback) => {
     if (finished) return
     if (err) 
       return CALLBACK(err)
-    if (!xstat.isFile()) 
-      return CALLBACK(Object.assign(new Error('target must be a file'), { code: 'ENOTDIR' }))
+    if (xstat.isDirectory()) 
+      return CALLBACK(Object.assign(new Error('target must be a file'), { code: 'EISDIR' }))
     if (xstat.uuid !== uuid) 
       return CALLBACK(Object.assign(new Error('uuid mismatch'), { code: 'EMISMATCH' }))
    
@@ -62,19 +64,11 @@ export const createWorker = (target, uuid, callback) => {
 
   })
 
-  const next = () => {
-    if (!--count) {
-      this.forest.updateHashMagic(target, uuid, hash, magic, timestamp, err => {
-        if (finished) return
-        CALLBACK(err)
-      })
-    }
-  }
+  const next = () =>   
+    !--count && updateXattrHashMagic(target, uuid, hash, magic, timestamp, (err, xstat) => 
+      !finished && CALLBACK(err, xstat))
 
-  const CALLBACK = (err) => {
-    finished = true
-    callback(err)
-  }
+  const CALLBACK = (err, xstat) => (finished = true) && callback(err, xstat)
 
   // abort function
   return () => {
@@ -91,7 +85,7 @@ export const createWorker = (target, uuid, callback) => {
   }
 }
 
-class Scheduler extends EventEmitter {
+class HashMagicBuilder extends EventEmitter {
 
   constructor(forest, limit = 1) {
     super()
@@ -100,26 +94,41 @@ class Scheduler extends EventEmitter {
     this.running = [] // object array
     this.pending = [] // uuid array
 
-    this.forest.on('hashless', this.handle)
+    this.forest.on('hashless', node => {
+      this.handle(node)
+    })
   }
 
   createJob(node) {
 
-    let job = {
-      uuid: node.uuid,
-      abort: createWorker(node.namepath(), uuid, err => this.jobDone(err, job))
-    }
-    return job
+    console.log(`creating job for ${node.uuid}`)
+
+    let uuid = node.uuid
+    let abort = createWorker(node.namepath(), uuid, (err, xstat) => 
+      this.jobDone(err, xstat, job))
+
+    let job = { uuid, abort }
+    this.running.push(job)
+
   }
 
-  jobDone(err, job) {
-    
-    if (err && err.code === 'EABORT') return
+  jobDone(err, xstat, job) {
+
+    console.log(`job for ${job.uuid} done`)
 
     this.running.splice(this.running.indexOf(job), 1)
+    if (!this.running.length && !this.pending.length) {
+      process.nextTick(() => this.emit('hashMagicBuilderStopped'))
+    }
+   
+    // if aborted no schedule
+    if (err && err.code === 'EABORT') return
     process.nextTick(() => this.schedule())
   
-    if (!err) return
+    if (!err) {
+      this.forest.updateFileNode(xstat)
+      return
+    }
 
     let node = this.forest.findNodeByUUID(job.uuid)
     if (!node) return  
@@ -142,48 +151,31 @@ class Scheduler extends EventEmitter {
 
   schedule() {
 
-    if (!this.running.length && !this.pending.length)
-      this.emit('hashMagicStopped')
-
     while (this.limit - this.running.length > 0 && this.pending.length) {
-
       let uuid = this.pending.shift()
       let node = this.forest.findNodeByUUID(uuid)
-      if (node) {
-        let job = this.createJob(node)
-
-        if (job) {
-          this.running.push(job)
-        }
-      }
+      if (node) this.createJob(node)
     }
   }
 
   handle(node) {
 
-    // running
     if (this.running.find(r => r.uuid === node.uuid))
       return
-
-    // pending
     if (this.pending.find(id => id === node.uuid))
       return
     
-    if (this.running.length >= this.limit) {
+    if (this.running.length >= this.limit)
       this.pending.push(node.uuid)
-    }
     else {
-      let job = this.createJob(node)
-      if (job) {
-        this.running.push(job)
-        if (this.running.length === 1 && this.pending.length === 0) {
-          this.emit('hashMagicStarted')
-        }
+      this.createJob(node)
+      if (this.running.length === 1 && this.pending.length === 0) {
+        this.emit('hashMagicBuilderStarted')
       }
     }
-    return this
   }
 
+/**
   request(uuid) {
 
     // running
@@ -208,17 +200,15 @@ class Scheduler extends EventEmitter {
     }
     return this
   }
+**/
 
   abort() {
-    this.running.forEach(job => job.abort())
-    this.running = []
+
     this.pending = []
+    this.running.forEach(job => job.abort())
+    this.aborted = true
   }
 }
 
-export const createHashMagicScheduler = (forest, limit) => new Scheduler(forest, limit)
-
-
-
-
+export const createHashMagicBuilder = (forest, limit) => new HashMagicBuilder(forest, limit)
 

@@ -176,14 +176,10 @@ class MetaBuilder extends EventEmitter {
 
     let job = { digest, uuid, abort }
     this.running.push(job)
-    if (this.running.length === 1 && this.pending.length === 0) {
-      this.emit('metaBuilderStarted')
-    }
   }
 
   jobDone(err, meta, job) {
 
-   
     this.running.splice(this.running.indexOf(job), 1)     
 
     if (!this.running.length && !this.pending.length) {
@@ -229,12 +225,15 @@ class MetaBuilder extends EventEmitter {
 
     if (this.running.length >= this.limit)
       this.pending.push(digest)
-    else 
+    else {
       this.createJob(digest)
+      if (this.running.length === 1 && this.pending.length === 0) {
+        this.emit('metaBuilderStarted')
+      }
+    }
   }
 
   abort() {
-
     this.pending = []
     this.running.forEach(job => job.abort())
     this.aborted = true

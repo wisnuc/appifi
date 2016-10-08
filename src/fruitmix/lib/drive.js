@@ -525,6 +525,17 @@ class Drive extends IndexedTree {
     })
   }
 
+  updateFileNode(xstat) {
+
+    if (!xstat.isFile()) return
+    
+    let node = this.findNodeByUUID(xstat.uuid)
+    if (!node) return
+    if (!node.isFile()) return
+
+    this.updateNode(node, mapXstatToObject(xstat))
+  }
+
   //////////////////////////////////////////////////////////////////////////////
   //
   // for share api
