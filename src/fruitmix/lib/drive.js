@@ -206,6 +206,15 @@ class Drive extends IndexedTree {
     return this
   }
 
+  reportNodeMissing(node) {
+  }
+
+  reportNodeMismatch(node) {
+  }
+
+  reportNodeHashOutdated(node) {
+  }
+
   // v createFolder   targetNode (parent), new name
   // v createFile     targetNode (parent), new name, file, optional digest?
   //   renameFolder   targetNode, new name (not conflicting) 
@@ -499,10 +508,18 @@ class Drive extends IndexedTree {
   updateHashMagic(target, uuid, hash, magic, timestamp, callback) {
 
     // update file first
+    // besides system error, this function may returns
+    // EINVAL, EMISMATCH, EOUTDATED
     updateXattrHashMagic(target, uuid, hash, magic, timestamp, (err, xstat) => {
       if (err) return callback(err)
-      let node = this.uuidMap.get(uuid) 
-      if (!node) return callback(new Error('node not found')) // TODO really weird! is this possible?
+      let node = this.findNodeByUUID(uuid) 
+      if (!node) {
+        // this is a weird case but possible, say right after
+        // updateXattrHashMagic's last operation finished the node is deleted
+        // but we have nothing to do, so pretend everything is fine
+        // need more consideration and should test and log it TODO
+        return callback(null)
+      }
       this.updateNode(node, mapXstatToObject(xstat))
       callback(null) 
     })

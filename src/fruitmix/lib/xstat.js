@@ -27,10 +27,10 @@ const EInvalid = (text) =>
   Object.assign((new Error(text || 'invalid args')), { code: 'EINVAL' })
 
 const InstanceMismatch = (text) => 
-  Object.assign((new Error(text || 'instance mismatch')), { code: 'EINSTANCEMISMATCH' })
+  Object.assign((new Error(text || 'instance mismatch')), { code: 'EMISMATCH' })
 
 const TimestampMismatch = (text) =>
-  Object.assign((new Error(text || 'timestamp mismatch')), { code: 'ETIMESTAMPMISMATCH' })
+  Object.assign((new Error(text || 'timestamp mismatch')), { code: 'EOUTDATED' })
 
 const readTimeStamp = (target, callback) =>
   fs.lstat(target, (err, stats) => 
