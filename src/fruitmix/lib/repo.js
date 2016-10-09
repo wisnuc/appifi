@@ -3,19 +3,22 @@ import EventEmitter from 'events'
 
 import { fs, mkdirp, mkdirpAsync, rimrafAsync } from '../util/async'
 
+import { createHashMagicBuilder } from './hashMagicBuilder'
+import { createMetaBuilder } from './metaBuilder'
 import { createDrive } from './drive'
 
 // repo is responsible for managing all drives
 class Repo extends EventEmitter {
 
   // repo constructor
-  constructor(paths, driveModel, forest) {
+  constructor(paths, driveModel, forest, hashMagicBuilder, metaBuilder) {
 
     super()
-
     this.paths = paths
     this.driveModel = driveModel
     this.forest = forest
+    this.hashMagicBuilder = hashMagicBuilder
+    this.metaBuilder = metaBuilder
 
     this.state = 'IDLE' // 'INITIALIZING', 'INITIALIZED', 'DEINITIALIZING',
   }
@@ -55,24 +58,7 @@ class Repo extends EventEmitter {
       }
     } // loop end
 
-/**
-    let roots = props.map(prop => this.forest.createNode(null, prop))     
-    let promises = roots.map(root => 
-      new Promise(resolve => this.forest.scan(root, () => {
-        console.log(`[repo] init: scan root finished: ${root.uuid}`)
-        resolve()
-      })))
-
-    Promise.all(promises)
-      .then(() => {
-        console.log(`[repo] init: ${roots.length} drives cached`)
-        this.emit('driveCached')
-      })
-      .catch(e => {})
-**/
-
     props.forEach(prop => this.forest.createRoot(prop))
-  
     this.state = 'INITIALIZED'
     console.log('[repo] init: initialized')
   }
@@ -102,14 +88,7 @@ class Repo extends EventEmitter {
     return this.driveModel.collection.list
   }
 
-  //  label
-  //  fixedOwner: true
-  //  URI: fruitmix
-  //  uuid 
-  //  owner
-  //  writelist
-  //  readlist
-  //  cache
+  //  label, fixedOwner: true, URI: fruitmix, uuid, owner, writelist, readlist, cache
   createFruitmixDrive(conf, callback) {
 
     let dir = this.paths.get('drives')
@@ -169,18 +148,7 @@ class Repo extends EventEmitter {
       })
     })
   }
-
-////////////////////////////////////////////////////////////////////////////////
-
-  inspect(uuid) {
-    console.log(`something requested to inspect node with uuid: ${uuid}`)
-  }
 }
 
-const createRepo = (paths, driveModel, forest) => new Repo(paths, driveModel, forest)
-
-const testing = {
-}
-
-export { createRepo, testing }
+export const createRepo = (paths, driveModel, forest) => new Repo(paths, driveModel, forest)
 

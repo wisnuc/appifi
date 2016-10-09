@@ -212,22 +212,23 @@ describe(path.basename(__filename) + ': indexedTree functions', function() {
       expect(t.hashMap instanceof Map).to.be.true
       expect(t.hashMap.size).to.equal(0)
     })
-  
+/**  
     it('should have an empty hashless set', function() {
       expect(t.hashless instanceof Set).to.be.true
       expect(t.hashless.size).to.equal(0)
     })
+**/
 
     it('should have an empty shared set', function() {
       expect(t.shared instanceof Set).to.be.true
       expect(t.shared.size).to.equal(0)
     })
-
+/**
     it('should hav an empty extended Set', function() {
       expect(t.extended instanceof Set).to.be.true
       expect(t.extended.size).to.equal(0)
     })
-
+**/
     it('should have empty roots array', function() {
       expect(t.roots).to.deep.equal([])
     })

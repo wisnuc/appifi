@@ -104,11 +104,15 @@ describe(path.basename(__filename), function() {
       })
     })
 
-    it('should have smbUsername, smbPassword, smbLastChangeTime, avatar, email, as null (input minimal)', function(done) {
+    it('should have lastChangetime', function(done) {
       umod.createUser(inputMinimal, (err, user) => {
-        expect(user.smbUsername).to.be.null
-        expect(user.smbPassword).to.be.null
-        expect(user.smbLastChangeTime).to.be.null
+        expect(user.lastChangeTime).to.be.a('number')
+        done()
+      })
+    })
+
+    it('should have avatar, email, as null (input minimal)', function(done) {
+      umod.createUser(inputMinimal, (err, user) => {
         expect(user.avatar).to.be.null
         expect(user.email).to.be.null
         done()
