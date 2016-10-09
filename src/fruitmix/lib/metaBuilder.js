@@ -180,19 +180,14 @@ class MetaBuilder extends EventEmitter {
 
   jobDone(err, meta, job) {
 
-    this.running.splice(this.running.indexOf(job), 1)     
-
-    if (!this.running.length && !this.pending.length) {
-      // this is the right place to emit
-      process.nextTick(() => this.emit('metaBuilderStopped'))
-    }
-
-    // if aborted, no schedule
-    if (err && err.code === 'EABORT') return
-    process.nextTick(() => this.schedule())
-
     if (err) {
-      // TODO
+      switch (err.code) {
+      case 'EABORT':
+        break
+
+      default:
+        break
+      }
     } 
     else {
 
@@ -205,6 +200,15 @@ class MetaBuilder extends EventEmitter {
 
       digestObj.meta = meta 
     }
+
+    this.running.splice(this.running.indexOf(job), 1)     
+    if (!this.running.length && !this.pending.length) {
+      process.nextTick(() => this.emit('metaBuilderStopped'))
+    }
+
+    // it doesn't matter whether schedule is called or not after abort
+    // schedule works only when pending queue non-empty, which is not true after abort
+    process.nextTick(() => this.schedule())
   }
 
   schedule() {
@@ -228,7 +232,8 @@ class MetaBuilder extends EventEmitter {
     else {
       this.createJob(digest)
       if (this.running.length === 1 && this.pending.length === 0) {
-        this.emit('metaBuilderStarted')
+        // avoiding race
+        process.nextTick(() => this.emit('metaBuilderStarted'))
       }
     }
   }

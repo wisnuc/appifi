@@ -115,38 +115,25 @@ class HashMagicBuilder extends EventEmitter {
   jobDone(err, xstat, job) {
 
     console.log(`job for ${job.uuid} done`)
+  
+    if (err) {
+      switch (err.code) {
+        case 'EABORT':
+          break
+        default:
+          break        
+      }
+    }
+    else {
+      this.forest.updateFileNode(xstat)
+    }
 
     this.running.splice(this.running.indexOf(job), 1)
     if (!this.running.length && !this.pending.length) {
       process.nextTick(() => this.emit('hashMagicBuilderStopped'))
     }
-   
-    // if aborted no schedule
-    if (err && err.code === 'EABORT') return
+
     process.nextTick(() => this.schedule())
-  
-    if (!err) {
-      this.forest.updateFileNode(xstat)
-      return
-    }
-
-    let node = this.forest.findNodeByUUID(job.uuid)
-    if (!node) return  
-
-    switch(err.code) {
-      case 'ENOENT':
-        return
-      case 'ENOTDIR':
-        return
-      case 'EMISMATCH':
-        return
-      case 'EOUTDATED':
-        this.handler(node)
-        return 
-      default:
-        // TODO log
-        return
-    }
   }
 
   schedule() {
@@ -160,6 +147,8 @@ class HashMagicBuilder extends EventEmitter {
 
   handle(node) {
 
+    if (this.aborted) return
+
     if (this.running.find(r => r.uuid === node.uuid))
       return
     if (this.pending.find(id => id === node.uuid))
@@ -170,37 +159,11 @@ class HashMagicBuilder extends EventEmitter {
     else {
       this.createJob(node)
       if (this.running.length === 1 && this.pending.length === 0) {
-        this.emit('hashMagicBuilderStarted')
+        // using nextTick is stack friendly and safer, say, user may call abort in handler
+        process.nextTick(() => this.emit('hashMagicBuilderStarted'))
       }
     }
   }
-
-/**
-  request(uuid) {
-
-    // running
-    if (this.running.find(r => r.uuid === uuid))
-      return this
-
-    // pending
-    if (this.pending.find(id => id === uuid))
-      return this
-    
-    if (this.running.length >= this.limit) {
-      this.pending.push(uuid)
-    }
-    else {
-      let job = this.createJob(uuid)
-      if (job) {
-        this.running.push(job)
-        if (this.running.length === 1 && this.pending.length === 0) {
-          this.emit('hashMagicStarted')
-        }
-      }
-    }
-    return this
-  }
-**/
 
   abort() {
 

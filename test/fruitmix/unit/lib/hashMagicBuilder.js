@@ -69,7 +69,7 @@ describe(path.basename(__filename) + ': test hashMagic worker', function() {
   })
 })
 
-describe(path.basename(__filename) + ': test hashMagic scheduler', function() {
+describe(path.basename(__filename) + ': test hashMagic builder', function() {
 
   let file1Xstat, file2Xstat, file3Xstat, file4Xstat
   const readXstatAsync = Promise.promisify(readXstat)
@@ -197,6 +197,50 @@ describe(path.basename(__filename) + ': test hashMagic scheduler', function() {
     })
 
   })
+
+  it('should do ...', function(done) {
+
+    let forest = new Forest()
+    forest.updateFileNode = (xstat) => {} // console.log(xstat)
+
+    let builder = createHashMagicBuilder(forest, 2)
+    builder.on('hashMagicBuilderStarted', () => {
+      console.log('hashMagicBuilderStarted')
+      builder.abort()
+    })
+
+    builder.on('hashMagicBuilderStopped', () => {
+      console.log('hashMagicBuilderStopped')
+      done()
+    })
+
+    forest.emit('hashless', {
+      uuid: file1Xstat.uuid,
+      namepath: () => file1Xstat.abspath
+    })
+    console.log('file1 emitted')
+
+    forest.emit('hashless', {
+      uuid: file2Xstat.uuid,
+      namepath: () => file2Xstat.abspath
+    })
+    console.log('file2 emitted')
+
+    forest.emit('hashless', {
+      uuid: file3Xstat.uuid,
+      namepath: () => file3Xstat.abspath
+    })
+    console.log('file3 emitted')
+
+    forest.emit('hashless', {
+      uuid: file4Xstat.uuid,
+      namepath: () => file4Xstat.abspath
+    })
+    console.log('file4 emitted')
+
+  })
+
+
 })
 
 
