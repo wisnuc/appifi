@@ -43,12 +43,6 @@ class Drive extends IndexedTree {
     this.collations = new Map()
   }
 
-  // uuid, type, name, owner, readlist, writelist
-  // rootpath
-  attachDrive(props, rootpath) {
-    let node = this.createNode(null, props)
-  }
-
   scan(node, callback) {
 
     let X = this
@@ -67,7 +61,17 @@ class Drive extends IndexedTree {
     visit(node.namepath(), node, visitor, () => callback(null))
   }
 
+  createRoot(props) {
+
+    console.log(`creating root`)
+
+    let root = this.createNode(null, props)
+    if (root) this.requestCollation(root)
+  }
+
   collate(node) {
+
+    console.log(`collating node`)
 
     let finished = false
     let uuid = node.uuid
@@ -162,6 +166,7 @@ class Drive extends IndexedTree {
     }
 
     const finishJob = (again) => {
+
       let job = this.collations.get(node)
       if (again || job.again) {
         job.again = false
@@ -170,7 +175,8 @@ class Drive extends IndexedTree {
       else {
         this.collations.delete(node)
         if (this.collations.size === 0) {
-          this.emit('collationsFinished')
+          console.log('collationsStopped')
+          process.nextTick(() => this.emit('collationsStopped'))
         }
       }
     }
@@ -198,6 +204,11 @@ class Drive extends IndexedTree {
         abort: this.collate(node),
         again: false
       })
+
+      if (this.collations.size === 1) {
+        console.log('collationsStarted')
+        process.nextTick(() => this.emit('collationsStarted'))
+      }
     }
     else if (!job.again) {
       job.again = true 

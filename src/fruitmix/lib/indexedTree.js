@@ -130,6 +130,12 @@ const nodeProperties = {
 // to prevent unexpected modification
 Object.freeze(nodeProperties)
 
+const metaType = (text) => {
+
+  if (text.startsWith('JPEG image data'))
+    return 'JPEG'
+}
+
 class IndexedTree extends EventEmitter {
 
   // proto can be any plain JavaScript object
@@ -144,10 +150,6 @@ class IndexedTree extends EventEmitter {
     this.uuidMap = new Map()
     // file only, examine magic and conditionally put node into map
     this.hashMap = new Map()
-    // file only, for file without hashmagic
-    this.hashless = new Set()
-    // for digestObj with extended meta but not sure if it has been extracted before
-    this.extended = new Set()
     // folder only, for folder with writer/reader other than drive owner
     this.shared = new Set()
 
@@ -244,11 +246,7 @@ class IndexedTree extends EventEmitter {
   fileHashInstall(node, hash, magic) {
 
     if (!hash) {
-      this.hashless.add(node)
-
-      // TODO
-      // this is probably not the best place to emit since the content update is not finished yet.
-      this.emit('hashlessAdded', node)
+      process.nextTick(() => this.emit('hashMagic', node))
       return
     }
     
@@ -258,32 +256,24 @@ class IndexedTree extends EventEmitter {
       return 
     } 
 
-    let meta = magicMeta(magic)
-    if (meta) {
+    let type = metaType(magic)
+    if (type) {
       node.hash = hash
       digestObj = {
-        meta,
+        type,
         nodes: [node]
       }
       this.hashMap.set(hash, digestObj)
-      if (meta.extended) {
-        this.extended.add(digestObj)
-        this.emit('extendedAdded', digestObj)
-      }
+      this.emit('meta', hash)
     }
   }
 
   fileHashUninstall(node) {
 
     // if no hash
-    if (!node.hash) {
-      if (this.hashless.has(node)) {
-        this.hashless.delete(node)
-      }
-      return
-    }
+    if (!node.hash) return
 
-    // let hash = node.hash // TODO
+    // let hash = node.hash // TODO no problem, for cleaner code
 
     // retrieve digest object
     let digestObj = this.hashMap.get(node.hash)
@@ -299,8 +289,6 @@ class IndexedTree extends EventEmitter {
 
     // destory digest object if this is last one
     if (digestObj.nodes.length === 0) {
-      // try to remove it out of extended (probably already removed)
-      if (digestObj.meta.extended) this.extended.delete(digestObj)
       this.hashMap.delete(node.hash)
     }
   }

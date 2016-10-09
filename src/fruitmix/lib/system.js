@@ -41,6 +41,14 @@ const initAsync = async (sysroot) => {
   let forest = createDrive()
   models.setModel('forest', forest)
 
+  // create hash magic builder
+  let hashMagicBuilder = createHashMagicBuilder(forest)
+  models.setModel('hashMagicBuilder', hashMagicBuilder)
+
+  // create meta builder
+  let metaBuilder = createMetaBuilder(forest)
+  models.setModel('metaBuilder', metaBuilder)
+
   // create repo
   let repo = createRepo(paths, driveModel, forest)
   models.setModel('repo', repo)

@@ -24,7 +24,7 @@ describe(path.basename(__filename) + ': testing collation', function() {
     let forest = createDrive() 
     let node = forest.createNode(null, props)
     forest.requestCollation(node)
-    forest.once('collationsFinished', () => {
+    forest.once('collationsStopped', () => {
       callback(null, forest)
     })
   }
@@ -108,7 +108,7 @@ describe(path.basename(__filename) + ': testing collation', function() {
           let f3node = namedNode(forest.roots[0], 'folder3')
           forest.requestCollation(f3node)
 
-          forest.once('collationsFinished', () => {
+          forest.once('collationsStopped', () => {
             expect(nameArray(forest.roots[0])).to.deep.equal([
               'root|null',
                 'folder1|root',
@@ -130,7 +130,7 @@ describe(path.basename(__filename) + ': testing collation', function() {
         await mkdirpAsync('tmptest/folder3/folder4')
         await Promise.promisify(callback => 
           forest.requestCollation(namedNode(root, 'folder3'))
-            .once('collationsFinished', () => callback()))()
+            .once('collationsStopped', () => callback()))()
         return nameArray(root)
 
       })().should.eventually.deep.equal([
@@ -152,7 +152,7 @@ describe(path.basename(__filename) + ': testing collation', function() {
           let f2node = namedNode(forest.roots[0], 'folder2')
           forest.requestCollation(f2node)
 
-          forest.once('collationsFinished', () => {
+          forest.once('collationsStopped', () => {
             expect(nameArray(forest.roots[0])).to.deep.equal([
               'root|null',
                 'folder1|root',

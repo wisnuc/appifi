@@ -16,7 +16,10 @@ import models from 'src/fruitmix/models/models'
 import { createUserModelAsync } from 'src/fruitmix/models/userModel'
 import { createDriveModelAsync } from 'src/fruitmix/models/driveModel'
 import { createDrive } from 'src/fruitmix/lib/drive'
+import { createMetaBuilder } from 'src/fruitmix/lib/metaBuilder'
+import { createHashMagicBuilder } from 'src/fruitmix/lib/hashMagicBuilder'
 import { createRepo } from 'src/fruitmix/lib/repo'
+
 
 const cwd = process.cwd()
 
@@ -183,18 +186,36 @@ describe(path.basename(__filename), function() {
 
     it('observe', function(done) {
 
-      let img001Meta = { type: 'JPEG', width: 3264, height: 1836, extended: true }
-
+      let img001Meta = { 
+        format: 'JPEG',
+        width: 3264,
+        height: 1836,
+        exifOrientation: 1,
+        exifDateTime: '2014:12:13 15:31:24',
+        exifMake: 'SAMSUNG',
+        exifModel: 'SM-T705C',
+        size: 2331588 
+      } 
       let driveModel = models.getModel('drive')
       let forest = createDrive()
+      let hashMagicBuilder = createHashMagicBuilder(forest)
+      let metaBuilder = createMetaBuilder(forest)
       let repo = createRepo(paths, driveModel, forest)
 
-      repo.on('hashMagicWorkerStopped', () => {
+      metaBuilder.on('metaBuilderStopped', () => {
         expect(forest.hashMap.size).to.equal(1)
         expect(forest.hashMap.has(img001Digest)).to.be.true
+
+        console.log('>>>>>>>>')
+        console.log(forest.hashMap.get(img001Digest))
+        console.log('========')
+        console.log(img001Meta)
+        console.log('<<<<<<<<')
+
         expect(forest.hashMap.get(img001Digest).meta).to.deep.equal(img001Meta)
         done()
       })
+
       repo.init(() => {
         console.log('repo initialized')
       })

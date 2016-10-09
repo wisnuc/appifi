@@ -4,7 +4,6 @@ import EventEmitter from 'events'
 import { fs, mkdirp, mkdirpAsync, rimrafAsync } from '../util/async'
 
 import { createDrive } from './drive'
-import createHashMagic from './hashMagic'
 
 // repo is responsible for managing all drives
 class Repo extends EventEmitter {
@@ -18,34 +17,7 @@ class Repo extends EventEmitter {
     this.driveModel = driveModel
     this.forest = forest
 
-    this.hashMagicConcurrent = 1
-    this.hashMagicJobs = []
-
-    this.forest.on('driveCached', () => console.log(`driveCached: ${drive.uuid}`))
-    this.forest.on('hashlessAdded', node => {
-      console.log(`hashlessAdded drive: uuid:${node.uuid} path:${node.namepath()}`) 
-      this.hashMagicWorker.start(node.namepath(), node.uuid)
-    })
-
     this.state = 'IDLE' // 'INITIALIZING', 'INITIALIZED', 'DEINITIALIZING',
-
-    this.hashMagicWorker = createHashMagic()
-    this.hashMagicWorker.on('end', ret => {
-
-      if (this.state === 'IDLE') return
-
-      // find drive containing this uuid
-      this.forest.updateHashMagic(ret.target, ret.uuid, ret.hash, ret.magic, ret.timestamp, err => {
-
-        if (this.forest.hashless.size === 0) {
-          console.log(`hashMagicWorkerStopped`)
-          return this.emit('hashMagicWorkerStopped')
-        }
-        
-        let node = this.forest.hashless.values().next().value 
-        this.hashMagicWorker.start(node.namepath(), node.uuid)
-      })
-    })
   }
 
   async initAsync() {
@@ -83,6 +55,7 @@ class Repo extends EventEmitter {
       }
     } // loop end
 
+/**
     let roots = props.map(prop => this.forest.createNode(null, prop))     
     let promises = roots.map(root => 
       new Promise(resolve => this.forest.scan(root, () => {
@@ -96,7 +69,10 @@ class Repo extends EventEmitter {
         this.emit('driveCached')
       })
       .catch(e => {})
+**/
 
+    props.forEach(prop => this.forest.createRoot(prop))
+  
     this.state = 'INITIALIZED'
     console.log('[repo] init: initialized')
   }
@@ -110,7 +86,6 @@ class Repo extends EventEmitter {
 
   // TODO
   deinit() {
-    this.hashMagicWorker.abort()
     this.state = 'IDLE'
   }
 

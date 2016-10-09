@@ -8,6 +8,8 @@ import paths from 'src/fruitmix/lib/paths'
 import { createUserModelAsync } from 'src/fruitmix/models/userModel'
 import { createDriveModelAsync } from 'src/fruitmix/models/driveModel'
 import { createDrive } from 'src/fruitmix/lib/drive'
+import { createHashMagicBuilder } from 'src/fruitmix/lib/hashMagicBuilder'
+import { createMetaBuilder } from 'src/fruitmix/lib/metaBuilder'
 import { createRepo } from 'src/fruitmix/lib/repo'
 
 import request from 'supertest'
@@ -62,11 +64,21 @@ let drives = [
 ]
 
 const createRepoHashMagicStopped = (paths, model, forest, callback) => {
-  
+
+  let hmBuilder = createHashMagicBuilder(forest)  
+  let metaBuilder = createMetaBuilder(forest)
   let repo = createRepo(paths, model, forest) 
+
+/**  
   repo.on('hashMagicWorkerStopped', () => {
     callback(null, repo)
   })
+**/
+
+  hmBuilder.on('hashMagicBuilderStopped', () => {
+    callback(null, repo)
+  })  
+
   repo.init(e => {
     if (e) callback(e)
   })
@@ -101,7 +113,7 @@ const copyFile = (src, dst, callback) => {
 
 const copyFileAsync = Promise.promisify(copyFile)
 
-describe(path.basename(__dirname), function() {
+describe(path.basename(__filename), function() {
 
   let thumbnail
 
@@ -143,23 +155,8 @@ describe(path.basename(__dirname), function() {
       models.setModel('repo', repo)
 
       thumbnail = createThumbnailer()
-
-      // request a token for later use
-      // token = await requestTokenAsync()
-      // console.log(token)
     })()     
   })
-
-/** 
-  beforeEach(() => (async () => {
-
-    await rimrafAsync('tmptest')
-    await mkdirpAsync('tmptest')
-    await paths.setRootAsync(path.join(cwd, 'tmptest'))
-    thumbnail = createThumbnailer()
-
-  })())
-**/
 
   it('should queue ', done => {
 

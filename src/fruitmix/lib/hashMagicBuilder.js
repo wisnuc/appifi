@@ -94,7 +94,7 @@ class HashMagicBuilder extends EventEmitter {
     this.running = [] // object array
     this.pending = [] // uuid array
 
-    this.forest.on('hashless', node => {
+    this.forest.on('hashMagic', node => {
       this.handle(node)
     })
   }
@@ -146,6 +146,8 @@ class HashMagicBuilder extends EventEmitter {
   }
 
   handle(node) {
+
+    console.log(`hashmagic handle node`)
 
     if (this.aborted) return
 

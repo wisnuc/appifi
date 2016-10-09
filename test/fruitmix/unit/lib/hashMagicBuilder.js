@@ -155,7 +155,7 @@ describe(path.basename(__filename) + ': test hashMagic builder', function() {
       })
     })
 
-    forest.emit('hashless', {
+    forest.emit('hashMagic', {
       uuid: file1Xstat.uuid,
       namepath: () => file1Xstat.abspath 
     })
@@ -176,22 +176,22 @@ describe(path.basename(__filename) + ': test hashMagic builder', function() {
       done()
     })
 
-    forest.emit('hashless', {
+    forest.emit('hashMagic', {
       uuid: file1Xstat.uuid,
       namepath: () => file1Xstat.abspath
     })
 
-    forest.emit('hashless', {
+    forest.emit('hashMagic', {
       uuid: file2Xstat.uuid,
       namepath: () => file2Xstat.abspath
     })
 
-    forest.emit('hashless', {
+    forest.emit('hashMagic', {
       uuid: file3Xstat.uuid,
       namepath: () => file3Xstat.abspath
     })
 
-    forest.emit('hashless', {
+    forest.emit('hashMagic', {
       uuid: file4Xstat.uuid,
       namepath: () => file4Xstat.abspath
     })
@@ -214,25 +214,25 @@ describe(path.basename(__filename) + ': test hashMagic builder', function() {
       done()
     })
 
-    forest.emit('hashless', {
+    forest.emit('hashMagic', {
       uuid: file1Xstat.uuid,
       namepath: () => file1Xstat.abspath
     })
     console.log('file1 emitted')
 
-    forest.emit('hashless', {
+    forest.emit('hashMagic', {
       uuid: file2Xstat.uuid,
       namepath: () => file2Xstat.abspath
     })
     console.log('file2 emitted')
 
-    forest.emit('hashless', {
+    forest.emit('hashMagic', {
       uuid: file3Xstat.uuid,
       namepath: () => file3Xstat.abspath
     })
     console.log('file3 emitted')
 
-    forest.emit('hashless', {
+    forest.emit('hashMagic', {
       uuid: file4Xstat.uuid,
       namepath: () => file4Xstat.abspath
     })
