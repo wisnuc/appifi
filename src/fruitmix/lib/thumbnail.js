@@ -126,7 +126,7 @@ const createThumbnailer = () => {
     let dst = path.join(paths.get('thumbnail'), key)
 
     function run() {
-      const src = models.getModel('forest').readMediaPath(digest)
+      const src = models.getModel('filer').readMediaPath(digest)
       if (!src) return finish(ENOENT('src not found'))
       const tmp = path.join(paths.get('tmp'), UUID.v4())
       intr = convert(src, tmp, dst, opts, finish)
@@ -240,7 +240,7 @@ export default createThumbnailer
 
     run() {
 
-      const src = models.getModel('forest').readMediaPath(this.digest)
+      const src = models.getModel('filer').readMediaPath(this.digest)
       if (!src) 
         return process.nextTick(finish, Object.assign(new Error('src not found'), {
           code: 'ENOENT'

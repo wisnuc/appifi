@@ -136,16 +136,16 @@ export const createIdentifyWorker = (target, uuid, digest, callback) => {
 
 export class MetaBuilder extends EventEmitter {
 
-  constructor(forest, limit = 1) {
+  constructor(filer, limit = 1) {
 
     super()
     
-    this.forest = forest
+    this.filer = filer
     this.limit = limit
     this.running = [] // job array
     this.pending = [] // digest array
 
-    this.forest.on('meta', digest => {
+    this.filer.on('meta', digest => {
       this.handle(digest)
     })
 
@@ -154,7 +154,7 @@ export class MetaBuilder extends EventEmitter {
 
   createJob(digest) {
     
-    let digestObj = this.forest.findDigestObject(digest)
+    let digestObj = this.filer.findDigestObject(digest)
 
     if (!digestObj) return null
     if (!digestObj.nodes || digestObj.nodes.length === 0) return null
@@ -191,7 +191,7 @@ export class MetaBuilder extends EventEmitter {
     } 
     else {
 
-      let digestObj = this.forest.findDigestObject(job.digest)
+      let digestObj = this.filer.findDigestObject(job.digest)
 
       if (!digestObj) return
       if (!digestObj.nodes || digestObj.nodes.length === 0) return
@@ -246,6 +246,6 @@ export class MetaBuilder extends EventEmitter {
 
 }
 
-export const createMetaBuilder = (forest, limit) => new MetaBuilder(forest, limit)
+export const createMetaBuilder = (filer, limit) => new MetaBuilder(filer, limit)
 
 

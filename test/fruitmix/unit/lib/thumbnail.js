@@ -7,7 +7,7 @@ import models from 'src/fruitmix/models/models'
 import paths from 'src/fruitmix/lib/paths'
 import { createUserModelAsync } from 'src/fruitmix/models/userModel'
 import { createDriveModelAsync } from 'src/fruitmix/models/driveModel'
-import { createDrive } from 'src/fruitmix/lib/drive'
+import { createFiler } from 'src/fruitmix/lib/filer'
 import { createHashMagicBuilder } from 'src/fruitmix/lib/hashMagicBuilder'
 import { createMetaBuilder } from 'src/fruitmix/lib/metaBuilder'
 import { createRepo } from 'src/fruitmix/lib/repo'
@@ -141,7 +141,7 @@ describe(path.basename(__filename), function() {
 
       // create repo and wait until drives cached
       let repo = await createRepoAsync(dmod)
-      models.setModel('forest', repo.forest)
+      models.setModel('filer', repo.filer)
       models.setModel('repo', repo)
 
       thumbnail = createThumbnailer()

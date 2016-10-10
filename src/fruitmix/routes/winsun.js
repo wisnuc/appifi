@@ -41,7 +41,7 @@ router.post('/', (req, res) => {
   let vroot = path.resolve(fruit, '..', '..')
 
   let repo = models.getModel('repo')
-  let forest = models.getModel('forest')
+  let filer = models.getModel('filer')
   let user = req.user
 
   /**
@@ -75,7 +75,7 @@ router.post('/', (req, res) => {
   if (!validateSrc(src) || !validateDst(dst))
     return res.status(500).end()
 
-  let node = forest.findNodeByUUID(dst)
+  let node = filer.findNodeByUUID(dst)
   if (!node || !node.isDirectory()) 
     return res.status(500).end()
 

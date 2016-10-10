@@ -10,7 +10,7 @@ import rimraf from 'rimraf'
 
 import uuids from '../util/uuids'
 import { rimrafAsync, mkdirpAsync, fs, xattr } from '../util/async'
-import { createDrive } from 'src/fruitmix/lib/drive'
+import { createFiler } from 'src/fruitmix/lib/filer'
 
 const uuid1 = 'c0765cd5-acd1-4b53-bb17-7834ebdca6c1' 
 const uuid2 = 'd7114148-e2bd-42f8-88f9-a980a1a4d29c' 
@@ -107,7 +107,7 @@ describe(path.basename(__filename), function() {
             name: path.join(cwd, 'tmptest')
           } 
 
-          let ffs = createDrive()
+          let ffs = createFiler()
           let node = ffs.createNode(null, props)
           ffs.scan(node, () => {
             let arr = []
@@ -157,7 +157,7 @@ describe(path.basename(__filename), function() {
         await rimrafAsync('tmptest')
         await mkdirpAsync('tmptest/folder1/folder2')
         await mkdirpAsync('tmptest/folder3')
-        ffs = createDrive()
+        ffs = createFiler()
         root = ffs.createNode(null, driveProps)
         await new Promise(resolve => ffs.scan(root, () => resolve()))
       })()

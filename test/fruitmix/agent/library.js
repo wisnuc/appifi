@@ -13,7 +13,6 @@ import { createUserModelAsync } from 'src/fruitmix/models/userModel'
 import { createDriveModelAsync } from 'src/fruitmix/models/driveModel'
 
 import createUUIDLog from 'src/fruitmix/lib/uuidlog'
-import { createDrive } from 'src/fruitmix/lib/drive'
 import { createRepo } from 'src/fruitmix/lib/repo'
 
 import request from 'supertest'
@@ -85,7 +84,7 @@ const createRepoCached = (model, callback) => {
   let repo = createRepo(model) 
   
   // if no err, return repo after driveCached
-  repo.forest.on('collationsStopped', () => !err && callback(null, repo))
+  repo.filer.on('collationsStopped', () => !err && callback(null, repo))
   // init & if err return err
   repo.init(e => e && callback(err = e))
 }
@@ -140,7 +139,7 @@ describe(path.basename(__filename) + ': test repo', function() {
 
         // create repo and wait until drives cached
         repo = await createRepoCachedAsync(dmod)
-        models.setModel('forest', repo.forest)
+        models.setModel('filer', repo.filer)
         models.setModel('repo', repo)
 
         // request a token for later use

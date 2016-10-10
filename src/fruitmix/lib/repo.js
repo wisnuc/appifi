@@ -8,18 +8,18 @@ import paths from './paths'
 import { createHashMagicBuilder } from './hashMagicBuilder'
 import { createMetaBuilder } from './metaBuilder'
 
-import { createDrive } from './drive'
+import { createFiler } from './filer'
 
 // repo is responsible for managing all drives
 class Repo extends EventEmitter {
 
   // repo constructor
-  constructor(driveModel, forest, hashMagicBuilder, metaBuilder) {
+  constructor(driveModel, filer, hashMagicBuilder, metaBuilder) {
 
     super()
 
     this.driveModel = driveModel
-    this.forest = forest
+    this.filer = filer
     this.hashMagicBuilder = hashMagicBuilder
     this.metaBuilder = metaBuilder
 
@@ -61,7 +61,7 @@ class Repo extends EventEmitter {
       }
     } // loop end
 
-    props.forEach(prop => this.forest.createRoot(prop))
+    props.forEach(prop => this.filer.createRoot(prop))
     this.state = 'INITIALIZED'
     console.log('[repo] init: initialized')
   }
@@ -102,7 +102,7 @@ class Repo extends EventEmitter {
       this.driveModel.createDrive(conf, err => {
         if (err) return callback(err)
 
-        let root = this.forest.createNode(null, {
+        let root = this.filer.createNode(null, {
           uuid: conf.uuid,
           type: 'folder',
           owner: conf.owner,
@@ -111,7 +111,7 @@ class Repo extends EventEmitter {
           name: dpath  
         })
 
-        this.forest.scan(root, () => console.log(`[repo] createFruitmidxDrive: scan (newly created) root finished: ${root.uuid}`))
+        this.filer.scan(root, () => console.log(`[repo] createFruitmidxDrive: scan (newly created) root finished: ${root.uuid}`))
         
         callback(null, conf)
       })
@@ -155,11 +155,11 @@ class Repo extends EventEmitter {
 
 export const createRepo = (driveModel) => {
 
-  let forest = createDrive()
-  let hashMagicBuilder = createHashMagicBuilder(forest) 
-  let metaBuilder = createMetaBuilder(forest)
+  let filer = createFiler()
+  let hashMagicBuilder = createHashMagicBuilder(filer) 
+  let metaBuilder = createMetaBuilder(filer)
   
-  return new Repo(driveModel, forest, hashMagicBuilder, metaBuilder)
+  return new Repo(driveModel, filer, hashMagicBuilder, metaBuilder)
 }
 
 

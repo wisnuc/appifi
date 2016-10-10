@@ -129,10 +129,10 @@ describe(path.basename(__filename) + ': test hashMagic builder', function() {
 
     let onceStarted
     let xstatToUpdate
-    let forest = new Forest()
-    forest.updateFileNode = (xstat) => xstatToUpdate = xstat
+    let filer = new Forest()
+    filer.updateFileNode = (xstat) => xstatToUpdate = xstat
 
-    let builder = createHashMagicBuilder(forest, 1)
+    let builder = createHashMagicBuilder(filer, 1)
     builder.on('hashMagicBuilderStarted', () => {
       onceStarted = true
     })
@@ -155,7 +155,7 @@ describe(path.basename(__filename) + ': test hashMagic builder', function() {
       })
     })
 
-    forest.emit('hashMagic', {
+    filer.emit('hashMagic', {
       uuid: file1Xstat.uuid,
       namepath: () => file1Xstat.abspath 
     })
@@ -163,10 +163,10 @@ describe(path.basename(__filename) + ': test hashMagic builder', function() {
 
   it('should do ...', function(done) {
 
-    let forest = new Forest()
-    forest.updateFileNode = (xstat) => {} // console.log(xstat)
+    let filer = new Forest()
+    filer.updateFileNode = (xstat) => {} // console.log(xstat)
 
-    let builder = createHashMagicBuilder(forest, 2)
+    let builder = createHashMagicBuilder(filer, 2)
     builder.on('hashMagicBuilderStarted', () => {
       console.log('hashMagicBuilderStarted')
     })
@@ -176,22 +176,22 @@ describe(path.basename(__filename) + ': test hashMagic builder', function() {
       done()
     })
 
-    forest.emit('hashMagic', {
+    filer.emit('hashMagic', {
       uuid: file1Xstat.uuid,
       namepath: () => file1Xstat.abspath
     })
 
-    forest.emit('hashMagic', {
+    filer.emit('hashMagic', {
       uuid: file2Xstat.uuid,
       namepath: () => file2Xstat.abspath
     })
 
-    forest.emit('hashMagic', {
+    filer.emit('hashMagic', {
       uuid: file3Xstat.uuid,
       namepath: () => file3Xstat.abspath
     })
 
-    forest.emit('hashMagic', {
+    filer.emit('hashMagic', {
       uuid: file4Xstat.uuid,
       namepath: () => file4Xstat.abspath
     })
@@ -200,10 +200,10 @@ describe(path.basename(__filename) + ': test hashMagic builder', function() {
 
   it('should do ...', function(done) {
 
-    let forest = new Forest()
-    forest.updateFileNode = (xstat) => {} // console.log(xstat)
+    let filer = new Forest()
+    filer.updateFileNode = (xstat) => {} // console.log(xstat)
 
-    let builder = createHashMagicBuilder(forest, 2)
+    let builder = createHashMagicBuilder(filer, 2)
     builder.on('hashMagicBuilderStarted', () => {
       console.log('hashMagicBuilderStarted')
       builder.abort()
@@ -214,25 +214,25 @@ describe(path.basename(__filename) + ': test hashMagic builder', function() {
       done()
     })
 
-    forest.emit('hashMagic', {
+    filer.emit('hashMagic', {
       uuid: file1Xstat.uuid,
       namepath: () => file1Xstat.abspath
     })
     console.log('file1 emitted')
 
-    forest.emit('hashMagic', {
+    filer.emit('hashMagic', {
       uuid: file2Xstat.uuid,
       namepath: () => file2Xstat.abspath
     })
     console.log('file2 emitted')
 
-    forest.emit('hashMagic', {
+    filer.emit('hashMagic', {
       uuid: file3Xstat.uuid,
       namepath: () => file3Xstat.abspath
     })
     console.log('file3 emitted')
 
-    forest.emit('hashMagic', {
+    filer.emit('hashMagic', {
       uuid: file4Xstat.uuid,
       namepath: () => file4Xstat.abspath
     })

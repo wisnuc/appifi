@@ -8,20 +8,20 @@ const router = Router()
 // return meta data of all I can view
 router.get('/', auth.jwt(), (req, res) => {
   
-  const forest = models.getModel('forest')
+  const filer = models.getModel('filer')
   const user = req.user
 
-  let media = forest.getMedia(user.uuid)
+  let media = filer.getMedia(user.uuid)
   res.status(200).json(media)
 })
 
 router.get('/:digest/download', auth.jwt(), (req, res) => {
 
-  const forest = models.getModel('forest')
+  const filer = models.getModel('filer')
   const user = req.user
   const digest = req.params.digest
 
-  let filepath = forest.readMedia(user.uuid, digest) 
+  let filepath = filer.readMedia(user.uuid, digest) 
 
   if (!filepath) 
     return res.status(404).json({}) 

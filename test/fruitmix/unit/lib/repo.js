@@ -16,7 +16,7 @@ import models from 'src/fruitmix/models/models'
 
 import { createUserModelAsync } from 'src/fruitmix/models/userModel'
 import { createDriveModelAsync } from 'src/fruitmix/models/driveModel'
-import { createDrive, Forest } from 'src/fruitmix/lib/drive'
+import { createFiler, Forest } from 'src/fruitmix/lib/filer'
 import { createMetaBuilder, MetaBuilder } from 'src/fruitmix/lib/metaBuilder'
 import { createHashMagicBuilder, HashMagicBuilder } from 'src/fruitmix/lib/hashMagicBuilder'
 import { createRepo } from 'src/fruitmix/lib/repo'
@@ -135,7 +135,7 @@ describe(path.basename(__filename), function() {
       let repo = createRepo(driveModel)
 
       expect(repo.driveModel).to.equal(driveModel)
-      expect(repo.forest).to.be.an.instanceof(Forest)
+      expect(repo.filer).to.be.an.instanceof(Forest)
       expect(repo.hashMagicBuilder).to.be.an.instanceof(HashMagicBuilder)
       expect(repo.metaBuilder).to.be.an.instanceof(MetaBuilder)
       expect(repo.state).to.equal('IDLE')
@@ -152,8 +152,8 @@ describe(path.basename(__filename), function() {
 
       repo.init(() => {
         expect(repo.state).to.equal('INITIALIZED')
-        expect(repo.forest.roots.length).to.equal(2)
-        expect(repo.forest.roots.map(n => n.uuid).sort()).to.deep.equal([drv002UUID, drv001UUID])
+        expect(repo.filer.roots.length).to.equal(2)
+        expect(repo.filer.roots.map(n => n.uuid).sort()).to.deep.equal([drv002UUID, drv001UUID])
         done()
       })
 
@@ -197,9 +197,9 @@ describe(path.basename(__filename), function() {
 
       repo.metaBuilder.on('metaBuilderStopped', () => {
 
-        expect(repo.forest.hashMap.size).to.equal(1)
-        expect(repo.forest.hashMap.has(img001Digest)).to.be.true
-        expect(repo.forest.hashMap.get(img001Digest).meta).to.deep.equal(img001Meta)
+        expect(repo.filer.hashMap.size).to.equal(1)
+        expect(repo.filer.hashMap.has(img001Digest)).to.be.true
+        expect(repo.filer.hashMap.get(img001Digest).meta).to.deep.equal(img001Meta)
         done()
       })
 

@@ -12,7 +12,7 @@ import deepEqual from 'deep-equal'
 
 import { mkdirpAsync, rimrafAsync, mkdirp, rimraf, fs } from 'src/fruitmix/util/async'
 
-import { createDrive } from 'src/fruitmix/lib/drive'
+import { createFiler } from 'src/fruitmix/lib/filer'
 
 const cwd = process.cwd()
 const driveUUID01 = '880af12c-e545-4035-b4f7-7999f76dd656'
@@ -21,11 +21,11 @@ const userUUID01 = '1b7901c0-0629-47cb-95cf-b31a703cac71'
 describe(path.basename(__filename) + ': testing collation', function() {
 
   const createForest = (props, callback)  => {
-    let forest = createDrive() 
-    let node = forest.createNode(null, props)
-    forest.requestCollation(node)
-    forest.once('collationsStopped', () => {
-      callback(null, forest)
+    let filer = createFiler() 
+    let node = filer.createNode(null, props)
+    filer.requestCollation(node)
+    filer.once('collationsStopped', () => {
+      callback(null, filer)
     })
   }
 
@@ -68,9 +68,9 @@ describe(path.basename(__filename) + ': testing collation', function() {
       })()
     })
 
-    it('createCollatedForest should create a forest matching hierarchy (callback)', function(done) {
+    it('createCollatedForest should create a filer matching hierarchy (callback)', function(done) {
 
-      createForest(props, (err, forest) => {
+      createForest(props, (err, filer) => {
         if (err) return done(err)
 
         let expected = [
@@ -80,16 +80,16 @@ describe(path.basename(__filename) + ': testing collation', function() {
             'folder3|root'
         ].sort()
 
-        let flattened = nameArray(forest.roots[0])
+        let flattened = nameArray(filer.roots[0])
         expect(flattened).to.deep.equal(expected)
         done()
       })
     })
 
-    it('createCollatedForest should create a forest matching hierarchy (async)', () => 
+    it('createCollatedForest should create a filer matching hierarchy (async)', () => 
       (async () => {
-        let forest = await createCollatedForestAsync(props)
-        return nameArray(forest.roots[0])
+        let filer = await createCollatedForestAsync(props)
+        return nameArray(filer.roots[0])
       })().should.eventually.deep.equal([
         'root|null', 
           'folder1|root', 
@@ -99,17 +99,17 @@ describe(path.basename(__filename) + ': testing collation', function() {
 
     it('collations should find newly added folder3/folder4 (callback)', function(done) {
 
-      createForest(props, (err, forest) => {
+      createForest(props, (err, filer) => {
         if (err) return done(err) 
 
         mkdirp('tmptest/folder3/folder4', err => {
           if (err) return done(err)
           
-          let f3node = namedNode(forest.roots[0], 'folder3')
-          forest.requestCollation(f3node)
+          let f3node = namedNode(filer.roots[0], 'folder3')
+          filer.requestCollation(f3node)
 
-          forest.once('collationsStopped', () => {
-            expect(nameArray(forest.roots[0])).to.deep.equal([
+          filer.once('collationsStopped', () => {
+            expect(nameArray(filer.roots[0])).to.deep.equal([
               'root|null',
                 'folder1|root',
                   'folder2|folder1',
@@ -125,11 +125,11 @@ describe(path.basename(__filename) + ': testing collation', function() {
     it('collations should find newly added folder3/folder4 (async)', () => 
       (async () => {
 
-        let forest = await createCollatedForestAsync(props)
-        let root = forest.roots[0]
+        let filer = await createCollatedForestAsync(props)
+        let root = filer.roots[0]
         await mkdirpAsync('tmptest/folder3/folder4')
         await Promise.promisify(callback => 
-          forest.requestCollation(namedNode(root, 'folder3'))
+          filer.requestCollation(namedNode(root, 'folder3'))
             .once('collationsStopped', () => callback()))()
         return nameArray(root)
 
@@ -143,23 +143,23 @@ describe(path.basename(__filename) + ': testing collation', function() {
 
     it('collations should find newly removed folder1/folder2', function(done) {
 
-      createForest(props, (err, forest) => {
+      createForest(props, (err, filer) => {
         if (err) return done(err)
 
         rimraf('tmptest/folder1/folder2', err => {
           if (err) return done(err)
 
-          let f2node = namedNode(forest.roots[0], 'folder2')
-          forest.requestCollation(f2node)
+          let f2node = namedNode(filer.roots[0], 'folder2')
+          filer.requestCollation(f2node)
 
-          forest.once('collationsStopped', () => {
-            expect(nameArray(forest.roots[0])).to.deep.equal([
+          filer.once('collationsStopped', () => {
+            expect(nameArray(filer.roots[0])).to.deep.equal([
               'root|null',
                 'folder1|root',
                 'folder3|root'
             ].sort())
 
-            console.log(forest.roots[0])
+            console.log(filer.roots[0])
             done()
           })
         })

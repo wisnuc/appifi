@@ -16,7 +16,6 @@ import models from 'src/fruitmix/models/models'
 import paths from 'src/fruitmix/lib/paths'
 import { createUserModelAsync } from 'src/fruitmix/models/userModel'
 import { createDriveModelAsync } from 'src/fruitmix/models/driveModel'
-import { createDrive } from 'src/fruitmix/lib/drive'
 import { createRepo } from 'src/fruitmix/lib/repo'
 
 import { createDocumentStore } from 'src/fruitmix/lib/documentStore'
@@ -163,7 +162,7 @@ describe(path.basename(__filename), function() {
 
         // create repo and wait until drives cached
         let repo = await createRepoAsync(dmod)
-        models.setModel('forest', repo.forest)
+        models.setModel('filer', repo.filer)
         models.setModel('repo', repo)
 
         let docpath = paths.get('documents')
@@ -337,7 +336,7 @@ describe(path.basename(__filename), function() {
 
         // create repo and wait until drives cached
         let repo = await createRepoAsync(dmod)
-        models.setModel('forest', repo.forest)
+        models.setModel('filer', repo.filer)
         models.setModel('repo', repo)
 
         let docpath = paths.get('documents')

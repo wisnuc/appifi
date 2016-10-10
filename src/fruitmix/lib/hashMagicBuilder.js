@@ -87,14 +87,14 @@ export const createWorker = (target, uuid, callback) => {
 
 export class HashMagicBuilder extends EventEmitter {
 
-  constructor(forest, limit = 1) {
+  constructor(filer, limit = 1) {
     super()
-    this.forest = forest
+    this.filer = filer
     this.limit = limit
     this.running = [] // object array
     this.pending = [] // uuid array
 
-    this.forest.on('hashMagic', node => {
+    this.filer.on('hashMagic', node => {
       this.handle(node)
     })
   }
@@ -125,7 +125,7 @@ export class HashMagicBuilder extends EventEmitter {
       }
     }
     else {
-      this.forest.updateFileNode(xstat)
+      this.filer.updateFileNode(xstat)
     }
 
     this.running.splice(this.running.indexOf(job), 1)
@@ -140,7 +140,7 @@ export class HashMagicBuilder extends EventEmitter {
 
     while (this.limit - this.running.length > 0 && this.pending.length) {
       let uuid = this.pending.shift()
-      let node = this.forest.findNodeByUUID(uuid)
+      let node = this.filer.findNodeByUUID(uuid)
       if (node) this.createJob(node)
     }
   }
@@ -175,5 +175,5 @@ export class HashMagicBuilder extends EventEmitter {
   }
 }
 
-export const createHashMagicBuilder = (forest, limit) => new HashMagicBuilder(forest, limit)
+export const createHashMagicBuilder = (filer, limit) => new HashMagicBuilder(filer, limit)
 

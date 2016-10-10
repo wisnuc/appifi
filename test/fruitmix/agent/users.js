@@ -8,7 +8,7 @@ import paths from 'src/fruitmix/lib/paths'
 import models from 'src/fruitmix/models/models'
 import { createUserModelAsync } from 'src/fruitmix/models/userModel'
 import { createDriveModelAsync } from 'src/fruitmix/models/driveModel'
-import { createDrive } from 'src/fruitmix/lib/drive'
+import { createFiler } from 'src/fruitmix/lib/filer'
 import { createRepo } from 'src/fruitmix/lib/repo'
 
 let userUUID = '9f93db43-02e6-4b26-8fae-7d6f51da12af'
@@ -77,7 +77,7 @@ const createRepoCached = (model, callback) => {
   let repo = createRepo(model) 
   
   // if no err, return repo after driveCached
-  repo.forest.on('collationsStopped', () => !err && callback(null, repo))
+  repo.filer.on('collationsStopped', () => !err && callback(null, repo))
   // init & if err return err
   repo.init(e => e && callback(err = e))
 }
@@ -115,7 +115,7 @@ const prepare = (callback) => {
 
     // create repo and wait until drives cached
     let repo = await createRepoCachedAsync(dmod)
-    models.setModel('forest', repo.forest)
+    models.setModel('filer', repo.filer)
     models.setModel('repo', repo)
 
     // request a token for later use
