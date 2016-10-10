@@ -77,7 +77,7 @@ describe(path.basename(__filename), function() {
 
   describe('create media', function() {
 
-    it('media should have an empty sharedMap (obsolete)', function() {
+    it('media should have an empty sharedMap (obsolete, need update)', function() {
       let x = createMedia()
       expect(x.shareMap instanceof Map).to.be.true
       expect(x.shareMap.size).to.equal(0)
@@ -122,71 +122,72 @@ describe(path.basename(__filename), function() {
     })())
 
     it('new share should set doctype to mediashare', function(done) {
-      media.createMediaShare(userUUID, obj001, (err, doc) => {
-        expect(doc.doctype).to.equal('mediashare') 
+      media.createMediaShare(userUUID, obj001, (err, share) => {
+        expect(share.doc.doctype).to.equal('mediashare') 
         done()
       })
     })
 
     it('new share should set docversion to 1.0', function(done) {
-      media.createMediaShare(userUUID, obj001, (err, doc) => {
-        expect(doc.docversion).to.equal('1.0') 
+      media.createMediaShare(userUUID, obj001, (err, share) => {
+        expect(share.doc.docversion).to.equal('1.0') 
         done()
       })
     })
 
     it('new share should have uuid', function(done) {
-      media.createMediaShare(userUUID, obj001, (err, doc) => {
-        expect(validator.isUUID(doc.uuid)).to.be.true
+      media.createMediaShare(userUUID, obj001, (err, share) => {
+        expect(validator.isUUID(share.doc.uuid)).to.be.true
         done()
       })
     })
 
     it('new share should set author to given user', function(done) {
-      media.createMediaShare(userUUID, obj001, (err, doc) => {
-        expect(doc.author).to.equal(userUUID)
+      media.createMediaShare(userUUID, obj001, (err, share) => {
+        expect(share.doc.author).to.equal(userUUID)
         done()
       })
     })
 
     it('new share should set maintainer to [] (FIXME!)', function(done) {
-      media.createMediaShare(userUUID, obj001, (err, doc) => {
-        expect(doc.maintainers).to.deep.equal([])
+      media.createMediaShare(userUUID, obj001, (err, share) => {
+        expect(share.doc.maintainers).to.deep.equal([])
         done()
       })
     })
 
     it('new share should set viewers to given viewers', function(done) {
-      media.createMediaShare(userUUID, obj001, (err, doc) => {
-        expect(doc.viewers).to.deep.equal(obj001.viewers)
+      media.createMediaShare(userUUID, obj001, (err, share) => {
+        expect(share.doc.viewers).to.deep.equal(obj001.viewers)
         done()
       })
     })
 
     it('new share should set album to given album', function(done) {
-      media.createMediaShare(userUUID, obj001, (err, doc) => {
-        expect(doc.album).to.deep.equal(obj001.album)
+      media.createMediaShare(userUUID, obj001, (err, share) => {
+        expect(share.doc.album).to.deep.equal(obj001.album)
         done()
       })
     })
 
     it('new share should set sticky to given sticky', function(done) {
-      media.createMediaShare(userUUID, obj001, (err, doc) => {
-        expect(doc.sticky).to.deep.equal(obj001.sticky)
+      media.createMediaShare(userUUID, obj001, (err, share) => {
+        expect(share.doc.sticky).to.deep.equal(obj001.sticky)
         done()
       })
     })
   
     it('new share should have ctime and mtime', function(done) {
-      media.createMediaShare(userUUID, obj001, (err, doc) => {
-        expect(Number.isInteger(doc.ctime)).to.be.true
-        expect(Number.isInteger(doc.mtime)).to.be.true
+      media.createMediaShare(userUUID, obj001, (err, share) => {
+        expect(Number.isInteger(share.doc.ctime)).to.be.true
+        expect(Number.isInteger(share.doc.mtime)).to.be.true
         done()
       })
     })
 
     it('new share should have fixed property sequence', function(done) {
-      media.createMediaShare(userUUID, obj001, (err, doc) => {
+
+      media.createMediaShare(userUUID, obj001, (err, share) => {
 
         const props = [ 'doctype',
                         'docversion',
@@ -201,27 +202,32 @@ describe(path.basename(__filename), function() {
                         'contents' ]
 
         if (err) return done(err)
-        expect(Object.getOwnPropertyNames(doc)).to.deep.equal(props)
+        expect(Object.getOwnPropertyNames(share.doc)).to.deep.equal(props)
         done()
       })
     })
 
-    it('new share should be put into shareMap', function(done) {
-      media.createMediaShare(userUUID, obj001, (err, doc) => {
-        expect(media.shareMap.get(doc.uuid).doc).to.equal(doc)
+    // weird, TODO
+    it('new share should be put into shareMap (weird)', function(done) {
+      media.createMediaShare(userUUID, obj001, (err, share) => {
+        expect(media.shareMap.get(share.doc.uuid).doc).to.equal(share.doc)
         done()
       })
     })
 
     it('new share should be put into mediaMap', function(done) {
-      media.createMediaShare(userUUID, obj001, (err, doc) => {
+      media.createMediaShare(userUUID, obj001, (err, share) => {
         if (err) return done(err)
 
         let ss = media.mediaMap.get(obj001.contents[0])
         let arr = Array.from(ss)
-        expect(arr[0].doc).to.equal(doc)
+        expect(arr[0].doc).to.equal(share.doc)
         done()
       })
+    })
+
+    it('share hash should be asserted', function(done) {
+      throw new Error('not implemented')
     })
 
     it('new share should be stored', function(done) {

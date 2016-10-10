@@ -63,15 +63,12 @@ class Drive extends IndexedTree {
 
   createRoot(props) {
 
-    console.log(`creating root`)
-
     let root = this.createNode(null, props)
     if (root) this.requestCollation(root)
   }
 
+  // rename to probe TODO
   collate(node) {
-
-    console.log(`collating node`)
 
     let finished = false
     let uuid = node.uuid
