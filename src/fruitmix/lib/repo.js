@@ -112,7 +112,6 @@ class Repo extends EventEmitter {
         })
 
         this.filer.scan(root, () => console.log(`[repo] createFruitmidxDrive: scan (newly created) root finished: ${root.uuid}`))
-        
         callback(null, conf)
       })
     })
