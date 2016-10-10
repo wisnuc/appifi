@@ -51,6 +51,7 @@ const variable01 = {
 
 describe(path.basename(__filename), function() {
 
+/** api removed
   describe('test attach drive', function() {
 
     beforeEach(function() {
@@ -72,6 +73,7 @@ describe(path.basename(__filename), function() {
       ffs.attachDrive(props)
     })    
   })
+**/
 
   describe('test cache for drive', function() {
 

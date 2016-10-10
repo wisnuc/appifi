@@ -660,17 +660,28 @@ describe(path.basename(__filename) + ': indexedTree, createNode() for (non-root)
     expect(n.isFile()).to.be.true
   }) 
 
-  it('created file node from props w/o hash/magic should be put into hashless Set', function() {
-    let n = t.createNode(t.roots[0], nrfp)
-    expect(t.hashless.has(n)).to.be.true
+  it('creating file node from props w/o hash/magic should emit hashMagic event', function(done) {
+
+    t.on('hashMagic', node => {
+      expect(node.uuid).to.equal(nrfp.uuid)
+      done()
+    })
+
+    t.createNode(t.roots[0], nrfp)
   })
 
-  it('creating file node from props w/o hash/magic should emit hashlessAdded event', function() {
-    let emitted
-    t.on('hashlessAdded', node => {
-      emitted = node
+  it('creating file node from props w/o hash/magic should emit hashMagic event AFTER node created', function(done) {
+
+    let nodeCreated = false
+
+    t.on('hashMagic', node => {
+      expect(node.uuid).to.equal(nrfp.uuid)
+      expect(nodeCreated).to.be.true
+      done()
     })
-    expect(t.createNode(t.roots[0], nrfp)).to.equal(emitted)
+
+    t.createNode(t.roots[0], nrfp)
+    nodeCreated = true
   })
 
   it('created file node from props w/ uninterested magic should preserve uuid, name, owner, writelist, readlist, size, mtime, w/o magic or hash', function() {
@@ -693,7 +704,7 @@ describe(path.basename(__filename) + ': indexedTree, createNode() for (non-root)
     expect(n.hash).to.be.undefined
   }) 
 
-  it('created file node from props w/ uninterested magic should NOT be put into either hashMap or hashless Set', function() {
+  it('created file node from props w/ uninterested magic should NOT be put into either hashMap', function() {
 
     let hash = '7a44a28d1da4e2b99eda6060aab85168fe9d09fa7f91831f9ef7c137cdca5751'
     let magic = 'ASCII text'
@@ -703,7 +714,6 @@ describe(path.basename(__filename) + ': indexedTree, createNode() for (non-root)
 
     let n = t.createNode(t.roots[0], nrfp)
 
-    expect(t.hashless.has(n)).to.be.false  
     expect(t.hashMap.has(hash)).to.be.false
   })
 
@@ -725,57 +735,51 @@ describe(path.basename(__filename) + ': indexedTree, createNode() for (non-root)
     expect(n.magic).to.be.undefined
   }) 
 
-  it('created file node from props w/ interested magic should be put into hashMap but not hashless Set', function() {
+  it('created file node from props w/ interested magic should be put into hashMap', function() {
 
     nrfp.hash = '7a44a28d1da4e2b99eda6060aab85168fe9d09fa7f91831f9ef7c137cdca5751'
     nrfp.magic = jpegMagic001
 
     let n = t.createNode(t.roots[0], nrfp)
-    expect(t.hashless.has(n)).to.be.false
     expect(t.hashMap.has(nrfp.hash)).to.be.true
     expect(t.hashMap.get(nrfp.hash).nodes).to.include(n)
   })
 
-  it('created file node from props w/ interested magic w/ extended meta should be put into extended Set', function() {
+  it('created digest object from GIVEN props w/ interested magic should have JPEG type', function() {
 
     nrfp.hash = '7a44a28d1da4e2b99eda6060aab85168fe9d09fa7f91831f9ef7c137cdca5751'
     nrfp.magic = jpegMagic001
-    
+
     let n = t.createNode(t.roots[0], nrfp)
     let digestObj = t.hashMap.get(nrfp.hash)
-    expect(t.extended.has(digestObj)).to.be.true 
+
+    expect(digestObj.type).to.equal('JPEG')
   })
 
-  it('creating file node from props w/ interested magic w/ extended meta should emit extendedAdded', function() {
-  
-    let emitted
-    nrfp.hash = hash001
+  it('created digest object from GIVEN props w/ interested magic should have NO meta', function() {
+
+    nrfp.hash = '7a44a28d1da4e2b99eda6060aab85168fe9d09fa7f91831f9ef7c137cdca5751'
     nrfp.magic = jpegMagic001
-    t.on('extendedAdded', node => emitted = node)
-    t.createNode(t.roots[0], nrfp)
-    let d = t.hashMap.get(hash001)
-    expect(emitted).to.equal(d)
-  })
 
-  it('creating file node from props w/ interested magic w/o extended meta should NOT be put into extended Set', function() {
-        
-    nrfp.hash = hash001
-    nrfp.magic = jpegMagic002
-    t.createNode(t.roots[0], nrfp)
+    let n = t.createNode(t.roots[0], nrfp)
     let digestObj = t.hashMap.get(nrfp.hash)
-    expect(digestObj.meta.extended).to.be.false 
-    expect(t.extended.has(digestObj)).to.be.false
-  })
- 
-  it('creating file node from props w/ interested magic w/o extended meta should NOT emit extendedAdded', function() {
 
-    let emitted
-    nrfp.hash = hash001
-    nrfp.magic = jpegMagic002
-    t.on('extendedAdded', node => emitted = node)
+    expect(digestObj.meta).to.be.undefined
+  })
+
+  it('creating digest object from props w/ interested magic should emit meta event', function(done) {
+
+    nrfp.hash = '7a44a28d1da4e2b99eda6060aab85168fe9d09fa7f91831f9ef7c137cdca5751'
+    nrfp.magic = jpegMagic001
+
+    t.on('meta', digest => {
+      expect(digest).to.equal(nrfp.hash)
+      done()
+    })
+
     t.createNode(t.roots[0], nrfp)
-    expect(emitted).to.be.undefined
-  }) 
+  })
+
 })
 
 
