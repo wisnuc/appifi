@@ -87,11 +87,11 @@ const requestToken = (callback) => {
 
 const requestTokenAsync = Promise.promisify(requestToken)
 
-const createRepoHashMagicStopped = (paths, model, forest, callback) => {
+const createRepoHashMagicStopped = (model, callback) => {
   
   let err
-  let repo = createRepo(paths, model, forest) 
-  repo.on('hashMagicWorkerStopped', () => !err && callback(null, repo))
+  let repo = createRepo(model) 
+  repo.metaBuilder.on('metaBuilderStopped', () => !err && callback(null, repo))
   repo.init(e => e && callback(err = e))
 }
 
@@ -161,12 +161,9 @@ describe(path.basename(__filename), function() {
         models.setModel('user', umod)
         models.setModel('drive', dmod)
 
-        // forest
-        let forest = createDrive()
-        models.setModel('forest', forest)
-
         // create repo and wait until drives cached
-        let repo = await createRepoAsync(paths, dmod, forest)
+        let repo = await createRepoAsync(dmod)
+        models.setModel('forest', repo.forest)
         models.setModel('repo', repo)
 
         let docpath = paths.get('documents')
@@ -338,12 +335,9 @@ describe(path.basename(__filename), function() {
         models.setModel('user', umod)
         models.setModel('drive', dmod)
 
-        // forest
-        let forest = createDrive()
-        models.setModel('forest', forest)
-
         // create repo and wait until drives cached
-        let repo = await createRepoAsync(paths, dmod, forest)
+        let repo = await createRepoAsync(dmod)
+        models.setModel('forest', repo.forest)
         models.setModel('repo', repo)
 
         let docpath = paths.get('documents')

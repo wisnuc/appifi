@@ -63,19 +63,11 @@ let drives = [
   }
 ]
 
-const createRepoHashMagicStopped = (paths, model, forest, callback) => {
+const createRepoHashMagicStopped = (model, callback) => {
 
-  let hmBuilder = createHashMagicBuilder(forest)  
-  let metaBuilder = createMetaBuilder(forest)
-  let repo = createRepo(paths, model, forest) 
+  let repo = createRepo(model) 
 
-/**  
-  repo.on('hashMagicWorkerStopped', () => {
-    callback(null, repo)
-  })
-**/
-
-  hmBuilder.on('hashMagicBuilderStopped', () => {
+  repo.hashMagicBuilder.on('hashMagicBuilderStopped', () => {
     callback(null, repo)
   })  
 
@@ -147,11 +139,9 @@ describe(path.basename(__filename), function() {
       models.setModel('user', umod)
       models.setModel('drive', dmod)
 
-      let forest = createDrive()
-      models.setModel('forest', forest)
-
       // create repo and wait until drives cached
-      let repo = await createRepoAsync(paths, dmod, forest)
+      let repo = await createRepoAsync(dmod)
+      models.setModel('forest', repo.forest)
       models.setModel('repo', repo)
 
       thumbnail = createThumbnailer()

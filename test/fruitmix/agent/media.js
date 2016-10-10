@@ -68,10 +68,10 @@ const requestToken = (callback) => {
 
 const requestTokenAsync = Promise.promisify(requestToken)
 
-const createRepoHashMagicStopped = (paths, model, forest, callback) => {
+const createRepoHashMagicStopped = (model, callback) => {
   
-  let repo = createRepo(paths, model, forest) 
-  repo.on('hashMagicWorkerStopped', () => {
+  let repo = createRepo(model) 
+  repo.metaBuilder.once('metaBuilderStopped', () => {
     callback(null, repo)
   })
   repo.init(e => {
@@ -145,11 +145,9 @@ describe(path.basename(__filename) + ': test repo', function() {
         models.setModel('user', umod)
         models.setModel('drive', dmod)
 
-        let forest = createDrive()
-        models.setModel('forest', forest)
-
         // create repo and wait until drives cached
-        let repo = await createRepoAsync(paths, dmod, forest)
+        let repo = await createRepoAsync(dmod)
+        models.setModel('forest', repo.forest)
         models.setModel('repo', repo)
 
         // request a token for later use
@@ -160,14 +158,18 @@ describe(path.basename(__filename) + ': test repo', function() {
 
     it('should get media meta', function(done) {
 
-      const ret = [
-        { digest: '7803e8fa1b804d40d412bcd28737e3ae027768ecc559b51a284fbcadcd0e21be',
-          type: 'JPEG',
+      const ret = [ 
+        { 
+          digest: '7803e8fa1b804d40d412bcd28737e3ae027768ecc559b51a284fbcadcd0e21be',
+          format: 'JPEG',
           width: 3264,
           height: 1836,
-          datetime: '2014:12:13 15:31:24',
-          extended: true 
-        }
+          exifOrientation: 1,
+          exifDateTime: '2014:12:13 15:31:24',
+          exifMake: 'SAMSUNG',
+          exifModel: 'SM-T705C',
+          size: 2331588 
+        } 
       ]
 
       request(app)
@@ -176,6 +178,7 @@ describe(path.basename(__filename) + ': test repo', function() {
         .set('Accept', 'application/json')
         .expect(200)
         .end((err, res) => {
+          console.log(res.body)
           expect(res.body).to.deep.equal(ret)
           done()
         })

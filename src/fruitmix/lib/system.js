@@ -32,27 +32,22 @@ const initAsync = async (sysroot) => {
   let driveModel = await createDriveModelAsync(driveModelPath, tmpPath)
   models.setModel('drive', driveModel)
 
-  // create uuid log 
+  // create repo
+  let repo = createRepo(driveModel)
+  models.setModel('forest', repo.forest)
+  models.setModel('repo', repo) 
+  repo.init(err => err ? console.log(err) : null)
+
+  // create thumbnailer facility
+  let thumbnailer = createThumbnailer()
+  models.setModel('thumbnailer', thumbnailer)
+
+  // create uuid log facility
   let logpath = paths.get('log')
   let log = createUUIDLog(logpath)
   models.setModel('log', log)
 
-  // create forest
-  let forest = createDrive()
-  models.setModel('forest', forest)
-
-  // create hash magic builder
-  let hashMagicBuilder = createHashMagicBuilder(forest)
-  models.setModel('hashMagicBuilder', hashMagicBuilder)
-
-  // create meta builder
-  let metaBuilder = createMetaBuilder(forest)
-  models.setModel('metaBuilder', metaBuilder)
-
-  // create repo
-  let repo = createRepo(paths, driveModel, forest)
-  models.setModel('repo', repo)
-  repo.init(err => err ? console.log(err) : null)
+  // the following should be merged into media, like repo
 
   // create document store
   let docPath = paths.get('documents')
@@ -67,8 +62,6 @@ const initAsync = async (sysroot) => {
   let media = createMedia(msstore)
   models.setModel('media', media)
 
-  let thumbnailer = createThumbnailer()
-  models.setModel('thumbnailer', thumbnailer)
 }
 
 const deinit = () => {

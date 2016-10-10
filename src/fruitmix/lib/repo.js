@@ -3,18 +3,21 @@ import EventEmitter from 'events'
 
 import { fs, mkdirp, mkdirpAsync, rimrafAsync } from '../util/async'
 
+import paths from './paths'
+
 import { createHashMagicBuilder } from './hashMagicBuilder'
 import { createMetaBuilder } from './metaBuilder'
+
 import { createDrive } from './drive'
 
 // repo is responsible for managing all drives
 class Repo extends EventEmitter {
 
   // repo constructor
-  constructor(paths, driveModel, forest, hashMagicBuilder, metaBuilder) {
+  constructor(driveModel, forest, hashMagicBuilder, metaBuilder) {
 
     super()
-    this.paths = paths
+
     this.driveModel = driveModel
     this.forest = forest
     this.hashMagicBuilder = hashMagicBuilder
@@ -29,7 +32,7 @@ class Repo extends EventEmitter {
 
     this.state = 'INITIALIZING'
     
-    let dir = this.paths.get('drives')
+    let dir = paths.get('drives')
     let list = this.driveModel.collection.list
     let props = []
 
@@ -77,11 +80,11 @@ class Repo extends EventEmitter {
 
   // FIXME real implementation should maintain a table
   getTmpDirForDrive(drive) {
-    return this.paths.get('tmp') 
+    return paths.get('tmp') 
   }
 
   getTmpFolderForNode(node) {
-    return this.paths.get('tmp')
+    return paths.get('tmp')
   }
 
   getDrives(userUUID) {
@@ -91,7 +94,7 @@ class Repo extends EventEmitter {
   //  label, fixedOwner: true, URI: fruitmix, uuid, owner, writelist, readlist, cache
   createFruitmixDrive(conf, callback) {
 
-    let dir = this.paths.get('drives')
+    let dir = paths.get('drives')
     let dpath = path.join(dir, conf.uuid)
 
     mkdirp(dpath, err => {
@@ -150,5 +153,14 @@ class Repo extends EventEmitter {
   }
 }
 
-export const createRepo = (paths, driveModel, forest) => new Repo(paths, driveModel, forest)
+export const createRepo = (driveModel) => {
+
+  let forest = createDrive()
+  let hashMagicBuilder = createHashMagicBuilder(forest) 
+  let metaBuilder = createMetaBuilder(forest)
+  
+  return new Repo(driveModel, forest, hashMagicBuilder, metaBuilder)
+}
+
+
 

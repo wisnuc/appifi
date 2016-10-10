@@ -59,21 +59,28 @@ let drives = [
   }
 ]
 
-const createRepoCached = (paths, model, forest, callback) => {
+const createRepoCached = (model, callback) => {
   
-  let err
-  let repo = createRepo(paths, model, forest) 
+  let finished = false
+  let repo = createRepo(model) 
   
   // if no err, return repo after driveCached
-  repo.on('driveCached', () => !err && callback(null, repo))
+  repo.forest.on('collationsStopped', () => !finished && callback(null, repo))
   // init & if err return err
-  repo.init(e => e && callback(err = e))
+  repo.init(err => {
+
+    if (err) {
+      finished = true
+      return callback(err)
+    }
+    if (repo.forest.roots.length === 0)
+      callback(null, repo)
+  })
 }
 
 const createRepoCachedAsync = Promise.promisify(createRepoCached)
 
 const prepare = (users, drives, callback) => {
-
 
   (async () => {
 
@@ -109,12 +116,9 @@ const prepare = (users, drives, callback) => {
     models.setModel('user', umod)
     models.setModel('drive', dmod)
 
-    //
-    let forest = createDrive()
-    models.setModel('forest', forest)    
-
     // create repo and wait until drives cached
-    let repo = await createRepoCachedAsync(paths, dmod, forest)
+    let repo = await createRepoCachedAsync(dmod)
+    models.setModel('forest', repo.forest)
     models.setModel('repo', repo)
 
   })().asCallback(callback)

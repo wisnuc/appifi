@@ -79,13 +79,13 @@ const requestToken = (callback) => {
 
 const requestTokenAsync = Promise.promisify(requestToken)
 
-const createRepoCached = (paths, model, forest, callback) => {
+const createRepoCached = (model, callback) => {
   
   let err
-  let repo = createRepo(paths, model, forest) 
+  let repo = createRepo(model) 
   
   // if no err, return repo after driveCached
-  repo.on('driveCached', () => !err && callback(null, repo))
+  repo.forest.on('collationsStopped', () => !err && callback(null, repo))
   // init & if err return err
   repo.init(e => e && callback(err = e))
 }
@@ -138,11 +138,9 @@ describe(path.basename(__filename) + ': test repo', function() {
         let uuidlog = createUUIDLog(logpath)
         models.setModel('log', uuidlog)
 
-        let forest = createDrive()
-        models.setModel('forest', forest)
-
         // create repo and wait until drives cached
-        repo = await createRepoCachedAsync(paths, dmod, forest)
+        repo = await createRepoCachedAsync(dmod)
+        models.setModel('forest', repo.forest)
         models.setModel('repo', repo)
 
         // request a token for later use

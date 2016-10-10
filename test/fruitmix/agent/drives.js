@@ -6,6 +6,7 @@ import { expect } from 'chai'
 import app from 'src/fruitmix/app'
 import paths from 'src/fruitmix/lib/paths'
 import models from 'src/fruitmix/models/models'
+
 import { createUserModelAsync } from 'src/fruitmix/models/userModel'
 import { createDriveModelAsync } from 'src/fruitmix/models/driveModel'
 import { createDrive } from 'src/fruitmix/lib/drive'
@@ -76,13 +77,14 @@ const requestToken = (callback) => {
 
 const requestTokenAsync = Promise.promisify(requestToken)
 
-const createRepoCached = (paths, model, forest, callback) => {
+const createRepoCached = (model, callback) => {
   
   let err
-  let repo = createRepo(paths, model, forest) 
+  let repo = createRepo(model) 
   
   // if no err, return repo after driveCached
-  repo.on('driveCached', () => !err && callback(null, repo))
+  repo.forest.on('collationsStopped', () => !err && callback(null, repo))
+
   // init & if err return err
   repo.init(e => e && callback(err = e))
 }
@@ -125,12 +127,8 @@ describe(path.basename(__filename) + ': test repo', function() {
         models.setModel('user', umod)
         models.setModel('drive', dmod)
 
-        //
-        let forest = createDrive()
-        models.setModel('forest', forest)    
-
         // create repo and wait until drives cached
-        let repo = await createRepoCachedAsync(paths, dmod, forest)
+        let repo = await createRepoCachedAsync(dmod)
         models.setModel('repo', repo)
 
         // request a token for later use
@@ -157,17 +155,12 @@ describe(path.basename(__filename) + ': test repo', function() {
 
 describe(path.basename(__filename) + ': family version', function() {
 
-  beforeEach(function() {
-    return (async () => {
-      await initFamilyRoot(path.join(process.cwd(), 'family'))
+  beforeEach(() => (async () => {
+    await initFamilyRoot(path.join(process.cwd(), 'family'))
+    await createRepoCachedAsync(models.getModel('drive'))
+  })())
 
-      let forest = createDrive()
-      models.setModel('forest', forest)
-      await Promise.promisify(createRepoCached)(paths, models.getModel('drive'), forest)
-    })()
-  })
-  
-  it('demo alice drive', function() {
+  it('demo alice drive (todo)', function() {
         
   })
 })

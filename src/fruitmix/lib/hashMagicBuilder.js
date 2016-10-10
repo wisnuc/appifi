@@ -85,7 +85,7 @@ export const createWorker = (target, uuid, callback) => {
   }
 }
 
-class HashMagicBuilder extends EventEmitter {
+export class HashMagicBuilder extends EventEmitter {
 
   constructor(forest, limit = 1) {
     super()

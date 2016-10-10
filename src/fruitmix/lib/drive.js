@@ -29,14 +29,9 @@ const driveVisitor = (dir, node, entry, callback) => {
   })
 }
 
-const createDrive = (conf) => {
-  return new Drive(conf)
-}  
+export class Forest extends IndexedTree {
 
-
-class Drive extends IndexedTree {
-
-  constructor(conf) {
+  constructor() {
     const proto = {}
     super(proto)
 
@@ -190,7 +185,7 @@ class Drive extends IndexedTree {
   // callback is optional TODO
   requestCollation(node, callback) {
 
-    console.log(`requestCollation ${node.uuid} ${node.name}`)
+    // console.log(`requestCollation ${node.uuid} ${node.name}`)
 
     // find job with the same uuid (aka, collating the same node)
     let job = this.collations.get(node)
@@ -638,5 +633,7 @@ class Drive extends IndexedTree {
   }
 }
 
-export { createDrive }
+export const createDrive = () => new Forest()
+
+
 

@@ -134,7 +134,7 @@ export const createIdentifyWorker = (target, uuid, digest, callback) => {
   }
 }
 
-class MetaBuilder extends EventEmitter {
+export class MetaBuilder extends EventEmitter {
 
   constructor(forest, limit = 1) {
 
