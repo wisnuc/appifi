@@ -95,16 +95,13 @@ describe(path.basename(__filename) + ': test repo', function() {
     let token
     let cwd = process.cwd()
     let repo
+
     beforeEach(function() {
       return (async () => {
-        // make test dir
-        await rimrafAsync('tmptest')
-        await mkdirpAsync('tmptest')
 
-        // set path root
-        await paths.setRootAsync(path.join(cwd, 'tmptest'))
+        await fakePathModel('tmptest')
 
-        // fake drive dir
+        // fake dir and file in drive
         let dir = paths.get('drives')
         await mkdirpAsync(path.join(dir, drv001UUID, 'world'))
         await fs.writeFileAsync(path.join(dir, drv001UUID, 'file001.png'), '0123456789ABCDEFGHIJKLMN')
@@ -112,26 +109,8 @@ describe(path.basename(__filename) + ': test repo', function() {
         file001Timestamp = stat.mtime.getTime()
         let file001attr = `{"uuid":"${file001UUID}","owner":[],"hash":"141f8b5fb558f3f84949abcba9ca15326b1b6cf335aa845f5ea6f3d21e3061a8","magic":"ASCII text, with no line terminators","htime":${file001Timestamp.toString()}}`
         await Promise.promisify(xattr.set)(path.join(dir, drv001UUID, 'file001.png'), 'user.fruitmix', file001attr)
-        await mkdirpAsync(path.join(dir, drv002UUID))
         
-        // write model files
-        dir = paths.get('models')
-        let tmpdir = paths.get('tmp')
-        await fs.writeFileAsync(path.join(dir, 'users.json'), JSON.stringify(users, null, '  '))
-        await fs.writeFileAsync(path.join(dir, 'drives.json'), JSON.stringify(drives, null, '  '))
-
-        // create models
-        let umod = await createUserModelAsync(path.join(dir, 'users.json'), tmpdir)
-        let dmod = await createDriveModelAsync(path.join(dir, 'drives.json'), tmpdir)
-
-        // set models
-        models.setModel('user', umod)
-        models.setModel('drive', dmod)
-
-        // create repo and wait until drives cached
-        repo = await createRepoCachedAsync(dmod)
-        models.setModel('filer', repo.filer)
-        models.setModel('repo', repo)
+        repo = await fakeRepoSilenced()
 
         // request a token for later use
         token = await requestTokenAsync()
