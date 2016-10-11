@@ -1,5 +1,6 @@
 import path from 'path'
 import { mkdirpAsync, rimrafAsync, fs } from './async' 
+import request from 'supertest'
 
 import paths from '../lib/paths' 
 import models from '../models/models'
@@ -76,3 +77,22 @@ export const fakeRepoSilenced = async () => {
   models.setModel('filer', repo.filer)
   models.setModel('repo', repo)
 }
+
+const requestToken = (app, userUUID, passwd, callback) => {
+
+  console.log(userUUID)
+  console.log(passwd)
+
+  request(app) 
+    .get('/token')
+    .auth(userUUID, passwd)
+    .set('Accept', 'application/json')
+    .end((err, res) => {
+      if (err) return callback(err)
+      callback(null, res.body.token)
+    })
+}
+
+export const requestTokenAsync = Promise.promisify(requestToken)
+
+

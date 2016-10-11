@@ -14,6 +14,8 @@ import { createDriveModelAsync } from 'src/fruitmix/models/driveModel'
 import { createFiler } from 'src/fruitmix/lib/filer'
 import { createRepo } from 'src/fruitmix/lib/repo'
 
+import { fakePathModel, fakeRepoSilenced } from 'src/fruitmix/util/fake'
+
 import request from 'supertest'
 import { mkdirpAsync, rimrafAsync, fs } from 'test/fruitmix/unit/util/async'
 

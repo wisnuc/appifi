@@ -8,8 +8,9 @@ import paths from 'src/fruitmix/lib/paths'
 import models from 'src/fruitmix/models/models'
 import { createUserModelAsync } from 'src/fruitmix/models/userModel'
 import { createDriveModelAsync } from 'src/fruitmix/models/driveModel'
-import { createFiler } from 'src/fruitmix/lib/filer'
 import { createRepo } from 'src/fruitmix/lib/repo'
+
+import { fakePathModel, fakeRepoSilenced, requestTokenAsync } from 'src/fruitmix/util/fake'
 
 let userUUID = '9f93db43-02e6-4b26-8fae-7d6f51da12af'
 let drv001UUID = 'ceacf710-a414-4b95-be5e-748d73774fc4'  
@@ -59,6 +60,8 @@ let drives = [
   }
 ]
 
+const cwd = process.cwd()
+
 const requestToken = (callback) => {
 
   request(app)
@@ -69,62 +72,7 @@ const requestToken = (callback) => {
       err ? callback(err) : callback(null, res.body.token))
 }
 
-const requestTokenAsync = Promise.promisify(requestToken)
-
-const createRepoCached = (model, callback) => {
-  
-  let err
-  let repo = createRepo(model) 
-  
-  // if no err, return repo after driveCached
-  repo.filer.on('collationsStopped', () => !err && callback(null, repo))
-  // init & if err return err
-  repo.init(e => e && callback(err = e))
-}
-
-const prepare = (callback) => {
-
-
-  (async () => {
-
-    // make test dir
-    await rimrafAsync('tmptest')
-    await mkdirpAsync('tmptest')
-
-    // set path root
-    await paths.setRootAsync(path.join(process.cwd(), 'tmptest'))
-
-    // fake drive dir
-    let dir = paths.get('drives')
-    await mkdirpAsync(path.join(dir, drv001UUID))
-    await mkdirpAsync(path.join(dir, drv002UUID))
-    
-    // write model files
-    dir = paths.get('models')
-    let tmpdir = paths.get('tmp')
-    await fs.writeFileAsync(path.join(dir, 'users.json'), JSON.stringify(users, null, '  '))
-    await fs.writeFileAsync(path.join(dir, 'drives.json'), JSON.stringify(drives, null, '  '))
-
-    // create models
-    let umod = await createUserModelAsync(path.join(dir, 'users.json'), tmpdir)
-    let dmod = await createDriveModelAsync(path.join(dir, 'drives.json'), tmpdir)
-
-    // set models
-    models.setModel('user', umod)
-    models.setModel('drive', dmod)
-
-    // create repo and wait until drives cached
-    let repo = await createRepoCachedAsync(dmod)
-    models.setModel('filer', repo.filer)
-    models.setModel('repo', repo)
-
-    // request a token for later use
-    return await requestTokenAsync()
-
-  })().asCallback(callback)
-}
-
-const createRepoCachedAsync = Promise.promisify(createRepoCached)
+// const requestTokenAsync = Promise.promisify(requestToken)
 
 describe(path.basename(__filename) + ': test repo', function() {
 
@@ -132,13 +80,11 @@ describe(path.basename(__filename) + ': test repo', function() {
 
     let token
 
-    beforeEach(function(done) {
-      prepare((err, tok) => {
-        if (err) return done(err)
-        token = tok
-        done()
-      })      
-    })
+    beforeEach(() => (async () => {
+      await fakePathModel(path.join(cwd, 'tmptest'), users, drives)
+      await fakeRepoSilenced()
+      token = await requestTokenAsync(app, userUUID, 'world')
+    })())
 
     it('should return 401 unauthorized if no token', (done) => {
       request(app)
@@ -209,13 +155,12 @@ describe(path.basename(__filename) + ': test repo', function() {
   describe('POST /users', () => {
 
     let token
-    beforeEach(function(done) {
-      prepare((err, tok) => {
-        if (err) return done(err)
-        token = tok
-        done()
-      })      
-    })
+
+    beforeEach(() => (async () => {
+      await fakePathModel(path.join(cwd, 'tmptest'), users, drives)
+      await fakeRepoSilenced()
+      token = await requestTokenAsync(app, userUUID, 'world')
+    })())
 
     it('should add Jason', function(done) {
 
@@ -239,35 +184,38 @@ describe(path.basename(__filename) + ': test repo', function() {
   describe('PATCH /users', () => {
 
     let token
-    let userUUID
+    let jasonUUID
 
-    beforeEach(function(done) {
+    const createJason = (app, callback) => {
 
-      prepare((err, tok) => {
-        if (err) return done(err)
-        token = tok
+      request(app)
+        .post('/users/')
+        .set('Authorization', 'JWT ' + token)
+        .set('Accept', 'application/json')
+        .send({
+          username: 'Jason',
+          password: 'Bourne'
+        })
+        .expect(200)
+        .end((err, res) => {
+          if (err) return callback(err)
+          callback(null, res.body.uuid)
+        })
+    }
 
-        request(app)
-          .post('/users/')
-          .set('Authorization', 'JWT ' + token)
-          .set('Accept', 'application/json')
-          .send({
-            username: 'Jason',
-            password: 'Bourne'
-          })
-          .expect(200)
-          .end((err, res) => {
-            if (err) return done(err)
-            userUUID = res.body.uuid
-            done()
-          })
-      })
-    })
+    const createJasonAsync = Promise.promisify(createJason)
+
+    beforeEach(() => (async () => {
+      await fakePathModel(path.join(cwd, 'tmptest'), users, drives)
+      await fakeRepoSilenced()
+      token = await requestTokenAsync(app, userUUID, 'world')
+      jasonUUID = await createJasonAsync(app)
+    })())
 
     it('should change Jason to Jupiter', function(done) {
       
       request(app)
-        .patch(`/users/${userUUID}`)
+        .patch(`/users/${jasonUUID}`)
         .set('Authorization', 'JWT ' + token)
         .set('Accept', 'application/json')
         .send({
@@ -281,6 +229,12 @@ describe(path.basename(__filename) + ': test repo', function() {
 
     let token
 
+    beforeEach(() => (async () => {
+      await fakePathModel(path.join(cwd, 'tmptest'), users, drives)
+      await fakeRepoSilenced()
+      token = await requestTokenAsync(app, userUUID, 'world')
+    })())
+/**
     beforeEach(done => 
       prepare((err, tok) => {
         if (err) return done(err)
@@ -289,8 +243,8 @@ describe(path.basename(__filename) + ': test repo', function() {
       }))
 
     // it('should 
+**/
   })
-  
   
   /*
   describe('POST /users', () => {
