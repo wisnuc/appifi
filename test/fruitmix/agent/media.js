@@ -54,30 +54,6 @@ let drives = [
   }
 ]
 
-const requestToken = (callback) => {
-
-  request(app)
-    .get('/token')
-    .auth(userUUID, 'world')
-    .set('Accept', 'application/json')
-    .end((err, res) => err ? callback(err) : callback(null, res.body.token))
-}
-
-const requestTokenAsync2 = Promise.promisify(requestToken)
-
-const createRepoHashMagicStopped = (model, callback) => {
-  
-  let repo = createRepo(model) 
-  repo.metaBuilder.once('metaBuilderStopped', () => {
-    callback(null, repo)
-  })
-  repo.init(e => {
-    if (e) callback(e)
-  })
-}
-
-const createRepoAsync = Promise.promisify(createRepoHashMagicStopped)
-
 const copyFile = (src, dst, callback) => {
 
   let error = null

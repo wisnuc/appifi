@@ -1,14 +1,9 @@
 import path from 'path'
 import { mkdirpAsync, rimrafAsync, fs } from 'src/fruitmix/util/async'
 import { expect } from 'chai'
-import request from 'supertest'
 
+import request from 'supertest'
 import app from 'src/fruitmix/app'
-import paths from 'src/fruitmix/lib/paths'
-import models from 'src/fruitmix/models/models'
-import { createUserModelAsync } from 'src/fruitmix/models/userModel'
-import { createDriveModelAsync } from 'src/fruitmix/models/driveModel'
-import { createRepo } from 'src/fruitmix/lib/repo'
 
 import { fakePathModel, fakeRepoSilenced, requestTokenAsync } from 'src/fruitmix/util/fake'
 

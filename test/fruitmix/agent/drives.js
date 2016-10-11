@@ -91,7 +91,7 @@ describe(path.basename(__filename) + ': family version', function() {
 
   beforeEach(() => (async () => {
     await initFamilyRoot(path.join(process.cwd(), 'family'))
-    // TODO await createRepoCachedAsync(models.getModel('drive'))
+    // TODO
   })())
 
   it('demo alice drive (todo)', function() {
