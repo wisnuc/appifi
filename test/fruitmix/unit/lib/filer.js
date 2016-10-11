@@ -51,30 +51,6 @@ const variable01 = {
 
 describe(path.basename(__filename), function() {
 
-/** api removed
-  describe('test attach drive', function() {
-
-    beforeEach(function() {
-      
-    })
-
-    it('should have a root with given props, and path', function() {
-      
-      let props = {
-        uuid: uuid1,
-        type: 'folder',
-        owner: [uuid2],
-        writelist:[uuid3],
-        readlist:[uuid4],
-        name: path.join(cwd, 'tmptest')
-      } 
-  
-      let ffs = createDrive()
-      ffs.attachDrive(props)
-    })    
-  })
-**/
-
   describe('test cache for drive', function() {
 
     let { uuid, owner, writelist, readlist } = fixed01
@@ -108,8 +84,9 @@ describe(path.basename(__filename), function() {
           } 
 
           let ffs = createFiler()
-          let node = ffs.createNode(null, props)
-          ffs.scan(node, () => {
+          let node = ffs.createRoot(props)
+
+          ffs.on('collationsStopped', () => {
             let arr = []
             node.preVisit(n => {
               arr.push({
@@ -152,16 +129,16 @@ describe(path.basename(__filename), function() {
 
     let ffs, root
   
-    beforeEach(function() {
-      return (async () => {
-        await rimrafAsync('tmptest')
-        await mkdirpAsync('tmptest/folder1/folder2')
-        await mkdirpAsync('tmptest/folder3')
-        ffs = createFiler()
-        root = ffs.createNode(null, driveProps)
-        await new Promise(resolve => ffs.scan(root, () => resolve()))
-      })()
-    })
+    beforeEach(() => (async () => {
+
+      await rimrafAsync('tmptest')
+      await mkdirpAsync('tmptest/folder1/folder2')
+      await mkdirpAsync('tmptest/folder3')
+      ffs = createFiler()
+      root = ffs.createRoot(driveProps)
+      await Promise.promisify(callback => ffs.on('collationsStopped', () => callback()))()
+
+    })())
 
     it('creating a folder in root by drive owner should return dir node with name, undefined wr list, and drive owner as owner', function(done) {
 

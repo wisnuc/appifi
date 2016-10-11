@@ -102,7 +102,7 @@ class Repo extends EventEmitter {
       this.driveModel.createDrive(conf, err => {
         if (err) return callback(err)
 
-        let root = this.filer.createNode(null, {
+        this.filer.createRoot({
           uuid: conf.uuid,
           type: 'folder',
           owner: conf.owner,
@@ -111,7 +111,6 @@ class Repo extends EventEmitter {
           name: dpath  
         })
 
-        this.filer.scan(root, () => console.log(`[repo] createFruitmidxDrive: scan (newly created) root finished: ${root.uuid}`))
         callback(null, conf)
       })
     })

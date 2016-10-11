@@ -38,6 +38,7 @@ export class Forest extends IndexedTree {
     this.collations = new Map()
   }
 
+/**
   scan(node, callback) {
 
     let X = this
@@ -55,11 +56,13 @@ export class Forest extends IndexedTree {
 
     visit(node.namepath(), node, visitor, () => callback(null))
   }
+**/
 
   createRoot(props) {
 
     let root = this.createNode(null, props)
     if (root) this.requestCollation(root)
+    return root
   }
 
   // rename to probe TODO
