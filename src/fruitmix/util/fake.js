@@ -76,7 +76,6 @@ export const fakeRepoSilenced = async () => {
   let repo = await createRepoSilencedAsync(dmod)
   models.setModel('filer', repo.filer)
   models.setModel('repo', repo)
-
   return repo
 }
 
