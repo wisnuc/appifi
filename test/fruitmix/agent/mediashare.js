@@ -14,9 +14,8 @@ import validator from 'validator'
 import app from 'src/fruitmix/app'
 import models from 'src/fruitmix/models/models'
 import paths from 'src/fruitmix/lib/paths'
-import { createUserModelAsync } from 'src/fruitmix/models/userModel'
-import { createDriveModelAsync } from 'src/fruitmix/models/driveModel'
-import { createRepo } from 'src/fruitmix/lib/repo'
+
+import { fakePathModel, fakeRepoSilenced, requestTokenAsync } from 'src/fruitmix/util/fake'
 
 import { createDocumentStore } from 'src/fruitmix/lib/documentStore'
 import { createMediaShareStore } from 'src/fruitmix/lib/mediaShareStore'
@@ -75,27 +74,6 @@ let drives = [
   }
 ]
 
-const requestToken = (callback) => {
-
-  request(app)
-    .get('/token')
-    .auth(userUUID, 'world')
-    .set('Accept', 'application/json')
-    .end((err, res) => err ? callback(err) : callback(null, res.body.token))
-}
-
-const requestTokenAsync = Promise.promisify(requestToken)
-
-const createRepoHashMagicStopped = (model, callback) => {
-  
-  let err
-  let repo = createRepo(model) 
-  repo.metaBuilder.on('metaBuilderStopped', () => !err && callback(null, repo))
-  repo.init(e => e && callback(err = e))
-}
-
-const createRepoAsync = Promise.promisify(createRepoHashMagicStopped)
-
 const copyFile = (src, dst, callback) => {
 
   let error = null
@@ -133,38 +111,18 @@ describe(path.basename(__filename), function() {
     beforeEach(function() {
       return (async () => {
 
-        // make test dir
-        await rimrafAsync('tmptest')
-        await mkdirpAsync('tmptest')
-
-        // set path root
-        await paths.setRootAsync(path.join(cwd, 'tmptest'))
+        await fakePathModel(path.join(cwd, 'tmptest'), users, drives)
 
         // fake drive dir
         let dir = paths.get('drives')
+        let tmpdir = paths.get('tmp')
+
         await mkdirpAsync(path.join(dir, drv001UUID))
         await copyFileAsync('fruitfiles/20141213.jpg', img001Path)
         await mkdirpAsync(path.join(dir, drv002UUID))
+
+        let repo = await fakeRepoSilenced()
         
-        // write model files
-        dir = paths.get('models')
-        let tmpdir = paths.get('tmp')
-        await fs.writeFileAsync(path.join(dir, 'users.json'), JSON.stringify(users, null, '  '))
-        await fs.writeFileAsync(path.join(dir, 'drives.json'), JSON.stringify(drives, null, '  '))
-
-        // create models
-        let umod = await createUserModelAsync(path.join(dir, 'users.json'), tmpdir)
-        let dmod = await createDriveModelAsync(path.join(dir, 'drives.json'), tmpdir)
-
-        // set models
-        models.setModel('user', umod)
-        models.setModel('drive', dmod)
-
-        // create repo and wait until drives cached
-        let repo = await createRepoAsync(dmod)
-        models.setModel('filer', repo.filer)
-        models.setModel('repo', repo)
-
         let docpath = paths.get('documents')
         let docstore = await Promise.promisify(createDocumentStore)(docpath, tmpdir)  
 
@@ -175,9 +133,7 @@ describe(path.basename(__filename), function() {
         let media = createMedia(msstore)        
         models.setModel('media', media)
 
-        // request a token for later use
-        token = await requestTokenAsync()
-        // console.log(token)
+        token = await requestTokenAsync(app, userUUID, 'world')
       })()     
     })
 
@@ -307,38 +263,17 @@ describe(path.basename(__filename), function() {
     beforeEach(function() {
       return (async () => {
 
-        // make test dir
-        await rimrafAsync('tmptest')
-        await mkdirpAsync('tmptest')
-
-        // set path root
-        await paths.setRootAsync(path.join(cwd, 'tmptest'))
+        await fakePathModel(path.join(cwd, 'tmptest'), users, drives)
 
         // fake drive dir
         let dir = paths.get('drives')
+        let tmpdir = paths.get('tmp')
         await mkdirpAsync(path.join(dir, drv001UUID))
         await copyFileAsync('fruitfiles/20141213.jpg', img001Path)
         await mkdirpAsync(path.join(dir, drv002UUID))
+
+        let repo = await requestTokenAsync(app, userUUID, 'world')
         
-        // write model files
-        dir = paths.get('models')
-        let tmpdir = paths.get('tmp')
-        await fs.writeFileAsync(path.join(dir, 'users.json'), JSON.stringify(users, null, '  '))
-        await fs.writeFileAsync(path.join(dir, 'drives.json'), JSON.stringify(drives, null, '  '))
-
-        // create models
-        let umod = await createUserModelAsync(path.join(dir, 'users.json'), tmpdir)
-        let dmod = await createDriveModelAsync(path.join(dir, 'drives.json'), tmpdir)
-
-        // set models
-        models.setModel('user', umod)
-        models.setModel('drive', dmod)
-
-        // create repo and wait until drives cached
-        let repo = await createRepoAsync(dmod)
-        models.setModel('filer', repo.filer)
-        models.setModel('repo', repo)
-
         let docpath = paths.get('documents')
         let docstore = await Promise.promisify(createDocumentStore)(docpath, tmpdir)  
 
@@ -364,8 +299,7 @@ describe(path.basename(__filename), function() {
         models.setModel('media', media)
 
         // request a token for later use
-        token = await requestTokenAsync()
-        // console.log(token)
+        token = await requestTokenAsync(app, userUUID, 'world')
       })()     
     })
 

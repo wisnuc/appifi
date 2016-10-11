@@ -203,7 +203,8 @@ export class MetaBuilder extends EventEmitter {
 
     this.running.splice(this.running.indexOf(job), 1)     
     if (!this.running.length && !this.pending.length) {
-      process.nextTick(() => this.emit('metaBuilderStopped'))
+      // process.nextTick(() => this.emit('metaBuilderStopped'))
+      this.emit('metaBuilderStopped')
     }
 
     // it doesn't matter whether schedule is called or not after abort
@@ -232,8 +233,7 @@ export class MetaBuilder extends EventEmitter {
     else {
       this.createJob(digest)
       if (this.running.length === 1 && this.pending.length === 0) {
-        // avoiding race
-        process.nextTick(() => this.emit('metaBuilderStarted'))
+        this.emit('metaBuilderStarted')
       }
     }
   }

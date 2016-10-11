@@ -167,7 +167,6 @@ export class Forest extends IndexedTree {
       else {
         this.collations.delete(node)
         if (this.collations.size === 0) {
-          console.log('collationsStopped')
           process.nextTick(() => this.emit('collationsStopped'))
         }
       }
@@ -198,7 +197,6 @@ export class Forest extends IndexedTree {
       })
 
       if (this.collations.size === 1) {
-        console.log('collationsStarted')
         process.nextTick(() => this.emit('collationsStarted'))
       }
     }

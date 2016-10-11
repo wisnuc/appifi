@@ -48,12 +48,61 @@ export const fakePathModel = async (fakeroot, users, drives) => {
 }
 
 const createRepoSilenced = (model, callback) => {
+
+  // kidding
+  const K = x => y => x
   
   let finished = false
+
+  let probeStarted = false
+  let probeStopped = false
+  let hashMagicStarted = false
+  let hashMagicStopped = false
+  let metaStarted = false
+  let metaStopped = false
+
+  const print = () => 
+    console.log(`${probeStarted} ${probeStopped}, ${hashMagicStarted} ${hashMagicStopped}, ${metaStarted}, ${metaStopped}`)
+
+  const allDone = () => (
+    probeStarted === probeStopped &&
+    hashMagicStarted === hashMagicStopped &&
+    metaStarted === metaStopped)
+
   let repo = createRepo(model) 
-  
+ 
   // if no err, return repo after driveCached
-  repo.filer.on('collationsStopped', () => !finished && callback(null, repo))
+  repo.filer.on('collationsStarted', () => {
+    probeStarted = true
+  })
+
+  repo.filer.on('collationsStopped', () => {
+    probeStopped = true
+
+    if (finished) return
+    if (allDone()) return callback(null, repo) 
+  })
+
+  repo.hashMagicBuilder.on('hashMagicBuilderStarted', () => {
+    hashMagicStarted = true
+  })
+
+  repo.hashMagicBuilder.on('hashMagicBuilderStopped', () => {
+    hashMagicStopped = true
+    if (finished) return
+    if (allDone()) return callback(null, repo)
+  })
+
+  repo.metaBuilder.on('metaBuilderStarted', () => {
+    metaStarted = true
+  })
+
+  repo.metaBuilder.on('metaBuilderStopped', () => {
+    metaStopped = true
+    if (finished) return
+    if (allDone()) return callback(null, repo)
+  })
+
   // init & if err return err
   repo.init(err => {
 
@@ -61,8 +110,10 @@ const createRepoSilenced = (model, callback) => {
       finished = true
       return callback(err)
     }
-    if (repo.filer.roots.length === 0)
+
+    if (repo.filer.roots.length === 0) {
       callback(null, repo)
+    }
   })
 }
 
@@ -80,9 +131,6 @@ export const fakeRepoSilenced = async () => {
 }
 
 const requestToken = (app, userUUID, passwd, callback) => {
-
-  console.log(userUUID)
-  console.log(passwd)
 
   request(app) 
     .get('/token')

@@ -246,7 +246,7 @@ class IndexedTree extends EventEmitter {
   fileHashInstall(node, hash, magic) {
 
     if (!hash) {
-      process.nextTick(() => this.emit('hashMagic', node))
+      this.emit('hashMagic', node)
       return
     }
     

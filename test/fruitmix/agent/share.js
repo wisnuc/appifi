@@ -1,8 +1,7 @@
 import path from 'path'
 import crypto from 'crypto'
 
-import Promise from 'bluebird'
-import xattr from 'fs-xattr'
+import xattr from 'fs-xattr' // TODO
 
 import chai from 'chai'
 import chaiAsPromised from 'chai-as-promised'
@@ -12,12 +11,8 @@ const expect = chai.expect
 const should = chai.should()
 
 import app from 'src/fruitmix/app'
-import paths from 'src/fruitmix/lib/paths'
-import models from 'src/fruitmix/models/models'
-import { createUserModelAsync } from 'src/fruitmix/models/userModel'
-import { createDriveModelAsync } from 'src/fruitmix/models/driveModel'
-import { createFiler } from 'src/fruitmix/lib/filer'
-import { createRepo } from 'src/fruitmix/lib/repo'
+
+import { fakePathModel, fakeRepoSilenced, requestTokenAsync } from 'src/fruitmix/util/fake'
 
 import request from 'supertest'
 import { mkdirpAsync, rimrafAsync, fs } from 'test/fruitmix/unit/util/async'
@@ -116,76 +111,16 @@ let drives = [
   }
 ]
 
-const requestToken = (userUUID, callback) => {
-
-  request(app)
-    .get('/token')
-    .auth(userUUID, 'world')
-    .set('Accept', 'application/json')
-    .end((err, res) => 
-      err ? callback(err) : callback(null, res.body.token))
-}
-
-const requestTokenAsync = Promise.promisify(requestToken)
-
-const createRepoCached = (model, callback) => {
-  
-  let err
-  let repo = createRepo(model) 
-  
-  // if no err, return repo after driveCached
-  repo.filer.on('collationsStopped', () => !err && callback(null, repo))
-  // init & if err return err
-  repo.init(e => e && callback(err = e))
-}
-
-const createRepoCachedAsync = Promise.promisify(createRepoCached)
-
 const prepare = (callback) => {
-
 
   (async () => {
 
-    // make test dir
-    await rimrafAsync('tmptest')
-    await mkdirpAsync('tmptest')
-
-    // set path root
-    await paths.setRootAsync(path.join(process.cwd(), 'tmptest'))
-
-    // fake drive dir
-    let dir = paths.get('drives')
-    if (drives.length) {
-      await Promise.all(drives.map(drv => 
-        mkdirpAsync(path.join(dir, drv.uuid))))
-    }
-   
-    // write model files
-    dir = paths.get('models')
-    let tmpdir = paths.get('tmp')
-    if (users.length) {
-      await fs.writeFileAsync(path.join(dir, 'users.json'), JSON.stringify(users, null, '  '))
-    }
-    if (drives.length) {
-      await fs.writeFileAsync(path.join(dir, 'drives.json'), JSON.stringify(drives, null, '  '))
-    }
-
-    // create models
-    let umod = await createUserModelAsync(path.join(dir, 'users.json'), tmpdir)
-    let dmod = await createDriveModelAsync(path.join(dir, 'drives.json'), tmpdir)
-
-    // set models
-    models.setModel('user', umod)
-    models.setModel('drive', dmod)
-
-    // create repo and wait until drives cached
-    let repo = await createRepoCachedAsync(dmod)
-    models.setModel('filer', repo.filer)
-    models.setModel('repo', repo)
+    await fakePathModel(path.join(process.cwd(), 'tmptest'), users, drives)
+    await fakeRepoSilenced()
 
     // request a token for later use
-    let alice = await requestTokenAsync(aliceUUID)
-    let bob = await requestTokenAsync(bobUUID)
+    let alice = await requestTokenAsync(app, aliceUUID, 'world')
+    let bob = await requestTokenAsync(app, bobUUID, 'world')
 
     return { alice, bob }
 

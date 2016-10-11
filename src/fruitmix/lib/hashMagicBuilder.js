@@ -130,10 +130,13 @@ export class HashMagicBuilder extends EventEmitter {
 
     this.running.splice(this.running.indexOf(job), 1)
     if (!this.running.length && !this.pending.length) {
-      process.nextTick(() => this.emit('hashMagicBuilderStopped'))
+      // process.nextTick(() => this.emit('hashMagicBuilderStopped'))
+      // setImmediate(() => this.emit('hashMagicBuilderStopped'))
+      this.emit('hashMagicBuilderStopped')
     }
 
-    process.nextTick(() => this.schedule())
+    // process.nextTick(() => this.schedule())
+    setImmediate(() => this.schedule())
   }
 
   schedule() {
@@ -147,10 +150,7 @@ export class HashMagicBuilder extends EventEmitter {
 
   handle(node) {
 
-    console.log(`hashmagic handle node`)
-
     if (this.aborted) return
-
     if (this.running.find(r => r.uuid === node.uuid))
       return
     if (this.pending.find(id => id === node.uuid))
@@ -162,7 +162,9 @@ export class HashMagicBuilder extends EventEmitter {
       this.createJob(node)
       if (this.running.length === 1 && this.pending.length === 0) {
         // using nextTick is stack friendly and safer, say, user may call abort in handler
-        process.nextTick(() => this.emit('hashMagicBuilderStarted'))
+        // process.nextTick(() => this.emit('hashMagicBuilderStarted'))
+        // setImmediate(() => this.emit('hashMagicBuilderStarted'))
+        this.emit('hashMagicBuilderStarted')
       }
     }
   }
