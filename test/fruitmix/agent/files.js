@@ -14,7 +14,7 @@ import { createDriveModelAsync } from 'src/fruitmix/models/driveModel'
 import { createFiler } from 'src/fruitmix/lib/filer'
 import { createRepo } from 'src/fruitmix/lib/repo'
 
-import { fakePathModel, fakeRepoSilenced } from 'src/fruitmix/util/fake'
+import { fakePathModel, fakeRepoSilenced, requestTokenAsync } from 'src/fruitmix/util/fake'
 
 import request from 'supertest'
 import { mkdirpAsync, rimrafAsync, fs } from 'test/fruitmix/unit/util/async'
@@ -64,30 +64,6 @@ let drives = [
   }
 ]
 
-const requestToken = (callback) => {
-
-  request(app)
-    .get('/token')
-    .auth(userUUID, 'world')
-    .set('Accept', 'application/json')
-    .end((err, res) => err ? callback(err) : callback(null, res.body.token))
-}
-
-const requestTokenAsync = Promise.promisify(requestToken)
-
-const createRepoCached = (model, callback) => {
-  
-  let err
-  let repo = createRepo(model) 
-  
-  // if no err, return repo after driveCached
-  repo.filer.on('collationsStopped', () => !err && callback(null, repo))
-  // init & if err return err
-  repo.init(e => e && callback(err = e))
-}
-
-const createRepoCachedAsync = Promise.promisify(createRepoCached)
-
 describe(path.basename(__filename) + ': test repo', function() {
 
   describe('test files api', function() {
@@ -99,7 +75,7 @@ describe(path.basename(__filename) + ': test repo', function() {
     beforeEach(function() {
       return (async () => {
 
-        await fakePathModel('tmptest')
+        await fakePathModel(path.join(cwd, 'tmptest'), users, drives)
 
         // fake dir and file in drive
         let dir = paths.get('drives')
@@ -111,17 +87,13 @@ describe(path.basename(__filename) + ': test repo', function() {
         await Promise.promisify(xattr.set)(path.join(dir, drv001UUID, 'file001.png'), 'user.fruitmix', file001attr)
         
         repo = await fakeRepoSilenced()
-
-        // request a token for later use
-        token = await requestTokenAsync()
-        // console.log(token)
+        token = await requestTokenAsync(app, userUUID, 'world')
       })()     
     })
 
     afterEach(function() {
       repo.deinit()
     })
-
 
     it('GET /files/[drv001UUID] should return one file and one folder object (list folder)', function(done) {
     
