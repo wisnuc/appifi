@@ -1,24 +1,17 @@
 import path from 'path'
 import crypto from 'crypto'
+import { mkdirpAsync, rimrafAsync, fs } from 'test/fruitmix/unit/util/async'
 
-import Promise from 'bluebird'
-import xattr from 'fs-xattr'
+import xattr from 'fs-xattr'  // TODO, async provides this also?
 
 import { expect } from 'chai'
 
 import app from 'src/fruitmix/app'
 import paths from 'src/fruitmix/lib/paths'
-import models from 'src/fruitmix/models/models'
-import { createUserModelAsync } from 'src/fruitmix/models/userModel'
-import { createDriveModelAsync } from 'src/fruitmix/models/driveModel'
-import { createFiler } from 'src/fruitmix/lib/filer'
-import { createRepo } from 'src/fruitmix/lib/repo'
 
 import { fakePathModel, fakeRepoSilenced, requestTokenAsync } from 'src/fruitmix/util/fake'
 
 import request from 'supertest'
-import { mkdirpAsync, rimrafAsync, fs } from 'test/fruitmix/unit/util/async'
-
 import validator from 'validator'
 
 let userUUID = '9f93db43-02e6-4b26-8fae-7d6f51da12af'
