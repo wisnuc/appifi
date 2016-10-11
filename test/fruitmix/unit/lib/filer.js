@@ -86,7 +86,7 @@ describe(path.basename(__filename), function() {
           let ffs = createFiler()
           let node = ffs.createRoot(props)
 
-          ffs.on('collationsStopped', () => {
+          ffs.on('probeStopped', () => {
             let arr = []
             node.preVisit(n => {
               arr.push({
@@ -136,7 +136,7 @@ describe(path.basename(__filename), function() {
       await mkdirpAsync('tmptest/folder3')
       ffs = createFiler()
       root = ffs.createRoot(driveProps)
-      await Promise.promisify(callback => ffs.on('collationsStopped', () => callback()))()
+      await Promise.promisify(callback => ffs.on('probeStopped', () => callback()))()
 
     })())
 

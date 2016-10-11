@@ -72,11 +72,11 @@ const createRepoSilenced = (model, callback) => {
   let repo = createRepo(model) 
  
   // if no err, return repo after driveCached
-  repo.filer.on('collationsStarted', () => {
+  repo.filer.on('probeStarted', () => {
     probeStarted = true
   })
 
-  repo.filer.on('collationsStopped', () => {
+  repo.filer.on('probeStopped', () => {
     probeStopped = true
 
     if (finished) return

@@ -17,18 +17,6 @@ const EINTR = ERROR('EINTR', 'operation interrupted')
 const ENOENT = ERROR('ENOENT', 'entry not found')
 const EMISMATCH = ERROR('EMISMATCH', 'uuid mismatch')
 
-const driveVisitor = (dir, node, entry, callback) => {
-
-  let entrypath = path.join(dir, entry)
-  readXstat(entrypath, (err, xstat) => {
-    if (err) return callback()
-    let object = mapXstatToObject(xstat)
-    let entryNode = node.tree.createNode(node, object) 
-    if (!xstat.isDirectory()) return callback()  
-    callback(entryNode)
-  })
-}
-
 export class Forest extends IndexedTree {
 
   constructor() {
@@ -38,35 +26,15 @@ export class Forest extends IndexedTree {
     this.collations = new Map()
   }
 
-/**
-  scan(node, callback) {
-
-    let X = this
-
-    const visitor = (dir, node, entry, callback) => {
-      let entrypath = path.join(dir, entry)
-      readXstat(entrypath, (err, xstat) => {
-        if (err) return callback()
-        let object = mapXstatToObject(xstat)
-        let entryNode = X.createNode(node, object) 
-        if (!xstat.isDirectory()) return callback()  
-        callback(entryNode)
-      })
-    }
-
-    visit(node.namepath(), node, visitor, () => callback(null))
-  }
-**/
-
   createRoot(props) {
 
     let root = this.createNode(null, props)
-    if (root) this.requestCollation(root)
+    if (root) this.requestProbe(root)
     return root
   }
 
   // rename to probe TODO
-  collate(node) {
+  probe(node) {
 
     let finished = false
     let uuid = node.uuid
@@ -118,7 +86,7 @@ export class Forest extends IndexedTree {
       // if node is deleted, blame where it is deleted failing to remove this job
       // so timestamp check should be enough
       if (err) {
-        this.requestCollation(node.parent)
+        this.requestProbe(node.parent)
         finishJob(false)
       } 
       else if (mtime1 === mtime) {
@@ -143,7 +111,7 @@ export class Forest extends IndexedTree {
           let xstat = map.get(child.uuid)
           this.updateNode(child, mapXstatToObject(xstat))
           if (xstat.isDirectory() && xstat.mtime.getTime() !== child.mtime)
-            this.requestCollation(child) // TODO
+            this.requestProbe(child) // TODO
 
           map.delete(child.uuid)
         })
@@ -152,7 +120,7 @@ export class Forest extends IndexedTree {
         Array.from(map.values()).forEach(xstat => {
           let child = this.createNode(node, mapXstatToObject(xstat)) 
           if (xstat.isDirectory())
-            this.requestCollation(child) // TODO
+            this.requestProbe(child) // TODO
         })
 
         node.mtime = mtime2
@@ -165,12 +133,12 @@ export class Forest extends IndexedTree {
       let job = this.collations.get(node)
       if (again || job.again) {
         job.again = false
-        job.abort = collate(node)
+        job.abort = probe(node)
       }
       else {
         this.collations.delete(node)
         if (this.collations.size === 0) {
-          process.nextTick(() => this.emit('collationsStopped'))
+          process.nextTick(() => this.emit('probeStopped'))
         }
       }
     }
@@ -185,9 +153,9 @@ export class Forest extends IndexedTree {
   // value: { abort, again }
 
   // callback is optional TODO
-  requestCollation(node, callback) {
+  requestProbe(node, callback) {
 
-    // console.log(`requestCollation ${node.uuid} ${node.name}`)
+    // console.log(`requestProbe ${node.uuid} ${node.name}`)
 
     // find job with the same uuid (aka, collating the same node)
     let job = this.collations.get(node)
@@ -195,12 +163,12 @@ export class Forest extends IndexedTree {
     // creat a job if not found
     if (!job) {
       this.collations.set(node, {
-        abort: this.collate(node),
+        abort: this.probe(node),
         again: false
       })
 
       if (this.collations.size === 1) {
-        process.nextTick(() => this.emit('collationsStarted'))
+        process.nextTick(() => this.emit('probeStarted'))
       }
     }
     else if (!job.again) {

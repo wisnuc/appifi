@@ -23,8 +23,8 @@ describe(path.basename(__filename) + ': testing collation', function() {
   const createForest = (props, callback)  => {
     let filer = createFiler() 
     let node = filer.createNode(null, props)
-    filer.requestCollation(node)
-    filer.once('collationsStopped', () => {
+    filer.requestProbe(node)
+    filer.once('probeStopped', () => {
       callback(null, filer)
     })
   }
@@ -106,9 +106,9 @@ describe(path.basename(__filename) + ': testing collation', function() {
           if (err) return done(err)
           
           let f3node = namedNode(filer.roots[0], 'folder3')
-          filer.requestCollation(f3node)
+          filer.requestProbe(f3node)
 
-          filer.once('collationsStopped', () => {
+          filer.once('probeStopped', () => {
             expect(nameArray(filer.roots[0])).to.deep.equal([
               'root|null',
                 'folder1|root',
@@ -129,8 +129,8 @@ describe(path.basename(__filename) + ': testing collation', function() {
         let root = filer.roots[0]
         await mkdirpAsync('tmptest/folder3/folder4')
         await Promise.promisify(callback => 
-          filer.requestCollation(namedNode(root, 'folder3'))
-            .once('collationsStopped', () => callback()))()
+          filer.requestProbe(namedNode(root, 'folder3'))
+            .once('probeStopped', () => callback()))()
         return nameArray(root)
 
       })().should.eventually.deep.equal([
@@ -150,9 +150,9 @@ describe(path.basename(__filename) + ': testing collation', function() {
           if (err) return done(err)
 
           let f2node = namedNode(filer.roots[0], 'folder2')
-          filer.requestCollation(f2node)
+          filer.requestProbe(f2node)
 
-          filer.once('collationsStopped', () => {
+          filer.once('probeStopped', () => {
             expect(nameArray(filer.roots[0])).to.deep.equal([
               'root|null',
                 'folder1|root',
