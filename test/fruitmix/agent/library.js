@@ -122,7 +122,7 @@ describe(path.basename(__filename) + ': test repo', function() {
         .expect(200)
         .end((err, res) => {
           if (err) return done(err)
-          console.log(res.body)
+          // console.log(res.body)
           done()
         })
     })

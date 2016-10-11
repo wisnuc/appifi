@@ -71,12 +71,12 @@ router.post('/:libUUID', auth.jwt(), (req, res) => {
   form.hash = 'sha256'
 
   form.on('field', (name, value) => {
-    console.log('field ' + name + ' ' + value)
+    // console.log('field ' + name + ' ' + value)
     if (name === 'sha256') sha256 = value
   })
 
   form.on('fileBegin', (name, file) => {
-    console.log('fileBegin ' + name)
+    // console.log('fileBegin ' + name)
     file.path = path.join(repo.getTmpFolderForNode(node), UUID.v4()) 
   })
 

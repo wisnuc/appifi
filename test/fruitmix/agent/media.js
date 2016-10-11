@@ -125,7 +125,7 @@ describe(path.basename(__filename) + ': test repo', function() {
         .set('Accept', 'application/json')
         .expect(200)
         .end((err, res) => {
-          console.log(res.body)
+          // console.log(res.body)
           expect(res.body).to.deep.equal(ret)
           done()
         })

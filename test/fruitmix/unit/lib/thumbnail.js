@@ -104,7 +104,7 @@ describe(path.basename(__filename), function() {
     })()     
   })
 
-  it('should queue ', done => {
+  it('should queue (no assertion)', done => {
 
     let query = {
       width: '100',
@@ -117,7 +117,7 @@ describe(path.basename(__filename), function() {
     })
   })
 
-  it('should create', done => {
+  it('should create (no assertion)', done => {
   
     let query = {
       width: '100',
@@ -131,7 +131,7 @@ describe(path.basename(__filename), function() {
     })
   })
 
-  it('should create 2', done => {
+  it('should create 2 (no assertion)', done => {
 
     let query = {
       width: '100',

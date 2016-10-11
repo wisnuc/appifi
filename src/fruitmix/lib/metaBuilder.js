@@ -110,8 +110,7 @@ export const createIdentifyWorker = (target, uuid, digest, callback) => {
       spawn = null
       if (finished) return
       if (code !== 0 || !meta) {
-        console.log(`code ${code}`)
-        console.log(meta)
+        console.log(`IdentifyWorker fail with code ${code}`)
         CALLBACK(Object.assign(new Error('identify failed')), { code: 'EFAIL' }) 
       }
       else

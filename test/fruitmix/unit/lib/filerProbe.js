@@ -18,7 +18,7 @@ const cwd = process.cwd()
 const driveUUID01 = '880af12c-e545-4035-b4f7-7999f76dd656'
 const userUUID01 = '1b7901c0-0629-47cb-95cf-b31a703cac71'
 
-describe(path.basename(__filename) + ': testing collation', function() {
+describe(path.basename(__filename) + ': testing probe', function() {
 
   const createForest = (props, callback)  => {
     let filer = createFiler() 

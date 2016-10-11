@@ -101,7 +101,7 @@ export class HashMagicBuilder extends EventEmitter {
 
   createJob(node) {
 
-    console.log(`creating job for ${node.uuid}`)
+    // console.log(`creating job for ${node.uuid}`)
 
     let uuid = node.uuid
     let abort = createWorker(node.namepath(), uuid, (err, xstat) => 
@@ -114,7 +114,7 @@ export class HashMagicBuilder extends EventEmitter {
 
   jobDone(err, xstat, job) {
 
-    console.log(`job for ${job.uuid} done`)
+    // console.log(`job for ${job.uuid} done`)
   
     if (err) {
       switch (err.code) {

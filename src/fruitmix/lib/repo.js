@@ -63,7 +63,7 @@ class Repo extends EventEmitter {
 
     props.forEach(prop => this.filer.createRoot(prop))
     this.state = 'INITIALIZED'
-    console.log('[repo] init: initialized')
+    //     console.log('[repo] init: initialized')
   }
 
   // TODO there may be a small risk that a user is deleted but drive not
