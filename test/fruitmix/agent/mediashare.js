@@ -128,7 +128,7 @@ describe(path.basename(__filename), function() {
 
         let mediasharePath = paths.get('mediashare')
         let mediashareArchivePath = paths.get('mediashareArchive')
-        let msstore = createMediaShareStore(mediasharePath, mediashareArchivePath, tmpdir, docstore) 
+        let msstore = createMediaShareStore(docstore) 
 
         let media = createMedia(msstore)        
         models.setModel('media', media)
@@ -279,7 +279,7 @@ describe(path.basename(__filename), function() {
 
         let mediasharePath = paths.get('mediashare')
         let mediashareArchivePath = paths.get('mediashareArchive')
-        let msstore = createMediaShareStore(mediasharePath, mediashareArchivePath, tmpdir, docstore) 
+        let msstore = createMediaShareStore(docstore) 
 
         await mkdirpAsync(path.join(docpath, fakeDoc001Hash.slice(0, 2)))
         await fs.writeFileAsync(path.join(docpath, fakeDoc001Hash.slice(0, 2), fakeDoc001Hash.slice(2)), 

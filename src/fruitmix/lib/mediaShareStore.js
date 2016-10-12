@@ -4,6 +4,8 @@ import fs from 'fs'
 import validator from 'validator'
 import { writeFileToDisk } from './util'
 
+import paths from './paths'
+
 class MediaShareStore {
 
   constructor(rootdir, arcdir, tmpdir, docstore) {
@@ -67,8 +69,14 @@ class MediaShareStore {
   }
 }
 
-const createMediaShareStore = (rootdir, arcdir, tmpdir, docstore) =>
-  new MediaShareStore(rootdir, arcdir, tmpdir, docstore)
+const createMediaShareStore = (docstore) => {
+
+  let rootdir = paths.get('mediashare') 
+  let arcdir = paths.get('mediashareArchive')
+  let tmpdir = paths.get('tmp')
+  
+  return new MediaShareStore(rootdir, arcdir, tmpdir, docstore)
+}
 
 export { createMediaShareStore }
 
