@@ -12,6 +12,7 @@ import init from './routes/init'
 import users from './routes/users'
 import login from './routes/login'
 import files from './routes/files'
+import meta from './routes/meta'
 import share from './routes/share'
 import drives from './routes/drives'
 import libraries from './routes/libraries'
@@ -48,6 +49,7 @@ app.use('/users', users)
 app.use('/libraries', libraries)
 app.use('/drives', drives)
 app.use('/files', files)
+app.use('/meta', meta)
 app.use('/share', share)
 app.use('/media', media)
 app.use('/mediashare', mediashare)

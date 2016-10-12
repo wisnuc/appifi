@@ -600,7 +600,23 @@ export class Forest extends IndexedTree {
       return node.namepath()
     }
   }
+
+  //////////////////////////////////////////////////////////////////////////////
+
+  // for meta api
+  getMeta(userUUID) {
+
+    let arr = []
+    this.hashMap.forEach((digestObj, digest) => {
+      if (digestObj.nodes.find(node => node.userReadable(userUUID)))
+        arr.push(Object.assign({}, digestObj.meta, { digest }))
+    })
+
+    return arr
+  } 
+
 }
+
 
 export const createFiler = () => new Forest()
 

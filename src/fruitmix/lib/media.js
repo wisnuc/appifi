@@ -411,8 +411,8 @@ class Media extends EventEmitter {
   }
 
   // my share is the one I myself is the creator
-  // locally shared to me is the one that I am the viewer but not creator, the creator is a local user
-  // remotely shared to me is the one that I am the viewer but not creator, the creator is a remote user
+  // locally shared with me is the one that I am the viewer but not creator, the creator is a local user
+  // remotely shared with me is the one that I am the viewer but not creator, the creator is a remote user
   getUserShares(userUUID) {
 
     let shares = []

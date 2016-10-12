@@ -473,6 +473,7 @@ class Navigation extends React.Component {
                 // transition: 'height 1s ease'
               }}>
                 <AppBar id='appbar' className='appbar-fix' onLeftIconButtonTouchTap={this.handleToggle} zDepth={0} title={'WISNUC Appifi'}>
+                  <div style={{display:'flex', alignItems:'center', marginRight:16}}><FlatButton style={{color:'white'}} label='切换到中文' /></div>
                   <IconButton 
                     style={{margin:8, marginRight:-16 }} 
                     tooltip="lock screen" 

@@ -81,9 +81,9 @@ const copyFile = (src, dst, callback) => {
 
 const copyFileAsync = Promise.promisify(copyFile)
 
-describe(path.basename(__filename) + ': test repo', function() {
+describe(path.basename(__filename) + ': test meta', function() {
 
-  describe('test media api', function() {
+  describe('test meta GET', function() {
   
     let token
     let cwd = process.cwd()
@@ -120,17 +120,16 @@ describe(path.basename(__filename) + ': test repo', function() {
       ]
 
       request(app)
-        .get('/media')   
+        .get('/meta')   
         .set('Authorization', 'JWT ' + token) 
         .set('Accept', 'application/json')
         .expect(200)
         .end((err, res) => {
-          // console.log(res.body)
           expect(res.body).to.deep.equal(ret)
           done()
         })
     })
-
+/**
     it('should download media', function(done) {
 
       const sha256 = '7803e8fa1b804d40d412bcd28737e3ae027768ecc559b51a284fbcadcd0e21be'
@@ -162,6 +161,7 @@ describe(path.basename(__filename) + ': test repo', function() {
           done()
         })
     }) 
+**/
   })
 })
 
