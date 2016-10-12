@@ -98,7 +98,7 @@ describe(path.basename(__filename) + ': test repo', function() {
       await copyFileAsync('fruitfiles/20141213.jpg', img001Path)
       await mkdirpAsync(path.join(dir, drv002UUID))
 
-      await fakeRepoSilenced()
+      let repo = await fakeRepoSilenced()
       token = await requestTokenAsync(app, userUUID, 'world')
 
     })())

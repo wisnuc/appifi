@@ -7,12 +7,21 @@ const router = Router()
 
 // return meta data of all I can view
 router.get('/', auth.jwt(), (req, res) => {
-  
-  const filer = models.getModel('filer')
-  const user = req.user
+  try { 
+    const filer = models.getModel('filer')
+    const media = models.getModel('media')
 
-  let media = filer.getMedia(user.uuid)
-  res.status(200).json(media)
+    console.log(media)
+
+    const user = req.user
+
+    let meta = media.getMedia(user.uuid)
+    res.status(200).json(meta)
+  }
+  catch (e) {
+    console.log(e)
+    res.status(500).end()
+  }
 })
 
 router.get('/:digest/download', auth.jwt(), (req, res) => {

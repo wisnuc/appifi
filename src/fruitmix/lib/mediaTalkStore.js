@@ -60,7 +60,6 @@ class MediaTalkStore {
   }
 }
 
-const createMediaTalkStore = (rootdir, tmpdir, docstore) => 
-  new MediaTalkStore(rootdir, tmpdir, docstore)
+const createMediaTalkStore = (rootdir, tmpdir, docstore) => new MediaTalkStore(rootdir, tmpdir, docstore)
 
 export { createMediaTalkStore }

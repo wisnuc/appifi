@@ -292,6 +292,24 @@ const updateMediaShareDoc = (userUUID, doc, ops) => {
   return update
 }
 
+const userViewable = (share, userUUID) => (share.doc.author === userUUID ||
+  share.doc.maitainers.indexOf(userUUID) !== -1 ||
+  share.doc.viewers.indexOf(userUUID) !== -1) ? true : false
+
+/*****************************************************************************
+
+  shareMap is something like uuid map in forest
+
+    share.doc.uuid => share
+
+  mediaMap is like the digeset => digestObj map in forest, instead of array 
+  for nodes, it uses JavaScript Set as collection object for shares
+
+    for each item in a share's contents array
+
+    item.digest => shareSet, which is collections of share  
+
+ *****************************************************************************/
 class Media extends EventEmitter {
 
   // shareMap stores uuid (key) => share (value)
@@ -436,6 +454,21 @@ class Media extends EventEmitter {
       // push to queue
     })
     return localTalks + remoteTalks
+  }
+
+  getMedia(userUUID) {
+
+    console.log('media getMedia')
+
+    // mediaMap: digest => shareSet
+
+    let arr = []
+    this.mediaMap.forEach((shareSet, digest) => {
+      if (Array.from(shareSet).find(share => userViewable(share, userUUID))) 
+        arr.push(digest)
+    })
+
+    return arr
   }
 }
 
