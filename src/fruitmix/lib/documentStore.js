@@ -7,6 +7,8 @@ import mkdirp from 'mkdirp'
 
 import { writeFileToDisk } from './util'
 
+import paths from './paths'
+
 class DocumentStore {
 
   // the factory must assure the tmp folder exists !
@@ -64,11 +66,10 @@ class DocumentStore {
   }
 }
 
-const createDocumentStore = (dir, tmpdir, callback) => {
+const createDocumentStore = (callback) => {
 
-  if (!path.isAbsolute(dir)) {
-    return process.nextTick(() => callback(new Error('require absolute path')))
-  }
+  let dir = paths.get('documents')
+  let tmpdir = paths.get('tmp')
 
   fs.stat(dir, (err, stats) => {
 
@@ -76,11 +77,15 @@ const createDocumentStore = (dir, tmpdir, callback) => {
     if (!stats.isDirectory())
       return callback(new Error('path must be folder'))
 
+    // no clean
+    return callback(null, new DocumentStore(dir, tmpdir))
+/**
     rimraf(path.join(dir, 'tmp'), err => {
       mkdirp(path.join(dir, 'tmp'), err => {
         callback(null, new DocumentStore(dir, tmpdir))
       })
     })
+**/
   })
 }
 

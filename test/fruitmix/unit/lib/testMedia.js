@@ -114,7 +114,7 @@ describe(path.basename(__filename), function() {
       let msroot = paths.get('mediashare')
       let msarc = paths.get('mediashareArchive')
 
-      let docstore = await Promise.promisify(createDocumentStore)(docroot, tmpdir)    
+      let docstore = await Promise.promisify(createDocumentStore)()    
       let msstore = createMediaShareStore(docstore)
 
       media = createMedia(msstore) // FIXME

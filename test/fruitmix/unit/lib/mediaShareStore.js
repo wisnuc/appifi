@@ -39,7 +39,7 @@ describe(path.basename(__filename), function() {
     let root = path.join(cwd, 'tmptest')
     await rimrafAsync(root)
     await paths.setRootAsync(root)
-    docstore = await createDocumentStoreAsync(docroot, tmpdir)
+    docstore = await createDocumentStoreAsync()
 
   })())
 

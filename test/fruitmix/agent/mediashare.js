@@ -124,7 +124,7 @@ describe(path.basename(__filename), function() {
         let repo = await fakeRepoSilenced()
         
         let docpath = paths.get('documents')
-        let docstore = await Promise.promisify(createDocumentStore)(docpath, tmpdir)  
+        let docstore = await Promise.promisify(createDocumentStore)()  
 
         let mediasharePath = paths.get('mediashare')
         let mediashareArchivePath = paths.get('mediashareArchive')
@@ -275,7 +275,7 @@ describe(path.basename(__filename), function() {
         let repo = await requestTokenAsync(app, userUUID, 'world')
         
         let docpath = paths.get('documents')
-        let docstore = await Promise.promisify(createDocumentStore)(docpath, tmpdir)  
+        let docstore = await Promise.promisify(createDocumentStore)()  
 
         let mediasharePath = paths.get('mediashare')
         let mediashareArchivePath = paths.get('mediashareArchive')
