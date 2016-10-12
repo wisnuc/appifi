@@ -32,7 +32,10 @@ describe(path.basename(__filename), function() {
     m: 'hello',
     n: 'world'
   }
-  const share002Hash = '143bc7717d46e797418c7ebc9aff5fbe038028b727d4bae7315ad5f85504d9e3'
+
+// hash changed after documentStore using canonical-json
+//  const share002Hash = '143bc7717d46e797418c7ebc9aff5fbe038028b727d4bae7315ad5f85504d9e3'
+  const share002Hash = '018ceb737f51bf1b8fc9626ab36f9a92907a52d05a7e5574e35c3fd5240908ba'
   
   beforeEach(() => (async () => {
 

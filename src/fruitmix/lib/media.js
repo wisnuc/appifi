@@ -333,12 +333,19 @@ class Media extends EventEmitter {
   }
 
   load() {
+
     this.shareStore.retrieveAll((err, shares) => {
       shares.forEach(share => {
         this.indexShare(share)
       })
       this.emit('shareStoreLoaded')
     }) 
+
+    this.talkStore.retrieveAll((err, talks) => {
+      talks.forEach(talk => {
+        this.indexTalk(talk)
+      })
+    })
   }
 
   // add a share to index maps

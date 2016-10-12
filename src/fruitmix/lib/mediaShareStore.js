@@ -2,8 +2,8 @@ import path from 'path'
 import fs from 'fs'
 
 import validator from 'validator'
-import { writeFileToDisk } from './util'
 
+import { writeFileToDisk } from './util'
 import paths from './paths'
 
 class MediaShareStore {
@@ -16,6 +16,7 @@ class MediaShareStore {
   }
 
   store(doc, callback) {
+
     let uuid = doc.uuid
     this.docstore.store(doc, (err, digest) => {
       if (err) return callback(err)
@@ -42,7 +43,6 @@ class MediaShareStore {
     fs.readFile(srcpath, (err, data) => {
       if (err) return callback(err)  
       let digest = data.toString()
-
       this.docstore.retrieve(digest, (err, doc) => {
         if (err) return callback(err)
         callback(null, { digest , doc })

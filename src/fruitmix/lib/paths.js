@@ -63,6 +63,7 @@ const getPath = (name) => {
   case 'root':
     return root
   default:
+    console.log(`ERROR: unknown fruitmix path name: ${name}`)
     throw new Error(`unknown fruitmix path name: ${name}`)
   }
 }

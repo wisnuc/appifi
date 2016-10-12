@@ -4,6 +4,7 @@ import fs from 'fs'
 import UUID from 'node-uuid'
 
 import { writeFileToDisk } from './util'
+import paths from './paths'
 
 class MediaTalkStore {
 
@@ -13,8 +14,10 @@ class MediaTalkStore {
     this.docstore = docstore
   }
 
+  // file is named as '{owner}.${digest}'
   store(doc, callback) {
     let name = doc.owner + '.' + doc.digest
+
     this.docstore.store(doc, (err, digest) => {
       if (err) return callback(err)
       let tmppath = path.join(this.tmpdir, UUID.v4())
@@ -43,6 +46,7 @@ class MediaTalkStore {
   }
 
   retrieveAll(callback) {
+
     fs.readdir(this.rootdir, (err, entries) => {
       if (err) return callback(err)
 
@@ -51,7 +55,9 @@ class MediaTalkStore {
 
       let result = []
       entries.forEach(entry => {
-        this.retrieve(entry, (err, obj) => {
+        let split = entry.split('.')
+        this.retrieve(split[0], split[1], (err, obj) => {
+
           if (!err) result.push(obj)
           if (!--count) callback(null, result)
         })
@@ -60,6 +66,12 @@ class MediaTalkStore {
   }
 }
 
-const createMediaTalkStore = (rootdir, tmpdir, docstore) => new MediaTalkStore(rootdir, tmpdir, docstore)
+const createMediaTalkStore = (docstore) => {
+
+  let rootdir = paths.get('mediatalk')
+  let tmpdir = paths.get('tmp')
+  return new MediaTalkStore(rootdir, tmpdir, docstore)
+}
 
 export { createMediaTalkStore }
+
