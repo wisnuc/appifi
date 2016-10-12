@@ -1,3 +1,4 @@
+import crypto from 'crypto'
 import EventEmitter from 'events'
 
 import UUID from 'node-uuid'
@@ -40,6 +41,8 @@ import deepEqual from 'deep-equal'
       ... // a share doc
     }
   }
+
+
 **/
 
 const isUUID = (uuid) => (typeof uuid === 'string') ? validator.isUUID(uuid) : false
@@ -296,6 +299,34 @@ const userViewable = (share, userUUID) => (share.doc.author === userUUID ||
   share.doc.maitainers.indexOf(userUUID) !== -1 ||
   share.doc.viewers.indexOf(userUUID) !== -1) ? true : false
 
+/** 
+
+  The structure of a mediaTalk object should be
+
+  {
+    doc: {
+      owner: <UUID, string>,
+      digest: <SHA256, string>,
+      comments: [ // sorted by time
+        {
+          author: <UUID, string>,
+          time: <Integer, number>,
+          text: <String>
+        },
+        ...
+      ]
+    },
+    commentHashMap: null or Map(), author => comment hash    
+    digest: document hash
+  }
+
+  the property inside doc should be structurally stable (canonicalized)
+  the comments should be sorted in creation order (not strictly by time, if time is wrong)
+
+**/
+
+
+
 /*****************************************************************************
 
   shareMap is something like uuid map in forest
@@ -325,11 +356,78 @@ class Media extends EventEmitter {
     this.shareMap = new Map()
     // using an map instead of an array
     this.mediaMap = new Map()
+
     // each (local) talk has its creator and media digest, as its unique identifier
     this.talks = []
+
+    // 
+    // suspicious
+    //
     // each remote talk has its viewer (a local user), creator, and media digest, as its unique identifier
     this.remoteMap = new Map()      // user -> user's remote talks
-                                    // each talsk has creator and media digest as its unique identifier
+                                    // each talk has creator and media digest as its unique identifier
+
+    // when user V retrieve talks
+    // traverse all talks 
+    // supposing talk has owner U and digest D
+    //   traversing shareSet from mediaMap D => shareSet
+    //   if a share author = U, with V as viewable, then add all viewers for this set to SET
+    //   this new SET(U, D) containers all authors whose comments can be viewed by V.
+    // then XOR hash of user belong to such set 
+
+    // then should we differentiate local and remote users? I think not.
+ 
+  }
+
+  getTalks(userUUID) {
+
+    const SHA1 = (comments) => {
+
+      let hash = crypto.createHash('sha1')
+
+      filtered.forEach(cmt => {
+        hash.update(cmt.author)
+        hash.update(cmt.datetime)
+        hash.update(cmt.text)
+      })
+
+      return hash.digest('hex')
+    }
+
+    let arr = []
+    this.talks.forEach(talk => {
+
+      let { owner, digest } = talk.doc 
+      if (owner === userUUID) {
+        arr.push({ owner, digest, comments: talk.doc.comments, sha1: SHA1(talk.doc.comments) })
+      }
+      else {
+
+        let shareSet = this.mediaMap.get(digest)      
+        if (!shareSet) return     
+
+        // fellows (mutual, reciprocal.... see thesaurus.com for more approriate words)
+        let fellows = new Set()
+        shareSet.forEach(share => {
+          if (owner === share.doc.author && userViewable(share, userUUID)) {
+            fellows.add(share.doc.author)
+            share.doc.maintainers.forEach(u => fellows.add(u))
+            share.doc.viewers.forEach(u => fellows.add(u))
+          }
+        })
+
+        // the talk owner did not share anything with you, otherwise, at least himself and you will
+        // be in fellows
+        if (fellows.size === 0) return
+
+        let comments = talk.doc.comments.filter(cmt => fellows.has(cmt.author))
+        let sha1 = SHA1(comments) 
+        arr.push({ owner, digest, comments: comments, sha1 })
+      }
+       
+    })
+
+    return arr
   }
 
   load() {
@@ -340,12 +438,13 @@ class Media extends EventEmitter {
       })
       this.emit('shareStoreLoaded')
     }) 
-
+/**
     this.talkStore.retrieveAll((err, talks) => {
       talks.forEach(talk => {
         this.indexTalk(talk)
       })
     })
+**/
   }
 
   // add a share to index maps
@@ -477,6 +576,9 @@ class Media extends EventEmitter {
 
     return arr
   }
+
+ 
+
 }
 
 export default (shareStore, talkStore) => {

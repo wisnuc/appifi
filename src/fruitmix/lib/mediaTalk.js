@@ -92,7 +92,7 @@ class MediaTalkPrototype {
     let newDoc = {
       owner: doc.owner,
       digest: doc.digest,
-      comments: [...doc.comments.splice(0, index), ...doc.comments.splice(index + 1)]
+      comments: [...doc.comments.slice(0, index), ...doc.comments.slice(index + 1)]
     }
 
     Object.freeze(newDoc)
@@ -179,8 +179,8 @@ const createMediaTalk = (prototype, owner, digest) =>
     owner, digest, comments: [], authorHash: new Map()
   })
 
-const createMediaTalkFromObject = (prototype, obj, hash) => 
+const createMediaTalkFromDoc = (prototype, obj, hash) => 
   Object.create(prototype, obj)
     .updateAuthorHash()
 
-export {createMediaTalk, createMediaTalkFromObject } 
+export { createMediaTalk, createMediaTalkFromDoc } 

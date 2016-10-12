@@ -50,13 +50,10 @@ const initAsync = async (sysroot) => {
   // the following should be merged into media, like repo
 
   // create document store
-  let docPath = paths.get('documents')
-  let docstore = await Promise.promisify(createDocumentStore)(docPath, tmpPath)
+  let docstore = await Promise.promisify(createDocumentStore)()
 
   // create mediashare store
-  let mediasharePath = paths.get('mediashare')  
-  let mediashareArchivePath = paths.get('mediashareArchive')
-  let msstore = createMediaShareStore(mediasharePath, mediashareArchivePath, tmpPath, docstore) 
+  let msstore = createMediaShareStore(docstore) 
 
   // create media ???
   let media = createMedia(msstore)
