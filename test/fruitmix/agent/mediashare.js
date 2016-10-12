@@ -313,6 +313,7 @@ describe(path.basename(__filename), function() {
         .expect(200)
         .end((err, res) => {
           if (err) return callback(err)
+          // console.log(res.body)
           callback(null, res.body)
         })
     }
@@ -330,6 +331,10 @@ describe(path.basename(__filename), function() {
     it('001 add 1 viewer should add new viewer', () => 
       updateAsync(userUUID, ops001).should.eventually.have.deep.property('doc.viewers')
         .that.deep.equals(ops001[0].value))
+
+    it('001 add 1 viewer should keep author', () =>
+      updateAsync(userUUID, ops001).should.eventually.have.deep.property('doc.author')
+        .that.equals(userUUID))
 
     it('001 add 1 viewer should keep ctime', () => 
       updateAsync(userUUID, ops001).should.eventually.have.deep.property('doc.ctime')

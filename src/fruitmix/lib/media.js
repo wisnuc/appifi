@@ -142,7 +142,6 @@ const sortDedup = (isType) => {
   }
 }
 
-
 const subtractUUIDArray = (a, b) => {
  
   let aa = [...a]
@@ -280,7 +279,7 @@ const updateMediaShareDoc = (userUUID, doc, ops) => {
     doctype: doc.doctype,
     docversion: doc.docversion,
     uuid: doc.uuid,
-    author: doc.userUUID,
+    author: doc.author,
     maintainers,
     viewers,
     album,
@@ -290,7 +289,6 @@ const updateMediaShareDoc = (userUUID, doc, ops) => {
     contents
   }
 
-  // console.log(update)
   return update
 }
 
