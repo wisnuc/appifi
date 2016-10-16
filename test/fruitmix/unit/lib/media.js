@@ -6,13 +6,17 @@ import validator from 'validator'
 import paths from 'src/fruitmix/lib/paths'
 import { createDocumentStore } from 'src/fruitmix/lib/documentStore'
 import { createMediaShareStore } from 'src/fruitmix/lib/mediaShareStore'
+import { createMediaTalkStore } from 'src/fruitmix/lib/mediaTalkStore'
 import createMedia from 'src/fruitmix/lib/media' 
 
-/**
-20e62448-7df5-4670-bf2b-9f2f97f17136
-8d7abab0-016a-4aaa-9a20-a43c2af80818
-3008aeca-0970-4900-9e23-aad83d9378d6
-027453eb-b9a7-4fea-b29c-4662fb7e0bec
+const aliceUUID = '20e62448-7df5-4670-bf2b-9f2f97f17136'
+const bobUUID = '8d7abab0-016a-4aaa-9a20-a43c2af80818'
+const charlieUUID = '3008aeca-0970-4900-9e23-aad83d9378d6'
+const davidUUID = '027453eb-b9a7-4fea-b29c-4662fb7e0bec'
+
+const img001Hash = '7803e8fa1b804d40d412bcd28737e3ae027768ecc559b51a284fbcadcd0e21be' 
+
+/** 
 e1bb25aa-6887-48d1-a231-f5400085d0be
 d386c34b-36f2-4bd1-be6e-c1d0e0926710
 8f4a5ba5-8064-4de9-95b2-b87fa318e14b
@@ -73,14 +77,36 @@ c89815b4-1860-4bee-96d3-fd3accb98d7e
 374e5f0a-977c-4050-ad48-c0d39cc7e422
 **/
 
+const cwd = process.cwd()
+
 describe(path.basename(__filename), function() {
 
   describe('create media', function() {
 
+    let media
+
+    beforeEach(() => (async () => {
+      await rimrafAsync('tmptest')
+      await paths.setRootAsync(path.join(cwd, 'tmptest'))
+
+      let docstore = await Promise.promisify(createDocumentStore)()    
+      let msstore = createMediaShareStore(docstore)
+      let mtstore = createMediaTalkStore(docstore) 
+      media = createMedia(msstore, mtstore)
+    })())
+
     it('media should have an empty sharedMap (obsolete, need update)', function() {
-      let x = createMedia()
-      expect(x.shareMap instanceof Map).to.be.true
-      expect(x.shareMap.size).to.equal(0)
+      expect(media.shareStore).to.not.be.undefined
+      expect(media.talkStore).to.not.be.undefined
+
+      expect(media.shareMap instanceof Map).to.be.true
+      expect(media.shareMap.size).to.equal(0)
+
+      expect(media.mediaMap instanceof Map).to.be.true
+      expect(media.mediaMap.size).to.equal(0)
+
+      expect(media.talks).to.be.an('array')
+      expect(media.talks.length).to.equal(0)
     })
   })
 
@@ -106,18 +132,12 @@ describe(path.basename(__filename), function() {
     beforeEach(() => (async () => {
 
       await rimrafAsync('tmptest')
-      await mkdirpAsync('tmptest')
       await paths.setRootAsync(path.join(cwd, 'tmptest'))
-
-      let tmpdir = paths.get('tmp')
-      let docroot = paths.get('documents')
-      let msroot = paths.get('mediashare')
-      let msarc = paths.get('mediashareArchive')
 
       let docstore = await Promise.promisify(createDocumentStore)()    
       let msstore = createMediaShareStore(docstore)
-
-      media = createMedia(msstore) // FIXME
+      let mtstore = createMediaTalkStore(docstore) 
+      media = createMedia(msstore, mtstore)
 
     })())
 
@@ -234,5 +254,58 @@ describe(path.basename(__filename), function() {
       throw new Error('not implemented')
     })
   })
+  /** end of create share **/
+
+  /** begin of create talk **/
+  describe('create talk', function() {
+
+    let media
+    const obj001 = {
+      maintainers: [],
+      viewers: [bobUUID],
+      album: null,
+      sticky: false,
+      contents: [ img001Hash ]
+    }
+  
+    beforeEach(() => (async () => {
+      
+      await rimrafAsync('tmptest')      
+      await paths.setRootAsync(path.join(cwd, 'tmptest'))
+
+      let docstore = await Promise.promisify(createDocumentStore)()
+      let msstore = createMediaShareStore(docstore)
+      let mtstore = createMediaTalkStore(docstore)
+
+      media = createMedia(msstore, mtstore)
+
+    })())
+
+    it('alice comment on her own photo, even if it is not shared (wierd case)', function(done) {
+      media.addComment(aliceUUID, aliceUUID, img001Hash, 'am I beautiful?', (err, talk) => {
+        console.log(err || talk)
+        done()
+      })
+    }) 
+
+    it('alice comment on her own photo, that is shared with bob', function(done) {
+      media.createMediaShare(aliceUUID, obj001, (err, share) => {
+        media.addComment(aliceUUID, aliceUUID, img001Hash, 'I look wonderful', (err, talk) => {
+          console.log(err || talk)
+          done()
+        })
+      })
+    })
+
+    it('bob comment on alice photo, that is shared with bob', function(done) {
+      media.createMediaShare(aliceUUID, obj001, (err, sare) => {
+        media.addComment(bobUUID, aliceUUID, img001Hash, 'you look terrible', (err, talk) => {
+          console.log(err || talk)
+          done()
+        })
+      })
+    })
+  })
+
 })
 

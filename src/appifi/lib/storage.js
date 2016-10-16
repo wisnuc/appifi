@@ -1,6 +1,5 @@
 import child from 'child_process'
 
-
 import { toLines } from './utils'
 import { storeState, storeDispatch } from '../lib/reducers'
 import { probeDaemon } from '../lib/docker'
@@ -32,7 +31,6 @@ class OperationFailError extends Error {
     this.name = 'OperationFailError'
   }
 }
-
 
 async function portsPaths() {
   return new Promise((resolve, reject) => 
@@ -128,7 +126,6 @@ async function mountVolumesAnyway(volumes, mounts) {
 async function probeUsages(mounts) {
 
   let filtered = mounts.filter(mnt => mnt.fs_type === 'btrfs' && mnt.mountpoint.startsWith('/run/wisnuc/volumes/') && !mnt.mountpoint.endsWith('/graph/btrfs'))
-
   return await Promise.all(filtered.map(mnt => probeUsage(mnt.mountpoint)))
 }
 

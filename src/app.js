@@ -1,18 +1,12 @@
 var assets = require('../assets')
 var path = require('path')
 var express = require('express')
-// var favicon = require('serve-favicon')
 var logger = require('morgan')
 var cookieParser = require('cookie-parser')
 var bodyParser = require('body-parser')
 
 let app = express()
 
-/*
- * middlewares
- */
-// uncomment after placing your favicon in /public
-//app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
 app.use(logger('dev', {
   skip: (req) => {
     // console.log(`morgan: ${req.path}`)
@@ -105,8 +99,6 @@ app.use(function(err, req, res) {
   res.send('error: ' + err.message)
 })
 
-// module.exports = app
-
 /**
  * Module dependencies.
  */
@@ -198,7 +190,6 @@ function onListening() {
 
 process.on('unhandledRejection', (reason, p) => {
   console.log('Unhandled Rejection at: Promise', p, 'reason:', reason);
-  // application specific logging, throwing an error, or other logic here
 })
 
 

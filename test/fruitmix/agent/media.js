@@ -5,6 +5,12 @@ import Promise from 'bluebird'
 import { expect } from 'chai'
 import app from 'src/fruitmix/app'
 import paths from 'src/fruitmix/lib/paths'
+import models from 'src/fruitmix/models/models'
+
+import { createDocumentStore } from 'src/fruitmix/lib/documentStore'
+import { createMediaShareStore } from 'src/fruitmix/lib/mediaShareStore'
+import { createMediaTalkStore } from 'src/fruitmix/lib/mediaTalkStore'
+import createMedia from 'src/fruitmix/lib/media'
 
 import { fakePathModel, fakeRepoSilenced, requestTokenAsync } from 'src/fruitmix/util/fake'
 
@@ -101,6 +107,12 @@ describe(path.basename(__filename) + ': test repo', function() {
       let repo = await fakeRepoSilenced()
       token = await requestTokenAsync(app, userUUID, 'world')
 
+      let docstore = await Promise.promisify(createDocumentStore)()
+      let msstore = createMediaShareStore(docstore)
+      let mtstore = createMediaTalkStore(docstore)
+      let media = createMedia(msstore, mtstore)
+      models.setModel('media', media)
+
     })())
 
     it('should get media meta', function(done) {
@@ -108,6 +120,7 @@ describe(path.basename(__filename) + ': test repo', function() {
       const ret = [ 
         { 
           digest: '7803e8fa1b804d40d412bcd28737e3ae027768ecc559b51a284fbcadcd0e21be',
+          type: 'JPEG',
           format: 'JPEG',
           width: 3264,
           height: 1836,
@@ -115,7 +128,8 @@ describe(path.basename(__filename) + ': test repo', function() {
           exifDateTime: '2014:12:13 15:31:24',
           exifMake: 'SAMSUNG',
           exifModel: 'SM-T705C',
-          size: 2331588 
+          size: 2331588,
+          sharing: 1
         } 
       ]
 

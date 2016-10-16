@@ -10,6 +10,7 @@ import { createRepo } from './repo'
 import createUUIDLog from './uuidlog'
 import { createDocumentStore } from './documentStore'
 import { createMediaShareStore } from './mediaShareStore'
+import { createMediaTalkStore } from './mediaTalkStore'
 import createMedia from './media'
 import createThumbnailer from './thumbnail'
 
@@ -54,9 +55,9 @@ const initAsync = async (sysroot) => {
 
   // create mediashare store
   let msstore = createMediaShareStore(docstore) 
+  let mtstore = createMediaTalkStore(docstore)
 
-  // create media ???
-  let media = createMedia(msstore)
+  let media = createMedia(msstore, mtstore)
   models.setModel('media', media)
 
 }

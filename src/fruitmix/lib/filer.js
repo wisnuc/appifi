@@ -562,20 +562,41 @@ export class Forest extends IndexedTree {
   }
 
   //////////////////////////////////////////////////////////////////////////////
-  
-  getMedia(userUUID) {
 
-    let arr = []
-  
+  mediaUserReadable(digest, userUUID) {
+
+    let digestObj = this.hashMap.get(digest)
+    if (!digestObj) return false
+
+    let node = digestObj.nodes.find(n => n.userReadable(userUUID))
+    return !!node
+  }
+
+ 
+  // this is a two step calculation, this is the first one:
+  initMediaMap(userUUID) {
+
+    //  map: digest => obj
+    //  obj: {
+    //    digest,
+    //    type,
+    //    meta,
+    //    share, not defined here
+    //  }
+
+    let map = new Map()
     this.hashMap.forEach((digestObj, digest) => {
-      for (let i = 0; i < digestObj.nodes.length; i++) {
-        if (digestObj.nodes[i].userReadable(userUUID)) {
-          arr.push(Object.assign({ digest }, digestObj.meta))
-        }
+
+      // find at least one that user readable
+      if (digestObj.nodes.find(node => node.userReadable(userUUID))) {
+        let obj = { digest, type: digestObj.type }
+        if (digestObj.meta) Object.assign(obj, digestObj.meta)
+        obj.sharing = 1
+        map.set(digest, obj)
       }
     })
 
-    return arr
+    return map
   }
 
   readMedia(userUUID, digest) {
@@ -602,6 +623,7 @@ export class Forest extends IndexedTree {
   }
 
   //////////////////////////////////////////////////////////////////////////////
+
 
   // for meta api
   getMeta(userUUID) {

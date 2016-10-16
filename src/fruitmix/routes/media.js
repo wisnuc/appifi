@@ -10,13 +10,12 @@ router.get('/', auth.jwt(), (req, res) => {
   try { 
     const filer = models.getModel('filer')
     const media = models.getModel('media')
-
-    console.log(media)
-
     const user = req.user
 
-    let meta = media.getMedia(user.uuid)
-    res.status(200).json(meta)
+    // metamap
+    let mediaMetaMap = filer.initMediaMap(user.uuid)
+    media.fillMediaMetaMap(mediaMetaMap, user.uuid, filer)
+    res.status(200).json(Array.from(mediaMetaMap.values()))
   }
   catch (e) {
     console.log(e)
@@ -59,10 +58,6 @@ router.get('/:digest/thumbnail', (req, res) => {
 
   const thumbnailer = models.getModel('thumbnailer')
   thumbnailer.request(digest, query, (err, ret) => {
-
-    console.log('>>>>')
-    console.log(err || ret)
-    console.log('<<<<')
 
     if (err) return res.status(500).json(err)
 

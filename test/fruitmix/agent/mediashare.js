@@ -19,6 +19,7 @@ import { fakePathModel, fakeRepoSilenced, requestTokenAsync } from 'src/fruitmix
 
 import { createDocumentStore } from 'src/fruitmix/lib/documentStore'
 import { createMediaShareStore } from 'src/fruitmix/lib/mediaShareStore'
+import { createMediaTalkStore } from 'src/fruitmix/lib/mediaTalkStore'
 import createMedia from 'src/fruitmix/lib/media'
 
 import request from 'supertest'
@@ -125,7 +126,8 @@ describe(path.basename(__filename), function() {
         
         let docstore = await Promise.promisify(createDocumentStore)()  
         let msstore = createMediaShareStore(docstore) 
-        let media = createMedia(msstore)        
+        let mtstore = createMediaTalkStore(docstore)
+        let media = createMedia(msstore, mtstore) 
         models.setModel('media', media)
 
         token = await requestTokenAsync(app, userUUID, 'world')
@@ -275,13 +277,14 @@ describe(path.basename(__filename), function() {
         let mediasharePath = paths.get('mediashare')
         let mediashareArchivePath = paths.get('mediashareArchive')
         let msstore = createMediaShareStore(docstore) 
+        let mtstore = createMediaTalkStore(docstore)
 
         await mkdirpAsync(path.join(docpath, fakeDoc001Hash.slice(0, 2)))
         await fs.writeFileAsync(path.join(docpath, fakeDoc001Hash.slice(0, 2), fakeDoc001Hash.slice(2)), 
           fakeDoc001)
         await fs.writeFileAsync(path.join(mediasharePath, fakeDoc001UUID), fakeDoc001Hash)
 
-        let media = createMedia(msstore)        
+        let media = createMedia(msstore, mtstore)        
 
         const func = (emitter, evt, callback) => {
           emitter.on(evt, () => {
