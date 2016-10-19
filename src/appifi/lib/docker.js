@@ -11,7 +11,8 @@ import { createStore, combineReducers } from '../lib/reduced'
 import appstore from './appstore' // TODO
 
 import { containerStart, containerStop, containerCreate, containerDelete } from './dockerapi'
-import { getConfig, setConfig } from './appifiConfig'
+// import { getConfig, setConfig } from './appifiConfig'
+import sysconfig from '../../system/sysconfig'
 import { dockerEventsAgent, DockerEvents } from './dockerEvents'
 import { AppInstallTask } from './dockerTasks'
 
@@ -78,7 +79,8 @@ function dispatchDaemonStart(volume, agent) {
     })
   })
 
-  setConfig('lastUsedVolume', volume)
+  // setConfig('lastUsedVolume', volume)
+  sysconfig.set('lastUsedVolume', volume)
 
   storeDispatch({
     type: 'DAEMON_START',
@@ -258,7 +260,8 @@ async function initAsync() {
     return
   }
 
-  let lastUsedVolume = getConfig('lastUsedVolume')
+//  let lastUsedVolume = getConfig('lastUsedVolume')
+  let lastUsedVolume = sysconfig.get('lastUsedVolume')
   if (!lastUsedVolume) {
     info('last used volume not set, docker daemon not started')
     return

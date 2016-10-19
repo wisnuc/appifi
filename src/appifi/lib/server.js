@@ -7,8 +7,10 @@ import { calcRecipeKeyString } from './dockerApps'
 import { daemonStart, daemonStop, daemonStartOp, containerStart, containerStop, containerDelete,
   installedStart, installedStop, appInstall, appUninstall, dockerFruitmixDir } from './docker'
 import { mkfsBtrfsOperation } from './storage'
+
+
 import network from './eth'
-import { setFanScale, updateFanSpeed } from './barcelona'
+import { setFanScale, updateFanSpeed } from '../../system/barcelona'
 import appstore from './appstore'
 import timedate from './timedate'
 

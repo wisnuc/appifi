@@ -22,13 +22,13 @@ app.use(cookieParser())
 /*
  * module init
  */
+import sysinit from './system/sysinit'
 import { storeDispatch } from './appifi/lib/reducers'
-import { initConfig, getConfig } from './appifi/lib/appifiConfig'
-import { setFanScale, updateFanSpeed, pollingPowerButton } from './appifi/lib/barcelona'
 import server from './appifi/lib/server'
 import appstore from './appifi/lib/appstore'
 import docker from './appifi/lib/docker'
 import storage from './appifi/lib/storage'
+import system from './system/index'
 
 process.argv.forEach(function (val, index, array) {
   if (val === '--appstore-master') {
@@ -40,16 +40,11 @@ process.argv.forEach(function (val, index, array) {
   }
 });
 
-initConfig()
-
-// code for barcelona, harmless for other platfrom
-updateFanSpeed()
-pollingPowerButton()
-setFanScale(getConfig('barcelonaFanScale'))
-
 storage.init()
 docker.init()
 appstore.reload()
+
+app.set('json spaces', 2)
 
 /*
  * routes
@@ -73,6 +68,7 @@ app.get('/bundle.js', (req, res) => {
 app.use('/stylesheets', require('./appifi/routes/stylesheets'))
 app.use('/appstore', require('./appifi/routes/appstore'))
 app.use('/server', require('./appifi/routes/server'))
+app.use('/system', system)
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

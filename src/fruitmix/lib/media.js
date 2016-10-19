@@ -607,7 +607,7 @@ class Media extends EventEmitter {
       }
 
       if (viewable) {
-        let obj = readableMap.get(digest)    
+        let obj = mediaMap.get(digest)    
         if (obj) {
           obj.sharing = 1 | (swo ? 2 : 0) | (swm ? 4 : 0)
         }
