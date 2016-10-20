@@ -1,12 +1,57 @@
 import child from 'child_process'
+import EventEmitter from 'events'
 import readline from 'readline'
 
-const spawn = child.spawn('stdbuf', ['-oL', 'udevadm', 'monitor',  '--udev'])
+class UdevMonitor extends EventEmitter {
 
-spawn.stdout.on('data', data => console.log(data.toString()))
-spawn.stderr.on('data', data => console.log(data.toString()))
+  constructor(rl) {
 
-spawn.on('close', () => console.log('spawn closed'))
+    super()
 
-console.log(spawn.pid)
+    this.rl = rl
+    this.timer = -1
+    this.queue = []
+
+    rl.on('line', line => {
+
+      let t = line.trim()
+      if (!t.endsWith('(block)')) return
+        
+      let split = t.split(' ')
+        .map(x => x.trim())
+        .filter(x => !!x.length)
+
+      if (split.length !== 5 || 
+        split[0] !== 'UDEV' || 
+        (split[2] !== 'add' && split[2] !== 'remove') || 
+        split[4] !== '(block)')
+        return
+
+      let action = split[2]
+      let blkpath = split[3]
+
+      if (this.timer !== -1) 
+        clearTimeout(this.timer)
+        
+      this.queue.push({action, blkpath})
+      this.timer = setTimeout(() => {
+        this.emit('events', this.queue)
+        this.queue = []
+        this.timer = -1
+      }, 150)
+    })
+
+    rl.on('close', () => {
+      console.log('unexpected close of udev monitor')
+    })
+  }
+}
+
+export const createUdevMonitor = () => {
+
+  const spawn = child.spawn('stdbuf', ['-oL', 'udevadm', 'monitor',  '--udev', '-s', 'block'])
+  const rl = readline.createInterface({ input: spawn.stdout })
+
+  return new UdevMonitor(rl)  
+}
 

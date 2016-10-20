@@ -18,7 +18,7 @@ const router = express.Router()
 
 const K = x => y => x
 const respond = (res, err, obj) => err ? 
-    res.status(codeMap(code) || 500)
+    res.status(codeMap.get(err.code) || 500)
       .json({ code: err.code, message: err.message }) :
     res.status(200)
       .json((obj === null || obj === undefined) ? { message: 'success' } : obj)

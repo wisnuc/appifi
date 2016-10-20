@@ -7,13 +7,7 @@ var bodyParser = require('body-parser')
 
 let app = express()
 
-app.use(logger('dev', {
-  skip: (req) => {
-    // console.log(`morgan: ${req.path}`)
-    if (req.path === '/status') return true
-    return false
-  }
-}))
+app.use(logger('dev', { skip: (req, res) => res.nolog === true }))
 
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: false }))

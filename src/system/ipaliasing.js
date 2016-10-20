@@ -10,10 +10,10 @@ const K = x => y => x
 
 const parseAliasing = (net) => 
   Object.keys(net).reduce((prev, curr, idx, arr) => 
-    (curr.endsWith(':wisnuc') && arr.indexOf(curr.slice(0, -7)) !== -1) ? 
+    (curr.endsWith(':app') && arr.indexOf(curr.slice(0, -4)) !== -1) ? 
       [...prev, {
-        dev: curr.slice(0, -7),
-        mac: net[curr.slice(0, -7)][0]['mac'],
+        dev: curr.slice(0, -4),
+        mac: net[curr.slice(0, -4)][0]['mac'],
         ipv4: net[curr][0]['address'] 
       }] : prev, [])
 
@@ -33,7 +33,7 @@ const mac2dev = (mac) => _mac2dev(os.networkInterfaces(), mac)
 const aliases = () => parseAliasing(os.networkInterfaces())
 
 const _addAlias = (dev, addr, callback) => 
-  child.exec(`ip addr add ${addr}/24 dev ${dev} label ${dev}:wisnuc`, err => callback(err))
+  child.exec(`ip addr add ${addr}/24 dev ${dev} label ${dev}:app`, err => callback(err))
 
 const addAlias = (dev, addr, callback) => 
   _addAlias(dev, addr, err => 
