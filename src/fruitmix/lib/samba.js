@@ -7,6 +7,7 @@ import dgram from 'dgram'
 import Debug from 'debug'
 const debug = Debug('fruitmix:smbaudit')
 
+import paths from './paths'
 import models from '../models/models'
 
 const logConfigPath = '/etc/rsyslog.d/99-smbaudit.conf'
@@ -19,6 +20,72 @@ const userList = () =>
 const uuidToUnixName = (uuid) => 
   ['x', ...uuid.split('-').map((s, i) => i === 2 ? s.slice(1) : s)].join('')
 
+/**
+  share
+  
+  { 
+    name: string,
+    readOnly: boolean, (for library)
+    path: absolute path in system for samba
+    writelist:  only if readOnly === false
+    validUsers:
+  }
+**/
+const shareList = (userList) => {
+
+  let umod = models.getModel('user')
+  let dmod = models.getModel('drive')
+  let ulist = umod.collection.list
+  let dlist = dmod.collection.list
+
+  let shares = [] 
+  dlist.forEach(drive => {
+
+    if (drive.URI !== 'fruitmix') return
+  
+    if (drive.fixedOwner === true) {
+
+      let owner = ulist.find(user => user.home === drive.uuid || user.library === drive.uuid)
+      if (owner) {
+        let shareName = drive.uuid.slice(0, 8)
+        let sharePath = '/drives/' + drive.uuid
+        let writelist = [owner.uuid, ...drive.writelist]
+          .sort()
+          .filter((item, index, array) => !index || item !== array[index - 1])
+          .map(uuidToUnixName)
+
+        let validUsers = [owner.uuid, ...drive.writelist, ...drive.readlist]
+          .sort()        
+          .filter((item, index, array) => !index || item !== array[index - 1])
+          .map(uuidToUnixName)
+
+        shares.push({ name: shareName, path: sharePath, 
+          readOnly: owner.library === drive.uuid ? true : false,
+          writelist, validUsers })
+      }
+    } 
+    else if (drive.fixedOwner === false) {
+
+      let shareName = drive.uuid.slice(0, 8)
+      let sharePath = '/drives/' + drive.uuid 
+      
+      let writelist = [...drive.owner, ...drive.writelist].sort()
+        .filter((item, index, array) => !index || item !== array[index - 1])
+        .map(uuidToUnixName)
+
+      let validUsers = [...drive.owner, ...drive.writelist, ...drive.readlist].sort()        
+        .filter((item, index, array) => !index || item !== array[index - 1])
+        .map(uuidToUnixName)
+
+      if (validUsers.length > 0) {
+        shares.push({ name: shareName, path: sharePath, writelist, validUsers })
+      }
+    }
+  })
+
+  return shares
+}
+
 
 // first: retrieve users list from both system, and fruitmix
 // second: retrieve users/passwords from both samba, and fruitmix
@@ -26,7 +93,153 @@ const uuidToUnixName = (uuid) =>
 // fourth: generate new samba configuration
 // fifth: reload or restart samba
 
-const retrieveSysUsers = () => {
+const retrieveSysUsers = (callback) => {
+
+  fs.readFile('/etc/passwd', (err, data) => {
+    if (err) return callback(err)
+    let users = data.toString().split('\n')
+      .map(l => l.trim())
+      .filter(l => l.length)
+      .map(l => {
+        let split = l.split(':')
+        if (split.length !== 7) return null
+        return {
+          unixname: split[0],
+          uid: split[2]
+        }
+      })
+      .filter(u => !!u)
+
+    callback(null, users)
+  })
+}
+
+const retrieveSmbUsers = (callback) => {
+
+  child.exec('pdbedit -Lw', (err, stdout) => {
+    if (err) return callback(err)
+    let users = data.toString9).split('\n')
+      .map(l => l.trim())
+      .filter(l => l.length)
+      .map(l => {
+        let split = l.split(':')
+        if (split.length !== 6) return null
+        return {
+          unixname: split[0],
+          uid: parseInt(split[1]),
+          md4: split[3],
+          lct: split[5]
+        } 
+      })
+      .filter(u => !!u)
+
+    callback(null, users)
+  })
+}
+
+const addUnixUser = (username, uid, callback) => 
+  child.exec('adduser --disabled-password --disabled-login --no-create-home ' +
+    `--gecos ",,," --uid ${uid} --gid 65534 ${username}\n`, err => callback(err))
+
+const deleteUnixUser = (username, callback) => 
+  child.exec(`deluser ${username}`, err => callback(err)) 
+
+
+const reconcileUnixUserAsync = async () => {
+
+  let sysusers = await Promise.promisify(retrieveSysUsers)
+  let fusers = userList().map(u => ({ unixname: uuidToUnixName(u.uuid), uid:u.unixUID }) 
+
+  // common
+  let common = [] 
+  fusers.forEach(fuser => {
+    let found = sysusers.find(sysuser => sysuser.unixname === fuser.unixname && sysuser.uid === fuser.uid))
+    if (found) common.push({fuser}) 
+  })
+
+  // subtract
+  fusers = fusers.filter(f => common.find(c => c.unixname === f.unixname && c.uid === f.uid))
+  sysusers = sysusers.filter(s => common.find(c => c.unixname === s.unixname && c.uid === s.uid))
+
+  // delete, with bluebird reflect
+  await Promise.map(sysusers, (sysuser) => deleteUnixUser(sysuser.unixname).reflect())
+
+  // add
+  await Promise.map(fusers, (fuser) => addUnixUser(fuser.unixname).reflect())
+}
+
+const deleteSmbUser = (username, callback) => 
+  child.exec(`pdbedit -x ${username}`, err => callback(err))
+
+const smbTmpUserPath = '/run/wisnuc/smb/tmp'
+
+const addSmbUsers = (fusers, callback) => {
+
+  let text = fusers.map(u => `${u.unixname}:${u.uid}:` + 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX:' +
+    `${u.md4}:[U          ]:${u.lct}:`).join('\n')
+
+  fs.writeFile(smbTmpUserPath, text, err => err ? callback(err) :
+    child.exec('pdbedit -i smbpasswd:' + smbTmpUserPath, err => callback(err))
+}
+
+const reconcileSmbUserAsync = async () => {
+
+  let smbusers = await Promise.promisify(retrieveSmbUsers)
+  let fusers = userList().map(u => ({ 
+    unixname: uuidToUnixName(u.uuid),
+    uid: u.unixUID,
+    md4: u.smbPassword.toUpperCase(),
+    lct: 'LCT-' + Math.floor(u.lastChangeTime / 1000).toString('hex').toUpperCase()
+  })
+
+  let common = fusers.reduce((r, f) => 
+    smbusers.find(s => s.unixname === curr.unixname 
+      && s.uid === f.uid && 
+      && s.md4 === f.md4) ? [...r, {f, s}] : r, [])
+
+  fusers = fusers.filter(f => common.find(c => c.f !== f))
+  smbusers = smbusers.filter(s => common.find(c => c.s !== s))
+
+  // remove
+  await Promise.map(smbusers, (smbuser) => deleteSmbUser(smbuser.unixname).reflect())
+
+  // add 
+  await Promise.promisify(addSmbUsers)(fusers)
+}
+
+const generateUserMap = () => 
+  userList().reduce((prev, user) => prev + `${uuidToUnixName(user.uuid)} = "${user.username}"\n`, '')
+
+const generateSmbConf = () => {
+
+  let global =  '[global]\n' +
+                '  username map = /usernamemap.txt\n' +
+                '  workgroup = WORKGROUP\n' +
+                '  netbios name = SAMBA\n' +
+                '  map to guest = Bad User\n' +
+                '  log file = /var/log/samba/%m\n' +
+                '  log level = 1\n\n'
+
+  const section = (share) => 
+    `[${share.name}]\n` +                               // username or sharename
+    `  path = ${share.path}\n` +                        // uuid path
+    '  read only = no\n' +
+    '  guest ok = no\n' +
+    '  force user = root\n' + 
+    '  force group = root\n' +
+    `  valid users = ${share.validUsers.join(', ')}\n` +  // valid users
+    `  write list = ${share.writelist.join(', ')}\n` +    // writelist
+    '  vfs objects = full_audit\n' +
+    '  full_audit:prefix = %u|%U|%S|%P\n' +
+    '  full_audit:success = create_file mkdir rename rmdir unlink write pwrite \n' + // dont remove write !!!!
+    '  full_audit:failure = connect\n' +
+    '  full_audit:facility = LOCAL7\n' +
+    '  full_audit:priority = ALERT\n\n'   
+
+  let conf = global
+  shareList().forEach(share => conf += section(share))
+
+//  fs.writeFile(
 }
 
 // samba
@@ -56,8 +269,6 @@ const detectRsyslog = (callback) => {
     configRsyslog()  
   })
 }
-
-
 
 class SmbAudit extends EventEmitter {
 
@@ -131,6 +342,11 @@ class SmbAudit extends EventEmitter {
 
     this.udp.on('close', () => console.log('smbaudit upd server closed'))
   }
+}
+
+export const smbUpdate = (callback) => {
+
+  
 }
 
 export const createSmbAudit = (callback) => {

@@ -176,7 +176,7 @@ class UserModel extends EventEmitter{
         callback(null, newUser)
       }) 
 
-    this.emit('userAdded')
+    this.emit('userAdded', newUser)
   }
 
   updateUser(userUUID, props, callback) {
@@ -239,7 +239,6 @@ class UserModel extends EventEmitter{
 
     // merge
     let update = Object.assign({}, user, change)
-
     let index = list.findIndex(u => u.uuid === userUUID)
   
     this.collection
@@ -251,7 +250,7 @@ class UserModel extends EventEmitter{
         callback(null, update)
       })
 
-    this.emit('userUpdated')
+    this.emit('userUpdated', user, update)
   }
 
   // to be refactored
@@ -259,11 +258,14 @@ class UserModel extends EventEmitter{
 
     if(typeof uuid !== 'string') throwInvalid('invalid uuid')
     if(this.collection.locked) throwBusy()
-    if(this.collection.list.find((v)=>v.uuid==uuid).length==0) throwInvalid('invalid uuid')
-    await this.collection.updateAsync(this.collection.list, this.collection.list.filter((v)=>v.uuid!==uuid))
 
-    this.emit('userDeleted')
-    return true 
+    let user = this.collection.list.find(u => u.uuid === uuid)
+    if (!user) throw Object.assign(new Error(`delete user: uuid ${uuid} not found`), { code: 'ENOENT' })
+
+    await this.collection.updateAsync(this.collection.list, 
+      this.collection.list.filter(u => u !=== user))
+
+    this.emit('userDeleted', user)
   }
 
   // 
@@ -280,15 +282,9 @@ class UserModel extends EventEmitter{
   }
 }
 
-const createUserModel = (filepath, tmpdir, callback) => {
-/**  
-  openOrCreateCollectionAsync(filepath, tmpdir)
-    .then(collection => callback(null, new UserModel(collection)))
-    .catch(e => callback(e))
-**/
-
-  createUserModelAsync(filepath, tmpdir).asCallback((err, result) => callback(err, result))
-}
+const createUserModel = (filepath, tmpdir, callback) => 
+  createUserModelAsync(filepath, tmpdir).asCallback((err, result) => 
+    callback(err, result))
 
 const createUserModelAsync = async (filepath, tmpfolder) => {
 
@@ -330,8 +326,6 @@ const createUserModelAsync = async (filepath, tmpfolder) => {
   }
   return null
 }
-
-// const createUserModelAsync = Promise.promisify(createUserModel)
 
 export { createUserModelAsync, createUserModel }
 
