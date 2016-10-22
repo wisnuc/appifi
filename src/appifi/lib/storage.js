@@ -169,6 +169,12 @@ const statBlocks = (storage) => {
         if (blk.props.id_fs_type === 'btrfs') {
           blk.stats.isBtrfs = true
         }
+/** TODO FIXME
+        switch(blk.props.id_fs_type) {
+        case 'btrfs':
+        case ' 
+        }
+**/
       }
       else if (blk.props.id_part_table_type) {
         blk.stats.isPartitioned = true

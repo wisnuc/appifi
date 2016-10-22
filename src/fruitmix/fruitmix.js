@@ -6,6 +6,7 @@ import Debug from 'debug'
 import system from './lib/system'
 import models from './models/models'
 import app from './app'
+import { createSmbAudit } from './lib/samba'
 
 const debug = Debug('fruitmix:createFruitmix')
 
@@ -18,12 +19,12 @@ class Fruitmix extends EventEmitter {
     this.system = system
     this.app = app
     this.server = server 
-    this.udp = udp
+    // this.udp = udp
   }
 
   stop() {
     this.server.close()
-    this.udp.close()
+    // this.udp.close()
     this.system.deinit()
   }
 }
@@ -61,6 +62,7 @@ const createFruitmix = (sysroot) => {
     }
   })
 
+/**
   server.on('listening', () => debug('Http Server Listening on Port ' + port))
   server.on('close', () => debug('Http Server Closed'))
 
@@ -80,8 +82,13 @@ const createFruitmix = (sysroot) => {
   udp.on('close', () => debug('UDP Server closed'))
 
   udp.bind(port)
+**/
 
-  return new Fruitmix(system, app, server, udp)
+  let smbaudit = createSmbAudit(err => {
+    console.log('smb audit created') 
+  })
+
+  return new Fruitmix(system, app, server)
 }
 
 export { createFruitmix }

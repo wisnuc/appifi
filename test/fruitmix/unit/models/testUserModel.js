@@ -33,7 +33,6 @@ const users = [
   }
 ]
 
-
 describe(path.basename(__filename), function() {
 
   const cwd = process.cwd()
@@ -164,6 +163,45 @@ describe(path.basename(__filename), function() {
         expect(err).to.be.an('error')
         done()
       })
+    })
+  })
+
+  describe('unixUID', function() {
+
+    const userUUID = '9f93db43-02e6-4b26-8fae-7d6f51da12af'
+    const drv001UUID = 'ceacf710-a414-4b95-be5e-748d73774fc4'  
+    const drv002UUID = '6586789e-4a2c-4159-b3da-903ae7f10c2a' 
+
+    const cwd = process.cwd()
+    const userFilePath = path.join(cwd, 'tmptest', 'users.json')
+    const tmpdir = path.join(cwd, 'tmptest', 'tmp')
+
+    const users = [
+      {
+        type: 'local',
+        uuid: userUUID,
+        username: 'hello',
+        password: '$2a$10$0kJAT..tF9IihAc6GZfKleZQYBGBHSovhZp5d/DiStQUjpSMnz8CC',
+        avatar: null,
+        email: null,
+        isFirstUser: true,
+        isAdmin: true,
+        home: drv001UUID,
+        library: drv002UUID
+      }
+    ]
+
+    beforeEach(() => (async () => {
+      await rimrafAsync('tmptest')          
+      await mkdirpAsync('tmptest/tmp')
+      await fs.writeFileAsync(userFilePath, JSON.stringify(users)) 
+      let userModel = await Promise.promisify(createUserModel)(userFilePath, tmpdir)
+      models.setModel('user', userModel) 
+    })())
+
+    it('should fill missing unixUID', function() {
+      let umod = models.getModel('user')
+      console.log(umod.collection.list) 
     })
   })
 
