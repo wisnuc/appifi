@@ -118,7 +118,7 @@ const retrieveSmbUsers = (callback) => {
 
   child.exec('pdbedit -Lw', (err, stdout) => {
     if (err) return callback(err)
-    let users = data.toString9).split('\n')
+    let users = data.toString().split('\n')
       .map(l => l.trim())
       .filter(l => l.length)
       .map(l => {
@@ -148,12 +148,13 @@ const deleteUnixUser = (username, callback) =>
 const reconcileUnixUserAsync = async () => {
 
   let sysusers = await Promise.promisify(retrieveSysUsers)
-  let fusers = userList().map(u => ({ unixname: uuidToUnixName(u.uuid), uid:u.unixUID }) 
+  let fusers = userList().map(u => ({ unixname: uuidToUnixName(u.uuid), uid:u.unixUID }))
 
   // common
   let common = [] 
   fusers.forEach(fuser => {
-    let found = sysusers.find(sysuser => sysuser.unixname === fuser.unixname && sysuser.uid === fuser.uid))
+    let found = sysusers.find(sysuser => 
+      sysuser.unixname === fuser.unixname && sysuser.uid === fuser.uid)
     if (found) common.push({fuser}) 
   })
 
@@ -179,7 +180,7 @@ const addSmbUsers = (fusers, callback) => {
     `${u.md4}:[U          ]:${u.lct}:`).join('\n')
 
   fs.writeFile(smbTmpUserPath, text, err => err ? callback(err) :
-    child.exec('pdbedit -i smbpasswd:' + smbTmpUserPath, err => callback(err))
+    child.exec('pdbedit -i smbpasswd:' + smbTmpUserPath, err => callback(err)))
 }
 
 const reconcileSmbUserAsync = async () => {
@@ -190,12 +191,11 @@ const reconcileSmbUserAsync = async () => {
     uid: u.unixUID,
     md4: u.smbPassword.toUpperCase(),
     lct: 'LCT-' + Math.floor(u.lastChangeTime / 1000).toString('hex').toUpperCase()
-  })
+  }))
 
   let common = fusers.reduce((r, f) => 
-    smbusers.find(s => s.unixname === curr.unixname 
-      && s.uid === f.uid && 
-      && s.md4 === f.md4) ? [...r, {f, s}] : r, [])
+    smbusers.find(s => s.unixname === curr.unixname &&
+      s.uid === f.uid && s.md4 === f.md4 ? [...r, {f, s}] : r, []))
 
   fusers = fusers.filter(f => common.find(c => c.f !== f))
   smbusers = smbusers.filter(s => common.find(c => c.s !== s))

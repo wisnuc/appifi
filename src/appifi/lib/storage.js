@@ -167,14 +167,16 @@ const statBlocks = (storage) => {
         blk.stats.isFileSystem = true
 
         if (blk.props.id_fs_type === 'btrfs') {
+          blk.stats.isVolume = true
           blk.stats.isBtrfs = true
+          blk.stats.btrfsVolume = blk.props.id_fs_uuid
+          blk.stats.btrfsDevice = blk.props.id_fs_uuid_sub
         }
-/** TODO FIXME
-        switch(blk.props.id_fs_type) {
-        case 'btrfs':
-        case ' 
+        else if (blk.props.id_fs_type === 'ntfs') {
+          blk.stats.isVolume = false
+          blk.stats.isNtfs = true
         }
-**/
+        // todo, not mounted yet
       }
       else if (blk.props.id_part_table_type) {
         blk.stats.isPartitioned = true
@@ -249,11 +251,28 @@ const statBlocks = (storage) => {
   })
 }
 
+const statVolumes = (storage) => {
+  
+  let { volumes, mounts } = storage
+
+  volumes.forEach(vol => {
+    
+    vol.stats = {}
+    let mount = volumeMount(vol, mounts)
+    if (mount) {
+      vol.stats.isMounted = true
+      vol.stats.mountpoint = mount.mountpoint
+    }
+  })
+}
+
 async function refreshStorage() {
 
   let obj = await probeStorageWithUsages()
 
   statBlocks(obj) 
+  statVolumes(obj)
+
   debug('stat blocks', obj.blocks.map(blk => Object.assign({}, { name: blk.name}, blk.stats)))
 
   storeDispatch({
@@ -487,8 +506,9 @@ udevMon.on('events', events => {
       storage.blocks.forEach(blk => {
 
         let stats = blk.stats
+        let fsMountable = (stats) => (stats.isFileSystem && !stats.isVolume) 
         
-        if (stats.isUSB && !stats.isMounted && stats.isPartition && stats.isFileSystem) {
+        if (stats.isUSB && !stats.isMounted && fsMountable(stats)) {
           if (stats.fileSystemType === 'vfat' || 
             stats.fileSystemType === 'ext4' || 
             stats.fileSystemType === 'ntfs') {

@@ -5,8 +5,8 @@ import express from 'express'
 import validator from 'validator'
 
 import sysconfig from './sysconfig'
+import mir from './mir'
 import { mac2dev, aliases, addAliasAsync, deleteAliasAsync } from './ipaliasing'
-
 import eth from './eth'
 
 const codeMap = new Map([
@@ -89,5 +89,7 @@ router.post('/fan', (req, res) => {
 
   
 })
+
+router.use('/mir', mir)
 
 export default router

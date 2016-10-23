@@ -4,7 +4,8 @@ import EventEmitter from 'events'
 import Debug from 'debug'
 const debug = Debug('fruitmix:userModel')
 
-import bcrypt from 'bcryptjs'
+// import bcrypt from 'bcryptjs'
+import bcrypt from 'bcrypt'
 import UUID from 'node-uuid'
 import validator from 'validator'
 
@@ -263,7 +264,7 @@ class UserModel extends EventEmitter{
     if (!user) throw Object.assign(new Error(`delete user: uuid ${uuid} not found`), { code: 'ENOENT' })
 
     await this.collection.updateAsync(this.collection.list, 
-      this.collection.list.filter(u => u !=== user))
+      this.collection.list.filter(u => u !== user))
 
     this.emit('userDeleted', user)
   }

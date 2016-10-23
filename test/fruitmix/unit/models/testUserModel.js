@@ -103,7 +103,7 @@ describe(path.basename(__filename), function() {
       })
     })
 
-    it('should have lastChangetime', function(done) {
+    it('should have lastChangeTime', function(done) {
       umod.createUser(inputMinimal, (err, user) => {
         expect(user.lastChangeTime).to.be.a('number')
         done()
@@ -137,6 +137,17 @@ describe(path.basename(__filename), function() {
         if (err) return done(err)
         expect(user.isFirstUser).to.be.true
         expect(user.isAdmin).to.be.true
+        done()
+      })
+    })
+
+    it('should emit userAdded event', function(done) {
+      let emitted
+      umod.on('userAdded', newUser => {
+        emitted = newUser
+      })
+      umod.createUser(inputMinimal, (err, user) => {
+        expect(user).to.equal(emitted)
         done()
       })
     })
