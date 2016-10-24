@@ -94,7 +94,8 @@ router.get('/', (req, res) => {
                     //  if mkfs.type is ntfs, only one block is allowed, can be either ATA/SCSI or USB disk, or partition
 
   mkfs: {           
-    type: 'btrfs'
+    type: 'btrfs',
+    opts: raid mode  
   }
 
   init: {           // this must be provided if mkfs is provided
@@ -102,13 +103,151 @@ router.get('/', (req, res) => {
     password:
   }
 
+  mkfs.btrfs: 0 -> n disks, with raid mode
+  mkfs.ext4: 1 disk or 1 partition
+  mkfs.ntfs
+
+  install / reinstall
+
+  ///////
+
+  valid combination
+
+  target only (which means run)
+
+  target + init (which means overwrite and run)
+
+  target + mkfs + init (which means mkfs + init + run)
+
 **/
+
+const isSingleUUID = (target) => 
+  Array.isArray(target) && target.length === 1 && 
+    typeof target[0] === 'string' && validator.isUUID(target[0])
+
+const isSingleName = (target) =>
+  Array.isArray(target) && target.length === 1 &&
+    typeof target[0] === 'string'
+
 router.post('/', (req, res) => {
 
-  const mir = req.body 
-
+  const reply = (code, error) => {
+ 
+    let obj 
+    if (message instanceof Error) 
+      obj = {
+        message: error.message,
+        code: error.code
+      }
+    else if (typeof message === 'string')
+      obj = { message: error }
+    else 
+      obj = { message: 'none' }
   
+    return res.status(code).json({ message })
+  }
 
+  const startMountpoint = (mp) => {
+    fs.stat(path.join(mp, 'wisnuc/fruitmix'), (err, stats) => {
+      if (err) return reply(500, err)
+      if (!stats.isDirectory()) 
+        return reply(405, `wisnuc/fruitmix on target block or volume is not a directory`)
+
+      // start fruitmix TODO
+      reply(200, `fruitmix started on volume ${volume.uuid}`)
+    })
+  }
+
+  const mir = req.body 
+  const storage = storeState().storage
+
+  if (mir instanceof Object === false) {
+    return res.status(500).end() // TODO
+  } 
+
+  let { target, mkfs, init } = mir
+ 
+  // target must be array 
+  if (!Array.isArray(target)) return res.status(500).end()
+
+  if (target && init === undefined && mkfs === undefined) { // run mode
+
+    // target must be single UUID or block containing supported fs
+    // target must contains wisnuc 
+
+    if (isSingleUUID(target)) {
+
+      let uuid = target[0]
+      let volume = volumes.find(vol => vol.uuid === uuid)
+      if (!volume) return reply(404, `volume ${uuid} not found`)
+      if (volume.missing) return reply(405, `volume ${volume.uuid} has missing disk`)
+  
+      if (!volume.isMounted || !volume.stats.mountpoint) 
+        return (500, `volume is not mounted, or mountpoint is not correctly parsed`)
+
+      let mp = volume.stats.mountpoint
+      return startMountpoint(mp)
+    }
+    else if (isSingleName(target)) {
+      
+      let name = target[0] 
+      let block = blocks.find(blk => blk.name === name) 
+      if (!block) return reply(404, `block device ${name} not found`)
+
+      if (block.stats.isVolume) {
+        return reply(405, `block device ${name} is a volume device, please use volume uuid as argument`)
+      }
+      else if (block.stats.isDisk) { // non-volume disk
+        if (block.isPartitioned) 
+          return reply(405, `block device ${name} is a partitioned disk`)
+        if (!block.stats.isFileSystem) 
+          return reply(405, `block device ${name} contains no file system`)
+        if (!block.stats.isNtfs && !block.stats.isExt4) 
+          return reply(405, `block device ${name} contains no ntfs or ext4`)
+      }
+      else if (block.stats.isPartition) {
+        if (!block.stats.isNtfs && !block.stats.isExt4)
+          return reply(405, `block device ${name} contains no ntfs or ext4`)
+      }
+      else {
+        return reply(500, `unexpected situation, contact developers`)
+      }
+
+      if (!block.stats.isMounted || !block.stats.mountpoint)
+        return reply(500, `block device is not mounted, or mountpoint is not correctly parsed`)
+
+      let mp = block.stats.mountpoint
+      return startMountpoint(mp)
+    }
+  }
+  else if (target && init && mkfs === undefined) { // install mode
+
+    // target must be single UUID or block containing supported fs
+    // if target contains wisnuc, it will be removed 
+  } 
+  else if (target && init && mkfs) {
+    // if mkfs type is btrfs
+    //   target must be 1 - n disk
+    // if mkfs type is ntfs or ext4
+    //   target must be single disk or partition
+    if (mkfs.type === 'btrfs') {
+      
+              
+    }
+    else if (mkfs.type === 'ntfs' || mkfs.type === 'ext4') {
+       
+      
+    }
+    else {
+      return reply(405, `unsupported mkfs type`)
+    }
+  }
+  else {
+    // not supported combination
+    return res.status(400).json({
+      message: 'invalid combination of target, mkfs, and init'
+    })
+  }
 })
 
 export default router

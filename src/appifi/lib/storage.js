@@ -285,6 +285,8 @@ async function refreshStorage() {
 }
 
 
+
+
 /*
  *  if disk not ata fail
  *  if disk belongs to docker volume, fail (user must delete docker volume first)
@@ -436,6 +438,219 @@ async function createVolume(blknames, opts) {
     })    
     return mountpoints.filter((mp, pos, self) => self.indexOf(mp) === pos) 
   }
+}
+
+// check if a block is formattable
+// return null if YES
+// return object representing unformattable reason
+//   type: rootfs, swap, extended
+//   volume: block is a disk and in a volume (uuid)
+//   disk: block is a disk containing standalone file system (devname)
+//   partition: block is either a partition or a partitioned disk, containing a partition
+//              with given type of problem. 
+const formattable = (block) => {
+
+  if (block.stats.isDisk) {
+
+    // check mount point and active swap
+    if (block.stats.isVolume) {
+
+      // if is volume device, volume must not be rootfs
+      let uuid = block.stats.btrfsVolume
+      let volume = volumes.find(vol => vol.uuid === uuid)
+      if (volume.stats.isMounted && volume.stats.mountpoint === '/') 
+        return { type: 'rootfs', volume: uuid }
+    } 
+    else if (block.stats.isFileSystem) {
+
+      // if is standalone file system, file system must not be rootfs or active swap
+      if (block.stats.isMounted && block.stats.mountpoint === '/') 
+        return { type: 'rootfs', disk: block.name }
+      if (block.stats.isActiveSwap)
+        return { type: 'swap', disk: block.name}
+    }
+    else if (block.stats.isPartitioned) {
+
+      // if is partitioned, containing no partition that is either rootfs or swap
+      let children = blocks.filter(blk => 
+        blk.stats.isPartition && !blk.stats.parentName === block.name)
+
+      for (let i = 0; i < children.length; i++) {
+        if (children[i].isMounted && children[i].mountpoint === '/')
+          return { type: 'rootfs', partition: children[i].name }
+
+        if (children[i].isActiveSwap)
+          return { type: 'swap', partition: children[i].name }
+      }
+    }
+  }
+  else if (block.stats.isPartition) {
+
+    if (block.stats.isExtended)
+      return { type: 'extended', partition: block.name }  
+
+    if (block.stats.isMounted && block.stats.mountpoint === '/')
+      return { type: 'rootfs', partition: block.name }
+
+    if (block.stats.isActiveSwap)
+      return { type: 'swap', partition: block.name }
+  }
+
+  return null
+}
+
+// must exists
+// must be disk
+// must be ata or scsi, if opts set
+// --- volume, volume must not be rootfs
+// --- disk / filesystem, fs must not be rootfs
+// --- disk / partitioned, no partition is rootfs or active swap
+const validateBtrfsCandidates = (target) => {
+
+  let error = (text, code, reason) => 
+    Object.assign(new Error(text), reason ? ({ code, reason }) : ({ code }))
+
+  let { blocks, volumes } = storeState().storage
+
+  for (let i = 0; i < target.length; i++) {
+
+    let block = blocks.find(blk => blk.name === target[i])
+
+    // non-exist
+    if (!block) 
+      return error(`block ${target[i]} does not exist`, 'ENOENT')
+
+    // not a disk
+    if (!block.stats.isDisk)
+      return error(`block ${target[i]} is not a disk`, 'ENOTDISK')
+
+    // for wisnuc device, disk must be ATA or SCSI
+    if (isWisnucDevice && !block.stats.isATA && !block.stats.isSCSI) // NOTATAORSCSI
+      return error(`block ${target[i]} is not an ata or scsi disk`, 'ENOTATAORSCSI')
+  
+    let fmt = formattable(block)  
+    if (fmt) 
+      return error(`formatting block device ${target[i]} is forbidden`, 'EFORBIDDEN', fmt)
+  }
+
+  return null
+}
+
+// single block, can be either disk or partition
+const validateOtherFSCandidates = (target) => {
+
+  let { blocks, volumes } = storeState().storage
+
+  if (target.length !== 1) 
+    return error(`must be exactly one block device`, 'EINVAL')
+
+  let block = blocks.find(blk => blk.name === target[0])   
+  if (!block)
+    return error(`block ${target[0]} does not exist`, 'ENOENT')
+
+  let reason = formattable(block) 
+  if (reason)
+    return error(`formatting block device ${block.name} is forbidden`, 'EFORBIDDEN', reason)
+
+  return null
+}
+
+const umount = (mountpoint, callback) => 
+  child.exec(`umount ${mountpoint}`, err => callback(err)) 
+
+const umountAsync = Promise.promisify(umount)
+
+const umountBlocks = async (target) => {
+
+  let { blocks, volumes } = storeState().storage
+
+  let blks = target.map(name => blocks.find(blk => blk.name === name))
+
+  // if it is volume device
+  let uuids = blks.filter(blk => blk.stats.isMounted)   // filter mounted
+                .filter(blk => blk.stats.isVolume)      // filter volume devices
+                .map(blk => blk.stats.btrfsVolume)      // map to uuid (may dup)
+
+  let mvols = Array.from(new Set(uuids)).sort()         // dedup
+                .map(uuid => volumes.find(vol =>        // map to volume
+                  vol.uuid === uuid))
+
+  // if it is partitioned disk (not necessarily mounted)
+  let mparts = blks.filter(blk => blk.stats.isDisk && blk.stats.isPartitioned)
+                .reduce((prev, curr) => prev.concat(blocks.filter(blk => 
+                  blk.stats.parentName === curr.name)) , [])
+                .filter(blk => blk.stats.isMounted)
+
+  // the left should be partition or disk with standalone fs
+  let mblks = blks.filter(blk => blk.stats.isMounted)   // filter mounted 
+                .filter(blk => blk.stats.isPartition || // is partition
+                  (blk.isDisk && blk.isFileSystem && !blk.isVolume)) // is non-volume filesystem disk
+
+  // for mounted volumes, normal umount
+  // for mounted blocks (with fs)
+  //  umount usb by udisksctl
+  //  umount non-usb by normal umount
+  let i
+  for (i = 0; i < mvols.length; i++) {
+    await umountAsync(mvols[i].stats.mountpoint)
+  }
+
+  for (i = 0; i < mparts.length; i++) {
+    await umountAsync(mvols[i].stats.mountpoint)
+  }
+
+  for (i = 0; i < mblks.length; i++) {
+    await umountAsync(mblks[i].stats.mountpoint)
+  }
+}
+
+const mkfsBtrfs = async (target, opts) => {
+
+  await refreshStorage() // with stats decoration
+  
+  let { blocks, } = storeState().storage
+ 
+  debug('mkfsBtrfs', target, opts)
+
+  target = Array.from(new Set(target)).sort()
+
+  let err = validateBtrfsCandidates(target)
+  if (err) throw err
+ 
+  await umountBlocks(target)
+
+  debug('mkfsBtrfs success')
+}
+
+const mkfsExt4 = async (target, opts) => {
+
+  await refreshStorage() // with stats decoration
+
+  debug('mkfsExt4', target, opts)
+
+  target = Array.from(new Set(target)).sort()
+
+  let err = validateExt4Candidates(target)
+  if (err) throw err
+
+  await umountBlocks(target)
+
+  debug('mkfsExt4 success')
+}
+
+const mkfsNtfs = async (target, opts) => {
+
+  await refreshStorage() 
+  
+  debug('mkfsNtfs', target, opts)
+
+  target = Array.from(new Set(target)).sort()
+  let err = validateOtherFSCandidates(target)
+  if (err) throw err
+
+  await umountBlocks(target)
+  
+  debug('mkfsNtfs success')
 }
 
 async function testOperation() {
