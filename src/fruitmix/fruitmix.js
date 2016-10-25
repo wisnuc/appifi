@@ -62,12 +62,12 @@ const createFruitmix = (sysroot) => {
     }
   })
 
-/**
   server.on('listening', () => debug('Http Server Listening on Port ' + port))
   server.on('close', () => debug('Http Server Closed'))
 
   server.listen(port)
 
+/**
   let udp = dgram.createSocket('udp4')
     
   udp.on('listening', () => {

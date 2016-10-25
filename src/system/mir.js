@@ -129,6 +129,26 @@ const isSingleName = (target) =>
   Array.isArray(target) && target.length === 1 &&
     typeof target[0] === 'string'
 
+// return null for valid
+// return string or err (with or without reason)
+const validateInit = (init) => {
+
+  if (init === undefined) return null
+  if (init instanceof Object === false) return 'init is not an object' 
+
+  if (init.username === undefined) return 'init.username must be provided'
+  if (typeof init.username !== 'string') return 'init.username must be a string'
+  if (init.username.length === 0) return 'init.username must not be an empty string'
+
+  // sanitize ???
+  
+  if (init.password === undefined) return 'init.password must be provided'  
+  if (typeof init.password !== 'string') return 'init.password must be a string'
+  if (init.password.length === 0) return 'init.password must not be an empty string'
+
+  return null
+}
+
 router.post('/', (req, res) => {
 
   const reply = (code, error, reason) => {
@@ -178,19 +198,28 @@ router.post('/', (req, res) => {
   const mir = req.body 
   const storage = storeState().storage
 
-  if (mir instanceof Object === false) {
-    return res.status(500).end() // TODO
-  } 
+  // first validation
+  if (mir instanceof Object === false) 
+    return reply(400, `invalid parameters`) 
+
+  if (storage instanceof Object === false)
+    return reply(500, `storage not an object`)
 
   let { target, mkfs, init } = mir
+  let { blocks, volumes } = storage
  
   // target must be array 
   if (!Array.isArray(target)) return res.status(500).end()
 
-  if (target && init === undefined && mkfs === undefined) { // run mode
+  if (target && mkfs === undefined) { // run mode
+
+    let err = validateInit(init) 
+    if (err) return reply(400, err)
 
     // target must be single UUID or block containing supported fs
     // target must contains wisnuc 
+    if (!isSingleName(target)) 
+      return reply(400, `To install or run fruitmix, target must be single block name or volume uuid`)
 
     if (isSingleUUID(target)) {
 
@@ -205,7 +234,7 @@ router.post('/', (req, res) => {
       let mp = volume.stats.mountpoint
       return startMountpoint(mp)
     }
-    else if (isSingleName(target)) {
+    else {
       
       let name = target[0] 
       let block = blocks.find(blk => blk.name === name) 
