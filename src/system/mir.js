@@ -131,20 +131,23 @@ const isSingleName = (target) =>
 
 router.post('/', (req, res) => {
 
-  const reply = (code, error) => {
+  const reply = (code, error, reason) => {
  
     let obj 
-    if (message instanceof Error) 
+    if (message instanceof Error) {
       obj = {
         message: error.message,
         code: error.code
       }
+    }
     else if (typeof message === 'string')
       obj = { message: error }
     else 
       obj = { message: 'none' }
+
+    if (reason) obj.reason = reason
   
-    return res.status(code).json({ message })
+    return res.status(code).json(obj)
   }
 
   const startMountpoint = (mp) => {
@@ -155,6 +158,20 @@ router.post('/', (req, res) => {
 
       // start fruitmix TODO
       reply(200, `fruitmix started on volume ${volume.uuid}`)
+    })
+  }
+
+  const installMountpoint = (mp) => {
+   
+    let fruit = path.join(mp, 'wisnuc/fruitmix') 
+    rimraf(fruit, err => {
+      if (err) return reply(500, err)
+      mkdirp(fruit, err => {
+        if (err) return reply(500, err)
+        
+        // start fruitmix
+        reply(200, `fruitmix started on`)
+      })
     })
   }
 
@@ -226,16 +243,41 @@ router.post('/', (req, res) => {
     // if target contains wisnuc, it will be removed 
   } 
   else if (target && init && mkfs) {
+
+    let { blocks } = storage
+
     // if mkfs type is btrfs
     //   target must be 1 - n disk
     // if mkfs type is ntfs or ext4
     //   target must be single disk or partition
     if (mkfs.type === 'btrfs') {
-      
-              
+
+      for (let i = 0; i < target.length; i++) {
+
+        let name = target[i]
+        let block = blocks.find(blk => blk.name === name) 
+        if (!block) 
+          return reply(404, `block device ${name} not found`)
+       
+        if (!block.isDisk)
+          return reply(405, `block device ${name} is not a disk`)
+
+        let reason = formattable(block)  
+        if (reason)
+          return reply(405, `block device ${name} cannot be formatted`, reason)
+      }   
+
+      makeBtrfs(target, mode, err => {
+
+        refreshStorage().asCallback(() => {})
+
+        if (err)
+          return reply(500, err)
+        else
+          return reply(200, 'success')
+      })            
     }
     else if (mkfs.type === 'ntfs' || mkfs.type === 'ext4') {
-       
       
     }
     else {

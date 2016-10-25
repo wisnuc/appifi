@@ -592,16 +592,48 @@ const umountBlocks = async (target) => {
   //  umount non-usb by normal umount
   let i
   for (i = 0; i < mvols.length; i++) {
+    debug(`un-mounting volume ${mvol[i].uuid}`)
     await umountAsync(mvols[i].stats.mountpoint)
   }
 
   for (i = 0; i < mparts.length; i++) {
-    await umountAsync(mvols[i].stats.mountpoint)
+    debug(`un-mounting partition ${mparts[i].name}`)
+    await umountAsync(mparts[i].stats.mountpoint)
   }
 
   for (i = 0; i < mblks.length; i++) {
+    debug(`un-mounting block ${mblk[i].name}`)
     await umountAsync(mblks[i].stats.mountpoint)
   }
+}
+
+const makeBtrfs = (target, mode, callback) => {
+
+  umountBlocks(target).asCallback(err => {
+    if (err) return callback(err)
+
+    let storage = storeState().storage
+    let blocks = storage.blocks 
+
+    let devices = target
+                    .map(name => blocks.find(blk => blk.name === name))
+                    .map(blk => blk.name)
+
+    let cmd = `mkfs.btrfs -d ${mode} -f ${devices.join(' ')}`
+    child.exec(cmd, (err, stdout, stderr) => {
+      debug('make btrfs', cmd, stdout, stderr)
+      callback(err)
+    })   
+  })
+}
+
+const makeExt4 = (target, callback) => {
+
+  unmountBlocks(target).asCallback(err => {
+    if (err) return callback(err)
+
+    // child.exec(`mkfs.btrfs 
+  })
 }
 
 const mkfsBtrfs = async (target, opts) => {
