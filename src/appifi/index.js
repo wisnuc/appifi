@@ -1,4 +1,5 @@
-var assets = require('../assets')
+var assets = require('../../assets')
+
 var path = require('path')
 var express = require('express')
 var logger = require('morgan')
@@ -108,4 +109,4 @@ httpServer.on('listening', () =>
 
 httpServer.listen(port);
 
-
+export default app

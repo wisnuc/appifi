@@ -228,8 +228,6 @@ router.post('/', (req, res) => {
 
     if (isSingleUUID(target)) {
 
-      debug(`installing onto / running from single volume ${target[0]}`)
-
       let uuid = target[0]
       let volume = volumes.find(vol => vol.uuid === uuid)
       debug(`volume`, volume)

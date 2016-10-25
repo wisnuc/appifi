@@ -67,7 +67,6 @@ const probeStorage = async () => {
   }
 
   debug('first-round storage probe', storage)
-
   return storage
 }
 
@@ -249,7 +248,7 @@ const statBlocks = (storage) => {
         }
       } // end of used as other
       else {
-        blk.stats.isUnsupportedFileSystemUsage = true
+        blk.stats.isUnsupportedFileSystem = true
       }
     } // end of 'device is disk'
     else if (blk.props.devtype === 'partition') { // is partitioned

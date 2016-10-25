@@ -25,6 +25,17 @@ const storage = (state = null, action) => {
   }
 }
 
+const fruitmix = (state = null, action) => {
+
+  switch(action.type) {
+  case 'FRUITMIX_STARTED':
+    return action.data
+
+  default:
+    return state
+  }
+}
+
 const docker = (state = null, action) => {
 
   let newState
@@ -154,6 +165,7 @@ let store = createStore(combineReducers({
   increment,
   serverConfig,
   storage,
+  fruitmix,
   docker,
   appstore,
   tasks,
