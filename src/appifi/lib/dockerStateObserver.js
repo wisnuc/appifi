@@ -79,7 +79,6 @@ const dockerStateObserver = (newState, state) => {
   if (cvol !== nvol) {
 
     debug(`current: ${cvol}, new: ${nvol}`)
-
     if (cvol === null) {
       let fruitdir = dockerFruitmixDir(nvol)
       fruitmixInstance = createFruitmix(fruitdir) 

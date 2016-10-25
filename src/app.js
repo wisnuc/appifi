@@ -7,7 +7,9 @@ var bodyParser = require('body-parser')
 
 let app = express()
 
-app.use(logger('dev', { skip: (req, res) => res.nolog === true }))
+app.use(logger('dev', { 
+  skip: (req, res) => res.nolog === true 
+}))
 
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: false }))
@@ -177,9 +179,5 @@ function onListening() {
     : 'port ' + addr.port;
   debug('Listening on ' + bind);
 }
-
-process.on('unhandledRejection', (reason, p) => {
-  console.log('Unhandled Rejection at: Promise', p, 'reason:', reason);
-})
 
 

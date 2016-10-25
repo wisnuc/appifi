@@ -1,5 +1,6 @@
 import path from 'path'
 import express from 'express'
+import validator from 'validator'
 
 import { storeState } from '../appifi/lib/reducers' 
 
@@ -130,10 +131,11 @@ const isSingleName = (target) =>
     typeof target[0] === 'string'
 
 // return null for valid
-// return string or err (with or without reason)
+// return string for error
 const validateInit = (init) => {
 
   if (init === undefined) return null
+
   if (init instanceof Object === false) return 'init is not an object' 
 
   if (init.username === undefined) return 'init.username must be provided'
@@ -149,35 +151,34 @@ const validateInit = (init) => {
   return null
 }
 
-router.post('/', (req, res) => {
+const R = (res) => (code, error, reason) => {
 
-  const reply = (code, error, reason) => {
- 
-    let obj 
-    if (message instanceof Error) {
-      obj = {
-        message: error.message,
-        code: error.code
-      }
+  let obj 
+  if (error instanceof Error) {
+    obj = {
+      message: error.message,
+      code: error.code
     }
-    else if (typeof message === 'string')
-      obj = { message: error }
-    else 
-      obj = { message: 'none' }
-
-    if (reason) obj.reason = reason
-  
-    return res.status(code).json(obj)
   }
+  else if (typeof error === 'string')
+    obj = { message: error }
+  else 
+    obj = { message: 'none' }
+
+  if (reason) obj.reason = reason
+  return res.status(code).json(obj)
+}
+
+router.post('/', (req, res) => {
 
   const startMountpoint = (mp) => {
     fs.stat(path.join(mp, 'wisnuc/fruitmix'), (err, stats) => {
-      if (err) return reply(500, err)
+      if (err) return R(res)(500, err)
       if (!stats.isDirectory()) 
-        return reply(405, `wisnuc/fruitmix on target block or volume is not a directory`)
+        return R(res)(405, `wisnuc/fruitmix on target block or volume is not a directory`)
 
       // start fruitmix TODO
-      reply(200, `fruitmix started on volume ${volume.uuid}`)
+      R(res)(200, `fruitmix started on volume ${volume.uuid}`)
     })
   }
 
@@ -185,14 +186,18 @@ router.post('/', (req, res) => {
    
     let fruit = path.join(mp, 'wisnuc/fruitmix') 
     rimraf(fruit, err => {
-      if (err) return reply(500, err)
+      if (err) return R(res)(500, err)
       mkdirp(fruit, err => {
-        if (err) return reply(500, err)
+        if (err) return R(res)(500, err)
         
         // start fruitmix
-        reply(200, `fruitmix started on`)
+        R(res)(200, `fruitmix started on`)
       })
     })
+  }
+
+  const runWisnuc = (mp, init) => {
+        
   }
 
   const mir = req.body 
@@ -200,10 +205,10 @@ router.post('/', (req, res) => {
 
   // first validation
   if (mir instanceof Object === false) 
-    return reply(400, `invalid parameters`) 
+    return R(res)(400, `invalid parameters`) 
 
   if (storage instanceof Object === false)
-    return reply(500, `storage not an object`)
+    return R(res)(500, `storage not an object`)
 
   let { target, mkfs, init } = mir
   let { blocks, volumes } = storage
@@ -211,66 +216,70 @@ router.post('/', (req, res) => {
   // target must be array 
   if (!Array.isArray(target)) return res.status(500).end()
 
-  if (target && mkfs === undefined) { // run mode
+  if (target && mkfs === undefined) { // install or run
 
     let err = validateInit(init) 
-    if (err) return reply(400, err)
+    if (err) return R(res)(400, err)
 
     // target must be single UUID or block containing supported fs
     // target must contains wisnuc 
     if (!isSingleName(target)) 
-      return reply(400, `To install or run fruitmix, target must be single block name or volume uuid`)
+      return R(res)(400, `To install or run fruitmix, target must be single block name or volume uuid`)
 
     if (isSingleUUID(target)) {
 
+      debug(`installing onto / running from single volume ${target[0]}`)
+
       let uuid = target[0]
       let volume = volumes.find(vol => vol.uuid === uuid)
-      if (!volume) return reply(404, `volume ${uuid} not found`)
-      if (volume.missing) return reply(405, `volume ${volume.uuid} has missing disk`)
-  
-      if (!volume.isMounted || !volume.stats.mountpoint) 
-        return (500, `volume is not mounted, or mountpoint is not correctly parsed`)
+      debug(`volume`, volume)
+
+      if (!volume) return R(res)(404, `volume ${uuid} not found`)
+      if (volume.missing) return R(res)(405, `volume ${volume.uuid} has missing disk`)
+      if (!volume.stats.isMounted || !volume.stats.mountpoint) 
+        return R(res)(500, `volume is not mounted, or mountpoint is not correctly parsed`)
 
       let mp = volume.stats.mountpoint
-      return startMountpoint(mp)
+
+      if (init) {
+        debug(`installing AND running wisnuc on volume ${uuid} mounted @ ${mp}`) 
+      }
+      else {
+        debug(`running wisnuc on volume ${uuid} mounted @ ${mp}`) 
+      }
     }
     else {
       
       let name = target[0] 
       let block = blocks.find(blk => blk.name === name) 
-      if (!block) return reply(404, `block device ${name} not found`)
+      if (!block) return R(res)(404, `block device ${name} not found`)
 
       if (block.stats.isVolume) {
-        return reply(405, `block device ${name} is a volume device, please use volume uuid as argument`)
+        return R(res)(405, `block device ${name} is a volume device, please use volume uuid as argument`)
       }
       else if (block.stats.isDisk) { // non-volume disk
         if (block.isPartitioned) 
-          return reply(405, `block device ${name} is a partitioned disk`)
+          return R(res)(405, `block device ${name} is a partitioned disk`)
         if (!block.stats.isFileSystem) 
-          return reply(405, `block device ${name} contains no file system`)
+          return R(res)(405, `block device ${name} contains no file system`)
         if (!block.stats.isNtfs && !block.stats.isExt4) 
-          return reply(405, `block device ${name} contains no ntfs or ext4`)
+          return R(res)(405, `block device ${name} contains no ntfs or ext4`)
       }
       else if (block.stats.isPartition) {
         if (!block.stats.isNtfs && !block.stats.isExt4)
-          return reply(405, `block device ${name} contains no ntfs or ext4`)
+          return R(res)(405, `block device ${name} contains no ntfs or ext4`)
       }
       else {
-        return reply(500, `unexpected situation, contact developers`)
+        return R(res)(500, `unexpected situation, contact developers`)
       }
 
       if (!block.stats.isMounted || !block.stats.mountpoint)
-        return reply(500, `block device is not mounted, or mountpoint is not correctly parsed`)
+        return R(res)(500, `block device is not mounted, or mountpoint is not correctly parsed`)
 
       let mp = block.stats.mountpoint
       return startMountpoint(mp)
     }
   }
-  else if (target && init && mkfs === undefined) { // install mode
-
-    // target must be single UUID or block containing supported fs
-    // if target contains wisnuc, it will be removed 
-  } 
   else if (target && init && mkfs) {
 
     let { blocks } = storage
@@ -285,32 +294,28 @@ router.post('/', (req, res) => {
 
         let name = target[i]
         let block = blocks.find(blk => blk.name === name) 
-        if (!block) 
-          return reply(404, `block device ${name} not found`)
-       
-        if (!block.isDisk)
-          return reply(405, `block device ${name} is not a disk`)
+        if (!block) return R(res)(404, `block device ${name} not found`)
+        if (!block.isDisk) return R(res)(405, `block device ${name} is not a disk`)
 
         let reason = formattable(block)  
-        if (reason)
-          return reply(405, `block device ${name} cannot be formatted`, reason)
+        if (reason) return R(res)(405, `block device ${name} cannot be formatted`, reason)
+
       }   
 
       makeBtrfs(target, mode, err => {
 
         refreshStorage().asCallback(() => {})
-
         if (err)
-          return reply(500, err)
+          return R(res)(500, err)
         else
-          return reply(200, 'success')
+          return R(res)(200, 'success')
       })            
     }
     else if (mkfs.type === 'ntfs' || mkfs.type === 'ext4') {
-      
+      return R(res)(500, `not implemented yet`)      
     }
     else {
-      return reply(405, `unsupported mkfs type`)
+      return R(res)(405, `unsupported mkfs type`)
     }
   }
   else {
@@ -322,4 +327,5 @@ router.post('/', (req, res) => {
 })
 
 export default router
+
 

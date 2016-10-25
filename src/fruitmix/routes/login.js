@@ -14,6 +14,7 @@ router.get('/', (req, res) => {
                   unixUID: usr.unixUID
                 }))
 
+  res.nolog = true
   res.status(200).json(mapped)
 })
 

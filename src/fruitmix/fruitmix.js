@@ -67,23 +67,6 @@ const createFruitmix = (sysroot) => {
 
   server.listen(port)
 
-/**
-  let udp = dgram.createSocket('udp4')
-    
-  udp.on('listening', () => {
-    var address = udp.address();
-    debug('UDP Server listening on ' + address.address + ":" + address.port)
-  })
-
-  udp.on('message', function (message, remote) {
-    debug(remote.address + ':' + remote.port + ' - ' + message)
-  })
-
-  udp.on('close', () => debug('UDP Server closed'))
-
-  udp.bind(port)
-**/
-
   let smbaudit = createSmbAudit(err => {
     console.log('smb audit created') 
   })

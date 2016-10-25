@@ -32,8 +32,10 @@ if (env !== 'production' && env !== 'development' && env !== 'test') {
   console.log('NODE_ENV is set to ' + env)
 }
 
-// TODO: logger should be moved to main
-if (env !== 'test') app.use(logger('dev'))
+app.use(logger('dev', {
+  skip: (req, res) => res.nolog === true
+}))
+
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: false }))
 app.use(auth.init())

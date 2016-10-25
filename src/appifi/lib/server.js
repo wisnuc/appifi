@@ -14,8 +14,6 @@ import { setFanScale, updateFanSpeed } from '../../system/barcelona'
 import appstore from './appstore'
 import timedate from './timedate'
 
-import { createFruitmix } from '../../fruitmix/fruitmix'
-
 let status = 0
 
 const info = (text) => console.log(`[server] ${text}`)
@@ -137,15 +135,6 @@ const shutdown = (cmd) =>
 const systemReboot = async () => shutdown('reboot') 
 const systemPowerOff = async () => shutdown('poweroff')
 
-const daemonStartOp2 = async (uuid) => {
-
-  await daemonStartOp(uuid)
-  
-  let fruitRoot = dockerFruitmixDir(uuid)
-  let fruitmix = createFruitmix(fruitRoot)
-
-}
- 
 const operationAsync = async (req) => {
 
   info(`operation: ${req.operation}`)

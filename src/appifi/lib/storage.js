@@ -1,10 +1,16 @@
 import path from 'path'
 import child from 'child_process'
+import mkdirp from 'mkdirp'
+import rimraf from 'rimraf'
+
+// TODO
+Promise.promisifyAll(child)
+const mkdirpAsync = Promise.promisify(mkdirp)
+const rimrafAsync = Promise.promisify(rimraf)
 
 import Debug from 'debug'
 const debug = Debug('system:storage')
 
-import { toLines } from './utils'
 import { storeState, storeDispatch } from '../lib/reducers'
 import { probeDaemon } from '../lib/docker'
 
@@ -37,38 +43,44 @@ class OperationFailError extends Error {
   }
 }
 
-async function portsPaths() {
-  return new Promise((resolve, reject) => 
-    child.exec('find /sys/class/ata_port -type l', (err, stdout) => // stderr not used
-      err ? reject(err) : resolve(toLines(stdout)))
-  )
-}
+const probePorts = async () => udevInfo((
+  await child.execAsync('find /sys/class/ata_port -type l'))
+    .toString().split('\n').map(l => l.trim()).filter(l => l.length))
 
-async function probePorts() {
-  let paths = await portsPaths()
-  return udevInfo(paths)
-}
+const probeBlocks = async () => udevInfo((
+  await child.execAsync('find /sys/class/block -type l'))
+    .toString().split('\n').map(l => l.trim()).filter(l => l.length)
+    .filter(l => l.startsWith('/sys/class/block/sd')))
 
-async function blockPaths() {
-  return new Promise((resolve, reject) =>
-    child.exec('find /sys/class/block -type l', (err, stdout) => // stderr not used
-      err ? reject(err) : resolve(toLines(stdout))))
-}
+const probeStorage = async () => {
 
-async function probeBlocks() {
-  let paths = await blockPaths()
-  paths = paths.filter(p => p.startsWith('/sys/class/block/sd'))
-  return udevInfo(paths)
+  let result = await Promise.all([
+    probePorts(), probeBlocks(), probeVolumes(), probeMounts(), probeSwaps()
+  ])
+
+  let storage = {
+    ports: result[0],
+    blocks: result[1],
+    volumes: result[2],
+    mounts: result[3],
+    swaps: result[4]
+  }
+
+  debug('first-round storage probe', storage)
+
+  return storage
 }
 
 // return mount object if given volume is mounted
 const volumeMount = (volume, mounts) => 
   mounts.find((mnt) => volume.devices.find((dev) => dev.path === mnt.device))
 
+// return volume object if given block (disk) is a volume deice
 const blockVolume = (block, volumes) =>
   volumes.find((vol) => vol.devices.find((dev) => dev.path === block.props.devname))
 
-function blockMount(block, volumes, mounts) {
+// return mount object either block is a partition/disk or a volume
+const blockMount = (block, volumes, mounts) => {
 
   let volume = blockVolume(block, volumes)
   return (volume) ? volumeMount(volume, mounts) :
@@ -81,45 +93,63 @@ const blockPartitions = (block, blocks) =>
   blocks.filter(blk => blk.props.devtype === 'partition' &&
     path.dirname(blk.props.devpath) === block.props.devpath)
 
-async function probeStorage() {
+const mountVolumeAsync = async (uuid, mountpoint, opts) => {
 
-  let result = await Promise.all([probePorts(), probeBlocks(), probeVolumes(), probeMounts(), probeSwaps()])
-  return {
-    ports: result[0],
-    blocks: result[1],
-    volumes: result[2],
-    mounts: result[3],
-    swaps: result[4]
-  }
+  await mkdirpAsync(mountpoint)
+  let cmd = opts ? 
+    `mount -t btrfs -o {opts} UUID=${uuid} ${mountpoint}` :
+    `mount -t btrfs UUID=${uuid} ${mountpoint}`
+
+  await child.execAsync(cmd) 
 }
 
-async function execAnyway(cmd) {
+const volumeMountpoint = (vol) => '/run/wisnuc/volumes/' + vol.uuid
+const blockMountpoint = (blk) => '/run/wisnuc/blocks/' + blk.name
 
-  return new Promise((resolve) => // never reject
-    child.exec(cmd, (err, stdout, stderr) => {
-      resolve({cmd, err, stdout, stderr})
-    })
-  )
-}
+const mountVolumesAsync = async (volumes, mounts) => {
 
-async function mountVolumeAnyway(uuid, mountpoint, opts) {
-
-  await execAnyway(`mkdir -p ${mountpoint}`)
-  if (opts)
-    execAnyway(`mount -t btrfs -o {opts} UUID=${uuid} ${mountpoint}`)
-  else
-    execAnyway(`mount -t btrfs UUID=${uuid} ${mountpoint}`)
-}
-
-function uuidToMountpoint(uuid) {
-  return '/run/wisnuc/volumes/' + uuid
-}
-
-async function mountVolumesAnyway(volumes, mounts) {
-  
   let unmounted = volumes.filter(vol => volumeMount(vol, mounts) === undefined)
-  let tasks = unmounted.map(vol => mountVolumeAnyway(vol.uuid, uuidToMountpoint(vol.uuid), vol.missing ? 'degraded,ro' : null))
-  await Promise.all(tasks)
+  
+  debug('mounting volumes', unmounted)
+
+  return Promise.map(unmounted, vol => 
+    mountVolumeAsync(vol.uuid, volumeMountpoint(vol), vol.missing ? 'degraded,ro' : null))
+}
+
+const mountNonVolumesAsync = async (blocks, mounts) => {
+
+  const mountNonUSB = async (blk) => {
+    const dir = blockMountpoint(blk)
+    await mkdirpAsync(dir)
+    await child.execAsync(`mount ${blk.props.devname} ${dir}`)
+  }
+
+  let unmounted = blocks.filter(blk => {
+
+    // if blk is disk
+    //   blk is fs && fs type is (ext4 or ntfs or vfat) && blk is not mounted
+    // if block is partition
+    //   blk is fs && fs type is (ext4 or ntfs or vfat) && blk is not mounted
+   
+    if (blk.props.devtype === 'disk' || blk.props.devtype === 'partition') {
+      if (blk.props.id_fs_usage === 'filesystem') {
+        let type = blk.props.id_fs_type
+        if (type === 'ext4' || type === 'ntfs' || type === 'vfat') {
+          if (!mounts.find(mnt => mnt.device === blk.props.devname))
+            return true
+        }
+      }
+    }
+  })
+
+  debug('mounting blocks', unmounted)
+
+  return Promise.map(unmounted, blk => {
+    if (blk.props.id_bus === 'usb')
+      return child.execAsync(`udisksctl mount --block-device ${blk.props.devname} --no-user-interaction`)
+    else
+      return mountNonUSB(blk) 
+  })
 }
 
 async function probeUsages(mounts) {
@@ -131,9 +161,14 @@ async function probeUsages(mounts) {
 async function probeStorageWithUsages() {
 
   let storage = await probeStorage()
-  await mountVolumesAnyway(storage.volumes, storage.mounts)
+
+  await mountVolumesAsync(storage.volumes, storage.mounts),
+  await mountNonVolumesAsync(storage.blocks, storage.mounts) 
+
   let mounts = await probeMounts()
+
   await Promise.delay(100)
+
   let usages = await probeUsages(mounts)
   return Object.assign({}, storage, {mounts, usages})
 }
@@ -163,28 +198,61 @@ const statBlocks = (storage) => {
     if (blk.props.devtype === 'disk') {
       blk.stats.isDisk = true
 
-      if (blk.props.id_fs_usage === 'filesystem') {
-        blk.stats.isFileSystem = true
+      if (blk.props.id_fs_usage) { // id_fs_usage defined, no undefined case found yet
+        blk.stats.isUsedAsFileSystem = true
 
-        if (blk.props.id_fs_type === 'btrfs') {
-          blk.stats.isVolume = true
-          blk.stats.isBtrfs = true
-          blk.stats.btrfsVolume = blk.props.id_fs_uuid
-          blk.stats.btrfsDevice = blk.props.id_fs_uuid_sub
+        if (blk.props.id_fs_usage === 'filesystem') { // used as file system
+
+          blk.stats.isFileSystem = true
+          blk.stats.fileSystemType = blk.props.id_fs_type
+
+          if (blk.props.id_fs_type === 'btrfs') { // is btrfs (volume device)
+            blk.stats.isVolume = true
+            blk.stats.isBtrfs = true
+            blk.stats.btrfsVolume = blk.props.id_fs_uuid
+            blk.stats.btrfsDevice = blk.props.id_fs_uuid_sub
+          }
+          else {
+
+            switch (type) {
+            case 'ext4':
+              blk.stats.isExt4 = true
+              break
+            case 'ntfs':
+              blk.stats.isNtfs = true
+              break
+            case 'vfat':
+              blk.stats.isVfat = true
+              break
+            default:
+              break
+            } 
+
+            blk.stats.fileSystemUUID = blk.props.id_fs_uuid
+          }
         }
-        else if (blk.props.id_fs_type === 'ntfs') {
-          blk.stats.isVolume = false
-          blk.stats.isNtfs = true
+        else if (blk.props.id_part_table_type) { // is partitioned disk
+
+          blk.stats.isPartitioned = true
+          blk.stats.partitionTableType = blk.props.id_part_table_type
+          blk.stats.partitionTableUUID = blk.props.id_part_table_uuid
+
         }
-        // todo, not mounted yet
+      } // end of used as file system
+      else if (blk.props.id_fs_usage === 'other') {
+
+        blk.stats.isOtherFileSystem = true
+        if (blk.props.id_fs_type === 'swap') { // is swap disk
+          blk.stats.fileSystemtype = 'swap'
+          blk.stats.isLinuxSwap = true
+          blk.stats.fileSystemUUID = blk.props.id_fs_uuid
+        }
+      } // end of used as other
+      else {
+        blk.stats.isUnsupportedFileSystemUsage = true
       }
-      else if (blk.props.id_part_table_type) {
-        blk.stats.isPartitioned = true
-        blk.stats.partitionTableType = blk.props.id_part_table_type
-        blk.stats.partitionTableUUID = blk.props.id_part_table_uuid
-      }
-    }
-    else if (blk.props.devtype === 'partition') {
+    } // end of 'device is disk'
+    else if (blk.props.devtype === 'partition') { // is partitioned
 
       // we dont know if the partition is whether formatted or not TODO
 
@@ -192,18 +260,29 @@ const statBlocks = (storage) => {
       if (blk.props.id_part_entry_type === '0x5') {
         blk.stats.isExtended = true
       } 
-      else if (
-        blk.props.id_part_entry_type === '0x83' ||
-        blk.props.id_part_entry_type === '0x7' ||
-        blk.props.id_part_entry_type === '0xb' 
-      ) {
-        if (blk.props.id_fs_usage === 'filesystem') {
-          blk.stats.isFileSystem = true
-          blk.stats.fileSystemType = blk.props.id_fs_type
-        }
-      }
       else if (blk.props.id_part_entry_type === '0x82') {
         blk.stats.isLinuxSwap = true
+      }
+      else if (blk.props.id_fs_usage === 'filesystem') { // partition as file system
+
+        blk.stats.isFilesystem = true
+        let type = blk.stats.fileSystemType = blk.props.id_fs_type
+       
+        switch (type) {
+        case 'ext4':
+          blk.stats.isExt4 = true
+          break
+        case 'ntfs':
+          blk.stats.isNtfs = true
+          break
+        case 'vfat':
+          blk.stats.isVfat = true
+          break
+        default:
+          break
+        } 
+
+        blk.stats.fileSystemUUID = blk.props.id_fs_uuid        
       }
 
       let parent = arr.find(b => b.path === path.dirname(blk.path))
@@ -211,6 +290,7 @@ const statBlocks = (storage) => {
         blk.stats.parentName = parent.name
     }
 
+    // stats bus
     if (blk.props.id_bus === 'usb')
       blk.stats.isUSB = true
     else if (blk.props.id_bus === 'ata')
@@ -219,18 +299,38 @@ const statBlocks = (storage) => {
       blk.stats.isSCSI = true
   })
 
+  // stats mount
   blocks.forEach(blk => {
 
-    if (blk.stats.isDisk && blk.stats.isFileSystem && blk.stats.isBtrfs) {
+    if (blk.stats.isDisk) {
+      if (blk.stats.isFileSystem) {
       
-      let volume = blockVolume(blk, volumes)            
-      let mount = volumeMount(volume, mounts)
-      if (mount) {
-        blk.stats.isMounted = true
-        blk.stats.mountpoint = mount.mountpoint
-        
-        if (mount.mountpoint === '/')
-          blk.stats.isRootFS = true
+        if (blk.stats.isBtrfs) {
+          let volume = blockVolume(blk, volumes)            
+          let mount = volumeMount(volume, mounts)
+          if (mount) {
+            blk.stats.isMounted = true
+            blk.stats.mountpoint = mount.mountpoint
+            
+            if (mount.mountpoint === '/')
+              blk.stats.isRootFS = true
+          }
+        }
+        else if (blk.stats.isExt4 || blk.stats.isNtfs || blk.stats.isVfat) {
+          let mount = mounts.find(mnt => mnt.device === blk.props.devname) 
+          if (mount) {
+            blk.stats.isMounted = true
+            blk.stats.mountpoint = mount.mountpoint
+            if (mount.mountpoint === '/')
+              blk.stats.isRootFS = true
+          }
+        }
+      }
+      else if (blk.stats.isOtherFileSystem) {
+        if (blk.stats.isLinuxSwap) {
+          if (swaps.find(swap => swap.filename === blk.props.devname))
+            blk.stats.isActiveSwap = true
+        }
       }
     }
     else if (blk.stats.isPartition) {
@@ -238,7 +338,6 @@ const statBlocks = (storage) => {
       if (blk.stats.isLinuxSwap) {
         if (swaps.find(swap => swap.filename === blk.props.devname))
           blk.stats.isActiveSwap = true
-
         return
       }
 
@@ -246,6 +345,9 @@ const statBlocks = (storage) => {
       if (mount) {
         blk.stats.isMounted = true
         blk.stats.mountpoint = mount.mountpoint
+
+        if (mount.mountpoint === '/')
+          blk.stats.isRootFS = true
       }
     }
   })
@@ -732,6 +834,7 @@ async function operation(req) {
 }
 
 const udevMon = createUdevMonitor()
+
 udevMon.on('events', events => {
 
   debug('udev events', events)
