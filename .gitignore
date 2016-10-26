@@ -42,10 +42,10 @@ public/bundle.js
 release/
 
 # appifi.js
-appifi.js
-assets/
-xxhash.node
-xattr.node
+./appifi.js
+./assets/
+./xxhash.node
+./xattr.node
 
 # 
 
