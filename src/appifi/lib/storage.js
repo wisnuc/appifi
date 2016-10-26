@@ -1,10 +1,12 @@
 import path from 'path'
+import fs from 'fs'
 import child from 'child_process'
 import mkdirp from 'mkdirp'
 import rimraf from 'rimraf'
 
 // TODO
 Promise.promisifyAll(child)
+Promise.promisifyAll(fs)
 const mkdirpAsync = Promise.promisify(mkdirp)
 const rimrafAsync = Promise.promisify(rimraf)
 
@@ -153,7 +155,8 @@ const mountNonVolumesAsync = async (blocks, mounts) => {
 
 async function probeUsages(mounts) {
 
-  let filtered = mounts.filter(mnt => mnt.fs_type === 'btrfs' && mnt.mountpoint.startsWith('/run/wisnuc/volumes/') && !mnt.mountpoint.endsWith('/graph/btrfs'))
+  let filtered = mounts.filter(mnt => mnt.fs_type === 'btrfs' && 
+    mnt.mountpoint.startsWith('/run/wisnuc/volumes/') && !mnt.mountpoint.endsWith('/graph/btrfs'))
   return await Promise.all(filtered.map(mnt => probeUsage(mnt.mountpoint)))
 }
 
@@ -361,10 +364,37 @@ const statVolumes = (storage) => {
     vol.stats = {}
     let mount = volumeMount(vol, mounts)
     if (mount) {
+      vol.stats.isFileSystem = true
+      vol.stats.isVolume = true
+      vol.stats.isBtrfs = true
+      vol.stats.fileSystemType = 'btrfs'
+      vol.stats.fileSystemUUID = vol.uuid
       vol.stats.isMounted = true
       vol.stats.mountpoint = mount.mountpoint
     }
   })
+}
+
+export const mountedFS = (storage) => {
+
+  let { blocks, volumes } = storage
+  let nvfs = blocks.filter(blk => blk.stats.isFileSystem &&
+    (blk.stats.isExt4 || blk.stats.isNtfs || blk.stats.isVfat) &&
+    blk.isMounted)
+
+  let vfs = volumes.filter(vol => vol.stats.isMounted && !vol.missing)
+
+  return [...nvfs, ...vfs]
+}
+
+const statFruitmix = async (storage) => {
+
+  const stat = async (x) => {
+    let ins = await fs.statAsync(path.join(x.stats.mountpoint, 'wisnuc/fruitmix')).reflect()
+    if (ins.isFulfilled() && ins.value().isDirectory()) x.stats.wisnucInstalled = true
+  }
+
+  await Promise.map(mountedFS(storage), x => stat(x))
 }
 
 async function refreshStorage() {
@@ -373,6 +403,7 @@ async function refreshStorage() {
 
   statBlocks(obj) 
   statVolumes(obj)
+  await statFruitmix(obj)
 
   debug('stat blocks', obj.blocks.map(blk => Object.assign({}, { name: blk.name}, blk.stats)))
 
@@ -886,17 +917,6 @@ udevMon.on('events', events => {
 
 export default {
 
-  init: () => {
-    /** one-shot initialization **/
-    refreshStorage()
-      .then(r => { 
-        info('initialized successfully')
-      })
-      .catch(e => {
-        info(`ERROR: init fails, errno: ${e.errno}, ${e.message}`)
-      }) 
-  },
-
   operation: (req, callback) => 
     operation(req)
       .then(r => callback(null, r))
@@ -904,5 +924,6 @@ export default {
 }
 
 export {
+  refreshStorage,
   mkfsBtrfsOperation
 }

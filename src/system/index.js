@@ -2,8 +2,12 @@ import child from 'child_process'
 import os from 'os'
 
 import express from 'express'
+import Debug from 'debug'
+const debug = Debug('system:router')
+
 import validator from 'validator'
 
+import { storeState } from '../appifi/lib/reducers'
 import sysconfig from './sysconfig'
 import mir from './mir'
 import { mac2dev, aliases, addAliasAsync, deleteAliasAsync } from './ipaliasing'
@@ -31,6 +35,7 @@ const timedate = (callback) =>
         prev[pair[0]] = pair[1]
         return prev
       }, {})))
+
 
 // timedate
 router.get('/timedate', (req, res) => timedate((err, obj) => 
@@ -91,5 +96,17 @@ router.post('/fan', (req, res) => {
 })
 
 router.use('/mir', mir)
+
+router.get('/boot', (req, res) => {
+
+  let sysboot = storeState().sysboot
+ 
+  debug(sysboot) 
+
+  if (sysboot)
+    res.status(200).json(sysboot)
+  else 
+    res.status(500).end() // TODO
+})
 
 export default router

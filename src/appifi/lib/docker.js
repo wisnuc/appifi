@@ -3,11 +3,12 @@ import fs from 'fs'
 import child from 'child_process'
 import Debug from 'debug'
 
+const debug = Debug('appifi:docker')
+
 import mkdirp from 'mkdirp'
 import request from 'superagent'
 
 import { toLines, delay } from '../lib/utils'
-import { createStore, combineReducers } from '../lib/reduced'
 import appstore from './appstore' // TODO
 
 import { containerStart, containerStop, containerCreate, containerDelete } from './dockerapi'
@@ -18,8 +19,6 @@ import { AppInstallTask } from './dockerTasks'
 
 import { calcRecipeKeyString, appMainContainer } from './dockerApps'
 import { storeState, storeDispatch } from '../lib/reducers'
-
-const debug = Debug('docker')
 
 const dockerUrl = 'http://127.0.0.1:1688'
 const dockerPidFile = '/run/wisnuc/app/docker.pid'
@@ -124,7 +123,6 @@ async function daemonStart(uuid) {
   let dockerDaemon = child.spawn('docker', args, opts)
 
   dockerDaemon.on('error', err => {
-
     console.log('dockerDaemon error >>>>')
     console.log(err)
     console.log('dockerDaemon error <<<<')
@@ -144,7 +142,6 @@ async function daemonStart(uuid) {
   let agent = await dockerEventsAgent() 
   dispatchDaemonStart(uuid, agent)
 }
-
 
 const daemonStop2 = (volume, callback) => {
 
@@ -172,7 +169,6 @@ const daemonStop2 = (volume, callback) => {
     } 
   })
 }
-
 
 const daemonStop = Promise.promisify(daemonStop2)
 
@@ -245,11 +241,13 @@ async function appInstall(recipeKeyString) {
 async function initAsync() {
 
   // mkdir -p
-  await new Promise((resolve, reject) => {
-    child.exec('mkdir -p /run/wisnuc/app', (err, stdout, stderr) => {
-      err ? reject(stderr) : resolve(stdout)
-    })
-  })
+//  await new Promise((resolve, reject) => {
+//    child.exec('mkdir -p /run/wisnuc/app', (err, stdout, stderr) => {
+//      err ? reject(stderr) : resolve(stdout)
+//    })
+//  })
+//
+  await mkdirpAsync('/run/wisnuc/app')
 
   let daemon = await probeDaemon()
   if (daemon.running) {

@@ -25,10 +25,10 @@ const storage = (state = null, action) => {
   }
 }
 
-const fruitmix = (state = null, action) => {
+const sysboot = (state = null, action) => {
 
   switch(action.type) {
-  case 'FRUITMIX_STARTED':
+  case 'UPDATE_SYSBOOT':
     return action.data
 
   default:
@@ -165,7 +165,7 @@ let store = createStore(combineReducers({
   increment,
   serverConfig,
   storage,
-  fruitmix,
+  sysboot,
   docker,
   appstore,
   tasks,

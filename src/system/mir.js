@@ -2,28 +2,12 @@ import path from 'path'
 import express from 'express'
 import validator from 'validator'
 
-import { storeState } from '../appifi/lib/reducers' 
+import { storeState, storeDispatch } from '../appifi/lib/reducers' 
 
 import Debug from 'debug'
 const debug = Debug('system:mir')
 
 const router = express.Router()
-
-const detectWisnuc = async (blocks, volumes) => {
-
-  // mounted, non volume blocks with filesystem, may be disk or partition
-  let blks = blocks.filter(blk => blk.isFileSystem && !blk.isVolume && blk.isMounted)
-
-  // mounted, non missing volumes 
-  let vols = volumes.filter(vol => !vol.missing && vol.isMounted)
-
-  // mfs: mounted file system, including volume and block
-  await Promise.map([...blks, ...vols], Promise.promisify(mfs, callback => 
-    fs.stat(path.join(mfs.mountpoint, 'wisnuc'), (err, stats) => {
-      if (!err && stats.isDirectory()) mfs.hasWisnuc = true
-      callback()
-    })))
-}
 
 router.get('/', (req, res) => {
 
@@ -65,17 +49,14 @@ router.get('/', (req, res) => {
     return mapped
   })
 
-  detectWisnuc(blocks,volumes).asCallback(() => {
+  let ret = Object.assign({}, storage, { ports, blocks, volumes }) 
+  delete ret.mounts
+  delete ret.swaps
+  delete ret.usages
 
-    let ret = Object.assign({}, storage, { ports, blocks, volumes }) 
-    delete ret.mounts
-    delete ret.swaps
-    delete ret.usages
+  debug('mapped storage with wisnuc detection', ret)
 
-    debug('mapped storage with wisnuc detection', ret)
-
-    res.status(200).json(ret)
-  })
+  res.status(200).json(ret)
 })
 
 /**

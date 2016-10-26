@@ -1,32 +1,62 @@
-var assets = require('../assets')
-var path = require('path')
-var express = require('express')
-var logger = require('morgan')
-var cookieParser = require('cookie-parser')
-var bodyParser = require('body-parser')
+import http from 'http'
+import Debug from 'debug'
+const debug = Debug('system:bootstrap')
 
-let app = express()
-
-app.use(logger('dev', { 
-  skip: (req, res) => res.nolog === true 
-}))
-
-app.use(bodyParser.json())
-app.use(bodyParser.urlencoded({ extended: false }))
-app.use(cookieParser())
-
-/*
- * module init
- */
 import sysinit from './system/sysinit'
-import { storeDispatch } from './appifi/lib/reducers'
-import server from './appifi/lib/server'
-import appstore from './appifi/lib/appstore'
-import docker from './appifi/lib/docker'
+import sysconfig from './system/sysconfig'
+import { storeState, storeDispatch } from './appifi/lib/reducers'
 import storage from './appifi/lib/storage'
+import { refreshStorage, mountedFS } from './appifi/lib/storage'
 import system from './system/index'
+import app from './appifi/index'
 
-process.argv.forEach(function (val, index, array) {
+const port = 3000
+
+// append (piggyback) system api
+const startServer = () => {
+
+  app.use('/system', system)
+
+  // catch 404 and forward to error handler
+  app.use((req, res, next) => next(Object.assign(new Error('Not Found'), { status: 404 })))
+
+  // development error handler will print stacktrace
+  if (app.get('env') === 'development') {
+    app.use((err, req, res) => res.status(err.status || 500).send('error: ' + err.message))
+  }
+
+  // production error handler no stacktraces leaked to user
+  app.use((err, req, res) => 
+    res.status(err.status || 500).send('error: ' + err.message))
+
+  app.set('port', port);
+
+  const httpServer = http.createServer(app);
+
+  httpServer.on('error', error => {
+
+    if (error.syscall !== 'listen') throw error;
+    switch (error.code) {
+      case 'EACCES':
+        console.error(`Port ${port} requires elevated privileges`)
+        process.exit(1)
+        break
+      case 'EADDRINUSE':
+        console.error(`Port ${port} is already in use`)
+        process.exit(1)
+        break
+      default:
+        throw error
+    }
+  })
+
+  httpServer.on('listening', () => 
+    debug('Listening on port ' + httpServer.address().port))
+
+  httpServer.listen(port);
+}
+
+process.argv.forEach((val, index, array) => {
   if (val === '--appstore-master') {
     storeDispatch({
       type: 'SERVER_CONFIG',
@@ -34,78 +64,80 @@ process.argv.forEach(function (val, index, array) {
       value: true
     })
   }
-});
-
-storage.init()
-docker.init()
-appstore.reload()
-
-app.set('json spaces', 2)
-
-app.get('/', (req, res) => 
-  res.set('Content-Type', 'text/html').send(assets.indexHtml))
-
-app.get('/favicon.ico', (req, res) => 
-  res.set('Content-Type', 'image/x-icon').send(assets.favicon))
-
-app.get('/index.html', (req, res) => {
-  res.set('Content-Type', 'text/html').send(assets.indexHtml)
 })
 
-app.get('/bundle.js', (req, res) => {
-  res.set('Content-Type', 'application/javascript').send(assets.bundlejs)
-})
+refreshStorage().asCallback(err => {
 
-app.use('/stylesheets', require('./appifi/routes/stylesheets'))
-app.use('/appstore', require('./appifi/routes/appstore'))
-app.use('/server', require('./appifi/routes/server'))
-app.use('/system', system)
-
-// catch 404 and forward to error handler
-app.use((req, res, next) => next(Object.assign(new Error('Not Found'), { status: 404 })))
-
-// development error handler will print stacktrace
-(app.get('env') === 'development') && 
-  app.use((err, req, res) => res.status(err.status || 500).send('error: ' + err.message))
-
-// production error handler no stacktraces leaked to user
-app.use((err, req, res) => 
-  res.status(err.status || 500).send('error: ' + err.message))
-
-var debug = require('debug')('appifi:server');
-var http = require('http');
-
-var port = 3000
-app.set('port', port);
-
-var httpServer = http.createServer(app);
-
-httpServer.on('error', error => {
-  if (error.syscall !== 'listen') 
-    throw error;
-
-  var bind = typeof port === 'string'
-    ? 'Pipe ' + port
-    : 'Port ' + port;
-
-  // handle specific listen errors with friendly messages
-  switch (error.code) {
-    case 'EACCES':
-      console.error(bind + ' requires elevated privileges');
-      process.exit(1);
-      break;
-    case 'EADDRINUSE':
-      console.error(bind + ' is already in use');
-      process.exit(1);
-      break;
-    default:
-      throw error;
+  if (err) {
+    console.log('failed to init storage, exit')
+    console.log(err)
+    process.exit(1) 
   }
+
+  let fileSystem = null
+  let mountpoint = null
+  let lastFileSystem = sysconfig.get('lastFileSystem') 
+  debug('sysconfig', sysconfig)
+  debug('lastFileSystem', lastFileSystem)
+
+  let bootMode = sysconfig.get('bootMode')
+  debug('bootMode', bootMode)
+
+  if (bootMode === 'normal') {
+
+    let installed = mountedFS(storeState().storage)
+      .filter(x => x.stats.wisnucInstalled)
+
+    debug('installed', installed)
+
+    if (lastFileSystem) {
+
+      fileSystem = installed.find(x => 
+        x.stats.fileSystemType === lastFileSystem.type &&
+        x.stats.fileSystemUUID === lastFileSystem.uuid)
+
+      if (fileSystem) debug('lastFileSystem found', fileSystem)
+    }
+
+    if (!fileSystem && installed.length === 1) {
+      fileSystem = installed[0]
+      debug('fileSystem set to the only choice', fileSystem)
+    }
+  }
+
+  let currentFileSystem = null
+  if (fileSystem) {
+
+    currentFileSystem = {
+      type: fileSystem.stats.fileSystemType,
+      uuid: fileSystem.stats.fileSystemUUID
+    }
+
+    debug('set currentFileSystem', fileSystem, currentFileSystem)
+  }
+
+  storeDispatch({
+    type: 'UPDATE_SYSBOOT',
+    data: { 
+      bootMode, 
+      lastFileSystem,
+      currentFileSystem,
+      mountpoint: fileSystem ? fileSystem.stats.mountpoint : null,
+    }
+  })
+
+  sysconfig.set('lastFileSystem', currentFileSystem)
+  if (bootMode === 'maintenance')
+    sysconfig.set('bootMode', 'normal')
+
+  if (fileSystem) {
+    // start appifi 
+    // start samba
+    // start appstore
+    // start fruitmix
+  }
+
+  startServer()  
 })
-
-httpServer.on('listening', () => 
-  debug('Listening on port ' + httpServer.address().port))
-
-httpServer.listen(port);
 
 
