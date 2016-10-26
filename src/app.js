@@ -80,64 +80,84 @@ refreshStorage().asCallback(err => {
 
   let fileSystem = null
   let mountpoint = null
+
+  // load config
   let lastFileSystem = sysconfig.get('lastFileSystem') 
+
   debug('sysconfig', sysconfig)
   debug('lastFileSystem', lastFileSystem)
 
+  let state
+  let currentFileSystem = null
   let bootMode = sysconfig.get('bootMode')
   debug('bootMode', bootMode)
 
-  if (bootMode === 'normal') {
+  if (bootMode === 'maintenance') {
+    // enter maintenance mode by user setting
+    state = 'maintenance'
+    // clear one-shot config
+    sysconfig.set('bootMode', 'normal')
+  }
+  else { // normal mode
 
-    let installed = mountedFS(storeState().storage)
-      .filter(x => x.stats.wisnucInstalled)
-
-    debug('installed', installed)
+    // find all file system mounted
+    let mounted = mountedFS(storeState().storage)
 
     if (lastFileSystem) {
 
-      fileSystem = installed.find(x => 
+      fileSystem = mounted.find(x => 
         x.stats.fileSystemType === lastFileSystem.type &&
         x.stats.fileSystemUUID === lastFileSystem.uuid)
 
       if (fileSystem) debug('lastFileSystem found', fileSystem)
     }
 
-    if (!fileSystem && installed.length === 1) {
-      fileSystem = installed[0]
-      debug('fileSystem set to the only choice', fileSystem)
+    if (fileSystem) { // fileSystem found
+      
+    }
+    else { // no lastFileSystem or corresponding file system not found
+
+      let installed = mounted.filter(mfs => mfs.stats.wisnucInstalled)
+      if (installed.length == 1) { // only one
+        fileSystem = installed[0]
+      }
+    }
+
+    // Not checked ... TODO
+    if (fileSystem) {
+
+      state = 'normal'
+      currentFileSystem = {
+        type: fileSystem.stats.fileSystemType,
+        uuid: fileSystem.stats.fileSystemUUID,
+        mountpoint: fileSystem.stats.mountpoint
+      }
+
+      debug('set currentFileSystem', fileSystem, currentFileSystem)
+
+      appifiInit()
+      createFruitmix(path.join(currentFileSystem.mountpoint, 'wisnuc', 'fruitmix'))
+      sysconfig.set('lastFileSystem', currentFileSystem)
+
+      startServer()  
+    }
+    else {
+      
+      state = 'maintenance'
     }
   }
 
-  let currentFileSystem = null
-  if (fileSystem) {
-
-    currentFileSystem = {
-      type: fileSystem.stats.fileSystemType,
-      uuid: fileSystem.stats.fileSystemUUID,
-      mountpoint: fileSystem.stats.mountpoint
-    }
-
-    debug('set currentFileSystem', fileSystem, currentFileSystem)
-  }
-
+  // update store state
   let actionData = {
-    bootMode, lastFileSystem, currentFileSystem
+    state, 
+    bootMode, 
+    lastFileSystem, 
+    currentFileSystem
   }
-
-  console.log('[app] updating sysboot', actionData)
   storeDispatch({ type: 'UPDATE_SYSBOOT', data: actionData })
 
-  sysconfig.set('lastFileSystem', currentFileSystem)
-  if (bootMode === 'maintenance')
-    sysconfig.set('bootMode', 'normal')
-
-  if (currentFileSystem) {
-    appifiInit()
-    createFruitmix(path.join(currentFileSystem.mountpoint, 'wisnuc', 'fruitmix'))
-  }
-
-  startServer()  
+  // log
+  console.log('[app] updating sysboot', actionData)
 })
 
 
