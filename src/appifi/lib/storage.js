@@ -189,6 +189,11 @@ async function probeStorageWithUsages() {
 // 3 isMounted
 // 4 isRootFS (for partition, is rootfs partition, for disk && btrfs device, is rootfs volume)
 // 5 isSwap 
+
+
+//  disk
+//    id_fs_usage defined
+//    id_fs_usage not defined by id_part_table_type defined 
 const statBlocks = (storage) => {
 
   let { blocks, volumes, mounts, swaps } = storage  
@@ -197,10 +202,10 @@ const statBlocks = (storage) => {
 
   blocks.forEach((blk, idx, arr) => {
 
-    if (blk.props.devtype === 'disk') {
+    if (blk.props.devtype === 'disk') { // start of device is disk
       blk.stats.isDisk = true
 
-      if (blk.props.id_fs_usage) { // id_fs_usage defined, no undefined case found yet
+      if (blk.props.id_fs_usage) { // id_fs_usage defined
         blk.stats.isUsedAsFileSystem = true
 
         if (blk.props.id_fs_usage === 'filesystem') { // used as file system
@@ -233,25 +238,26 @@ const statBlocks = (storage) => {
             blk.stats.fileSystemUUID = blk.props.id_fs_uuid
           }
         }
-        else if (blk.props.id_part_table_type) { // is partitioned disk
+        else if (blk.props.id_fs_usage === 'other') {
 
-          blk.stats.isPartitioned = true
-          blk.stats.partitionTableType = blk.props.id_part_table_type
-          blk.stats.partitionTableUUID = blk.props.id_part_table_uuid
-
+          blk.stats.isOtherFileSystem = true
+          if (blk.props.id_fs_type === 'swap') { // is swap disk
+            blk.stats.fileSystemtype = 'swap'
+            blk.stats.isLinuxSwap = true
+            blk.stats.fileSystemUUID = blk.props.id_fs_uuid
+          }
+        } // end of used as other
+        else {
+          blk.stats.isUnsupportedFileSystem = true
         }
       } // end of used as file system
-      else if (blk.props.id_fs_usage === 'other') {
-
-        blk.stats.isOtherFileSystem = true
-        if (blk.props.id_fs_type === 'swap') { // is swap disk
-          blk.stats.fileSystemtype = 'swap'
-          blk.stats.isLinuxSwap = true
-          blk.stats.fileSystemUUID = blk.props.id_fs_uuid
-        }
-      } // end of used as other
+      else if (blk.props.id_part_table_type) { // is partitioned disk
+        blk.stats.isPartitioned = true
+        blk.stats.partitionTableType = blk.props.id_part_table_type
+        blk.stats.partitionTableUUID = blk.props.id_part_table_uuid
+      }
       else {
-        blk.stats.isUnsupportedFileSystem = true
+        blk.stats.noKnownFileSystemOrPartitionDetected = true
       }
     } // end of 'device is disk'
     else if (blk.props.devtype === 'partition') { // is partitioned

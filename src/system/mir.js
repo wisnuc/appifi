@@ -54,8 +54,6 @@ router.get('/', (req, res) => {
   delete ret.swaps
   delete ret.usages
 
-  debug('mapped storage with wisnuc detection', ret)
-
   res.status(200).json(ret)
 })
 
