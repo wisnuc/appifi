@@ -1,20 +1,16 @@
 import child from 'child_process'
-
 import Debug from 'debug'
 import deepEqual from 'deep-equal'
-import { createFruitmix } from '../../fruitmix/fruitmix'
-import { dockerFruitmixDir } from './docker'
 
 const debug = Debug('appifi:dockerStateObserver')
 
 import createAdvertiser from './advertiser'
 
-
 const appifiAdvertiser = createAdvertiser('WISNUC AppStation', 3000)
 
 let appAdvertisers = []
 
-// used for map
+// used for map // TODO why placed here
 const openable = (installed) => {
 
   let container = installed.containers[0]
@@ -69,30 +65,15 @@ const addAdvertising = (advertising, services) => {
   return advertising
 }
 
-let fruitmixInstance = null
-
 const dockerStateObserver = (newState, state) => {
 
-  let cvol = state && state.volume
-  let nvol = newState && newState.volume
+  if (newState !== null && 
+    newState.data!== null && 
+    newState.computed !== null) {
 
-  if (cvol !== nvol) {
-
-    debug(`current: ${cvol}, new: ${nvol}`)
-    if (cvol === null) {
-      let fruitdir = dockerFruitmixDir(nvol)
-      fruitmixInstance = createFruitmix(fruitdir) 
-    }
-    else {
-      fruitmixInstance.stop()
-      fruitmixInstance = null
-    }
-  }
-
-  if (newState !== null && newState.data!== null && newState.computed !== null) {
-
-    let services = newState.computed.installeds.map(inst => openable(inst))
-                        .filter(obj => obj !== null)
+    let services = newState.computed.installeds
+      .map(inst => openable(inst))
+      .filter(obj => obj !== null)
 
     let survive = removeAdvertising(appAdvertisers, services)
     appAdvertisers = addAdvertising(survive, services) 

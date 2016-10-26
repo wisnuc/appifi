@@ -1,11 +1,12 @@
 import child from 'child_process'
+import Debug from 'debug'
 
-import Promise from 'bluebird'
+const debug = Debug('system:server')
 
 import { storeState, storeDispatch, storeSubscribe } from './reducers'
 import { calcRecipeKeyString } from './dockerApps'
 import { daemonStart, daemonStop, daemonStartOp, containerStart, containerStop, containerDelete,
-  installedStart, installedStop, appInstall, appUninstall, dockerFruitmixDir } from './docker'
+  installedStart, installedStop, appInstall, appUninstall} from './docker'
 import { mkfsBtrfsOperation } from './storage'
 
 
@@ -20,7 +21,7 @@ const info = (text) => console.log(`[server] ${text}`)
 
 storeSubscribe(() => {
   status++
-  console.log(`[server] status updated: ${status}`)
+  debug('status update', status)
 })
 
 const appstoreFacade = (appstore) => {

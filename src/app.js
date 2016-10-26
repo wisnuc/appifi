@@ -1,3 +1,4 @@
+import path from 'path'
 import http from 'http'
 import Debug from 'debug'
 const debug = Debug('system:bootstrap')
@@ -8,7 +9,9 @@ import { storeState, storeDispatch } from './appifi/lib/reducers'
 import storage from './appifi/lib/storage'
 import { refreshStorage, mountedFS } from './appifi/lib/storage'
 import system from './system/index'
+import appifiInit from './appifi/appifi'
 import app from './appifi/index'
+import { createFruitmix } from './fruitmix/fruitmix'
 
 const port = 3000
 
@@ -50,8 +53,9 @@ const startServer = () => {
     }
   })
 
-  httpServer.on('listening', () => 
-    debug('Listening on port ' + httpServer.address().port))
+  httpServer.on('listening', () => {
+    console.log('[app] Listening on port ' + httpServer.address().port)
+  })
 
   httpServer.listen(port);
 }
@@ -110,31 +114,27 @@ refreshStorage().asCallback(err => {
 
     currentFileSystem = {
       type: fileSystem.stats.fileSystemType,
-      uuid: fileSystem.stats.fileSystemUUID
+      uuid: fileSystem.stats.fileSystemUUID,
+      mountpoint: fileSystem.stats.mountpoint
     }
 
     debug('set currentFileSystem', fileSystem, currentFileSystem)
   }
 
-  storeDispatch({
-    type: 'UPDATE_SYSBOOT',
-    data: { 
-      bootMode, 
-      lastFileSystem,
-      currentFileSystem,
-      mountpoint: fileSystem ? fileSystem.stats.mountpoint : null,
-    }
-  })
+  let actionData = {
+    bootMode, lastFileSystem, currentFileSystem
+  }
+
+  console.log('[app] updating sysboot', actionData)
+  storeDispatch({ type: 'UPDATE_SYSBOOT', data: actionData })
 
   sysconfig.set('lastFileSystem', currentFileSystem)
   if (bootMode === 'maintenance')
     sysconfig.set('bootMode', 'normal')
 
-  if (fileSystem) {
-    // start appifi 
-    // start samba
-    // start appstore
-    // start fruitmix
+  if (currentFileSystem) {
+    appifiInit()
+    createFruitmix(path.join(currentFileSystem.mountpoint, 'wisnuc', 'fruitmix'))
   }
 
   startServer()  

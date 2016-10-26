@@ -1,7 +1,5 @@
 import { createStore, combineReducers } from 'redux'
-
 import { containersToApps } from './dockerApps'
-import dockerStateObserver from './dockerStateObserver'
 
 const serverConfig = (state = {}, action) => {
 
@@ -35,6 +33,11 @@ const sysboot = (state = null, action) => {
     return state
   }
 }
+
+const dockerObservers = []
+
+export const observeDocker = f => 
+  dockerObservers.push(f)
 
 const docker = (state = null, action) => {
 
@@ -73,7 +76,9 @@ const docker = (state = null, action) => {
     break
   }
 
-  process.nextTick(() => dockerStateObserver(newState, state))
+  dockerObservers.forEach(observe => 
+    process.nextTick(() => 
+      observe(newState, state)))
   return newState
 }
 

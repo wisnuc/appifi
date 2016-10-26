@@ -397,6 +397,8 @@ const statFruitmix = async (storage) => {
   await Promise.map(mountedFS(storage), x => stat(x))
 }
 
+let firstLog = 0
+
 async function refreshStorage() {
 
   let obj = await probeStorageWithUsages()
@@ -405,14 +407,14 @@ async function refreshStorage() {
   statVolumes(obj)
   await statFruitmix(obj)
 
-  debug('stat blocks', obj.blocks.map(blk => Object.assign({}, { name: blk.name}, blk.stats)))
+  // debug('stat blocks', obj.blocks.map(blk => Object.assign({}, { name: blk.name}, blk.stats)))
 
+  if (!firstLog++) console.log('[storage] first probe', obj)
   storeDispatch({
     type: 'STORAGE_UPDATE',
     data: obj
   })
 
-  // debug('storage refreshed:', JSON.stringify(obj, null, '  '))
   debug('storage refreshed: ', obj)
 }
 

@@ -22,5 +22,5 @@ router.post('/', (req, res) =>
         result
       })))
 
-module.exports = router
+export default router
 

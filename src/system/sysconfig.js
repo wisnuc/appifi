@@ -43,7 +43,7 @@ const writeConfig = () => {
 }
 
 const initialize = () => {
- 
+
   let writeback = false
   let parsed
 
@@ -88,7 +88,7 @@ const initialize = () => {
 
   writeback && writeConfig()
 
-  debug('sysconfig', config)
+  console.log('[sysconfig] initialized', config)
 }
 
 initialize()

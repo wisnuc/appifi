@@ -26,10 +26,10 @@ let app = express()
 
 let env = app.get('env')
 if (env !== 'production' && env !== 'development' && env !== 'test') {
-  console.log('Unrecognized NODE_ENV string: ' + env +', exit')
+  console.log('[fruitmix] Unrecognized NODE_ENV string: ' + env +', exit')
   process.exit(1)
 } else {
-  console.log('NODE_ENV is set to ' + env)
+  console.log('[fruitmix] NODE_ENV is set to ' + env)
 }
 
 app.use(logger('dev', {
