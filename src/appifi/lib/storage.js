@@ -212,6 +212,7 @@ const statBlocks = (storage) => {
 
           blk.stats.isFileSystem = true
           blk.stats.fileSystemType = blk.props.id_fs_type
+          blk.stats.fileSystemUUID = blk.props.id_fs_uuid
 
           if (blk.props.id_fs_type === 'btrfs') { // is btrfs (volume device)
             blk.stats.isVolume = true
@@ -234,9 +235,7 @@ const statBlocks = (storage) => {
             default:
               break
             } 
-
-            blk.stats.fileSystemUUID = blk.props.id_fs_uuid
-          }
+         }
         }
         else if (blk.props.id_fs_usage === 'other') {
 
@@ -273,9 +272,10 @@ const statBlocks = (storage) => {
       }
       else if (blk.props.id_fs_usage === 'filesystem') { // partition as file system
 
-        blk.stats.isFilesystem = true
+        blk.stats.isFileSystem = true
         let type = blk.stats.fileSystemType = blk.props.id_fs_type
-       
+        blk.stats.fileSystemUUID = blk.props.id_fs_uuid        
+
         switch (type) {
         case 'ext4':
           blk.stats.isExt4 = true
@@ -289,8 +289,6 @@ const statBlocks = (storage) => {
         default:
           break
         } 
-
-        blk.stats.fileSystemUUID = blk.props.id_fs_uuid        
       }
 
       let parent = arr.find(b => b.path === path.dirname(blk.path))
@@ -377,6 +375,7 @@ const statVolumes = (storage) => {
       vol.stats.fileSystemUUID = vol.uuid
       vol.stats.isMounted = true
       vol.stats.mountpoint = mount.mountpoint
+      vol.stats.isMissing = vol.missing
     }
   })
 }
