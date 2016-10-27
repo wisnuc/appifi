@@ -139,7 +139,6 @@ refreshStorage().asCallback(err => {
       createFruitmix(path.join(currentFileSystem.mountpoint, 'wisnuc', 'fruitmix'))
       sysconfig.set('lastFileSystem', currentFileSystem)
 
-      startServer()  
     }
     else {
       
@@ -158,6 +157,8 @@ refreshStorage().asCallback(err => {
 
   // log
   console.log('[app] updating sysboot', actionData)
+
+  startServer()
 })
 
 
