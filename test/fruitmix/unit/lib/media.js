@@ -6,13 +6,17 @@ import validator from 'validator'
 import paths from 'src/fruitmix/lib/paths'
 import { createDocumentStore } from 'src/fruitmix/lib/documentStore'
 import { createMediaShareStore } from 'src/fruitmix/lib/mediaShareStore'
+import { createMediaTalkStore } from 'src/fruitmix/lib/mediaTalkStore'
 import createMedia from 'src/fruitmix/lib/media' 
 
-/**
-20e62448-7df5-4670-bf2b-9f2f97f17136
-8d7abab0-016a-4aaa-9a20-a43c2af80818
-3008aeca-0970-4900-9e23-aad83d9378d6
-027453eb-b9a7-4fea-b29c-4662fb7e0bec
+const aliceUUID = '20e62448-7df5-4670-bf2b-9f2f97f17136'
+const bobUUID = '8d7abab0-016a-4aaa-9a20-a43c2af80818'
+const charlieUUID = '3008aeca-0970-4900-9e23-aad83d9378d6'
+const davidUUID = '027453eb-b9a7-4fea-b29c-4662fb7e0bec'
+
+const img001Hash = '7803e8fa1b804d40d412bcd28737e3ae027768ecc559b51a284fbcadcd0e21be' 
+
+/** 
 e1bb25aa-6887-48d1-a231-f5400085d0be
 d386c34b-36f2-4bd1-be6e-c1d0e0926710
 8f4a5ba5-8064-4de9-95b2-b87fa318e14b
@@ -73,14 +77,36 @@ c89815b4-1860-4bee-96d3-fd3accb98d7e
 374e5f0a-977c-4050-ad48-c0d39cc7e422
 **/
 
+const cwd = process.cwd()
+
 describe(path.basename(__filename), function() {
 
   describe('create media', function() {
 
-    it('media should have an empty sharedMap (obsolete)', function() {
-      let x = createMedia()
-      expect(x.shareMap instanceof Map).to.be.true
-      expect(x.shareMap.size).to.equal(0)
+    let media
+
+    beforeEach(() => (async () => {
+      await rimrafAsync('tmptest')
+      await paths.setRootAsync(path.join(cwd, 'tmptest'))
+
+      let docstore = await Promise.promisify(createDocumentStore)()    
+      let msstore = createMediaShareStore(docstore)
+      let mtstore = createMediaTalkStore(docstore) 
+      media = createMedia(msstore, mtstore)
+    })())
+
+    it('media should have an empty sharedMap (obsolete, need update)', function() {
+      expect(media.shareStore).to.not.be.undefined
+      expect(media.talkStore).to.not.be.undefined
+
+      expect(media.shareMap instanceof Map).to.be.true
+      expect(media.shareMap.size).to.equal(0)
+
+      expect(media.mediaMap instanceof Map).to.be.true
+      expect(media.mediaMap.size).to.equal(0)
+
+      expect(media.talks).to.be.an('array')
+      expect(media.talks.length).to.equal(0)
     })
   })
 
@@ -106,87 +132,82 @@ describe(path.basename(__filename), function() {
     beforeEach(() => (async () => {
 
       await rimrafAsync('tmptest')
-      await mkdirpAsync('tmptest')
       await paths.setRootAsync(path.join(cwd, 'tmptest'))
 
-      let tmpdir = paths.get('tmp')
-      let docroot = paths.get('documents')
-      let msroot = paths.get('mediashare')
-      let msarc = paths.get('mediashareArchive')
-
-      let docstore = await Promise.promisify(createDocumentStore)(docroot, tmpdir)    
-      let msstore = createMediaShareStore(msroot, msarc, tmpdir, docstore)
-
-      media = createMedia(msstore) // FIXME
+      let docstore = await Promise.promisify(createDocumentStore)()    
+      let msstore = createMediaShareStore(docstore)
+      let mtstore = createMediaTalkStore(docstore) 
+      media = createMedia(msstore, mtstore)
 
     })())
 
     it('new share should set doctype to mediashare', function(done) {
-      media.createMediaShare(userUUID, obj001, (err, doc) => {
-        expect(doc.doctype).to.equal('mediashare') 
+      media.createMediaShare(userUUID, obj001, (err, share) => {
+        expect(share.doc.doctype).to.equal('mediashare') 
         done()
       })
     })
 
     it('new share should set docversion to 1.0', function(done) {
-      media.createMediaShare(userUUID, obj001, (err, doc) => {
-        expect(doc.docversion).to.equal('1.0') 
+      media.createMediaShare(userUUID, obj001, (err, share) => {
+        expect(share.doc.docversion).to.equal('1.0') 
         done()
       })
     })
 
     it('new share should have uuid', function(done) {
-      media.createMediaShare(userUUID, obj001, (err, doc) => {
-        expect(validator.isUUID(doc.uuid)).to.be.true
+      media.createMediaShare(userUUID, obj001, (err, share) => {
+        expect(validator.isUUID(share.doc.uuid)).to.be.true
         done()
       })
     })
 
     it('new share should set author to given user', function(done) {
-      media.createMediaShare(userUUID, obj001, (err, doc) => {
-        expect(doc.author).to.equal(userUUID)
+      media.createMediaShare(userUUID, obj001, (err, share) => {
+        expect(share.doc.author).to.equal(userUUID)
         done()
       })
     })
 
     it('new share should set maintainer to [] (FIXME!)', function(done) {
-      media.createMediaShare(userUUID, obj001, (err, doc) => {
-        expect(doc.maintainers).to.deep.equal([])
+      media.createMediaShare(userUUID, obj001, (err, share) => {
+        expect(share.doc.maintainers).to.deep.equal([])
         done()
       })
     })
 
     it('new share should set viewers to given viewers', function(done) {
-      media.createMediaShare(userUUID, obj001, (err, doc) => {
-        expect(doc.viewers).to.deep.equal(obj001.viewers)
+      media.createMediaShare(userUUID, obj001, (err, share) => {
+        expect(share.doc.viewers).to.deep.equal(obj001.viewers)
         done()
       })
     })
 
     it('new share should set album to given album', function(done) {
-      media.createMediaShare(userUUID, obj001, (err, doc) => {
-        expect(doc.album).to.deep.equal(obj001.album)
+      media.createMediaShare(userUUID, obj001, (err, share) => {
+        expect(share.doc.album).to.deep.equal(obj001.album)
         done()
       })
     })
 
     it('new share should set sticky to given sticky', function(done) {
-      media.createMediaShare(userUUID, obj001, (err, doc) => {
-        expect(doc.sticky).to.deep.equal(obj001.sticky)
+      media.createMediaShare(userUUID, obj001, (err, share) => {
+        expect(share.doc.sticky).to.deep.equal(obj001.sticky)
         done()
       })
     })
   
     it('new share should have ctime and mtime', function(done) {
-      media.createMediaShare(userUUID, obj001, (err, doc) => {
-        expect(Number.isInteger(doc.ctime)).to.be.true
-        expect(Number.isInteger(doc.mtime)).to.be.true
+      media.createMediaShare(userUUID, obj001, (err, share) => {
+        expect(Number.isInteger(share.doc.ctime)).to.be.true
+        expect(Number.isInteger(share.doc.mtime)).to.be.true
         done()
       })
     })
 
     it('new share should have fixed property sequence', function(done) {
-      media.createMediaShare(userUUID, obj001, (err, doc) => {
+
+      media.createMediaShare(userUUID, obj001, (err, share) => {
 
         const props = [ 'doctype',
                         'docversion',
@@ -201,32 +222,90 @@ describe(path.basename(__filename), function() {
                         'contents' ]
 
         if (err) return done(err)
-        expect(Object.getOwnPropertyNames(doc)).to.deep.equal(props)
+        expect(Object.getOwnPropertyNames(share.doc)).to.deep.equal(props)
         done()
       })
     })
 
-    it('new share should be put into shareMap', function(done) {
-      media.createMediaShare(userUUID, obj001, (err, doc) => {
-        expect(media.shareMap.get(doc.uuid).doc).to.equal(doc)
+    // weird, TODO
+    it('new share should be put into shareMap (weird)', function(done) {
+      media.createMediaShare(userUUID, obj001, (err, share) => {
+        expect(media.shareMap.get(share.doc.uuid).doc).to.equal(share.doc)
         done()
       })
     })
 
     it('new share should be put into mediaMap', function(done) {
-      media.createMediaShare(userUUID, obj001, (err, doc) => {
+      media.createMediaShare(userUUID, obj001, (err, share) => {
         if (err) return done(err)
 
         let ss = media.mediaMap.get(obj001.contents[0])
         let arr = Array.from(ss)
-        expect(arr[0].doc).to.equal(doc)
+        expect(arr[0].doc).to.equal(share.doc)
         done()
       })
+    })
+
+    it('share hash should be asserted', function(done) {
+      throw new Error('not implemented')
     })
 
     it('new share should be stored', function(done) {
       throw new Error('not implemented')
     })
   })
+  /** end of create share **/
+
+  /** begin of create talk **/
+  describe('create talk', function() {
+
+    let media
+    const obj001 = {
+      maintainers: [],
+      viewers: [bobUUID],
+      album: null,
+      sticky: false,
+      contents: [ img001Hash ]
+    }
+  
+    beforeEach(() => (async () => {
+      
+      await rimrafAsync('tmptest')      
+      await paths.setRootAsync(path.join(cwd, 'tmptest'))
+
+      let docstore = await Promise.promisify(createDocumentStore)()
+      let msstore = createMediaShareStore(docstore)
+      let mtstore = createMediaTalkStore(docstore)
+
+      media = createMedia(msstore, mtstore)
+
+    })())
+
+    it('alice comment on her own photo, even if it is not shared (wierd case)', function(done) {
+      media.addComment(aliceUUID, aliceUUID, img001Hash, 'am I beautiful?', (err, talk) => {
+        console.log(err || talk)
+        done()
+      })
+    }) 
+
+    it('alice comment on her own photo, that is shared with bob', function(done) {
+      media.createMediaShare(aliceUUID, obj001, (err, share) => {
+        media.addComment(aliceUUID, aliceUUID, img001Hash, 'I look wonderful', (err, talk) => {
+          console.log(err || talk)
+          done()
+        })
+      })
+    })
+
+    it('bob comment on alice photo, that is shared with bob', function(done) {
+      media.createMediaShare(aliceUUID, obj001, (err, sare) => {
+        media.addComment(bobUUID, aliceUUID, img001Hash, 'you look terrible', (err, talk) => {
+          console.log(err || talk)
+          done()
+        })
+      })
+    })
+  })
+
 })
 

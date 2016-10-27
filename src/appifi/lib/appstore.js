@@ -1,7 +1,6 @@
 import clone from 'clone'
 import request from 'superagent'
 
-// import localRecipes from '../hosted/apps'
 import { validateRecipe, calcRecipeKeyString } from '../lib/dockerApps'
 import { storeState, storeDispatch } from '../lib/reducers'
 

@@ -1,6 +1,5 @@
 import fs from 'fs'
 
-import Promise from 'bluebird'
 import validator from 'validator'
 
 const configFilePath = '/etc/wisnuc.json'
@@ -11,7 +10,17 @@ const info = (text) => console.log(`[appifi config] ${text}`)
 // global
 var config = {}
 
-const writeConfig = () => fs.writeFile(configFilePath, JSON.stringify(config, null, ' '), err => {})
+const writeConfig = () => {
+
+  console.log('write config')
+  
+  let text = JSON.stringify(config, null, '  ')
+  console.log(text)
+  fs.writeFile(configFilePath, text, err => {
+    console.log(err)
+  })
+
+}
 
 const getConfig = (name) => config[name]
 
@@ -30,7 +39,14 @@ const initConfig = () => {
 
   // read config file
   try {
-    x = fs.readFileSync(configFilePath, { encoding: 'utf8' }) 
+    x = fs.readFileSync(configFilePath) 
+
+    console.log('>>>>')
+    console.log(configFilePath)
+    console.log(x)
+    console.log(x.toString())
+    console.log('<<<<')
+
     x = JSON.parse(x.toString())
 
     y = x.version
@@ -61,6 +77,7 @@ const initConfig = () => {
   }
   catch (e) {
     console.log(e)
+    if (x) console.log(x.toString())
     info(`config file not found or io error, use default`)
     config = {
       version: 1,

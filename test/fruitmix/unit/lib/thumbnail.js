@@ -3,19 +3,14 @@ import crypto from 'crypto'
 
 import { expect } from 'chai'
 import app from 'src/fruitmix/app'
-import models from 'src/fruitmix/models/models'
 import paths from 'src/fruitmix/lib/paths'
-import { createUserModelAsync } from 'src/fruitmix/models/userModel'
-import { createDriveModelAsync } from 'src/fruitmix/models/driveModel'
-import { createDrive } from 'src/fruitmix/lib/drive'
-import { createRepo } from 'src/fruitmix/lib/repo'
+
+import { fakePathModel, fakeRepoSilenced } from 'src/fruitmix/util/fake'
 
 import request from 'supertest'
 import { mkdirpAsync, rimrafAsync, fs } from 'src/fruitmix/util/async'
 
 import createThumbnailer from 'src/fruitmix/lib/thumbnail'
-
-Promise.promisifyAll(fs)
 
 const cwd = process.cwd()
 
@@ -61,19 +56,6 @@ let drives = [
   }
 ]
 
-const createRepoHashMagicStopped = (paths, model, forest, callback) => {
-  
-  let repo = createRepo(paths, model, forest) 
-  repo.on('hashMagicWorkerStopped', () => {
-    callback(null, repo)
-  })
-  repo.init(e => {
-    if (e) callback(e)
-  })
-}
-
-const createRepoAsync = Promise.promisify(createRepoHashMagicStopped)
-
 const copyFile = (src, dst, callback) => {
 
   let error = null
@@ -101,67 +83,28 @@ const copyFile = (src, dst, callback) => {
 
 const copyFileAsync = Promise.promisify(copyFile)
 
-describe(path.basename(__dirname), function() {
+describe(path.basename(__filename), function() {
 
   let thumbnail
 
   beforeEach(function() {
     return (async () => {
 
-      // make test dir
-      await rimrafAsync('tmptest')
-      await mkdirpAsync('tmptest')
-
-      // set path root
-      await paths.setRootAsync(path.join(cwd, 'tmptest'))
+      await fakePathModel(path.join(cwd, 'tmptest'), users, drives)
 
       // fake drive dir
       let dir = paths.get('drives')
       await mkdirpAsync(path.join(dir, drv001UUID))
       await copyFileAsync('fruitfiles/20141213.jpg', img001Path)
       await mkdirpAsync(path.join(dir, drv002UUID))
+
+      await fakeRepoSilenced()
       
-      // write model files
-      dir = paths.get('models')
-      let tmpdir = paths.get('tmp')
-      await fs.writeFileAsync(path.join(dir, 'users.json'), JSON.stringify(users, null, '  '))
-      await fs.writeFileAsync(path.join(dir, 'drives.json'), JSON.stringify(drives, null, '  '))
-
-      // create models
-      let umod = await createUserModelAsync(path.join(dir, 'users.json'), tmpdir)
-      let dmod = await createDriveModelAsync(path.join(dir, 'drives.json'), tmpdir)
-
-      // set models
-      models.setModel('user', umod)
-      models.setModel('drive', dmod)
-
-      let forest = createDrive()
-      models.setModel('forest', forest)
-
-      // create repo and wait until drives cached
-      let repo = await createRepoAsync(paths, dmod, forest)
-      models.setModel('repo', repo)
-
       thumbnail = createThumbnailer()
-
-      // request a token for later use
-      // token = await requestTokenAsync()
-      // console.log(token)
     })()     
   })
 
-/** 
-  beforeEach(() => (async () => {
-
-    await rimrafAsync('tmptest')
-    await mkdirpAsync('tmptest')
-    await paths.setRootAsync(path.join(cwd, 'tmptest'))
-    thumbnail = createThumbnailer()
-
-  })())
-**/
-
-  it('should queue ', done => {
+  it('should queue (no assertion)', done => {
 
     let query = {
       width: '100',
@@ -174,7 +117,7 @@ describe(path.basename(__dirname), function() {
     })
   })
 
-  it('should create', done => {
+  it('should create (no assertion)', done => {
   
     let query = {
       width: '100',
@@ -188,7 +131,7 @@ describe(path.basename(__dirname), function() {
     })
   })
 
-  it('should create 2', done => {
+  it('should create 2 (no assertion)', done => {
 
     let query = {
       width: '100',

@@ -28,6 +28,16 @@ Schema
   cache: true or false
 }
 
+for usb drive 
+
+  label => folder name
+  fixedOwner: false
+  URI: 'partition uuid + fs uuid'
+  uuid: generate
+  owner: [*]
+  writelist: [*]
+  readlist: [*]
+
 **/
 
 class DriveModel {

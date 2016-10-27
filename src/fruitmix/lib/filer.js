@@ -9,73 +9,182 @@ import { IndexedTree } from './indexedTree'
 import { mapXstatToObject } from './util'
 import { visit } from './visitors'
 
-const driveVisitor = (dir, node, entry, callback) => {
+const ERROR = (code, _text) => (text => Object.assign(new Error(text || _text), { code }))
 
-  let entrypath = path.join(dir, entry)
-  readXstat(entrypath, (err, xstat) => {
-    if (err) return callback()
-    let object = mapXstatToObject(xstat)
-    let entryNode = node.tree.createNode(node, object) 
-    if (!xstat.isDirectory()) return callback()  
-    callback(entryNode)
-  })
-}
+const EFAIL = ERROR('EFAIL', 'operation failed') 
+const EINVAL = ERROR('EINVAL', 'invalid argument')
+const EINTR = ERROR('EINTR', 'operation interrupted')
+const ENOENT = ERROR('ENOENT', 'entry not found')
+const EMISMATCH = ERROR('EMISMATCH', 'uuid mismatch')
 
-const createDrive = (conf) => {
-  return new Drive(conf)
-}  
+export class Forest extends IndexedTree {
 
-
-class Drive extends IndexedTree {
-
-  constructor(conf) {
+  constructor() {
     const proto = {}
     super(proto)
+
+    this.collations = new Map()
   }
 
-  // uuid, type, name, owner, readlist, writelist
-  // rootpath
-  attachDrive(props, rootpath) {
-    let node = this.createNode(null, props)
+  createRoot(props) {
+
+    let root = this.createNode(null, props)
+    if (root) this.requestProbe(root)
+    return root
   }
 
-  buildCache() {
+  // rename to probe TODO
+  probe(node) {
 
-    if (this.cacheState !== 'NONE') throw new Error('buildCache can only be called when cacheState is NONE')
+    let finished = false
+    let uuid = node.uuid
 
-    this.cacheState = 'CREATING'
-    this.createNode(null, {
-      uuid: this.uuid,
-      type: 'folder',
-      owner: this.owner,
-      writelist: this.writelist,
-      readlist: this.readlist,
-      name: this.rootpath
-    })
+    let target = node.namepath()
+    let mtime = node.mtime
+    let mtime1, mtime2, children = []
 
-    let drive = this
-    visit(this.rootpath, this.root, driveVisitor, () => {
-      drive.cacheState = 'CREATED'
-      drive.emit('driveCached', drive)
-    })
-  }
+    fs.stat(target, (err, stats) => {
 
-  scan(node, callback) {
+      if (finished) return
+      if (err) return finish(err) 
+      if (stats.mtime.getTime() === mtime) return finish(null)
 
-    let X = this
+      mtime1 = stats.mtime.getTime()
+      fs.readdir(target, (err, entries) => {
 
-    const visitor = (dir, node, entry, callback) => {
-      let entrypath = path.join(dir, entry)
-      readXstat(entrypath, (err, xstat) => {
-        if (err) return callback()
-        let object = mapXstatToObject(xstat)
-        let entryNode = X.createNode(node, object) 
-        if (!xstat.isDirectory()) return callback()  
-        callback(entryNode)
+        if (finished) return
+        if (err) return finish(err)  
+        if (entries.length === 0) {
+          readXstatAgain()
+        }
+        else {
+          let count = entries.length
+          entries.forEach(entry => {
+            readXstat(path.join(target, entry), (err, xstat) => {
+              if (finished) return
+              if (!err) children.push(xstat) // bypass error
+              if (!--count) readXstatAgain()
+            })
+          })
+        }
       })
+
+      function readXstatAgain() {
+
+        fs.stat(target, (err, stat2) => {
+          if (finished) return
+          if (err) return finish(err)
+          mtime2 = stat2.mtime.getTime() 
+          finish(null)
+        })
+      }
+    }) // end of readXstat
+
+    const finish = (err) => {  
+
+      // target path or name change is irrelevant
+      // if node is deleted, blame where it is deleted failing to remove this job
+      // so timestamp check should be enough
+      if (err) {
+        this.requestProbe(node.parent)
+        finishJob(false)
+      } 
+      else if (mtime1 === mtime) {
+        finishJob(false)
+      }
+      else if (mtime1 !== mtime2) {
+        finishJob(true)
+      }
+      else {
+        // compare children, create a map first
+        let map = new Map()
+        children.forEach(xstat => map.set(xstat.uuid, xstat))
+
+        // first round, remove all children not found in xstats
+        node.getChildren()
+          .filter(child => !map.has(child.uuid))
+          .forEach(child => this.deleteSubTree(child))
+
+        // second round, update existing thing if necessary
+        node.getChildren().forEach(child => {
+          
+          let xstat = map.get(child.uuid)
+          this.updateNode(child, mapXstatToObject(xstat))
+          if (xstat.isDirectory() && xstat.mtime.getTime() !== child.mtime)
+            this.requestProbe(child) // TODO
+
+          map.delete(child.uuid)
+        })
+
+        // third round, add new node
+        Array.from(map.values()).forEach(xstat => {
+          let child = this.createNode(node, mapXstatToObject(xstat)) 
+          if (xstat.isDirectory())
+            this.requestProbe(child) // TODO
+        })
+
+        node.mtime = mtime2
+        finishJob(false)
+      }
     }
 
-    visit(node.namepath(), node, visitor, () => callback(null))
+    const finishJob = (again) => {
+
+      let job = this.collations.get(node)
+      if (again || job.again) {
+        job.again = false
+        job.abort = probe(node)
+      }
+      else {
+        this.collations.delete(node)
+        if (this.collations.size === 0) {
+          process.nextTick(() => this.emit('probeStopped'))
+        }
+      }
+    }
+
+    function abort() {
+      finished = true    
+    }
+  }
+
+  // a job is key value pair
+  // key:   uuid
+  // value: { abort, again }
+
+  // callback is optional TODO
+  requestProbe(node, callback) {
+
+    // console.log(`requestProbe ${node.uuid} ${node.name}`)
+
+    // find job with the same uuid (aka, collating the same node)
+    let job = this.collations.get(node)
+
+    // creat a job if not found
+    if (!job) {
+      this.collations.set(node, {
+        abort: this.probe(node),
+        again: false
+      })
+
+      if (this.collations.size === 1) {
+        process.nextTick(() => this.emit('probeStarted'))
+      }
+    }
+    else if (!job.again) {
+      job.again = true 
+    }
+    
+    return this
+  }
+
+  reportNodeMissing(node) {
+  }
+
+  reportNodeMismatch(node) {
+  }
+
+  reportNodeHashOutdated(node) {
   }
 
   // v createFolder   targetNode (parent), new name
@@ -371,13 +480,32 @@ class Drive extends IndexedTree {
   updateHashMagic(target, uuid, hash, magic, timestamp, callback) {
 
     // update file first
+    // besides system error, this function may returns
+    // EINVAL, EMISMATCH, EOUTDATED
     updateXattrHashMagic(target, uuid, hash, magic, timestamp, (err, xstat) => {
       if (err) return callback(err)
-      let node = this.uuidMap.get(uuid) 
-      if (!node) return callback(new Error('node not found')) // TODO really weird! is this possible?
+      let node = this.findNodeByUUID(uuid) 
+      if (!node) {
+        // this is a weird case but possible, say right after
+        // updateXattrHashMagic's last operation finished the node is deleted
+        // but we have nothing to do, so pretend everything is fine
+        // need more consideration and should test and log it TODO
+        return callback(null)
+      }
       this.updateNode(node, mapXstatToObject(xstat))
       callback(null) 
     })
+  }
+
+  updateFileNode(xstat) {
+
+    if (!xstat.isFile()) return
+    
+    let node = this.findNodeByUUID(xstat.uuid)
+    if (!node) return
+    if (!node.isFile()) return
+
+    this.updateNode(node, mapXstatToObject(xstat))
   }
 
   //////////////////////////////////////////////////////////////////////////////
@@ -434,20 +562,41 @@ class Drive extends IndexedTree {
   }
 
   //////////////////////////////////////////////////////////////////////////////
-  
-  getMedia(userUUID) {
 
-    let arr = []
-  
+  mediaUserReadable(digest, userUUID) {
+
+    let digestObj = this.hashMap.get(digest)
+    if (!digestObj) return false
+
+    let node = digestObj.nodes.find(n => n.userReadable(userUUID))
+    return !!node
+  }
+
+ 
+  // this is a two step calculation, this is the first one:
+  initMediaMap(userUUID) {
+
+    //  map: digest => obj
+    //  obj: {
+    //    digest,
+    //    type,
+    //    meta,
+    //    share, not defined here
+    //  }
+
+    let map = new Map()
     this.hashMap.forEach((digestObj, digest) => {
-      for (let i = 0; i < digestObj.nodes.length; i++) {
-        if (digestObj.nodes[i].userReadable(userUUID)) {
-          arr.push(Object.assign({ digest }, digestObj.meta))
-        }
+
+      // find at least one that user readable
+      if (digestObj.nodes.find(node => node.userReadable(userUUID))) {
+        let obj = { digest, type: digestObj.type }
+        if (digestObj.meta) Object.assign(obj, digestObj.meta)
+        obj.sharing = 1
+        map.set(digest, obj)
       }
     })
 
-    return arr
+    return map
   }
 
   readMedia(userUUID, digest) {
@@ -472,7 +621,26 @@ class Drive extends IndexedTree {
       return node.namepath()
     }
   }
+
+  //////////////////////////////////////////////////////////////////////////////
+
+
+  // for meta api
+  getMeta(userUUID) {
+
+    let arr = []
+    this.hashMap.forEach((digestObj, digest) => {
+      if (digestObj.nodes.find(node => node.userReadable(userUUID)))
+        arr.push(Object.assign({}, digestObj.meta, { digest }))
+    })
+
+    return arr
+  } 
+
 }
 
-export { createDrive }
+
+export const createFiler = () => new Forest()
+
+
 

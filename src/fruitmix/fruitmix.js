@@ -2,35 +2,35 @@ import path from 'path'
 import http from 'http'
 import dgram from 'dgram'
 import EventEmitter from 'events'
+
 import Debug from 'debug'
+import { storeState, storeDispatch } from '../appifi/lib/reducers'
 import system from './lib/system'
 import models from './models/models'
 import app from './app'
+import { createSmbAudit } from './lib/samba'
 
 const debug = Debug('fruitmix:createFruitmix')
 
 class Fruitmix extends EventEmitter {
 
-  constructor(system, app, server, udp) {
+  constructor(system, app, server, smbAudit) {
 
     super()
-
     this.system = system
     this.app = app
     this.server = server 
-    this.udp = udp
+    this.smbAudit = smbAudit
   }
 
   stop() {
+
     this.server.close()
-    this.udp.close()
     this.system.deinit()
   }
 }
 
 const createFruitmix = (sysroot) => {
-
-  debug(sysroot)
 
   let server, port = 3721 
 
@@ -61,27 +61,16 @@ const createFruitmix = (sysroot) => {
     }
   })
 
-  server.on('listening', () => debug('Http Server Listening on Port ' + port))
-  server.on('close', () => debug('Http Server Closed'))
+  server.on('listening', () => console.log('[fruitmix] Http Server Listening on Port ' + port))
+  server.on('close', () => console.log('[fruitmix] Http Server Closed'))
 
   server.listen(port)
 
-  let udp = dgram.createSocket('udp4')
-    
-  udp.on('listening', () => {
-    var address = udp.address();
-    debug('UDP Server listening on ' + address.address + ":" + address.port)
+  let smbaudit = createSmbAudit(err => {
+    console.log('smb audit created') 
   })
 
-  udp.on('message', function (message, remote) {
-    debug(remote.address + ':' + remote.port + ' - ' + message)
-  })
-
-  udp.on('close', () => debug('UDP Server closed'))
-
-  udp.bind(port)
-
-  return new Fruitmix(system, app, server, udp)
+  return new Fruitmix(system, app, server, smbaudit)
 }
 
 export { createFruitmix }

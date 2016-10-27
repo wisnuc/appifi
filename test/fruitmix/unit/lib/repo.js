@@ -13,10 +13,14 @@ import { rimrafAsync, mkdirpAsync, fs, xattr } from '../util/async'
 
 import paths from 'src/fruitmix/lib/paths'
 import models from 'src/fruitmix/models/models'
+
 import { createUserModelAsync } from 'src/fruitmix/models/userModel'
 import { createDriveModelAsync } from 'src/fruitmix/models/driveModel'
-import { createDrive } from 'src/fruitmix/lib/drive'
+import { createFiler, Forest } from 'src/fruitmix/lib/filer'
+import { createMetaBuilder, MetaBuilder } from 'src/fruitmix/lib/metaBuilder'
+import { createHashMagicBuilder, HashMagicBuilder } from 'src/fruitmix/lib/hashMagicBuilder'
 import { createRepo } from 'src/fruitmix/lib/repo'
+
 
 const cwd = process.cwd()
 
@@ -90,7 +94,6 @@ const prepare = async () => {
   // set models
   models.setModel('user', umod)
   models.setModel('drive', dmod)
-
 }
 
 const copyFile = (src, dst, callback) => {
@@ -124,37 +127,33 @@ describe(path.basename(__filename), function() {
 
   describe('create repo', function() {
 
-    beforeEach(function() {
-      return prepare()
-    })      
+    beforeEach(() => prepare())      
   
     it('should create a repo, with paths, driveModel, drive, and state properly set', function() {
-      let driveModel = models.getModel('drive')
-      let forest = createDrive()
-      let repo = createRepo(paths, driveModel, forest)
 
-      expect(repo.paths).to.equal(paths)
+      let driveModel = models.getModel('drive')
+      let repo = createRepo(driveModel)
+
       expect(repo.driveModel).to.equal(driveModel)
-      expect(repo.forest).to.equal(forest)
+      expect(repo.filer).to.be.an.instanceof(Forest)
+      expect(repo.hashMagicBuilder).to.be.an.instanceof(HashMagicBuilder)
+      expect(repo.metaBuilder).to.be.an.instanceof(MetaBuilder)
       expect(repo.state).to.equal('IDLE')
     })
   })
 
   describe('init repo', function() {
     
-    beforeEach(function() {
-      return prepare()
-    }) 
+    beforeEach(() => prepare()) 
 
     it('should transit to INITIALIZING state then INITIALIZED, with two drives with correct uuid', function(done) {
       let driveModel = models.getModel('drive')
-      let forest = createDrive()
-      let repo = createRepo(paths, driveModel, forest)
+      let repo = createRepo(driveModel)
 
       repo.init(() => {
         expect(repo.state).to.equal('INITIALIZED')
-        expect(repo.forest.roots.length).to.equal(2)
-        expect(repo.forest.roots.map(n => n.uuid).sort()).to.deep.equal([drv002UUID, drv001UUID])
+        expect(repo.filer.roots.length).to.equal(2)
+        expect(repo.filer.roots.map(n => n.uuid).sort()).to.deep.equal([drv002UUID, drv001UUID])
         done()
       })
 
@@ -182,18 +181,28 @@ describe(path.basename(__filename), function() {
 
     it('observe', function(done) {
 
-      let img001Meta = { type: 'JPEG', width: 3264, height: 1836, extended: true }
+      let img001Meta = { 
+        format: 'JPEG',
+        width: 3264,
+        height: 1836,
+        exifOrientation: 1,
+        exifDateTime: '2014:12:13 15:31:24',
+        exifMake: 'SAMSUNG',
+        exifModel: 'SM-T705C',
+        size: 2331588 
+      } 
 
       let driveModel = models.getModel('drive')
-      let forest = createDrive()
-      let repo = createRepo(paths, driveModel, forest)
+      let repo = createRepo(driveModel)
 
-      repo.on('hashMagicWorkerStopped', () => {
-        expect(forest.hashMap.size).to.equal(1)
-        expect(forest.hashMap.has(img001Digest)).to.be.true
-        expect(forest.hashMap.get(img001Digest).meta).to.deep.equal(img001Meta)
+      repo.metaBuilder.on('metaBuilderStopped', () => {
+
+        expect(repo.filer.hashMap.size).to.equal(1)
+        expect(repo.filer.hashMap.has(img001Digest)).to.be.true
+        expect(repo.filer.hashMap.get(img001Digest).meta).to.deep.equal(img001Meta)
         done()
       })
+
       repo.init(() => {
         console.log('repo initialized')
       })

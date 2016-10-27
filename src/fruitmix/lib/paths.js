@@ -29,6 +29,7 @@ const setRootAsync = async (rootpath) => {
     mkdirpAsync(join('thumbnail')),
     mkdirpAsync(join('log')),
     mkdirpAsync(join('etc')),
+    mkdirpAsync(join('smb')),
     mkdirpAsync(join('tmp'))
   ])
 }
@@ -58,11 +59,13 @@ const getPath = (name) => {
   case 'thumbnail':
   case 'log':
   case 'etc':
+  case 'smb':
   case 'tmp':
     return join(name)
   case 'root':
     return root
   default:
+    console.log(`ERROR: unknown fruitmix path name: ${name}`)
     throw new Error(`unknown fruitmix path name: ${name}`)
   }
 }

@@ -4,12 +4,15 @@ import Promise from 'bluebird'
 
 import { expect } from 'chai'
 import app from 'src/fruitmix/app'
-import models from 'src/fruitmix/models/models'
 import paths from 'src/fruitmix/lib/paths'
-import { createUserModelAsync } from 'src/fruitmix/models/userModel'
-import { createDriveModelAsync } from 'src/fruitmix/models/driveModel'
-import { createDrive } from 'src/fruitmix/lib/drive'
-import { createRepo } from 'src/fruitmix/lib/repo'
+import models from 'src/fruitmix/models/models'
+
+import { createDocumentStore } from 'src/fruitmix/lib/documentStore'
+import { createMediaShareStore } from 'src/fruitmix/lib/mediaShareStore'
+import { createMediaTalkStore } from 'src/fruitmix/lib/mediaTalkStore'
+import createMedia from 'src/fruitmix/lib/media'
+
+import { fakePathModel, fakeRepoSilenced, requestTokenAsync } from 'src/fruitmix/util/fake'
 
 import request from 'supertest'
 import { mkdirpAsync, rimrafAsync, fs } from 'src/fruitmix/util/async'
@@ -57,30 +60,6 @@ let drives = [
   }
 ]
 
-const requestToken = (callback) => {
-
-  request(app)
-    .get('/token')
-    .auth(userUUID, 'world')
-    .set('Accept', 'application/json')
-    .end((err, res) => err ? callback(err) : callback(null, res.body.token))
-}
-
-const requestTokenAsync = Promise.promisify(requestToken)
-
-const createRepoHashMagicStopped = (paths, model, forest, callback) => {
-  
-  let repo = createRepo(paths, model, forest) 
-  repo.on('hashMagicWorkerStopped', () => {
-    callback(null, repo)
-  })
-  repo.init(e => {
-    if (e) callback(e)
-  })
-}
-
-const createRepoAsync = Promise.promisify(createRepoHashMagicStopped)
-
 const copyFile = (src, dst, callback) => {
 
   let error = null
@@ -115,59 +94,43 @@ describe(path.basename(__filename) + ': test repo', function() {
     let token
     let cwd = process.cwd()
 
-    beforeEach(function() {
-      return (async () => {
+    beforeEach(() => (async () => {
 
-        // make test dir
-        await rimrafAsync('tmptest')
-        await mkdirpAsync('tmptest')
+      await fakePathModel(path.join(cwd, 'tmptest'), users, drives)
 
-        // set path root
-        await paths.setRootAsync(path.join(cwd, 'tmptest'))
+      // fake drive dir
+      let dir = paths.get('drives')
+      await mkdirpAsync(path.join(dir, drv001UUID))
+      await copyFileAsync('fruitfiles/20141213.jpg', img001Path)
+      await mkdirpAsync(path.join(dir, drv002UUID))
 
-        // fake drive dir
-        let dir = paths.get('drives')
-        await mkdirpAsync(path.join(dir, drv001UUID))
-        await copyFileAsync('fruitfiles/20141213.jpg', img001Path)
-        await mkdirpAsync(path.join(dir, drv002UUID))
-        
-        // write model files
-        dir = paths.get('models')
-        let tmpdir = paths.get('tmp')
-        await fs.writeFileAsync(path.join(dir, 'users.json'), JSON.stringify(users, null, '  '))
-        await fs.writeFileAsync(path.join(dir, 'drives.json'), JSON.stringify(drives, null, '  '))
+      let repo = await fakeRepoSilenced()
+      token = await requestTokenAsync(app, userUUID, 'world')
 
-        // create models
-        let umod = await createUserModelAsync(path.join(dir, 'users.json'), tmpdir)
-        let dmod = await createDriveModelAsync(path.join(dir, 'drives.json'), tmpdir)
+      let docstore = await Promise.promisify(createDocumentStore)()
+      let msstore = createMediaShareStore(docstore)
+      let mtstore = createMediaTalkStore(docstore)
+      let media = createMedia(msstore, mtstore)
+      models.setModel('media', media)
 
-        // set models
-        models.setModel('user', umod)
-        models.setModel('drive', dmod)
-
-        let forest = createDrive()
-        models.setModel('forest', forest)
-
-        // create repo and wait until drives cached
-        let repo = await createRepoAsync(paths, dmod, forest)
-        models.setModel('repo', repo)
-
-        // request a token for later use
-        token = await requestTokenAsync()
-        // console.log(token)
-      })()     
-    })
+    })())
 
     it('should get media meta', function(done) {
 
-      const ret = [
-        { digest: '7803e8fa1b804d40d412bcd28737e3ae027768ecc559b51a284fbcadcd0e21be',
+      const ret = [ 
+        { 
+          digest: '7803e8fa1b804d40d412bcd28737e3ae027768ecc559b51a284fbcadcd0e21be',
           type: 'JPEG',
+          format: 'JPEG',
           width: 3264,
           height: 1836,
-          datetime: '2014:12:13 15:31:24',
-          extended: true 
-        }
+          exifOrientation: 1,
+          exifDateTime: '2014:12:13 15:31:24',
+          exifMake: 'SAMSUNG',
+          exifModel: 'SM-T705C',
+          size: 2331588,
+          sharing: 1
+        } 
       ]
 
       request(app)

@@ -1,55 +1,29 @@
 import path from 'path'
 import EventEmitter from 'events'
 
-import Promise from 'bluebird'
+import { fs, mkdirp, mkdirpAsync, rimrafAsync } from '../util/async'
 
-import mkdirp from 'mkdirp'
-import { fs, mkdirpAsync, rimrafAsync } from '../util/async'
+import paths from './paths'
 
-import { readXstat, readXstatAsync } from './xstat'
+import { createHashMagicBuilder } from './hashMagicBuilder'
+import { createMetaBuilder } from './metaBuilder'
 
-import { createDrive } from './drive'
-import createHashMagic from './hashMagic'
+import { createFiler } from './filer'
 
 // repo is responsible for managing all drives
 class Repo extends EventEmitter {
 
   // repo constructor
-  constructor(paths, driveModel, forest) {
+  constructor(driveModel, filer, hashMagicBuilder, metaBuilder) {
 
     super()
 
-    this.paths = paths
     this.driveModel = driveModel
-    this.forest = forest
-
-    this.forest.on('driveCached', () => console.log(`driveCached: ${drive.uuid}`))
-    this.forest.on('hashlessAdded', node => {
-      console.log(`hashlessAdded drive: uuid:${node.uuid} path:${node.namepath()}`) 
-      this.hashMagicWorker.start(node.namepath(), node.uuid)
-    })
+    this.filer = filer
+    this.hashMagicBuilder = hashMagicBuilder
+    this.metaBuilder = metaBuilder
 
     this.state = 'IDLE' // 'INITIALIZING', 'INITIALIZED', 'DEINITIALIZING',
-
-    this.scanners = []
-
-    this.hashMagicWorker = createHashMagic()
-    this.hashMagicWorker.on('end', ret => {
-
-      if (this.state === 'IDLE') return
-
-      // find drive containing this uuid
-      this.forest.updateHashMagic(ret.target, ret.uuid, ret.hash, ret.magic, ret.timestamp, err => {
-
-        if (this.forest.hashless.size === 0) {
-          console.log(`hashMagicWorkerStopped`)
-          return this.emit('hashMagicWorkerStopped')
-        }
-        
-        let node = this.forest.hashless.values().next().value 
-        this.hashMagicWorker.start(node.namepath(), node.uuid)
-      })
-    })
   }
 
   async initAsync() {
@@ -58,7 +32,7 @@ class Repo extends EventEmitter {
 
     this.state = 'INITIALIZING'
     
-    let dir = this.paths.get('drives')
+    let dir = paths.get('drives')
     let list = this.driveModel.collection.list
     let props = []
 
@@ -87,22 +61,9 @@ class Repo extends EventEmitter {
       }
     } // loop end
 
-    let roots = props.map(prop => this.forest.createNode(null, prop))     
-    let promises = roots.map(root => 
-      new Promise(resolve => this.forest.scan(root, () => {
-        console.log(`[repo] init: scan root finished: ${root.uuid}`)
-        resolve()
-      })))
-
-    Promise.all(promises)
-      .then(() => {
-        console.log(`[repo] init: ${roots.length} drives cached`)
-        this.emit('driveCached')
-      })
-      .catch(e => {})
-
+    props.forEach(prop => this.filer.createRoot(prop))
     this.state = 'INITIALIZED'
-    console.log('[repo] init: initialized')
+    //     console.log('[repo] init: initialized')
   }
 
   // TODO there may be a small risk that a user is deleted but drive not
@@ -114,34 +75,26 @@ class Repo extends EventEmitter {
 
   // TODO
   deinit() {
-    this.hashMagicWorker.abort()
     this.state = 'IDLE'
   }
 
   // FIXME real implementation should maintain a table
   getTmpDirForDrive(drive) {
-    return this.paths.get('tmp') 
+    return paths.get('tmp') 
   }
 
   getTmpFolderForNode(node) {
-    return this.paths.get('tmp')
+    return paths.get('tmp')
   }
 
   getDrives(userUUID) {
     return this.driveModel.collection.list
   }
 
-  //  label
-  //  fixedOwner: true
-  //  URI: fruitmix
-  //  uuid 
-  //  owner
-  //  writelist
-  //  readlist
-  //  cache
+  //  label, fixedOwner: true, URI: fruitmix, uuid, owner, writelist, readlist, cache
   createFruitmixDrive(conf, callback) {
 
-    let dir = this.paths.get('drives')
+    let dir = paths.get('drives')
     let dpath = path.join(dir, conf.uuid)
 
     mkdirp(dpath, err => {
@@ -149,7 +102,7 @@ class Repo extends EventEmitter {
       this.driveModel.createDrive(conf, err => {
         if (err) return callback(err)
 
-        let root = this.forest.createNode(null, {
+        this.filer.createRoot({
           uuid: conf.uuid,
           type: 'folder',
           owner: conf.owner,
@@ -158,9 +111,6 @@ class Repo extends EventEmitter {
           name: dpath  
         })
 
-        this.forest.scan(root, () => 
-          console.log(`[repo] createFruitmidxDrive: scan (newly created) root finished: ${root.uuid}`))
-        
         callback(null, conf)
       })
     })
@@ -199,18 +149,16 @@ class Repo extends EventEmitter {
       })
     })
   }
-
-////////////////////////////////////////////////////////////////////////////////
-
-  inspect(uuid) {
-    console.log(`something requested to inspect node with uuid: ${uuid}`)
-  }
 }
 
-const createRepo = (paths, driveModel, forest) => new Repo(paths, driveModel, forest)
+export const createRepo = (driveModel) => {
 
-const testing = {
+  let filer = createFiler()
+  let hashMagicBuilder = createHashMagicBuilder(filer) 
+  let metaBuilder = createMetaBuilder(filer)
+  
+  return new Repo(driveModel, filer, hashMagicBuilder, metaBuilder)
 }
 
-export { createRepo, testing }
+
 

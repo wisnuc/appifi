@@ -1,18 +1,19 @@
 import child from 'child_process'
+import Debug from 'debug'
 
-import Promise from 'bluebird'
+const debug = Debug('system:server')
 
 import { storeState, storeDispatch, storeSubscribe } from './reducers'
 import { calcRecipeKeyString } from './dockerApps'
 import { daemonStart, daemonStop, daemonStartOp, containerStart, containerStop, containerDelete,
-  installedStart, installedStop, appInstall, appUninstall, dockerFruitmixDir } from './docker'
+  installedStart, installedStop, appInstall, appUninstall} from './docker'
 import { mkfsBtrfsOperation } from './storage'
+
+
 import network from './eth'
-import { setFanScale, updateFanSpeed } from './barcelona'
+import { setFanScale, updateFanSpeed } from '../../system/barcelona'
 import appstore from './appstore'
 import timedate from './timedate'
-
-import { createFruitmix } from '../../fruitmix/fruitmix'
 
 let status = 0
 
@@ -20,7 +21,7 @@ const info = (text) => console.log(`[server] ${text}`)
 
 storeSubscribe(() => {
   status++
-  console.log(`[server] status updated: ${status}`)
+  debug('status update', status)
 })
 
 const appstoreFacade = (appstore) => {
@@ -135,15 +136,6 @@ const shutdown = (cmd) =>
 const systemReboot = async () => shutdown('reboot') 
 const systemPowerOff = async () => shutdown('poweroff')
 
-const daemonStartOp2 = async (uuid) => {
-
-  await daemonStartOp(uuid)
-  
-  let fruitRoot = dockerFruitmixDir(uuid)
-  let fruitmix = createFruitmix(fruitRoot)
-
-}
- 
 const operationAsync = async (req) => {
 
   info(`operation: ${req.operation}`)

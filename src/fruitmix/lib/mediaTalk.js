@@ -7,7 +7,7 @@ import deepEqual from 'deep-equal'
   The structure of a mediaTalk object should be
 
   {
-    data: {
+    doc: {
       owner: <UUID, string>,
       digest: <SHA256, string>,
       comments: [ // sorted by time
@@ -23,7 +23,7 @@ import deepEqual from 'deep-equal'
     docHash: document hash
   }
 
-  the property inside data should be structurally stable
+  the property inside doc should be structurally stable
   the comments should be sorted by time
 
 **/
@@ -34,83 +34,83 @@ const hashObject = (obj) => {
   return hash.digest('hex')
 }
 
-class mediaTalkPrototype {
+class MediaTalkPrototype {
 
   // assuming store has the save method, requiring owner, digest as parameters
   constructor(store) {
     this.store = store 
   }
 
-  save(newData, callback) {
+  save(newDoc, callback) {
     this.store.save()    
   }
 
   addComment(author, text, callback) {
 
     // prevent racing
-    let data = this.data
+    let doc = this.doc
 
     // immutable, order is important, order is irrelevent to timestamp
-    let newData = {
-      owner: data.owner,
-      digest: data.digest,
-      comments: [...data.comments, {
+    let newDoc = {
+      owner: doc.owner,
+      digest: doc.digest,
+      comments: [...doc.comments, {
         author, text, time: newDate().getTime()
       }]
     }
 
-    Object.freeze(newData)
+    Object.freeze(newDoc)
 
-    this.save(newData, (err, docHash) => {
+    this.save(newDoc, (err, docHash) => {
 
       if (err) return callback(err)
-      if (data !== this.data) {
+      if (doc !== this.doc) {
         let error = new Error('mediaTalk failed to save due to race condition')
         error.code = 'EBUSY'
         return callback(error)
       }
 
       this.docHash = docHash
-      this.data = newData
+      this.doc = newDoc
       this.updateAuthorHash()
 
-      callback(null, newData)
+      callback(null, newDoc)
     })
   }
 
   deleteComment(author, time, callback) {
 
     // prevent racing
-    let data = this.data
+    let doc = this.doc
 
     // check existence
-    let index = data.comments.find(c => c.author === author && c.time === time)
+    let index = doc.comments.find(c => c.author === author && c.time === time)
     if (index === -1) {
-      return process.nextTick(() => callback(data))
+      return process.nextTick(() => callback(doc))
     }
 
-    let newData = {
-      owner: data.owner,
-      digest: data.digest,
-      comments: [...data.comments.splice(0, index), ...data.comments.splice(index + 1)]
+    let newDoc = {
+      owner: doc.owner,
+      digest: doc.digest,
+      comments: [...doc.comments.slice(0, index), ...doc.comments.slice(index + 1)]
     }
 
-    Object.freeze(newData)
+    Object.freeze(newDoc)
 
-    this.save(newData, (err, docHash) => {
+    this.save(newDoc, (err, docHash) => {
       
       if (err) return callback(err)
-      if (data !== this.data) {
+      if (doc !== this.doc) {
         let error = new Error('mediaTalk failed to save due to race condition')
         error.code = 'EBUSY'
         return callback(error)
       }
     
       this.docHash = docHash
-      this.data = newData
+      this.doc = newDoc
       this.updateAuthorHash()
 
-      callback(null, newData)
+      callback(null, newDoc)
     })
   }
 
@@ -118,7 +118,7 @@ class mediaTalkPrototype {
   updateAuthorHash() {
 
     let authorHash = new Map()
-    let comments = this.data.comments
+    let comments = this.doc.comments
 
     // create a new set
     let authorSet = new Set()
@@ -135,7 +135,6 @@ class mediaTalkPrototype {
 
     this.authorHash = authorHash
   }
-
 
   authorsDigest(authors) {
 
@@ -157,7 +156,8 @@ class mediaTalkPrototype {
     return {
       owner: this.owner,
       digest: this.digest,
-      comments: this.comments.filter(cmt => filtered.find(cmt.author))
+      comments: this.comments
+                  .filter(cmt => filtered.find(cmt.author))
                   .sort((a, b) => a.time - b.time)
     }
   }
@@ -179,8 +179,8 @@ const createMediaTalk = (prototype, owner, digest) =>
     owner, digest, comments: [], authorHash: new Map()
   })
 
-const createMediaTalkFromObject = (prototype, obj, hash) => 
+const createMediaTalkFromDoc = (prototype, obj, hash) => 
   Object.create(prototype, obj)
     .updateAuthorHash()
 
-export { createMediaTalkPrototype, createMediaTalk, createMediaTalkFromObject } 
+export { createMediaTalk, createMediaTalkFromDoc } 

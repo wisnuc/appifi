@@ -3,22 +3,21 @@ import fs from 'fs'
 import child from 'child_process'
 import Debug from 'debug'
 
+const debug = Debug('appifi:docker')
+
 import mkdirp from 'mkdirp'
 import request from 'superagent'
 
-import { toLines, delay } from '../lib/utils'
-import { createStore, combineReducers } from '../lib/reduced'
 import appstore from './appstore' // TODO
 
 import { containerStart, containerStop, containerCreate, containerDelete } from './dockerapi'
-import { getConfig, setConfig } from './appifiConfig'
+
+import sysconfig from '../../system/sysconfig'
 import { dockerEventsAgent, DockerEvents } from './dockerEvents'
 import { AppInstallTask } from './dockerTasks'
 
 import { calcRecipeKeyString, appMainContainer } from './dockerApps'
 import { storeState, storeDispatch } from '../lib/reducers'
-
-const debug = Debug('docker')
 
 const dockerUrl = 'http://127.0.0.1:1688'
 const dockerPidFile = '/run/wisnuc/app/docker.pid'
@@ -41,24 +40,68 @@ const info = (message) => console.log(`[docker] ${message}`)
 const mkdirpAsync = Promise.promisify(mkdirp)
 Promise.promisifyAll(fs)
 
-const probeDaemon2 = (callback) => {
+const parseDockerRootDir = (rootDir) => {
+
+  if (!rootDir.endsWith('/wisnuc/r')) return null
+  
+  let mp = rootDir.slice(0, -9)
+
+  let { storage, sysboot } = storeState()
+  let { blocks, volumes } = storage
+
+  let volume = volumes.find(vol => vol.stats.mountpoint === mp)
+  if (volume) {
+    return {
+      type: volume.stats.fileSystemType,
+      uuid: volume.stats.fileSystemUUID,
+      mountpoint: volume.stats.mountpoint 
+    }
+  }
+
+  let block = blocks.find(blk => !blk.stats.isVolume && blk.stas.mountpoint === mp)
+  if (block) {
+    return {
+      type: block.stats.fileSystemType,
+      uuid: block.stats.fileSystemUUID,
+      mountpoint: volume.stats.mountpoint
+    }
+  }
+}
+
+const probeDaemonRoot = (callback) => 
   request
     .get('http://localhost:1688/info')
     .set('Accept', 'application/json')
     .end((err, res) => {
-      if (err || !res.ok) {
-        callback(null, { running: false })
-      }
-      else {
-        let volume = res.body.DockerRootDir.split('/')[4]
-        console.log(`probeDaemon Success, volume: ${volume}`)
-        callback(null, {
-          running: true,
-          volume
-        })
-      }
+      if (err) return callback(err)
+      if (!res.ok) return callback(new Error('request res not ok'))
+      callback(null, res.body.DockerRootDir)
     })
-}
+
+const probeDaemonRootAsync = Promise.promisify(probeDaemonRoot)
+
+
+
+const probeDaemon2 = (callback) => 
+  request
+    .get('http://localhost:1688/info')
+    .set('Accept', 'application/json')
+    .end((err, res) => {
+
+      if (err || !res.ok) 
+        return callback(null, { running: false })
+
+      let rootDir = res.body.DockerRootDir
+
+      debug('probeDaemon, dockerRootDir: ', rootDir)
+
+      let volume = rootDir.split('/')[4]
+      console.log(`probeDaemon Success, volume: ${volume}`)
+      callback(null, {
+        running: true,
+        volume
+      })
+    })
 
 const probeDaemon = Promise.promisify(probeDaemon2)
 
@@ -78,7 +121,8 @@ function dispatchDaemonStart(volume, agent) {
     })
   })
 
-  setConfig('lastUsedVolume', volume)
+  // setConfig('lastUsedVolume', volume)
+  sysconfig.set('lastUsedVolume', volume)
 
   storeDispatch({
     type: 'DAEMON_START',
@@ -98,12 +142,10 @@ async function daemonStart(uuid) {
   let execRootDir = `${mountpoint}/wisnuc/r`
   let graphDir = `${mountpoint}/wisnuc/g`
   let appDataDir =`${dockerVolumesDir}/${uuid}/wisnuc/appdata` 
-  let fruitmixDir= `${dockerVolumesDir}/${uuid}/wisnuc/fruitmix`
 
   await mkdirpAsync(execRootDir)
   await mkdirpAsync(graphDir)
   await mkdirpAsync(appDataDir)
-  await mkdirpAsync(fruitmixDir)
 
   let opts = {
     cwd: mountpoint,
@@ -122,7 +164,6 @@ async function daemonStart(uuid) {
   let dockerDaemon = child.spawn('docker', args, opts)
 
   dockerDaemon.on('error', err => {
-
     console.log('dockerDaemon error >>>>')
     console.log(err)
     console.log('dockerDaemon error <<<<')
@@ -134,7 +175,7 @@ async function daemonStart(uuid) {
     if (signal !== undefined) console.log(`daemon exits with signal ${signal}`)
   })
 
-  await delay(3000)
+  await Promise.delay(3000)
 
   if (dockerDaemon === null) throw 'docker daemon stopped right after started'
   dockerDaemon.unref()
@@ -142,7 +183,6 @@ async function daemonStart(uuid) {
   let agent = await dockerEventsAgent() 
   dispatchDaemonStart(uuid, agent)
 }
-
 
 const daemonStop2 = (volume, callback) => {
 
@@ -171,8 +211,17 @@ const daemonStop2 = (volume, callback) => {
   })
 }
 
+const daemonStopCmd = 'start-stop-daemon --stop --pidfile "/run/wisnuc/app/docker.pid" --retry 3'
+const daemonStop3 = (volume, callback) => 
+  child.exec(daemonStopCmd, (err, stdout, stderr) => {
+    if (err) 
+      console.log('[docker] daemonStop:', err, stdout, stderr)    
+    else
+      console.log('[docker] daemonStop: success')
+    callback(err)
+  })
 
-const daemonStop = Promise.promisify(daemonStop2)
+const daemonStop = Promise.promisify(daemonStop3)
 
 function appStatus(recipeKeyString) {
 
@@ -242,12 +291,16 @@ async function appInstall(recipeKeyString) {
 
 async function initAsync() {
 
-  // mkdir -p
-  await new Promise((resolve, reject) => {
-    child.exec('mkdir -p /run/wisnuc/app', (err, stdout, stderr) => {
-      err ? reject(stderr) : resolve(stdout)
-    })
-  })
+  await mkdirpAsync('/run/wisnuc/app')
+
+  let sysboot = storeState().sysboot
+  if (!sysboot || !sysboot.currentFileSystem) {
+    console.log('[docker]: currentFileSystem not set, return')
+    return
+  }
+
+  let rootDir
+  try { rootDir = await probeDaemonRootAsync() } catch (e) {}
 
   let daemon = await probeDaemon()
   if (daemon.running) {
@@ -258,7 +311,7 @@ async function initAsync() {
     return
   }
 
-  let lastUsedVolume = getConfig('lastUsedVolume')
+  let lastUsedVolume = sysconfig.get('lastUsedVolume')
   if (!lastUsedVolume) {
     info('last used volume not set, docker daemon not started')
     return
@@ -266,7 +319,7 @@ async function initAsync() {
 
   while (!storeState().storage) {
     info('wait 500ms for storage module init')
-    await delay(500)
+    await Promise.delay(500)
   }
 
   let storage = storeState().storage

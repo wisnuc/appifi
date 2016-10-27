@@ -1,22 +1,17 @@
 import path from 'path'
 import crypto from 'crypto'
+import { mkdirpAsync, rimrafAsync, fs } from 'test/fruitmix/unit/util/async'
 
-import Promise from 'bluebird'
-import xattr from 'fs-xattr'
+import xattr from 'fs-xattr'  // TODO, async provides this also?
 
 import { expect } from 'chai'
 
 import app from 'src/fruitmix/app'
 import paths from 'src/fruitmix/lib/paths'
-import models from 'src/fruitmix/models/models'
-import { createUserModelAsync } from 'src/fruitmix/models/userModel'
-import { createDriveModelAsync } from 'src/fruitmix/models/driveModel'
-import { createDrive } from 'src/fruitmix/lib/drive'
-import { createRepo } from 'src/fruitmix/lib/repo'
+
+import { fakePathModel, fakeRepoSilenced, requestTokenAsync } from 'src/fruitmix/util/fake'
 
 import request from 'supertest'
-import { mkdirpAsync, rimrafAsync, fs } from 'test/fruitmix/unit/util/async'
-
 import validator from 'validator'
 
 let userUUID = '9f93db43-02e6-4b26-8fae-7d6f51da12af'
@@ -62,30 +57,6 @@ let drives = [
   }
 ]
 
-const requestToken = (callback) => {
-
-  request(app)
-    .get('/token')
-    .auth(userUUID, 'world')
-    .set('Accept', 'application/json')
-    .end((err, res) => err ? callback(err) : callback(null, res.body.token))
-}
-
-const requestTokenAsync = Promise.promisify(requestToken)
-
-const createRepoCached = (paths, model, forest, callback) => {
-  
-  let err
-  let repo = createRepo(paths, model, forest) 
-  
-  // if no err, return repo after driveCached
-  repo.on('driveCached', () => !err && callback(null, repo))
-  // init & if err return err
-  repo.init(e => e && callback(err = e))
-}
-
-const createRepoCachedAsync = Promise.promisify(createRepoCached)
-
 describe(path.basename(__filename) + ': test repo', function() {
 
   describe('test files api', function() {
@@ -93,16 +64,13 @@ describe(path.basename(__filename) + ': test repo', function() {
     let token
     let cwd = process.cwd()
     let repo
+
     beforeEach(function() {
       return (async () => {
-        // make test dir
-        await rimrafAsync('tmptest')
-        await mkdirpAsync('tmptest')
 
-        // set path root
-        await paths.setRootAsync(path.join(cwd, 'tmptest'))
+        await fakePathModel(path.join(cwd, 'tmptest'), users, drives)
 
-        // fake drive dir
+        // fake dir and file in drive
         let dir = paths.get('drives')
         await mkdirpAsync(path.join(dir, drv001UUID, 'world'))
         await fs.writeFileAsync(path.join(dir, drv001UUID, 'file001.png'), '0123456789ABCDEFGHIJKLMN')
@@ -110,39 +78,15 @@ describe(path.basename(__filename) + ': test repo', function() {
         file001Timestamp = stat.mtime.getTime()
         let file001attr = `{"uuid":"${file001UUID}","owner":[],"hash":"141f8b5fb558f3f84949abcba9ca15326b1b6cf335aa845f5ea6f3d21e3061a8","magic":"ASCII text, with no line terminators","htime":${file001Timestamp.toString()}}`
         await Promise.promisify(xattr.set)(path.join(dir, drv001UUID, 'file001.png'), 'user.fruitmix', file001attr)
-        await mkdirpAsync(path.join(dir, drv002UUID))
         
-        // write model files
-        dir = paths.get('models')
-        let tmpdir = paths.get('tmp')
-        await fs.writeFileAsync(path.join(dir, 'users.json'), JSON.stringify(users, null, '  '))
-        await fs.writeFileAsync(path.join(dir, 'drives.json'), JSON.stringify(drives, null, '  '))
-
-        // create models
-        let umod = await createUserModelAsync(path.join(dir, 'users.json'), tmpdir)
-        let dmod = await createDriveModelAsync(path.join(dir, 'drives.json'), tmpdir)
-
-        // set models
-        models.setModel('user', umod)
-        models.setModel('drive', dmod)
-
-        // create repo and wait until drives cached
-        let forest = createDrive() 
-        models.setModel('forest', forest)
-
-        repo = await createRepoCachedAsync(paths, dmod, forest)
-        models.setModel('repo', repo)
-
-        // request a token for later use
-        token = await requestTokenAsync()
-        // console.log(token)
+        repo = await fakeRepoSilenced()
+        token = await requestTokenAsync(app, userUUID, 'world')
       })()     
     })
 
     afterEach(function() {
       repo.deinit()
     })
-
 
     it('GET /files/[drv001UUID] should return one file and one folder object (list folder)', function(done) {
     
@@ -243,7 +187,7 @@ describe(path.basename(__filename) + ': test repo', function() {
           // even if such structural info should be verified, using REST api to do it
 /**
           let repo = models.getModel('repo')
-          let forest = models.getModel('forest')
+          let filer = models.getModel('filer')
           let drv = repo.drives.find(drv => drv.uuid === drv001UUID)
           let list = drv.print(drv001UUID) 
           expect(list.find(node => node.uuid === uuid && node.parent === drv001UUID)).to.be.an('object')

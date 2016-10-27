@@ -5,7 +5,10 @@ import crypto from 'crypto'
 import rimraf from 'rimraf'
 import mkdirp from 'mkdirp'
 
+import Stringify from 'canonical-json'
 import { writeFileToDisk } from './util'
+
+import paths from './paths'
 
 class DocumentStore {
 
@@ -19,7 +22,14 @@ class DocumentStore {
 
     let text, hash, digest, dirpath, filepath, tmppath
 
-    text = JSON.stringify(object)
+    // text = JSON.stringify(object)
+    try {
+      text = Stringify(object)
+    }
+    catch (e) {
+      return callback(e)
+    }
+
     hash = crypto.createHash('sha256')
     hash.update(text)
     digest = hash.digest().toString('hex')
@@ -42,7 +52,6 @@ class DocumentStore {
   }
 
   retrieve(digest, callback) {
-
     let filepath
 
     if (/[0-9a-f]{64}/.test(digest) === false) {
@@ -52,7 +61,9 @@ class DocumentStore {
     }
    
     filepath = path.join(this.rootdir, digest.slice(0, 2), digest.slice(2))
+
     fs.readFile(filepath, (err, data) => {
+
       if (err) return callback(err)
       try {
         callback(null, JSON.parse(data.toString()))
@@ -64,11 +75,10 @@ class DocumentStore {
   }
 }
 
-const createDocumentStore = (dir, tmpdir, callback) => {
+const createDocumentStore = (callback) => {
 
-  if (!path.isAbsolute(dir)) {
-    return process.nextTick(() => callback(new Error('require absolute path')))
-  }
+  let dir = paths.get('documents')
+  let tmpdir = paths.get('tmp')
 
   fs.stat(dir, (err, stats) => {
 
@@ -76,11 +86,8 @@ const createDocumentStore = (dir, tmpdir, callback) => {
     if (!stats.isDirectory())
       return callback(new Error('path must be folder'))
 
-    rimraf(path.join(dir, 'tmp'), err => {
-      mkdirp(path.join(dir, 'tmp'), err => {
-        callback(null, new DocumentStore(dir, tmpdir))
-      })
-    })
+    // no clean
+    return callback(null, new DocumentStore(dir, tmpdir))
   })
 }
 

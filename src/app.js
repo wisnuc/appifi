@@ -1,42 +1,66 @@
-var assets = require('../assets')
-var path = require('path')
-var express = require('express')
-// var favicon = require('serve-favicon')
-var logger = require('morgan')
-var cookieParser = require('cookie-parser')
-var bodyParser = require('body-parser')
+import path from 'path'
+import http from 'http'
+import Debug from 'debug'
+const debug = Debug('system:bootstrap')
 
-let app = express()
-
-/*
- * middlewares
- */
-// uncomment after placing your favicon in /public
-//app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
-app.use(logger('dev', {
-  skip: (req) => {
-    // console.log(`morgan: ${req.path}`)
-    if (req.path === '/status') return true
-    return false
-  }
-}))
-
-app.use(bodyParser.json())
-app.use(bodyParser.urlencoded({ extended: false }))
-app.use(cookieParser())
-
-/*
- * module init
- */
-import { storeDispatch } from './appifi/lib/reducers'
-import { initConfig, getConfig } from './appifi/lib/appifiConfig'
-import { setFanScale, updateFanSpeed, pollingPowerButton } from './appifi/lib/barcelona'
-import server from './appifi/lib/server'
-import appstore from './appifi/lib/appstore'
-import docker from './appifi/lib/docker'
+import sysinit from './system/sysinit'
+import sysconfig from './system/sysconfig'
+import { storeState, storeDispatch } from './appifi/lib/reducers'
 import storage from './appifi/lib/storage'
+import { refreshStorage, mountedFS } from './appifi/lib/storage'
+import system from './system/index'
+import appifiInit from './appifi/appifi'
+import app from './appifi/index'
+import { createFruitmix } from './fruitmix/fruitmix'
 
-process.argv.forEach(function (val, index, array) {
+const port = 3000
+
+// append (piggyback) system api
+const startServer = () => {
+
+  app.use('/system', system)
+
+  // catch 404 and forward to error handler
+  app.use((req, res, next) => next(Object.assign(new Error('Not Found'), { status: 404 })))
+
+  // development error handler will print stacktrace
+  if (app.get('env') === 'development') {
+    app.use((err, req, res) => res.status(err.status || 500).send('error: ' + err.message))
+  }
+
+  // production error handler no stacktraces leaked to user
+  app.use((err, req, res) => 
+    res.status(err.status || 500).send('error: ' + err.message))
+
+  app.set('port', port);
+
+  const httpServer = http.createServer(app);
+
+  httpServer.on('error', error => {
+
+    if (error.syscall !== 'listen') throw error;
+    switch (error.code) {
+      case 'EACCES':
+        console.error(`Port ${port} requires elevated privileges`)
+        process.exit(1)
+        break
+      case 'EADDRINUSE':
+        console.error(`Port ${port} is already in use`)
+        process.exit(1)
+        break
+      default:
+        throw error
+    }
+  })
+
+  httpServer.on('listening', () => {
+    console.log('[app] Listening on port ' + httpServer.address().port)
+  })
+
+  httpServer.listen(port);
+}
+
+process.argv.forEach((val, index, array) => {
   if (val === '--appstore-master') {
     storeDispatch({
       type: 'SERVER_CONFIG',
@@ -44,161 +68,97 @@ process.argv.forEach(function (val, index, array) {
       value: true
     })
   }
-});
-
-initConfig()
-
-// code for barcelona, harmless for other platfrom
-updateFanSpeed()
-pollingPowerButton()
-setFanScale(getConfig('barcelonaFanScale'))
-
-storage.init()
-docker.init()
-appstore.reload()
-
-/*
- * routes
- */
-// app.use('/', require('./appifi/routes/index'))
-
-app.get('/', (req, res) => 
-  res.set('Content-Type', 'text/html').send(assets.indexHtml))
-
-app.get('/favicon.ico', (req, res) => 
-  res.set('Content-Type', 'image/x-icon').send(assets.favicon))
-
-app.get('/index.html', (req, res) => {
-  res.set('Content-Type', 'text/html').send(assets.indexHtml)
 })
 
-app.get('/bundle.js', (req, res) => {
-  res.set('Content-Type', 'application/javascript').send(assets.bundlejs)
-})
+refreshStorage().asCallback(err => {
 
-app.use('/stylesheets', require('./appifi/routes/stylesheets'))
-app.use('/appstore', require('./appifi/routes/appstore'))
-app.use('/server', require('./appifi/routes/server'))
-
-// catch 404 and forward to error handler
-app.use(function(req, res, next) {
-  var err = new Error('Not Found')
-  err.status = 404
-  next(err)
-})
-
-// error handlers
-
-// development error handler
-// will print stacktrace
-if (app.get('env') === 'development') {
-  app.use(function(err, req, res) {
-    res.status(err.status || 500)
-    res.send('error: ' + err.message)
-  })
-}
-
-// production error handler
-// no stacktraces leaked to user
-app.use(function(err, req, res) {
-  res.status(err.status || 500)
-  res.send('error: ' + err.message)
-})
-
-// module.exports = app
-
-/**
- * Module dependencies.
- */
-
-// var app = require('../app');
-var debug = require('debug')('appifi:server');
-var http = require('http');
-
-/**
- * Get port from environment and store in Express.
- */
-
-var port = normalizePort(process.env.PORT || '3000');
-app.set('port', port);
-
-/**
- * Create HTTP server.
- */
-
-var httpServer = http.createServer(app);
-
-/**
- * Listen on provided port, on all network interfaces.
- */
-
-httpServer.listen(port);
-httpServer.on('error', onError);
-httpServer.on('listening', onListening);
-
-/**
- * Normalize a port into a number, string, or false.
- */
-
-function normalizePort(val) {
-  var port = parseInt(val, 10);
-
-  if (isNaN(port)) {
-    // named pipe
-    return val;
+  if (err) {
+    console.log('failed to init storage, exit')
+    console.log(err)
+    process.exit(1) 
   }
 
-  if (port >= 0) {
-    // port number
-    return port;
+  let fileSystem = null
+  let mountpoint = null
+
+  // load config
+  let lastFileSystem = sysconfig.get('lastFileSystem') 
+
+  debug('sysconfig', sysconfig)
+  debug('lastFileSystem', lastFileSystem)
+
+  let state
+  let currentFileSystem = null
+  let bootMode = sysconfig.get('bootMode')
+  debug('bootMode', bootMode)
+
+  if (bootMode === 'maintenance') {
+    // enter maintenance mode by user setting
+    state = 'maintenance'
+    // clear one-shot config
+    sysconfig.set('bootMode', 'normal')
+  }
+  else { // normal mode
+
+    // find all file system mounted
+    let mounted = mountedFS(storeState().storage)
+
+    if (lastFileSystem) {
+
+      fileSystem = mounted.find(x => 
+        x.stats.fileSystemType === lastFileSystem.type &&
+        x.stats.fileSystemUUID === lastFileSystem.uuid)
+
+      if (fileSystem) debug('lastFileSystem found', fileSystem)
+    }
+
+    if (fileSystem) { // fileSystem found
+      
+    }
+    else { // no lastFileSystem or corresponding file system not found
+
+      let installed = mounted.filter(mfs => mfs.stats.wisnucInstalled)
+      if (installed.length == 1) { // only one
+        fileSystem = installed[0]
+      }
+    }
+
+    // Not checked ... TODO
+    if (fileSystem) {
+
+      state = 'normal'
+      currentFileSystem = {
+        type: fileSystem.stats.fileSystemType,
+        uuid: fileSystem.stats.fileSystemUUID,
+        mountpoint: fileSystem.stats.mountpoint
+      }
+
+      debug('set currentFileSystem', fileSystem, currentFileSystem)
+
+      appifiInit()
+      createFruitmix(path.join(currentFileSystem.mountpoint, 'wisnuc', 'fruitmix'))
+      sysconfig.set('lastFileSystem', currentFileSystem)
+
+    }
+    else {
+      
+      state = 'maintenance'
+    }
   }
 
-  return false;
-}
-
-/**
- * Event listener for HTTP server "error" event.
- */
-
-function onError(error) {
-  if (error.syscall !== 'listen') {
-    throw error;
+  // update store state
+  let actionData = {
+    state, 
+    bootMode, 
+    lastFileSystem, 
+    currentFileSystem
   }
+  storeDispatch({ type: 'UPDATE_SYSBOOT', data: actionData })
 
-  var bind = typeof port === 'string'
-    ? 'Pipe ' + port
-    : 'Port ' + port;
+  // log
+  console.log('[app] updating sysboot', actionData)
 
-  // handle specific listen errors with friendly messages
-  switch (error.code) {
-    case 'EACCES':
-      console.error(bind + ' requires elevated privileges');
-      process.exit(1);
-      break;
-    case 'EADDRINUSE':
-      console.error(bind + ' is already in use');
-      process.exit(1);
-      break;
-    default:
-      throw error;
-  }
-}
-
-/**
- * Event listener for HTTP server "listening" event.
- */
-
-function onListening() {
-  var addr = httpServer.address();
-  var bind = typeof addr === 'string'
-    ? 'pipe ' + addr
-    : 'port ' + addr.port;
-  debug('Listening on ' + bind);
-}
-
-process.on('unhandledRejection', (reason, p) => {
-  console.log('Unhandled Rejection at: Promise', p, 'reason:', reason);
-  // application specific logging, throwing an error, or other logic here
+  startServer()
 })
 
 

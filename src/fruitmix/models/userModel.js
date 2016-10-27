@@ -1,9 +1,14 @@
 import crypto from 'crypto'
 import EventEmitter from 'events'
 
-import bcrypt from 'bcryptjs'
+import Debug from 'debug'
+const debug = Debug('fruitmix:userModel')
+
+// import bcrypt from 'bcryptjs'
+import bcrypt from 'bcrypt'
 import UUID from 'node-uuid'
 import validator from 'validator'
+
 
 import { throwBusy, throwInvalid } from '../util/throw'
 import { openOrCreateCollectionAsync} from './collection'
@@ -79,7 +84,19 @@ class UserModel extends EventEmitter{
   constructor(collection) {
     super()
     this.collection = collection
+    this.increment = 2000
+    this.eset = new Set()
     this.hash = UUID.v4()
+
+    this.collection.list.forEach(user => {
+      if (user.type === 'local')
+        this.eset.add(user.unixUID)
+    })
+  }
+
+  allocUnixUID() {
+    while (this.eset.has(this.increment)) this.increment++
+    return this.increment++
   }
 
   createUser(props, callback) {
@@ -148,6 +165,9 @@ class UserModel extends EventEmitter{
       library: UUID.v4()
     }
 
+    if (newUser.type === 'local')
+      newUser.unixUID = this.allocUnixUID()
+
     this.collection
       .updateAsync(list, [...list, newUser]) 
       .asCallback(err => { 
@@ -156,6 +176,8 @@ class UserModel extends EventEmitter{
         process.nextTick(() => this.emit('userCreated', newUser))
         callback(null, newUser)
       }) 
+
+    this.emit('userAdded', newUser)
   }
 
   updateUser(userUUID, props, callback) {
@@ -218,7 +240,6 @@ class UserModel extends EventEmitter{
 
     // merge
     let update = Object.assign({}, user, change)
-
     let index = list.findIndex(u => u.uuid === userUUID)
   
     this.collection
@@ -229,6 +250,8 @@ class UserModel extends EventEmitter{
         process.nextTick(() => this.emit('userUpdated', user, update))
         callback(null, update)
       })
+
+    this.emit('userUpdated', user, update)
   }
 
   // to be refactored
@@ -236,9 +259,14 @@ class UserModel extends EventEmitter{
 
     if(typeof uuid !== 'string') throwInvalid('invalid uuid')
     if(this.collection.locked) throwBusy()
-    if(this.collection.list.find((v)=>v.uuid==uuid).length==0) throwInvalid('invalid uuid')
-    await this.collection.updateAsync(this.collection.list, this.collection.list.filter((v)=>v.uuid!==uuid))
-    return true 
+
+    let user = this.collection.list.find(u => u.uuid === uuid)
+    if (!user) throw Object.assign(new Error(`delete user: uuid ${uuid} not found`), { code: 'ENOENT' })
+
+    await this.collection.updateAsync(this.collection.list, 
+      this.collection.list.filter(u => u !== user))
+
+    this.emit('userDeleted', user)
   }
 
   // 
@@ -255,22 +283,50 @@ class UserModel extends EventEmitter{
   }
 }
 
-const createUserModel = (filepath, tmpdir, callback) => {
-  
-  openOrCreateCollectionAsync(filepath, tmpdir)
-    .then(collection => callback(null, new UserModel(collection)))
-    .catch(e => callback(e))
-}
+const createUserModel = (filepath, tmpdir, callback) => 
+  createUserModelAsync(filepath, tmpdir).asCallback((err, result) => 
+    callback(err, result))
 
 const createUserModelAsync = async (filepath, tmpfolder) => {
 
   let collection = await openOrCreateCollectionAsync(filepath, tmpfolder) 
-  if (collection)
+  if (collection) {
+
+    debug(list)
+
+    let list = collection.list
+    let locals = list.filter(user => user.type === 'local')
+
+    let eset = new Set() // store uid
+    let uarr = [] // store user to be processed, no unixUID or duplicate/out-of-range uid 
+
+    locals.forEach(user => {
+
+      // invalid
+      if (!Number.isInteger(user.unixUID)) uarr.push(user)
+      // out-of-range
+      if (user.unixUID < 2000 || user.unixUID >= 10000) uarr.push(user)
+      // existing 
+      if (eset.has(user.unixUID)) uarr.push(user)
+
+      eset.add(user.unixUID)
+    })
+
+    let count = 2000
+    const alloc = () => {
+      while (eset.has(count)) count++
+      return count
+    }
+    
+    uarr.forEach(user => user.unixUID = alloc()) 
+
+    debug(list)
+
+    await collection.updateAsync(list, list)
     return new UserModel(collection)
+  }
   return null
 }
-
-// const createUserModelAsync = Promise.promisify(createUserModel)
 
 export { createUserModelAsync, createUserModel }
 

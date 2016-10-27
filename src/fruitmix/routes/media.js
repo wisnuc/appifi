@@ -7,21 +7,29 @@ const router = Router()
 
 // return meta data of all I can view
 router.get('/', auth.jwt(), (req, res) => {
-  
-  const forest = models.getModel('forest')
-  const user = req.user
+  try { 
+    const filer = models.getModel('filer')
+    const media = models.getModel('media')
+    const user = req.user
 
-  let media = forest.getMedia(user.uuid)
-  res.status(200).json(media)
+    // metamap
+    let mediaMetaMap = filer.initMediaMap(user.uuid)
+    media.fillMediaMetaMap(mediaMetaMap, user.uuid, filer)
+    res.status(200).json(Array.from(mediaMetaMap.values()))
+  }
+  catch (e) {
+    console.log(e)
+    res.status(500).end()
+  }
 })
 
 router.get('/:digest/download', auth.jwt(), (req, res) => {
 
-  const forest = models.getModel('forest')
+  const filer = models.getModel('filer')
   const user = req.user
   const digest = req.params.digest
 
-  let filepath = forest.readMedia(user.uuid, digest) 
+  let filepath = filer.readMedia(user.uuid, digest) 
 
   if (!filepath) 
     return res.status(404).json({}) 
@@ -50,10 +58,6 @@ router.get('/:digest/thumbnail', (req, res) => {
 
   const thumbnailer = models.getModel('thumbnailer')
   thumbnailer.request(digest, query, (err, ret) => {
-
-    console.log('>>>>')
-    console.log(err || ret)
-    console.log('<<<<')
 
     if (err) return res.status(500).json(err)
 

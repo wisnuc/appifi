@@ -138,7 +138,7 @@ class AppInstallTask extends task {
   }
 
   processBinds(recipeKeyString, opt) {
-
+/**
     // dirty works TODO
     if (recipeKeyString === 'dockerhub:wisnuc:sambad:latest:vanilla') {
       opt.HostConfig.Binds = [
@@ -147,7 +147,7 @@ class AppInstallTask extends task {
 
       return opt
     }
-
+**/
     if (!opt || !opt.HostConfig || !opt.HostConfig.Binds) return opt
 
     let subpath = recipeKeyString.replace(/:/g, '/') 

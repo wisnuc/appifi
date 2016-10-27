@@ -15,12 +15,12 @@ const router = Router()
 // acturally a list of folders inside the library drive
 router.get('/', auth.jwt(), (req, res) => {
 
-  const forest = Models.getModel('forest')
+  const filer = Models.getModel('filer')
 
   let userUUID = req.user.uuid
   let folderUUID = req.user.library
 
-  let list = forest.listFolder(userUUID, folderUUID)
+  let list = filer.listFolder(userUUID, folderUUID)
               .filter(n => n.type === 'folder')
               .map(n => n.uuid)
 
@@ -31,12 +31,12 @@ router.get('/', auth.jwt(), (req, res) => {
 // folder
 router.post('/', auth.jwt(), (req, res) => {
 
-  const forest = Models.getModel('forest')
+  const filer = Models.getModel('filer')
 
   let folderUUID = req.user.library
-  let node = forest.findNodeByUUID(folderUUID)
+  let node = filer.findNodeByUUID(folderUUID)
 
-  forest.createFolder(req.user.uuid, node, UUID.v4(), (err, newNode) => {
+  filer.createFolder(req.user.uuid, node, UUID.v4(), (err, newNode) => {
     if (err) return res.status(500).json({
       code: err.code,
       message: err.message
@@ -55,12 +55,12 @@ router.post('/:libUUID', auth.jwt(), (req, res) => {
 
   let repo = Models.getModel('repo')
 
-  const forest = Models.getModel('forest')
+  const filer = Models.getModel('filer')
   const log = Models.getModel('log')
   let user = req.user
   let libUUID = req.params.libUUID
 
-  let node = forest.findNodeByUUID(libUUID)
+  let node = filer.findNodeByUUID(libUUID)
 
   // FIXME node parent must be users lib
   // node must be folder
@@ -71,12 +71,12 @@ router.post('/:libUUID', auth.jwt(), (req, res) => {
   form.hash = 'sha256'
 
   form.on('field', (name, value) => {
-    console.log('field ' + name + ' ' + value)
+    // console.log('field ' + name + ' ' + value)
     if (name === 'sha256') sha256 = value
   })
 
   form.on('fileBegin', (name, file) => {
-    console.log('fileBegin ' + name)
+    // console.log('fileBegin ' + name)
     file.path = path.join(repo.getTmpFolderForNode(node), UUID.v4()) 
   })
 
@@ -91,7 +91,7 @@ router.post('/:libUUID', auth.jwt(), (req, res) => {
       })
     }
 
-    forest.createFile(user.uuid, file.path, node, `${sha256}`, (err, newNode) => {
+    filer.createFile(user.uuid, file.path, node, `${sha256}`, (err, newNode) => {
       // check error code FIXME should return success if EEXIST
       if (err) return res.status(500).json({}) // TODO
 
@@ -122,10 +122,10 @@ router.get('/:libUUID/log', auth.jwt(), (req, res) => {
   let libUUID = req.params.libUUID 
  
   let log = Models.getModel('log') 
-  let forest = Models.getModel('forest')
+  let filer = Models.getModel('filer')
   let repo = Models.getModel('repo')
 
-  let node = forest.findNodeByUUID(libUUID)
+  let node = filer.findNodeByUUID(libUUID)
   
   if (!node) return res.status(404).json({}) 
   if (node.parent.uuid !== user.library) return res.status(404).json({}) // FIXME

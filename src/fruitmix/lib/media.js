@@ -1,3 +1,4 @@
+import crypto from 'crypto'
 import EventEmitter from 'events'
 
 import UUID from 'node-uuid'
@@ -40,10 +41,18 @@ import deepEqual from 'deep-equal'
       ... // a share doc
     }
   }
+
+
 **/
 
 const isUUID = (uuid) => (typeof uuid === 'string') ? validator.isUUID(uuid) : false
 const isSHA256 = (sha256) => (typeof sha256 === 'string') ? /[a-f0-9]{64}/.test(sha256) : false
+
+const sha1comments = (comments) => {
+  let hash = crypto.createHash('sha1')
+  comments.forEach(cmt => hash.update(cmt.author + cmt.datetime + cmt.text))
+  return hash.digest('hex')
+}
 
 // this function generate a mediashare doc
 const createMediaShareDoc = (userUUID, obj) => {
@@ -141,7 +150,6 @@ const sortDedup = (isType) => {
       .filter((item, index, arr) => !index || item !== arr[index - 1])
   }
 }
-
 
 const subtractUUIDArray = (a, b) => {
  
@@ -280,7 +288,7 @@ const updateMediaShareDoc = (userUUID, doc, ops) => {
     doctype: doc.doctype,
     docversion: doc.docversion,
     uuid: doc.uuid,
-    author: doc.userUUID,
+    author: doc.author,
     maintainers,
     viewers,
     album,
@@ -290,10 +298,57 @@ const updateMediaShareDoc = (userUUID, doc, ops) => {
     contents
   }
 
-  // console.log(update)
   return update
 }
 
+const userViewable = (share, userUUID) => 
+  (share.doc.author === userUUID ||
+    share.doc.maintainers.indexOf(userUUID) !== -1 ||
+    share.doc.viewers.indexOf(userUUID) !== -1)
+
+
+/** 
+
+  The structure of a mediaTalk object should be
+
+  {
+    doc: {
+      owner: <UUID, string>,
+      digest: <SHA256, string>,
+      comments: [ // sorted by time
+        {
+          author: <UUID, string>,
+          time: <Integer, number>,
+          text: <String>
+        },
+        ...
+      ]
+    },
+    commentHashMap: null or Map(), author => comment hash    
+    digest: document hash
+  }
+
+  the property inside doc should be structurally stable (canonicalized)
+  the comments should be sorted in creation order (not strictly by time, if time is wrong)
+
+**/
+
+
+
+/*****************************************************************************
+
+  shareMap is something like uuid map in forest
+
+    share.doc.uuid => share
+
+  mediaMap is like the digeset => digestObj map in forest, instead of array 
+  for nodes, it uses JavaScript Set as collection object for shares
+
+    for each item in a share's contents array
+
+    item.digest => shareSet, which is collections of share  
+
+ *****************************************************************************/
 class Media extends EventEmitter {
 
   // shareMap stores uuid (key) => share (value)
@@ -309,20 +364,94 @@ class Media extends EventEmitter {
     this.shareMap = new Map()
     // using an map instead of an array
     this.mediaMap = new Map()
+
     // each (local) talk has its creator and media digest, as its unique identifier
     this.talks = []
+
+    // 
+    // suspicious
+    //
     // each remote talk has its viewer (a local user), creator, and media digest, as its unique identifier
     this.remoteMap = new Map()      // user -> user's remote talks
-                                    // each talsk has creator and media digest as its unique identifier
+                                    // each talk has creator and media digest as its unique identifier
+
+    // when user V retrieve talks
+    // traverse all talks 
+    // supposing talk has owner U and digest D
+    //   traversing shareSet from mediaMap D => shareSet
+    //   if a share author = U, with V as viewable, then add all viewers for this set to SET
+    //   this new SET(U, D) containers all authors whose comments can be viewed by V.
+    // then XOR hash of user belong to such set 
+
+    // then should we differentiate local and remote users? I think not.
+ 
+  }
+
+  getTalks(userUUID) {
+
+    const SHA1 = (comments) => {
+
+      let hash = crypto.createHash('sha1')
+
+      filtered.forEach(cmt => {
+        hash.update(cmt.author)
+        hash.update(cmt.datetime)
+        hash.update(cmt.text)
+      })
+
+      return hash.digest('hex')
+    }
+
+    let arr = []
+    this.talks.forEach(talk => {
+
+      let { owner, digest } = talk.doc 
+      if (owner === userUUID) {
+        arr.push({ owner, digest, comments: talk.doc.comments, sha1: SHA1(talk.doc.comments) })
+      }
+      else {
+
+        let shareSet = this.mediaMap.get(digest)      
+        if (!shareSet) return     
+
+        // fellows (mutual, reciprocal.... see thesaurus.com for more approriate words)
+        let fellows = new Set()
+        shareSet.forEach(share => {
+          if (owner === share.doc.author && userViewable(share, userUUID)) {
+            fellows.add(share.doc.author)
+            share.doc.maintainers.forEach(u => fellows.add(u))
+            share.doc.viewers.forEach(u => fellows.add(u))
+          }
+        })
+
+        // the talk owner did not share anything with you, otherwise, at least himself and you will
+        // be in fellows
+        if (fellows.size === 0) return
+
+        let comments = talk.doc.comments.filter(cmt => fellows.has(cmt.author))
+        let sha1 = SHA1(comments) 
+        arr.push({ owner, digest, comments: comments, sha1 })
+      }
+       
+    })
+
+    return arr
   }
 
   load() {
+
     this.shareStore.retrieveAll((err, shares) => {
       shares.forEach(share => {
         this.indexShare(share)
       })
       this.emit('shareStoreLoaded')
     }) 
+
+    this.talkStore.retrieveAll((err, talks) => {
+      talks.forEach(talk => {
+        this.indexTalk(talk)
+      })
+    })
   }
 
   // add a share to index maps
@@ -411,8 +540,8 @@ class Media extends EventEmitter {
   }
 
   // my share is the one I myself is the creator
-  // locally shared to me is the one that I am the viewer but not creator, the creator is a local user
-  // remotely shared to me is the one that I am the viewer but not creator, the creator is a remote user
+  // locally shared with me is the one that I am the viewer but not creator, the creator is a local user
+  // remotely shared with me is the one that I am the viewer but not creator, the creator is a remote user
   getUserShares(userUUID) {
 
     let shares = []
@@ -438,6 +567,157 @@ class Media extends EventEmitter {
       // push to queue
     })
     return localTalks + remoteTalks
+  }
+
+  fillMediaMetaMap(mediaMap, userUUID, filer) {
+
+    this.mediaMap.forEach((shareSet, digest) => {
+
+      let digestObj = filer.hashMap.get(digest)
+      if (!digestObj) return
+      
+      let shareArr = Array.from(shareSet)
+     
+      // sharedWithOthers if author === userUUID && readable(userUUID), sharedWithOthers 
+      // sharedWithMe if author !== userUUID && userUUID viewable && readable(
+      let viewable = false
+      let swo = false
+      let swm = false
+
+      for (let i = 0; i < shareArr.length; i++) {
+
+        if (viewable && swo && swm) 
+          break
+
+        if (userViewable(shareArr[i], userUUID))
+          viewable = true
+        else
+          continue
+
+        let contents = shareArr[i].doc.contents
+        
+        if (!swo && mediaMap.has(digest)) {
+          if (contents.find(c => c.digest === digest && c.creator === userUUID)) swo = true
+        }
+
+        if (!swm) {
+          if (contents.find(c => c.digest === digest && c.creator !== userUUID && filer.mediaUserReadable(digest, c.creator))) 
+            swm = true
+        }
+      }
+
+      if (viewable) {
+        let obj = mediaMap.get(digest)    
+        if (obj) {
+          obj.sharing = 1 | (swo ? 2 : 0) | (swm ? 4 : 0)
+        }
+        else {
+          obj = { digest, type: digestObj.type, meta: digestObj.meta }
+          obj.sharing = swm ? 4 : 0
+          mediaMap.set(digest, obj)
+        }
+      }
+    })
+  }
+
+  /////////////////////////////////////////////////////////////////////////////
+
+  fellowSet(userUUID, owner, digest) {
+
+    let fellows = new Set()
+    
+    let shareSet = this.mediaMap.get(digest)
+    if (!shareSet) return fellows
+
+    shareSet.forEach(share => {
+      if (owner === share.doc.author && userViewable(share, userUUID)) {
+        fellows.add(share.doc.author)
+        share.doc.maintainers.forEach(u => follows.add(u))
+        share.doc.viewers.forEach(u => fellows.add(u))
+      }
+    }) 
+
+    return fellows
+  }
+
+  retrieveTalk(userUUID, owner, digest) {
+  
+    let talk = this.talks.find(t => 
+      t.doc.owner === owner && t.doc.digest === digest)
+
+    if (!talk) return
+
+    let fellows = this.fellowSet(userUUID, owner, digest)
+
+    if (userUUID === owner) fellows.add(userUUID)
+
+    let comments = talk.doc.comments.filter(cmt => fellows.has(cmt.author))
+    let sha1 = sha1comments(comments)
+    return { owner, digest, comments, sha1 }
+  }
+
+  addComment(userUUID, owner, digest, text, callback) {
+
+    // first, there exists a photo with given digest for owner (no it is bypassed) TODO
+    // second, there exists a share that AUTHORIZE userUUID to comment on such photo
+
+    let talk
+
+    if (userUUID === owner)  {
+    }
+    else {
+      let shareSet = this.mediaMap.get(digest)
+      if (!shareSet) return callback(new Error('not found'))
+
+
+      let allowed = Array.from(shareSet).find(share => {
+        return share.doc.author === owner || userViewable(share, userUUID)
+      })
+
+      if (!allowed) return callback(new Error('not permitted')) 
+
+      talk = this.talks.find(talk => 
+        talk.doc.owner === owner && talk.doc.digest === digest)
+    }
+
+    let doc
+    if (talk) {
+      // found 
+      doc = {
+        owner: doc.owner,
+        digest: doc.digest,
+        comments: [...doc.comments, {
+          author: userUUID,
+          datetime: new Date().toJSON(),
+          text 
+        }]
+      }
+
+      this.talkStore.store(doc, (err, dgdoc) => {
+        if (err) return callback(err)
+        talk.digest = dgdoc.digest
+        talk.doc = dgdoc.doc
+        callback(null, this.retrieveTalk(userUUID, owner, digeset))
+      })
+    }
+    else {
+     
+      doc = {
+        owner,
+        digest,
+        comments: [{
+          author: userUUID,
+          datetime: new Date().toJSON(),
+          text
+        }] 
+      } 
+
+      this.talkStore.store(doc, (err, newtalk) => {
+        if (err) return callback(err)
+        this.talks.push(newtalk)
+        callback(null, this.retrieveTalk(userUUID, owner, digest))
+      })
+    }
   }
 }
 

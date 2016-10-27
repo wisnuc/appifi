@@ -12,6 +12,7 @@ import init from './routes/init'
 import users from './routes/users'
 import login from './routes/login'
 import files from './routes/files'
+import meta from './routes/meta'
 import share from './routes/share'
 import drives from './routes/drives'
 import libraries from './routes/libraries'
@@ -25,14 +26,16 @@ let app = express()
 
 let env = app.get('env')
 if (env !== 'production' && env !== 'development' && env !== 'test') {
-  console.log('Unrecognized NODE_ENV string: ' + env +', exit')
+  console.log('[fruitmix] Unrecognized NODE_ENV string: ' + env +', exit')
   process.exit(1)
 } else {
-  console.log('NODE_ENV is set to ' + env)
+  console.log('[fruitmix] NODE_ENV is set to ' + env)
 }
 
-// TODO: logger should be moved to main
-if (env !== 'test') app.use(logger('dev'))
+app.use(logger('dev', {
+  skip: (req, res) => res.nolog === true
+}))
+
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: false }))
 app.use(auth.init())
@@ -48,6 +51,7 @@ app.use('/users', users)
 app.use('/libraries', libraries)
 app.use('/drives', drives)
 app.use('/files', files)
+app.use('/meta', meta)
 app.use('/share', share)
 app.use('/media', media)
 app.use('/mediashare', mediashare)

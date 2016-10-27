@@ -1,17 +1,16 @@
 import path from 'path'
 import crypto from 'crypto'
 
-import Promise from 'bluebird'
-
 import { expect } from 'chai'
 import UUID from 'node-uuid'
 import validator from 'validator'
 
 import mkdirp from 'mkdirp' // FIXME
+import rimraf from 'rimraf'
 
 import uuids from '../util/uuids'
 import { rimrafAsync, mkdirpAsync, fs, xattr } from '../util/async'
-import { createDrive } from 'src/fruitmix/lib/drive'
+import { createFiler } from 'src/fruitmix/lib/filer'
 
 const uuid1 = 'c0765cd5-acd1-4b53-bb17-7834ebdca6c1' 
 const uuid2 = 'd7114148-e2bd-42f8-88f9-a980a1a4d29c' 
@@ -52,28 +51,6 @@ const variable01 = {
 
 describe(path.basename(__filename), function() {
 
-  describe('test attach drive', function() {
-
-    beforeEach(function() {
-      
-    })
-
-    it('should have a root with given props, and path', function() {
-      
-      let props = {
-        uuid: uuid1,
-        type: 'folder',
-        owner: [uuid2],
-        writelist:[uuid3],
-        readlist:[uuid4],
-        name: path.join(cwd, 'tmptest')
-      } 
-  
-      let ffs = createDrive()
-      ffs.attachDrive(props)
-    })    
-  })
-
   describe('test cache for drive', function() {
 
     let { uuid, owner, writelist, readlist } = fixed01
@@ -106,9 +83,10 @@ describe(path.basename(__filename), function() {
             name: path.join(cwd, 'tmptest')
           } 
 
-          let ffs = createDrive()
-          let node = ffs.createNode(null, props)
-          ffs.scan(node, () => {
+          let ffs = createFiler()
+          let node = ffs.createRoot(props)
+
+          ffs.on('probeStopped', () => {
             let arr = []
             node.preVisit(n => {
               arr.push({
@@ -151,16 +129,16 @@ describe(path.basename(__filename), function() {
 
     let ffs, root
   
-    beforeEach(function() {
-      return (async () => {
-        await rimrafAsync('tmptest')
-        await mkdirpAsync('tmptest/folder1/folder2')
-        await mkdirpAsync('tmptest/folder3')
-        ffs = createDrive()
-        root = ffs.createNode(null, driveProps)
-        await new Promise(resolve => ffs.scan(root, () => resolve()))
-      })()
-    })
+    beforeEach(() => (async () => {
+
+      await rimrafAsync('tmptest')
+      await mkdirpAsync('tmptest/folder1/folder2')
+      await mkdirpAsync('tmptest/folder3')
+      ffs = createFiler()
+      root = ffs.createRoot(driveProps)
+      await Promise.promisify(callback => ffs.on('probeStopped', () => callback()))()
+
+    })())
 
     it('creating a folder in root by drive owner should return dir node with name, undefined wr list, and drive owner as owner', function(done) {
 
@@ -270,74 +248,6 @@ describe(path.basename(__filename), function() {
       }) 
     })
   })
-/**
-  describe('test import file', function() {
-    
-    let drive
-
-    beforeEach(function(done) {
-      rimrafAsync('tmptest')
-        .then(() => mkdirpAsync('tmptest/driveroot/folder1'))
-        .then(() => mkdirpAsync('tmptest/tmp'))
-        .then(() => fs.writeFileAsync('tmptest/tmp/testfile', 'hello world'))
-        .then(() => {
-          drive = createDrive(fixed01)
-          drive.on('driveCached', drv => {
-            done()
-          })
-          drive.setRootpath(path.join(cwd, 'tmptest/driveroot'))
-        })
-        .catch(e => done(e))
-    })
-
-    afterEach(function() {
-      drive = undefined
-    })
-
-    it('should import a new file into root folder', function(done) {
-      let srcpath = path.join(cwd, 'tmptest/tmp/testfile')
-      let dstpath = path.join(cwd, 'tmptest/driveroot/test')
-      drive.importFile(uuid1, srcpath, drive.root, 'test', (err, node) => {
-        expect(node.parent).to.equal(drive.root)
-        expect(node.name).to.equal('test')
-        expect(node.owner).to.deep.equal([uuid1])
-        expect(node.hasOwnProperty('writelist')).to.be.false
-        expect(node.hasOwnProperty('readlist')).to.be.false
-
-        xattr.get(dstpath, 'user.fruitmix', (err, attr) => {
-          if (err) return done(err)
-          expect(JSON.parse(attr)).to.deep.equal({
-            owner: [uuid1],
-            uuid: node.uuid
-          })
-          done()
-        })
-      })
-    })
-
-    it('should import a new file into non-root folder', function(done) {
-      let srcpath = path.join(cwd, 'tmptest/tmp/testfile')
-      let dstpath = path.join(cwd, 'tmptest/driveroot/folder1/test')
-      let folder1 = drive.root.children[0]
-      drive.importFile(uuid1, srcpath, folder1, 'test', (err, node) => {
-        expect(node.parent).to.equal(folder1)
-        expect(node.name).to.equal('test')
-        expect(node.owner).to.deep.equal([uuid1])
-        expect(node.hasOwnProperty('writelist')).to.be.false
-        expect(node.hasOwnProperty('readlist')).to.be.false
-
-        xattr.get(dstpath, 'user.fruitmix', (err, attr) => {
-          if (err) return done(err)
-          expect(JSON.parse(attr)).to.deep.equal({
-            owner: [uuid1],
-            uuid: node.uuid
-          })
-          done()
-        })
-      })
-    })
-  })
-**/
-  /* end of all groups */
 })
+
 

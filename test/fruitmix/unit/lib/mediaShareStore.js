@@ -1,9 +1,9 @@
 import path from 'path'
 import crypto from 'crypto'
 
-import Promise from 'bluebird'
 import { expect } from 'chai'
 import { rimrafAsync, mkdirpAsync, fs } from 'src/fruitmix/util/async'
+import paths from 'src/fruitmix/lib/paths'
 
 import { createDocumentStore } from 'src/fruitmix/lib/documentStore'
 import { createMediaShareStore } from 'src/fruitmix/lib/mediaShareStore'
@@ -11,10 +11,10 @@ import { createMediaShareStore } from 'src/fruitmix/lib/mediaShareStore'
 describe(path.basename(__filename), function() {
 
   const cwd = process.cwd()
-  const docroot = path.join(cwd, 'tmptest', 'documents')
-  const arcroot = path.join(cwd, 'tmptest', 'archive')
-  const msroot = path.join(cwd, 'tmptest', 'mediashare')
-  const tmpdir = path.join(cwd, 'tmptest', 'tmp')
+  let docroot = path.join(cwd, 'tmptest', 'documents')
+  let arcroot = path.join(cwd, 'tmptest', 'mediashareArchive')
+  let msroot = path.join(cwd, 'tmptest', 'mediashare')
+  let tmpdir = path.join(cwd, 'tmptest', 'tmp')
 
   const createDocumentStoreAsync = Promise.promisify(createDocumentStore)
 
@@ -32,21 +32,23 @@ describe(path.basename(__filename), function() {
     m: 'hello',
     n: 'world'
   }
-  const share002Hash = '143bc7717d46e797418c7ebc9aff5fbe038028b727d4bae7315ad5f85504d9e3'
+
+// hash changed after documentStore using canonical-json
+//  const share002Hash = '143bc7717d46e797418c7ebc9aff5fbe038028b727d4bae7315ad5f85504d9e3'
+  const share002Hash = '018ceb737f51bf1b8fc9626ab36f9a92907a52d05a7e5574e35c3fd5240908ba'
   
-  beforeEach(function() {
-    return (async () => {
-      await rimrafAsync(path.join(cwd, 'tmptest'))
-      await mkdirpAsync(docroot)
-      await mkdirpAsync(arcroot)
-      await mkdirpAsync(msroot)
-      await mkdirpAsync(tmpdir)
-      docstore = await createDocumentStoreAsync(docroot, tmpdir)
-    })()
-  })
+  beforeEach(() => (async () => {
+
+    let root = path.join(cwd, 'tmptest')
+    await rimrafAsync(root)
+    await paths.setRootAsync(root)
+    docstore = await createDocumentStoreAsync()
+
+  })())
 
   it('should create a mediashare store (nonsense example)', function() {
-    let mstore = createMediaShareStore(msroot, arcroot, tmpdir, docstore)
+
+    let mstore = createMediaShareStore(docstore)
     expect(mstore.rootdir).to.equal(msroot) 
     expect(mstore.arcdir).to.equal(arcroot)
     expect(mstore.tmpdir).to.equal(tmpdir)
@@ -54,7 +56,7 @@ describe(path.basename(__filename), function() {
   })
 
   it('should store share001 with correct ref file', function(done) {
-    let mstore = createMediaShareStore(msroot, arcroot, tmpdir, docstore)
+    let mstore = createMediaShareStore(docstore)
     mstore.store(share001, err => {
       if (err) return done(err)
       let refpath = path.join(msroot, share001.uuid)
@@ -67,7 +69,7 @@ describe(path.basename(__filename), function() {
   })
 
   it('should store share001 in docstore', function(done) {
-    let mstore = createMediaShareStore(msroot, arcroot, tmpdir, docstore)
+    let mstore = createMediaShareStore(docstore)
     mstore.store(share001, err => {
       if (err) return done(err)
       docstore.retrieve(share001Hash, (err, object) => {
@@ -79,7 +81,7 @@ describe(path.basename(__filename), function() {
   })
 
   it('should store share001 and return share (object)', function(done) {
-    let mstore = createMediaShareStore(msroot, arcroot, tmpdir, docstore)
+    let mstore = createMediaShareStore(docstore)
     mstore.store(share001, (err, share) => {
       if (err) return done(err)
       expect(share.digest).to.equal(share001Hash)
@@ -89,7 +91,7 @@ describe(path.basename(__filename), function() {
   })
 
   it('archive should remove share001 ref out of root folder', function(done) {
-    let mstore = createMediaShareStore(msroot, arcroot, tmpdir, docstore)
+    let mstore = createMediaShareStore(docstore)
     mstore.store(share001, (err, share) => {
       if (err) return done(err)
       mstore.archive(share001.uuid, err => {
@@ -105,7 +107,7 @@ describe(path.basename(__filename), function() {
   })
 
   it('archive should move share001 ref to archive folder', function(done) {
-    let mstore = createMediaShareStore(msroot, arcroot, tmpdir, docstore)
+    let mstore = createMediaShareStore(docstore)
     mstore.store(share001, (err, share) => {
       if (err) return done(err)
       mstore.archive(share001.uuid, err => {
@@ -121,7 +123,7 @@ describe(path.basename(__filename), function() {
   })
 
   it('should retrieve share001 back with uuid', function(done) {
-    let mstore = createMediaShareStore(msroot, arcroot, tmpdir, docstore)
+    let mstore = createMediaShareStore(docstore)
     mstore.store(share001, err => {
       if (err) return done(err)
       mstore.retrieve(share001.uuid, (err, object) => {
@@ -136,7 +138,7 @@ describe(path.basename(__filename), function() {
   })
 
   it('should retrieve share001 and share002 by retrieve all', function(done) {
-    let mstore = createMediaShareStore(msroot, arcroot, tmpdir, docstore) 
+    let mstore = createMediaShareStore(docstore) 
     mstore.store(share001, err => {
       if (err) return done(err)
       mstore.store(share002, err => {
