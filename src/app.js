@@ -74,11 +74,7 @@ const tryBoot = () => {
 
   let bootMode = sysconfig.get('bootMode')
   let lastFileSystem = sysconfig.get('lastFileSystem')
-
-  debug(storeState().storage)
-
   let { blocks, volumes } = storeState().storage
-
 
   if (bootMode === 'maintenance') {
 
@@ -91,9 +87,6 @@ const tryBoot = () => {
       lastFileSystem
     }
   }
-
-  debug('blocks', blocks)
-  debug('volumes', volumes)
 
   // find all file systems, including unmounted, missing, etc.
   let fileSystems = [...blocks.filter(blk => blk.stats.isFileSystem && !blk.stats.isVolume),  
@@ -182,7 +175,7 @@ const tryBoot = () => {
 refreshStorage().asCallback(err => {
 
   if (err) {
-    console.log('failed to init storage, exit')
+    console.log('[app] failed to init storage, exit')
     console.log(err)
     process.exit(1) 
   }

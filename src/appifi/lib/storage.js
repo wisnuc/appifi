@@ -98,7 +98,7 @@ const mountVolumeAsync = async (uuid, mountpoint, opts) => {
 
   await mkdirpAsync(mountpoint)
   let cmd = opts ? 
-    `mount -t btrfs -o {opts} UUID=${uuid} ${mountpoint}` :
+    `mount -t btrfs -o ${opts} UUID=${uuid} ${mountpoint}` :
     `mount -t btrfs UUID=${uuid} ${mountpoint}`
 
   await child.execAsync(cmd) 
@@ -256,7 +256,7 @@ const statBlocks = (storage) => {
         blk.stats.partitionTableUUID = blk.props.id_part_table_uuid
       }
       else {
-        blk.stats.noKnownFileSystemOrPartitionDetected = true
+        blk.stats.Unrecognized = true
       }
     } // end of 'device is disk'
     else if (blk.props.devtype === 'partition') { // is partitioned
