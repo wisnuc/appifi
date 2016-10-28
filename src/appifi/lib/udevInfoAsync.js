@@ -82,17 +82,9 @@ const udevInfoBoth = async (sysfspath) => {
   return Object.assign({}, info, {sysfsProps: attr})
 }
 
-const udevInfoBatch = async (paths) => {
+const udevInfoBatch = async (paths) => 
+  Promise.all(paths.map(path => udevInfoBoth(path)))
 
-  let e = new Error('paths must be non-empty string array')
-  e.code = 'EINVAL'
-
-  if (!Array.isArray(paths)) throw e
-  if (!paths.length) throw e
-  if (!paths.every(path => (typeof path === 'string' || path instanceof String))) throw e
-  
-  return  Promise.all(paths.map(path => udevInfoBoth(path)))
-}
 
 module.exports = udevInfoBatch
 

@@ -71,6 +71,18 @@ process.argv.forEach((val, index, array) => {
   }
 })
 
-tryBoot(err => err ? process.exit(1) : startServer())
+tryBoot(err => {
+
+  if (err) {
+    console.log('[app] failed to boot')
+    console.log('==== die ====')
+    console.log(err)
+    console.log('==== die ====')
+    process.exit(1)
+    return
+  }
+
+  startServer()
+})
 
 
