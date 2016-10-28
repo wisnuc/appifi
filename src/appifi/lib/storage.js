@@ -207,7 +207,7 @@ const statBlocks = (storage) => {
     if (blk.props.devtype === 'disk') { // start of device is disk
       blk.stats.isDisk = true
 
-      // TODO id_part_table_type override id_fs_usage, to fix #16, not sure
+      // id_part_table_type override id_fs_usage, to fix #16
       if (blk.props.id_part_table_type) { // is partitioned disk
         blk.stats.isPartitioned = true
         blk.stats.partitionTableType = blk.props.id_part_table_type
