@@ -328,7 +328,45 @@ const createUserModelAsync = async (filepath, tmpfolder) => {
   return null
 }
 
-export { createUserModelAsync, createUserModel }
+// external use
+const createFirstUser = (mp, username, password, callback) => {
+
+  let salt = bcrypt.genSaltSync(10)
+  let encrypted = bcrypt.hashSync(password, salt)
+  let md4 = md4Encrypt(password)
+
+  let users = [
+    {
+      type: 'local',
+      uuid: UUID.v4(),
+      username,
+      password: encrypted,
+      smbPassword: md4, 
+      smbLastChangeTime: new Date().getTime(),
+      avatar: null,
+      email: null,
+      isAdmin: true,
+      isFirstUser: true,
+      home: UUID.v4(),
+      library: UUID.v4()
+    } 
+  ]
+
+  debug('creating first user', users[0])
+
+  let dir = path.join(mp, 'wisnuc', 'fruitmix', 'models')
+  mkdirp(dir, err => {
+
+    if (err) return callback(err)
+    fs.writeFile(path.join(dir, 'users.json'), 
+      JSON.stringify(users, null, '  '), err => {
+      
+      err ? callback(err) : callback(null, users[0])
+    })
+  })
+}
+
+export { createUserModelAsync, createUserModel, createFirstUser }
 
 
 

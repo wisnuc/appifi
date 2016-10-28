@@ -59,18 +59,10 @@ const initAsync = async (sysroot) => {
 
   let media = createMedia(msstore, mtstore)
   models.setModel('media', media)
-
-}
-
-const deinit = () => {
-  // there will be race conditon !!! FIXME
-  models.clear()
-  paths.unsetRoot()  
 }
 
 export default {
   init: (sysroot, callback) => initAsync(sysroot).asCallback(callback),
-  deinit
 }
 
 

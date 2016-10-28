@@ -1,11 +1,10 @@
 import path from 'path'
 import express from 'express'
 import validator from 'validator'
-
-import { storeState, storeDispatch } from '../appifi/lib/reducers' 
-
 import Debug from 'debug'
 const debug = Debug('system:mir')
+import { storeState, storeDispatch } from '../appifi/lib/reducers' 
+import { formattable, makeBtrfs } from '../appifi/lib/storage'
 
 const router = express.Router()
 
@@ -175,10 +174,6 @@ router.post('/', (req, res) => {
     })
   }
 
-  const runWisnuc = (mp, init) => {
-        
-  }
-
   const mir = req.body 
   const storage = storeState().storage
 
@@ -261,31 +256,51 @@ router.post('/', (req, res) => {
 
     let { blocks } = storage
 
+    if (mkfs.type !== 'btrfs' && mkfs.type !== 'ext4' && mkfs.type !== 'ntfs')
+      return R(res)(400, `mkfs.type must be btrfs, ext4 or ntfs`)
+
     // if mkfs type is btrfs
     //   target must be 1 - n disk
     // if mkfs type is ntfs or ext4
     //   target must be single disk or partition
     if (mkfs.type === 'btrfs') {
 
+      if (target.length === 1) {
+        if (mkfs.mode !== 'single')
+          return R(res)(400, `mkfs.mode can only be single if only one disk provided`)
+      }
+      else {
+        if (['single', 'raid0', 'raid1'].indexOf(mkfs.mode) === -1)
+          return R(res)(400, `mkfs.mode can only be single, raid0, or raid1`)
+      }
+
       for (let i = 0; i < target.length; i++) {
 
         let name = target[i]
         let block = blocks.find(blk => blk.name === name) 
+        debug('block', block)
+
         if (!block) return R(res)(404, `block device ${name} not found`)
-        if (!block.isDisk) return R(res)(405, `block device ${name} is not a disk`)
+        if (!block.stats.isDisk) return R(res)(405, `block device ${name} is not a disk`)
 
         let reason = formattable(block)  
         if (reason) return R(res)(405, `block device ${name} cannot be formatted`, reason)
 
       }   
 
-      makeBtrfs(target, mode, err => {
+      makeBtrfs(target, mkfs.mode, err => {
 
-        refreshStorage().asCallback(() => {})
-        if (err)
-          return R(res)(500, err)
-        else
-          return R(res)(200, 'success')
+        if (err) return R(res)(500, err)        
+
+        blocks = storeState().storage.blocks
+        volumes = storeState().storage.volumes
+
+        let block = blocks.find(blk => blk.stats.devname === target[0])
+        let uuid = block.stats.fileSystemUUID
+        let volume = volumes.find(vol => vol.uuid === uuid)
+        let mp = volume.stats.mountpoint
+
+         
       })            
     }
     else if (mkfs.type === 'ntfs' || mkfs.type === 'ext4') {

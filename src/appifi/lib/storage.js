@@ -3,6 +3,7 @@ import fs from 'fs'
 import child from 'child_process'
 import mkdirp from 'mkdirp'
 import rimraf from 'rimraf'
+import UUID from 'node-uuid'
 
 // TODO
 Promise.promisifyAll(child)
@@ -22,6 +23,7 @@ const probeSwaps = require('./procSwapsAsync')
 const probeVolumes = require('./btrfsfishowAsync')
 const probeUsage = require('./btrfsusageAsync')
 import { createUdevMonitor } from '../../system/udevMonitor'
+import { createFirstUser } from '../../fruitmix/models/userModel'
 
 function info(text) {
   console.log(`[storage] ${text}`)
@@ -587,7 +589,9 @@ async function createVolume(blknames, opts) {
 //   disk: block is a disk containing standalone file system (devname)
 //   partition: block is either a partition or a partitioned disk, containing a partition
 //              with given type of problem. 
-const formattable = (block) => {
+export const formattable = (block) => {
+
+  let { blocks, volumes } = storeState().storage
 
   if (block.stats.isDisk) {
 
@@ -731,7 +735,7 @@ const umountBlocks = async (target) => {
   //  umount non-usb by normal umount
   let i
   for (i = 0; i < mvols.length; i++) {
-    debug(`un-mounting volume ${mvol[i].uuid}`)
+    debug(`un-mounting volume ${mvols[i].uuid}`)
     await umountAsync(mvols[i].stats.mountpoint)
   }
 
@@ -746,52 +750,97 @@ const umountBlocks = async (target) => {
   }
 }
 
-const makeBtrfs = (target, mode, callback) => {
+export const makeBtrfs = (target, mode, callback) => {
 
   umountBlocks(target).asCallback(err => {
+
     if (err) return callback(err)
 
     let storage = storeState().storage
     let blocks = storage.blocks 
 
-    let devices = target
-                    .map(name => blocks.find(blk => blk.name === name))
-                    .map(blk => blk.name)
+    let devices = target.map(name => 
+      blocks.find(blk => blk.name === name).props.devname)
+    debug('devices', devices)
 
     let cmd = `mkfs.btrfs -d ${mode} -f ${devices.join(' ')}`
     child.exec(cmd, (err, stdout, stderr) => {
+
       debug('make btrfs', cmd, stdout, stderr)
-      callback(err)
+      
+      refreshStorage().asCallback(err => callback(err))
     })   
   })
 }
 
-const makeExt4 = (target, callback) => {
+const installFruitmixAsync = async (mp, init) => {
 
-  unmountBlocks(target).asCallback(err => {
-    if (err) return callback(err)
+  await mkdirp(path.join(mp, 'wisnuc', 'fruitmix', 'models'))
+  await mkdirp(path.join(mp, 'wisnuc', 'fruitmix', 'drives'))
 
-    // child.exec(`mkfs.btrfs 
-  })
+  let first = await Promise.promisify(createFirstUser)(mp, init.username, init.password)
+
+  let drives = [
+    {
+      label: `${init.username}-drive`,
+      fixedOwner: true,
+      URI: 'fruitmix', 
+      uuid: first.home,
+      owner: [first.uuid],
+      writelist: [],
+      readlist: [],
+      cache: true
+    },
+    {
+      label: `${init.username}-library`,
+      fixedOwner: true,
+      URI: 'fruitmix', 
+      uuid: first.library,
+      owner: [first.uuid],
+      writelist: [],
+      readlist: [],
+      cache: true
+    }
+  ]
+
+  await mkdirp(path.join(mp, 'wisnuc', 'fruitmix', 'drives', homeUUID))
+  await mkdirp(path.join(mp, 'wisnuc', 'fruitmix', 'drives', libraryUUID))
+
+  let modelFile = path.join(mp, 'wisnuc', 'fruitmix', 'models', 'drives.json')
+
+  await mkdirpAsync(path.dirname(modelFile))
+  await fs.writeFileAsync(modelFile, JSON.stringify(drives, null, '  '))
 }
 
-const mkfsBtrfs = async (target, opts) => {
+const mkfsBtrfsAsync = async (target, mode, init) => {
 
-  await refreshStorage() // with stats decoration
-  
-  let { blocks, } = storeState().storage
- 
-  debug('mkfsBtrfs', target, opts)
+  debug('mkfsBtrfs', target, mode)
 
   target = Array.from(new Set(target)).sort()
 
+  await refreshStorage()
   let err = validateBtrfsCandidates(target)
   if (err) throw err
  
   await umountBlocks(target)
+  await child.execAsync(`mkfs.btrfs -d ${mode} -f ${devnames.join(' ')}`)
+  await refreshStorage()
+
+  let blocks = storeState().storage.blocks
+  let block = blocks.find(blk => blk.stats.name === target[0])
+  let uuid = block.stats.fileSystemUUID
+  let volume = volumes.find(vol => vol.uuid === uuid)
+  let mp = volume.stats.mountpoint
 
   debug('mkfsBtrfs success')
+
+  await installFruitmixAsync(mp, init) 
+
+  debug('fruitmix installed')  
 }
+
+export const mkfsBtrfs = (target, mode, init, callback) =>
+  mkfsBtrfsAsync(target, mode, init).asCallback(callback)
 
 const mkfsExt4 = async (target, opts) => {
 

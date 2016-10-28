@@ -5,13 +5,13 @@ import EventEmitter from 'events'
 import dgram from 'dgram'
 
 import Debug from 'debug'
-const debug = Debug('fruitmix:smbaudit')
+const debug = Debug('fruitmix:samba')
 
 import paths from './paths'
 import models from '../models/models'
 
-const logConfigPath = '/etc/rsyslog.d/99-smbaudit.conf'
-const logConfig = 'LOCAL7.*    @127.0.0.1:3721'
+Promise.promisifyAll(fs)
+Promise.promisifyAll(child)
 
 const userList = () => 
   models.getModel('user').collection.list.filter(user => user.type === 'local')
@@ -239,35 +239,6 @@ const generateSmbConf = () => {
   let conf = global
   shareList().forEach(share => conf += section(share))
 
-//  fs.writeFile(
-}
-
-// samba
-const detectSamba = (callback) => 
-  child.exec('systemctl start nmbd', err => 
-    err ? callback(err) : child.exec('systemctl start smbd', err => callback(err)))
-
-// rsyslog
-const detectRsyslog = (callback) => {
-
-  const configRsyslog = () =>
-    fs.writeFile(logConfigPath, logConfig, err => 
-      err ? callback(err) : child.exec('systemctl restart rsyslog', err => callback(err)))
-
-  fs.readFile(logConfigPath, (err, data) => {
-    if (err) {
-      if (err.code === 'ENOENT')
-        configRsyslog()
-      else
-        callback(err)
-      return
-    }
-
-    if (data.toString() === logConfig) 
-      return callback(null)
-
-    configRsyslog()  
-  })
 }
 
 class SmbAudit extends EventEmitter {
@@ -344,11 +315,44 @@ class SmbAudit extends EventEmitter {
   }
 }
 
-export const smbUpdate = (callback) => {
+const startSamba = async () => {
 
-  
+  const logConfigPath = '/etc/rsyslog.d/99-smbaudit.conf'
+  const logConfig = 'LOCAL7.*    @127.0.0.1:3721'
+
+  // update rsyslog config if necessary
+  let config = null
+  try { config = await fs.readFileAsync(logConfigPath) } catch (e) {}
+  if (config !== logConfig) {
+    await fs.writeFileAsync(logConfigPath, logConfig)  
+    await child.execAsync('systemctl restart rsyslog')
+  }
+
+  await child.execAsync('systemctl start nmbd')
+  await child.execAsync('systemctl start smbd')
 }
 
+const createUdpServer = (callback) => {
+
+  let udp = dgram.createSocket('udp4')
+  udp.on('listening', () => {
+    callback(null, new SmbAudit(udp))
+  }) 
+ 
+  udp.once('error', err => {
+    if (err.code === 'EADDRINUSE') callback(err)
+  }) 
+  udp.bind(3721)
+}
+
+const createSmbAuditAsync = async () => {
+
+  await startSamba()
+  let udp = await Promise.promisify(createUdpServer)()
+  return new SmbAudit(udp)
+}
+
+/**
 export const createSmbAudit = (callback) => {
 
   detectSamba(err => {
@@ -368,3 +372,7 @@ export const createSmbAudit = (callback) => {
     })
   })
 }
+**/
+
+export const createSmbAudit = (callback) => createSmbAuditAsync().asCallback(callback)
+

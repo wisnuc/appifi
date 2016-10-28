@@ -1,4 +1,5 @@
 import path from 'path'
+import child from 'child_process'
 import http from 'http'
 import dgram from 'dgram'
 import EventEmitter from 'events'
@@ -10,7 +11,14 @@ import models from './models/models'
 import app from './app'
 import { createSmbAudit } from './lib/samba'
 
-const debug = Debug('fruitmix:createFruitmix')
+const debug = Debug('fruitmix:fruitmix')
+
+Promise.promisifyAll(child)
+
+const startSamba = async () => {
+  child.execAsync('systemctl start nmbd'),
+  child.execAsync('systemctl start smbd')
+}
 
 class Fruitmix extends EventEmitter {
 
@@ -35,6 +43,7 @@ const createFruitmix = (sysroot) => {
   let server, port = 3721 
 
   system.init(sysroot)
+
   app.set('port', port)
 
   server = http.createServer(app)
