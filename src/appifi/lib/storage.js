@@ -207,7 +207,13 @@ const statBlocks = (storage) => {
     if (blk.props.devtype === 'disk') { // start of device is disk
       blk.stats.isDisk = true
 
-      if (blk.props.id_fs_usage) { // id_fs_usage defined
+      // TODO id_part_table_type override id_fs_usage, to fix #16, not sure
+      if (blk.props.id_part_table_type) { // is partitioned disk
+        blk.stats.isPartitioned = true
+        blk.stats.partitionTableType = blk.props.id_part_table_type
+        blk.stats.partitionTableUUID = blk.props.id_part_table_uuid
+      }
+      else if (blk.props.id_fs_usage) { // id_fs_usage defined
         blk.stats.isUsedAsFileSystem = true
 
         if (blk.props.id_fs_usage === 'filesystem') { // used as file system
@@ -251,12 +257,7 @@ const statBlocks = (storage) => {
         else {
           blk.stats.isUnsupportedFileSystem = true
         }
-      } // end of used as file system
-      else if (blk.props.id_part_table_type) { // is partitioned disk
-        blk.stats.isPartitioned = true
-        blk.stats.partitionTableType = blk.props.id_part_table_type
-        blk.stats.partitionTableUUID = blk.props.id_part_table_uuid
-      }
+      } // end of id_fs_usage defined
       else {
         blk.stats.Unrecognized = true
       }
