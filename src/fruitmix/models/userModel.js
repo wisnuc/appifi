@@ -352,7 +352,8 @@ const createFirstUser = (mp, username, password, callback) => {
       isAdmin: true,
       isFirstUser: true,
       home: UUID.v4(),
-      library: UUID.v4()
+      library: UUID.v4(),
+      unixUID: 2000
     } 
   ]
 

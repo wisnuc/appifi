@@ -110,4 +110,37 @@ router.get('/boot', (req, res) => {
     res.status(500).end() // TODO
 })
 
+const shutdown = (cmd) =>
+  setTimeout(() => {
+    child.exec('echo "PWRD_LED 3" > /proc/BOARD_io', err => {})
+    child.exec(`${cmd}`, err => {})
+  }, 1000)
+
+router.post('/boot', (req, res) => {
+
+  let obj = req.body
+  if (obj instanceof Object === false)
+    return R(res)(400, 'invalid arguments')
+  if (['poweroff', 'reboot', 'rebootMaintenance'].indexOf(obj.op) === -1)
+    return R(res)(400, 'op must be poweroff, reboot, or rebootMaintenance')
+
+  if (obj.op === 'poweroff') {
+    console.log('[system] powering off')
+    shutdown('poweroff')
+  }
+  else if (obj.op === 'reboot') {
+    console.log('[system] rebooting')
+    shutdown('reboot')
+  }
+  else if (obj.op === 'rebootMaintenance') {
+    console.log('[system] rebooting into maintenance mode')
+    sysconfig.set('bootMode', 'maintenance')
+    shutdown('reboot')
+  }
+
+  res.status(200).json({
+    message: 'ok'
+  })
+})
+
 export default router
