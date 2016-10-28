@@ -642,6 +642,9 @@ export const formattable = (block) => {
   return null
 }
 
+// FIXME !!!
+const isWisnucDevice = true
+
 // must exists
 // must be disk
 // must be ata or scsi, if opts set
@@ -775,10 +778,14 @@ export const makeBtrfs = (target, mode, callback) => {
 
 const installFruitmixAsync = async (mp, init) => {
 
-  await mkdirp(path.join(mp, 'wisnuc', 'fruitmix', 'models'))
-  await mkdirp(path.join(mp, 'wisnuc', 'fruitmix', 'drives'))
+  debug('installing fruitmix', mp, init)
+
+  await mkdirpAsync(path.join(mp, 'wisnuc', 'fruitmix', 'models'))
+  await mkdirpAsync(path.join(mp, 'wisnuc', 'fruitmix', 'drives'))
 
   let first = await Promise.promisify(createFirstUser)(mp, init.username, init.password)
+
+  debug('first', first)
 
   let drives = [
     {
@@ -803,16 +810,21 @@ const installFruitmixAsync = async (mp, init) => {
     }
   ]
 
-  await mkdirp(path.join(mp, 'wisnuc', 'fruitmix', 'drives', homeUUID))
-  await mkdirp(path.join(mp, 'wisnuc', 'fruitmix', 'drives', libraryUUID))
+  let drivesPath = path.join(mp, 'wisnuc', 'fruitmix', 'drives')
+
+  await mkdirpAsync(path.join(drivesPath, first.home))
+  await mkdirpAsync(path.join(drivesPath, first.library))
 
   let modelFile = path.join(mp, 'wisnuc', 'fruitmix', 'models', 'drives.json')
 
   await mkdirpAsync(path.dirname(modelFile))
   await fs.writeFileAsync(modelFile, JSON.stringify(drives, null, '  '))
+
 }
 
 const mkfsBtrfsAsync = async (target, mode, init) => {
+
+  let blocks, volumes
 
   debug('mkfsBtrfs', target, mode)
 
@@ -820,23 +832,37 @@ const mkfsBtrfsAsync = async (target, mode, init) => {
 
   await refreshStorage()
   let err = validateBtrfsCandidates(target)
-  if (err) throw err
+  if (err) throw er
+
+  // dirty !!! FIXME
+  let devnames = target.map(name => '/dev/' + name) 
  
   await umountBlocks(target)
+
+  debug(`mkfs.btrfs ${mode}`, devnames)
   await child.execAsync(`mkfs.btrfs -d ${mode} -f ${devnames.join(' ')}`)
   await refreshStorage()
 
-  let blocks = storeState().storage.blocks
-  let block = blocks.find(blk => blk.stats.name === target[0])
+  blocks = storeState().storage.blocks
+
+  let block = blocks.find(blk => blk.name === target[0])
+
+  debug('newly made fs block', block)
+
   let uuid = block.stats.fileSystemUUID
+
+  volumes = storeState().storage.volumes
+
   let volume = volumes.find(vol => vol.uuid === uuid)
   let mp = volume.stats.mountpoint
 
-  debug('mkfsBtrfs success')
+  debug('mkfsBtrfs success', volume)
 
   await installFruitmixAsync(mp, init) 
 
   debug('fruitmix installed')  
+
+  return uuid
 }
 
 export const mkfsBtrfs = (target, mode, init, callback) =>

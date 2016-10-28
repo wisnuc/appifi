@@ -1,3 +1,5 @@
+import path from 'path'
+import fs from 'fs'
 import crypto from 'crypto'
 import EventEmitter from 'events'
 
@@ -8,10 +10,12 @@ const debug = Debug('fruitmix:userModel')
 import bcrypt from 'bcrypt'
 import UUID from 'node-uuid'
 import validator from 'validator'
-
+import mkdirp from 'mkdirp'
 
 import { throwBusy, throwInvalid } from '../util/throw'
 import { openOrCreateCollectionAsync} from './collection'
+
+Promise.promisifyAll(fs)
 
 const isUUID = (x) => typeof x === 'string' && validator.isUUID(x)
 

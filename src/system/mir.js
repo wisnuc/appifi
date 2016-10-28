@@ -4,7 +4,9 @@ import validator from 'validator'
 import Debug from 'debug'
 const debug = Debug('system:mir')
 import { storeState, storeDispatch } from '../appifi/lib/reducers' 
-import { formattable, makeBtrfs } from '../appifi/lib/storage'
+import sysconfig from './sysconfig'
+import { formattable, mkfsBtrfs } from '../appifi/lib/storage'
+import { tryBoot } from './boot'
 
 const router = express.Router()
 
@@ -149,6 +151,12 @@ const R = (res) => (code, error, reason) => {
 
 router.post('/', (req, res) => {
 
+  let bstate = storeState().sysboot
+  if (bstate.state !== 'maintenance')
+    return res.status(405).json({
+      message: 'system is not in maintenance mode'
+    })
+
   const startMountpoint = (mp) => {
     fs.stat(path.join(mp, 'wisnuc/fruitmix'), (err, stats) => {
       if (err) return R(res)(500, err)
@@ -285,23 +293,18 @@ router.post('/', (req, res) => {
 
         let reason = formattable(block)  
         if (reason) return R(res)(405, `block device ${name} cannot be formatted`, reason)
-
       }   
 
-      makeBtrfs(target, mkfs.mode, err => {
+      mkfsBtrfs(target, mkfs.mode, init, (err, fsuuid) => {
 
-        if (err) return R(res)(500, err)        
+        if (err) return R(res)(500, err)
+        R(res)(200, 'ok')
 
-        blocks = storeState().storage.blocks
-        volumes = storeState().storage.volumes
+        sysconfig.set('lastFileSystem', { type: 'btrfs', uuid: fsuuid })
+        sysconfig.set('bootMode', 'normal')
 
-        let block = blocks.find(blk => blk.stats.devname === target[0])
-        let uuid = block.stats.fileSystemUUID
-        let volume = volumes.find(vol => vol.uuid === uuid)
-        let mp = volume.stats.mountpoint
-
-         
-      })            
+        tryBoot(() => {})
+      })
     }
     else if (mkfs.type === 'ntfs' || mkfs.type === 'ext4') {
       return R(res)(500, `not implemented yet`)      

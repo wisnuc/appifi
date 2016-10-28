@@ -95,6 +95,7 @@ router.post('/fan', (req, res) => {
   
 })
 
+router.use('/storage', mir)
 router.use('/mir', mir)
 
 router.get('/boot', (req, res) => {
