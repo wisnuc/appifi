@@ -15,14 +15,14 @@ router.get('/', auth.jwt(), (req, res) => {
     return res.status(200).json(list.map(u => Object.assign({}, u, {
       password: undefined,
       smbPassword: undefined,
-      smbLastChangeTime: undefined
+      lastChangeTime: undefined
     })))
   }
   else {
     return res.status(200).json([Object.assign({}, user, {
       password: undefined,
       smbPassword: undefined,
-      smbLastChangeTime: undefined
+      lastChangeTime: undefined
     })])
   }
 })
@@ -53,7 +53,7 @@ router.post('/', auth.jwt(), (req, res) => {
       res.status(200).json(Object.assign({}, newUser, {
         password: undefined,
         smbPassword: undefined, 
-        smbLastChangeTime: undefined
+        lastChangeTime: undefined
       }))
     })
   })
@@ -82,7 +82,7 @@ router.patch('/:userUUID', auth.jwt(), (req, res) => {
     return res.status(200).json(Object.assign({}, user, {
       password: undefined,
       smbPassword: undefined,
-      smbLastChangeTime: undefined
+      lastChangeTime: undefined
     }))
   })
 })

@@ -7,9 +7,14 @@ import dgram from 'dgram'
 import Debug from 'debug'
 const debug = Debug('fruitmix:samba')
 
+import mkdirp from 'mkdirp'
+
 import paths from './paths'
 import models from '../models/models'
 
+import { storeState } from '../../appifi/lib/reducers'
+
+const mkdirpAsync = Promise.promisify(mkdirp)
 Promise.promisifyAll(fs)
 Promise.promisifyAll(child)
 
@@ -47,8 +52,8 @@ const shareList = (userList) => {
 
       let owner = ulist.find(user => user.home === drive.uuid || user.library === drive.uuid)
       if (owner) {
-        let shareName = drive.uuid.slice(0, 8)
-        let sharePath = '/drives/' + drive.uuid
+        let shareName = drive.label // drive.uuid.slice(0, 8)
+        let sharePath = drive.uuid
         let writelist = [owner.uuid, ...drive.writelist]
           .sort()
           .filter((item, index, array) => !index || item !== array[index - 1])
@@ -93,9 +98,9 @@ const shareList = (userList) => {
 // fourth: generate new samba configuration
 // fifth: reload or restart samba
 
-const retrieveSysUsers = (callback) => {
-
+const retrieveSysUsers = (callback) => 
   fs.readFile('/etc/passwd', (err, data) => {
+
     if (err) return callback(err)
     let users = data.toString().split('\n')
       .map(l => l.trim())
@@ -105,25 +110,25 @@ const retrieveSysUsers = (callback) => {
         if (split.length !== 7) return null
         return {
           unixname: split[0],
-          uid: split[2]
+          uid: parseInt(split[2])
         }
       })
       .filter(u => !!u)
+      .filter(u => u.uid >= 2000 && u.uid < 5000)
 
     callback(null, users)
   })
-}
+
 
 const retrieveSmbUsers = (callback) => {
-
   child.exec('pdbedit -Lw', (err, stdout) => {
     if (err) return callback(err)
-    let users = data.toString().split('\n')
+    let users = stdout.toString().split('\n')
       .map(l => l.trim())
       .filter(l => l.length)
       .map(l => {
         let split = l.split(':')
-        if (split.length !== 6) return null
+        if (split.length !== 7) return null
         return {
           unixname: split[0],
           uid: parseInt(split[1]),
@@ -133,87 +138,126 @@ const retrieveSmbUsers = (callback) => {
       })
       .filter(u => !!u)
 
+    debug('retrieveSmbUsers', stdout.toString().split('\n'))
     callback(null, users)
   })
 }
 
-const addUnixUser = (username, uid, callback) => 
-  child.exec('adduser --disabled-password --disabled-login --no-create-home ' +
-    `--gecos ",,," --uid ${uid} --gid 65534 ${username}\n`, err => callback(err))
+const addUnixUserAsync = async (username, uid) => {
 
-const deleteUnixUser = (username, callback) => 
-  child.exec(`deluser ${username}`, err => callback(err)) 
+  debug('addUnixUser', username, uid)
+  let cmd = 'adduser --disabled-password --disabled-login --no-create-home --gecos ",,," ' + 
+    `--uid ${uid} --gid 65534 ${username}`
+  return child.execAsync(cmd)
+}
 
+const deleteUnixUserAsync = async (username) => {
 
-const reconcileUnixUserAsync = async () => {
+  debug('deleteUnixUser', username)
+  return child.execAsync(`deluser ${username}`)
+}
 
-  let sysusers = await Promise.promisify(retrieveSysUsers)
+const reconcileUnixUsersAsync = async () => {
+
+  let sysusers = await Promise.promisify(retrieveSysUsers)()
+  debug('reconcile unix users, unix users', sysusers)
+
   let fusers = userList().map(u => ({ unixname: uuidToUnixName(u.uuid), uid:u.unixUID }))
+  debug('reconcile unix users, fruitmix users', fusers)
 
-  // common
-  let common = [] 
+  let common = new Set()
   fusers.forEach(fuser => {
     let found = sysusers.find(sysuser => 
       sysuser.unixname === fuser.unixname && sysuser.uid === fuser.uid)
-    if (found) common.push({fuser}) 
+    if (found) common.add(found.unixname + ':' + found.uid)
   })
 
-  // subtract
-  fusers = fusers.filter(f => common.find(c => c.unixname === f.unixname && c.uid === f.uid))
-  sysusers = sysusers.filter(s => common.find(c => c.unixname === s.unixname && c.uid === s.uid))
+  debug('reconcile unix users, common', common)
 
-  // delete, with bluebird reflect
-  await Promise.map(sysusers, (sysuser) => deleteUnixUser(sysuser.unixname).reflect())
+  fusers = fusers.filter(f => !common.has(f.unixname + ':' + f.uid))
+  debug('reconcile unix users, fruitmix users (subtracted)', fusers)
 
-  // add
-  await Promise.map(fusers, (fuser) => addUnixUser(fuser.unixname).reflect())
+  sysusers = sysusers.filter(s => !common.has(s.unixname + ':' + s.uid))
+  debug('reconcile unix users, unix users (subtracted)', sysusers)
+
+  await Promise.map(sysusers, u => deleteUnixUserAsync(u.unixname).reflect())
+  await Promise.map(fusers, u => addUnixUserAsync(u.unixname, u.uid).reflect())
 }
 
-const deleteSmbUser = (username, callback) => 
-  child.exec(`pdbedit -x ${username}`, err => callback(err))
+const deleteSmbUserAsync = async (username) => {
+  debug('delete smb user', username)
+  return child.execAsync(`pdbedit -x ${username}`)
+}
 
-const smbTmpUserPath = '/run/wisnuc/smb/tmp'
-
-const addSmbUsers = (fusers, callback) => {
+const addSmbUsersAsync = async (fusers) => {
 
   let text = fusers.map(u => `${u.unixname}:${u.uid}:` + 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX:' +
     `${u.md4}:[U          ]:${u.lct}:`).join('\n')
 
-  fs.writeFile(smbTmpUserPath, text, err => err ? callback(err) :
-    child.exec('pdbedit -i smbpasswd:' + smbTmpUserPath, err => callback(err)))
+  debug('addSmbUsers', text)
+
+  await mkdirpAsync('/run/wisnuc/smb')
+  await fs.writeFileAsync('/run/wisnuc/smb/tmp', text)
+  await child.execAsync('pdbedit -i smbpasswd:/run/wisnuc/smb/tmp')
+
+  debug('addSmbUsers, after', await child.execAsync('pdbedit -Lw'))
 }
 
-const reconcileSmbUserAsync = async () => {
+const reconcileSmbUsersAsync = async () => {
 
-  let smbusers = await Promise.promisify(retrieveSmbUsers)
+  const key = user => 
+    [user.unixname, user.uid.toString(), user.md4, user.lct].join(':')
+
+  let smbusers = await Promise.promisify(retrieveSmbUsers)()
+  debug('reconcile smb users, smbusers', smbusers)
+
   let fusers = userList().map(u => ({ 
     unixname: uuidToUnixName(u.uuid),
     uid: u.unixUID,
     md4: u.smbPassword.toUpperCase(),
-    lct: 'LCT-' + Math.floor(u.lastChangeTime / 1000).toString('hex').toUpperCase()
+    lct: 'LCT-' + Math.floor(u.lastChangeTime / 1000).toString(16).toUpperCase() // TODO
   }))
+  debug('reconcile smb users, fruitmix users', fusers)
 
-  let common = fusers.reduce((r, f) => 
-    smbusers.find(s => s.unixname === curr.unixname &&
-      s.uid === f.uid && s.md4 === f.md4 ? [...r, {f, s}] : r, []))
+  let common = new Set()
+  fusers.forEach(f => {
+    let found = smbusers.find(s =>
+      s.unixname === f.unixname && s.uid === f.uid && s.md4 === f.md4 && s.lct === f.lct)
+    if (found)
+      common.add(key(found))
+  })
+  debug('reconcile smb users, common', common)
 
-  fusers = fusers.filter(f => common.find(c => c.f !== f))
-  smbusers = smbusers.filter(s => common.find(c => c.s !== s))
+  smbusers = smbusers.filter(s => !common.has(key(s)))
+  debug('reconcile smb users, smb users (subtracted)', smbusers)
+
+  fusers = fusers.filter(f => !common.has(key(f)))
+  debug('reconcile smb users, fruitmix users (subtracted)', fusers)
 
   // remove
-  await Promise.map(smbusers, (smbuser) => deleteSmbUser(smbuser.unixname).reflect())
+  await Promise.map(smbusers, (smbuser) => 
+    deleteSmbUserAsync(smbuser.unixname).reflect())
 
   // add 
-  await Promise.promisify(addSmbUsers)(fusers)
+  await addSmbUsersAsync(fusers)
 }
 
-const generateUserMap = () => 
-  userList().reduce((prev, user) => prev + `${uuidToUnixName(user.uuid)} = "${user.username}"\n`, '')
+const generateUserMapAsync = async () => {
 
-const generateSmbConf = () => {
+  let text = userList().reduce((prev, user) => 
+    prev + `${uuidToUnixName(user.uuid)} = "${user.username}"\n`, '')
+
+  debug('generate usermap', text)
+  await fs.writeFileAsync('/etc/smbusermap', text)
+}
+
+const generateSmbConfAsync = async () => {
+
+  let cfs = storeState().sysboot.currentFileSystem
+  let prepend = path.join(cfs.mountpoint, 'wisnuc', 'fruitmix', 'drives')
 
   let global =  '[global]\n' +
-                '  username map = /usernamemap.txt\n' +
+                '  username map = /etc/smbusermap\n' +
                 '  workgroup = WORKGROUP\n' +
                 '  netbios name = SAMBA\n' +
                 '  map to guest = Bad User\n' +
@@ -221,24 +265,26 @@ const generateSmbConf = () => {
                 '  log level = 1\n\n'
 
   const section = (share) => 
-    `[${share.name}]\n` +                               // username or sharename
-    `  path = ${share.path}\n` +                        // uuid path
-    '  read only = no\n' +
+    `[${share.name}]\n` +                                 // username or sharename
+    `  path = ${prepend}/${share.path}\n` +                // uuid path
+    `  read only = ${share.readOnly ? "yes" : "no"}\n` +
     '  guest ok = no\n' +
     '  force user = root\n' + 
     '  force group = root\n' +
-    `  valid users = ${share.validUsers.join(', ')}\n` +  // valid users
+    `  valid users = ${share.validUsers.join(', ')}\n` +  
+    (share.readOnly ? '' :
     `  write list = ${share.writelist.join(', ')}\n` +    // writelist
     '  vfs objects = full_audit\n' +
     '  full_audit:prefix = %u|%U|%S|%P\n' +
     '  full_audit:success = create_file mkdir rename rmdir unlink write pwrite \n' + // dont remove write !!!!
     '  full_audit:failure = connect\n' +
     '  full_audit:facility = LOCAL7\n' +
-    '  full_audit:priority = ALERT\n\n'   
+    '  full_audit:priority = ALERT\n\n')  
 
   let conf = global
   shareList().forEach(share => conf += section(share))
-
+  debug('generateSmbConf', conf)
+  await fs.writeFileAsync('/etc/samba/smb.conf', conf)
 }
 
 class SmbAudit extends EventEmitter {
@@ -317,7 +363,20 @@ class SmbAudit extends EventEmitter {
 
 const updateSambaFiles = async () => {
 
+  try {
   debug('updating samba files')
+
+  await reconcileUnixUsersAsync()
+  await reconcileSmbUsersAsync()
+  await generateUserMapAsync() 
+  await generateSmbConfAsync()
+
+  debug('reloading smbd configuration')
+  await child.execAsync('systemctl reload smbd')
+  }
+  catch (e) {
+    console.log(e)
+  }
 }
 
 const initSamba = async () => {

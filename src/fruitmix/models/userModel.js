@@ -296,8 +296,6 @@ const createUserModelAsync = async (filepath, tmpfolder) => {
   let collection = await openOrCreateCollectionAsync(filepath, tmpfolder) 
   if (collection) {
 
-    debug(list)
-
     let list = collection.list
     let locals = list.filter(user => user.type === 'local')
 
@@ -324,7 +322,7 @@ const createUserModelAsync = async (filepath, tmpfolder) => {
     
     uarr.forEach(user => user.unixUID = alloc()) 
 
-    debug(list)
+    debug('user list', list)
 
     await collection.updateAsync(list, list)
     return new UserModel(collection)
@@ -346,7 +344,7 @@ const createFirstUser = (mp, username, password, callback) => {
       username,
       password: encrypted,
       smbPassword: md4, 
-      smbLastChangeTime: new Date().getTime(),
+      lastChangeTime: new Date().getTime(),
       avatar: null,
       email: null,
       isAdmin: true,

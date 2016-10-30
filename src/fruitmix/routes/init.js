@@ -30,7 +30,7 @@ router.post('/', (req, res) => {
       res.status(200).json(Object.assign({}, user, {
         password: undefined,
         smbPassword: undefined,
-        smbLastChangeTime: undefined
+        lastChangeTime: undefined
       }))
     })
   })

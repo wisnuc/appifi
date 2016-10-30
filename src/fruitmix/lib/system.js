@@ -1,6 +1,9 @@
 import fs from 'fs'
 import path from 'path'
 
+import Debug from 'debug'
+const debug = Debug('fruitmix:system')
+
 import paths from './paths'
 import models from '../models/models'
 import { createUserModelAsync } from '../models/userModel'
@@ -18,7 +21,7 @@ const initAsync = async (sysroot) => {
 
   // set sysroot to paths
   await paths.setRootAsync(sysroot)
-  console.log(`sysroot is set to ${sysroot}`)
+  console.log(`[fruitmix] sysroot is set to ${sysroot}`)
 
   let modelPath = paths.get('models')
   let tmpPath = paths.get('tmp')
@@ -62,7 +65,7 @@ const initAsync = async (sysroot) => {
 }
 
 export default {
-  init: (sysroot, callback) => initAsync(sysroot).asCallback(callback),
+  initAsync
 }
 
 

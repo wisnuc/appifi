@@ -31,7 +31,7 @@ class Fruitmix extends EventEmitter {
     this.smbAudit = smbAudit
   }
 }
-
+/**
 const createFruitmix = (sysroot) => {
 
   let server, port = 3721 
@@ -75,6 +75,55 @@ const createFruitmix = (sysroot) => {
 
   return new Fruitmix(system, app, server, smbaudit)
 }
+**/
+
+// TODO
+const createHttpServer = (callback) => {
+
+  let server, port = 3721
+  app.set('port', port)
+
+  server = http.createServer(app)
+  server.timeout = 24 * 3600 * 1000 // 24 hours
+
+  server.on('error', error => {
+
+    if (error.syscall !== 'listen') {
+      throw error
+    }
+
+    // handle specific listen errors with friendly messages
+    switch (error.code) {
+    case 'EACCES':
+      console.error('Port ' + port + ' requires elevated privileges')
+      process.exit(1)
+      break
+    case 'EADDRINUSE':
+      console.error('Port ' + port + ' is already in use')
+      process.exit(1)
+      break
+    default:
+      throw error
+    }
+  })
+
+  server.on('listening', () => {
+    console.log('[fruitmix] Http Server Listening on Port ' + port)
+    callback()
+  })
+  server.on('close', () => console.log('[fruitmix] Http Server Closed'))
+  server.listen(port)
+}
+
+const createFruitmixAsync = async (sysroot) => {
+
+  await system.initAsync(sysroot)
+  let server = await Promise.promisify(createHttpServer)()
+  let smbaudit = await Promise.promisify(createSmbAudit)()
+  return new Fruitmix(system, app, server, smbaudit)
+}
+
+const createFruitmix = (sysroot, callback) => createFruitmixAsync(sysroot).asCallback(err => callback && callback(err))
 
 export { createFruitmix }
 
