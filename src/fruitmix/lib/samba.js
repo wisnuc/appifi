@@ -354,7 +354,10 @@ class SmbAudit extends EventEmitter {
       let audit = { user, share, abspath, op, arg0 }
       if (arg1) audit.arg1 = arg1
       
-      debug(arr, audit)
+      // debug(arr, audit)
+      
+      let filer = models.getModel('filer')
+      filer.requestProbeByAudit(audit)
     })
 
     this.udp.on('close', () => console.log('smbaudit upd server closed'))
@@ -411,8 +414,9 @@ const createUdpServer = (callback) => {
 
 const createSmbAuditAsync = async () => {
 
-  await updateSambaFiles()
+  // TODO not optimal
   await initSamba()
+  await updateSambaFiles()
   let udp = await Promise.promisify(createUdpServer)()
   return new SmbAudit(udp)
 }

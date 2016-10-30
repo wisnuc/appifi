@@ -95,6 +95,13 @@ const nodeProperties = {
     return path.join(...this.nodepath().map(n => n.name))
   },
 
+  walkDown(names) {
+    if (names.length === 0) return this
+    let named = this.getChildren().find(child => child.name === names[0])
+    if (!named) return this
+    return named.walkDown(names.slice(1))
+  },
+
   preVisit(func) {
     func(this)
     if (this.children) 

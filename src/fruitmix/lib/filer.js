@@ -1,8 +1,9 @@
 import path from 'path'
 import fs from 'fs'
 
-import Promise from 'bluebird'
 import rimraf from 'rimraf'
+import Debug from 'debug'
+const debug = Debug('fruitmix:filer')
 
 import { readXstat, copyXattr, updateXattrHashMagic, updateXattrPermission} from './xstat'
 import { IndexedTree } from './indexedTree'
@@ -22,7 +23,6 @@ export class Forest extends IndexedTree {
   constructor() {
     const proto = {}
     super(proto)
-
     this.collations = new Map()
   }
 
@@ -155,7 +155,7 @@ export class Forest extends IndexedTree {
   // callback is optional TODO
   requestProbe(node, callback) {
 
-    // console.log(`requestProbe ${node.uuid} ${node.name}`)
+    debug(`requestProbe ${node.uuid} ${node.name}`)
 
     // find job with the same uuid (aka, collating the same node)
     let job = this.collations.get(node)
@@ -176,6 +176,30 @@ export class Forest extends IndexedTree {
     }
     
     return this
+  }
+
+  // quick and dirty
+  requestProbeByAudit(audit) {
+ 
+    debug('requestProbeByAudit, audit', audit) 
+    let uuid = path.basename(audit.abspath)  
+
+    debug('requestProbeByAudit, uuid', uuid) 
+    let root = this.roots.find(r => r.uuid === uuid)
+    if (!root) {
+      debug('no root found with given uuid')
+      return
+    }
+
+    debug('requestProbeByAudit, arg0', audit.arg0)
+
+    let names = audit.arg0.split('/')
+      .filter(name => name.length)
+
+    let node = root.walkDown(names)
+    debug('requestProbeByAudit, walk', names, node)
+    
+    if (node.isDirectory()) this.requestProbe(node)
   }
 
   reportNodeMissing(node) {
