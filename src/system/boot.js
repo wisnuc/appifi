@@ -113,6 +113,21 @@ const bootState = () => {
   }
 }
 
+/**
+{
+  "state": "maintenance",
+  "bootMode": "maintenance",
+  "error": null,
+  "currentFileSystem": null,
+  "lastFileSystem": {
+    "type": "btrfs",
+    "uuid": "e963643d-1e08-43a3-8c34-13340a0175cd",
+    "mountpoint": "/run/wisnuc/volumes/e963643d-1e08-43a3-8c34-13340a0175cd"
+  }
+
+}
+**/
+
 export const tryBoot = (callback) => {
   refreshStorage().asCallback(err => {
     if (err) return callback(err)
@@ -123,7 +138,6 @@ export const tryBoot = (callback) => {
 
     let cfs = bstate.currentFileSystem 
     if (cfs) {
-
       appifiInit()
       createFruitmix(path.join(cfs.mountpoint, 'wisnuc', 'fruitmix'))
       sysconfig.set('lastFileSystem', cfs)

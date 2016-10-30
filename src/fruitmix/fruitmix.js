@@ -30,12 +30,6 @@ class Fruitmix extends EventEmitter {
     this.server = server 
     this.smbAudit = smbAudit
   }
-
-  stop() {
-
-    this.server.close()
-    this.system.deinit()
-  }
 }
 
 const createFruitmix = (sysroot) => {

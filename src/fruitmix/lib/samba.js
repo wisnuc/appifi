@@ -315,7 +315,12 @@ class SmbAudit extends EventEmitter {
   }
 }
 
-const startSamba = async () => {
+const updateSambaFiles = async () => {
+
+  debug('updating samba files')
+}
+
+const initSamba = async () => {
 
   const logConfigPath = '/etc/rsyslog.d/99-smbaudit.conf'
   const logConfig = 'LOCAL7.*    @127.0.0.1:3721'
@@ -347,32 +352,11 @@ const createUdpServer = (callback) => {
 
 const createSmbAuditAsync = async () => {
 
-  await startSamba()
+  await updateSambaFiles()
+  await initSamba()
   let udp = await Promise.promisify(createUdpServer)()
   return new SmbAudit(udp)
 }
-
-/**
-export const createSmbAudit = (callback) => {
-
-  detectSamba(err => {
-    if (err) return callback(err)
-
-    detectRsyslog(err => {
-      if (err) return callback(err)
-
-      let udp = dgram.createSocket('udp4')
-      udp.on('listening', () => 
-        callback(null, new SmbAudit(udp))) 
-     
-      udp.once('error', err => 
-        (err.code === 'EADDRINUSE') && callback(err)) 
-
-      udp.bind(3721)
-    })
-  })
-}
-**/
 
 export const createSmbAudit = (callback) => createSmbAuditAsync().asCallback(callback)
 

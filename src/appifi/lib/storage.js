@@ -777,7 +777,7 @@ export const makeBtrfs = (target, mode, callback) => {
   })
 }
 
-const installFruitmixAsync = async (mp, init) => {
+export const installFruitmixAsync = async (mp, init) => {
 
   debug('installing fruitmix', mp, init)
 

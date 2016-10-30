@@ -1,13 +1,16 @@
 import path from 'path'
 import express from 'express'
+import rimraf from 'rimraf'
+import mkdirp from 'mkdirp'
 import validator from 'validator'
 import Debug from 'debug'
-const debug = Debug('system:mir')
 import { storeState, storeDispatch } from '../appifi/lib/reducers' 
 import sysconfig from './sysconfig'
-import { formattable, mkfsBtrfs } from '../appifi/lib/storage'
+import { formattable, mkfsBtrfs, installFruitmixAsync } from '../appifi/lib/storage'
 import { tryBoot } from './boot'
 
+
+const debug = Debug('system:mir')
 const router = express.Router()
 
 router.get('/', (req, res) => {
@@ -149,6 +152,12 @@ const R = (res) => (code, error, reason) => {
   return res.status(code).json(obj)
 }
 
+const tryReboot = (lfs, callback) => {
+  sysconfig.set('lastFileSystem', lfs)
+  sysconfig.set('bootMode', 'normal')
+  tryBoot(callback)
+}
+
 router.post('/', (req, res) => {
 
   let bstate = storeState().sysboot
@@ -222,10 +231,26 @@ router.post('/', (req, res) => {
       let mp = volume.stats.mountpoint
 
       if (init) {
-        debug(`installing AND running wisnuc on volume ${uuid} mounted @ ${mp}`) 
+        debug(`installing AND running wisnuc on volume ${uuid} mounted @ ${mp}`)
+        if (mp !== '/') { // guard, TODO
+          rimraf(path.join('mp', 'wisnuc'), err => {
+            installFruitmixAsync(mp, init).asCallback(err => {
+              tryReboot({
+                type: 'btrfs',
+                uuid: volume.uuid
+              }, () => {})
+              return R(res)(200, 'ok')
+            })
+          })
+        }
       }
       else {
         debug(`running wisnuc on volume ${uuid} mounted @ ${mp}`) 
+        tryReboot({
+          type: 'btrfs',
+          uuid: volume.uuid
+        }, () => {})
+        return R(res)(200, 'ok')
       }
     }
     else {
@@ -299,11 +324,16 @@ router.post('/', (req, res) => {
 
         if (err) return R(res)(500, err)
         R(res)(200, 'ok')
-
+/**
         sysconfig.set('lastFileSystem', { type: 'btrfs', uuid: fsuuid })
         sysconfig.set('bootMode', 'normal')
-
         tryBoot(() => {})
+**/
+
+        tryReboot({
+          type: 'btrfs',
+          uuid: fsuuid
+        }, () => {})
       })
     }
     else if (mkfs.type === 'ntfs' || mkfs.type === 'ext4') {
