@@ -3,6 +3,7 @@ import fs from 'fs'
 import child from 'child_process'
 import EventEmitter from 'events'
 import dgram from 'dgram'
+import upnpserver from 'upnpserver'
 
 import Debug from 'debug'
 const debug = Debug('fruitmix:samba')
@@ -293,6 +294,20 @@ const generateSmbConfAsync = async () => {
   await fs.writeFileAsync('/etc/samba/smb.conf', conf)
 }
 
+const generateUpnpPaths = () => {
+
+  let cfs = storeState().sysboot.currentFileSystem
+  let prepend = path.join(cfs.mountpoint, 'wisnuc', 'fruitmix', 'drives')
+
+  let paths = []
+  shareList().forEach(share => paths.push({
+    path: `${prepend}/${share.path}`, 
+    mountPoint: '/' + share.name
+  }))
+
+  return paths
+}
+
 class SmbAudit extends EventEmitter {
 
   constructor(udp) {
@@ -386,7 +401,7 @@ const updateSambaFiles = async () => {
     await generateSmbConfAsync()
 
     debug('reloading smbd configuration')
-    await child.execAsync('systemctl reload smbd')
+    await child.execAsync('systemctl restart smbd')
 
   }
   catch (e) {
@@ -462,7 +477,11 @@ const createSmbAuditAsync = async () => {
     scheduleUpdate()  
   })
 
-  // TODO not optimal
+  let paths = generateUpnpPaths()
+  let upnp = new upnpserver({ name: 'wisnuc media server' }, paths)
+  upnp.start()
+
+   // TODO not optimal
   await initSamba()
   await updateSambaFiles()
   let udp = await Promise.promisify(createUdpServer)()
