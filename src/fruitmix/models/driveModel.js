@@ -3,6 +3,7 @@ import Promise from 'bluebird'
 import UUID from 'node-uuid'
 import validator from 'validator'
 
+import { storeDispatch } from '../../appifi/lib/reducers'
 import { openOrCreateCollectionAsync } from './collection'
 
 /** 
@@ -44,7 +45,6 @@ class DriveModel {
 
   constructor(collection) {
     this.collection = collection
-    this.hash = UUID.v4()
   }
 
   // this function requires the uuid to be passed in
@@ -60,22 +60,30 @@ class DriveModel {
     cache 
   }, callback) {
 
-    let conf = {label, fixedOwner, URI, uuid, owner, writelist, readlist, cache}
-
+    let conf = { label, fixedOwner, URI, uuid, owner, writelist, readlist, cache }
     let list = this.collection.list
-
-    // this function returns err or undefined
-    this.collection.updateAsync(list, [...list, conf]).asCallback(callback)
-    // FIXME
-    this.hash = UUID.v4()
+    this.collection.updateAsync(list, [...list, conf]).asCallback(err => {
+      if (err) return callback(err)
+      callback(null)
+      storeDispatch({
+        type: 'UPDATE_FRUITMIX_DRIVES',
+        data: this.collection.list
+      })   
+    })
   }
 }
 
 const createDriveModelAsync = async (filepath, tmpfolder) => {
 
   let collection = await openOrCreateCollectionAsync(filepath, tmpfolder)
-  if (collection) 
+  if (collection) {
+
+    storeDispatch({
+      type: 'UPDATE_FRUITMIX_DRIVES',
+      data: collection.list
+    })
     return new DriveModel(collection)
+  }
   return null
 }
 

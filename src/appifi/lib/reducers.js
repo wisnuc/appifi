@@ -1,5 +1,8 @@
+import Debug from 'debug'
 import { createStore, combineReducers } from 'redux'
 import { containersToApps } from './dockerApps'
+
+const debug = Debug('system:reducers')
 
 const serverConfig = (state = {}, action) => {
 
@@ -29,6 +32,30 @@ const sysboot = (state = null, action) => {
   case 'UPDATE_SYSBOOT':
     return action.data
 
+  default:
+    return state
+  }
+}
+
+const fruitmixUsers = (state = null, action) => {
+  
+  switch(action.type) {
+  case 'UPDATE_FRUITMIX_USERS':
+    debug('update fruitmix users', action.data)
+    return action.data
+
+  default:
+    return state
+  }
+}
+
+const fruitmixDrives = (state = null, action) => {
+
+  switch(action.type) {
+  case 'UPDATE_FRUITMIX_DRIVES':
+    debug('update fruitmix drives', action.data)
+    return action.data
+  
   default:
     return state
   }
@@ -176,7 +203,9 @@ let store = createStore(combineReducers({
   tasks,
   network,
   timeDate,
-  barcelona
+  barcelona,
+  fruitmixUsers,
+  fruitmixDrives
 }))
 
 // store.subscribe(() => console.log(store.getState()))

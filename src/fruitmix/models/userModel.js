@@ -14,6 +14,7 @@ import mkdirp from 'mkdirp'
 
 import { throwBusy, throwInvalid } from '../util/throw'
 import { openOrCreateCollectionAsync} from './collection'
+import { storeDispatch } from '../../appifi/lib/reducers'
 
 Promise.promisifyAll(fs)
 
@@ -172,16 +173,14 @@ class UserModel extends EventEmitter{
     if (newUser.type === 'local')
       newUser.unixUID = this.allocUnixUID()
 
-    this.collection
-      .updateAsync(list, [...list, newUser]) 
-      .asCallback(err => { 
-        if (err) return callback(err) 
-        this.hash = UUID.v4()
-        process.nextTick(() => this.emit('userCreated', newUser))
-        callback(null, newUser)
-      }) 
-
-    this.emit('userAdded', newUser)
+    this.collection.updateAsync(list, [...list, newUser]).asCallback(err => { 
+      if (err) return callback(err)
+      callback(null, newUser)
+      storeDispatch({
+        type: 'UPDATE_FRUITMIX_USERS',
+        data: this.collection.list
+      })
+    }) 
   }
 
   updateUser(userUUID, props, callback) {
@@ -246,16 +245,15 @@ class UserModel extends EventEmitter{
     let update = Object.assign({}, user, change)
     let index = list.findIndex(u => u.uuid === userUUID)
   
-    this.collection
-      .updateAsync(list, [...list.slice(0, index),  update, ...list.slice(index + 1)])
+    this.collection.updateAsync(list, [...list.slice(0, index),  update, ...list.slice(index + 1)])
       .asCallback(err => {
         if (err) return callback(err)
-        this.hash = UUID.v4()
-        process.nextTick(() => this.emit('userUpdated', user, update))
         callback(null, update)
+        storeDispatch({
+          type: 'UPDATE_FRUITMIX_USERS',
+          data: this.collection.list
+        })
       })
-
-    this.emit('userUpdated', user, update)
   }
 
   // to be refactored
@@ -322,9 +320,13 @@ const createUserModelAsync = async (filepath, tmpfolder) => {
     
     uarr.forEach(user => user.unixUID = alloc()) 
 
-    debug('user list', list)
-
+    debug('user list', list) 
     await collection.updateAsync(list, list)
+    
+    storeDispatch({
+      type: 'UPDATE_FRUITMIX_USERS',
+      data: collection.list
+    })
     return new UserModel(collection)
   }
   return null

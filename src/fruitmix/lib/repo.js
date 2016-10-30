@@ -131,7 +131,7 @@ class Repo extends EventEmitter {
 
     let lib = {
       label: 'library',
-      fixedOwner: 'true',
+      fixedOwner: true,
       URI: 'fruitmix',
       uuid: user.library,
       owner: [user.uuid],

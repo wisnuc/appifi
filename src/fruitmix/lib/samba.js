@@ -12,7 +12,7 @@ import mkdirp from 'mkdirp'
 import paths from './paths'
 import models from '../models/models'
 
-import { storeState } from '../../appifi/lib/reducers'
+import { storeState, storeSubscribe } from '../../appifi/lib/reducers'
 
 const mkdirpAsync = Promise.promisify(mkdirp)
 Promise.promisifyAll(fs)
@@ -52,7 +52,11 @@ const shareList = (userList) => {
 
       let owner = ulist.find(user => user.home === drive.uuid || user.library === drive.uuid)
       if (owner) {
-        let shareName = drive.label // drive.uuid.slice(0, 8)
+        let shareName        
+        if (owner.home === drive.uuid) shareName = owner.username + ' (home)'
+        else if (owner.library === drive.uuid) shareName = owner.username + ' (library)'
+        else shareName = owner.username + ` (${drive.uuid.slice(0, 8)})`
+
         let sharePath = drive.uuid
         let writelist = [owner.uuid, ...drive.writelist]
           .sort()
@@ -88,6 +92,7 @@ const shareList = (userList) => {
     }
   })
 
+  debug('share list', shares)
   return shares
 }
 
@@ -279,10 +284,11 @@ const generateSmbConfAsync = async () => {
     '  full_audit:success = create_file mkdir rename rmdir unlink write pwrite \n' + // dont remove write !!!!
     '  full_audit:failure = connect\n' +
     '  full_audit:facility = LOCAL7\n' +
-    '  full_audit:priority = ALERT\n\n')  
+    '  full_audit:priority = ALERT\n')  
 
   let conf = global
-  shareList().forEach(share => conf += section(share))
+
+  shareList().forEach(share => conf += section(share) + '\n')
   debug('generateSmbConf', conf)
   await fs.writeFileAsync('/etc/samba/smb.conf', conf)
 }
@@ -364,22 +370,48 @@ class SmbAudit extends EventEmitter {
   }
 }
 
+let updatingSamba = false
+let sambaTimer = -1
+
 const updateSambaFiles = async () => {
 
+  updatingSamba = true
   try {
-  debug('updating samba files')
 
-  await reconcileUnixUsersAsync()
-  await reconcileSmbUsersAsync()
-  await generateUserMapAsync() 
-  await generateSmbConfAsync()
+    debug('updating samba files')
 
-  debug('reloading smbd configuration')
-  await child.execAsync('systemctl reload smbd')
+    await reconcileUnixUsersAsync()
+    await reconcileSmbUsersAsync()
+    await generateUserMapAsync() 
+    await generateSmbConfAsync()
+
+    debug('reloading smbd configuration')
+    await child.execAsync('systemctl reload smbd')
+
   }
   catch (e) {
     console.log(e)
   }
+
+  updatingSamba = false
+}
+
+const scheduleUpdate = () => {
+
+  if (sambaTimer !== -1) {
+    clearTimeout(sambaTimer)
+    sambaTimer = -1
+  }
+
+  sambaTimer = setTimeout(() => {
+
+    if (updatingSamba) {
+      scheduleUpdate()
+      return
+    }
+    updateSambaFiles().then(() => {}).catch(e => {})
+
+  }, 1000)
 }
 
 const initSamba = async () => {
@@ -412,7 +444,23 @@ const createUdpServer = (callback) => {
   udp.bind(3721)
 }
 
+let prevUsers, prevDrives
+
 const createSmbAuditAsync = async () => {
+
+  storeSubscribe(() => {
+
+    let { fruitmixUsers, fruitmixDrives } = storeState()
+    if (prevUsers === fruitmixUsers && prevDrives === fruitmixDrives) 
+      return
+
+    if (prevUsers !== fruitmixUsers) debug('users changed', prevUsers, fruitmixUsers)
+    if (prevDrives !== fruitmixDrives) debug('drives changed', prevDrives, fruitmixDrives)
+
+    prevUsers = fruitmixUsers
+    prevDrives = fruitmixDrives
+    scheduleUpdate()  
+  })
 
   // TODO not optimal
   await initSamba()
