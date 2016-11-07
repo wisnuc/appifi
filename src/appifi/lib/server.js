@@ -1,19 +1,12 @@
 import child from 'child_process'
 import Debug from 'debug'
-
-const debug = Debug('system:server')
-
 import { storeState, storeDispatch, storeSubscribe } from '../../reducers'
 import { calcRecipeKeyString } from './dockerApps'
 import { daemonStart, daemonStop, daemonStartOp, containerStart, containerStop, containerDelete,
   installedStart, installedStop, appInstall, appUninstall} from './docker'
-// import { mkfsBtrfsOperation } from '../storage'
-
-
-import network from './eth'
-import { setFanScale, updateFanSpeed } from '../../system/barcelona'
 import appstore from './appstore'
-import timedate from './timedate'
+
+const debug = Debug('system:server')
 
 let status = 0
 
@@ -174,26 +167,11 @@ const operationAsync = async (req) => {
     case 'appUninstall':
       f = appUninstall
       break
-    case 'mkfs_btrfs':
-      f = mkfsBtrfsOperation
-      break
-    case 'networkUpdate':
-      f = networkUpdate
-      break
     case 'barcelonaFanScaleUpdate':
       f = setFanScale
       break
     case 'barcelonaFanSpeedUpdate':
       f = updateFanSpeed
-      break
-    case 'timeDateUpdate':
-      f = timeDateUpdate
-      break
-    case 'systemReboot':
-      f = systemReboot
-      break
-    case 'systemPowerOff':
-      f = systemPowerOff
       break
     case 'appstoreRefresh':
       f = appstore.reload

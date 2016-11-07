@@ -174,38 +174,6 @@ const increment = (state = 0, action) => {
   }
 }
 
-const network = (state = null, action) => {
-
-  switch(action.type) {
-  case 'NETWORK_UPDATE':
-    return action.data
-  default:
-    return state
-  }
-}
-
-const timeDate = (state = null, action) => {
-
-  switch(action.type) {
-  case 'TIMEDATE_UPDATE':
-    return action.data
-  default:
-    return state
-  }
-}
-
-const barcelona = (state = {}, action) => {
-
-  switch(action.type) {
-  case 'BARCELONA_FANSPEED_UPDATE':
-    return Object.assign({}, state, { fanSpeed: action.data })
-  case 'BARCELONA_FANSCALE_UPDATE':
-    return Object.assign({}, state, { fanScale: action.data })
-  default:
-    return state
-  }  
-}
-
 let store = createStore(combineReducers({
   increment,
   device,
@@ -215,9 +183,6 @@ let store = createStore(combineReducers({
   docker,
   appstore,
   tasks,
-  network,
-  timeDate,
-  barcelona,
   fruitmixUsers,
   fruitmixDrives
 }))

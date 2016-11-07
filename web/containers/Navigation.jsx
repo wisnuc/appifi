@@ -13,25 +13,10 @@ import Divider from 'material-ui/Divider'
 
 import AppStoreRender from './AppStore'
 import InstalledAppsRender from './InstalledApps'
-import Storage from './Storage'
-import Network from './Network'
-import Cooling from './Cooling'
-import TimeDate from './TimeDate'
-import Password from './Password'
-import SysUpdate from './SysUpdate'
-import PowerOff from './PowerOff'
 
 import IconButton from 'material-ui/IconButton'
 import IconNavigationApps from 'material-ui/svg-icons/navigation/apps'
-import IconNavigationMenu from 'material-ui/svg-icons/navigation/menu'
-import IconDeviceStorage from 'material-ui/svg-icons/device/storage'
-import IconActionSettingsEthernet from 'material-ui/svg-icons/action/settings-ethernet'
-import IconHardwareToys from 'material-ui/svg-icons/hardware/toys'
-import IconNotificationSystemUpdate from 'material-ui/svg-icons/notification/system-update'
-import IconHardwareSecurity from 'material-ui/svg-icons/hardware/security'
 import IconActionLock from 'material-ui/svg-icons/action/lock'
-import IconDeviceAccessTime from 'material-ui/svg-icons/device/access-time'
-import IconActionPowerSettingsNew from 'material-ui/svg-icons/action/power-settings-new'
 
 import lang, { langText } from '../utils/lang'
 
@@ -57,56 +42,7 @@ export const decoration = [
         name: 'INSTALLED_APPS',
         text: { en_US: 'Installed Apps' },
         render: InstalledAppsRender
-      },
-      {
-        name: 'STORAGE',
-        text: { en_US: 'Storage' },
-        icon: IconDeviceStorage,
-        render: Storage.Volumes,
-        themeColor: 'grey', 
-      },
-      {
-        name: 'ETHERNET',
-        text: { en_US: 'Ethernet' },
-        icon: IconActionSettingsEthernet,
-        render: Network,
-        themeColor: 'teal',
-      },
-      {
-        name: 'COOLING',
-        text: { en_US: 'Cooling' },
-        icon: IconHardwareToys,
-        render: Cooling,
-        themeColor: 'indigo'
-      },
-      {
-        name: 'TIMEDATE',
-        text: { en_US: 'Date & Time' },
-        icon: IconDeviceAccessTime,
-        render: TimeDate,
-        themeColor: 'brown'
-      },
-      {
-        name: 'SYSUPDATE',
-        text: { en_US: 'Update', },
-        icon: IconNotificationSystemUpdate,
-        render: SysUpdate,
-        themeColor: 'blue'
-      },
-      {
-        name: 'PASSWORD',
-        text: { en_US: 'Password', },
-        icon: IconHardwareSecurity,
-        render: Password,
-        themeColor: 'red'
-      },
-      {
-        name: 'POWER',
-        text: { en_US: 'Power', },
-        icon: IconActionPowerSettingsNew,
-        render: PowerOff,
-        themeColor: 'green'
-      } 
+      }
     ]
 
 /*****************************************************************************
@@ -183,7 +119,8 @@ const loginBusy = () => {
 
 const loggedIn = () => {
 
-  return window.store.getState().login.state === 'LOGGEDIN'
+  // return window.store.getState().login.state === 'LOGGEDIN'
+  return true
 }
 
 const pageStyle = () => {

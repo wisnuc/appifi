@@ -17,13 +17,6 @@ let navDefault = [
   { name: 'APP', parent: null,              selected: true }, 
   { name: 'APPSTORE', parent: 'APP',        selected: true },
   { name: 'INSTALLED_APPS', parent: 'APP',  selected: false },
-  { name: 'STORAGE', parent: null,          selected: false },
-  { name: 'ETHERNET', parent: null,         selected: false },
-  { name: 'COOLING', parent: null,          selected: false },
-  { name: 'TIMEDATE', parent: null,         selected: false },
-  { name: 'SYSUPDATE', parent: null,        selected: false },
-  { name: 'PASSWORD', parent: null,         selected: false },
-  { name: 'POWER', parent: null,            selected: false }  
 ] 
   
 const nav = (state = navDefault, action) => {

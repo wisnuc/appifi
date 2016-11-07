@@ -1,9 +1,8 @@
 import { child } from '../common/async'
 
-const btrfs_filesystem_usage = (mountpoint) => {
+const btrfs_filesystem_usage = async (mountpoint) => {
 
   let tmp, cmd = 'btrfs filesystem usage -b ' + mountpoint
-
   let stdout = await child.execAsync(cmd)
   let result = { 
     mountpoint: mountpoint,
@@ -99,7 +98,6 @@ const btrfs_filesystem_usage = (mountpoint) => {
   }) 
   return result
 }
-
 
 const btrfs_device_usage = async (mountpoint) => {
   

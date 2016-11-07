@@ -71,7 +71,9 @@ robotoBold = loadFont(robotoBoldBase64, 'Bold')
 robotoBlack = loadFont(robotoBlackBase64, 'Black')
 
 if (!bundlejs) {
+  console.log('read bundle.js from public folder')
   bundlejs = fs.readFileSync('./public/bundle.js').toString()
+  console.log('bundlejs size: ' + bundlejs.length)
 }
 
 if (!indexHtml) {
