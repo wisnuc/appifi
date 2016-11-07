@@ -2,7 +2,7 @@ import clone from 'clone'
 import request from 'superagent'
 
 import { validateRecipe, calcRecipeKeyString } from '../lib/dockerApps'
-import { storeState, storeDispatch } from '../lib/reducers'
+import { storeState, storeDispatch } from '../../reducers'
 
 function info(text) {
   console.log(`[appstore] ${text}`)

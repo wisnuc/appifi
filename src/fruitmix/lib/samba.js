@@ -13,7 +13,7 @@ import mkdirp from 'mkdirp'
 import paths from './paths'
 import models from '../models/models'
 
-import { storeState, storeSubscribe } from '../../appifi/lib/reducers'
+import { storeState, storeSubscribe } from '../../reducers'
 
 const mkdirpAsync = Promise.promisify(mkdirp)
 Promise.promisifyAll(fs)

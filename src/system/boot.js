@@ -6,7 +6,7 @@ import { refreshStorage } from '../appifi/lib/storage'
 import appifiInit from '../appifi/appifi'
 import { createFruitmix } from '../fruitmix/fruitmix'
 
-import { storeState, storeDispatch } from '../appifi/lib/reducers'
+import { storeState, storeDispatch } from '../reducers'
 import sysconfig from './sysconfig'
 
 const bootState = () => {

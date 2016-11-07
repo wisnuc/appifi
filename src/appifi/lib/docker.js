@@ -17,7 +17,7 @@ import { dockerEventsAgent, DockerEvents } from './dockerEvents'
 import { AppInstallTask } from './dockerTasks'
 
 import { calcRecipeKeyString, appMainContainer } from './dockerApps'
-import { storeState, storeDispatch } from '../lib/reducers'
+import { storeState, storeDispatch } from '../../reducers'
 
 const dockerUrl = 'http://127.0.0.1:1688'
 const dockerPidFile = '/run/wisnuc/app/docker.pid'

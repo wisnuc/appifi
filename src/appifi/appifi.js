@@ -1,4 +1,4 @@
-import { observeDocker } from './lib/reducers'
+import { observeDocker } from '../reducers'
 
 import docker from './lib/docker'
 import appstore from './lib/appstore'

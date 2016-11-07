@@ -14,7 +14,7 @@ import mkdirp from 'mkdirp'
 
 import { throwBusy, throwInvalid } from '../util/throw'
 import { openOrCreateCollectionAsync} from './collection'
-import { storeDispatch } from '../../appifi/lib/reducers'
+import { storeDispatch } from '../../reducers'
 
 Promise.promisifyAll(fs)
 

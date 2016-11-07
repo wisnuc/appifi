@@ -10,7 +10,7 @@ import containerCreateDefaultOpts from './containerDefault'
 
 import task from './task'
 import { calcRecipeKeyString, installAppifiLabel } from './dockerApps'
-import { storeState } from './reducers'
+import { storeState } from '../../reducers'
 import { dockerAppdataDir, dockerFruitmixDir } from './docker'
 
 function info(text) {

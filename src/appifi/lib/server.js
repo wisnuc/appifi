@@ -3,7 +3,7 @@ import Debug from 'debug'
 
 const debug = Debug('system:server')
 
-import { storeState, storeDispatch, storeSubscribe } from './reducers'
+import { storeState, storeDispatch, storeSubscribe } from '../../reducers'
 import { calcRecipeKeyString } from './dockerApps'
 import { daemonStart, daemonStop, daemonStartOp, containerStart, containerStop, containerDelete,
   installedStart, installedStop, appInstall, appUninstall} from './docker'

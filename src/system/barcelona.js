@@ -1,7 +1,7 @@
 import fs from 'fs'
 import child from 'child_process'
 
-import { storeDispatch } from '../appifi/lib/reducers'
+import { storeDispatch } from '../reducers'
 import sysconfig from './sysconfig'
 
 const BOARD_EVENT = '/proc/BOARD_event'

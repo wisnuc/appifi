@@ -3,7 +3,7 @@ import Promise from 'bluebird'
 import UUID from 'node-uuid'
 import validator from 'validator'
 
-import { storeDispatch } from '../../appifi/lib/reducers'
+import { storeDispatch } from '../../reducers'
 import { openOrCreateCollectionAsync } from './collection'
 
 /** 

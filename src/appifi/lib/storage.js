@@ -14,7 +14,7 @@ const rimrafAsync = Promise.promisify(rimraf)
 import Debug from 'debug'
 const debug = Debug('system:storage')
 
-import { storeState, storeDispatch } from '../lib/reducers'
+import { storeState, storeDispatch } from '../../reducers'
 import { probeDaemon } from '../lib/docker'
 
 const udevInfo = require('./udevInfoAsync')

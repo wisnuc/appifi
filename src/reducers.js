@@ -1,6 +1,6 @@
 import Debug from 'debug'
 import { createStore, combineReducers } from 'redux'
-import { containersToApps } from './dockerApps'
+import { containersToApps } from './appifi/lib/dockerApps'
 
 const debug = Debug('system:reducers')
 

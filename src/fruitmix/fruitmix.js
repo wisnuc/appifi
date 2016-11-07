@@ -5,7 +5,7 @@ import dgram from 'dgram'
 import EventEmitter from 'events'
 
 import Debug from 'debug'
-import { storeState, storeDispatch } from '../appifi/lib/reducers'
+import { storeState, storeDispatch } from '../reducers'
 import system from './lib/system'
 import models from './models/models'
 import app from './app'

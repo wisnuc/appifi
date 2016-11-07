@@ -11,7 +11,7 @@ import express from 'express'
 import Debug from 'debug'
 import validator from 'validator'
 
-import { storeState } from '../appifi/lib/reducers'
+import { storeState } from '../reducers'
 import sysconfig from './sysconfig'
 import mir from './mir'
 import { mac2dev, aliases, addAliasAsync, deleteAliasAsync } from './ipaliasing'
