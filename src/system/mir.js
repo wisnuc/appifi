@@ -6,7 +6,7 @@ import validator from 'validator'
 import Debug from 'debug'
 import { storeState, storeDispatch } from '../reducers' 
 import sysconfig from './sysconfig'
-import { formattable, mkfsBtrfs, installFruitmixAsync } from '../appifi/lib/storage'
+import { formattable, mkfsBtrfs, installFruitmixAsync } from './storage'
 import { tryBoot } from './boot'
 
 

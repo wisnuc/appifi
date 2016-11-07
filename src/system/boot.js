@@ -2,7 +2,7 @@ import path from 'path'
 import Debug from 'debug'
 const debug = Debug('system:boot')
 
-import { refreshStorage } from '../appifi/lib/storage'
+import { refreshStorage } from './storage'
 import appifiInit from '../appifi/appifi'
 import { createFruitmix } from '../fruitmix/fruitmix'
 

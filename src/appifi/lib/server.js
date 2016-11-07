@@ -7,7 +7,7 @@ import { storeState, storeDispatch, storeSubscribe } from '../../reducers'
 import { calcRecipeKeyString } from './dockerApps'
 import { daemonStart, daemonStop, daemonStartOp, containerStart, containerStop, containerDelete,
   installedStart, installedStop, appInstall, appUninstall} from './docker'
-import { mkfsBtrfsOperation } from './storage'
+// import { mkfsBtrfsOperation } from '../storage'
 
 
 import network from './eth'
