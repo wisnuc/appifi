@@ -1,8 +1,21 @@
 import Debug from 'debug'
+
 import { createStore, combineReducers } from 'redux'
 import { containersToApps } from './appifi/lib/dockerApps'
 
 const debug = Debug('system:reducers')
+
+const device = (state = null, action) => {
+
+  switch (action.type) {
+  case 'UPDATE_DEVICE':
+    return action.data
+  case 'UPDATE_DEVICE_MEMINFO':
+    return Object.assign({}, state, { memInfo: action.data })
+  default:
+    return state
+  }
+}
 
 const serverConfig = (state = {}, action) => {
 
@@ -195,6 +208,7 @@ const barcelona = (state = {}, action) => {
 
 let store = createStore(combineReducers({
   increment,
+  device,
   serverConfig,
   storage,
   sysboot,

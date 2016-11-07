@@ -6,6 +6,7 @@ import sysinit from './system/sysinit'
 import { storeDispatch } from './reducers'
 import system from './system/index'
 import app from './appifi/index'
+import deviceProbe from './system/device'
 import { tryBoot } from './system/boot'
 
 const debug = Debug('system:bootstrap')
@@ -66,18 +67,26 @@ process.argv.forEach((val, index, array) => {
   }
 })
 
-tryBoot(err => {
+deviceProbe((err, data) => {
 
-  if (err) {
-    console.log('[app] failed to boot')
-    console.log('==== die ====')
-    console.log(err)
-    console.log('==== die ====')
-    process.exit(1)
-    return
-  }
+  if (!err)
+    storeDispatch({
+      type: 'UPDATE_DEVICE',
+      data
+    })
 
-  startServer()
+  tryBoot(err => {
+
+    if (err) {
+      console.log('[app] failed to boot')
+      console.log('==== die ====')
+      console.log(err)
+      console.log('==== die ====')
+      process.exit(1)
+      return
+    }
+
+    startServer()
+  })
 })
-
 

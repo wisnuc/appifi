@@ -1,4 +1,4 @@
-/*
+/**
 
 This module implements all api/routing for system layer
 
@@ -43,7 +43,9 @@ const timedate = (callback) =>
       }, {})))
 
 // device
-
+router.get('/device', (req, res) => {
+  res.status(200).json(storeState().device)
+})
 
 
 // timedate
