@@ -1,10 +1,14 @@
+/*
+
+This module implements all api/routing for system layer
+
+**/
+
 import child from 'child_process'
 import os from 'os'
 
 import express from 'express'
 import Debug from 'debug'
-const debug = Debug('system:router')
-
 import validator from 'validator'
 
 import { storeState } from '../appifi/lib/reducers'
@@ -12,12 +16,14 @@ import sysconfig from './sysconfig'
 import mir from './mir'
 import { mac2dev, aliases, addAliasAsync, deleteAliasAsync } from './ipaliasing'
 import eth from './eth'
+import deviceProbe from './device'
 
 const codeMap = new Map([
   ['EINVAL', 400],
   ['ENOENT', 404]
 ]) 
 
+const debug = Debug('system:router')
 const router = express.Router()
 
 const K = x => y => x
@@ -35,6 +41,9 @@ const timedate = (callback) =>
         prev[pair[0]] = pair[1]
         return prev
       }, {})))
+
+// device
+
 
 
 // timedate

@@ -1,4 +1,5 @@
 import path from 'path'
+import child from 'child_process'
 import http from 'http'
 import Debug from 'debug'
 import sysinit from './system/sysinit'
