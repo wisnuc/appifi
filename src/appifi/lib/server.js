@@ -20,7 +20,6 @@ storeSubscribe(() => {
 const appstoreFacade = (appstore) => {
 
   if (appstore === null) return null
-
   if (appstore.status === 'LOADING') 
     return { status: 'LOADING' }
 
@@ -100,35 +99,12 @@ const facade = () => {
   return {
     status,
     config: storeState().serverConfig,
-    storage: storeState().storage,
     docker: dockerFacade(storeState().docker),
     appstore: appstoreFacade(storeState().appstore),
     tasks: tasksFacade(storeState().tasks),
-    network: storeState().network,
-    timeDate: storeState().timeDate,
-    barcelona: storeState().barcelona
   } 
 }
-
-const networkUpdate = async () => storeDispatch({
-  type: 'NETWORK_UPDATE',
-  data: (await network())
-})
-
-const timeDateUpdate = async () => storeDispatch({
-  type: 'TIMEDATE_UPDATE',
-  data: (await Promise.promisify(timedate)())
-})
-
-const shutdown = (cmd) =>
-  setTimeout(() => {
-    child.exec('echo "PWRD_LED 3" > /proc/BOARD_io', err => {})
-    child.exec(`${cmd}`, err => {})
-  }, 1000)
-
-const systemReboot = async () => shutdown('reboot') 
-const systemPowerOff = async () => shutdown('poweroff')
-
+  
 const operationAsync = async (req) => {
 
   info(`operation: ${req.operation}`)
@@ -166,12 +142,6 @@ const operationAsync = async (req) => {
       break
     case 'appUninstall':
       f = appUninstall
-      break
-    case 'barcelonaFanScaleUpdate':
-      f = setFanScale
-      break
-    case 'barcelonaFanSpeedUpdate':
-      f = updateFanSpeed
       break
     case 'appstoreRefresh':
       f = appstore.reload

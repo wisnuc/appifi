@@ -88,4 +88,3 @@ const systemProbe = cb =>
                 err ? cb(err) : cb(null, {cpuInfo, memInfo, dmidecode})))))
 
 export default systemProbe
-// systemProbe((err, info) => console.log(err || info))

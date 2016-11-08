@@ -11,7 +11,6 @@ import containerCreateDefaultOpts from './containerDefault'
 import task from './task'
 import { calcRecipeKeyString, installAppifiLabel } from './dockerApps'
 import { storeState } from '../../reducers'
-import { dockerAppdataDir, dockerFruitmixDir } from './docker'
 
 function info(text) {
   console.log(`[docker task] ${text}`)
@@ -71,12 +70,13 @@ class ImageCreateTask extends task {
 
 class AppInstallTask extends task {
 
-  constructor(recipe) {
+  constructor(recipe, appdataDir) {
 
     info(`appInstall ${recipe.appname}`)
     super('appInstall', `${recipe.appname}`, null)
 
     this.recipe = recipe
+    this.appdataDir = appdataDir
     this.id = calcRecipeKeyString(recipe)
     this.uuid = UUID.v4()
     this.jobs = recipe.components.map(compo => {
@@ -138,20 +138,11 @@ class AppInstallTask extends task {
   }
 
   processBinds(recipeKeyString, opt) {
-/**
-    // dirty works TODO
-    if (recipeKeyString === 'dockerhub:wisnuc:sambad:latest:vanilla') {
-      opt.HostConfig.Binds = [
-        dockerFruitmixDir() + '/drives:/drives'
-      ]
 
-      return opt
-    }
-**/
     if (!opt || !opt.HostConfig || !opt.HostConfig.Binds) return opt
 
     let subpath = recipeKeyString.replace(/:/g, '/') 
-    opt.HostConfig.Binds = opt.HostConfig.Binds.map(bind => (dockerAppdataDir() + '/' + subpath + bind))
+    opt.HostConfig.Binds = opt.HostConfig.Binds.map(bind => (this.appdataDir + '/' + subpath + bind))
     return opt
   }
 

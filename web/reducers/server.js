@@ -96,5 +96,7 @@ const snackbar = (state = { open: false, message: '' }, action) => {
   }
 }
 
+polling.start()
+
 export { server, serverOp, snackbar }
 

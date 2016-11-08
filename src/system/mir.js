@@ -5,7 +5,6 @@ import mkdirp from 'mkdirp'
 import validator from 'validator'
 import Debug from 'debug'
 import { storeState, storeDispatch } from '../reducers' 
-import sysconfig from './sysconfig'
 import { formattable, mkfsBtrfs, installFruitmixAsync } from './storage'
 import { tryBoot } from './boot'
 
@@ -153,8 +152,14 @@ const R = (res) => (code, error, reason) => {
 }
 
 const tryReboot = (lfs, callback) => {
-  sysconfig.set('lastFileSystem', lfs)
-  sysconfig.set('bootMode', 'normal')
+  storeDispatch({
+    type: 'CONFIG_LAST_FILESYSTEM',
+    data: lfs
+  })
+  storeDispatch({
+    type: 'CONFIG_BOOT_MODE',
+    data: 'normal'
+  })
   tryBoot(callback)
 }
 
@@ -324,11 +329,6 @@ router.post('/', (req, res) => {
 
         if (err) return R(res)(500, err)
         R(res)(200, 'ok')
-/**
-        sysconfig.set('lastFileSystem', { type: 'btrfs', uuid: fsuuid })
-        sysconfig.set('bootMode', 'normal')
-        tryBoot(() => {})
-**/
 
         tryReboot({
           type: 'btrfs',

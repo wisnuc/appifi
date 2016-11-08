@@ -2,6 +2,7 @@ import Debug from 'debug'
 
 import { createStore, combineReducers } from 'redux'
 import { containersToApps } from './appifi/lib/dockerApps'
+import config from './reducers/config'
 
 const debug = Debug('system:reducers')
 
@@ -177,6 +178,7 @@ const increment = (state = 0, action) => {
 let store = createStore(combineReducers({
   increment,
   device,
+  config,
   serverConfig,
   storage,
   sysboot,
@@ -188,7 +190,6 @@ let store = createStore(combineReducers({
 }))
 
 // store.subscribe(() => console.log(store.getState()))
-
 console.log(`reducers module initialized`)
 
 export const storeState = () => store.getState()

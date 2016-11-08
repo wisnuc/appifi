@@ -444,6 +444,7 @@ async function refreshStorage() {
  *
  *  
  */
+/**
 async function createVolume(blknames, opts) {
  
   info('createVolume')
@@ -570,6 +571,7 @@ async function createVolume(blknames, opts) {
     return mountpoints.filter((mp, pos, self) => self.indexOf(mp) === pos) 
   }
 }
+**/
 
 // check if a block is formattable
 // return null if YES

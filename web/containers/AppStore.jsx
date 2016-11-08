@@ -211,16 +211,12 @@ const render = () => {
 
   let { selectedApp } = appstoreStore()
   let appstore = appstoreState()
-  let storage = storageState()
   let docker = dockerState()
 
-  if (!storage || typeof storage === 'string') {
-    return <div key={PAGEKEY}><JumbotronText key={JUMBOKEY} text='Server not ready' /></div>
-  }
-  else if (storage.volumes.length === 0) {
-    return <div key={PAGEKEY}><JumbotronText key={JUMBOKEY} text='Please create a volume before using AppStore' /></div>
-  }
-  else if (!docker) {
+//  if (!storage || typeof storage === 'string') {
+//    return <div key={PAGEKEY}><JumbotronText key={JUMBOKEY} text='Server not ready' /></div>
+//  }
+  if (!docker) {
     return <div key={PAGEKEY}><JumbotronText key={JUMBOKEY} text='AppEngine not started' /></div>
   }
   else if (!appstore) {

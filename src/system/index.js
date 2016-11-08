@@ -11,8 +11,8 @@ import express from 'express'
 import Debug from 'debug'
 import validator from 'validator'
 
-import { storeState } from '../reducers'
-import sysconfig from './sysconfig'
+import { storeState, storeDispatch } from '../reducers'
+
 import mir from './mir'
 import { mac2dev, aliases, addAliasAsync, deleteAliasAsync } from './ipaliasing'
 import eth from './eth'
@@ -145,7 +145,11 @@ router.post('/boot', (req, res) => {
   }
   else if (obj.op === 'rebootMaintenance') {
     console.log('[system] rebooting into maintenance mode')
-    sysconfig.set('bootMode', 'maintenance')
+    // sysconfig.set('bootMode', 'maintenance')
+    storeDispatch({
+      type: 'CONFIG_BOOT_MODE',
+      data: 'maintenance'
+    })
     shutdown('reboot')
   }
 

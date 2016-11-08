@@ -1,18 +1,15 @@
 import path from 'path'
 import Debug from 'debug'
-const debug = Debug('system:boot')
-
 import { refreshStorage } from './storage'
 import appifiInit from '../appifi/appifi'
 import { createFruitmix } from '../fruitmix/fruitmix'
-
 import { storeState, storeDispatch } from '../reducers'
-import sysconfig from './sysconfig'
+
+const debug = Debug('system:boot')
 
 const bootState = () => {
 
-  let bootMode = sysconfig.get('bootMode')
-  let lastFileSystem = sysconfig.get('lastFileSystem')
+  let { bootMode, lastFileSystem } = storeState().config
   let { blocks, volumes } = storeState().storage
 
   if (bootMode === 'maintenance') {
@@ -113,34 +110,19 @@ const bootState = () => {
   }
 }
 
-/**
-{
-  "state": "maintenance",
-  "bootMode": "maintenance",
-  "error": null,
-  "currentFileSystem": null,
-  "lastFileSystem": {
-    "type": "btrfs",
-    "uuid": "e963643d-1e08-43a3-8c34-13340a0175cd",
-    "mountpoint": "/run/wisnuc/volumes/e963643d-1e08-43a3-8c34-13340a0175cd"
-  }
-
-}
-**/
-
 export const tryBoot = (callback) => {
+
   refreshStorage().asCallback(err => {
+
     if (err) return callback(err)
-
     let bstate = bootState()
-
     debug('tryboot: bootState', bstate)
-
     let cfs = bstate.currentFileSystem 
     if (cfs) {
       appifiInit()
       createFruitmix(path.join(cfs.mountpoint, 'wisnuc', 'fruitmix'))
-      sysconfig.set('lastFileSystem', cfs)
+      // sysconfig.set('lastFileSystem', cfs)
+      storeDispatch({ type: 'CONFIG_LAST_FILESYSTEM', cfs })
     }
 
     storeDispatch({ type: 'UPDATE_SYSBOOT', data: bstate })

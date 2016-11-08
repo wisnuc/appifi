@@ -1,44 +1,26 @@
 import path from 'path'
-import fs from 'fs'
-import child from 'child_process'
+import { fs, child, rimrafAsync, mkdirpAsync } from '../../common/async'
 import Debug from 'debug'
 
-const debug = Debug('appifi:docker')
-
-import mkdirp from 'mkdirp'
 import request from 'superagent'
-
 import appstore from './appstore' // TODO
 
 import { containerStart, containerStop, containerCreate, containerDelete } from './dockerapi'
 
-import sysconfig from '../../system/sysconfig'
 import { dockerEventsAgent, DockerEvents } from './dockerEvents'
 import { AppInstallTask } from './dockerTasks'
 
 import { calcRecipeKeyString, appMainContainer } from './dockerApps'
 import { storeState, storeDispatch } from '../../reducers'
 
+const debug = Debug('appifi:docker')
+
 const dockerUrl = 'http://127.0.0.1:1688'
 const dockerPidFile = '/run/wisnuc/app/docker.pid'
 const dockerVolumesDir = '/run/wisnuc/volumes'
+const appdataDir = () => `${dockerVolumesDir}/${storeState().docker.volume}/wisnuc/appdata`
 
-const dockerAppdataDir = () => {
-  if (!storeState().docker || !storeState().docker.volume) return null
-  return `${dockerVolumesDir}/${storeState().docker.volume}/wisnuc/appdata`
-}
-
-const dockerFruitmixDir = () => {
-
-  if (!storeState().docker || !storeState().docker.volume) return null
-  return `${dockerVolumesDir}/${storeState().docker.volume}/wisnuc/fruitmix`
-}
-
-// TODO change to debug module
 const info = (message) => console.log(`[docker] ${message}`)
-
-const mkdirpAsync = Promise.promisify(mkdirp)
-Promise.promisifyAll(fs)
 
 const parseDockerRootDir = (rootDir) => {
 
@@ -80,8 +62,6 @@ const probeDaemonRoot = (callback) =>
 
 const probeDaemonRootAsync = Promise.promisify(probeDaemonRoot)
 
-
-
 const probeDaemon2 = (callback) => 
   request
     .get('http://localhost:1688/info')
@@ -120,9 +100,6 @@ function dispatchDaemonStart(volume, agent) {
       type: 'DAEMON_STOP'
     })
   })
-
-  // setConfig('lastUsedVolume', volume)
-  sysconfig.set('lastUsedVolume', volume)
 
   storeDispatch({
     type: 'DAEMON_START',
@@ -282,7 +259,7 @@ async function appInstall(recipeKeyString) {
   })
 
   // create task
-  let task = new AppInstallTask(recipe)
+  let task = new AppInstallTask(recipe, appdataDir())
   storeDispatch({
     type: 'TASK_ADD',
     task    
@@ -311,7 +288,8 @@ async function initAsync() {
     return
   }
 
-  let lastUsedVolume = sysconfig.get('lastUsedVolume')
+//  let lastUsedVolume = sysconfig.get('lastUsedVolume')
+  let lastUsedVolume = storeState().sysboot.currentFileSystem.uuid
   if (!lastUsedVolume) {
     info('last used volume not set, docker daemon not started')
     return
@@ -456,52 +434,6 @@ async function appUninstall(uuid) {
   }
 }
 
-async function operationAsync(req) {
-
-  info(`operation: ${req.operation}`)  
-
-  let f, args
-  if (req && req.operation) {
-    
-    args = (req.args && Array.isArray(req.args)) ? req.args : []
-    switch (req.operation) {
-
-    case 'daemonStart':
-      f = daemonStartOp
-      break 
-    case 'daemonStop':
-      f = daemonStop
-      break
-    case 'containerStart':
-      f = containerStart
-      break
-    case 'containerStop':
-      f = containerStop
-      break
-    case 'containerDelete':
-      f = containerDeleteCommand
-      break
-    case 'installedStart':
-      f = installedStart
-      break
-    case 'installedStop':
-      f = installedStop
-      break
-    case 'appInstall':
-      f = appInstall
-      break
-    case 'appUninstall':
-      f = appUninstall
-      break
-    default:
-      info(`operation not implemented, ${req.operation}`)
-    }
-  }
-
-  if (f) await f(...args)
-  return null
-}
-
 export default {
 
   init: () => {
@@ -513,18 +445,6 @@ export default {
       .catch(e => {
         info('ERROR: init failed')
         console.log(e)
-      })
-  },
-
-  operation: (req, callback) => {
-    operationAsync(req)
-      .then(r => {
-        console.log(r)
-        r instanceof Error ? callback(r) : callback(null, r)
-      })
-      .catch(e => {
-        info(`${e.message}`)
-        callback(e)
       })
   },
 }
@@ -544,10 +464,6 @@ export {
 
   appInstall,
   appUninstall,
-
-  probeDaemon, 
-  dockerAppdataDir, 
-  dockerFruitmixDir
 }
 
 

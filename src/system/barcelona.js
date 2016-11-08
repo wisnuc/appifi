@@ -1,8 +1,7 @@
 import fs from 'fs'
 import child from 'child_process'
 
-import { storeDispatch } from '../reducers'
-import sysconfig from './sysconfig'
+import { storeState, storeDispatch } from '../reducers'
 
 const BOARD_EVENT = '/proc/BOARD_event'
 const FAN_IO = '/proc/FAN_io'
@@ -36,7 +35,6 @@ const pollingPowerButton = () =>
           powerButtonCounter = 0
       })
       .catch(e => {}) // suppress nodejs red warning
-
   , 1000)
 
 const setFanScale = (SCALE) => 
@@ -52,10 +50,8 @@ const setFanScale = (SCALE) =>
 
     await childExecAsync(`echo ${fanScale} > ${FAN_IO}`)
 
-    // setConfig('barcelonaFanScale', fanScale)
-    sysconfig.set('barcelonaFanScale', fanScale)
     storeDispatch({
-      type: 'BARCELONA_FANSCALE_UPDATE',
+      type: 'CONFIG_BARCELONA_FANSCALE',
       data: fanScale
     })
   })(SCALE).then(() => {}).catch(e => {}) // dirty TODO
@@ -63,5 +59,14 @@ const setFanScale = (SCALE) =>
 // workaround FIXME
 child.exec('echo "PWR_LED 1" > /proc/BOARD_io', err => {})
 
-export {updateFanSpeed, pollingPowerButton, setFanScale}
+const barcelonaInit = () => {
+
+  console.log('[system] barcelona init')
+  
+  pollingPowerButton() 
+  setFanScale(storeState().config.barcelonaFanScale)
+} 
+
+export { updateFanSpeed, pollingPowerButton, setFanScale, barcelonaInit }
+
 
