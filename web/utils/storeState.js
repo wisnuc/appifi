@@ -5,7 +5,6 @@ export const localStore = () => {
 }
 
 export const dockerStore = () => localStore() ? localStore().docker : null
-export const loginStore = () => localStore() ? localStore().login : null
 export const navigationStore = () => localStore() ? localStore().navigation : null
 export const storageStore = () => localStore() ? localStore().storage : null
 export const appstoreStore = () => localStore() ? localStore().appstore : null

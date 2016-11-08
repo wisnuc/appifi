@@ -1,8 +1,8 @@
 import { combineReducers } from 'redux'
 
+import lang from './lang'
 import increment from './increment'
 import themeColor from './themeColor'
-import login from './login'
 import navigation from './navigation'
 import appstore from './appstore'
 import installed from './installed'
@@ -10,8 +10,8 @@ import { server, serverOp, snackbar } from './server'
  
 const reducer = combineReducers({
   increment,
+  lang,
   themeColor,
-  login,
   navigation,
   appstore,
   installed,

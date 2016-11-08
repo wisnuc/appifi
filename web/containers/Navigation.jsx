@@ -3,10 +3,8 @@ import ReactDom from 'react-dom'
 import Transition from '../utils/transition'
 import { mixin, dispatch } from '../utils/utils'
 
-import { AppBar, Paper, TextField, CircularProgress, Snackbar } from 'material-ui'
-import { Menu, MenuItem } from 'material-ui/Menu'
+import { AppBar, Paper, Snackbar } from 'material-ui'
 import { Tabs, Tab } from 'material-ui/Tabs'
-import { Card, CardActions, CardHeader, CardMedia, CardTitle, CardText } from 'material-ui/Card'
 
 import FlatButton from 'material-ui/FlatButton'
 import Divider from 'material-ui/Divider'
@@ -18,162 +16,48 @@ import IconButton from 'material-ui/IconButton'
 import IconNavigationApps from 'material-ui/svg-icons/navigation/apps'
 import IconActionLock from 'material-ui/svg-icons/action/lock'
 
-import lang, { langText } from '../utils/lang'
-
 import CSSTransition from 'react-addons-css-transition-group'
 import ReactCSSTransitionGroup from 'react-addons-css-transition-group'            
 
 import { snackbarStore } from '../utils/storeState'
 
+// C combinator, :)
+const C = x => f => f ? C(f(x)) : x
+
+const encodingIndex = enc => C(enc)
+  (x => ['en_US', 'zh_CN'].indexOf(x))
+  (i => i === -1 ? 0 : i)
+  ()
+
+const langMap = {
+  undefined: ['[undefined]', '【未定义】'],
+  title: ['WISNUC Cloud Apps', '闻上私有云应用'],
+  appstore: ['App Store', '应用市场'],
+  installedApps: ['Installed Apps', '已安装应用'],
+  switchToLang: ['中文', 'English']
+}
+
+const langText = (prop = 'undefined') => C(prop)
+  (x => langMap[x] === undefined ? 'undefined' : x)
+  (x => langMap[x][encodingIndex(window.store.getState().lang)])
+  ()
+
+
 /* This list must be consistent with the list defined in reducer */
 export const decoration = [
-      {
-        name: 'APP',
-        text: { en_US: 'App', zh_CN: 'Ying Yong' },
-        icon: IconNavigationApps,
-        themeColor: 'lime',
-      },
-      {
-        name: 'APPSTORE',
-        text: { en_US: 'App Store' },
-        render: AppStoreRender,
-      },
-      {
-        name: 'INSTALLED_APPS',
-        text: { en_US: 'Installed Apps' },
-        render: InstalledAppsRender
-      }
-    ]
-
-/*****************************************************************************
- * 
- * Styles
- *
- *****************************************************************************/
-
-const loginPageStyle = {
-  display : 'flex',
-  flexDirection: 'column',
-  alignItems : 'center',
-  justifyContent : 'center',
-  minHeight : '100vh',
-  minWidth : '100vw',
-}
-
-const loginDialogStyle = {
-  display : 'flex',
-  flexDirection : 'column',
-  alignItems: 'center',
-  justifyContent: 'center',
-  height: 120,
-  width: 300,
-  padding: 10
-}
-
-/*****************************************************************************
- *
- * Functions
- *
- *****************************************************************************/
-
-const loginErrorText = () => {
-
-  let err, state = window.store.getState().login.state
-  switch (state) {
-    case 'REJECTED':
-      err = 'Incorrect password'
-      break
-    case 'TIMEOUT':
-      err = 'Server timeout'
-      break
-    case 'ERROR':
-      err = 'Server internal error, please retry'
-      break
-    case 'READY':
-    case 'BUSY':
-    default:
-      err = null
-      break
+  {
+    name: 'APPSTORE',
+    text: 'appstore',
+    render: AppStoreRender,
+    themeColor: 'lime'
+  },
+  {
+    name: 'INSTALLED_APPS',
+    text: 'installedApps',
+    render: InstalledAppsRender,
+    themeColor: 'lime'
   }
-  return err
-}
-
-const loginSubmit = () => {
-
-  window.store.dispatch({
-    type: "LOGIN"
-  })
-  
-  setTimeout(() => {
-    window.store.dispatch({
-      type: 'LOGIN_SUCCESS'
-    })
-  }, 1000)
-}
-
-const loginBusy = () => {
-
-  let state = window.store.getState().login.state
-  return state === 'BUSY'
-}
-
-const loggedIn = () => {
-
-  // return window.store.getState().login.state === 'LOGGEDIN'
-  return true
-}
-
-const pageStyle = () => {
-
-  return {
-    display : 'flex',
-    flexDirection: 'column',
-    alignItems : 'center',
-    // justifyContent : 'center',
-    minHeight : '100vh',
-  //  minWidth : '100vw',
-  }
-}
-
-const CardPage = ({ title }) => {
-
-  return (
-    <div>
-      <Card>
-        <CardTitle title={title} subtitle="Card subtitle" />
-        <CardText>
-          Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-          Donec mattis pretium massa. Aliquam erat volutpat. Nulla facilisi.
-          Donec vulputate interdum sollicitudin. Nunc lacinia auctor quam sed pellentesque.
-          Aliquam dui mauris, mattis quis lacus id, pellentesque lobortis odio.
-        </CardText>
-        <CardActions>
-          <FlatButton label="Action1" />
-        </CardActions>
-      </Card>
-    </div>
-  )
-}
-
-const renderCardPage = (navSelect) => {
-
-  return (
-    <div key={navSelect}>
-      <Card>
-        <CardTitle title='Placeholder Page' subtitle="Card subtitle" />
-        <CardText>
-          Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-          Donec mattis pretium massa. Aliquam erat volutpat. Nulla facilisi.
-          Donec vulputate interdum sollicitudin. Nunc lacinia auctor quam sed pellentesque.
-          Aliquam dui mauris, mattis quis lacus id, pellentesque lobortis odio.
-        </CardText>
-        <CardActions>
-          <FlatButton label="Action1" />
-        </CardActions>
-      </Card>
-    </div>
-  )
-}
+]
 
 class Navigation extends React.Component {
 
@@ -182,43 +66,8 @@ class Navigation extends React.Component {
     muiTheme: React.PropTypes.object.isRequired,
   }
 
-  submit() {
-    window.store.dispatch({
-      type: "LOGIN"
-    })
-    
-    setTimeout(() => {
-      window.store.dispatch({
-        type: 'LOGIN_SUCCESS'
-      })
-    }, 1000)
-  }
-
-  handleToggle() {
-    dispatch({type: 'NAV_MENU_TOGGLE'})
-  }
-
   getColor(name) {
     return this.context.muiTheme.palette[name]
-  }
-
-  menuSelect(navList) {
-    return navList.find((item) => (item.parent === null && item.selected))
-  }
-
-  navSelect(navList) {
-
-    let menu = this.menuSelect(navList)
-    let nav = navList.find((item) => (item.parent === menu.name && item.selected))
-
-    return (nav !== undefined) ? nav : menu
-  }
-
-  getTabList(navList) {
-
-    let parent = navList.find((navItem) => (navItem.parent === null && navItem.selected))
-    let list = navList.filter((navItem) => (navItem.parent === parent.name))
-    return list
   }
 
   // this must be an fat arrow function
@@ -228,7 +77,10 @@ class Navigation extends React.Component {
               key={item.name} 
               label={langText(item.text)} 
               value={item.name}
-              onActive={() => dispatch({type: 'NAV_SELECT', select: item.name})}
+              onActive={() => {
+                dispatch({type: 'NAV_SELECT', select: item.name})
+                dispatch({type: 'THEME_COLOR', color: item.themeColor}) 
+              }}
             />)
   }
 
@@ -245,55 +97,12 @@ class Navigation extends React.Component {
     )
   }
 
-  // this must be an fat arrow function since it is used
-  // in array function callback
-  buildMenuItem = (item) => {
-
-    let iconProps, leftIcon 
-    let fontStyle = {
-      fontSize: 14,
-      fontWeight: 40
-    }
-
-    if (item.selected) {
-      iconProps = {
-        style: {
-          fill: this.getColor('primary1Color')
-        }
-      }
-      fontStyle.color = this.getColor('primary1Color')
-    }
-
-    leftIcon = React.createElement(item.icon, iconProps) 
-    return (<MenuItem 
-              key={item.name} 
-              primaryText={langText(item.text)} 
-              leftIcon={leftIcon} 
-              innerDivStyle={fontStyle}
-              onTouchTap={ () => {
-                dispatch({type: 'NAV_SELECT', select: item.name })
-                dispatch({type: 'THEME_COLOR', color: item.themeColor ? item.themeColor : 'cyan'})
-              }} 
-            />)
-  }
-
-  buildMenu(navList) {
-
-    let list = navList.filter((item) => item.parent === null)
-                .map((item) => {
-                  let selected = navList.find((navItem) => navItem.name === item.name).selected
-                  return Object.assign({}, item, {selected})
-                })
-
-    return <Menu>{ list.map(this.buildMenuItem) }</Menu>
-  }
-
   renderContentPage(navSelect) {
 
     return (
       <div style={{width: '100%'}} >
         <Transition opts={['content', true, true, false, 1000, 1000, 5000]}>
-          { navSelect.render !== undefined ? React.createElement(navSelect.render, { key: navSelect.name }) : <CardPage /> }
+          { navSelect.render !== undefined ? React.createElement(navSelect.render, { key: navSelect.name }) : null}
         </Transition>
       </div>
     )
@@ -301,173 +110,44 @@ class Navigation extends React.Component {
 
   render() {
 
-    let debug = true 
+    console.log(window.store.getState())
 
-    debug && console.log(window.store.getState())
+    let navList = window.store.getState().navigation
+      .map((item, index) => 
+        Object.assign({}, item, decoration[index]))
 
-    let state = window.store.getState().navigation
-    let navList = state.nav.map((item, index) => {
-      return Object.assign({}, item, decoration[index])
-    })
-
-    let menuSelect = this.menuSelect(navList)
-    let navSelect = this.navSelect(navList)
-
-    let tabList = this.getTabList(navList)
-    let hasTabs = tabList.length !== 0
-    let contentTop = hasTabs ? (64 + 50) : 64
-
-    let leftNavStyle = {
-      display: 'block',
-      position: 'fixed',
-      height: '100%',
-      transition: 'all 200ms ease',
-      padding: 6,   // for alignment of icons
-      left: state.menu ? 0 : '-100%',
-      top: 114,
-    }
-
-    let contentStyle = {
-      marginTop: contentTop,
-      display: 'block',
-      transition: 'margin-left 300ms ease',
-      padding: 24,
-      marginLeft: state.menu ? 240 : 0
-    }
-
-   let tabAnimationStyle = {
-      position: 'relative',
-    }
-
-    let paperNavStyle = { 
-      position: 'fixed', 
-      left: 0, 
-      width:'100%', 
-      // backgroundColor:this.getColor('primary1Color'),
-      backgroundColor: "#FF0000",
-      display: 'flex',
-      flexDirection: 'column',
-      zIndex: 100,
-//      height: '168px' 
-    }
+    let navSelect = navList.find(item => item.selected)
 
     return (
       <div>
-        <div id='login-container' className='login-container-style' >
-          <ReactCSSTransitionGroup
-            transitionName="login-title" 
-            transitionAppear={true}
-            transitionEnter={true}
-            transitionLeave={false}
-            transitionAppearTimeout={350}
-            transitionEnterTimeout={600} 
-          >
-            { !loggedIn() && 
-              <div style={{ height:"64px", verticalAlign:"bottom", fontSize: 48}}>
-                <div>你好，主人！</div>
-              </div> 
-            }
-          </ReactCSSTransitionGroup> 
-          <ReactCSSTransitionGroup
-            transitionName="login-dialog" 
-            transitionAppear={true}
-            transitionEnter={true}
-            transitionLeave={false}
-            transitionAppearTimeout={350}
-            transitionEnterTimeout={600} 
-          >
-            { !loggedIn() && <div> 
-              <Paper className='login-paper-style' zDepth={2}>
-                { loginBusy() && 
-                  <CircularProgress /> 
-                }
-                { !loginBusy() && 
-                  <TextField 
-                    stype={{marginBottom: 10}} 
-                    hintText="password" 
-                    type="password" 
-                    fullWidth={true} 
-                    errorText={loginErrorText()} />
-                }
-                { !loginBusy() && 
-                  <FlatButton 
-                    style={{marginTop: 10}} 
-                    label='UNLOCK ME' 
-                    onTouchTap={this.submit} />
-                }
-              </Paper> 
-            </div> }
-          </ReactCSSTransitionGroup>   
-        </div> 
-        {/* end of login layout container */}
-
-        {/* appbar */}
         <div id='appbar-container' className='appbar-container-style' >
           <Transition opts={['appbar', false, true, true, 300, 600, 400]}>
-            { loggedIn() && <div style={{transition: 'all 300ms ease'}}>
-              <Paper rounded={false} zDepth={2} style={{
-                backgroundColor:this.getColor('primary1Color')
-                // transition: 'height 1s ease'
-              }}>
-                <AppBar id='appbar' className='appbar-fix' onLeftIconButtonTouchTap={this.handleToggle} zDepth={0} title={'WISNUC Appifi'}>
-                  <div style={{display:'flex', alignItems:'center', marginRight:16}}><FlatButton style={{color:'white'}} label='切换到中文' /></div>
-                  <IconButton 
-                    style={{margin:8, marginRight:-16 }} 
-                    tooltip="lock screen" 
-                    onTouchTap={() => {
-                      window.store.dispatch({type: 'NAV_SELECT', select: 'APP'}) 
-                      window.store.dispatch({type: 'NAV_SELECT', select: 'APPSTORE' })
-                      window.store.dispatch({type: 'THEME_COLOR', color: decoration[0].themeColor})
-                      window.store.dispatch({type: 'LOGOUT'})
-                    }}
-                  >
-                    <IconActionLock color='#FFF' />
-                  </IconButton>
+            <div style={{transition: 'all 300ms ease'}}>
+              <Paper rounded={false} zDepth={2} style={{ backgroundColor:this.getColor('primary1Color') }}>
+                <AppBar id='appbar' className='appbar-fix' zDepth={0} title={langText('title')}>
+                  <div style={{display:'flex', alignItems:'center'}}>
+                    <FlatButton style={{color:'white'}} label={langText('switchToLang')} 
+                      onTouchTap={() => window.store.dispatch({
+                        type: 'TOGGLE_LANG'
+                      })}
+                    />
+                  </div>
                 </AppBar>
-                { hasTabs &&
-                  <Transition opts={ /* enter delay 300ms to let appbar update first */
-                    ['tabs', false, true, false, 300, 600, 5000 ]
-                  }>
-                    <div key={menuSelect.name}>
-                      { this.buildTabs(tabList) }
+                  <Transition opts={ ['tabs', false, true, false, 300, 600, 5000 ] }>
+                    <div>
+                      { this.buildTabs(navList) }
                     </div>
                   </Transition>
-                }
               </Paper>
-            </div> }
+            </div> 
           </Transition>
         </div>
         {/* end of appbar */}
 
-        {/* left-nav */} 
-        <div style={{
-          display: 'block',
-          position: 'fixed', 
-          top: hasTabs ? 114 : 64, 
-          transition: 'top 300ms ease'
-        }}>
-          <Transition opts={['left-nav', false, true, true, 5000, 400, 400]}>
-            { loggedIn() && state.menu && 
-              <div id="left-nav-container" style={{
-                display: 'block',
-                position: 'absolute',
-                height: '100%',
-                padding: 6,   // for alignment of icons
-                // left: 0,
-                // transition: 'all 900ms linear'
-              }}>
-                { this.buildMenu(navList) }
-              </div>
-            }
-          </Transition> 
-        </div> 
-        {/* end of left-nav */}
-
         {/* content container */}
         <div id="content-container-flex" style={{
           width: '100%',
-          marginTop: contentTop,
-          // marginLeft: state.menu ? 240 : 0,
+          marginTop: 64 + 50,
           padding: 24,
           display: 'flex',
           flexDirection: 'column',
@@ -481,21 +161,16 @@ class Navigation extends React.Component {
             }}
           >
             <Transition opts={['content', false, true, false, 300, 600, 100]}>
-              { loggedIn() &&
-                ( navSelect.render !== undefined ? 
-                  /* React.createElement(navSelect.render, {key: navSelect.name}) : */
-                  navSelect.render(navSelect) : 
-                  /* React.createElement(CardPage, {key: navSelect.name})) */
-                  renderCardPage(navSelect.name)
-                )
-              }
+              { navSelect.render(navSelect) }
             </Transition>
           </div>
         </div>
+
+        {/* snackbar */}
         <Snackbar 
           open={snackbarStore().open} 
           message={snackbarStore().message} 
-          autoHideDuration={4000} 
+          autoHideDuration={3000} 
           onRequestClose={() => dispatch({
             type: 'SNACKBAR_CLOSE' 
           })} />

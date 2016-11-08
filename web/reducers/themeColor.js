@@ -4,6 +4,7 @@ const color = (state = decoration[0].themeColor, action) => {
 
   switch (action.type) {
   case 'THEME_COLOR':
+    console.log(action)
     return state === action.color ? state : action.color 
         
   default:
