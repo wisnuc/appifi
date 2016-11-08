@@ -6,7 +6,6 @@ import assets from '../../assets'
 
 import server from './routes/server'
 import appstore from './routes/appstore'
-import stylesheets from './routes/stylesheets'
 
 const app = express()
 
@@ -31,7 +30,38 @@ app.get('/index.html', (req, res) =>
 app.get('/bundle.js', (req, res) => 
   res.set('Content-Type', 'application/javascript').send(assets.bundlejs))
 
-app.use('/stylesheets', stylesheets)
+app.get('/stylesheets/style.css', (req, res) => 
+  res.set('Content-Type', 'text/css')
+    .send(assets.styleCSS))
+
+app.get('/stylesheets/roboto.css', (req, res) => 
+  res.set('Content-Type', 'text/css')
+    .send(assets.robotoCSS))
+
+app.get('/stylesheets/Roboto-Thin-webfont.woff', (req, res) => 
+  res.set('Content-Type', 'application/font-woff')
+    .send(assets.robotoThin))
+
+app.get('/stylesheets/Roboto-Light-webfont.woff', (req, res) => 
+  res.set('Content-Type', 'application/font-woff')
+    .send(assets.robotoLight))
+
+app.get('/stylesheets/Roboto-Regular-webfont.woff', (req, res) => 
+  res.set('Content-Type', 'application/font-woff')
+    .send(assets.robotoRegular))
+
+app.get('/stylesheets/Roboto-Medium-webfont.woff', (req, res) => 
+  res.set('Content-Type', 'application/font-woff')
+    .send(assets.robotoMedium))
+
+app.get('/stylesheets/Roboto-Bold-webfont.woff', (req, res) => 
+  res.set('Content-Type', 'application/font-woff')
+    .send(assets.robotoBold))
+
+app.get('/stylesheets/Roboto-Black-webfont.woff', (req, res) => 
+  res.set('Content-Type', 'application/font-woff')
+    .send(assets.robotoBlack))
+
 app.use('/appstore', appstore)
 app.use('/server', server)
 
