@@ -4,7 +4,7 @@ import deepmerge from 'deepmerge'
 import UUID from 'node-uuid'
 
 import pullImage from './pullImage'
-import { containerCreate, containerStart } from './dockerapi'
+import { containerCreate, containerStart } from './dockerApi'
 import containerCreateDefaultOpts from './containerDefault'
 
 

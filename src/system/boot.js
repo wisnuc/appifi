@@ -4,7 +4,6 @@ import { storeState, storeDispatch } from '../reducers'
 import { refreshStorage } from './storage'
 import { createFruitmix } from '../fruitmix/fruitmix'
 import docker from '../appifi/lib/docker'
-import appstore from '../appifi/lib/appstore'
 
 const debug = Debug('system:boot')
 
@@ -126,7 +125,6 @@ export const tryBoot = (callback) => {
 
       // boot appifi only if fruitmix booted
       docker.init() 
-      appstore.reload()
     }
 
     storeDispatch({ type: 'UPDATE_SYSBOOT', data: bstate })

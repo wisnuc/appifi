@@ -1,34 +1,35 @@
-import clone from 'clone'
+import Debug from 'debug'
 import request from 'superagent'
 
 import { validateRecipe, calcRecipeKeyString } from '../lib/dockerApps'
 import { storeState, storeDispatch } from '../../reducers'
+
+const debug = Debug('appifi:appstore')
+const K = x => y => x
+const useLocalRecipes = false // used for test, obsolete
 
 function info(text) {
   console.log(`[appstore] ${text}`)
 }
 
 const getJsonRecipesUrl = () => {
+
   let url = (storeState().serverConfig && storeState().serverConfig.appstoreMaster === true) ?
     'https://raw.githubusercontent.com/wisnuc/appifi-recipes/master/release.json' :
     'https://raw.githubusercontent.com/wisnuc/appifi-recipes/release/release.json'
 
-  info(`using ${url}`)
+  debug(`using ${url}`)
   return url
 }
 
-let useLocalRecipes = false
-
-// retrieve text/plain file from url
-async function retrieveText(url) {
-  return new Promise((resolve, reject) => {
-    request.get(url)
-      .set('Accept', 'text/plain')
-      .end((err, res) => {
-        err ? resolve(err) : resolve(res.text)
-      })
-  })
-}
+const retrieveTextAsync = Promise.promisify((url, callback) => 
+  request.get(url)
+    .set('Accept', 'text/plain')
+    .end((err, res) => {
+      if (err) callback(err)
+      else if (!res.ok) callback(new Error('bad response'))
+      else callback(null, res.text) 
+    }))
 
 async function retrieveRecipes() {
 
@@ -37,23 +38,22 @@ async function retrieveRecipes() {
     recipes = localRecipes
   }
   else {
-    info('retrieve json recipes')
-    let jsonRecipes = await retrieveText(getJsonRecipesUrl())
+    debug('retrieve json recipes')
+    let jsonRecipes = await retrieveTextAsync(getJsonRecipesUrl())
     if (jsonRecipes instanceof Error) return jsonRecipes
 
-    info('parse json recipes')
+    debug('parse json recipes')
     try {
       recipes = JSON.parse(jsonRecipes)
     }
     catch (e) {
-      info('json recipes parse error')
+      debug('json recipes parse error')
       return e
     }
   }
 
   recipes = recipes.filter(recipe => validateRecipe(recipe))  
-
-  info('recipes retrieved')
+  debug('recipes retrieved')
   return recipes 
 }
 
@@ -161,7 +161,6 @@ export async function refreshAppStore() {
 
 export default {
 
-  // init is called in app init
   reload: () => {
     info('loading')
     refreshAppStore().then(r => {

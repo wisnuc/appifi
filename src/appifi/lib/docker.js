@@ -5,7 +5,7 @@ import Debug from 'debug'
 import request from 'superagent'
 import appstore from './appstore' // TODO
 
-import { containerStart, containerStop, containerCreate, containerDelete } from './dockerapi'
+import { containerStart, containerStop, containerCreate, containerDelete } from './dockerApi'
 
 import { dockerEventsAgent, DockerEvents } from './dockerEvents'
 import dockerStateObserver from './dockerStateObserver'
@@ -115,7 +115,7 @@ function dispatchDaemonStart(volume, agent) {
   storeDispatch({
     type: 'DAEMON_START',
     data: { volume, events }
-  })  
+  }) 
 }
 
 /*
@@ -279,6 +279,8 @@ async function appInstall(recipeKeyString) {
 
 async function initAsync() {
 
+  appstore.reload()
+
   await mkdirpAsync('/run/wisnuc/app')
 
   let sysboot = storeState().sysboot
@@ -299,6 +301,7 @@ async function initAsync() {
     return
   }
 
+// FIXME
 //  let lastUsedVolume = sysconfig.get('lastUsedVolume')
   let lastUsedVolume = storeState().sysboot.currentFileSystem.uuid
   if (!lastUsedVolume) {
