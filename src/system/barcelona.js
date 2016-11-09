@@ -1,72 +1,58 @@
-import fs from 'fs'
-import child from 'child_process'
-
+import { fs, child } from '../common/async'
 import { storeState, storeDispatch } from '../reducers'
 
 const BOARD_EVENT = '/proc/BOARD_event'
 const FAN_IO = '/proc/FAN_io'
 
-const fsStatAsync = Promise.promisify(fs.stat)
-const fsReadFileAsync = Promise.promisify(fs.readFile)
-const childExecAsync = Promise.promisify(child.exec)
+const readFanSpeed = callback => 
+  fs.readFile(FAN_IO, (err, data) => {
+    if (err) 
+      return callback(err)
 
-const updateFanSpeed = () => 
-  fsReadFileAsync(FAN_IO)
-    .then(data => {
-      let fanSpeed = parseInt(data.toString().trim())
-      storeDispatch({
-        type: 'BARCELONA_FANSPEED_UPDATE',
-        data: fanSpeed
-      })
-    })
-    .catch(e => {}) // suppress nodejs red warning
+    let fanSpeed = parseInt(data.toString().trim())  
+    if (!Number.isInteger(fanSpeed))
+      return callback(new Error('Parse Failed'))
 
-var powerButtonCounter = 0
+    callback(null, fanSpeed)
+  })
 
-const pollingPowerButton = () => 
-  setInterval(() => 
-    fsReadFileAsync(BOARD_EVENT)
-      .then(data => {
-        if (data.toString().trim() === 'PWR ON') {
-          powerButtonCounter++
-          if (powerButtonCounter > 4) child.exec('poweroff', () => {})
-        }
-        else
-          powerButtonCounter = 0
-      })
-      .catch(e => {}) // suppress nodejs red warning
-  , 1000)
+const writeFanScale = (fanScale, callback) => 
+  (!Number.isInteger(fanScale) || fanScale < 0 || fanScale > 100) ?
+    callback(new Error('fanScale must be integer from 0 to 100')) :
+      child.exec(`echo ${fanScale} > ${FAN_IO}`, err => callback(err))
 
-const setFanScale = (SCALE) => 
-  (async (scale) => {
+let powerButtonCounter = 0
 
-    if (!(typeof scale === 'number'))
-      throw new Error(`scale ${scale} is not a number`)
+const job = () => 
+  fs.readFile(BOARD_EVENT, (err, data) => 
+    err ? (powerButtonCounter = 0) :
+      (data.toString().trim() === 'PWR ON' && ++powerButtonCounter > 4) ?
+        child.exec('poweroff') : (powerButtonCounter = 0))
 
-    let fanScale = Math.floor(scale)
-
-    if (fanScale < 0 || fanScale > 100)
-      throw new Error(`fanScale ${fanScale} out of range`)
-
-    await childExecAsync(`echo ${fanScale} > ${FAN_IO}`)
-
-    storeDispatch({
-      type: 'CONFIG_BARCELONA_FANSCALE',
-      data: fanScale
-    })
-  })(SCALE).then(() => {}).catch(e => {}) // dirty TODO
-
-// workaround FIXME
-child.exec('echo "PWR_LED 1" > /proc/BOARD_io', err => {})
+const pollingPowerButton = () => setInterval(job, 1000)
 
 const barcelonaInit = () => {
 
   console.log('[system] barcelona init')
-  
+
+  child.exec('echo "PWR_LED 1" > /proc/BOARD_io')
+  console.log('[barcelona] set power LED to white on')
+ 
   pollingPowerButton() 
-  setFanScale(storeState().config.barcelonaFanScale)
+  console.log('[barcelona] start polling power button')
+
+  let fanScale = storeState().config.barcelonaFanScale
+  writeFanScale(fanScale, err => {
+    if (err) {
+      console.log('[barcelona] failed set barcelonaFanScale')
+      console.log(err)
+    }
+    else {
+      console.log(`[barcelona] fanScale set to ${fanScale}`)
+    }
+  })
 } 
 
-export { updateFanSpeed, pollingPowerButton, setFanScale, barcelonaInit }
+export { readFanSpeed, writeFanScale, barcelonaInit }
 
 
