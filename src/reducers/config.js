@@ -62,7 +62,7 @@ const initConfig = (raw) => {
     if (valid !== undefined)
       config[prop] = valid
     else
-      config[prop] = K(def)(writeback = true)
+      config[prop] = def
   }
 
   try {

@@ -1,6 +1,8 @@
 import { fs, child } from '../common/async'
+import Debug from 'debug'
 import { storeState, storeDispatch } from '../reducers'
 
+const debug = Debug('system:barcelona')
 const BOARD_EVENT = '/proc/BOARD_event'
 const FAN_IO = '/proc/FAN_io'
 
@@ -24,10 +26,28 @@ const writeFanScale = (fanScale, callback) =>
 let powerButtonCounter = 0
 
 const job = () => 
-  fs.readFile(BOARD_EVENT, (err, data) => 
-    err ? (powerButtonCounter = 0) :
-      (data.toString().trim() === 'PWR ON' && ++powerButtonCounter > 4) ?
-        child.exec('poweroff') : (powerButtonCounter = 0))
+  fs.readFile(BOARD_EVENT, (err, data) => {
+
+    if (err) {
+      powerButtonCounter = 0
+      debug('board event error', powerButtonCounter)
+      return
+    }
+
+    let read = data.toString().trim() 
+    if (read === 'PWR ON') {
+      powerButtonCounter++
+      if (powerButtonCounter > 4) {
+        console.log('[barcelona] user long-pressed the power button, shutting down')
+        child.exec('poweroff')
+      }
+    }
+    else {
+      powerButtonCounter = 0
+    }
+
+    debug('board event', read, powerButtonCounter++)
+  })
 
 const pollingPowerButton = () => setInterval(job, 1000)
 
