@@ -1,4 +1,4 @@
-import events from 'events'
+import EventEmitter from 'events'
 
 import deepmerge from 'deepmerge'
 import UUID from 'node-uuid'
@@ -7,8 +7,6 @@ import pullImage from './pullImage'
 import { containerCreate, containerStart } from './dockerApi'
 import containerCreateDefaultOpts from './containerDefault'
 
-
-import task from './task'
 import { calcRecipeKeyString, installAppifiLabel } from './dockerApps'
 import { storeState } from '../../reducers'
 
@@ -16,7 +14,38 @@ function info(text) {
   console.log(`[docker task] ${text}`)
 }
 
-class ImageCreateTask extends task {
+class Task extends EventEmitter {
+
+  constructor(type, id, parent) {
+    super()
+    this.parent = parent
+    this.type = type
+    this.id = id
+    this.status = 'started'
+    this.errno = 0
+    this.message = null
+   
+    /** must implement getState() **/
+  }
+
+  getState() {
+    return {}
+  }
+
+  // brilliant name
+  facade() {
+    return Object.assign({
+      type: this.type,
+      id: this.id,
+      status: this.status,
+      errno: this.errno,
+      message: this.message,
+    }, this.getState())
+    
+  }
+}
+
+class ImageCreateTask extends Task {
 
   constructor(name, tag, parent) {
 
@@ -68,7 +97,7 @@ class ImageCreateTask extends task {
   } 
 }
 
-class AppInstallTask extends task {
+class AppInstallTask extends Task {
 
   constructor(recipe, appdataDir) {
 
