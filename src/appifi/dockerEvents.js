@@ -1,6 +1,6 @@
 import events from 'events'
 import request from 'superagent'
-import dockeragent from './dockeragent'
+import dockerAgent from './dockerAgent'
 
 const dockerUrl = 'http://127.0.0.1:1688'
 
@@ -55,7 +55,7 @@ async function probeDockerState() {
 async function dockerEventsAgent() {
 
   return await new Promise((resolve) => // TODO never reject?
-    dockeragent.get('/events', (e, r) => 
+    dockerAgent.get('/events', (e, r) => 
       e ? resolve(null) : resolve(r)))
 }
 

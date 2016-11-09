@@ -1,5 +1,5 @@
 import EventEmitter from 'events'
-import dockeragent from './dockeragent'
+import dockerAgent from './dockerAgent'
 import { createStore } from './reduced'
 
 class pullImage extends EventEmitter {
@@ -26,7 +26,7 @@ class pullImage extends EventEmitter {
     })
 
     let url = `/images/create?fromImage=${this.image}&tag=${this.tag}`
-    dockeragent.post(url, (e, agent) => {
+    dockerAgent.post(url, (e, agent) => {
 
       if (e) return callback(e)
       agent.on('json', msg => this.store.dispatch(msg))
