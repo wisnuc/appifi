@@ -9,9 +9,6 @@ import { FloatingActionButton, IconButton, FlatButton, RaisedButton, Toggle, Cir
 import IconAVPlayArrow from 'material-ui/svg-icons/av/play-arrow'
 import IconAVStop from 'material-ui/svg-icons/av/stop'
 
-// import reactClickOutside from 'react-click-outside'
-
-import { LabeledText, Spacer } from './CustomViews'
 import { dispatch, dockerStore, serverOpStore, dockerState, taskStates, installedStore } from '../utils/storeState'
 import imagePrefix from '../utils/imagePrefix'
 
@@ -19,6 +16,44 @@ import {
   BouncyCardHeaderLeftText,
   BouncyCardHeaderLeft
 } from '../components/bouncy'
+
+const C = x => f => f ? C(f(x)) : x
+
+const encodingIndex = enc => C(enc)
+  (x => ['en_US', 'zh_CN'].indexOf(x))
+  (i => i === -1 ? 0 : i)
+  ()
+
+const langMap = {
+  undefined: ['[undefined]', '【未定义】'],
+  openWebPage: ['open', '打开'],
+  seeDetail: ['SEE DETAIL', '详细'],
+  btnStart: ['start', '启动'],
+  btnStop: ['stop', '停止'],
+  btnUninstall: ['uninstall', '卸载'],
+  appOfficial: ['Official', '官方应用'],
+  statusInstalling: ['Installing...', '正在安装...'],
+}
+
+const langText = (prop = 'undefined') => C(prop)
+  (x => langMap[x] === undefined ? 'undefined' : x)
+  (x => langMap[x][encodingIndex(window.store.getState().lang)])
+  ()
+
+const labeledTextStyle = {
+  display: 'flex',
+  flexDirection: 'row',
+  fontSize: 14,
+  lineHeight: 1.5
+}
+
+const LabeledText = ({label, text, right, styleOverlay}) => 
+  ( 
+    <div style={styleOverlay ? Object.assign({}, labeledTextStyle, styleOverlay) : labeledTextStyle}>
+      <div style={{flex:1, fontWeight:100, fontFamily:'monospace', opacity:'0.54'}}>{label}:</div>
+      <div style={{flex:(right || 2), fontFamily:'monospace', opacity:'0.87'}}>{text}</div>
+    </div>
+  )
 
 const buttonDisabled = {
 
@@ -127,7 +162,7 @@ const OpenButton = ({container}) => {
   let onOpen = () => window.open(url) 
   return (
     <div style={containerButtonStyle}>
-      <FlatButton label="open" primary={true} onTouchTap={ onOpen } />
+      <FlatButton label={langText('openWebPage')} primary={true} onTouchTap={ onOpen } />
     </div>
   )
 }
@@ -154,9 +189,13 @@ const renderContainerHeaderRight = (container) => {
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', padding:8 }}> 
-      <BusyFlatButton busy={containerStartingMe(container)} label="start" disabled={buttonDisabled[container.State].start} 
+      <BusyFlatButton busy={containerStartingMe(container)} 
+        label={langText('btnStart')}
+        disabled={buttonDisabled[container.State].start} 
         onTouchTap={startButtonTap} />
-      <BusyFlatButton busy={containerStoppingMe(container)} label="stop" disabled={buttonDisabled[container.State].stop} 
+      <BusyFlatButton busy={containerStoppingMe(container)} 
+        label={langText('btnStop')}
+        disabled={buttonDisabled[container.State].stop} 
         onTouchTap ={stopButtonTap} />
       <OpenButton container={container} /> 
     </div>
@@ -225,9 +264,13 @@ const renderInstalledHeaderRight = (installed) => {
   let container = installedMainContainer(installed)
   return (
     <div style={{ display: 'flex', alignItems: 'center', padding:8 }}> 
-      <BusyFlatButton busy={installedStartingMe(installed)} label="start" disabled={buttonDisabled[container.State].start} 
+      <BusyFlatButton busy={installedStartingMe(installed)} 
+        label={langText('btnStart')}
+        disabled={buttonDisabled[container.State].start} 
         onTouchTap={startButtonTap} />
-      <BusyFlatButton busy={installedStoppingMe(installed)} label="stop" disabled={buttonDisabled[container.State].stop} 
+      <BusyFlatButton busy={installedStoppingMe(installed)} 
+        label={langText('btnStop')}
+        disabled={buttonDisabled[container.State].stop} 
         onTouchTap ={stopButtonTap} />
       <OpenButton container={container} /> 
     </div>
@@ -271,7 +314,7 @@ const renderContainerCardContent = (container) => {
   let ccdRightColStyle = {paddingTop:16, paddingBottom:16, flex: 3}
   let split = container.Image.split('/')
   let namespace = split[0]
-  if (namespace === 'library') namespace = 'official'
+  if (namespace === 'library') namespace = langText('appOfficial')
   let name = split[1]
 
   return (
@@ -298,13 +341,13 @@ const renderContainerCardContent = (container) => {
 const renderContainerCardFooter = (container) => {
 
   let onTouchTap = () => dispatch({ type: 'SERVEROP_REQUEST', data: { operation: 'containerDelete', args: [container.Id] }})   
-  return (<div style={{padding:8}}><FlatButton label="uninstall" onTouchTap={onTouchTap} /></div>)  
+  return (<div style={{padding:8}}><FlatButton label={langText('btnUninstall')} onTouchTap={onTouchTap} /></div>)  
 }
 
 const renderInstalledCardFooter = (installed) => {
 
   let onTouchTap = () => dispatch({ type: 'SERVEROP_REQUEST', data: { operation: 'appUninstall', args: [installed.uuid] }})
-  return (<div style={{padding:8}}><FlatButton label='uninstall' onTouchTap={onTouchTap} /></div>)
+  return (<div style={{padding:8}}><FlatButton label={langText('btnUninstall')} onTouchTap={onTouchTap} /></div>)
 }
 
 const renderContainerCard = (container) => {
@@ -360,7 +403,7 @@ const renderInstallingHeaderRight = (task) => {
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', padding:8 }}> 
-      <BusyFlatButton busy={false} label="stop" disabled={true} 
+      <BusyFlatButton busy={false} label={langText('btnStop')} disabled={true} 
         onTouchTap ={stopButtonTap} />
     </div>
   )
@@ -388,7 +431,7 @@ const renderInstallingCardHeader = (task) => {
   return (
     <div style={{display:'flex',alignItems: 'center', justifyContent:'space-between'}}>
       <BouncyCardHeaderLeft avatar={avatar} title={task.recipe.appname} onClick={onClick}>
-        <BouncyCardHeaderLeftText text='Installing...' width={200} />
+        <BouncyCardHeaderLeftText text={langText('statusInstalling')} width={200} />
         <LinearProgress mode='indeterminate' style={{maxWidth:300}} />
       </BouncyCardHeaderLeft>
       { renderInstallingHeaderRight(task) }

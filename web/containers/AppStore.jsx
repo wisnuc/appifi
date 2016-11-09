@@ -5,8 +5,40 @@ import { FlatButton, RaisedButton, Paper, Dialog } from 'material-ui'
 
 import JumbotronText from './JumbotronText'
 
-import { dispatch, appstoreStore, dockerState, storageState, appstoreState, taskStates } from '../utils/storeState'
+import { dispatch, appstoreStore, dockerState, appstoreState, taskStates } from '../utils/storeState'
+
 import imagePrefix from '../utils/imagePrefix'
+
+const C = x => f => f ? C(f(x)) : x
+
+const encodingIndex = enc => C(enc)
+  (x => ['en_US', 'zh_CN'].indexOf(x))
+  (i => i === -1 ? 0 : i)
+  ()
+
+const langMap = {
+  undefined: ['[undefined]', '【未定义】'],
+  seeDetail: ['SEE DETAIL', '详细'],
+  thisAppAlreadyInstalled: ['This app is already installed.', '该应用已经安装。'],
+  thisAppIsInstalling: ['This app is installing.', '该应用正在安装。'],
+  thisAppIsNotInstalled: ['This app is not installed.', '该应用尚未安装。'],
+  appstoreRefresh: ['refresh', '刷新'],
+  btnInstall: ['INSTALL', '安装'],
+  appEngineNotStarted: ['AppEngine not started', '应用引擎尚未启动'],
+  appstoreUnavail: ['AppStore not ready', '应用商店尚未准备好'],
+  appstoreError: ['AppStore Error, failed to loading recipes from github.com', 
+    '应用商店错误，未能从Github.com载入应用列表。'],
+  appstoreLoading: ['Loading Apps from AppStore', '正在载入应用列表'],
+  appstoreErrorDockerhub: ['AppStore Error, failed loading repository information from hub.docker.com',
+    '应用商店错误，未能从hub.docker.com载入应用的软件池信息'],
+  recommendedApps: ['Recommended Apps', '推荐应用'],
+}
+
+const langText = (prop = 'undefined') => C(prop)
+  (x => langMap[x] === undefined ? 'undefined' : x)
+  (x => langMap[x][encodingIndex(window.store.getState().lang)])
+  ()
+
 
 const formatNumber = (num) => 
   (num > 999999) ? (num/1000000).toFixed(1) + 'M' : 
@@ -69,8 +101,8 @@ const renderSelectedApp = (app) => {
 
   if (installed) {
     buttonDisabled = false
-    buttonLabel = 'SEE DETAIL'
-    buttonText = 'This app is already installed'
+    buttonLabel = langText('seeDetail')
+    buttonText = langText('thisAppAlreadyInstalled')
     buttonOnTouchTap = () => {
       dispatch({
         type: 'STORE_SELECTEDAPP',
@@ -91,8 +123,8 @@ const renderSelectedApp = (app) => {
   }
   else if (installing) {
     buttonDisabled = false
-    buttonLabel = 'SEE DETAIL'
-    buttonText = 'This app is installing.'
+    buttonLabel = langText('seeDetail')
+    buttonText = langText('thisAppIsInstalling')
     buttonOnTouchTap = () => {
       dispatch({
         type: 'STORE_SELECTEDAPP',
@@ -113,8 +145,8 @@ const renderSelectedApp = (app) => {
   }
   else {
     buttonDisabled = false
-    buttonLabel = 'INSTALL'
-    buttonText = 'This app is not installed.'
+    buttonLabel = langText('btnInstall')
+    buttonText = langText('thisAppIsNotInstalled')
     buttonOnTouchTap = () => {
       dispatch({
         type: 'SERVEROP_REQUEST',
@@ -198,7 +230,7 @@ const RenderBanner = ({text, busy, refresh}) => (
         <div style={{fontSize:16, opacity:0.54}}>{text}</div>
         { busy && <CircularProgress size={0.4} /> }
       </div> 
-      { refresh && <RaisedButton label='refresh' onTouchTap={() => dispatch({
+      { refresh && <RaisedButton label={langText('appstoreRefresh')} onTouchTap={() => dispatch({
           type: 'SERVEROP_REQUEST',
           data: {
             operation: 'appstoreRefresh'
@@ -217,26 +249,26 @@ const render = () => {
 //    return <div key={PAGEKEY}><JumbotronText key={JUMBOKEY} text='Server not ready' /></div>
 //  }
   if (!docker) {
-    return <div key={PAGEKEY}><JumbotronText key={JUMBOKEY} text='AppEngine not started' /></div>
+    return <div key={PAGEKEY}><JumbotronText key={JUMBOKEY} text={langText('appEngineNotStarted')} /></div>
   }
   else if (!appstore) {
-    return <div key={PAGEKEY}><JumbotronText key={JUMBOKEY} text='Server error: AppStore not started' /></div>
+    return <div key={PAGEKEY}><JumbotronText key={JUMBOKEY} text={langText('appstoreUnavail')} /></div>
   }
   else if (appstore.status === 'ERROR') {
-    return <div key={APPSKEY}><RenderBanner text='AppStore Error, failed loading recipes from github.com' refresh={true} /></div>
+    return <div key={APPSKEY}><RenderBanner text={langText('appstoreError')} refresh={true} /></div>
   }
   else if (appstore.status === 'LOADING') {
-    return <div key={PAGEKEY}><JumbotronText key={JUMBOKEY} text='Loading Apps from AppStore' busy={true} /></div>
+    return <div key={PAGEKEY}><JumbotronText key={JUMBOKEY} text={langText('appstoreLoading')} busy={true} /></div>
   }
   else if (appstore.result
             .reduce((prev, curr) => prev.concat(curr.components), [])
             .every(compo => compo.repo === null)) {
-    return <div key={APPSKEY}><RenderBanner text='AppStore Error, failed loading repository information from hub.docker.com' refresh={true} /></div>
+    return <div key={APPSKEY}><RenderBanner text={langText('appstoreErrDockerhub')} refresh={true} /></div>
   }
 
   return (
     <div key={APPSKEY} >
-      <RenderBanner text='Recommended Apps' refresh={true} />
+      <RenderBanner text={langText('recommendedApps')} refresh={true} />
       <div>
         <div style={{display: 'flex', flexWrap: 'wrap'}}>
           { appstore.result.map(app => renderAppCard(app)) }

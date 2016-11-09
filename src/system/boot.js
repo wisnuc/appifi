@@ -120,11 +120,16 @@ export const tryBoot = (callback) => {
 
     let cfs = bstate.currentFileSystem 
     if (cfs) {
+      // boot fruitmix
       createFruitmix(path.join(cfs.mountpoint, 'wisnuc', 'fruitmix'))
       storeDispatch({ type: 'CONFIG_LAST_FILESYSTEM', cfs })
 
       // boot appifi only if fruitmix booted
-      docker.init() 
+      let install = storeState().config.dockerInstall
+      debug('dockerInstall', install)      
+      
+      let dockerRootDir = path.join(cfs.mountpoint, 'wisnuc')
+      docker.init(dockerRootDir) 
     }
 
     storeDispatch({ type: 'UPDATE_SYSBOOT', data: bstate })

@@ -11,44 +11,43 @@ import dockerStateObserver from './dockerStateObserver'
 import { AppInstallTask } from './dockerTasks'
 import { calcRecipeKeyString, appMainContainer, containersToApps } from './dockerApps'
 
-
 const debug = Debug('appifi:docker')
+
 const dockerUrl = 'http://127.0.0.1:1688'
 const dockerPidFile = '/run/wisnuc/app/docker.pid'
-const dockerVolumesDir = '/run/wisnuc/volumes'
-const appdataDir = () => `${dockerVolumesDir}/${storeState().docker.volume}/wisnuc/appdata`
+
+let rootDir
+let appDataDir
+let execRootDir
+let graphDir
+
+/**
+  docker daemon requires two base directories to work
+  1. /run/wisnuc/app to store docker.pid file
+  2. [rootdir]/ (tailing with wisnuc for volumes)
+        // forexample: /run/wisnuc/volumes/xxxx/wisnuc
+      r for exec root
+      g for graph
+      appdata for docker volume
+**/
+const prepareDirs = async (dir) => {
+
+  await mkdirpAsync('/run/wisnuc/app')
+
+  rootDir = dir
+  appDataDir = path.join(rootDir, 'appdata')
+  execRootDir = path.join(rootDir, 'r')
+  graphDir = path.join(rootDir, 'g')
+
+  await mkdirpAsync(appDataDir) 
+  await mkdirpAsync(path.join(rootDir, 'r'))
+  await mkdirpAsync(path.join(rootDir, 'g'))
+}
+
 
 const info = (message) => console.log(`[docker] ${message}`)
 
-const parseDockerRootDir = (rootDir) => {
-
-  if (!rootDir.endsWith('/wisnuc/r')) return null
-  
-  let mp = rootDir.slice(0, -9)
-
-  let { storage, sysboot } = storeState()
-  let { blocks, volumes } = storage
-
-  let volume = volumes.find(vol => vol.stats.mountpoint === mp)
-  if (volume) {
-    return {
-      type: volume.stats.fileSystemType,
-      uuid: volume.stats.fileSystemUUID,
-      mountpoint: volume.stats.mountpoint 
-    }
-  }
-
-  let block = blocks.find(blk => !blk.stats.isVolume && blk.stas.mountpoint === mp)
-  if (block) {
-    return {
-      type: block.stats.fileSystemType,
-      uuid: block.stats.fileSystemUUID,
-      mountpoint: volume.stats.mountpoint
-    }
-  }
-}
-
-const probeDaemonRoot = (callback) => 
+const probeDaemonGraphDir = (callback) => 
   request
     .get('http://localhost:1688/info')
     .set('Accept', 'application/json')
@@ -58,34 +57,13 @@ const probeDaemonRoot = (callback) =>
       callback(null, res.body.DockerRootDir)
     })
 
-const probeDaemonRootAsync = Promise.promisify(probeDaemonRoot)
+const probeDaemonGraphDirAsync = Promise.promisify(probeDaemonGraphDir)
 
-const probeDaemon2 = (callback) => 
-  request
-    .get('http://localhost:1688/info')
-    .set('Accept', 'application/json')
-    .end((err, res) => {
+const startDockerEvents = async () => {
 
-      if (err || !res.ok) 
-        return callback(null, { running: false })
-
-      let rootDir = res.body.DockerRootDir
-
-      debug('probeDaemon, dockerRootDir: ', rootDir)
-
-      let volume = rootDir.split('/')[4]
-      console.log(`probeDaemon Success, volume: ${volume}`)
-      callback(null, {
-        running: true,
-        volume
-      })
-    })
-
-const probeDaemon = Promise.promisify(probeDaemon2)
-
-function dispatchDaemonStart(volume, agent) {
-
+  let agent = await dockerEventsAgent()
   let events = new DockerEvents(agent)
+
   events.on('update', state => {
 
     let oldState = storeState().docker
@@ -111,29 +89,16 @@ function dispatchDaemonStart(volume, agent) {
 
   storeDispatch({
     type: 'DAEMON_START',
-    data: { volume, events }
+    data: { root: graphDir, events }
   }) 
 }
 
-/*
- * return {pid, volume, listener} or null
- */
-async function daemonStart(uuid) {
+const daemonStart = async () => {
 
   let out = fs.openSync('/dev/null', 'w')
   let err = fs.openSync('/dev/null', 'w')
 
-  let mountpoint = `${dockerVolumesDir}/${uuid}`
-  let execRootDir = `${mountpoint}/wisnuc/r`
-  let graphDir = `${mountpoint}/wisnuc/g`
-  let appDataDir =`${dockerVolumesDir}/${uuid}/wisnuc/appdata` 
-
-  await mkdirpAsync(execRootDir)
-  await mkdirpAsync(graphDir)
-  await mkdirpAsync(appDataDir)
-
   let opts = {
-    cwd: mountpoint,
     detached: true, 
     stdio: ['ignore', out, err]
   }
@@ -164,36 +129,6 @@ async function daemonStart(uuid) {
 
   if (dockerDaemon === null) throw 'docker daemon stopped right after started'
   dockerDaemon.unref()
-
-  let agent = await dockerEventsAgent() 
-  dispatchDaemonStart(uuid, agent)
-}
-
-const daemonStop2 = (volume, callback) => {
-
-  fs.readFile('/run/wisnuc/app/docker.pid', (err, data) => {
-
-    if (err && err.code === 'ENOENT') 
-      return callback(null) 
-    else if (err) {
-      return callback(err)
-    }
-    else {
-      let pid = parseInt(data.toString())
-      process.kill(pid)
-
-      let timer = setInterval(() => {
-        try {
-          process.kill(pid, 0)
-        }
-        catch (e) {
-          // supposed error code is 'ESRCH', see man 2 kill
-          clearInterval(timer)
-          callback()
-        }
-      }, 1000)
-    } 
-  })
 }
 
 const daemonStopCmd = 'start-stop-daemon --stop --pidfile "/run/wisnuc/app/docker.pid" --retry 3'
@@ -207,6 +142,42 @@ const daemonStop3 = (volume, callback) =>
   })
 
 const daemonStop = Promise.promisify(daemonStop3)
+
+const initAsync = async (dir) => {
+
+  debug('docker init dir', dir)
+
+  await prepareDirs(dir)
+
+  debug('graph dir', graphDir)
+
+  let probedGraphDir
+  try { 
+    probedGraphDir = await probeDaemonGraphDirAsync() 
+  } catch (e) {}
+
+  debug('probed graph dir', probedGraphDir)
+
+  if (probedGraphDir === graphDir) {
+    console.log(`[docker] daemon already started @ ${rootDir}`)
+  }
+  else {
+
+    if (probedGraphDir) {
+      console.log(`[docker] another daemon already started (graphDir) @ {probedGraphDir}, try stopping it`)
+      await daemonStop()
+      await Promise.delay(1000)
+    }
+
+    console.log(`[docker] starting daemon @ ${rootDir}`)
+    await daemonStart()
+  }
+
+  await startDockerEvents()
+  console.log('[docker] docker events listener started')
+  appstore.reload()
+  console.log('[docker] appstore reloading')
+}
 
 function appStatus(recipeKeyString) {
 
@@ -267,63 +238,11 @@ async function appInstall(recipeKeyString) {
   })
 
   // create task
-  let task = new AppInstallTask(recipe, appdataDir())
+  let task = new AppInstallTask(recipe, appDataDir)
   storeDispatch({
     type: 'TASK_ADD',
     task    
   })
-}
-
-async function initAsync() {
-
-  appstore.reload()
-
-  await mkdirpAsync('/run/wisnuc/app')
-
-  let sysboot = storeState().sysboot
-  if (!sysboot || !sysboot.currentFileSystem) {
-    console.log('[docker]: currentFileSystem not set, return')
-    return
-  }
-
-  let rootDir
-  try { rootDir = await probeDaemonRootAsync() } catch (e) {}
-
-  let daemon = await probeDaemon()
-  if (daemon.running) {
-    info(`daemon already running with pid ${daemon.pid} and volume ${daemon.volume}`)   
-
-    let agent = await dockerEventsAgent() 
-    dispatchDaemonStart(daemon.volume, agent)
-    return
-  }
-
-// FIXME
-//  let lastUsedVolume = sysconfig.get('lastUsedVolume')
-  let lastUsedVolume = storeState().sysboot.currentFileSystem.uuid
-  if (!lastUsedVolume) {
-    info('last used volume not set, docker daemon not started')
-    return
-  }
-
-  while (!storeState().storage) {
-    info('wait 500ms for storage module init')
-    await Promise.delay(500)
-  }
-
-  let storage = storeState().storage
-  let volume = storage.volumes.find(vol => vol.uuid === lastUsedVolume)
-  if (!volume) {
-    info(`last used volume (${lastUsedVolume}) not found, docker daemon not started`)
-    return
-  }
-
-  if (volume.missing) {
-    info(`last used volume (${lastUsedVolume}) has missing drive, docker daemon not started`)
-    return
-  }
-
-  await daemonStart(volume.uuid)
 }
 
 async function daemonStartOp(uuid) {
@@ -447,11 +366,10 @@ async function appUninstall(uuid) {
 
 export default {
 
-  init: () => {
-    initAsync()
+  init: (dir) => {
+    initAsync(dir)
       .then(r => { // r undefined
-        info(`initialized`)
-        debug('docker initialized')
+        console.log(`[docker] initialized`)
       })
       .catch(e => {
         info('ERROR: init failed')
