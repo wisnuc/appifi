@@ -3,7 +3,7 @@ import Debug from 'debug'
 import { storeState, storeDispatch } from '../reducers'
 import { refreshStorage } from './storage'
 import { createFruitmix } from '../fruitmix/fruitmix'
-import docker from '../appifi/lib/docker'
+import docker from '../appifi/docker'
 
 const debug = Debug('system:boot')
 

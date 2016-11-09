@@ -1,8 +1,7 @@
 import Debug from 'debug'
 import request from 'superagent'
-
-import { validateRecipe, calcRecipeKeyString } from '../lib/dockerApps'
-import { storeState, storeDispatch } from '../../reducers'
+import { storeState, storeDispatch } from '../reducers'
+import { validateRecipe, calcRecipeKeyString } from './dockerApps'
 
 const debug = Debug('appifi:appstore')
 const K = x => y => x

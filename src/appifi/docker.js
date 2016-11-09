@@ -1,21 +1,18 @@
 import path from 'path'
-import { fs, child, rimrafAsync, mkdirpAsync } from '../../common/async'
+import { fs, child, rimrafAsync, mkdirpAsync } from '../common/async'
 import Debug from 'debug'
-
 import request from 'superagent'
-import appstore from './appstore' // TODO
 
+import { storeState, storeDispatch } from '../reducers'
 import { containerStart, containerStop, containerCreate, containerDelete } from './dockerApi'
-
+import appstore from './appstore' // TODO
 import { dockerEventsAgent, DockerEvents } from './dockerEvents'
 import dockerStateObserver from './dockerStateObserver'
 import { AppInstallTask } from './dockerTasks'
-
 import { calcRecipeKeyString, appMainContainer, containersToApps } from './dockerApps'
-import { storeState, storeDispatch } from '../../reducers'
+
 
 const debug = Debug('appifi:docker')
-
 const dockerUrl = 'http://127.0.0.1:1688'
 const dockerPidFile = '/run/wisnuc/app/docker.pid'
 const dockerVolumesDir = '/run/wisnuc/volumes'

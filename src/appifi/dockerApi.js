@@ -1,5 +1,5 @@
 import request from 'superagent'
-import { HttpStatusError } from '../lib/error'
+import { HttpStatusError } from './error'
 
 const dockerUrl = 'http://127.0.0.1:1688'
 

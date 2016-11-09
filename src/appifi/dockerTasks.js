@@ -3,13 +3,12 @@ import EventEmitter from 'events'
 import deepmerge from 'deepmerge'
 import UUID from 'node-uuid'
 
+import { storeState } from '../reducers'
 import pullImage from './pullImage'
 import { containerCreate, containerStart } from './dockerApi'
 import containerCreateDefaultOpts from './containerDefault'
 
 import { calcRecipeKeyString, installAppifiLabel } from './dockerApps'
-import { storeState } from '../../reducers'
-
 function info(text) {
   console.log(`[docker task] ${text}`)
 }

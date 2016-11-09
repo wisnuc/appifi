@@ -3,7 +3,7 @@ import logger from 'morgan'
 import bodyParser from 'body-parser'
 
 import assets from '../../assets'
-import server from './lib/server'
+import server from './server'
 
 const app = express()
 
