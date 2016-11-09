@@ -46,7 +46,7 @@ const job = () =>
       powerButtonCounter = 0
     }
 
-    debug('board event', read, powerButtonCounter++)
+    debug('board event', read, powerButtonCounter)
   })
 
 const pollingPowerButton = () => setInterval(job, 1000)
