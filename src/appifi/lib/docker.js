@@ -8,9 +8,10 @@ import appstore from './appstore' // TODO
 import { containerStart, containerStop, containerCreate, containerDelete } from './dockerapi'
 
 import { dockerEventsAgent, DockerEvents } from './dockerEvents'
+import dockerStateObserver from './dockerStateObserver'
 import { AppInstallTask } from './dockerTasks'
 
-import { calcRecipeKeyString, appMainContainer } from './dockerApps'
+import { calcRecipeKeyString, appMainContainer, containersToApps } from './dockerApps'
 import { storeState, storeDispatch } from '../../reducers'
 
 const debug = Debug('appifi:docker')
@@ -89,10 +90,20 @@ function dispatchDaemonStart(volume, agent) {
 
   let events = new DockerEvents(agent)
   events.on('update', state => {
+
+    let oldState = storeState().docker
     storeDispatch({
       type: 'DOCKER_UPDATE',
-      data: state
+      data: {
+        data: state,
+        computed: {
+          installeds: containersToApps(state.containers)
+        }
+      }
     })
+
+    let newState = storeState().docker
+    dockerStateObserver(newState, oldState) 
   })
 
   events.on('end', () => {

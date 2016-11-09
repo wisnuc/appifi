@@ -3,9 +3,7 @@ import logger from 'morgan'
 import bodyParser from 'body-parser'
 
 import assets from '../../assets'
-
-import server from './routes/server'
-import appstore from './routes/appstore'
+import server from './lib/server'
 
 const app = express()
 
@@ -62,7 +60,23 @@ app.get('/stylesheets/Roboto-Black-webfont.woff', (req, res) =>
   res.set('Content-Type', 'application/font-woff')
     .send(assets.robotoBlack))
 
-app.use('/appstore', appstore)
-app.use('/server', server)
+const nolog = (res) => {
+  res.nolog = true
+  return res
+}
+
+app.get('/server', (req, res) => nolog(res).status(200).json(server.get()))
+app.get('/server/status', (req, res) => nolog(res).status(200).json(server.status()))
+
+app.post('/server', (req, res) => 
+  server.operation(req.body, (err, result) => 
+    err ? res.status(200).json({
+        err: err.message,
+        ecode: err.code
+      }) :
+      res.status(200).json({
+        err: null,
+        result
+      })))
 
 export default app

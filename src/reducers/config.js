@@ -1,9 +1,6 @@
 import validator from 'validator'
 import Debug from 'debug'
 
-import { storeState, storeDispatch } from '../reducers'
-import { writeObjectAsync } from '../common/async'
-
 const debug = Debug('reducers:config')
 const K = x => y => x
 

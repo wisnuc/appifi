@@ -1,9 +1,10 @@
 import path from 'path'
 import Debug from 'debug'
-import { refreshStorage } from './storage'
-import appifiInit from '../appifi/appifi'
-import { createFruitmix } from '../fruitmix/fruitmix'
 import { storeState, storeDispatch } from '../reducers'
+import { refreshStorage } from './storage'
+import { createFruitmix } from '../fruitmix/fruitmix'
+import docker from '../appifi/lib/docker'
+import appstore from '../appifi/lib/appstore'
 
 const debug = Debug('system:boot')
 
@@ -117,12 +118,15 @@ export const tryBoot = (callback) => {
     if (err) return callback(err)
     let bstate = bootState()
     debug('tryboot: bootState', bstate)
+
     let cfs = bstate.currentFileSystem 
     if (cfs) {
-      appifiInit()
       createFruitmix(path.join(cfs.mountpoint, 'wisnuc', 'fruitmix'))
-      // sysconfig.set('lastFileSystem', cfs)
       storeDispatch({ type: 'CONFIG_LAST_FILESYSTEM', cfs })
+
+      // boot appifi only if fruitmix booted
+      docker.init() 
+      appstore.reload()
     }
 
     storeDispatch({ type: 'UPDATE_SYSBOOT', data: bstate })

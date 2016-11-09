@@ -1,7 +1,6 @@
 import Debug from 'debug'
 
 import { createStore, combineReducers } from 'redux'
-import { containersToApps } from './appifi/lib/dockerApps'
 import config from './reducers/config'
 
 const debug = Debug('system:reducers')
@@ -75,11 +74,6 @@ const fruitmixDrives = (state = null, action) => {
   }
 }
 
-const dockerObservers = []
-
-export const observeDocker = f => 
-  dockerObservers.push(f)
-
 const docker = (state = null, action) => {
 
   let newState
@@ -87,7 +81,6 @@ const docker = (state = null, action) => {
   switch(action.type) {
   case 'DAEMON_START':
     newState = {
-      // pid: action.data.pid,
       volume: action.data.volume,
       events: action.data.events,
       data: null,
@@ -96,16 +89,7 @@ const docker = (state = null, action) => {
     break
 
   case 'DOCKER_UPDATE':
-    newState = Object.assign({}, 
-      state, 
-      {
-        data: action.data
-      }, 
-      {
-        computed: {
-          installeds: containersToApps(action.data.containers)
-        }
-      })
+    newState = Object.assign({}, state, action.data)
     break
 
   case 'DAEMON_STOP': 
@@ -116,10 +100,6 @@ const docker = (state = null, action) => {
     newState = state
     break
   }
-
-  dockerObservers.forEach(observe => 
-    process.nextTick(() => 
-      observe(newState, state)))
   return newState
 }
 
