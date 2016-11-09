@@ -1,6 +1,6 @@
+import { createStore, combineReducers } from 'redux'
 import Debug from 'debug'
 
-import { createStore, combineReducers } from 'redux'
 import config from './reducers/config'
 
 const debug = Debug('system:reducers')
@@ -17,10 +17,10 @@ const device = (state = null, action) => {
   }
 }
 
-const serverConfig = (state = {}, action) => {
+const developer = (state = {}, action) => {
 
   switch(action.type) {
-  case 'SERVER_CONFIG':
+  case 'DEVELOPER_SETTING':
     state[action.key] = action.value
     return state 
   default:
@@ -39,7 +39,7 @@ const storage = (state = null, action) => {
   }
 }
 
-const sysboot = (state = null, action) => {
+const boot = (state = null, action) => {
 
   switch(action.type) {
   case 'UPDATE_SYSBOOT':
@@ -159,9 +159,9 @@ let store = createStore(combineReducers({
   increment,
   device,
   config,
-  serverConfig,
+  developer,
   storage,
-  sysboot,
+  boot,
   docker,
   appstore,
   tasks,

@@ -137,12 +137,12 @@ router.use('/mir', mir)
 
 router.get('/boot', (req, res) => {
 
-  let sysboot = storeState().sysboot
+  let boot = storeState().boot
  
-  debug(sysboot) 
+  debug(boot) 
 
-  if (sysboot)
-    res.status(200).json(sysboot)
+  if (boot)
+    res.status(200).json(boot)
   else 
     res.status(500).end() // TODO
 })

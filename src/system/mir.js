@@ -165,7 +165,7 @@ const tryReboot = (lfs, callback) => {
 
 router.post('/', (req, res) => {
 
-  let bstate = storeState().sysboot
+  let bstate = storeState().boot
   if (bstate.state !== 'maintenance')
     return res.status(405).json({
       message: 'system is not in maintenance mode'

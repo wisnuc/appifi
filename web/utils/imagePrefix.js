@@ -1,9 +1,9 @@
-import { configState } from './storeState'
+import { developerState } from './storeState'
 
 const imagePrefix = (imagePath) => {
 
   let url
-  if (configState() && configState().appstoreMaster) {
+  if (developerState() && developerState().appstoreMaster) {
     url = 'https://raw.githubusercontent.com/wisnuc/appifi-recipes/master' + imagePath
   }
   else 

@@ -13,7 +13,7 @@ function info(text) {
 
 const getJsonRecipesUrl = () => {
 
-  let url = (storeState().serverConfig && storeState().serverConfig.appstoreMaster === true) ?
+  let url = (storeState().developer && storeState().developer.appstoreMaster === true) ?
     'https://raw.githubusercontent.com/wisnuc/appifi-recipes/master/release.json' :
     'https://raw.githubusercontent.com/wisnuc/appifi-recipes/release/release.json'
 

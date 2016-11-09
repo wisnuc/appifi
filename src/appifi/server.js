@@ -99,7 +99,11 @@ const facade = () => {
 
   return {
     status,
-    config: storeState().serverConfig,
+    device: storeState().device,
+    boot: storeState().boot,
+    config: storeState().config,
+    developer: storeState().developer,
+    storage: storeState().storage,
     docker: dockerFacade(storeState().docker),
     appstore: appstoreFacade(storeState().appstore),
     tasks: tasksFacade(storeState().tasks),

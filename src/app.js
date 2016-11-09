@@ -103,7 +103,7 @@ const startServer = () => {
 process.argv.forEach((val, index, array) => {
   if (val === '--appstore-master') {
     storeDispatch({
-      type: 'SERVER_CONFIG',
+      type: 'DEVELOPER_SETTING',
       key: 'appstoreMaster',
       value: true
     })

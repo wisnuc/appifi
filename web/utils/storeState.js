@@ -22,10 +22,10 @@ export const serverState = () => {
 export const dockerState = () => serverState() ? serverState().docker : null 
 export const appstoreState = () => serverState() ? serverState().appstore : null
 export const taskStates = () => serverState() ? serverState().tasks : null
-export const configState = () => serverState() ? serverState().config : null
-export const networkState = () => serverState() ? serverState().network : null
-export const timeDateState = () => serverState() ? serverState().timeDate : null
-export const barcelonaState = () => serverState() ? serverState().barcelona : null
+export const developerState = () => serverState() ? serverState().developer : null
+// export const networkState = () => serverState() ? serverState().network : null
+// export const timeDateState = () => serverState() ? serverState().timeDate : null
+// export const barcelonaState = () => serverState() ? serverState().barcelona : null
 
 export const dispatch = (action) => window.store.dispatch(action)
 
