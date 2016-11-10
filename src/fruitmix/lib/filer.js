@@ -133,7 +133,7 @@ export class Forest extends IndexedTree {
       let job = this.collations.get(node)
       if (again || job.again) {
         job.again = false
-        job.abort = probe(node)
+        job.abort = this.probe(node)
       }
       else {
         this.collations.delete(node)

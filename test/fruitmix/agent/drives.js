@@ -99,3 +99,32 @@ describe(path.basename(__filename) + ': family version', function() {
   })
 })
 
+describe(path.basename(__filename) + ': test what?', function() {
+
+  describe('test something', function() {
+
+    let token
+    let cwd = process.cwd()
+
+    beforeEach(() => (async () => {
+      await fakePathModel(path.join(cwd, 'tmptest'), users, drives)
+      await fakeRepoSilenced()
+      token = await requestTokenAsync(app, userUUID, 'world')
+    })())
+
+    it('GET /drives/list returns anything', function(done) {
+      request(app)
+        .get('/drives/list')
+        .set('Authorization', 'JWT ' + token)    
+        .set('Accept', 'application/json')
+        .query({ type: 'filesystem' })
+        .query({ path: '/hello/what' })
+        .expect(200)
+        .end(function(err, res) {
+          console.log(err || res.body)
+          done()
+        })
+    }) 
+  })
+})
+
