@@ -18,24 +18,6 @@ function info(text) {
   console.log(`[storage] ${text}`)
 }
 
-class InvalidError extends Error {
-
-  constructor(message) {
-    super(message)
-    this.message = message
-    this.name = 'InvalidError'
-  }
-}
-
-class OperationFailError extends Error {
-
-  constructor(message) {
-    super(message)
-    this.message = message
-    this.name = 'OperationFailError'
-  }
-}
-
 const probePorts = async () => udevInfoAsync((
   await child.execAsync('find /sys/class/ata_port -type l'))
     .toString().split('\n').map(l => l.trim()).filter(l => l.length))
@@ -990,7 +972,6 @@ udevMon.on('events', events => {
 })
 
 export default {
-
   operation: (req, callback) => 
     operation(req)
       .then(r => callback(null, r))
