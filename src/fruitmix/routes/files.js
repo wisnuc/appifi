@@ -22,6 +22,7 @@ router.get('/:nodeUUID', auth.jwt(), (req, res) => {
   let repo = Models.getModel('repo')
   let filer = Models.getModel('filer')
   let user = req.user
+  let query = req.query
 
   let node = filer.findNodeByUUID(req.params.nodeUUID) 
   if (!node) {
@@ -32,7 +33,11 @@ router.get('/:nodeUUID', auth.jwt(), (req, res) => {
   }
 
   if (node.isDirectory()) {
-    let ret = filer.listFolder(user.uuid, node.uuid)
+
+    let ret = query.navroot ? 
+      filer.navFolder(user.uuid, node.uuid, query.navroot) :
+      filer.listFolder(user.uuid, node.uuid)
+
     if (ret instanceof Error) {
       res.status(500).json({
         code: ret.code,
