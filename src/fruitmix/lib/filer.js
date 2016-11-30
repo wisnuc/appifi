@@ -224,6 +224,8 @@ export class Forest extends IndexedTree {
 
   listFolder(userUUID, folderUUID) {
 
+    debug('listFolder', userUUID, folderUUID)
+
     let node = this.findNodeByUUID(folderUUID)
     if (!node) {
       let e = new Error(`listFolder: ${folderUUID} not found`)
@@ -272,6 +274,113 @@ export class Forest extends IndexedTree {
           return null
       })
       .filter(n => !!n)
+  }
+
+  navFolder(userUUID, folderUUID, rootUUID) {
+
+    debug('navFolder', userUUID, folderUUID, rootUUID)
+
+    let node = this.findNodeByUUID(folderUUID)
+    if (!node) {
+      let e = new Error(`listFolder: ${folderUUID} not found`)
+      e.code = 'ENOENT'
+      return e
+    }
+
+    if (!node.isDirectory()) {
+      let e = new Error(`listFolder: ${folderUUID} is not a folder`)
+      e.code = 'ENOTDIR'
+      return e
+    }
+
+    let root = this.findNodeByUUID(rootUUID)
+    if (!root) {
+      let e = new Error(`listFolder: ${rootUUID} not found`)
+      e.code = 'ENOENT'
+      return e
+    }
+
+    let path = node.nodepath()
+    let index = path.indexOf(root)
+    debug('navFolder, index', index)
+
+    if (index === -1) {
+      let e = new Error(`listFolder: ${rootUUID} not an ancestor of ${folderUUID}`) 
+      e.code = 'EINVAL'
+      return e
+    }
+
+    debug('navFolder, path', path)
+
+    let subpath = path.slice(index)
+    if (!subpath.every(n => n.userReadable(userUUID))) {
+      let e = new Error(`listFolder: not all ancestors accessible for given user ${userUUID}`)
+      e.code = 'EACCESS'
+      return e
+    } 
+
+    debug('navFolder, subpath', subpath)
+
+    return {
+      path: subpath
+        .map(n => {
+          if (n.isDirectory()) {
+            return {
+              uuid: n.uuid,
+              type: 'folder',
+              owner: n.owner, 
+              writelist: n.writelist,
+              readlist: n.readlist,
+              name: n.name
+            }
+          }
+          else if (n.isFile()) {
+            return {
+              uuid: n.uuid,
+              type: 'file',
+              owner: n.owner,
+              writelist: n.writelist,
+              readlist: n.readlist,
+              name: n.name,
+              mtime: n.mtime,
+              size: n.size
+            }
+          }
+          else
+            return null
+        })
+        .filter(n => !!n),
+
+      children: node
+        .getChildren()
+        .map(n => {
+          if (n.isDirectory()) {
+            return {
+              uuid: n.uuid,
+              type: 'folder',
+              owner: n.owner, 
+              writelist: n.writelist,
+              readlist: n.readlist,
+              name: n.name
+            }
+          }
+          else if (n.isFile()) {
+            return {
+              uuid: n.uuid,
+              type: 'file',
+              owner: n.owner,
+              writelist: n.writelist,
+              readlist: n.readlist,
+              name: n.name,
+              mtime: n.mtime,
+              size: n.size
+            }
+          }
+          else
+            return null
+        })
+        .filter(n => !!n)
+    } 
   }
 
   readFile(userUUID, fileUUID) {
