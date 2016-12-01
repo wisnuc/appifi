@@ -2066,12 +2066,6 @@
       "resolved": "https://registry.npmjs.org/is-number/-/is-number-2.1.0.tgz",
       "dev": true
     },
-    "is-obj": {
-      "version": "1.0.1",
-      "from": "is-obj@>=1.0.1 <2.0.0",
-      "resolved": "https://registry.npmjs.org/is-obj/-/is-obj-1.0.1.tgz",
-      "dev": true
-    },
     "is-path-cwd": {
       "version": "1.0.0",
       "from": "is-path-cwd@>=1.0.0 <2.0.0",
@@ -2112,12 +2106,6 @@
       "version": "1.0.0",
       "from": "is-redirect@>=1.0.0 <2.0.0",
       "resolved": "https://registry.npmjs.org/is-redirect/-/is-redirect-1.0.0.tgz",
-      "dev": true
-    },
-    "is-regexp": {
-      "version": "1.0.0",
-      "from": "is-regexp@>=1.0.0 <2.0.0",
-      "resolved": "https://registry.npmjs.org/is-regexp/-/is-regexp-1.0.0.tgz",
       "dev": true
     },
     "is-resolvable": {
@@ -3669,12 +3657,6 @@
       "version": "1.0.2",
       "from": "string-width@>=1.0.1 <2.0.0",
       "resolved": "https://registry.npmjs.org/string-width/-/string-width-1.0.2.tgz",
-      "dev": true
-    },
-    "stringify-object": {
-      "version": "3.0.0",
-      "from": "stringify-object@latest",
-      "resolved": "https://registry.npmjs.org/stringify-object/-/stringify-object-3.0.0.tgz",
       "dev": true
     },
     "strip-ansi": {
