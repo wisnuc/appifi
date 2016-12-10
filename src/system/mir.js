@@ -78,7 +78,7 @@ router.get('/', (req, res) => {
 
   mkfs: {           
     type: 'btrfs',
-    opts: raid mode  
+    mode: raid mode  
   }
 
   init: {           // this must be provided if mkfs is provided

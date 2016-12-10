@@ -45,6 +45,20 @@ const probeProcfs = (path, cb) =>
       .reduce((obj, arr) => 
         K(obj)(obj[stylize(arr[0])] = arr[1]), {})))    // merge into one object
 
+const probeProcfsMultiSec = (path, cb) => 
+  child.exec(`cat /proc/${path}`, (err, stdout) => err ? cb(err) :
+    cb(null,
+      stdout.toString()
+      .split('\n\n')                                      // split to sections
+      .map(sect => sect.trim())                           // trim
+      .filter(sect => sect.length)                        // remove last empty
+      .map(sect => sect.split('\n')                       // process each section
+        .map(l => l.trim()).filter(l => l.length)         // trim and remove empty line     
+        .map(l => l.split(':').map(w => w.trim()))        // split to word array (kv)     
+        .filter(arr => arr.length === 2 && arr[0].length) // filter out non-kv     
+        .reduce((obj, arr) =>
+          K(obj)(obj[stylize(arr[0])] = arr[1]), {}))))   // merge into one object 
+
 const probeWs215i = cb => 
   fs.stat('/proc/BOARD_io', err =>
     err ? ((err.code === 'ENOENT') ? cb(null, false) : cb(err)) 
@@ -78,7 +92,7 @@ const dmiDecode = cb => {
 }
 
 const systemProbe = cb => 
-  probeProcfs('cpuinfo', (err, cpuInfo) => err ? cb(err) :
+  probeProcfsMultiSec('cpuinfo', (err, cpuInfo) => err ? cb(err) :
       probeProcfs('meminfo', (err, memInfo) => err ? cb(err) : 
           probeWs215i((err, isWs215i) => err ? cb(err) : 
             isWs215i ? 
