@@ -101,4 +101,46 @@ const systemProbe = cb =>
               dmiDecode((err, dmidecode) => 
                 err ? cb(err) : cb(null, {cpuInfo, memInfo, dmidecode})))))
 
-export default systemProbe
+const probeRelease = cb => {
+
+  let countDown = 2
+  let soft = {} 
+  fs.readFile('.release.json', (err, data) => {
+    if (!err) {
+      try {
+        soft.release = JSON.parse(data.toString()) 
+      }
+      catch(e) {}
+    }
+    if (!--countDown) cb(null, soft)
+  })
+  fs.readFile('.revision', (err, data) => {
+    if (!err) {
+      soft.commit = data.toString()
+    }
+    if (!--countDown) cb(null, soft)
+  })
+}
+
+const allProbe = cb => {
+ 
+  let countDown = 2 
+  let merge = {}
+
+  systemProbe((err, data) => {
+    if (!err) {
+      Object.assign(merge, data)
+    }
+    if (!--countDown) cb(null, merge)
+  })
+
+  probeRelease((err, data) => {
+    if (!err) {
+      Object.assign(merge, data)
+    }
+    if (!--countDown) cb(null, merge)
+  })
+}
+
+export default allProbe
+
