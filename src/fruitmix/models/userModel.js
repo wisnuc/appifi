@@ -216,7 +216,7 @@ class UserModel extends EventEmitter{
 
     // password
     if (password) {
-      if (password !== 'string' || !password.length) 
+      if (typeof password !== 'string' || !password.length) 
         return einval('invalid password')
       change.password = bcrypt.hashSync(password, bcrypt.genSaltSync(10))
       change.smbPassword = md4Encrypt(password)
