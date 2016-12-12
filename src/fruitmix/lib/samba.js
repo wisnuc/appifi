@@ -3,7 +3,7 @@ import fs from 'fs'
 import child from 'child_process'
 import EventEmitter from 'events'
 import dgram from 'dgram'
-import upnpserver from 'upnpserver'
+// import upnpserver from 'upnpserver'
 
 import Debug from 'debug'
 const debug = Debug('fruitmix:samba')
@@ -477,9 +477,9 @@ const createSmbAuditAsync = async () => {
     scheduleUpdate()  
   })
 
-  let paths = generateUpnpPaths()
-  let upnp = new upnpserver({ name: 'wisnuc media server' }, paths)
-  upnp.start()
+//  let paths = generateUpnpPaths()
+//  let upnp = new upnpserver({ name: 'wisnuc media server' }, paths)
+//  upnp.start()
 
    // TODO not optimal
   await initSamba()
