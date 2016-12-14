@@ -1,4 +1,7 @@
-import { list } from './fstree' 
+import Debug from 'debug'
+import { list } from './fstree'
+
+const debug = Debug('fruitmix:winsun')
 
 const scan = (root, callback) => {
 
@@ -49,7 +52,11 @@ const visit = (node, func) => {
 
 const scan2 = (root, callback) => {
 
+  debug('scan root', root)
+
   scan(root, (err, nodes) => {
+
+    debug('scan finish', err || nodes)
 
     if (err) return callback(err)
     nodes.forEach(node => {
