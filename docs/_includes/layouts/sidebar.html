@@ -1,0 +1,21 @@
+<div class="site-sidebar">
+
+{% if site.latest-news-pages %}
+  <div class="custom-sidebar">
+    <div class="boxed-group-inner">
+      {% capture ln %}{% include content/latest-news.markdown %}{% endcapture %}{{ ln | markdownify }}
+    </div>
+  </div>
+{% endif %}
+
+  <div class="custom-sidebar">
+    <div class="boxed-group-inner">
+      {% capture sb %}{% include content/sidebar.markdown %}{% endcapture %}{{ sb | markdownify }}
+    </div>
+  </div>
+
+  <div class="site-theme">
+    This site uses the <a href="https://github.com/ilg-ul/github-jekyll-theme">GitHub Wiki-like</a> theme by <a href="https://github.com/ilg-ul">Liviu Ionescu</a>.
+  </div>
+
+</div>

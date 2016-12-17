@@ -1,0 +1,11 @@
+<div class="site-footer">
+  <div class="site-footer-links left">
+    {% capture fl %}{% include content/footer-left.markdown %}{% endcapture %}{{ fl | markdownify }}
+  </div>
+  <a href="https://github.com/{{ site.github-project-name }}" aria-label="Homepage">
+      <span class="mega-octicon octicon-mark-github" title="GitHub"></span>
+  </a>
+  <div class="site-footer-links right">
+    {% capture fr %}{% include content/footer-right.markdown %}{% endcapture %}{{ fr | markdownify }}
+  </div>
+</div>

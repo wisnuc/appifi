@@ -1,26 +1,78 @@
-######################
-# book (meta) info
+# Site settings.
 
-title: Strange Case of Dr. Jekyll and Mr. Hyde
-author: 
-  name: Robert Louis Stevenson
+# Without a clear rule enforced, both title and name are used.
+title: GitHub Wiki-like Jekyll Theme
+name: GitHub Wiki-like Jekyll Theme
+description: A simple Jekyll theme inspired by GitHub Wikis.
 
-github:
-  url: "https://github.com/bookdesigns/book-epsilon"
+email: il@livius.net
 
-host:  0.0.0.0
-
-########
-# more settings
-
-collections:
-  chapters:
-      output: false
-
-sass:
-  sass_dir: css
-  style:    expanded
-
+destination: _site
 exclude:
-- README.md
+  - README.md
+  - jekyll-serve.command
 
+# Used in sitemap.xml.
+url: "http://ilg-ul.github.io" # the base hostname & protocol for your site.
+
+# The subpath of your site, e.g. /blog (note the leading slash and the
+# absence of a trailing slash).
+baseurl: "/github-jekyll-theme"
+
+# This timezone is used to display post dates and last modified messages.
+timezone: UTC
+
+encoding: utf-8
+
+# Default permalink used for posts.
+permalink: /blog/:year/:month/:day/:title/
+
+# Build settings.
+markdown: redcarpet
+
+redcarpet:
+  extensions: []
+
+# Warning: paginator retired in Jekyll 3!
+# Make this larger, probably 5 is a good choice.
+# paginate: 2
+# paginate_path: "/blog/page:num/"
+
+# The number of links added to the 'Latest news' box.
+latest-news-pages: 4
+
+# Currently disabled, since it generates incomplete content.
+# Use manually written RSS feed.xml.
+#   - jekyll-feed
+# {% feed_meta %} in head.html
+
+# jekyll-last-modified-at
+# jekyll-last-modified-at is not available on GitHub Pages.
+gems:
+  - jekyll-mentions
+  - jemoji
+  - jekyll-redirect-from
+  - jekyll-sitemap
+
+# Custom definitions.
+
+# References to the project associated with the web.
+github-username:  ilg-ul
+github-project-name: ilg-ul/github-jekyll-theme
+github-project-url: http://github.com/ilg-ul/github-jekyll-theme
+
+# Change it to refer to project's page
+facebook-url: https://facebook.com/ilg-ul/
+
+twitter-url: http://twitter.com/ilegeul
+
+# If you have one, define it here.
+# google-analytics-id: UA-000000-01
+
+# Disable it if no site footer is needed.
+custom-footer-content: content/site-custom-footer.markdown
+
+css-date: 201510060914
+
+# Content copyright. Update it to your needs.
+copyright-message: "© 2015 Liviu Ionescu"

@@ -1,0 +1,32 @@
+---
+layout: default
+---
+
+{% if page.title %}
+<h1 class="page-title">{{ page.title }}</h1>
+<p class="last-modified">Last modified on {{ page.last_modified_at | date: '%c %Z' }}.</p>
+{% endif %}
+
+{{ content }}
+
+{% if page.title %}
+{% else %}
+<p class="last-modified">Last modified on {{ page.last_modified_at | date: '%c %Z' }}.</p>
+{% endif %}
+
+{% if page.custom-footer-content %}
+<div class="custom-footer">
+  <div class="boxed-group-inner">
+    {% capture pcf %}{% include_relative {{ page.custom-footer-content }} %}{% endcapture %}{{ pcf | markdownify }}
+  </div>
+</div>
+{% else %}
+{% if site.custom-footer-content %}
+<div class="custom-footer">
+  <div class="boxed-group-inner">
+    {% capture cf %}{% include {{ site.custom-footer-content }} %}{% endcapture %}{{ cf | markdownify }}
+  </div>
+</div>
+{% endif %}
+{% endif %}
+{% include layouts/share-buttons.html %}

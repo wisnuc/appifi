@@ -1,0 +1,89 @@
+.site-footer {
+  position: relative;
+  margin-top: 20px;
+  padding-top: 20px;
+  padding-bottom: 40px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #767676;
+  border-top: 1px solid #eee;
+}
+
+.site-footer:before {
+  display: table;
+  content: "";
+}
+.site-footer:after {
+  display: table;
+  clear: both;
+  content: "";
+}
+.site-footer .octicon-mark-github {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  height: 24px;
+  width: 24px;
+  margin-left: -12px;
+  font-size: 24px;
+  color: #ccc;
+}
+.site-footer .octicon-mark-github:hover {
+  color: #bbb;
+}
+.site-footer-links {
+  margin: 0;
+  list-style: none;
+}
+.site-footer-links li {
+  display: inline-block;
+  line-height: 16px;
+}
+.site-footer-links li+li {
+  margin-left: 10px;
+}
+
+.right {
+  float: right;
+}
+.left {
+  float: left;
+}
+
+.custom-footer {
+  background: #f6f6f6;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+  margin-top: 30px;
+}
+
+.custom-footer .boxed-group-inner {
+  padding: 10px 15px;
+  color: #666;
+}
+
+.custom-footer .boxed-group-inner>*:last-child {
+  margin-bottom:0 !important;
+}
+
+.custom-footer p:last-child,
+.custom-footer ul:last-child,
+.custom-footer ol:last-child {
+    margin-bottom: 0;
+}
+
+.post-footer {
+  border-top: 1px solid #eee;
+}
+
+.post-footer p {
+  margin: 0px;
+  font-size: 80%;
+}
+
+.post-footer > p:first-child {
+  margin-top: 5px;
+}
+
+.site-footer img {
+  vertical-align: middle;
+}
