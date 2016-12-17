@@ -1,11 +1,11 @@
 # Site settings.
 
 # Without a clear rule enforced, both title and name are used.
-title: GitHub Wiki-like Jekyll Theme
-name: GitHub Wiki-like Jekyll Theme
-description: A simple Jekyll theme inspired by GitHub Wikis.
+title: Documentation
+name: Documentation
+description: Documentation
 
-email: il@livius.net
+email: matianfu@gmail.com
 
 destination: _site
 exclude:
