@@ -17,7 +17,7 @@ url: "http://ilg-ul.github.io" # the base hostname & protocol for your site.
 
 # The subpath of your site, e.g. /blog (note the leading slash and the
 # absence of a trailing slash).
-baseurl: "/github-jekyll-theme"
+baseurl: "/appifi"
 
 # This timezone is used to display post dates and last modified messages.
 timezone: UTC
