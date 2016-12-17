@@ -1,7 +1,7 @@
-#### [Home]({{ site.baseurl }}/)
+### [子曰]({{ site.baseurl }}/)
 
-#### Content
-* [test]({{ site.baseurl }}/test/)
+### 目录
+* [测试页面]({{ site.baseurl }}/test/)
 * [xstat]({{ site.baseurl }}/xstat/)
 
-#### [About]({{ site.baseurl }}/about/)
+### [关于]({{ site.baseurl }}/about/)

@@ -6,6 +6,7 @@ html {
 
 body {
     margin: 0;
+    overflow-y: scroll;
 }
 
 article, aside, details, figcaption, figure, footer, header, hgroup,
@@ -303,7 +304,7 @@ label {
 }
 
 .container {
-    width: 980px;
+    width: 1200px;
     margin-right: auto;
     margin-left: auto;
 }
@@ -785,7 +786,7 @@ h1.post-title  {
 }
 
 .site-content {
-  width: 730px;
+  width: 920px;
   padding-right: 30px;
 }
 

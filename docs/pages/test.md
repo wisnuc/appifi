@@ -1,10 +1,8 @@
 ---
 layout: page
 permalink: /test/
-title: Page Title
-author: Liviu Ionescu
+title: 测试页面
 
-custom-footer-content: _test-footer.md
 
 ---
 

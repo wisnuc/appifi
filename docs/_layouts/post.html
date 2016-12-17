@@ -12,10 +12,6 @@ layout: default
   </tr>
 </table>
 
-{% if page.title %}
-<h1 class="post-title">{{ page.title }}</h1>
-{% endif %}
-
 <p class="post-meta">
 {% if page.date %}Posted on {{ page.date | date: "%B %-d, %Y" }}{% if page.author %} by {{ page.author }}{% endif %}{% if page.meta %} • {{ page.meta }}{% endif %}.{% endif %}
 </p>
@@ -28,6 +24,4 @@ layout: default
 {% for item in page.categories %}{% if add_separator %}, {% else %}{% assign add_separator = true%}{% endif %}<strong>{{ item | downcase }}</strong>{% endfor %}{% if page.tags.size > 0 %} and tagged
 {% assign add_separator = false %}
 {% for item in page.tags %}{% if add_separator %}, {% else %}{% assign add_separator = true %}{% endif %}<strong>{{ item | downcase }}</strong>{% endfor %}{% endif %}.{% endif %}</p>
-{% if page.last_modified_at %}<p>Last modified on {{ page.last_modified_at | date: '%c %Z' }}.</p>{% endif %}
-{% include layouts/share-buttons.html %}
 </div>

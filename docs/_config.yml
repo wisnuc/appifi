@@ -1,11 +1,11 @@
 # Site settings.
 
 # Without a clear rule enforced, both title and name are used.
-title: Documentation
-name: Documentation
-description: Documentation
+title: 闻上私友云
+name: wisnuc cloud
+description: 系统设计文档
 
-email: matianfu@gmail.com
+email: lewis.ma@winsuntech.cn
 
 destination: _site
 exclude:
@@ -13,7 +13,7 @@ exclude:
   - jekyll-serve.command
 
 # Used in sitemap.xml.
-url: "http://ilg-ul.github.io" # the base hostname & protocol for your site.
+url: "https://wisnuc.github.io" # the base hostname & protocol for your site.
 
 # The subpath of your site, e.g. /blog (note the leading slash and the
 # absence of a trailing slash).
@@ -75,4 +75,6 @@ custom-footer-content: content/site-custom-footer.markdown
 css-date: 201510060914
 
 # Content copyright. Update it to your needs.
-copyright-message: "© 2015 Liviu Ionescu"
+copyright-message: "© 206-2017 Wisnuc"
+
+host: 0.0.0.0
