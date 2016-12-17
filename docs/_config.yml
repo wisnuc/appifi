@@ -1,29 +1,26 @@
-# Dependencies
-markdown:         redcarpet
-highlighter:      pygments
+######################
+# book (meta) info
 
-# Permalinks
-permalink:        pretty
-
-# Setup
-title:            Hyde
-tagline:          'A Jekyll theme'
-description:      'A brazen two-column <a href="http://jekyllrb.com" target="_blank">Jekyll</a> theme that pairs a prominent sidebar with uncomplicated content. Made by <a href="https://twitter.com/mdo" target="_blank">@mdo</a>.'
-url:              http://hyde.getpoole.com
-baseurl:          /appifi/
-
-author:
-  name:           'Mark Otto'
-  url:            https://twitter.com/mdo
-
-paginate:         5
-
-host:             0.0.0.0
-
-# Custom vars
-version:          2.1.0
-
-gems: [jekyll-paginate, jekyll-gist]
+title: Strange Case of Dr. Jekyll and Mr. Hyde
+author: 
+  name: Robert Louis Stevenson
 
 github:
-  repo:           https://github.com/poole/hyde
+  url: "https://github.com/bookdesigns/book-epsilon"
+
+host:  0.0.0.0
+
+########
+# more settings
+
+collections:
+  chapters:
+      output: false
+
+sass:
+  sass_dir: css
+  style:    expanded
+
+exclude:
+- README.md
+
