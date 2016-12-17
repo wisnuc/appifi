@@ -1,0 +1,41 @@
+<!doctype html>
+<html>
+
+{% include layouts/head.html %}
+
+<body>
+
+<div class="container">
+
+  {% include layouts/facebook-script.html %}
+  {% include layouts/twitter-script.html %}
+  {% include layouts/header.html %}
+
+</div>
+
+<div class="container">
+
+  <div class="wrapper">
+    <div class="site-body">
+
+      {% include layouts/sidebar.html %}
+
+      <div class="site-content">
+
+        {{ content }}
+
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<div class="container">
+
+  {% include layouts/footer.html %}
+
+</div>
+
+</body>
+</html>

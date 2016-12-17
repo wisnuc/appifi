@@ -1,0 +1,7 @@
+<div class="site-footer">
+  <div class="site-footer-links left">
+  </div>
+  <div class="site-footer-links right">
+    {% capture fr %}{% include content/footer-right.markdown %}{% endcapture %}{{ fr | markdownify }}
+  </div>
+</div>

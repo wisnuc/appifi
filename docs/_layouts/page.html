@@ -1,0 +1,21 @@
+---
+layout: default
+---
+
+{{ content }}
+
+{% if page.custom-footer-content %}
+<div class="custom-footer">
+  <div class="boxed-group-inner">
+    {% capture pcf %}{% include_relative {{ page.custom-footer-content }} %}{% endcapture %}{{ pcf | markdownify }}
+  </div>
+</div>
+{% else %}
+{% if site.custom-footer-content %}
+<div class="custom-footer">
+  <div class="boxed-group-inner">
+    {% capture cf %}{% include {{ site.custom-footer-content }} %}{% endcapture %}{{ cf | markdownify }}
+  </div>
+</div>
+{% endif %}
+{% endif %}
