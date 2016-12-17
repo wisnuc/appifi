@@ -6,7 +6,6 @@ author: Liviu Ionescu
 
 custom-footer-content: _test-footer.md
 
-last_modified_at: 2015-09-30 17:57:00 +00:00
 ---
 
 ## Header 2
