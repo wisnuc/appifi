@@ -2,6 +2,6 @@
 
 #### Content
 * [test]({{ site.baseurl }}/test/)
-* more
+* [xstat]({{ site.baseurl }}/xstat/)
 
 #### [About]({{ site.baseurl }}/about/)
