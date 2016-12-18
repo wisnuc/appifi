@@ -80,12 +80,12 @@
                     "id": "data-structure-definition",
                     "headings": [
                       {
-                        "title": "`xattr` in JSON format",
+                        "title": "xattr in JSON format",
                         "depth": 3,
                         "id": "xattr-in-json-format"
                       },
                       {
-                        "title": "`xstat` in JavaScript Object format",
+                        "title": "xstat in JavaScript Object format",
                         "depth": 3,
                         "id": "xstat-in-javascript-object-format"
                       }
@@ -97,22 +97,22 @@
                     "id": "functions",
                     "headings": [
                       {
-                        "title": "`readTimeStamp()`",
+                        "title": "readTimeStamp",
                         "depth": 3,
-                        "id": "readtimestamp()"
+                        "id": "readtimestamp"
                       },
                       {
-                        "title": "`readXstat()`",
+                        "title": "readXstat",
                         "depth": 3,
-                        "id": "readxstat()"
+                        "id": "readxstat"
                       },
                       {
-                        "title": "`updateHash()`",
+                        "title": "updateHash()",
                         "depth": 3,
                         "id": "updatehash()"
                       },
                       {
-                        "title": "`copyXattr()`",
+                        "title": "copyXattr()",
                         "depth": 3,
                         "id": "copyxattr()"
                       }
@@ -218,12 +218,12 @@
           "id": "data-structure-definition",
           "headings": [
             {
-              "title": "`xattr` in JSON format",
+              "title": "xattr in JSON format",
               "depth": 3,
               "id": "xattr-in-json-format"
             },
             {
-              "title": "`xstat` in JavaScript Object format",
+              "title": "xstat in JavaScript Object format",
               "depth": 3,
               "id": "xstat-in-javascript-object-format"
             }
@@ -235,22 +235,22 @@
           "id": "functions",
           "headings": [
             {
-              "title": "`readTimeStamp()`",
+              "title": "readTimeStamp",
               "depth": 3,
-              "id": "readtimestamp()"
+              "id": "readtimestamp"
             },
             {
-              "title": "`readXstat()`",
+              "title": "readXstat",
               "depth": 3,
-              "id": "readxstat()"
+              "id": "readxstat"
             },
             {
-              "title": "`updateHash()`",
+              "title": "updateHash()",
               "depth": 3,
               "id": "updatehash()"
             },
             {
-              "title": "`copyXattr()`",
+              "title": "copyXattr()",
               "depth": 3,
               "id": "copyxattr()"
             }

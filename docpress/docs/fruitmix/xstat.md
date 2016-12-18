@@ -14,7 +14,7 @@ One is stored as `xattr` using `user:fruitmix` as name, in json format, represen
 
 The other is returned by read function to upper layer, in JavaScript object format, representing a file or folder's decorated file system metadata.
 
-### `xattr` in JSON format
+### xattr in JSON format
 
 example:
 
@@ -80,7 +80,7 @@ It works as:
 
 Next time, if we are interested also gif file, we bump this number to 1. When `xstat` module read a `xattr` with UNINTERESTED_MAGIC_VERSION less than 1, it knows that it should run `file` command against the file again, to see if magic string starts with `GIF image data`, if so, the magic prop should be set to `GIF`, otherwise, it should be set to new UNINTERESTED_MAGIC_VERSION, which is 1, to avoid running `file` command again during next `xstat` reading.
 
-### `xstat` in JavaScript Object format
+### xstat in JavaScript Object format
 
 Props and functions in `fs.stat` is not listed.
 
@@ -108,14 +108,20 @@ optional, If magic is a predefined string, it is included in `xstat` object. If 
 
 ## Functions
 
-### `readTimeStamp()`
+### readTimeStamp
 
 // TODO ?? should this function provide a uuid?
 
 A convenience function, returning `mtime` of given file or folders.
 
-### `readXstat()`
+### readXstat
 
-### `updateHash()`
+This is the main function of `xstat` module.
 
-### `copyXattr()`
+
+
+``
+
+### updateHash()
+
+### copyXattr()
