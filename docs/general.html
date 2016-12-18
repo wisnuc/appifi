@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="assets/style.css?t=615badd5">
+    <script src="assets/script.js?t=42463e55"></script>
+    <title>General - 闻上私有云</title>
+    <meta name="viewport" content="width=device-width">
+  </head>
+  <body class="-menu-visible">
+    <div class="doc-layout">
+      <div class="toggle menu-toggle js-menu-toggle"></div>
+      <div class="menu toc-menu">
+        <li class="menu-item -level-0 -parent">
+          <ul class="submenu">
+            <li class="menu-item -level-1"><a class="link title  link-index" href="index.html">闻上私有云</a>
+            </li>
+            <li class="menu-item -level-1"><a class="link title -active link-general" href="general.html">General</a>
+              <ul class="headings heading-list">
+                <li class="heading-item -depth-2"><a class="hlink link-structure" href="#structure">Structure</a>
+                </li>
+              </ul>
+            </li>
+            <li class="menu-item -level-1 -parent"><span class="title">Fruitmix</span>
+              <ul class="submenu">
+                <li class="menu-item -level-2"><a class="link title  link-fruitmixoverview" href="fruitmix/overview.html">Overview</a>
+                </li>
+                <li class="menu-item -level-2 -parent"><span class="title">Modules</span>
+                  <ul class="submenu">
+                    <li class="menu-item -level-3"><a class="link title  link-fruitmixxstat" href="fruitmix/xstat.html">xstat</a>
+                    </li>
+                  </ul>
+                </li>
+              </ul>
+            </li>
+            <li class="menu-item -level-1 -parent"><span class="title">Misc</span>
+              <ul class="submenu">
+                <li class="menu-item -level-2"><a class="link title  link-miscmd4encrypt" href="misc/md4encrypt.html">md4Encrypt</a>
+                </li>
+              </ul>
+            </li>
+          </ul>
+        </li>
+      </div>
+      <div class="body page-general">
+        <div class="header-nav">
+          <div class="right">
+          </div>
+        </div>
+        <div class="markdown-body"><h2 id="structure">Structure</h2>
+<p><code>appifi</code> project contains three loosely coupled components: <code>system</code>, <code>appifi</code>, and <code>fruitmix</code>.</p>
+<p>Originally there are two separate projects: <code>appifi</code> and <code>fruitmix</code>. Then the latter are merged into the former (this one). After some refactoring, the system level functionalities are extracted from <code>appifi</code> code base to form a separate layer. In future, they may be split into three separate projects.</p>
+<p><code>system</code> component is responsibile for traditional NAS functionalities, including probing system, especially block devices, configuration networks, etc. If the target system is managed by <code>appifi</code> project (this project is deployed to a dedicated device), system layer is must-have.</p>
+<p>After <code>system</code> layer extracted out of <code>appifi</code>, now <code>appifi</code> component is a standalone docker client. It communicates to docker daemon throught docker remote api (restful). and providing a set of simplified rest api to pc or mobile clients.</p>
+<p><code>fruitmix</code> provides the core function for <code>wisnuc private cloud</code>. It manages and maintains users, virtual drives, files, media, file system or in-file metadata, media sharing, as well as media talks (comments on media files).</p>
+<p>In current stage, three components are tightly coupled, so they are put into one project repository.</p>
+<p>The aim is: both appifi and fruitmix will be deployed separately, as a standalone software.</p>
+<p>This is a very brief view of the whole system. The documentation starts from <code>fruitmix</code> component.</p>
+
+        </div>
+        <div class="footer-nav">
+          <div class="left"><a href="index.html"><span class="title">闻上私有云</span></a></div>
+          <div class="right"><a href="fruitmix/overview.html"><span class="label">Next: </span><span class="title">Overview</span></a></div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

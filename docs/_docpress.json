@@ -8,20 +8,135 @@
         "slug": "index"
       },
       {
-        "title": "Hello",
-        "source": "docs/hello.md",
-        "url": "hello.html",
-        "slug": "hello",
+        "title": "General",
+        "source": "docs/general.md",
+        "url": "general.html",
+        "slug": "general",
         "headings": [
           {
-            "title": "heading 2",
+            "title": "Structure",
             "depth": 2,
-            "id": "heading-2",
+            "id": "structure"
+          }
+        ]
+      },
+      {
+        "title": "Fruitmix",
+        "sections": [
+          {
+            "title": "Overview",
+            "source": "docs/fruitmix/overview.md",
+            "url": "fruitmix/overview.html",
+            "slug": "fruitmixoverview",
             "headings": [
               {
-                "title": "heading 3",
-                "depth": 3,
-                "id": "heading-3"
+                "title": "Objective",
+                "depth": 2,
+                "id": "objective",
+                "headings": [
+                  {
+                    "title": "Background on File Service",
+                    "depth": 3,
+                    "id": "background-on-file-service"
+                  }
+                ]
+              },
+              {
+                "title": "Design",
+                "depth": 2,
+                "id": "design",
+                "headings": [
+                  {
+                    "title": "User",
+                    "depth": 3,
+                    "id": "user"
+                  },
+                  {
+                    "title": "File System Decoration Layer",
+                    "depth": 3,
+                    "id": "file-system-decoration-layer"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "title": "Modules",
+            "sections": [
+              {
+                "title": "xstat",
+                "source": "docs/fruitmix/xstat.md",
+                "url": "fruitmix/xstat.html",
+                "slug": "fruitmixxstat",
+                "headings": [
+                  {
+                    "title": "Objective",
+                    "depth": 2,
+                    "id": "objective"
+                  },
+                  {
+                    "title": "Data Structure Definition",
+                    "depth": 2,
+                    "id": "data-structure-definition",
+                    "headings": [
+                      {
+                        "title": "`xattr` in JSON format",
+                        "depth": 3,
+                        "id": "xattr-in-json-format"
+                      },
+                      {
+                        "title": "`xstat` in JavaScript Object format",
+                        "depth": 3,
+                        "id": "xstat-in-javascript-object-format"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "Functions",
+                    "depth": 2,
+                    "id": "functions",
+                    "headings": [
+                      {
+                        "title": "`readTimeStamp()`",
+                        "depth": 3,
+                        "id": "readtimestamp()"
+                      },
+                      {
+                        "title": "`readXstat()`",
+                        "depth": 3,
+                        "id": "readxstat()"
+                      },
+                      {
+                        "title": "`updateHash()`",
+                        "depth": 3,
+                        "id": "updatehash()"
+                      },
+                      {
+                        "title": "`copyXattr()`",
+                        "depth": 3,
+                        "id": "copyxattr()"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "title": "Misc",
+        "sections": [
+          {
+            "title": "md4Encrypt",
+            "source": "docs/misc/md4encrypt.md",
+            "url": "misc/md4encrypt.html",
+            "slug": "miscmd4encrypt",
+            "headings": [
+              {
+                "title": "samba password verification",
+                "depth": 2,
+                "id": "samba-password-verification"
               }
             ]
           }
@@ -36,29 +151,132 @@
       "pageTitle": "闻上私有云",
       "slug": "index"
     },
-    "hello.html": {
-      "source": "docs/hello.md",
-      "title": "Hello - 闻上私有云",
-      "pageTitle": "Hello",
-      "slug": "hello",
+    "general.html": {
+      "source": "docs/general.md",
+      "title": "General - 闻上私有云",
+      "pageTitle": "General",
+      "slug": "general",
       "headings": [
         {
-          "title": "heading 2",
+          "title": "Structure",
           "depth": 2,
-          "id": "heading-2",
+          "id": "structure"
+        }
+      ]
+    },
+    "fruitmix/overview.html": {
+      "source": "docs/fruitmix/overview.md",
+      "title": "Overview - 闻上私有云",
+      "pageTitle": "Overview",
+      "slug": "fruitmixoverview",
+      "headings": [
+        {
+          "title": "Objective",
+          "depth": 2,
+          "id": "objective",
           "headings": [
             {
-              "title": "heading 3",
+              "title": "Background on File Service",
               "depth": 3,
-              "id": "heading-3"
+              "id": "background-on-file-service"
             }
           ]
+        },
+        {
+          "title": "Design",
+          "depth": 2,
+          "id": "design",
+          "headings": [
+            {
+              "title": "User",
+              "depth": 3,
+              "id": "user"
+            },
+            {
+              "title": "File System Decoration Layer",
+              "depth": 3,
+              "id": "file-system-decoration-layer"
+            }
+          ]
+        }
+      ]
+    },
+    "fruitmix/xstat.html": {
+      "source": "docs/fruitmix/xstat.md",
+      "title": "xstat - 闻上私有云",
+      "pageTitle": "xstat",
+      "slug": "fruitmixxstat",
+      "headings": [
+        {
+          "title": "Objective",
+          "depth": 2,
+          "id": "objective"
+        },
+        {
+          "title": "Data Structure Definition",
+          "depth": 2,
+          "id": "data-structure-definition",
+          "headings": [
+            {
+              "title": "`xattr` in JSON format",
+              "depth": 3,
+              "id": "xattr-in-json-format"
+            },
+            {
+              "title": "`xstat` in JavaScript Object format",
+              "depth": 3,
+              "id": "xstat-in-javascript-object-format"
+            }
+          ]
+        },
+        {
+          "title": "Functions",
+          "depth": 2,
+          "id": "functions",
+          "headings": [
+            {
+              "title": "`readTimeStamp()`",
+              "depth": 3,
+              "id": "readtimestamp()"
+            },
+            {
+              "title": "`readXstat()`",
+              "depth": 3,
+              "id": "readxstat()"
+            },
+            {
+              "title": "`updateHash()`",
+              "depth": 3,
+              "id": "updatehash()"
+            },
+            {
+              "title": "`copyXattr()`",
+              "depth": 3,
+              "id": "copyxattr()"
+            }
+          ]
+        }
+      ]
+    },
+    "misc/md4encrypt.html": {
+      "source": "docs/misc/md4encrypt.md",
+      "title": "md4Encrypt - 闻上私有云",
+      "pageTitle": "md4Encrypt",
+      "slug": "miscmd4encrypt",
+      "headings": [
+        {
+          "title": "samba password verification",
+          "depth": 2,
+          "id": "samba-password-verification"
         }
       ]
     }
   },
   "sources": {
     "docs/README.md": "index.html",
-    "docs/hello.md": "hello.html"
+    "docs/general.md": "general.html",
+    "docs/fruitmix/overview.md": "fruitmix/overview.html",
+    "docs/fruitmix/xstat.md": "fruitmix/xstat.html",
+    "docs/misc/md4encrypt.md": "misc/md4encrypt.html"
   }
 }

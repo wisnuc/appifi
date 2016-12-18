@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="../assets/style.css?t=615badd5">
+    <script src="../assets/script.js?t=42463e55"></script>
+    <title>xstat - 闻上私有云</title>
+    <meta name="viewport" content="width=device-width">
+  </head>
+  <body class="-menu-visible">
+    <div class="doc-layout">
+      <div class="toggle menu-toggle js-menu-toggle"></div>
+      <div class="menu toc-menu">
+        <li class="menu-item -level-0 -parent">
+          <ul class="submenu">
+            <li class="menu-item -level-1"><a class="link title  link-index" href="../index.html">闻上私有云</a>
+            </li>
+            <li class="menu-item -level-1"><a class="link title  link-general" href="../general.html">General</a>
+            </li>
+            <li class="menu-item -level-1 -parent"><span class="title">Fruitmix</span>
+              <ul class="submenu">
+                <li class="menu-item -level-2"><a class="link title  link-fruitmixoverview" href="../fruitmix/overview.html">Overview</a>
+                </li>
+                <li class="menu-item -level-2 -parent"><span class="title">Modules</span>
+                  <ul class="submenu">
+                    <li class="menu-item -level-3"><a class="link title -active link-fruitmixxstat" href="../fruitmix/xstat.html">xstat</a>
+                      <ul class="headings heading-list">
+                        <li class="heading-item -depth-2"><a class="hlink link-objective" href="#objective">Objective</a>
+                        </li>
+                        <li class="heading-item -depth-2"><a class="hlink link-data-structure-definition" href="#data-structure-definition">Data Structure Definition</a>
+                          <ul class="heading-list -depth-2">
+                            <li class="heading-item -depth-3"><a class="hlink link-xattr-in-json-format" href="#xattr-in-json-format">`xattr` in JSON format</a>
+                            </li>
+                            <li class="heading-item -depth-3"><a class="hlink link-xstat-in-javascript-object-format" href="#xstat-in-javascript-object-format">`xstat` in JavaScript Object format</a>
+                            </li>
+                          </ul>
+                        </li>
+                        <li class="heading-item -depth-2"><a class="hlink link-functions" href="#functions">Functions</a>
+                          <ul class="heading-list -depth-2">
+                            <li class="heading-item -depth-3"><a class="hlink link-readtimestamp()" href="#readtimestamp()">`readTimeStamp()`</a>
+                            </li>
+                            <li class="heading-item -depth-3"><a class="hlink link-readxstat()" href="#readxstat()">`readXstat()`</a>
+                            </li>
+                            <li class="heading-item -depth-3"><a class="hlink link-updatehash()" href="#updatehash()">`updateHash()`</a>
+                            </li>
+                            <li class="heading-item -depth-3"><a class="hlink link-copyxattr()" href="#copyxattr()">`copyXattr()`</a>
+                            </li>
+                          </ul>
+                        </li>
+                      </ul>
+                    </li>
+                  </ul>
+                </li>
+              </ul>
+            </li>
+            <li class="menu-item -level-1 -parent"><span class="title">Misc</span>
+              <ul class="submenu">
+                <li class="menu-item -level-2"><a class="link title  link-miscmd4encrypt" href="../misc/md4encrypt.html">md4Encrypt</a>
+                </li>
+              </ul>
+            </li>
+          </ul>
+        </li>
+      </div>
+      <div class="body page-fruitmixxstat">
+        <div class="header-nav">
+          <div class="right">
+          </div>
+        </div>
+        <div class="markdown-body"><h2 id="objective">Objective</h2>
+<p><code>xstat</code> module is responsible for read and store the <code>xattr</code> data on file or folders.</p>
+<p>For the sake of performance, it also returns <code>lstat</code> data to caller. Hence the <code>xstat</code> stands for <code>xattr</code> + <code>fs.stat</code>.</p>
+<p><strong>using lstat rather than stat</strong> to avoid following symbolic link.</p>
+<h2 id="data-structure-definition">Data Structure Definition</h2>
+<p>There are two data structures.</p>
+<p>One is stored as <code>xattr</code> using <code>user:fruitmix</code> as name, in json format, representing the decorated file metadata.</p>
+<p>The other is returned by read function to upper layer, in JavaScript object format, representing a file or folder&apos;s decorated file system metadata.</p>
+<h3 id="xattr-in-json-format"><code>xattr</code> in JSON format</h3>
+<p>example:</p>
+<pre><code class="lang-json">{
+  <span class="hljs-attr">&quot;uuid&quot;</span>: <span class="pl-s">&quot;d10a0dce-7ff6-4cdd-b02b-f74fc863b0fd&quot;</span>,
+  <span class="hljs-attr">&quot;writelist&quot;</span>: [],
+  <span class="hljs-attr">&quot;readlist&quot;</span>: [],
+  <span class="hljs-attr">&quot;hash&quot;</span>: <span class="pl-s">&quot;7803e8fa1b804d40d412bcd28737e3ae027768ecc559b51a284fbcadcd0e21be&quot;</span>,
+  <span class="hljs-attr">&quot;htime&quot;</span>: <span class="hljs-number">1482051736410</span>,
+  <span class="hljs-attr">&quot;magic&quot;</span>: <span class="pl-s">&quot;JPEG&quot;</span>  
+}
+</code></pre>
+<p><strong>uuid</strong></p>
+<p>mandatory, a valid uuid v4 string</p>
+<p><strong>writelist and readlist</strong></p>
+<p>mandatory, both are uuid v4 string array, or both are null. It is not allowed for one is uuid array and the other are null. Empty array is OK.</p>
+<p><strong>hash and htime</strong></p>
+<p>optional, both exists or both are absent. One existing and the other absent is invalid.</p>
+<p><code>hash</code> is a sha256 string, can be validated by regex. <code>htime</code> is an integer, usually generated by <code>new Date().getTime()</code>.</p>
+<p><strong>magic</strong></p>
+<p>A predefined string, such as <code>JPEG</code>, or a number, used as <code>uninterested magic</code> version. Starting from 0. Bumped when more file-types supported.</p>
+<h4 id="bad-format">bad format</h4>
+<p>If <code>xstat</code> reads a <code>xattr</code> that does not conform to above definition. It should be discarded and treated as a file or folder without <code>xattr</code> at all.</p>
+<h4 id="old-format">old format</h4>
+<p>In previous software version, there are one extra prop in JSON and magic property has different definition.</p>
+<pre><code class="lang-json">{
+  <span class="hljs-attr">&quot;owner&quot;</span>: [],
+  <span class="hljs-attr">&quot;magic&quot;</span>: <span class="pl-s">&quot;JPEG image data, Exif standard: [TIFF image data, little-endian...&quot;</span>
+}
+</code></pre>
+<p>If <code>xstat</code> module staring from this version, read a <code>xattr</code> containing <code>owner</code> prop, it should be considered an old version. And old version should be translated into new definition, instead of treating it as bad format.</p>
+<p>If an old version is detected, and <code>magic</code> props exists, it should be truncated to predefined magic string, such as <code>JPEG</code>, or an number, representing <code>uninterested magic</code>. Again, this should not be treated as bad format.</p>
+<h4 id="uninterested-magic-version">uninterested magic version</h4>
+<p>Starting from current version (0.3), the responsibility of detecting file type is assigned to <code>xstat</code> module.</p>
+<p>It works as:</p>
+<ol>
+<li>using <code>file</code> command to extract magic string.</li>
+<li>if magic string starts with <code>JPEG image data</code>, the magic prop is assigned to <code>JPEG</code> (string).</li>
+<li>if magic string does not starts with <code>JPEG image data</code> the magic prop is assigned to 0 (number).</li>
+</ol>
+<p>0 indicates that in version 0, the type of this file is not interested. This value should be hard-coded as a constant in source code. Named as <code>UNINTERESTED_MAGIC_VERSION</code>.</p>
+<p>Next time, if we are interested also gif file, we bump this number to 1. When <code>xstat</code> module read a <code>xattr</code> with UNINTERESTED_MAGIC_VERSION less than 1, it knows that it should run <code>file</code> command against the file again, to see if magic string starts with <code>GIF image data</code>, if so, the magic prop should be set to <code>GIF</code>, otherwise, it should be set to new UNINTERESTED_MAGIC_VERSION, which is 1, to avoid running <code>file</code> command again during next <code>xstat</code> reading.</p>
+<h3 id="xstat-in-javascript-object-format"><code>xstat</code> in JavaScript Object format</h3>
+<p>Props and functions in <code>fs.stat</code> is not listed.</p>
+<pre><code class="lang-js">{
+  <span class="hljs-attr">uuid</span>: <span class="pl-s">&apos;d10a0dce-7ff6-4cdd-b02b-f74fc863b0fd&apos;</span>,
+  <span class="hljs-attr">writelist</span>: [],
+  <span class="hljs-attr">readlist</span>: [],
+  <span class="hljs-attr">hash</span>: <span class="pl-s">&apos;7803e8fa1b804d40d412bcd28737e3ae027768ecc559b51a284fbcadcd0e21be&apos;</span>,
+  <span class="hljs-attr">magic</span>: <span class="pl-s">&apos;JPEG&apos;</span>
+}
+</code></pre>
+<p><strong>uuid, writelist, readlist</strong></p>
+<p>same as JSON counterpart.</p>
+<p><strong>hash and htime</strong></p>
+<p><code>htime</code> is silently dropped. <code>xstat</code> use this prop internally, and never return object with this prop.</p>
+<p><strong>magic</strong></p>
+<p>optional, If magic is a predefined string, it is included in <code>xstat</code> object. If it is UNINTERESTED_MAGIC_VERSION, it is excluded. <code>xstat</code> object does not have this prop.</p>
+<h2 id="functions">Functions</h2>
+<h3 id="readtimestamp()"><code>readTimeStamp()</code></h3>
+<p>// TODO ?? should this function provide a uuid?</p>
+<p>A convenience function, returning <code>mtime</code> of given file or folders.</p>
+<h3 id="readxstat()"><code>readXstat()</code></h3>
+<h3 id="updatehash()"><code>updateHash()</code></h3>
+<h3 id="copyxattr()"><code>copyXattr()</code></h3>
+
+        </div>
+        <div class="footer-nav">
+          <div class="left"><a href="../fruitmix/overview.html"><span class="title">Overview</span></a></div>
+          <div class="right"><a href="../misc/md4encrypt.html"><span class="label">Next: </span><span class="title">md4Encrypt</span></a></div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
