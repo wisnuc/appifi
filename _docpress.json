@@ -1,0 +1,51 @@
+{
+  "toc": {
+    "sections": [
+      {
+        "title": "Home",
+        "source": "docs/home.md",
+        "url": "index.html",
+        "slug": "index",
+        "headings": [
+          {
+            "title": "Heading 2",
+            "depth": 2,
+            "id": "heading-2",
+            "headings": [
+              {
+                "title": "Heading 3",
+                "depth": 3,
+                "id": "heading-3"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "index": {
+    "index.html": {
+      "source": "docs/home.md",
+      "title": "Home",
+      "pageTitle": "Home",
+      "slug": "index",
+      "headings": [
+        {
+          "title": "Heading 2",
+          "depth": 2,
+          "id": "heading-2",
+          "headings": [
+            {
+              "title": "Heading 3",
+              "depth": 3,
+              "id": "heading-3"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "sources": {
+    "docs/home.md": "index.html"
+  }
+}
