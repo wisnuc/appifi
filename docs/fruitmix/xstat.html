@@ -41,9 +41,11 @@
                             </li>
                             <li class="heading-item -depth-3"><a class="hlink link-readxstat" href="#readxstat">readXstat</a>
                             </li>
-                            <li class="heading-item -depth-3"><a class="hlink link-updatehash()" href="#updatehash()">updateHash()</a>
+                            <li class="heading-item -depth-3"><a class="hlink link-updatexattrpermission" href="#updatexattrpermission">updateXattrPermission</a>
                             </li>
-                            <li class="heading-item -depth-3"><a class="hlink link-copyxattr()" href="#copyxattr()">copyXattr()</a>
+                            <li class="heading-item -depth-3"><a class="hlink link-updatexattrhash" href="#updatexattrhash">updateXattrHash</a>
+                            </li>
+                            <li class="heading-item -depth-3"><a class="hlink link-copyxattr" href="#copyxattr">copyXattr</a>
                             </li>
                           </ul>
                         </li>
@@ -134,13 +136,44 @@
 <p>optional, If magic is a predefined string, it is included in <code>xstat</code> object. If it is UNINTERESTED_MAGIC_VERSION, it is excluded. <code>xstat</code> object does not have this prop.</p>
 <h2 id="functions">Functions</h2>
 <h3 id="readtimestamp">readTimeStamp</h3>
-<p>// TODO ?? should this function provide a uuid?</p>
+<p>// TODO ?? should this function provide a uuid? seems yes, if all operation is applied to a node with known uuid</p>
 <p>A convenience function, returning <code>mtime</code> of given file or folders.</p>
 <h3 id="readxstat">readXstat</h3>
 <p>This is the main function of <code>xstat</code> module.</p>
-<p>``</p>
-<h3 id="updatehash()">updateHash()</h3>
-<h3 id="copyxattr()">copyXattr()</h3>
+<pre><code class="lang-js"><span class="hljs-function"><span class="pl-k">function</span> <span class="pl-ent">readXstat</span>(<span class="hljs-params">target, callback</span>)
+</span></code></pre>
+<p>This definition is different from previous version in that it eliminate an optional parameter.</p>
+<p>If the target does not have <code>xattr</code>, a new <code>xattr</code> is generated with random UUID, writelist and readlist set to null (implicit), and magic should be extract from <code>file</code> command and properly set.</p>
+<p>If the target already have <code>xattr</code>, it should be validated. If it is neither valid current version or valid old version, it is discarded. A brand new <code>xattr</code> should be generated.</p>
+<p>If it has an old version (valid and has owner prop):</p>
+<ul>
+<li>if magic exists, it should be translated.</li>
+<li>if magic does not exist, it should be calculated.</li>
+<li>if hash / htime exists and valid, they should be reused.</li>
+<li>if hash / htime exists but not valid, either bad format or outdated, they should be discarded.</li>
+</ul>
+<p>If the target already have new version <code>xattr</code></p>
+<ul>
+<li>hash / htime props should be checked, and dropped if necessary.</li>
+<li>if magic is predefined string, intact.</li>
+<li>if magic is number, equals to or larger than current UNINTERESTED_MAGIC_VERSION, intact.</li>
+<li>if magic is number, less than current UNINTERESTED_MAGIC_VERSION, magic should be re-calculated.</li>
+</ul>
+<p>This function should have plenty of unit testing, making sure both returned <code>xstat</code> object and <code>xattr</code> json are correct.</p>
+<h3 id="updatexattrpermission">updateXattrPermission</h3>
+<pre><code class="lang-js"><span class="hljs-function"><span class="pl-k">function</span> <span class="pl-ent">updateXattrPermission</span>(<span class="hljs-params">target, uuid, writelist, readlist, callback</span>)
+</span></code></pre>
+<p>writelist and readlist must be both null or both valid uuid array.</p>
+<p>If a user is in both writelist and readlist, it should be removed out of readlist.</p>
+<h3 id="updatexattrhash">updateXattrHash</h3>
+<pre><code class="lang-js"><span class="hljs-function"><span class="pl-k">function</span> <span class="pl-ent">updateXattrHash</span>(<span class="hljs-params">target, uuid, hash, htime, callback</span>)
+</span></code></pre>
+<p><code>htime</code> is used to make sure the hash value is correct, even if the file is modified when hashing the file.</p>
+<p>Each time a job is allocated to calc hash, it should first retrieve the <code>mtime</code> before starting calculation. After the calculation is done, it should provide both <code>uuid</code> and <code>htime</code>, as well as calculated hash to invoke this function. This function will check the <code>mtime</code> again. If the timestamp is not equal, it knows that the hash cannot be used and return error.</p>
+<h3 id="copyxattr">copyXattr</h3>
+<pre><code class="lang-js"><span class="hljs-function"><span class="pl-k">function</span> <span class="pl-ent">copyXattr</span>(<span class="hljs-params">dst, src, callback</span>)
+</span></code></pre>
+<p>This function is used for overwriting an existing file with new one and keeping the uuid.</p>
 
         </div>
         <div class="footer-nav">

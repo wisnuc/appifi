@@ -107,14 +107,19 @@
                         "id": "readxstat"
                       },
                       {
-                        "title": "updateHash()",
+                        "title": "updateXattrPermission",
                         "depth": 3,
-                        "id": "updatehash()"
+                        "id": "updatexattrpermission"
                       },
                       {
-                        "title": "copyXattr()",
+                        "title": "updateXattrHash",
                         "depth": 3,
-                        "id": "copyxattr()"
+                        "id": "updatexattrhash"
+                      },
+                      {
+                        "title": "copyXattr",
+                        "depth": 3,
+                        "id": "copyxattr"
                       }
                     ]
                   }
@@ -245,14 +250,19 @@
               "id": "readxstat"
             },
             {
-              "title": "updateHash()",
+              "title": "updateXattrPermission",
               "depth": 3,
-              "id": "updatehash()"
+              "id": "updatexattrpermission"
             },
             {
-              "title": "copyXattr()",
+              "title": "updateXattrHash",
               "depth": 3,
-              "id": "copyxattr()"
+              "id": "updatexattrhash"
+            },
+            {
+              "title": "copyXattr",
+              "depth": 3,
+              "id": "copyxattr"
             }
           ]
         }
@@ -277,6 +287,7 @@
     "docs/general.md": "general.html",
     "docs/fruitmix/overview.md": "fruitmix/overview.html",
     "docs/fruitmix/xstat.md": "fruitmix/xstat.html",
-    "docs/misc/md4encrypt.md": "misc/md4encrypt.html"
+    "docs/misc/md4encrypt.md": "misc/md4encrypt.html",
+    "docs/fruitmix/node.js": "fruitmix/node.js"
   }
 }

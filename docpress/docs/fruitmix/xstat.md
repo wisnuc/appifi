@@ -110,7 +110,7 @@ optional, If magic is a predefined string, it is included in `xstat` object. If 
 
 ### readTimeStamp
 
-// TODO ?? should this function provide a uuid?
+// TODO ?? should this function provide a uuid? seems yes, if all operation is applied to a node with known uuid
 
 A convenience function, returning `mtime` of given file or folders.
 
@@ -118,10 +118,56 @@ A convenience function, returning `mtime` of given file or folders.
 
 This is the main function of `xstat` module.
 
+```js
+function readXstat(target, callback)
+```
 
+This definition is different from previous version in that it eliminate an optional parameter.
 
-``
+If the target does not have `xattr`, a new `xattr` is generated with random UUID, writelist and readlist set to null (implicit), and magic should be extract from `file` command and properly set.
 
-### updateHash()
+If the target already have `xattr`, it should be validated. If it is neither valid current version or valid old version, it is discarded. A brand new `xattr` should be generated.
 
-### copyXattr()
+If it has an old version (valid and has owner prop):
+
+* if magic exists, it should be translated.
+* if magic does not exist, it should be calculated.
+* if hash / htime exists and valid, they should be reused.
+* if hash / htime exists but not valid, either bad format or outdated, they should be discarded.
+
+If the target already have new version `xattr`
+
+* hash / htime props should be checked, and dropped if necessary.
+* if magic is predefined string, intact.
+* if magic is number, equals to or larger than current UNINTERESTED_MAGIC_VERSION, intact.
+* if magic is number, less than current UNINTERESTED_MAGIC_VERSION, magic should be re-calculated.
+
+This function should have plenty of unit testing, making sure both returned `xstat` object and `xattr` json are correct.
+
+### updateXattrPermission
+
+```js
+function updateXattrPermission(target, uuid, writelist, readlist, callback)
+```
+
+writelist and readlist must be both null or both valid uuid array.
+
+If a user is in both writelist and readlist, it should be removed out of readlist.
+
+### updateXattrHash
+
+```js
+function updateXattrHash(target, uuid, hash, htime, callback)
+```
+
+`htime` is used to make sure the hash value is correct, even if the file is modified when hashing the file.
+
+Each time a job is allocated to calc hash, it should first retrieve the `mtime` before starting calculation. After the calculation is done, it should provide both `uuid` and `htime`, as well as calculated hash to invoke this function. This function will check the `mtime` again. If the timestamp is not equal, it knows that the hash cannot be used and return error.
+
+### copyXattr
+
+```js
+function copyXattr(dst, src, callback)
+```
+
+This function is used for overwriting an existing file with new one and keeping the uuid.
