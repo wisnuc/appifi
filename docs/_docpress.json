@@ -97,9 +97,9 @@
                     "id": "functions",
                     "headings": [
                       {
-                        "title": "readTimeStamp",
+                        "title": "readTimeStamp (X)",
                         "depth": 3,
-                        "id": "readtimestamp"
+                        "id": "readtimestamp-(x)"
                       },
                       {
                         "title": "readXstat",
@@ -240,9 +240,9 @@
           "id": "functions",
           "headings": [
             {
-              "title": "readTimeStamp",
+              "title": "readTimeStamp (X)",
               "depth": 3,
-              "id": "readtimestamp"
+              "id": "readtimestamp-(x)"
             },
             {
               "title": "readXstat",

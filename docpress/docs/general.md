@@ -1,17 +1,29 @@
 ## Structure
 
-`appifi` project contains three loosely coupled components: `system`, `appifi`, and `fruitmix`.
+`appifi`项目包含三个松耦合的组件（component）: `system`, `appifi`, and `fruitmix`.
 
-Originally there are two separate projects: `appifi` and `fruitmix`. Then the latter are merged into the former (this one). After some refactoring, the system level functionalities are extracted from `appifi` code base to form a separate layer. In future, they may be split into three separate projects.
+最初有两个独立开发项目：`appifi` and `fruitmix`；在开发过程中两者merge成一个项目（`appifi`）。经过一些结构性的重构之后，系统相关功能群被从`appifi`里抽出来，构成`system`组件；项目的目标是可以让三个组件彼此独立，所以有可能在未来某个合适的时间点，三者又分开成为三个独立项目。
 
-`system` component is responsibile for traditional NAS functionalities, including probing system, especially block devices, configuration networks, etc. If the target system is managed by `appifi` project (this project is deployed to a dedicated device), system layer is must-have.
+`system`组件负责传统NAS设备中系统管理部分的功能，包括检查系统状态，监测系统状态变化，配置磁盘，配置网络，检查和应用系统全局配置，以及启动系统等等。如果用户在专用设备上部署`appifi`项目，让该项目完全控制系统，`system`组件是必须的。
 
-After `system` layer extracted out of `appifi`, now `appifi` component is a standalone docker client. It communicates to docker daemon throught docker remote api (restful). and providing a set of simplified rest api to pc or mobile clients.
+`appifi`组件现在是一个独立的docker客户端，通过docer remote api与docker daemon通讯；
 
-`fruitmix` provides the core function for `wisnuc private cloud`. It manages and maintains users, virtual drives, files, media, file system or in-file metadata, media sharing, as well as media talks (comments on media files).
+`appifi`对docker镜像的安装和docker容器的运行管理增加了一点定制能力，在docker原有的对镜像和容器的定义之上，叠加了一套自定义镜像和容器运行配置的逻辑；该逻辑用一个JSON文件描述，称为`recipe`。
 
-In current stage, three components are tightly coupled, so they are put into one project repository.
+每一个`recipe`会在`appifi`的应用市场里显示为一个可安装的应用，用户选择安装时，该`recipe`内描述的配置会被应用到新建的容器至上，包括所选镜像的namespace，tag，安装目录，网络端口配置，重启策略等等。
 
-The aim is: both appifi and fruitmix will be deployed separately, as a standalone software.
+目前`recipe`只支持单容器应用；`recipe`文件host在`appifi-recipes`项目中。
 
-This is a very brief view of the whole system. The documentation starts from `fruitmix` component.
+`fruitmix`组件提供了闻上私有云的核心功能。它是一套为闻上私有云的功能群重新设计和完全重写的功能组件，负责管理用户，虚拟盘，文件，媒体，文件系统的metadata和文件内的metadata，文件分享，媒体分享，媒体评论等等内容，它有三个设计目标：
+
+1. 基础提供用户云盘和多媒体文件两个功能群；
+2. 和传统的网络文件服务兼容使用，例如samba；
+3. 基于用户的文件和多媒体文件的信息，实现用户之间对媒体内容的社交分享，包括用户远程访问自己的NAS设备，和用户的NAS设备之间的远程通讯；
+
+社交是`fruitmix`系统的最重要设计目标；但是在此之前有很多的基础工作要做。
+
+`appifi`系统不使用数据库，以文件形式存储和持久化数据；
+
+`appifi`系统基于node.js开发，但在一些功能上不可避免需要外部命令和服务支持，包括avahi，file，openssl，imagemagick等等。在可能和性能允许的情况下，`appifi`尽最大可能避免依赖第三方native组件。
+
+文档工作刚刚开始，从`fruitmix`组件开始。
