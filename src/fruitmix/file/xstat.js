@@ -33,7 +33,7 @@ const isSHA256 = (hash) => /[a-f0-9]{64}/.test(hash)
 const parseMagic = text => text.startsWith('JPEG image data') ? 'JPEG' : UNINTERESTED_MAGIC_VERSION
 
 const fileMagic = (target, callback) => 
-  child.exec(`file -b ${target}, (err, stdout, stderr) =>
+  child.exec(`file -b ${target}`, (err, stdout, stderr) =>
     err ? callback(err) : callback(parseMagic(stdout.toString())))
 
 // this function throw SyntaxError if given attr is bad formatted
