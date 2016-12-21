@@ -157,10 +157,10 @@ router.post('/boot', (req, res) => {
 
   let obj = req.body
   if (obj instanceof Object === false)
-    return R(res)(400, 'invalid arguments')
+    return res.status(400).json({ message: 'invalid arguments, req.body is not an object'})
 
   if (['poweroff', 'reboot', 'rebootMaintenance'].indexOf(obj.op) === -1)
-    return R(res)(400, 'op must be poweroff, reboot, or rebootMaintenance')
+    return res.status(400).json({ message: 'op must be poweroff, reboot, or rebootMaintenance' }) 
 
   if (obj.op === 'poweroff') {
 
