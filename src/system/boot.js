@@ -121,7 +121,15 @@ export const tryBoot = (callback) => {
     let cfs = bstate.currentFileSystem 
     if (cfs) {
       // boot fruitmix
-      createFruitmix(path.join(cfs.mountpoint, 'wisnuc', 'fruitmix'))
+      debug('tryBoot, store, developer', storeState().developer)
+
+      if (!storeState().developer.noFruitmix) {
+        createFruitmix(path.join(cfs.mountpoint, 'wisnuc', 'fruitmix'))
+      }
+      else {
+        console.log('!!! fruitmix not started due to developer setting')
+      }
+
       storeDispatch({ type: 'CONFIG_LAST_FILESYSTEM', cfs })
 
       // boot appifi only if fruitmix booted
