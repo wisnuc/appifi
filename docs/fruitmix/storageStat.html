@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="../assets/style.css?t=615badd5">
+    <script src="../assets/script.js?t=42463e55"></script>
+    <title>Stroage Stat - 闻上私有云</title>
+    <meta name="viewport" content="width=device-width">
+  </head>
+  <body class="-menu-visible">
+    <div class="doc-layout">
+      <div class="toggle menu-toggle js-menu-toggle"></div>
+      <div class="menu toc-menu">
+        <li class="menu-item -level-0 -parent">
+          <ul class="submenu">
+            <li class="menu-item -level-1"><a class="link title  link-index" href="../index.html">闻上私有云</a>
+            </li>
+            <li class="menu-item -level-1"><a class="link title  link-general" href="../general.html">General</a>
+            </li>
+            <li class="menu-item -level-1 -parent"><span class="title">Fruitmix</span>
+              <ul class="submenu">
+                <li class="menu-item -level-2"><a class="link title  link-fruitmixoverview" href="../fruitmix/overview.html">Overview</a>
+                </li>
+                <li class="menu-item -level-2 -parent"><span class="title">Modules</span>
+                  <ul class="submenu">
+                    <li class="menu-item -level-3"><a class="link title  link-fruitmixxstat" href="../fruitmix/xstat.html">xstat</a>
+                    </li>
+                  </ul>
+                </li>
+              </ul>
+            </li>
+            <li class="menu-item -level-1 -parent"><span class="title">Misc</span>
+              <ul class="submenu">
+                <li class="menu-item -level-2"><a class="link title -active link-fruitmixstoragestat" href="../fruitmix/storageStat.html">Stroage Stat</a>
+                  <ul class="headings heading-list">
+                    <li class="heading-item -depth-2"><a class="hlink link-" href="#">描述</a>
+                    </li>
+                    <li class="heading-item -depth-2"><a class="hlink link-" href="#">文件</a>
+                      <ul class="heading-list -depth-2">
+                        <li class="heading-item -depth-3"><a class="hlink link-forbidden-re-calculated" href="#forbidden-re-calculated">Forbidden re-calculated</a>
+                        </li>
+                      </ul>
+                    </li>
+                  </ul>
+                </li>
+                <li class="menu-item -level-2"><a class="link title  link-miscmd4encrypt" href="../misc/md4encrypt.html">md4Encrypt</a>
+                </li>
+              </ul>
+            </li>
+          </ul>
+        </li>
+      </div>
+      <div class="body page-fruitmixstoragestat">
+        <div class="header-nav">
+          <div class="right">
+          </div>
+        </div>
+        <div class="markdown-body"><h2 id="">&#x63CF;&#x8FF0;</h2>
+<p>storage&#x4FE1;&#x606F;&#x5305;&#x542B;&#xFF1A;</p>
+<ul>
+<li>
+<p>ata_port</p>
+</li>
+<li>
+<p>blocks&#x4FE1;&#x606F;&#xFF08;&#x6307;Linux&#x7CFB;&#x7EDF;&#x7684;block device&#xFF09;</p>
+</li>
+<li>
+<p>volumes&#x4FE1;&#x606F;&#xFF08;&#x6307;btrfs volume&#x4FE1;&#x606F;&#xFF0C;&#x4E0D;&#x652F;&#x6301;lvm/md&#x548C;&#x5176;&#x4ED6;&#x5377;&#x6587;&#x4EF6;&#x7CFB;&#x7EDF;&#xFF0C;&#x4F8B;&#x5982;zfs&#xFF09;</p>
+</li>
+<li>
+<p>mount&#x4FE1;&#x606F;&#xFF08;&#x6302;&#x8F7D;&#x70B9;&#xFF0C;btrfs volume may be mounted -o ro,degraded&#xFF09;</p>
+</li>
+<li>
+<p>swap&#x4FE1;&#x606F;&#xFF08;&#x6307;&#x5B9E;&#x9645;&#x4F7F;&#x7528;&#x7684;swap&#xFF0C;&#x9759;&#x6001;&#x4FE1;&#x606F;&#x5728;blocks&#x4FE1;&#x606F;&#x5185;&#xFF09;</p>
+</li>
+<li>
+<p>usage&#x4FE1;&#x606F;&#xFF08;&#x6307;btrfs&#x5377;&#x7684;&#x4F7F;&#x7528;&#x4FE1;&#x606F;&#xFF0C;&#x9700;&#x6302;&#x8F7D;&#xFF09;</p>
+</li>
+<li>
+<p>&#x5176;&#x4ED6;&#x4FE1;&#x606F;&#xFF0C;wisnuc/fruitmix&#x662F;&#x5426;&#x5B89;&#x88C5;</p>
+</li>
+</ul>
+<p>&#x6CE8;&#x610F;&#x533A;&#x5206;&#x548C;&#x7406;&#x89E3;&#x9759;&#x6001;&#x4FE1;&#x606F;&#xFF0C;&#x8FDE;&#x63A5;&#x4FE1;&#x606F;&#xFF0C;&#x548C;&#x8FD0;&#x884C;&#x65F6;&#x4FE1;&#x606F;&#x7684;&#x5DEE;&#x5F02;&#x3002;</p>
+<p>( btrfs filesystem show, usage )</p>
+<h2 id="">&#x6587;&#x4EF6;</h2>
+<p>&#x8BE5;&#x903B;&#x8F91;&#x6D89;&#x53CA;&#x5230;&#x540E;&#x7AEF;&#x7684;storage&#x6A21;&#x5757;&#xFF0C;&#x548C;Electron&#x524D;&#x7AEF;&#x7684;&#x4E09;&#x5904;&#x663E;&#x793A;&#x3002;</p>
+<p>&#x540E;&#x7AEF;&#xFF1A; /src/system/storage.js</p>
+<p>&#x524D;&#x7AEF;&#xFF1A;</p>
+<ol>
+<li>Login -&gt; Guidebox</li>
+<li>ControlApp -&gt; storage</li>
+<li>Maintenace</li>
+</ol>
+<p>block (static)</p>
+<ul>
+<li>is Disk (devtype === &apos;disk&apos;)
+<ul>
+<li>id_part_table_type (override id_fs_usage)</li>
+<li>id_fs_usage (standalone file system)
+<ul>
+<li>id_fs_usage === &apos;filesystem&apos;
+<ul>
+<li>btrfs, ext4, ntfs, vfat ...</li>
+</ul>
+</li>
+<li>id_fs_usage === &apos;other&apos;
+<ul>
+<li>lvm/md raid, swap, crypto, ...</li>
+</ul>
+</li>
+<li>Unknown (isUnsupportedFileSystem = true)</li>
+</ul>
+</li>
+<li>Unknown (Unrecognized)</li>
+</ul>
+</li>
+<li>is Partition
+<ul>
+<li>isExtended</li>
+<li>isLinuxSwap</li>
+<li>ext4, ntfs, vfat</li>
+<li>if others, no specific definition</li>
+</ul>
+</li>
+<li>Unknown</li>
+</ul>
+<h3 id="forbidden-re-calculated">Forbidden re-calculated</h3>
+<p>Disk containing rootfs or active swap is forbidden to be used as btrfs volume device.</p>
+
+        </div>
+        <div class="footer-nav">
+          <div class="left"><a href="../fruitmix/xstat.html"><span class="title">xstat</span></a></div>
+          <div class="right"><a href="../misc/md4encrypt.html"><span class="label">Next: </span><span class="title">md4Encrypt</span></a></div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

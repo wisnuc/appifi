@@ -4,11 +4,15 @@ import xattr from 'fs-xattr'
 import UUID from 'node-uuid'
 import validator from 'validator'
 
+Promise.psomisifyAll(fs)
 Promise.promisifyAll(xattr)
 
 // constants
 const FRUITMIX = 'user.fruitmix'
+
+// bump version when more file type supported
 const UNINTERESTED_MAGIC_VERSION = 0
+const parseMagic = text => text.startsWith('JPEG image data') ? 'JPEG' : UNINTERESTED_MAGIC_VERSION
 
 const EInvalid = (text) => 
   Object.assign((new Error(text || 'invalid args')), { code: 'EINVAL' })
@@ -19,22 +23,20 @@ const InstanceMismatch = (text) =>
 const TimestampMismatch = (text) =>
   Object.assign((new Error(text || 'timestamp mismatch')), { code: 'EOUTDATED' })
 
-const readTimeStamp = (target, callback) =>
-  fs.lstat(target, (err, stats) => 
-    err ? callback(err) : callback(null, stats.mtime.getTime()))
-
 // test uuid, return true or false, accept undefined
 const isUUID = (uuid) => (typeof uuid === 'string') ? validator.isUUID(uuid) : false
 
 // validate hash
 const isSHA256 = (hash) => /[a-f0-9]{64}/.test(hash)
 
-// bump version when more file type supported
-const parseMagic = text => text.startsWith('JPEG image data') ? 'JPEG' : UNINTERESTED_MAGIC_VERSION
-
+// it's fast, child.exec is sufficient
 const fileMagic = (target, callback) => 
   child.exec(`file -b ${target}`, (err, stdout, stderr) =>
     err ? callback(err) : callback(parseMagic(stdout.toString())))
+
+const readTimeStamp = (target, callback) =>
+  fs.lstat(target, (err, stats) => 
+    err ? callback(err) : callback(null, stats.mtime.getTime()))
 
 // this function throw SyntaxError if given attr is bad formatted
 const validateOldFormat = (attr, isFile) => {
@@ -105,8 +107,10 @@ const validateNewFormat = (attr, isFile) => {
   }
 }
 
+// async version of readXstat, simpler to implement than callback version
 const readXstatAsync = async target => {
 
+  let dirty = false
   let attr, stats = await fs.lstatAsync(target)
   
   if (!stats.isDirectory() && !stats.isFile()) 
@@ -137,8 +141,9 @@ const readXstatAsync = async target => {
     } 
   }
   catch (e) {
-
+    // ENOENT
     if (e.code !== 'ENODATA' && !(e instanceof SyntaxError)) throw e 
+
     dirty = true
     attr = { uuid: UUID.v4() }
     if (stats.isFile()) attr.magic = await fileMagicAsync(target)
@@ -156,6 +161,11 @@ const readXstatAsync = async target => {
 
 const readXstat = (target, callback) => readXstatAsync(target).asCallback(callback)
 
+// write, readlist (target, uuid, opts, callback)
+// opts: {
+//    writelist: optional
+//    readlist: optional
+//  }, null
 const updateXattrPermission = (target, uuid, writelist, readlist, callback) => {
 
   if (!isUUID(uuid))
@@ -194,6 +204,12 @@ const updateXattrHash = (target, uuid, hash, htime, callback) => {
   })
 }
 
+// questionable
+// fs.rename(oldpath, newpath, ...)
+// transfer xattr, translate hash/htime, magic
+
+// a file repository (path, node, uuid...)
+// a tmp file, return new xstat
 const copyXattr = (dst, src, callback) => {
 
   xattr.get(src, 'user.fruitmix', (err, attr) => {

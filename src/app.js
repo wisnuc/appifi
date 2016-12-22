@@ -101,6 +101,17 @@ const startServer = () => {
 }
 
 process.argv.forEach((val, index, array) => {
+
+  debug('argv index, value', index, val)
+
+  if (val === '--no-fruitmix') {
+    storeDispatch({
+      type: 'DEVELOPER_SETTING',
+      key: 'noFruitmix',
+      value: true
+    })
+  }
+
   if (val === '--appstore-master') {
     storeDispatch({
       type: 'DEVELOPER_SETTING',

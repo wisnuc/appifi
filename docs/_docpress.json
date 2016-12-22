@@ -133,6 +133,31 @@
         "title": "Misc",
         "sections": [
           {
+            "title": "Stroage Stat",
+            "source": "docs/fruitmix/storageStat.md",
+            "url": "fruitmix/storageStat.html",
+            "slug": "fruitmixstoragestat",
+            "headings": [
+              {
+                "title": "描述",
+                "depth": 2,
+                "id": ""
+              },
+              {
+                "title": "文件",
+                "depth": 2,
+                "id": "",
+                "headings": [
+                  {
+                    "title": "Forbidden re-calculated",
+                    "depth": 3,
+                    "id": "forbidden-re-calculated"
+                  }
+                ]
+              }
+            ]
+          },
+          {
             "title": "md4Encrypt",
             "source": "docs/misc/md4encrypt.md",
             "url": "misc/md4encrypt.html",
@@ -268,6 +293,31 @@
         }
       ]
     },
+    "fruitmix/storageStat.html": {
+      "source": "docs/fruitmix/storageStat.md",
+      "title": "Stroage Stat - 闻上私有云",
+      "pageTitle": "Stroage Stat",
+      "slug": "fruitmixstoragestat",
+      "headings": [
+        {
+          "title": "描述",
+          "depth": 2,
+          "id": ""
+        },
+        {
+          "title": "文件",
+          "depth": 2,
+          "id": "",
+          "headings": [
+            {
+              "title": "Forbidden re-calculated",
+              "depth": 3,
+              "id": "forbidden-re-calculated"
+            }
+          ]
+        }
+      ]
+    },
     "misc/md4encrypt.html": {
       "source": "docs/misc/md4encrypt.md",
       "title": "md4Encrypt - 闻上私有云",
@@ -287,6 +337,7 @@
     "docs/general.md": "general.html",
     "docs/fruitmix/overview.md": "fruitmix/overview.html",
     "docs/fruitmix/xstat.md": "fruitmix/xstat.html",
+    "docs/fruitmix/storageStat.md": "fruitmix/storageStat.html",
     "docs/misc/md4encrypt.md": "misc/md4encrypt.html",
     "docs/fruitmix/node.js": "fruitmix/node.js"
   }
