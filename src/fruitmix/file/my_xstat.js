@@ -1,19 +1,11 @@
 import fs from 'fs'
-
+import chlid from 'child_process'
 import xattr from 'fs-xattr'
 import UUID from 'node-uuid'
 import validator from 'validator'
 import shallowequal from 'shallowequal'
 
-/**
-  uuid:
-  owner:
-  writelist:
-  readlist:
-  hash:
-  magic:
-  htime:
-**/
+Promise.promisifyAll('xattr')
 
 // constant
 const FRUITMIX = 'user.fruitmix'
@@ -51,185 +43,149 @@ const validateUserList = (list) => {
 }
 
 // validate hash
-const isHashValid = (hash) => /[a-f0-9]{64}/.test(hash)
+const isSHA256 = (hash) => /[a-f0-9]{64}/.test(hash)
 
-// validate Xattr
-const validateXattr = (attr, type, mtime) => {
+// validate magic
+const parseMagic = text => text.startWith('JPEG image data') ? 'JPEG' : UNINTERESTED_MAGIC_VERSION
 
-  attr.uuid = validateUUID(attr.uuid)
-  // attr.owner = validateUserList(attr.owner)
-  attr.owner = validateOwner(attr.owner)
-  attr.writelist = validateUserList(attr.writelist)
-  attr.readlist = validateUserList(attr.readlist)
+//get magic of file
+const fileMagic = (target, callback) => {
+  child.exec(`file -b ${target}`, (err, stdout, stderr) => {
+    err ? callback(err) : callback(parseMagic(stdout.toString()))
+  })
+}
 
-  if (!attr.writelist && attr.readlist) attr.writelist = []
-  if (!attr.readlist && attr.writelist) attr.readlist = []
+// throw SyntaxError if given attr is bad formatted
+const validateOldFormat = (attr, isFile) => {
 
-  switch(type) {
-  case 'file':
-    if (!Number.isInteger(mtime)) throw new Error('mtime must be an integer')
-    if (attr.hasOwnProperty('hash') || attr.hasOwnProperty('htime')) {
-      if (!isHashValid(attr.hash) || attr.htime !== mtime) {
-        if (attr.hasOwnProperty('hash')) delete attr.hash
-        if (attr.hasOwnProperty('magic')) delete attr.magic // TODO workaround solution 
-        if (attr.hasOwnProperty('htime')) delete attr.htime
-      }
+  if(typeof attr.uuid !== 'string' || !isUUID(attr.uuid)) 
+    throw new SyntaxError('invalid uuid')
+
+  if(Array.isArray(attr.owner) && attr.owner.every(item => isUUID(item))) {}
+  else throw new SyntaxError('invalid owner')
+
+  if(attr.writelist === null || attr.writelist.every(item => isUUID(item))) {}
+  else throw new SyntaxError('invalid writelist')
+
+  if(attr.readlist === null || attr.readlist.every(item => isUUID(item))) {}
+  else throw new SyntaxError('invalid readlist')
+
+  if(!!attr.writelist && !!attr.readlist) {}
+  else throw new SyntaxError('writelist and readlist inconsistent')
+
+  if(isFiles) {
+    // hash and htime both exist or both are absent
+    if(attr.hasOwnProperty('hash') === attr.hasOwnProperty('htime')) {}
+    else throw new SyntaxError('hash and htime inconsistent')
+
+    if(attr.hasOwnProperty('hash')) {
+      if(!isSHA256(attr.hash))
+        throw new SyntaxError('invalid hash')
+
+      if(!Number.isInteger(attr.htime))
+        throw new SyntaxError('invalid htime')
     }
-    break
 
-  case 'folder':
-    if (attr.hasOwnProperty('hash')) delete attr.hash
-    if (attr.hasOwnProperty('htime')) delete attr.htime
-    break
-
-  default:
-    throw new Error('invalid type')
+    if(attr.hasOwnProperty('magic')) {
+      if(!typeof attr.magic === 'string') 
+        throw new SyntaxError('invalid magic')
+    }
   }
-  return attr
 }
 
-// opts determines if there is no xattr or xattr is not valid JSON
-//
-//    null: function returns null, xattr won't be set
-//    object: this object will be used as xattr, it's owner, writelist, readlist must all be uuid array (empty is fine)
-//    not provided: using default
-//
-// const readXstat = (target, opts, callback) => 
-// const readXstat = (target, callback) => 
-// well - formatted
+const validateNewFormat = (attr, isFile) => {
+  if(typeof attr.uuid !== 'string' || !isUUID(attr.uuid)) 
+    throw new SyntaxError('invalid uuid')
 
-const readXstat = (target, ...args) => {
+  if(attr.writelist && attr.writelist.every(item => isUUID(item))) {}
+  else throw new SyntaxError('invalid writelist')
 
-  let opts = args.length === 2 ? args.shift() : undefined
-  let callback = args.shift() 
+  if(attr.readlist && attr.readlist.every(item => isUUID(item))) {}
+  else throw new SyntaxError('invalid readlist')
 
-  if (opts !== undefined && typeof opts !== 'object')
-    return process.nextTick(callback, new TypeError('opts invalid'))
+  if(isFile) {
+    if(attr.hasOwnProperty('hash') === attr.hasOwnProperty('htime')) {}
+    else throw new SyntaxError('hash and htime inconsistent')
 
-  // now opts is either null or object
-  if (opts) { // not null
-    if  (
-          opts.owner && opts.owner === validateUserList(opts.owner) &&
-          (
-            (opts.writelist && opts.writelist === validateUserList(opts.writelist) && opts.readlist && opts.readlist === validateUserList(opts.readlist))
-              ||
-            (opts.writelist === undefined && opts.readlist === undefined)
-          )
-        )
-    { }
-    else
-      return process.nextTick(callback, new TypeError('opts invalid'))
+    if(attr.hasOwnProperty('hash')) {
+      if(!isSHA256(attr.hash))
+        throw new SyntaxError('invalid hash')
+
+      if(!Number.isInteger(attr.htime))
+        throw new SyntaxError('invalid htime')
+    }
+
+    if(attr.hasOwnProperty('magic')) {
+      if(typeof attr.magic === 'string' || Number.isInteger(attr.magic)) {} 
+      else throw new SyntaxError('invalid magic')
+    }
   }
-
-  let parsed, valid
-  fs.lstat(target, (err, stats) => {
-
-    if (err) return callback(err)
-    if (!(stats.isDirectory() || stats.isFile())) return callback(new Error('not a folder or file'))
-    if (!stats.isDirectory() && opts && (opts.writelist || opts.readlist)) return callback(new Error('not a folder (opts)'))
-
-    xattr.get(target, FRUITMIX, (err, attr) => {
-
-      if (err && err.code !== 'ENODATA') return callback(err)
-      if (!err) parsed = parseJSON(attr)
-      if (err || !parsed) { // ENODATA or JSON invalid
-
-        if (opts === null) return callback(null, null)
-        if (opts === undefined) opts = { uuid: UUID.v4(), owner: [] }
-        else opts.uuid = UUID.v4()
-
-        return xattr.set(target, FRUITMIX, JSON.stringify(opts), err => 
-          err ? callback(err) : callback(null, Object.assign(stats, opts, { abspath: target })))
-      }
-
-      let type, copy = Object.assign({}, parsed)
-      if (stats.isDirectory()) type = 'folder'
-      else if (stats.isFile()) type = 'file'
-      else throw new Error('unexpected type')
-
-      valid = validateXattr(parsed, type, stats.mtime.getTime())
-      if (!shallowequal(valid, copy)) 
-        xattr.set(target, FRUITMIX, JSON.stringify(valid), err => 
-          err ? callback(err) : callback(null, Object.assign(stats, valid, { abspath: target }))) 
-      else 
-        callback(null, Object.assign(stats, valid, { abspath: target }))
-    }) // xattr.get
-  })
 }
 
-const updateXattrOwner = (target, uuid, owner, callback) => {
+const readXstatAsync = async target => {
+  let attr, dirty, stats = await fs.lstatAsync(target)
+  if(!stats.isFile() && !stats.isDirectory())
+    throw Object.assign(new Error('not a directory or file'), { code: 'ENOTDIRORFILE' })
 
-  readXstat(target, (err, xstat) => {
-    if (err) return callback(err)
-    if (xstat.uuid !== uuid) return callback(InstanceMismatch())
-    let { writelist, readlist, hash, htime } = xstat 
-    let newAttr = { uuid, owner, writelist, readlist, hash, htime }
-    xattr.set(target, FRUITMIX, JSON.stringify(newAttr), err => 
-      err ? callback(err) : callback(null, Object.assign(xstat, { owner })))
-  })
-}
+  try{
+    attr = await JSON.parse(xattr.getAsync(target, FRUITMIX))
 
-const updateXattrPermission = (target, uuid, writelist, readlist, callback) => {
+    if(attr.hasOwnProperty('owner')) {
+      validateOldFormat()
 
-  readXstat(target, (err, xstat) => {
-    if (err) return callback(err)
-    if (xstat.uuid !== uuid) return callback(InstanceMismatch()) 
-    let { owner, hash, magic, htime } = xstat
-    let newAttr = { uuid, owner, writelist, readlist, hash, magic, htime }
-    xattr.set(target, FRUITMIX, JSON.stringify(newAttr), err => 
-      err ? callback(err) : callback(null, Object.assign(xstat, { writelist, readlist })))
-  })
-}
+      dirty = true
+      delete attr.owner
+      if(attr.writelist === null) delete attr.writelist
+      if(attr.readlist === null) delete attr.readlist
+      if(stats.isFile())
+        attr.magic = attr.magic ? parseMagic(attr.magic) : fileMagic(attr.magic)
+    } else
+      validateNewFormat(attr)
 
-const updateXattrHash = (target, uuid, hash, htime, callback) => {
-
-  readXstat(target, (err, xstat) => {
-    if (err) return callback(err)
-    if (xstat.uuid !== uuid) return callback(InstanceMismatch())
-    let { owner, writelist, readlist } = xstat
-    let newAttr = { uuid, owner, writelist, readlist, hash, htime }
-    xattr.set(target, FRUITMIX, JSON.stringify(newAttr), err => 
-      err ? callback(err) : callback(null, Object.assign(xstat, { hash, htime })))
-  })
-}
-
-const updateXattrHashMagic = (target, uuid, hash, magic, htime, callback) => {
+    // drop hash if outdated
+    if(stats.isFile() && attr.htime && attr.htime !== stats.mtime) {
+      dirty = true
+      delete attr.hash
+      delete attr.htime
+    }
+  } catch(e) {
+    if(e.code !== 'ENODATA' && !(e instanceof SyntaxError)) throw e
+    dirty = true
+    attr = { uuid : UUID.v4()}
+    if(stats.isFile()) attr.magic = fileMagic(target)
+  }
   
+  // save new attr if dirty
+  if(dirty) await xattr.setAsync(target, FRUITMIX, JSON.stringify(attr))
+
+  //remove props not passed to caller
+  if(stats.isFile() && attr.htime) delete attr.htime
+  if(stats.isFile() && typeof attr.magic === 'number') delete attr.magic
+
+  return Object.assign(stats, attr, {abspath : target})
+}
+
+const readXstat = (target, callback) => readXstatAsync(target).asCallback(callback)
+  
+
+const updateXattrPermission = (targert, uuid, writelist, readlist, callback) => {
+  if(!isUUID(uuid))
+    return process.nextTick(() => callback(EInvalid('invalid uuid')))
+
   readXstat(target, (err, xstat) => {
-    if (err) return callback(err)
+    if(err) return callback(err)
+    if(xstat.uuid !== uuid) return callback(InstanceMismatch())
 
-    // uuid mismatch
-    if (xstat.uuid !== uuid) return callback(InstanceMismatch())
-    // invalid hash or magic
-    if (!isHashValid(hash) || typeof magic !== 'string' || magic.length === 0) return callback(EInvalid())
-    // timestamp mismatch
-    if (xstat.mtime.getTime() !== htime) return callback(TimestampMismatch())
-
-    let { owner, writelist, readlist } = xstat
-    let newXattr = { uuid: xstat.uuid, owner, writelist, readlist, hash, magic, htime }
-    xattr.set(target, FRUITMIX, JSON.stringify(newXattr), err => {
-      err ? callback(err) : callback(null, Object.assign(xstat, { hash, magic, htime, abspath:target }))
-    })
+    let newAttr = {uuid}
   })
 }
 
-const copyXattr = (dst, src, callback) => {
+const updateXattrHash = () => {}
 
-  xattr.get(src, 'user.fruitmix', (err, attr) => {
+const copyXattr = () => {}
 
-    // src has not xattr, nothing to copy
-    if (err && err.code === 'ENODATA') return callback(null)
-    if (err) return callback(err)
 
-    xattr.set(dst, 'user.fruitmix', attr, err => 
-      err ? callback(err) : callback(null))
-  })
-}
 
-const readXstatAsync = Promise.promisify(readXstat)
-const copyXattrAsync = Promise.promisify(copyXattr)
-
-const testing = {}
 
 export { 
   readTimeStamp,
