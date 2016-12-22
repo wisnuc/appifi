@@ -107,6 +107,27 @@ class Hasher extends EventEmitter {
     this.state = 'stopped'
   }
 
+  // jslint, eslint
+  setState(nextState) {
+    if (currState) {
+      switch (currState) {
+      case 'STATE1': 
+        this.state1Exit()
+      case 'STATE2':
+        this.state2Exit()
+      default:
+      }
+    }
+
+    switch(nextState) {
+    case 'STATE1':
+      this.state1Enter()
+    case 'STATE2':
+      this.state2Enter()
+    default:
+    }
+  }
+
   start(callback) {
     this.enterStarted(callback)
   }
@@ -121,9 +142,14 @@ class Hasher extends EventEmitter {
 ///////////////////////////////////////////////////////////////////////
 
 
-              Forest                              Digest / Media
+              Forest                                Digest / Media
 
 thumbnail     node.startThumbnailer     <-- 50/s    [buffer] <==== 5000 / s
+
+
+
+Forest.requestThumbnail(uuid) 
+node.startThumbnail()
 
 
 
@@ -140,6 +166,67 @@ handle: {
   node: 
   
 }
+
+///////////////////////////////////////////////////////
+
+  queue = []
+
+  while (1) {
+    if (queue.length === 0) process.exit() 
+    
+    let task = queue.shift()
+    task.run() => func(err, entries)
+  }
+
+// class object, closure
+
+  task = creatTask()
+  task.state = 'pending'
+  task.state = 'ready'
+  // libuv, thread poll, readdir
+
+  // context
+  // deterministic / indeterministic
+const abortableReaddir = (arg1, callback) => {
+
+  let aborted = false
+  
+  // non-blocking
+  fs.readdir(arg1, (err, entries) => {
+
+    if (aborted) return 
+    if (err) return
+
+    let count = entries.length
+    if (count === 0) return
+
+    entries.forEach(entry => {
+      fs.stat(path.join(arg1, entry), (err, stats) => {
+        if (aborted) {}
+        else console.log(err || stats)
+      })
+    })
+  })
+
+  return {
+    path: 
+    abort: () => {}
+  }
+
+  return () => {
+    let err = new Error('aborted')
+    err.code = 'EABORT'
+    callback(err)
+    aborted = true
+  }
+}
+
+let abort = abortableReaddir('tmptest', () => {})
+setTimemout(() => abort(), 10)
+
+// concurent
+
+// short job first
 
 
 
