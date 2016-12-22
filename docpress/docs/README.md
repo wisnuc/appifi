@@ -6,4 +6,5 @@
     * [xstat](./fruitmix/xstat.md)
 
 * Misc
+  * [Stroage Stat](./fruitmix/storageStat.md)
   * [md4Encrypt](./misc/md4encrypt.md)
