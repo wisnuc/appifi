@@ -61,6 +61,91 @@
             ]
           },
           {
+            "title": "productFeatureDesign",
+            "source": "docs/fruitmix/productFeatureDesign.md",
+            "url": "fruitmix/productFeatureDesign.html",
+            "slug": "fruitmixproductfeaturedesign",
+            "headings": [
+              {
+                "title": "PC客户端文件浏览面包渣",
+                "depth": 2,
+                "id": "pc"
+              },
+              {
+                "title": "分享权限",
+                "depth": 2,
+                "id": "",
+                "headings": [
+                  {
+                    "title": "文件分享",
+                    "depth": 3,
+                    "id": ""
+                  },
+                  {
+                    "title": "私密文件",
+                    "depth": 3,
+                    "id": ""
+                  },
+                  {
+                    "title": "“我的分享”功能定义",
+                    "depth": 3,
+                    "id": "\"\""
+                  }
+                ]
+              },
+              {
+                "title": "当Server仅有一个管理员用户的分享",
+                "depth": 2,
+                "id": "server"
+              },
+              {
+                "title": "Download/Upload ICON提示和snackbar",
+                "depth": 2,
+                "id": "downloadupload-iconsnackbar"
+              },
+              {
+                "title": "下载路径设置",
+                "depth": 2,
+                "id": ""
+              },
+              {
+                "title": "设备IP别名",
+                "depth": 2,
+                "id": "ip"
+              },
+              {
+                "title": "上次成功登录的设备标识",
+                "depth": 2,
+                "id": ""
+              },
+              {
+                "title": "手机网络异常 ( iOS )",
+                "depth": 2,
+                "id": "(-ios-)"
+              },
+              {
+                "title": "同名文件的上传策略",
+                "depth": 2,
+                "id": ""
+              },
+              {
+                "title": "文件下载",
+                "depth": 2,
+                "id": ""
+              },
+              {
+                "title": "ErrorCode",
+                "depth": 2,
+                "id": "errorcode"
+              },
+              {
+                "title": "PC 客户端的Router",
+                "depth": 2,
+                "id": "pc-router"
+              }
+            ]
+          },
+          {
             "title": "Modules",
             "sections": [
               {
@@ -231,6 +316,91 @@
         }
       ]
     },
+    "fruitmix/productFeatureDesign.html": {
+      "source": "docs/fruitmix/productFeatureDesign.md",
+      "title": "productFeatureDesign - 闻上私有云",
+      "pageTitle": "productFeatureDesign",
+      "slug": "fruitmixproductfeaturedesign",
+      "headings": [
+        {
+          "title": "PC客户端文件浏览面包渣",
+          "depth": 2,
+          "id": "pc"
+        },
+        {
+          "title": "分享权限",
+          "depth": 2,
+          "id": "",
+          "headings": [
+            {
+              "title": "文件分享",
+              "depth": 3,
+              "id": ""
+            },
+            {
+              "title": "私密文件",
+              "depth": 3,
+              "id": ""
+            },
+            {
+              "title": "“我的分享”功能定义",
+              "depth": 3,
+              "id": "\"\""
+            }
+          ]
+        },
+        {
+          "title": "当Server仅有一个管理员用户的分享",
+          "depth": 2,
+          "id": "server"
+        },
+        {
+          "title": "Download/Upload ICON提示和snackbar",
+          "depth": 2,
+          "id": "downloadupload-iconsnackbar"
+        },
+        {
+          "title": "下载路径设置",
+          "depth": 2,
+          "id": ""
+        },
+        {
+          "title": "设备IP别名",
+          "depth": 2,
+          "id": "ip"
+        },
+        {
+          "title": "上次成功登录的设备标识",
+          "depth": 2,
+          "id": ""
+        },
+        {
+          "title": "手机网络异常 ( iOS )",
+          "depth": 2,
+          "id": "(-ios-)"
+        },
+        {
+          "title": "同名文件的上传策略",
+          "depth": 2,
+          "id": ""
+        },
+        {
+          "title": "文件下载",
+          "depth": 2,
+          "id": ""
+        },
+        {
+          "title": "ErrorCode",
+          "depth": 2,
+          "id": "errorcode"
+        },
+        {
+          "title": "PC 客户端的Router",
+          "depth": 2,
+          "id": "pc-router"
+        }
+      ]
+    },
     "fruitmix/xstat.html": {
       "source": "docs/fruitmix/xstat.md",
       "title": "xstat - 闻上私有云",
@@ -336,6 +506,7 @@
     "docs/README.md": "index.html",
     "docs/general.md": "general.html",
     "docs/fruitmix/overview.md": "fruitmix/overview.html",
+    "docs/fruitmix/productFeatureDesign.md": "fruitmix/productFeatureDesign.html",
     "docs/fruitmix/xstat.md": "fruitmix/xstat.html",
     "docs/fruitmix/storageStat.md": "fruitmix/storageStat.html",
     "docs/misc/md4encrypt.md": "misc/md4encrypt.html",
