@@ -211,6 +211,36 @@
                 ]
               }
             ]
+          },
+          {
+            "title": "APIs",
+            "sections": [
+              {
+                "title": "system",
+                "source": "docs/fruitmix/apis/system.md",
+                "url": "fruitmix/apis/system.html",
+                "slug": "fruitmixapissystem",
+                "headings": [
+                  {
+                    "title": "boot",
+                    "depth": 2,
+                    "id": "boot",
+                    "headings": [
+                      {
+                        "title": "GET /boot",
+                        "depth": 3,
+                        "id": "get-boot"
+                      },
+                      {
+                        "title": "POST /boot",
+                        "depth": 3,
+                        "id": "post-boot"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
           }
         ]
       },
@@ -463,6 +493,31 @@
         }
       ]
     },
+    "fruitmix/apis/system.html": {
+      "source": "docs/fruitmix/apis/system.md",
+      "title": "system - 闻上私有云",
+      "pageTitle": "system",
+      "slug": "fruitmixapissystem",
+      "headings": [
+        {
+          "title": "boot",
+          "depth": 2,
+          "id": "boot",
+          "headings": [
+            {
+              "title": "GET /boot",
+              "depth": 3,
+              "id": "get-boot"
+            },
+            {
+              "title": "POST /boot",
+              "depth": 3,
+              "id": "post-boot"
+            }
+          ]
+        }
+      ]
+    },
     "fruitmix/storageStat.html": {
       "source": "docs/fruitmix/storageStat.md",
       "title": "Stroage Stat - 闻上私有云",
@@ -508,6 +563,7 @@
     "docs/fruitmix/overview.md": "fruitmix/overview.html",
     "docs/fruitmix/productFeatureDesign.md": "fruitmix/productFeatureDesign.html",
     "docs/fruitmix/xstat.md": "fruitmix/xstat.html",
+    "docs/fruitmix/apis/system.md": "fruitmix/apis/system.html",
     "docs/fruitmix/storageStat.md": "fruitmix/storageStat.html",
     "docs/misc/md4encrypt.md": "misc/md4encrypt.html",
     "docs/fruitmix/node.js": "fruitmix/node.js"

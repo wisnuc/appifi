@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="../../assets/style.css?t=615badd5">
+    <script src="../../assets/script.js?t=42463e55"></script>
+    <title>system - 闻上私有云</title>
+    <meta name="viewport" content="width=device-width">
+  </head>
+  <body class="-menu-visible">
+    <div class="doc-layout">
+      <div class="toggle menu-toggle js-menu-toggle"></div>
+      <div class="menu toc-menu">
+        <li class="menu-item -level-0 -parent">
+          <ul class="submenu">
+            <li class="menu-item -level-1"><a class="link title  link-index" href="../../index.html">闻上私有云</a>
+            </li>
+            <li class="menu-item -level-1"><a class="link title  link-general" href="../../general.html">General</a>
+            </li>
+            <li class="menu-item -level-1 -parent"><span class="title">Fruitmix</span>
+              <ul class="submenu">
+                <li class="menu-item -level-2"><a class="link title  link-fruitmixoverview" href="../../fruitmix/overview.html">Overview</a>
+                </li>
+                <li class="menu-item -level-2"><a class="link title  link-fruitmixproductfeaturedesign" href="../../fruitmix/productFeatureDesign.html">productFeatureDesign</a>
+                </li>
+                <li class="menu-item -level-2 -parent"><span class="title">Modules</span>
+                  <ul class="submenu">
+                    <li class="menu-item -level-3"><a class="link title  link-fruitmixxstat" href="../../fruitmix/xstat.html">xstat</a>
+                    </li>
+                  </ul>
+                </li>
+                <li class="menu-item -level-2 -parent"><span class="title">APIs</span>
+                  <ul class="submenu">
+                    <li class="menu-item -level-3"><a class="link title -active link-fruitmixapissystem" href="../../fruitmix/apis/system.html">system</a>
+                      <ul class="headings heading-list">
+                        <li class="heading-item -depth-2"><a class="hlink link-boot" href="#boot">boot</a>
+                          <ul class="heading-list -depth-2">
+                            <li class="heading-item -depth-3"><a class="hlink link-get-boot" href="#get-boot">GET /boot</a>
+                            </li>
+                            <li class="heading-item -depth-3"><a class="hlink link-post-boot" href="#post-boot">POST /boot</a>
+                            </li>
+                          </ul>
+                        </li>
+                      </ul>
+                    </li>
+                  </ul>
+                </li>
+              </ul>
+            </li>
+            <li class="menu-item -level-1 -parent"><span class="title">Misc</span>
+              <ul class="submenu">
+                <li class="menu-item -level-2"><a class="link title  link-fruitmixstoragestat" href="../../fruitmix/storageStat.html">Stroage Stat</a>
+                </li>
+                <li class="menu-item -level-2"><a class="link title  link-miscmd4encrypt" href="../../misc/md4encrypt.html">md4Encrypt</a>
+                </li>
+              </ul>
+            </li>
+          </ul>
+        </li>
+      </div>
+      <div class="body page-fruitmixapissystem">
+        <div class="header-nav">
+          <div class="right">
+          </div>
+        </div>
+        <div class="markdown-body"><h2 id="boot">boot</h2>
+<h3 id="get-boot">GET /boot</h3>
+<h3 id="post-boot">POST /boot</h3>
+<p>request body example:</p>
+<pre><code class="lang-json">{
+  <span class="hljs-attr">&quot;op&quot;</span>: <span class="pl-s">&quot;boot&quot;</span>,
+  <span class="hljs-attr">&quot;target&quot;</span>: <span class="pl-s">&quot;0dd89cb1-f02e-455d-875c-bbe2ebc9329f&quot;</span>, 
+}
+</code></pre>
+<p><strong>op</strong> is a string, mandatory, valid values are:</p>
+<ul>
+<li><code>poweroff</code></li>
+<li><code>reboot</code></li>
+<li><code>rebootMaintenance</code></li>
+<li><code>rebootNormal</code></li>
+</ul>
+<p><strong>target</strong> is a string, optional, may be used for <code>rebootNormal</code>, if it is provided, both it&apos;s value, and the requested operation, must be valid. Otherwise, an error is returned.</p>
+<p><code>poweroff</code> and <code>reboot</code> will shutdown or reboot the system directly, without any further operations.</p>
+<p><code>rebootMaintenance</code> will set the <code>bootMode</code> in configuration to <code>maintenance</code> first, then reboot the system. The system will boot into <code>maintenance</code> mode and stopped there.</p>
+<p><code>rebootNormal</code> will set the <code>bootMode</code> in configuration to <code>normal</code> first, then reboot the system, if <code>target</code> is unset.</p>
+<p>If <code>target</code> is set, it must represented a file system, either a btrfs volume, or an ext4 / ntfs file system that fruitmix supports. If not, an error is return as 400 with message for reason. No error codes defined for client program, yet.</p>
+<p>These apis returns 200, 400, and 500 in general sense.</p>
+
+        </div>
+        <div class="footer-nav">
+          <div class="left"><a href="../../fruitmix/xstat.html"><span class="title">xstat</span></a></div>
+          <div class="right"><a href="../../fruitmix/storageStat.html"><span class="label">Next: </span><span class="title">Stroage Stat</span></a></div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
