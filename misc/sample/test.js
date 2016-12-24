@@ -185,13 +185,26 @@ handle: {
   task.state = 'ready'
   // libuv, thread poll, readdir
 
+  let m = 0
+  [1, 2, 3].forEach(num => m = m + num)
+
+lexical scope
+
+
+nested function
+  
   // context
   // deterministic / indeterministic
+
+/// tick
+/// 
 const abortableReaddir = (arg1, callback) => {
 
   let aborted = false
-  
-  // non-blocking
+ 
+  // function scope 
+
+   // non-blocking
   fs.readdir(arg1, (err, entries) => {
 
     if (aborted) return 
@@ -206,6 +219,8 @@ const abortableReaddir = (arg1, callback) => {
         else console.log(err || stats)
       })
     })
+
+    process.nextTick(() => console.log('hello'))
   })
 
   return {
@@ -221,12 +236,147 @@ const abortableReaddir = (arg1, callback) => {
   }
 }
 
+
+class, new
+
+{
+  m: 1,
+  print: function() {
+    console.log(this.m)
+  }
+}
+
+class Reader extends EventEmitter {
+
+  constructor(arg) {
+    this.arg = arg
+    this.aborted = false
+
+
+    this.on('readDirFinished', entries => {
+    })
+  }
+
+  startAbortableReaddir () {
+    fs.readdir(this.arg1, (err, entries) => {
+      if (err) this.emit('err', err)
+      else this.emit('readDirFinished', entries)
+    }) 
+  } 
+}
+
+function as a value,
+
+function is the first class citizen.
+
+
 let abort = abortableReaddir('tmptest', () => {})
 setTimemout(() => abort(), 10)
 
+
+step 1 => step 2 => step 3
+
+
+
+setImmediate
+process.nextTick
 // concurent
 
 // short job first
+
+function myFunction(abspath, callback) {
+
+  if (typeof abspath !== 'string') 
+    return process.nextTick(() => callback(new Error('invalid path')))
+
+  fs.readdir(abspath, (err, entries) => callback(err, entries))  
+}
+
+const abspath = 'tmptest'
+
+myFunction(abspath, (err, entries) => console.log(err || entries))
+
+console.log('hello')
+
+abotrableReaddir(abspath, () => console.log('abortable'))
+
+{
+  let  m (volatile)
+
+
+  xyz(() => { m = m  + 1 })
+
+  race
+}
+
+
+for (let i = 0; i < 10; i++) {
+
+  console.log({
+    m: 1,
+    y: 2
+  })
+}
+
+function object
+function call
+  function scope
+    x, y, z
+    m, n
+    o
+  
+compile time (source level)
+runtime 
+
+// imperative language
+statement expression
+
+
+function a(a1, a2) {
+  let a3
+  return
+}
+
+function b(b1, b2) {
+  let b3
+  a(a1, a2)
+  return
+}
+
+b(1, 2)
+
+/////////////////
+
+a = func
+b = func
+
+
+//////////////////
+
+function add(a, b) {
+  return a + b
+}
+
+function print() {
+  console.log(add(1, 2))
+}
+
+/////////////
+memory allocation, stack machine
+
+
+
+scatter, gather
+
+
+
+
+
+
+
+
+
+
 
 
 
