@@ -2,6 +2,7 @@
 * [General](./general.md)
 * Fruitmix
   * [Overview](./fruitmix/overview.md)
+  * [PCClientFeatureList](./fruitmix/featureList.md)
   * [productFeatureDesign](./fruitmix/productFeatureDesign.md)
   * Modules
     * [xstat](./fruitmix/xstat.md)
