@@ -61,6 +61,12 @@
             ]
           },
           {
+            "title": "PCClientFeatureList",
+            "source": "docs/fruitmix/featureList.md",
+            "url": "fruitmix/featureList.html",
+            "slug": "fruitmixfeaturelist"
+          },
+          {
             "title": "productFeatureDesign",
             "source": "docs/fruitmix/productFeatureDesign.md",
             "url": "fruitmix/productFeatureDesign.html",
@@ -126,7 +132,14 @@
               {
                 "title": "同名文件的上传策略",
                 "depth": 2,
-                "id": ""
+                "id": "",
+                "headings": [
+                  {
+                    "title": "上传",
+                    "depth": 3,
+                    "id": ""
+                  }
+                ]
               },
               {
                 "title": "文件下载",
@@ -346,6 +359,12 @@
         }
       ]
     },
+    "fruitmix/featureList.html": {
+      "source": "docs/fruitmix/featureList.md",
+      "title": "PCClientFeatureList - 闻上私有云",
+      "pageTitle": "PCClientFeatureList",
+      "slug": "fruitmixfeaturelist"
+    },
     "fruitmix/productFeatureDesign.html": {
       "source": "docs/fruitmix/productFeatureDesign.md",
       "title": "productFeatureDesign - 闻上私有云",
@@ -412,7 +431,14 @@
         {
           "title": "同名文件的上传策略",
           "depth": 2,
-          "id": ""
+          "id": "",
+          "headings": [
+            {
+              "title": "上传",
+              "depth": 3,
+              "id": ""
+            }
+          ]
         },
         {
           "title": "文件下载",
@@ -561,6 +587,7 @@
     "docs/README.md": "index.html",
     "docs/general.md": "general.html",
     "docs/fruitmix/overview.md": "fruitmix/overview.html",
+    "docs/fruitmix/featureList.md": "fruitmix/featureList.html",
     "docs/fruitmix/productFeatureDesign.md": "fruitmix/productFeatureDesign.html",
     "docs/fruitmix/xstat.md": "fruitmix/xstat.html",
     "docs/fruitmix/apis/system.md": "fruitmix/apis/system.html",
