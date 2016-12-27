@@ -4,7 +4,7 @@ import xattr from 'fs-xattr'
 import UUID from 'node-uuid'
 import validator from 'validator'
 
-Promise.psomisifyAll(fs)
+Promise.promisifyAll(fs)
 Promise.promisifyAll(xattr)
 
 // constants
@@ -34,6 +34,8 @@ const fileMagic = (target, callback) =>
   child.exec(`file -b ${target}`, (err, stdout, stderr) =>
     err ? callback(err) : callback(parseMagic(stdout.toString())))
 
+const fileMagicAsync = Promise.promisify(fileMagic)
+
 const readTimeStamp = (target, callback) =>
   fs.lstat(target, (err, stats) => 
     err ? callback(err) : callback(null, stats.mtime.getTime()))
@@ -61,7 +63,7 @@ const validateOldFormat = (attr, isFile) => {
     if (attr.hasOwnProperty('hash') === attr.hasOwnProperty('htime')) {}
     else throw new SyntaxError('hash and htime inconsistent')
       
-    if (attr.hasOwnProperty('hash') {
+    if (attr.hasOwnProperty('hash')) {
       if (!isSHA256(attr.hash))
         throw new SyntaxError('invalid hash string')
 
@@ -92,7 +94,7 @@ const validateNewFormat = (attr, isFile) => {
     if (attr.hasOwnProperty('hash') === attr.hasOwnProperty('htime')) {}
     else throw new SyntaxError('hash and htime inconsistent')
       
-    if (attr.hasOwnProperty('hash') {
+    if (attr.hasOwnProperty('hash')) {
       if (!isSHA256(attr.hash))
         throw new SyntaxError('invalid hash string')
 
@@ -223,7 +225,6 @@ const copyXattr = (dst, src, callback) => {
   })
 }
 
-const readXstatAsync = Promise.promisify(readXstat)
 const copyXattrAsync = Promise.promisify(copyXattr)
 
 const testing = {}
