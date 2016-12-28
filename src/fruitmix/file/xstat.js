@@ -43,16 +43,16 @@ const readTimeStamp = (target, callback) =>
 // this function throw SyntaxError if given attr is bad formatted
 const validateOldFormat = (attr, isFile) => {
 
-  if (typeof attr.uuid === 'string' || validator.isUUID(attr.uuid)) {}
+  if (typeof attr.uuid === 'string' && validator.isUUID(attr.uuid)) {}
   else throw new SyntaxError('invalid uuid')
 
   if (Array.isArray(attr.owner) && attr.owner.every(uuid => isUUID(uuid))) {}
   else throw new SyntaxError('invalid owner')
 
-  if (attr.writelist === null || attr.writelist.every(uuid => isUUID(uuid))) {}
+  if (attr.writelist === undefined || attr.writelist.every(uuid => isUUID(uuid))) {}
   else throw new SyntaxError('invalid writelist')
 
-  if (attr.readlist === null || attr.readlist.every(uuid => isUUID(uuid))) {}
+  if (attr.readlist === undefined || attr.readlist.every(uuid => isUUID(uuid))) {}
   else throw new SyntaxError('invalid readlist')
 
   if (!!attr.writelist === !!attr.readlist) {}
@@ -80,7 +80,7 @@ const validateOldFormat = (attr, isFile) => {
 
 const validateNewFormat = (attr, isFile) => {
 
-  if (typeof attr.uuid === 'string' || validator.isUUID(attr.uuid)) {}
+  if (typeof attr.uuid === 'string' && validator.isUUID(attr.uuid)) {}
   else throw new SyntaxError('invalid uuid')
 
   if (attr.writelist && attr.writelist.every(uuid => isUUID(uuid))) {}
