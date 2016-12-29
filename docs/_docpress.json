@@ -254,6 +254,59 @@
                 ]
               }
             ]
+          },
+          {
+            "title": "Issues",
+            "sections": [
+              {
+                "title": "UXIssue",
+                "source": "docs/fruitmix/UXIssue.md",
+                "url": "fruitmix/UXIssue.html",
+                "slug": "fruitmixuxissue",
+                "headings": [
+                  {
+                    "title": "系统颜色/风格",
+                    "depth": 2,
+                    "id": ""
+                  },
+                  {
+                    "title": "登录",
+                    "depth": 2,
+                    "id": ""
+                  },
+                  {
+                    "title": "系统菜单",
+                    "depth": 2,
+                    "id": ""
+                  },
+                  {
+                    "title": "LEFT Nav",
+                    "depth": 2,
+                    "id": "left-nav"
+                  },
+                  {
+                    "title": "系统工具栏",
+                    "depth": 2,
+                    "id": ""
+                  },
+                  {
+                    "title": "文件",
+                    "depth": 2,
+                    "id": ""
+                  },
+                  {
+                    "title": "右键菜单",
+                    "depth": 2,
+                    "id": ""
+                  },
+                  {
+                    "title": "上传任务/下载任务",
+                    "depth": 2,
+                    "id": ""
+                  }
+                ]
+              }
+            ]
           }
         ]
       },
@@ -544,6 +597,54 @@
         }
       ]
     },
+    "fruitmix/UXIssue.html": {
+      "source": "docs/fruitmix/UXIssue.md",
+      "title": "UXIssue - 闻上私有云",
+      "pageTitle": "UXIssue",
+      "slug": "fruitmixuxissue",
+      "headings": [
+        {
+          "title": "系统颜色/风格",
+          "depth": 2,
+          "id": ""
+        },
+        {
+          "title": "登录",
+          "depth": 2,
+          "id": ""
+        },
+        {
+          "title": "系统菜单",
+          "depth": 2,
+          "id": ""
+        },
+        {
+          "title": "LEFT Nav",
+          "depth": 2,
+          "id": "left-nav"
+        },
+        {
+          "title": "系统工具栏",
+          "depth": 2,
+          "id": ""
+        },
+        {
+          "title": "文件",
+          "depth": 2,
+          "id": ""
+        },
+        {
+          "title": "右键菜单",
+          "depth": 2,
+          "id": ""
+        },
+        {
+          "title": "上传任务/下载任务",
+          "depth": 2,
+          "id": ""
+        }
+      ]
+    },
     "fruitmix/storageStat.html": {
       "source": "docs/fruitmix/storageStat.md",
       "title": "Stroage Stat - 闻上私有云",
@@ -591,6 +692,7 @@
     "docs/fruitmix/productFeatureDesign.md": "fruitmix/productFeatureDesign.html",
     "docs/fruitmix/xstat.md": "fruitmix/xstat.html",
     "docs/fruitmix/apis/system.md": "fruitmix/apis/system.html",
+    "docs/fruitmix/UXIssue.md": "fruitmix/UXIssue.html",
     "docs/fruitmix/storageStat.md": "fruitmix/storageStat.html",
     "docs/misc/md4encrypt.md": "misc/md4encrypt.html",
     "docs/fruitmix/node.js": "fruitmix/node.js"
