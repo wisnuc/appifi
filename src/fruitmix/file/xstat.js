@@ -32,7 +32,7 @@ const isSHA256 = (hash) => /[a-f0-9]{64}/.test(hash)
 // it's fast, child.exec is sufficient
 const fileMagic = (target, callback) => 
   child.exec(`file -b ${target}`, (err, stdout, stderr) =>
-    err ? callback(err) : callback(parseMagic(stdout.toString())))
+    err ? callback(err) : callback(null, parseMagic(stdout.toString())))
 
 const fileMagicAsync = Promise.promisify(fileMagic)
 
@@ -49,10 +49,10 @@ const validateOldFormat = (attr, isFile) => {
   if (Array.isArray(attr.owner) && attr.owner.every(uuid => isUUID(uuid))) {}
   else throw new SyntaxError('invalid owner')
 
-  if (attr.writelist === undefined || attr.writelist.every(uuid => isUUID(uuid))) {}
+  if (attr.writelist === undefined || (Array.isArray(attr.writelist) && attr.writelist.every(uuid => isUUID(uuid)))) {}
   else throw new SyntaxError('invalid writelist')
 
-  if (attr.readlist === undefined || attr.readlist.every(uuid => isUUID(uuid))) {}
+  if (attr.readlist === undefined || (Array.isArray(attr.readlist) && attr.readlist.every(uuid => isUUID(uuid)))) {}
   else throw new SyntaxError('invalid readlist')
 
   if (!!attr.writelist === !!attr.readlist) {}
@@ -123,7 +123,7 @@ const readXstatAsync = async target => {
     attr = JSON.parse(await xattr.getAsync(target, FRUITMIX))
 
     if (attr.hasOwnProperty('owner')) {
-      validateOldFormat(attr) 
+      validateOldFormat(attr, stats.isFile()) 
 
       dirty = true
       delete attr.owner
@@ -133,7 +133,7 @@ const readXstatAsync = async target => {
         attr.magic = attr.magic ? parseMagic(attr.magic) : await fileMagicAsync(target)
     }
     else
-      valdiateNewFormat(attr)
+      validateNewFormat(attr, stats.isFile())
 
     // drop hash if outdated
     if (stats.isFile() && attr.htime && attr.htime !== stats.mtime) {
@@ -171,7 +171,7 @@ const readXstat = (target, callback) => readXstatAsync(target).asCallback(callba
 const updateXattrPermission = (target, uuid, writelist, readlist, callback) => {
 
   if (!isUUID(uuid))
-    return process.nextTick(() => callback(EInvalid('invalid uuid'))
+    return process.nextTick(() => callback(EInvalid('invalid uuid')))
 
   readXstat(target, (err, xstat) => {
 
