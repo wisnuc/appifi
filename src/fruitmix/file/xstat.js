@@ -4,7 +4,7 @@ import xattr from 'fs-xattr'
 import UUID from 'node-uuid'
 import validator from 'validator'
 
-Promise.psomisifyAll(fs)
+Promise.promisifyAll(fs)
 Promise.promisifyAll(xattr)
 
 // constants
@@ -32,7 +32,14 @@ const isSHA256 = (hash) => /[a-f0-9]{64}/.test(hash)
 // it's fast, child.exec is sufficient
 const fileMagic = (target, callback) => 
   child.exec(`file -b ${target}`, (err, stdout, stderr) =>
-    err ? callback(err) : callback(parseMagic(stdout.toString())))
+    err ? callback(err) : callback(null, parseMagic(stdout.toString())))
+
+const fileMagicAsync = Promise.promisify(fileMagic)
+
+const validateUUIDList = (list) => {
+  if (!Array.isArray(list)) return undefined // undefined
+  return list.every(isUUID) ? list : list.filter(isUUID)
+}
 
 const readTimeStamp = (target, callback) =>
   fs.lstat(target, (err, stats) => 
@@ -41,16 +48,16 @@ const readTimeStamp = (target, callback) =>
 // this function throw SyntaxError if given attr is bad formatted
 const validateOldFormat = (attr, isFile) => {
 
-  if (typeof attr.uuid === 'string' || validator.isUUID(attr.uuid)) {}
+  if (typeof attr.uuid === 'string' && validator.isUUID(attr.uuid)) {}
   else throw new SyntaxError('invalid uuid')
 
   if (Array.isArray(attr.owner) && attr.owner.every(uuid => isUUID(uuid))) {}
   else throw new SyntaxError('invalid owner')
 
-  if (attr.writelist === null || attr.writelist.every(uuid => isUUID(uuid))) {}
+  if (attr.writelist === undefined || attr.writelist.every(uuid => isUUID(uuid))) {}
   else throw new SyntaxError('invalid writelist')
 
-  if (attr.readlist === null || attr.readlist.every(uuid => isUUID(uuid))) {}
+  if (attr.readlist === undefined || attr.readlist.every(uuid => isUUID(uuid))) {}
   else throw new SyntaxError('invalid readlist')
 
   if (!!attr.writelist === !!attr.readlist) {}
@@ -61,7 +68,7 @@ const validateOldFormat = (attr, isFile) => {
     if (attr.hasOwnProperty('hash') === attr.hasOwnProperty('htime')) {}
     else throw new SyntaxError('hash and htime inconsistent')
       
-    if (attr.hasOwnProperty('hash') {
+    if (attr.hasOwnProperty('hash')) {
       if (!isSHA256(attr.hash))
         throw new SyntaxError('invalid hash string')
 
@@ -78,7 +85,7 @@ const validateOldFormat = (attr, isFile) => {
 
 const validateNewFormat = (attr, isFile) => {
 
-  if (typeof attr.uuid === 'string' || validator.isUUID(attr.uuid)) {}
+  if (typeof attr.uuid === 'string' && validator.isUUID(attr.uuid)) {}
   else throw new SyntaxError('invalid uuid')
 
   if (attr.writelist && attr.writelist.every(uuid => isUUID(uuid))) {}
@@ -92,7 +99,7 @@ const validateNewFormat = (attr, isFile) => {
     if (attr.hasOwnProperty('hash') === attr.hasOwnProperty('htime')) {}
     else throw new SyntaxError('hash and htime inconsistent')
       
-    if (attr.hasOwnProperty('hash') {
+    if (attr.hasOwnProperty('hash')) {
       if (!isSHA256(attr.hash))
         throw new SyntaxError('invalid hash string')
 
@@ -131,7 +138,7 @@ const readXstatAsync = async target => {
         attr.magic = attr.magic ? parseMagic(attr.magic) : await fileMagicAsync(target)
     }
     else
-      valdiateNewFormat(attr)
+      validateNewFormat(attr)
 
     // drop hash if outdated
     if (stats.isFile() && attr.htime && attr.htime !== stats.mtime) {
@@ -169,7 +176,13 @@ const readXstat = (target, callback) => readXstatAsync(target).asCallback(callba
 const updateXattrPermission = (target, uuid, writelist, readlist, callback) => {
 
   if (!isUUID(uuid))
-    return process.nextTick(() => callback(EInvalid('invalid uuid'))
+    return process.nextTick(() => callback(EInvalid('invalid uuid')))
+
+  if (!(writelist = validateUUIDList(writelist)))
+    return process.nextTick(() => callback(EInvalid('invalid writelist')))
+
+  if (!(writelist = validateUUIDList(readlist)))
+    return process.nextTick(() => callback(EInvalid('invalid readlist')))
 
   readXstat(target, (err, xstat) => {
 
@@ -178,9 +191,22 @@ const updateXattrPermission = (target, uuid, writelist, readlist, callback) => {
     if (!xstat.isDirectory()) 
       return callback(Object.assign(new Error('not a directory'), { code: 'ENOTDIR' }))
 
-    let newAttr = { uuid, writelist, readlist }
-    xattr.set(target, FRUITMIX, JSON.stringify(newAttr), err => 
-      err ? callback(err) : callback(null, Object.assign(xstat, { writelist, readlist })))
+    let newAttr, cbAttr;
+    if (writelist.length && readlist.length) {
+      newAttr = { uuid, abspath: target };
+      cbAttr = Object.assign(xstat, { writelist, readlist });
+    } else {
+      newAttr = { uuid , writelist, readlist, abspath: target };
+      delete attr.writelist;
+      delete attr.readlist;
+      cbAttr = attr;
+    }
+    xattr.set(target, FRUITMIX, JSON.stringify(newAttr), err => {
+      err ? callback(err) : callback(null, cbAttr);
+    })
+    // let newAttr = { uuid, writelist, readlist }
+    // xattr.set(target, FRUITMIX, JSON.stringify(newAttr), err => 
+    //   err ? callback(err) : callback(null, Object.assign(xstat, { writelist, readlist })))
   })
 }
 
@@ -223,10 +249,9 @@ const copyXattr = (dst, src, callback) => {
   })
 }
 
-const readXstatAsync = Promise.promisify(readXstat)
 const copyXattrAsync = Promise.promisify(copyXattr)
 
-const testing = {}
+const testing = {};
 
 export { 
   readTimeStamp,
