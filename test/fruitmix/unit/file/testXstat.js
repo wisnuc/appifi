@@ -30,6 +30,7 @@ const uuidArr = [
 	'238e1fa5-8847-43e6-860e-cf812d1f5e65',
 	'146e05a5-d31b-4601-bc56-a46e66bb14eb'
 ];
+const htime1 = 1483415455656;
 const expect = chai.expect;
 const FRUITMIX = 'user.fruitmix';
 const UNINTERESTED_MAGIC_VERSION = 0;
@@ -77,7 +78,7 @@ describe('xstat.js', () => {
 		});
 	});
 
-	describe('readXstat', () => {
+	describe('readXstat, updateXattrHash, updateXattrPermission, copyXattr', () => {
 		beforeEach(done => {
 			rimraf(tmpFoder, err => {
 				if(err) return done(err);
@@ -89,10 +90,182 @@ describe('xstat.js', () => {
 		});
 		// after(() => rimraf(tmpFoder, () => {}) );
 
+		// readXstat
 		it('should return error if the file is a symbolic', done => {
 			readXstat(path.join(cwd, testdatafoder, 'symbolicfile'), (err, attr) => {
 				expect(err).to.be.an('error');
 				done();
+			});
+		});
+
+		it('Default settings are not in JSON format', done => {
+			xattr.set(fpath, FRUITMIX, JSON.stringify('hello hello'), err => {
+				if(err) return done(err);
+				readXstat(fpath, (err, attr) => {
+					if(err) return done(err);
+					expect(isUUID(attr.uuid)).to.be.true;
+					expect(attr.abspath).to.equal(fpath);
+					done();
+				});
+			});
+		});
+
+		it('Old format UUID illegal should set default values', done => {
+			xattr.set(fpath, FRUITMIX, JSON.stringify({
+				uuid : 'hello'
+			}), err => {
+				if(err) return done(err);
+				readXstat(fpath, (err, attr) => {
+					if(err) return done(err);
+					expect(isUUID(attr.uuid)).to.be.true;
+					expect(attr.abspath).to.equal(fpath);
+					done();
+				});
+			});
+		});
+
+		it('Old format owner illegal should set default values', done => {
+			xattr.set(fpath, FRUITMIX, JSON.stringify({
+				uuid : uuidArr[0],
+				owner: 'hello'
+			}), err => {
+				if(err) return done(err);
+				readXstat(fpath, (err, attr) => {
+					if(err) return done(err);
+					expect(isUUID(attr.uuid)).to.be.true;
+					expect(attr.abspath).to.equal(fpath);
+					done();
+				});
+			});
+		});
+
+		it('Old format writelist illegal should set default values', done => {
+			xattr.set(fpath, FRUITMIX, JSON.stringify({
+				uuid : uuidArr[0],
+				owner: [uuidArr[1]],
+				writelist: 'hello'
+			}), err => {
+				if(err) return done(err);
+				readXstat(fpath, (err, attr) => {
+					if(err) return done(err);
+					expect(isUUID(attr.uuid)).to.be.true;
+					expect(attr.abspath).to.equal(fpath);
+					done();
+				});
+			});
+		});
+
+		it('Old format readlist illegal should set default values', done => {
+			xattr.set(fpath, FRUITMIX, JSON.stringify({
+				uuid : uuidArr[0],
+				owner: [uuidArr[1]],
+				writelist: [uuidArr[2]],
+				readlist: 'hello'
+			}), err => {
+				if(err) return done(err);
+				readXstat(fpath, (err, attr) => {
+					if(err) return done(err);
+					expect(isUUID(attr.uuid)).to.be.true;
+					expect(attr.abspath).to.equal(fpath);
+					done();
+				});
+			});
+		});
+
+		it('File attr old format has hash no htime', done => {
+			fs.writeFile(ffpath, 'hello', err => {
+				if(err) return done(err);
+				xattr.set(ffpath, FRUITMIX, JSON.stringify({
+					uuid: uuidArr[0],
+					owner: [uuidArr[1]],
+					writelist: [uuidArr[2]],
+					readlist: [uuidArr[3]],
+					hash: sha256_1
+				}), err => {
+					if(err) return done(err);
+					readXstat(ffpath, (err, attr) => {
+						if(err) return done(err);
+						expect(isUUID(attr.uuid)).to.be.true;
+						expect(attr.abspath).to.equal(ffpath);
+						done();
+					})
+				});
+			});
+		});
+		
+		it('File attr old format magic illegal', done => {
+			fs.writeFile(ffpath, 'hello', err => {
+				if(err) return done(err);
+				xattr.set(ffpath, FRUITMIX, JSON.stringify({
+					uuid: uuidArr[0],
+					owner: [uuidArr[1]],
+					writelist: [uuidArr[2]],
+					readlist: [uuidArr[3]],
+					hash: sha256_1,
+					htime: 1483415455656,
+					magic: 'hello'
+				}), err => {
+					if(err) return done(err);
+					readXstat(ffpath, (err, attr) => {
+						if(err)return done(err);
+						expect(isUUID(attr.uuid)).to.be.true;
+						expect(attr.abspath).to.equal(ffpath);
+						done();
+					});
+				});
+			});
+		});
+
+		it('Read the attr attribute on the file should return the correct format', done => {
+			fs.writeFile(ffpath, 'hello', err => {
+				if(err) return done(err);
+				xattr.set(ffpath, FRUITMIX, JSON.stringify({
+					uuid: uuidArr[0],
+					owner: [uuidArr[1]],
+					writelist: [uuidArr[2]],
+					readlist: [uuidArr[3]],
+					hash: sha256_1,
+					htime: 1483415455656,
+					magic: 'JPEG'
+				}), err => {
+					if(err) return done(err);
+					readXstat(ffpath, (err, attr) => {
+						if(err) return done(err);
+						xattr.get(ffpath, FRUITMIX, (err, attr) => {
+							if(err) return done(err);
+							let data = JSON.parse(attr);
+							expect(data.uuid).to.equal(uuidArr[0]);
+							expect(data.owner).to.equal(undefined);
+							expect(data.writelist[0]).to.equal(uuidArr[2]);
+							expect(data.readlist[0]).to.equal(uuidArr[3]);
+							expect(data.magic).to.equal(UNINTERESTED_MAGIC_VERSION);
+							done();
+						});
+					});
+				});
+			});
+		});
+
+		it('magic upgrade', done => {
+			fs.writeFile(ffpath, 'hello', err => {
+				if(err) return done(err);
+				xattr.set(ffpath, FRUITMIX, JSON.stringify({
+					uuid: uuidArr[0],
+					owner: [uuidArr[1]],
+					writelist: [uuidArr[2]],
+					readlist: [uuidArr[3]]
+				}), err => {
+					if(err) return done(err);
+					readXstat(ffpath, (err, attr) => {
+						if(err) return done(err);
+						xattr.get(ffpath, FRUITMIX, (err, attr) => {
+							if(err) return done(err);
+							let data = JSON.parse(attr);
+							expect(data.magic).to.equal(UNINTERESTED_MAGIC_VERSION);
+							done();
+						});
+					});
+				});
 			});
 		});
 
@@ -118,7 +291,7 @@ describe('xstat.js', () => {
 						expect(str.magic).to.equal(UNINTERESTED_MAGIC_VERSION);
 						done();
 					}catch(e){
-						done(e)
+						done(e);
 					}
 				});
 			});
@@ -126,7 +299,7 @@ describe('xstat.js', () => {
 
 		it('new folder should return default attr', done => {
 			readXstat(fpath, (err, attr) => {
-				expect(isUUID(attr.uuid)).to.be.ture;
+				expect(isUUID(attr.uuid)).to.be.true;
 				expect(attr.abspath).to.equal(fpath);
 				done();
 			});
@@ -203,6 +376,112 @@ describe('xstat.js', () => {
 							}catch(err){
 								done(err);
 							}
+						});
+					});
+				});
+			});
+		});
+
+		// updateXattrHash
+		it('update folder hash should thrown error', done => {
+			xattr.set(fpath, FRUITMIX, JSON.stringify({
+				uuid: uuidArr[0],
+				abspath: fpath
+			}), err => {
+				if(err) return done(err);
+				updateXattrHash(fpath, uuidArr[0], sha256_1, htime1, (err, res) => {
+					expect(err).to.be.an('error');
+					done();
+				});
+			});
+		});
+
+		it('update hash uuid mismatch', done => {
+			fs.writeFile(ffpath, 'hello', err => {
+				if(err) return done(err);
+				xattr.set(ffpath, FRUITMIX, JSON.stringify({
+					uuid: uuidArr[0],
+					abspath: ffpath
+				}), err => {
+					if(err) return done(err);
+					updateXattrHash(ffpath, uuidArr[1], sha256_1, htime1, (err, res) => {
+						expect(err).to.be.an('error');
+						done();
+					});
+				});
+			});
+		});
+
+		it('Will be modified hash is not legitimate', done => {
+			fs.writeFile(ffpath, 'hello', err => {
+				if(err) return done(err);
+				xattr.set(ffpath, FRUITMIX, JSON.stringify({
+					uuid: uuidArr[0],
+					hash: sha256_1,
+					htime: htime1
+				}), err => {
+					if(err) return done(err);
+					updateXattrHash(ffpath, uuidArr[0], sha256_2, htime1, (err, res) => {
+						expect(err).to.be.an('error');
+						done();
+					});
+				});
+			});
+		});
+
+		it('update hash magic wrongful', done => {
+			fs.writeFile(ffpath, 'hello', err => {
+				if(err) return done(err);
+				xattr.set(ffpath, FRUITMIX, JSON.stringify({
+					uuid: uuidArr[0],
+					hash: sha256_1,
+					htime: htime1,
+					magic: ''
+				}), err => {
+					if(err) return done(err);
+					updateXattrHash(ffpath, uuidArr[0], sha256_2, htime1, (err, res) => {
+						expect(err).to.be.an('error');
+						done();
+					});
+				});
+			});
+		});
+
+		it('update hash outdated should thrown error', done => {
+			fs.writeFile(ffpath, 'hello', err => {
+				if(err) return done(err);
+				xattr.set(ffpath, FRUITMIX, JSON.stringify({
+					uuid: uuidArr[0],
+					hash: sha256_1,
+					htime: htime1,
+					magic: 0
+				}), err => {
+					if(err) return done(err);
+					updateXattrHash(ffpath, uuidArr[0], sha256_1, 2132131, (err, res) => {
+						expect(err).to.be.an('error');
+						done();
+					});
+				});
+			});
+		});
+
+		it('Correct update hash', done => {
+			fs.writeFile(ffpath, 'hello', err => {
+				if(err) return done(err);
+				fs.lstat(ffpath, (err, stat) => {
+					xattr.set(ffpath, FRUITMIX, JSON.stringify({
+						uuid: uuidArr[0],
+						writelist: [uuidArr[1]],
+						readlist: [uuidArr[2]],
+						hash: sha256_1,
+						htime: stat.mtime.getTime(),
+						magic: 0
+					}), err => {
+						if(err) return done(err);
+						updateXattrHash(ffpath, uuidArr[0], sha256_2, stat.mtime.getTime(), (err, res) => {
+							if(err) return done(err);
+							expect(res.hash).to.equal(sha256_2);
+							done();
 						});
 					});
 				});

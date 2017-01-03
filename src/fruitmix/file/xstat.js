@@ -54,14 +54,14 @@ const validateOldFormat = (attr, isFile) => {
   if (Array.isArray(attr.owner) && attr.owner.every(uuid => isUUID(uuid))) {}
   else throw new SyntaxError('invalid owner')
 
-  if (attr.writelist === undefined || attr.writelist.every(uuid => isUUID(uuid))) {}
+  if (attr.writelist === undefined || (Array.isArray(attr.writelist) && attr.writelist.every(uuid => isUUID(uuid)))) {}
   else throw new SyntaxError('invalid writelist')
 
-  if (attr.readlist === undefined || attr.readlist.every(uuid => isUUID(uuid))) {}
+  if (attr.readlist === undefined || (Array.isArray(attr.readlist) && attr.readlist.every(uuid => isUUID(uuid)))) {}
   else throw new SyntaxError('invalid readlist')
 
-  if (!!attr.writelist === !!attr.readlist) {}
-  else throw new SyntaxError('writelist and readlist inconsistent')
+  // if (!!attr.writelist === !!attr.readlist) {}
+  // else throw new SyntaxError('writelist and readlist inconsistent')
  
   if (isFile) {
 
@@ -72,12 +72,12 @@ const validateOldFormat = (attr, isFile) => {
       if (!isSHA256(attr.hash))
         throw new SyntaxError('invalid hash string')
 
-      if (!Number.isInteger('htime'))
+      if (!Number.isInteger(attr.htime))
         throw new SyntaxError('invalid htime')
-    } 
+    }
 
-    if (attr.hasOwnProperty('magic')) {      
-      if (typeof magic !== 'string')
+    if (attr.hasOwnProperty('magic')) {
+      if (typeof attr.magic !== 'string')
         throw new SyntaxError('invalid magic')
     }
   }
@@ -88,10 +88,10 @@ const validateNewFormat = (attr, isFile) => {
   if (typeof attr.uuid === 'string' && validator.isUUID(attr.uuid)) {}
   else throw new SyntaxError('invalid uuid')
 
-  if (attr.writelist && attr.writelist.every(uuid => isUUID(uuid))) {}
+  if (attr.writelist === undefined || (Array.isArray(attr.writelist) && attr.writelist.every(uuid => isUUID(uuid)))) {}
   else throw new SyntaxError('invalid writelist')
 
-  if (attr.readlist && attr.readlist.every(uuid => isUUID(uuid))) {}
+  if (attr.readlist === undefined || (Array.isArray(attr.readlist) && attr.readlist.every(uuid => isUUID(uuid)))) {}
   else throw new SyntaxError('invalid readlist')
 
   if (isFile) {
@@ -103,7 +103,7 @@ const validateNewFormat = (attr, isFile) => {
       if (!isSHA256(attr.hash))
         throw new SyntaxError('invalid hash string')
 
-      if (!Number.isInteger('htime'))
+      if (!Number.isInteger(attr.htime))
         throw new SyntaxError('invalid htime')
     } 
 
@@ -128,7 +128,7 @@ const readXstatAsync = async target => {
     attr = JSON.parse(await xattr.getAsync(target, FRUITMIX))
 
     if (attr.hasOwnProperty('owner')) {
-      validateOldFormat(attr) 
+      validateOldFormat(attr, stats.isFile()) 
 
       dirty = true
       delete attr.owner
@@ -138,7 +138,7 @@ const readXstatAsync = async target => {
         attr.magic = attr.magic ? parseMagic(attr.magic) : await fileMagicAsync(target)
     }
     else
-      validateNewFormat(attr)
+      validateNewFormat(attr, stats.isFile())
 
     // drop hash if outdated
     if (stats.isFile() && attr.htime && attr.htime !== stats.mtime) {
@@ -212,22 +212,33 @@ const updateXattrPermission = (target, uuid, writelist, readlist, callback) => {
 
 const updateXattrHash = (target, uuid, hash, htime, callback) => {
 
-  readXstat(target, (err, xstat) => {
-    if (err) return callback(err)
-    if (xstat.uuid !== uuid) return callback(InstanceMismatch())
+  fs.lstat(target, (err, stats) => {
+    if(err) return callback(err);
+    if(!stats.isFile()) return callback(new Error('not file'));
+    xattr.get(target, FRUITMIX, (err, attr) => {
+      if(err) return callback(err);
+      let attrMagic = JSON.parse(attr).magic;
+      readXstat(target, (err, xstat) => {
+        if (err) return callback(err)
 
-    // uuid mismatch
-    if (xstat.uuid !== uuid) return callback(InstanceMismatch())
-    // invalid hash or magic
-    if (!isSHA256(hash) || typeof magic !== 'string' || magic.length === 0) return callback(EInvalid())
-    // timestamp mismatch
-    if (xstat.mtime.getTime() !== htime) return callback(TimestampMismatch())
+        // uuid mismatch
+        if (xstat.uuid !== uuid) return callback(InstanceMismatch())
+        // invalid hash or magic
+        // if (!isSHA256(hash) || typeof xattr.magic !== 'string' || xattr.magic.length === 0) return callback(EInvalid())
+        if(!isSHA256(hash)) return callback(EInvalid());
+        if((typeof attrMagic === 'string' && attrMagic.length !== 0) || typeof attrMagic === 'number'){}
+          else return callback(EInvalid());
+        // timestamp mismatch
+        if (xstat.mtime.getTime() !== htime) return callback(TimestampMismatch())
 
-    let { writelist, readlist } = xstat
-    let newAttr = { uuid, writelist, readlist, hash, htime }
-    xattr.set(target, FRUITMIX, JSON.stringify(newAttr), err => 
-      err ? callback(err) : callback(null, Object.assign(xstat, { hash, htime })))
-  })
+        let { writelist, readlist, abspath } = xstat
+        let newAttr = { uuid, writelist, readlist, hash, htime, attrMagic, abspath }
+        xattr.set(target, FRUITMIX, JSON.stringify(newAttr), err => 
+          err ? callback(err) : callback(null, Object.assign(xstat, { hash, htime })))
+      });
+    });
+  });
+
 }
 
 // questionable
