@@ -61,6 +61,12 @@
             ]
           },
           {
+            "title": "PCClientFeatureList",
+            "source": "docs/fruitmix/featureList.md",
+            "url": "fruitmix/featureList.html",
+            "slug": "fruitmixfeaturelist"
+          },
+          {
             "title": "productFeatureDesign",
             "source": "docs/fruitmix/productFeatureDesign.md",
             "url": "fruitmix/productFeatureDesign.html",
@@ -126,7 +132,14 @@
               {
                 "title": "同名文件的上传策略",
                 "depth": 2,
-                "id": ""
+                "id": "",
+                "headings": [
+                  {
+                    "title": "上传",
+                    "depth": 3,
+                    "id": ""
+                  }
+                ]
               },
               {
                 "title": "文件下载",
@@ -241,6 +254,59 @@
                 ]
               }
             ]
+          },
+          {
+            "title": "Issues",
+            "sections": [
+              {
+                "title": "UXIssue",
+                "source": "docs/fruitmix/UXIssue.md",
+                "url": "fruitmix/UXIssue.html",
+                "slug": "fruitmixuxissue",
+                "headings": [
+                  {
+                    "title": "系统颜色/风格",
+                    "depth": 2,
+                    "id": ""
+                  },
+                  {
+                    "title": "登录",
+                    "depth": 2,
+                    "id": ""
+                  },
+                  {
+                    "title": "系统菜单",
+                    "depth": 2,
+                    "id": ""
+                  },
+                  {
+                    "title": "LEFT Nav",
+                    "depth": 2,
+                    "id": "left-nav"
+                  },
+                  {
+                    "title": "系统工具栏",
+                    "depth": 2,
+                    "id": ""
+                  },
+                  {
+                    "title": "文件",
+                    "depth": 2,
+                    "id": ""
+                  },
+                  {
+                    "title": "右键菜单",
+                    "depth": 2,
+                    "id": ""
+                  },
+                  {
+                    "title": "上传任务/下载任务",
+                    "depth": 2,
+                    "id": ""
+                  }
+                ]
+              }
+            ]
           }
         ]
       },
@@ -346,6 +412,12 @@
         }
       ]
     },
+    "fruitmix/featureList.html": {
+      "source": "docs/fruitmix/featureList.md",
+      "title": "PCClientFeatureList - 闻上私有云",
+      "pageTitle": "PCClientFeatureList",
+      "slug": "fruitmixfeaturelist"
+    },
     "fruitmix/productFeatureDesign.html": {
       "source": "docs/fruitmix/productFeatureDesign.md",
       "title": "productFeatureDesign - 闻上私有云",
@@ -412,7 +484,14 @@
         {
           "title": "同名文件的上传策略",
           "depth": 2,
-          "id": ""
+          "id": "",
+          "headings": [
+            {
+              "title": "上传",
+              "depth": 3,
+              "id": ""
+            }
+          ]
         },
         {
           "title": "文件下载",
@@ -518,6 +597,54 @@
         }
       ]
     },
+    "fruitmix/UXIssue.html": {
+      "source": "docs/fruitmix/UXIssue.md",
+      "title": "UXIssue - 闻上私有云",
+      "pageTitle": "UXIssue",
+      "slug": "fruitmixuxissue",
+      "headings": [
+        {
+          "title": "系统颜色/风格",
+          "depth": 2,
+          "id": ""
+        },
+        {
+          "title": "登录",
+          "depth": 2,
+          "id": ""
+        },
+        {
+          "title": "系统菜单",
+          "depth": 2,
+          "id": ""
+        },
+        {
+          "title": "LEFT Nav",
+          "depth": 2,
+          "id": "left-nav"
+        },
+        {
+          "title": "系统工具栏",
+          "depth": 2,
+          "id": ""
+        },
+        {
+          "title": "文件",
+          "depth": 2,
+          "id": ""
+        },
+        {
+          "title": "右键菜单",
+          "depth": 2,
+          "id": ""
+        },
+        {
+          "title": "上传任务/下载任务",
+          "depth": 2,
+          "id": ""
+        }
+      ]
+    },
     "fruitmix/storageStat.html": {
       "source": "docs/fruitmix/storageStat.md",
       "title": "Stroage Stat - 闻上私有云",
@@ -561,9 +688,11 @@
     "docs/README.md": "index.html",
     "docs/general.md": "general.html",
     "docs/fruitmix/overview.md": "fruitmix/overview.html",
+    "docs/fruitmix/featureList.md": "fruitmix/featureList.html",
     "docs/fruitmix/productFeatureDesign.md": "fruitmix/productFeatureDesign.html",
     "docs/fruitmix/xstat.md": "fruitmix/xstat.html",
     "docs/fruitmix/apis/system.md": "fruitmix/apis/system.html",
+    "docs/fruitmix/UXIssue.md": "fruitmix/UXIssue.html",
     "docs/fruitmix/storageStat.md": "fruitmix/storageStat.html",
     "docs/misc/md4encrypt.md": "misc/md4encrypt.html",
     "docs/fruitmix/node.js": "fruitmix/node.js"
