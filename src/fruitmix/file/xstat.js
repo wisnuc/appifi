@@ -40,6 +40,24 @@ const readTimeStamp = (target, callback) =>
   fs.lstat(target, (err, stats) => 
     err ? callback(err) : callback(null, stats.mtime.getTime()))
 
+// de-duplication
+const nonRepeatArr = (arr) => { return Array.from(new Set(arr)) }
+
+// clear arr2, make sure arr2 only contains elements that don't exist in arr1
+const  duplicateArr = (arr1, arr2) => {
+  let temp = []
+  let tempArr = []
+
+  // take the content of arr1 as key, true as value
+  for(let i = 0; i < arr1.length; i++) { temp[arr1[i]] = true }
+  // take the content of arr2 as key, if false, this is a non-repeat value
+  for(let i = 0; i < arr2.length; i++) {
+    if(!temp[arr2[i]]) tempArr.push(arr2[i])
+  }
+  return tempArr
+
+}
+
 // this function throw SyntaxError if given attr is bad formatted
 const validateOldFormat = (attr, isFile) => {
 
@@ -67,12 +85,12 @@ const validateOldFormat = (attr, isFile) => {
       if (!isSHA256(attr.hash))
         throw new SyntaxError('invalid hash string')
 
-      if (!Number.isInteger('htime'))
+      if (!Number.isInteger(attr.htime))
         throw new SyntaxError('invalid htime')
     } 
 
     if (attr.hasOwnProperty('magic')) {      
-      if (typeof magic !== 'string')
+      if (typeof attr.magic !== 'string')
         throw new SyntaxError('invalid magic')
     }
   }
@@ -83,10 +101,10 @@ const validateNewFormat = (attr, isFile) => {
   if (typeof attr.uuid === 'string' && validator.isUUID(attr.uuid)) {}
   else throw new SyntaxError('invalid uuid')
 
-  if (attr.writelist && attr.writelist.every(uuid => isUUID(uuid))) {}
+  if (attr.writelist === undefined || (attr.writelist && attr.writelist.every(uuid => isUUID(uuid)))) {}
   else throw new SyntaxError('invalid writelist')
 
-  if (attr.readlist && attr.readlist.every(uuid => isUUID(uuid))) {}
+  if (attr.readlist === undefined || (attr.readlist && attr.readlist.every(uuid => isUUID(uuid)))) {}
   else throw new SyntaxError('invalid readlist')
 
   if (isFile) {
@@ -98,12 +116,12 @@ const validateNewFormat = (attr, isFile) => {
       if (!isSHA256(attr.hash))
         throw new SyntaxError('invalid hash string')
 
-      if (!Number.isInteger('htime'))
+      if (!Number.isInteger(attr.htime))
         throw new SyntaxError('invalid htime')
     } 
 
-    if (attr.hasOwnProperty('magic')) {      
-      if (typeof magic === 'string' || Number.isInteger(attr.magic)) {}
+    if (attr.hasOwnProperty('magic')) {   
+      if (typeof attr.magic === 'string' || Number.isInteger(attr.magic)) {}
       else throw new SyntaxError('invalid magic')
     }
   }
@@ -173,12 +191,27 @@ const updateXattrPermission = (target, uuid, writelist, readlist, callback) => {
   if (!isUUID(uuid))
     return process.nextTick(() => callback(EInvalid('invalid uuid')))
 
+  if (writelist && !(Array.isArray(writelist) && writelist.every(uuid => isUUID(uuid))))
+    return process.nextTick(() => callback(EInvalid('invalid writelist')))
+
+  if (readlist && !(Array.isArray(readlist) && readlist.every(uuid => isUUID(uuid))))
+    return process.nextTick(() => callback(EInvalid('invalid readlist')))
+
   readXstat(target, (err, xstat) => {
 
     if (err) return callback(err)
     if (xstat.uuid !== uuid) return callback(InstanceMismatch()) 
     if (!xstat.isDirectory()) 
       return callback(Object.assign(new Error('not a directory'), { code: 'ENOTDIR' }))
+
+    // remove repeate value
+    if(writelist && Array.isArray(writelist))
+      writelist =  nonRepeatArr(writelist)
+    if(readlist && Array.isArray(readlist))
+      readlist =  nonRepeatArr(readlist)
+    if(writelist && readlist)
+      readlist = duplicateArr(writelist, readlist)
+    
 
     let newAttr = { uuid, writelist, readlist }
     xattr.set(target, FRUITMIX, JSON.stringify(newAttr), err => 
