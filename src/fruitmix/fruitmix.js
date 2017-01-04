@@ -31,51 +31,6 @@ class Fruitmix extends EventEmitter {
     this.smbAudit = smbAudit
   }
 }
-/**
-const createFruitmix = (sysroot) => {
-
-  let server, port = 3721 
-
-  system.init(sysroot)
-
-  app.set('port', port)
-
-  server = http.createServer(app)
-  server.timeout = 24 * 3600 * 1000 // 24 hours
-
-  server.on('error', error => {
-
-    if (error.syscall !== 'listen') {
-      throw error
-    }
-
-    // handle specific listen errors with friendly messages
-    switch (error.code) {
-    case 'EACCES':
-      console.error('Port ' + port + ' requires elevated privileges')
-      process.exit(1)
-      break
-    case 'EADDRINUSE':
-      console.error('Port ' + port + ' is already in use')
-      process.exit(1)
-      break
-    default:
-      throw error
-    }
-  })
-
-  server.on('listening', () => console.log('[fruitmix] Http Server Listening on Port ' + port))
-  server.on('close', () => console.log('[fruitmix] Http Server Closed'))
-
-  server.listen(port)
-
-  let smbaudit = createSmbAudit(err => {
-    console.log('smb audit created') 
-  })
-
-  return new Fruitmix(system, app, server, smbaudit)
-}
-**/
 
 // TODO
 const createHttpServer = (callback) => {

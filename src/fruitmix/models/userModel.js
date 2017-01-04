@@ -1,31 +1,20 @@
-import path from 'path'
-import fs from 'fs'
-import crypto from 'crypto'
 import EventEmitter from 'events'
-
-import Debug from 'debug'
-const debug = Debug('fruitmix:userModel')
-
-// import bcrypt from 'bcryptjs'
 import bcrypt from 'bcrypt'
 import UUID from 'node-uuid'
 import validator from 'validator'
-import mkdirp from 'mkdirp'
+
+import md4Encrypt from '../tools'
 
 import { throwBusy, throwInvalid } from '../util/throw'
 import { openOrCreateCollectionAsync} from './collection'
 import { storeDispatch } from '../../reducers'
 
-Promise.promisifyAll(fs)
+import Debug from 'debug'
+const debug = Debug('fruitmix:userModel')
 
 const isUUID = (x) => typeof x === 'string' && validator.isUUID(x)
 
-const md4Encrypt = (text) => 
-  crypto.createHash('md4')
-    .update(Buffer.from(text, 'utf16le'))
-    .digest('hex')
-    .toUpperCase()
-
+Promise.promisifyAll(bcrypt)
 
 /** Schema
 {
@@ -78,8 +67,6 @@ Note:
 o1  can only be changed by first user
 
 **/
-
-Promise.promisifyAll(bcrypt)
 
 // TODO
 const validateAvatar = (avatar) => true
@@ -332,46 +319,7 @@ const createUserModelAsync = async (filepath, tmpfolder) => {
   return null
 }
 
-// external use
-const createFirstUser = (mp, username, password, callback) => {
-
-  let salt = bcrypt.genSaltSync(10)
-  let encrypted = bcrypt.hashSync(password, salt)
-  let md4 = md4Encrypt(password)
-
-  let users = [
-    {
-      type: 'local',
-      uuid: UUID.v4(),
-      username,
-      password: encrypted,
-      smbPassword: md4, 
-      lastChangeTime: new Date().getTime(),
-      avatar: null,
-      email: null,
-      isAdmin: true,
-      isFirstUser: true,
-      home: UUID.v4(),
-      library: UUID.v4(),
-      unixUID: 2000
-    } 
-  ]
-
-  debug('creating first user', users[0])
-
-  let dir = path.join(mp, 'wisnuc', 'fruitmix', 'models')
-  mkdirp(dir, err => {
-
-    if (err) return callback(err)
-    fs.writeFile(path.join(dir, 'users.json'), 
-      JSON.stringify(users, null, '  '), err => {
-      
-      err ? callback(err) : callback(null, users[0])
-    })
-  })
-}
-
-export { createUserModelAsync, createUserModel, createFirstUser }
+export { createUserModelAsync, createUserModel }
 
 
 

@@ -5,12 +5,46 @@ import mkdirp from 'mkdirp'
 import validator from 'validator'
 import Debug from 'debug'
 import { storeState, storeDispatch } from '../reducers' 
-import { formattable, mkfsBtrfs, installFruitmixAsync } from './storage'
-import { tryBoot } from './boot'
 
+import { probeFruitmix } from '../fruitmix/tools'
+import { formattable, mkfsBtrfs, installFruitmixAsync } from './mkfs'
+import { tryBoot } from './boot'
 
 const debug = Debug('system:mir')
 const router = express.Router()
+
+const probeFruitmixAsync = Promise.promisify(probeFruitmix)
+
+const probeAllFruitmixesAsync = async storage => {
+
+  let mps = [] 
+
+  storage.volumes.forEach(vol => {
+    if (vol.isMounted) mps.push({
+      ref: vol,
+      mp: vol.mountpoint
+    })
+  })
+
+  storage.blocks.forEach(blk => {
+    if (!blk.isVolumeDevice && blk.isMounted)
+      mps.push({
+        ref: blk,
+        mp: blk.mountpoint
+      })
+  })
+
+  await Promise
+    .map(mps, obj => probeFruitmixAsync(obj.mp).reflect())
+    .each((inspection, index) => {
+      if (inspection.isFulfilled())
+        mps[index].ref.wisnuc = inspection.value() 
+      else {
+        debug('probe fruitmix failed', inspection.reason())
+        mps[index].ref.wisnuc = 'ERROR'
+      }
+    })
+}
 
 router.get('/', (req, res) => {
 
@@ -18,12 +52,16 @@ router.get('/', (req, res) => {
   if (!storage)
     return res.status(500).end()
 
+  if (req.query.raw === 'true')
+    return res.status(200).json(storage)
+
   let ports = storage.ports.map(port => ({
     path: port.path,
     subsystem: port.props.subsystem
   }))
 
-  let blocks = storage.blocks.map(blk => Object.assign({
+  let blocks 
+  blocks = storage.blocks.map(blk => Object.assign({
     name: blk.name,
     devname: blk.props.devname,
     path: blk.path,
@@ -36,28 +74,56 @@ router.get('/', (req, res) => {
   let volumes = storage.volumes.map(vol => { 
 
     let usage = usages.find(usg => usg.mountpoint === vol.stats.mountpoint)
-    if (usage) delete usage.mountpoint
+    let copy = {
+      overall: usage.overall,
+      system: usage.system,
+      metadata: usage.metadata,
+      data: usage.data,
+      unallocated: usage.unallocated
+    }
 
-    let mapped = Object.assign({}, vol, vol.stats, { usage })
+    let deviceUsages = usage.devices
+
+    let mapped = Object.assign({}, vol, vol.stats, { usage: copy })
     delete mapped.stats
 
-    mapped.devices = vol.devices.map(dev => ({
-      name: path.basename(dev.path),
-      devname: dev.path,
-      id: dev.id,
-      size: dev.size,
-      used: dev.used 
-    }))
+    mapped.devices = vol.devices.map(dev => {
+
+      let usage = deviceUsages.find(ud => ud.name === dev.path)
+
+      return {
+        name: path.basename(dev.path), // tricky
+        path: dev.path,
+        id: dev.id,
+        used: dev.used,
+        size: usage.size,
+        unallocated: usage.unallocated,
+        system: usage.system,
+        metadata: usage.metadata,
+        data: usage.data
+      }
+    })
     
     return mapped
   })
 
   let ret = Object.assign({}, storage, { ports, blocks, volumes }) 
-  delete ret.mounts
-  delete ret.swaps
-  delete ret.usages
 
-  res.status(200).json(ret)
+  if (req.query.wisnuc === 'true') 
+    probeAllFruitmixesAsync(ret).asCallback(err => 
+      err ? res.status(500).json({ message: 'error probing all fruitmix instances'}) :
+        res.status(200).json(ret))
+  else
+    res.status(200).json(ret)
+})
+
+
+
+router.post('/run', (req, res) => {
+
+//  let bstate = storeState().boot
+//  if (bstate.state !== 'maintenance')
+  return res.status(400).json({ message: 'system is not in maintenance mode' }) 
 })
 
 /**
@@ -163,13 +229,51 @@ const tryReboot = (lfs, callback) => {
   tryBoot(callback)
 }
 
+/**
+  post a mir operation
+   
+  // for mkfs.btrfs
+  {
+    target: ['sda', 'sdb'] ... must be a devname array 
+    mkfs: {
+      type: 'btrfs',
+      mode: 'single', 'raid0', or 'raid1' 
+    }
+    init: {
+      username, password
+    } 
+  }
+
+  // for mkfs.ext4 or ntfs
+  {
+    target: ['sda'] ... single dev name
+    mkfs: {
+      type: 'ext4', or 'ntfs'
+    },
+    init: {
+      username, password
+    }
+  }
+
+  // for install
+  {
+    target: [uuid] // file system uuid
+    init: {
+      username, password
+    }
+  }
+
+  // for run
+  {
+    target: [uuid] // file system uuid
+  }
+
+**/
 router.post('/', (req, res) => {
 
   let bstate = storeState().boot
   if (bstate.state !== 'maintenance')
-    return res.status(405).json({
-      message: 'system is not in maintenance mode'
-    })
+    return res.status(400).json({ message: 'system is not in maintenance mode' })
 
   const startMountpoint = (mp) => {
     fs.stat(path.join(mp, 'wisnuc/fruitmix'), (err, stats) => {

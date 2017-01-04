@@ -1,7 +1,7 @@
 import path from 'path'
 import Debug from 'debug'
 import { storeState, storeDispatch } from '../reducers'
-import { refreshStorage } from './storage'
+import { refreshStorageAsync } from './storage'
 import { createFruitmix } from '../fruitmix/fruitmix'
 import docker from '../appifi/docker'
 
@@ -112,7 +112,7 @@ const bootState = () => {
 
 export const tryBoot = (callback) => {
 
-  refreshStorage().asCallback(err => {
+  refreshStorageAsync().asCallback(err => {
 
     if (err) return callback(err)
     let bstate = bootState()
