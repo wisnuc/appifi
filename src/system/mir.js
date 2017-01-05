@@ -6,45 +6,13 @@ import validator from 'validator'
 import Debug from 'debug'
 import { storeState, storeDispatch } from '../reducers' 
 
-import { probeFruitmix } from '../fruitmix/tools'
 import { formattable, mkfsBtrfs, installFruitmixAsync } from './mkfs'
 import { tryBoot } from './boot'
 
+import { adaptStorage, probeAllFruitmixes } from './adapter'
+
 const debug = Debug('system:mir')
 const router = express.Router()
-
-const probeFruitmixAsync = Promise.promisify(probeFruitmix)
-
-const probeAllFruitmixesAsync = async storage => {
-
-  let mps = [] 
-
-  storage.volumes.forEach(vol => {
-    if (vol.isMounted) mps.push({
-      ref: vol,
-      mp: vol.mountpoint
-    })
-  })
-
-  storage.blocks.forEach(blk => {
-    if (!blk.isVolumeDevice && blk.isMounted)
-      mps.push({
-        ref: blk,
-        mp: blk.mountpoint
-      })
-  })
-
-  await Promise
-    .map(mps, obj => probeFruitmixAsync(obj.mp).reflect())
-    .each((inspection, index) => {
-      if (inspection.isFulfilled())
-        mps[index].ref.wisnuc = inspection.value() 
-      else {
-        debug('probe fruitmix failed', inspection.reason())
-        mps[index].ref.wisnuc = 'ERROR'
-      }
-    })
-}
 
 router.get('/', (req, res) => {
 
@@ -55,75 +23,39 @@ router.get('/', (req, res) => {
   if (req.query.raw === 'true')
     return res.status(200).json(storage)
 
-  let ports = storage.ports.map(port => ({
-    path: port.path,
-    subsystem: port.props.subsystem
-  }))
-
-  let blocks 
-  blocks = storage.blocks.map(blk => Object.assign({
-    name: blk.name,
-    devname: blk.props.devname,
-    path: blk.path,
-    removable: blk.sysfsProps[0].attrs.removable === "1",
-    size: parseInt(blk.sysfsProps[0].attrs.size)
-  }, blk.stats))
-
-  let usages = storage.usages
-
-  let volumes = storage.volumes.map(vol => { 
-
-    let usage = usages.find(usg => usg.mountpoint === vol.stats.mountpoint)
-    let copy = {
-      overall: usage.overall,
-      system: usage.system,
-      metadata: usage.metadata,
-      data: usage.data,
-      unallocated: usage.unallocated
-    }
-
-    let deviceUsages = usage.devices
-
-    let mapped = Object.assign({}, vol, vol.stats, { usage: copy })
-    delete mapped.stats
-
-    mapped.devices = vol.devices.map(dev => {
-
-      let usage = deviceUsages.find(ud => ud.name === dev.path)
-
-      return {
-        name: path.basename(dev.path), // tricky
-        path: dev.path,
-        id: dev.id,
-        used: dev.used,
-        size: usage.size,
-        unallocated: usage.unallocated,
-        system: usage.system,
-        metadata: usage.metadata,
-        data: usage.data
-      }
-    })
-    
-    return mapped
-  })
-
-  let ret = Object.assign({}, storage, { ports, blocks, volumes }) 
-
+  let adapted = adaptStorage(storage)
   if (req.query.wisnuc === 'true') 
-    probeAllFruitmixesAsync(ret).asCallback(err => 
-      err ? res.status(500).json({ message: 'error probing all fruitmix instances'}) :
-        res.status(200).json(ret))
+    probeAllFruitmixes(adapted, (err, copy) => 
+      err ? res.status(500).json({ message: err.message }) :
+        res.status(200).json(copy))
   else
-    res.status(200).json(ret)
+    res.status(200).json(adapted)
 })
 
-
-
+//
+// target: <file system uuid>
+//
 router.post('/run', (req, res) => {
 
-//  let bstate = storeState().boot
-//  if (bstate.state !== 'maintenance')
-  return res.status(400).json({ message: 'system is not in maintenance mode' }) 
+  let bstate = storeState().boot
+  if (bstate.state !== 'maintenance')
+    return res.status(400).json({ message: '系统未处于维护模式' }) 
+
+  if (typeof res.body !== 'object' || 
+    res.body === null || 
+    typeof res.body.target !== 'string' ||
+    !validator.isUUID(res.body.target))
+    return res.status(400).json({ message: '非法参数' }) 
+
+  let storage = storeState().storage
+  let volume = storage.volumes.find(vol => vol.uuid === res.body.target)
+
+  if (!volume) 
+    return res.status(400).json({ message: 'volume not found' })
+  if (volume.missing)
+    return res.status(400).json({ message: 'volume has missing device' })
+
+ 
 })
 
 /**
@@ -218,6 +150,7 @@ const R = (res) => (code, error, reason) => {
 }
 
 const tryReboot = (lfs, callback) => {
+
   storeDispatch({
     type: 'CONFIG_LAST_FILESYSTEM',
     data: lfs

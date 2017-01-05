@@ -4,21 +4,37 @@ import { storeState, storeDispatch } from '../reducers'
 import { refreshStorageAsync } from './storage'
 import { createFruitmix } from '../fruitmix/fruitmix'
 import docker from '../appifi/docker'
+import { adaptStorage, probeAllFruitmixesAsync } from './adapter'
 
 const debug = Debug('system:boot')
 
-const bootState = () => {
+const runnable = wisnuc => (typeof wisnuc === 'object' && wisnuc !== null && wisnuc.users)
 
-  let { bootMode, lastFileSystem } = storeState().config
-  let { blocks, volumes } = storeState().storage
+//
+// this function does not take any action
+// it returns an object with following properties:
+// 
+// state: current boot state, 'maintenance', 'normal', 'alternative',
+// error: if state is in maintenance, this explains why
+// currentFileSystem: the file system in use for 'normal' or 'alternative'
+//
+// lastFileSystem: in config
+// bootMode: in config
+//
+const bootState = (config, storage) => {
+
+  let { bootMode, lastFileSystem } = config
+  let { blocks, volumes } = storage
 
   if (bootMode === 'maintenance') {
 
-    debug('bootMode is set maintenance by user')
+    debug('bootMode is set to maintenance by user')
     return {
+
       state: 'maintenance',
       bootMode: 'maintenance',
-      error: null,
+      error: 'config',
+
       currentFileSystem: null,
       lastFileSystem
     }
@@ -26,8 +42,8 @@ const bootState = () => {
 
   // find all file systems, including unmounted, missing, etc.
   let fileSystems = [
-    ...blocks.filter(blk => blk.stats.isFileSystem && !blk.stats.isVolume),  
-    ...volumes.filter(vol => vol.stats.isFileSystem)
+    ...blocks.filter(blk => blk.isFileSystem && !blk.isVolume),  
+    ...volumes.filter(vol => vol.isFileSystem)
   ]
 
   // debug('tryBoot: all file systems', fileSystems)
@@ -35,23 +51,23 @@ const bootState = () => {
   if (lastFileSystem) {
 
     let last = fileSystems.find(fsys => 
-      fsys.stats.fileSystemType === lastFileSystem.type &&
-      fsys.stats.fileSystemUUID === lastFileSystem.uuid)
+      fsys.fileSystemType === lastFileSystem.type &&
+      fsys.fileSystemUUID === lastFileSystem.uuid)
 
     if (last) {
 
       debug('last file system found', last)
 
       let error = null
-      if (!last.stats.isMounted) {
+      if (!last.isMounted) {
         debug('last file system is not mounted')
-        error = 'EMOUNTFAIL'
+        error = 'EMOUNTFAIL' // TODO mountError
       }
-      else if (last.stats.isVolume && last.stats.isMissing) {
+      else if (last.isVolume && last.isMissing) {
         debug('last file system is volume and has missing device')
         error = 'EVOLUMEMISSING'
       }
-      else if (!last.stats.wisnucInstalled) {
+      else if (!runnable(last.wisnuc)) {
         debug('last file system has no wisnuc installed')
         error = 'EWISNUCNOTFOUND'
       }
@@ -67,9 +83,9 @@ const bootState = () => {
         state = 'normal',
         error,
         currentFileSystem = {
-          type: last.stats.fileSystemType,
-          uuid: last.stats.fileSystemUUID,
-          mountpoint: last.stats.mountpoint
+          type: last.fileSystemType,
+          uuid: last.fileSystemUUID,
+          mountpoint: last.mountpoint
         }
       }
 
@@ -80,9 +96,12 @@ const bootState = () => {
   debug('no last fs in config or last fs not found')
 
   // no lfs or lfs not found, try alternative
-  let alt = fileSystems.filter(fsys => fsys.stats.isMounted &&
-    (fsys.stats.isVolume ? (!fsys.stats.isMissing) : true) &&
-    fsys.stats.wisnucInstalled) 
+  let alt = fileSystems.filter(fsys => {
+    if (!fsys.isMounted) return false
+    if (fsys.isVolume && fsys.isMissing) return false
+    if (!runnable(fsys.wisnuc)) return false
+    return true
+  })
 
   debug('alternatives', alt)
 
@@ -92,9 +111,9 @@ const bootState = () => {
       bootMode,
       error: null,
       currentFileSystem: {
-        type: alt[0].stats.fileSystemType,
-        uuid: alt[0].stats.fileSystemUUID,
-        mountpoint: alt[0].stats.mountpoint
+        type: alt[0].fileSystemType,
+        uuid: alt[0].fileSystemUUID,
+        mountpoint: alt[0].mountpoint
       },
       lastFileSystem
     }
@@ -110,40 +129,48 @@ const bootState = () => {
   }
 }
 
-export const tryBoot = (callback) => {
+const tryBootAsync = async () => {
 
-  refreshStorageAsync().asCallback(err => {
+  let storage = await refreshStorageAsync() 
+  let adapted = adaptStorage(storage)
+  let probed = await probeAllFruitmixesAsync(adapted) 
 
-    if (err) return callback(err)
-    let bstate = bootState()
-    debug('tryboot: bootState', bstate)
+  let bstate = bootState(storeState().config, probed)
 
-    let cfs = bstate.currentFileSystem 
-    if (cfs) {
-      // boot fruitmix
-      debug('tryBoot, store, developer', storeState().developer)
+  debug('tryboot: bootState', bstate)
 
-      if (!storeState().developer.noFruitmix) {
-        createFruitmix(path.join(cfs.mountpoint, 'wisnuc', 'fruitmix'))
-      }
-      else {
-        console.log('!!! fruitmix not started due to developer setting')
-      }
+  let cfs = bstate.currentFileSystem 
+  if (cfs) {
 
-      storeDispatch({ type: 'CONFIG_LAST_FILESYSTEM', cfs })
+    // boot fruitmix
+    debug('tryBoot, store, developer', storeState().developer)
 
-      // boot appifi only if fruitmix booted
-      let install = storeState().config.dockerInstall
-      debug('dockerInstall', install)      
-      
-      let dockerRootDir = path.join(cfs.mountpoint, 'wisnuc')
-      docker.init(dockerRootDir) 
+    if (!storeState().developer.noFruitmix) {
+      createFruitmix(path.join(cfs.mountpoint, 'wisnuc', 'fruitmix'))
+    }
+    else {
+      console.log('!!! fruitmix not started due to developer setting')
     }
 
-    storeDispatch({ type: 'UPDATE_SYSBOOT', data: bstate })
-    callback()
-  })
+    storeDispatch({ type: 'CONFIG_LAST_FILESYSTEM', cfs })
+
+    // boot appifi only if fruitmix booted
+    let install = storeState().config.dockerInstall
+    debug('dockerInstall', install)      
+    
+    let dockerRootDir = path.join(cfs.mountpoint, 'wisnuc')
+    docker.init(dockerRootDir) 
+  }
+
+  storeDispatch({ type: 'UPDATE_SYSBOOT', data: bstate })
+  return bstate
 }
+
+// try boot system
+export const tryBoot = (callback) => tryBootAsync().asCallback(callback)
+
+
+
 
 
 

@@ -375,7 +375,16 @@ const statBlocks = ({blocks, volumes, mounts, swaps}) => {
 // duplicate minimal information
 const statVolumes = (volumes, mounts) => 
   volumes.forEach(vol => {
-    vol.stats = {}
+
+    // volume must keep file system info since it may be used as file system object
+    vol.stats = { 
+      isVolume: true,
+      isMissing: vol.missing,
+      isFileSystem: true,
+      fileSystemType: 'btrfs',
+      fileSystemUUID: vol.uuid
+    }
+
     let mount = volumeMount(vol, mounts)
     if (mount) {
       vol.stats.isMounted = true

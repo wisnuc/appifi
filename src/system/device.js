@@ -93,15 +93,15 @@ const dmiDecode = cb => {
 
 const systemProbe = cb => 
   probeProcfsMultiSec('cpuinfo', (err, cpuInfo) => err ? cb(err) :
-      probeProcfs('meminfo', (err, memInfo) => err ? cb(err) : 
-          probeWs215i((err, isWs215i) => err ? cb(err) : 
-            isWs215i ? 
-              mtdDecode((err, ws215i) => 
-                err ? cb(err) : cb(null, {cpuInfo, memInfo, ws215i})) :
-              dmiDecode((err, dmidecode) => 
-                err ? cb(err) : cb(null, {cpuInfo, memInfo, dmidecode})))))
+    probeProcfs('meminfo', (err, memInfo) => err ? cb(err) : 
+      probeWs215i((err, isWs215i) => err ? cb(err) : 
+        isWs215i ? 
+          mtdDecode((err, ws215i) => 
+            err ? cb(err) : cb(null, {cpuInfo, memInfo, ws215i})) :
+            dmiDecode((err, dmidecode) => 
+              err ? cb(err) : cb(null, {cpuInfo, memInfo, dmidecode})))))
 
-const probeRelease = cb => {
+const releaseProbe = cb => {
 
   let countDown = 2
   let soft = {} 
@@ -122,7 +122,7 @@ const probeRelease = cb => {
   })
 }
 
-const allProbe = cb => {
+const deviceProbe = cb => {
  
   let countDown = 2 
   let merge = {}
@@ -134,7 +134,7 @@ const allProbe = cb => {
     if (!--countDown) cb(null, merge)
   })
 
-  probeRelease((err, data) => {
+  releaseProbe((err, data) => {
     if (!err) {
       Object.assign(merge, data)
     }
@@ -142,5 +142,5 @@ const allProbe = cb => {
   })
 }
 
-export default allProbe
+export default deviceProbe
 
