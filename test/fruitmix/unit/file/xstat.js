@@ -22,6 +22,8 @@ const uuid_1 = '1e5e8983-285b-45c0-b819-90df13618ce7';
 const uuid_2 = '398dbbb8-6677-4d3c-801a-0aa822ec9e7b';
 const uuid_3 = '09452888-4b8e-488e-b86f-e219a041eb0a';
 const uuid_4 = 'fef30128-c940-426d-a934-d55ca17b6ab2';
+const hash_1 = '7803e8fa1b804d40d412bcd28737e3ae027768ecc559b51a284fbcadcd0e21be';
+const hash_2 = '21cb9c64331d69f6134ed25820f46def3791f4439d2536b270b2f57f726718c7';
 const isUUID = (uuid) => (typeof uuid === 'string') ? validator.isUUID(uuid) : false;
 
 describe('xstat.js', function(){
@@ -102,18 +104,18 @@ describe('xstat.js', function(){
       })
     })
 
-    it('should return default object contains magic if attr non-exist (for file)', (done) => {
-      readXstat(picpath, (err, xstat) => {
-        if(err) return done(err)
-        expect(isUUID(xstat.uuid)).to.be.true
-        expect(xstat.isFile()).to.be.true
-        expect(xstat.writelist).to.be.an('undefined')
-        expect(xstat.readlist).to.be.an('undefined')
-        expect(xstat.magic).to.deep.equal('JPEG')
-        expect(xstat.abspath).to.deep.equal(picpath)
-        done()
-      })
-    })
+    // it('should return default object contains magic if attr non-exist (for file)', (done) => {
+    //   readXstat(picpath, (err, xstat) => {
+    //     if(err) return done(err)
+    //     expect(isUUID(xstat.uuid)).to.be.true
+    //     expect(xstat.isFile()).to.be.true
+    //     expect(xstat.writelist).to.be.an('undefined')
+    //     expect(xstat.readlist).to.be.an('undefined')
+    //     expect(xstat.magic).to.deep.equal('JPEG')
+    //     expect(xstat.abspath).to.deep.equal(picpath)
+    //     done()
+    //   })
+    // })
 
     //  old-format: has owner property
     //  folder in old-format
@@ -274,21 +276,18 @@ describe('xstat.js', function(){
       })
     })
 
-    it('should delete owner property in old-format', (done) => {
+    it('should return undefined if writelist and readlist are undefined in old-format', (done) => {
       xattr.set(fpath, FRUITMIX, JSON.stringify({
         uuid: uuid_1,
-        owner: [uuid_2],
-        writelist: [uuid_3],
-        readlist: [uuid_4]
+        owner: [uuid_2]
       }), err => {
         if(err) return done(err)
         readXstat(fpath, (err, xstat) => {
           if(err) return done(err)
           expect(xstat.uuid).to.deep.equal(uuid_1)
-          expect(!xstat.owner).to.be.true
           expect(xstat.isDirectory()).to.be.true
-          expect(xstat.writelist).to.deep.equal([uuid_3])
-          expect(xstat.readlist).to.deep.equal([uuid_4])
+          expect(xstat.writelist).to.be.an('undefined')
+          expect(xstat.readlist).to.be.an('undefined')
           expect(xstat.abspath).to.deep.equal(fpath)
           done()
         })
@@ -301,7 +300,7 @@ describe('xstat.js', function(){
       xattr.set(picpath, FRUITMIX, JSON.stringify({
         uuid: uuid_1,
         owner: [uuid_2],
-        hash: '7803e8fa1b804d40d412bcd28737e3ae027768ecc559b51a284fbcadcd0e21be'
+        hash: hash_1
       }), err => {
         if(err) return done(err)
         readXstat(picpath, (err, xstat) => {
@@ -312,7 +311,6 @@ describe('xstat.js', function(){
           expect(xstat.writelist).to.be.an('undefined')
           expect(xstat.readlist).to.be.an('undefined')
           expect(xstat.hash).to.be.an('undefined')
-          expect(xstat.htime).to.be.an('undefined')
           expect(xstat.magic).to.deep.equal('JPEG')
           expect(xstat.abspath).to.deep.equal(picpath)
           done()
@@ -336,7 +334,6 @@ describe('xstat.js', function(){
           expect(xstat.writelist).to.be.an('undefined')
           expect(xstat.readlist).to.be.an('undefined')
           expect(xstat.hash).to.be.an('undefined')
-          expect(xstat.htime).to.be.an('undefined')
           expect(xstat.magic).to.deep.equal('JPEG')
           expect(xstat.abspath).to.deep.equal(picpath)
           done()
@@ -348,7 +345,7 @@ describe('xstat.js', function(){
       xattr.set(picpath, FRUITMIX, JSON.stringify({
         uuid: uuid_1,
         owner: [uuid_2],
-        hash: '7803e8fa1b804d40d412bcd28737e3ae027768ecc559b51a284fbcadcd0e21be',
+        hash: hash_1,
         htime: '1482996729689'
       }), err => {
         if(err) return done(err)
@@ -360,7 +357,6 @@ describe('xstat.js', function(){
           expect(xstat.writelist).to.be.an('undefined')
           expect(xstat.readlist).to.be.an('undefined')
           expect(xstat.hash).to.be.an('undefined')
-          expect(xstat.htime).to.be.an('undefined')
           expect(xstat.magic).to.deep.equal('JPEG')
           expect(xstat.abspath).to.deep.equal(picpath)
           done()
@@ -368,8 +364,449 @@ describe('xstat.js', function(){
       })
     })
 
-  })
-  // ============================================================================================================
+    it('should return default object if magic is not a string in old-format', (done) => {
+      xattr.set(picpath, FRUITMIX, JSON.stringify({
+        uuid: uuid_1,
+        owner: [uuid_2],
+        magic: 123
+      }), err => {
+        if(err) return done(err)
+        readXstat(picpath, (err, xstat) => {
+          if(err) return done(err)
+          expect(isUUID(xstat.uuid)).to.be.true
+          expect(xstat.uuid).to.not.equal(uuid_1)
+          expect(xstat.isFile()).to.be.true
+          expect(xstat.writelist).to.be.an('undefined')
+          expect(xstat.readlist).to.be.an('undefined')
+          expect(xstat.hash).to.be.an('undefined')
+          expect(xstat.magic).to.deep.equal('JPEG')
+          expect(xstat.abspath).to.deep.equal(picpath)
+          done()
+        })
+      })
+    })
+
+
+    it('should delete owner property in old-format', (done) => {
+      xattr.set(fpath, FRUITMIX, JSON.stringify({
+        uuid: uuid_1,
+        owner: [uuid_2],
+        writelist: [uuid_3],
+        readlist: [uuid_4]
+      }), err => {
+        if(err) return done(err)
+        readXstat(fpath, (err, xstat) => {
+          if(err) return done(err)
+          expect(xstat.uuid).to.deep.equal(uuid_1)
+          expect(!xstat.owner).to.be.true
+          expect(xstat.isDirectory()).to.be.true
+          expect(xstat.writelist).to.deep.equal([uuid_3])
+          expect(xstat.readlist).to.deep.equal([uuid_4])
+          expect(xstat.abspath).to.deep.equal(fpath)
+          done()
+        })
+      })
+    })
+
+    it('should calculate magic if magic is non-exist in old-format', (done) => {
+      xattr.set(picpath, FRUITMIX, JSON.stringify({
+        uuid: uuid_1,
+        owner: [uuid_2],
+      }), err => {
+        if(err) return done(err)
+        readXstat(picpath, (err, xstat) => {
+          if(err) return done(err)
+          expect(xstat.uuid).to.deep.equal(uuid_1)
+          expect(!xstat.owner).to.be.true
+          expect(xstat.isFile()).to.be.true
+          expect(xstat.writelist).to.be.an('undefined')
+          expect(xstat.readlist).to.be.an('undefined')
+          expect(xstat.magic).to.deep.equal('JPEG')
+          expect(xstat.abspath).to.deep.equal(picpath)
+          done()
+        })
+      })
+    })
+
+    it('should update magic if magic is old-format', (done) => {
+      xattr.set(picpath, FRUITMIX, JSON.stringify({
+        uuid: uuid_1,
+        owner: [uuid_2],
+        magic: 'JPEG image data, Exif standard: [TIFF image data, little-endian...'
+      }), err => {
+        if(err) return done(err)
+        readXstat(picpath, (err, xstat) => {
+          if(err) return done(err)
+          expect(xstat.uuid).to.deep.equal(uuid_1)
+          expect(!xstat.owner).to.be.true
+          expect(xstat.isFile()).to.be.true
+          expect(xstat.writelist).to.be.an('undefined')
+          expect(xstat.readlist).to.be.an('undefined')
+          expect(xstat.magic).to.deep.equal('JPEG')
+          expect(xstat.abspath).to.deep.equal(picpath)
+          done()
+        })
+      })
+    })
+
+    // folder in new format
+
+    it('should return default object if uuid is invalid', (done) => {
+      xattr.set(fpath, FRUITMIX, JSON.stringify({
+        uuid: 'Alice',
+      }), err => {
+        if(err) return done(err)
+        readXstat(fpath, (err, xstat) => {
+          if(err) return done(err)
+          expect(isUUID(xstat.uuid)).to.be.true
+          expect(xstat.isDirectory()).to.be.true
+          expect(xstat.writelist).to.be.an('undefined')
+          expect(xstat.readlist).to.be.an('undefined')
+          expect(xstat.abspath).to.deep.equal(fpath)
+          done()
+        })
+      })
+    })
+
+    it('should return default object if writelist is a string', (done) => {
+      xattr.set(fpath, FRUITMIX, JSON.stringify({
+        uuid: uuid_1,
+        writelist: 'Alice',
+        readlist: [uuid_2]
+      }), err => {
+        if(err) return done(err)
+        readXstat(fpath, (err, xstat) => {
+          if(err) return done(err)
+          expect(isUUID(xstat.uuid)).to.be.true
+          expect(xstat.uuid).to.not.equal(uuid_1)
+          expect(xstat.isDirectory()).to.be.true
+          expect(xstat.writelist).to.be.an('undefined')
+          expect(xstat.readlist).to.be.an('undefined')
+          expect(xstat.abspath).to.deep.equal(fpath)
+          done()
+        })
+      })
+    })
+
+    it('should return default object if writelist is an array contains object', (done) => {
+      xattr.set(fpath, FRUITMIX, JSON.stringify({
+        uuid: uuid_1,
+        writelist: [uuid_2, {name: 'Alice'}],
+        readlist: [uuid_3]
+      }), err => {
+        if(err) return done(err)
+        readXstat(fpath, (err, xstat) => {
+          if(err) return done(err)
+          expect(isUUID(xstat.uuid)).to.be.true
+          expect(xstat.uuid).to.not.equal(uuid_1)
+          expect(xstat.isDirectory()).to.be.true
+          expect(xstat.writelist).to.be.an('undefined')
+          expect(xstat.readlist).to.be.an('undefined')
+          expect(xstat.abspath).to.deep.equal(fpath)
+          done()
+        })
+      })
+    })
+
+    it('should return default object if readlist is a string', (done) => {
+      xattr.set(fpath, FRUITMIX, JSON.stringify({
+        uuid: uuid_1,
+        writelist: [uuid_2],
+        readlist: 'Alice'
+      }), err => {
+        if(err) return done(err)
+        readXstat(fpath, (err, xstat) => {
+          if(err) return done(err)
+          expect(isUUID(xstat.uuid)).to.be.true
+          expect(xstat.uuid).to.not.equal(uuid_1)
+          expect(xstat.isDirectory()).to.be.true
+          expect(xstat.writelist).to.be.an('undefined')
+          expect(xstat.readlist).to.be.an('undefined')
+          expect(xstat.abspath).to.deep.equal(fpath)
+          done()
+        })
+      })
+    })
+
+    it('should return default object if readlist is an array contains object', (done) => {
+      xattr.set(fpath, FRUITMIX, JSON.stringify({
+        uuid: uuid_1,
+        writelist: [uuid_2],
+        readlist: [uuid_3, {name: 'Alice'}]
+      }), err => {
+        if(err) return done(err)
+        readXstat(fpath, (err, xstat) => {
+          if(err) return done(err)
+          expect(isUUID(xstat.uuid)).to.be.true
+          expect(xstat.uuid).to.not.equal(uuid_1)
+          expect(xstat.isDirectory()).to.be.true
+          expect(xstat.writelist).to.be.an('undefined')
+          expect(xstat.readlist).to.be.an('undefined')
+          expect(xstat.abspath).to.deep.equal(fpath)
+          done()
+        })
+      })
+    })
+
+    it('should return undefined if writelist is undefined', (done) => {
+      xattr.set(fpath, FRUITMIX, JSON.stringify({
+        uuid: uuid_1,
+        readlist: [uuid_2],
+      }), err => {
+        if(err) return done(err)
+        readXstat(fpath, (err, xstat) => {
+          if(err) return done(err)
+          expect(xstat.uuid).to.equal(uuid_1)
+          expect(xstat.isDirectory()).to.be.true
+          expect(xstat.writelist).to.be.an('undefined')
+          expect(xstat.readlist).to.deep.equal([uuid_2])
+          expect(xstat.abspath).to.deep.equal(fpath)
+          done()
+        })
+      })
+    })
+
+    it('should return undefined if readlist is undefined', (done) => {
+      xattr.set(fpath, FRUITMIX, JSON.stringify({
+        uuid: uuid_1,
+        writelist: [uuid_2],
+      }), err => {
+        if(err) return done(err)
+        readXstat(fpath, (err, xstat) => {
+          if(err) return done(err)
+          expect(xstat.uuid).to.equal(uuid_1)
+          expect(xstat.isDirectory()).to.be.true
+          expect(xstat.writelist).to.deep.equal([uuid_2])
+          expect(xstat.readlist).to.be.an('undefined')
+          expect(xstat.abspath).to.deep.equal(fpath)
+          done()
+        })
+      })
+    })
+
+    it('should return undefined if writelist and readlist are undefined', (done) => {
+      xattr.set(fpath, FRUITMIX, JSON.stringify({
+        uuid: uuid_1,
+      }), err => {
+        if(err) return done(err)
+        readXstat(fpath, (err, xstat) => {
+          if(err) return done(err)
+          expect(xstat.uuid).to.equal(uuid_1)
+          expect(xstat.isDirectory()).to.be.true
+          expect(xstat.writelist).to.be.an('undefined')
+          expect(xstat.readlist).to.be.an('undefined')
+          expect(xstat.abspath).to.deep.equal(fpath)
+          done()
+        })
+      })
+    })
+
+    it('should return preset value if writelist and readlist are valid array', (done) => {
+      xattr.set(fpath, FRUITMIX, JSON.stringify({
+        uuid: uuid_1,
+        writelist: [uuid_2],
+        readlist: [uuid_3]
+      }), err => {
+        if(err) return done(err)
+        readXstat(fpath, (err, xstat) => {
+          if(err) return done(err)
+          expect(xstat.uuid).to.equal(uuid_1)
+          expect(xstat.isDirectory()).to.be.true
+          expect(xstat.writelist).to.deep.equal([uuid_2])
+          expect(xstat.readlist).to.deep.equal([uuid_3])
+          expect(xstat.abspath).to.deep.equal(fpath)
+          done()
+        })
+      })
+    })
+
+    // file in new format
+
+    it('should return default object if hash and htime not both exist or undefined', (done) => {
+      xattr.set(picpath, FRUITMIX, JSON.stringify({
+        uuid: uuid_1,
+        hash: hash_1,
+        magic: 'JPEG'
+      }), err => {
+        if(err) return done(err)
+        readXstat(picpath, (err, xstat) => {
+          if(err) return done(err)
+          expect(isUUID(xstat.uuid)).to.be.true
+          expect(xstat.uuid).to.not.equal(uuid_1)
+          expect(xstat.isFile()).to.be.true
+          expect(xstat.writelist).to.be.an('undefined')
+          expect(xstat.readlist).to.be.an('undefined')
+          expect(xstat.hash).to.be.an('undefined')
+          expect(xstat.magic).to.deep.equal('JPEG')
+          expect(xstat.abspath).to.deep.equal(picpath)
+          done()
+        })
+      })
+    })
+
+    it('should return default object if hash is invalid', (done) => {
+      xattr.set(picpath, FRUITMIX, JSON.stringify({
+        uuid: uuid_1,
+        hash: 'abcd',
+        htime: 1482996729689,
+        magic: 'JPEG'
+      }), err => {
+        if(err) return done(err)
+        readXstat(picpath, (err, xstat) => {
+          if(err) return done(err)
+          expect(isUUID(xstat.uuid)).to.be.true
+          expect(xstat.uuid).to.not.equal(uuid_1)
+          expect(xstat.isFile()).to.be.true
+          expect(xstat.writelist).to.be.an('undefined')
+          expect(xstat.readlist).to.be.an('undefined')
+          expect(xstat.hash).to.be.an('undefined')
+          expect(xstat.magic).to.deep.equal('JPEG')
+          expect(xstat.abspath).to.deep.equal(picpath)
+          done()
+        })
+      })
+    })
+    
+    it('should return default object if htime is not an integer', (done) => {
+      xattr.set(picpath, FRUITMIX, JSON.stringify({
+        uuid: uuid_1,
+        hash: hash_1,
+        htime: '1482996729689',
+        magic: 'JPEG'
+      }), err => {
+        if(err) return done(err)
+        readXstat(picpath, (err, xstat) => {
+          if(err) return done(err)
+          expect(isUUID(xstat.uuid)).to.be.true
+          expect(xstat.uuid).to.not.equal(uuid_1)
+          expect(xstat.isFile()).to.be.true
+          expect(xstat.writelist).to.be.an('undefined')
+          expect(xstat.readlist).to.be.an('undefined')
+          expect(xstat.hash).to.be.an('undefined')
+          expect(xstat.magic).to.deep.equal('JPEG')
+          expect(xstat.abspath).to.deep.equal(picpath)
+          done()
+        })
+      })
+    })
+
+    it('should return default object if magic is not a string or number', (done) => {
+      xattr.set(picpath, FRUITMIX, JSON.stringify({
+        uuid: uuid_1,
+        magic: [uuid_3]
+      }), err => {
+        if(err) return done(err)
+        readXstat(picpath, (err, xstat) => {
+          if(err) return done(err)
+          expect(isUUID(xstat.uuid)).to.be.true
+          expect(xstat.uuid).to.not.equal(uuid_1)
+          expect(xstat.isFile()).to.be.true
+          expect(xstat.writelist).to.be.an('undefined')
+          expect(xstat.readlist).to.be.an('undefined')
+          expect(xstat.hash).to.be.an('undefined')
+          expect(xstat.magic).to.deep.equal('JPEG')
+          expect(xstat.abspath).to.deep.equal(picpath)
+          done()
+        })
+      })
+    })
+
+    it('should return default object if magic is absent', (done) => {
+      xattr.set(picpath, FRUITMIX, JSON.stringify({
+        uuid: uuid_1
+      }), err => {
+        if(err) return done(err)
+        readXstat(picpath, (err, xstat) => {
+          if(err) return done(err)
+          expect(isUUID(xstat.uuid)).to.be.true
+          expect(xstat.uuid).to.not.equal(uuid_1)
+          expect(xstat.isFile()).to.be.true
+          expect(xstat.writelist).to.be.an('undefined')
+          expect(xstat.readlist).to.be.an('undefined')
+          expect(xstat.hash).to.be.an('undefined')
+          expect(xstat.magic).to.deep.equal('JPEG')
+          expect(xstat.abspath).to.deep.equal(picpath)
+          done()
+        })
+      })
+    })
+
+    it('should drop hash if outdated', (done) => {
+      xattr.set(picpath, FRUITMIX, JSON.stringify({
+        uuid: uuid_1,
+        hash: hash_1,
+        htime: 1482996729689,
+        magic: 'JPEG'
+      }), err => {
+        if(err) return done(err)
+        readXstat(picpath, (err, xstat) => {
+          if(err) return done(err)
+          expect(xstat.uuid).to.deep.equal(uuid_1)
+          expect(xstat.isFile()).to.be.true
+          expect(xstat.writelist).to.be.an('undefined')
+          expect(xstat.readlist).to.be.an('undefined')
+          expect(xstat.hash).to.be.an('undefined')
+          expect(xstat.magic).to.deep.equal('JPEG')
+          expect(xstat.abspath).to.deep.equal(picpath)
+          done()
+        })
+      })
+    })
+
+    it('should remove htime in xstat', (done) => {
+      xattr.set(picpath, FRUITMIX, JSON.stringify({
+        uuid: uuid_1,
+        hash: hash_1,
+        htime: 1483524889848,
+        magic: 'JPEG'
+      }), err => {
+        if(err) return done(err)
+        readXstat(picpath, (err, xstat) => {
+          if(err) return done(err)
+          xattr.get(picpath, FRUITMIX, (err, attr) => {
+            if(err) return done(err)
+            let attrObj = JSON.parse(attr)
+            expect(attrObj.htime).to.equal(1483524889848)
+
+            expect(xstat.uuid).to.deep.equal(uuid_1)
+            expect(xstat.isFile()).to.be.true
+            expect(xstat.writelist).to.be.an('undefined')
+            expect(xstat.readlist).to.be.an('undefined')
+            expect(xstat.hash).to.deep.equal(hash_1)
+            expect(xstat.htime).to.be.an('undefined')
+            expect(xstat.magic).to.deep.equal('JPEG')
+            expect(xstat.abspath).to.deep.equal(picpath)
+            done()
+          })
+        })
+      })
+    })
+
+    it('should remove magic in xstat if it is uninterested magic version', (done) => {
+      xattr.set(picpath, FRUITMIX, JSON.stringify({
+        uuid: uuid_1,
+        magic: 0
+      }), err => {
+        if(err) return done(err)
+        readXstat(picpath, (err, xstat) => {
+          if(err) return done(err)
+          xattr.get(picpath, FRUITMIX, (err, attr) => {
+            if(err) return done(err)
+            let attrObj = JSON.parse(attr)
+            expect(attrObj.magic).to.deep.equal(0)
+
+            expect(xstat.uuid).to.deep.equal(uuid_1)
+            expect(xstat.isFile()).to.be.true
+            expect(xstat.magic).to.be.an('undefined')
+            expect(xstat.abspath).to.deep.equal(picpath)
+            done()
+          })
+        })
+      })
+    })
+
+  });
+
   describe('updateXattrPermission', function(){
 
     beforeEach((done) => {
@@ -644,8 +1081,59 @@ describe('xstat.js', function(){
         done()
       })
     })
-  })
+  });
  
+  describe('updateXattrHash',function(){
+
+    beforeEach((done) => {
+      xattr.set(picpath, FRUITMIX, JSON.stringify({
+        uuid: uuid_1,
+        hash: hash_1,
+        htime: 1483524889848,
+        magic: 'JPEG'
+      }), err => {
+        if(err) return done(err)
+        done()
+      })
+    })
+
+    it('should return error if uuid is invalid', (done) => {
+      updateXattrHash(picpath, 'Alice', hash_1, 1483524889848, (err, xstat) => {
+        expect(err).to.be.an('error')
+        expect(err.message).to.equal('invalid uuid')
+        expect(err.code).to.equal('EINVAL')
+        done()
+      })
+    })
+
+    it('should return error if hash is invalid', (done) => {
+      updateXattrHash(picpath, uuid_1, 'abcd', 1483524889848, (err, xstat) => {
+        expect(err).to.be.an('error')
+        expect(err.message).to.equal('invalid hash')
+        expect(err.code).to.equal('EINVAL')
+        done()
+      })
+    })
+
+    it('should return error if htime is invalid', (done) => {
+      updateXattrHash(picpath, uuid_1, hash_1, '1483524889848', (err, xstat) => {
+        expect(err).to.be.an('error')
+        expect(err.message).to.equal('invalid htime')
+        expect(err.code).to.equal('EINVAL')
+        done()
+      })
+    })
+
+    it('should return error if uuid mismatch', (done) => {
+      updateXattrHash(picpath, uuid_2, hash_1, 1483524889848, (err, xstat) => {
+        expect(err).to.be.an('error')
+        expect(err.message).to.equal('instance mismatch')
+        expect(err.code).to.equal('EMISMATCH')
+        done()
+      })
+    })
+
+  });
 
 });
 

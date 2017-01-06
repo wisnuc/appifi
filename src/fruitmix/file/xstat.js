@@ -101,10 +101,10 @@ const validateNewFormat = (attr, isFile) => {
   if (typeof attr.uuid === 'string' && validator.isUUID(attr.uuid)) {}
   else throw new SyntaxError('invalid uuid')
 
-  if (attr.writelist === undefined || (attr.writelist && attr.writelist.every(uuid => isUUID(uuid)))) {}
+  if (attr.writelist === undefined || (Array.isArray(attr.writelist) && attr.writelist.every(uuid => isUUID(uuid)))) {}
   else throw new SyntaxError('invalid writelist')
 
-  if (attr.readlist === undefined || (attr.readlist && attr.readlist.every(uuid => isUUID(uuid)))) {}
+  if (attr.readlist === undefined || (Array.isArray(attr.readlist) && attr.readlist.every(uuid => isUUID(uuid)))) {}
   else throw new SyntaxError('invalid readlist')
 
   if (isFile) {
@@ -123,6 +123,8 @@ const validateNewFormat = (attr, isFile) => {
     if (attr.hasOwnProperty('magic')) {   
       if (typeof attr.magic === 'string' || Number.isInteger(attr.magic)) {}
       else throw new SyntaxError('invalid magic')
+    } else {
+      throw new SyntaxError('magic absent')
     }
   }
 }
@@ -154,7 +156,7 @@ const readXstatAsync = async target => {
       validateNewFormat(attr, stats.isFile())
 
     // drop hash if outdated
-    if (stats.isFile() && attr.htime && attr.htime !== stats.mtime) {
+    if (stats.isFile() && attr.htime && attr.htime !== stats.mtime.getTime()) {
       dirty = true
       delete attr.hash
       delete attr.htime
@@ -221,14 +223,22 @@ const updateXattrPermission = (target, uuid, writelist, readlist, callback) => {
 
 const updateXattrHash = (target, uuid, hash, htime, callback) => {
 
+  if(!isUUID(uuid))
+    return process.nextTick(() => callback(EInvalid('invalid uuid')))
+
+  if(!isSHA256(hash))
+    return process.nextTick(() => callback(EInvalid('invalid hash')))
+
+  if(!Number.isInteger(htime))
+    return process.nextTick(() => callback(EInvalid('invalid htime')))
+
   readXstat(target, (err, xstat) => {
     if (err) return callback(err)
-    if (xstat.uuid !== uuid) return callback(InstanceMismatch())
 
     // uuid mismatch
     if (xstat.uuid !== uuid) return callback(InstanceMismatch())
-    // invalid hash or magic
-    if (!isSHA256(hash) || typeof magic !== 'string' || magic.length === 0) return callback(EInvalid())
+    // invalid magic
+    if (typeof xstat.magic !== 'string' || xstat.magic.length === 0) return callback(EInvalid('invalid magic'))
     // timestamp mismatch
     if (xstat.mtime.getTime() !== htime) return callback(TimestampMismatch())
 
