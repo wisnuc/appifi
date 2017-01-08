@@ -1,6 +1,9 @@
 import path from 'path'
 import clone from 'clone'
-import { probeFruitmix } from '../fruitmix/tools'
+import Debug from 'debug'
+import { initFruitmix, probeFruitmix } from '../fruitmix/tools'
+
+const debug = Debug('system:adapter')
 
 //
 // input: storage, stated
@@ -73,19 +76,22 @@ const probeAllFruitmixesAsync = async storage => {
   let copy = clone(storage)
 
   copy.volumes.forEach(vol => {
-    if (vol.isMounted) mps.push({
+    if (vol.isMounted && !vol.isMissing) mps.push({
       ref: vol,
       mp: vol.mountpoint
     })
   })
 
+  // only ext4 probed
   copy.blocks.forEach(blk => {
-    if (!blk.isVolumeDevice && blk.isMounted)
+    if (!blk.isVolumeDevice && blk.isMounted && blk.isExt4)
       mps.push({
         ref: blk,
         mp: blk.mountpoint
       })
   })
+
+  debug('probe all, mps', mps)
 
   await Promise
     .map(mps, obj => probeFruitmixAsync(obj.mp).reflect())
@@ -98,11 +104,12 @@ const probeAllFruitmixesAsync = async storage => {
       }
     })
 
+  debug('copy', copy)
   return copy
 }
 
 const probeAllFruitmixes = (storage, callback) => 
   probeAllFruitmixesAsync(storage).asCallback(callback)
 
-export { adaptStorage, probeAllFruitmixes, probeAllFruitmixesAsync }
+export { adaptStorage, initFruitmix, probeFruitmix, probeAllFruitmixes, probeAllFruitmixesAsync }
 

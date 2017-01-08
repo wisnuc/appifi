@@ -1,97 +1,46 @@
+import child from 'child_process'
+
+import Debug from 'debug'
 import { refreshStorageAsync } from './storage'
+import { adaptStorage } from './adapter'
 
-// FIXME !!!
-const isWisnucDevice = true
+const debug = Debug('system:mkfs')
 
-// must exists
-// must be disk
-// must be ata or scsi, if opts set
-// --- volume, volume must not be rootfs
-// --- disk / filesystem, fs must not be rootfs
-// --- disk / partitioned, no partition is rootfs or active swap
-const validateBtrfsCandidates = (target) => {
-
-  let error = (text, code, reason) => 
-    Object.assign(new Error(text), reason ? ({ code, reason }) : ({ code }))
-
-  let { blocks, volumes } = storeState().storage
-
-  for (let i = 0; i < target.length; i++) {
-
-    let block = blocks.find(blk => blk.name === target[i])
-
-    // non-exist
-    if (!block) 
-      return error(`block ${target[i]} does not exist`, 'ENOENT')
-
-    // not a disk
-    if (!block.stats.isDisk)
-      return error(`block ${target[i]} is not a disk`, 'ENOTDISK')
-
-    // for wisnuc device, disk must be ATA or SCSI
-    if (isWisnucDevice && !block.stats.isATA && !block.stats.isSCSI) // NOTATAORSCSI
-      return error(`block ${target[i]} is not an ata or scsi disk`, 'ENOTATAORSCSI')
-  
-    let fmt = formattable(block)  
-    if (fmt) 
-      return error(`formatting block device ${target[i]} is forbidden`, 'EFORBIDDEN', fmt)
-  }
-
-  return null
-}
-
-// single block, can be either disk or partition
-const validateOtherFSCandidates = (target) => {
-
-  let { blocks, volumes } = storeState().storage
-
-  if (target.length !== 1) 
-    return error(`must be exactly one block device`, 'EINVAL')
-
-  let block = blocks.find(blk => blk.name === target[0])   
-  if (!block)
-    return error(`block ${target[0]} does not exist`, 'ENOENT')
-
-  let reason = formattable(block) 
-  if (reason)
-    return error(`formatting block device ${block.name} is forbidden`, 'EFORBIDDEN', reason)
-
-  return null
-}
-
-const umount = (mountpoint, callback) => 
-  child.exec(`umount ${mountpoint}`, err => callback(err)) 
-
+const umount = (mountpoint, callback) => child.exec(`umount ${mountpoint}`, err => callback(err)) 
 const umountAsync = Promise.promisify(umount)
 
 /**
- * unmount all blocks contained by target, target may be a volume or 
+ * unmount all blocks contained by target, target may be 
+ * a volume device (disk), or standalone fs disk or partition.
+ * eg. sdb, sdb1
  */ 
-const umountBlocks = async (target) => {
+const umountBlocks = async (adapted, target) => {
 
-  let { blocks, volumes } = storeState().storage
+  debug('unmounte blocks, adapted, target', adapted, target)
+
+  let {blocks, volumes } = adapted
 
   let blks = target.map(name => blocks.find(blk => blk.name === name))
 
   // if it is volume device
-  let uuids = blks.filter(blk => blk.stats.isMounted)   // filter mounted
-                .filter(blk => blk.stats.isVolume)      // filter volume devices
-                .map(blk => blk.stats.btrfsVolume)      // map to uuid (may dup)
+  let uuids = blks.filter(blk => blk.isMounted)   // filter mounted
+                .filter(blk => blk.isVolumeDevice)// filter volume devices
+                .map(blk => blk.btrfsVolume)      // map to uuid (may dup) TODO
 
   let mvols = Array.from(new Set(uuids)).sort()         // dedup
                 .map(uuid => volumes.find(vol =>        // map to volume
                   vol.uuid === uuid))
 
   // if it is partitioned disk (not necessarily mounted)
-  let mparts = blks.filter(blk => blk.stats.isDisk && blk.stats.isPartitioned)
+  let mparts = blks.filter(blk => blk.isDisk && blk.isPartitioned)
                 .reduce((prev, curr) => prev.concat(blocks.filter(blk => 
-                  blk.stats.parentName === curr.name)) , [])
-                .filter(blk => blk.stats.isMounted)
+                  blk.parentName === curr.name)) , [])
+                .filter(blk => blk.isMounted)
 
   // the left should be partition or disk with standalone fs
-  let mblks = blks.filter(blk => blk.stats.isMounted)   // filter mounted 
-                .filter(blk => blk.stats.isPartition || // is partition
-                  (blk.isDisk && blk.isFileSystem && !blk.isVolume)) // is non-volume filesystem disk
+  let mblks = blks.filter(blk => blk.isMounted)   // filter mounted 
+                .filter(blk => blk.isPartition || // is partition
+                  (blk.isDisk && blk.isFileSystem && !blk.isVolumeDevice)) // is non-volume filesystem disk
 
   // for mounted volumes, normal umount
   // for mounted blocks (with fs)
@@ -100,72 +49,113 @@ const umountBlocks = async (target) => {
   let i
   for (i = 0; i < mvols.length; i++) {
     debug(`un-mounting volume ${mvols[i].uuid}`)
-    await umountAsync(mvols[i].stats.mountpoint)
+    await umountAsync(mvols[i].mountpoint)
   }
 
   for (i = 0; i < mparts.length; i++) {
     debug(`un-mounting partition ${mparts[i].name}`)
-    await umountAsync(mparts[i].stats.mountpoint)
+    await umountAsync(mparts[i].mountpoint)
   }
 
   for (i = 0; i < mblks.length; i++) {
-    debug(`un-mounting block ${mblk[i].name}`)
-    await umountAsync(mblks[i].stats.mountpoint)
+    debug(`un-mounting block ${mblks[i].name}`)
+    await umountAsync(mblks[i].mountpoint)
   }
 }
 
 /**
- *
+ * target: array of device name ['sda', 'sdb', etc]
+ * mode: must be 'single', 'raid0', 'raid1'
+ * init: may be removed in future
  */
 const mkfsBtrfsAsync = async (target, mode, init) => {
 
-  let blocks, volumes
+  let error = null
 
   debug('mkfsBtrfs', target, mode)
 
-  target = Array.from(new Set(target)).sort()
+  // validate mode
+  if (['single', 'raid0', 'raid1'].indexOf(mode) === -1)
+    throw new Error('invalid mode')
 
-  await refreshStorageAsync()
-  let err = validateBtrfsCandidates(target)
-  if (err) throw er
+  // target must be string array
+  if (!Array.isArray(target) || target.length === 0 || !target.every(name => typeof name === 'string'))
+    throw new Error('invalid target names')
+
+  let storage, adapted, blocks, volumes
+
+  target = Array.from(new Set(target)).sort()
+  storage = await refreshStorageAsync()
+  adapted = adaptStorage(storage)
+
+  for (let i = 0; i < target.length; i++) {
+    let block = adapted.blocks.find(blk => blk.name === target[i])
+    if (!block)
+      throw new Error(`device ${target[i]} not found`)
+    if (!block.isDisk)
+      throw new Error(`device ${target[i]} is not a disk`)
+    if (block.unformattable)
+      throw new Error(`device ${target[i]} is not formattable`)
+  }
 
   // dirty !!! FIXME
   let devnames = target.map(name => '/dev/' + name) 
- 
-  await umountBlocks(target)
-
   debug(`mkfs.btrfs ${mode}`, devnames)
-  await child.execAsync(`mkfs.btrfs -d ${mode} -f ${devnames.join(' ')}`)
-  await refreshStorageAsync()
 
-  blocks = storeState().storage.blocks
+  try {
+    await umountBlocks(adapted, target)
+    await child.execAsync(`mkfs.btrfs -d ${mode} -f ${devnames.join(' ')}`)
+    await Promise.delay(1500)
+    await child.execAsync(`partprobe`)
+  }
+  catch (e) {
+    await refreshStorageAsync()
+    throw e
+  }
+  
+  storage = await refreshStorageAsync()
+  adapted = adaptStorage(storage)
 
+  blocks = adapted.blocks
+  volumes = adapted.volumes
+
+  debug('target[0]', target[0])
   let block = blocks.find(blk => blk.name === target[0])
+ 
+  debug('block', block) 
+  let uuid = block.fileSystemUUID
 
-  debug('newly made fs block', block)
-
-  let uuid = block.stats.fileSystemUUID
-
-  volumes = storeState().storage.volumes
-
+  debug('uuid', uuid)
   let volume = volumes.find(vol => vol.uuid === uuid)
-  let mp = volume.stats.mountpoint
 
-  debug('mkfsBtrfs success', volume)
+  debug('volume')
+  let mp = volume.mountpoint
 
-  await installFruitmixAsync(mp, init) 
+  debug('mountpoint')
 
-  debug('fruitmix installed')  
+  console.log('[system] mkfs.btrfs success', volume)
+
+  if (init) {
+    await installFruitmixAsync(mp, init) 
+    debug('fruitmix installed')  
+  }
 
   return uuid
 }
 
-const mkfsBtrfs = (target, mode, init, callback) =>
+const mkfsBtrfs = (target, mode, init, callback) => {
+
+  if (typeof init === 'function') {
+    callback = init
+    init = undefined
+  }
+
   mkfsBtrfsAsync(target, mode, init).asCallback(callback)
+}
 
 const mkfsExt4 = async (target, opts) => {
 
-  await refreshStorageAsync() // with stats decoration
+  await refreshStorageAsync() // with decoration
 
   debug('mkfsExt4', target, opts)
 
@@ -194,3 +184,4 @@ const mkfsNtfs = async (target, opts) => {
   debug('mkfsNtfs success')
 }
 
+export { mkfsBtrfs, mkfsBtrfsAsync }

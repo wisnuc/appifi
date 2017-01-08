@@ -26,6 +26,8 @@ const bootState = (config, storage) => {
   let { bootMode, lastFileSystem } = config
   let { blocks, volumes } = storage
 
+  debug('bootState config, storage', config, storage)
+
   if (bootMode === 'maintenance') {
 
     debug('bootMode is set to maintenance by user')
@@ -42,7 +44,7 @@ const bootState = (config, storage) => {
 
   // find all file systems, including unmounted, missing, etc.
   let fileSystems = [
-    ...blocks.filter(blk => blk.isFileSystem && !blk.isVolume),  
+    ...blocks.filter(blk => blk.isFileSystem && !blk.isVolumeDevice),  
     ...volumes.filter(vol => vol.isFileSystem)
   ]
 
@@ -68,6 +70,7 @@ const bootState = (config, storage) => {
         error = 'EVOLUMEMISSING'
       }
       else if (!runnable(last.wisnuc)) {
+        debug('not runnable', last)
         debug('last file system has no wisnuc installed')
         error = 'EWISNUCNOTFOUND'
       }
@@ -169,6 +172,17 @@ const tryBootAsync = async () => {
 // try boot system
 export const tryBoot = (callback) => tryBootAsync().asCallback(callback)
 
+export const fakeReboot = (lfs, callback) => {
+  storeDispatch({
+    type: 'CONFIG_LAST_FILESYSTEM',
+    data: lfs
+  })
+  storeDispatch({
+    type: 'CONFIG_BOOT_MODE',
+    data: 'normal'
+  })
+  tryBoot(callback)
+}
 
 
 

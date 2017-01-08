@@ -132,6 +132,7 @@ const daemonStart = async () => {
 }
 
 const daemonStopCmd = 'start-stop-daemon --stop --pidfile "/run/wisnuc/app/docker.pid" --retry 3'
+
 const daemonStop3 = (volume, callback) => 
   child.exec(daemonStopCmd, (err, stdout, stderr) => {
     if (err) 

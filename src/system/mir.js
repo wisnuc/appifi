@@ -6,13 +6,14 @@ import validator from 'validator'
 import Debug from 'debug'
 import { storeState, storeDispatch } from '../reducers' 
 
-import { formattable, mkfsBtrfs, installFruitmixAsync } from './mkfs'
-import { tryBoot } from './boot'
-
-import { adaptStorage, probeAllFruitmixes } from './adapter'
+import { mkfsBtrfs } from './mkfs'
+import { fakeReboot } from './boot'
+import { adaptStorage, initFruitmix, probeFruitmix, probeAllFruitmixes } from './adapter'
 
 const debug = Debug('system:mir')
 const router = express.Router()
+
+const runnable = wisnuc => (typeof wisnuc === 'object' && wisnuc !== null && wisnuc.users)
 
 router.get('/', (req, res) => {
 
@@ -32,30 +33,144 @@ router.get('/', (req, res) => {
     res.status(200).json(adapted)
 })
 
+
+//
+// /system/mir/run
 //
 // target: <file system uuid>
 //
 router.post('/run', (req, res) => {
 
+  debug('run', req.body)
+
   let bstate = storeState().boot
   if (bstate.state !== 'maintenance')
     return res.status(400).json({ message: '系统未处于维护模式' }) 
 
-  if (typeof res.body !== 'object' || 
-    res.body === null || 
-    typeof res.body.target !== 'string' ||
-    !validator.isUUID(res.body.target))
-    return res.status(400).json({ message: '非法参数' }) 
+  if (typeof req.body !== 'object' || 
+    req.body === null || 
+    typeof req.body.target !== 'string' ||
+    !validator.isUUID(req.body.target))
+    return res.status(400).json({ code: 'EINVAL', message: '非法参数' }) 
 
-  let storage = storeState().storage
-  let volume = storage.volumes.find(vol => vol.uuid === res.body.target)
+  let adapted = adaptStorage(storeState().storage)
+  let volume = adapted.volumes.find(vol => vol.fileSystemUUID === req.body.target)
 
   if (!volume) 
     return res.status(400).json({ message: 'volume not found' })
-  if (volume.missing)
+  if (!volume.isMounted)
+    return res.status(400).json({ message: 'volume not mounted' })
+  if (volume.isMissing)
     return res.status(400).json({ message: 'volume has missing device' })
 
- 
+  probeFruitmix(volume.mountpoint, (err, wisnuc) => {
+
+    debug('probe fruitmix', err || wisnuc)
+
+    if (err) 
+      return res.status(500).json({ message: err.message })
+
+    debug('run, wisnuc', wisnuc)
+
+    if (!runnable(wisnuc))
+      return res.status(400).json({ message: 'wisnuc not runnable', code: wisnuc.error }) 
+
+    fakeReboot({type: 'btrfs', uuid: req.body.target}, (err, boot) => 
+      err ? 
+        res.status(500).json({ message: err.mesage }) :
+        res.status(200).json({ boot }))
+  })
+})
+
+//
+// target: uuid
+// remove: 'wisnuc' or 'fruitmix'
+//
+router.post('/init', (req, res) => {
+
+  debug('init', req.body)
+
+  let bstate = storeState().boot
+  if (bstate.state !== 'maintenance')
+    return res.status(400).json({ message: '系统未处于维护模式' }) 
+
+  if (typeof req.body !== 'object' ||
+    req.body === null ||
+    typeof req.body.target !== 'string' ||
+    !validator.isUUID(req.body.target) || 
+    typeof req.body.username !== 'string' || 
+    req.body.username.length === 0 ||
+    typeof req.body.password !== 'string' ||
+    req.body.password.length === 0 ||
+    (req.body.remove !== undefined && req.body.remove !== 'wisnuc' && req.body.remove !== 'fruitmix'))
+    return res.status(400).json({ code: 'EINVAL', message: '非法参数' }) 
+
+  let { target, username, password, remove } = req.body
+
+  let adapted = adaptStorage(storeState().storage)
+  let filesystems = [
+    ...adapted.volumes,
+    ...adapted.blocks.filter(blk => blk.isFileSystem && !blk.isVolumeDevice)
+  ]
+
+  let fsys = filesystems.find(f => f.fileSystemUUID === target)
+  if (!fsys)
+    return res.status(400).json({ message: 'file system not found' }) 
+
+  if (!fsys.isBtrfs && !fsys.isExt4)
+    return res.status(400).json({ message: 'only btrfs and ext4 is supported' })
+
+  if (fsys.isBtrfs && fsys.isMissing)
+    return res.status(400).json({ message: 'btrfs volume has missing device' })
+
+  if (!fsys.isMounted)
+    return res.status(400).json({ message: 'failed to mount file system' })
+
+  let mp = fsys.mountpoint
+
+  initFruitmix({mp, username, password, remove }, (err, user) => {
+    if (err) {
+      console.log(err)
+      return res.status(500).json({ message: err.message })
+    }
+    return res.status(200).json(user)
+  })
+})
+
+/**
+  {
+    type: 'btrfs'
+    target: ['sda', 'sdb'...], device name
+    mode: single, raid0, raid1
+  }
+  {
+    type: 'ext4' or 'ntfs'
+    target: 'sda', 'sda1', device name
+  }
+**/
+router.post('/mkfs', (req, res) => {
+
+  debug('mkfs', req.body)
+
+  let bstate = storeState().boot
+  if (bstate.state !== 'maintenance')
+    return res.status(400).json({ message: '系统未处于维护模式' }) 
+
+  if (typeof req.body !== 'object' || req.body === null ||
+    ['btrfs', 'ext4', 'ntfs'].indexOf(req.body.type) === -1)     
+    return res.status(400).json({ code: 'EINVAL', message: '非法参数' }) 
+
+  let { type, target, mode } = req.body
+  if (type !== 'btrfs') 
+    return res.status(400).json({ message: 'not supported yet' }) 
+
+  mkfsBtrfs(target, mode, (err, volume) => {
+    if (err) {
+      console.log(err)
+      return res.status(400).json({ message: err.message })
+    }
+    return res.status(200).json(volume)
+  })
 })
 
 /**
@@ -149,20 +264,9 @@ const R = (res) => (code, error, reason) => {
   return res.status(code).json(obj)
 }
 
-const tryReboot = (lfs, callback) => {
-
-  storeDispatch({
-    type: 'CONFIG_LAST_FILESYSTEM',
-    data: lfs
-  })
-  storeDispatch({
-    type: 'CONFIG_BOOT_MODE',
-    data: 'normal'
-  })
-  tryBoot(callback)
-}
 
 /**
+
   post a mir operation
    
   // for mkfs.btrfs
@@ -277,7 +381,7 @@ router.post('/', (req, res) => {
         if (mp !== '/') { // guard, TODO
           rimraf(path.join('mp', 'wisnuc'), err => {
             installFruitmixAsync(mp, init).asCallback(err => {
-              tryReboot({
+              fakeReboot({
                 type: 'btrfs',
                 uuid: volume.uuid
               }, () => {})
@@ -288,7 +392,7 @@ router.post('/', (req, res) => {
       }
       else {
         debug(`running wisnuc on volume ${uuid} mounted @ ${mp}`) 
-        tryReboot({
+        fakeReboot({
           type: 'btrfs',
           uuid: volume.uuid
         }, () => {})
@@ -367,7 +471,7 @@ router.post('/', (req, res) => {
         if (err) return R(res)(500, err)
         R(res)(200, 'ok')
 
-        tryReboot({
+        fakeReboot({
           type: 'btrfs',
           uuid: fsuuid
         }, () => {})

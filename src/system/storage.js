@@ -98,7 +98,7 @@ const mountVolumesAsync = async (volumes, mounts) => {
   return Promise
     .map(unmounted, vol => mountVolumeAsync(vol.uuid, volumeMountpoint(vol), vol.missing ? 'degraded,ro' : null).reflect())
     .each((inspection, index) => {
-      stampMountEror(inspection, unmounted[index]) 
+      stampMountError(inspection, unmounted[index]) 
     })
 }
 
@@ -381,6 +381,7 @@ const statVolumes = (volumes, mounts) =>
       isVolume: true,
       isMissing: vol.missing,
       isFileSystem: true,
+      isBtrfs: true,
       fileSystemType: 'btrfs',
       fileSystemUUID: vol.uuid
     }
