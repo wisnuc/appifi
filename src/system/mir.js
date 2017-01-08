@@ -167,7 +167,7 @@ router.post('/mkfs', (req, res) => {
   mkfsBtrfs(target, mode, (err, volume) => {
     if (err) {
       console.log(err)
-      return res.status(400).json({ message: err.message })
+      return res.status(500).json({ message: err.message })
     }
     return res.status(200).json(volume)
   })
