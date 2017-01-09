@@ -283,6 +283,7 @@ const createUserModelAsync = async (filepath, tmpfolder) => {
 
     let list = collection.list
     let locals = list.filter(user => user.type === 'local')
+    let newList = list
 
     let eset = new Set() // store uid
     let uarr = [] // store user to be processed, no unixUID or duplicate/out-of-range uid 
@@ -305,10 +306,16 @@ const createUserModelAsync = async (filepath, tmpfolder) => {
       return count
     }
     
-    uarr.forEach(user => user.unixUID = alloc()) 
+    uarr.forEach(user => {
+      user.unixUID = alloc()
+      let index = newList.findIndex(u => u.uuid == user.uuid)
+      newList.splice(index, 1)
+      newList.push(user)
+    }) 
 
     debug('user list', list) 
-    await collection.updateAsync(list, list)
+    // await collection.updateAsync(list, list)
+    await collection.updateAsync(list, newList)
     
     storeDispatch({
       type: 'UPDATE_FRUITMIX_USERS',

@@ -1089,7 +1089,7 @@ describe('xstat.js', function(){
     })
   });
  
-  describe('updateXattrHash',function(){
+  describe('updateXattrHash', function(){
     let htime
     fs.statAsync(picpath, (err, stats) => {
       if(err) return done(err)
@@ -1212,6 +1212,57 @@ describe('xstat.js', function(){
         })
       })
     })
+  });
+
+  describe('copyXattr', function(){
+    let filepath = path.join(fpath, 'testfile.js')
+    let copypath = path.join(fpath, 'copyfile.js')
+
+    beforeEach((done) => {
+      rimraf(tmpFolder, err => {
+        if(err) return done(err)
+        mkdirp(tmpFolder, err => {
+          if(err) return done(err)
+          fs.writeFile(filepath, '', err => {
+            if(err) return done(err)
+            fs.stat(filepath, (err, stats) => {
+              xattr.set(filepath, FRUITMIX, JSON.stringify({
+                uuid: uuid_1,
+                hash: hash_1,
+                htime: stats.mtime.getTime()
+              }), err => {
+                if(err) return done(err)
+                fs.writeFile(copypath, '', err => {
+                  if(err) return done(err)
+                  done()
+                })
+              })
+            })
+          })
+        })
+      })
+    });
+
+    afterEach((done) => {
+      rimraf(tmpFolder, err => {
+        if(err) throw new Error('delete tmpTestFoder failed')
+        done()
+      })
+    })
+
+    it('should return copy value', (done) => {
+      copyXattr(copypath, filepath, err => {
+        if(err) return done(err)
+        xattr.get(copypath, FRUITMIX, (err, attr) => {
+          if(err) return done(err)
+          let attrObj = JSON.parse(attr)
+          expect(attrObj.uuid).to.deep.equal(uuid_1)
+          expect(attrObj.hash).to.deep.equal(hash_1)
+          done()
+        })
+      })
+    })
+
   });
 
 });
