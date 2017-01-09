@@ -1,6 +1,7 @@
 import child from 'child_process'
 import EventEmitter from 'events'
 import readline from 'readline'
+import { refreshStorage } from './storage'
 
 class UdevMonitor extends EventEmitter {
 
@@ -47,11 +48,36 @@ class UdevMonitor extends EventEmitter {
   }
 }
 
-export const createUdevMonitor = () => {
+const createUdevMonitor = () => {
 
   const spawn = child.spawn('stdbuf', ['-oL', 'udevadm', 'monitor',  '--udev', '-s', 'block'])
   const rl = readline.createInterface({ input: spawn.stdout })
 
   return new UdevMonitor(rl)  
 }
+
+const udevmon = createUdevMonitor()
+
+udevmon.on('events', events => {
+
+  console.log('udev events', events)
+
+  let add = false
+  let remove = false
+  
+  events.forEach(evt => {
+    if (evt.action === 'add') add = true
+    if (evt.action === 'remove') remove = true    
+  })
+
+  if (add || remove)
+    refreshStorage()
+      .then(() => {})
+      .catch(e => {
+        console.log('udevmon, refreshStorage error >>>>')
+        console.log(e)
+        console.log('udevmon, refreshStorage error <<<<')
+      })
+})
+
 

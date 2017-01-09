@@ -116,6 +116,13 @@ const config = (state = null, action) => {
     return validateBootMode(action.data) ?
       Object.assign({}, state, { bootMode: action.data }) : state
 
+  case 'CONFIG_BOOT_TARGET':
+    if (action.data)
+      return validateLastFileSystem(action.data) ? 
+        Object.assign({}, state, { bootMode: 'normal', lastFileSystem: action.data }) : state
+    else 
+      return Object.assign({}, state, { bootMode: 'normal' })
+
   case 'CONFIG_IP_ALIASING':
     return validateIpAliasing(action.data) ?
       Object.assign({}, state, { ipAliasing: action.data }) : state
