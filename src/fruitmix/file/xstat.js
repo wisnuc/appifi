@@ -61,7 +61,7 @@ const validateOldFormat = (attr, isFile) => {
     if (attr.hasOwnProperty('hash') === attr.hasOwnProperty('htime')) {}
     else throw new SyntaxError('hash and htime inconsistent')
       
-    if (attr.hasOwnProperty('hash') {
+    if (attr.hasOwnProperty('hash')) {
       if (!isSHA256(attr.hash))
         throw new SyntaxError('invalid hash string')
 
@@ -92,7 +92,7 @@ const validateNewFormat = (attr, isFile) => {
     if (attr.hasOwnProperty('hash') === attr.hasOwnProperty('htime')) {}
     else throw new SyntaxError('hash and htime inconsistent')
       
-    if (attr.hasOwnProperty('hash') {
+    if (attr.hasOwnProperty('hash')) {
       if (!isSHA256(attr.hash))
         throw new SyntaxError('invalid hash string')
 
@@ -169,7 +169,7 @@ const readXstat = (target, callback) => readXstatAsync(target).asCallback(callba
 const updateXattrPermission = (target, uuid, writelist, readlist, callback) => {
 
   if (!isUUID(uuid))
-    return process.nextTick(() => callback(EInvalid('invalid uuid'))
+    return process.nextTick(() => callback(EInvalid('invalid uuid')))
 
   readXstat(target, (err, xstat) => {
 
@@ -223,7 +223,7 @@ const copyXattr = (dst, src, callback) => {
   })
 }
 
-const readXstatAsync = Promise.promisify(readXstat)
+// const readXstatAsync = Promise.promisify(readXstat)
 const copyXattrAsync = Promise.promisify(copyXattr)
 
 const testing = {}
