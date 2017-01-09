@@ -98,7 +98,7 @@ const mountVolumesAsync = async (volumes, mounts) => {
   return Promise
     .map(unmounted, vol => mountVolumeAsync(vol.uuid, volumeMountpoint(vol), vol.missing ? 'degraded,ro' : null).reflect())
     .each((inspection, index) => {
-      stampMountEror(inspection, unmounted[index]) 
+      stampMountError(inspection, unmounted[index]) 
     })
 }
 
@@ -375,7 +375,17 @@ const statBlocks = ({blocks, volumes, mounts, swaps}) => {
 // duplicate minimal information
 const statVolumes = (volumes, mounts) => 
   volumes.forEach(vol => {
-    vol.stats = {}
+
+    // volume must keep file system info since it may be used as file system object
+    vol.stats = { 
+      isVolume: true,
+      isMissing: vol.missing,
+      isFileSystem: true,
+      isBtrfs: true,
+      fileSystemType: 'btrfs',
+      fileSystemUUID: vol.uuid
+    }
+
     let mount = volumeMount(vol, mounts)
     if (mount) {
       vol.stats.isMounted = true
