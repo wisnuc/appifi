@@ -15,6 +15,8 @@ import {
   copyXattr
 } from 'src/fruitmix/file/xstat.js';
 
+Promise.promisifyAll(fs);
+
 const debug = true;
 const expect = chai.expect;
 const FRUITMIX = 'user.fruitmix';
@@ -754,32 +756,36 @@ describe('xstat.js', function(){
     })
 
     it('should remove htime in xstat', (done) => {
-      xattr.set(picpath, FRUITMIX, JSON.stringify({
-        uuid: uuid_1,
-        hash: hash_1,
-        htime: 1483524889848,
-        magic: 'JPEG'
-      }), err => {
-        if(err) return done(err)
-        readXstat(picpath, (err, xstat) => {
+      fs.stat(picpath, (err, stats) => {
+        if(err) return done()
+        xattr.set(picpath, FRUITMIX, JSON.stringify({
+          uuid: uuid_1,
+          hash: hash_1,
+          htime: stats.mtime.getTime(),
+          magic: 'JPEG'
+        }), err => {
           if(err) return done(err)
-          xattr.get(picpath, FRUITMIX, (err, attr) => {
+          readXstat(picpath, (err, xstat) => {
             if(err) return done(err)
-            let attrObj = JSON.parse(attr)
-            expect(attrObj.htime).to.equal(1483524889848)
+            xattr.get(picpath, FRUITMIX, (err, attr) => {
+              if(err) return done(err)
+              let attrObj = JSON.parse(attr)
+              expect(attrObj.htime).to.equal(stats.mtime.getTime())
 
-            expect(xstat.uuid).to.deep.equal(uuid_1)
-            expect(xstat.isFile()).to.be.true
-            expect(xstat.writelist).to.be.an('undefined')
-            expect(xstat.readlist).to.be.an('undefined')
-            expect(xstat.hash).to.deep.equal(hash_1)
-            expect(xstat.htime).to.be.an('undefined')
-            expect(xstat.magic).to.deep.equal('JPEG')
-            expect(xstat.abspath).to.deep.equal(picpath)
-            done()
+              expect(xstat.uuid).to.deep.equal(uuid_1)
+              expect(xstat.isFile()).to.be.true
+              expect(xstat.writelist).to.be.an('undefined')
+              expect(xstat.readlist).to.be.an('undefined')
+              expect(xstat.hash).to.deep.equal(hash_1)
+              expect(xstat.htime).to.be.an('undefined')
+              expect(xstat.magic).to.deep.equal('JPEG')
+              expect(xstat.abspath).to.deep.equal(picpath)
+              done()
+            })
           })
         })
       })
+      
     })
 
     it('should remove magic in xstat if it is uninterested magic version', (done) => {
@@ -1084,12 +1090,17 @@ describe('xstat.js', function(){
   });
  
   describe('updateXattrHash',function(){
+    let htime
+    fs.statAsync(picpath, (err, stats) => {
+      if(err) return done(err)
+      htime = stats.mtime.getTime()
+    })
 
     beforeEach((done) => {
       xattr.set(picpath, FRUITMIX, JSON.stringify({
         uuid: uuid_1,
         hash: hash_1,
-        htime: 1483524889848,
+        htime: htime,
         magic: 'JPEG'
       }), err => {
         if(err) return done(err)
@@ -1098,7 +1109,7 @@ describe('xstat.js', function(){
     })
 
     it('should return error if uuid is invalid', (done) => {
-      updateXattrHash(picpath, 'Alice', hash_1, 1483524889848, (err, xstat) => {
+      updateXattrHash(picpath, 'Alice', hash_1, htime, (err, xstat) => {
         expect(err).to.be.an('error')
         expect(err.message).to.equal('invalid uuid')
         expect(err.code).to.equal('EINVAL')
@@ -1107,7 +1118,7 @@ describe('xstat.js', function(){
     })
 
     it('should return error if hash is invalid', (done) => {
-      updateXattrHash(picpath, uuid_1, 'abcd', 1483524889848, (err, xstat) => {
+      updateXattrHash(picpath, uuid_1, 'abcd', htime, (err, xstat) => {
         expect(err).to.be.an('error')
         expect(err.message).to.equal('invalid hash')
         expect(err.code).to.equal('EINVAL')
@@ -1125,7 +1136,7 @@ describe('xstat.js', function(){
     })
 
     it('should return error if uuid mismatch', (done) => {
-      updateXattrHash(picpath, uuid_2, hash_1, 1483524889848, (err, xstat) => {
+      updateXattrHash(picpath, uuid_2, hash_1, htime, (err, xstat) => {
         expect(err).to.be.an('error')
         expect(err.message).to.equal('instance mismatch')
         expect(err.code).to.equal('EMISMATCH')
@@ -1133,216 +1144,77 @@ describe('xstat.js', function(){
       })
     })
 
+    it('should return error if magic is not string', (done) => {
+       xattr.set(picpath, FRUITMIX, JSON.stringify({
+        uuid: uuid_1,
+        hash: hash_1,
+        htime: htime,
+        magic: 0
+      }), err => {
+        if(err) return done(err)
+        updateXattrHash(picpath, uuid_1, hash_1, htime, (err, xstat) => {
+          expect(err).to.be.an('error')
+          expect(err.message).to.equal('invalid magic')
+          expect(err.code).to.equal('EINVAL')
+          done()
+        })
+      })
+    })
+
+    it('should return error if magic is en epmty string', (done) => {
+       xattr.set(picpath, FRUITMIX, JSON.stringify({
+        uuid: uuid_1,
+        hash: hash_1,
+        htime: htime,
+        magic: ''
+      }), err => {
+        if(err) return done(err)
+        updateXattrHash(picpath, uuid_1, hash_1, htime, (err, xstat) => {
+          expect(err).to.be.an('error')
+          expect(err.message).to.equal('invalid magic')
+          expect(err.code).to.equal('EINVAL')
+          done()
+        })
+      })
+    })
+
+    it('should return error if timestamp mismatch', (done) => {
+       xattr.set(picpath, FRUITMIX, JSON.stringify({
+        uuid: uuid_1,
+        hash: hash_1,
+        htime: htime,
+        magic: 'JPEG'
+      }), err => {
+        if(err) return done(err)
+        updateXattrHash(picpath, uuid_1, hash_1, 1482996729689, (err, xstat) => {
+          expect(err).to.be.an('error')
+          expect(err.message).to.equal('timestamp mismatch')
+          expect(err.code).to.equal('EOUTDATED')
+          done()
+        })
+      })
+    })
+
+    it('should return the value after change', (done) => {
+       xattr.set(picpath, FRUITMIX, JSON.stringify({
+        uuid: uuid_1,
+        hash: hash_1,
+        htime: htime,
+        magic: 'JPEG'
+      }), err => {
+        if(err) return done(err)
+        updateXattrHash(picpath, uuid_1, hash_2, htime, (err, xstat) => {
+          expect(xstat.uuid).to.deep.equal(uuid_1)
+          expect(xstat.hash).to.deep.equal(hash_2)
+          expect(xstat.htime).to.deep.equal(htime)
+          expect(xstat.magic).to.deep.equal('JPEG')
+          done()
+        })
+      })
+    })
   });
 
 });
 
-  
-
-
-
-  //   describe('updateXattrHash', () => {
-
-  //     it('should returns the hash value after the change', done => {
-  //       fs.stat(ffpath, (err, stat) => {
-  //         if(err) return done(err);
-  //         updateXattrHash(ffpath, uuidArr[0], sha256_2, stat.mtime.getTime(), (err, attr) => {
-  //           if(err) return done(err);
-  //           expect(attr.uuid).to.deep.equal(uuidArr[0]);
-  //           expect(attr.owner).to.deep.equal([uuidArr[1]]);
-  //           expect(attr.writelist).to.deep.equal([uuidArr[2]]);
-  //           expect(attr.readlist).to.deep.equal([uuidArr[3]]);
-  //           expect(attr.hash).to.deep.equal(sha256_2);
-  //           expect(attr.htime).to.deep.equal(stat.mtime.getTime());
-  //           done();
-  //         });
-  //       });
-  //     });
-
-  //     it('should return error if UUID is not equal', done => {
-  //       fs.stat(ffpath, (err, stat) => {
-  //         if(err) return done(err);
-  //         updateXattrHash(ffpath, uuidArr[1], sha256_2, stat.mtime.getTime(), (err, attr) => {
-  //           expect(err).to.be.an('error');
-  //           done();
-  //         });
-  //       });
-  //     });     
-
-  //   });
-
-  //   describe('updateXattrHashMagic', () => {
-
-  //     it('should store hash and magic in xattr with correct htime (no htime before)', done => {
-
-  //       let attr = {
-  //         uuid: uuidArr[0],
-  //         owner: []
-  //       }
-  
-  //       xattr.set(ffpath, 'user.fruitmix', JSON.stringify(attr), err => {
-  //         fs.stat(ffpath, (err, stat) => {
-  //           updateXattrHashMagic(ffpath, uuidArr[0], sha256_2, 'audio', stat.mtime.getTime(), (err, attr) => {
-  //             if (err) return done(err)
-  //             xattr.get(ffpath, 'user.fruitmix', (err, data) => {
-  //               if (err) return done(err)
-  //               let x = JSON.parse(data)
-  //               expect(x.uuid).to.equal(uuidArr[0])
-  //               expect(x.owner).to.deep.equal([])
-  //               expect(x.hash).to.equal(sha256_2)
-  //               expect(x.magic).to.equal('audio')
-  //               expect(x.htime).to.equal(stat.mtime.getTime())
-  //               done()
-  //             })
-  //           })
-  //         })
-  //       })
-  //     })
-
-  //     it('Need to return the modified hash and magic values', done => {
-  //       fs.stat(ffpath, (err, stat) => {
-  //         updateXattrHashMagic(ffpath, uuidArr[0], sha256_2, 'audio', stat.mtime.getTime(), (err, attr) => {
-  //           if(err) return done(err);
-  //           expect(attr.uuid).to.deep.equal(uuidArr[0]);
-  //           expect(attr.owner).to.deep.equal([uuidArr[1]]);
-  //           expect(attr.writelist).to.deep.equal([uuidArr[2]]);
-  //           expect(attr.readlist).to.deep.equal([uuidArr[3]]);
-  //           expect(attr.hash).to.deep.equal(sha256_2);
-  //           expect(attr.magic).to.deep.equal('audio');
-  //           expect(attr.htime).to.deep.equal(stat.mtime.getTime());
-  //           done();
-  //         });
-  //       });
-  //     });
-
-  //     it('should return error if UUID is not equal', done => {
-  //       fs.stat(ffpath, (err, stat) => {
-  //         if(err) return done(err);
-  //         updateXattrHashMagic(ffpath, uuidArr[1], sha256_2, 'audio', stat.mtime.getTime(), (err, attr) => {
-  //           expect(err).to.be.an('error');
-  //           done();
-  //         });
-  //       });
-  //     });
-
-  //     it('should return error if hash value is a string', done => {
-  //       fs.stat(ffpath, (err, stat) => {
-  //         if(err) return done(err);
-  //         updateXattrHashMagic(ffpath, uuidArr[0], 'sha256_2', 'audio', stat.mtime.getTime(), (err, attr) => {
-  //           expect(err).to.be.an('error');
-  //           done();
-  //         });
-  //       });
-  //     });
-
-  //     it('should return error if hash value is an object', done => {
-  //       fs.stat(ffpath, (err, stat) => {
-  //         if(err) return done(err);
-  //         updateXattrHashMagic(ffpath, uuidArr[0], { name: 'panda' }, 'audio', stat.mtime.getTime(), (err, attr) => {
-  //           expect(err).to.be.an('error');
-  //           done();
-  //         });
-  //       });
-  //     });
-
-  //     it('should return error if hash value is an array', done => {
-  //       fs.stat(ffpath, (err, stat) => {
-  //         if(err) return done(err);
-  //         updateXattrHashMagic(ffpath, uuidArr[0], [1, 2,], 'audio', stat.mtime.getTime(), (err, attr) => {
-  //           expect(err).to.be.an('error');
-  //           done();
-  //         });
-  //       });
-  //     });
-
-  //     it('should return error if typeof magic is an array', done => {
-  //       fs.stat(ffpath, (err, stat) => {
-  //         if(err) return done(err);
-  //         updateXattrHashMagic(ffpath, uuidArr[0], sha256_2, [1], stat.mtime.getTime(), (err, attr) => {
-  //           expect(err).to.be.an('error');
-  //           done();
-  //         });
-  //       });
-  //     });
-
-  //     it('should return error if typeof magic is an object', done => {
-  //       fs.stat(ffpath, (err, stat) => {
-  //         if(err) return done(err);
-  //         updateXattrHashMagic(ffpath, uuidArr[0], sha256_2, { name: 'panda' }, stat.mtime.getTime(), (err, attr) => {
-  //           expect(err).to.be.an('error');
-  //           done();
-  //         });
-  //       });
-  //     });
-
-  //     it('should return error if typeof magic is undefined', done => {
-  //       fs.stat(ffpath, (err, stat) => {
-  //         if(err) return done(err);
-  //         updateXattrHashMagic(ffpath, uuidArr[0], sha256_2, undefined, stat.mtime.getTime(), (err, attr) => {
-  //           expect(err).to.be.an('error');
-  //           done();
-  //         });
-  //       });
-  //     });
-
-  //     it('should return error if the length of magic is 0', done => {
-  //       fs.stat(ffpath, (err, stat) => {
-  //         if(err) return done(err);
-  //         updateXattrHashMagic(ffpath, uuidArr[0], sha256_2, '', stat.mtime.getTime(), (err, attr) => {
-  //           expect(err).to.be.an('error');
-  //           done();
-  //         });
-  //       });
-  //     });
-
-  //     it('should return error if htime is not equal', done => {
-  //       fs.stat(ffpath, (err, stat) => {
-  //         if(err) return done(err);
-  //         updateXattrHashMagic(ffpath, uuidArr[0], sha256_2, 'audio', stat.mtime.getTime()-1, (err, attr) => {
-  //           expect(err).to.be.an('error');
-  //           done();
-  //         });
-  //       });
-  //     });
-
-  //   });
-
-  // });
-
-  // describe('copyXattr', () => {
-  //   beforeEach(done => {
-  //     rimraf(tmpFoder, err => {
-  //       if(err) return done(err);
-  //       mkdirp(tmpFoder, err => {
-  //         if(err) return done(err);
-  //         fs.writeFile(ffpath, '', err => {
-  //           if(err) return done(err);
-  //           fs.stat(ffpath, (err, stat) => {
-  //             xattr.set(ffpath, FRUITMIX, JSON.stringify({
-  //               uuid: uuidArr[0],
-  //               owner: [uuidArr[1]],
-  //               writelist: [uuidArr[2]],
-  //               readlist: [uuidArr[3]],
-  //               hash: sha256_1,
-  //               htime: stat.mtime.getTime()
-  //             }), err => {
-  //               if(err) return done(err);
-  //               fs.writeFile(ffcopath, '', err => {
-  //                 if(err) return done(err);
-  //                 done();
-  //               });
-  //             });
-  //           });           
-  //         });
-  //       })
-  //     });
-      
-  //   });
-
-  //   it('Need to return a copy of the value', done => {
-  //     done();
-  //   });
-
-  // });
   
 
