@@ -36,6 +36,17 @@ npm run build
 rm .gitignore
 rm build/.gitignore
 
+rm -rf docpress
+rm -rf docs
+rm -rf graph.sh
+rm -rf prepare.sh
+rm -rf markdown
+rm -rf misc
+
+rm -rf test
+rm -rf src
+rm -rf web
+
 git add *
 git add .[!.]*
 git config --global user.email "lewis.ma@winsuntech.cn"
