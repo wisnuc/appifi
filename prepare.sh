@@ -47,6 +47,8 @@ rm -rf test
 rm -rf src
 rm -rf web
 
+npm prune --production
+
 git add *
 git add .[!.]*
 git config --global user.email "lewis.ma@winsuntech.cn"
