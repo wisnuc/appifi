@@ -260,6 +260,7 @@ const copyXattr = (dst, src, callback) => {
   })
 }
 
+// const readXstatAsync = Promise.promisify(readXstat)
 const copyXattrAsync = Promise.promisify(copyXattr)
 
 const testing = {};
