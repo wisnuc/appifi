@@ -6,6 +6,7 @@ import xattr from 'fs-xattr';
 import rimraf from 'rimraf';
 import mkdirp from 'mkdirp';
 import validator from 'validator';
+import child from 'child_process';
 import {
   readTimeStamp,
   readXstat,
@@ -84,9 +85,14 @@ describe('xstat.js', function(){
       })
     })
 
-    it('shoule return error if target is not a directory or file', (done) => {
-      let filepath = path.join(cwd, 'testpic/symbolic.jpg')
+    it.only('shoule return error if target is not a directory or file', (done) => {
+      let filepath = path.join(fpath, 'symbolic.jpg')
+      let source = path.join(cwd, 'testpic/20141213.jpg')
+      child.exec(`ln -s ${source} ${filepath}`)
+      // let filepath = path.join(cwd, 'testpic/symbolic.jpg')
       readXstat(filepath, (err, xstat) => {
+        console.log(err)
+        console.log(xstat)
         expect(err).to.be.an('error');
         expect(err.message).to.equal('not a directory or file')
         expect(err.code).to.equal('ENOTDIRORFILE')
