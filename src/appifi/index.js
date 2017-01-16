@@ -7,9 +7,7 @@ import server from './server'
 
 const app = express()
 
-app.use(logger('dev', { 
-  skip: (req, res) => res.nolog === true 
-}))
+app.use(logger('dev', { skip: (req, res) => res.nolog === true }))
 
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: false }))

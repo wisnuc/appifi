@@ -160,7 +160,7 @@ class FileNode extends Node {
 class FolderNode extends Node {
 
   constructor(props) {
-    
+    super(props)    
   }
 }
 

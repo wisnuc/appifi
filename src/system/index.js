@@ -21,6 +21,11 @@ const codeMap = new Map([
 const debug = Debug('system:router')
 const router = express.Router()
 
+const nolog = (res) => {
+  res.nolog = true
+  return res 
+}
+
 const K = x => y => x
 const respond = (res, err, obj) => err ? 
     res.status(codeMap.get(err.code) || 500)
@@ -142,7 +147,7 @@ router.get('/boot', (req, res) => {
   debug(boot) 
 
   if (boot)
-    res.status(200).json(boot)
+    nolog(res).status(200).json(boot)
   else 
     res.status(500).end() // TODO
 })

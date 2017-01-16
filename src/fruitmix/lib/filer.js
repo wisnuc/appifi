@@ -86,7 +86,8 @@ export class Forest extends IndexedTree {
       // if node is deleted, blame where it is deleted failing to remove this job
       // so timestamp check should be enough
       if (err) {
-        this.requestProbe(node.parent)
+        if (node.parent) // a quickfix, not sure TODO FIXME
+          this.requestProbe(node.parent)
         finishJob(false)
       } 
       else if (mtime1 === mtime) {

@@ -14,6 +14,10 @@ const debug = Debug('system:mir')
 const router = express.Router()
 
 const runnable = wisnuc => (typeof wisnuc === 'object' && wisnuc !== null && wisnuc.users)
+const nolog = (res) => {
+  res.nolog = true
+  return res 
+}
 
 router.get('/', (req, res) => {
 
@@ -30,7 +34,7 @@ router.get('/', (req, res) => {
       err ? res.status(500).json({ message: err.message }) :
         res.status(200).json(copy))
   else
-    res.status(200).json(adapted)
+    nolog(res).status(200).json(adapted)
 })
 
 

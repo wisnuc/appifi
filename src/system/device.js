@@ -105,16 +105,28 @@ const releaseProbe = cb => {
 
   let countDown = 2
   let soft = {} 
-  fs.readFile('.release.json', (err, data) => {
+  let relpath = process.env.NODE_ENV === 'production' ? '/wisnuc/appifi/.release.json' : '.release.json'
+  let revpath = process.env.NODE_ENV === 'production' ? '/wisnuc/appifi/.revision' : '.revision'
+
+  fs.readFile(relpath, (err, data) => {
+    if (err)
+      console.log('[system] failed to read device release', err)
+
     if (!err) {
       try {
         soft.release = JSON.parse(data.toString()) 
       }
-      catch(e) {}
+      catch(e) {
+        console.log('[system] failed to parse device release', err)
+      }
     }
     if (!--countDown) cb(null, soft)
   })
-  fs.readFile('.revision', (err, data) => {
+  fs.readFile(revpath, (err, data) => {
+  
+    if (err)
+      console.log('[system] failed to read device revision', err)
+
     if (!err) {
       soft.commit = data.toString()
     }
