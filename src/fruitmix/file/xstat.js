@@ -108,7 +108,7 @@ const validateNewFormat = (attr, isFile) => {
     } 
 
     if (attr.hasOwnProperty('magic')) {      
-      if (typeof magic === 'string' || Number.isInteger(attr.magic)) {}
+      if (typeof attr.magic === 'string' || Number.isInteger(attr.magic)) {}
       else throw new SyntaxError('invalid magic')
     }
   }
