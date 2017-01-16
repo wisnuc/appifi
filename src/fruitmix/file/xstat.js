@@ -268,10 +268,6 @@ const copyXattr = (dst, src, callback) => {
   })
 }
 
-<<<<<<< HEAD
-=======
-// const readXstatAsync = Promise.promisify(readXstat)
->>>>>>> upstream_master
 const copyXattrAsync = Promise.promisify(copyXattr)
 
 const testing = {}
