@@ -85,14 +85,11 @@ describe('xstat.js', function(){
       })
     })
 
-    it.only('shoule return error if target is not a directory or file', (done) => {
+    it('shoule return error if target is not a directory or file', (done) => {
       let filepath = path.join(fpath, 'symbolic.jpg')
       let source = path.join(cwd, 'testpic/20141213.jpg')
       child.exec(`ln -s ${source} ${filepath}`)
-      // let filepath = path.join(cwd, 'testpic/symbolic.jpg')
       readXstat(filepath, (err, xstat) => {
-        console.log(err)
-        console.log(xstat)
         expect(err).to.be.an('error');
         expect(err.message).to.equal('not a directory or file')
         expect(err.code).to.equal('ENOTDIRORFILE')
