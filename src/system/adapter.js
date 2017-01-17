@@ -40,10 +40,12 @@ const adaptStorage = storage => {
       delete mapped.stats
 
       mapped.devices = vol.devices.map(dev => {
-        name: path.basename(dev.path), // tricky
-        path: dev.path,
-        id: dev.id,
-        used: dev.used,
+        return {
+          name: path.basename(dev.path), // tricky
+          path: dev.path,
+          id: dev.id,
+          used: dev.used,
+        }
       })
 
       return mapped
