@@ -36,14 +36,26 @@ const fileMagic = (target, callback) =>
 
 const fileMagicAsync = Promise.promisify(fileMagic)
 
-const validateUUIDList = (list) => {
-  if (!Array.isArray(list)) return undefined // undefined
-  return list.every(isUUID) ? list : list.filter(isUUID)
-}
-
 const readTimeStamp = (target, callback) =>
   fs.lstat(target, (err, stats) => 
     err ? callback(err) : callback(null, stats.mtime.getTime()))
+
+// de-duplication
+const nonRepeatArr = (arr) => { return Array.from(new Set(arr)) }
+
+// clear arr2, make sure arr2 only contains elements that don't exist in arr1
+const  duplicateArr = (arr1, arr2) => {
+  let temp = []
+  let tempArr = []
+
+  // take the content of arr1 as key, true as value
+  for(let i = 0; i < arr1.length; i++) { temp[arr1[i]] = true }
+  // take the content of arr2 as key, if false, this is a non-repeat value
+  for(let i = 0; i < arr2.length; i++) {
+    if(!temp[arr2[i]]) tempArr.push(arr2[i])
+  }
+  return tempArr
+}
 
 // this function throw SyntaxError if given attr is bad formatted
 const validateOldFormat = (attr, isFile) => {
@@ -60,8 +72,8 @@ const validateOldFormat = (attr, isFile) => {
   if (attr.readlist === undefined || (Array.isArray(attr.readlist) && attr.readlist.every(uuid => isUUID(uuid)))) {}
   else throw new SyntaxError('invalid readlist')
 
-  // if (!!attr.writelist === !!attr.readlist) {}
-  // else throw new SyntaxError('writelist and readlist inconsistent')
+  if (!!attr.writelist === !!attr.readlist) {}
+  else throw new SyntaxError('writelist and readlist inconsistent')
  
   if (isFile) {
 
@@ -74,9 +86,9 @@ const validateOldFormat = (attr, isFile) => {
 
       if (!Number.isInteger(attr.htime))
         throw new SyntaxError('invalid htime')
-    }
+    } 
 
-    if (attr.hasOwnProperty('magic')) {
+    if (attr.hasOwnProperty('magic')) {      
       if (typeof attr.magic !== 'string')
         throw new SyntaxError('invalid magic')
     }
@@ -107,9 +119,11 @@ const validateNewFormat = (attr, isFile) => {
         throw new SyntaxError('invalid htime')
     } 
 
-    if (attr.hasOwnProperty('magic')) {      
+    if (attr.hasOwnProperty('magic')) {   
       if (typeof attr.magic === 'string' || Number.isInteger(attr.magic)) {}
       else throw new SyntaxError('invalid magic')
+    } else {
+      throw new SyntaxError('magic absent')
     }
   }
 }
@@ -139,9 +153,12 @@ const readXstatAsync = async target => {
     }
     else
       validateNewFormat(attr, stats.isFile())
+      if(Number.isInteger(attr.magic) && attr.magic < UNINTERESTED_MAGIC_VERSION){
+        magic = fileMagicAsync(target);
+      }
 
     // drop hash if outdated
-    if (stats.isFile() && attr.htime && attr.htime !== stats.mtime) {
+    if (stats.isFile() && attr.htime && attr.htime !== stats.mtime.getTime()) {
       dirty = true
       delete attr.hash
       delete attr.htime
@@ -178,10 +195,10 @@ const updateXattrPermission = (target, uuid, writelist, readlist, callback) => {
   if (!isUUID(uuid))
     return process.nextTick(() => callback(EInvalid('invalid uuid')))
 
-  if (!(writelist = validateUUIDList(writelist)))
+  if (writelist && !(Array.isArray(writelist) && writelist.every(uuid => isUUID(uuid))))
     return process.nextTick(() => callback(EInvalid('invalid writelist')))
 
-  if (!(writelist = validateUUIDList(readlist)))
+  if (readlist && !(Array.isArray(readlist) && readlist.every(uuid => isUUID(uuid))))
     return process.nextTick(() => callback(EInvalid('invalid readlist')))
 
   readXstat(target, (err, xstat) => {
@@ -191,53 +208,49 @@ const updateXattrPermission = (target, uuid, writelist, readlist, callback) => {
     if (!xstat.isDirectory()) 
       return callback(Object.assign(new Error('not a directory'), { code: 'ENOTDIR' }))
 
-    let newAttr, cbAttr;
-    if (writelist.length && readlist.length) {
-      newAttr = { uuid, abspath: target };
-      cbAttr = Object.assign(xstat, { writelist, readlist });
-    } else {
-      newAttr = { uuid , writelist, readlist, abspath: target };
-      delete attr.writelist;
-      delete attr.readlist;
-      cbAttr = attr;
-    }
-    xattr.set(target, FRUITMIX, JSON.stringify(newAttr), err => {
-      err ? callback(err) : callback(null, cbAttr);
-    })
-    // let newAttr = { uuid, writelist, readlist }
-    // xattr.set(target, FRUITMIX, JSON.stringify(newAttr), err => 
-    //   err ? callback(err) : callback(null, Object.assign(xstat, { writelist, readlist })))
+    // remove repeate value
+    if(writelist && Array.isArray(writelist))
+      writelist =  nonRepeatArr(writelist)
+    if(readlist && Array.isArray(readlist))
+      readlist =  nonRepeatArr(readlist)
+    if(writelist && readlist)
+      readlist = duplicateArr(writelist, readlist)
+    
+    let newAttr = { uuid, writelist, readlist }
+    let magic = xattr.magic;
+    xattr.set(target, FRUITMIX, JSON.stringify(newAttr), err => 
+      err ? callback(err) : callback(null, Object.assign(xstat, { writelist, readlist, magic })))
   })
 }
 
 const updateXattrHash = (target, uuid, hash, htime, callback) => {
 
-  fs.lstat(target, (err, stats) => {
-    if(err) return callback(err);
-    if(!stats.isFile()) return callback(new Error('not file'));
-    xattr.get(target, FRUITMIX, (err, attr) => {
-      if(err) return callback(err);
-      let attrMagic = JSON.parse(attr).magic;
-      readXstat(target, (err, xstat) => {
-        if (err) return callback(err)
+  if(!isUUID(uuid))
+    return process.nextTick(() => callback(EInvalid('invalid uuid')))
 
-        // uuid mismatch
-        if (xstat.uuid !== uuid) return callback(InstanceMismatch())
-        // invalid hash or magic
-        // if (!isSHA256(hash) || typeof xattr.magic !== 'string' || xattr.magic.length === 0) return callback(EInvalid())
-        if(!isSHA256(hash)) return callback(EInvalid());
-        if((typeof attrMagic === 'string' && attrMagic.length !== 0) || typeof attrMagic === 'number'){}
-          else return callback(EInvalid());
-        // timestamp mismatch
-        if (xstat.mtime.getTime() !== htime) return callback(TimestampMismatch())
+  if(!isSHA256(hash))
+    return process.nextTick(() => callback(EInvalid('invalid hash')))
 
-        let { writelist, readlist, abspath } = xstat
-        let newAttr = { uuid, writelist, readlist, hash, htime, attrMagic, abspath }
-        xattr.set(target, FRUITMIX, JSON.stringify(newAttr), err => 
-          err ? callback(err) : callback(null, Object.assign(xstat, { hash, htime })))
-      });
-    });
-  });
+  if(!Number.isInteger(htime))
+    return process.nextTick(() => callback(EInvalid('invalid htime')))
+
+  readXstat(target, (err, xstat) => {
+    if (err) return callback(err)
+
+    // uuid mismatch
+    if (xstat.uuid !== uuid) return callback(InstanceMismatch())
+    // invalid magic
+    if (typeof xstat.magic !== 'string' || xstat.magic.length === 0) return callback(EInvalid('invalid magic'))
+    // timestamp mismatch
+    if (xstat.mtime.getTime() !== htime) return callback(TimestampMismatch())
+
+    let { writelist, readlist, magic } = xstat
+    let abspath = target;
+    let newAttr = { uuid, writelist, readlist, hash, htime }
+    xattr.set(target, FRUITMIX, JSON.stringify(newAttr), err => 
+      err ? callback(err) : callback(null, Object.assign(xstat, { hash, htime, abspath, magic })))
+    
+  })
 
 }
 
@@ -260,10 +273,9 @@ const copyXattr = (dst, src, callback) => {
   })
 }
 
-// const readXstatAsync = Promise.promisify(readXstat)
 const copyXattrAsync = Promise.promisify(copyXattr)
 
-const testing = {};
+const testing = {}
 
 export { 
   readTimeStamp,
