@@ -6,7 +6,6 @@ import xattr from 'fs-xattr';
 import rimraf from 'rimraf';
 import mkdirp from 'mkdirp';
 import validator from 'validator';
-import child from 'child_process';
 import {
   readTimeStamp,
   readXstat,
@@ -16,7 +15,6 @@ import {
   copyXattr
 } from 'src/fruitmix/file/xstat.js';
 
-Promise.promisifyAll(fs);
 const uuidArr = [
 	'c3256d90-f789-47c6-8228-9878f2b106f6',
 	'6c15ff0f-b816-4b2e-8a2e-2f7c4902d13c',
