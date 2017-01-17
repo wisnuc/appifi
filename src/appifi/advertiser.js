@@ -17,6 +17,10 @@ class advertiser extends events {
       this.port,
       ], { stdio: 'ignore'})
 
+    this.handle.on('error', error => {
+      console.log('[advertiser] error', error)
+    })
+
     this.handle.on('exit', (code, signal) => {
 
       console.log(`[advertiser] stop advertising ${this.name} @ ${this.port}`)

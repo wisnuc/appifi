@@ -3,7 +3,7 @@ import bcrypt from 'bcrypt'
 import UUID from 'node-uuid'
 import validator from 'validator'
 
-import md4Encrypt from '../tools'
+import { md4Encrypt } from '../tools'
 
 import { throwBusy, throwInvalid } from '../util/throw'
 import { openOrCreateCollectionAsync} from './collection'

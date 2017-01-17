@@ -33,6 +33,24 @@ const adaptStorage = storage => {
     // find usage for this volume
     let usage = storage.usages.find(usg => usg.mountpoint === vol.stats.mountpoint)
 
+    // this is possible if volume mount failed, which is observed on at least one machine
+    if (!usage) {
+
+      let mapped = Object.assign({}, vol, vol.stats) // without usage
+      delete mapped.stats
+
+      mapped.devices = vol.devices.map(dev => {
+        return {
+          name: path.basename(dev.path), // tricky
+          path: dev.path,
+          id: dev.id,
+          used: dev.used,
+        }
+      })
+
+      return mapped
+    }
+
     // copy level 1 props
     let copy = {
       overall: usage.overall,
@@ -48,6 +66,7 @@ const adaptStorage = storage => {
 
     // copy level 2 (usage for each volume device) into devices
     mapped.devices = vol.devices.map(dev => {
+
       let devUsage = usage.devices.find(ud => ud.name === dev.path)
       return {
         name: path.basename(dev.path), // tricky

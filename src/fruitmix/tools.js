@@ -269,7 +269,7 @@ const probeFruitmix = (mountpoint, callback) => {
     let status = users ? 'READY' :
           ['ENOWISNUC', 'EWISNUCNOTDIR', 'ENOFRUITMIX', 'EFRUITMIXNOTDIR'].includes(error) ? 'NOTFOUND' :
           ['ENOMODELS', 'EMODELSNOTDIR', 'ENOUSERS', 'EUSERSNOTFILE'].includes(error) ? 'AMBIGUOUS' :
-          ['EUSERSPARSE', 'EUSERSFORMAT' ].includes(err) ? 'DAMAGED' : null
+          ['EUSERSPARSE', 'EUSERSFORMAT' ].includes(error) ? 'DAMAGED' : null
 
     let mmap = new Map([
       ['ENOWISNUC', '/wisnuc文件夹不存在'],
