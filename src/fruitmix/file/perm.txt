@@ -1,0 +1,63 @@
+
+a     Root (a) <- drive {}
+  b     node B (b) <- xstat
+  c               node C (c) <- xstat
+    e (implicit)
+
+/run/wisnuc/volumes/xxx--xxxxx/wisnuc/fruitmix/drives/xxxxx <- drive uuid
+
+drive <-          -> root
+
+owner     <--
+writelist   <--
+readlist    <--
+
+non-root
+
+writelist [] || undefined
+readlist [] || undefined
+
+
+ancestor (inclusive) // ancestor (exclusive)
+
+implicit node: Given a node, if node.writelist === node.readlist === undefined, 
+explict node: (node.writelist !== undefined || node.readlist !== undefined)
+
+Near Explict Ancestor (inclusive)
+
+f(node, user, read/write) => true 
+f(node, user) => writable / readable / forbidden
+
+node.writable(user) => true/false
+node.readable(user) => true/false
+
+operational permission LIST (folder node) // operator operand
+
+1. user belongs to drive owner list
+2. node permission -> node.nea() permission
+
+root must be an explicit, (default to writelist === readlist === [])
+root must have owner (private drive, exactly one owner, cannot be changed)
+(shared drive, owners = { admin })
+
+
+
+a -> b -> c -> d
+w    []
+
+/path/to/some/where/folder/or/file
+
+/home/ma/.vimrc
+/home/zhang
+
+
+core 
+
+drive list each drive corresponds to a folder in physical drive (file system).
+
+user list each user has at least two drives, home, libray
+
+home: uuid
+library: uuid
+
+

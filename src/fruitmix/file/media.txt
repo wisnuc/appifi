@@ -1,0 +1,112 @@
+media map
+
+iterate 1-pass
+
+sha256 => {
+  type, // magic tag
+  metadata, // 
+  nodes: [],
+  set(readable user set)
+}
+
+map user => [mediaObj]
+
+
+create node -> if node.magic tag, no hash , file is responsible to fill sha256 for every file node with tag.
+
+tagged file node, sha256 discovered -> indexing
+  1) create node, tagged, file, sha256 ready
+  2) node, sha256 updated 
+
+node removed -> unindexing
+sha256 dropped -> unindexing
+// tagged dropped or changed ? 
+
+Observer
+
+Filer/Forrest emit event 'mediaFound', node 'mediaLost', node
+
+Initialization Sequence
+
+/////////////////////////////
+
+user, sha256
+1) metadata
+2) file (raw)
+3) thumbnail
+
+FilePerm(u, d) 
+
+let arr = []
+map.forEach((value, key, map) => {
+  // if (!value.metadata) return false
+  if (value.nodes.find(node => node.readable(u)))
+  arr.push({
+    key,
+    metadata: value.metadata
+  })
+})
+return arr
+
+time - space complexity
+
+//////////////////////////////
+
+media share (json/js object)
+{ author, maintainers [], viewers [],  // viewable: { Author } U maintainers U viewers
+  contents: [
+    {
+      sha256: 
+      creator: 
+      mtime:
+    }
+  ] 
+}
+
+sha256 => {
+  type, // magic tag
+  metadata, // 
+  nodes: [],
+  shares: [],
+  map(readable user set) I owned, Shared With Me, Shared With Others user key => '011'
+  set(viewable user set) Shared With Me, Share With Others
+}
+
+  x depends on ????
+
+MediaSharePerm(u, d)
+shares.forEach(share => {
+  contents.find(entry => entry.sha256 === d && FilePerm(entry.creator, d)
+  u belongs to viewable 
+  creator !== u // 
+})
+
+/// retrieve all I can view (metadata), retrieve single file / permission check
+
+        /-------------> file collection
+Media  
+        \-------------> Media Share collection
+
+Media Talk
+
+/home
+/library/xxx/xxxxx
+
+file instance
+file instance   file content 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
