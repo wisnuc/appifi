@@ -1,3 +1,7 @@
+/**
+ * xstat module is responsible for creating, retrieving, and storing the xattr data onto files or folders.
+ * @namespace xstat
+ */
 import fs from 'fs'
 import child from 'child_process'
 import xattr from 'fs-xattr'
@@ -7,11 +11,27 @@ import validator from 'validator'
 Promise.promisifyAll(fs)
 Promise.promisifyAll(xattr)
 
-// constants
+/**
+ * Constants. Name of a data structure, representing the extended attributes we set on file system
+ * @const
+ * @memberOf xstat
+ */
 const FRUITMIX = 'user.fruitmix'
 
-// bump version when more file type supported
+/**
+ * Uninterested magic version, a fixed number, will bump when more file type supported
+ * @const
+ * @memberOf xstat
+ */
 const UNINTERESTED_MAGIC_VERSION = 0
+
+/**
+ * Obtain defined magic form
+ * @function
+ * @param  {string} text - a string read from file by 'file -b'
+ * @return {string | number} - string for interested type and number for unterested
+ * @memberOf xstat
+ */
 const parseMagic = text => text.startsWith('JPEG image data') ? 'JPEG' : UNINTERESTED_MAGIC_VERSION
 
 const EInvalid = (text) => 
@@ -23,12 +43,31 @@ const InstanceMismatch = (text) =>
 const TimestampMismatch = (text) =>
   Object.assign((new Error(text || 'timestamp mismatch')), { code: 'EOUTDATED' })
 
-// test uuid, return true or false, accept undefined
+/**
+ * Validate UUID
+ * @function
+ * @param {string} uuid - a unique identifier, accept undefined
+ * @returns {boolean} - true for valid, false for invalid
+ * @memberOf xstat
+ */
 const isUUID = (uuid) => (typeof uuid === 'string') ? validator.isUUID(uuid) : false
 
-// validate hash
+/**
+ * Validate hash
+ * @function
+ * @param {string} hash - a hash string of file
+ * @return {boolean} - hash's length is 64 and consist of a-f 0-9, return true, else false
+ * @memberOf xstat
+ */
 const isSHA256 = (hash) => /[a-f0-9]{64}/.test(hash)
 
+/**
+ * Calculate the magic information
+ * @function
+ * @param {string} target - filepath to be calculated
+ * @return {string} - a string contain type and exif information
+ * @memberOf xstat
+ */
 // it's fast, child.exec is sufficient
 const fileMagic = (target, callback) => 
   child.exec(`file -b ${target}`, (err, stdout, stderr) =>
@@ -40,10 +79,23 @@ const readTimeStamp = (target, callback) =>
   fs.lstat(target, (err, stats) => 
     err ? callback(err) : callback(null, stats.mtime.getTime()))
 
-// de-duplication
+/**
+ * Remove repeated value of an array
+ * @function
+ * @param {array} arr - the array to be handled
+ * @return {array} - an array without repeat value
+ * @memberOf xstat
+ */
 const nonRepeatArr = (arr) => { return Array.from(new Set(arr)) }
 
-// clear arr2, make sure arr2 only contains elements that don't exist in arr1
+/**
+ * Remove repeated values in one of the two given arrays
+ * @function
+ * @param {array} arr1 - reference array
+ * @param {array} arr2 - the array to be handled
+ * @return {array} - only contains the elements of arr2 which non-exist in arr1
+ * @memberOf xstat
+ */
 const  duplicateArr = (arr1, arr2) => {
   let temp = []
   let tempArr = []
@@ -57,6 +109,13 @@ const  duplicateArr = (arr1, arr2) => {
   return tempArr
 }
 
+/**
+ * validate xattr in old format, if owner property exists, the xattr is considered to be old format
+ * @function
+ * @param {object} attr - the extended attribute
+ * @param {boolean} isFile
+ * @memberOf xstat
+ */
 // this function throw SyntaxError if given attr is bad formatted
 const validateOldFormat = (attr, isFile) => {
 
@@ -95,6 +154,13 @@ const validateOldFormat = (attr, isFile) => {
   }
 }
 
+/**
+ * validate xattr in new format
+ * @function
+ * @param {object} attr - the extended attribute
+ * @param {boolean} isFile
+ * @memberOf xstat
+ */
 const validateNewFormat = (attr, isFile) => {
 
   if (typeof attr.uuid === 'string' && validator.isUUID(attr.uuid)) {}
@@ -128,6 +194,12 @@ const validateNewFormat = (attr, isFile) => {
   }
 }
 
+/**
+ * Read the extended attributes of file or directory
+ * @function
+ * @param {string} target - the path of file or directory
+ * @return {object} - a combination of xattr, stat and abspath
+ */
 // async version of readXstat, simpler to implement than callback version
 const readXstatAsync = async target => {
 
@@ -183,13 +255,22 @@ const readXstatAsync = async target => {
   return Object.assign(stats, attr, { abspath: target })
 }
 
+/**
+ * the version transfered from readXstatAsync
+ * @param  {string} target - the path of file or directory
+ * @return {object} - a combination of xattr, stat and abspath
+ */
 const readXstat = (target, callback) => readXstatAsync(target).asCallback(callback)
 
-// write, readlist (target, uuid, opts, callback)
-// opts: {
-//    writelist: optional
-//    readlist: optional
-//  }, null
+/**
+ * Update permissions
+ * @function
+ * @param {string} target - the path of file or directory to be updated
+ * @param {string} uuid - the uuid of file or directory to be updated
+ * @param {undefined | array} writelist - an array of user uuids who can write the file or directory
+ * @param {undefined | array} readlist - an array of user uuids who can read the file or directory
+ * @return {object} - a xstat object with updated writelist and readlist
+ */
 const updateXattrPermission = (target, uuid, writelist, readlist, callback) => {
 
   if (!isUUID(uuid))
@@ -223,6 +304,15 @@ const updateXattrPermission = (target, uuid, writelist, readlist, callback) => {
   })
 }
 
+/**
+ * Update hash
+ * @function
+ * @param {string} target - the path of file or directory to be updated
+ * @param {string} uuid - the uuid of file or directory to be updated
+ * @param {string} hash - new hash string
+ * @param {integer} htime - a timestamp
+ * @return {object} - a xstat object with updated hash
+ */
 const updateXattrHash = (target, uuid, hash, htime, callback) => {
 
   if(!isUUID(uuid))
@@ -246,7 +336,7 @@ const updateXattrHash = (target, uuid, hash, htime, callback) => {
 
     let { writelist, readlist, magic } = xstat
     let abspath = target;
-    let newAttr = { uuid, writelist, readlist, hash, htime }
+    let newAttr = { uuid, writelist, readlist, hash, htime, magic}
     xattr.set(target, FRUITMIX, JSON.stringify(newAttr), err => 
       err ? callback(err) : callback(null, Object.assign(xstat, { hash, htime, abspath, magic })))
     
@@ -260,6 +350,12 @@ const updateXattrHash = (target, uuid, hash, htime, callback) => {
 
 // a file repository (path, node, uuid...)
 // a tmp file, return new xstat
+/**
+ * copy xattr to another file
+ * @function
+ * @param {string} dst - the destination path
+ * @param {string} src - the source path
+ */
 const copyXattr = (dst, src, callback) => {
 
   xattr.get(src, 'user.fruitmix', (err, attr) => {
@@ -273,6 +369,10 @@ const copyXattr = (dst, src, callback) => {
   })
 }
 
+/**
+ * the async version of copyXattr
+ * @function
+ */
 const copyXattrAsync = Promise.promisify(copyXattr)
 
 const testing = {}
