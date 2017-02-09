@@ -1,20 +1,16 @@
+import EventEmitter from 'events'
 import validator from 'validator'
 
-// tree, link-list => recursive
-// array, => linear
-// for (let x= node; x.parent !== null; x = x.parent)
-//
-// turing machine vs lambda calculus / functional programming
-// lambda expression () => {}
-//
+const isUUID = uuid => typeof uuid === 'string' && validator.isUUID(uuid)
 
-class Node {
+/**
+ * Node is responsible for maintaining relationship
+ */
+class Node extends EventEmitter {
 
-  constructor (props) {
-    // TODO
-    Object.assign(this, props)
+  constructor () {
+    super()
     this.parent = null
-    this.children = [] // new Set
   }
 
   attach (parent) {
@@ -163,14 +159,9 @@ class FolderNode extends Node {
 
   constructor (props) {
     super(props)
+    this.children = []
   }
 }
-
-// node.type ==== 'file'
-// node instanceof FileNode
-
-const isUUID = uuid =>
-  typeof uuid === 'string' && validator.isUUID(uuid)
 
 // throw error
 const createNode = props => {
