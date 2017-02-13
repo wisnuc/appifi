@@ -8,6 +8,8 @@ import { md4Encrypt } from '../tools'
 import { throwBusy, throwInvalid } from '../util/throw'
 import { openOrCreateCollectionAsync} from './collection'
 import { storeDispatch } from '../../reducers'
+import models from './models'
+import paths from '../lib/paths'
 
 import Debug from 'debug'
 const debug = Debug('fruitmix:userModel')
@@ -160,14 +162,74 @@ class UserModel extends EventEmitter{
     if (newUser.type === 'local')
       newUser.unixUID = this.allocUnixUID()
 
-    this.collection.updateAsync(list, [...list, newUser]).asCallback(err => { 
-      if (err) return callback(err)
-      callback(null, newUser)
+    // this.collection.updateAsync(list, [...list, newUser]).asCallback(err => { 
+    //   if (err) return callback(err)
+    //   callback(null, newUser)
+    //   storeDispatch({
+    //     type: 'UPDATE_FRUITMIX_USERS',
+    //     data: this.collection.list
+    //   })
+    // })
+
+    this.collection.updateAsync(list, [...list, newUser], true).asCallback(err => { 
+      if (err){
+        this.collection.locked = false
+        return callback(err)
+      }
+    })
+
+    let driveModel = models.getModel('drive')
+    let homeObj = {
+      label: 'home',
+      fixedOwner: false,
+      URI: 'fruitmix',
+      uuid: newUser.home,
+      owner: newUser.uuid,
+      writelist:[newUser.uuid],
+      readlist:[newUser.uuid],
+      cache: true
+    }
+    let libraryObj = {
+      label: 'library',
+      fixedOwner: false,
+      URI: 'fruitmix',
+      uuid: newUser.library,
+      owner: newUser.uuid,
+      writelist:[newUser.uuid],
+      readlist:[newUser.uuid],
+      cache: true
+    }
+    driveModel.createDrive(homeObj, err => {
+      if(err){
+        driveModel.collection.locked = false
+        return callback(err)
+      }
+    })
+    driveModel.createDrive(libraryObj, err => {
+      if(err){
+        driveModel.vollection.locked = false
+        return callback(err)
+      }
+    })
+
+    fs.rename(paths.get('tmp'), paths.get('models'), err => {
+      this.collection.locked = false
+      driveModel.collection.locked = false
+      if(err) return callback(err);
+      let userList = [...list, newUser]
+      let driveList = [...drivemodel.collection.list, homeObj, libraryObj]
+      this.collection.list = userList
+      driveModel.collection.list = driveList
       storeDispatch({
         type: 'UPDATE_FRUITMIX_USERS',
-        data: this.collection.list
+        data: userList
       })
-    }) 
+      storeDispatch({
+        type: 'UPDATE_FRUITMIX_DRIVES',
+        data: driveList
+      })
+    })
+
   }
 
   updateUser(userUUID, props, callback) {

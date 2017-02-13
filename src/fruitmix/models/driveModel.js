@@ -60,15 +60,28 @@ class DriveModel {
     cache 
   }, callback) {
 
+    const einval = (text) => 
+      process.nextTick(callback, Object.assign(new Error(text), { code: 'EINVAL' }))
+    const isUUID = (uuid) => (typeof uuid === 'string') ? validator.isUUID(uuid) : false;
+
+    if (label !== 'home' || label !== 'library')
+      return einval('invalid drive label')
+    if (typeof fixedOwner !== 'boolean')
+      return einval('invalid drive fixedOwner')
+    if (!isUUID(uuid))
+      return einval('invalid drive uuid')
+    if (typeof cache !== 'boolean')
+      return einval('invalid drive cache')
+
     let conf = { label, fixedOwner, URI, uuid, owner, writelist, readlist, cache }
     let list = this.collection.list
-    this.collection.updateAsync(list, [...list, conf]).asCallback(err => {
+    this.collection.updateAsync(list, [...list, conf], true).asCallback(err => {
       if (err) return callback(err)
       callback(null)
-      storeDispatch({
-        type: 'UPDATE_FRUITMIX_DRIVES',
-        data: this.collection.list
-      })   
+      // storeDispatch({
+      //   type: 'UPDATE_FRUITMIX_DRIVES',
+      //   data: this.collection.list
+      // })   
     })
   }
 }
