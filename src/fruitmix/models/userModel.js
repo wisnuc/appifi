@@ -207,7 +207,7 @@ class UserModel extends EventEmitter{
     })
     driveModel.createDrive(libraryObj, err => {
       if(err){
-        driveModel.vollection.locked = false
+        driveModel.collection.locked = false
         return callback(err)
       }
     })
