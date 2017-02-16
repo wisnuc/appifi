@@ -26,7 +26,8 @@ class MediaShareStore {
         if (err) return callback(err)
         fs.rename(tmppath, dstpath, err => {
           if (err) return callback(err)
-          callback(null, { digest, doc })
+          let viewerSet = new Set([doc.author, ...doc.maintainers, ...doc.viewers])
+          callback(null, { digest, doc, viewerSet })
         })
       })
     }) 
@@ -45,7 +46,8 @@ class MediaShareStore {
       let digest = data.toString()
       this.docstore.retrieve(digest, (err, doc) => {
         if (err) return callback(err)
-        callback(null, { digest , doc })
+        let viewerSet = new Set([doc.author, ...doc.maintainers, ...doc.viewers])
+        callback(null, { digest , doc, viewerSet })
       })
     })
   }

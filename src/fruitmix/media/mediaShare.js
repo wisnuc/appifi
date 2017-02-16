@@ -301,6 +301,16 @@ class MediaShare extends EventEmitter {
     this.shareMap.delete(share.doc.uuid)
   }
 
+  load() {
+
+    this.shareStore.retrieveAll((err, shares) => {
+      shares.forEach(share => {
+        this.indexShare(share)
+      })
+      this.emit('shareStoreLoaded')
+    }) 
+  }
+
   createMediaShare(userUUID, obj, callback) {
     if(!isUUID(userUUID))
       return callback(EInvalid('invalid uuid'))
@@ -328,8 +338,6 @@ class MediaShare extends EventEmitter {
 
       this.shareStore.store(doc, (err, share) => {
         if(err) return callback(err)
-        share.viewerSet = new Set([doc.author, ...doc.maintainers, ...doc.viewers])
-        share.lock = false
         this.indexShare(share)
         callback(null, share)
       })
@@ -369,17 +377,13 @@ class MediaShare extends EventEmitter {
         let newDoc = updateMediaShareDoc(userUUID, share.doc, ops)
 
         if(newDoc === share.doc) {
-          share.lock = false
+          delete share.lock
           this.shareMap.set(shareUUID, share)
           return callback(null, share)
         }
 
         this.shareStore.store(newDoc, (err, newShare) => {
           if(err) return callback(err)
-          if(cancel) 
-          newShare.viewerSet = new Set([doc.author, ...doc.maintainers, ...doc.viewers])
-          newShare.lock = false
-
           this.unIndexShare(share)
           this.indexShare(newShare)
           callback(null, newShare)
@@ -424,5 +428,13 @@ class MediaShare extends EventEmitter {
   }
 
 }
+
+export default (shareStore) => {
+  let mediaShare = new MediaShare(shareStore)
+  mediaShare.load()
+  return mediaShare
+}
+
+
 
 
