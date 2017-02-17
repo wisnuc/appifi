@@ -313,9 +313,9 @@ class MediaShare extends EventEmitter {
 
   createMediaShare(userUUID, obj, callback) {
     if(!isUUID(userUUID))
-      return callback(EInvalid('invalid uuid'))
+      return process.nextTick(callback(EInvalid('invalid uuid')))
     if(typeof obj !== 'object')
-      return callback(EInvalid())
+      return process.nextTick(callback(EInvalid()))
 
     try {
       // create doc
@@ -348,27 +348,27 @@ class MediaShare extends EventEmitter {
 
   updateMediaShare(userUUID, shareUUID, ops, callback){
     if(!isUUID(userUUID))
-      return callback(EInvalid('invalid userUUID'))
+      return process.nextTick(callback(EInvalid('invalid userUUID')))
     if(!isUUID(shareUUID))
-      return callback(EInvalid('invalid shareUUID'))
+      return process.nextTick(callback(EInvalid('invalid shareUUID')))
     if(!Array.isArray(ops))
-      return callback(EInvalid())
+      return process.nextTick(callback(EInvalid()))
 
     try {
       let share = this.shareMap.get(shareUUID)
       if(!share) {
         let error = Object.assign((new Error('share non-exist'), {code: 'ENOENT'}))
-        return callback(error)
+        return process.nextTick(callback(error))
       }
 
       if(share.doc.author !== userUUID || share.doc.maintainers.indexOf(userUUID) === -1) {
         let error = Object.assign((new Error('no permission')), {code: 'EACCESS'})
-        return callback(error)
+        return process.nextTick(callback(error))
       }
 
       if(share.lock) {
         let error = Object.assign((new Error('busy')), {code: 'EBUSY'})
-        return callback(error)
+        return process.nextTick(callback(error))
       }
       else {
         share.lock = true
@@ -379,7 +379,7 @@ class MediaShare extends EventEmitter {
         if(newDoc === share.doc) {
           delete share.lock
           this.shareMap.set(shareUUID, share)
-          return callback(null, share)
+          return process.nextTick(callback(null, share))
         }
 
         this.shareStore.store(newDoc, (err, newShare) => {
@@ -396,25 +396,25 @@ class MediaShare extends EventEmitter {
 
   deleteMediaShare(userUUID, shareUUID, callback) {
     if(!isUUID(userUUID))
-      return  callback(EInvalid('invalid userUUID'))
+      return process.nextTick(callback(EInvalid('invalid userUUID')))
     if(!isUUID(shareUUID))
-      return callback(EInvalid('invalid shareUUID'))
+      return process.nextTick(callback(EInvalid('invalid shareUUID')))
 
     try {
       let share = this.shareMap.get(shareUUID)
       if(!share) {
         let error = Object.assign((new Error('share non-exist')), {code: 'ENOENT'})
-        return callback(error)
+        return process.nextTick(callback(error))
       }
 
       if(share.doc.author !== userUUID) {
         let error = Object.assign((new Error('no permission')), {code: 'EACCESS'})
-        return callback(error)
+        return process.nextTick(callback(error))
       }
 
       if(share.lock) {
         let error = Object.assign((new Error('busy')), {code: 'EBUSY'})
-        return callback(error)
+        return process.nextTick(callback(error))
       }
 
       this.shareStore.archive(shareUUID, err => {
