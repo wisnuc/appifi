@@ -199,13 +199,7 @@ class UserModel extends EventEmitter{
       readlist:[newUser.uuid],
       cache: true
     }
-    driveModel.createDrive(homeObj, err => {
-      if(err){
-        driveModel.collection.locked = false
-        return callback(err)
-      }
-    })
-    driveModel.createDrive(libraryObj, err => {
+    driveModel.createDrive([homeObj, libraryObj], err => {
       if(err){
         driveModel.collection.locked = false
         return callback(err)
