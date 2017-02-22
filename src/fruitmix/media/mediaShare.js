@@ -307,7 +307,6 @@ class MediaShare extends EventEmitter {
       shares.forEach(share => {
         this.indexShare(share)
       })
-      this.emit('shareStoreLoaded')
     }) 
   }
 
@@ -361,7 +360,7 @@ class MediaShare extends EventEmitter {
         return process.nextTick(callback(error))
       }
 
-      if(share.doc.author !== userUUID || share.doc.maintainers.indexOf(userUUID) === -1) {
+      if(share.doc.author !== userUUID && share.doc.maintainers.indexOf(userUUID) === -1) {
         let error = Object.assign((new Error('no permission')), {code: 'EACCESS'})
         return process.nextTick(callback(error))
       }
