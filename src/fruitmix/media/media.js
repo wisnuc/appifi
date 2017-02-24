@@ -26,8 +26,6 @@ class MediaCollection {
     this.map = new Map()
   }
 
-  
-
   // given user uuid, return array of ALL I CAN VIEW
   // with properties
   getMedia(userUUID) {
@@ -49,9 +47,7 @@ class MediaCollection {
         inLibrary ?
         readable ?
         readableSet
-      }
-
-      
+      }    
     })
   }
 }

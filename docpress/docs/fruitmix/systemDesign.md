@@ -64,7 +64,7 @@ Virtually, `waterwheel` bridges `guests` and `host`. `guests` are isolated from 
   * easy to develop in server-side
 
 #### Responsibility (w/ performance)
-1. `waterwheel` is designed to break a **stateful** three-party bidirectional communication into two **stateless** unidirectional communication.
+1. `waterwheel` is designed to break a **stateful** three-party bidirectional communication into two **stateless** two-party unidirectional communication.
 2. `waterwheel` client (either a device or another nas) issues request (may be divided into smaller parts) to `waterwheel`.
 3. NAS observes `waterwheel`, updating request by posting corresponding response.
 4. Initially `waterwheel` use websocket or socket io to push message from cloud to nas device. In future this should be changed to polling, long-polling or server side message stream to make load balancing easier.
