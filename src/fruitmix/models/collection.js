@@ -21,7 +21,7 @@ class Collection {
 
     since list is treated as immutable, newlist should be different from list
   **/
-  async updateAsync(list, newlist) {
+  async updateAsync(list, newlist, isAddUser) {
 
     if (this.locked) throwBusy()
     if (list !== this.list) throwOutOfSync()
@@ -31,11 +31,13 @@ class Collection {
       let tmpSubFolder = await fs.mkdtempAsync(this.tmpfolder)
       let tmpfile = `${tmpSubFolder}/tmpfile`
       let json = JSON.stringify(newlist, null, '  ')
-      await fs.writeFileAsync(tmpfile, json) 
-      await fs.renameAsync(tmpfile, this.filepath)
-      fs.rmdir(tmpSubFolder, () => {})  // it doesn't matter if this fails 
-      this.locked = false
-      this.list = newlist
+      await fs.writeFileAsync(tmpfile, json)
+      if (!isAddUser){
+        await fs.renameAsync(tmpfile, this.filepath)
+        fs.rmdir(tmpSubFolder, () => {})  // it doesn't matter if this fails 
+        this.locked = false
+        this.list = newlist
+      }
     }
     catch (e) {
       this.locked = false

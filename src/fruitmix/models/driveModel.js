@@ -49,26 +49,43 @@ class DriveModel {
 
   // this function requires the uuid to be passed in
   // because the folder should be created before update model database
-  createDrive({ 
-    label, 
-    fixedOwner, 
-    URI, 
-    uuid, 
-    owner,
-    writelist, 
-    readlist, 
-    cache 
-  }, callback) {
+  // createDrive({ 
+  //   label, 
+  //   fixedOwner, 
+  //   URI, 
+  //   uuid, 
+  //   owner,
+  //   writelist, 
+  //   readlist, 
+  //   cache 
+  // }, callback) {
+  createDrive(list, callback) {
 
-    let conf = { label, fixedOwner, URI, uuid, owner, writelist, readlist, cache }
+    let conf = [];
+    const einval = (text) => 
+      process.nextTick(callback, Object.assign(new Error(text), { code: 'EINVAL' }))
+    const isUUID = (uuid) => (typeof uuid === 'string') ? validator.isUUID(uuid) : false;
+    const validateList = list => {
+      if (!Array.isArray(list)) return true;
+      return list.every(u => {
+        conf.push(u);
+        return (u.label !== 'home' && u.label !== 'library')
+                || (typeof u.fixedOwner !== 'boolean') || (!isUUID(u.uuid))
+                || (typeof u.cache !== 'boolean')
+      });
+    }
+
+    if(validateList(list))
+      return einval('invalid args');
+
     let list = this.collection.list
-    this.collection.updateAsync(list, [...list, conf]).asCallback(err => {
+    this.collection.updateAsync(list, [...list, conf], true).asCallback(err => {
       if (err) return callback(err)
       callback(null)
-      storeDispatch({
-        type: 'UPDATE_FRUITMIX_DRIVES',
-        data: this.collection.list
-      })   
+      // storeDispatch({
+      //   type: 'UPDATE_FRUITMIX_DRIVES',
+      //   data: this.collection.list
+      // })   
     })
   }
 }

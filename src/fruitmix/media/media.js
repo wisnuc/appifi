@@ -42,12 +42,13 @@ class MediaCollection {
         props.inLibrary = true
       
       // this.forest.fileCollectionProperties(this.files, userUUID)
-      {
-        owned ?
-        inLibrary ?
-        readable ?
-        readableSet
-      }    
+      // {
+      //   owned ?
+      //   inLibrary ?
+      //   readable ?
+      //   readableSet
+      // }
+      
     })
   }
 }

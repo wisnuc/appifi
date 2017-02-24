@@ -684,9 +684,9 @@ class Media extends EventEmitter {
     if (talk) {
       // found 
       doc = {
-        owner: doc.owner,
-        digest: doc.digest,
-        comments: [...doc.comments, {
+        owner: doc.owner, //talk.doc.owner
+        digest: doc.digest, // talk.doc.digest (the digest of a media)
+        comments: [...doc.comments, { // talk.doc.comments
           author: userUUID,
           datetime: new Date().toJSON(),
           text 
@@ -696,7 +696,8 @@ class Media extends EventEmitter {
       this.talkStore.store(doc, (err, dgdoc) => {
         if (err) return callback(err)
         talk.digest = dgdoc.digest
-        talk.doc = dgdoc.doc
+        talk.doc = dgdoc.doc  
+        // indextalk (update talks array)
         callback(null, this.retrieveTalk(userUUID, owner, digeset))
       })
     }
