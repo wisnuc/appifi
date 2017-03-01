@@ -302,7 +302,7 @@ const probeFruitmix = (mountpoint, callback) => {
     if (err) 
       return callback(err)
 
-    if (!stats.isDirectory)
+    if (!stats.isDirectory())
       return cb(null, 'EWISNUCNOTDIR')
 
     let fruit = path.join(wisnuc, 'fruitmix')

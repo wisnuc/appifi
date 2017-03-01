@@ -56,6 +56,11 @@ async function retrieveRecipes() {
   return recipes 
 }
 
+async function retrieveLocalRecipes() {
+
+ 
+}
+
 /* this promise never reject */
 function retrieveRepo(namespace, name) {
 
