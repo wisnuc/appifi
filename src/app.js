@@ -5,6 +5,7 @@ import mkdirp from 'mkdirp'
 import Debug from 'debug'
 
 import { storeState, storeDispatch, storeSubscribe } from './reducers'
+
 import { writeObjectAsync } from './common/async'
 import system from './system/index'
 import app from './appifi/index'
@@ -27,6 +28,7 @@ const initConfig = () => {
     if (state === storeState().config) return
 
     state = storeState().config
+
     writeObjectAsync(wisnucConfigFile, wisnucTmpDir, state)
       .asCallback(err => {
         debug(`new config written`, state)

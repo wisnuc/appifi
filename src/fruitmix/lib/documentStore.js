@@ -27,7 +27,7 @@ class DocumentStore {
       text = Stringify(object)
     }
     catch (e) {
-      return callback(e)
+      return process.nextTick(() => callback(e))
     }
 
     hash = crypto.createHash('sha256')
