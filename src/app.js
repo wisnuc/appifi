@@ -12,7 +12,7 @@ import deviceProbe from './system/device'
 import { barcelonaInit } from './system/barcelona'
 import { tryBoot } from './system/boot'
 
-const debug = Debug('system:bootstrap')
+const debug = Debug('system:appjs')
 
 const port = 3000
 const wisnucTmpDir = '/etc/wisnuc/tmp'
@@ -50,7 +50,7 @@ const initConfig = () => {
     data: raw
   })
 
-  console.log('[bootstrap] config initialized')
+  console.log('[app.js] config initialized')
   console.log(storeState().config)
 }
 
@@ -93,7 +93,7 @@ const startServer = () => {
   })
 
   httpServer.on('listening', () => {
-    console.log('[bootstrap] Listening on port ' + httpServer.address().port)
+    console.log('[app.js] Listening on port ' + httpServer.address().port)
   })
 
   httpServer.listen(port);
@@ -132,18 +132,18 @@ deviceProbe((err, data) => {
     })
 
     if (data.ws215i) {
-      console.log('[bootstrap] device is ws215i')
+      console.log('[app.js] device is ws215i')
       barcelonaInit()
     }
     else {
-      console.log('[bootstrap] device is not ws215i')
+      console.log('[app.js] device is not ws215i')
     }
   }
 
   tryBoot(err => {
 
     if (err) {
-      console.log('[bootstrap] failed to boot')
+      console.log('[app.js] failed to boot')
       console.log('==== die ====')
       console.log(err)
       console.log('==== die ====')

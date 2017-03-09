@@ -1,7 +1,9 @@
 import React from 'react'
 
 import { Card, CardTitle, CardHeader, CardMedia, CardActions, CardText } from 'material-ui/Card'
-import { FlatButton, RaisedButton, Paper, Dialog } from 'material-ui'
+import { FlatButton, RaisedButton, Paper, Dialog, TextField } from 'material-ui'
+import { grey50, grey100, grey200, grey300, grey400, grey500 } from 'material-ui/styles/colors'
+import ContentAdd from 'material-ui/svg-icons/content/add'
 
 import JumbotronText from './JumbotronText'
 
@@ -89,6 +91,43 @@ const SelectedApp = ({
       </div>
     </div>
   )
+
+
+class CustomAppDialog extends React.Component {
+
+  constructor(props) {
+    super(props)
+    this.state = {}
+    this.state.value = props.value ? props.value : ''
+  }
+
+  render() {
+    return (
+      <Dialog 
+        bodyStyle={{overflowX: 'hidden'}}
+        title='创建自定义Docker应用'
+        actions={[
+          <FlatButton label='Cancel' primary={true} 
+            onTouchTap={() => dispatch({ type: 'STORE_CUSTOMAPP', data: false })}
+          />,
+          <FlatButton label='OK' primary={true} />
+        ]}
+        modal={true}
+        open={this.props.open}
+      >
+        <TextField 
+          textareaStyle={{border: `solid 1px ${grey200}`, fontFamily: 'monospace'}}
+          floatingLabelText='编辑自定义Docke应用配置'
+          fullWidth={true}
+          multiLine={true}
+          rows={12}
+          rowsMax={12}
+          underlineShow={false}
+        />
+      </Dialog>
+    )
+  }
+}
 
 /* equivalent to container component */
 const renderSelectedApp = (app) => {
@@ -241,7 +280,11 @@ const RenderBanner = ({text, busy, refresh}) => (
 
 const render = () => {
 
-  let { selectedApp } = appstoreStore()
+  console.log('====')
+  console.log(appstoreStore())
+  console.log('====')
+
+  let { selectedApp, customApp } = appstoreStore()
   let appstore = appstoreState()
   let docker = dockerState()
 
@@ -272,19 +315,23 @@ const render = () => {
       <div>
         <div style={{display: 'flex', flexWrap: 'wrap'}}>
           { appstore.result.map(app => renderAppCard(app)) }
+          <Paper style={{width:160, height: 160+62, marginTop:16, marginRight:8, backgroundColor: grey50,
+            display:'flex', alignItems: 'center', justifyContent: 'center'}} 
+            onTouchTap={() => dispatch({type: 'STORE_CUSTOMAPP', data: true})}
+          >
+            <ContentAdd style={{width: 80, height:80}} color={grey500} />            
+          </Paper>
         </div>
         <Dialog
           style={{overflowY: scroll}}
           actions={null}
           modal={false}
           open={selectedApp !== null}
-          onRequestClose={() => dispatch({
-            type: 'STORE_SELECTEDAPP',
-            selectedApp: null
-          })}
+          onRequestClose={() => dispatch({ type: 'STORE_SELECTEDAPP', selectedApp: null })}
         >
           { renderSelectedApp(selectedApp) }
         </Dialog>
+        <CustomAppDialog open={customApp} />
       </div>
     </div>
   )
