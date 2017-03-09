@@ -26,7 +26,7 @@ class MediaShareStore {
         if (err) return callback(err)
         fs.rename(tmppath, dstpath, err => {
           if (err) return callback(err)
-          callback(null, { digest, doc })
+          callback(null, digest)
         })
       })
     }) 
