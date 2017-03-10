@@ -1,13 +1,5 @@
 import validator from 'validator'
 
-// tree, link-list => recursive
-// array, => linear
-// for (let x= node; x.parent !== null; x = x.parent)
-// 
-// turing machine vs lambda calculus / functional programming
-// lambda expression () => {}
-//
-
 class Node {
 
   constructor(props) {
@@ -155,156 +147,42 @@ class FileNode extends Node {
   constructor(props) {
     super(props)
   }
+
+  hash() {
+  }
+
+  identify() {
+  }
 } 
 
-class FolderNode extends Node {
+const createFileNode = (props) => {
+
+  let node = new FileNode(props)  
+  if (node.type === 'JPEG') {
+        
+  }
+}
+
+class DirectoryNode extends Node {
 
   constructor(props) {
     super(props)    
+    this.state = 'IDLE'
+  }
+
+  requestProbe() {
   }
 }
 
-// node.type ==== 'file'
-// node instanceof FileNode
-
-const isUUID = uuid => 
-  typeof uuid === 'string' && validator.isUUID(uuid)
-
-// throw error
-const createNode = props => {
-
-  // props must have uuid
-  if (!isUUID(props.uuid)) {
-    let e = new Error('invalid uuid')
-    e.code = 'EINVAL'
-    throw e
-  }
-
-  // props must have type, 'file' or 'folder'
-  if (props.type !== 'file' && props.type !== 'folder') {
-    let e = new Error('invalid type')
-    e.code = 'EINVAL'
-    throw e
-  }
-
-  // TODO validate owner, writelist, readlist, name
-  // if file, size & mtime 
-  // if folder ???? TODO
-  return new Node(props)
+const createDirectoryNode = () => {
 }
 
-const createFileNode = () => {}
-const createFolderNode = () => {}
-
-export { createNode }
-
-/**
-
-root
-
-timestamp = 0
-
-probe node 
-
-1. read timestamp ts1
-2. probe folders and files inside given folder
-3. read timestamp ts2
-4. if (ts1 === ts2) // step 2 result and ts1/ts2 valid, update memtree
-5. else // ????? retry? when? instant? wait a minute?
-
-exponential backoff
-
-1 2 4 8 16 32 64 .... 1024 2^10 worse case
-
-folder a
-
-folder a / file b (rename b1) probe -> a
-
-
-folder node -> concurrent probe request
-
-schedule
-
-
-waiting <- probe (wait another 50ms)
-        <- timeout (go to probing 0)
-probing - 0 <- probe (go to probing 1)
-            <- success (go to idle)
-            <- ??? (go to waiting, retry, waiting), (probe parent)
-probing - 1 <- probe (nothing)
-            <- success (go to waiting)
-            <- ???
-idle <- probe ( go to waiting )
-
-{
-
-  constructor() {
-    this.state = '
-  }
-
-  enterIdle() {
-  }
-
-  exitIdle() {
-  }
-
-  setState(nextState, ...args) {
-
-    switch(this.state) {
-      exit()
-    }
-
-    switch(nextState)
-    case
-      enterIdle(...args)
+class DriveNode extends DirectoryNode {
+  constructor(props) {
+    super() 
+    
   }
 }
 
-io scheduler
-
-/// scientific method
-test criteria
-latency reconciliation time
-statistic probe time? io time?
-
-***/
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+const createDriveNode = () => {
+}
