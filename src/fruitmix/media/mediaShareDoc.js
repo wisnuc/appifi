@@ -36,65 +36,86 @@
   }
 **/
 
+const addUUIDArray = (a, b) => {
+  let c = Array.from(new Set([...a, ...b]))
+  return deepEqual(a, c) ? a :c
+}
+
+// remove the element in a which already exist in b
+const subtractUUIDArray = (a, b) => {
+  let aa = [...a]
+  let dirty = false
+
+  b.forEach(item => {
+    let index = aa.indexOf(item)
+    if (index !== -1) {
+      dirty = true
+      aa.splice(index, 1) 
+    }
+  }) 
+
+  return dirty ? aa : a
+}
+
 // generate a mediashare doc
 const createMediaShareDoc = (authorUUID, obj) => {
 
   let {maintainers, viewers, album, sticky, contents} = obj
 
   // validate, dedupe, and mustn't be the author itself
-  if(!Array.isArray(maintainers)) maintainers = []
+  // if(!Array.isArray(maintainers)) maintainers = []
 
-  maintainers = dedupe(isUUID)(maintainers).filter(maintainer => maintainer !== authorUUID) // remove author itself
+  // maintainers = dedupe(isUUID)(maintainers).filter(maintainer => maintainer !== authorUUID) // remove author itself
 
   // validate, dedupe, and mustn't be the author itself
-  if(!Array.isArray(viewers)) viewers = []
+  // if(!Array.isArray(viewers)) viewers = []
 
-  viewers = dedupe(isUUID)(viewers).filter(viewer => viewer !== authorUUID) // remove author itself
-  viewers = subtractUUIDArray(viewers, maintainers)
+  // viewers = dedupe(isUUID)(viewers).filter(viewer => viewer !== authorUUID) // remove author itself
+  // viewers = subtractUUIDArray(viewers, maintainers)
 
   // album must be true or false, default to false
-  if(!album) album = null
-  else {
+  // if(!album) album = null
+  // else {
     // {
     //   title : string
     //   text : string
     // }
-    let obj = {}
-    if(typeof album.title === 'string')
-      obj.title = album.title
-    else
-      obj.title = ''
+  //   let obj = {}
+  //   if(typeof album.title === 'string')
+  //     obj.title = album.title
+  //   else
+  //     obj.title = ''
 
-    if(typeof album.text === 'string')
-      obj.text = album.text
-    else
-      obj.text = ''
+  //   if(typeof album.text === 'string')
+  //     obj.text = album.text
+  //   else
+  //     obj.text = ''
 
-    album = obj
-  }
+  //   album = obj
+  // }
 
   // sticky must be true or false, default to false
-  if(typeof sticky !== 'boolean') sticky = false
+  // if(typeof sticky !== 'boolean') sticky = false
 
   // validate contents
-  if(!Array.isArray(contents))
-    contents = []
-  else {
-    let time = new Date().getTime()
-    contents = dedupe(isSHA256)(contents)
-      .map(digest => ({
-        creator: authorUUID,
-        digest,
-        ctime: time
-      }))
-    }
-
-  if(!contents.length) {
-    let error = Object.assign((new Error('invalid contents')), {code: 'EINVAL'})
-    return error
-  }
-
+  // if(!Array.isArray(contents))
+  //   contents = []
+  // else {
+  //   let time = new Date().getTime()
+  //   contents = dedupe(isSHA256)(contents)
+  //     .map(digest => ({
+  //       creator: authorUUID,
+  //       digest,
+  //       ctime: time
+  //     }))
+  //   }
   let time = new Date().getTime()
+
+  contents = contents.map(digest => ({
+    creator: authorUUID,
+    digest,
+    ctime: time
+  }))
 
   return {
     doctype: 'mediashare',
@@ -126,12 +147,18 @@ const updateMediaShareDoc = (userUUID, doc, ops) => {
   if(userUUID === doc.author) {
 
     op = ops.find(op => (op.path === 'maintainers' && op.operation === 'add'))
-    if(op && Array.isArray(op.value))
-      maintainers = addUUIDArray(maintainers, dedupe(isUUID)(op.value).filter(i => i !== doc.author))
+    if(op) {// && Array.isArray(op.value))
+      maintainers = addUUIDArray(maintainers, op.value)
+
+      op.value.forEach(uuid => {
+        let index = viewers.indexOf(uuid)
+        if(index !== -1) viewers.splice(index, 1)
+      })
+    }
 
     op = ops.find(op => op.path === 'maintainers' && op.operation === 'delete')
-    if(op && Array.isArray(op.value)) {
-      maintainers = subtractUUIDArray(maintainers, dedupe(isUUID)(op.value))
+    if(op) // && Array.isArray(op.value)) {
+      maintainers = subtractUUIDArray(maintainers, op.value)
 
       // the contents shared by deleted maintainers should also be removed
       let deletedUser = subtractUUIDArray(doc.maintainers, maintainers)
@@ -142,39 +169,42 @@ const updateMediaShareDoc = (userUUID, doc, ops) => {
     }
 
     op = ops.find(op => op.path === 'viewers' && op.operation === 'add')
-    if(op && Array.isArray(op.value))
-      viewers = addUUIDArray(viewers, dedupe(isUUID)(op.value).filter(i => i !== doc.author))
+    if(op) // && Array.isArray(op.value))
+      viewers = addUUIDArray(viewers, op.value)
       viewers = subtractUUIDArray(viewers, maintainers) //dedupe
 
     op = ops.find(op => op.path === 'viewers' && op.operation === 'delete')
-    if(op && Array.isArray(op.value))
-      viewers = subtractUUIDArray(viewers, dedupe(isUUID)(op.value))
+    if(op) // && Array.isArray(op.value))
+      viewers = subtractUUIDArray(viewers, op.value)
 
     op = ops.find(op => op.path === 'album' && op.operation === 'update')
-    if(op && typeof op.value === 'object'){
-      let title = typeof op.value.title === 'string' ? op.value.title : (!!album ? album.title : '')
-      let text = typeof op.value.text === 'string' ? op.value.text : (!!album ? album.text : '')
-
-      if(title === '' && text === '') 
+    if(op) // && typeof op.value === 'object'){
+      if(op.value === null) 
         album = null
-      else 
-        album = {title, text}
+      else{
+        let title = op.value.title
+        let text = op.value.text
+
+        if(title === '' && text === '') 
+          album = null
+        else
+          album = {title, text}
+      }
     }
 
     op = ops.find(op => op.path === 'sticky' && op.operation === 'update')
-    if(op && typeof op.value === 'boolean' && op.value !== sticky)
+    if(op && op.value !== sticky)
       sticky = op.value
   }
 
   if(userUUID === doc.author || doc.maintainers.indexOf(userUUID) !== -1) {
 
     op = ops.find(op => op.path === 'contents' && op.operation === 'add')
-    if(op && Array.isArray(op.value)) {
+    if(op) {
       let c = [...contents]
       let dirty = false
 
-      dedupe(isSHA256)(op.value)
-        .forEach(digest => {
+      op.value.forEach(digest => {
           let index = c.findIndex(x => x.digest === digest)
           if(index !== -1) return
 
@@ -190,12 +220,11 @@ const updateMediaShareDoc = (userUUID, doc, ops) => {
     }
 
     op = ops.find(op => op.path === 'contents' && op.operation === 'delete')
-    if(op && Array.isArray(op.value)) {
+    if(op) {
       let c = [...contents]
       let dirty = false
 
-      dedupe(isSHA256)(op.value)
-        .forEach(digest => {
+      op.value.forEach(digest => {
           let index = c.findIndex(x => x.digest === digest && (userUUID === doc.author || userUUID === x.creator))
           if(index !== -1) {
             c.splice(index, 1)
