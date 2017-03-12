@@ -3,7 +3,7 @@ const EUUID = Object.assign(new Error('file or directory uuid mismatch'), { code
 const ENOTDIR = Object.assign(new Error('not a directory'), { code: 'ENOTDIR' })
 const ETIMESTAMP = Object.assign(new Error('timestamp changed during operation'), { code: 'ETIMESTAMP' })
 
-// we did not use state machine pattern and event emitter for performance sake
+// we do not use state machine pattern and event emitter for performance sake
 // the probe is essentially the same as originally designed stm, it just cut the transition from
 // probing to waiting or idle. 
 // exiting probing is considered an end. If 'again` is required, the caller should create another

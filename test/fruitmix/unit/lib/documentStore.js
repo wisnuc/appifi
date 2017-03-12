@@ -3,12 +3,8 @@ import fs from 'fs'
 
 import { expect } from 'chai'
 
-import rimraf from 'rimraf'
-import mkdirp from 'mkdirp'
-
-import { rimrafAsync } from 'src/fruitmix/util/async'
-import paths from 'src/fruitmix/lib/paths'
-
+import { rimrafAsync, mkdirpAsync } from 'src/fruitmix/util/async'
+import { DIR } from 'src/fruitmix/lib/const'
 import { createDocumentStore } from 'src/fruitmix/lib/documentStore'
 
 const tmptest = path.join(process.cwd(), 'tmptest')
@@ -19,14 +15,14 @@ describe(path.basename(__filename), function() {
 
     beforeEach(() => (async () => {
       await rimrafAsync(tmptest)
-      await paths.setRootAsync(tmptest)
+      await mkdirpAsync(tmptest)
     })())
 
-    it('should create a document store if path valid and subfolder tmp exists', function(done) {
-      createDocumentStore((err, store) => {
+    it('should create a document store', function(done) {
+      createDocumentStore(tmptest, (err, store) => {
         if (err) return done(err)
-        expect(store.rootdir).to.equal(paths.get('documents'))
-        expect(store.tmpdir).to.equal(paths.get('tmp'))
+        expect(store.docdir).to.equal(path.join(tmptest, DIR.DOC))
+        expect(store.tmpdir).to.equal(path.join(tmptest, DIR.TMP))
         done()
       })
     })
@@ -40,8 +36,8 @@ describe(path.basename(__filename), function() {
 
     beforeEach(() => (async () => {
       await rimrafAsync(tmptest)
-      await paths.setRootAsync(tmptest)
-      docstore = await Promise.promisify(createDocumentStore)()
+      await mkdirpAsync(tmptest)
+      docstore = await Promise.promisify(createDocumentStore)(tmptest)
     })())
 
     it('should store obj001 and return correct hash', function(done) {
@@ -55,7 +51,7 @@ describe(path.basename(__filename), function() {
 
     it('should store obj001 into a file with path conforming to design "xx/xxxx..."', function(done) {
 
-      let docpath = path.join(paths.get('documents'))
+      let docpath = path.join(tmptest, DIR.DOC)
       docstore.store(obj001, (err, hash) => {
         if (err) return done(err)
         fs.readFile(path.join(docpath, obj001Hash.slice(0, 2), obj001Hash.slice(2)), (err, data) => {
@@ -69,7 +65,7 @@ describe(path.basename(__filename), function() {
 
     it('should kept tmp folder clean after store object', function(done) {
 
-      let tmpdir = paths.get('tmp')
+      let tmpdir = path.join(tmptest, DIR.TMP)
 
       docstore.store(obj001, (err, hash) => {
         if (err) return done(err)
@@ -90,8 +86,8 @@ describe(path.basename(__filename), function() {
 
     beforeEach(() => (async () => {
       await rimrafAsync(tmptest)
-      await paths.setRootAsync(tmptest)
-      docstore = await Promise.promisify(createDocumentStore)()
+      await mkdirpAsync(tmptest)
+      docstore = await Promise.promisify(createDocumentStore)(tmptest)
       await Promise.promisify(docstore.store, { context: docstore })(obj001)
     })())
 
