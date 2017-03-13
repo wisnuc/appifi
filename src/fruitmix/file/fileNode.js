@@ -1,76 +1,94 @@
+import command from './lib/command'
+import hash from './hash'
+import identify from './identify'
 import Node from './node'
 
-const spawnCommand = (cmd, args, callback) => {
+const createFileNodeClass = () => 
+  class FileNode extends Node {
 
-  let output, aborted = false
+    // create file node
+    constructor(parent, props) {
+      super(parent)
 
-  let handle = child.spawn(cmd, args)
-  handle.stdout.on('data', data => !aborted && (output = data))
-  handle.on('close', (code, signal) => {
-    handle = null
-    if (aborted) return
-    if (signal) return calblack(ESIGNAL)
-    if (code) return callback(EEXITCODE)
-    callback(null, output)
-  })
-
-  return () => {
-    if (handle) {
-      handle.kill()
-      handle = null
+      this.uuid = props.uuid
+      this.name = props.name 
+      this.mtime = props.mtime
+      this.size = props.size
+      this.magic = props.magic
+      this.hash = props.hash
+      this.worker = null
     }
-    aborted = true
-  }
-}
 
-// 1. get timestamp (fs.lstat)
-// 2. start hashing
-// 3. update hashing
-// 4. return latest xstat
-const createHashWorker = (callback) {
- 
-  let aborted
-  let spawn  
-
-  fs.lstat(target, (err, stats) => {
-
-    if (err) return callback(err)
-    if (!stats.isFile()) return ENOTFILE
-
-    timestamp = stats.mtime.getTime()
-    spawn = spawnCommand(cmd, args, (err, data) => {
-      let hash = data.toString().trim().split(' ')[0]
-    }) 
-  })
-
-  return () => {
-    if (spawn) {
-      spawn.abort()
-      spawn = null
+    // abort workers
+    abort() {
+      if (this.worker) {
+        this.worker.abort()
+        this.worker = null
+      }
     }
-    aborted = true
-  }
-}
 
-const createIdentifyWorker = (callback) {
-}
-
-class FileNode extends Node {
-
-  constructor(props) {
-    super()
-    this.worker = null 
-  }
-
-  request() {
-
-    if (this.worker) return
-
-    if (this.hash) {
-      this.worker = createHashWorker
+    // before update
+    updating(props) {
+      this.abort()
+      if ((this.magic && this.hash) 
+        && !(props.magic && props.hash))
+        this.ctx.emit('mediaDisappearing', this)
     }
-    else {
-      this.worker = createIdentifyWorker
+
+    // after update
+    updated() {
+      if (!this.magic) return
+      if (this.hash && this.magic) 
+        this.ctx.emit('mediaAppeared', this)
+      else
+        this.worker = createHashWorker((err, xstat) => {
+          this.worker = null
+          if (err) return // TODO
+          this.update(props)
+        }) 
+    }
+
+    // attach
+    attach() {
+      this.updated()
+    }
+
+    update(props) {
+
+      if ( this.name === props.name
+        && this.mtime === props.mtime
+        && this.size === props.size
+        && this.magic === props.magic
+        && this.hash === props.hash)
+        return false
+
+      this.updating(props)
+
+      this.name = props.name
+      this.mtime = props.mtime
+      this.size = props.size
+      this.magic = props.magic
+      this.hash = props.hash
+
+      this.updated()
+
+      return true
+    }
+
+    detach() {
+      this.abort()
+      if (this.type && this.hash)      
+        this.ctx.emit('mediaDisappearing', this)
+    }
+
+    identify() {
+      this.worker = this.createIdentifyWorker(() => {
+        this.worker = null
+        if (err) return // TODO 
+        this.ctx.emit('metadata', meta)
+      })
     }
   }
-}
+
+
+
