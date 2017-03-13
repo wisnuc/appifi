@@ -14,6 +14,7 @@ class FileNode extends Node {
     this.size = props.size
     this.magic = props.magic
     this.hash = props.hash
+    this.worker = null
   }
 
   // abort workers
@@ -27,8 +28,7 @@ class FileNode extends Node {
   // before update
   updating(props) {
     this.abort()
-    if ((this.magic && this.hash) 
-      && !(props.magic && props.hash))
+    if ((this.magic && this.hash) && !(props.magic && props.hash))
       this.ctx.emit('mediaDisappearing', this)
   }
 
@@ -46,7 +46,8 @@ class FileNode extends Node {
   }
 
   // attach
-  attach() {
+  attach(parent) {
+    super.attach(parent)
     this.updated()
   }
 
@@ -87,5 +88,4 @@ class FileNode extends Node {
   }
 }
 
-
-
+export default FileNode
