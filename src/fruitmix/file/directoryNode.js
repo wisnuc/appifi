@@ -1,10 +1,28 @@
-const Node = require('./node)
+import probe from './probe'
+import Node from './node'
 
 class DirectoryNode extends Node {
 
-  constructor(props) {
+  constructor(ctx, props) {
+    super(ctx)
     
-    this.probe = null  
+    this.uuid = props.uuid
+    this.name = props.name
+    this.mtime = -1
+  }
+
+  abort() {
+    if (this.probe) {
+      this.probe.abort()
+      this.worker = null
+    }
+  }
+
+  updating(props) {
+    this.abort()
+  }
+
+  updated() {
   }
 
   requestProbe() {
@@ -25,5 +43,9 @@ class DirectoryNode extends Node {
                 
       }
     })
+  }
+
+  attach() {
+    
   }
 }
