@@ -1,33 +1,17 @@
+import fs from 'fs'
 
 import EventEmitter from 'events'
-import E from '../lib/error'
-import fs from 'fs'
+
 import UUID from 'node-uuid'
-import mkdirp from 'mkdirp'
+import E from '../lib/error'
+// import mkdirp from 'mkdirp'
+
 import validator from 'validator'
 import ursa from 'ursa'
 import bcrypt from 'bcrypt'
 import { md4Encrypt } from '../tools'
 import path from 'path'
 import { isUUID } from '../lib/types'
-
-Promise.promisifyAll(fs);
-const mkdirpAsync = Promise.promisify(mkdirp);
-
-const isExist = (target, callback) =>
-  fs.access(target, fs.constants.R_OK, err =>
-    err ? callback(null, false) : callback(null, true));
-const isExistAsync = Promise.promisify(isExist);
-
-const fileToJson = (filepath, callback) => {
-  fs.readFile(filepath, (err, data) => {
-    if(err) return callback(err);
-    try {
-      return callback(null, JSON.parse(data));
-    } catch (e) { return callback(e); }
-  });
-}
-const fileToJsonAsync = Promise.promisify(fileToJson);
 
 
 /**
@@ -69,166 +53,322 @@ g credentials: {
   },
 a friends: [],      // uuid array, each uuid is a remote user, no dup
 }
+
+{
+  type: 'remote',
+  
+  uuid:         // uuid, unique
+  username:       // string
+  email:        // null
+  avatar:         // null
+  
+  service:        // uuid, exclusive
+  
+}
 **/ 
 
-// a partial model checking
-// encrypted field not checked
-const validateModel = (users, drives) => {
+const assert = (predicate, message) => !predicate && throw message
 
-  if (!isUUID(doc.uuid)) throw 
-  if (users.find(u => u.uuid === doc.uuid)) throw
+const unique = arr => new Set(arr).size === arr.length
+const arrayEqual = (arr1, arr2) => arr1.lengh === arr2.length
+  && arr1.every((item, index) => item === arr2[index])
 
-  if ( typeof doc.username !== 'string'
-    || doc.username.length === 0
-    || users
-        .filter(u => u.type === 'local')
-        .find(u => u.username === doc.username))
-    throw
+const complement = (a, b) => 
+  a.reduce((acc, c) => b.includes(c) 
+    ? acc 
+    : [...acc, c], [])
+
+const validateProps(obj, mandatory, optional = []) => 
+  complement(obj.keys(), [...mandatory, ...opt]).length === 0 &&
+  complement(mandatory, obj.keys()).length === 0
+
+const localUserMProps = [
+  'type', 'uuid', 'username', 'password', 'nologin', 
+  'isFirstUser', 'isAdmin', 'email', 'avatar', 
+  'home', 'library', 'service', 
+  'unixuid', 'smbPassword', 'lastChangeTime', 
+  'credentials', 'friends'
+]
+
+const localUserOProps = ['unixname', 'unixPassword']
+
+const validateLocalUser = u => {
+
+  assert(validateProps(u, localUserMProps, localUserOProps), 'invalid object props')
+
+  assert(isUUID(u.uuid), 'invalid user uuid') 
+  assert(isNonEmptyString(u.username), 'username must be non-empty string')
+  assert(isNonEmptyString(u.password), 'password must be non-empty string')
+  assert(typeof u.nologin === 'boolean', 'nologin must be boolean')
+  assert(typeof u.isFirstUser === 'boolean', 'isFirstUser must be boolean')
+  assert(typeof u.isAdmin === 'boolean', 'isAdmin must be boolean')
+  assert(u.email === null, 'email must be null')
+  assert(u.avatar === null, 'avatar must be null')
+  assert(isUUID(u.home), 'invalid home uuid')
+  assert(isUUID(u.library), 'invalid library uuid')
+  assert(isUUID(u.service), 'invalid service uuid')
+  assert(Number.isInteger(u.unixuid), 'unixuid must be number')
+  assert(u.unixuid >= 2000 && u.unixuid < 10000, 'unixuid must be in range 2000 to 10000')
+
+  assert(u.hasOwnProperty('unixPassword') 
+    ? isNonEmptyString(u.unixPassword)
+    : true, 'unixPassword must be non-empty string if provided')
+  
+  assert(isNonEmptyString(u.smbPassword), 'smbPassword must be non-emty string')
+  assert(Number.isInteger(u.lastChangeTime), 'lastChangeTime must be integer')
+
+  // TODO credentials not asserted
+  assert(isUniqueUUIDArray(u.friends), 'friends must be unique uuid array')
 }
 
-const invariantCheck checkUpdatePassword, checkUpdateUser
+const remoteUserMProps = ['type', 'uuid', 'email', 'avatar', 'service']
+const remoteUserOProps = ['username'] 
+const validateRemoteUser = u => {
 
-createUser -> validateModel
+  assert(validateProps(u, remoteUserMProps, remoteUserOProps), 'invalid object props')
 
-updateUser -> olduser, newuser; users , drives
-updatePassword -> old, new; users, drives
+  assert(isUUID(u.uuid), 'invalid user uuid')
+  assert(u.hasOwnProperty('username') 
+    ? isNonEmptyString(u.username)
+    : true, 'remote user name must be non-empty string')
+  assert(u.email === null, 'email must be null')
+  assert(u.avatar === null, 'avatar must be null')
+  assert(isUUID(u.service), 'invalid service uuid')
+}
 
+const publicDriveMProps = ['uuid', 'type', 'writelist', 'readlist', 'shareAllowed']
+const validatePublicDrive = pb => {
 
+  assert(validateProps(pb, publicDriveMProps))
 
+  assert(isUUID(pb.uuid), 'invalid public drive uuid')
+  assert(isUniqueUUIDArray(pb.writelist), 'writelist must be unique uuid array')
+  assert(isUniqueUUIDArray(pb.readlist), 'readlist must be unique uuid array')
+  assert(isUniqueUUIDArray([...pb.writelist, ...pb.readlist]), 
+    'writelist and readlist have common user')
+  assert(typeof pb.shareAllowed === 'boolean', 'shareAllowed must be boolean')
+}
+
+const privateDriveMProps = ['uuid', 'type', 'owner']
+const validatePrivateDrive = pv => {
+
+  assert(validateProps(pv, privateDriveMProps))
+
+  assert(isUUID(u.uuid), 'invalid drive uuid')
+  assert(isUUID(u.owner), 'invalid drive owner uuid')
+}
+
+// a partial model validation
+const validateModel = (users, drives) => {
+
+  // validate user type
+  assert(users.every(u => u.type === 'local' || u.type === 'remote'), 'invalid user type')
+
+  let locals = users.filter(u => u.type === 'local').sort()
+  let remotes = users.filter(u => u.type === 'remote').sort()
+
+  locals.forEach(l => validateLocalUser(l))
+  remotes.forEach(r => validateRemoteUser(r))
+
+  // unique user uuid
+  assert(unique(users.map(u => u.uuid)), 'user uuid must be unique')
+
+  // unique local username
+  assert(unique(locals.map(u => u.username)), 'local username must be uniqe')
+
+  // unique local unixuid
+  assert(unique(locals.map(u => u.unixuid)), 'local unixuid must be unique')
+
+  // unique unixname
+  assert(unique(locals
+    .filter(u => u.hasOwnProperty('unixname'))
+    .map(u => u.unixname)), 'unixname must be unique)
+
+  // single first user
+  assert(locals.filter(u => u.isFirstUser === true).length === 1, 'single first user')
+
+  // first user admin
+  assert(locals.find(u => u.isFirstUser).isAdmin === true, 'first user must be admin')  
+
+  // validate drive type
+  assert(drives.every(d => d.type === 'private' || d.type === 'public'), 'invalid drive type')
+
+  let publics = drives.filter(d => d.type === 'public').sort()
+  let privates = drives.filter(d => d.type === 'private').sort()
+
+  publics.forEach(pb => validatePublicDrives(pb))
+  privates.forEach(pv => validatePrivateDrives(pv))
+
+  // unique drive uuid
+  assert(unique(drives.map(d => d.uuid)), 'drive uuid must be unique')
+
+  // bi-directional user-drive relationship
+  let udrvs = [
+    ...locals.reduce((acc, u) => [...arr, u.home, u.library, u.service], []),
+    ...remotes.reduce((acc, u) => [...arr, u.service], [])
+  ]
+
+  // since privates are unique, this implies
+  // 1. all user drives exists, are unique and private
+  // 2. all private drive are actually used by users
+  assert(arrayEqual(udrvs, privates), 'all user drives must be equal to all privates')
+}
+
+const invariantProps = (p, c, props) => 
+  props.forEach(prop => 
+    assert(p[prop] ==== c[prop]), `invariant ${prop} violated`)
+
+const invariantUpdateLocalUser = (p, c) => 
+  invariantProps(p, c, [
+    'type', 'uuid', 'password', 'isFirstUser', 'email', 'avatar',
+    'home', 'library', 'service', 
+    'unixuid', 'unixPassword', 'smbPassword', 'lastChangeTime',
+    'credentials'
+  ])
+
+const invariantUpdateRemoteUser = (p, c) => 
+  invariantProps(p, c, [
+    'type', 'uuid', 'service'  
+  ])
+
+const invariantUpdatePassword = (prev, curr) =>
+  invariantProps(p, c, [
+    'type', 'uuid', 'username', 'nologin', 'isFirstUser', 'isAdmin',
+    'email', 'avatar', 'home', 'library', 'service', 'unixuid', 'unixname',
+    'credentials', 'friends'
+  ])
+}
+
+const invariantUpdatePublicDrive = (p, c) => 
+  invariantProps(p, c, [
+    'type', 'uuid'
+  ])
 
 class ModelData extends EventEmitter {
 
-	constructor(mfilepath, ufilepath, dfilepath, tmpfolder) {
-		super();
+	constructor(modelPath, tmpDir) {
 
-    // big lock
-		this.lock = false;
+		super()
+    this.modelPath = modelPath
+    this.tmpDir = tmpDir
 
-    // data
-		this.users = [];
-		this.drives = [];
+		this.users = []
+		this.drives = []
 
-    // file paths
-    this.modelFilePath = mfilepath; // model.json path
-    this.userFilePath = ufilepath;  // user.json path
-    this.drivefilePath = dfilepath; // drive.json path
-    this.tmpfolder = tmpfolder;
-
-    // ??? TODO
-    this.version = null;
-
-  	// rewrite, using functional 
-  	this.increment = 2000;
-  	this.eset = new Set();	// local user set
-
-    // obsolete
-  	this.hash = UUID.v4();
+		this.lock = false // big lock
 	}
 
   getLock() {
-    if (this.lock === true) throw new E.ELOCK('expect unlocked,actually locked');
+    if (this.lock === true) 
+      throw new E.ELOCK('expect unlocked,actually locked');
     this.lock = true;
   }
 
   putLock() {
-    if (this.lock === false) throw new E.ELOCK('expect locked,actually unlocked');
+    if (this.lock === false) 
+      throw new E.ELOCK('expect locked,actually unlocked');
     this.lock = false;
   }
 
-  // TODO functional
-	allocUnixUID() {
-		while (this.eset.has(this.increment)) this.increment++
-    return this.increment++
-	}
+  async updateModelAsync(users, drives) {
 
-  // get
+    validateModel(users, drives)
 
+    this.getLock()
+    try {
 
-  valdiateNewLocalUser(doc) {
-    
-  }
+      // await mkdirpAsync(this.tmpDir)
+      let tmpfile = path.join(this.tmpDir, UUID.v4())
+      let json = JSON.stringify({ version: 1, users, drives }, null, '  ')
+      await fs.writeFileAsync(tmpfile, json) 
+      await fs.renameAsync(tmpfile, this.modelPath)
 
-  createLocalUser() {
-    // validate
-    // fill encrypted passwords, and related props
-  }
-
-	setModelData(data) {
-		this.users = data.users;
-		this.drives = data.drives;
-		this.version = data.version;
-	}
-
-	async saveAsync(data) {
-		await mkdirpAsync(this.tmpfolder);
-    let tmpfile = path.join(this.tmpfolder, UUID.v4());
-    let json = JSON.stringify(data, null, '  ');
-    await fs.writeFileAsync(tmpfile, json);
-    await fs.renameAsync(tmpfile, this.modelFilePath);
-	}
-
-  // opaque
-	async initializeAsync() {
-
-		if (this.lock) throw new E.ELOCK();
-    this.getLock();
-    let err = null;
-    let modelInfo;
-    let dirty = false;
-    let existM = await isExistAsync(this.modelFilePath);
-    if (existM){
-      // model.json exist
-      try {
-        modelInfo = await fileToJsonAsync(this.modelFilePath);
-        if (!Array.isArray(modelInfo.users) || !Array.isArray(modelInfo.drives) || modelInfo.version === undefined)
-          err = new E.EDOCFORMAT('Model file format is not correct');
-      } catch (e) { err = e; }
-    } else {
-      // model.json non-existent, read user.json & drive.json
-      dirty = true;
-      try {
-        let users = await fileToJsonAsync(this.userFilePath);
-        let drives = await fileToJsonAsync(this.drivefilePath);
-        if(!Array.isArray(users) || !Array.isArray(drives))
-          // format is not correct
-          err = new E.EDOCFORMAT('user or drive file format is not correct');
-        else 
-          modelInfo = Object.assign({}, { version: 1, users, drives });
-      } catch (e) {
-        if (e.code !== 'ENOENT')
-          err = e;
-        else
-          modelInfo = Object.assign({}, { version: 1, users: [], drives: [] });
-      }
+      this.users = nextUsers
+      this.drives = nextDrives
     }
-    this.putLock();
-    if (err) throw err;
-    // save or not save
-    if (dirty) await this.saveAsync(modelInfo);
-    // set model users & drives data
-    this.setModelData(modelInfo);
-    this.users.forEach(user => {
-      if (user.type === 'local')
-        this.eset.add(user.unixUID);
-    });
-	}
+    catch (e) { throw e }
+    finally{ this.putLock() }
+  }
 
-	createLocalUser(user, props, callback) {}
+  // both local and remote user
+  async createUserAsync(newUser, newDrives) {
+
+    let nextUsers = [...this.usrs, newUser]
+    let nextDrives = [...this.drives, ...newDrives]
+
+    await this.updateModelAsync(nextUser, nextDrives)
+  }
+
+  // both local and remote, and password
+  async updateUserAsync(next, pwd) {
+
+    let index = this.users.findIndex(u => u.uuid === next.uuid)
+    if (index === -1) throw
+
+    let user = this.users[index]
+    if (user.type === 'local' && !pwd)
+      invariantUpdateLocalUser(user, next)  
+    else if (user.type === 'local')
+      invariantUpdatePassword(user, next)
+    else if (user.type === 'remote' && !pwd)
+      invariantUpdateRemoteUser(user, next)
+    else
+      throw xxxx
+
+    let nextUsers = [
+      ...this.users.slice(0, index),
+      next,
+      ...this.users.slice(index + 1)
+    ] 
+    
+    await this.updateModelAsync(nextUsers, this.drives)
+  }
+
+  async createDriveAsync(newDrive) {
+
+    if (newDrive.type !== 'public') throw xxx
+    let nextDrives = [...this.drives, newDrive]
+    
+    await this.updateModelAsync(this.users, nextDrives)
+  } 
+
+  async updateDriveAsync(next) {
+
+    let index = this.drives.findIndex(d => d.uuid === next.uuid)
+    if (index === -1) throw
+
+    let drive = this.drives[index]
+    if (drive.type !== 'public') throw
+    
+    invariantUpdatePublicDrive(drive, next)
+
+    let nextDrives = [
+      ...this.drives.slice(0, index),
+      next,
+      ...this.drives.slice(index + 1)
+    ]
+
+    await this.updateModelAsync(this.users, nextDrives)
+  }
+
+  async deleteDriveAsync(driveUUID) {
+
+    let index = this.drives.findIndex(d => d.uuid === driveUUID)
+    if (index === -1) throw
+
+    let drive = this.drives[index]
+    if (drive.type !== 'public') throw
+
+    let nextDrives = [
+      ...this.drives.slice(0, index),
+      ...this.drives.slice(index + 1)
+    ]
+
+    await this.updateModelAsync(this.users, nextDrives)
+  }
 }
 
-const createModelData = async (mfilepath, ufilepath, dfilepath, tmpfolder, callback) => {
-	let modelData = new ModelData(mfilepath, ufilepath, dfilepath, tmpfolder);
-	try {
-		// await modelData.initializeAsync();
-		callback(null, modelData);
-	} catch (err) {
-		callback(err);
-	}
-}
+const createModelData = (modelPath, tmpDir) =>
+  new ModelData(modelPath, tmpDir)
 
-const createModelDataAsync = Promise.promisify(createModelData);
-
-export {
-	createModelData,
-	createModelDataAsync
-}
+export default createModelData
