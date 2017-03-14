@@ -2,19 +2,20 @@ import path from 'path'
 import fs from 'fs'
 import crypto from 'crypto'
 
-import rimraf from 'rimraf'
 import mkdirp from 'mkdirp'
 
 import Stringify from 'canonical-json'
 import { writeFileToDisk } from './util'
 
-import paths from './paths'
+import { DIR } from './const'
+
+// import paths from './paths'
 
 class DocumentStore {
 
   // the factory must assure the tmp folder exists !
-  constructor(dir, tmpdir) {
-    this.rootdir = dir
+  constructor(docdir, tmpdir) {
+    this.docdir = docdir
     this.tmpdir = tmpdir
   }
 
@@ -35,7 +36,7 @@ class DocumentStore {
     digest = hash.digest().toString('hex')
 
     // src is in tmp folder
-    dirpath = path.join(this.rootdir, digest.slice(0, 2))
+    dirpath = path.join(this.docdir, digest.slice(0, 2))
     filepath = path.join(dirpath, digest.slice(2))
     tmppath = path.join(this.tmpdir, digest)
 
@@ -60,7 +61,7 @@ class DocumentStore {
       return process.nextTick(callback, error)
     }
    
-    filepath = path.join(this.rootdir, digest.slice(0, 2), digest.slice(2))
+    filepath = path.join(this.docdir, digest.slice(0, 2), digest.slice(2))
 
     fs.readFile(filepath, (err, data) => {
 
@@ -75,20 +76,22 @@ class DocumentStore {
   }
 }
 
-const createDocumentStore = (callback) => {
+const createDocumentStore = (froot, callback) => {
 
-  let dir = paths.get('documents')
-  let tmpdir = paths.get('tmp')
+  let doc = path.join(froot, DIR.DOC)
+  let tmp = path.join(froot, DIR.TMP)
 
-  fs.stat(dir, (err, stats) => {
-
+  mkdirp(doc, err => {
     if (err) return callback(err)
-    if (!stats.isDirectory())
-      return callback(new Error('path must be folder'))
-
-    // no clean
-    return callback(null, new DocumentStore(dir, tmpdir))
-  })
+    mkdirp(tmp, err => {
+      if (err) return callback(err)
+      callback(null, new DocumentStore(doc, tmp))
+    })
+  }) 
 }
 
 export { createDocumentStore }
+
+
+
+
