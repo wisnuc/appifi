@@ -4,8 +4,10 @@ class Node {
 
   constructor(ctx) {
     this.ctx = ctx
+    this.worker = null
     this.parent = null
   }
+
 
   root() {
     let node = this   
@@ -70,6 +72,15 @@ class Node {
   walkdown(names) {
     // TODO
   }
+
+  // abort workers
+  abort() {
+    if (this.worker) {
+      this.worker.abort()
+      this.worker = null
+    }
+  }
+
 }
 
 

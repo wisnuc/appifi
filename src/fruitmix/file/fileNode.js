@@ -14,22 +14,24 @@ class FileNode extends Node {
     this.size = props.size
     this.magic = props.magic
     this.hash = props.hash
-    this.worker = null
   }
 
-  // abort workers
-  abort() {
-    if (this.worker) {
-      this.worker.abort()
+  // TODO
+  identify() {
+    this.worker = this.createIdentifyWorker(() => {
       this.worker = null
-    }
+      if (err) return // TODO 
+      this.ctx.emit('metadata', meta)
+    })
   }
 
   // before update
   updating(props) {
     this.abort()
-    if ((this.magic && this.hash) && !(props.magic && props.hash))
-      this.ctx.emit('mediaDisappearing', this)
+    if (this.magic && this.hash) {                  // already appeared
+      if (!props.magic || props.hash !== this.hash) // not media or hash changed
+        this.ctx.emit('mediaDisappearing', this)
+    }
   }
 
   // after update
@@ -58,7 +60,7 @@ class FileNode extends Node {
       && this.size === props.size
       && this.magic === props.magic
       && this.hash === props.hash)
-      return false
+      return
 
     this.updating(props)
 
@@ -69,23 +71,15 @@ class FileNode extends Node {
     this.hash = props.hash
 
     this.updated()
-
-    return true
   }
 
   detach() {
     this.abort()
-    if (this.type && this.hash)      
+    if (this.magic && this.hash)      
       this.ctx.emit('mediaDisappearing', this)
+    super.detach()
   }
 
-  identify() {
-    this.worker = this.createIdentifyWorker(() => {
-      this.worker = null
-      if (err) return // TODO 
-      this.ctx.emit('metadata', meta)
-    })
-  }
 }
 
 export default FileNode

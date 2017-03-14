@@ -12,16 +12,6 @@ class DirectoryNode extends Node {
     this.mtime = FILE.MTIME
   }
 
-  abort() {
-    this.worker && this.worker.abort()
-  }
-
-  update(xstat) {
-    this.name = xstat.name   
-    if (this.mtime !== xstat.mtime)
-      this.probe()
-  }
-
   merge(mtime, xstats) {
 
     let map = new Map(xstats.map(x => [x.uuid, x]))
@@ -88,6 +78,12 @@ class DirectoryNode extends Node {
   attach(parent) {
     super.attach(parent) 
     this.probe()
+  }
+
+  update(xstat) {
+    this.name = xstat.name   
+    if (this.mtime !== xstat.mtime)
+      this.probe()
   }
 
   detach() {
