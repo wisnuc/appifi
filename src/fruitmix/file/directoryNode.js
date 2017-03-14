@@ -54,15 +54,21 @@ class DirectoryNode extends Node {
 
   probe() {
 
-    if (this.worker) return this.probe.request()
+    if (this.worker) return this.worker.request()
 
     let delay = this.mtime === FILE.MTIME ? 0 : 500
     let dpath = this.abspath()
     let uuid = this.uuid
 
-    this.ctx.incProbeCount()
+    // audit
+    this.ctx.probeCountInc()
+
     this.worker = probe(dpath, uuid, delay, (err, result) => { 
+
+      // audit
       this.ctx.decProbeCount()
+
+      // !!! important
       this.worker = null
 
       if (err) {
