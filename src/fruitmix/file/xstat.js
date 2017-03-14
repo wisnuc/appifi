@@ -7,7 +7,6 @@ import validator from 'validator'
 
 import E from '../lib/error'
 import { isUUID, isSHA256 } from '../lib/types'
-
 // constants
 const FRUITMIX = 'user.fruitmix'
 
@@ -40,7 +39,7 @@ const readXstatAsync = async (target, raw) => {
 
   // if this throws, target may be invalid
   let stats = await fs.lstatAsync(target)
-  if (!stats.isDirectory() && !stats.isFile()) throw E.ENOTDIRFILE()
+  if (!stats.isDirectory() && !stats.isFile()) throw new E.ENOTDIRFILE()
 
   try {
     // may throw xattr ENOENT or JSON SyntaxError
@@ -61,7 +60,7 @@ const readXstatAsync = async (target, raw) => {
     // validate hash and magic
     if (stats.isFile()) {
 
-      if (attr.hasOwnProperty('hash') || attr.hasOwnProperty('htime') { 
+      if (attr.hasOwnProperty('hash') || attr.hasOwnProperty('htime')) { 
         if ( !isSHA256(attr.hash) 
           || !isTimeStamp(attr.htime)
           || attr.htime !== stats.mtime.getTime()) {

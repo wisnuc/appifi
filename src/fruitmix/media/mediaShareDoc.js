@@ -1,3 +1,6 @@
+import UUID from 'node-uuid'
+import deepEqual from 'deep-equal'
+
 /**
 
   This file is media doc factory (no class)
@@ -62,53 +65,6 @@ const createMediaShareDoc = (authorUUID, obj) => {
 
   let {maintainers, viewers, album, sticky, contents} = obj
 
-  // validate, dedupe, and mustn't be the author itself
-  // if(!Array.isArray(maintainers)) maintainers = []
-
-  // maintainers = dedupe(isUUID)(maintainers).filter(maintainer => maintainer !== authorUUID) // remove author itself
-
-  // validate, dedupe, and mustn't be the author itself
-  // if(!Array.isArray(viewers)) viewers = []
-
-  // viewers = dedupe(isUUID)(viewers).filter(viewer => viewer !== authorUUID) // remove author itself
-  // viewers = subtractUUIDArray(viewers, maintainers)
-
-  // album must be true or false, default to false
-  // if(!album) album = null
-  // else {
-    // {
-    //   title : string
-    //   text : string
-    // }
-  //   let obj = {}
-  //   if(typeof album.title === 'string')
-  //     obj.title = album.title
-  //   else
-  //     obj.title = ''
-
-  //   if(typeof album.text === 'string')
-  //     obj.text = album.text
-  //   else
-  //     obj.text = ''
-
-  //   album = obj
-  // }
-
-  // sticky must be true or false, default to false
-  // if(typeof sticky !== 'boolean') sticky = false
-
-  // validate contents
-  // if(!Array.isArray(contents))
-  //   contents = []
-  // else {
-  //   let time = new Date().getTime()
-  //   contents = dedupe(isSHA256)(contents)
-  //     .map(digest => ({
-  //       creator: authorUUID,
-  //       digest,
-  //       ctime: time
-  //     }))
-  //   }
   let time = new Date().getTime()
 
   contents = contents.map(digest => ({
@@ -147,7 +103,7 @@ const updateMediaShareDoc = (userUUID, doc, ops) => {
   if(userUUID === doc.author) {
 
     op = ops.find(op => (op.path === 'maintainers' && op.operation === 'add'))
-    if(op) {// && Array.isArray(op.value))
+    if(op) {
       maintainers = addUUIDArray(maintainers, op.value)
 
       op.value.forEach(uuid => {
@@ -157,7 +113,7 @@ const updateMediaShareDoc = (userUUID, doc, ops) => {
     }
 
     op = ops.find(op => op.path === 'maintainers' && op.operation === 'delete')
-    if(op) // && Array.isArray(op.value)) {
+    if(op) {// && Array.isArray(op.value)) {
       maintainers = subtractUUIDArray(maintainers, op.value)
 
       // the contents shared by deleted maintainers should also be removed
@@ -169,16 +125,17 @@ const updateMediaShareDoc = (userUUID, doc, ops) => {
     }
 
     op = ops.find(op => op.path === 'viewers' && op.operation === 'add')
-    if(op) // && Array.isArray(op.value))
+    if(op) {// && Array.isArray(op.value))
       viewers = addUUIDArray(viewers, op.value)
       viewers = subtractUUIDArray(viewers, maintainers) //dedupe
+    }
 
     op = ops.find(op => op.path === 'viewers' && op.operation === 'delete')
     if(op) // && Array.isArray(op.value))
       viewers = subtractUUIDArray(viewers, op.value)
 
     op = ops.find(op => op.path === 'album' && op.operation === 'update')
-    if(op) // && typeof op.value === 'object'){
+    if(op) {// && typeof op.value === 'object'){
       if(op.value === null) 
         album = null
       else{

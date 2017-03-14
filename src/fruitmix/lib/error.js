@@ -21,6 +21,7 @@ define('EINSTANCE', 'instance changed')
 define('ETIMESTAMP', 'timestamp changed during operation')
 define('EEXITCODE', 'exit with error code')
 define('EEXITSIGNAL', 'exit with signal')
+define('ELOCK', 'be busy')
 
 module.exports = Object.freeze(E)
 

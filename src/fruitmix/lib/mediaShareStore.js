@@ -1,10 +1,9 @@
 import path from 'path'
 import fs from 'fs'
-
-import validator from 'validator'
+import mkdirp from 'mkdirp'
 
 import { writeFileToDisk } from './util'
-import paths from './paths'
+import { DIR } from './const'
 
 class MediaShareStore {
 
@@ -69,13 +68,22 @@ class MediaShareStore {
   }
 }
 
-const createMediaShareStore = (docstore) => {
+const createMediaShareStore = (froot, docstore, callback) => {
 
-  let rootdir = paths.get('mediashare') 
-  let arcdir = paths.get('mediashareArchive')
-  let tmpdir = paths.get('tmp')
-  
-  return new MediaShareStore(rootdir, arcdir, tmpdir, docstore)
+  let rootdir = path.join(froot, DIR.MSHARE)
+  let arcdir = path.join(froot, DIR.MSHAREARC)
+  let tmpdir = path.join(froot, DIR.TMP)
+
+  mkdirp(rootdir, err => {
+    if(err) return callback(err)
+    mkdirp(arcdir, err => {
+      if(err) return callback(err)
+      mkdirp(tmpdir, err => {
+        if(err) return callback(err)
+        callback(null, new MediaShareStore(rootdir, arcdir, tmpdir, docstore))
+      })
+    })
+  })
 }
 
 export { createMediaShareStore }

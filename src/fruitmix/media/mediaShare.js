@@ -9,10 +9,12 @@
 import crypto from 'crypto'
 import EventEmitter from 'events'
 
-import UUID from 'node-uuid'
 import validator from 'validator'
 import deepEqual from 'deep-equal'
 import deepFreeze from 'deep-freeze'
+
+import { createMediaShareDoc, updateMediaShareDoc } from 'src/fruitmix/media/mediaShareDoc'
+import E from '../lib/error'
 
 /**
   indexShare(share) {
@@ -106,18 +108,15 @@ class MediaShareCollection extends EventEmitter {
   }
 
   async createMediaShare(userUUID, post) {
-    let err
-    let storeAsync = Promise.promisify(this.shareStore.store)
+    let err, share
+    this.shareStore.storeAsync = Promise.promisify(this.shareStore.store)
 
     try {
       let doc = createMediaShareDoc(userUUID, post)
       deepFreeze(doc)
-      
-      let digest = await storeAsync(doc)
+      let digest = await this.shareStore.storeAsync(doc)
 
-      let viewSet = new Set([doc.author, ...doc.maintainers, ...doc.viewers])
-      let share = {digest, doc, viewSet}
-
+      share = {digest, doc}
       this.shareMap.set(doc.uuid, share)
       this.emit('create', share)
     }
@@ -151,15 +150,15 @@ class MediaShareCollection extends EventEmitter {
   //   }
   // }
 
-  async updateMediaShare(userUUID, shareUUID, patch, callback) {
+  async updateMediaShare(userUUID, shareUUID, patch) {
 
-    let err
-    let storeAsync = Promise.promisify(this.shareStore.store)
+    let err, updatedShare
+    this.shareStore.storeAsync = Promise.promisify(this.shareStore.store)
 
     let share = this.shareMap.get(shareUUID)
     let { digest, doc } = share
 
-    if (share.lock) throw new Error('ELOCK')
+    if (share.lock) throw new E.ELOCK()
     share.lock = true
 
     try {
@@ -167,13 +166,12 @@ class MediaShareCollection extends EventEmitter {
       deepFreeze(doc)
 
       if (doc !== share.doc) {
-        digest = await storeAsync(doc)
+        digest = await this.shareStore.storeAsync(doc)
 
-        let viewSet = new Set([doc.author, ...doc.maintainers, ...doc.viewers])
-        let share = {digest, doc, viewSet}
+        updatedShare = {digest, doc}
 
-        this.shareMap.set(shareUUID, share)
-        this.emit('update', share)
+        this.shareMap.set(shareUUID, updatedShare)
+        this.emit('update', updatedShare)
       }
     }
     catch(e) {
@@ -184,7 +182,7 @@ class MediaShareCollection extends EventEmitter {
     }
 
     if (err) throw err
-    return share
+    return updatedShare
   }
 
   // updateMediaShare(userUUID, shareUUID, ops, callback){
@@ -236,12 +234,12 @@ class MediaShareCollection extends EventEmitter {
   //   }
   // }
 
-  async _deleteMediaShare(shareUUID) {
+  async deleteMediaShare(shareUUID) {
     let err
     let archiveAsync = Promise.promisify(this.shareStore.archive)
 
     let share = this.shareMap.get(shareUUID)
-    if (share.lock) throw new Error('ELOCK')
+    if (share.lock) throw new E.ELOCK()
 
     try {
       await archiveAsync(shareUUID)

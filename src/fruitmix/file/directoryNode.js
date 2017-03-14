@@ -1,4 +1,4 @@
-const Node = require('./node)
+const Node = require('./node')
 
 class DirectoryNode extends Node {
 
