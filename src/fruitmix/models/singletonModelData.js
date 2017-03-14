@@ -7,7 +7,6 @@ let modelData = null;
 (async () => {
 	// mfilepath, ufilepath, dfilepath, tmpfolder
 	modelData = await createModelDataAsync('','','','');
-	await modelData.initializeAsync();
 })();
 
 export default modelData

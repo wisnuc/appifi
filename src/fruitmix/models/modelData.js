@@ -126,7 +126,7 @@ class ModelData extends EventEmitter {
 const createModelData = async (mfilepath, ufilepath, dfilepath, tmpfolder, callback) => {
 	let modelData = new ModelData(mfilepath, ufilepath, dfilepath, tmpfolder);
 	try {
-		await modelData.initializeAsync();
+		// await modelData.initializeAsync();
 		callback(null, modelData);
 	} catch (err) {
 		callback(err);
