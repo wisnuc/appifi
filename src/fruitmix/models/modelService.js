@@ -1,5 +1,3 @@
-
-
 class ModelService {
 
 	createLocalUser(user, props, callback) {

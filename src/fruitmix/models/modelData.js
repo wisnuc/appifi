@@ -29,22 +29,100 @@ const fileToJson = (filepath, callback) => {
 }
 const fileToJsonAsync = Promise.promisify(fileToJson);
 
+
+/**
+
+  data integrity (stateless)
+
+{
+  type: 'local'
+  
+  // basic
+x uuid:             // uuid string, required, unique
+x username:         // nonempty string, required, unique (in local users)
+x password:         // string, required
+a nologin:          // bool, default false, required,
+  
+  // attributes
+a isFirstUser:      // bool, required, immutable, only one, 
+                    // true only if isAdmin true
+a isAdmin:          // bool, required
+a email: null,      // null, required
+a avatar: null,     // null, required
+  
+  // drives
+  home: <uuid>,     // uuid string, required, exclusive
+  library: <uuid>,  // uuid string, required, exclusive
+  service: <uuid>,  // uuid string, required, exclusive
+  
+  // for samba and linux apps
+a unixuid:          // 2000 <= integer < 10000, required
+  unixname:         // valid unix username, unique
+g unixPassword:     // autogen
+g smbPassword:      // autogen
+g lastChangeTime:   // int, new Date().getTime()
+
+  // for remote 
+g credentials: {
+    publicKey:      // TBD
+    privateKey:     // TBD
+  },
+a friends: [],      // uuid array, each uuid is a remote user, no dup
+}
+**/ 
+
+// a partial model checking
+// encrypted field not checked
+const validateModel = (users, drives) => {
+
+  if (!isUUID(doc.uuid)) throw 
+  if (users.find(u => u.uuid === doc.uuid)) throw
+
+  if ( typeof doc.username !== 'string'
+    || doc.username.length === 0
+    || users
+        .filter(u => u.type === 'local')
+        .find(u => u.username === doc.username))
+    throw
+}
+
+const invariantCheck checkUpdatePassword, checkUpdateUser
+
+createUser -> validateModel
+
+updateUser -> olduser, newuser; users , drives
+updatePassword -> old, new; users, drives
+
+
+
+
 class ModelData extends EventEmitter {
 
 	constructor(mfilepath, ufilepath, dfilepath, tmpfolder) {
 		super();
+
+    // big lock
 		this.lock = false;
+
+    // data
 		this.users = [];
 		this.drives = [];
+
+    // file paths
     this.modelFilePath = mfilepath; // model.json path
     this.userFilePath = ufilepath;  // user.json path
     this.drivefilePath = dfilepath; // drive.json path
     this.tmpfolder = tmpfolder;
+
+    // ??? TODO
     this.version = null;
-  	// user
+
+  	// rewrite, using functional 
   	this.increment = 2000;
   	this.eset = new Set();	// local user set
-  	this.has = UUID.v4();
+
+    // obsolete
+  	this.hash = UUID.v4();
 	}
 
   getLock() {
@@ -57,10 +135,23 @@ class ModelData extends EventEmitter {
     this.lock = false;
   }
 
+  // TODO functional
 	allocUnixUID() {
 		while (this.eset.has(this.increment)) this.increment++
     return this.increment++
 	}
+
+  // get
+
+
+  valdiateNewLocalUser(doc) {
+    
+  }
+
+  createLocalUser() {
+    // validate
+    // fill encrypted passwords, and related props
+  }
 
 	setModelData(data) {
 		this.users = data.users;
@@ -76,7 +167,9 @@ class ModelData extends EventEmitter {
     await fs.renameAsync(tmpfile, this.modelFilePath);
 	}
 
+  // opaque
 	async initializeAsync() {
+
 		if (this.lock) throw new E.ELOCK();
     this.getLock();
     let err = null;
