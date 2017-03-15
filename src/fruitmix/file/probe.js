@@ -1,7 +1,5 @@
-const EABORT = Object.assign(new Error('aborted'), { code: 'EABORT' })
-const EUUID = Object.assign(new Error('file or directory uuid mismatch'), { code: 'EUUID' })
-const ENOTDIR = Object.assign(new Error('not a directory'), { code: 'ENOTDIR' })
-const ETIMESTAMP = Object.assign(new Error('timestamp changed during operation'), { code: 'ETIMESTAMP' })
+import fs from 'fs'
+import E from './lib/error'
 
 // we do not use state machine pattern and event emitter for performance sake
 // the probe is essentially the same as originally designed stm, it just cut the transition from
@@ -16,7 +14,7 @@ const ETIMESTAMP = Object.assign(new Error('timestamp changed during operation')
 //    props: props for entries
 //    again: should do it again
 // }
-const probe = (dpath, uuid, callback) => {
+const probe = (dpath, uuid, delay, callback) => {
 
   let timer, again = false, aborted = false
 
@@ -41,8 +39,8 @@ const probe = (dpath, uuid, callback) => {
     readXstat(dpath, (err, xstat) => { 
       if (aborted) return
       if (err) callback(err)
-      if (!xstat.isDirectory()) return callback(ENOTDIR)
-      if (xstat.uuid !== uuid) return calblack(EUUID)
+      if (!xstat.isDirectory()) return callback(new E.ENOTDIR())
+      if (xstat.uuid !== uuid) return calblack(new E.EINSTANCE())
       if (xstat.mtime === mtime) return callback(null) // success, no change
 
       // read props
@@ -61,19 +59,21 @@ const probe = (dpath, uuid, callback) => {
         })
       })
     })
-  }, 200)
+  }, delay)
 
   return {
 
+    type: 'probe',
+
     abort() {
       aborted = true
-      callback(EABORT)
+      callback(new E.EABORT())
     },
 
     request() {
       if (timer) return
       again = true
-    }
+   }
   }
 }
 
