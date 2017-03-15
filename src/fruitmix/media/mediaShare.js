@@ -6,11 +6,7 @@
 // singleton: mediashare collection (class -> singleton)
 //
 // external 
-import crypto from 'crypto'
 import EventEmitter from 'events'
-
-import validator from 'validator'
-import deepEqual from 'deep-equal'
 import deepFreeze from 'deep-freeze'
 
 import { createMediaShareDoc, updateMediaShareDoc } from 'src/fruitmix/media/mediaShareDoc'
