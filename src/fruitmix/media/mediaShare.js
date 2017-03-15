@@ -152,7 +152,7 @@ class MediaShareCollection extends EventEmitter {
 
   async updateMediaShare(userUUID, shareUUID, patch) {
 
-    let err, updatedShare
+    let err
     this.shareStore.storeAsync = Promise.promisify(this.shareStore.store)
 
     let share = this.shareMap.get(shareUUID)
@@ -168,10 +168,8 @@ class MediaShareCollection extends EventEmitter {
       if (doc !== share.doc) {
         digest = await this.shareStore.storeAsync(doc)
 
-        updatedShare = {digest, doc}
-
-        this.shareMap.set(shareUUID, updatedShare)
-        this.emit('update', updatedShare)
+        this.shareMap.set(shareUUID, {digest, doc})
+        this.emit('update', {digest, doc})
       }
     }
     catch(e) {
@@ -182,7 +180,7 @@ class MediaShareCollection extends EventEmitter {
     }
 
     if (err) throw err
-    return updatedShare
+    return {digest, doc}
   }
 
   // updateMediaShare(userUUID, shareUUID, ops, callback){
@@ -236,13 +234,13 @@ class MediaShareCollection extends EventEmitter {
 
   async deleteMediaShare(shareUUID) {
     let err
-    let archiveAsync = Promise.promisify(this.shareStore.archive)
+    this.shareStore.archiveAsync = Promise.promisify(this.shareStore.archive)
 
     let share = this.shareMap.get(shareUUID)
     if (share.lock) throw new E.ELOCK()
 
     try {
-      await archiveAsync(shareUUID)
+      await this.shareStore.archiveAsync(shareUUID)
       this.shareMap.delete(shareUUID)
       this.emit('delete', share)
     }
@@ -251,7 +249,6 @@ class MediaShareCollection extends EventEmitter {
     }
     
     if(err) throw err
-
   }
 
   // deleteMediaShare(userUUID, shareUUID, callback) {

@@ -107,6 +107,10 @@ describe(path.basename(__filename), function(){
                 sticky: false,
                 contents: [img001Hash]
                }
+    let patch = [{path: 'maintainers',
+                    operation: 'add',
+                    value: [charlieUUID]
+                  }]
 
     beforeEach(() => (async() => {
       await rimrafAsync('tmptest')
@@ -129,10 +133,6 @@ describe(path.basename(__filename), function(){
       let share = msc.shareMap.get(shareUUID)
       share.lock = true
 
-      let patch = [{path: 'maintainers',
-                    operation: 'add',
-                    value: [charlieUUID]
-                  }]
       try {
         await msc.updateMediaShare(userUUID, shareUUID, patch)
       }
@@ -147,10 +147,7 @@ describe(path.basename(__filename), function(){
 
     it('updated share should has a frozen doc', async done => {
       let err, updatedShare
-      let patch = [{path: 'maintainers',
-                    operation: 'add',
-                    value: [charlieUUID]
-                  }]
+
       try{
         updatedShare = await msc.updateMediaShare(userUUID, shareUUID, patch)
       }
@@ -163,10 +160,7 @@ describe(path.basename(__filename), function(){
 
     it('updated share should be set into shareMap', async done => {
       let err, updatedShare
-      let patch = [{path: 'maintainers',
-                    operation: 'add',
-                    value: [charlieUUID]
-                  }]
+
       try{
         updatedShare = await msc.updateMediaShare(userUUID, shareUUID, patch)
       }
@@ -178,9 +172,95 @@ describe(path.basename(__filename), function(){
       done()
     })
 
-    // it()
+    it('should return old digest and doc if nothing changed', async done => {
+      let err, updatedShare
+      let share = msc.shareMap.get(shareUUID)
+      let patch01 = []
+      try{
+        updatedShare = await msc.updateMediaShare(userUUID, shareUUID, patch01)
+      }
+      catch(e) {
+        err = e
+      }
 
+      expect(updatedShare.digest).to.deep.equal(share.digest)
+      expect(updatedShare.doc).to.deep.equal(share.doc)
+      done()
+    })
+
+    it('lock should be set to false if nothing changed', async done => {
+      let err, updatedShare
+      let patch01 = []
+      try{
+        updatedShare = await msc.updateMediaShare(userUUID, shareUUID, patch01)
+      }
+      catch(e) {
+        err = e
+      }
+
+      let share = msc.shareMap.get(shareUUID)
+      expect(share.lock).to.be.false
+      done()
+    })
   })
 
+  describe('deleteMediaShare', function() {
+    let msc, shareUUID
+    let post = {maintainers: [aliceUUID],
+                viewers: [bobUUID],
+                album: {title:'testalbum', text: 'this is a test album'},
+                sticky: false,
+                contents: [img001Hash]
+               }
+
+    beforeEach(() => (async() => {
+      await rimrafAsync('tmptest')
+      let froot = path.join(cwd, 'tmptest')
+      await mkdirpAsync(froot)
+
+      let docstore = await createDocumentStoreAsync(froot)
+      let msstore = await createMediaShareStoreAsync(froot, docstore)
+      msc = new MediaShareCollection(msstore) 
+      let share = await msc.createMediaShare(userUUID, post)
+      shareUUID = share.doc.uuid
+    })())
+
+    afterEach(() => (async () => {
+      await rimrafAsync('tmptest')
+    })())
+
+    it('should return error if the share is locked', async done => {
+      let err
+      let share = msc.shareMap.get(shareUUID)
+      share.lock = true
+
+      try {
+        await msc.deleteMediaShare(shareUUID)
+      }
+      catch(e) {
+        err = e
+      }
+
+      expect(err).to.be.an('error')
+      expect(err.code).to.equal('ELOCK')
+      expect(err.message).to.equal('be busy')
+      done()     
+    })
+
+    it('deleted share should be removed from shareMap', async done => {
+      let err
+
+      try {
+        await msc.deleteMediaShare(shareUUID)
+      }
+      catch(e) {
+        err = e
+      }
+
+      expect(msc.shareMap.get(shareUUID)).to.be.undefined
+      done()  
+
+    })
+  })
 
 })
