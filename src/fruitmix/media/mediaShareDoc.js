@@ -1,5 +1,5 @@
 import UUID from 'node-uuid'
-import deepEqual from 'deep-equal'
+import{addUUIDArray, subtractUUIDArray} from '../lib/types'
 
 /**
 
@@ -38,27 +38,6 @@ import deepEqual from 'deep-equal'
     ]
   }
 **/
-
-const addUUIDArray = (a, b) => {
-  let c = Array.from(new Set([...a, ...b]))
-  return deepEqual(a, c) ? a :c
-}
-
-// remove the element in a which already exist in b
-const subtractUUIDArray = (a, b) => {
-  let aa = [...a]
-  let dirty = false
-
-  b.forEach(item => {
-    let index = aa.indexOf(item)
-    if (index !== -1) {
-      dirty = true
-      aa.splice(index, 1) 
-    }
-  }) 
-
-  return dirty ? aa : a
-}
 
 // generate a mediashare doc
 const createMediaShareDoc = (authorUUID, obj) => {

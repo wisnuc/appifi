@@ -1,8 +1,7 @@
 import path from 'path'
-import deepFreeze from 'deep-freeze'
 import { expect } from 'chai'
 
-import { rimrafAsync, mkdirpAsync, fs } from 'src/fruitmix/util/async'
+import { rimrafAsync, mkdirpAsync } from 'src/fruitmix/util/async'
 import { createDocumentStore } from 'src/fruitmix/lib/documentStore'
 import { createMediaShareStore } from 'src/fruitmix/lib/mediaShareStore'
 import MediaShareCollection from 'src/fruitmix/media/mediaShare'
