@@ -46,6 +46,7 @@ release/
 ./assets/
 ./xxhash.node
 ./xattr.node
+
 graph.svg
 
 # 

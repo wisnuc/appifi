@@ -15,7 +15,8 @@
     "fruit-unit": "NODE_PATH=. mocha --compilers js:babel-core/register --recursive --sort test/fruitmix/unit",
     "fruit-algo": "NODE_PATH=. NODE_ENV=test mocha --compilers js:babel-core/register --recursive --sort test/fruitmix/algo",
     "fruit-agent": "NODE_PATH=. NODE_ENV=test mocha --compilers js:babel-core/register --recursive --sort test/fruitmix/agent",
-    "mocha": "NODE_PATH=. NODE_ENV=test mocha --compilers js:babel-core/register --recursive --sort"
+    "mochamon": "node_path=. node_env=test nodemon --exec mocha --compilers js:babel-core/register --recursive --sort",
+    "mocha": "node_path=. node_env=test mocha --compilers js:babel-core/register --recursive --sort"
   },
   "dependencies": {
     "babel-runtime": "https://registry.npmjs.org/babel-runtime/-/babel-runtime-6.18.0.tgz",
@@ -58,6 +59,7 @@
     "babel-cli": "^6.10.1",
     "babel-core": "^6.7.4",
     "babel-eslint": "^6.1.0",
+    "babel-istanbul": "^0.12.2",
     "babel-loader": "^6.2.4",
     "babel-plugin-syntax-async-functions": "^6.8.0",
     "babel-plugin-transform-async-to-bluebird": "^1.0.0",

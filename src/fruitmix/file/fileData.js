@@ -2,16 +2,45 @@ import EventEmitter from 'events'
 
 class FileData extends EventEmitter {
 
-  constructor(drvdir) {
+  constructor(driveDir, model) {
 
-    this.drvdir = dir
-
+    this.dir = driveDir
+    this.model = model
+    this.root = new Node()
     this.uuidMap = new Map()
-    this.drives = []
+
+    // drives created and deleted are processed in batch
+    // it is easier to do assertion after change
+    model.on('drivesCreated', drives => 
+      drives.forEach(drv => { 
+        let target = path.join(this.driveDir, drv.uuid)
+        mkdirp(target, err => {
+          if (err) return // TODO LOG
+          forceDriveXstat(target, drv.uuid, (err, xstat) => {
+            if (err) return
+            let drvNode = new DriveNode(ctx, xstat, drv)
+            drvNode.attach(this.root)
+          })
+        })
+      }))
+
+    model.on('drivesDeleted', drives => 
+      this.root.getChilren
+        .filter(node => drives.map(d => d.uuid).includes(node.uuid))
+        .forEach(node => node.detach()))
+
+    model.on('driveUpdated', drive => {
+      let node = this.root.getChildren.find(n => n.uuid === drive.uuid)
+      if (node) node.update( 
+    })
   }
 
-  deleteDrive(drive) {
-    let index = this.drives.indexOf(drive)
+  nodeAttached(node) {
+    this.uuidMap.set(node.uuid, node)
+  }
+
+  nodeDetaching(node) {
+    this.uuidMap.delete(node.uuid)
   }
 
   createNode(parent, props) {
@@ -31,17 +60,6 @@ class FileData extends EventEmitter {
     this.uuidMap.set(uuid, node)
     node.attach(parent)
   }
-
-  createDrive(props) {
-
-    let { uuid } = props
-    let drive = new DriveNode(props, this.dir) 
-    
-    this.drive.push(drive)
-    this.uuidMap.set(uuid, drive)
-
-    drive.probe() // should be instant! TODO
-  } 
 
   // update means props changed
   updateNode(node, props) {

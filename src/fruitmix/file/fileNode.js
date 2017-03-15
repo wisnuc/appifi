@@ -79,7 +79,6 @@ class FileNode extends Node {
       this.ctx.emit('mediaDisappearing', this)
     super.detach()
   }
-
 }
 
 export default FileNode
