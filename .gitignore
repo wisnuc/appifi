@@ -56,3 +56,7 @@ tmpTestFoder/
 tmptest/
 
 _docpress/
+
+
+.nyc_output/
+

@@ -1,7 +1,8 @@
-import fs from 'fs'
-import mkdirp from 'mkdirp'
-import rimraf from 'rimraf'
-import xattr from 'fs-xattr'
+var fs = require('fs')
+var mkdirp = require('mkdirp')
+var rimraf = require('rimraf')
+var xattr = require('fs-xattr')
+var Promise = require('bluebird')
 
 Promise.promisifyAll(fs)
 Promise.promisifyAll(xattr)
@@ -9,6 +10,6 @@ Promise.promisifyAll(xattr)
 const mkdirpAsync = Promise.promisify(mkdirp)
 const rimrafAsync = Promise.promisify(rimraf)
 
-export { mkdirp, mkdirpAsync, rimraf, rimrafAsync }
+module.exports = { mkdirp, mkdirpAsync, rimraf, rimrafAsync }
 
 

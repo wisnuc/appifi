@@ -1,12 +1,12 @@
 import fs from 'fs'
-import child from 'child_process'
+var child = require('child_process')
 
-import xattr from 'fs-xattr'
-import UUID from 'node-uuid'
-import validator from 'validator'
+var xattr = require('fs-xattr')
+var UUID = require('node-uuid')
+var validator = require('validator')
 
-import E from '../lib/error'
-import { isUUID, isSHA256 } from '../lib/types'
+const E = require('../lib/error')
+const { isUUID, isSHA256 } = require('../lib/types')
 
 // constants
 const FRUITMIX = 'user.fruitmix'

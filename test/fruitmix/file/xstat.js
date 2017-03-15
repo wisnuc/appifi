@@ -5,11 +5,11 @@ import chai from 'chai'
 import xattr from 'fs-xattr'
 import validator from 'validator'
 
-import { mkdirpAsync, rimrafAsync } from 'src/fruitmix/lib/async'
+import { mkdirpAsync, rimrafAsync } from '../../../src/fruitmix/lib/async'
 
 import { 
   readTimeStamp 
-} from 'src/fruitmix/file/xstat'
+} from '../../../src/fruitmix/file/xstat'
 
 const expect = chai.expect
 
@@ -40,7 +40,7 @@ describe(path.basename(__filename) + ' readTimeStamp', () => {
 
 		it('should read timestamp', done => 
       fs.stat(tmpdir, (err, stats) => 
-        readTimeStamp(fpath, (err, mtime) => {
+        readTimeStamp(tmpdir, (err, mtime) => {
           if (err) return done(err)
           expect(mtime).to.equal(stats.mtime.getTime()) 
           done()
