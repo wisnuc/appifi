@@ -24,6 +24,10 @@ const subtractUUIDArray = (a, b) => {
   return dirty ? aa : a
 }
 
+const complement = (a, b) => 
+  a.reduce((acc, c) => 
+    b.includes(c) ? acc : [...acc, c], [])
+
 
 
 

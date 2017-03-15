@@ -31,6 +31,17 @@ class MediaShareStore {
     }) 
   }
 
+  async storeAsync(doc) {
+
+    // return new Promise((resolve, reject) => 
+    //   this.store(doc, (err, digest) => 
+    //     err ? reject(err) : resolve(digest)))
+    
+    // await Promise.promisify(this.store, { context: this })
+    // or 
+    return Promise.promisify(this.store).bind(this)(doc)
+  }
+
   archive(uuid, callback) {
     let srcpath = path.join(this.rootdir, uuid)
     let dstpath = path.join(this.arcdir, uuid)

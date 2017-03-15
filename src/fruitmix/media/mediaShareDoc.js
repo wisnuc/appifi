@@ -14,30 +14,95 @@ import{addUUIDArray, subtractUUIDArray} from '../lib/types'
   a share doc
 
   {
-    doctype: 'mediashare',
-    docversion: '1.0'
+M   doctype: 'mediashare',        // string, fixed
+M   docversion: '1.0'             // string, fixed
 
-    uuid: xxxx,
+M   uuid: xxxx,                   // STRING_UUID 
 
-    author: xxxx,
-*   maintainers: [], // 0..n 
-*   viewers: [], // 0..n
+M   author: xxxx,                 // STRING_UUID
+M   maintainers: [], // 0..n      // ARRAY_STRING_UUID
+M   viewers: [], // 0..n          // ARRAY_STRING_UUID
 
-*   album: null or object { title, text }
-*   sticky: true or false,
+M   album: null or object { title, text } // NULL || OBJECT
+M   sticky: true or false,        // bool fixed
     
-    ctime: xxxx,
-    mtime: xxxx,
+M   ctime: xxxx,                  // INT_TIME
+M   mtime: xxxx,                  // INT_TIME
 
-    contents: [
+M   contents: [                   // ARRAY_OBJECT
       {
-*       digest: xxxx
-        creator: xxxx
-        ctime: xxxx
+M       digest: xxxx
+M       creator: xxxx
+M       ctime: xxxx
       }
     ]
   }
 **/
+const assert = (predicate, message) => !predicate && throw message
+
+const unique = arr => new Set(arr).size === arr.length
+
+const validateProps = (obj, mandatory, optional = []) => { 
+  if (complement(mandatory, obj.keys()).length !== 0 )
+    throw 'some mandatory props not defined in object'
+  if (complement([...mandatory, ...optional], obj.keys()).length !== 0)
+    throw 'object has props that are neither mandatory nor optional'
+}
+
+const validateMediaShareDoc = doc, users => {
+
+  let creators = [doc.author, ...doc.maintainers]
+  let members = [doc.author, ...doc.maintainers, ...doc.viewers]
+
+  // structure
+  validateProps(doc, [
+    'doctype', 'docversion', 
+    'uuid', 'author', 'maintainers', 'viewers',
+    'album', 'sticky',
+    'ctime', 'mtime',
+    'contents'
+  ]) 
+
+  // data type
+  assert(doc.doctype === 'mediashare', 'invalid doctype') 
+  assert(doc.docversion === '1.0', 'invalid docversion')
+  assert(isUUID(doc.uuid), 'invalid uuid') // TODO unique check?
+  assert(isUUID(doc.author), 'invalid uuid') 
+
+  // if author is neither local nor remote user, the share is considered invalid
+  assert(users.map(u => uuid).includes(doc.author), 'author not found')
+
+  // non-existent maintainer or viewer is possible
+  assert(isUUIDArray(doc.maintainers), 'maintainers not uuid array')
+  assert(isUUIDArray(doc.viewers), 'viewers not uuid array')
+
+  // no member in list twice
+  assert(unique(members), 'members not unique')
+
+  assert(typeof doc.album === 'object', 'invalid album')
+  if (doc.album) {
+    validateProps(doc.album, ['title'], ['text'])
+    assert(typeof doc.album.title === 'string', 'album title not a string')
+
+    if (doc.album.hasOwnProperty('text')) 
+      assert(typeof doc.album.text === 'string', 'album text not a string')
+  }
+
+  assert(doc.sticky === false, 'invalid sticky')
+
+  assert(Number.isInteger(doc.ctime), 'invalid ctime')
+  assert(Number.isInteger(doc.mtime), 'invalid mtime')
+
+  doc.contents.forEach(entry => {
+
+    validateProps(entry, ['digest', 'creator', 'ctime'])
+    
+    assert(isSHA256(entry.digest), 'invalid digest')
+    assert(isUUID(entry.creator), 'invalid creator')
+    assert(creators.include(entry.creator), 'creator not author or maintainer')
+    assert(Number.isInteger(entry.ctime), 'invalid ctime')
+  })
+}
 
 // generate a mediashare doc
 const createMediaShareDoc = (authorUUID, obj) => {
@@ -197,5 +262,9 @@ const updateMediaShareDoc = (userUUID, doc, ops) => {
   return update
 }
 
-export { createMediaShareDoc, updateMediaShareDoc }
+export { 
+  createMediaShareDoc, 
+  updateMediaShareDoc,
+  validateMediaShareDoc,
+}
 

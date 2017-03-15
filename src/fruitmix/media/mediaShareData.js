@@ -6,11 +6,7 @@
 // singleton: mediashare collection (class -> singleton)
 //
 // external 
-import crypto from 'crypto'
 import EventEmitter from 'events'
-
-import validator from 'validator'
-import deepEqual from 'deep-equal'
 import deepFreeze from 'deep-freeze'
 
 import { createMediaShareDoc, updateMediaShareDoc } from 'src/fruitmix/media/mediaShareDoc'
@@ -92,66 +88,129 @@ import E from '../lib/error'
 class MediaShare {
 
   constructor(digest, doc) {
+
     this.digest = digest
-    this.doc =doc
+    this.doc = doc
+
+    deepFreeze(this)
   }
+}
+
+const invariantProps(c, n, props) {
+  props.forEach(prop => {
+    assert(c[prop] === n[prop], '')
+  })
+}
+
+const invarientUpdate(c, n) {
+
+  invariantProps(c, n, [
+    'doctype', 'docversion', 'uuid', 'author',
+    'sticky', 'ctime'
+  ])
+
+  c.forEach(cc => {
+    let nc = n.find(x => x.digest === cc.digest)
+    if (nc) {
+      invariantProps(cc, nc, ['creator', 'ctime'])
+    }
+  })  
 }
 
 class MediaShareData extends EventEmitter {
 
-  constructor(shareStore) {
+  constructor(model, shareStore) {
     super()
+    this.model = model 
     this.shareStore = shareStore
     this.shareMap = new Map()
+    this.lockSet = new Set()
   }
 
-  async createMediaShare(userUUID, post) {
+  getLock(uuid) {
+    if (this.lockSet.has(uuid)) throw
+    this.lockSet.add(uuid)    
+  }
 
-    let err, share
-    this.shareStore.storeAsync = Promise.promisify(this.shareStore.store)
+  putLock(uuid) {
+    if (!this.lockSet.has(uuid)) throw
+    this.lockSet.delete(uuid)
+  }
 
+  load() {
+    this.shareStore.retrieveAll((err, shares) => {
+      shares.forEach(share => {
+        this.shareMap.set(share.doc.uuid, share)
+        this.emit('create', share)
+      })
+    }) 
+  }
+
+  async storeAsync(doc) {
+
+    this.getLock(doc.uuid)
     try {
-      let doc = createMediaShareDoc(userUUID, post)
-      deepFreeze(doc)
-      let digest = await this.shareStore.storeAsync(doc)
-
-      share = {digest, doc}
-      this.shareMap.set(doc.uuid, share)
-      this.emit('create', share)
+      return await this.shareStore.storeAsync(doc)   
     }
-    catch(e) {
-      err = e
+    finally {
+      this.putLock(doc.uuid)
     }
-
-    if(err) throw err
-    return share
   }
 
-  // createMediaShare(userUUID, obj, callback) {
-  //   if(!isUUID(userUUID))
-  //     return process.nextTick(() => callback(EInvalid('invalid userUUID')))
+  async archiveAsync(uuid) {
 
-  //   try {
-  //     // create doc
-  //     let doc = createMediaShareDoc(userUUID, obj)
-  //     if(doc instanceof Error) {
-  //       return process.nextTick(callback, doc)
-  //     }
+    this.getLock(uuid)
+    try {
+      return await this.shareStore.archiveAsync(uuid)
+    }
+    finally {
+      this.putLock(uuid)
+    }
+  } 
 
-  //     this.shareStore.store(doc, (err, share) => {
-  //       if(err) return callback(err)
-  //       this.indexShare(share)
-  //       this.emit('create', share)
-  //       callback(null, share)
-  //     })
-  //   } catch(e) {
-  //     console.log(e)
-  //   }
-  // }
+  async createMediaShare(doc) {
+
+    validateMediaShareDoc(doc, this.model.getUsers())
+
+    let digest = await this.storeAsync(doc)
+    let share = new MediaShare(digest, doc)
+
+    this.shareMap.set(doc.uuid, share)
+    this.emit('mediaShareCreated', share)
+  }
+
+  async updateMediaShare(doc) {
+
+    validateMediaShareDoc(doc, this.model.getUsers())
+
+    let share = this.shareMap.get(doc.uuid)
+    if (!share) throw 'uuid not found'
+
+    invariantUpdate(share.doc, )
+
+    let digest = await this.storeAsync(doc) 
+    let next = new MediaShare(digest, doc)
+   
+    this.emit('mediaShareUpdating', share, next)
+    this.shareMap.set(doc.uuid, next)
+    this.emit('mediaShareUpdated', share, next)
+  }
+
+  async deleteMediaShare(uuid) {
+
+    let share = this.shareMap.get(uuid)
+    if (!share) throw 'uuid not found'
+
+    await this.archiveAsync(uuid) 
+
+    this.emit('mediaShareDeleting', share)
+    this.shareMap.delete(uuid)
+  }
+
 
   async updateMediaShare(userUUID, shareUUID, patch) {
 
-    let err, updatedShare
+    let err
     this.shareStore.storeAsync = Promise.promisify(this.shareStore.store)
 
     let share = this.shareMap.get(shareUUID)
@@ -167,10 +226,8 @@ class MediaShareData extends EventEmitter {
       if (doc !== share.doc) {
         digest = await this.shareStore.storeAsync(doc)
 
-        updatedShare = {digest, doc}
-
-        this.shareMap.set(shareUUID, updatedShare)
-        this.emit('update', updatedShare)
+        this.shareMap.set(shareUUID, {digest, doc})
+        this.emit('update', {digest, doc})
       }
     }
     catch(e) {
@@ -181,7 +238,7 @@ class MediaShareData extends EventEmitter {
     }
 
     if (err) throw err
-    return updatedShare
+    return {digest, doc}
   }
 
   // updateMediaShare(userUUID, shareUUID, ops, callback){
@@ -235,13 +292,13 @@ class MediaShareData extends EventEmitter {
 
   async deleteMediaShare(shareUUID) {
     let err
-    let archiveAsync = Promise.promisify(this.shareStore.archive)
+    this.shareStore.archiveAsync = Promise.promisify(this.shareStore.archive)
 
     let share = this.shareMap.get(shareUUID)
     if (share.lock) throw new E.ELOCK()
 
     try {
-      await archiveAsync(shareUUID)
+      await this.shareStore.archiveAsync(shareUUID)
       this.shareMap.delete(shareUUID)
       this.emit('delete', share)
     }
@@ -250,7 +307,6 @@ class MediaShareData extends EventEmitter {
     }
     
     if(err) throw err
-
   }
 
   // deleteMediaShare(userUUID, shareUUID, callback) {
@@ -287,18 +343,10 @@ class MediaShareData extends EventEmitter {
   //   }
   // }
 
-  load() {
-    this.shareStore.retrieveAll((err, shares) => {
-      shares.forEach(share => {
-        this.shareMap.set(share.doc.uuid, share)
-        this.emit('create', share)
-      })
-    }) 
-  }
-
 }
 
-const createMediaShareData = (shareStore) => new MediaShareData(shareStore)
-
-export default createMediaShareData
+const createMediaShareData = (model, shareStore) => {
+  Promise.promisifyAll(shareStore)
+  return new MediaShareData(model, shareStore)
+}
 
