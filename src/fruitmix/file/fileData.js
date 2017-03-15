@@ -2,34 +2,27 @@ import EventEmitter from 'events'
 
 class FileData extends EventEmitter {
 
-  constructor(dir) {
+  constructor(drvdir) {
 
-    this.dir = dir
-
-    this.Node = 
-    this.FileNode = 
-    this.DirectoryNode =
-    this.DriveNode = 
+    this.drvdir = dir
 
     this.uuidMap = new Map()
     this.drives = []
   }
 
   deleteDrive(drive) {
-    
     let index = this.drives.indexOf(drive)
-
   }
 
   createNode(parent, props) {
-
     let node
+
     switch(props.type) {
       case 'directory':
-        node = new DirectoryNode(parent, props)        
+        node = new DirectoryNode(this, props)        
         break
       case 'file':
-        node = new FileNode(parent, props)
+        node = new FileNode(this, props)
         break
       default:
         throw //TODO
