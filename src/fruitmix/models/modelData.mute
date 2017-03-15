@@ -1,13 +1,23 @@
 import fs from 'fs'
+
 import EventEmitter from 'events'
+
 import UUID from 'node-uuid'
 import E from '../lib/error'
+// import mkdirp from 'mkdirp'
+
+import validator from 'validator'
+import ursa from 'ursa'
+import bcrypt from 'bcrypt'
+import { md4Encrypt } from '../tools'
 import path from 'path'
 import { isUUID } from '../lib/types'
 
 
 /**
+
   data integrity (stateless)
+
 {
   type: 'local'
   
@@ -57,27 +67,18 @@ a friends: [],      // uuid array, each uuid is a remote user, no dup
 }
 **/ 
 
-const assert = (predicate, message) => {
-  if (!predicate)
-    throw new Error(message);
-}
+const assert = (predicate, message) => !predicate && throw message
 
 const unique = arr => new Set(arr).size === arr.length
-
-const isUniqueUUIDArray = arr => unique(arr)
-  && (arr.every(i => isUUID(i)) || arr.length === 0)
-
 const arrayEqual = (arr1, arr2) => arr1.lengh === arr2.length
   && arr1.every((item, index) => item === arr2[index])
-
-const isNonEmptyString = str => typeof str === 'string' && str.length
 
 const complement = (a, b) => 
   a.reduce((acc, c) => b.includes(c) 
     ? acc 
     : [...acc, c], [])
 
-const validateProps = (obj, mandatory, optional = []) => 
+const validateProps(obj, mandatory, optional = []) => 
   complement(obj.keys(), [...mandatory, ...opt]).length === 0 &&
   complement(mandatory, obj.keys()).length === 0
 
@@ -215,7 +216,7 @@ const validateModel = (users, drives) => {
 
 const invariantProps = (p, c, props) => 
   props.forEach(prop => 
-    assert(p[prop] === c[prop]), `invariant ${prop} violated`)
+    assert(p[prop] ==== c[prop]), `invariant ${prop} violated`)
 
 const invariantUpdateLocalUser = (p, c) => 
   invariantProps(p, c, [
@@ -236,6 +237,7 @@ const invariantUpdatePassword = (prev, curr) =>
     'email', 'avatar', 'home', 'library', 'service', 'unixuid', 'unixname',
     'credentials', 'friends'
   ])
+}
 
 const invariantUpdatePublicDrive = (p, c) => 
   invariantProps(p, c, [
@@ -301,7 +303,7 @@ class ModelData extends EventEmitter {
   async updateUserAsync(next, pwd) {
 
     let index = this.users.findIndex(u => u.uuid === next.uuid)
-    if (index === -1) throw new Error('user not found');
+    if (index === -1) throw
 
     let user = this.users[index]
     if (user.type === 'local' && !pwd)
@@ -311,7 +313,7 @@ class ModelData extends EventEmitter {
     else if (user.type === 'remote' && !pwd)
       invariantUpdateRemoteUser(user, next)
     else
-      throw new Error('user type error');
+      throw xxxx
 
     let nextUsers = [
       ...this.users.slice(0, index),
@@ -324,7 +326,7 @@ class ModelData extends EventEmitter {
 
   async createDriveAsync(newDrive) {
 
-    if (newDrive.type !== 'public') throw new Error('only create public drive');
+    if (newDrive.type !== 'public') throw xxx
     let nextDrives = [...this.drives, newDrive]
     
     await this.updateModelAsync(this.users, nextDrives)
@@ -333,10 +335,10 @@ class ModelData extends EventEmitter {
   async updateDriveAsync(next) {
 
     let index = this.drives.findIndex(d => d.uuid === next.uuid)
-    if (index === -1) throw new Error('drive note found');
+    if (index === -1) throw
 
     let drive = this.drives[index]
-    if (drive.type !== 'public') throw new Error('only update public drive');
+    if (drive.type !== 'public') throw
     
     invariantUpdatePublicDrive(drive, next)
 
@@ -352,10 +354,10 @@ class ModelData extends EventEmitter {
   async deleteDriveAsync(driveUUID) {
 
     let index = this.drives.findIndex(d => d.uuid === driveUUID)
-    if (index === -1) throw new Error('drive not found');
+    if (index === -1) throw
 
     let drive = this.drives[index]
-    if (drive.type !== 'public') throw new Error('only delete public drive');
+    if (drive.type !== 'public') throw
 
     let nextDrives = [
       ...this.drives.slice(0, index),
