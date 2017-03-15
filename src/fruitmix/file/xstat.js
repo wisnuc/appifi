@@ -1,12 +1,13 @@
+import path from 'path'
 import fs from 'fs'
-var child = require('child_process')
+import child from 'child_process'
 
-var xattr = require('fs-xattr')
-var UUID = require('node-uuid')
-var validator = require('validator')
+import xattr from 'fs-xattr'
+import UUID from 'node-uuid'
+import validator from 'validator'
 
-const E = require('../lib/error')
-const { isUUID, isSHA256 } = require('../lib/types')
+import E from '../lib/error'
+import { isUUID, isSHA256 } from '../lib/types'
 
 // constants
 const FRUITMIX = 'user.fruitmix'
@@ -40,7 +41,7 @@ const readXstatAsync = async (target, raw) => {
 
   // if this throws, target may be invalid
   let stats = await fs.lstatAsync(target)
-  if (!stats.isDirectory() && !stats.isFile()) throw E.ENOTDIRFILE()
+  if (!stats.isDirectory() && !stats.isFile()) throw new E.ENOTDIRFILE()
 
   try {
     // may throw xattr ENOENT or JSON SyntaxError
@@ -193,6 +194,7 @@ export {
 
   readTimeStamp,
   readXstat,
+  readXstatAsync,
   updateFileHash,
   updateFile,
   forceDriveXstat,
