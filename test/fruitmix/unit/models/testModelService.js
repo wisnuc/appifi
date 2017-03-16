@@ -11,23 +11,46 @@ Promise.promisifyAll(fs);
 const uuid_1 = "5da92303-33a1-4f79-8d8f-a7b6becde6c3";
 const uuid_2 = "b9aa7c34-8b86-4306-9042-396cf8fa1a9c";
 const uuid_3 = "f97f9e1f-848b-4ed4-bd47-1ddfa82b2777";
+const uuid_4 = "f97f9e1f-848b-4ed4-bd47-1ddfa82b5432";
 const users = [{
-  type: 'local',
-	uuid: uuid_1,
-  username: 'panda',
-  password: '$2a$10$ejkgWk/ChHcLyZiic1H2CeLdoVcz15eZ/3Lymj1ncimVvq6E7OvWy',
-  avatar: null,
-  email: null,
-  isFirstUser: true,
-  isAdmin: true,
-  home: uuid_2,
-  library: uuid_3,
+  type: 'local',//
+	uuid: uuid_1,//
+  username: 'panda',//
+  nologin: false,//
+  avatar: null,//
+  email: null,//
+  isFirstUser: true,//
+  isAdmin: true,//
+  home: uuid_2,//
+  library: uuid_3,//
+  service: uuid_4,//
+  password: '$2a$10$ejkgWk/ChHcLyZiic1H2CeLdoVcz15eZ/3Lymj1ncimVvq6E7OvWy',//
+  unixPassword: 'some str',
+  smbPassword: 'some str',//
+  unixuid: 2000,//
+  unixname: 'pandaa',
+  friends:[],//
+  credentials:{	//
+  	publicKey: 'some str',
+  	privateKey: 'some str'
+  },
+  lastChangeTime: 1489644639494	//
 }];
 const drives = [{
-	label: 'panda home',
   uuid: uuid_2,
-  owner: [ uuid_1 ],
-  type: 'private'
+  owner: uuid_1,
+  type: 'private',
+  label: 'home'
+},{
+  uuid: uuid_3,
+  owner: uuid_1,
+  type: 'private',
+  label: 'library'
+},{
+  uuid: uuid_4,
+  owner: uuid_1,
+  type: 'private',
+  label: 'service'
 }];
 
 const rimrafAsync = Promise.promisify(rimraf);
@@ -62,12 +85,12 @@ describe(path.basename(__filename), () => {
 			model = await createModelServiceAsync(modelData);
 			done();
 		});
-		it.only('empty users Array & enpty drives Array', done => {
+		it('empty users Array & enpty drives Array', done => {
 			fs.readFile(mfile, (err, data) => {
 				if(err) return done(err);
 				let res = JSON.parse(data.toString());
-				expect(model.users).to.deep.equal(res.users);
-				expect(model.drives).to.deep.equal(res.drives);
+				expect(model.modelData.users).to.deep.equal(res.users);
+				expect(model.modelData.drives).to.deep.equal(res.drives);
 				done();
 			});
 		});
@@ -82,15 +105,15 @@ describe(path.basename(__filename), () => {
 			// create user.json & drive.json
 			await dataToFileAsync(users, ufile);
 			await dataToFileAsync(drives, dfile);
-			model = await createModelAsync(mfile, ufile, dfile, tmpfolder);
+			model = await createModelServiceAsync(modelData);
 			done();
 		});
 		it('user.json and drive.json information combination model.json', done => {
 			fs.readFile(mfile, (err, data) => {
 				if(err) return done(err);
 				let res = JSON.parse(data.toString());
-				expect(model.users).to.deep.equal(res.users);
-				expect(model.drives).to.deep.equal(res.drives);
+				expect(model.modelData.users).to.deep.equal(res.users);
+				expect(model.modelData.drives).to.deep.equal(res.drives);
 				done();
 			});
 		});
@@ -104,17 +127,17 @@ describe(path.basename(__filename), () => {
 			// create tmptest folder
 			await mkdirpAsync(tmptest);
 			// create user.json
-			let modelData = Object.assign({}, { version: 1, users, drives });
-			await dataToFileAsync(modelData, mfile);
-			model = await createModelAsync(mfile, ufile, dfile, tmpfolder);
+			let data = Object.assign({}, { version: 1, users, drives });
+			await dataToFileAsync(data, mfile);
+			model = await createModelServiceAsync(modelData);
 			done();
 		});
-		it('user.json and drive.json information combination model.json', done => {
+		it('read model.json', done => {
 			fs.readFile(mfile, (err, data) => {
 				if(err) return done(err);
 				let res = JSON.parse(data.toString());
-				expect(model.users).to.deep.equal(res.users);
-				expect(model.drives).to.deep.equal(res.drives);
+				expect(model.modelData.users).to.deep.equal(res.users);
+				expect(model.modelData.drives).to.deep.equal(res.drives);
 				done();
 			});
 		});
@@ -126,123 +149,174 @@ describe(path.basename(__filename), () => {
 			// create tmptest folder
 			await mkdirpAsync(tmptest);
 			// create user.json
-			let modelData = Object.assign({}, { version: 1, users: [], drives: [] });
-			await dataToFileAsync(modelData, mfile);
-			model = await createModelAsync(mfile, ufile, dfile, tmpfolder);
+			let data = Object.assign({}, { version: 1, users, drives });
+			await dataToFileAsync(data, mfile);
+			model = await createModelServiceAsync(modelData);
 			done();
 		});
 		it('create local user', async done => {
 			let props = {
 				type: 'local',
-				username: 'panda',
+				username: 'pandab',
 				unixname: 'hello',
 				password: 'world',
-				email: 'wangpanhn@qq.com',
-				isAdmin: true
 			};
 			try {
-				await model.createUserAsync(props);
+				await model.createLocalUserAsync(uuid_1, props);
 				fs.readFile(mfile, (err, data) => {
 					if(err) return done(err);
 					let res = JSON.parse(data.toString());
-					expect(model.users).to.deep.equal(res.users);
-					expect(model.drives).to.deep.equal(res.drives);
+					expect(model.modelData.users).to.deep.equal(res.users);
+					expect(model.modelData.drives).to.deep.equal(res.drives);
 					done();
 				});					
-			} catch (e) {
-				done(e);
-			}
+			} catch (e) { done(e); }
+		});
+
+		it('create remote user', async done => {
+			let props = {
+				type: 'remote',
+				username: 'panda remote',
+				label: 'remote service'
+			};
+			try {
+				await model.createRemoteUserAsync(uuid_1, props);
+				fs.readFile(mfile, (err, data) => {
+					if(err) return done(err);
+					let res = JSON.parse(data.toString());
+					expect(model.modelData.users).to.deep.equal(res.users);
+					expect(model.modelData.drives).to.deep.equal(res.drives);
+					done();
+				});
+			} catch (e) { done(e); }
+		});
+
+		it('update admin', async done => {
+			try {
+				await model.updateUser(uuid_1, { username : 'pandaa', uuid: uuid_1 });
+				fs.readFile(mfile, (err, data) => {
+					if(err) return done(err);
+					let res = JSON.parse(data.toString());
+					expect(model.modelData.users).to.deep.equal(res.users);
+					expect(model.modelData.drives).to.deep.equal(res.drives);
+					done();
+				});
+			} catch (e) { done(e); }
 		});
 
 		it('update user', async done => {
 			let props = {
 				type: 'local',
-				username: 'panda',
+				username: 'pandab',
 				unixname: 'hello',
 				password: 'world',
-				email: 'wangpanhn@qq.com',
-				isAdmin: true
 			};
 			try {
-				await model.createUserAsync(props);
-				let uuid = model.users[0].uuid;
-				await model.updateUserAsync(uuid, { username : 'pandaa'});
+				await model.createLocalUserAsync(uuid_1, props);
+				let uuid = model.modelData.users.filter(u => u.username === 'pandab').map(u => u.uuid);
+				await model.updateUser(uuid_1, { username : 'pandac', uuid: uuid[0] });
 				fs.readFile(mfile, (err, data) => {
 					if(err) return done(err);
 					let res = JSON.parse(data.toString());
-					expect(model.users).to.deep.equal(res.users);
-					expect(model.drives).to.deep.equal(res.drives);
+					expect(model.modelData.users).to.deep.equal(res.users);
+					expect(model.modelData.drives).to.deep.equal(res.drives);
 					done();
 				});
-			} catch (e) {
-				done(e);
-			}
+			} catch (e) { done(e); }
 		});
 
-		it('create service drives', async done => {
-			let props = {
-				type: 'service',
-				label: 'panda service drive'
-			};
+		it('update password', async done => {
 			try {
-				await model.createDriveAsync(props);
+				await model.updatePasswordAsync(uuid_1, { uuid: uuid_1, password: 'hello word'})
 				fs.readFile(mfile, (err, data) => {
 					if(err) return done(err);
 					let res = JSON.parse(data.toString());
-					expect(model.users).to.deep.equal(res.users);
-					expect(model.drives).to.deep.equal(res.drives);
+					expect(model.modelData.users).to.deep.equal(res.users);
+					expect(model.modelData.drives).to.deep.equal(res.drives);
 					done();
 				});
-			} catch (e) {
-				done(e);
-			}
+			} catch(e) { done(e); } 
 		});
 
-		it('update service drives', async done => {
-			let props = {
-				type: 'service',
-				label: 'panda service drive'
-			};
+		it('create friends', async done => {
 			try {
-				await model.createDriveAsync(props);
-				let uuid = model.drives[0].uuid;
-				await model.updateDriveAsync(uuid, { label: 'pandaa service drive'});
+				await model.createFriendAsync(uuid_1, { uuid: uuid_1, friends: [ uuid_2 ] });
 				fs.readFile(mfile, (err, data) => {
 					if(err) return done(err);
 					let res = JSON.parse(data.toString());
-					expect(model.users).to.deep.equal(res.users);
-					expect(model.drives).to.deep.equal(res.drives);
+					expect(model.modelData.users).to.deep.equal(res.users);
+					expect(model.modelData.drives).to.deep.equal(res.drives);
 					done();
 				});
-			} catch (e) {
-				done(e);
-			}
+			} catch(e) { done(e); }
 		});
 
-		it('delete drive', async done => {
-			let prop1 = {
-				type: 'service',
-				label: 'a service drive'
-			};
-			let prop2 = {
-				type: 'service',
-				label: 'b service drive'
-			};
+		it('delete friends', async done => {
 			try {
-				await model.createDriveAsync(prop1);
-				await model.createDriveAsync(prop2);
-				let uuid = model.drives[0].uuid;
-				await model.deleteDriveAsync(uuid);
+				await model.createFriendAsync(uuid_1, { uuid: uuid_1, friends: [ uuid_2, uuid_3 ] });
+				await model.deleteFriendAsync(uuid_1, { uuid: uuid_1, friends: [ uuid_2 ] });
 				fs.readFile(mfile, (err, data) => {
 					if(err) return done(err);
 					let res = JSON.parse(data.toString());
-					expect(model.users).to.deep.equal(res.users);
-					expect(model.drives).to.deep.equal(res.drives);
+					expect(model.modelData.users).to.deep.equal(res.users);
+					expect(model.modelData.drives).to.deep.equal(res.drives);
 					done();
 				});
-			} catch (e) {
-				done(e);
-			}
+			} catch(e) { done(e); }
+		});
+
+		it('create public dirve', async done => {
+			try {
+				await model.createPublicDriveAsync(uuid_1,
+						{ label: 'public driveA' });
+				fs.readFile(mfile, (err, data) => {
+					if(err) return done(err);
+					let res = JSON.parse(data.toString());
+					expect(model.modelData.users).to.deep.equal(res.users);
+					expect(model.modelData.drives).to.deep.equal(res.drives);
+					done();
+				});
+			} catch(e) { done(e); }
+		});
+
+		it('update public drive', async done => {
+			try {
+				await model.createPublicDriveAsync(uuid_1,
+						{ uuid: uuid_1, label: 'public driveA' });
+				let duuid = model.modelData.drives
+					.filter(d => d.type === 'public')
+					.map(d => d.uuid);
+				await model.updatePublicDriveAsync(uuid_1,
+						{ label: 'public driveB', uuid: duuid[0] });
+				fs.readFile(mfile, (err, data) => {
+					if(err) return done(err);
+					let res = JSON.parse(data.toString());
+					expect(model.modelData.users).to.deep.equal(res.users);
+					expect(model.modelData.drives).to.deep.equal(res.drives);
+					done();
+				});
+			} catch(e) { done(e); }
+		});
+
+		it('delete public dirve', async done => {
+			try {
+				await model.createPublicDriveAsync(uuid_1,
+						{ label: 'public driveA' });
+				await model.createPublicDriveAsync(uuid_1,
+						{ label: 'public driveB' });
+				let duuid = model.modelData.drives
+					.filter(d => d.type === 'public')
+					.map(d => d.uuid);
+				await model.deletePublicDriveAsync(uuid_1,
+						{ driveuuid: duuid[0] });
+				fs.readFile(mfile, (err, data) => {
+					if(err) return done(err);
+					let res = JSON.parse(data.toString());
+					expect(model.modelData.users).to.deep.equal(res.users);
+					expect(model.modelData.drives).to.deep.equal(res.drives);
+					done();
+				});
+			} catch(e) { done(e); }
 		});
 
 	});

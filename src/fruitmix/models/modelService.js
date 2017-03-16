@@ -72,8 +72,6 @@ class ModelService {
   // opaque
   async initializeAsync() {
 
-    if (this.modelData.lock) throw new E.ELOCK();
-    this.modelData.getLock();
     let err = null;
     let users, drives;
     let modelPath = this.modelData.modelPath;
@@ -84,7 +82,7 @@ class ModelService {
       try {
         let modelInfo = await fileToJsonAsync(modelPath);
         users = modelInfo.users;
-        drives = modelinfo.drives;
+        drives = modelInfo.drives;
       } catch (e) { err = e; }
     } else {
       // read user.json & drive.json
@@ -107,7 +105,7 @@ class ModelService {
 	async createLocalUserAsync(useruuid, props) {
     // check permission
     let users = this.modelData.users;
-    let admins = user.filter(u => u.isAdmin === true)
+    let admins = users.filter(u => u.isAdmin === true).map(u => u.uuid);
     if (users.length !== 0 && !admins.includes(useruuid))
       throw new Error('must be an administrator to create a user');
     if (props.type !== 'local')
@@ -122,13 +120,14 @@ class ModelService {
 
     if (nologin !== true) nologin = false;
     if (isAdmin !== true) isAdmin = false;
-    if (user.length === 0){
+    if (isFirstUser !== true) isFirstUser = false;
+    if (users.length === 0){
       isFirstUser = true;
       isAdmin = true;
     }
 
     email = email || null;
-    avatar = avata || null;
+    avatar = avatar || null;
 
     let home = UUID.v4();
     let library = UUID.v4();
@@ -154,9 +153,9 @@ class ModelService {
     };
     // install newDrives
     let common = { owner: uuid, type: 'private' };
-    let homeDrive     = Object.assign({}, common, { uuid: home,     label: 'home' });
-    let libraryDrive  = Object.assign({}, common, { uuid: library,  label: 'library' });
-    let serviceDrive  = Object.assign({}, common, { uuid: service,  label: 'service' });
+    let homeDrive     = Object.assign({}, common, { uuid: home, label: 'home' });
+    let libraryDrive  = Object.assign({}, common, { uuid: library, label: 'library' });
+    let serviceDrive  = Object.assign({}, common, { uuid: service, label: 'service' });
     let newDrives = [ homeDrive, libraryDrive, serviceDrive ];
     try {
       await this.modelData.createUserAsync(newUser, newDrives);
@@ -166,39 +165,39 @@ class ModelService {
 	async createRemoteUserAsync(useruuid, props) {
     // check permission
     let users = this.modelData.users;
-    let admins = user.filter(u => u.isAdmin === true)
+    let admins = users.filter(u => u.isAdmin === true).map(u => u.uuid);
     if (!admins.includes(useruuid)) throw new Error('must be an administrator to create a user');
     if (props.type !== 'remote') throw new Error('the new user type must be remote');
     // install newUser
     let type = 'remote';
+    let username = props.username;
     let uuid = UUID.v4();
     let email = props.email || null;
     let avatar = props.email || null;
     let service = UUID.v4();
-    let lastChangeTime = new Date.getTime();
-    let newUser = { type, uuid, username, email, avatar, service, lastChangeTime };
+    let newUser = { type, uuid, username, email, avatar, service };
     // install newdrives
-    let newDrives = {
-      label: 'service',
+    let newDrives = [{
       uuid: service,
-      type: 'service'
-    }
+      type: 'private',
+      owner: uuid,
+      label: 'remote service'
+    }]
     try {
       await this.modelData.createUserAsync(newUser, newDrives);
     } catch (e) { throw e; }
   }
 
-	async updateLocalUser(useruuid, props) {
+	async updateUser(useruuid, props) {
     // check permission
     let users = this.modelData.users;
-    let admins = user.filter(u => u.isAdmin === true);
+    let admins = users.filter(u => u.isAdmin === true).map(u => u.uuid);
     // Not an administrator && not oneself
-    if (!admins.includes(useruuid) && porps.uuid !== useruuid)
+    if (!admins.includes(useruuid) && props.uuid !== useruuid)
       throw new Error('no permission to modify user information');
     // install user
     let user = users.find(u => u.uuid === props.uuid);
-    let lastChangeTime = new Date().getTime();
-    let next = Object.assign({}, user, props, { lastChangeTime });
+    let next = Object.assign({}, user, props );
     try {
       await this.modelData.updateUserAsync(next);
     } catch (e) { throw e; }
@@ -208,7 +207,7 @@ class ModelService {
 	async updatePasswordAsync(useruuid, props) {
     // check permission
     let users = this.modelData.users;
-    let admins = user.filter(u => u.isAdmin === true);
+    let admins = users.filter(u => u.isAdmin === true).map(u => u.uuid);
     // Not an administrator && not oneself
     if (!admins.includes(useruuid) && props.uuid !== useruuid)
       throw new Error('no permission to modify user password');
@@ -218,11 +217,11 @@ class ModelService {
     let password = passwordEncrypt(props.password, 10);
     let unixPassword = passwordEncrypt(props.password, 8);    //???
     let smbPassword = md4Encrypt(props.password);
-    let lastChangeTime = new Date.getTime();
+    let lastChangeTime = new Date().getTime();
 
     let next = Object.assign({}, user, { password, unixPassword, smbPassword, lastChangeTime });
     try {
-      await this.modelData.updateUserAsync(next, pwd);
+      await this.modelData.updateUserAsync(next, props.password);
     } catch (e) { throw e; }
   }
 
@@ -230,16 +229,15 @@ class ModelService {
 	async createFriendAsync(useruuid, props) {
     // check permission
     let users = this.modelData.users;
-    let admins = user.filter(u => u.isAdmin === true);
+    let admins = users.filter(u => u.isAdmin === true).map(u => u.uuid);
     // Not an administrator && not oneself
     if (!admins.includes(useruuid) && props.uuid !== useruuid)
       throw new Error('no permission to create friend');
     // install user
     let user = users.find(u => u.uuid === props.uuid);
     let newFriends = mergeAndDedup(user.friends, props.friends);
-    let lastChangeTime = new Date().getTime();
 
-    let next = Object.assign({}, user, { friends: newFriends, lastChangeTime });
+    let next = Object.assign({}, user, { friends: newFriends });
     try {
       await this.modelData.updateUserAsync(next);
     } catch (e) { throw e; }
@@ -249,34 +247,35 @@ class ModelService {
 	async deleteFriendAsync(useruuid, props) {
     // check permission
     let users = this.modelData.users;
-    let admins = user.filter(u => u.isAdmin === true);
+    let admins = users.filter(u => u.isAdmin === true).map(u => u.uuid);
     // Not an administrator && not oneself
     if (!admins.includes(useruuid) && props.uuid !== useruuid)
       throw new Error('no permission to delete friend');
     // install user
     let user = users.find(u => u.uuid === props.uuid);
     let newFriends = arrDeleteArr(user.friends, props.friends);
-    let lastChangeTime = new Date().getTime();
 
-    let next = Object.assign({}, user, { friends: newFriends, lastChangeTime });
+    let next = Object.assign({}, user, { friends: newFriends });
     try {
       await this.modelData.updateUserAsync(next);
     } catch (e) { throw e; }
   }
 
+  // pros: { uuid, label }
 	async createPublicDriveAsync(useruuid, props) {
     // check permission ---- all user can create public drive ???
-    let users = this.modelDate.users;
+    let users = this.modelData.users.map(u => u.uuid);
     if (!users.includes(useruuid))
       throw new Error('no permission to create public drive');
     //install new drive
     let uuid = UUID.v4();
-    let type = props.type;
+    let type = 'public';
     let writelist = props.writelist || [];
     let readlist = props.readlist || [];
     let shareAllowed = props.shareAllowed === true ? true : false;
+    let label = props.label;
 
-    let newDrive = { uuid, type, writelist, readlist, shareAllowed };
+    let newDrive = { uuid, type, label, writelist, readlist, shareAllowed };
     try {
       await this.modelData.createDriveAsync(newDrive);
     } catch (e) { throw e; }
@@ -284,12 +283,12 @@ class ModelService {
 
 	async updatePublicDriveAsync(useruuid, props) {
     // check permission  --- all user can update public drive ???
-    let users = this.modelDate.users;
+    let users = this.modelData.users.map(u => u.uuid);
     if (!users.includes(useruuid))
       throw new Error('no permission to create public drive');
     // install next drive
     let drives = this.modelData.drives;
-    let drive = drives.find(d => d.uuid = props.uuid);
+    let drive = drives.find(d => d.uuid === props.uuid);
 
     let next = Object.assign({}, drive, props);
     try {
@@ -300,7 +299,7 @@ class ModelService {
   // props: { driveuuid }
 	async deletePublicDriveAsync(useruuid, props) {
     // check permission  --- all user can delete public drive ???
-    let users = this.modelDate.users;
+    let users = this.modelData.users.map(u => u.uuid);
     if (!users.includes(useruuid))
       throw new Error('no permission to create public drive');
     // delete

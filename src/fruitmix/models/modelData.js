@@ -67,7 +67,7 @@ const unique = arr => new Set(arr).size === arr.length
 const isUniqueUUIDArray = arr => unique(arr)
   && (arr.every(i => isUUID(i)) || arr.length === 0)
 
-const arrayEqual = (arr1, arr2) => arr1.lengh === arr2.length
+const arrayEqual = (arr1, arr2) => arr1.length === arr2.length
   && arr1.every((item, index) => item === arr2[index])
 
 const isNonEmptyString = str => typeof str === 'string' && str.length
@@ -78,8 +78,8 @@ const complement = (a, b) =>
     : [...acc, c], [])
 
 const validateProps = (obj, mandatory, optional = []) => 
-  complement(obj.keys(), [...mandatory, ...opt]).length === 0 &&
-  complement(mandatory, obj.keys()).length === 0
+  complement(Object.keys(obj), [...mandatory, ...optional]).length === 0 &&
+  complement(mandatory, Object.keys(obj)).length === 0
 
 const localUserMProps = [
   'type', 'uuid', 'username', 'password', 'nologin', 
@@ -92,7 +92,6 @@ const localUserMProps = [
 const localUserOProps = ['unixname', 'unixPassword']
 
 const validateLocalUser = u => {
-
   assert(validateProps(u, localUserMProps, localUserOProps), 'invalid object props')
 
   assert(isUUID(u.uuid), 'invalid user uuid') 
@@ -135,7 +134,7 @@ const validateRemoteUser = u => {
   assert(isUUID(u.service), 'invalid service uuid')
 }
 
-const publicDriveMProps = ['uuid', 'type', 'writelist', 'readlist', 'shareAllowed']
+const publicDriveMProps = ['uuid', 'type', 'writelist', 'readlist', 'shareAllowed', 'label']
 const validatePublicDrive = pb => {
 
   assert(validateProps(pb, publicDriveMProps))
@@ -148,13 +147,13 @@ const validatePublicDrive = pb => {
   assert(typeof pb.shareAllowed === 'boolean', 'shareAllowed must be boolean')
 }
 
-const privateDriveMProps = ['uuid', 'type', 'owner']
+const privateDriveMProps = ['uuid', 'type', 'owner', 'label']
 const validatePrivateDrive = pv => {
 
   assert(validateProps(pv, privateDriveMProps))
 
-  assert(isUUID(u.uuid), 'invalid drive uuid')
-  assert(isUUID(u.owner), 'invalid drive owner uuid')
+  assert(isUUID(pv.uuid), 'invalid drive uuid')
+  assert(isUUID(pv.owner), 'invalid drive owner uuid')
 }
 
 // a partial model validation
@@ -192,32 +191,36 @@ const validateModel = (users, drives) => {
   }
 
   // validate drive type
-  assert(drives.every(d => d.type === 'private' || d.type === 'public'), 'invalid drive type')
+  assert(drives.every(d => 
+    d.type === 'private'
+    || d.type === 'public'), 'invalid drive type')
 
   let publics = drives.filter(d => d.type === 'public').sort()
   let privates = drives.filter(d => d.type === 'private').sort()
 
-  publics.forEach(pb => validatePublicDrives(pb))
-  privates.forEach(pv => validatePrivateDrives(pv))
+  publics.forEach(pb => validatePublicDrive(pb))
+  privates.forEach(pv => validatePrivateDrive(pv))
 
   // unique drive uuid
   assert(unique(drives.map(d => d.uuid)), 'drive uuid must be unique')
 
   // bi-directional user-drive relationship
   let udrvs = [
-    ...locals.reduce((acc, u) => [...arr, u.home, u.library, u.service], []),
-    ...remotes.reduce((acc, u) => [...arr, u.service], [])
+    ...locals.reduce((acc, u) => [...acc, u.home, u.library, u.service], []),
+    ...remotes.reduce((acc, u) => [...acc, u.service], [])
   ]
 
   // since privates are unique, this implies
   // 1. all user drives exists, are unique and private
   // 2. all private drive are actually used by users
-  assert(arrayEqual(udrvs, privates), 'all user drives must be equal to all privates')
+  let pvuuids = privates.map(pv => pv.uuid);
+
+  assert(arrayEqual(udrvs.sort(), pvuuids.sort()), 'all user drives must be equal to all privates')
 }
 
 const invariantProps = (p, c, props) => 
   props.forEach(prop => 
-    assert(p[prop] === c[prop]), `invariant ${prop} violated`)
+    assert(p[prop] === c[prop], `invariant ${prop} violated`))
 
 const invariantUpdateLocalUser = (p, c) => 
   invariantProps(p, c, [
@@ -232,7 +235,7 @@ const invariantUpdateRemoteUser = (p, c) =>
     'type', 'uuid', 'service'  
   ])
 
-const invariantUpdatePassword = (prev, curr) =>
+const invariantUpdatePassword = (p, c) =>
   invariantProps(p, c, [
     'type', 'uuid', 'username', 'nologin', 'isFirstUser', 'isAdmin',
     'email', 'avatar', 'home', 'library', 'service', 'unixuid', 'unixname',
@@ -271,9 +274,8 @@ class ModelData extends EventEmitter {
   }
 
   async updateModelAsync(users, drives) {
-
+    if (this.lock) throw new E.ELOCK();
     validateModel(users, drives)
-
     this.getLock()
     try {
 
@@ -283,8 +285,8 @@ class ModelData extends EventEmitter {
       await fs.writeFileAsync(tmpfile, json) 
       await fs.renameAsync(tmpfile, this.modelPath)
 
-      this.users = nextUsers
-      this.drives = nextDrives
+      this.users = users
+      this.drives = drives
     }
     catch (e) { throw e }
     finally{ this.putLock() }
@@ -296,16 +298,20 @@ class ModelData extends EventEmitter {
     let nextUsers = [...this.users, newUser]
     let nextDrives = [...this.drives, ...newDrives]
 
-    await this.updateModelAsync(nextUser, nextDrives)
+    await this.updateModelAsync(nextUsers, nextDrives)
   }
 
   // both local and remote, and password
   async updateUserAsync(next, pwd) {
 
+    // console.log(next)
+    // console.log(this.users)
+
     let index = this.users.findIndex(u => u.uuid === next.uuid)
     if (index === -1) throw new Error('user not found');
 
     let user = this.users[index]
+
     if (user.type === 'local' && !pwd)
       invariantUpdateLocalUser(user, next)  
     else if (user.type === 'local')
@@ -333,7 +339,7 @@ class ModelData extends EventEmitter {
   } 
 
   async updateDriveAsync(next) {
-
+    
     let index = this.drives.findIndex(d => d.uuid === next.uuid)
     if (index === -1) throw new Error('drive note found');
 
