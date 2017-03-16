@@ -183,11 +183,13 @@ const validateModel = (users, drives) => {
     .filter(u => u.hasOwnProperty('unixname'))
     .map(u => u.unixname)), 'unixname must be unique')
 
-  // single first user
-  assert(locals.filter(u => u.isFirstUser === true).length === 1, 'single first user')
+  if (locals.length){
+    // single first user
+    assert(locals.filter(u => u.isFirstUser === true).length === 1, 'single first user')
 
-  // first user admin
-  assert(locals.find(u => u.isFirstUser).isAdmin === true, 'first user must be admin')  
+    // first user admin
+    assert(locals.find(u => u.isFirstUser).isAdmin === true, 'first user must be admin')
+  }
 
   // validate drive type
   assert(drives.every(d => d.type === 'private' || d.type === 'public'), 'invalid drive type')
