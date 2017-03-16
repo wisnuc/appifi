@@ -15,7 +15,8 @@ const { ENOTDIRFILE } = E
 import { 
   readTimeStamp,
   readXstat,
-  readXstatAsync
+  readXstatAsync,
+  forceDriveXstatAsync,
 } from '../../../src/fruitmix/file/xstat'
 
 chai.use(chaiAsPromised)
@@ -43,10 +44,11 @@ describe(path.basename(__filename) + ' readTimeStamp', () => {
 
 	describe('readTimeStamp', () => {
 
-    before(() => (async () => {
+    before(async () => {
       await rimrafAsync(tmptest) 
       await mkdirpAsync(tmptest)
-    })())
+    })
+
 
 		it('should read timestamp', done => 
       fs.stat(tmpdir, (err, stats) => 
@@ -60,20 +62,15 @@ describe(path.basename(__filename) + ' readTimeStamp', () => {
 
 describe(path.basename(__filename) + ' readXstat', () => {
 
-  beforeEach(() => (async () => {
+  beforeEach(async () => {
     await rimrafAsync(tmptest) 
     await mkdirpAsync(tmptest)
-  })())
+  })
 
   describe('readXstat', () => {
 
-    beforeEach(() => {
-      sinon.stub(UUID, 'v4').returns(uuidArr[2])  
-    })
-
-    afterEach(() => {
-      UUID.v4.restore()
-    })
+    beforeEach(() => sinon.stub(UUID, 'v4').returns(uuidArr[2]))
+    afterEach(() => UUID.v4.restore())
 
     it('should read xstat from clean directory', done => {
       fs.stat(tmpdir, (err, stats) => {
@@ -163,6 +160,44 @@ describe(path.basename(__filename) + ' readXstat', () => {
     })
   })
 }) 
+
+describe(path.basename(__filename) + ' forceDriveXstat', () => {
+
+  let pre
+
+  beforeEach(async () => {
+    await rimrafAsync(tmptest) 
+    await mkdirpAsync(tmptest)
+    let stats = await fs.statAsync(tmpdir)
+    pre = {
+      uuid: uuidArr[2],
+      type: 'directory',
+      name: 'tmptest',
+      mtime: stats.mtime.getTime() 
+    }
+    sinon.stub(UUID, 'v4').returns(uuidArr[1])
+  })
+
+  afterEach(() => UUID.v4.restore())
+
+  it('should force xstat of clean dirctory', async () => {
+    let xstat = await forceDriveXstatAsync(tmpdir, uuidArr[2])
+    expect(xstat).to.deep.equal(pre)
+  })
+
+  it('should force xstat of directory with existing (different) uuid', async () => {
+
+    let xstat
+
+    await xattr.setAsync(tmpdir, 'user.fruitmix', JSON.stringify({ uuid: uuidArr[0] }))
+
+    // xstat = await readXstatAsync(tmpdir)
+    // expect(xstat.uuid).to.equal(uuidArr[0])
+
+    xstat = await forceDriveXstatAsync(tmpdir, uuidArr[2])
+    expect(xstat).to.deep.equal(pre)
+  })
+})
 
 
 

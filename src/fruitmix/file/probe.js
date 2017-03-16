@@ -1,5 +1,5 @@
 import fs from 'fs'
-import E from './lib/error'
+import E from '../lib/error'
 
 // we do not use state machine pattern and event emitter for performance sake
 // the probe is essentially the same as originally designed stm, it just cut the transition from
@@ -35,7 +35,7 @@ const probe = (dpath, uuid, delay, callback) => {
         }))
     })
 
-  let timer = setTimeout(() => {
+  timer = setTimeout(() => {
     readXstat(dpath, (err, xstat) => { 
       if (aborted) return
       if (err) callback(err)

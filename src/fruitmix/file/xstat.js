@@ -7,6 +7,8 @@ import UUID from 'node-uuid'
 import validator from 'validator'
 
 import E from '../lib/error'
+import _ from '../lib/async'
+
 import { isUUID, isSHA256 } from '../lib/types'
 
 // constants
@@ -170,7 +172,7 @@ const forceDriveXstatAsync = async (target, driveUUID) => {
 
   let attr = { uuid: driveUUID }
   await xattr.setAsync(target, FRUITMIX, JSON.stringify(attr))
-  return await readXstat(target, false)
+  return await readXstatAsync(target, false)
 }
 
 const readXstat = (target, callback) => 
@@ -198,6 +200,7 @@ export {
   updateFileHash,
   updateFile,
   forceDriveXstat,
+  forceDriveXstatAsync,
 
   // testing only
   parseMagic,
