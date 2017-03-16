@@ -3,8 +3,8 @@ import fs from 'fs'
 import { expect } from 'chai'
 import rimraf from 'rimraf';
 import mkdirp from 'mkdirp';
-import createModelData from 'src/fruitmix/models/modelData'
-import createModelServiceAsync from 'src/fruitmix/models/modelService'
+import createModelData from '../../../../src/fruitmix/models/modelData'
+import createModelServiceAsync from '../../../../src/fruitmix/models/modelService'
 
 Promise.promisifyAll(fs);
 
