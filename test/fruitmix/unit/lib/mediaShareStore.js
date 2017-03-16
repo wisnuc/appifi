@@ -104,6 +104,64 @@ describe(path.basename(__filename), function() {
     })
   })
 
+  describe('storeAsync', function() {
+    let msstore
+    const createMediaShareStoreAsync = Promise.promisify(createMediaShareStore)
+
+    beforeEach(() => (async () => {
+      await rimrafAsync(tmptest)
+      await mkdirpAsync(tmptest)
+      docstore = await createDocumentStoreAsync(tmptest)
+      msstore = await createMediaShareStoreAsync(tmptest, docstore)
+    })())
+
+    afterEach(() => (async () => {
+      await rimrafAsync('tmptest')
+    })())
+
+    it('should store share001 with correct ref file (using storeAsync)', async done => {
+      let digest
+      try {
+        digest = await msstore.storeAsync(share001)
+      }
+      catch (e) {
+        throw e
+      }
+
+      let refpath = path.join(msstore.rootdir, share001.uuid)
+      let data = await fs.readFileAsync(refpath)
+      expect(data.toString()).to.equal(share001Hash)
+      done()
+    })
+
+    it('should store share001 in docstore (using storeAsync)', async done => {
+      let digest
+      try {
+        digest = await msstore.storeAsync(share001)
+      }
+      catch (e) {
+        throw e
+      }
+      docstore.retrieve(share001Hash, (err, object) => {
+        if (err) return done(err)
+        expect(object).to.deep.equal(share001)
+        done()
+      })
+    })
+
+    it('should store share001 and return digest (using storeAsync)', async done => {
+      let digest
+      try {
+        digest = await msstore.storeAsync(share001)
+      }
+      catch (e) {
+        throw e
+      }
+      expect(digest).to.equal(share001Hash)
+      done()
+    })
+  })
+
   describe('archive sharedocument ref', function() {
 
     let msstore
@@ -148,6 +206,45 @@ describe(path.basename(__filename), function() {
           })
         })
       })
+    })
+  })
+
+  describe('archiveAsync', function() {
+
+    let msstore
+    const createMediaShareStoreAsync = Promise.promisify(createMediaShareStore)
+
+    beforeEach(() => (async () => {
+      await rimrafAsync(tmptest)
+      await mkdirpAsync(tmptest)
+      docstore = await createDocumentStoreAsync(tmptest)
+      msstore = await createMediaShareStoreAsync(tmptest, docstore)
+    })())
+
+    afterEach(() => (async () => {
+      await rimrafAsync('tmptest')
+    })())
+
+    it('archive should remove share001 ref out of root folder (archiveAsync)', async done => {
+      await msstore.storeAsync(share001)
+      await msstore.archiveAsync(share001.uuid)
+
+      let srcpath = path.join(msstore.rootdir, share001.uuid)
+      fs.stat(srcpath, err => {
+        expect(err).to.be.an('error')
+        expect(err.code).to.equal('ENOENT')
+        done()
+      })
+    })
+
+    it('archive should move share001 ref to archive folder (archiveAsync)', async done => {
+      await msstore.storeAsync(share001)
+      await msstore.archiveAsync(share001.uuid)
+
+      let dstpath = path.join(msstore.arcdir, share001.uuid)
+      let data = await fs.readFileAsync(dstpath)
+      expect(data.toString()).to.equal(share001Hash)
+      done()
     })
   })
 

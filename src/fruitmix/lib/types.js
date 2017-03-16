@@ -9,25 +9,11 @@ const addUUIDArray = (a, b) => {
   return deepEqual(a, c) ? a :c
 }
 
-// remove the element in a which already exist in b
-const subtractUUIDArray = (a, b) => {
-  let aa = [...a]
-  let dirty = false
-
-  b.forEach(item => {
-    let index = aa.indexOf(item)
-    if (index !== -1) {
-      dirty = true
-      aa.splice(index, 1) 
-    }
-  }) 
-  return dirty ? aa : a
-}
-
 const complement = (a, b) => 
   a.reduce((acc, c) => 
     b.includes(c) ? acc : [...acc, c], [])
 
+const assert = (predicate, message) => { if(!predicate) throw new Error(message) }
 
 
 
@@ -35,5 +21,6 @@ export {
   isUUID,
   isSHA256,
   addUUIDArray,
-  subtractUUIDArray
+  complement,
+  assert,
 }

@@ -1,8 +1,8 @@
 // for all operations, user should be valid, shareUUID should be validated by caller (rest router)
 
-import { isUUID, isSHA256, subtractUUIDArray } from '../lib/types'
+import { isUUID, isSHA256, complement } from '../lib/types'
 import E from '../lib/error'
-import { fileReadable } from '' // TODO
+import { mediaShareAllowed } from './mediaData' // TODO
 
 const dedupe = (isType) => {
   return (arr) => {
@@ -25,13 +25,13 @@ class MediaShareOperations {
     if(!isUUID(user)) throw new E.EINVAL()
     if(typeof post !== 'object' || post === null) throw new E.EINVAL()
 
-    let {maintainers, viewers, album, sticky, contents} = post
+    let {maintainers, viewers, album, contents} = post
 
     // contents (format and permission check)
     if(!Array.isArray(contents)) throw new E.EINVAL()
     contents = dedupe(isSHA256)(contents)
     if(!contents.length) throw new E.EINVAL()
-    if(contents.every(digest => fileReadable(user, digest))) throw new E.EACCESS()
+    if(contents.every(digest => mediaShareAllowed(user, digest))) throw new E.EACCESS()
 
     // maintainers check
     if(!Array.isArray(maintainers)) maintainers = []
@@ -40,21 +40,21 @@ class MediaShareOperations {
     // veiwers check
     if(!Array.isArray(viewers)) viewers = []
     viewers = dedupe(isUUID)(viewers).filter(viewers => viewers !== user)
-    viewers = subtractUUIDArray(viewers, maintainers)
+    viewers = complement(viewers, maintainers)
 
     // album check 
     if(typeof album === 'object' && album !== null) {
-      let title = typeof album.title === 'string' ? album.title : ''
-      let text = typeof album.text === 'string' ? album.text : ''
-      if(title === '' && text === '') album = null
-      else album = {title, text}
+      let title, text
+      title = typeof album.title === 'string' ? album.title : ''
+      if(album.hasOwnProperty('text')) {
+        text = typeof album.text === 'string' ? album.title : ''
+        album = {title, text}
+      } 
+      else album = {title}
     }
     else album = null
 
-    // sticky must be true or false, default to false
-    if(typeof sticky !== 'boolean') sticky = false
-
-    post = {maintainers, veiwers, album, sticky, contents}
+    post = {maintainers, veiwers, album, contents}
     return await this.msc.createMediaShare(user, post)
   } 
 

@@ -9,7 +9,7 @@
 import EventEmitter from 'events'
 import deepFreeze from 'deep-freeze'
 
-import { createMediaShareDoc, updateMediaShareDoc } from 'src/fruitmix/media/mediaShareDoc'
+import { validateMediaShareDoc } from './mediaShareDoc'
 import E from '../lib/error'
 
 /**
@@ -53,38 +53,6 @@ import E from '../lib/error'
   }
 **/
 
-// const isUUID = (uuid) => (typeof uuid === 'string') ? validator.isUUID(uuid) : false
-// const isSHA256 = (sha256) => (typeof sha256 === 'string') ? /[a-f0-9]{64}/.test(sha256) : false
-// const EInvalid = (text) => Object.assign((new Error(text || 'invalid args')), { code: 'EINVAL' })
-
-// const dedupe = (isType) => {
-//   return (arr) => {
-//     let validArr = arr.filter(isType)
-//     return Array.from(new Set(validArr))
-//   }
-// }
-
-// const addUUIDArray = (a, b) => {
-//   let c = dedupe(isUUID)([...a, ...b])
-//   return deepEqual(a, c) ? a :c
-// }
-
-// // remove the element in a which already exist in b
-// const subtractUUIDArray = (a, b) => {
-//   let aa = [...a]
-//   let dirty = false
-
-//   b.forEach(item => {
-//     let index = aa.indexOf(item)
-//     if (index !== -1) {
-//       dirty = true
-//       aa.splice(index, 1) 
-//     }
-//   }) 
-
-//   return dirty ? aa : a
-// }
-
 class MediaShare {
 
   constructor(digest, doc) {
@@ -96,21 +64,21 @@ class MediaShare {
   }
 }
 
-const invariantProps(c, n, props) {
+const invariantProps = (c, n, props) => {
   props.forEach(prop => {
-    assert(c[prop] === n[prop], '')
+    assert(c[prop] === n[prop], 'invariant has changed')
   })
 }
 
-const invarientUpdate(c, n) {
+const invariantUpdate = (c, n) => {
 
   invariantProps(c, n, [
     'doctype', 'docversion', 'uuid', 'author',
     'sticky', 'ctime'
   ])
 
-  c.forEach(cc => {
-    let nc = n.find(x => x.digest === cc.digest)
+  c.contents.forEach(cc => {
+    let nc = n.contents.find(x => x.digest === cc.digest)
     if (nc) {
       invariantProps(cc, nc, ['creator', 'ctime'])
     }
@@ -128,23 +96,23 @@ class MediaShareData extends EventEmitter {
   }
 
   getLock(uuid) {
-    if (this.lockSet.has(uuid)) throw
+    if (this.lockSet.has(uuid)) throw new E.ELOCK()
     this.lockSet.add(uuid)    
   }
 
   putLock(uuid) {
-    if (!this.lockSet.has(uuid)) throw
+    if (!this.lockSet.has(uuid)) throw new E.ENOLOCK()
     this.lockSet.delete(uuid)
   }
 
-  load() {
-    this.shareStore.retrieveAll((err, shares) => {
-      shares.forEach(share => {
-        this.shareMap.set(share.doc.uuid, share)
-        this.emit('create', share)
-      })
-    }) 
-  }
+  // load() {
+  //   this.shareStore.retrieveAll((err, shares) => {
+  //     shares.forEach(share => {
+  //       this.shareMap.set(share.doc.uuid, share)
+  //       this.emit('create', share)
+  //     })
+  //   }) 
+  // }
 
   async storeAsync(doc) {
 
@@ -169,7 +137,6 @@ class MediaShareData extends EventEmitter {
   } 
 
   async createMediaShare(doc) {
-
     validateMediaShareDoc(doc, this.model.getUsers())
 
     let digest = await this.storeAsync(doc)
@@ -180,13 +147,12 @@ class MediaShareData extends EventEmitter {
   }
 
   async updateMediaShare(doc) {
-
     validateMediaShareDoc(doc, this.model.getUsers())
 
     let share = this.shareMap.get(doc.uuid)
-    if (!share) throw 'uuid not found'
+    if (!share) throw new E.ENOENT() // 'uuid not found'
 
-    invariantUpdate(share.doc, )
+    invariantUpdate(share.doc, doc)
 
     let digest = await this.storeAsync(doc) 
     let next = new MediaShare(digest, doc)
@@ -199,7 +165,7 @@ class MediaShareData extends EventEmitter {
   async deleteMediaShare(uuid) {
 
     let share = this.shareMap.get(uuid)
-    if (!share) throw 'uuid not found'
+    if (!share) throw new E.ENOENT() // 'uuid not found'
 
     await this.archiveAsync(uuid) 
 
@@ -208,38 +174,38 @@ class MediaShareData extends EventEmitter {
   }
 
 
-  async updateMediaShare(userUUID, shareUUID, patch) {
+  // async updateMediaShare(userUUID, shareUUID, patch) {
 
-    let err
-    this.shareStore.storeAsync = Promise.promisify(this.shareStore.store)
+  //   let err
+  //   this.shareStore.storeAsync = Promise.promisify(this.shareStore.store)
 
-    let share = this.shareMap.get(shareUUID)
-    let { digest, doc } = share
+  //   let share = this.shareMap.get(shareUUID)
+  //   let { digest, doc } = share
 
-    if (share.lock) throw new E.ELOCK()
-    share.lock = true
+  //   if (share.lock) throw new E.ELOCK()
+  //   share.lock = true
 
-    try {
-      doc = updateMediaShareDoc(userUUID, share.doc, patch)
-      deepFreeze(doc)
+  //   try {
+  //     doc = updateMediaShareDoc(userUUID, share.doc, patch)
+  //     deepFreeze(doc)
 
-      if (doc !== share.doc) {
-        digest = await this.shareStore.storeAsync(doc)
+  //     if (doc !== share.doc) {
+  //       digest = await this.shareStore.storeAsync(doc)
 
-        this.shareMap.set(shareUUID, {digest, doc})
-        this.emit('update', {digest, doc})
-      }
-    }
-    catch(e) {
-      err = e
-    }
-    finally {
-      share.lock = false 
-    }
+  //       this.shareMap.set(shareUUID, {digest, doc})
+  //       this.emit('update', {digest, doc})
+  //     }
+  //   }
+  //   catch(e) {
+  //     err = e
+  //   }
+  //   finally {
+  //     share.lock = false 
+  //   }
 
-    if (err) throw err
-    return {digest, doc}
-  }
+  //   if (err) throw err
+  //   return {digest, doc}
+  // }
 
   // updateMediaShare(userUUID, shareUUID, ops, callback){
   //   if(!isUUID(userUUID))
@@ -290,24 +256,24 @@ class MediaShareData extends EventEmitter {
   //   }
   // }
 
-  async deleteMediaShare(shareUUID) {
-    let err
-    this.shareStore.archiveAsync = Promise.promisify(this.shareStore.archive)
+  // async deleteMediaShare(shareUUID) {
+  //   let err
+  //   this.shareStore.archiveAsync = Promise.promisify(this.shareStore.archive)
 
-    let share = this.shareMap.get(shareUUID)
-    if (share.lock) throw new E.ELOCK()
+  //   let share = this.shareMap.get(shareUUID)
+  //   if (share.lock) throw new E.ELOCK()
 
-    try {
-      await this.shareStore.archiveAsync(shareUUID)
-      this.shareMap.delete(shareUUID)
-      this.emit('delete', share)
-    }
-    catch(e) {
-      err = e
-    }
+  //   try {
+  //     await this.shareStore.archiveAsync(shareUUID)
+  //     this.shareMap.delete(shareUUID)
+  //     this.emit('delete', share)
+  //   }
+  //   catch(e) {
+  //     err = e
+  //   }
     
-    if(err) throw err
-  }
+  //   if(err) throw err
+  // }
 
   // deleteMediaShare(userUUID, shareUUID, callback) {
   //   if(!isUUID(userUUID))
@@ -350,3 +316,4 @@ const createMediaShareData = (model, shareStore) => {
   return new MediaShareData(model, shareStore)
 }
 
+export { createMediaShareData }
