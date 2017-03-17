@@ -1,7 +1,7 @@
 import fs from 'fs'
 
-import command from './lib/command'
-import { isSHA256 } from './lib/types'
+import command from '../lib/command'
+import { isSHA256 } from '../lib/types'
 import { updateFileHash } from './xstat'
 
 const hasher = (target, uuid, callback) => {

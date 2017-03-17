@@ -35,7 +35,7 @@ class Node {
     if (this.parent) throw new Error('node is already attached')
     this.parent = parent
     if (parent) parent.setChild(this)
-    this.ctx.nodeAttached()
+    this.ctx.nodeAttached(this)
   } 
 
   detach() {
@@ -62,14 +62,21 @@ class Node {
     }
   }
 
-  abspath() {
-  }
-
   nodepath() {
     let q = []
     this.upEach(node => q.unshift(node))
     return q
   } 
+
+
+  abspath() { 
+    let q = []
+    for (let n = this; n !== this.ctx.root; n = n.parent) 
+      q.unshift(n.name)
+
+    return path.join(this.ctx.dir, ...q)
+  }
+
 
   namepath() {
     return path.join(...this.nodepath().map(n => n.name))
@@ -88,7 +95,7 @@ class Node {
 }
 
 
-
+export default Node
 
 
 

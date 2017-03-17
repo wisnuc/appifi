@@ -1,4 +1,4 @@
-import DirectoryNode from './node'
+import DirectoryNode from './directoryNode'
 
 class DriveNode extends DirectoryNode {
 

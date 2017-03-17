@@ -22,7 +22,7 @@ const command = (cmd, args, callback) => {
     if (signal) 
       return callback(new E.EEXITSIGNAL(`exit with signal ${signal}`))
     if (code) 
-      return callback(new E.EEXITCODE(`exit with code ${code}`)
+      return callback(new E.EEXITCODE(`exit with code ${code}`))
 
     callback(null, output.toString())
   })

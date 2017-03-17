@@ -2,7 +2,7 @@ import validator from 'validator'
 import deepEqual from 'deep-equal'
 
 const isUUID = uuid => typeof uuid === 'string' && validator.isUUID(uuid)
-const isSHA256 = (hash) => /[a-f0-9]{64}/.test(hash)
+const isSHA256 = hash => /[a-f0-9]{64}/.test(hash)
 
 const addUUIDArray = (a, b) => {
   let c = Array.from(new Set([...a, ...b]))
@@ -21,7 +21,6 @@ const validateProps = (obj, mandatory, optional = []) => {
   if (complement(Object.keys(obj), [...mandatory, ...optional]).length !== 0)
     throw new Error('object has props that are neither mandatory nor optional')
 }
-
 
 export {
   isUUID,

@@ -1,4 +1,4 @@
-import command from './lib/command'
+import command from '../lib/command'
 import hash from './hash'
 import identify from './identify'
 import Node from './node'

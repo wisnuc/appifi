@@ -1,24 +1,32 @@
+import path from 'path'
 import EventEmitter from 'events'
+
+import mkdirp from 'mkdirp'
+
+import { forceDriveXstat } from './xstat'
+import Node from './node'
+import DriveNode from './driveNode'
 
 class FileData extends EventEmitter {
 
   constructor(driveDir, model) {
-
+    super()
     this.dir = driveDir
     this.model = model
-    this.root = new Node()
+    this.root = new Node(this)
     this.uuidMap = new Map()
 
     // drives created and deleted are processed in batch
     // it is easier to do assertion after change
     model.on('drivesCreated', drives => 
       drives.forEach(drv => { 
-        let target = path.join(this.driveDir, drv.uuid)
+        let target = path.join(this.dir, drv.uuid)
         mkdirp(target, err => {
           if (err) return // TODO LOG
           forceDriveXstat(target, drv.uuid, (err, xstat) => {
             if (err) return
-            let drvNode = new DriveNode(ctx, xstat, drv)
+
+            let drvNode = new DriveNode(this, xstat, drv)
             drvNode.attach(this.root)
           })
         })
@@ -31,7 +39,7 @@ class FileData extends EventEmitter {
 
     model.on('driveUpdated', drive => {
       let node = this.root.getChildren.find(n => n.uuid === drive.uuid)
-      if (node) node.update( 
+      if (node) node.update(drive)
     })
   }
 
@@ -41,6 +49,14 @@ class FileData extends EventEmitter {
 
   nodeDetaching(node) {
     this.uuidMap.delete(node.uuid)
+  }
+
+  probeStarted(node) {
+    console.log(`node ${node.uuid} probe started`)
+  }
+
+  probeStopped(node) {
+    console.log(`node ${node.uuid} probe stopped`)
   }
 
   createNode(parent, props) {
@@ -54,7 +70,7 @@ class FileData extends EventEmitter {
         node = new FileNode(this, props)
         break
       default:
-        throw //TODO
+        throw 'bad props' //TODO
     } 
 
     this.uuidMap.set(uuid, node)
@@ -69,7 +85,7 @@ class FileData extends EventEmitter {
   deleteNode(node) {
     node.postVisit(n => {
       n.detach()
-      this.uuid...
+      // this.uuid...
     })
   }
 
@@ -80,7 +96,7 @@ class FileData extends EventEmitter {
   }
 }
 
-export default () => new FileData()
+export default FileData
 
 
 

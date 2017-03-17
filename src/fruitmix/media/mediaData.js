@@ -23,6 +23,9 @@ class MediaData {
     mediaShareData.on('shareCreated', share => {
     })
 
+    mediaShareData.on('shareUpdating', share => {
+    })
+
     mediaShareData.on('shareUpdated', (oldShare, newShare) => {
     })
 
