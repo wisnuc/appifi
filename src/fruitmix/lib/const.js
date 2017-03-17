@@ -16,7 +16,7 @@ const DIR = {
 Object.freeze(DIR)
 
 const FILE = {
-  MTIME: -1
+  NULLTIME: -9999
 }
 
 export { DIR, FILE }

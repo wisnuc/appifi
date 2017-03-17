@@ -1,15 +1,15 @@
-import { FILE } from './lib/const'
+import { FILE } from '../lib/const'
 import probe from './probe'
 import Node from './node'
 import FileNode from './fileNode'
 
 class DirectoryNode extends Node {
 
-  constructor(ctx, props) {
+  constructor(ctx, xstat) {
     super(ctx)
-    this.uuid = props.uuid
-    this.name = props.name
-    this.mtime = FILE.MTIME
+    this.uuid = xstat.uuid
+    this.name = xstat.name
+    this.mtime = FILE.NULLTIME
   }
 
   merge(mtime, xstats) {
@@ -46,20 +46,16 @@ class DirectoryNode extends Node {
 
     if (this.worker) return this.worker.request()
 
-    let delay = this.mtime === FILE.MTIME ? 0 : 500
     let dpath = this.abspath()
     let uuid = this.uuid
+    let mtime = this.mtime
+    let delay = mtime === FILE.NULLTIME ? 0 : 500
 
-    // audit
-    this.ctx.probeCountInc()
+    this.ctx.probeStarted(this) // audit
+    this.worker = probe(dpath, uuid, mtime, delay, (err, result) => { 
 
-    this.worker = probe(dpath, uuid, delay, (err, result) => { 
-
-      // audit
-      this.ctx.decProbeCount()
-
-      // !!! important
       this.worker = null
+      this.ctx.probeStopped(this) // audit
 
       if (err) {
         if (err.code === 'EABORT') return
@@ -68,8 +64,9 @@ class DirectoryNode extends Node {
           : this.probe()
       }
       else {
-        let { mtime, xstats, again } = result
-        this.merge(mtime, xstats) 
+
+        let { data, again } = result
+        if (data) this.merge(data.mtime, data.xstats) 
         if (again) this.probe()                
       }
     })
@@ -82,8 +79,7 @@ class DirectoryNode extends Node {
 
   update(xstat) {
     this.name = xstat.name   
-    if (this.mtime !== xstat.mtime)
-      this.probe()
+    if (this.mtime !== xstat.mtime) this.probe()
   }
 
   detach() {

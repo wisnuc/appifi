@@ -4,6 +4,8 @@ import E from '../lib/error'
 
 import { readXstat } from './xstat'
 
+
+
 // we do not use state machine pattern and event emitter for performance sake
 // the probe is essentially the same as originally designed stm, it just cut the transition from
 // probing to waiting or idle. 
@@ -74,8 +76,6 @@ const probe = (dpath, uuid, mtime, delay, callback) => {
 
     type: 'probe',
     abort() {
-
-
       aborted = true
       callback(new E.EABORT())
     },
@@ -87,4 +87,72 @@ const probe = (dpath, uuid, mtime, delay, callback) => {
 }
 
 export default probe
+
+class probeWorker extends EventEmitter {
+
+  constructor() {
+
+    this.type = 'probe'
+
+    this.dpath = dpath
+    this.uuid = uuid
+    this.mtime = mtime
+    this.delay = delay
+
+    // state
+    this.finished = false
+    this.timer = null
+
+    // relay
+    this.again = false
+  }
+
+  readXstats(callback) {
+    fs.readdir(this.dpath, (err, entries) => {
+      if (this.finished) return 
+      if (err) return callback(err)
+      if (entries.length === 0) return callback(null, [])
+
+      let xstats = []
+      let count = entries.length
+      entries.forEach(ent => 
+        readXstat(path.join(this.dpath, ent), (err, xstat) => {
+          if (this.finished) return
+          if (!err) xstats.push(xstat)
+          if (!--count) {
+            xstats.sort((a,b) => a.name.localeCompare(b.name))
+            callback(null, xstats)
+          }
+        }))
+    })
+  }
+
+  probe() {       
+    this.timer = setTimeout(() => {
+       
+    }, this.deay)  
+  }
+
+  request() {
+    if (this.timer) return
+    again = true
+  }
+
+  abort() {
+    if (this.timer) {
+      clearTimeout(this.timer)
+      this.timer = null
+    }
+    this.finished = true
+  }
+}
+
+
+
+
+
+
+
+
+
 

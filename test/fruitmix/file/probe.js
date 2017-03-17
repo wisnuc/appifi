@@ -8,7 +8,10 @@ import xattr from 'fs-xattr'
 import validator from 'validator'
 
 import E from '../../../src/fruitmix/lib/error'
+import { FILE } from '../../../src/fruitmix/lib/const'
+
 import { mkdirpAsync, rimrafAsync } from '../../../src/fruitmix/lib/async'
+import { readXstatAsync, forceDriveXstatAsync } from '../../../src/fruitmix/file/xstat'
 import probe from '../../../src/fruitmix/file/probe'
 
 chai.use(chaiAsPromised)
@@ -32,18 +35,114 @@ const cwd = process.cwd()
 const tmptest = 'tmptest'
 const tmpdir = path.join(cwd, tmptest)
 
-const tree001 = {
-  'dir0': {
-    uuid: uuidArr[0]
-  }
+const tree01 = {
+  'dir0': { uuid: uuidArr[0], type: 'directory' },
+  'dir1': { uuid: uuidArr[1], type: 'directory' },
+  'file0': { uuid: uuidArr[2], type: 'file' },
+  'file1': { uuid: uuidArr[3], type: 'file' },
 }
 
-describe(path.basename(__filename) + ' probe empty directory, first time', () => {
-  it('should probe single empty directory', done => {
-    probe(tmpdir, uuidArr[0], 0, (err, result) => {
-      console.log(err || result)
-      
+const fillAsync = async (dir, tree) => {
+
+  let xstats = []
+
+  for (let prop in tree) {
+    if (tree.hasOwnProperty(prop)) {
+
+      let npath = path.join(tmpdir, prop)
+      if (tree[prop].type === 'directory') {
+        await mkdirpAsync(npath)
+        xattr.setAsync(npath, 'user.fruitmix', JSON.stringify({
+          uuid: tree[prop].uuid 
+        }))
+      }
+      else {
+        await fs.writeFileAsync(npath, '\n')
+        xattr.setAsync(npath, 'user.fruitmix', JSON.stringify({
+          uuid: tree[prop].uuid,
+          magic: 0
+        }))
+      } 
+
+      xstats.push(await readXstatAsync(npath))
+    }
+  }
+
+  xstats.sort((a, b) => a.name.localeCompare(b.name))
+
+  let stats = await fs.lstatAsync(dir)
+  let mtime = stats.mtime.getTime()
+
+  return { mtime, xstats }
+}
+
+
+// force probing means feed probe with FILE.NULLTIME as mtime
+
+describe(path.basename(__filename), () => {
+
+  describe('no preset directory uuid, empty', () => {
+
+    beforeEach(async () => {
+      await rimrafAsync(tmpdir)
+      await mkdirpAsync(tmpdir)
     })
-  }) 
+
+    it('should return a probe worker', done => {
+      let worker = probe(tmpdir, uuidArr[0], FILE.NULLTIME, 0, () => { 
+        expect(worker.type).to.equal('probe')
+        expect(worker.abort).to.be.an('function')
+        expect(worker.request).to.be.an('function')
+        done()
+      })
+    })
+
+    it('should throw EINSTANCE when force probing directory without attr', done => {
+      probe(tmpdir, uuidArr[0], FILE.NULLTIME, 0, (err, result) => {
+        expect(err).to.be.an('error')  
+        expect(err.code).to.equal('EINSTANCE')
+        done()
+      })
+    })
+  })
+
+  describe('preset directory uuid, empty', () => {
+
+    let xstat
+
+    beforeEach(async () => {
+      await rimrafAsync(tmpdir)
+      await Promise.delay(10)
+      await mkdirpAsync(tmpdir)
+      xstat = await readXstatAsync(tmpdir)
+    })
+
+    it('should throw EINSTANCE when force probing directory without different uuid', done => 
+      probe(tmpdir, uuidArr[0], FILE.NULLTIME, 0, (err, result) => {
+        expect(err).to.be.an('error')  
+        expect(err.code).to.equal('EINSTANCE')
+        done()
+      }))
+
+    it('should return null data if mtime match', done => 
+      probe(tmpdir, xstat.uuid, xstat.mtime, 0, (err, result) => {
+        if (err) return done(err)
+        expect(result.data).to.be.null
+        expect(result.again).to.be.false
+        done()
+      })) 
+
+    it('should return xstat list if mtime renewed', done => {
+      fillAsync(tmpdir, tree01).asCallback((err, data) => {
+        if (err) return done(err)
+        probe(tmpdir, xstat.uuid, xstat.mtime, 0, (err, result) => {
+          if (err) return done(err)
+          expect(result.data).to.deep.equal(data)
+          expect(result.again).to.be.false
+          done()
+        })
+      })
+    })   
+  })
 })
 

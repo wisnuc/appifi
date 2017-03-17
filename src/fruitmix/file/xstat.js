@@ -113,7 +113,7 @@ const readXstatAsync = async (target, raw) => {
     }
   } 
   else if (stats.isFile()) {
-    xtat = {
+    xstat = {
       uuid: attr.uuid,
       type: 'file',
       name,
