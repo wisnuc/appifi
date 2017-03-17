@@ -7,7 +7,7 @@ import { createFruitmix } from './fruitmix'
 
 if (cluster.isMaster) {
   // init data source
-  // sysroot from child_process.fork option
+  // maybe sysroot from child_process.fork option
   createFruitmix(process.env.sysroot)
 
   //start ipc

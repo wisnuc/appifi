@@ -69,7 +69,10 @@ const messageHandle = worker => (msg) => {
 } 
 
 const registerCommandHandlers = map => {
-  map.forEach((val, key) => commandMap.set(key, val))
+  map.forEach((val, key) => registerCommandHandler(key, val))
 }
 
-export default { registerCommandHandlers, start }
+const registerCommandHandler = (key, val) => commandMap.set(key, val)
+
+
+export default { registerCommandHandler, registerCommandHandlers, start }
