@@ -1,5 +1,5 @@
 import UUID from 'node-uuid'
-import{isUUID, isSHA256, addUUIDArray, complement, assert} from '../lib/types'
+import{isUUID, isSHA256, addUUIDArray, complement, assert, validateProps} from '../lib/types'
 
 /**
 
@@ -42,13 +42,6 @@ M       ctime: xxxx
 const unique = arr => new Set(arr).size === arr.length
 
 const isUUIDArray = (arg) => Array.isArray(arg) && arg.every(isUUID)
-
-const validateProps = (obj, mandatory, optional = []) => {
-  if (complement(mandatory, Object.keys(obj)).length !== 0 )
-    throw 'some mandatory props not defined in object'
-  if (complement([...mandatory, ...optional], Object.keys(obj)).length !== 0)
-    throw 'object has props that are neither mandatory nor optional'
-}
 
 const validateMediaShareDoc = (doc, users) => {
   let creators = [doc.author, ...doc.maintainers]
@@ -109,9 +102,13 @@ const createMediaShareDoc = (authorUUID, obj) => {
 
   let {maintainers, viewers, album, contents} = obj
 
-  let time = new Date().getTime()
+  maintainers = Array.from(new Set(maintainers)).filter(maintainer => maintainer !== authorUUID)
 
-  contents = contents.map(digest => ({
+  viewers = Array.from(new Set(viewers)).filter(viewer => viewer !== authorUUID)
+  viewers = complement(viewers, maintainers)
+
+  let time = new Date().getTime()
+  contents = Array.from(new Set(contents)).map(digest => ({
     creator: authorUUID,
     digest,
     ctime: time

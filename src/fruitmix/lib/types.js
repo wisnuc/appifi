@@ -15,6 +15,12 @@ const complement = (a, b) =>
 
 const assert = (predicate, message) => { if(!predicate) throw new Error(message) }
 
+const validateProps = (obj, mandatory, optional = []) => {
+  if (complement(mandatory, Object.keys(obj)).length !== 0 )
+    throw new Error('some mandatory props not defined in object')
+  if (complement(Object.keys(obj), [...mandatory, ...optional]).length !== 0)
+    throw new Error('object has props that are neither mandatory nor optional')
+}
 
 
 export {
@@ -23,5 +29,6 @@ export {
   addUUIDArray,
   complement,
   assert,
+  validateProps,
 }
 

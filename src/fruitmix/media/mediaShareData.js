@@ -11,6 +11,7 @@ import deepFreeze from 'deep-freeze'
 
 import { validateMediaShareDoc } from './mediaShareDoc'
 import E from '../lib/error'
+import { assert } from '../lib/types'
 
 /**
   indexShare(share) {
@@ -101,7 +102,7 @@ class MediaShareData extends EventEmitter {
   }
 
   putLock(uuid) {
-    if (!this.lockSet.has(uuid)) throw new E.ENOLOCK()
+    if (!this.lockSet.has(uuid)) throw new E.ELOCK()
     this.lockSet.delete(uuid)
   }
 

@@ -2,7 +2,7 @@ import path from 'path'
 import { expect } from 'chai'
 import validator from 'validator'
 
-import { createMediaShareDoc, updateMediaShareDoc } from 'src/fruitmix/media/mediaShareDoc'
+import { createMediaShareDoc, updateMediaShareDoc } from '../../../../src/fruitmix/media/mediaShareDoc'
 
 const users = [{uuid: '5da92303-33a1-4f79-8d8f-a7b6becde6c3'},
                {uuid: 'b9aa7c34-8b86-4306-9042-396cf8fa1a9c'},
