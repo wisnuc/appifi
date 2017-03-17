@@ -35,6 +35,8 @@ let jobs = []
  */
 
 let call = (type = 'command', op, args, callback) => {
+  if(typeof op !== 'string' || !op.length)
+    return callback('op undefined')
   let job = {
     id: UUID.v4(),
     op,
