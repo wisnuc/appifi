@@ -116,23 +116,21 @@ describe(path.basename(__filename) + ' readXstat', () => {
 
     it('should throw ENOTDIRFILE for /dev/null, callback', done => {
       readXstat('/dev/null', (err, xstat) => {
-        expect(err).to.be.an.instanceof(Error)
-        expect(err.code).to.equal('ENOTDIRFILE')
+        expect(err).to.be.an.instanceof(E.ENOTDIRFILE)
         done()
       })
     })
 
     it('should throw ENOTDIRFILE for /dev/null, async bluebird asCallback', done => {
       readXstatAsync('/dev/null').asCallback((err, xstat) => {
-        expect(err).to.be.an.instanceof(Error)
-        expect(err.code).to.equal('ENOTDIRFILE')
+        expect(err).to.be.an.instanceof(E.ENOTDIRFILE)
         done()
       })
     })
 
     it('should throw ENOTDIRFILE for /dev/null, async chai-as-promise', () => {
       // this assertion comes from chai as promised.
-      return expect(readXstatAsync('/dev/null')).to.be.rejectedWith(Error)
+      return expect(readXstatAsync('/dev/null')).to.be.rejectedWith(E.ENOTDIRFILE)
     })
 
     it('should throw ENOTDIRFILE for /dev/null, async try-catch', async () => {
@@ -143,8 +141,7 @@ describe(path.basename(__filename) + ' readXstat', () => {
       catch (e) { 
         err = e 
       }
-      expect(err).to.be.an.instanceof(Error)
-      expect(err.code).to.equal('ENOTDIRFILE')
+      expect(err).to.be.an.instanceof(ENOTDIRFILE)
     })
 
     it('should drop non-json attr', async () => {
