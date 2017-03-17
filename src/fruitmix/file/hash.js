@@ -3,27 +3,22 @@ import fs from 'fs'
 import EventEmitter from 'events'
 import E from '../lib/error'
 
-
 import command from '../lib/command'
 import { isSHA256 } from '../lib/types'
 import { updateFileHash } from './xstat'
 
-class HashWorker extends EventEmitter {
+class Worker extends EventEmitter {
 
-  constructor(fpath, uuid) {
+  constructor() {
     super()
-    this.fpath = fpath
-    this.uuid = uuid
-
     this.finished = false
-    this.cmd = undefined
+  }
+
+  cleanup() {
   }
 
   finalize() {
-    if (this.cmd) {
-      this.cmd.abort()
-      this.cmd = undefined
-    }
+    this.cleanup() 
     this.finished = true
   }
 
@@ -38,89 +33,54 @@ class HashWorker extends EventEmitter {
   }
 
   start() {
- 
-    if (this.finished) throw 'hash worker already finished' 
+    if (this.finished) throw 'worker already finished'
+    this.run()
+  }
 
-    let mtime
-
-    fs.lstat(this.fpath, (err, stats) => {
-      if (this.finished) return
-      if (err) return callback(err)
-      if (!stats.isFile()) return callback(new E.ENOTFILE())
-      
-      mtime = stats.mtime.getTime()
-      cmd = command(cmd, args, (err, data) => {
-        if (aborted) return
-        if (err) return err
-
-        hash = data.toString().trim().split(' ')[0]
-        if (!isSHA256(hash)) return callback(new E.BADFORMAT())
-
-        fs.lstat(target, (err, stats) => {
-          if (aborted) return
-          if (err) return callback(err)
-          if (!stats.isFile()) return callback(new E.ENOTFILE()) 
-          if (mtime !== stats.mtime.getTime()) return callback(new E.E)
-          updateFileHash(target, uuid, hash, htime, (err, xstat) => {
-            if (aborted) return 
-            callback(err, xstat)
-          })
-        })
-      })
-    })
+  abort() {
+    if (this.finished) throw 'worker already finished'
+    this.emit('error', new E.EABORT())
+    this.finalize()
   }
 }
 
-const hasher = (target, uuid, callback) => {
+class HashWorker extends Worker {
 
-  let aborted = false
-  let cmd, hash
-
-  fs.lstat(target, (err, stats) => {
-    if (aborted) return
-    if (err) return callback(err)
-    if (!stats.isFile()) 
-      return callback(new E.ENOTFILE())
-    
-    let mtime = stats.mtime.getTime()
-    cmd = command(cmd, args, (err, data) => {
-      if (aborted) return
-      if (err) return err
-
-      hash = data.toString().trim().split(' ')[0]
-      if (!isSHA256(hash))
-        return callback(new E.BADFORMAT())
-
-      fs.lstat(target, (err, stats) => {
-        if (aborted) return
-        if (err) return callback(err)
-        if (!stats.isFile())
-          return callback(new E.ENOTFILE())
-
-        if (mtime !== stats.mtime.getTime())
-          return callback(new E.E)
-
-        updateFileHash(target, uuid, hash, htime, (err, xstat) => {
-          if (aborted) return 
-          callback(err, xstat)
-        })
-      })
-    })
-  })
-
-  function abort() {
-     
-    if (aborted) return
-    if (cmd) {
-      cmd.abort()
-      cmd = null
-    }
-    aborted = true
-    callback(new E.EABORT())
+  constructor(fpath, uuid) {
+    super()
+    this.fpath = fpath
+    this.uuid = uuid
+    this.cmd = undefined
   }
 
-  return abort
+  cleanup() {
+    if (this.cmd) this.cmd()
+  }
+
+  run() {
+
+    let hash
+
+    fs.lstat(this.fpath, (err, stats) => 
+      this.finished ? undefined
+        : err ? this.error(err)
+          : !stats.isFile() ?  this.error(new E.ENOTFILE())
+            : this.cmd = command('openssl', ['dgst', '-sha256', '-r', this.fpath], (err, data) => 
+                this.finished ? undefined
+                  : err ? this.error(err)
+                    : !isSHA256(hash = data.toString().trim().split(' ')[0]) ? this.error(new E.FORMAT())
+                      : fs.lstat(this.fpath, (err, stats2) => 
+                          this.finished ? undefined
+                            : err ? this.error(err)
+                              : !stats.isFile() ? this.error(new E.ENOTFILE()) 
+                                : stats.mtime.getTime() !== stats2.mtime.getTime() ? this.error(new E.ETIMESTAMP())
+                                  : updateFileHash(this.fpath, this.uuid, hash, stats.mtime.getTime(), (err, xstat) => 
+                                      this.finished ? undefined
+                                        : err ? this.error(err)
+                                          : this.finish(xstat)))))
+  }
 }
 
-export default hasher
+export default (fpath, uuid) => new HashWorker(fpath, uuid)
+
 

@@ -27,7 +27,6 @@ class ProbeWorker extends EventEmitter {
   finalize() {
     this.timer = clearTimeout(this.timer)
     this.finished = true 
-    this.again = false
   }
 
   // emit error + again
@@ -59,9 +58,7 @@ class ProbeWorker extends EventEmitter {
 
   // start worker
   start() {
-
-    if (this.finished) throw 'probe worker already finished'
-
+    if (this.finished) throw 'worker already finished'
     this.timer = setTimeout(() => 
       readXstat(this.dpath, (err, xstat) => 
         this.finished ? undefined
@@ -84,6 +81,7 @@ class ProbeWorker extends EventEmitter {
   // abort worker
   abort() {
     if (this.finished) throw 'probe worker already finished'
+    this.emit('error', new E.EABORT())
     this.finalize()
   }
 

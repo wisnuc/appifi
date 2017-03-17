@@ -31,6 +31,8 @@ const fileMagic = (target, callback) =>
     ? callback(err) 
     : callback(null, parseMagic(stdout.toString())))
 
+const fileMagicAsync = Promise.promisify(fileMagic)
+
 const readTimeStamp = (target, callback) =>
   fs.lstat(target, (err, stats) => err 
     ? callback(err) 
@@ -66,7 +68,7 @@ const readXstatAsync = async (target, raw) => {
 
       if (attr.hasOwnProperty('hash') || attr.hasOwnProperty('htime')) { 
         if ( !isSHA256(attr.hash) 
-          || !isTimeStamp(attr.htime)
+          || Number.isInteger(attr.htime) // is timestamp
           || attr.htime !== stats.mtime.getTime()) {
           dirty = true
           delete attr.hash
@@ -129,7 +131,7 @@ const readXstatAsync = async (target, raw) => {
 
 const updateFileHashAsync = async (target, uuid, hash, htime) => {
   
-  if (!isSHA256(hash) || !isTimeStamp(htime))
+  if (!isSHA256(hash) || !Number.isInteger(htime))
     throw new E.EINVAL()
 
   let { stats, attr } = await readXstatAsync(target, true)
@@ -139,7 +141,7 @@ const updateFileHashAsync = async (target, uuid, hash, htime) => {
   if (htime !== stats.mtime.getTime()) throw new E.ETIMESTAMP()
   
   let attr2 = { uuid: attr.uuid, hash, htime, magic: attr.magic }
-  await xattr.setAsync(target, FRUTIMIX, JSON.stringify(attr2))
+  await xattr.setAsync(target, FRUITMIX, JSON.stringify(attr2))
   
   return {
     uuid,
