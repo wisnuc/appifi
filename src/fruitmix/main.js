@@ -18,5 +18,4 @@ if (cluster.isMaster) {
   os.cpus().forEach(() => cluster.fork())
 
   // on worker events
-  
 }
