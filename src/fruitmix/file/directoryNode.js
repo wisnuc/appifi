@@ -52,23 +52,20 @@ class DirectoryNode extends Node {
     let delay = mtime === FILE.NULLTIME ? 0 : 500
 
     this.ctx.probeStarted(this) // audit
-    this.worker = probe(dpath, uuid, mtime, delay, (err, result) => { 
+    this.worker = probe(dpath, uuid, mtime, delay)
 
+    this.worker.on('error', (err, again) => {
       this.worker = null
       this.ctx.probeStopped(this) // audit
+      if (err.code === 'EABORT') return
+      this.parent.probe()
+    })
 
-      if (err) {
-        if (err.code === 'EABORT') return
-        this.parent 
-          ? this.parent.probe()
-          : this.probe()
-      }
-      else {
-
-        let { data, again } = result
-        if (data) this.merge(data.mtime, data.xstats) 
-        if (again) this.probe()                
-      }
+    this.worker.on('finish', (data, again) => {
+      this.worker = null
+      this.ctx.probeStopped(this) // audit
+      if (this.data) thie.merge(data.mtime, data.xstats)
+      if (again) this.probe()
     })
   }
 

@@ -89,20 +89,23 @@ describe(path.basename(__filename), () => {
     })
 
     it('should return a probe worker', done => {
-      let worker = probe(tmpdir, uuidArr[0], FILE.NULLTIME, 0, () => { 
-        expect(worker.type).to.equal('probe')
-        expect(worker.abort).to.be.an('function')
-        expect(worker.request).to.be.an('function')
-        done()
-      })
+      let w = probe(tmpdir, uuidArr[0], 123456, 0)
+      expect(w.finished).to.be.false
+      expect(w.again).to.be.false
+      expect(w.timer).to.be.undefined
+      done()
     })
 
     it('should throw EINSTANCE when force probing directory without attr', done => {
-      probe(tmpdir, uuidArr[0], FILE.NULLTIME, 0, (err, result) => {
-        expect(err).to.be.an('error')  
+      let w = probe(tmpdir, uuidArr[0], 123456, 0)
+      w.on('error', (err, again) => {
+        expect(again).to.be.false
+        expect(err).to.be.an('error')
         expect(err.code).to.equal('EINSTANCE')
         done()
       })
+      w.on('finish', (data, again) => {throw `error finish`})
+      w.start()
     })
   })
 
@@ -117,30 +120,40 @@ describe(path.basename(__filename), () => {
       xstat = await readXstatAsync(tmpdir)
     })
 
-    it('should throw EINSTANCE when force probing directory without different uuid', done => 
-      probe(tmpdir, uuidArr[0], FILE.NULLTIME, 0, (err, result) => {
-        expect(err).to.be.an('error')  
+    it('should throw EINSTANCE when force probing directory without different uuid', done => {
+      let w = probe(tmpdir, uuidArr[0], FILE.NULLTIME, 0)
+      w.on('error', (err, again) => {
+        expect(again).to.be.false
+        expect(err).to.be.an('error')
         expect(err.code).to.equal('EINSTANCE')
         done()
-      }))
+      })
+      w.on('finish', (data, again) => {throw `error finish`})
+      w.start()
+    })
 
-    it('should return null data if mtime match', done => 
-      probe(tmpdir, xstat.uuid, xstat.mtime, 0, (err, result) => {
-        if (err) return done(err)
-        expect(result.data).to.be.null
-        expect(result.again).to.be.false
+    it('should return null data if mtime match', done => {
+      let w = probe(tmpdir, xstat.uuid, xstat.mtime, 0)
+      w.on('error', (err, again) => { throw `error error` })
+      w.on('finish', (data, again) => {
+        expect(data).to.be.null
+        expect(again).to.be.false
         done()
-      })) 
+      })
+      w.start()
+    })
 
     it('should return xstat list if mtime renewed', done => {
-      fillAsync(tmpdir, tree01).asCallback((err, data) => {
+      fillAsync(tmpdir, tree01).asCallback((err, data1) => {
         if (err) return done(err)
-        probe(tmpdir, xstat.uuid, xstat.mtime, 0, (err, result) => {
-          if (err) return done(err)
-          expect(result.data).to.deep.equal(data)
-          expect(result.again).to.be.false
+        let w = probe(tmpdir, xstat.uuid, xstat.mtime, 0)
+        w.on('error', (err, again) => { throw `error error`})
+        w.on('finish', (data2, again) => {
+          expect(data2).to.deep.equal(data1)
+          expect(again).to.be.false
           done()
         })
+        w.start()
       })
     })   
   })
