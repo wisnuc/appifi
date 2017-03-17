@@ -3,6 +3,6 @@
   "plugins": [
     "transform-async-to-bluebird", 
     "transform-promise-to-bluebird",
-    "transform-runtime"
-  ]
+    "transform-runtime",
+  ],
 }

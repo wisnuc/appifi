@@ -8,7 +8,6 @@ class Node {
     this.parent = null
   }
 
-
   root() {
     let node = this   
     while (node.parent !== null) node = node.parent
@@ -32,12 +31,16 @@ class Node {
   }
 
   attach(parent) {
+
     if (this.parent) throw new Error('node is already attached')
     this.parent = parent
-    parent.setChild(this)
+    if (parent) parent.setChild(this)
+    this.ctx.nodeAttached()
   } 
 
   detach() {
+
+    this.ctx.nodeDetaching(this)
     if (this.parent === null) throw new Error('node is already detached')
     this.parent.unsetChild(this)
     this.parent = null
@@ -59,6 +62,9 @@ class Node {
     }
   }
 
+  abspath() {
+  }
+
   nodepath() {
     let q = []
     this.upEach(node => q.unshift(node))
@@ -75,10 +81,8 @@ class Node {
 
   // abort workers
   abort() {
-    if (this.worker) {
-      this.worker.abort()
-      this.worker = null
-    }
+    if (this.worker) this.worker.abort()
+    
   }
 
 }

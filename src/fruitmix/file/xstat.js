@@ -1,3 +1,4 @@
+import path from 'path'
 import fs from 'fs'
 import child from 'child_process'
 
@@ -126,13 +127,13 @@ const readXstatAsync = async (target, raw) => {
 const updateFileHashAsync = async (target, uuid, hash, htime) => {
   
   if (!isSHA256(hash) || !isTimeStamp(htime))
-    throw 
+    throw new E.EINVAL()
 
   let { stats, attr } = await readXstatAsync(target, true)
 
-  if (!stats.isFile()) throw
-  if (uuid !== attr.uuid) throw
-  if (htime !== stats.mtime.getTime()) throw
+  if (!stats.isFile()) throw new E.ENOTFILE()
+  if (uuid !== attr.uuid) throw new E.EINSTANCE()
+  if (htime !== stats.mtime.getTime()) throw new E.ETIMESTAMP()
   
   let attr2 = { uuid: attr.uuid, hash, htime, magic: attr.magic }
   await xattr.setAsync(target, FRUTIMIX, JSON.stringify(attr2))
@@ -164,6 +165,13 @@ const updateFileAsync = async (target, source, hash) => {
   return await readXstatAsync(target, false)
 }
 
+const forceDriveXstatAsync = async (target, driveUUID) => {
+
+  let attr = { uuid: driveUUID }
+  await xattr.setAsync(target, FRUITMIX, JSON.stringify(attr))
+  return await readXstat(target, false)
+}
+
 const readXstat = (target, callback) => 
   readXstatAsync(target, false).asCallback(callback)
 
@@ -178,11 +186,17 @@ const updateFile = (target, source, hash, callback) => {
   updateFileAsync(target, source, hash).asCallback(callback)
 }
 
+const forceDriveXstat = (target, driveUUID, callback) => 
+  forceDriveXstatAsync(target, driveUUID).asCallback(callback) 
+
 export { 
+
   readTimeStamp,
   readXstat,
+  readXstatAsync,
   updateFileHash,
   updateFile,
+  forceDriveXstat,
 
   // testing only
   parseMagic,

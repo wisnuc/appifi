@@ -1,39 +1,39 @@
 import path from 'path'
-import child from 'child_process'
+// import child from 'child_process'
 import http from 'http'
 import dgram from 'dgram'
-import EventEmitter from 'events'
+// import EventEmitter from 'events'
 
 import Debug from 'debug'
 import { storeState, storeDispatch } from '../reducers'
 import system from './lib/system'
 import models from './models/models'
 import app from './app'
-import { createSmbAudit } from './lib/samba'
+// import { createSmbAudit } from './lib/samba'
 
 const debug = Debug('fruitmix:fruitmix')
 
-Promise.promisifyAll(child)
+// Promise.promisifyAll(child)
 
-const startSamba = async () => {
-  child.execAsync('systemctl start nmbd'),
-  child.execAsync('systemctl start smbd')
-}
+// const startSamba = async () => {
+//   child.execAsync('systemctl start nmbd'),
+//   child.execAsync('systemctl start smbd')
+// }
 
-class Fruitmix extends EventEmitter {
+// class Fruitmix extends EventEmitter {
 
-  constructor(system, app, server, smbAudit) {
+//   constructor(system, app, server, smbAudit) {
 
-    super()
-    this.system = system
-    this.app = app
-    this.server = server 
-    this.smbAudit = smbAudit
-  }
-}
+//     super()
+//     this.system = system
+//     this.app = app
+//     this.server = server 
+//     this.smbAudit = smbAudit
+//   }
+// }
 
 // TODO
-const createHttpServer = (callback) => {
+const createHttpServer = (app, callback) => {
 
   let server, port = 3721
   app.set('port', port)
@@ -73,12 +73,12 @@ const createHttpServer = (callback) => {
 const createFruitmixAsync = async (sysroot) => {
 
   await system.initAsync(sysroot)
-  let server = await Promise.promisify(createHttpServer)()
-  let smbaudit = await Promise.promisify(createSmbAudit)()
-  return new Fruitmix(system, app, server, smbaudit)
+  // let server = await Promise.promisify(createHttpServer)()
+  // let smbaudit = await Promise.promisify(createSmbAudit)()
+  // return new Fruitmix(system, app, null, smbaudit)
 }
 
 const createFruitmix = (sysroot, callback) => createFruitmixAsync(sysroot).asCallback(err => callback && callback(err))
 
-export { createFruitmix }
+export { createFruitmix, createHttpServer }
 
