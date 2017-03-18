@@ -103,7 +103,10 @@ describe(path.basename(__filename), () => {
         expect(err).to.be.an.instanceof(E.EINSTANCE)
         done()
       })
-      w.on('finish', (data, again) => {throw `error finish`})
+      w.on('finish', (data, again) => {
+        console.log(data)
+        done(new Error(`error finish branch`))
+      })
       w.start()
     })
   })
