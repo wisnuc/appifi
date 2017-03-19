@@ -58,7 +58,7 @@ describe(path.basename(__filename), () => {
     })
   })
 
-  describe('xxx', () => {
+  describe('should retrieve metadata from sample 0', () => {
 
     let xstat
     let fpath = path.join(tmpdir, S[0].name)
@@ -68,20 +68,14 @@ describe(path.basename(__filename), () => {
       await cpAsync(path.join(smpdir, S[0].name), fpath)
       xstat = await readXstatAsync(fpath)
       xstat = await updateFileHashAsync(fpath, xstat.uuid, S[0].hash, xstat.mtime)
-
-      await Promise.delay(100)
-      xstat = await readXstatAsync(fpath)
-
-      console.log('[[[[[[')
-      console.log(xstat)
-      console.log(']]]]]]')
+      expect(await readXstatAsync(fpath)).to.deep.equal(xstat)
     })
 
     it('should identify sample image', done => {
       let id = identify(fpath, xstat.uuid, xstat.hash) 
       id.on('error', err => done(err))
       id.on('finish', data => {
-        console.log(data)
+        expect(data).to.deep.equal(S[0].identifyObject)
         done()
       })
       id.start()

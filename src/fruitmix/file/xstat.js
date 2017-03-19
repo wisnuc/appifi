@@ -144,9 +144,6 @@ const updateFileHashAsync = async (target, uuid, hash, htime) => {
   await xattr.setAsync(target, FRUITMIX, JSON.stringify(attr2))
 
   let attr3 = await xattr.getAsync(target, FRUITMIX)
-  console.log('=====')
-  console.log(attr3.toString())
-  console.log('=====') 
 
   return {
     uuid,

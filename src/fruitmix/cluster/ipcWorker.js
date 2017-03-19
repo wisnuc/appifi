@@ -1,28 +1,6 @@
-import cluster from 'cluster'
-
 import UUID from 'node-uuid'
 
-
-
-
-let start = () => process.on('message', (msg)=> {
-  let { id, data, err } = msg
-
-  let jobIndex = jobs.findIndex(job => job.id === id)
- 
-
-  if(jobIndex !== -1){
-    let job = jobs[jobIndex]
-    jobs.splice(jobIndex, 1)
-    return job.callback(err ? err : null, data)
-  } 
-
-  console.log('job not found ' + msg)
-})
-
-
-//jobs
-let jobs = []
+// this module implements a command pattern over ipc
 
 /**
  * job :{
@@ -33,21 +11,85 @@ let jobs = []
  *  callback
  * }
  */
+const jobs = []
 
-let call = (type = 'command', op, args, callback) => {
-  if(typeof op !== 'string' || !op.length)
-    return callback('op undefined')
-  let job = {
-    id: UUID.v4(),
-    op,
-    args,
-    callback,
-    timestamp: new Date().getTime()
+class Job {
+  
+  constructor(op, args, callback) {
+    this.id = UUID.v4()
+    this.op = op
+    this.args = args
+    this.callback = callback
+    this.timestamp = new Data().getTime()
   }
-  jobs.push(job)
 
-  let msg = { type, op, args, id: job.id } 
-  process.send(msg)
+  message() {
+    return {
+      type: 'command',
+      id: this.id,
+      op: this.op,
+      args: this.args
+    }
+  }
 }
 
-export default { start, call }
+class IpcWorker {
+
+  constructor() {
+    this.jobs = []
+  }
+
+  createJob(op, args, callback) {
+    jobs.push(new Job(op, args, callback))
+    return job
+  }
+
+  call(op, args, callback) {
+
+    let job
+    try {
+      job = createJob(op, args, callback)
+    }
+    catch (e) {
+      process.nextTick(() => callback(e))
+      return
+    }
+
+    process.send(msg)
+  }  
+
+  handleCommandMessage(msg) {
+
+    let { id, data, err } = msg
+    let index = jobs.findIndex(job => job.id === id)
+
+    if (index !== -1) {
+      let job = jobs[index]  
+      jobs.splice(index, 1)
+      job.callback(err ? err : null, data)
+    }
+    else {
+      console.log('job not found' + msg)
+    }
+  }
+}
+
+const createIpcWorker = () => {
+
+  let ipc = new IpcWorker()
+
+  process.on('message', msg => {
+
+    switch(msg.type) {
+      case 'command':
+        ipc.handleCommandMessage(msg)
+        break
+      default:
+        break
+    }
+  })
+
+  return ipc
+}
+
+export default createIpcWorker

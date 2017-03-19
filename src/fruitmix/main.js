@@ -1,21 +1,39 @@
-import http from 'http'
 import cluster from 'cluster'
 import os from 'os'
 
-import ipcMain from './lib/ipcMain'
-import { createFruitmix } from './fruitmix'
+import config from './cluster/config'
+
+import Main from './cluster/main'
+import Worker from './cluster/worker'
+
+import IpcHandler from './cluster/ipcHandler'
+import IpcWorker from './cluster/ipcWorker'
 
 if (cluster.isMaster) {
-  // init data source
-  // maybe sysroot from child_process.fork option
-  createFruitmix(process.env.sysroot)
 
-  //start ipc
-  ipcMain.start()
+  console.log(`Master ${process.pid} is running`)
+  console.log(`CPU number ${numCPUs}`)
 
-  cluster.setupMaster({exec:'fruitmix_worker.js'})
-  //create workers
-  os.cpus().forEach(() => cluster.fork())
+  const numCPUs = os.cpus().length
 
-  // on worker events
+  for (let i = 0; i < numCPUs; i++) {
+    let worker = cluster.fork()
+    worker.on('message', msg => ipc.handle(worker, msg))
+  }
+
+  cluster.on('exit', (worker, code, signal) => {
+    console.log(`worker ${worker.process.pid} died`)
+  })
+
+  config.ipc = IpcHandler()
+  Main()
+} 
+else {
+
+  console.log(`Worker ${process.pid} started`);
+
+  config.ipc = IpcWorker()
+  Worker()
 }
+
+

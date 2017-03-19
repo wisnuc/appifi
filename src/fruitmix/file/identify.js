@@ -1,5 +1,6 @@
 import path from 'path'
 import fs from 'fs'
+import child from 'child_process'
 import Worker from '../lib/worker'
 import E from '../lib/error'
 
@@ -87,21 +88,17 @@ class Identify extends Worker {
   run () {
     readXstat(this.fpath, (err, xstat) => {
 
-      console.log('>>>>>')
-      console.log(xstat)
-      console.log('<<<<<')
-
       if (this.finished) return
       if (err) return this.error(err)
       if (xstat.type !== 'file') return this.error(new E.ENOTFILE())
       if (xstat.uuid !== this.uuid) return this.error(new E.EINSTANCE())
       if (xstat.hash !== this.hash) return this.error(new E.ECONTENT()) 
       
-      child.exec(`identify -format ${identifyFormatString} ${this.fpath}`, (err, stdout) => {
+      child.exec(`identify -format '${identifyFormatString}' ${this.fpath}`, (err, stdout) => {
         if (this.finished) return
         if (err) return this.error(err)
-        return (data = parseIdentifyOutput(stdout)) 
-          ? this.finish(data)
+        return (this.data = parseIdentifyOutput(stdout)) 
+          ? this.finish(this.data)
           : this.error(new E.EPARSE()) 
       })
     })
