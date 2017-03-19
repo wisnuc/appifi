@@ -1,3 +1,4 @@
+import path from 'path'
 import cluster from 'cluster'
 import os from 'os'
 
@@ -9,10 +10,25 @@ import Worker from './cluster/worker'
 import IpcHandler from './cluster/ipcHandler'
 import IpcWorker from './cluster/ipcWorker'
 
+// check fruitmix path
+if (typeof config.path !== 'string' || config.path.length === 0) {
+  console.log('fruitmix root path not set')
+  process.exit(1)
+}
+else if (!path.isAbsolute(config.path)) {
+  try {
+    config.path = path.resolve(config.path)
+  }
+  catch (e) {
+    console.log('failed to resolve fruitmix path')
+    process.exit(1)
+  }
+}
+
 if (cluster.isMaster) {
 
   console.log(`Master ${process.pid} is running`)
-  console.log(`CPU number ${numCPUs}`)
+  console.log(`fruitmix path is set to ${config.path}`)
 
   const numCPUs = os.cpus().length
 
