@@ -40,6 +40,8 @@ define('ECONTENT', 'content changed (digest mismatch)')
 define('ETIMESTAMP', 'timestamp changed during operation')
 define('EEXITCODE', 'exit with error code')
 define('EEXITSIGNAL', 'exit with signal')
+define('EACCESS', 'no permission')
+define('ENOENT', 'no entry')
 define('ELOCK', 'lock error');
 
 module.exports = Object.freeze(E)

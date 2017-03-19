@@ -10,7 +10,6 @@ import E from '../lib/error'
 import _ from '../lib/async'
 
 import { isUUID, isSHA256 } from '../lib/types'
-
 // constants
 const FRUITMIX = 'user.fruitmix'
 
