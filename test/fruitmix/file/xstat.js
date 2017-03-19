@@ -1,16 +1,14 @@
 import path from 'path'
 import fs from 'fs'
 import UUID from 'node-uuid'
-import chai from 'chai'
-import chaiAsPromised from 'chai-as-promised'
-import sinon from 'sinon'
 import xattr from 'fs-xattr'
 import validator from 'validator'
 
 import { mkdirpAsync, rimrafAsync } from '../../../src/fruitmix/lib/async'
 import E from '../../../src/fruitmix/lib/error'
 
-const { ENOTDIRFILE } = E
+import S from '../../assets/samples'
+import { cp, cpAsync } from '../../utils'
 
 import { 
   readTimeStamp,
@@ -19,8 +17,11 @@ import {
   forceDriveXstatAsync,
 } from '../../../src/fruitmix/file/xstat'
 
-chai.use(chaiAsPromised)
 
+import chai from 'chai'
+import chaiAsPromised from 'chai-as-promised'
+import sinon from 'sinon'
+chai.use(chaiAsPromised)
 const expect = chai.expect
 const should = chai.should()
 
@@ -116,23 +117,21 @@ describe(path.basename(__filename) + ' readXstat', () => {
 
     it('should throw ENOTDIRFILE for /dev/null, callback', done => {
       readXstat('/dev/null', (err, xstat) => {
-        expect(err).to.be.an.instanceof(Error)
-        expect(err.code).to.equal('ENOTDIRFILE')
+        expect(err).to.be.an.instanceof(E.ENOTDIRFILE)
         done()
       })
     })
 
     it('should throw ENOTDIRFILE for /dev/null, async bluebird asCallback', done => {
       readXstatAsync('/dev/null').asCallback((err, xstat) => {
-        expect(err).to.be.an.instanceof(Error)
-        expect(err.code).to.equal('ENOTDIRFILE')
+        expect(err).to.be.an.instanceof(E.ENOTDIRFILE)
         done()
       })
     })
 
     it('should throw ENOTDIRFILE for /dev/null, async chai-as-promise', () => {
       // this assertion comes from chai as promised.
-      return expect(readXstatAsync('/dev/null')).to.be.rejectedWith(Error)
+      return expect(readXstatAsync('/dev/null')).to.be.rejectedWith(E.ENOTDIRFILE)
     })
 
     it('should throw ENOTDIRFILE for /dev/null, async try-catch', async () => {
@@ -143,8 +142,7 @@ describe(path.basename(__filename) + ' readXstat', () => {
       catch (e) { 
         err = e 
       }
-      expect(err).to.be.an.instanceof(Error)
-      expect(err.code).to.equal('ENOTDIRFILE')
+      expect(err).to.be.an.instanceof(E.ENOTDIRFILE)
     })
 
     it('should drop non-json attr', async () => {
@@ -160,6 +158,102 @@ describe(path.basename(__filename) + ' readXstat', () => {
     })
   })
 }) 
+
+describe(path.basename(__filename) + ' readXstat file', () => {
+
+  let fpath = path.join(tmpdir, S[0].name)
+
+  beforeEach(async () => {
+    await rimrafAsync(tmptest)
+    await mkdirpAsync(tmptest)
+    await cpAsync(path.join(cwd, 'test', 'assets', S[0].name), fpath)
+    sinon.stub(UUID, 'v4').returns(uuidArr[0])
+  })
+
+  afterEach(() => {
+    UUID.v4.restore()
+  })
+
+  it('should read xstat from file without attr', async() => {
+    let stats = await fs.statAsync(fpath)
+
+    let xstat = await readXstatAsync(fpath)
+
+    expect(xstat).to.deep.equal({ 
+      uuid: uuidArr[0],
+      type: 'file',
+      name: 'gg_gps.jpg',
+      mtime: stats.mtime.getTime(),
+      size: 80603,
+      magic: 'JPEG'
+    })
+  })
+
+  it('should read xstat from file with attr containing uuid and type', async() => {
+
+    let stats = await fs.statAsync(fpath)    
+    xattr.setAsync(fpath, 'user.fruitmix', JSON.stringify({
+      uuid: uuidArr[1],
+      magic: 'JPEG' 
+    }))
+
+    let xstat = await readXstatAsync(fpath)
+
+    expect(xstat).to.deep.equal({ 
+      uuid: uuidArr[1],
+      type: 'file',
+      name: S[0].name,
+      mtime: stats.mtime.getTime(),
+      size: S[0].size,
+      magic: 'JPEG'
+    })
+  })
+
+  it('should read xstat from file with attr containing uuid, type, htime, and hash', async() => {
+
+    let stats = await fs.statAsync(fpath)    
+    xattr.setAsync(fpath, 'user.fruitmix', JSON.stringify({
+      uuid: uuidArr[1],
+      hash: S[0].hash,
+      htime: stats.mtime.getTime(),
+      magic: 'JPEG'
+    }))
+
+    let xstat = await readXstatAsync(fpath)
+
+    expect(xstat).to.deep.equal({ 
+      uuid: uuidArr[1],
+      type: 'file',
+      name: 'gg_gps.jpg',
+      mtime: stats.mtime.getTime(),
+      size: 80603,
+      magic: 'JPEG',
+      hash: S[0].hash
+    })
+  })
+
+  it('should read xstat from file with attr containing uuid, type, outdated htime, and hash', async() => {
+
+    let stats = await fs.statAsync(fpath)    
+    await xattr.setAsync(fpath, 'user.fruitmix', JSON.stringify({
+      uuid: uuidArr[1],
+      hash: S[0].hash,
+      htime: stats.mtime.getTime() - 1000,
+      magic: 'JPEG'
+    }))
+
+    let xstat = await readXstatAsync(fpath)
+
+    expect(xstat).to.deep.equal({ 
+      uuid: uuidArr[1],
+      type: 'file',
+      name: 'gg_gps.jpg',
+      mtime: stats.mtime.getTime(),
+      size: 80603,
+      magic: 'JPEG'
+    })
+  })
+})
 
 describe(path.basename(__filename) + ' forceDriveXstat', () => {
 
@@ -198,5 +292,4 @@ describe(path.basename(__filename) + ' forceDriveXstat', () => {
     expect(xstat).to.deep.equal(pre)
   })
 })
-
 
