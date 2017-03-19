@@ -145,6 +145,7 @@ class MediaShareData extends EventEmitter {
 
     this.shareMap.set(doc.uuid, share)
     this.emit('mediaShareCreated', share)
+    return share
   }
 
   async updateMediaShare(doc) {
@@ -161,6 +162,7 @@ class MediaShareData extends EventEmitter {
     this.emit('mediaShareUpdating', share, next)
     this.shareMap.set(doc.uuid, next)
     this.emit('mediaShareUpdated', share, next)
+    return next
   }
 
   async deleteMediaShare(uuid) {

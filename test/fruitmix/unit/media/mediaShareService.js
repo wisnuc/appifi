@@ -8,12 +8,9 @@ import { createMediaShareStore } from '../../../../src/fruitmix/lib/mediaShareSt
 //import { createMediaShareDoc, updateMediaShareDoc } from '../../../../src/fruitmix/media/mediaShareDoc'
 import { createMediaShareData } from '../../../../src/fruitmix/media/mediaShareData'
 import { createMediaShareService } from '../../../../src/fruitmix/media/mediaShareService'
-import { shareAllowed } from '../../../../src/fruitmix/media/shareAllowed'
 
 class Model {
-
   constructor() {}
-
   getUsers() {
     return [{uuid: '5da92303-33a1-4f79-8d8f-a7b6becde6c3'},
             {uuid: 'b9aa7c34-8b86-4306-9042-396cf8fa1a9c'},
@@ -26,7 +23,15 @@ class Model {
   }
 }
 
+class MediaData {
+  constructor() {}
+  mediaShareAllowed(userUUID, digest) {
+    return true
+  }
+}
+
 const model = new Model()
+const mediaData = new MediaData()
 
 const userUUID = '5da92303-33a1-4f79-8d8f-a7b6becde6c3'
 const aliceUUID = 'b9aa7c34-8b86-4306-9042-396cf8fa1a9c'
@@ -53,30 +58,313 @@ describe(path.basename(__filename), function() {
     let docstore = await createDocumentStoreAsync(froot)
     mss = await createMediaShareStoreAsync(froot, docstore)
     msd = createMediaShareData(model, mss)
-    msSer = createMediaShareService(msd)
+    msSer = createMediaShareService(mediaData, msd)
   })
 
   afterEach(async () => await rimrafAsync('tmptest'))
 
   describe('create a mediaShareService', function() {
     it('should create a mediaShareService', done => {
-      expect(msSer.msd).to.equal(msd)
+      expect(msSer.msd).to.deep.equal(msd)
+      expect(msSer.md).to.deep.equal(mediaData)
       done()
     })
   })
 
   describe('createMediaShare',function() {
     it('should return error if user is not a invalid uuid', async done => {
+      let err
+      let post = {maintainers: [aliceUUID],
+                  viewers: [bobUUID],
+                  album: {title: 'testAlbum', text: 'this is a test album'},
+                  contents: [img001Hash]}
+      try {
+        await msSer.createMediaShare('abcd', post)
+      }
+      catch(e){
+        err = e
+      }
 
+      expect(err).to.be.an('error')
+      expect(err.code).to.equal('EINVAL')
+      expect(err.message).to.equal('invalid parameters')
+      done()
+    })
+
+    it('should return error if post is not a non-null object', async done => {
+      let err
+      let post = null
+      try {
+        await msSer.createMediaShare(userUUID, post)
+      }
+      catch(e){
+        err = e
+      }
+
+      expect(err).to.be.an('error')
+      expect(err.code).to.equal('EINVAL')
+      expect(err.message).to.equal('invalid parameters')
+      done()
+    })
+
+    it('should return error if post not contain mandatory props', async done => {
+      let err
+      let post = {maintainers: [aliceUUID],
+                  viewers: [bobUUID],
+                  contents: [img001Hash]}
+      try {
+        await msSer.createMediaShare(userUUID, post)
+      }
+      catch(e){
+        err = e
+      }
+
+      expect(err).to.be.an('error')
+      expect(err.message).to.equal('some mandatory props not defined in object')
+      done()
+    })
+
+    it('should return error if contents is not a array', async done => {
+      let err
+      let post = {maintainers: [aliceUUID],
+                  viewers: [bobUUID],
+                  album: {title: 'testAlbum', text: 'this is a test album'},
+                  contents: img001Hash}
+      try {
+        await msSer.createMediaShare(userUUID, post)
+      }
+      catch(e){
+        err = e
+      }
+
+      expect(err).to.be.an('error')
+      expect(err.code).to.equal('EINVAL')
+      expect(err.message).to.equal('invalid parameters')
+      done()
+    })
+
+    it('should return error if contents is an empty array', async done => {
+      let err
+      let post = {maintainers: [aliceUUID],
+                  viewers: [bobUUID],
+                  album: {title: 'testAlbum', text: 'this is a test album'},
+                  contents: []}
+      try {
+        await msSer.createMediaShare(userUUID, post)
+      }
+      catch(e){
+        err = e
+      }
+      expect(err).to.be.an('error')
+      expect(err.code).to.equal('EINVAL')
+      expect(err.message).to.equal('invalid parameters')
+      done()
+    })
+
+    it('should return error if contents is not allowed to be shared', async done => {
+      let err
+      let post = {maintainers: [aliceUUID],
+                  viewers: [bobUUID],
+                  album: {title: 'testAlbum', text: 'this is a test album'},
+                  contents: [img001Hash]}
+      let stub = sinon.stub(mediaData, 'mediaShareAllowed')
+      stub.returns(false)
+      try {
+        await msSer.createMediaShare(userUUID, post)
+      }
+      catch(e){
+        err = e
+      }
+      stub.restore()
+
+      expect(err).to.be.an('error')
+      expect(err.code).to.equal('EACCESS')
+      expect(err.message).to.equal('no permission')
+      done()
+    })
+
+    it('should return error if album not contain mandatory props', async done => {
+      let err
+      let post = {maintainers: [aliceUUID],
+                  viewers: [bobUUID],
+                  album: {text: 'this is a test album'},
+                  contents: [img001Hash]}
+      try {
+        await msSer.createMediaShare(userUUID, post)
+      }
+      catch(e){
+        err = e
+      }
+
+      expect(err).to.be.an('error')
+      expect(err.message).to.equal('some mandatory props not defined in object')
+      done()
+    })
+
+    it('should return error if album has props that are neither mandatory nor optional', async done => {
+      let err
+      let post = {maintainers: [aliceUUID],
+                  viewers: [bobUUID],
+                  album: {title: 'testAlbum', text: 'this is a test album', name: 'alice'},
+                  contents: [img001Hash]}
+      try {
+        await msSer.createMediaShare(userUUID, post)
+      }
+      catch(e){
+        err = e
+      }
+
+      expect(err).to.be.an('error')
+      expect(err.message).to.equal('object has props that are neither mandatory nor optional')
+      done()
+    })
+
+    it('should return error if album has text prop and text is not a string', async done => {
+      let err
+      let post = {maintainers: [aliceUUID],
+                  viewers: [bobUUID],
+                  album: {title: 'testAlbum', text: ['this is a test album']},
+                  contents: [img001Hash]}
+      try {
+        await msSer.createMediaShare(userUUID, post)
+      }
+      catch(e){
+        err = e
+      }
+
+      expect(err).to.be.an('error')
+      expect(err.code).to.equal('EINVAL')
+      expect(err.message).to.equal('invalid parameters')
+      done()
     })
   })
 
-  // describe('updateMediaShare', function() {
+  describe('updateMediaShare', function() {
+    let shareUUID
+    let post = {maintainers: [aliceUUID],
+                  viewers: [bobUUID],
+                  album: {title: 'testAlbum', text: 'this is a test album'},
+                  contents: [img001Hash]}
+    beforeEach(async() => {
+      let share = await msSer.createMediaShare(userUUID, post)
+      shareUUID = share.doc.uuid
+    })
 
-  // })
-  // describe('deleteMediaShare', function() {
+    it('should return error if share is not found', async done => {
+      let err
+      let uuid = '6790cdcb-8bce-4c67-9768-202a90aad8bf'
+      let patch = [{path: 'maintainers',
+                    operation: 'add',
+                    value: [charlieUUID]}]
+      try {
+        await msSer.updateMediaShare(userUUID, uuid, patch)
+      }
+      catch(e) {
+        err = e
+      }
 
-  // })
+      expect(err).to.be.an('error')
+      expect(err.code).to.equal('ENOENT')
+      expect(err.message).to.equal('no entry')
+      done()
+    })
+
+    it('should return error if user is neither author nor maintainers', async done => {
+      let err
+      let patch = [{path: 'maintainers',
+                    operation: 'add',
+                    value: [charlieUUID]}]
+      try {
+        await msSer.updateMediaShare(charlieUUID, shareUUID, patch)
+      }
+      catch(e) {
+        err = e
+      }
+
+      expect(err).to.be.an('error')
+      expect(err.code).to.equal('EACCESS')
+      expect(err.message).to.equal('no permission')
+      done()
+    })
+
+    it('should return error if mandatory props not defined in patch', async done => {
+      let err
+      let patch = [{path: 'maintainers',
+                    value: [charlieUUID]}]
+      try {
+        await msSer.updateMediaShare(userUUID, shareUUID, patch)
+      }
+      catch(e) {
+        err = e
+      }
+
+      expect(err).to.be.an('error')
+      expect(err.message).to.equal('some mandatory props not defined in object')
+      done()
+    })
+
+    it('should return error if op.path is not in the given values', async done => {
+      let err
+      let patch = [{path: 'members',
+                    operation: 'add',
+                    value: [charlieUUID]}]
+      try {
+        await msSer.updateMediaShare(userUUID, shareUUID, patch)
+      }
+      catch(e) {
+        err = e
+      }
+
+      expect(err).to.be.an('error')
+      expect(err.code).to.equal('EINVAL')
+      expect(err.message).to.equal('invalid parameters')
+      done()
+    })
+  })
+
+  describe('deleteMediaShare', function() {
+    let shareUUID
+    let post = {maintainers: [aliceUUID],
+                  viewers: [bobUUID],
+                  album: {title: 'testAlbum', text: 'this is a test album'},
+                  contents: [img001Hash]}
+    beforeEach(async() => {
+      let share = await msSer.createMediaShare(userUUID, post)
+      shareUUID = share.doc.uuid
+    })
+
+    it('should return error if share is not found', async done => {
+      let err
+      let uuid = '6790cdcb-8bce-4c67-9768-202a90aad8bf'
+
+      try {
+        await msSer.deleteMediaShare(userUUID, uuid)
+      }
+      catch(e) {
+        err = e
+      }
+
+      expect(err).to.be.an('error')
+      expect(err.code).to.equal('ENOENT')
+      expect(err.message).to.equal('no entry')
+      done()
+    })
+
+    it('should return error if user is not author', async done => {
+      let err
+      try {
+        await msSer.updateMediaShare(charlieUUID, shareUUID)
+      }
+      catch(e) {
+        err = e
+      }
+
+      expect(err).to.be.an('error')
+      expect(err.code).to.equal('EACCESS')
+      expect(err.message).to.equal('no permission')
+      done()
+    })
+  })
 })
 
 
