@@ -26,7 +26,6 @@ class Probe extends Worker {
     clearTimeout(this.timer)
   }
 
-  // read all entries' xstats
   readXstats(callback) {
     let count, xstats = []
     fs.readdir(this.dpath, (err, entries) => 
@@ -42,7 +41,6 @@ class Probe extends Worker {
   }
 
   run() {
-
     this.timer = setTimeout(() => 
       readXstat(this.dpath, (err, xstat) => 
         this.finished ? undefined

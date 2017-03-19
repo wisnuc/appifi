@@ -68,7 +68,7 @@ const readXstatAsync = async (target, raw) => {
 
       if (attr.hasOwnProperty('hash') || attr.hasOwnProperty('htime')) { 
         if ( !isSHA256(attr.hash) 
-          || Number.isInteger(attr.htime) // is timestamp
+          || !Number.isInteger(attr.htime) // is timestamp
           || attr.htime !== stats.mtime.getTime()) {
           dirty = true
           delete attr.hash
@@ -142,7 +142,12 @@ const updateFileHashAsync = async (target, uuid, hash, htime) => {
   
   let attr2 = { uuid: attr.uuid, hash, htime, magic: attr.magic }
   await xattr.setAsync(target, FRUITMIX, JSON.stringify(attr2))
-  
+
+  let attr3 = await xattr.getAsync(target, FRUITMIX)
+  console.log('=====')
+  console.log(attr3.toString())
+  console.log('=====') 
+
   return {
     uuid,
     type: 'file',
@@ -200,7 +205,9 @@ export {
   readXstat,
   readXstatAsync,
   updateFileHash,
+  updateFileHashAsync,
   updateFile,
+  updateFileAsync,
   forceDriveXstat,
   forceDriveXstatAsync,
 

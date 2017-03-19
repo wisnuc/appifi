@@ -1,6 +1,7 @@
 import path from 'path'
 import fs from 'fs'
 import Worker from '../lib/worker'
+import E from '../lib/error'
 
 import { readXstat } from './xstat'
 
@@ -8,7 +9,7 @@ import { readXstat } from './xstat'
 // !!! don't double quote the string
 const identifyFormatString = '%m|%w|%h|%[EXIF:Orientation]|%[EXIF:DateTime]|%[EXIF:Make]|%[EXIF:Model]|%b'
 
-export const validateExifDateTime = (str) => {
+export const validateExifDateTime = str => {
 
   // "2016:09:19 10:07:05"
   if (str.length !== 19)
@@ -19,7 +20,7 @@ export const validateExifDateTime = (str) => {
   return !isNaN(Date.parse(dtstr))
 }
 
-export const parseIdentifyOutput = (data) => {
+export const parseIdentifyOutput = data => {
 
   let split = data.toString().split('|').map(str => str.trim())
   if (split.length !== 8) return
@@ -77,6 +78,7 @@ export const parseIdentifyOutput = (data) => {
 class Identify extends Worker {
 
   constructor(fpath, uuid, hash) {
+    super()
     this.fpath = fpath
     this.uuid = uuid
     this.hash = hash
@@ -84,6 +86,11 @@ class Identify extends Worker {
 
   run () {
     readXstat(this.fpath, (err, xstat) => {
+
+      console.log('>>>>>')
+      console.log(xstat)
+      console.log('<<<<<')
+
       if (this.finished) return
       if (err) return this.error(err)
       if (xstat.type !== 'file') return this.error(new E.ENOTFILE())
@@ -101,4 +108,5 @@ class Identify extends Worker {
   }
 }
 
-export default (fpath, uuid, hash) => new IdentifyWorker(fpath, uuid, hash)
+export default (fpath, uuid, hash) => new Identify(fpath, uuid, hash)
+
