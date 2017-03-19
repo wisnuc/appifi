@@ -100,11 +100,13 @@ describe(path.basename(__filename), () => {
       let w = probe(tmpdir, uuidArr[0], 123456, 0)
       w.on('error', (err, again) => {
         expect(again).to.be.false
-        expect(err).to.be.an('error')
-        expect(err.code).to.equal('EINSTANCE')
+        expect(err).to.be.an.instanceof(E.EINSTANCE)
         done()
       })
-      w.on('finish', (data, again) => {throw `error finish`})
+      w.on('finish', (data, again) => {
+        console.log(data)
+        done(new Error(`error finish branch`))
+      })
       w.start()
     })
   })
@@ -124,8 +126,7 @@ describe(path.basename(__filename), () => {
       let w = probe(tmpdir, uuidArr[0], FILE.NULLTIME, 0)
       w.on('error', (err, again) => {
         expect(again).to.be.false
-        expect(err).to.be.an('error')
-        expect(err.code).to.equal('EINSTANCE')
+        expect(err).to.be.an.instanceof(E.EINSTANCE)
         done()
       })
       w.on('finish', (data, again) => {throw `error finish`})

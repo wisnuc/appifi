@@ -98,6 +98,3 @@ class FileData extends EventEmitter {
 
 export default FileData
 
-
-
-
