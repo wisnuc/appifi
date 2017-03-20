@@ -1,81 +1,71 @@
+import path from 'path'
 import fs from 'fs'
-import E from './lib/error'
+import E from '../lib/error'
+import Worker from '../lib/worker'
+import { readXstat, readXstatAsync } from './xstat'
 
-// we do not use state machine pattern and event emitter for performance sake
-// the probe is essentially the same as originally designed stm, it just cut the transition from
-// probing to waiting or idle. 
-// exiting probing is considered an end. If 'again` is required, the caller should create another
-// probe in callback.
+// the reason to prefer emitter version over closure one is:
+// 1. easire to test
+// 2. explicit state
+// 3. can emit again (state) when error
+class Probe extends Worker {
 
-// prober may return
-// error
-// {
-//    mtime: timestamp for given directory
-//    props: props for entries
-//    again: should do it again
-// }
-const probe = (dpath, uuid, delay, callback) => {
+  constructor(dpath, uuid, mtime, delay) {
+    super()
+    this.dpath = dpath
+    this.uuid = uuid
+    this.mtime = mtime
+    this.delay = delay
 
-  let timer, again = false, aborted = false
+    this.finished = false
+    this.again = false
+    this.timer = undefined
+  }
 
-  // embedded function, to avoid callback branch
-  const readProps = (callback) => 
-    fs.readdir(dpath, (err, entries) => {
-      if (aborted) return
-      if (err) return callback(err)
-      if (entries.length === 0) return callback(null, [])     
+  cleanUp() {
+    clearTimeout(this.timer)
+  }
 
-      let props = []
-      let count = entries.length 
-      entries.forEach(ent => 
-        readXstat(path.join(dpath, ent), (err, xstat) => {
-          if (aborted) return
-          if (!err) props.push(xstat) // FIXME
-          if (!--count) callback(null, props)
-        }))
-    })
+  readXstats(callback) {
+    let count, xstats = []
+    fs.readdir(this.dpath, (err, entries) => 
+      this.finished ? undefined
+        : err ? callback(err)
+          : (count = entries.length) === 0 ? callback(null, [])     
+            : entries.forEach(ent => 
+                readXstat(path.join(this.dpath, ent), (err, xstat) => {
+                  if (this.finished) return
+                  if (!err) xstats.push(xstat)
+                  if (!--count) callback(null, xstats.sort((a,b) => a.name.localeCompare(b.name)))
+                })))
+  }
 
-  let timer = setTimeout(() => {
-    readXstat(dpath, (err, xstat) => { 
-      if (aborted) return
-      if (err) callback(err)
-      if (!xstat.isDirectory()) return callback(new E.ENOTDIR())
-      if (xstat.uuid !== uuid) return calblack(new E.EINSTANCE())
-      if (xstat.mtime === mtime) return callback(null) // success, no change
+  run() {
+    this.timer = setTimeout(() => 
+      readXstat(this.dpath, (err, xstat) => 
+        this.finished ? undefined
+        : err ? this.error(err, this.again)
+        : xstat.type !== 'directory' ? this.error(new E.ENOTDIR(), this.again)
+        : xstat.uuid !== this.uuid ? this.error(new E.EINSTANCE(), this.again)
+        : xstat.mtime === this.mtime ? this.finish(null, this.again)
+        : this.readXstats((err, xstats) => 
+            this.finished ? undefined
+            : err ? this.error(err, this.again) 
+            : readXstat(this.dpath, (err, xstat2) => 
+                this.finished ? undefined
+                : err ? this.error(err, this.again)
+                : xstat2.type !== 'directory' ? this.error(new E.ENOTDIR(), this.again)
+                : xstat2.uuid !== this.uuid ? this.error(new E.EINSTANCE(), this.again)
+                : xstat2.mtime !== xstat.mtime ? this.error(new E.ETIMESTAMP(), this.again)
+                : this.finish({ mtime: xstat.mtime, xstats }, this.again)))), this.delay)
+  }
 
-      // read props
-      readProps((err, props) => {
-        if (aborted) return
-        if (err) callback(err) 
-
-        // read second time
-        readXstat(dpath, (err, xstat2) => {
-          if (aborted) return
-          if (err) return callback(err)
-          if (!xstat2.isDirectory()) return callback(ENOTDIR)
-          if (xstat2.uuid !== uuid) return callback(EUUID)
-          if (xstat2.mtime !== xstat.mtime) return callback(ETIMESTAMP)
-          callback(null, { mtime: xstat.mtime, props, again })
-        })
-      })
-    })
-  }, delay)
-
-  return {
-
-    type: 'probe',
-
-    abort() {
-      aborted = true
-      callback(new E.EABORT())
-    },
-
-    request() {
-      if (timer) return
-      again = true
-   }
+  request() {
+    if (this.finished) throw 'probe worker already finished'
+    if (!this.timer) this.again = true
   }
 }
 
-export default probe
+export default (dpath, uuid, mtime, delay) => new Probe(dpath, uuid, mtime, delay)
+
 

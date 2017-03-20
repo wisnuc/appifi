@@ -198,12 +198,12 @@ const updateMediaShareDoc = (userUUID, doc, ops) => {
 
     op = ops.find(op => op.path === 'maintainers' && op.op === 'delete') 
     if (op && Array.isArray(op.value)) {
-      maintainers = subtractUUIDArrray(maintainers, sortDedup(isUUID)(op.value))
+      maintainers = subtractUUIDArray(maintainers, sortDedup(isUUID)(op.value))
     }
 
     op = ops.find(op => op.path === 'maintainers' && op.op === 'add') 
     if (op && Array.isArray(op.value)) {
-      maintainers = addUUIDArray(maintainers, sortDedup(isSHA256)(op.value).filter(x => x !== doc.author))
+      maintainers = addUUIDArray(maintainers, sortDedup(isUUID)(op.value).filter(x => x !== doc.author))
     }
 
     op = ops.find(op => op.path === 'viewers' && op.op === 'delete')

@@ -1,48 +1,32 @@
 import child from 'child_process'
-
 import E from '../lib/error'
 
 // cmd must be a string
 // args must be a string array
 const command = (cmd, args, callback) => {
 
-  let output, aborted = false
-  let handle = child.spawn(cmd, args)
+  let output, h, finished = false
 
-  handle.stdout.on('data', data => {
-    if (aborted) return
-    output = data
-  })
+  const finalize = () => finished = (h && h.kill()) || true
+  const error = err => finalize() && callback(err)
+  const finish = data => finalize() && callback(null, data)
 
-  handle.on('close', (code, signal) => {
+  h = child.spawn(cmd, args)
+  h.stdout.on('data', data => !finished && (output = data))
+  h.on('close', (code, signal) => 
+    finished ? undefined
+      : signal ? error(new E.EEXITSIGNAL(`exit with signal ${signal}`))
+        : code !== 0 ? error(new E.EEXITCODE(`exit with code ${code}`))
+          : finish(output.toString()))
 
-    handle = null
-
-    if (aborted) return
-    if (signal) 
-      return callback(new E.EEXITSIGNAL(`exit with signal ${signal}`))
-    if (code) 
-      return callback(new E.EEXITCODE(`exit with code ${code}`))
-
-    callback(null, output.toString())
-  })
-
-  function abort() {
-
-    // avoid duplicate abort
-    if (aborted) return
-
-    if (handle) {
-      handle.kill()
-      handle = null
-    }
-
-    aborted = true
-    callback(new E.EABORT())
-  }
-
-  return abort
+  return () => !finished && error(new E.EABORT())
 }
 
 export default command
+
+
+
+
+
+
 

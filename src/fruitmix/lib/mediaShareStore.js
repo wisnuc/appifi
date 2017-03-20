@@ -1,10 +1,9 @@
 import path from 'path'
 import fs from 'fs'
-
-import validator from 'validator'
+import mkdirp from 'mkdirp'
 
 import { writeFileToDisk } from './util'
-import paths from './paths'
+import { DIR } from './const'
 
 class MediaShareStore {
 
@@ -32,11 +31,26 @@ class MediaShareStore {
     }) 
   }
 
+  // async storeAsync(doc) {
+
+  //   // return new Promise((resolve, reject) => 
+  //   //   this.store(doc, (err, digest) => 
+  //   //     err ? reject(err) : resolve(digest)))
+    
+  //   // await Promise.promisify(this.store, { context: this })
+  //   // or 
+  //   return Promise.promisify(this.store).bind(this)(doc)
+  // }
+
   archive(uuid, callback) {
     let srcpath = path.join(this.rootdir, uuid)
     let dstpath = path.join(this.arcdir, uuid)
     fs.rename(srcpath, dstpath, err => callback(err))
   }
+
+  // async archiveAsync(uuid) {
+  //   Promise.promisify(this.archive).bind(this)(uuid)
+  // }
 
   retrieve(uuid, callback) {
     let srcpath = path.join(this.rootdir, uuid)
@@ -69,13 +83,22 @@ class MediaShareStore {
   }
 }
 
-const createMediaShareStore = (docstore) => {
+const createMediaShareStore = (froot, docstore, callback) => {
 
-  let rootdir = paths.get('mediashare') 
-  let arcdir = paths.get('mediashareArchive')
-  let tmpdir = paths.get('tmp')
-  
-  return new MediaShareStore(rootdir, arcdir, tmpdir, docstore)
+  let rootdir = path.join(froot, DIR.MSHARE)
+  let arcdir = path.join(froot, DIR.MSHAREARC)
+  let tmpdir = path.join(froot, DIR.TMP)
+
+  mkdirp(rootdir, err => {
+    if(err) return callback(err)
+    mkdirp(arcdir, err => {
+      if(err) return callback(err)
+      mkdirp(tmpdir, err => {
+        if(err) return callback(err)
+        callback(null, new MediaShareStore(rootdir, arcdir, tmpdir, docstore))
+      })
+    })
+  })
 }
 
 export { createMediaShareStore }
