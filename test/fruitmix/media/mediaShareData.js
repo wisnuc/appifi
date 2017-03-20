@@ -8,8 +8,6 @@ import { createMediaShareDoc, updateMediaShareDoc } from '../../../src/fruitmix/
 import { createMediaShareData } from '../../../src/fruitmix/media/mediaShareData'
 import E from '../../../src/fruitmix/lib/error'
 
-import E from '../../../../src/fruitmix/lib/error'
-
 class Model {
 
   constructor() {}
