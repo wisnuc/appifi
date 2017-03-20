@@ -1,11 +1,12 @@
 import path from 'path'
 import { expect } from 'chai'
 
-import { rimrafAsync, mkdirpAsync } from '../../../../src/fruitmix/util/async'
-import { createDocumentStore } from '../../../../src/fruitmix/lib/documentStore'
-import { createMediaShareStore } from '../../../../src/fruitmix/lib/mediaShareStore'
-import { createMediaShareDoc, updateMediaShareDoc } from '../../../../src/fruitmix/media/mediaShareDoc'
-import { createMediaShareData } from '../../../../src/fruitmix/media/mediaShareData'
+import { rimrafAsync, mkdirpAsync } from '../../../src/fruitmix/util/async'
+import { createDocumentStore } from '../../../src/fruitmix/lib/documentStore'
+import { createMediaShareStore } from '../../../src/fruitmix/lib/mediaShareStore'
+import { createMediaShareDoc, updateMediaShareDoc } from '../../../src/fruitmix/media/mediaShareDoc'
+import { createMediaShareData } from '../../../src/fruitmix/media/mediaShareData'
+import E from '../../../src/fruitmix/lib/error'
 
 class Model {
 
@@ -65,7 +66,7 @@ describe(path.basename(__filename), function() {
   })
 
   describe('createMediaShare', function() {
-    it('new share should be set into shareMap', async done => {
+    it('new share should be set into shareMap', async () => {
       let post = { maintainers: [aliceUUID],
                    viewers: [bobUUID],
                    album: {title: 'testAlbum', text: 'this is a test album'},
@@ -74,10 +75,9 @@ describe(path.basename(__filename), function() {
       let doc = createMediaShareDoc(userUUID, post)
       await msd.createMediaShare(doc)
       expect(msd.shareMap.get(doc.uuid).doc).to.deep.equal(doc)
-      done()
     })
 
-    it('new share should be a frozen object', async done => {
+    it('new share should be a frozen object', async () => {
       let post = { maintainers: [aliceUUID],
                    viewers: [bobUUID],
                    album: {title: 'testAlbum', text: 'this is a test album'},
@@ -86,7 +86,6 @@ describe(path.basename(__filename), function() {
       let doc = createMediaShareDoc(userUUID, post)
       await msd.createMediaShare(doc)
       expect(Object.isFrozen(msd.shareMap.get(doc.uuid))).to.be.true
-      done()
     })
   })
 
@@ -102,7 +101,7 @@ describe(path.basename(__filename), function() {
       await msd.createMediaShare(doc)
     })
 
-    it('updated doc should be put into shareMap', async done => {
+    it('updated doc should be put into shareMap', async () => {
       let patch = [{path: 'maintainers',
                     operation: 'add',
                     value: [charlieUUID]
@@ -110,10 +109,9 @@ describe(path.basename(__filename), function() {
       let newDoc = updateMediaShareDoc(userUUID, doc, patch)
       await msd.updateMediaShare(newDoc)
       expect(msd.shareMap.get(doc.uuid).doc).to.deep.equal(newDoc)
-      done()
     })
 
-    it('updated share should be a frozen object', async done => {
+    it('updated share should be a frozen object', async () => {
       let patch = [{path: 'maintainers',
                     operation: 'add',
                     value: [charlieUUID]
@@ -121,10 +119,9 @@ describe(path.basename(__filename), function() {
       let newDoc = updateMediaShareDoc(userUUID, doc, patch)
       await msd.updateMediaShare(newDoc)
       expect(Object.isFrozen(msd.shareMap.get(doc.uuid))).to.be.true
-      done()
     })
 
-    it('should throw error if target uuid is not found', async done => {
+    it('should throw error if target uuid is not found', async () => {
       let err
       let patch = [{path: 'maintainers',
                     operation: 'add',
@@ -139,10 +136,7 @@ describe(path.basename(__filename), function() {
       catch(e){
         err = e
       }
-      expect(err).to.be.an('error')
-      expect(err.code).to.equal('ENOENT')
-      expect(err.message).to.equal('no entry')
-      done()
+      expect(err).to.be.an.instanceof(E.ENOENT)
     })
   })
 
@@ -158,7 +152,7 @@ describe(path.basename(__filename), function() {
       await msd.createMediaShare(doc)
     })
 
-    it('should throw error if uuid is not exist in shareMap', async done => {
+    it('should throw error if uuid is not exist in shareMap', async () => {
       let err
       msd.shareMap.delete(doc.uuid)
       try {
@@ -167,16 +161,12 @@ describe(path.basename(__filename), function() {
       catch(e){
         err = e
       }
-      expect(err).to.be.an('error')
-      expect(err.code).to.equal('ENOENT')
-      expect(err.message).to.equal('no entry')
-      done()
+      expect(err).to.be.an.instanceof(E.ENOENT)
     })
 
-    it('should remove share from shareMap successfully', async done => {
+    it('should remove share from shareMap successfully', async () => {
       await msd.deleteMediaShare(doc.uuid)
       expect(msd.shareMap.get(doc.uuid)).to.be.undefined
-      done()
     })
   })
 })
