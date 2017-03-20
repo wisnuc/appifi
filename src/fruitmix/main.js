@@ -1,14 +1,16 @@
-import path from 'path'
-import cluster from 'cluster'
-import os from 'os'
+const path = require('path')
+const cluster = require('cluster')
+const os = require('os')
 
-import config from './cluster/config'
+const config = require('./cluster/config')
 
 import Main from './cluster/main'
 import Worker from './cluster/worker'
 
 import IpcHandler from './cluster/ipcHandler'
 import IpcWorker from './cluster/ipcWorker'
+
+console.log(config)
 
 // check fruitmix path
 if (typeof config.path !== 'string' || config.path.length === 0) {
@@ -47,7 +49,6 @@ if (cluster.isMaster) {
 else {
 
   console.log(`Worker ${process.pid} started`);
-
   config.ipc = IpcWorker()
   Worker()
 }
