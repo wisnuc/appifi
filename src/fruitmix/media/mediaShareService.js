@@ -2,12 +2,12 @@
 
 import { isUUID, isSHA256, complement, validateProps } from '../lib/types'
 import E from '../lib/error'
-import { shareAllowed } from './shareAllowed' // TODO
 import { createMediaShareDoc, updateMediaShareDoc } from './mediaShareDoc'
 
 class MediaShareService {
 
-  constructor(mediaShareData) {
+  constructor(mediaData, mediaShareData) {
+    this.md = mediaData
     this.msd = mediaShareData
   }
 
@@ -17,22 +17,22 @@ class MediaShareService {
     if(!isUUID(user)) throw new E.EINVAL()
     if(typeof post !== 'object' || post === null) throw new E.EINVAL()
 
-    validateProps(post, ['maintainers', 'veiwers', 'album', 'contents'])
+    validateProps(post, ['maintainers', 'viewers', 'album', 'contents'])
 
-    let {maintainers, veiwers, album, contents} = post
+    let {maintainers, viewers, album, contents} = post
     // contents format and permission check
     if(!Array.isArray(contents)) throw new E.EINVAL()
     if(!contents.length) throw new E.EINVAL()
     if(!contents.every(isSHA256)) throw new E.EINVAL()
-    if(!contents.every(digest => shareAllowed.mediaShareAllowed(user, digest))) throw new E.EACCESS()
+    if(!contents.every(digest => this.md.mediaShareAllowed(user, digest))) throw new E.EACCESS()
 
     // maintainers format check
     if(!Array.isArray(maintainers)) throw new E.EINVAL()
-    if(!maintainers.every(isUUID())) throw new  E.EINVAL()
+    if(!maintainers.every(isUUID))throw new  E.EINVAL()
 
     // viewers format check
     if(!Array.isArray(viewers)) throw new E.EINVAL()
-    if(!viewers.every(isUUID())) throw new  E.EINVAL()
+    if(!viewers.every(isUUID)) throw new  E.EINVAL()
 
     // album format check
     if(typeof album !== 'object') throw new E.EINVAL()
@@ -45,7 +45,7 @@ class MediaShareService {
     }
 
     let doc = createMediaShareDoc(user, post)
-    await this.msd.createMediaShare(doc)
+    return await this.msd.createMediaShare(doc)
   } 
 
   // return { digest, doc } // for compatibility 
@@ -56,7 +56,7 @@ class MediaShareService {
 
     let share = this.msd.shareMap.get(shareUUID)
     if(!share) throw new E.ENOENT()
-    if(share.doc.author !== user && share.doc.maintainers.indexOf(userUUID) === -1) throw new E.EACCESS()
+    if(share.doc.author !== user && share.doc.maintainers.indexOf(user) === -1) throw new E.EACCESS()
     
     if(!Array.isArray(patch)) throw new E.EINVAL()
     patch.forEach(op => {
@@ -64,15 +64,15 @@ class MediaShareService {
 
       validateProps(op, ['path', 'operation', 'value'])
 
-      if(complement([op.path], ['maintainers', 'veiwers', 'album', 'contents']).length !== 0)
+      if(complement([op.path], ['maintainers', 'viewers', 'album', 'contents']).length !== 0)
         throw new E.EINVAL()
 
-      if(complement([op.path], ['maintainers', 'veiwers', 'contents']).length === 0) {
+      if(complement([op.path], ['maintainers', 'viewers', 'contents']).length === 0) {
         if(op.operation !== 'add' || op.operation !== 'delete') throw new E.EINVAL()
         if(!Array.isArray(op.value)) throw new E.EINVAL()
         if(op.path === 'contents') {
           if(!op.value.every(isSHA256)) throw new E.EINVAL()
-          if(!op.value.every(digest => mediaShareAllowed(user, digest))) throw new E.EACCESS()
+          if(!op.value.every(digest => this.md.mediaShareAllowed(user, digest))) throw new E.EACCESS()
         }
         else {
           if(!op.value.every(isUUID)) throw new E.EINVAL()
@@ -92,7 +92,7 @@ class MediaShareService {
     })
 
     let newDoc = updateMediaShareDoc(user, share.doc, patch)
-    await this.msd.updateMediaShare(newDoc)
+    return await this.msd.updateMediaShare(newDoc)
   } 
 
   // return undefined, never fail, idempotent
@@ -108,8 +108,8 @@ class MediaShareService {
   }
 }
 
-const createMediaShareService = (msd) => { 
-  return new MediaShareService(msd)
+const createMediaShareService = (mediaData, msd) => { 
+  return new MediaShareService(mediaData, msd)
 }
 
 export { createMediaShareService }
