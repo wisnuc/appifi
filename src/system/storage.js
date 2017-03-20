@@ -9,7 +9,7 @@ import probeMountsAsync from './procMountsAsync'
 import probeSwapsAsync from './procSwapsAsync'
 import probeVolumesAsync from './btrfsfishowAsync'
 import probeUsageAsync from './btrfsusageAsync'
-import { initFruitmix, probeFruitmix } from '../fruitmix/tools'
+import Persistent from './persistent'
 
 const debug = Debug('system:storage')
 
@@ -397,6 +397,8 @@ const statVolumes = (volumes, mounts) =>
 
 let firstLog = 0
 
+const ipc = new Persistent('/run/wisnuc/storage', '/run/wisnuc', 1000)
+
 const refreshStorageAsync = async () => {
 
   let storage = await probeStorageWithUsages()
@@ -411,9 +413,13 @@ const refreshStorageAsync = async () => {
     data: storage
   })
 
+  ipc.save(storage) 
+
   debug('storage refreshed: ', storage)
   return storage
 }
+
+
 
 export { refreshStorageAsync }
 
