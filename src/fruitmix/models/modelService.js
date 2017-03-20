@@ -1,11 +1,13 @@
-
-import E from '../lib/error'
 import path from 'path'
 import fs from 'fs'
-import UUID from 'node-uuid'
+import EventEmitter from 'events'
+
 import bcrypt from 'bcrypt'
-import { md4Encrypt } from '../tools'
+import UUID from 'node-uuid'
 import ursa from 'ursa'
+
+import E from '../lib/error'
+import { md4Encrypt } from '../tools'
 
 const passwordEncrypt = (password, saltLen) =>
   bcrypt.hashSync(password, bcrypt.genSaltSync(saltLen));
@@ -19,6 +21,7 @@ const getCredentials = () => {
   return { publicKey, privateKey }
 }
 
+// Array.from(new Set[...arr1, ...arr2])
 const mergeAndDedup = (arr1, arr2) => {
   let arr = [];
   let set = new Set([...arr1, ...arr2]);
@@ -27,6 +30,7 @@ const mergeAndDedup = (arr1, arr2) => {
   return arr;
 }
 
+// complement
 const arrDeleteArr = (arr1, arr2) => {
   let set = new Set(arr1);
   arr2.forEach(i => {
@@ -42,8 +46,10 @@ const arrDeleteArr = (arr1, arr2) => {
 const isExist = (target, callback) =>
   fs.access(target, fs.constants.R_OK, err =>
     err ? callback(null, false) : callback(null, true));
+
 const isExistAsync = Promise.promisify(isExist);
 
+// TODO  
 const fileToJson = (filepath, callback) => {
   fs.readFile(filepath, (err, data) => {
     if(err) return callback(err);
@@ -54,9 +60,13 @@ const fileToJson = (filepath, callback) => {
 }
 const fileToJsonAsync = Promise.promisify(fileToJson);
 
-class ModelService {
+fs.readFileAsync
+return JSON.parse
 
-  constructor(modelData) {
+class ModelService extends EventEmitter {
+
+  constructor(froot, modelData) {
+    this.froot = froot
     this.modelData = modelData;
   }
 
@@ -64,9 +74,18 @@ class ModelService {
   allocUnixUID() {
     let uids = this.modelData.users.filter(u => u.type === 'local').map(u => u.unixuid);
     let set = new Set(uids);
-    let uid = 2000;
-    while(set.has(uid)) { uid++; }
+    // let uid = 2000;
+    // while(set.has(uid)) { uid++; }
+    let uid
+    for (uid = 2000; set.has(uid); uid++) {} 
     return uid;
+  }
+
+  // 1. split logic to normal and fallback
+  // 2. fallback need translation
+  // 3. test real world data (users.json, drives.json)
+  // 4. the only reason for fallback is err.code === ENOENT
+  async initializeFallbackAsync () {
   }
 
   // opaque
@@ -76,6 +95,14 @@ class ModelService {
     let users, drives;
     let modelPath = this.modelData.modelPath;
     let existM = await isExistAsync(modelPath);
+
+    try {
+      data = fs.readFileAsync(...)
+    }
+    catch (e) {
+      if (e.code !== 'ENOENT') throw e
+      return await init.. fallback
+    }
 
     if (existM){
       // model.json exist
@@ -160,6 +187,11 @@ class ModelService {
     try {
       await this.modelData.createUserAsync(newUser, newDrives);
     } catch (e) { throw e; }
+
+    // 1. return user object, password, cert filtered out
+    // 2. no try catch
+    // 3. emit 
+    this.emit('drivesCreated', newDrives) // ???  TODO newDrives may be different from that in modelData
 	}
 
 	async createRemoteUserAsync(useruuid, props) {
@@ -222,6 +254,7 @@ class ModelService {
     let next = Object.assign({}, user, { password, unixPassword, smbPassword, lastChangeTime });
     try {
       await this.modelData.updateUserAsync(next, props.password);
+      // this.modelData.updatePasswordAsync
     } catch (e) { throw e; }
   }
 
@@ -317,6 +350,13 @@ const createModelService = async (modelData, callback) => {
     callback(null, modelService);
   } catch (e) { callback(e) }
 }
+
+const createModelService = froot => {
+
+  let data = createModelData(froot)
+  return new ModelService(froot, data)
+} 
+
 const createModelServiceAsync = Promise.promisify(createModelService);
 
 export default createModelServiceAsync

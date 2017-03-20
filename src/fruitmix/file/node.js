@@ -86,7 +86,7 @@ class Node {
     // TODO
   }
 
-  // abort workers
+  // abort workers // TODO nullify worker?
   abort() {
     if (this.worker) this.worker.abort()
     

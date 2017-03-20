@@ -16,6 +16,7 @@ const localUsersAsync = async () => {
 }
 
 const localUsers = callback => localUsersAsync().asCallback(callback)
+// const localUsers = callback => nodeify(localUsersAsync(), callback)
 
 export { localUsers }
 
