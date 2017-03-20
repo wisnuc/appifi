@@ -1,16 +1,28 @@
-import config from './config'
+const path = require('path')
+const fs = require('fs')
+const nodeify = require('nodeify')
 
-const localUsersAsync = async () => {
+const config = require('./config')
 
-  let froot = config.path
-  if (!path.isAbsolute(froot)) throw new Error('not absolute path') // TODO
+const localUsers = callback => {
 
-  let mpath = path.join(froot, 'models', 'models.json')
-  let model = JSON.parse(await fs.readFileAsync(mpath))
-  let users = model.users      
+  let mpath = path.join(config.path, 'models', 'model.json')
+  fs.readFile(mpath, (err, data) => {
+    if (err) return callback(err)
+    let model
+    try {
+      model = JSON.parse(data) 
+    }
+    catch(e) {
+      return callback(e)
+    }
 
-  return users.filter(u => u.type === 'local')
+    let users = model.users
+    callback(null, users.filter(u => u.type === 'local'))
+  })
 }
 
-export default model
+module.exports = {
+  localUsers
+}
 

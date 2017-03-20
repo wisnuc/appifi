@@ -6,9 +6,10 @@ import logger from 'morgan'
 import bodyParser from 'body-parser'
 
 import auth from './middleware/auth'
+import login from './routes/login'
+
 /**
 import init from './routes/init'
-import login from './routes/login'
 import token from './routes/token'
 import users from './routes/users'
 import drives from './routes/drives'
@@ -20,6 +21,7 @@ import media from './routes/media'
 import mediashare from './routes/mediashare'
 import authtest from '../routes/authtest'
 **/
+
 const App = () => {
 
   let app = express()
@@ -48,9 +50,9 @@ const App = () => {
   })
 
   // app.use(express.static(path.join(__dirname, 'public')))
+  app.use('/login', login)
 /**
   app.use('/init', init)
-  app.use('/login', login)
   app.use('/token', token)
   app.use('/users', users)
   app.use('/drives', drives)
