@@ -1,8 +1,12 @@
 import http from 'http'
 import App from './app'
+import paths from './lib/paths'
 // import { createHttpServer } from '../fruitmix'
 
 const createHttpServer = () => {
+
+  //set upload paths root 
+  paths.setRoot(process.cwd())
 
   let app = App()
   let server, port = 3721

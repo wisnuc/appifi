@@ -2,7 +2,7 @@ const path = require('path')
 const cluster = require('cluster')
 const os = require('os')
 
-const config = require('./cluster/config')
+import config from './cluster/config'
 
 import Main from './cluster/main'
 import Worker from './cluster/worker'

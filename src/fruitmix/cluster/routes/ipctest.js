@@ -1,6 +1,6 @@
 const router = require('express').Router()
 
-const config = require('../config')
+import config from '../config'
 
 router.get('/', (req, res) => {
 

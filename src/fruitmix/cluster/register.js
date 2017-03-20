@@ -8,3 +8,4 @@ const  register = (obj) => {
   }
 }
 
+export { register } 

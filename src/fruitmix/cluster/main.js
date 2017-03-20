@@ -1,4 +1,4 @@
-const config = require('./config')
+import config from './config'
 
 // this is the module start fruitmix core
 
