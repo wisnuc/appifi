@@ -5,6 +5,7 @@ import EventEmitter from 'events'
 import bcrypt from 'bcrypt'
 import UUID from 'node-uuid'
 import ursa from 'ursa'
+import crypt3 from 'crypt3'
 
 import E from '../lib/error'
 import { md4Encrypt } from '../tools'
@@ -22,6 +23,9 @@ const getCredentials = () => {
 }
 
 // Array.from(new Set[...arr1, ...arr2])
+const getUnixPwdEncrypt = password =>
+  crypt3(password, crypt3.createSalt('sha512').slice(0, 11))
+
 const mergeAndDedup = (arr1, arr2) => {
   let arr = [];
   let set = new Set([...arr1, ...arr2]);
@@ -164,7 +168,7 @@ class ModelService extends EventEmitter {
     let lastChangeTime = new Date().getTime();
 
     let passwordEncrypted = passwordEncrypt(password, 10);
-    let unixPassword = passwordEncrypt(password, 8);    //???
+    let unixPassword = getUnixPwdEncrypt(password);
     let smbPassword = md4Encrypt(password);
 
     let friends = [];
@@ -247,7 +251,7 @@ class ModelService extends EventEmitter {
     let user = users.find(u => u.uuid === props.uuid);
 
     let password = passwordEncrypt(props.password, 10);
-    let unixPassword = passwordEncrypt(props.password, 8);    //???
+    let unixPassword = getUnixPwdEncrypt(props.password);
     let smbPassword = md4Encrypt(props.password);
     let lastChangeTime = new Date().getTime();
 
