@@ -2,12 +2,12 @@ import path from 'path'
 import { expect } from 'chai'
 import sinon from 'sinon'
 
-import { rimrafAsync, mkdirpAsync } from '../../../../src/fruitmix/util/async'
-import { createDocumentStore } from '../../../../src/fruitmix/lib/documentStore'
-import { createMediaShareStore } from '../../../../src/fruitmix/lib/mediaShareStore'
-//import { createMediaShareDoc, updateMediaShareDoc } from '../../../../src/fruitmix/media/mediaShareDoc'
-import { createMediaShareData } from '../../../../src/fruitmix/media/mediaShareData'
-import { createMediaShareService } from '../../../../src/fruitmix/media/mediaShareService'
+import { rimrafAsync, mkdirpAsync } from '../../../src/fruitmix/util/async'
+import { createDocumentStore } from '../../../src/fruitmix/lib/documentStore'
+import { createMediaShareStore } from '../../../src/fruitmix/lib/mediaShareStore'
+import { createMediaShareData } from '../../../src/fruitmix/media/mediaShareData'
+import { createMediaShareService } from '../../../src/fruitmix/media/mediaShareService'
+import E from '../../../src/fruitmix/lib/error'
 
 class Model {
   constructor() {}
@@ -72,7 +72,7 @@ describe(path.basename(__filename), function() {
   })
 
   describe('createMediaShare',function() {
-    it('should return error if user is not a invalid uuid', async done => {
+    it('should return error if user is not a invalid uuid', async () => {
       let err
       let post = {maintainers: [aliceUUID],
                   viewers: [bobUUID],
@@ -84,14 +84,10 @@ describe(path.basename(__filename), function() {
       catch(e){
         err = e
       }
-
-      expect(err).to.be.an('error')
-      expect(err.code).to.equal('EINVAL')
-      expect(err.message).to.equal('invalid parameters')
-      done()
+      expect(err).to.be.an.instanceof(E.EINVAL)
     })
 
-    it('should return error if post is not a non-null object', async done => {
+    it('should return error if post is not a non-null object', async () => {
       let err
       let post = null
       try {
@@ -100,14 +96,10 @@ describe(path.basename(__filename), function() {
       catch(e){
         err = e
       }
-
-      expect(err).to.be.an('error')
-      expect(err.code).to.equal('EINVAL')
-      expect(err.message).to.equal('invalid parameters')
-      done()
+      expect(err).to.be.an.instanceof(E.EINVAL)
     })
 
-    it('should return error if post not contain mandatory props', async done => {
+    it('should return error if post not contain mandatory props', async () => {
       let err
       let post = {maintainers: [aliceUUID],
                   viewers: [bobUUID],
@@ -118,13 +110,11 @@ describe(path.basename(__filename), function() {
       catch(e){
         err = e
       }
-
       expect(err).to.be.an('error')
       expect(err.message).to.equal('some mandatory props not defined in object')
-      done()
     })
 
-    it('should return error if contents is not a array', async done => {
+    it('should return error if contents is not a array', async () => {
       let err
       let post = {maintainers: [aliceUUID],
                   viewers: [bobUUID],
@@ -136,14 +126,10 @@ describe(path.basename(__filename), function() {
       catch(e){
         err = e
       }
-
-      expect(err).to.be.an('error')
-      expect(err.code).to.equal('EINVAL')
-      expect(err.message).to.equal('invalid parameters')
-      done()
+      expect(err).to.be.an.instanceof(E.EINVAL)
     })
 
-    it('should return error if contents is an empty array', async done => {
+    it('should return error if contents is an empty array', async () => {
       let err
       let post = {maintainers: [aliceUUID],
                   viewers: [bobUUID],
@@ -155,13 +141,10 @@ describe(path.basename(__filename), function() {
       catch(e){
         err = e
       }
-      expect(err).to.be.an('error')
-      expect(err.code).to.equal('EINVAL')
-      expect(err.message).to.equal('invalid parameters')
-      done()
+      expect(err).to.be.an.instanceof(E.EINVAL)
     })
 
-    it('should return error if contents is not allowed to be shared', async done => {
+    it('should return error if contents is not allowed to be shared', async () => {
       let err
       let post = {maintainers: [aliceUUID],
                   viewers: [bobUUID],
@@ -176,14 +159,10 @@ describe(path.basename(__filename), function() {
         err = e
       }
       stub.restore()
-
-      expect(err).to.be.an('error')
-      expect(err.code).to.equal('EACCESS')
-      expect(err.message).to.equal('no permission')
-      done()
+      expect(err).to.be.an.instanceof(E.EACCESS)
     })
 
-    it('should return error if album not contain mandatory props', async done => {
+    it('should return error if album not contain mandatory props', async () => {
       let err
       let post = {maintainers: [aliceUUID],
                   viewers: [bobUUID],
@@ -195,13 +174,11 @@ describe(path.basename(__filename), function() {
       catch(e){
         err = e
       }
-
       expect(err).to.be.an('error')
       expect(err.message).to.equal('some mandatory props not defined in object')
-      done()
     })
 
-    it('should return error if album has props that are neither mandatory nor optional', async done => {
+    it('should return error if album has props that are neither mandatory nor optional', async () => {
       let err
       let post = {maintainers: [aliceUUID],
                   viewers: [bobUUID],
@@ -213,13 +190,11 @@ describe(path.basename(__filename), function() {
       catch(e){
         err = e
       }
-
       expect(err).to.be.an('error')
       expect(err.message).to.equal('object has props that are neither mandatory nor optional')
-      done()
     })
 
-    it('should return error if album has text prop and text is not a string', async done => {
+    it('should return error if album has text prop and text is not a string', async () => {
       let err
       let post = {maintainers: [aliceUUID],
                   viewers: [bobUUID],
@@ -231,11 +206,7 @@ describe(path.basename(__filename), function() {
       catch(e){
         err = e
       }
-
-      expect(err).to.be.an('error')
-      expect(err.code).to.equal('EINVAL')
-      expect(err.message).to.equal('invalid parameters')
-      done()
+      expect(err).to.be.an.instanceof(E.EINVAL)
     })
   })
 
@@ -250,7 +221,7 @@ describe(path.basename(__filename), function() {
       shareUUID = share.doc.uuid
     })
 
-    it('should return error if share is not found', async done => {
+    it('should return error if share is not found', async () => {
       let err
       let uuid = '6790cdcb-8bce-4c67-9768-202a90aad8bf'
       let patch = [{path: 'maintainers',
@@ -262,14 +233,10 @@ describe(path.basename(__filename), function() {
       catch(e) {
         err = e
       }
-
-      expect(err).to.be.an('error')
-      expect(err.code).to.equal('ENOENT')
-      expect(err.message).to.equal('no entry')
-      done()
+      expect(err).to.be.an.instanceof(E.ENOENT)
     })
 
-    it('should return error if user is neither author nor maintainers', async done => {
+    it('should return error if user is neither author nor maintainers', async () => {
       let err
       let patch = [{path: 'maintainers',
                     operation: 'add',
@@ -280,14 +247,10 @@ describe(path.basename(__filename), function() {
       catch(e) {
         err = e
       }
-
-      expect(err).to.be.an('error')
-      expect(err.code).to.equal('EACCESS')
-      expect(err.message).to.equal('no permission')
-      done()
+      expect(err).to.be.an.instanceof(E.EACCESS)
     })
 
-    it('should return error if mandatory props not defined in patch', async done => {
+    it('should return error if mandatory props not defined in patch', async () => {
       let err
       let patch = [{path: 'maintainers',
                     value: [charlieUUID]}]
@@ -297,13 +260,11 @@ describe(path.basename(__filename), function() {
       catch(e) {
         err = e
       }
-
       expect(err).to.be.an('error')
       expect(err.message).to.equal('some mandatory props not defined in object')
-      done()
     })
 
-    it('should return error if op.path is not in the given values', async done => {
+    it('should return error if op.path is not in the given values', async () => {
       let err
       let patch = [{path: 'members',
                     operation: 'add',
@@ -314,11 +275,7 @@ describe(path.basename(__filename), function() {
       catch(e) {
         err = e
       }
-
-      expect(err).to.be.an('error')
-      expect(err.code).to.equal('EINVAL')
-      expect(err.message).to.equal('invalid parameters')
-      done()
+      expect(err).to.be.an.instanceof(E.EINVAL)
     })
   })
 
@@ -333,24 +290,19 @@ describe(path.basename(__filename), function() {
       shareUUID = share.doc.uuid
     })
 
-    it('should return error if share is not found', async done => {
+    it('should return error if share is not found', async () => {
       let err
       let uuid = '6790cdcb-8bce-4c67-9768-202a90aad8bf'
-
       try {
         await msSer.deleteMediaShare(userUUID, uuid)
       }
       catch(e) {
         err = e
       }
-
-      expect(err).to.be.an('error')
-      expect(err.code).to.equal('ENOENT')
-      expect(err.message).to.equal('no entry')
-      done()
+      expect(err).to.be.an.instanceof(E.ENOENT)
     })
 
-    it('should return error if user is not author', async done => {
+    it('should return error if user is not author', async () => {
       let err
       try {
         await msSer.updateMediaShare(charlieUUID, shareUUID)
@@ -358,11 +310,7 @@ describe(path.basename(__filename), function() {
       catch(e) {
         err = e
       }
-
-      expect(err).to.be.an('error')
-      expect(err.code).to.equal('EACCESS')
-      expect(err.message).to.equal('no permission')
-      done()
+      expect(err).to.be.an.instanceof(E.EACCESS)
     })
   })
 })

@@ -1,13 +1,12 @@
 import path from 'path'
 import { expect } from 'chai'
 
-import { rimrafAsync, mkdirpAsync } from '../../../../src/fruitmix/util/async'
-import { createDocumentStore } from '../../../../src/fruitmix/lib/documentStore'
-import { createMediaShareStore } from '../../../../src/fruitmix/lib/mediaShareStore'
-import { createMediaShareDoc, updateMediaShareDoc } from '../../../../src/fruitmix/media/mediaShareDoc'
-import { createMediaShareData } from '../../../../src/fruitmix/media/mediaShareData'
-
-import E from '../../../../src/fruitmix/lib/error'
+import { rimrafAsync, mkdirpAsync } from '../../../src/fruitmix/util/async'
+import { createDocumentStore } from '../../../src/fruitmix/lib/documentStore'
+import { createMediaShareStore } from '../../../src/fruitmix/lib/mediaShareStore'
+import { createMediaShareDoc, updateMediaShareDoc } from '../../../src/fruitmix/media/mediaShareDoc'
+import { createMediaShareData } from '../../../src/fruitmix/media/mediaShareData'
+import E from '../../../src/fruitmix/lib/error'
 
 class Model {
 
