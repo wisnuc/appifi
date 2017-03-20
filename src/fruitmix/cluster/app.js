@@ -7,6 +7,7 @@ import bodyParser from 'body-parser'
 
 import auth from './middleware/auth'
 import login from './routes/login'
+import ipctest from './routes/ipctest'
 
 /**
 import init from './routes/init'
@@ -51,6 +52,7 @@ const App = () => {
 
   // app.use(express.static(path.join(__dirname, 'public')))
   app.use('/login', login)
+  app.use('/ipctest', ipctest)
 /**
   app.use('/init', init)
   app.use('/token', token)

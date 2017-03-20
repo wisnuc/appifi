@@ -20,7 +20,7 @@ class Job {
     this.op = op
     this.args = args
     this.callback = callback
-    this.timestamp = new Data().getTime()
+    this.timestamp = new Date().getTime()
   }
 
   message() {
@@ -40,7 +40,8 @@ class IpcWorker {
   }
 
   createJob(op, args, callback) {
-    jobs.push(new Job(op, args, callback))
+    let job = new Job(op, args, callback)
+    jobs.push(job)
     return job
   }
 
@@ -48,14 +49,14 @@ class IpcWorker {
 
     let job
     try {
-      job = createJob(op, args, callback)
+      job = this.createJob(op, args, callback)
     }
     catch (e) {
       process.nextTick(() => callback(e))
       return
     }
 
-    process.send(msg)
+    process.send(job.message())
   }  
 
   handleCommandMessage(msg) {
@@ -79,6 +80,8 @@ const createIpcWorker = () => {
   let ipc = new IpcWorker()
 
   process.on('message', msg => {
+
+    console.log('ipcworker, msg', msg)
 
     switch(msg.type) {
       case 'command':

@@ -10,8 +10,6 @@ import Worker from './cluster/worker'
 import IpcHandler from './cluster/ipcHandler'
 import IpcWorker from './cluster/ipcWorker'
 
-console.log(config)
-
 // check fruitmix path
 if (typeof config.path !== 'string' || config.path.length === 0) {
   console.log('fruitmix root path not set')
@@ -36,7 +34,7 @@ if (cluster.isMaster) {
 
   for (let i = 0; i < numCPUs; i++) {
     let worker = cluster.fork()
-    worker.on('message', msg => ipc.handle(worker, msg))
+    worker.on('message', msg => config.ipc.handle(worker, msg))
   }
 
   cluster.on('exit', (worker, code, signal) => {

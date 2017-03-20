@@ -15,11 +15,13 @@ class IpcHandler {
   // no id is illegal
   handleCommand(worker, msg) {
 
-    let handler = commandMap.get(op)
+    let { id, op, args } = msg
+    let handler = this.commandMap.get(op)
 
     if (!handler) {
       return worker.send({
-        uuid: msg.uuid,
+        type: 'command',
+        id,
         err: {
           code: 'ENOHANDLER',
           message: `no handler found for ${op}`
@@ -28,9 +30,13 @@ class IpcHandler {
     }
 
     handler(msg.args, (err, data) => {
+
+      console.log('handler', err || data)
+
       if (err) {
         worker.send({
-          id,
+          type: 'command',
+          id: id,
           err: {
             code: err.code,
             message: err.message
@@ -38,7 +44,7 @@ class IpcHandler {
         })
       }
       else {
-        worker.send({ id, data })
+        worker.send({ type: 'command', id, data })
       }
     })
   }
