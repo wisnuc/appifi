@@ -21,7 +21,12 @@ class Node {
   }
 
   unsetChild(child) {
-      
+    let children = this.children
+    if (children === undefined) throw new Error('Node has no children')
+    let index = children.findIndex(c => c === child)
+    if (index === -1) throw new Error('Node has no such child')
+    children.splice(index, 1)
+    if (children.length === 0) delete this.children 
   }
 
   getChildren() {
@@ -60,6 +65,18 @@ class Node {
       if (func(node)) return node
       node = node.parent
     }
+  }
+
+  preVisit(func) {
+    func(this)
+    if (this.children) 
+      this.children.forEach(child => child.preVisit(func)) 
+  }
+
+  postVisit(func) {
+    if (this.children)
+      this.children.forEach(child => child.postVisit(func))
+    func(this) 
   }
 
   nodepath() {
