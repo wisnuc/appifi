@@ -1,4 +1,4 @@
-const path = require('path')
+import path from 'path'
 
 const argv = key => 
   process.argv.find((item, index, array) => 
@@ -7,5 +7,5 @@ const argv = key =>
 const config = ['path'].reduce((acc, c) => 
   Object.assign(acc, { [c] : argv(c) }), {})
 
-module.exports = config
+export default config
 

@@ -60,18 +60,31 @@ class FileService {
   }
 
   // create new directory inside given dirUUID
-  createDirectory(userUUID, dirUUID, name, callback) {
+  createDirectory({ userUUID, dirUUID, name }, callback) {
 
     // permission check
     let node = this.data.findNodeByUUID(dirUUID)
   }
 
   // create new file inside given dirUUID, 
-  createFile(userUUID, srcpath, dirUUID, name, callback) {
+  createFile(args, callback) {
+    let  { userUUID, srcpath, dirUUID, name, sha256 } = args
+
+  }
+
+  // create new file before check
+  createFileCheck(args, callback){
+    let { userUUID, dirUUID, name } = args
+    let node = this.data.findNodeByUUID(dirUUID)
+    if(!node || userCanRead(userUUID, node))
+      return callback(new Error('Permission denied'))
+    if(this.list.find(child => child.name == name && child.type === 'file'))
+      return callback(new Error('File exist')) // TODO
+    callback(null, node)
   }
 
   // overwrite existing file
-  overwriteFile(userUUID, srcpath, fileUUID, callback) {
+  overwriteFile({ userUUID, srcpath, fileUUID }, callback) {
   }
 
   // rename a directory or file
@@ -84,6 +97,13 @@ class FileService {
 
   // delete a directory or file
   del(userUUID, targetUUID, callback) {
+  }
+
+  register(ipc){
+    ipc.register('createFileCheck', this.createFileCheck.bind(this))
+    ipc.register('createFile', this.createFile.bind(this))
+    ipc.register('createDirectory', this.createDirectory.bind(this))
+    ipc.register('overwriteFile', this.overwriteFile.bind(this))
   }
 }
 

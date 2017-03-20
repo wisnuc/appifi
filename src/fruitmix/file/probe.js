@@ -17,7 +17,7 @@ class Probe extends Worker {
     this.mtime = mtime
     this.delay = delay
 
-    this.finished = false
+    // this.finished = false
     this.again = false
     this.timer = undefined
   }

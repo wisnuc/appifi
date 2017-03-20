@@ -1,3 +1,5 @@
+import config from './config'
+
 // this is the module start fruitmix core
 
 /**
@@ -14,6 +16,12 @@ const mediaData =
 **/
 
 
+export default () => {
 
-export default () => {}
+  const ipc = config.ipc
+  ipc.register('ipctest', (text, callback) => {
+    console.log('ipctest', text)
+    process.nextTick(() => callback(null, text.toUpperCase()))
+  })
+}
 

@@ -374,7 +374,16 @@ class ModelData extends EventEmitter {
   }
 }
 
+/**
 const createModelData = (modelPath, tmpDir) =>
   new ModelData(modelPath, tmpDir)
+**/
+
+const createModelData = froot => {
+  let modelPath = path.join(froot, 'models')
+  let tmpDir = path.join(froot, 'tmp')
+
+  return new ModelData(modelPath, tmpDir) 
+}
 
 export default createModelData
