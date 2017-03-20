@@ -6,6 +6,7 @@ import UUID from 'node-uuid'
 import bcrypt from 'bcrypt'
 import { md4Encrypt } from '../tools'
 import ursa from 'ursa'
+import crypt3 from 'crypt3'
 
 const passwordEncrypt = (password, saltLen) =>
   bcrypt.hashSync(password, bcrypt.genSaltSync(saltLen));
@@ -18,6 +19,9 @@ const getCredentials = () => {
   let publicKey   = publicPem.toPublicPem('utf8');
   return { publicKey, privateKey }
 }
+
+const getUnixPwdEncrypt = password =>
+  crypt3(password, crypt3.createSalt('sha512').slice(0, 11))
 
 const mergeAndDedup = (arr1, arr2) => {
   let arr = [];
@@ -137,7 +141,7 @@ class ModelService {
     let lastChangeTime = new Date().getTime();
 
     let passwordEncrypted = passwordEncrypt(password, 10);
-    let unixPassword = passwordEncrypt(password, 8);    //???
+    let unixPassword = getUnixPwdEncrypt(password);
     let smbPassword = md4Encrypt(password);
 
     let friends = [];
@@ -215,7 +219,7 @@ class ModelService {
     let user = users.find(u => u.uuid === props.uuid);
 
     let password = passwordEncrypt(props.password, 10);
-    let unixPassword = passwordEncrypt(props.password, 8);    //???
+    let unixPassword = getUnixPwdEncrypt(props.password);
     let smbPassword = md4Encrypt(props.password);
     let lastChangeTime = new Date().getTime();
 
