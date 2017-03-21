@@ -55,14 +55,8 @@ router.post('/:nodeUUID', (req, res) => {
             })
           }
           
-          let args = { 
-                        userUUID: user.uuid,
-                        srcpath: file.path,
-                        dirUUID,
-                        name,
-                        sha256
-                    }
-
+          let args = { userUUID: user.uuid, srcpath: file.path, dirUUID, name, sha256 }
+          
           config.ipc('createFile', args, (e, newDode) => {
             return res.status(200).json(Object.assign({}, newNode, {
                parent: newNode.parent.uuid,

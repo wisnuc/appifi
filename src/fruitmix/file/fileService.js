@@ -1,4 +1,5 @@
 import fs from 'fs'
+import { readXstat } from './xstat'
 
 class FileService {
 
@@ -64,11 +65,73 @@ class FileService {
 
     // permission check
     let node = this.data.findNodeByUUID(dirUUID)
+    if (!targetNode.isDirectory()) {
+      let error = new Error('createFolder: target should be a folder')
+      error.code = 'EINVAL' 
+      return process.nextTick(callback, error)
+    }
+
+    // if not writable, EACCESS
+    if (!targetNode.userWritable(userUUID)) {
+      let error = new Error('createFolder: operation not permitted')
+      error.code = 'EACCESS'
+      return process.nextTick(callback, error)
+    }
+
+    // if already exists, EEXIST
+    if (this.list(userUUID, dirUUID).find(child => child.name == name)) {
+      let error = new Error('createFolder: file or folder already exists')
+      error.code = 'EEXIST'
+      return process.nextTick(callback, error)
+    }
+
+    //create new folder
+    fs.mkdir(targetpath, err => {
+      if(err) return callback(err)
+      readXstat(targetpath, (err, xstat) => {
+        //create new node
+        let node = this.data.createNode(targetNode, xstat)
+        callback(null, node)
+      })
+    })
+
   }
 
   // create new file inside given dirUUID, 
   createFile(args, callback) {
     let  { userUUID, srcpath, dirUUID, name, sha256 } = args
+    let targetNode = this.data.findNodeByUUID(dirUUID)
+
+    if (!targetNode.isDirectory()) {
+      let error = new Error('createFile: target must be a folder')
+      error.code = 'EINVAL'
+      return process.nextTick(callback, error)
+    }
+
+    // user permission check
+    if (!targetNode.userWritable(userUUID)) {
+      let error = new Error('createFile: operation not permitted')
+      error.code = 'EACCESS'
+      return process.nextTick(callback, error)
+    } 
+
+    if (this.list(userUUID, dirUUID).find(child => child.name == name)) {
+      let error = new Error('createFile: file or folder already exists')
+      error.code = 'EEXIST'
+      return process.nextTick(callback, error)
+    }
+
+    let targetpath = path.join(targetNode.namepath(), name)
+
+    //rename file 
+    fs.rename(srcpath, targetpath, err => {
+      if (err) return callback(err)
+      readXstat(targetpath, (err, xstat) => {
+        //create new node
+        let node = this.data.createNode(targetNode, xstat)
+        callback(null, node)
+      })
+    })
 
   }
 
@@ -78,7 +141,7 @@ class FileService {
     let node = this.data.findNodeByUUID(dirUUID)
     if(!node || userCanRead(userUUID, node))
       return callback(new Error('Permission denied'))
-    if(this.list.find(child => child.name == name && child.type === 'file'))
+    if(this.list(userUUID, dirUUID).find(child => child.name == name && child.type === 'file'))
       return callback(new Error('File exist')) // TODO
     callback(null, node)
   }

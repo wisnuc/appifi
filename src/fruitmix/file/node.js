@@ -109,6 +109,14 @@ class Node {
     
   }
 
+  isFile() {
+    return false
+  }
+
+  isDirectory() {
+    return false
+  }
+
 }
 
 

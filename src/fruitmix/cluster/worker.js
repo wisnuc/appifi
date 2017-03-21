@@ -6,7 +6,7 @@ import paths from './lib/paths'
 const createHttpServer = () => {
 
   //set upload paths root 
-  paths.setRoot(process.cwd())
+  paths.setRootAsync(process.cwd())
 
   let app = App()
   let server, port = 3721
