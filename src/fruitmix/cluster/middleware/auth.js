@@ -28,9 +28,11 @@ const jwtOpts = {
 }
 
 const jwtVerify = (jwt_payload, done) => {
-  let User = models.getModel('user')    
-  let user = User.collection.list.find(u => u.uuid === jwt_payload.uuid)
-  user ? done(null, user) : done(null, false)
+  localUsers((e, users) => {
+    if(e) return done(e)
+    let user = users.find(u => u.uuid === jwt_payload.uuid)
+    user ? done(null, user) : done(null, false)
+  })
 }
 
 passport.use(new BasicStrategy(httpBasicVerify))

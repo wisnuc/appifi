@@ -23,8 +23,7 @@ class FileService {
         type: 'file',
         name: node.name,
         size: node.size,
-        mtime: node.mtime, // FIXME need change mtime definition
-        
+        mtime: node.mtime, // FIXME need change mtime definition      
       }
     }
   }
@@ -35,7 +34,7 @@ class FileService {
     let node = this.data.findNodeByUUID(dirUUID)
     if (!node) throw
     if (!(node instanceof DirectoryNode)) throw
-    if (!(userCanRead(userUUID, node)) throw
+    if (!(userCanRead(userUUID, node))) throw 
 
     return node.getChildren().map(n => nodeProps(n))
   }
