@@ -6,11 +6,10 @@ const sinon = require('sinon')
 
 const { expect } = require('chai')
 
-const createPersistent = require('../../src/common/persistent')
+const createPersistentAsync = require('../../src/common/persistent')
 
 const rimrafAsync = Promise.promisify(rimraf)
 const mkdirpAsync = Promise.promisify(mkdirp)
-const createPersistentAsync = Promise.promisify(createPersistent)
 
 Promise.promisifyAll(fs)
 

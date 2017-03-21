@@ -121,5 +121,12 @@ const createPersistent = (target, tmpdir, delay, callback) => {
   })
 }
 
-module.exports = createPersistent
+const createPersistentAsync = async (target, tmpdir, delay) => {
+  let targetDir = path.dirname(target)
+  await mkdirpAsync(targetDir)
+  await mkdirpAsync(tmpDir)
+  return new Persistent(target, tmpdir, delay)
+}
+
+module.exports = createPersistentAsync
 

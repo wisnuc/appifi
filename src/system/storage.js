@@ -423,7 +423,119 @@ const refreshStorageAsync = async () => {
   return storage
 }
 
+const prettyStorage = storage => {
 
+  // adapt ports
+  let ports = storage.ports.map(port => ({
+    path: port.path,
+    subsystem: port.props.subsystem
+  }))
+
+  // add name, devname, path, removable and size, merged into stats
+  let blocks 
+  blocks = storage.blocks.map(blk => Object.assign({
+    name: blk.name,
+    devname: blk.props.devname,
+    path: blk.path,
+    removable: blk.sysfsProps[0].attrs.removable === "1",
+    size: parseInt(blk.sysfsProps[0].attrs.size)
+  }, blk.stats))
+
+  // process volumes
+  let volumes = storage.volumes.map(vol => { 
+
+    // find usage for this volume
+    let usage = storage.usages.find(usg => usg.mountpoint === vol.stats.mountpoint)
+
+    // this is possible if volume mount failed, which is observed on at least one machine
+    if (!usage) {
+
+      let mapped = Object.assign({}, vol, vol.stats) // without usage
+      delete mapped.stats
+
+      mapped.devices = vol.devices.map(dev => {
+        return {
+          name: path.basename(dev.path), // tricky
+          path: dev.path,
+          id: dev.id,
+          used: dev.used,
+        }
+      })
+
+      return mapped
+    }
+
+    // copy level 1 props
+    let copy = {
+      overall: usage.overall,
+      system: usage.system,
+      metadata: usage.metadata,
+      data: usage.data,
+      unallocated: usage.unallocated
+    }
+
+    // copy volume object, merge stats and usage
+    let mapped = Object.assign({}, vol, vol.stats, { usage: copy })
+    delete mapped.stats
+
+    // copy level 2 (usage for each volume device) into devices
+    mapped.devices = vol.devices.map(dev => {
+
+      let devUsage = usage.devices.find(ud => ud.name === dev.path)
+      return {
+        name: path.basename(dev.path), // tricky
+        path: dev.path,
+        id: dev.id,
+        used: dev.used,
+        size: devUsage.size,
+        unallocated: devUsage.unallocated,
+        system: devUsage.system,
+        metadata: devUsage.metadata,
+        data: devUsage.data
+      }
+    })
+    
+    return mapped
+  })
+
+  return { ports, blocks, volumes }
+}
+
+class Storage {
+
+  constructor(persistent) {
+
+    // first is only used for printing storage once at startup
+    this.first = 0
+
+    this.persistent = persistent
+    this.storage = null
+  }
+
+  get(pretty) {
+    if (!this.storage) return null
+    return prettyStorage(this.storage) 
+  }
+
+  async refreshAsync(pretty) {
+
+    let storage = await probeStorageWithUsages() 
+    statVolumes(storage.volumes, storage.mounts)
+    statBlocks(storage)
+
+    if (!this.first++) console.log('[storage] first probe', storage)
+
+    this.storage = storage
+    if (this.persistent) 
+      this.persistent.save(this.pretty())
+  }
+} 
+
+const createStorageAsync = async (fpath, tmpdir) => {
+
+  let persistent = await createPersistentAsync(fpath, tmpdir, 500)
+  return new Storage(persistent)
+}
 
 export { refreshStorageAsync }
 
