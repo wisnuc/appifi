@@ -92,6 +92,7 @@ const localUserMProps = [
 const localUserOProps = ['unixname', 'unixPassword']
 
 const validateLocalUser = u => {
+
   assert(validateProps(u, localUserMProps, localUserOProps), 'invalid object props')
 
   assert(isUUID(u.uuid), 'invalid user uuid') 
@@ -190,6 +191,9 @@ const validateModel = (users, drives) => {
     assert(locals.find(u => u.isFirstUser).isAdmin === true, 'first user must be admin')
   }
 
+  // unique drive label
+  assert(unique(drives.map(d => d.label)), 'drive label must be uniqe')
+
   // validate drive type
   assert(drives.every(d => 
     d.type === 'private'
@@ -214,7 +218,6 @@ const validateModel = (users, drives) => {
   // 1. all user drives exists, are unique and private
   // 2. all private drive are actually used by users
   let pvuuids = privates.map(pv => pv.uuid);
-
   assert(arrayEqual(udrvs.sort(), pvuuids.sort()), 'all user drives must be equal to all privates')
 }
 
@@ -249,17 +252,17 @@ const invariantUpdatePublicDrive = (p, c) =>
 
 class ModelData extends EventEmitter {
 
-	constructor(modelPath, tmpDir) {
+  constructor(modelPath, tmpDir) {
 
-		super()
+    super()
     this.modelPath = modelPath
     this.tmpDir = tmpDir
 
-		this.users = []
-		this.drives = []
+    this.users = []
+    this.drives = []
 
-		this.lock = false // big lock
-	}
+    this.lock = false // big lock
+  }
 
   getLock() {
     if (this.lock === true) 
@@ -301,23 +304,39 @@ class ModelData extends EventEmitter {
     await this.updateModelAsync(nextUsers, nextDrives)
   }
 
-  // both local and remote, and password
-  async updateUserAsync(next, pwd) {
-
-    // console.log(next)
-    // console.log(this.users)
+  // both local and remote
+  async updateUserAsync(next) {
 
     let index = this.users.findIndex(u => u.uuid === next.uuid)
     if (index === -1) throw new Error('user not found');
 
     let user = this.users[index]
 
-    if (user.type === 'local' && !pwd)
-      invariantUpdateLocalUser(user, next)  
-    else if (user.type === 'local')
-      invariantUpdatePassword(user, next)
-    else if (user.type === 'remote' && !pwd)
+    if (user.type === 'local')
+      invariantUpdateLocalUser(user, next)
+    else if (user.type === 'remote')
       invariantUpdateRemoteUser(user, next)
+    else
+      throw new Error('user type error');
+
+    let nextUsers = [
+      ...this.users.slice(0, index),
+      next,
+      ...this.users.slice(index + 1)
+    ] 
+    
+    await this.updateModelAsync(nextUsers, this.drives)
+  }
+
+  // password
+  async updatePasswordAsync(next) {
+    let index = this.users.findIndex(u => u.uuid === next.uuid);
+    if (index === -1) throw new Error('user not found');
+
+    let user = this.users[index];
+
+    if (user.type === 'local')
+      invariantUpdatePassword(user, next);
     else
       throw new Error('user type error');
 
@@ -341,7 +360,7 @@ class ModelData extends EventEmitter {
   async updateDriveAsync(next) {
     
     let index = this.drives.findIndex(d => d.uuid === next.uuid)
-    if (index === -1) throw new Error('drive note found');
+    if (index === -1) throw new Error('drive not found');
 
     let drive = this.drives[index]
     if (drive.type !== 'public') throw new Error('only update public drive');
@@ -374,16 +393,10 @@ class ModelData extends EventEmitter {
   }
 }
 
-/**
-const createModelData = (modelPath, tmpDir) =>
-  new ModelData(modelPath, tmpDir)
-**/
-
 const createModelData = froot => {
-  let modelPath = path.join(froot, 'models')
-  let tmpDir = path.join(froot, 'tmp')
-
-  return new ModelData(modelPath, tmpDir) 
+  let modelPath = path.join(froot, 'models/model.json');
+  let tmpDir = path.join(froot, 'tmp');
+  return new ModelData(modelPath, tmpDir);
 }
 
 export default createModelData
