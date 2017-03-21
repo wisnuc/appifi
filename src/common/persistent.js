@@ -121,13 +121,5 @@ const createPersistent = (target, tmpdir, delay, callback) => {
   })
 }
 
-createPersistent.sync = (target, tmpdir, delay) => {
-
-  let targetDir = path.dirname(target)
-  mkdirp.sync(targetDir)
-  mkdirp.sync(tmpdir)
-  return new Persistent(target, tmpdir, delay)) 
-}
-
 module.exports = createPersistent
 

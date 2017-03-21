@@ -15,13 +15,12 @@ const mediaData =
 
 **/
 
+const froot = config.path
+
 
 export default () => {
 
   const ipc = config.ipc
-  ipc.register('ipctest', (text, callback) => {
-    console.log('ipctest', text)
-    process.nextTick(() => callback(null, text.toUpperCase()))
-  })
+  ipc.register('ipctest', (text, callback) => process.nextTick(() => callback(null, text.toUpperCase())))
 }
 

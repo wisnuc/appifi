@@ -1,4 +1,5 @@
 import path from 'path'
+import mkdirp from 'mkdirp'
 import { fs, child, mkdirpAsync, rimrafAsync } from '../common/async'
 import Debug from 'debug'
 import UUID from 'node-uuid'
@@ -397,6 +398,9 @@ const statVolumes = (volumes, mounts) =>
 
 let firstLog = 0
 
+// TODO
+
+mkdirp.sync('/run/wisnuc/')
 const ipc = new Persistent('/run/wisnuc/storage', '/run/wisnuc', 1000)
 
 const refreshStorageAsync = async () => {

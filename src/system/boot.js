@@ -1,8 +1,11 @@
 import path from 'path'
+import fs from 'fs'
+import child from 'child_process'
+
 import Debug from 'debug'
 import { storeState, storeDispatch } from '../reducers'
 import { refreshStorageAsync } from './storage'
-import { createFruitmix } from '../fruitmix/fruitmix'
+// import { createFruitmix } from '../fruitmix/fruitmix'
 import docker from '../appifi/docker'
 import { adaptStorage, probeAllFruitmixesAsync } from './adapter'
 
@@ -149,7 +152,10 @@ const tryBootAsync = async () => {
     debug('tryBoot, store, developer', storeState().developer)
 
     if (!storeState().developer.noFruitmix) {
-      createFruitmix(path.join(cfs.mountpoint, 'wisnuc', 'fruitmix'))
+      // createFruitmix(path.join(cfs.mountpoint, 'wisnuc', 'fruitmix'))
+      console.log('----------------------fork--------------------------------')
+      child.fork('../fruitmix/main')
+      console.log('----------------------fork--------------------------------')
     }
     else {
       console.log('!!! fruitmix not started due to developer setting')

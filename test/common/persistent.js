@@ -1,15 +1,16 @@
-import path from 'path'
-import fs from 'fs'
-import rimraf from 'rimraf'
-import mkdirp from 'mkdirp'
-import sinon from 'sinon'
+const path = require('path')
+const fs = require('fs')
+const rimraf = require('rimraf')
+const mkdirp = require('mkdirp')
+const sinon = require('sinon')
 
-import { expect } from 'chai'
+const { expect } = require('chai')
 
-import Persistent from '../../src/system/persistent'
+const createPersistent = require('../../src/common/persistent')
 
 const rimrafAsync = Promise.promisify(rimraf)
 const mkdirpAsync = Promise.promisify(mkdirp)
+const createPersistentAsync = Promise.promisify(createPersistent)
 
 Promise.promisifyAll(fs)
 
@@ -26,8 +27,8 @@ describe(path.basename(__filename), () => {
     await mkdirpAsync(tmpdir)
   })
 
-  it('should create a persistent', () => {
-    let p = new Persistent(pfile, tmpdir, 1000)
+  it('should create a persistent', async () => {
+    let p = await createPersistentAsync(pfile, tmpdir, 1000)
     expect(p.target).to.equal(pfile)
     expect(p.tmpdir).to.equal(tmpdir)
     expect(p.delay).to.equal(1000)
@@ -35,7 +36,7 @@ describe(path.basename(__filename), () => {
 
   it('should not save data before delay', async () => {
 
-    let p = new Persistent(pfile, tmpdir, 50)
+    let p = await createPersistentAsync(pfile, tmpdir, 50)
     p.save(testData)
 
     await Promise.delay(25)
@@ -52,19 +53,19 @@ describe(path.basename(__filename), () => {
 
   it('should save data after delay', async () => {
 
-    let p = new Persistent(pfile, tmpdir, 25) 
-    p.save({ hello: 'world' })
+    let p = await createPersistentAsync(pfile, tmpdir, 25) 
+    p.save(testData)
     
     await Promise.delay(50)
 
     let readback = await fs.readFileAsync(pfile)
     let data = JSON.parse(readback)
-    expect(data).to.deep.equal({ hello: 'world' })
+    expect(data).to.deep.equal(testData)
   })
 
   it('should save twice if save requested during saving', async () => {
 
-    let p = new Persistent(pfile, tmpdir, 25)
+    let p = await createPersistentAsync(pfile, tmpdir, 25)
     p.save(testData)
 
     const fsrename = fs.rename
