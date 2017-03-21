@@ -12,6 +12,7 @@ const uuid_1 = "5da92303-33a1-4f79-8d8f-a7b6becde6c3";
 const uuid_2 = "b9aa7c34-8b86-4306-9042-396cf8fa1a9c";
 const uuid_3 = "f97f9e1f-848b-4ed4-bd47-1ddfa82b2777";
 const uuid_4 = "f97f9e1f-848b-4ed4-bd47-1ddfa82b5432";
+// new format
 const users = [{
   type: 'local',//
 	uuid: uuid_1,//
@@ -53,6 +54,7 @@ const drives = [{
   label: 'service'
 }];
 
+// old format
 const oldUsers = [{
   type: "local",
   uuid: "1c2f3cbc-2fb8-4090-a5a2-a6f5ad6bc239",

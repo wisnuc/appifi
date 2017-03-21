@@ -49,11 +49,12 @@ const upgradeData = (users, drives) => {
     u.unixuid = user.unixUID;
     delete u.unixUID;
     u.nologin = false;
-    u.service = UUID.v4();
     // u.unixname = '';       // ???
     // u.unixPassword = '';   // ???
     u.friends = [];
     u.credentials = getCredentials();
+    // create service drive
+    u.service = UUID.v4();
     newDrives.push({
       uuid: u.service,
       label: `${u.username} service`,
@@ -90,6 +91,8 @@ class ModelService extends EventEmitter {
       let users = await fileToJsonAsync(upath);
       let drives = await fileToJsonAsync(dpath);
       let obj = upgradeData(users, drives);
+      // upgrade data add create all service drive
+      this.modelData.emit('drivesCreated', obj.drives.filter(d => d.type ==='service'));
       return await this.modelData.updateModelAsync(obj.users, obj.drives);
     } catch (e) {
       if (e.code !== 'ENOENT') throw e;
