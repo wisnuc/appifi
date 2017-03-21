@@ -69,6 +69,30 @@ class FileService {
   // create new file inside given dirUUID, 
   createFile(args, callback) {
     let  { userUUID, srcpath, dirUUID, name, sha256 } = args
+    let targetNode = this.data.findNodeByUUID(dirUUID)
+
+    if (!targetNode.isDirectory()) {
+      let error = new Error('createFile: target must be a folder')
+      error.code = 'EINVAL'
+      return process.nextTick(callback, error)
+    }
+
+    // user permission check
+    if (!targetNode.userWritable(userUUID)) {
+      let error = new Error('createFile: operation not permitted')
+      error.code = 'EACCESS'
+      return process.nextTick(callback, error)
+    } 
+
+    if (this.list(userUUID, dirUUID).find(child => child.name == name)) {
+      let error = new Error('createFile: file or folder already exists')
+      error.code = 'EEXIST'
+      return process.nextTick(callback, error)
+    }
+
+    let targetpath = path.join(targetNode.namepath(), name)
+
+    fs.rename()
 
   }
 
@@ -78,7 +102,7 @@ class FileService {
     let node = this.data.findNodeByUUID(dirUUID)
     if(!node || userCanRead(userUUID, node))
       return callback(new Error('Permission denied'))
-    if(this.list.find(child => child.name == name && child.type === 'file'))
+    if(this.list(userUUID, dirUUID).find(child => child.name == name && child.type === 'file'))
       return callback(new Error('File exist')) // TODO
     callback(null, node)
   }
