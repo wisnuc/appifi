@@ -9,6 +9,10 @@ import crypt3 from 'crypt3'
 
 import E from '../lib/error'
 import { md4Encrypt } from '../tools'
+import { complement } from '../lib/types'
+import createModelData from './modelData'
+
+Promise.promisifyAll(fs)
 
 const passwordEncrypt = (password, saltLen) =>
   bcrypt.hashSync(password, bcrypt.genSaltSync(saltLen));
@@ -22,118 +26,95 @@ const getCredentials = () => {
   return { publicKey, privateKey }
 }
 
-// Array.from(new Set[...arr1, ...arr2])
 const getUnixPwdEncrypt = password =>
   crypt3(password, crypt3.createSalt('sha512').slice(0, 11))
 
-const mergeAndDedup = (arr1, arr2) => {
-  let arr = [];
-  let set = new Set([...arr1, ...arr2]);
-  for (let i of set)
-    arr.push(i);
-  return arr;
+const arrDedup = (arr1, arr2) => 
+  Array.from(new Set([...arr1, ...arr2]))
+
+const fileToJsonAsync = async filepath => 
+  JSON.parse(await fs.readFileAsync(filepath))
+
+const upgradeData = (users, drives) => {
+
+  let newDrives = drives.map(drive => ({
+    uuid: drive.uuid,
+    label: drive.label,
+    type: 'private',
+    owner: drive.owner[0]
+  }));
+
+  let newUsers = users.map(user => {
+    let u = user;
+    u.unixuid = user.unixUID;
+    delete u.unixUID;
+    u.nologin = false;
+    // u.unixname = '';       // ???
+    // u.unixPassword = '';   // ???
+    u.friends = [];
+    u.credentials = getCredentials();
+    // create service drive
+    u.service = UUID.v4();
+    newDrives.push({
+      uuid: u.service,
+      label: `${u.username} service`,
+      type: 'private',
+      owner: u.uuid
+    });
+    return u;
+  })
+
+  return { users: newUsers, drives: newDrives };
 }
-
-// complement
-const arrDeleteArr = (arr1, arr2) => {
-  let set = new Set(arr1);
-  arr2.forEach(i => {
-    if (set.has(i))
-      set.delete(i);
-  });
-  let arr = [];
-  for (let i of set)
-    arr.push(i);
-  return arr;
-}
-
-const isExist = (target, callback) =>
-  fs.access(target, fs.constants.R_OK, err =>
-    err ? callback(null, false) : callback(null, true));
-
-const isExistAsync = Promise.promisify(isExist);
-
-// TODO  
-const fileToJson = (filepath, callback) => {
-  fs.readFile(filepath, (err, data) => {
-    if(err) return callback(err);
-    try {
-      return callback(null, JSON.parse(data));
-    } catch (e) { return callback(e); }
-  });
-}
-const fileToJsonAsync = Promise.promisify(fileToJson);
-
-fs.readFileAsync
-return JSON.parse
 
 class ModelService extends EventEmitter {
 
   constructor(froot, modelData) {
-    this.froot = froot
+    super();
+    this.froot = froot;
     this.modelData = modelData;
   }
 
-  // TODO functional
   allocUnixUID() {
     let uids = this.modelData.users.filter(u => u.type === 'local').map(u => u.unixuid);
     let set = new Set(uids);
-    // let uid = 2000;
-    // while(set.has(uid)) { uid++; }
-    let uid
-    for (uid = 2000; set.has(uid); uid++) {} 
+    let uid;
+    for (uid = 2000; set.has(uid); uid++) {}
     return uid;
   }
 
-  // 1. split logic to normal and fallback
-  // 2. fallback need translation
-  // 3. test real world data (users.json, drives.json)
-  // 4. the only reason for fallback is err.code === ENOENT
   async initializeFallbackAsync () {
+    let mpath = this.modelData.modelPath;
+    let upath = path.join(path.dirname(mpath), 'users.json');
+    let dpath = path.join(path.dirname(mpath), 'drives.json');
+    try {
+      let users = await fileToJsonAsync(upath);
+      let drives = await fileToJsonAsync(dpath);
+      let obj = upgradeData(users, drives);
+      // upgrade data add create all service drive
+      this.modelData.emit('drivesCreated', obj.drives.filter(d => d.type ==='service'));
+      return await this.modelData.updateModelAsync(obj.users, obj.drives);
+    } catch (e) {
+      if (e.code !== 'ENOENT') throw e;
+      return await this.modelData.updateModelAsync([], []);
+    }
   }
 
   // opaque
   async initializeAsync() {
 
-    let err = null;
-    let users, drives;
-    let modelPath = this.modelData.modelPath;
-    let existM = await isExistAsync(modelPath);
-
     try {
-      data = fs.readFileAsync(...)
+      let data = await fileToJsonAsync(this.modelData.modelPath);
+      return await this.modelData.updateModelAsync(data.users, data.drives);
     }
     catch (e) {
-      if (e.code !== 'ENOENT') throw e
-      return await init.. fallback
+      if (e.code !== 'ENOENT') throw e;
+      return await this.initializeFallbackAsync();
     }
 
-    if (existM){
-      // model.json exist
-      try {
-        let modelInfo = await fileToJsonAsync(modelPath);
-        users = modelInfo.users;
-        drives = modelInfo.drives;
-      } catch (e) { err = e; }
-    } else {
-      // read user.json & drive.json
-      try {
-        users = await fileToJsonAsync(path.join(path.dirname(modelPath), 'user.json'));
-        drives = await fileToJsonAsync(path.join(path.dirname(modelPath), 'drive.json'));
-      } catch (e) {
-        if (e.code !== 'ENOENT')
-          err = e;
-        else {
-          users = [];
-          drives = [];
-        }
-      }
-    }
-    if (err) throw err;
-    await this.modelData.updateModelAsync(users, drives);
   }
 
-	async createLocalUserAsync(useruuid, props) {
+  async createLocalUserAsync(useruuid, props) {
     // check permission
     let users = this.modelData.users;
     let admins = users.filter(u => u.isAdmin === true).map(u => u.uuid);
@@ -184,21 +165,23 @@ class ModelService extends EventEmitter {
     };
     // install newDrives
     let common = { owner: uuid, type: 'private' };
-    let homeDrive     = Object.assign({}, common, { uuid: home, label: 'home' });
-    let libraryDrive  = Object.assign({}, common, { uuid: library, label: 'library' });
-    let serviceDrive  = Object.assign({}, common, { uuid: service, label: 'service' });
+    let homeDrive     = Object.assign({}, common, { uuid: home, label: `${username} home` });
+    let libraryDrive  = Object.assign({}, common, { uuid: library, label: `${username} library` });
+    let serviceDrive  = Object.assign({}, common, { uuid: service, label: `${username} service` });
     let newDrives = [ homeDrive, libraryDrive, serviceDrive ];
-    try {
-      await this.modelData.createUserAsync(newUser, newDrives);
-    } catch (e) { throw e; }
+    
+    await this.modelData.createUserAsync(newUser, newDrives);
+    this.emit('drivesCreated', this.modelData.drives.filter(d =>
+      d.uuid === home || d.uuid === library || d.uuid === service));
 
-    // 1. return user object, password, cert filtered out
-    // 2. no try catch
-    // 3. emit 
-    this.emit('drivesCreated', newDrives) // ???  TODO newDrives may be different from that in modelData
-	}
+    return {
+      type, uuid, username, nologin, isFirstUser, isAdmin,
+      email, avatar, home, library, service, unixuid,
+      unixname, lastChangeTime, friends
+    }
+  }
 
-	async createRemoteUserAsync(useruuid, props) {
+  async createRemoteUserAsync(useruuid, props) {
     // check permission
     let users = this.modelData.users;
     let admins = users.filter(u => u.isAdmin === true).map(u => u.uuid);
@@ -217,92 +200,77 @@ class ModelService extends EventEmitter {
       uuid: service,
       type: 'private',
       owner: uuid,
-      label: 'remote service'
+      label: `${uuid} service`
     }]
-    try {
-      await this.modelData.createUserAsync(newUser, newDrives);
-    } catch (e) { throw e; }
+
+    await this.modelData.createUserAsync(newUser, newDrives);
+    this.emit('drivesCreated', this.modelData.drives.filter(d => d.uuid === service));
+
+    return { type, username, uuid, email, avatar, service }
   }
 
-	async updateUser(useruuid, props) {
+  async updateUserAsync(useruuid, props) {
     // check permission
-    let users = this.modelData.users;
-    let admins = users.filter(u => u.isAdmin === true).map(u => u.uuid);
-    // Not an administrator && not oneself
-    if (!admins.includes(useruuid) && props.uuid !== useruuid)
-      throw new Error('no permission to modify user information');
-    // install user
-    let user = users.find(u => u.uuid === props.uuid);
+    let user = this.modelData.users.find(u => u.uuid === useruuid);
+    if (!user)
+      throw new Error('user does not exist');
+
     let next = Object.assign({}, user, props );
-    try {
-      await this.modelData.updateUserAsync(next);
-    } catch (e) { throw e; }
+    await this.modelData.updateUserAsync(next);
+    return next;
   }
 
-  // props: { password, uuid }
-	async updatePasswordAsync(useruuid, props) {
+  async updatePasswordAsync(useruuid, pwd) {
     // check permission
-    let users = this.modelData.users;
-    let admins = users.filter(u => u.isAdmin === true).map(u => u.uuid);
-    // Not an administrator && not oneself
-    if (!admins.includes(useruuid) && props.uuid !== useruuid)
-      throw new Error('no permission to modify user password');
+    let user = this.modelData.users.find(u => u.uuid === useruuid);
+    if (!user)
+      throw new Error('user does not exist');
     // install user
-    let user = users.find(u => u.uuid === props.uuid);
-
-    let password = passwordEncrypt(props.password, 10);
-    let unixPassword = getUnixPwdEncrypt(props.password);
-    let smbPassword = md4Encrypt(props.password);
+    let password = passwordEncrypt(pwd, 10);
+    let unixPassword = getUnixPwdEncrypt(pwd);
+    let smbPassword = md4Encrypt(pwd);
     let lastChangeTime = new Date().getTime();
 
     let next = Object.assign({}, user, { password, unixPassword, smbPassword, lastChangeTime });
-    try {
-      await this.modelData.updateUserAsync(next, props.password);
-      // this.modelData.updatePasswordAsync
-    } catch (e) { throw e; }
+    
+    await this.modelData.updatePasswordAsync(next);
+    return null;
   }
 
-	// props: { uuid, friends: [] }
-	async createFriendAsync(useruuid, props) {
+  async createFriendAsync(useruuid, friend) {
     // check permission
-    let users = this.modelData.users;
-    let admins = users.filter(u => u.isAdmin === true).map(u => u.uuid);
-    // Not an administrator && not oneself
-    if (!admins.includes(useruuid) && props.uuid !== useruuid)
-      throw new Error('no permission to create friend');
+    let user = this.modelData.users.find(u => u.uuid === useruuid);
+    if (!user)
+      throw new Error('user does not exist');
     // install user
-    let user = users.find(u => u.uuid === props.uuid);
-    let newFriends = mergeAndDedup(user.friends, props.friends);
+    let newFriends = arrDedup(user.friends, [ friend ]);
 
     let next = Object.assign({}, user, { friends: newFriends });
-    try {
-      await this.modelData.updateUserAsync(next);
-    } catch (e) { throw e; }
+    
+    await this.modelData.updateUserAsync(next);
+
+    return next;
   }
 
-	// props: { uuid, friends: [] }
-	async deleteFriendAsync(useruuid, props) {
+  async deleteFriendAsync(useruuid, friend) {
     // check permission
-    let users = this.modelData.users;
-    let admins = users.filter(u => u.isAdmin === true).map(u => u.uuid);
-    // Not an administrator && not oneself
-    if (!admins.includes(useruuid) && props.uuid !== useruuid)
-      throw new Error('no permission to delete friend');
+    let user = this.modelData.users.find(u => u.uuid === useruuid);
+    if (!user)
+      throw new Error('user does not exist');
     // install user
-    let user = users.find(u => u.uuid === props.uuid);
-    let newFriends = arrDeleteArr(user.friends, props.friends);
+    let newFriends = complement(user.friends, [ friend ]);
 
     let next = Object.assign({}, user, { friends: newFriends });
-    try {
-      await this.modelData.updateUserAsync(next);
-    } catch (e) { throw e; }
+
+    await this.modelData.updateUserAsync(next);
+
+    return next;
   }
 
-  // pros: { uuid, label }
-	async createPublicDriveAsync(useruuid, props) {
-    // check permission ---- all user can create public drive ???
-    let users = this.modelData.users.map(u => u.uuid);
-    if (!users.includes(useruuid))
+  async createPublicDriveAsync(useruuid, props) {
+    // check permission
+    let admin = this.modelData.users.find(u => u.uuid === useruuid);
+    if (!admin)
       throw new Error('no permission to create public drive');
     //install new drive
     let uuid = UUID.v4();
@@ -310,58 +278,48 @@ class ModelService extends EventEmitter {
     let writelist = props.writelist || [];
     let readlist = props.readlist || [];
     let shareAllowed = props.shareAllowed === true ? true : false;
-    let label = props.label;
+    let label = props.label || uuid;
 
     let newDrive = { uuid, type, label, writelist, readlist, shareAllowed };
-    try {
-      await this.modelData.createDriveAsync(newDrive);
-    } catch (e) { throw e; }
+    
+    await this.modelData.createDriveAsync(newDrive);
+    this.emit('drivesCreated', [newDrive]);
+    return newDrive;
   }
 
-	async updatePublicDriveAsync(useruuid, props) {
-    // check permission  --- all user can update public drive ???
-    let users = this.modelData.users.map(u => u.uuid);
-    if (!users.includes(useruuid))
+  async updatePublicDriveAsync(useruuid, props) {
+    // check permission
+    let admin = this.modelData.users.find(u => u.uuid === useruuid);
+    if (!admin)
       throw new Error('no permission to create public drive');
     // install next drive
     let drives = this.modelData.drives;
     let drive = drives.find(d => d.uuid === props.uuid);
 
     let next = Object.assign({}, drive, props);
-    try {
-      await this.modelData.updateDriveAsync(next);
-    } catch (e) { throw e; }
+
+    await this.modelData.updateDriveAsync(next);
+    this.emit('driveUpdated', next);
+    return next;
   }
 
-  // props: { driveuuid }
-	async deletePublicDriveAsync(useruuid, props) {
-    // check permission  --- all user can delete public drive ???
-    let users = this.modelData.users.map(u => u.uuid);
-    if (!users.includes(useruuid))
+  async deletePublicDriveAsync(useruuid, props) {
+
+    // check permission
+    let admin = this.modelData.users.find(u => u.uuid === useruuid);
+    if (!admin)
       throw new Error('no permission to create public drive');
+
+    let drive = this.modelData.drives.find(d => d.uuid === props.driveuuid);
     // delete
-    try {
-      await this.modelData.deleteDriveAsync(props.driveuuid);
-    } catch (e) { throw e; }
+    await this.modelData.deleteDriveAsync(props.driveuuid);
+    this.emit('drivesDeleted', drive);
+    return null;
   }
 
 }
 
-const createModelService = async (modelData, callback) => {
-  let modelService = new ModelService(modelData);
-  try {
-    await modelService.initializeAsync();
-    callback(null, modelService);
-  } catch (e) { callback(e) }
-}
+const createModelService = (froot) =>
+  new ModelService(froot, createModelData(froot));
 
-const createModelService = froot => {
-
-  let data = createModelData(froot)
-  return new ModelService(froot, data)
-} 
-
-const createModelServiceAsync = Promise.promisify(createModelService);
-
-export default createModelServiceAsync
-
+export default createModelService

@@ -84,6 +84,11 @@ class DirectoryNode extends Node {
     this.abort()
     super.detach()
   }
+
+  isDirectory() {
+    return true
+  }
+
 }
 
 export default DirectoryNode

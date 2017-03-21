@@ -73,7 +73,7 @@ class FileData extends EventEmitter {
         throw 'bad props' //TODO
     } 
 
-    this.uuidMap.set(uuid, node)
+    // this.uuidMap.set(uuid, node)
     node.attach(parent)
   }
 
