@@ -4,13 +4,15 @@ import { fs, child, mkdirpAsync, rimrafAsync } from '../common/async'
 import Debug from 'debug'
 import UUID from 'node-uuid'
 
-import { storeState, storeDispatch } from '../reducers'
+// import { storeDispatch } from '../reducers'
+
 import udevInfoAsync from './udevInfoAsync'
 import probeMountsAsync from './procMountsAsync'
 import probeSwapsAsync from './procSwapsAsync'
 import probeVolumesAsync from './btrfsfishowAsync'
 import probeUsageAsync from './btrfsusageAsync'
-import Persistent from './persistent'
+
+import Persistent from '../common/persistent'
 
 const debug = Debug('system:storage')
 
@@ -537,5 +539,7 @@ const createStorageAsync = async (fpath, tmpdir) => {
   return new Storage(persistent)
 }
 
-export { refreshStorageAsync }
+// export { refreshStorageAsync }
+module.exports = createStorageAsync
+
 

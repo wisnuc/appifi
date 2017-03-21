@@ -1,4 +1,6 @@
-import fs from 'fs'
+const path = require('path')
+const fs = require('fs')
+
 import http from 'http'
 import rimraf from 'rimraf'
 import mkdirp from 'mkdirp'
@@ -8,8 +10,10 @@ import { storeState, storeDispatch, storeSubscribe } from './reducers'
 import { writeObjectAsync } from './common/async'
 import system from './system/index'
 import app from './appifi/index'
-import deviceProbe from './system/device'
-import { barcelonaInit } from './system/barcelona'
+
+const device = require('./system/device')
+const barcelona = require('./system/barcelona')
+
 import { tryBoot } from './system/boot'
 
 const debug = Debug('system:appjs')
@@ -122,23 +126,9 @@ process.argv.forEach((val, index, array) => {
 
 // initialize config
 initConfig()
-
+/**
 deviceProbe((err, data) => {
 
-  if (!err) {
-    storeDispatch({
-      type: 'UPDATE_DEVICE',
-      data
-    })
-
-    if (data.ws215i) {
-      console.log('[app.js] device is ws215i')
-      barcelonaInit()
-    }
-    else {
-      console.log('[app.js] device is not ws215i')
-    }
-  }
 
   tryBoot(err => {
 
@@ -154,4 +144,15 @@ deviceProbe((err, data) => {
     startServer()
   })
 })
+**/
+
+const main = async () => {
+
+  let data = await device.probeAsync()
+  if (data.ws215i) {
+    barcelona.init()
+  }
+}
+
+main().asCallback(err => console.log(err))
 

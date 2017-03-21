@@ -51,7 +51,7 @@ const job = () =>
 
 const pollingPowerButton = () => setInterval(job, 1000)
 
-const barcelonaInit = () => {
+const init = () => {
 
   console.log('[system] barcelona init')
 
@@ -73,6 +73,6 @@ const barcelonaInit = () => {
   })
 } 
 
-export { readFanSpeed, writeFanScale, barcelonaInit }
+module.exports = { readFanSpeed, writeFanScale, init }
 
 
