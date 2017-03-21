@@ -1,4 +1,5 @@
 import fs from 'fs'
+import { readXstat } from './xstat'
 
 class FileService {
 
@@ -64,6 +65,36 @@ class FileService {
 
     // permission check
     let node = this.data.findNodeByUUID(dirUUID)
+    if (!targetNode.isDirectory()) {
+      let error = new Error('createFolder: target should be a folder')
+      error.code = 'EINVAL' 
+      return process.nextTick(callback, error)
+    }
+
+    // if not writable, EACCESS
+    if (!targetNode.userWritable(userUUID)) {
+      let error = new Error('createFolder: operation not permitted')
+      error.code = 'EACCESS'
+      return process.nextTick(callback, error)
+    }
+
+    // if already exists, EEXIST
+    if (this.list(userUUID, dirUUID).find(child => child.name == name)) {
+      let error = new Error('createFolder: file or folder already exists')
+      error.code = 'EEXIST'
+      return process.nextTick(callback, error)
+    }
+
+    //create new folder
+    fs.mkdir(targetpath, err => {
+      if(err) return callback(err)
+      readXstat(targetpath, (err, xstat) => {
+        //create new node
+        let node = this.data.createNode(targetNode, xstat)
+        callback(null, node)
+      })
+    })
+
   }
 
   // create new file inside given dirUUID, 
@@ -92,7 +123,15 @@ class FileService {
 
     let targetpath = path.join(targetNode.namepath(), name)
 
-    fs.rename()
+    //rename file 
+    fs.rename(srcpath, targetpath, err => {
+      if (err) return callback(err)
+      readXstat(targetpath, (err, xstat) => {
+        //create new node
+        let node = this.data.createNode(targetNode, xstat)
+        callback(null, node)
+      })
+    })
 
   }
 
