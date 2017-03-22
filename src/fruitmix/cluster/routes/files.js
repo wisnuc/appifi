@@ -28,59 +28,34 @@ router.get('/:nodeUUID', (req, res) => {
 
   let args =  { userUUID: user.uuid, dirUUID: params.dirUUID, name: query.filename }
   config.ipc.call('createFileCheck', args, (e, node) => {
-    if (!node || !e) {
-      return res.status(500).json({
-        code: 'ENOENT',
-        message: 'node not found'
-      })
-    }
+    if (e) return res.error(e)
+    if (!node) return res.error('node not found')
 
-    if (node.isDirectory()) {
+      if (node.isDirectory()) {
 
-      if (query.navroot) {
+        if (query.navroot) {
 
-        let args = { userUUID: user.uuid, dirUUID: node.uuid, rootUUID: query.navroot }
-        config.ipc.call('navList', args, (e, ret) => {
-          if (e) {
-             return res.status(500).json({
-              code: e.code,
-              message: e.message
-            })
-          }
-          return res.status(200).json(ret)
-        })
-      } else {
+          let args = { userUUID: user.uuid, dirUUID: node.uuid, rootUUID: query.navroot }
+          config.ipc.call('navList', args, (e, ret) => {
+            e ? res.error(e) : res.success(ret)
+          })
+        } else {
 
-        let args = { userUUID: user.uuid, dirUUID: node.uuid }
-        config.ipc.call('list', args, (e, ret) => {
-          if (e) {
-            return res.status(500).json({
-              code: e.code,
-              message: e.message
-            })
-          }
-          return res.status(200).json(ret)
-        })
-      }
-
-    }
-    else if (node.isFile()) {
-
-      let args = { userUUID: user.uuid, fileUUID: node.uuid }
-      config.ipc.call('readFile', args, (e, filepath) => {
-        if (e) {
-          return res.status(500).json({
-            code: e.code,
-            message: e.message
+          let args = { userUUID: user.uuid, dirUUID: node.uuid }
+          config.ipc.call('list', args, (e, ret) => {
+            e ? res.error(e) : res.success(ret)
           })
         }
-        return res.status(200).json(filepath)
-      })
-    }
-    else {
-      res.status(404).end() // TODO
-    }
-  })
+      } else if (node.isFile()) {
+
+        let args = { userUUID: user.uuid, fileUUID: node.uuid }
+        config.ipc.call('readFile', args, (e, filepath) => {
+          e ? res.error(e) : res.success(filepath)
+        })
+      } else {
+        res.error(null, 404)
+      }
+    })
 })
 
 // /:nodeUUID?filename=xxx
