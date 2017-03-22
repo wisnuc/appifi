@@ -64,3 +64,5 @@ _docpress/
 
 .nyc_output/
 
+# IDE webstorm
+.idea/

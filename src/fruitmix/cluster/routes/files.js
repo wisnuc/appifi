@@ -15,6 +15,74 @@ import config from '../config'
 
 const router = Router()
 
+// this may be either file or folder
+// if it's a folder, return childrens
+// if it's a file, download
+// /files/xxxxxxx <- must be folder
+// TODO modified by jianjin.wu
+router.get('/:nodeUUID', (req, res) => {
+
+  let user = req.user
+  let query = req.query
+  let params = req.params
+
+  let args =  { userUUID: user.uuid, dirUUID: params.dirUUID, name: query.filename }
+  config.ipc.call('createFileCheck', args, (e, node) => {
+    if (!node || !e) {
+      return res.status(500).json({
+        code: 'ENOENT',
+        message: 'node not found'
+      })
+    }
+
+    if (node.isDirectory()) {
+
+      if (query.navroot) {
+
+        let args = { userUUID: user.uuid, dirUUID: node.uuid, rootUUID: query.navroot }
+        config.ipc.call('navList', args, (e, ret) => {
+          if (e) {
+             return res.status(500).json({
+              code: e.code,
+              message: e.message
+            })
+          }
+          return res.status(200).json(ret)
+        })
+      } else {
+
+        let args = { userUUID: user.uuid, dirUUID: node.uuid }
+        config.ipc.call('list', args, (e, ret) => {
+          if (e) {
+            return res.status(500).json({
+              code: e.code,
+              message: e.message
+            })
+          }
+          return res.status(200).json(ret)
+        })
+      }
+
+    }
+    else if (node.isFile()) {
+
+      let args = { userUUID: user.uuid, fileUUID: node.uuid }
+      config.ipc.call('readFile', args, (e, filepath) => {
+        if (e) {
+          return res.status(500).json({
+            code: e.code,
+            message: e.message
+          })
+        }
+        return res.status(200).json(filepath)
+      })
+    }
+    else {
+      res.status(404).end() // TODO
+    }
+  })
+})
+
 // /:nodeUUID?filename=xxx
 router.post('/:nodeUUID', (req, res) => {
 
