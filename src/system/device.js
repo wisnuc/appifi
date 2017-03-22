@@ -2,6 +2,8 @@ const path = require('path')
 const fs = require('fs')
 const child = require('child_process')
 
+const barcelona = require('./barcelona')
+
 // K combinator
 const K = x => y => x
 
@@ -117,32 +119,37 @@ const probeRevisionAsync = async () => {
   return null
 }
 
-// probe all currently defined as device info
-const deviceProbeAsync = async () => {
-
-  let arr = await Promise.all([
-    probeProcAsync('cpuinfo', true),
-    probeProcAsync('meminfo', false),
-    probeWS215iAsync(),
-    dmiDecodeAsync(),
-    probeReleaseAsync(),
-    probeRevisionAsync() 
-  ])
-
-  return {
-    cpuInfo: arr[0],
-    memInfo: arr[1],
-    ws215i: arr[2],
-    dmidecode: arr[3],
-    release: arr[4],
-    commit: arr[5]
-  }
-}
+fs.stat('/proc/BOARD_io', err => err || barcelona.init()) 
 
 module.exports = {
+
   probeAsync: async function () {
-    this.info = await deviceProbeAsync()
-    return this.info
+
+    let arr = await Promise.all([
+      probeProcAsync('cpuinfo', true),
+      probeProcAsync('meminfo', false),
+      probeWS215iAsync(),
+      dmiDecodeAsync(),
+      probeReleaseAsync(),
+      probeRevisionAsync() 
+    ])
+
+    return this.data = {
+      cpuInfo: arr[0],
+      memInfo: arr[1],
+      ws215i: arr[2],
+      dmidecode: arr[3],
+      release: arr[4],
+      commit: arr[5]  // for historical reason, this is named commit
+    }
+  },
+
+  get() {
+    return this.data
+  },
+
+  isWS215i() {
+    return this.data && this.data.ws215i
   }
 }
 

@@ -1,13 +1,15 @@
-import path from 'path'
-import fs from 'fs'
-import child from 'child_process'
+const path = require('path')
+const fs = require('fs')
+const child = require('child_process')
 
 import Debug from 'debug'
-import { storeState, storeDispatch } from '../reducers'
-import { refreshStorageAsync } from './storage'
-// import { createFruitmix } from '../fruitmix/fruitmix'
+
+const Developer = require('./developer')
+const Config = require('./config')
+const Storage = require('./storage')
+
 import docker from '../appifi/docker'
-import { adaptStorage, probeAllFruitmixesAsync } from './adapter'
+import { probeAllFruitmixesAsync } from './adapter'
 
 const debug = Debug('system:boot')
 
@@ -24,8 +26,9 @@ const runnable = wisnuc => (typeof wisnuc === 'object' && wisnuc !== null && wis
 // lastFileSystem: in config
 // bootMode: in config
 //
-const bootState = (config, storage) => {
+const bootState = storage => {
 
+  let config = Config.get()
   let { bootMode, lastFileSystem } = config
   let { blocks, volumes } = storage
 
@@ -135,62 +138,48 @@ const bootState = (config, storage) => {
   }
 }
 
-const tryBootAsync = async () => {
+module.exports = {
 
-  let storage = await refreshStorageAsync() 
-  let adapted = adaptStorage(storage)
-  let probed = await probeAllFruitmixesAsync(adapted) 
+  data: null,
 
-  let bstate = bootState(storeState().config, probed)
+  tryBootAsync: async function (lfs) {
 
-  debug('tryboot: bootState', bstate)
+    let pretty = await Storage.refreshAsync(true) 
 
-  let cfs = bstate.currentFileSystem 
-  if (cfs) {
+    console.log('tryboot, storage', pretty)
 
-    // boot fruitmix
-    debug('tryBoot, store, developer', storeState().developer)
+    let probed = await probeAllFruitmixesAsync(pretty) 
 
-    if (!storeState().developer.noFruitmix) {
-      // createFruitmix(path.join(cfs.mountpoint, 'wisnuc', 'fruitmix'))
-      console.log('----------------------fork--------------------------------')
-      child.fork('../fruitmix/main')
-      console.log('----------------------fork--------------------------------')
+    if (lfs) Config.updateLastFileSystem(lfs, true)
+    let bstate = bootState(probed)
+
+    console.log('tryboot: bootState', bstate)
+
+    let cfs = bstate.currentFileSystem 
+    if (cfs) {
+
+      if (!Developer.noFruitmix) {
+        // createFruitmix(path.join(cfs.mountpoint, 'wisnuc', 'fruitmix'))
+        console.log('----------------------fork--------------------------------')
+        child.fork('../fruitmix/main')
+        console.log('----------------------fork--------------------------------')
+      }
+      else {
+        console.log('!!! fruitmix not started due to developer setting')
+      }
+
+      Config.updateLastFileSystem(cfs)
+
+      let dockerRootDir = path.join(cfs.mountpoint, 'wisnuc')
+      docker.init(dockerRootDir) 
     }
-    else {
-      console.log('!!! fruitmix not started due to developer setting')
-    }
 
-    storeDispatch({ type: 'CONFIG_LAST_FILESYSTEM', cfs })
+    this.data = bstate
+    return bstate
+  },
 
-    // boot appifi only if fruitmix booted
-    let install = storeState().config.dockerInstall
-    debug('dockerInstall', install)      
-    
-    let dockerRootDir = path.join(cfs.mountpoint, 'wisnuc')
-    docker.init(dockerRootDir) 
-  }
-
-  storeDispatch({ type: 'UPDATE_SYSBOOT', data: bstate })
-  return bstate
+  get() {
+    return this.data
+  },
 }
-
-// try boot system
-export const tryBoot = (callback) => tryBootAsync().asCallback(callback)
-
-export const fakeReboot = (lfs, callback) => {
-  storeDispatch({
-    type: 'CONFIG_LAST_FILESYSTEM',
-    data: lfs
-  })
-  storeDispatch({
-    type: 'CONFIG_BOOT_MODE',
-    data: 'normal'
-  })
-  tryBoot(callback)
-}
-
-
-
-
 

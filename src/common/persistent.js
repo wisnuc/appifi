@@ -1,6 +1,6 @@
 const path = require('path')
 const fs = require('fs')
-const mkdirp = require('mkdirp') 
+const mkdirpAsync = Promise.promisify(require('mkdirp'))
 const UUID = require('node-uuid')
 
 // state: IDLE, PENDING, WIP
@@ -93,7 +93,6 @@ class Working extends State {
   }
 }
 
-
 class Persistent {
 
   constructor(target, tmpdir, delay) {
@@ -109,22 +108,11 @@ class Persistent {
   }
 }
 
-const createPersistent = (target, tmpdir, delay, callback) => {
-
-  let targetDir = path.dirname(target)
-  mkdirp(targetDir, err => {
-    if (err) return callback(err)
-    mkdirp(tmpdir, err => {
-      if (err) return callback(err)
-      callback(null, new Persistent(target, tmpdir, delay)) 
-    })
-  })
-}
-
 const createPersistentAsync = async (target, tmpdir, delay) => {
+
   let targetDir = path.dirname(target)
   await mkdirpAsync(targetDir)
-  await mkdirpAsync(tmpDir)
+  await mkdirpAsync(tmpdir)
   return new Persistent(target, tmpdir, delay)
 }
 

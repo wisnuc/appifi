@@ -288,9 +288,6 @@ const render = () => {
   let appstore = appstoreState()
   let docker = dockerState()
 
-//  if (!storage || typeof storage === 'string') {
-//    return <div key={PAGEKEY}><JumbotronText key={JUMBOKEY} text='Server not ready' /></div>
-//  }
   if (!docker) {
     return <div key={PAGEKEY}><JumbotronText key={JUMBOKEY} text={langText('appEngineNotStarted')} /></div>
   }

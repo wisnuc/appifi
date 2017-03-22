@@ -1,8 +1,9 @@
 import { fs, child } from '../common/async'
 import Debug from 'debug'
-import { storeState, storeDispatch } from '../reducers'
 
+const Config = require('./config')
 const debug = Debug('system:barcelona')
+
 const BOARD_EVENT = '/proc/BOARD_event'
 const FAN_IO = '/proc/FAN_io'
 
@@ -61,7 +62,7 @@ const init = () => {
   pollingPowerButton() 
   console.log('[barcelona] start polling power button')
 
-  let fanScale = storeState().config.barcelonaFanScale
+  let fanScale = Config.get().barcelonaFanScale
   writeFanScale(fanScale, err => {
     if (err) {
       console.log('[barcelona] failed set barcelonaFanScale')

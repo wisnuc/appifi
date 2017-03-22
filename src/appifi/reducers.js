@@ -1,21 +1,8 @@
 import { createStore, combineReducers } from 'redux'
 import Debug from 'debug'
 
-import config from './reducers/config'
 
 const debug = Debug('system:reducers')
-
-const device = (state = null, action) => {
-
-  switch (action.type) {
-  case 'UPDATE_DEVICE':
-    return action.data
-  case 'UPDATE_DEVICE_MEMINFO':
-    return Object.assign({}, state, { memInfo: action.data })
-  default:
-    return state
-  }
-}
 
 const developer = (state = {}, action) => {
 
@@ -23,52 +10,6 @@ const developer = (state = {}, action) => {
   case 'DEVELOPER_SETTING':
     state[action.key] = action.value
     return state 
-  default:
-    return state
-  }
-}
-
-const storage = (state = null, action) => {
-
-  switch(action.type) {
-  case 'STORAGE_UPDATE':
-    return action.data
-
-  default:
-    return state
-  }
-}
-
-const boot = (state = null, action) => {
-
-  switch(action.type) {
-  case 'UPDATE_SYSBOOT':
-    return action.data
-
-  default:
-    return state
-  }
-}
-
-const fruitmixUsers = (state = null, action) => {
-  
-  switch(action.type) {
-  case 'UPDATE_FRUITMIX_USERS':
-    debug('update fruitmix users', action.data)
-    return action.data
-
-  default:
-    return state
-  }
-}
-
-const fruitmixDrives = (state = null, action) => {
-
-  switch(action.type) {
-  case 'UPDATE_FRUITMIX_DRIVES':
-    debug('update fruitmix drives', action.data)
-    return action.data
-  
   default:
     return state
   }
@@ -157,19 +98,12 @@ const increment = (state = 0, action) => {
 
 let store = createStore(combineReducers({
   increment,
-  device,
-  config,
   developer,
-  storage,
-  boot,
   docker,
   appstore,
   tasks,
-  fruitmixUsers,
-  fruitmixDrives
 }))
 
-// store.subscribe(() => console.log(store.getState()))
 console.log(`reducers module initialized`)
 
 export const storeState = () => store.getState()

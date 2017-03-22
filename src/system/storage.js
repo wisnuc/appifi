@@ -1,10 +1,9 @@
-import path from 'path'
+const path = require('path')
+
 import mkdirp from 'mkdirp'
-import { fs, child, mkdirpAsync, rimrafAsync } from '../common/async'
-import Debug from 'debug'
+import { fs, child, mkdirpAsync } from '../common/async'
 import UUID from 'node-uuid'
 
-// import { storeDispatch } from '../reducers'
 
 import udevInfoAsync from './udevInfoAsync'
 import probeMountsAsync from './procMountsAsync'
@@ -12,9 +11,9 @@ import probeSwapsAsync from './procSwapsAsync'
 import probeVolumesAsync from './btrfsfishowAsync'
 import probeUsageAsync from './btrfsusageAsync'
 
-import Persistent from '../common/persistent'
+const createPersistentAsync = require('../common/persistent')
 
-const debug = Debug('system:storage')
+const debug = require('debug')('system:storage')
 
 const volumeMountpoint = vol => '/run/wisnuc/volumes/' + vol.uuid
 const blockMountpoint = blk => '/run/wisnuc/blocks/' + blk.name
@@ -398,6 +397,7 @@ const statVolumes = (volumes, mounts) =>
     }
   })
 
+/**
 let firstLog = 0
 
 // TODO
@@ -424,6 +424,7 @@ const refreshStorageAsync = async () => {
   debug('storage refreshed: ', storage)
   return storage
 }
+**/
 
 const prettyStorage = storage => {
 
@@ -503,43 +504,53 @@ const prettyStorage = storage => {
   return { ports, blocks, volumes }
 }
 
-class Storage {
+/**
 
-  constructor(persistent) {
+  Since persistence has no abort method (even if it has one, instant stopping all actions
+  can not be guaranteed in nodejs), this may be an issue for testing.
 
-    // first is only used for printing storage once at startup
-    this.first = 0
+  one way is using different fpath for each test, avoiding race in writing files.
 
-    this.persistent = persistent
-    this.storage = null
-  }
+  another way is to nullify persistence in testing, if that feature are not going to be tested.
 
-  get(pretty) {
+  this module is not written in JavaScript class and singleton-ized with an object. Instead,
+  it is a global object itself, which eliminates the need of another global object as holder.
+
+  But all states are held in one object and initAsync method will refresh them all. This
+  enables testability. 
+   
+**/
+module.exports = {
+
+  persistent: null,
+  storage: null,
+  
+  get: function (pretty) {
     if (!this.storage) return null
-    return prettyStorage(this.storage) 
-  }
+    return pretty 
+      ? prettyStorage(this.storage)
+      : this.storage
+  },
 
-  async refreshAsync(pretty) {
+  refreshAsync: async function (pretty) {
 
     let storage = await probeStorageWithUsages() 
     statVolumes(storage.volumes, storage.mounts)
     statBlocks(storage)
 
-    if (!this.first++) console.log('[storage] first probe', storage)
-
     this.storage = storage
+
     if (this.persistent) 
-      this.persistent.save(this.pretty())
+      this.persistent.save(prettyStorage(storage))
+
+    return this.get(pretty)
+  },
+
+  initAsync: async function (fpath, tmpdir) {
+
+    this.persistent = await createPersistentAsync(fpath, tmpdir, 500)
+    this.storage = null
   }
-} 
-
-const createStorageAsync = async (fpath, tmpdir) => {
-
-  let persistent = await createPersistentAsync(fpath, tmpdir, 500)
-  return new Storage(persistent)
 }
-
-// export { refreshStorageAsync }
-module.exports = createStorageAsync
 
 

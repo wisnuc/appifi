@@ -1,10 +1,12 @@
 const fs = Promise.promisifyAll(require('fs'))
 const validator = require('validator')
 const deepEqual = require('deep-equal')
-const deepFreeze = requrie('deep-freeze')
-const createPersistent = require('../common/persistent')
+const deepFreeze = require('deep-freeze')
+const createPersistentAsync = require('../common/persistent')
 
-/**
+/*******************************************************************************
+
+Example wisnuc.json file
 
 {
   "version": 1,
@@ -18,7 +20,7 @@ const createPersistent = require('../common/persistent')
   "ipAliasing": [{ "mac": "xxxx", "ipv4": "xxxx"}]
 }
 
-**/
+*******************************************************************************/
 
 const defaultConfig = {
   version: 1,
@@ -29,16 +31,11 @@ const defaultConfig = {
   ipAliasing: []
 } 
 
-/**
-const configFile = '/etc/wisnuc.json'
-const configTmpDir = '/etc/wisnuc/tmp'
-**/
-
 const isUUID = uuid => typeof uuid === 'string' && validator.isUUID(uuid)
 
-const isValidLastFileSystem = lfs => lfs.type === 'btrfs' && isUUID(lfs.uuid)
+const isValidLastFileSystem = lfs => lfs === null || (lfs.type === 'btrfs' && isUUID(lfs.uuid))
 const isValidBootMode = bm => bm === 'normal' || bm === 'maintenance'
-const isValidBarcelonaFanScale = bfs => Number.isIntegery(bfs) && bfs >= 0 && bfs <= 100
+const isValidBarcelonaFanScale = bfs => Number.isInteger(bfs) && bfs >= 0 && bfs <= 100
 const isValidIpAliasing = arr => 
   arr.every(ia => 
     typeof ia.mac === 'string' 
@@ -46,19 +43,25 @@ const isValidIpAliasing = arr =>
     && typeof ia.ipv4 === 'string'
     && validator.isIP(ia.ipv4, 4))
 
-class Config {
+/**
+ * pseudo class singleton
+ */
+module.exports = {
 
-  constructor(persistent, read) {
+  // cannot be written as async initAsync(...) 
+  initAsync: async function(fpath, tmpdir) {
 
-    let dirty = false
+    let read, dirty = false
+
+    this.config = Object.assign({}, defaultConfig)
+    this.persistent = await createPersistentAsync(fpath, tmpdir, 500)
+
+    try { read = JSON.parse(await fs.readFileAsync(fpath)) } catch (e) {}
 
     if (!read) {
-      this.config = defaultConfig
       dirty = true
     }
     else {
-
-      this.config = Object.assign({}, defaultConfig)
 
       if (isValidLastFileSystem(read.lastFileSystem))
         Object.assign(this.config, { lastFileSystem: read.lastFileSystem })
@@ -76,10 +79,8 @@ class Config {
     }
 
     deepFreeze(this.config)
-
-    this.persistent = persistent
     if (dirty) this.persistent.save(this.config)
-  }
+  },
 
   merge(props) {
 
@@ -87,7 +88,7 @@ class Config {
     deepFreeze(this.config)
 
     this.persistent.save(this.config)
-  }
+  },
 
   updateLastFileSystem(lfs, forceNormal) {
 
@@ -98,31 +99,23 @@ class Config {
       this.merge({ lastFileSystem, bootMode: 'normal' })
     else
       this.merge({ lastFileSystem })
-  }
+  },
 
   updateBootMode(bm) {
-    isValidBootMode(bm)) && this.merge({ bootMode: bm })
-  }
+    isValidBootMode(bm) && this.merge({ bootMode: bm })
+  },
 
   updateBarcelonaFanScale(bfs) {
-    isValidBarcelonaFanScale(bfs)) && this.merge({ barcelonaFanScale: bfs })
-  }
+    isValidBarcelonaFanScale(bfs) && this.merge({ barcelonaFanScale: bfs })
+  },
 
   updateIpAliasing(arr) {
-    isValidIpAliasing(arr)) && this.merge({ ipAliasing: arr })
-  }
+    isValidIpAliasing(arr) && this.merge({ ipAliasing: arr })
+  },
 
   get() {
     return this.config
   }
 }
 
-const initConfigAsync = async (fpath, tmpDir) => {
-
-  let read, persistent = await createPersistentAsync(fpath, tmpDir, 500)
-  try { read = JSON.parse(await fs.readFileAsync(fpath)) } catch (e) {}
-  return new Config(persistent, read)
-}
-
-module.exports = initConfigAsync
 

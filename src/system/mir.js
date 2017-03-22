@@ -4,7 +4,8 @@ import rimraf from 'rimraf'
 import mkdirp from 'mkdirp'
 import validator from 'validator'
 import Debug from 'debug'
-import { storeState, storeDispatch } from '../reducers' 
+
+// import { storeState} from '../reducers' 
 
 import { mkfsBtrfs } from './mkfs'
 import { fakeReboot } from './boot'

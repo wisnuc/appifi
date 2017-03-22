@@ -1,26 +1,29 @@
-import child from 'child_process'
-import os from 'os'
+const child = require('child_process')
+const os = require('os')
 
-import express from 'express'
+const router = require('express').Router()
+
 import Debug from 'debug'
 import validator from 'validator'
 
-import { storeState, storeDispatch } from '../reducers'
 
 import mir from './mir'
 import { mac2dev, aliases, addAliasAsync, deleteAliasAsync } from './ipaliasing'
 import eth from './eth'
-import deviceProbe from './device'
+
 import { readFanSpeed, writeFanScale } from './barcelona'
 
-const codeMap = new Map([
-  ['EINVAL', 400],
-  ['ENOENT', 404]
-]) 
+
+const Device = require('./device')
+const Config = require('./config')
+const Boot = require('./boot')
+
+const codeMap = new Map([ ['EINVAL', 400], ['ENOENT', 404] ]) 
+
+
+
 
 const debug = Debug('system:router')
-const router = express.Router()
-
 const nolog = (res) => {
   res.nolog = true
   return res 
@@ -43,9 +46,8 @@ const timedate = (callback) =>
       }, {})))
 
 // device
-router.get('/device', (req, res) => {
-  res.status(200).json(storeState().device)
-})
+router.get('/device', (req, res) => 
+  res.status(200).json(Device.get()))
 
 
 // timedate
@@ -101,8 +103,7 @@ router.delete('/ipaliasing', (req, res) => (async () => {
 //
 router.get('/fan', (req, res) => {
 
-  let device = storeState().device
-  if (!device.ws215i) 
+  if (!Device.isWS215i()) 
     return res.status(404).json({
       message: 'not available on this device'
     })
@@ -110,15 +111,14 @@ router.get('/fan', (req, res) => {
   readFanSpeed((err, fanSpeed) => {
     err ? res.status(500).json({ message: err.message }) :
       res.status(200).json({
-        fanSpeed, fanScale: storeState().config.barcelonaFanScale
+        fanSpeed, fanScale: Config.get().barcelonaFanScale
       })
   })
 })
 
 router.post('/fan', (req, res) => {
 
-  let device = storeState().device
-  if (!device.ws215i)
+  if (!Device.isWS215i())
     return res.status(404).json({
       message: 'not available on this device'
     })
@@ -142,9 +142,7 @@ router.use('/mir', mir)
 
 router.get('/boot', (req, res) => {
 
-  let boot = storeState().boot
- 
-  debug(boot) 
+  let boot = Boot.get()
 
   if (boot)
     nolog(res).status(200).json(boot)
@@ -220,4 +218,4 @@ router.post('/boot', (req, res) => {
   })
 })
 
-export default router
+module.exports = router
