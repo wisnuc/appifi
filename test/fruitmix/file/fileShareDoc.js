@@ -20,7 +20,7 @@ const uuid8 = '8359f954-ade1-43e1-918e-8ca9d2dc81a0'
 const uuid9 = '97e352f8-5535-473d-9dac-8706ffb79abb'
 
 class Node {
-  cnostructor(uuid) {
+  constructor(uuid) {
     this.uuid = uuid
     this.parent = null
     this.children = []
@@ -36,7 +36,7 @@ class Node {
 }
 
 class FileData {
-  cnostructor() {
+  constructor() {
     this.uuidMap = new Map()
   }
 }
@@ -64,8 +64,6 @@ const n8 = new Node(uuid8)
 n8.parent = n7
 n7.children.push(n8)
 const n9 = new Node(uuid9)
-// n9.parent = n6
-// n6.children.push(n9)
 
 let fileData = new FileData()
 
@@ -79,7 +77,171 @@ fileData.uuidMap.set(n7.uuid, n7)
 fileData.uuidMap.set(n8.uuid, n8)
 fileData.uuidMap.set(n9.uuid, n9)
 
+describe(path.basename(__filename), function() {
+  let doc
+  let obj = { writelist: [aliceUUID],
+              readlist: [bobUUID],
+              collection: [uuid2, uuid4, uuid6, uuid9] 
+            }
 
+  beforeEach(() => doc = createFileShareDoc(fileData, userUUID, obj))
+
+  describe('createFileShareDoc', function() {
+
+    it('should return a doc with fixed property sequence', done => {
+      let props = ['doctype',
+                   'docversion',
+                   'uuid',
+                   'author',
+                   'writelist',
+                   'readlist',
+                   'ctime',
+                   'mtime',
+                   'collection'
+                  ]
+      expect(Object.getOwnPropertyNames(doc)).to.deep.equal(props)
+      done()
+    })
+
+    it('doc should set doctype to fileshare', done => {
+      expect(doc.doctype).to.equal('fileshare')
+      done()
+    })
+
+    it('doc should set docversion to 1.0', done => {
+      expect(doc.docversion).to.equal('1.0')
+      done()
+    })
+
+    it('doc should have uuid', done => {
+      expect(validator.isUUID(doc.uuid)).to.be.true
+      done()
+    })
+
+    it('doc should set author to given user', done => {
+      expect(doc.author).to.equal(userUUID)
+      done()
+    })
+
+    it('doc should set writelist to given writelist', done => {
+      expect(doc.writelist).to.deep.equal(obj.writelist)
+      done()
+    })
+
+    it('doc should set readlist to given readlist', done => {
+      expect(doc.readlist).to.deep.equal(obj.readlist)
+      done()
+    })
+
+    it('doc should have ctime and mtime', done => {
+      expect(Number.isInteger(doc.ctime)).to.be.true
+      expect(Number.isInteger(doc.mtime)).to.be.true
+      done()
+    })
+
+    it('doc should have a collection without repeat value', done => {
+      expect(doc.collection).to.deep.equal([uuid2, uuid6, uuid9])
+      done()
+    })
+  })
+
+  describe('updateFileShareDoc', function() {
+
+    it('should add writer successfully', done => {
+      let ops = [{path: 'writelist',
+                  operation: 'add',
+                  value: [charlieUUID]
+                }]
+      let newDoc = updateFileShareDoc(fileData, doc, ops)
+      expect(newDoc.writelist).to.deep.equal([aliceUUID, charlieUUID])
+      done()
+    })
+
+    it('should delete writer successfully', done => {
+      let ops = [{path: 'writelist',
+                  operation: 'delete',
+                  value: [aliceUUID]
+                }]
+      let newDoc = updateFileShareDoc(fileData, doc, ops)
+      expect(newDoc.writelist).to.deep.equal([])
+      done()
+    })
+
+    it('should remove user from readlist if the user is move into writelist', done => {
+      let ops = [{path: 'writelist',
+                  operation: 'add',
+                  value: [bobUUID]
+                }]
+      let newDoc = updateFileShareDoc(fileData, doc, ops)
+      expect(newDoc.writelist).to.deep.equal([aliceUUID, bobUUID])
+      expect(newDoc.readlist).to.deep.equal([])
+      done()
+    })
+
+    it('should add reader successfully',done => {
+      let ops = [{path: 'readlist',
+                  operation: 'add',
+                  value: [charlieUUID]
+                }]
+      let newDoc = updateFileShareDoc(fileData, doc, ops)
+      expect(newDoc.readlist).to.deep.equal([bobUUID, charlieUUID])
+      done()
+    })
+
+    it('should delete reader successfully',done => {
+      let ops = [{path: 'readlist',
+                  operation: 'delete',
+                  value: [bobUUID]
+                }]
+      let newDoc = updateFileShareDoc(fileData, doc, ops)
+      expect(newDoc.readlist).to.deep.equal([])
+      done()
+    })
+
+    it('readlist should unchanged if the added reader exist in writelist', done => {
+      let ops = [{path: 'readlist',
+                  operation: 'add',
+                  value: [aliceUUID]
+                }]
+      let newDoc = updateFileShareDoc(fileData, doc, ops)
+      expect(newDoc.readlist).to.deep.equal([bobUUID])
+      done()
+    })
+
+    it('should add node uuid to collection successfully', done => {
+      let ops = [{path: 'collection',
+                  operation: 'add',
+                  value: [uuid5]
+                }]
+      let newDoc = updateFileShareDoc(fileData, doc, ops)
+      expect(newDoc.collection).to.deep.equal([uuid2, uuid6, uuid9, uuid5])
+      done()
+    })
+
+    it('collection should unchanged if the ancestor of the added node exist', done => {
+      let ops = [{path: 'collection',
+                  operation: 'add',
+                  value: [uuid7]
+                }]
+      let newDoc = updateFileShareDoc(fileData, doc, ops)
+      expect(newDoc.collection).to.deep.equal([uuid2, uuid6, uuid9])
+      done()
+    })
+
+    it('should delete value of collection successfully', done => {
+      let ops = [{path: 'collection',
+                  operation: 'delete',
+                  value: [uuid2]
+                }]
+      let newDoc = updateFileShareDoc(fileData, doc, ops)
+      expect(newDoc.collection).to.deep.equal([uuid6, uuid9])
+      done()
+    })
+  })
+
+
+
+})
 
 
 

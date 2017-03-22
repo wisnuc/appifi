@@ -15,6 +15,49 @@ import config from '../config'
 
 const router = Router()
 
+// this may be either file or folder
+// if it's a folder, return childrens
+// if it's a file, download
+// /files/xxxxxxx <- must be folder
+// TODO modified by jianjin.wu
+router.get('/:nodeUUID', (req, res) => {
+
+  let user = req.user
+  let query = req.query
+  let params = req.params
+
+  let args =  { userUUID: user.uuid, dirUUID: params.dirUUID, name: query.filename }
+  config.ipc.call('createFileCheck', args, (e, node) => {
+    if (e) return res.error(e)
+    if (!node) return res.error('node not found')
+
+      if (node.isDirectory()) {
+
+        if (query.navroot) {
+
+          let args = { userUUID: user.uuid, dirUUID: node.uuid, rootUUID: query.navroot }
+          config.ipc.call('navList', args, (e, ret) => {
+            e ? res.error(e) : res.success(ret)
+          })
+        } else {
+
+          let args = { userUUID: user.uuid, dirUUID: node.uuid }
+          config.ipc.call('list', args, (e, ret) => {
+            e ? res.error(e) : res.success(ret)
+          })
+        }
+      } else if (node.isFile()) {
+
+        let args = { userUUID: user.uuid, fileUUID: node.uuid }
+        config.ipc.call('readFile', args, (e, filepath) => {
+          e ? res.error(e) : res.success(filepath)
+        })
+      } else {
+        res.error(null, 404)
+      }
+    })
+})
+
 // /:nodeUUID?filename=xxx
 router.post('/:nodeUUID', (req, res) => {
 
