@@ -2,7 +2,7 @@ const fs = Promise.promisifyAll(require('fs'))
 const validator = require('validator')
 const deepEqual = require('deep-equal')
 const deepFreeze = require('deep-freeze')
-const createPersistentAsync = require('../common/persistent')
+const createPersistenceAsync = require('../common/persistence')
 
 /*******************************************************************************
 
@@ -54,7 +54,7 @@ module.exports = {
     let read, dirty = false
 
     this.config = Object.assign({}, defaultConfig)
-    this.persistent = await createPersistentAsync(fpath, tmpdir, 500)
+    this.persistence = await createPersistenceAsync(fpath, tmpdir, 500)
 
     try { read = JSON.parse(await fs.readFileAsync(fpath)) } catch (e) {}
 
@@ -79,7 +79,7 @@ module.exports = {
     }
 
     deepFreeze(this.config)
-    if (dirty) this.persistent.save(this.config)
+    if (dirty) this.persistence.save(this.config)
   },
 
   merge(props) {
@@ -87,7 +87,7 @@ module.exports = {
     this.config = Object.assign({}, this.config, props)
     deepFreeze(this.config)
 
-    this.persistent.save(this.config)
+    this.persistence.save(this.config)
   },
 
   updateLastFileSystem(lfs, forceNormal) {

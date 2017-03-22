@@ -11,7 +11,7 @@ import probeSwapsAsync from './procSwapsAsync'
 import probeVolumesAsync from './btrfsfishowAsync'
 import probeUsageAsync from './btrfsusageAsync'
 
-const createPersistentAsync = require('../common/persistent')
+const createPersistenceAsync = require('../common/persistence')
 
 const debug = require('debug')('system:storage')
 
@@ -522,7 +522,7 @@ const prettyStorage = storage => {
 **/
 module.exports = {
 
-  persistent: null,
+  persistence: null,
   storage: null,
   
   get: function (pretty) {
@@ -540,15 +540,15 @@ module.exports = {
 
     this.storage = storage
 
-    if (this.persistent) 
-      this.persistent.save(prettyStorage(storage))
+    if (this.persistence) 
+      this.persistence.save(prettyStorage(storage))
 
     return this.get(pretty)
   },
 
   initAsync: async function (fpath, tmpdir) {
 
-    this.persistent = await createPersistentAsync(fpath, tmpdir, 500)
+    this.persistence = await createPersistenceAsync(fpath, tmpdir, 500)
     this.storage = null
   }
 }
