@@ -1,5 +1,4 @@
 import { Router } from 'express'
-import Promise from 'bluebird'
 
 import { localUsers } from '../model'
 import auth from '../middleware/auth'
