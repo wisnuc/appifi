@@ -50,9 +50,14 @@ const App = () => {
     }, 1000)
   })
 
+  // add res.error(), res.success()
+  app.use(require('./middleware/response'))
+
   // app.use(express.static(path.join(__dirname, 'public')))
-  app.use('/login', login)
-  app.use('/ipctest', ipctest)
+  app.use('/', require('./routes'))
+
+  // app.use('/login', login)
+  // app.use('/ipctest', ipctest)
 /**
   app.use('/init', init)
   app.use('/token', token)
