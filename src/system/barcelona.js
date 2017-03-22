@@ -1,8 +1,10 @@
-import { fs, child } from '../common/async'
-import Debug from 'debug'
+const Promise = require('bluebird')
+
+const fs = Promise.promisify(require('fs'))
+const child = Promise.promisify(require('child_process'))
 
 const Config = require('./config')
-const debug = Debug('system:barcelona')
+const debug = require('debug')('system:barcelona')
 
 const BOARD_EVENT = '/proc/BOARD_event'
 const FAN_IO = '/proc/FAN_io'

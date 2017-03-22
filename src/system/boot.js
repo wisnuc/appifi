@@ -2,16 +2,15 @@ const path = require('path')
 const fs = require('fs')
 const child = require('child_process')
 
-import Debug from 'debug'
-
 const Developer = require('./developer')
 const Config = require('./config')
 const Storage = require('./storage')
 
 import docker from '../appifi/docker'
+
 import { probeAllFruitmixesAsync } from './adapter'
 
-const debug = Debug('system:boot')
+const debug = require('debug')('system:boot')
 
 const runnable = wisnuc => (typeof wisnuc === 'object' && wisnuc !== null && wisnuc.users)
 
@@ -26,13 +25,10 @@ const runnable = wisnuc => (typeof wisnuc === 'object' && wisnuc !== null && wis
 // lastFileSystem: in config
 // bootMode: in config
 //
-const bootState = storage => {
+const bootState = decorated => {
 
-  let config = Config.get()
-  let { bootMode, lastFileSystem } = config
-  let { blocks, volumes } = storage
-
-  debug('bootState config, storage', config, storage)
+  let { bootMode, lastFileSystem } = Config.get()
+  let { blocks, volumes } = decorated
 
   if (bootMode === 'maintenance') {
 
@@ -176,6 +172,11 @@ module.exports = {
 
     this.data = bstate
     return bstate
+  },
+
+  manualBootAsync: async function (uuid) {
+    
+    let pretty = await Storage.refreshAsync(true)
   },
 
   get() {
