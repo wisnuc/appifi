@@ -36,8 +36,6 @@ const getUserListAsync = async () => {
   return JSON.parse(userList)
 }
 
-console.log(getUserListAsync())
-
 // get users & drives list from `getUserListAsync`
 const createShareListAsync = async () => {
 
@@ -273,30 +271,36 @@ const generateSmbConfAsync = async () => {
                 '  log level = 1\n\n'
 
   const section = (share) => {
-    console.log(share);
-    `[${share.name}]\n` +                                 // username or sharename
-    `  path = ${prepend}/${share.path}\n` +                // uuid path
-    `  read only = ${share.readOnly ? "yes" : "no"}\n` +
-    '  guest ok = no\n' +
-    '  force user = root\n' + 
-    '  force group = root\n' +
-    `  valid users = ${(share.validUsers).length > 1?share.validUsers.join(', '):share.validUsers}\n` +  
-    (share.readOnly ? '' :
-    `  write list = ${(share.validUsers).length > 1?share.writelist.join(', '):share.validUsers}\n` +    // writelist
-    '  vfs objects = full_audit\n' +
-    '  full_audit:prefix = %u|%U|%S|%P\n' +
-    '  full_audit:success = create_file mkdir rename rmdir unlink write pwrite \n' + // dont remove write !!!!
-    '  full_audit:failure = connect\n' +
-    '  full_audit:facility = LOCAL7\n' +
-    '  full_audit:priority = ALERT\n')
-  }
+    let tmpStr = '';
+    tmpStr = `[${share.name}]\n`;
+    tmpStr = tmpStr.concat(`  path = ${prepend}/${share.path}\n`);
+    tmpStr = tmpStr.concat(`  read only = ${share.readOnly ? "yes" : "no"}\n`);
 
-  console.log(section())
+    tmpStr = tmpStr.concat('  guest ok = no\n');
+    tmpStr = tmpStr.concat('  force user = root\n');
+    tmpStr = tmpStr.concat('  force group = root\n');
+
+    if(!share.readOnly) {
+      tmpStr = tmpStr.concat(`  write list = ${(share.validUsers).length > 1?share.writelist.join(', '):share.validUsers}\n`); // writelist
+      tmpStr = tmpStr.concat(`  valid users = ${(share.validUsers).length > 1?share.validUsers.join(', '):share.validUsers}\n`);
+      tmpStr = tmpStr.concat('  vfs objects = full_audit\n');
+      tmpStr = tmpStr.concat('  full_audit:prefix = %u|%U|%S|%P\n');
+      tmpStr = tmpStr.concat('  full_audit:success = create_file mkdir rename rmdir unlink write pwrite \n'); // dont remove write !!!!
+      tmpStr = tmpStr.concat('  full_audit:failure = connect\n');
+      tmpStr = tmpStr.concat('  full_audit:facility = LOCAL7\n');
+      tmpStr = tmpStr.concat('  full_audit:priority = ALERT\n');
+    }
+
+    return tmpStr;
+  }
 
   let conf = global
 
   let getShareList = await createShareListAsync();
-  getShareList.forEach(share => conf += section(share) + '\n')
+  getShareList.forEach(share => {
+    conf += section(share) + '\n';
+  })
+
   debug('generateSmbConf', conf)
   await fs.writeFileAsync('/etc/samba/smb.conf', conf)
 }
@@ -462,6 +466,7 @@ const createUdpServer = (callback) => {
 function beginWatch() {
   let watcher = fs.watch(userListConfigPath, (eventType) => {
     if (eventType === 'change') {
+      console.log('File changed!')
     	updateSambaFiles();
     }
   });
@@ -499,6 +504,7 @@ const watchAndUpdateSambaAsync = async () => {
   // TODO not optimal
   await initSamba();
   await updateSambaFiles();
+  let watchMan = beginWatch();
   let udp = await Promise.promisify(createUdpServer)();
   return new SmbAudit(udp);
 }

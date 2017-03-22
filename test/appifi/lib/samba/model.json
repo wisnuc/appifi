@@ -24,6 +24,30 @@
         "privateKey": "some str"
       },
       "lastChangeTime": 1489644639494
+    },
+    {
+      "type": "local",
+      "uuid": "5db92303-33a1-4f79-8d8f-a7b6becde6c3",
+      "username": "adfsdfdsf",
+      "nologin": false,
+      "avatar": null,
+      "email": null,
+      "isFirstUser": true,
+      "isAdmin": true,
+      "home": "b76ed624-d028-4959-b61a-119d212c0cb1",
+      "library": "b76ed624-d028-4959-b61a-119d212c0cb1",
+      "service": "b76ed624-d028-4959-b61a-119d212c0cb1",
+      "password": "$2a$10$ejkgWk/ChHcLyZtic1H2CeLdoVcz15eZ/3Lymj1ncimVvq6E7OvWy",
+      "unixPassword": "some str",
+      "smbPassword": "some str",
+      "unixuid": 2001,
+      "unixname": "adfsdfdsf",
+      "friends": [],
+      "credentials": {
+        "publicKey": "some str",
+        "privateKey": "some str"
+      },
+      "lastChangeTime": 2499644639494
     }
   ],
   "drives": [
