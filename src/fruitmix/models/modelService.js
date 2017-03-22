@@ -114,7 +114,7 @@ class ModelService extends EventEmitter {
 
   }
 
-  async createLocalUserAsync(useruuid, props) {
+  async createLocalUserAsync({ useruuid, props }) {
     // check permission
     let users = this.modelData.users;
     let admins = users.filter(u => u.isAdmin === true).map(u => u.uuid);
@@ -181,7 +181,7 @@ class ModelService extends EventEmitter {
     }
   }
 
-  async createRemoteUserAsync(useruuid, props) {
+  async createRemoteUserAsync({ useruuid, props }) {
     // check permission
     let users = this.modelData.users;
     let admins = users.filter(u => u.isAdmin === true).map(u => u.uuid);
@@ -209,7 +209,7 @@ class ModelService extends EventEmitter {
     return { type, username, uuid, email, avatar, service }
   }
 
-  async updateUserAsync(useruuid, props) {
+  async updateUserAsync({ useruuid, props }) {
     // check permission
     let user = this.modelData.users.find(u => u.uuid === useruuid);
     if (!user)
@@ -220,7 +220,7 @@ class ModelService extends EventEmitter {
     return next;
   }
 
-  async updatePasswordAsync(useruuid, pwd) {
+  async updatePasswordAsync({ useruuid, pwd }) {
     // check permission
     let user = this.modelData.users.find(u => u.uuid === useruuid);
     if (!user)
@@ -317,7 +317,15 @@ class ModelService extends EventEmitter {
     return null;
   }
 
+  register(ipc){
+    ipc.register('createLocalUser', asCallback(this.createLocalUserAsync).bind(this))
+  }
+
 }
+
+const asCallback = (asyncFn) => 
+  (args, callback) => asyncFn.asCallback(args, (e, data) =>
+    e ? callback(e) : callback(null, data))
 
 const createModelService = (froot) =>
   new ModelService(froot, createModelData(froot));
