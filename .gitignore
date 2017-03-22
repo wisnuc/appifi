@@ -58,10 +58,13 @@ fruitfiles/
 tmpTestFoder/
 tmptest/
 coverage/
-
+cluster_tmp/
+cluster_file/
 
 _docpress/
 
 
 .nyc_output/
 
+# IDE webstorm
+.idea/
