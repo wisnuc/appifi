@@ -23,9 +23,9 @@ class FileShareService {
     if(!collection.length) throw new E.EINVAL()
     if(!collection.every(isUUID)) throw new E.EINVAL()
     if(!collection.every(uuid => {
-      let root = this.fd.uuidMap.get(uuid).root
-      if(root.type === 'private') return user === root.ower
-      else return root.shareAllowed && !![...root.writelist, ...root.readlist].find(user)
+      let rootnode = this.fd.uuidMap.get(uuid).root()
+      if(rootnode.type === 'private') return user === rootnode.ower
+      else return rootnode.shareAllowed && !![...rootnode.writelist, ...rootnode.readlist].find(user)
     }))
       throw new E.EACCESS()
 
@@ -65,16 +65,16 @@ class FileShareService {
       if(!op.value.every(isUUID)) throw new E.EINVAL()
       if(op.path === 'collection') {
         if(!op.value.every(uuid => {
-          let root = this.fd.uuidMap.get(uuid).root
+          let root = this.fd.uuidMap.get(uuid).root()
           if(root.type === 'private') return user === root.ower
           else return root.shareAllowed && !![...root.writelist, ...root.readlist].find(user)
         }))
           throw new E.EACCESS()
-      }
-
-      let newDoc = updateFileShareDoc(this.fd, share.doc, patch)
-      return await this.fsd.updateFileShare(newDoc)
+      }      
     })
+
+    let newDoc = updateFileShareDoc(this.fd, share.doc, patch)
+    return await this.fsd.updateFileShare(newDoc)
   }
 
   async deleteFileShare(user, shareUUID) {

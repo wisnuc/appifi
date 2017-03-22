@@ -22,7 +22,7 @@ const invariantProps = (c, n, props) => {
 
 const invariantUpdate = (c, n) => {
   invariantProps(c, n, [
-    'doctype', 'docversion','uuid', 'author','ctime'
+    'doctype', 'docversion', 'uuid', 'author', 'ctime'
   ])
 }
 
@@ -52,7 +52,7 @@ class FileShareData extends EventEmitter {
     let share = this.fsMap.get(doc.uuid)
     if(!share) throw new E.ENOENT()
 
-    invariantProps(share.doc, doc)
+    invariantUpdate(share.doc, doc)
 
     let digest = await this.fss.storeAsync(doc)
     let next = new FileShare(digest, doc)
