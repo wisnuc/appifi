@@ -319,6 +319,7 @@ class ModelService extends EventEmitter {
 
   register(ipc){
     ipc.register('createLocalUser', asCallback(this.createLocalUserAsync).bind(this))
+    ipc.register('updateUser', asCallback(this.updateUserAsync).bind(this))
   }
 
 }
