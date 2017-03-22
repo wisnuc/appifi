@@ -212,3 +212,5 @@ router.post('/:nodeUUID', (req, res) => {
   })
 })
 
+//segments for upload 
+
