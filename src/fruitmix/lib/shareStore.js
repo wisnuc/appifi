@@ -5,7 +5,7 @@ import mkdirp from 'mkdirp'
 import { writeFileToDisk } from './util'
 import { DIR } from './const'
 
-class MediaShareStore {
+class ShareStore {
 
   constructor(rootdir, arcdir, tmpdir, docstore) {
     this.rootdir = rootdir
@@ -95,11 +95,32 @@ const createMediaShareStore = (froot, docstore, callback) => {
       if(err) return callback(err)
       mkdirp(tmpdir, err => {
         if(err) return callback(err)
-        callback(null, new MediaShareStore(rootdir, arcdir, tmpdir, docstore))
+        callback(null, new ShareStore(rootdir, arcdir, tmpdir, docstore))
       })
     })
   })
 }
 
-export { createMediaShareStore }
+const createFileShareStore = (froot, docstore, callback) => {
+
+  let rootdir = path.join(froot, DIR.FSHARE)
+  let arcdir = path.join(froot, DIR.FSHAREARC)
+  let tmpdir = path.join(froot, DIR.TMP)
+
+  mkdirp(rootdir, err => {
+    if(err) return callback(err)
+    mkdirp(arcdir, err => {
+      if(err) return callback(err)
+      mkdirp(tmpdir, err => {
+        if(err) return callback(err)
+        callback(null, new ShareStore(rootdir, arcdir, tmpdir, docstore))
+      })
+    })
+  })
+}
+
+export { 
+  createMediaShareStore,
+  createFileShareStore,
+}
 

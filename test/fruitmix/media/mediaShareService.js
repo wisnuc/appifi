@@ -4,7 +4,7 @@ import sinon from 'sinon'
 
 import { rimrafAsync, mkdirpAsync } from '../../../src/fruitmix/util/async'
 import { createDocumentStore } from '../../../src/fruitmix/lib/documentStore'
-import { createMediaShareStore } from '../../../src/fruitmix/lib/mediaShareStore'
+import { createMediaShareStore } from '../../../src/fruitmix/lib/shareStore'
 import { createMediaShareData } from '../../../src/fruitmix/media/mediaShareData'
 import { createMediaShareService } from '../../../src/fruitmix/media/mediaShareService'
 import E from '../../../src/fruitmix/lib/error'

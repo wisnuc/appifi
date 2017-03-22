@@ -2,6 +2,8 @@ const DIR = {
   MODEL: 'models',
   DRIVE: 'drives',
   DOC: 'documents',
+  FSHARE: 'fileshare',
+  FSHAREARC: 'fileshareArchive',
   MSHARE: 'mediashare',
   MSHAREARC: 'mediashareArchive',
   MTALK: 'mediatalk',
