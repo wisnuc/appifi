@@ -57,7 +57,7 @@ const validateFileShareDoc = (doc, users) => {
   assert(Number.isInteger(doc.ctime), 'invalid ctime')
   assert(Number.isInteger(doc.mtime), 'invalid mtime')
 
-  assert(isUUID(doc.collection), 'collection not uuid array')
+  assert(isUUIDArray(doc.collection), 'collection not uuid array')
 }
 
 const createFileShareDoc = (fileData, authorUUID, obj) => {

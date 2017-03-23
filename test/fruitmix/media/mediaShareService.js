@@ -72,7 +72,7 @@ describe(path.basename(__filename), function() {
   })
 
   describe('createMediaShare',function() {
-    it('should return error if user is not a invalid uuid', async () => {
+    it('should return error if user is a invalid uuid', async () => {
       let err
       let post = {maintainers: [aliceUUID],
                   viewers: [bobUUID],
@@ -114,7 +114,7 @@ describe(path.basename(__filename), function() {
       expect(err.message).to.equal('some mandatory props not defined in object')
     })
 
-    it('should return error if contents is not a array', async () => {
+    it('should return error if contents is not an array', async () => {
       let err
       let post = {maintainers: [aliceUUID],
                   viewers: [bobUUID],

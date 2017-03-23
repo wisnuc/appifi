@@ -57,6 +57,7 @@ family/
 fruitfiles/
 tmpTestFoder/
 tmptest/
+coverage/
 cluster_tmp/
 cluster_file/
 
