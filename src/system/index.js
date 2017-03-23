@@ -245,12 +245,6 @@ router.get('/timedate', (req, res) => timedate((err, obj) =>
 router.use('/storage', mir)
 router.use('/mir', mir)
 
-const shutdown = (cmd) =>
-  setTimeout(() => {
-    child.exec('echo "PWRD_LED 3" > /proc/BOARD_io', err => {})
-    child.exec(`${cmd}`, err => {})
-  }, 1000)
-
 
  
 

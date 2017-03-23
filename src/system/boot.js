@@ -12,6 +12,21 @@ const debug = require('debug')('system:boot')
 
 const runnable = wisnuc => (typeof wisnuc === 'object' && wisnuc !== null && wisnuc.users)
 
+const shutdown = cmd =>
+  setTimeout(() => {
+    child.exec('echo "PWRD_LED 3" > /proc/BOARD_io', err => {})
+    child.exec(`${cmd}`, err => {})
+  }, 1000)
+
+const shutdown = async reboot => {
+
+  let cmd = reboot === true ? 'reboot' : 'poweroff'
+
+  await child.execAsync('echo "PWR_LED 3" > /proc/BOARD_io').reflect()
+  await Promise.delay(3000)
+  await child.execAsync(cmd)
+}
+
 //
 // this function does not take any action
 // it returns an object with following properties:
@@ -204,7 +219,26 @@ module.exports = {
     // xxxx TODO
   },
 
-  rebootAsync: async function 
+  rebootAsync: async function (op, target) {
+
+    switch(op) {
+    case 'poweroff':
+      shutdownAsync(false).asCallback(() => {})
+      break
+
+    case 'reboot':
+      shutdownAsync(true).asCallback(() => {})
+      break
+
+    case 'rebootMaintenance':
+      Config.updateBootMode('maintenance')
+      shutdownAsync(true).asCallback(() => {})
+      break
+    }
+
+    case 'rebootNormal':
+       
+  },
 
   get() {
     return this.data
