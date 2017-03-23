@@ -47,6 +47,10 @@ class Pending extends State {
       this.setState(Working, this.data) 
     }, this.ctx.delay)
   }
+
+  exit() {
+    clearTimeout(this.timer)
+  }
 }
 
 class Working extends State {

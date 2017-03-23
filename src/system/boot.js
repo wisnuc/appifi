@@ -18,7 +18,7 @@ const shutdown = cmd =>
     child.exec(`${cmd}`, err => {})
   }, 1000)
 
-const shutdown = async reboot => {
+const shutdownAsync = async reboot => {
 
   let cmd = reboot === true ? 'reboot' : 'poweroff'
 
@@ -237,7 +237,17 @@ module.exports = {
     }
 
     case 'rebootNormal':
-       
+      // should check bootability ??? TODO
+      if (target) 
+        Config.updateLastFileSystem({ type: 'btrfs', uuid: target }, true)
+      else
+        Config.updateBootMode('normal')
+
+      shutdownAsync(true).asCallback(() => {})
+      break
+
+    default:
+      throw new Error('unexpected case')
   },
 
   get() {
