@@ -68,7 +68,7 @@ class MediaShareService {
         throw new E.EINVAL()
 
       if(complement([op.path], ['maintainers', 'viewers', 'contents']).length === 0) {
-        if(op.operation !== 'add' || op.operation !== 'delete') throw new E.EINVAL()
+        if(op.operation !== 'add' && op.operation !== 'delete') throw new E.EINVAL()
         if(!Array.isArray(op.value)) throw new E.EINVAL()
         if(op.path === 'contents') {
           if(!op.value.every(isSHA256)) throw new E.EINVAL()
