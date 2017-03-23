@@ -81,64 +81,8 @@ class FileService {
     }
 
     return callback(null, {
-      path: subpath
-        .map(n => {
-          if (n.isDirectory()) {
-            return {
-              uuid: n.uuid,
-              type: 'folder',
-              owner: n.owner,
-              writelist: n.writelist,
-              readlist: n.readlist,
-              name: n.name
-            }
-          }
-          else if (n.isFile()) {
-            return {
-              uuid: n.uuid,
-              type: 'file',
-              owner: n.owner,
-              writelist: n.writelist,
-              readlist: n.readlist,
-              name: n.name,
-              mtime: n.mtime,
-              size: n.size
-            }
-          }
-          else
-            return null
-        })
-        .filter(n => !!n),
-
-      children: node
-        .getChildren()
-        .map(n => {
-          if (n.isDirectory()) {
-            return {
-              uuid: n.uuid,
-              type: 'folder',
-              owner: n.owner,
-              writelist: n.writelist,
-              readlist: n.readlist,
-              name: n.name
-            }
-          }
-          else if (n.isFile()) {
-            return {
-              uuid: n.uuid,
-              type: 'file',
-              owner: n.owner,
-              writelist: n.writelist,
-              readlist: n.readlist,
-              name: n.name,
-              mtime: n.mtime,
-              size: n.size
-            }
-          }
-          else
-            return null
-        })
-        .filter(n => !!n)
+      path: subpath.map(n => nodeProps(n)),
+      children: node.getChildren().map(n => nodeProps(n))
     })
   }
 
@@ -256,7 +200,7 @@ class FileService {
     let node = this.data.findNodeByUUID(dirUUID)
     if(!node || userCanRead(userUUID, node))
       return callback(new Error('Permission denied'))
-    if(this.list(userUUID, dirUUID).find(child => child.name == name && child.type === 'file'))
+    if(node.isDirectory() && this.list(userUUID, dirUUID).find(child => child.name == name && child.type === 'file'))
       return callback(new Error('File exist')) // TODO
     callback(null, node)
   }
@@ -274,7 +218,8 @@ class FileService {
   }
 
   // delete a directory or file
-  del(userUUID, targetUUID, callback) {
+  del({ userUUID, targetUUID }, callback) {
+
   }
 
   register(ipc){
@@ -285,6 +230,7 @@ class FileService {
     ipc.register('list', this.list.bind(this))
     ipc.register('navList', this.navList.bind(this))
     ipc.register('readFile', this.readFile.bind(this))
+    ipc.register('del', this.del.bind(this))
   }
 }
 
