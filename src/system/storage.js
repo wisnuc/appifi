@@ -5,11 +5,11 @@ import { fs, child, mkdirpAsync } from '../common/async'
 import UUID from 'node-uuid'
 
 
-import udevInfoAsync from './udevInfoAsync'
-import probeMountsAsync from './procMountsAsync'
-import probeSwapsAsync from './procSwapsAsync'
-import probeVolumesAsync from './btrfsfishowAsync'
-import probeUsageAsync from './btrfsusageAsync'
+import udevInfoAsync from './storage/udevInfoAsync'
+import probeMountsAsync from './storage/procMountsAsync'
+import probeSwapsAsync from './storage/procSwapsAsync'
+import probeVolumesAsync from './storage/btrfsfishowAsync'
+import probeUsageAsync from './storage/btrfsusageAsync'
 
 const createPersistenceAsync = require('../common/persistence')
 

@@ -1,11 +1,11 @@
 const child = require('child_process')
 const os = require('os')
 
-const router = require('express').Router()
 
-import Debug from 'debug'
+const router = require('express').Router()
 import validator from 'validator'
 
+const debug = require('debug')('system:index')
 
 import mir from './mir'
 import { mac2dev, aliases, addAliasAsync, deleteAliasAsync } from './ipaliasing'
@@ -23,7 +23,6 @@ const codeMap = new Map([ ['EINVAL', 400], ['ENOENT', 404] ])
 
 
 
-const debug = Debug('system:router')
 const nolog = (res) => {
   res.nolog = true
   return res 

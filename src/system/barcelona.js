@@ -1,7 +1,7 @@
 const Promise = require('bluebird')
 
-const fs = Promise.promisify(require('fs'))
-const child = Promise.promisify(require('child_process'))
+const fs = Promise.promisifyAll(require('fs'))
+const child = Promise.promisifyAll(require('child_process'))
 
 const Config = require('./config')
 const debug = require('debug')('system:barcelona')

@@ -1,4 +1,5 @@
-import { child } from '../common/async'
+const Promise = require('bluebird')
+const child = Promise.promisifyAll(require('child_process'))
 
 /*
  * parse single volume info

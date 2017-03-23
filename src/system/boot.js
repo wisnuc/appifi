@@ -8,8 +8,6 @@ const Storage = require('./storage')
 
 import docker from '../appifi/docker'
 
-import { probeAllFruitmixesAsync } from './adapter'
-
 const debug = require('debug')('system:boot')
 
 const runnable = wisnuc => (typeof wisnuc === 'object' && wisnuc !== null && wisnuc.users)
@@ -174,9 +172,36 @@ module.exports = {
     return bstate
   },
 
-  manualBootAsync: async function (uuid) {
-    
+  manualBootAsync: async function (uuid, init) {
+
+    if (this.data.state !== 'maintenance') 
+      throw new Error('not in maintenance mode')    
+
     let pretty = await Storage.refreshAsync(true)
+    let volume = pretty.volumes.find(vol => vol.fileSystemUUID === uuid)
+    if (!volume) throw new Error('volume not found')
+    if (!volume.isMounted) throw new Error('volume not mounted')
+    if (volume.isMissing) throw new Error('volume has missing device')
+
+    let fmix = await probeFruitmixAsync(volume.mountpoint) 
+
+    if (init) {
+
+      if (fmix.status !== 'ENOENT') throw new Error('target status is not ENOENT')
+      child.fork('../fruitmix/main')  
+    }
+    else {
+      if (fmix.status !== 'READY') throw new Error('target status is not READY')
+      
+      child.fork('../fruitmix/main')  
+      
+      Config.updateLastFileSystem({
+        type: 'btrfs',
+        uuid: 'uuid'
+      })
+    }
+
+    // xxxx TODO
   },
 
   get() {

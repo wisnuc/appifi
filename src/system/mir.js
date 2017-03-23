@@ -1,11 +1,10 @@
-import path from 'path'
-import express from 'express'
+const path = require('path')
+const router = require('express').Router()
+
 import rimraf from 'rimraf'
 import mkdirp from 'mkdirp'
 import validator from 'validator'
 import Debug from 'debug'
-
-// import { storeState} from '../reducers' 
 
 import { mkfsBtrfs } from './mkfs'
 import { fakeReboot } from './boot'
@@ -14,168 +13,134 @@ import { adaptStorage, initFruitmix, probeFruitmix, probeAllFruitmixes } from '.
 const debug = Debug('system:mir')
 const router = express.Router()
 
-const runnable = wisnuc => (typeof wisnuc === 'object' && wisnuc !== null && wisnuc.users)
-const nolog = (res) => {
-  res.nolog = true
-  return res 
+const nolog = res => Object.assign(res, { nolog: true })
+
+const decorateStorageAsync = async () => {
+
+  let mps = [] 
+  let pretty = Storage.get(true)
+
+  pretty.volumes.forEach(vol => {
+    if (vol.isMounted && !vol.isMissing) mps.push({
+      ref: vol,
+      mp: vol.mountpoint
+    })
+  })
+
+  /** no ext4 probe now
+  pretty.blocks.forEach(blk => {
+    if (!blk.isVolumeDevice && blk.isMounted && blk.isExt4)
+      mps.push({
+        ref: blk,
+        mp: blk.mountpoint
+      })
+  })
+  **/
+
+  await Promise
+    .map(mps, obj => probeFruitmixAsync(obj.mp).reflect())
+    .each((inspection, index) => {
+      if (inspection.isFulfilled())
+        mps[index].ref.wisnuc = inspection.value() 
+      else {
+        mps[index].ref.wisnuc = 'ERROR'
+      }
+    })
+
+  return pretty
 }
 
+
+// GET /storage ? raw=true or wisnuc=true
 router.get('/', (req, res) => {
 
-  let storage = storeState().storage
-  if (!storage)
-    return res.status(500).end()
-
+  // raw storage, for debug
   if (req.query.raw === 'true')
-    return res.status(200).json(storage)
+    return res.status(200).json(Storage.get(false))
 
-  let adapted = adaptStorage(storage)
+  // pretty storage
   if (req.query.wisnuc === 'true') 
-    probeAllFruitmixes(adapted, (err, copy) => 
-      err ? res.status(500).json({ message: err.message }) :
-        res.status(200).json(copy))
+    return decorateStorageAsync().asCallback((err, result) => err
+      ? res.status(500).json({ code: err.code, message: err.message })
+      : res.status(200).json(result)
+
+  // using nolog because some version of pc client polling this api
+  // may be removed in future TODO
   else
-    nolog(res).status(200).json(adapted)
+    return nolog(res).status(200).json(adapted)
+
 })
 
-
-//
-// target: <file system uuid>
-//
-router.post('/run', (req, res) => {
-
-  debug('run', req.body)
-
-  let bstate = storeState().boot
-  if (bstate.state !== 'maintenance')
-    return res.status(400).json({ message: '系统未处于维护模式' }) 
-
-  if (typeof req.body !== 'object' || 
-    req.body === null || 
-    typeof req.body.target !== 'string' ||
-    !validator.isUUID(req.body.target))
-    return res.status(400).json({ code: 'EINVAL', message: '非法参数' }) 
-
-  let adapted = adaptStorage(storeState().storage)
-  let volume = adapted.volumes.find(vol => vol.fileSystemUUID === req.body.target)
-
-  if (!volume) 
-    return res.status(400).json({ message: 'volume not found' })
-  if (!volume.isMounted)
-    return res.status(400).json({ message: 'volume not mounted' })
-  if (volume.isMissing)
-    return res.status(400).json({ message: 'volume has missing device' })
-
-  probeFruitmix(volume.mountpoint, (err, wisnuc) => {
-
-    debug('probe fruitmix', err || wisnuc)
-
-    if (err) 
-      return res.status(500).json({ message: err.message })
-
-    debug('run, wisnuc', wisnuc)
-
-    if (!runnable(wisnuc))
-      return res.status(400).json({ message: 'wisnuc not runnable', code: wisnuc.error }) 
-
-    fakeReboot({type: 'btrfs', uuid: req.body.target}, (err, boot) => 
-      err ? 
-        res.status(500).json({ message: err.mesage }) :
-        res.status(200).json({ boot }))
-  })
-})
-
-//
-// target: uuid (file system uuid)
-// remove: 'wisnuc' or 'fruitmix' or undefined
-//
-router.post('/init', (req, res) => {
-
-  debug('init', req.body)
-
-  let bstate = storeState().boot
-  if (bstate.state !== 'maintenance')
-    return res.status(400).json({ message: '系统未处于维护模式' }) 
-
-  if (typeof req.body !== 'object' ||
-    req.body === null ||
-    typeof req.body.target !== 'string' ||
-    !validator.isUUID(req.body.target) || 
-    typeof req.body.username !== 'string' || 
-    req.body.username.length === 0 ||
-    typeof req.body.password !== 'string' ||
-    req.body.password.length === 0 ||
-    (req.body.remove !== undefined && req.body.remove !== 'wisnuc' && req.body.remove !== 'fruitmix'))
-    return res.status(400).json({ code: 'EINVAL', message: '非法参数' }) 
-
-  let { target, username, password, remove } = req.body
-
-  let adapted = adaptStorage(storeState().storage)
-  let filesystems = [
-    ...adapted.volumes,
-    ...adapted.blocks.filter(blk => blk.isFileSystem && !blk.isVolumeDevice)
-  ]
-
-  let fsys = filesystems.find(f => f.fileSystemUUID === target)
-  if (!fsys)
-    return res.status(400).json({ message: 'file system not found' }) 
-
-  if (!fsys.isBtrfs && !fsys.isExt4)
-    return res.status(400).json({ message: 'only btrfs and ext4 is supported' })
-
-  if (fsys.isBtrfs && fsys.isMissing)
-    return res.status(400).json({ message: 'btrfs volume has missing device' })
-
-  if (!fsys.isMounted)
-    return res.status(400).json({ message: 'failed to mount file system' })
-
-  let mp = fsys.mountpoint
-
-  initFruitmix({mp, username, password, remove }, (err, user) => {
-    if (err) {
-      console.log(err)
-      return res.status(500).json({ message: err.message })
-    }
-    return res.status(200).json(user)
-  })
-})
 
 /**
-  {
-    type: 'btrfs'
-    target: ['sda', 'sdb'...], device name
-    mode: single, raid0, raid1
-  }
-  {
-    type: 'ext4' or 'ntfs'
-    target: 'sda', 'sda1', device name
+  POST /mir/run
+  { 
+    target: fsUUID 
   }
 **/
-router.post('/mkfs', (req, res) => {
+const isValidRunArgs = body => 
+  typeof body === 'object' 
+    && body !== null 
+    && typeof body.target !== 'string' 
+    && !validator.isUUID(body.target)
 
-  debug('mkfs', req.body)
+router.post('/run', (req, res) => 
+  !isValidRunArgs(req.body) 
+    ? res.status(400).json({ code: 'EINVAL', message: 'invalid arguments' }) 
+    : manualBootAsync(req.body, false).asCallback(err => err
+      ? res.status(400).json({ code: err.code, message: err.message })
+      : res.status(200).json({ message: 'ok' })))
 
-  let bstate = storeState().boot
-  if (bstate.state !== 'maintenance')
-    return res.status(400).json({ message: '系统未处于维护模式' }) 
+/**
+  POST /mir/init
+  { 
+    target: fsUUID, 
+    username: non-empty STRING, 
+    password: non-empty STRING, 
+    remove: undefined, false or true
+  }
+**/
+const isValidInitArgs = body =>
+  typeof body === 'object'
+    && body !== null
+    && typeof body.target === 'string'
+    && validator.isUUID(body.target)
+    && typeof body.username === 'string'
+    && body.username.length > 0
+    && typeof body.password === 'string'
+    && body.password.length > 0
+    && (body.remove === undefined || typeof body.remove === 'boolean')
 
-  if (typeof req.body !== 'object' || req.body === null ||
-    ['btrfs', 'ext4', 'ntfs'].indexOf(req.body.type) === -1)     
-    return res.status(400).json({ code: 'EINVAL', message: '非法参数' }) 
+router.post('/init', (req, res) => 
+  !isValidInitArgs(req.body)
+    ? res.status(400).json({ code: 'EINVAL', message: 'invalid arguments' })
+    : manualBootAsync(req.body, true).asCallback(err => err
+      ? res.status(500).json({ code: err.code, message: err.message })
+      : res.status(200).json({ message: 'ok' })
 
-  let { type, target, mode } = req.body
-  if (type !== 'btrfs') 
-    return res.status(400).json({ message: 'not supported yet' }) 
+/**
+  POST /mir/mkfs
+  {
+    type: 'btrfs',
+    target: ['sda', 'sdb', ...],
+    mode: 'single' or 'raid0' or 'raid1'
+  }
+**/
+const isValidMkfsArgs = body => 
+  typeof body === 'object'
+    && body !== null
+    && body.type === 'btrfs'
+    && Array.isArray(body.target)
+    && body.target.every(item => typeof item === 'string' && item.length > 0)  
+    && -1 !== ['single', 'raid0', 'raid1'].indexOf(body.mode)
 
-  mkfsBtrfs(target, mode, (err, volume) => {
-    if (err) {
-      console.log(err)
-      return res.status(500).json({ message: err.message })
-    }
-    return res.status(200).json(volume)
-  })
-})
+router.post('/mkfs', (req, res) => 
+  !isValidMkfsArgs(req.body)
+    ? res.status(400).json({ code: 'EINVAL', message: 'invalid arguments' })
+    : mkfsBtrfs(req.body, (err, volume) => err 
+      ? res.status(500).json({ code: err.code, err.message })
+      : res.status(200).json(volume)) 
 
-export default router
+module.exports = router
 
 

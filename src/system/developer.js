@@ -1,4 +1,3 @@
-
 const setting = {}
 
 process.argv.forEach((val, index, array) => {
