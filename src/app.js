@@ -19,5 +19,5 @@ const main = async () => {
   appifi(system)
 }
 
-main().asCallback(err => console.log(err))
+main().asCallback(err => console.log(err || '[main] started error-free!'))
 

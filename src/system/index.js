@@ -7,24 +7,16 @@ const validator = require('validator')
 
 const debug = require('debug')('system:index')
 
-import mir from './mir'
-import { mac2dev, aliases, addAliasAsync, deleteAliasAsync } from './ipaliasing'
-import eth from './eth'
-
-import { readFanSpeed, writeFanScale } from './barcelona'
-
-const Device = require('./device')
-const Config = require('./config')
 const Boot = require('./boot')
+const Config = require('./config')
+const Device = require('./device')
 
-const codeMap = new Map([ ['EINVAL', 400], ['ENOENT', 404] ]) 
+const { readFanSpeed, writeFanScale } = require('./barcelona')
+const eth = require('./eth')
+const { mac2dev, aliases, addAliasAsync, deleteAliasAsync } = require('./ipaliasing')
+
 
 const nolog = (res) => Object.assign(res, { nolog: true })
-
-// Why K? TODO
-const K = x => y => x
-
-
 const unsupported = res => res.status(404).json({ code: 'EUNSUPPORTED', message: 'not supported' })
 const invalid = res => res.status(400).json({ code: 'EINVAL', message: 'invalid api arguments' })
 const error = (res, err) => res.status(500).json({ code: err.code, message: err.message })
@@ -33,7 +25,7 @@ const ok = (res, obj) => res.status(200).json(obj ? obj : ({ message: 'ok' }))
 /**
  *  GET /boot, return boot status
  */
-router.get('/boot', (req, res) => nolog(res).status(200).json(Boot.get())
+router.get('/boot', (req, res) => nolog(res).status(200).json(Boot.get()))
 
 /**
  *  POST /boot
@@ -52,13 +44,16 @@ const isValidBootArgs = body =>
 
 router.post('/boot', (req, res) =>
   !isValidBootArgs(body)
-    ? res.status(400).json({ code: err.code, message: err.message })
-    : 
+    ? invalid(res)
+    : rebootAsync(body.op, body.target).asCallback(err =>
+      err
+        ? error(res, err)
+        : ok(res)))
 
 /**
  *  GET /device, return device info 
  */
-router.get('/device', (req, res) => res.status(200).json(Device.get()))
+router.get('/device', (req, res) => ok(res, Device.get()))
 
 /**
  *  GET /fan, return { fanSpeed, fanScale }
@@ -89,7 +84,7 @@ router.post('/fan', (req, res) =>
     : !isValidFanArgs(req.body) 
       ? invalid(res)
       : writeFanScale(req.body.fanScale, err => 
-        err ? error(res, err) : ok(res)
+        err ? error(res, err) : ok(res)))
 
 /**
  *  GET /ipaliasing, return ipaliasing (list)
@@ -214,10 +209,11 @@ router.post('/init', (req, res) =>
     ? invalid(res)
     : manualBootAsync(req.body, true).asCallback(err => err
       ? res.status(500).json({ code: err.code, message: err.message })
-      : res.status(200).json({ message: 'ok' })
+      : res.status(200).json({ message: 'ok' })))
 
 
 ////////////////////////////////////////
+/**
 const respond = (res, err, obj) => err ? 
     res.status(codeMap.get(err.code) || 500)
       .json({ code: err.code, message: err.message }) :
@@ -311,5 +307,5 @@ router.post('/boot', (req, res) => {
     message: 'ok'
   })
 })
-
+**/
 module.exports = router

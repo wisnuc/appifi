@@ -6,17 +6,46 @@ const Developer = require('./developer')
 const Config = require('./config')
 const Storage = require('./storage')
 
-import docker from '../appifi/docker'
+// import docker from '../appifi/docker'
 
 const debug = require('debug')('system:boot')
 
 const runnable = wisnuc => (typeof wisnuc === 'object' && wisnuc !== null && wisnuc.users)
 
-const shutdown = cmd =>
-  setTimeout(() => {
-    child.exec('echo "PWRD_LED 3" > /proc/BOARD_io', err => {})
-    child.exec(`${cmd}`, err => {})
-  }, 1000)
+const decorateStorageAsync = async pretty => {
+
+  let mps = [] 
+
+  pretty.volumes.forEach(vol => {
+    if (vol.isMounted && !vol.isMissing) mps.push({
+      ref: vol,
+      mp: vol.mountpoint
+    })
+  })
+
+  /** no ext4 probe now
+  pretty.blocks.forEach(blk => {
+    if (!blk.isVolumeDevice && blk.isMounted && blk.isExt4)
+      mps.push({
+        ref: blk,
+        mp: blk.mountpoint
+      })
+  })
+  **/
+
+  await Promise
+    .map(mps, obj => probeFruitmixAsync(obj.mp).reflect())
+    .each((inspection, index) => {
+      if (inspection.isFulfilled())
+        mps[index].ref.wisnuc = inspection.value() 
+      else {
+        mps[index].ref.wisnuc = 'ERROR'
+      }
+    })
+
+  return pretty
+}
+
 
 const shutdownAsync = async reboot => {
 
@@ -151,13 +180,16 @@ module.exports = {
 
   data: null,
 
+  decoratedStorageAsync: async function () {
+    let pretty = Storage.get()
+    return await decorateStorageAsync(pretty)
+  },
+
+  // autoboot
   tryBootAsync: async function (lfs) {
 
     let pretty = await Storage.refreshAsync(true) 
-
-    console.log('tryboot, storage', pretty)
-
-    let probed = await probeAllFruitmixesAsync(pretty) 
+    let probed = await decorateStorageAsync(pretty) 
 
     if (lfs) Config.updateLastFileSystem(lfs, true)
     let bstate = bootState(probed)
@@ -179,14 +211,17 @@ module.exports = {
 
       Config.updateLastFileSystem(cfs)
 
+      /**
       let dockerRootDir = path.join(cfs.mountpoint, 'wisnuc')
       docker.init(dockerRootDir) 
+      **/
     }
 
     this.data = bstate
     return bstate
   },
 
+  // manual boot only occurs in maintenance mode
   manualBootAsync: async function (uuid, init) {
 
     if (this.data.state !== 'maintenance') 
@@ -219,6 +254,7 @@ module.exports = {
     // xxxx TODO
   },
 
+  // reboot
   rebootAsync: async function (op, target) {
 
     switch(op) {
@@ -234,7 +270,6 @@ module.exports = {
       Config.updateBootMode('maintenance')
       shutdownAsync(true).asCallback(() => {})
       break
-    }
 
     case 'rebootNormal':
       // should check bootability ??? TODO
@@ -247,7 +282,8 @@ module.exports = {
       break
 
     default:
-      throw new Error('unexpected case')
+      throw new Error('unexpected case') // TODO
+    }
   },
 
   get() {
