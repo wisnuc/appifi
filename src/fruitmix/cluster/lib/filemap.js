@@ -11,9 +11,9 @@ Promise.promisifyAll(xattr)
 
 let FILEMAP = 'user.filemap'
 
-const creatSegmentsFileAsync = async ({ size, segmentsize, nodeuuid, sha256, name, useruuid}) => {
+const createFileMapAsync = async ({ size, segmentsize, nodeuuid, sha256, name, userUUID}) => {
   // fallocate -l 10G bigfile
-  let folderPath = path.join(paths.get('filemap'), useruuid)
+  let folderPath = path.join(paths.get('filemap'), userUUID)
   try{
     await fs.mkdirAsync(folderPath)
     let filepath = path.join(folderPath, sha256)
@@ -29,12 +29,20 @@ const creatSegmentsFileAsync = async ({ size, segmentsize, nodeuuid, sha256, nam
   }catch(e){ throw e }
 }
 
-const updateSegmentsFileAsync = async ({ sha256, form , start, useruuid }) => {
-  let filePath = path.join(paths.get('filemap'), useruuid, sha256)
+const updateFileMapAsync = async ({ sha256, form , start, userUUID }) => {
+  let filePath = path.join(paths.get('filemap'), userUUID, sha256)
   try{
     await fs.statAsync(filePath)
     
-    let writeStream =  await fs.createWriteStream(filePath,{ flags: 'r+', start})
+    let attr = JSON.parse(await xattr.getAsync(filePath, FILEMAP))
+
+    let segments = attr.segments
+    if(segments.length < start || segments[start] === 1)
+      return false
+
+    let position = attr.segmentsize * start
+
+    let writeStream =  await fs.createWriteStream(filePath,{ flags: 'r+', start: position})
     
     form.stream.pipe(writeStream)
 
@@ -42,21 +50,28 @@ const updateSegmentsFileAsync = async ({ sha256, form , start, useruuid }) => {
 
     form.stream.on('error', err => { return false })
     
-    writeStream.on('finish', () => { return true })
+    writeStream.on('finish', () => {
+        try{
+          let attr = JSON.parse(await xattr.getAsync(filePath, FILEMAP))
+          attr.segments[start] = 1
+          await xattr.setAsync(filepath, FILEMAP, JSON.stringify(attr))
+          return true 
+        }catch(e){ return false }        
+    })
 
   }catch(e){ return false }
 
 }
 
-const creatSegmentsFile = ({ size, segmentsize, nodeuuid, sha256, name, useruuid}, callback) => {
-  creatSegmentsFileAsync({ size, segmentsize, nodeuuid, sha256, name, useruuid}).asCallback((e, data) => {
+const createFileMap = ({ size, segmentsize, nodeuuid, sha256, name, useruuid}, callback) => {
+  createFileMapAsync({ size, segmentsize, nodeuuid, sha256, name, useruuid}).asCallback((e, data) => {
     e ? callback(e) : callback(null, data)
   })
 }
 
-const updateSegmentsFile = ({ sha256, form , start, useruuid }, callback) => 
-  updateSegmentsFileAsync({ sha256, form , start, useruuid }).asCallback((e,data) => 
+const updateFileMap = ({ sha256, form , start, useruuid }, callback) => 
+  updateFileMapAsync({ sha256, form , start, useruuid }).asCallback((e,data) => 
     e ? callback(e) : callback(null, data))
 
 
-export { creatSegmentsFile, updateSegmentsFile }
+export { createFileMap, updateFileMap }
