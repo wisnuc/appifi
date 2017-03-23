@@ -60,6 +60,7 @@ tmptest/
 coverage/
 cluster_tmp/
 cluster_file/
+segments/
 
 _docpress/
 

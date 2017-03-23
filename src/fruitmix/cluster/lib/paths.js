@@ -16,7 +16,8 @@ const setRootAsync = async (rootpath) => {
     await mkdirpAsync(root)
     await Promise.all([
         mkdirpAsync(join('cluster_tmp')),
-        mkdirpAsync(join('cluster_file'))
+        mkdirpAsync(join('cluster_file')),
+        mkdirpAsync(join('segments'))
     ])
 }
 
@@ -30,6 +31,7 @@ const getPath = (name) => {
     switch(name){
         case 'cluster_tmp':
         case 'cluster_file':
+        case 'segments':
             return join(name)
         case 'root':
             return root
