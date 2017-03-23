@@ -4,11 +4,10 @@ import child from 'child_process'
 import EventEmitter from 'events'
 import dgram from 'dgram'
 import mkdirp from 'mkdirp'
+import deepEqual from 'deep-equal'
 
 import Debug from 'debug'
 const debug = Debug('appifi:samba')
-
-// import { storeState, storeSubscribe } from '../reducers'
 
 const mkdirpAsync = Promise.promisify(mkdirp)
 Promise.promisifyAll(fs)
@@ -36,7 +35,7 @@ const getUserListAsync = async () => {
   return JSON.parse(userList)
 }
 
-// get users & drives list from `getUserListAsync`
+// get users & drives list
 const createShareListAsync = async () => {
 
   let list = await getUserListAsync()
@@ -110,11 +109,11 @@ const retrieveSysUsers = (callback) => {
         if (split.length !== 7) return null
         return {
           unixname: split[0],
-          uid: parseInt(split[2])
+          unixuid: parseInt(split[2])
         }
       })
       .filter(u => !!u)
-      .filter(u => u.uid >= 2000 && u.uid < 5000)
+      .filter(u => u.unixuid >= 2000 && u.unixuid < 5000)
 
     callback(null, users)
   })
@@ -132,7 +131,7 @@ const retrieveSmbUsers = (callback) => {
         if (split.length !== 7) return null
         return {
           unixname: split[0],
-          uid: parseInt(split[1]),
+          unixuid: parseInt(split[1]),
           md4: split[3],
           lct: split[5]
         } 
@@ -145,10 +144,10 @@ const retrieveSmbUsers = (callback) => {
 }
 
 // add user to system
-const addUnixUserAsync = async (username, uid) => {
-  debug('addUnixUser', username, uid)
+const addUnixUserAsync = async (username, unixuid) => {
+  debug('addUnixUser', username, unixuid)
   let cmd = 'adduser --disabled-password --disabled-login --no-create-home --gecos ",,," ' + 
-    `--uid ${uid} --gid 65534 ${username}`
+    `--uid ${unixuid} --gid 65534 ${username}`
   return child.execAsync(cmd)
 }
 
@@ -164,26 +163,26 @@ const reconcileUnixUsersAsync = async () => {
   debug('reconcile unix users, unix users', sysusers)
 
   let userList = await getUserListAsync();
-  let fusers = userList['users'].map(u => ({ unixname: uuidToUnixName(u.uuid), uid:u.unixUID }))
+  let fusers = userList['users'].map(u => ({ unixname: uuidToUnixName(u.uuid), unixuid:u.unixuid }))
   debug('reconcile unix users, fruitmix users', fusers)
 
   let common = new Set()
   fusers.forEach(fuser => {
     let found = sysusers.find(sysuser => 
-      sysuser.unixname === fuser.unixname && sysuser.uid === fuser.uid)
-    if (found) common.add(found.unixname + ':' + found.uid)
+      sysuser.unixname === fuser.unixname && sysuser.unixuid === fuser.unixuid)
+    if (found) common.add(found.unixname + ':' + found.unixuid)
   })
 
   debug('reconcile unix users, common', common)
 
-  fusers = fusers.filter(f => !common.has(f.unixname + ':' + f.uid))
+  fusers = fusers.filter(f => !common.has(f.unixname + ':' + f.unixuid))
   debug('reconcile unix users, fruitmix users (subtracted)', fusers)
 
-  sysusers = sysusers.filter(s => !common.has(s.unixname + ':' + s.uid))
+  sysusers = sysusers.filter(s => !common.has(s.unixname + ':' + s.unixuid))
   debug('reconcile unix users, unix users (subtracted)', sysusers)
 
   await Promise.map(sysusers, u => deleteUnixUserAsync(u.unixname).reflect())
-  await Promise.map(fusers, u => addUnixUserAsync(u.unixname, u.uid).reflect())
+  await Promise.map(fusers, u => addUnixUserAsync(u.unixname, u.unixuid).reflect())
 }
 
 // delete samba user from local samba service
@@ -194,7 +193,7 @@ const deleteSmbUserAsync = async (username) => {
 
 // add samba user to local samba service
 const addSmbUsersAsync = async (fusers) => {
-  let text = fusers.map(u => `${u.unixname}:${u.uid}:` + 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX:' +
+  let text = fusers.map(u => `${u.unixname}:${u.unixuid}:` + 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX:' +
     `${u.md4}:[U          ]:${u.lct}:`).join('\n')
 
   debug('addSmbUsers', text)
@@ -209,15 +208,15 @@ const addSmbUsersAsync = async (fusers) => {
 // reconcile user list from local samba service & fruitmix
 const reconcileSmbUsersAsync = async () => {
   const key = user => 
-    [user.unixname, user.uid.toString(), user.md4, user.lct].join(':')
+    [user.unixname, user.unixuid.toString(), user.md4, user.lct].join(':')
 
   let smbusers = await Promise.promisify(retrieveSmbUsers)()
   debug('reconcile smb users, smbusers', smbusers)
 
   let userList = await getUserListAsync();
-  let fusers = userList['users'].map(u => ({ 
+  let fusers = userList['users'].map(u => ({
     unixname: uuidToUnixName(u.uuid),
-    uid: u.unixuid,
+    unixuid: u.unixuid,
     md4: u.smbPassword.toUpperCase(),
     lct: 'LCT-' + Math.floor(u.lastChangeTime / 1000).toString(16).toUpperCase() // TODO
   }))
@@ -226,7 +225,7 @@ const reconcileSmbUsersAsync = async () => {
   let common = new Set()
   fusers.forEach(f => {
     let found = smbusers.find(s =>
-      s.unixname === f.unixname && s.uid === f.uid && s.md4 === f.md4 && s.lct === f.lct)
+      s.unixname === f.unixname && s.unixuid === f.unixuid && s.md4 === f.md4 && s.lct === f.lct)
     if (found)
       common.add(key(found))
   })
@@ -258,8 +257,7 @@ const generateUserMapAsync = async () => {
 
 // create samba's smb.conf
 const generateSmbConfAsync = async () => {
-  // let cfs = storeState().boot.currentFileSystem
-  // let prepend = path.join(cfs.mountpoint, 'wisnuc', 'fruitmix', 'drives')
+
   let prepend = '/home/testonly'
 
   let global =  '[global]\n' +
@@ -273,22 +271,21 @@ const generateSmbConfAsync = async () => {
   const section = (share) => {
     let tmpStr = '';
     tmpStr = `[${share.name}]\n`;
-    tmpStr = tmpStr.concat(`  path = ${prepend}/${share.path}\n`);
-    tmpStr = tmpStr.concat(`  read only = ${share.readOnly ? "yes" : "no"}\n`);
-
-    tmpStr = tmpStr.concat('  guest ok = no\n');
-    tmpStr = tmpStr.concat('  force user = root\n');
-    tmpStr = tmpStr.concat('  force group = root\n');
+    tmpStr = tmpStr.concat(`  path = ${prepend}/${share.path}\n` +
+                           `  read only = ${share.readOnly ? "yes" : "no"}\n` +
+                           '  guest ok = no\n' +
+                           '  force user = root\n' +
+                           '  force group = root\n');
 
     if(!share.readOnly) {
-      tmpStr = tmpStr.concat(`  write list = ${(share.validUsers).length > 1?share.writelist.join(', '):share.validUsers}\n`); // writelist
-      tmpStr = tmpStr.concat(`  valid users = ${(share.validUsers).length > 1?share.validUsers.join(', '):share.validUsers}\n`);
-      tmpStr = tmpStr.concat('  vfs objects = full_audit\n');
-      tmpStr = tmpStr.concat('  full_audit:prefix = %u|%U|%S|%P\n');
-      tmpStr = tmpStr.concat('  full_audit:success = create_file mkdir rename rmdir unlink write pwrite \n'); // dont remove write !!!!
-      tmpStr = tmpStr.concat('  full_audit:failure = connect\n');
-      tmpStr = tmpStr.concat('  full_audit:facility = LOCAL7\n');
-      tmpStr = tmpStr.concat('  full_audit:priority = ALERT\n');
+      tmpStr = tmpStr.concat(`  write list = ${(share.validUsers).length > 1?share.writelist.join(', '):share.validUsers}\n` + // writelist
+                             `  valid users = ${(share.validUsers).length > 1?share.validUsers.join(', '):share.validUsers}\n` +
+                             '  vfs objects = full_audit\n' +
+                             '  full_audit:prefix = %u|%U|%S|%P\n' +
+                             '  full_audit:success = create_file mkdir rename rmdir unlink write pwrite \n' + // dont remove write !!!!
+                             '  full_audit:failure = connect\n' +
+                             '  full_audit:facility = LOCAL7\n' +
+                             '  full_audit:priority = ALERT\n');
     }
 
     return tmpStr;
@@ -312,7 +309,7 @@ class SmbAudit extends EventEmitter {
 
     this.udp = udp
     this.udp.on('message', (message, remote) => {
-     
+   
       const token = ' smbd_audit: ' 
 
       let text = message.toString()
@@ -372,10 +369,9 @@ class SmbAudit extends EventEmitter {
       let audit = { user, share, abspath, op, arg0 }
       if (arg1) audit.arg1 = arg1
       
-      // debug(arr, audit)
-      
-      // let filer = models.getModel('filer')
-      // filer.requestProbeByAudit(audit)
+      console.log('##################################');
+      console.log(audit);
+      console.log('##################################');
 
 			return audit
     })
@@ -462,12 +458,125 @@ const createUdpServer = (callback) => {
   udp.bind(3721)
 }
 
+// create udp server
+const createUdpSender = (callback) => {
+
+  let udp = dgram.createSocket('udp4')
+  udp.on('listening', () => {
+    callback(null, new SmbAudit(udp))
+  }) 
+ 
+  udp.once('error', err => {
+    if (err.code === 'EADDRINUSE') callback(err)
+  }) 
+  udp.bind(3721)
+}
+
+// debounce time
+let debounceTime = 10000;
+let flag = 0;
+
+// let list = JSON.parse(fs.readFileSync(userListConfigPath));
+// let ulist = list['users'];
+// let dlist = list['drives'];
+// // console.log(ulist)
+
 // watch file for change
 function beginWatch() {
+  let ulist = new Array;
+  let dlist = new Array;
+  
   let watcher = fs.watch(userListConfigPath, (eventType) => {
     if (eventType === 'change') {
-      console.log('File changed!')
-    	updateSambaFiles();
+      if(flag === 0) {
+        flag = 1;
+        setTimeout(() => {
+
+          let listNew = JSON.parse(fs.readFileSync(userListConfigPath));
+          let ulistNew = listNew['users'];
+          let dlistNew = listNew['drives'];
+          // console.log(ulistNew)
+
+          let sameUserException = {};
+          let sameDriveException = {};
+
+          console.log(deepEqual(ulist, ulistNew))
+          console.log(deepEqual(dlist, dlistNew))
+
+          if(!deepEqual(ulist, ulistNew)) {
+            ulistNew.forEach(userNew => {
+
+              try {
+                ulist.forEach((user) => {
+                  // console.log(userNew);
+                  // console.log(user);
+                  if (userNew.unixuid === user.unixuid) {
+                    throw sameUserException;
+                  }
+                  else {
+                    console.log('File changed!');
+                    updateSambaFiles();
+                  }
+                });
+              }
+              catch (e) {
+                if (e !== sameUserException) throw e;
+                if(userNew.type !== user.type
+                  | userNew.uuid !== user.uuid
+                  | userNew.username !== user.username
+                  | userNew.home !== user.home
+                  | userNew.library !== user.library
+                  | userNew.service !== user.service
+                  | userNew.smbPassword !== user.smbPassword
+                  | userNew.unixname !== user.unixname
+                  | userNew.lastChangeTime !== user.lastChangeTime) {
+                    console.log('File changed!');
+                    updateSambaFiles();
+                }
+              }
+            })
+
+            // console.log('File changed!');
+            // updateSambaFiles();
+          }
+          else if(!deepEqual(dlist, dlistNew)) {
+            dlistNew.forEach(driveNew => {
+
+              try {
+                dlist.forEach((drive) => {
+                  if (driveNew.uuid === drive.uuid) {
+                    throw sameDriveException;
+                  }
+                  else {
+                    console.log('File changed!');
+                    updateSambaFiles();
+                  }
+                });
+              }
+              catch (e) {
+                if (e !== sameDriveException) throw e;
+                if(driveNew.owner !== drive.owner
+                  | driveNew.type !== drive.type
+                  | driveNew.label !== drive.label) {
+                    console.log('File changed!');
+                    updateSambaFiles();
+                }
+              }
+            })
+
+            // console.log('File changed!');
+            // updateSambaFiles();
+          }
+
+          // console.log('File changed!');
+          // updateSambaFiles();
+          flag = 0;
+
+          ulist = ulistNew;
+          dlist = dlistNew;
+
+        }, debounceTime);
+      }    	
     }
   });
 

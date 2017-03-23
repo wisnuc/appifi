@@ -14,8 +14,8 @@
       "library": "f97f9e1f-848b-4ed4-bd47-1ddfa82b2777",
       "service": "f97f9e1f-848b-4ed4-bd47-1ddfa82b5432",
       "password": "$2a$10$ejkgWk/ChHcLyZiic1H2CeLdoVcz15eZ/3Lymj1ncimVvq6E7OvWy",
-      "unixPassword": "some str",
-      "smbPassword": "some str",
+      "unixPassword": "somestr",
+      "smbPassword": "066DDFD4EF0E9CD7C256FE77191EF43C",
       "unixuid": 2000,
       "unixname": "pandaa",
       "friends": [],
@@ -38,16 +38,16 @@
       "library": "b76ed624-d028-4959-b61a-119d212c0cb1",
       "service": "b76ed624-d028-4959-b61a-119d212c0cb1",
       "password": "$2a$10$ejkgWk/ChHcLyZtic1H2CeLdoVcz15eZ/3Lymj1ncimVvq6E7OvWy",
-      "unixPassword": "some str",
-      "smbPassword": "some str",
+      "unixPassword": "somestr",
+      "smbPassword": "066DDFD4EF0E9CD7C256FE77191EF43C",
       "unixuid": 2001,
       "unixname": "adfsdfdsf",
       "friends": [],
       "credentials": {
-        "publicKey": "some str",
-        "privateKey": "some str"
+        "publicKey": "somestr",
+        "privateKey": "somestr"
       },
-      "lastChangeTime": 2499644639494
+      "lastChangeTime": 1499644639494
     }
   ],
   "drives": [
