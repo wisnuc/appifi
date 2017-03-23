@@ -88,9 +88,8 @@ router.post('/fan', (req, res) =>
     ? unsupported(res)
     : !isValidFanArgs(req.body) 
       ? invalid(res)
-      : writeFanScale(req.body.fanScale, err => err
-        ? error(res, err)
-        : ok(res)
+      : writeFanScale(req.body.fanScale, err => 
+        err ? error(res, err) : ok(res)
 
 /**
  *  GET /ipaliasing, return ipaliasing (list)
@@ -161,18 +160,14 @@ router.post('/mkfs', (req, res) =>
   !isValidMkfsArgs(req.body)
     ? invalid(res)
     : mkfsBtrfs(req.body, (err, volume) => 
-      err 
-        ? error(res, err)
-        : ok(res, volume)))
+      err ? error(res, err) : ok(res, volume)))
 
 /**
  * GET /net, return os and sysfs network interfaces
  */
 router.get('/net', (req, res) => 
   eth().asCallback((err, result) => 
-    err
-      ? error(res, err)
-      : ok(res, result)
+    err ? error(res, err) : ok(res, result)))
 
 
 /**

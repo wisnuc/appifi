@@ -204,6 +204,8 @@ module.exports = {
     // xxxx TODO
   },
 
+  rebootAsync: async function 
+
   get() {
     return this.data
   },
