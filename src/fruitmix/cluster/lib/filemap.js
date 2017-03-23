@@ -19,7 +19,6 @@ const creatSegmentsFileAsync = async ({ size, segmentsize, nodeuuid, sha256, nam
     let filepath = path.join(folderPath, sha256)
     await child.execAsync('fallocate -l ' + size +' ' + filepath)
     // may throw xattr ENOENT or JSON SyntaxError
-    // attr = JSON.parse(await xattr.getAsync(target, FRUITMIX))
     let segments = []
     for(let i = 0; i < Math.ceil(size/segmentsize); i++){
       segments.push(0)
@@ -30,9 +29,34 @@ const creatSegmentsFileAsync = async ({ size, segmentsize, nodeuuid, sha256, nam
   }catch(e){ throw e }
 }
 
-const updateSegmentsFile = ({ sha256, stream, start, useruuid }, callback) => {
-  let folderPath = path.join(paths.get('filemap'), useruuid, sha256)
-  fs.createReadStream()
+const updateSegmentsFileAsync = async ({ sha256, form , start, useruuid }) => {
+  let filePath = path.join(paths.get('filemap'), useruuid, sha256)
+  try{
+    await fs.statAsync(filePath)
+    
+    let writeStream =  await fs.createWriteStream(filePath,{ flags: 'r+', start})
+    
+    form.stream.pipe(writeStream)
+
+    writeStream.on('error', err =>{ return false })
+
+    form.stream.on('error', err => { return false })
+    
+    writeStream.on('finish', () => { return true })
+
+  }catch(e){ return false }
+
 }
+
+const creatSegmentsFile = ({ size, segmentsize, nodeuuid, sha256, name, useruuid}, callback) => {
+  creatSegmentsFileAsync({ size, segmentsize, nodeuuid, sha256, name, useruuid}).asCallback((e, data) => {
+    e ? callback(e) : callback(null, data)
+  })
+}
+
+const updateSegmentsFile = ({ sha256, form , start, useruuid }, callback) => 
+  updateSegmentsFileAsync({ sha256, form , start, useruuid }).asCallback((e,data) => 
+    e ? callback(e) : callback(null, data))
+
 
 export { creatSegmentsFile, updateSegmentsFile }

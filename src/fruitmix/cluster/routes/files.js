@@ -1,8 +1,8 @@
 import path from 'path'
 import fs from 'fs'
 import crypto from 'crypto'
-import { Router } from 'express'
 
+import { Router } from 'express'
 import formidable from 'formidable'
 import UUID from 'node-uuid'
 import validator from 'validator'
@@ -11,7 +11,6 @@ import sanitize from 'sanitize-filename'
 import paths from '../lib/paths'
 import config from '../config'
 import auth from '../middleware/auth'
-import { creatSegmentsFile, updateSegmentsFile } from '../lib/'
 // import Models from '../models'
 
 const router = Router()
