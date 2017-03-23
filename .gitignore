@@ -60,7 +60,7 @@ tmptest/
 coverage/
 cluster_tmp/
 cluster_file/
-segments/
+filemap/
 
 _docpress/
 
@@ -69,3 +69,4 @@ _docpress/
 
 # IDE webstorm
 .idea/
+example/

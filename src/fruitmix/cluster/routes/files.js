@@ -11,6 +11,7 @@ import sanitize from 'sanitize-filename'
 import paths from '../lib/paths'
 import config from '../config'
 import auth from '../middleware/auth'
+import { creatSegmentsFile, updateSegmentsFile } from '../lib/'
 // import Models from '../models'
 
 const router = Router()
