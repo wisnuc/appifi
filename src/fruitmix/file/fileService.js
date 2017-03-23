@@ -256,7 +256,7 @@ class FileService {
     let node = this.data.findNodeByUUID(dirUUID)
     if(!node || userCanRead(userUUID, node))
       return callback(new Error('Permission denied'))
-    if(this.list(userUUID, dirUUID).find(child => child.name == name && child.type === 'file'))
+    if(node.isDirectory() && this.list(userUUID, dirUUID).find(child => child.name == name && child.type === 'file'))
       return callback(new Error('File exist')) // TODO
     callback(null, node)
   }
