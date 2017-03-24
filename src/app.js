@@ -15,7 +15,7 @@ const main = async () => {
   await Device.probeAsync()
   await Config.initAsync(configFile, configTmpDir)
   await Storage.initAsync(storageFile, storageTmpDir)
-  await Boot.tryBootAsync()
+  await Boot.autoBootAsync()
   appifi(system)
 }
 

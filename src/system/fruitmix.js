@@ -11,7 +11,7 @@ const retrieveNewUsersAsync = async froot => {
   let mpath = path.join(froot, 'models', 'model.json')
   let data
   try {
-    data = await fs.readFile(mpath)
+    data = await fs.readFileAsync(mpath)
   }
   catch (e) {
     // ! dont check ENOTDIR leave it as EFAIL
@@ -36,7 +36,7 @@ const retrieveOldUsersAsync = async froot => {
   let upath = path.join(froot, 'models', 'users.json') 
   let data
   try {
-    data = await fs.readfile(upath)
+    data = await fs.readFileAsync(upath)
   }
   catch (e) {
     // ! dont check ENOTDIR leave it as EFAIL
@@ -65,16 +65,21 @@ const retrieveOldUsersAsync = async froot => {
 **/
 module.exports = async mountpoint => {
 
-  let froot = path.join(wisnuc, 'fruitmix')
+  if (!path.isAbsolute(mountpoint)) throw new Error('mountpoint must be an absolute path')
+
+  let froot = path.join(mountpoint, 'wisnuc', 'fruitmix')
 
   // test fruitmix dir
   try {
-    await fs.readdir(froot)
+    await fs.readdirAsync(froot)
   }
   catch (e) {
-    return { 
-      status: (e.code === 'ENOTENT' || e.code === 'ENOTDIR') ? e.code : 'EFAIL' 
-    }
+
+    if (e.code === 'ENOENT' || e.code === 'ENODIR')
+      return { status: e.code }
+
+    console.log(`failed to probe fruitmix @ ${mountpoint}`, e)
+    return { status: 'EFAIL' }
   }
 
   // retrieve users
@@ -93,6 +98,8 @@ module.exports = async mountpoint => {
     }    
   }
   catch (e) {
+
+    console.log(`failed to probe fruitmix @ ${mountpoint}`, e)
     return { status: 'EFAIL' }
   }
 }

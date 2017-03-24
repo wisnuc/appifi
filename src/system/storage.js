@@ -349,7 +349,7 @@ const unformattableReason = (block, blocks) => {
     // return object
     return {
       name: block.name,
-      reason: block.stats.isRootFs ? 'isRootFS' : 'isActiveSwap'
+      reason: block.stats.isRootFS ? 'isRootFS' : 'isActiveSwap'
     }
   }
   return null
