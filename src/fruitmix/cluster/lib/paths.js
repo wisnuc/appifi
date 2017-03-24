@@ -5,7 +5,7 @@ import mkdirp from 'mkdirp'
 import Promise from 'bluebird'
 
 const mkdirpAsync = Promise.promisify(mkdirp)
-Promise.promisify(fs)
+Promise.promisifyAll(fs)
 
 let root = undefined
 
