@@ -18,8 +18,8 @@ router.get('/', (req, res) => {
     res.status(200).json(users.map(u => ({
       uuid: u.uuid,
       username: u.username,
-      avatar: user.avatar,
-      unixUID: user.unixUUID
+      avatar: u.avatar,
+      unixUID: u.unixuid
     })))
   })
 })

@@ -2,17 +2,23 @@
  * Created by jianjin.wu on 2017/3/22.
  * the entrance of routes
  */
-const router = require('express').Router()
+// const router = require('express').Router()
 
-const login = require('./login')
-const files = require('./files')
+// const login = require('./login')
+// const files = require('./files').default
+import { Router } from 'express'
+import login from './login'
+import files from './files'
+import filemap from './filemap'
 const ipctest = require('./ipctest')
 const auth = require('../middleware/auth')
 
-app.use('/login', login)
+let router = Router()
+
+router.use('/login', login)
 //fixme auth
 // app.use('/*', auth.jwt())
-app.use('/files', files)
-app.use('/ipctest', ipctest)
+router.use('/files', files)
+router.use('/ipctest', ipctest)
 
-export default router
+module.exports =  router

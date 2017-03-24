@@ -6,6 +6,8 @@ import { createFileMap, updateFileMap } from '../lib/filemap'
 
 let router = Router()
 
+
+//create filemap
 router.post('/:nodeUUID', auth.jwt(), (req, res) => {
   let user = req.user
   let name = req.query.filename
@@ -21,8 +23,31 @@ router.post('/:nodeUUID', auth.jwt(), (req, res) => {
         if(e) return res.error(e, 500)
         return res.success(attr, 200)
       })
-    }
+    }else
+        return res.error(null, 404)    
   })
+})
+
+//Maybe like /nodeuuid?filename=xxx&segmentHash=xxx&start=xx&sha256=xxx
+router.put('/:nodeUUID', auth.jwt(), (req, res) => {
+  let user = req.user
+  let nodeUUID = req.params.nodeUUID
+  let name = req.query.filename
+  let segmentHash = req.query.segmentHash
+  let start = req.query.start
+  let sha256 = req.query.sha256
+  let checkArgs =  { userUUID:user.uuid, dirUUID: nodeUUID, name }
+  config.ipc.call('createFileCheck', checkArgs, (err, node) => {
+    let filemapArgs ={ sha256, segmentHash, req , start, userUUID }
+    updateFileMap(filemapArgs, (err, finished) => {
+      if(err || !finished)
+        return res.error(err, 400)
+      else
+        return res.success(null, 200)
+    })
+  })
+  
+
 })
 
 

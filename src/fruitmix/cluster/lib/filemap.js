@@ -3,8 +3,10 @@ import fs from 'fs'
 import child from 'child_process'
 
 import xattr from 'fs-xattr'
+import Promise from 'bluebird'
 
 import  paths from './paths'
+import HashTransform from '../lib/transform'
 
 Promise.promisifyAll(child)
 Promise.promisifyAll(xattr)
@@ -29,12 +31,13 @@ const createFileMapAsync = async ({ size, segmentsize, nodeuuid, sha256, name, u
   }catch(e){ throw e }
 }
 
-const updateFileMapAsync = async ({ sha256, form , start, userUUID }) => {
+const updateFileMap = async ({ sha256, segmentHash, req , start, userUUID }, callback) => {
   let filePath = path.join(paths.get('filemap'), userUUID, sha256)
+  let abort = false
   try{
     await fs.statAsync(filePath)
-    
-    let attr = JSON.parse(await xattr.getAsync(filePath, FILEMAP))
+    let xattr = await xattr.getAsync(filePath, FILEMAP)
+    let attr = JSON.parse(xattr)
 
     let segments = attr.segments
     if(segments.length < start || segments[start] === 1)
@@ -42,36 +45,61 @@ const updateFileMapAsync = async ({ sha256, form , start, userUUID }) => {
 
     let position = attr.segmentsize * start
 
-    let writeStream =  await fs.createWriteStream(filePath,{ flags: 'r+', start: position})
+    let writeStream =  fs.createWriteStream(filePath,{ flags: 'r+', start: position})
     
-    form.stream.pipe(writeStream)
+    let hashTransform = HashTransform()
 
-    writeStream.on('error', err =>{ return false })
+    req.pipe(hashTransform)
 
-    form.stream.on('error', err => { return false })
-    
-    writeStream.on('finish', () => {
-        try{
-          let attr = JSON.parse(await xattr.getAsync(filePath, FILEMAP))
-          attr.segments[start] = 1
-          await xattr.setAsync(filepath, FILEMAP, JSON.stringify(attr))
-          return true 
-        }catch(e){ return false }        
+    hashTransform.pipe(writeStream)
+
+    hashTransform.on('error', err => {
+      if(abort) return
+      abort = true 
+      return callback(err)
     })
 
-  }catch(e){ return false }
+    writeStream.on('error', err =>{ 
+      if(abort) return 
+      abort = true
+      return callback(err)
+     })
+
+    req.on('error', err => {
+      if(abort) return 
+      abort = true
+      return callback(err)
+    })
+    
+    writeStream.on('finish', () => {
+      if(abort) return 
+      try{
+        if(hashTransform.getHash() !== segmentHash)
+          return callback(null, false)
+        let xattr = await xattr.getAsync(filePath, FILEMAP)
+        let attr = JSON.parse(xattr)
+        attr.segments[start] = 1
+        await xattr.setAsync(filepath, FILEMAP, JSON.stringify(attr))
+        return callback(null, true) 
+      }catch(e){ 
+        if(abort) return 
+        abort = true
+        return callback(e) 
+      }        
+    })
+
+  }catch(e){
+     if(abort) return 
+      abort = true
+      return callback(e) 
+   }
 
 }
 
-const createFileMap = ({ size, segmentsize, nodeuuid, sha256, name, useruuid}, callback) => {
-  createFileMapAsync({ size, segmentsize, nodeuuid, sha256, name, useruuid}).asCallback((e, data) => {
+const createFileMap = ({ size, segmentsize, nodeuuid, sha256, name, userUUID}, callback) => 
+  createFileMapAsync({ size, segmentsize, nodeuuid, sha256, name, userUUID}).asCallback((e, data) => {
     e ? callback(e) : callback(null, data)
   })
-}
-
-const updateFileMap = ({ sha256, form , start, useruuid }, callback) => 
-  updateFileMapAsync({ sha256, form , start, useruuid }).asCallback((e,data) => 
-    e ? callback(e) : callback(null, data))
 
 
 export { createFileMap, updateFileMap }
