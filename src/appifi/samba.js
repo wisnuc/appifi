@@ -15,6 +15,10 @@ Promise.promisifyAll(child)
 
 // define some parameters
 const userListConfigPath = '../../test/appifi/lib/samba/model.json'
+let indexProcessArgv = 0;
+let prependPath = null;
+// let prependPath = '/home/testonly'
+
 
 // turn uuid to unix name
 // xxxxxxxx-xxxx-Mxxx-Nxxx-xxxxxxxxxxxx <- hyphen and M are removed, then prefixed with letter x
@@ -258,7 +262,17 @@ const generateUserMapAsync = async () => {
 // create samba's smb.conf
 const generateSmbConfAsync = async () => {
 
-  let prepend = '/home/testonly'
+  // let index = 0;
+  // let prepend = null;
+  // // let prepend = '/home/testonly'
+
+  // if((indexProcessArgv = (process.argv).indexOf('--froot')) >= 0) {
+  //   prependPath = (process.argv)[index + 1]
+  // }
+  // else {
+  //   debug('generateSmbConfAsync: No "--froot" Parameters')
+  //   return;
+  // }
 
   let global =  '[global]\n' +
                 '  username map = /etc/smbusermap\n' +
@@ -271,7 +285,7 @@ const generateSmbConfAsync = async () => {
   const section = (share) => {
     let tmpStr = '';
     tmpStr = `[${share.name}]\n`;
-    tmpStr = tmpStr.concat(`  path = ${prepend}/${share.path}\n` +
+    tmpStr = tmpStr.concat(`  path = ${prependPath}/${share.path}\n` +
                            `  read only = ${share.readOnly ? "yes" : "no"}\n` +
                            '  guest ok = no\n' +
                            '  force user = root\n' +
@@ -473,7 +487,7 @@ const createUdpSender = (callback) => {
 }
 
 // debounce time
-let debounceTime = 10000;
+let debounceTime = 10;
 let flag = 0;
 
 // let list = JSON.parse(fs.readFileSync(userListConfigPath));
@@ -487,10 +501,13 @@ function beginWatch() {
   let dlist = new Array;
   
   let watcher = fs.watch(userListConfigPath, (eventType) => {
+    console.log(eventType)
     if (eventType === 'change') {
+      console.log('1')
       if(flag === 0) {
         flag = 1;
         setTimeout(() => {
+          console.log('2')
 
           let listNew = JSON.parse(fs.readFileSync(userListConfigPath));
           let ulistNew = listNew['users'];
@@ -504,13 +521,17 @@ function beginWatch() {
           console.log(deepEqual(dlist, dlistNew))
 
           if(!deepEqual(ulist, ulistNew)) {
+            console.log('3')
             ulistNew.forEach(userNew => {
 
               try {
                 ulist.forEach((user) => {
+                  console.log('4')
                   // console.log(userNew);
                   // console.log(user);
                   if (userNew.unixuid === user.unixuid) {
+                    console.log('5')
+                    sameUserException.data = user;
                     throw sameUserException;
                   }
                   else {
@@ -521,6 +542,7 @@ function beginWatch() {
               }
               catch (e) {
                 if (e !== sameUserException) throw e;
+                let user = sameUserException.data;
                 if(userNew.type !== user.type
                   | userNew.uuid !== user.uuid
                   | userNew.username !== user.username
@@ -611,6 +633,19 @@ const watchAndUpdateSambaAsync = async () => {
   // })
 
   // TODO not optimal
+
+  // let index = 0;
+  // let prepend = null;
+  // // let prepend = '/home/testonly'
+
+  if((indexProcessArgv = (process.argv).indexOf('--froot')) >= 0) {
+    prependPath = (process.argv)[indexProcessArgv + 1]
+  }
+  else {
+    debug('generateSmbConfAsync: No "--froot" Parameters')
+    return;
+  }
+
   await initSamba();
   await updateSambaFiles();
   let watchMan = beginWatch();
