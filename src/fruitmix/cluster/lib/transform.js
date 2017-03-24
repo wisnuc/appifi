@@ -5,6 +5,7 @@ const Transform = stream.Transform
 
 class HashTransform extends Transform {
   constructor() {
+    super()
     this.hashStream = crypto.createHash('sha256')
   }
 

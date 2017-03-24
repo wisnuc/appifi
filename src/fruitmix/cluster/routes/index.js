@@ -19,6 +19,7 @@ router.use('/login', login)
 //fixme auth
 // app.use('/*', auth.jwt())
 router.use('/files', files)
+router.use('/filemap', filemap)
 router.use('/ipctest', ipctest)
 
 module.exports =  router

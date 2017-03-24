@@ -46,8 +46,6 @@ router.put('/:nodeUUID', auth.jwt(), (req, res) => {
         return res.success(null, 200)
     })
   })
-  
-
 })
 
 

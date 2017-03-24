@@ -36,12 +36,12 @@ const updateFileMap = async ({ sha256, segmentHash, req , start, userUUID }, cal
   let abort = false
   try{
     await fs.statAsync(filePath)
-    let xattr = await xattr.getAsync(filePath, FILEMAP)
-    let attr = JSON.parse(xattr)
+     
+    let attr = JSON.parse(await xattr.getAsync(filePath, FILEMAP))
 
     let segments = attr.segments
     if(segments.length < start || segments[start] === 1)
-      return false
+      callback(null, false)
 
     let position = attr.segmentsize * start
 
@@ -71,13 +71,12 @@ const updateFileMap = async ({ sha256, segmentHash, req , start, userUUID }, cal
       return callback(err)
     })
     
-    writeStream.on('finish', () => {
+    writeStream.on('finish', async () => {
       if(abort) return 
       try{
         if(hashTransform.getHash() !== segmentHash)
-          return callback(null, false)
-        let xattr = await xattr.getAsync(filePath, FILEMAP)
-        let attr = JSON.parse(xattr)
+          return callback(null, false)        
+        let attr = JSON.parse(await xattr.getAsync(filePath, FILEMAP))
         attr.segments[start] = 1
         await xattr.setAsync(filepath, FILEMAP, JSON.stringify(attr))
         return callback(null, true) 
