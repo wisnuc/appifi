@@ -13,6 +13,7 @@ const httpCode = {
 }
 
 export default (req, res, next) => {
+
   /**
    * add res.success()
    * @param data
@@ -33,10 +34,11 @@ export default (req, res, next) => {
 
     let code, message, stack
 
-    status = status || DEFALUT_ERROR_STATUS
     if (err) {
+
       if (err instanceof Error) {
 
+        status = status || err.status
         code = err.code
         message = err.message
         stack = err.stack
@@ -48,6 +50,7 @@ export default (req, res, next) => {
 
       }
     }
+    status = status || DEFALUT_ERROR_STATUS
 
     return res.status(status).json({
       code: code || 'no httpCode',
