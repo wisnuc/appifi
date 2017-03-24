@@ -50,17 +50,26 @@ const shutdownAsync = async reboot => {
   await child.execAsync(cmd)
 }
 
-// install is required ! 
-const assertFsBootable = (fsys, install) => {
+const assertFileSystemGood = fsys =>
+  (!bootableFsTypes.includes(fsys.type)) 
+    ? throw new Error('unsupported bootable type')
+    : (!fsys.isMounted) 
+      ? throw new Error('file system is not mounted')
+      : (fsys.isVolume && fsys.isMissing) 
+        ? throw new Error('file system has missing device')
+        : true
 
-  if (!bootableFsTypes.includes(fsys.type)) throw new Error('unsupported bootable type')
-  if (!fsys.isMounted) throw new Error('file system is not mounted')
-  if (fsys.isVolume && fsys.isMissing) throw new Error('file system has missing device')
-  if (install && fsys.wisnuc.status !== 'ENOENT') throw new Error('cannot install')    
-  if (!install && fsys.wisnuc.status !== 'READY') throw new Error('wisnuc not ready') 
-  return true
-}
+const assertReadyToBoot = wisnuc => 
+  (!wisnuc || typeof wisnuc !== 'object' || wisnuc.status !== 'READY')
+    ? throw new Error('fruitmix status not READY')
+    : true
 
+const assertReadyToInstall = wisnuc =>
+  (!wisnuc |\ typeof wisnuc !== 'object' || wisnuc.status !== 'ENOENT')
+    ? throw new Error('fruitmix status not ENOENT')    
+    : true
+
+ 
 const refreshFileSystems = async () => {
 
   let pretty = await Storage.refreshAsync(true) 
@@ -82,7 +91,7 @@ module.exports = {
     return await decorateStorageAsync(pretty)
   },
 
-  boot(fsys, install) {
+  boot(mountpoint, {}) {
 
     // do something  
 
@@ -95,43 +104,112 @@ module.exports = {
     let last = Config.get().lastFileSystem
     let fileSystems = await refreshFileSystems()
 
-    let fsys = fileSystems.find(f => f.type === fsys.type && f.uuid === fsys.uuid)
-    
-    if (fsys) {
-      try {
-        assertFsBootable(fsys)
-        boot(fsys)
-        this.data = { state: 'normal', currentFileSystem: fsys }
-      }
-      catch (e) {
-        this.data = { state: 'maintenance', error: 'EFAIL', message: err.message }
-      }
-      return
-    }
+    if (last) {    
 
-    let alts = fileSystems.filter(f => { try { return assertBootable(f) } finally {} })
+      let { type, uuid } = last
+      let fsys = fileSystems.find(f => 
+        f.fileSystemType === type && f.fileSystemUUID === uuid)
+
+      if (fsys) {
+
+        try {
+
+          assertFileSystemGood(fsys)
+          assertReadyToBoot(fsys.wisnuc)
+          boot(fsys.mountpoint)
+
+          this.data = { 
+            state: 'normal', 
+            currentFileSystem: {
+              type,
+              uuid,
+              mountpoint: fsys.mountpoint 
+            }
+          }
+        }
+        catch (e) {
+          this.data = { 
+            state: 'maintenance', 
+            error: 'EFAIL', 
+            message: err.message 
+          }
+        }
+        return
+      }
+    } // no last or lastfs not found
+
+    // find all good and ready-to-boot file systems
+    let alts = fileSystems.filter(f => {
+      try { 
+        assertFileSystemGood(f)
+        assertReadyToBoot(f.wisnuc)
+        return true
+      } 
+      catch(e) {
+        return false
+      } 
+    })
+
     if (alts.length !== 1) {
-      this.data = { state: 'maintenance', error: alts.length === 0 ? 'ENOALT' : 'EMULTIALT' }
+      this.data = { 
+        state: 'maintenance', 
+        error: alts.length === 0 ? 'ENOALT' : 'EMULTIALT' 
+      }
     }
     else {
-      boot(alts[0])
-      this.data = { state: 'alternative', currentFileSystem: alts[0] }
+
+      boot(alts[0].mountpoint)
+
+      this.data = { 
+        state: 'alternative', 
+        currentFileSystem: {
+          type: alts[0].fileSystemType,
+          uuid: alts[0].fileSystemUUID,
+          mountpoint: alts[0].mountpoint
+        }
+      }
     }
   },
 
   // manual boot only occurs in maintenance mode.
   // this operation should not update boot state if failed.
-  manualBootAsync: async function (type, uuid, init) {
+  manualBootAsync: async function (args) {
 
     if (this.data.state !== 'maintenance') throw new Error('not in maintenance mode')    
 
+    let { type, uuid, username, password, install, reinstall } = args 
+
     let fileSystems = await refreshFileSystems()
-    let fsys = fileSystems.find(f => f.type === fsys.type && f.uuid === fsys.uuid)
+    let fsys = fileSystems.find(f => f.type === type && f.uuid === uuid)
     if (!fsys) throw new Error('target not found')
 
-    assertBootable(fsys, install) 
-    boot(fsys, install)
-    this.data = { state: 'normal', currentFileSystem: fsys }
+    assertFileSystemGood(fsys)
+
+    if (reinstall === true || install === true) {
+
+      if (reinstall) {
+        await rimrafAsync(path.join(fsys.mountpoint, 'wisnuc')
+        await mkdirpAsync(path.join(fsys.mountpoint, 'wisnuc', 'fruitmix')
+      }
+      else
+        assertReadyToInstall(fsys.wisnuc)
+
+      boot(fsys.mountpoint, { username, password })
+    }
+    else {
+      // direct boot, fruitmix status must be 'READY'
+      assertReadyToBoot(fsys.wisnuc) 
+      boot(fsys.mountpoint)
+    }
+
+    this.data = { 
+      state: 'normal', 
+      currentFileSystem: {
+        type, 
+        uuid,   
+        mountpoint: fsys.mountpoint
+      } 
+    }
   },
 
   // reboot

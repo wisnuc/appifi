@@ -72,20 +72,16 @@ module.exports = async mountpoint => {
     await fs.readdir(froot)
   }
   catch (e) {
-
-    let status = e.code === 'ENOTENT' || e.code === 'ENOTDIR'
-    if (e.code === 'ENOENT' || e.code === 'ENOTDIR')
-      return { status: e.code, } 
-    else 
-      return { status: 'EFAIL' }
+    return { 
+      status: (e.code === 'ENOTENT' || e.code === 'ENOTDIR') ? e.code : 'EFAIL' 
+    }
   }
 
   // retrieve users
   try {
-    let users = await retrieveNewUserAsync(froot)
-    if (users === 'ENOENT') 
-      users = await retrieveOldUsersAsync(froot)
 
+    let users = await retrieveNewUserAsync(froot)
+    if (users === 'ENOENT') users = await retrieveOldUsersAsync(froot)
     if (users === 'ENOENT' || users === 'EPARSE')
       return { status: 'EDATA' }
 
