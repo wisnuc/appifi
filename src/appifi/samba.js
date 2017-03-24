@@ -19,6 +19,12 @@ let indexProcessArgv = 0;
 let prependPath = null;
 // let prependPath = '/home/testonly'
 
+// check & restart samba service
+let updatingSamba = false
+let sambaTimer = -1
+
+// debounce time
+let debounceTime = 5000; // millisecond
 
 // turn uuid to unix name
 // xxxxxxxx-xxxx-Mxxx-Nxxx-xxxxxxxxxxxx <- hyphen and M are removed, then prefixed with letter x
@@ -27,7 +33,6 @@ const uuidToUnixName = (uuid) =>
 
 // read infors from local file
 const getUserListAsync = async () => {
-
   let userList = {}
   try {
     userList = await fs.readFileAsync(userListConfigPath)
@@ -262,18 +267,6 @@ const generateUserMapAsync = async () => {
 // create samba's smb.conf
 const generateSmbConfAsync = async () => {
 
-  // let index = 0;
-  // let prepend = null;
-  // // let prepend = '/home/testonly'
-
-  // if((indexProcessArgv = (process.argv).indexOf('--froot')) >= 0) {
-  //   prependPath = (process.argv)[index + 1]
-  // }
-  // else {
-  //   debug('generateSmbConfAsync: No "--froot" Parameters')
-  //   return;
-  // }
-
   let global =  '[global]\n' +
                 '  username map = /etc/smbusermap\n' +
                 '  workgroup = WORKGROUP\n' +
@@ -394,9 +387,7 @@ class SmbAudit extends EventEmitter {
   }
 }
 
-// check & restart samba service
-let updatingSamba = false
-let sambaTimer = -1
+
 
 const updateSambaFiles = async () => {
 
@@ -486,157 +477,106 @@ const createUdpSender = (callback) => {
   udp.bind(3721)
 }
 
-// debounce time
-let debounceTime = 10;
-let flag = 0;
+// #########################################################
+// watch module
 
-// let list = JSON.parse(fs.readFileSync(userListConfigPath));
-// let ulist = list['users'];
-// let dlist = list['drives'];
-// // console.log(ulist)
+class State {
+  constructor(ctx) {
+    this.ctx = ctx
+  }
+
+  setState(nextState, ...args) {
+    this.exit()
+    this.ctx.state = new nextState(this.ctx, ...args)
+  }
+
+  exit() {}
+}
+
+class Idle extends State{
+  echo() {
+    this.setState(Pending)
+  }
+}
+
+class Pending extends State {
+  constructor(ctx) {
+    super(ctx)
+    this.echo()
+  }
+
+  echo() {
+    clearTimeout(this.timer)
+    this.timer = setTimeout(() => {
+      this.setState(Working) 
+    }, this.ctx.delay)
+  }
+
+  exit() {
+    clearTimeout(this.timer)
+  }
+}
+
+class Working extends State {
+  constructor(ctx) { 
+    super(ctx);
+    updateSambaFiles().then(() => {
+      console.log('File changed!');
+      this.success();
+    }).catch(err => {
+      this.error(err);
+    });
+  } 
+
+  error(e) {
+    if (this.next)    
+      this.setState(Pending, this.next)
+  }
+
+  success() {
+    if (this.next)
+      this.setState(Pending, this.next)
+    else 
+      this.setState(Idle)
+  }
+
+  echo() {}
+}
+
+class Persistence {
+  constructor(delay) {
+    this.delay = delay || 500
+    this.state = new Idle(this) 
+  }
+
+  echo() {
+    this.state.echo()
+  }
+}
 
 // watch file for change
-function beginWatch() {
-  let ulist = new Array;
-  let dlist = new Array;
-  
+const beginWatch = async () => {
+
+  let result = new Persistence(debounceTime);
+
   let watcher = fs.watch(userListConfigPath, (eventType) => {
-    console.log(eventType)
+
     if (eventType === 'change') {
-      console.log('1')
-      if(flag === 0) {
-        flag = 1;
-        setTimeout(() => {
-          console.log('2')
-
-          let listNew = JSON.parse(fs.readFileSync(userListConfigPath));
-          let ulistNew = listNew['users'];
-          let dlistNew = listNew['drives'];
-          // console.log(ulistNew)
-
-          let sameUserException = {};
-          let sameDriveException = {};
-
-          console.log(deepEqual(ulist, ulistNew))
-          console.log(deepEqual(dlist, dlistNew))
-
-          if(!deepEqual(ulist, ulistNew)) {
-            console.log('3')
-            ulistNew.forEach(userNew => {
-
-              try {
-                ulist.forEach((user) => {
-                  console.log('4')
-                  // console.log(userNew);
-                  // console.log(user);
-                  if (userNew.unixuid === user.unixuid) {
-                    console.log('5')
-                    sameUserException.data = user;
-                    throw sameUserException;
-                  }
-                  else {
-                    console.log('File changed!');
-                    updateSambaFiles();
-                  }
-                });
-              }
-              catch (e) {
-                if (e !== sameUserException) throw e;
-                let user = sameUserException.data;
-                if(userNew.type !== user.type
-                  | userNew.uuid !== user.uuid
-                  | userNew.username !== user.username
-                  | userNew.home !== user.home
-                  | userNew.library !== user.library
-                  | userNew.service !== user.service
-                  | userNew.smbPassword !== user.smbPassword
-                  | userNew.unixname !== user.unixname
-                  | userNew.lastChangeTime !== user.lastChangeTime) {
-                    console.log('File changed!');
-                    updateSambaFiles();
-                }
-              }
-            })
-
-            // console.log('File changed!');
-            // updateSambaFiles();
-          }
-          else if(!deepEqual(dlist, dlistNew)) {
-            dlistNew.forEach(driveNew => {
-
-              try {
-                dlist.forEach((drive) => {
-                  if (driveNew.uuid === drive.uuid) {
-                    throw sameDriveException;
-                  }
-                  else {
-                    console.log('File changed!');
-                    updateSambaFiles();
-                  }
-                });
-              }
-              catch (e) {
-                if (e !== sameDriveException) throw e;
-                if(driveNew.owner !== drive.owner
-                  | driveNew.type !== drive.type
-                  | driveNew.label !== drive.label) {
-                    console.log('File changed!');
-                    updateSambaFiles();
-                }
-              }
-            })
-
-            // console.log('File changed!');
-            // updateSambaFiles();
-          }
-
-          // console.log('File changed!');
-          // updateSambaFiles();
-          flag = 0;
-
-          ulist = ulistNew;
-          dlist = dlistNew;
-
-        }, debounceTime);
-      }    	
-    }
+        result.echo();
+      }    
   });
 
   return watcher;
 }
 
 // quit watch
-function endWatch(watcher) {
+const endWatch = async (watcher) => {
   watcher.close();
 }
 
 // main process for samba service
 let prevUsers, prevDrives;
 const watchAndUpdateSambaAsync = async () => {
-  // storeSubscribe(() => {
-
-  //   let { fruitmixUsers, fruitmixDrives } = storeState();
-  //   if (prevUsers === fruitmixUsers && prevDrives === fruitmixDrives) 
-  //     return;
-
-  //   if (prevUsers !== fruitmixUsers) {
-  //     debug('users changed', prevUsers, fruitmixUsers);
-  //     prevUsers = fruitmixUsers;
-  //   }
-      
-  //   if (prevDrives !== fruitmixDrives) {
-  //     debug('drives changed', prevDrives, fruitmixDrives);
-  //     prevDrives = fruitmixDrives;
-  //   }  
-
-  //   scheduleUpdate();
-  // })
-
-  // TODO not optimal
-
-  // let index = 0;
-  // let prepend = null;
-  // // let prepend = '/home/testonly'
 
   if((indexProcessArgv = (process.argv).indexOf('--froot')) >= 0) {
     prependPath = (process.argv)[indexProcessArgv + 1]
@@ -648,7 +588,7 @@ const watchAndUpdateSambaAsync = async () => {
 
   await initSamba();
   await updateSambaFiles();
-  let watchMan = beginWatch();
+  let watchMan = await beginWatch();
   let udp = await Promise.promisify(createUdpServer)();
   return new SmbAudit(udp);
 }
