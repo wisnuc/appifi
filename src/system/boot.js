@@ -6,11 +6,9 @@ const Developer = require('./developer')
 const Config = require('./config')
 const Storage = require('./storage')
 
-// import docker from '../appifi/docker'
-
 const debug = require('debug')('system:boot')
 
-const runnable = wisnuc => (typeof wisnuc === 'object' && wisnuc !== null && wisnuc.users)
+const bootableFsTypes = ['btrfs']
 
 const decorateStorageAsync = async pretty => {
 
@@ -23,7 +21,6 @@ const decorateStorageAsync = async pretty => {
     })
   })
 
-  /** no ext4 probe now
   pretty.blocks.forEach(blk => {
     if (!blk.isVolumeDevice && blk.isMounted && blk.isExt4)
       mps.push({
@@ -31,7 +28,6 @@ const decorateStorageAsync = async pretty => {
         mp: blk.mountpoint
       })
   })
-  **/
 
   await Promise
     .map(mps, obj => probeFruitmixAsync(obj.mp).reflect())
@@ -46,135 +42,36 @@ const decorateStorageAsync = async pretty => {
   return pretty
 }
 
-
 const shutdownAsync = async reboot => {
 
   let cmd = reboot === true ? 'reboot' : 'poweroff'
-
   await child.execAsync('echo "PWR_LED 3" > /proc/BOARD_io').reflect()
   await Promise.delay(3000)
   await child.execAsync(cmd)
 }
 
-//
-// this function does not take any action
-// it returns an object with following properties:
-// 
-// state: current boot state, 'maintenance', 'normal', 'alternative',
-// error: if state is in maintenance, this explains why
-// currentFileSystem: the file system in use for 'normal' or 'alternative'
-//
-// lastFileSystem: in config
-// bootMode: in config
-//
-const bootState = decorated => {
+// install is required ! 
+const assertFsBootable = (fsys, install) => {
 
-  let { bootMode, lastFileSystem } = Config.get()
+  if (!bootableFsTypes.includes(fsys.type)) throw new Error('unsupported bootable type')
+  if (!fsys.isMounted) throw new Error('file system is not mounted')
+  if (fsys.isVolume && fsys.isMissing) throw new Error('file system has missing device')
+  if (install && fsys.wisnuc.status !== 'ENOENT') throw new Error('cannot install')    
+  if (!install && fsys.wisnuc.status !== 'READY') throw new Error('wisnuc not ready') 
+  return true
+}
+
+const refreshFileSystems = async () => {
+
+  let pretty = await Storage.refreshAsync(true) 
+  let decorated = await decorateStorageAsync(pretty)
   let { blocks, volumes } = decorated
 
-  if (bootMode === 'maintenance') {
-
-    debug('bootMode is set to maintenance by user')
-    return {
-
-      state: 'maintenance',
-      bootMode: 'maintenance',
-      error: 'config',
-
-      currentFileSystem: null,
-      lastFileSystem
-    }
-  }
-
-  // find all file systems, including unmounted, missing, etc.
-  let fileSystems = [
+  return [
     ...blocks.filter(blk => blk.isFileSystem && !blk.isVolumeDevice),  
     ...volumes.filter(vol => vol.isFileSystem)
   ]
-
-  // debug('tryBoot: all file systems', fileSystems)
-
-  if (lastFileSystem) {
-
-    let last = fileSystems.find(fsys => 
-      fsys.fileSystemType === lastFileSystem.type &&
-      fsys.fileSystemUUID === lastFileSystem.uuid)
-
-    if (last) {
-
-      debug('last file system found', last)
-
-      let error = null
-      if (!last.isMounted) {
-        debug('last file system is not mounted')
-        error = 'EMOUNTFAIL' // TODO mountError
-      }
-      else if (last.isVolume && last.isMissing) {
-        debug('last file system is volume and has missing device')
-        error = 'EVOLUMEMISSING'
-      }
-      else if (!runnable(last.wisnuc)) {
-        debug('not runnable', last)
-        debug('last file system has no wisnuc installed')
-        error = 'EWISNUCNOTFOUND'
-      }
-
-      let state, currentFileSystem
-      if (error) {
-        state = 'maintenance',
-        error,
-        currentFileSystem = null 
-      }
-      else {
-        debug('last file system ready to boot')
-        state = 'normal',
-        error,
-        currentFileSystem = {
-          type: last.fileSystemType,
-          uuid: last.fileSystemUUID,
-          mountpoint: last.mountpoint
-        }
-      }
-
-      return { state, bootMode, error, currentFileSystem, lastFileSystem }
-    }
-  }
-
-  debug('no last fs in config or last fs not found')
-
-  // no lfs or lfs not found, try alternative
-  let alt = fileSystems.filter(fsys => {
-    if (!fsys.isMounted) return false
-    if (fsys.isVolume && fsys.isMissing) return false
-    if (!runnable(fsys.wisnuc)) return false
-    return true
-  })
-
-  debug('alternatives', alt)
-
-  if (alt.length === 1) {
-    return {
-      state: 'alternative',
-      bootMode,
-      error: null,
-      currentFileSystem: {
-        type: alt[0].fileSystemType,
-        uuid: alt[0].fileSystemUUID,
-        mountpoint: alt[0].mountpoint
-      },
-      lastFileSystem
-    }
-  }
-  else {
-    return {
-      state: 'maintenance',
-      bootMode,
-      error: alt.length === 0 ? 'ENOALT' : 'EMULTIALT',
-      currentFileSystem: null,
-      lastFileSystem
-    }
-  }
-}
+} 
 
 module.exports = {
 
@@ -185,73 +82,56 @@ module.exports = {
     return await decorateStorageAsync(pretty)
   },
 
-  // autoboot
-  tryBootAsync: async function (lfs) {
+  boot(fsys, install) {
 
-    let pretty = await Storage.refreshAsync(true) 
-    let probed = await decorateStorageAsync(pretty) 
+    // do something  
 
-    if (lfs) Config.updateLastFileSystem(lfs, true)
-    let bstate = bootState(probed)
-
-    console.log('tryboot: bootState', bstate)
-
-    let cfs = bstate.currentFileSystem 
-    if (cfs) {
-
-      if (!Developer.noFruitmix) {
-        // createFruitmix(path.join(cfs.mountpoint, 'wisnuc', 'fruitmix'))
-        console.log('----------------------fork--------------------------------')
-        child.fork('../fruitmix/main')
-        console.log('----------------------fork--------------------------------')
-      }
-      else {
-        console.log('!!! fruitmix not started due to developer setting')
-      }
-
-      Config.updateLastFileSystem(cfs)
-
-      /**
-      let dockerRootDir = path.join(cfs.mountpoint, 'wisnuc')
-      docker.init(dockerRootDir) 
-      **/
-    }
-
-    this.data = bstate
-    return bstate
+    Config.updateLastFileSystem(
   },
 
-  // manual boot only occurs in maintenance mode
-  manualBootAsync: async function (uuid, init) {
+  // autoboot
+  autoBootAsync: async function () {
 
-    if (this.data.state !== 'maintenance') 
-      throw new Error('not in maintenance mode')    
+    let last = Config.get().lastFileSystem
+    let fileSystems = await refreshFileSystems()
 
-    let pretty = await Storage.refreshAsync(true)
-    let volume = pretty.volumes.find(vol => vol.fileSystemUUID === uuid)
-    if (!volume) throw new Error('volume not found')
-    if (!volume.isMounted) throw new Error('volume not mounted')
-    if (volume.isMissing) throw new Error('volume has missing device')
+    let fsys = fileSystems.find(f => f.type === fsys.type && f.uuid === fsys.uuid)
+    
+    if (fsys) {
+      try {
+        assertFsBootable(fsys)
+        boot(fsys)
+        this.data = { state: 'normal', currentFileSystem: fsys }
+      }
+      catch (e) {
+        this.data = { state: 'maintenance', error: 'EFAIL', message: err.message }
+      }
+      return
+    }
 
-    let fmix = await probeFruitmixAsync(volume.mountpoint) 
-
-    if (init) {
-
-      if (fmix.status !== 'ENOENT') throw new Error('target status is not ENOENT')
-      child.fork('../fruitmix/main')  
+    let alts = fileSystems.filter(f => { try { return assertBootable(f) } finally {} })
+    if (alts.length !== 1) {
+      this.data = { state: 'maintenance', error: alts.length === 0 ? 'ENOALT' : 'EMULTIALT' }
     }
     else {
-      if (fmix.status !== 'READY') throw new Error('target status is not READY')
-      
-      child.fork('../fruitmix/main')  
-      
-      Config.updateLastFileSystem({
-        type: 'btrfs',
-        uuid: 'uuid'
-      })
+      boot(alts[0])
+      this.data = { state: 'alternative', currentFileSystem: alts[0] }
     }
+  },
 
-    // xxxx TODO
+  // manual boot only occurs in maintenance mode.
+  // this operation should not update boot state if failed.
+  manualBootAsync: async function (type, uuid, init) {
+
+    if (this.data.state !== 'maintenance') throw new Error('not in maintenance mode')    
+
+    let fileSystems = await refreshFileSystems()
+    let fsys = fileSystems.find(f => f.type === fsys.type && f.uuid === fsys.uuid)
+    if (!fsys) throw new Error('target not found')
+
+    assertBootable(fsys, install) 
+    boot(fsys, install)
+    this.data = { state: 'normal', currentFileSystem: fsys }
   },
 
   // reboot

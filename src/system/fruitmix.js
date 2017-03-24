@@ -54,12 +54,16 @@ const retrieveOldUsersAsync = async froot => {
 }
 
 /**
-  { status: 'EFAIL' } operational error
+
+  this module should not change anything on file system
+
+  { status: 'EFAIL' } operation error
   { status: 'ENOENT' or 'ENOTDIR' } fruitmix not found
   { status: 'EDATA' } fruitmix installed but user data not found or cannot be parsed
   { status: 'READY', users: [...] } empty users are possible
+
 **/
-const probeFruitmixAsync = async mountpoint => {
+module.exports = async mountpoint => {
 
   let froot = path.join(wisnuc, 'fruitmix')
 
@@ -68,6 +72,8 @@ const probeFruitmixAsync = async mountpoint => {
     await fs.readdir(froot)
   }
   catch (e) {
+
+    let status = e.code === 'ENOTENT' || e.code === 'ENOTDIR'
     if (e.code === 'ENOENT' || e.code === 'ENOTDIR')
       return { status: e.code, } 
     else 
@@ -94,8 +100,5 @@ const probeFruitmixAsync = async mountpoint => {
     return { status: 'EFAIL' }
   }
 }
-
-// this module should not change anything on file system
-module.exports = probeFruitmixAsync
 
 
