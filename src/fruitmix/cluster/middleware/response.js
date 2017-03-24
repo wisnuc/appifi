@@ -3,8 +3,8 @@
  *
  */
 
-const DEFALUT_SUCCESS_STATUS = 200
-const DEFALUT_ERROR_STATUS = 500
+const DEFAULT_SUCCESS_STATUS = 200
+const DEFAULT_ERROR_STATUS = 500
 
 //http code
 const httpCode = {
@@ -21,7 +21,7 @@ export default (req, res, next) => {
    */
   res.success = (data, status) => {
     data = data || null
-    status = status || DEFALUT_SUCCESS_STATUS
+    status = status || DEFAULT_SUCCESS_STATUS
     return res.status(status).json(data)
   }
 
@@ -50,7 +50,7 @@ export default (req, res, next) => {
 
       }
     }
-    status = status || DEFALUT_ERROR_STATUS
+    status = status || DEFAULT_ERROR_STATUS
 
     return res.status(status).json({
       code: code || 'no httpCode',
