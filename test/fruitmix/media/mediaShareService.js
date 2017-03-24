@@ -277,6 +277,39 @@ describe(path.basename(__filename), function() {
       }
       expect(err).to.be.an.instanceof(E.EINVAL)
     })
+
+    it('should return error if op.operation is not the given values', async () => {
+      let err
+      let patch = [{path: 'maintainers',
+                    operation: 'update',
+                    value: [charlieUUID]
+                  }]
+      try {
+        await msSer.updateMediaShare(userUUID, shareUUID, patch)
+      }
+      catch(e) {
+        err = e
+      }
+      expect(err).to.be.an.instanceof(E.EINVAL)
+    })
+
+    it('should return error if contents is not allowed to be shared', async () => {
+      let err
+      let patch = [{path: 'contents',
+                    operation: 'add',
+                    value: [img002Hash]
+                  }]
+      let stub = sinon.stub(mediaData, 'mediaShareAllowed')
+      stub.returns(false)
+      try {
+        await msSer.updateMediaShare(userUUID, shareUUID, patch)
+      }
+      catch(e) {
+        err = e
+      }
+      stub.restore()
+      expect(err).to.be.an.instanceof(E.EACCESS)
+    })
   })
 
   describe('deleteMediaShare', function() {

@@ -1,8 +1,8 @@
 import path from 'path'
 import fs from 'fs'
 import crypto from 'crypto'
-import { Router } from 'express'
 
+import { Router } from 'express'
 import formidable from 'formidable'
 import UUID from 'node-uuid'
 import validator from 'validator'
@@ -20,6 +20,7 @@ const router = Router()
 // if it's a file, download
 // /files/xxxxxxx <- must be folder
 // TODO modified by jianjin.wu
+// /:nodeUUID?filename=xxx
 router.get('/:nodeUUID', (req, res) => {
 
   let user = req.user
@@ -210,4 +211,27 @@ router.post('/segments', auth.jwt(), (req, res) => {
     })
     
   }
+})
+
+// delete a directory or file
+// TODO modified by jianjin.wu
+router.delete('/:folderUUID/:nodeUUID', (req, res) => {
+
+  let filer = Models.getModel('filer')
+  let user = req.user
+
+  let folderUUID = req.params.folderUUID
+  let nodeUUID = req.params.nodeUUID
+
+  let folder = filer.findNodeByUUID(folderUUID)
+  let node = filer.findNodeByUUID(nodeUUID)
+  let args = { userUUID: user.uuid, targetUUID: node.uuid }
+  config.ipc.call('del', args, (e, node) => {
+    if (e) return res.error(e)
+    if (!node) return res.error('node not found')
+  })
+  filer.deleteFileOrFolder(user.uuid, folder, node, err => {
+    if (err) res.status(500).json(null)
+    res.status(200).json(null)
+  })
 })

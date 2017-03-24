@@ -91,6 +91,7 @@ const n8 = new Node(uuid8)
 n8.parent = n7
 n7.children.push(n8)
 const n9 = new Node(uuid9)
+n9.parent = n1
 
 fileData.uuidMap.set(n1.uuid, n1)
 fileData.uuidMap.set(n2.uuid, n2)
@@ -120,6 +121,8 @@ describe(path.basename(__filename), function() {
     fsd = createFileShareData(model, fss)
     fsSer = createFileShareService(fileData, fsd)
   })
+
+  afterEach(async () => await rimrafAsync('tmptest'))
 
   describe('create a fileShareService', function() {
     it('should create a fileShareService successfully', done => {
@@ -202,11 +205,32 @@ describe(path.basename(__filename), function() {
       expect(err).to.be.an.instanceof(E.EINVAL)
     })
 
+    it('should return error if user is not the root owner', async () => {
+      let uuid_1 = 'd20e9aa2-7e66-41d1-8521-0c7e0b3f25d5'
+      let uuid_2 = 'a8eec3c8-70e5-411b-90fd-ee3e181254b9'
+      let node01 = new Node(uuid_1)
+      node01.type = 'private'
+      node01.owner = uuid_2
+      fileData.uuidMap.set(uuid_1, node01)
+
+      let err
+      let post = {writelist: [aliceUUID],
+                  readlist: [bobUUID],
+                  collection: [uuid_1]}
+      try {
+        await fsSer.createFileShare(userUUID, post)
+      }
+      catch(e){
+        err = e
+      }
+      expect(err).to.be.an.instanceof(E.EACCESS)
+    })
+
     it('should return error if file is not allowed to share', async () => {
       let uuid_1 = 'd20e9aa2-7e66-41d1-8521-0c7e0b3f25d5'
       let node01 = new Node(uuid_1)
       node01.type = 'public'
-      node01.shareAllow = false
+      node01.shareAllowed = false
       fileData.uuidMap.set(uuid_1, node01)
       let err
       let post = {writelist: [aliceUUID],
@@ -221,15 +245,204 @@ describe(path.basename(__filename), function() {
       expect(err).to.be.an.instanceof(E.EACCESS)
     })
 
+    it('should return error if user not in readSet', async () => {
+      let uuid_1 = 'd20e9aa2-7e66-41d1-8521-0c7e0b3f25d5'
+      let node01 = new Node(uuid_1)
+      node01.type = 'public'
+      node01.shareAllowed = true
+      node01.writelist = [aliceUUID]
+      node01.readlist = [bobUUID]
+      fileData.uuidMap.set(uuid_1, node01)
+
+      let err
+      let post = {writelist: [aliceUUID],
+                  readlist: [bobUUID],
+                  collection: [uuid_1]}
+      try {
+        await fsSer.createFileShare(userUUID, post)
+      }
+      catch(e){
+        err = e
+      }
+      expect(err).to.be.an.instanceof(E.EACCESS)
+    })
   })
 
-  // describe('updateFileShare', function() {
+  describe('updateFileShare', function() {
+    let shareUUID
+    let post = { writelist: [aliceUUID],
+                 readlist: [bobUUID],
+                 collection: [uuid2, uuid4, uuid6, uuid9]
+               }
+    // root node is different from general dirctory/file node
+    // root is a node, but with some special properties
+    n1.type = 'private'
+    n1.owner = userUUID
+    beforeEach(async() => {
+      let fileShare = await fsSer.createFileShare(userUUID, post)
+      shareUUID = fileShare.doc.uuid
+    })
 
-  // })
+    it('should return error if share is not found', async () => {
+      let err
+      let uuid = '6790cdcb-8bce-4c67-9768-202a90aad8bf'
+      let patch = [{path: 'writelist',
+                    operation: 'add',
+                    value: [charlieUUID]
+                  }]
+      try {
+        await fsSer.updateFileShare(userUUID, uuid, patch)
+      }
+      catch(e) {
+        err = e
+      }
+      expect(err).to.be.an.instanceof(E.ENOENT)
+    })
 
-  // describe('deleteFileShare', function() {
+    it('should return error if user is not the author', async () => {
+      let err
+      let patch = [{path: 'writelist',
+                    operation: 'add',
+                    value: [charlieUUID]
+                  }]
+      try {
+        await fsSer.updateFileShare(aliceUUID, shareUUID, patch)
+      }
+      catch(e) {
+        err = e
+      }
+      expect(err).to.be.an.instanceof(E.EACCESS)
+    })
 
-  // })
+    it('should return error if mandatory props not defined in patch', async () => {
+      let err
+      let patch = [{path: 'writelist',
+                    value: [charlieUUID]
+                  }]
+      try {
+        await fsSer.updateFileShare(userUUID, shareUUID, patch)
+      }
+      catch(e) {
+        err = e
+      }
+      expect(err).to.be.an('error')
+      expect(err.message).to.equal('some mandatory props not defined in object')
+    })
+
+    it('should return error if op.path is not in the given values', async () => {
+      let err
+      let patch = [{path: 'members',
+                    operation: 'add',
+                    value: [charlieUUID]
+                  }]
+      try {
+        await fsSer.updateFileShare(userUUID, shareUUID, patch)
+      }
+      catch(e) {
+        err = e
+      }
+      expect(err).to.be.an.instanceof(E.EINVAL)
+    })
+
+    it('should return error if op.operation is not add or delete', async () => {
+      let err
+      let patch = [{path: 'writelist',
+                    operation: 'update',
+                    value: [charlieUUID]
+                  }]
+      try {
+        await fsSer.updateFileShare(userUUID, shareUUID, patch)
+      }
+      catch(e) {
+        err = e
+      }
+      expect(err).to.be.an.instanceof(E.EINVAL)
+    })
+
+    it('should return error if user is not the owner of root node', async () => {
+      let uuid_1 = 'd20e9aa2-7e66-41d1-8521-0c7e0b3f25d5'
+      let uuid_2 = 'a8eec3c8-70e5-411b-90fd-ee3e181254b9'
+      let node01 = new Node(uuid_1)
+      node01.type = 'private'
+      node01.owner = uuid_2
+      fileData.uuidMap.set(uuid_1, node01)
+
+      let err
+      let patch = [{path: 'collection',
+                    operation: 'add',
+                    value: [uuid_1]
+                  }]
+      try {
+        await fsSer.updateFileShare(userUUID, shareUUID, patch)
+      }
+      catch(e){
+        err = e
+      }
+      expect(err).to.be.an.instanceof(E.EACCESS)
+    })
+
+    it('should return error if the node is in public drive but user not in readSet', async () => {
+      let uuid_1 = 'd20e9aa2-7e66-41d1-8521-0c7e0b3f25d5'
+      let node01 = new Node(uuid_1)
+      node01.type = 'public'
+      node01.shareAllowed = true
+      node01.writelist = [aliceUUID]
+      node01.readlist = [bobUUID]
+      fileData.uuidMap.set(uuid_1, node01)
+
+      let err
+      let patch = [{path: 'collection',
+                    operation: 'add',
+                    value: [uuid_1]
+                  }]
+      try {
+        await fsSer.updateFileShare(userUUID, shareUUID, patch)
+      }
+      catch(e){
+        err = e
+      }
+      expect(err).to.be.an.instanceof(E.EACCESS)
+    })
+  })
+
+  describe('deleteFileShare', function() {
+    let shareUUID
+    let post = { writelist: [aliceUUID],
+                 readlist: [bobUUID],
+                 collection: [uuid2, uuid4, uuid6, uuid9]
+               }
+    // root node is different from general dirctory/file node
+    // root is a node, but with some special properties
+    n1.type = 'private'
+    n1.owner = userUUID
+    beforeEach(async() => {
+      let fileShare = await fsSer.createFileShare(userUUID, post)
+      shareUUID = fileShare.doc.uuid
+    })
+
+    it('should renturn error if share is not found', async () => {
+      let err
+      let uuid = '6790cdcb-8bce-4c67-9768-202a90aad8bf'
+      try {
+        await fsSer.deleteFileShare(userUUID, uuid)
+      }
+      catch(e) {
+        err = e
+      }
+      expect(err).to.be.an.instanceof(E.ENOENT)
+    })
+
+    it('should return error if user is not author', async () => {
+      let err
+      try {
+        await fsSer.updateFileShare(charlieUUID, shareUUID)
+      }
+      catch(e) {
+        err = e
+      }
+      expect(err).to.be.an.instanceof(E.EACCESS)
+    })
+  })
 })
 
 

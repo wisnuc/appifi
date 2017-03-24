@@ -24,8 +24,8 @@ class FileShareService {
     if(!collection.every(isUUID)) throw new E.EINVAL()
     if(!collection.every(uuid => {
       let rootnode = this.fd.uuidMap.get(uuid).root()
-      if(rootnode.type === 'private') return user === rootnode.ower
-      else return rootnode.shareAllowed && !![...rootnode.writelist, ...rootnode.readlist].find(user)
+      if(rootnode.type === 'private') return user === rootnode.owner
+      else return rootnode.shareAllowed && [...rootnode.writelist, ...rootnode.readlist].includes(user)
     }))
       throw new E.EACCESS()
 
@@ -45,29 +45,31 @@ class FileShareService {
     if(!isUUID(user)) throw new E.EINVAL()
     if(!isUUID(shareUUID)) throw new E.EINVAL()
 
-    let share = this.fsd.fileShareMap.get(shareUUID)
+    let share = this.fsd.fsMap.get(shareUUID)
     if(!share) throw new E.ENOENT()
     if(share.doc.author !== user) throw new E.EACCESS()
     
     if(!Array.isArray(patch)) throw new E.EINVAL()
     patch.forEach(op => {
-      if(typeof op !== object) throw new E.EINVAL()
+      if(typeof op !== 'object') throw new E.EINVAL()
 
       validateProps(op, ['path', 'operation', 'value'])
 
       if(complement([op.path], ['writelist', 'readlist', 'collection']).length !== 0)
         throw new E.EINVAL()
-
-      if(op.operation !== 'add' || op.operation !== 'delete')
+      if(op.operation !== 'add' && op.operation !== 'delete'){
         throw new E.EINVAL()
-
+      }
       if(!Array.isArray(op.value)) throw new E.EINVAL()
       if(!op.value.every(isUUID)) throw new E.EINVAL()
+
       if(op.path === 'collection') {
         if(!op.value.every(uuid => {
-          let root = this.fd.uuidMap.get(uuid).root()
-          if(root.type === 'private') return user === root.ower
-          else return root.shareAllowed && !![...root.writelist, ...root.readlist].find(user)
+          let rootnode = this.fd.uuidMap.get(uuid).root()
+          if(rootnode.type === 'private') return user === rootnode.owner
+          else {
+            return rootnode.shareAllowed && [...rootnode.writelist, ...rootnode.readlist].includes(user)
+          }
         }))
           throw new E.EACCESS()
       }      
@@ -81,7 +83,7 @@ class FileShareService {
     if(!isUUID(user)) throw new E.EINVAL()
     if(!isUUID(shareUUID)) throw new E.EINVAL()
 
-    let share = this.fsd.fileShareMap.get(shareUUID)
+    let share = this.fsd.fsMap.get(shareUUID)
     if(!share) throw new E.ENOENT()
     if(share.doc.author !== user) throw new E.EACCESS()
 
