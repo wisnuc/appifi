@@ -117,7 +117,7 @@ module.exports = {
     let decorated = await decorateStorageAsync(pretty)
     let fileSystems = getFileSystems(decorated)
 
-    console.log('[SYSBOOT] storage and fruitmix', JSON.stringify(decorated, null, '  '))
+    console.log('[autoboot] storage and fruitmix', JSON.stringify(decorated, null, '  '))
 
     if (last) {    
       let { type, uuid } = last
@@ -135,7 +135,10 @@ module.exports = {
         }
         return
       }
-    } // no last or lastfs not found
+    } 
+    else {
+      console.log('[autoboot] no lastfs')
+    }
 
     // find all good and ready-to-boot file systems
     let alts = fileSystems.filter(f => {
@@ -156,6 +159,8 @@ module.exports = {
       boot(alts[0])
       this.data = { state: 'alternative', currentFileSystem: simplify(alts[0]) }
     }
+
+    console.log('[autoboot] boot state', this.data)
   },
 
   // manual boot only occurs in maintenance mode.

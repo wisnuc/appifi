@@ -134,7 +134,6 @@ router.delete('/ipaliasing', (req, res) => (async () => {
 
 })().asCallback((err, obj) => respond(res, err, obj)))
 
-
 /**
   POST /mkfs
   {
