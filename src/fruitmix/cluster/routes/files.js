@@ -21,7 +21,7 @@ const router = Router()
 // /files/xxxxxxx <- must be folder
 // TODO modified by jianjin.wu
 // /:nodeUUID?filename=xxx
-router.get('/:nodeUUID', (req, res) => {
+router.get('/:nodeUUID', auth.jwt(), (req, res) => {
 
   let user = req.user
   let query = req.query
@@ -235,3 +235,5 @@ router.delete('/:folderUUID/:nodeUUID', (req, res) => {
     res.status(200).json(null)
   })
 })
+
+export default router

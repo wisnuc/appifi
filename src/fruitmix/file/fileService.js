@@ -46,20 +46,20 @@ class FileService {
     let node = this.data.findNodeByUUID(dirUUID)
 
     if (!node) {
-      let e = new Error(`listFolder: ${dirUUID} not found`)
+      let e = new Error(`navList: ${dirUUID} not found`)
       e.code = 'ENOENT'
       return callback(e)
     }
 
     if (!node.isDirectory()) {
-      let e = new Error(`listFolder: ${dirUUID} is not a folder`)
+      let e = new Error(`navList: ${dirUUID} is not a folder`)
       e.code = 'ENOTDIR'
       return callback(e)
     }
 
     let root = this.data.findNodeByUUID(rootUUID)
     if (!root) {
-      let e = new Error(`listFolder: ${rootUUID} not found`)
+      let e = new Error(`navList: ${rootUUID} not found`)
       e.code = 'ENOENT'
       return callback(e)
     }
@@ -68,14 +68,14 @@ class FileService {
     let index = path.indexOf(root)
 
     if (index === -1) {
-      let e = new Error(`listFolder: ${rootUUID} not an ancestor of ${dirUUID}`)
+      let e = new Error(`navList: ${rootUUID} not an ancestor of ${dirUUID}`)
       e.code = 'EINVAL'
       return callback(e)
     }
 
     let subpath = path.slice(index)
     if (!subpath.every(n => n.userReadable(userUUID))) {
-      let e = new Error(`listFolder: not all ancestors accessible for given user ${userUUID}`)
+      let e = new Error(`navList: not all ancestors accessible for given user ${userUUID}`)
       e.code = 'EACCESS'
       return callback(e)
     }
@@ -234,4 +234,4 @@ class FileService {
   }
 }
 
-export default 
+export default FileService
