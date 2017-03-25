@@ -13,6 +13,13 @@ const mkdirpAsync = Promise.promisify(mkdirp)
 Promise.promisifyAll(fs)
 Promise.promisifyAll(child)
 
+// stat/event    new request (file change)                   timeout                      success        fail
+// init                                                                                   idle           exit
+// idle          wait (with current req)
+// wait          wait (re-timer & req with next new req)     update (with current req)    
+// update        update (current req)                                                     idle           counter > 3 ? idle : counter + 1 & wait (current req)
+// exit
+
 // define some parameters
 const userListConfigPath = '../../test/appifi/lib/samba/model.json'
 let indexProcessArgv = 0;
