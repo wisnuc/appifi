@@ -51,7 +51,7 @@ const App = () => {
   })
 
   // add res.error(), res.success()
-  app.use(require('./middleware/response'))
+  app.use(require('./middleware/response').default)
 
   // app.use(express.static(path.join(__dirname, 'public')))
   app.use('/', require('./routes'))

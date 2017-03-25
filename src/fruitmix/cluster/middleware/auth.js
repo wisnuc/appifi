@@ -4,7 +4,7 @@ import { Strategy as JwtStrategy, ExtractJwt } from 'passport-jwt'
 
 // import models from '../models/models'
 import { secret } from '../../config/passportJwt'
-import { localUsers } from '../models'
+import { localUsers } from '../model'
 
 const httpBasicVerify = (userUUID, password, done) => {
 
@@ -28,6 +28,7 @@ const jwtOpts = {
 }
 
 const jwtVerify = (jwt_payload, done) => {
+  console.log(123456)
   localUsers((e, users) => {
     if(e) return done(e)
     let user = users.find(u => u.uuid === jwt_payload.uuid)
