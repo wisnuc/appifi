@@ -77,7 +77,8 @@ class Update extends SambaManager {
     this.enter()
     updateSambaFiles().then(() => {
       console.log(data)
-      this.success()
+      // this.success()
+      this.error(err)
     }).catch(err => {
       this.error(err)
     })
@@ -99,8 +100,8 @@ class Update extends SambaManager {
   }
 
   error(err) {
-    this.counter += 1
-    if(this.counter >= 3) {
+    this.contents.counter += 1
+    if(this.contents.counter >= 3) {
       if (this.next) {
         this.exit()
         this.setState(Wait, this.next)
@@ -115,6 +116,7 @@ class Update extends SambaManager {
         console.log(data)
         this.success()
       }).catch(err => {
+        console.log('run again')
         this.error(err)
       })
     }
@@ -524,7 +526,6 @@ const updateSambaFiles = async () => {
 
     debug('reloading smbd configuration')
     await child.execAsync('systemctl restart smbd')
-
   }
   catch (e) {
     // console.log(e)
