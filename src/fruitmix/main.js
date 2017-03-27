@@ -45,9 +45,10 @@ if (cluster.isMaster) {
   Master().asCallback(err => {
 
 		if (err) {
-			console.log('fruitmix master failed to start', err)
+			console.log('fruitmix master failed to start, exit', err)
 			process.exit(1)
 		}
+
 	})
 } 
 else {

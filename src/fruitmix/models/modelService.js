@@ -1,6 +1,6 @@
 import path from 'path'
 import fs from 'fs'
-import EventEmitter from 'events'
+// import EventEmitter from 'events'
 
 import bcrypt from 'bcrypt'
 import UUID from 'node-uuid'
@@ -67,10 +67,10 @@ const upgradeData = (users, drives) => {
   return { users: newUsers, drives: newDrives };
 }
 
-class ModelService extends EventEmitter {
+class ModelService {
 
   constructor(froot, modelData) {
-    super();
+    // super();
     this.froot = froot;
     this.modelData = modelData;
   }
@@ -92,11 +92,12 @@ class ModelService extends EventEmitter {
       let drives = await fileToJsonAsync(dpath);
       let obj = upgradeData(users, drives);
       // upgrade data add create all service drive
-      this.modelData.emit('drivesCreated', obj.drives.filter(d => d.type ==='service'));
-      return await this.modelData.updateModelAsync(obj.users, obj.drives);
+      // this.modelData.emit('drivesCreated', obj.drives.filter(d => d.type ==='service'));
+      // return await this.modelData.updateModelAsync(obj.users, obj.drives);
+      return await this.modelData.initModelAsync(obj.usres, obj.drives)
     } catch (e) {
       if (e.code !== 'ENOENT') throw e;
-      return await this.modelData.updateModelAsync([], []);
+      // return await this.modelData.updateModelAsync([], []);
     }
   }
 
@@ -171,8 +172,8 @@ class ModelService extends EventEmitter {
     let newDrives = [ homeDrive, libraryDrive, serviceDrive ];
     
     await this.modelData.createUserAsync(newUser, newDrives);
-    this.emit('drivesCreated', this.modelData.drives.filter(d =>
-      d.uuid === home || d.uuid === library || d.uuid === service));
+    // this.emit('drivesCreated', this.modelData.drives.filter(d =>
+    //  d.uuid === home || d.uuid === library || d.uuid === service));
 
     return {
       type, uuid, username, nologin, isFirstUser, isAdmin,
@@ -204,7 +205,7 @@ class ModelService extends EventEmitter {
     }]
 
     await this.modelData.createUserAsync(newUser, newDrives);
-    this.emit('drivesCreated', this.modelData.drives.filter(d => d.uuid === service));
+    // this.emit('drivesCreated', this.modelData.drives.filter(d => d.uuid === service));
 
     return { type, username, uuid, email, avatar, service }
   }
@@ -283,7 +284,7 @@ class ModelService extends EventEmitter {
     let newDrive = { uuid, type, label, writelist, readlist, shareAllowed };
     
     await this.modelData.createDriveAsync(newDrive);
-    this.emit('drivesCreated', [newDrive]);
+    // this.emit('drivesCreated', [newDrive]);
     return newDrive;
   }
 
@@ -299,7 +300,7 @@ class ModelService extends EventEmitter {
     let next = Object.assign({}, drive, props);
 
     await this.modelData.updateDriveAsync(next);
-    this.emit('driveUpdated', next);
+    // this.emit('driveUpdated', next);
     return next;
   }
 
@@ -313,7 +314,7 @@ class ModelService extends EventEmitter {
     let drive = this.modelData.drives.find(d => d.uuid === props.driveuuid);
     // delete
     await this.modelData.deleteDriveAsync(props.driveuuid);
-    this.emit('drivesDeleted', drive);
+    // this.emit('drivesDeleted', drive);
     return null;
   }
 
