@@ -5,8 +5,7 @@ const fs = require('fs')
 const config = require('./config')
 
 const localUsers = callback => {
-
-  let mpath = path.join(config.path, 'models', 'model.json')
+  let mpath = path.join(process.cwd(), 'models', 'model.json')
   fs.readFile(mpath, (err, data) => {
     if (err) return callback(err)
     let model

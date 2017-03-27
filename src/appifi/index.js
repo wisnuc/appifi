@@ -77,4 +77,4 @@ app.post('/server', (req, res) =>
         result
       })))
 
-export default app
+module.exports = app

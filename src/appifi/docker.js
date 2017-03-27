@@ -3,7 +3,7 @@ import { fs, child, rimrafAsync, mkdirpAsync } from '../common/async'
 import Debug from 'debug'
 import request from 'superagent'
 
-import { storeState, storeDispatch } from '../reducers'
+import { storeState, storeDispatch } from './reducers'
 import { containerStart, containerStop, containerCreate, containerDelete } from './dockerApi'
 import appstore from './appstore' // TODO
 import { dockerEventsAgent, DockerEvents } from './dockerEvents'

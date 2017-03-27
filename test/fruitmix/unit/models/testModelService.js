@@ -210,7 +210,7 @@ describe(path.basename(__filename), () => {
 				password: 'world',
 			};
 			try {
-				await model.createLocalUserAsync(uuid_1, props);
+				await model.createLocalUserAsync({ useruuid: uuid_1, props });
 				fs.readFile(mfile, (err, data) => {
 					if(err) return done(err);
 					let res = JSON.parse(data.toString());
@@ -228,7 +228,7 @@ describe(path.basename(__filename), () => {
 				label: 'remote service'
 			};
 			try {
-				await model.createRemoteUserAsync(uuid_1, props);
+				await model.createRemoteUserAsync({ useruuid: uuid_1, props });
 				fs.readFile(mfile, (err, data) => {
 					if(err) return done(err);
 					let res = JSON.parse(data.toString());
@@ -241,7 +241,7 @@ describe(path.basename(__filename), () => {
 
 		it('update admin', async done => {
 			try {
-				await model.updateUserAsync(uuid_1, { username : 'pandaa', uuid: uuid_1 });
+				await model.updateUserAsync({ useruuid:uuid_1, props: { username : 'pandaa', uuid: uuid_1 } });
 				fs.readFile(mfile, (err, data) => {
 					if(err) return done(err);
 					let res = JSON.parse(data.toString());
@@ -260,9 +260,9 @@ describe(path.basename(__filename), () => {
 				password: 'world',
 			};
 			try {
-				await model.createLocalUserAsync(uuid_1, props);
+				await model.createLocalUserAsync({ useruuid: uuid_1, props });
 				let uuid = model.modelData.users.filter(u => u.username === 'pandab').map(u => u.uuid);
-				await model.updateUserAsync(uuid[0], { username : 'pandac' });
+				await model.updateUserAsync({ useruuid: uuid[0], props: { username : 'pandac' } });
 				fs.readFile(mfile, (err, data) => {
 					if(err) return done(err);
 					let res = JSON.parse(data.toString());
@@ -275,7 +275,7 @@ describe(path.basename(__filename), () => {
 
 		it('update password', async done => {
 			try {
-				await model.updatePasswordAsync(uuid_1, 'hello')
+				await model.updatePasswordAsync({ useruuid: uuid_1, pwd: 'hello' })
 				fs.readFile(mfile, (err, data) => {
 					if(err) return done(err);
 					let res = JSON.parse(data.toString());

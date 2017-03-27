@@ -1,8 +1,8 @@
 import path from 'path'
 import fs from 'fs'
 import crypto from 'crypto'
-import { Router } from 'express'
 
+import { Router } from 'express'
 import formidable from 'formidable'
 import UUID from 'node-uuid'
 import validator from 'validator'
@@ -10,10 +10,54 @@ import sanitize from 'sanitize-filename'
 
 import paths from '../lib/paths'
 import config from '../config'
-// import auth from '../middleware/auth'
+import auth from '../middleware/auth'
 // import Models from '../models'
 
 const router = Router()
+
+// this may be either file or folder
+// if it's a folder, return childrens
+// if it's a file, download
+// /files/xxxxxxx <- must be folder
+// TODO modified by jianjin.wu
+// /:nodeUUID?filename=xxx
+router.get('/:nodeUUID', auth.jwt(), (req, res) => {
+
+  let user = req.user
+  let query = req.query
+  let params = req.params
+
+  let args =  { userUUID: user.uuid, dirUUID: params.dirUUID, name: query.filename }
+  config.ipc.call('createFileCheck', args, (e, node) => {
+    if (e) return res.error(e)
+    if (!node) return res.error('node not found')
+
+      if (node.isDirectory()) {
+
+        if (query.navroot) {
+
+          let args = { userUUID: user.uuid, dirUUID: node.uuid, rootUUID: query.navroot }
+          config.ipc.call('navList', args, (e, ret) => {
+            e ? res.error(e) : res.success(ret)
+          })
+        } else {
+
+          let args = { userUUID: user.uuid, dirUUID: node.uuid }
+          config.ipc.call('list', args, (e, ret) => {
+            e ? res.error(e) : res.success(ret)
+          })
+        }
+      } else if (node.isFile()) {
+
+        let args = { userUUID: user.uuid, fileUUID: node.uuid }
+        config.ipc.call('readFile', args, (e, filepath) => {
+          e ? res.error(e) : res.success(filepath)
+        })
+      } else {
+        res.error(null, 404)
+      }
+    })
+})
 
 // /:nodeUUID?filename=xxx
 router.post('/:nodeUUID', (req, res) => {
@@ -56,7 +100,7 @@ router.post('/:nodeUUID', (req, res) => {
           }
           
           let args = { userUUID: user.uuid, srcpath: file.path, dirUUID, name, sha256 }
-          
+
           config.ipc('createFile', args, (e, newDode) => {
             return res.status(200).json(Object.assign({}, newNode, {
                parent: newNode.parent.uuid,
@@ -143,3 +187,53 @@ router.post('/:nodeUUID', (req, res) => {
     }
   })
 })
+
+//segments for upload 
+
+router.post('/segments', auth.jwt(), (req, res) => {
+  //fields maybe size sha256 start
+  if(req.is(multipart/form-data)){// upload a segment
+
+  }else{//create new file segments 
+    let { size, segmentsize, nodeuuid, sha256,  name } = req.body
+    let args =  { userUUID:req.user.uuid, dirUUID: nodeuuid, name }
+    
+    config.ipc.call('createFileCheck', args, (e, node) => {
+      if(e) return res.status(500).json({ code: 'ENOENT' })
+      if (node.isDirectory()) {
+        //create folder if not exist for user 
+        fs.mkdir(path.join(paths.get('segments'), req.user.uuid), (err) => {
+          if(err) return res.status(500).json({})
+          
+        })
+      }else // overwrite Forbidden
+        return res.status(401).json({})
+    })
+    
+  }
+})
+
+// delete a directory or file
+// TODO modified by jianjin.wu
+router.delete('/:folderUUID/:nodeUUID', (req, res) => {
+
+  let filer = Models.getModel('filer')
+  let user = req.user
+
+  let folderUUID = req.params.folderUUID
+  let nodeUUID = req.params.nodeUUID
+
+  let folder = filer.findNodeByUUID(folderUUID)
+  let node = filer.findNodeByUUID(nodeUUID)
+  let args = { userUUID: user.uuid, targetUUID: node.uuid }
+  config.ipc.call('del', args, (e, node) => {
+    if (e) return res.error(e)
+    if (!node) return res.error('node not found')
+  })
+  filer.deleteFileOrFolder(user.uuid, folder, node, err => {
+    if (err) res.status(500).json(null)
+    res.status(200).json(null)
+  })
+})
+
+export default router

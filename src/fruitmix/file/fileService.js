@@ -23,27 +23,67 @@ class FileService {
         type: 'file',
         name: node.name,
         size: node.size,
-        mtime: node.mtime, // FIXME need change mtime definition
-        
+        mtime: node.mtime, // FIXME need change mtime definition      
       }
     }
   }
 
   // list all items inside a directory
-  list(userUUID, dirUUID) {
+  list({ userUUID, dirUUID }, callback) {
 
     let node = this.data.findNodeByUUID(dirUUID)
     if (!node) throw
     if (!(node instanceof DirectoryNode)) throw
-    if (!(userCanRead(userUUID, node)) throw
+    if (!(userCanRead(userUUID, node))) throw
 
     return node.getChildren().map(n => nodeProps(n))
   }
 
-  // list all items inside a directory, with given 
-  navList(userUUID, dirUUID, rootUUID) {
+  // list all items inside a directory, with given
+  // TODO modified by jianjin.wu
+  navList({ userUUID, dirUUID, rootUUID }, callback) {
 
     let node = this.data.findNodeByUUID(dirUUID)
+
+    if (!node) {
+      let e = new Error(`navList: ${dirUUID} not found`)
+      e.code = 'ENOENT'
+      return callback(e)
+    }
+
+    if (!node.isDirectory()) {
+      let e = new Error(`navList: ${dirUUID} is not a folder`)
+      e.code = 'ENOTDIR'
+      return callback(e)
+    }
+
+    let root = this.data.findNodeByUUID(rootUUID)
+    if (!root) {
+      let e = new Error(`navList: ${rootUUID} not found`)
+      e.code = 'ENOENT'
+      return callback(e)
+    }
+
+    let path = node.nodepath()
+    let index = path.indexOf(root)
+
+    if (index === -1) {
+      let e = new Error(`navList: ${rootUUID} not an ancestor of ${dirUUID}`)
+      e.code = 'EINVAL'
+      return callback(e)
+    }
+
+    let subpath = path.slice(index)
+    if (!subpath.every(n => n.userReadable(userUUID))) {
+      let e = new Error(`navList: not all ancestors accessible for given user ${userUUID}`)
+      e.code = 'EACCESS'
+      return callback(e)
+    }
+
+    return callback(null, {
+      path: subpath.map(n => nodeProps(n)),
+      children: node.getChildren().map(n => nodeProps(n))
+    })
   }
 
   tree(userUUID, dirUUID) {
@@ -53,7 +93,26 @@ class FileService {
   }
 
   // return abspath of file
-  readFile(userUUID, fileUUID) {
+  // TODO modified by jianjin.wu
+  readFile({ userUUID, fileUUID }, callback) {
+
+    let node = this.data.findNodeByUUID(fileUUID)
+    let result
+    if (!node) {
+      result = 'ENOENT'
+    }
+
+    if (!node.isFile()) {
+      result = 'EINVAL'
+    }
+
+    if (!node.userReadable(userUUID)) {
+      result = 'EACCESS'
+    }
+
+    result = result || node.namepath()
+
+    return callback(null, result)
   }
 
   // dump a whole drive
@@ -141,7 +200,7 @@ class FileService {
     let node = this.data.findNodeByUUID(dirUUID)
     if(!node || userCanRead(userUUID, node))
       return callback(new Error('Permission denied'))
-    if(this.list(userUUID, dirUUID).find(child => child.name == name && child.type === 'file'))
+    if(node.isDirectory() && this.list(userUUID, dirUUID).find(child => child.name == name && child.type === 'file'))
       return callback(new Error('File exist')) // TODO
     callback(null, node)
   }
@@ -159,7 +218,8 @@ class FileService {
   }
 
   // delete a directory or file
-  del(userUUID, targetUUID, callback) {
+  del({ userUUID, targetUUID }, callback) {
+
   }
 
   register(ipc){
@@ -167,7 +227,11 @@ class FileService {
     ipc.register('createFile', this.createFile.bind(this))
     ipc.register('createDirectory', this.createDirectory.bind(this))
     ipc.register('overwriteFile', this.overwriteFile.bind(this))
+    ipc.register('list', this.list.bind(this))
+    ipc.register('navList', this.navList.bind(this))
+    ipc.register('readFile', this.readFile.bind(this))
+    ipc.register('del', this.del.bind(this))
   }
 }
 
-export default 
+export default FileService

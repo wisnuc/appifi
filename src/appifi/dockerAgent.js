@@ -5,7 +5,7 @@ import events from 'events'
 import { HttpStatusError } from './error'
 
 /*
- * This class uses a transform as input inot which user write data, and redirect data
+ * This class uses a transform as input into which user write data, and redirect data
  * to readline, emit parsed json object 
  */
 class connection extends events {

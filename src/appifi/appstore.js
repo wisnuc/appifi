@@ -1,6 +1,6 @@
 import Debug from 'debug'
 import request from 'superagent'
-import { storeState, storeDispatch } from '../reducers'
+import { storeState, storeDispatch } from './reducers'
 import { validateRecipe, calcRecipeKeyString } from './dockerApps'
 
 const debug = Debug('appifi:appstore')

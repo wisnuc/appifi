@@ -1,8 +1,11 @@
-import { fs, child } from '../common/async'
-import Debug from 'debug'
-import { storeState, storeDispatch } from '../reducers'
+const Promise = require('bluebird')
 
-const debug = Debug('system:barcelona')
+const fs = Promise.promisifyAll(require('fs'))
+const child = Promise.promisifyAll(require('child_process'))
+
+const Config = require('./config')
+const debug = require('debug')('system:barcelona')
+
 const BOARD_EVENT = '/proc/BOARD_event'
 const FAN_IO = '/proc/FAN_io'
 
@@ -51,7 +54,7 @@ const job = () =>
 
 const pollingPowerButton = () => setInterval(job, 1000)
 
-const barcelonaInit = () => {
+const init = () => {
 
   console.log('[system] barcelona init')
 
@@ -61,7 +64,7 @@ const barcelonaInit = () => {
   pollingPowerButton() 
   console.log('[barcelona] start polling power button')
 
-  let fanScale = storeState().config.barcelonaFanScale
+  let fanScale = Config.get().barcelonaFanScale
   writeFanScale(fanScale, err => {
     if (err) {
       console.log('[barcelona] failed set barcelonaFanScale')
@@ -73,6 +76,6 @@ const barcelonaInit = () => {
   })
 } 
 
-export { readFanSpeed, writeFanScale, barcelonaInit }
+module.exports = { readFanSpeed, writeFanScale, init }
 
 

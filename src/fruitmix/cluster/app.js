@@ -9,6 +9,8 @@ import auth from './middleware/auth'
 import login from './routes/login'
 import ipctest from './routes/ipctest'
 
+import response from './middleware/response'
+import index from './routes/index'
 /**
 import init from './routes/init'
 import token from './routes/token'
@@ -50,9 +52,14 @@ const App = () => {
     }, 1000)
   })
 
+  // add res.error(), res.success()
+  app.use(response)
+
   // app.use(express.static(path.join(__dirname, 'public')))
-  app.use('/login', login)
-  app.use('/ipctest', ipctest)
+  app.use('/', index)
+
+  // app.use('/login', login)
+  // app.use('/ipctest', ipctest)
 /**
   app.use('/init', init)
   app.use('/token', token)

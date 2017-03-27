@@ -1,7 +1,7 @@
 import child from 'child_process'
 import Debug from 'debug'
 
-import { storeState, storeDispatch, storeSubscribe } from '../reducers'
+import { storeState, storeDispatch, storeSubscribe } from './reducers'
 import { calcRecipeKeyString } from './dockerApps'
 import { daemonStart, daemonStop, daemonStartOp, containerStart, containerStop, containerDelete,
   installedStart, installedStop, appInstall, appUninstall} from './docker'

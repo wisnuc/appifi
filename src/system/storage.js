@@ -1,17 +1,19 @@
-import path from 'path'
-import { fs, child, mkdirpAsync, rimrafAsync } from '../common/async'
-import Debug from 'debug'
+const path = require('path')
+
+import mkdirp from 'mkdirp'
+import { fs, child, mkdirpAsync } from '../common/async'
 import UUID from 'node-uuid'
 
-import { storeState, storeDispatch } from '../reducers'
-import udevInfoAsync from './udevInfoAsync'
-import probeMountsAsync from './procMountsAsync'
-import probeSwapsAsync from './procSwapsAsync'
-import probeVolumesAsync from './btrfsfishowAsync'
-import probeUsageAsync from './btrfsusageAsync'
-import Persistent from './persistent'
 
-const debug = Debug('system:storage')
+import udevInfoAsync from './storage/udevInfoAsync'
+import probeMountsAsync from './storage/procMountsAsync'
+import probeSwapsAsync from './storage/procSwapsAsync'
+import probeVolumesAsync from './storage/btrfsfishowAsync'
+import probeUsageAsync from './storage/btrfsusageAsync'
+
+const createPersistenceAsync = require('../common/persistence')
+
+const debug = require('debug')('system:storage')
 
 const volumeMountpoint = vol => '/run/wisnuc/volumes/' + vol.uuid
 const blockMountpoint = blk => '/run/wisnuc/blocks/' + blk.name
@@ -347,7 +349,7 @@ const unformattableReason = (block, blocks) => {
     // return object
     return {
       name: block.name,
-      reason: block.stats.isRootFs ? 'isRootFS' : 'isActiveSwap'
+      reason: block.stats.isRootFS ? 'isRootFS' : 'isActiveSwap'
     }
   }
   return null
@@ -395,31 +397,129 @@ const statVolumes = (volumes, mounts) =>
     }
   })
 
-let firstLog = 0
+const prettyStorage = storage => {
 
-const ipc = new Persistent('/run/wisnuc/storage', '/run/wisnuc', 1000)
+  // adapt ports
+  let ports = storage.ports.map(port => ({
+    path: port.path,
+    subsystem: port.props.subsystem
+  }))
 
-const refreshStorageAsync = async () => {
+  // add name, devname, path, removable and size, merged into stats
+  let blocks 
+  blocks = storage.blocks.map(blk => Object.assign({
+    name: blk.name,
+    devname: blk.props.devname,
+    path: blk.path,
+    removable: blk.sysfsProps[0].attrs.removable === "1",
+    size: parseInt(blk.sysfsProps[0].attrs.size)
+  }, blk.stats))
 
-  let storage = await probeStorageWithUsages()
+  // process volumes
+  let volumes = storage.volumes.map(vol => { 
 
-  // stat volumes first
-  statVolumes(storage.volumes, storage.mounts)
-  statBlocks(storage) 
+    // find usage for this volume
+    let usage = storage.usages.find(usg => usg.mountpoint === vol.stats.mountpoint)
 
-  if (!firstLog++) console.log('[storage] first probe', storage)
-  storeDispatch({
-    type: 'STORAGE_UPDATE',
-    data: storage
+    // this is possible if volume mount failed, which is observed on at least one machine
+    if (!usage) {
+
+      let mapped = Object.assign({}, vol, vol.stats) // without usage
+      delete mapped.stats
+
+      mapped.devices = vol.devices.map(dev => {
+        return {
+          name: path.basename(dev.path), // tricky
+          path: dev.path,
+          id: dev.id,
+          used: dev.used,
+        }
+      })
+
+      return mapped
+    }
+
+    // copy level 1 props
+    let copy = {
+      overall: usage.overall,
+      system: usage.system,
+      metadata: usage.metadata,
+      data: usage.data,
+      unallocated: usage.unallocated
+    }
+
+    // copy volume object, merge stats and usage
+    let mapped = Object.assign({}, vol, vol.stats, { usage: copy })
+    delete mapped.stats
+
+    // copy level 2 (usage for each volume device) into devices
+    mapped.devices = vol.devices.map(dev => {
+
+      let devUsage = usage.devices.find(ud => ud.name === dev.path)
+      return {
+        name: path.basename(dev.path), // tricky
+        path: dev.path,
+        id: dev.id,
+        used: dev.used,
+        size: devUsage.size,
+        unallocated: devUsage.unallocated,
+        system: devUsage.system,
+        metadata: devUsage.metadata,
+        data: devUsage.data
+      }
+    })
+    
+    return mapped
   })
 
-  ipc.save(storage) 
-
-  debug('storage refreshed: ', storage)
-  return storage
+  return { ports, blocks, volumes }
 }
 
+/**
 
+  Since persistence has no abort method (even if it has one, instant stopping all actions
+  can not be guaranteed in nodejs), this may be an issue for testing.
 
-export { refreshStorageAsync }
+  one way is using different fpath for each test, avoiding race in writing files.
+
+  another way is to nullify persistence in testing, if that feature are not going to be tested.
+
+  this module is not written in JavaScript class and singleton-ized with an object. Instead,
+  it is a global object itself, which eliminates the need of another global object as holder.
+
+  But all states are held in one object and initAsync method will refresh them all. This
+  enables testability. 
+   
+**/
+module.exports = {
+
+  persistence: null,
+  storage: null,
+  
+  get: function (pretty) {
+    if (!this.storage) return null
+    return pretty 
+      ? prettyStorage(this.storage)
+      : this.storage
+  },
+
+  refreshAsync: async function (pretty) {
+
+    let storage = await probeStorageWithUsages() 
+    statVolumes(storage.volumes, storage.mounts)
+    statBlocks(storage)
+
+    this.storage = storage
+    if (this.persistence) this.persistence.save(prettyStorage(storage))
+
+    return this.get(pretty)
+  },
+
+  initAsync: async function (fpath, tmpdir) {
+
+    this.persistence = await createPersistenceAsync(fpath, tmpdir, 500)
+    this.storage = null
+  }
+}
+
 

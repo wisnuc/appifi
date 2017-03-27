@@ -1,6 +1,7 @@
 import os from 'os'
 import child from 'child_process'
-import { storeState, storeDispatch } from '../reducers'
+
+const Config = require('./config')
 
 // ip addr add ${ipaddr}/24 dev ${dev} label ${dev}:wisnuc
 // ip addr del ${ipaddr}/24 dev ${dev}:wisnuc
@@ -36,12 +37,10 @@ const _addAlias = (dev, addr, callback) =>
 
 const addAlias = (dev, addr, callback) => 
   _addAlias(dev, addr, err => 
-    err ? callback(err) : callback(K(null)(
-      storeDispatch({
-        type: 'CONFIG_IP_ALIASING',
-        data: aliases().map(alias => ({ mac: alias.mac, ipv4: alias.ipv4}))
-      })
-    )))
+    err 
+      ? callback(err) 
+      : callback(Config.updateIpAliasing(aliases().map(alias => 
+          ({ mac: alias.mac, ipv4: alias.ipv4})))))
 
 const addAliasAsync = Promise.promisify(addAlias)
 
@@ -50,12 +49,10 @@ const _deleteAlias = (dev, addr, callback) =>
 
 const deleteAlias = (dev, addr, callback) => 
   _deleteAlias(dev, addr, err => 
-    err ? callback(err) : callback(K(null)(
-      storeDispatch({
-        type: 'CONFIG_IP_ALIASING',
-        data: aliases().map(alias => ({ mac: alias.mac, ipv4: alias.ipv4}))
-      })
-    )))
+    err 
+      ? callback(err) 
+      : callback(Config.updateIpAliasing(aliases().map(alias => 
+          ({ mac: alias.mac, ipv4: alias.ipv4})))))
 
 const deleteAliasAsync = Promise.promisify(deleteAlias)
 
@@ -64,11 +61,11 @@ const init = async () => {
   let i
   let activated = aliases()
 
-  while (storeState().config === null) {
+  while (!Config.get()) {
     await Promise.delay(100)
   }
 
-  let config = storeState().config.ipAliasing
+  let config = Config.get().ipAliasing
 
   // find common entries
   let common = activated.filter(act => !!config.find(conf => act.mac === conf.mac && act.ipv4 === conf.ipv4))

@@ -4,7 +4,7 @@ import sinon from 'sinon'
 
 import { rimrafAsync, mkdirpAsync } from '../../../src/fruitmix/util/async'
 import { createDocumentStore } from '../../../src/fruitmix/lib/documentStore'
-import { createMediaShareStore } from '../../../src/fruitmix/lib/mediaShareStore'
+import { createMediaShareStore } from '../../../src/fruitmix/lib/shareStore'
 import { createMediaShareData } from '../../../src/fruitmix/media/mediaShareData'
 import { createMediaShareService } from '../../../src/fruitmix/media/mediaShareService'
 import E from '../../../src/fruitmix/lib/error'
@@ -72,7 +72,7 @@ describe(path.basename(__filename), function() {
   })
 
   describe('createMediaShare',function() {
-    it('should return error if user is not a invalid uuid', async () => {
+    it('should return error if user is a invalid uuid', async () => {
       let err
       let post = {maintainers: [aliceUUID],
                   viewers: [bobUUID],
@@ -114,7 +114,7 @@ describe(path.basename(__filename), function() {
       expect(err.message).to.equal('some mandatory props not defined in object')
     })
 
-    it('should return error if contents is not a array', async () => {
+    it('should return error if contents is not an array', async () => {
       let err
       let post = {maintainers: [aliceUUID],
                   viewers: [bobUUID],
@@ -276,6 +276,39 @@ describe(path.basename(__filename), function() {
         err = e
       }
       expect(err).to.be.an.instanceof(E.EINVAL)
+    })
+
+    it('should return error if op.operation is not the given values', async () => {
+      let err
+      let patch = [{path: 'maintainers',
+                    operation: 'update',
+                    value: [charlieUUID]
+                  }]
+      try {
+        await msSer.updateMediaShare(userUUID, shareUUID, patch)
+      }
+      catch(e) {
+        err = e
+      }
+      expect(err).to.be.an.instanceof(E.EINVAL)
+    })
+
+    it('should return error if contents is not allowed to be shared', async () => {
+      let err
+      let patch = [{path: 'contents',
+                    operation: 'add',
+                    value: [img002Hash]
+                  }]
+      let stub = sinon.stub(mediaData, 'mediaShareAllowed')
+      stub.returns(false)
+      try {
+        await msSer.updateMediaShare(userUUID, shareUUID, patch)
+      }
+      catch(e) {
+        err = e
+      }
+      stub.restore()
+      expect(err).to.be.an.instanceof(E.EACCESS)
     })
   })
 
