@@ -4,7 +4,6 @@ import child from 'child_process'
 import EventEmitter from 'events'
 import dgram from 'dgram'
 import mkdirp from 'mkdirp'
-import deepEqual from 'deep-equal'
 
 import Debug from 'debug'
 const debug = Debug('appifi:samba')
