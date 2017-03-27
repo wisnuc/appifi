@@ -106,7 +106,8 @@ class ModelService {
 
     try {
       let data = await fileToJsonAsync(this.modelData.modelPath);
-      return await this.modelData.updateModelAsync(data.users, data.drives);
+      // return await this.modelData.updateModelAsync(data.users, data.drives);
+      return await this.modelData.initModelAsync(data.users, data.drives)
     }
     catch (e) {
       if (e.code !== 'ENOENT') throw e;
@@ -318,11 +319,16 @@ class ModelService {
     return null;
   }
 
+/**
   register(ipc){
     ipc.register('createLocalUser', asCallback(this.createLocalUserAsync).bind(this))
     ipc.register('updateUser', asCallback(this.updateUserAsync).bind(this))
   }
+**/
 
+  register(ipc) {
+    ipc.register('createLocalUser', (args, callback) => this.createLocalUserAsync(args).asCallback(callback))
+  }
 }
 
 const asCallback = (asyncFn) => 

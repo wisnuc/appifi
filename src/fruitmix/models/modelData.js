@@ -297,6 +297,7 @@ class ModelData extends EventEmitter {
 
   async initModelAsync(users, drives) {
     await this.updateModelAsync(users, drives)
+    console.log('initModelAsync', drives)
     this.emit('drivesCreated', drives)
   }
 
@@ -307,7 +308,7 @@ class ModelData extends EventEmitter {
     let nextDrives = [...this.drives, ...newDrives]
 
     await this.updateModelAsync(nextUsers, nextDrives)
-    this.emit('drivesCreated', drives)
+    this.emit('drivesCreated', newDrives)
   }
 
   // both local and remote

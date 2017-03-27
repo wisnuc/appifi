@@ -61,5 +61,6 @@ export default async () => {
 
   const ipc = config.ipc
   ipc.register('ipctest', (text, callback) => process.nextTick(() => callback(null, text.toUpperCase())))
+  modelService.register(ipc) 
 }
 
