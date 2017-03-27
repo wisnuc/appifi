@@ -90,7 +90,9 @@ const createDocumentStore = (froot, callback) => {
   }) 
 }
 
-export { createDocumentStore }
+const createDocumentStoreAsync = Promise.promisify(createDocumentStore)
+
+export { createDocumentStore, createDocumentStoreAsync }
 
 
 
