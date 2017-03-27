@@ -86,7 +86,7 @@ const probeAsync = async mountpoint => {
   // retrieve users
   try {
 
-    let users = await retrieveNewUserAsync(froot)
+    let users = await retrieveNewUsersAsync(froot)
     if (users === 'ENOENT') users = await retrieveOldUsersAsync(froot)
     if (users === 'ENOENT' || users === 'EPARSE')
       return { status: 'EDATA' }
@@ -107,8 +107,13 @@ const probeAsync = async mountpoint => {
 
 const fork = (cfs, init, callback) => {
 
+	let froot = path.join(cfs.mountpoint, 'wisnuc', 'fruitmix')
+	let modpath = path.resolve(__dirname, '../../fruitmix/main')
+
+	console.log(`forking fruitmix @ ${froot}`)
+
   let finished = false
-  let fruitmix = child.fork(modpath, ['--path', froot])
+  let fruitmix = child.fork(modpath, ['--path', froot], { env : { FORK : 1 } })
 
   fruitmix.on('error', err => {
 
@@ -129,6 +134,8 @@ const fork = (cfs, init, callback) => {
 
     switch (message.type) {
       case 'fruitmixStarted':
+
+				console.log('[fork fruitmix] fruitmixStarted message received from child process')
 
         if (init) {
           fruitmix.send('message', {
@@ -191,6 +198,8 @@ const fork = (cfs, init, callback) => {
 
 module.exports = {
   probeAsync,  
-  forkAsync: async (cfs, init = null) => Promise.promisify(fork)  
+  forkAsync: async function (cfs, init = null) {
+		await Promise.promisify(fork)(cfs, init)
+	}
 }
 

@@ -80,6 +80,8 @@ module.exports = {
 
     deepFreeze(this.config)
     if (dirty) this.persistence.save(this.config)
+
+		console.log('[system] config loaded', this.config)
   },
 
   merge(props) {

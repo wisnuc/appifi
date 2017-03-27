@@ -12,8 +12,9 @@ const storageFile = '/run/wisnuc/storage'
 const storageTmpDir = '/run/wisnuc/tmp'
 
 const main = async () => {
-  await Device.probeAsync()
+	// config should start before device, otherwise, barcelona init would fail.
   await Config.initAsync(configFile, configTmpDir)
+  await Device.probeAsync()
   await Storage.initAsync(storageFile, storageTmpDir)
   await Boot.autoBootAsync()
   appifi(system)
