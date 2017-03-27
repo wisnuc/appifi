@@ -10,7 +10,7 @@
     "devel-appstore": "nodemon --exec babel-node --ignore web --ignore public/bundle.js src/app.js --appstore-master",
     "webpack": "webpack --watch --watch-poll",
     "unit": "node_modules/.bin/mocha --compilers js:babel-core/register --recursive test",
-    "fruit-devel": "PORT=3721 nodemon --exec babel-node src/fruitmix/main.js",
+    "fruit-devel": "PORT=3721 nodemon --exec babel-node --ignore tmptest src/fruitmix/main.js --path tmptest",
     "fruit-family": "PORT=3721 nodemon --ignore 'family/*' --exec babel-node src/fruitmix/main.js --family",
     "fruit-unit": "NODE_PATH=. mocha --compilers js:babel-core/register --recursive --sort test/fruitmix/unit",
     "fruit-algo": "NODE_PATH=. NODE_ENV=test mocha --compilers js:babel-core/register --recursive --sort test/fruitmix/algo",
