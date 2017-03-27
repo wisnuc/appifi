@@ -5,12 +5,13 @@ const child = require('child_process')
 const Developer = require('./developer')
 const Config = require('./config')
 const Storage = require('./storage')
-const probeFruitmixAsync = require('./fruitmix')
+const fruitmix = require('./boot/fruitmix')
 
 const debug = require('debug')('system:boot')
 
-const bootableFsTypes = ['btrfs']
+const bootableFsTypes = ['btrfs', 'ext4', 'ntfs']
 
+/**
 const decorateStorageAsync = async pretty => {
 
   let mps = [] 
@@ -31,7 +32,7 @@ const decorateStorageAsync = async pretty => {
   })
 
   await Promise
-    .map(mps, obj => probeFruitmixAsync(obj.mp).reflect())
+    .map(mps, obj => fruitmix.probeAsync(obj.mp).reflect())
     .each((inspection, index) => {
       if (inspection.isFulfilled())
         mps[index].ref.wisnuc = inspection.value() 
@@ -43,6 +44,29 @@ const decorateStorageAsync = async pretty => {
 
   return pretty
 }
+**/
+
+// extract file systems out of storage object
+const extractFileSystems = ({blocks, volumes}) => 
+  [ ...blocks.filter(blk => blk.isFileSystem && !blk.isVolumeDevice),  
+    ...volumes.filter(vol => vol.isFileSystem) ]
+
+// 
+const shouldProbeFileSystem = fsys =>
+  (fsys.isVolume && fsys.isMounted && !fsys.isMissing) 
+  || (!fsys.isVolume && fsys.isMounted && (fsys.isExt4 || fsys.isNTFS))
+
+// 
+const probeAllAsync = async fileSystems =>
+  Promise.map(fileSystems.filter(shouldProbeFileSystem), 
+    async fsys => {
+      try {
+        fsys.wisnuc = await fruitmix.probeAsync(fsys.mountpoint)
+      }
+      catch {
+        fsys.wisnuc = 'ERROR"
+      }
+    })
 
 const throwError = message => { throw new Error(message) }
 
@@ -72,54 +96,43 @@ const shutdownAsync = async reboot => {
   await child.execAsync(cmd)
 }
 
-const getFileSystems = ({blocks, volumes}) => 
-  [
-    ...blocks.filter(blk => blk.isFileSystem && !blk.isVolumeDevice),  
-    ...volumes.filter(vol => vol.isFileSystem) 
-  ]
-
-// 
-const simplify = fsys => ({ 
-  type: fsys.fileSystemType, 
-  uuid: fsys.fileSystemUUID, 
-  mountpoint: fsys.mountpoint
-})
+const cfs = fsys => ({ type: fsys.fileSystemType, uuid: fsys.fileSystemUUID, mountpoint: fsys.mountpoint })
 
 module.exports = {
 
   data: null,
 
   decoratedStorageAsync: async function () {
-    let pretty = Storage.get()
-    return await decorateStorageAsync(pretty)
+    let pretty = Storage.get(true)
+    let fileSystems = extractFileSystems(pretty)
+    await probeAllAsync(fileSystems)
+    return pretty
   },
 
-  boot(fsys, username, password) {
+  boot (cfs, init) {
 
+    let { type, uuid, mountpoint } = cfs
     let modpath = path.resolve(__dirname, '..', 'fruitmix/main.js')     
-    let message = {
-      type: 'START',
-      path: path.join(fsys.mountpoint, 'wisnuc', 'fruitmix'),
-      username, password
-    } 
+    let froot = path.join(fsys.mountpoint, 'wisnuc', 'fruitmix')
 
-    let fruitmix = child.fork(modpath)
-    fruitmix.send(message)
+    let fruitmix = child.fork(modpath, ['--path', froot])
+    this.fruitmix.on('message', 
     
-    Config.updateLastFileSystem({type: fsys.fileSystemType, uuid: fsys.fileSystemUUID})
+    Config.updateLastFileSystem({type: target.type, uuid: target.uuid})
   },
 
   // autoboot
   autoBootAsync: async function () {
 
-    let last = Config.get().lastFileSystem
     let pretty = await Storage.refreshAsync(true) 
-    let decorated = await decorateStorageAsync(pretty)
-    let fileSystems = getFileSystems(decorated)
+    let fileSystems = extractFileSystems(pretty)
+    await probeAllAsync(fileSystems)
 
-    console.log('[autoboot] storage and fruitmix', JSON.stringify(decorated, null, '  '))
+    console.log('[autoboot] storage and fruitmix', JSON.stringify(pretty, null, '  '))
 
+    let last = Config.get().lastFileSystem
     if (last) {    
+
       let { type, uuid } = last
       let fsys = fileSystems.find(f => f.fileSystemType === type && f.fileSystemUUID === uuid)
 
@@ -128,7 +141,7 @@ module.exports = {
           assertFileSystemGood(fsys)
           assertReadyToBoot(fsys.wisnuc)
           boot(fsys)
-          this.data = { state: 'normal', currentFileSystem: simplify(fsys) }
+          this.data = { state: 'normal', currentFileSystem: cfs(fsys) }
         }
         catch (e) {
           this.data = { state: 'maintenance', error: 'EFAIL', message: err.message }
@@ -157,7 +170,7 @@ module.exports = {
     }
     else {
       boot(alts[0])
-      this.data = { state: 'alternative', currentFileSystem: simplify(alts[0]) }
+      this.data = { state: 'alternative', currentFileSystem: cfs(alts[0]) }
     }
 
     console.log('[autoboot] boot state', this.data)
@@ -169,14 +182,18 @@ module.exports = {
 
     if (this.data.state !== 'maintenance') throw new Error('not in maintenance mode')    
 
+
     let { type, uuid, username, password, install, reinstall } = args 
+
     let pretty = await Storage.refreshAsync(true) 
-    let decorated = await decorateStorageAsync(pretty)
-    let fileSystems = getFileSystems(decorated)
+    let fileSystems = extractFileSystems(pretty)
+    // await probeAllAsync(fileSystems) // FIXME no need to probe all!
+
     let fsys = fileSystems.find(f => f.type === type && f.uuid === uuid)
     if (!fsys) throw Object.assign(new Error('target not found'), { code: 'ENOENT' })
 
     assertFileSystemGood(fsys)
+    let wisnuc = await probeAsync(fsys)
 
     if (reinstall === true || install === true) {
       if (reinstall) {
@@ -184,16 +201,16 @@ module.exports = {
         await mkdirpAsync(path.join(fsys.mountpoint, 'wisnuc', 'fruitmix'))
       }
       else {
-        assertReadyToInstall(fsys.wisnuc)
+        assertReadyToInstall(wisnuc)
       }
-      boot(fsys, { username, password })
+      boot(cfs(fsys), { username, password })
     }
     else { // direct boot, fruitmix status must be 'READY'
-      assertReadyToBoot(fsys.wisnuc) 
-      boot(fsys)
+      assertReadyToBoot(wisnuc) 
+      boot(cfs(fsys))
     }
 
-    this.data = { state: 'normal', currentFileSystem: simplify(fsys) }
+    this.data = { state: 'normal', currentFileSystem: cfs(fsys) }
   },
 
   // reboot

@@ -1,7 +1,6 @@
 import { createStore, combineReducers } from 'redux'
 import Debug from 'debug'
 
-
 const debug = Debug('system:reducers')
 
 const developer = (state = {}, action) => {

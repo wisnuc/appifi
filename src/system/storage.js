@@ -397,35 +397,6 @@ const statVolumes = (volumes, mounts) =>
     }
   })
 
-/**
-let firstLog = 0
-
-// TODO
-
-mkdirp.sync('/run/wisnuc/')
-const ipc = new Persistent('/run/wisnuc/storage', '/run/wisnuc', 1000)
-
-const refreshStorageAsync = async () => {
-
-  let storage = await probeStorageWithUsages()
-
-  // stat volumes first
-  statVolumes(storage.volumes, storage.mounts)
-  statBlocks(storage) 
-
-  if (!firstLog++) console.log('[storage] first probe', storage)
-  storeDispatch({
-    type: 'STORAGE_UPDATE',
-    data: storage
-  })
-
-  ipc.save(storage) 
-
-  debug('storage refreshed: ', storage)
-  return storage
-}
-**/
-
 const prettyStorage = storage => {
 
   // adapt ports
@@ -539,9 +510,7 @@ module.exports = {
     statBlocks(storage)
 
     this.storage = storage
-
-    if (this.persistence) 
-      this.persistence.save(prettyStorage(storage))
+    if (this.persistence) this.persistence.save(prettyStorage(storage))
 
     return this.get(pretty)
   },
