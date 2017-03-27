@@ -64,3 +64,4 @@ _docpress/
 
 .nyc_output/
 
+test/appifi/lib/samba/model.json

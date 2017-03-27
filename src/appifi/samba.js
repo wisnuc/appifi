@@ -77,8 +77,8 @@ class Update extends SambaManager {
     this.enter()
     updateSambaFiles().then(() => {
       console.log(data)
-      // this.success()
-      this.error(err)
+      this.success()
+      // this.error(err)
     }).catch(err => {
       this.error(err)
     })
@@ -573,20 +573,6 @@ const initSamba = async () => {
 
 // create udp server
 const createUdpServer = (callback) => {
-
-  let udp = dgram.createSocket('udp4')
-  udp.on('listening', () => {
-    callback(null, new SmbAudit(udp))
-  }) 
- 
-  udp.once('error', err => {
-    if (err.code === 'EADDRINUSE') callback(err)
-  }) 
-  udp.bind(3721)
-}
-
-// create udp server
-const createUdpSender = (callback) => {
 
   let udp = dgram.createSocket('udp4')
   udp.on('listening', () => {
