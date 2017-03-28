@@ -295,6 +295,12 @@ class ModelData extends EventEmitter {
     finally{ this.putLock() }
   }
 
+  async initModelAsync(users, drives) {
+    await this.updateModelAsync(users, drives)
+    // console.log('initModelAsync', drives)
+    this.emit('drivesCreated', drives)
+  }
+
   // both local and remote user
   async createUserAsync(newUser, newDrives) {
 
@@ -302,6 +308,7 @@ class ModelData extends EventEmitter {
     let nextDrives = [...this.drives, ...newDrives]
 
     await this.updateModelAsync(nextUsers, nextDrives)
+    this.emit('drivesCreated', newDrives)
   }
 
   // both local and remote
@@ -355,6 +362,7 @@ class ModelData extends EventEmitter {
     let nextDrives = [...this.drives, newDrive]
     
     await this.updateModelAsync(this.users, nextDrives)
+    this.emit('drivesCreated', [newDrive])
   } 
 
   async updateDriveAsync(next) {
@@ -374,6 +382,7 @@ class ModelData extends EventEmitter {
     ]
 
     await this.updateModelAsync(this.users, nextDrives)
+    this.emit('driveUpdated', drive, next)
   }
 
   async deleteDriveAsync(driveUUID) {
@@ -390,6 +399,7 @@ class ModelData extends EventEmitter {
     ]
 
     await this.updateModelAsync(this.users, nextDrives)
+    this.emit('drivesDeleted', [drive])
   }
 }
 

@@ -52,11 +52,19 @@ class FileData extends EventEmitter {
   }
 
   probeStarted(node) {
-    console.log(`node ${node.uuid} probe started`)
+    console.log(`node ${node.uuid} ${node.name} probe started`)
   }
 
   probeStopped(node) {
-    console.log(`node ${node.uuid} probe stopped`)
+    console.log(`node ${node.uuid} ${node.name} probe stopped`)
+  }
+
+  hashStarted(node) {
+    console.log(`node ${node.uuid} ${node.name} hash started`)
+  }
+
+  hashStopped(node) {
+    console.log(`node ${node.uuid} ${node.name} hash stopped`)
   }
 
   createNode(parent, props) {

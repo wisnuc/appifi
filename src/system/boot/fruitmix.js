@@ -86,7 +86,7 @@ const probeAsync = async mountpoint => {
   // retrieve users
   try {
 
-    let users = await retrieveNewUserAsync(froot)
+    let users = await retrieveNewUsersAsync(froot)
     if (users === 'ENOENT') users = await retrieveOldUsersAsync(froot)
     if (users === 'ENOENT' || users === 'EPARSE')
       return { status: 'EDATA' }
@@ -107,8 +107,16 @@ const probeAsync = async mountpoint => {
 
 const fork = (cfs, init, callback) => {
 
+	let froot = path.join(cfs.mountpoint, 'wisnuc', 'fruitmix')
+	let modpath = path.resolve(__dirname, '../../fruitmix/main')
+
+	console.log(`forking fruitmix, waiting for 120s before timeout`)
+
   let finished = false
-  let fruitmix = child.fork(modpath, ['--path', froot])
+  let fruitmix = child.fork(modpath, ['--path', froot], { 
+		env: Object.assign({}, process.env, { FORK: 1 }),
+		stdio: ['ignore', 1, 2, 'ipc'] 		// this looks weird, but must be in this format, see node doc
+	})
 
   fruitmix.on('error', err => {
 
@@ -129,6 +137,8 @@ const fork = (cfs, init, callback) => {
 
     switch (message.type) {
       case 'fruitmixStarted':
+
+				console.log('[fork fruitmix] fruitmixStarted message received from child process')
 
         if (init) {
           fruitmix.send('message', {
@@ -174,23 +184,25 @@ const fork = (cfs, init, callback) => {
     console.log(`[BOOT] fruitmix closed. code: ${code}, signal: ${signal}`)
 
     finished = true
-    callback(new E.EEXIT())  // TODO
+    callback(new Error(`unexpected exit with code ${code} and signal ${signal}`))
   })
 
   setTimeout(() => {
     
     if (finished === true) return
 
-    console.log(`[BOOT] failed to start fruitmix in 15s`)
+    console.log(`[BOOT] failed to start fruitmix in 120s`)
 
     fruitmix.kill()
     finished = true
-    callback(new E.ETIMEOUT())
-  }, 15000)
+    callback(new Error('fork fruitmix timeout'))
+  }, 120000)
 }
 
 module.exports = {
   probeAsync,  
-  forkAsync: async (cfs, init = null) => Promise.promisify(fork)  
+  forkAsync: async function (cfs, init = null) {
+		await Promise.promisify(fork)(cfs, init)
+	}
 }
 

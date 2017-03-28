@@ -6,13 +6,56 @@ import Node from './node'
 class FileNode extends Node {
 
   // create file node
-  constructor(ctx, props) {
+  constructor(ctx, xstat) {
     super(ctx)
-      this.worker = createHashWorker((err, xstat) => {
+    this.uuid = xstat.uuid
+    this.name = xstat.name 
+    this.mtime = xstat.mtime
+    this.size = xstat.size
+    this.magic = xstat.magic
+    this.hash = xstat.hash
+  }
+
+  // TODO
+  identify() {
+    this.worker = this.createIdentifyWorker(() => {
+      this.worker = null
+      if (err) return // TODO 
+      this.ctx.emit('metadata', meta)
+    })
+  }
+
+  // before update
+  updating(xstat) {
+    this.abort()
+    if (this.magic && this.hash) {                  // already appeared
+      if (!xstat.magic || xstat.hash !== this.hash) // not media or hash changed
+        this.ctx.emit('mediaDisappearing', this)
+    }
+  }
+
+  // after update
+  updated() {
+
+    if (typeof this.magic !== 'string') return
+
+    if (this.hash && this.magic) 
+      this.ctx.emit('mediaAppeared', this)
+    else {
+      this.worker = hash(this.abspath(), this.uuid)
+      this.worker.on('error', err => {
         this.worker = null
-        if (err) return // TODO
-        this.update(props)
-      }) 
+        this.ctx.hashStopped(this)
+      })
+
+      this.worker.on('finish', xstat => {
+        this.worker = null
+        this.ctx.hashStopped(this)
+        this.update(xstat)
+      })
+
+      this.worker.start()
+    }
   }
 
   // attach
@@ -21,22 +64,22 @@ class FileNode extends Node {
     this.updated()
   }
 
-  update(props) {
+  update(xstat) {
 
-    if ( this.name === props.name
-      && this.mtime === props.mtime
-      && this.size === props.size
-      && this.magic === props.magic
-      && this.hash === props.hash)
+    if ( this.name === xstat.name
+      && this.mtime === xstat.mtime
+      && this.size === xstat.size
+      && this.magic === xstat.magic
+      && this.hash === xstat.hash)
       return
 
-    this.updating(props)
+    this.updating(xstat)
 
-    this.name = props.name
-    this.mtime = props.mtime
-    this.size = props.size
-    this.magic = props.magic
-    this.hash = props.hash
+    this.name = xstat.name
+    this.mtime = xstat.mtime
+    this.size = xstat.size
+    this.magic = xstat.magic
+    this.hash = xstat.hash
 
     this.updated()
   }
@@ -51,7 +94,6 @@ class FileNode extends Node {
   isFile() {
     return true
   }
-  
 }
 
 export default FileNode

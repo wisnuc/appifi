@@ -496,14 +496,14 @@ module.exports = {
   persistence: null,
   storage: null,
   
-  get: function (pretty) {
+  get: function (raw) {
     if (!this.storage) return null
-    return pretty 
-      ? prettyStorage(this.storage)
-      : this.storage
+    return raw
+			? this.storage
+      : prettyStorage(this.storage)
   },
 
-  refreshAsync: async function (pretty) {
+  refreshAsync: async function () {
 
     let storage = await probeStorageWithUsages() 
     statVolumes(storage.volumes, storage.mounts)
@@ -512,7 +512,7 @@ module.exports = {
     this.storage = storage
     if (this.persistence) this.persistence.save(prettyStorage(storage))
 
-    return this.get(pretty)
+    return prettyStorage(this.storage)
   },
 
   initAsync: async function (fpath, tmpdir) {
