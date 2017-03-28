@@ -94,7 +94,7 @@ class ModelService {
       // upgrade data add create all service drive
       // this.modelData.emit('drivesCreated', obj.drives.filter(d => d.type ==='service'));
       // return await this.modelData.updateModelAsync(obj.users, obj.drives);
-      return await this.modelData.initModelAsync(obj.usres, obj.drives)
+      return await this.modelData.initModelAsync(obj.users, obj.drives)
     } catch (e) {
       if (e.code !== 'ENOENT') throw e;
       // return await this.modelData.updateModelAsync([], []);
