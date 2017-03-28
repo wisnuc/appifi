@@ -4,7 +4,8 @@ const Device = require('./system/device')
 const Storage = require('./system/storage')
 
 const system = require('./system/index')
-const appifi = require('./appifi/appifi')
+const systemServer = require('./system/system')
+// const appifi = require('./appifi/appifi')
 
 const configFile = '/etc/wisnuc.json'
 const configTmpDir = '/etc/wisnuc/tmp'
@@ -17,7 +18,8 @@ const main = async () => {
   await Device.probeAsync()
   await Storage.initAsync(storageFile, storageTmpDir)
   await Boot.autoBootAsync()
-  appifi(system)
+  // appifi(system)
+  systemServer(system)
 }
 
 main().asCallback(err => err && console.log(err))
