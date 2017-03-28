@@ -1,6 +1,8 @@
 import path from 'path'
 import fs from 'fs'
 import child from 'child_process'
+import stream from 'stream'
+import crypto from 'crypto'
 
 import xattr from 'fs-xattr'
 import Promise from 'bluebird'
@@ -36,22 +38,30 @@ const updateFileMap = async ({ sha256, segmentHash, req , start, userUUID }, cal
   let abort = false
   try{
     await fs.statAsync(filePath)
-     
+    
     let attr = JSON.parse(await xattr.getAsync(filePath, FILEMAP))
 
     let segments = attr.segments
     if(segments.length < start || segments[start] === 1)
-      callback(null, false)
+      return callback(null, true)// already uploaded
 
     let position = attr.segmentsize * start
 
     let writeStream =  fs.createWriteStream(filePath,{ flags: 'r+', start: position})
     
-    let hashTransform = HashTransform()
+    let Transform = stream.Transform
 
-    req.pipe(hashTransform)
-
-    hashTransform.pipe(writeStream)
+    let hashStream = crypto.createHash('sha256')
+    hashStream.setEncoding('hex')
+    let hashTransform = new Transform({
+      transform: function (buf, enc, next){
+        hashStream.update(buf)
+        this.push(buf)
+        next()
+      }
+    })
+    // req.pipe(fs.createWriteStream('helloworld.txt'))
+    req.pipe(hashTransform).pipe(writeStream)
 
     hashTransform.on('error', err => {
       if(abort) return
@@ -70,19 +80,23 @@ const updateFileMap = async ({ sha256, segmentHash, req , start, userUUID }, cal
       abort = true
       return callback(err)
     })
-    
-    writeStream.on('finish', async () => {
+
+    req.on('end', async () => {
       if(abort) return 
       try{
-        if(hashTransform.getHash() !== segmentHash)
-          return callback(null, false)        
+        hashStream.end()
+        let hash = hashStream.read()
+        if(hash !== segmentHash){
+          console.log('失败' + hash)
+          return callback(null, false)        }
         let attr = JSON.parse(await xattr.getAsync(filePath, FILEMAP))
         attr.segments[start] = 1
-        await xattr.setAsync(filepath, FILEMAP, JSON.stringify(attr))
+        await xattr.setAsync(filePath, FILEMAP, JSON.stringify(attr))
         return callback(null, true) 
       }catch(e){ 
         if(abort) return 
         abort = true
+        console.log(e)
         return callback(e) 
       }        
     })
@@ -90,6 +104,7 @@ const updateFileMap = async ({ sha256, segmentHash, req , start, userUUID }, cal
   }catch(e){
      if(abort) return 
       abort = true
+      console.log('error5')
       return callback(e) 
    }
 
