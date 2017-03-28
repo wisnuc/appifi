@@ -14,7 +14,7 @@ let router = Router()
 
 router.use('/init', init)
 router.use('/login', login)
-//fixme auth
+//FIXME: auth
 // app.use('/*', auth.jwt())
 router.use('/files', files)
 router.use('/filemap', filemap)

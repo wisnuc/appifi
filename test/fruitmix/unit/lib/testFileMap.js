@@ -9,9 +9,9 @@ import Promise from 'bluebird'
 import paths from '../../../../src/fruitmix/cluster/lib/paths'
 import { rimrafAsync, mkdirpAsync } from '../../../../src/fruitmix/util/async'
 import { createFileMap, updateFileMap } from '../../../../src/fruitmix/cluster/lib/filemap'
-// import App from  '../../../../src/fruitmix/cluster/app'
+import App from  '../../../../src/fruitmix/cluster/app'
 
-// let app = App()
+let app = App()
 
 paths.setRoot(process.cwd(), () => {})
 
@@ -22,8 +22,8 @@ const size =  2331588 ,
   nodeuuid = '123456',
   sha256 = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
   name = '20141213.jpg',
-  userUUID = '111222333444555'
-
+  userUUID = '111222333444555',
+  segmentHash = '7803e8fa1b804d40d412bcd28737e3ae027768ecc559b51a284fbcadcd0e21be12346'
 // const createArgs =  { size, segmentsize, nodeuuid, sha256, name, userUUID }
 describe(path.basename(__filename), function() {
    describe('create filemap', function() {
@@ -44,19 +44,40 @@ describe(path.basename(__filename), function() {
         done()
       })
     })
-   })
 
-   afterEach('clean filemap', async (done)=> {
+    afterEach('clean filemap', async (done)=> {
       await rimrafAsync('filemap')
       await mkdirpAsync('filemap')
       done()
+    })
    })
 
-  //  const createFileMapAPI = (post) => 
-  //   request(app)
-  //   .post(`/filemap/${nodeuuid}?filename=${name}`)
-  //   .set(post)
-  //   .expect(200)
+  
+   describe('test updateFileMap', function() {
+    beforeEach( async (done) => {
+      await rimrafAsync('filemap')
+      await mkdirpAsync('filemap')
+      let createFileMapArgs = { size, segmentsize, nodeuuid, sha256, name, userUUID}
+      createFileMap(createFileMapArgs, (e , data) => {
+        if(e) return done(e)
+        done()
+      })
+    })
 
+    it(`should update file ${ sha256 } in file map `, (done) => {
+      //  /nodeuuid?filename=xxx&segmentHash=xxx&start=xx&sha256=xxx
+      let req = request(app).put(`/filemap/${ nodeuuid }?filename=${ name }&segmentHash=${ segmentHash }&start=0&sha256=${ sha256 }`)
+      let stream = fs.createReadStream(imagePath)
+      stream.pipe(req)
+      req.expect(200)
+      done()
+    })
+
+    // afterEach('clean filemap', async (done)=> {
+    //   await rimrafAsync('filemap')
+    //   await mkdirpAsync('filemap')
+    //   done()
+    // })
+   })
   
 })

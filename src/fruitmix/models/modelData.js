@@ -297,7 +297,7 @@ class ModelData extends EventEmitter {
 
   async initModelAsync(users, drives) {
     await this.updateModelAsync(users, drives)
-    console.log('initModelAsync', drives)
+    // console.log('initModelAsync', drives)
     this.emit('drivesCreated', drives)
   }
 

@@ -32,9 +32,6 @@ const getUnixPwdEncrypt = password =>
 const arrDedup = (arr1, arr2) => 
   Array.from(new Set([...arr1, ...arr2]))
 
-const fileToJsonAsync = async filepath => 
-  JSON.parse(await fs.readFileAsync(filepath))
-
 const upgradeData = (users, drives) => {
 
   let newDrives = drives.map(drive => ({
@@ -84,12 +81,12 @@ class ModelService {
   }
 
   async initializeFallbackAsync () {
-    let mpath = this.modelData.modelPath;
+    let mpath = path.join(this.froot, 'models/model.json');
     let upath = path.join(path.dirname(mpath), 'users.json');
     let dpath = path.join(path.dirname(mpath), 'drives.json');
     try {
-      let users = await fileToJsonAsync(upath);
-      let drives = await fileToJsonAsync(dpath);
+      let users = JSON.parse(await fs.readFileAsync(upath));
+      let drives = JSON.parse(await fs.readFileAsync(dpath));
       let obj = upgradeData(users, drives);
       // upgrade data add create all service drive
       // this.modelData.emit('drivesCreated', obj.drives.filter(d => d.type ==='service'));
@@ -97,7 +94,7 @@ class ModelService {
       return await this.modelData.initModelAsync(obj.users, obj.drives)
     } catch (e) {
       if (e.code !== 'ENOENT') throw e;
-      // return await this.modelData.updateModelAsync([], []);
+      return await this.modelData.initModelAsync([], []);
     }
   }
 
@@ -105,7 +102,8 @@ class ModelService {
   async initializeAsync() {
 
     try {
-      let data = await fileToJsonAsync(this.modelData.modelPath);
+      let mpath = path.join(this.froot, 'models/model.json');
+      let data = JSON.parse(await fs.readFileAsync(mpath));
       // return await this.modelData.updateModelAsync(data.users, data.drives);
       return await this.modelData.initModelAsync(data.users, data.drives)
     }
@@ -116,7 +114,10 @@ class ModelService {
 
   }
 
-  async createLocalUserAsync({ useruuid, props }) {
+  // async createLocalUserAsync({ useruuid, props }) {
+  async createLocalUserAsync(args) {
+
+    let { useruuid, props } = args;
     // check permission
     let users = this.modelData.users;
     let admins = users.filter(u => u.isAdmin === true).map(u => u.uuid);
@@ -183,7 +184,10 @@ class ModelService {
     }
   }
 
-  async createRemoteUserAsync({ useruuid, props }) {
+  // async createRemoteUserAsync({ useruuid, props }) {
+  async createRemoteUserAsync(args) {
+
+    let { useruuid, props } = args;
     // check permission
     let users = this.modelData.users;
     let admins = users.filter(u => u.isAdmin === true).map(u => u.uuid);
@@ -211,7 +215,10 @@ class ModelService {
     return { type, username, uuid, email, avatar, service }
   }
 
-  async updateUserAsync({ useruuid, props }) {
+  // async updateUserAsync({ useruuid, props }) {
+  async updateUserAsync(args) {
+
+    let { useruuid, props } = args;
     // check permission
     let user = this.modelData.users.find(u => u.uuid === useruuid);
     if (!user)
@@ -222,7 +229,10 @@ class ModelService {
     return next;
   }
 
-  async updatePasswordAsync({ useruuid, pwd }) {
+  // async updatePasswordAsync({ useruuid, pwd }) {
+  async updatePasswordAsync(args) {
+
+    let { useruuid, pwd } = args;
     // check permission
     let user = this.modelData.users.find(u => u.uuid === useruuid);
     if (!user)
@@ -328,12 +338,13 @@ class ModelService {
 
   register(ipc) {
     ipc.register('createLocalUser', (args, callback) => this.createLocalUserAsync(args).asCallback(callback))
+    ipc.register('updateUser', (args, callback) => this.updateUserAsync(args).asCallback(callback))
   }
 }
 
-const asCallback = (asyncFn) => 
-  (args, callback) => asyncFn.asCallback(args, (e, data) =>
-    e ? callback(e) : callback(null, data))
+// const asCallback = (asyncFn) => 
+//   (args, callback) => asyncFn.asCallback(args, (e, data) =>
+//     e ? callback(e) : callback(null, data))
 
 const createModelService = (froot) =>
   new ModelService(froot, createModelData(froot));

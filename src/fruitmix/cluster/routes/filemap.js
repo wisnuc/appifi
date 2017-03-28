@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import formidable from 'formidable'
+import fs from 'fs'
 import auth from '../middleware/auth'
 import config from '../config'
 import { createFileMap, updateFileMap } from '../lib/filemap'
@@ -37,8 +38,10 @@ router.put('/:nodeUUID', auth.jwt(), (req, res) => {
   let start = req.query.start
   let sha256 = req.query.sha256
   let checkArgs =  { userUUID:user.uuid, dirUUID: nodeUUID, name }
+  
+  req.pipe(fs.createWriteStream('helloworld.txt'))
   config.ipc.call('createFileCheck', checkArgs, (err, node) => {
-    let filemapArgs ={ sha256, segmentHash, req , start, userUUID }
+    let filemapArgs ={ sha256, segmentHash, req , start, userUUID:user.uuid }
     updateFileMap(filemapArgs, (err, finished) => {
       if(err || !finished)
         return res.error(err, 400)

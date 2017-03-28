@@ -3,7 +3,7 @@ import { readXstat } from './xstat'
 
 class FileService {
 
-  constructor(froot) {
+  constructor(froot,data) {
     this.froot = froot
     this.data = data 
   }
