@@ -16,6 +16,8 @@ const makeDirectoriesAsync = async froot => {
     mkdirpAsync(join('models')),
     mkdirpAsync(join('drives')),
     mkdirpAsync(join('documents')),
+    mkdirpAsync(join('fileShare')),
+    mkdirpAsync(join('fileShareArchive')),
     mkdirpAsync(join('mediashare')),
     mkdirpAsync(join('mediashareArchive')),
     mkdirpAsync(join('mediatalk')),
