@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "users": [
+    {
+      "type": "local",
+      "uuid": "5da92303-33a1-4f79-8d8f-a7b6becde6c3",
+      "username": "panda",
+      "nologin": false,
+      "avatar": null,
+      "email": null,
+      "isFirstUser": true,
+      "isAdmin": true,
+      "home": "b9aa7c34-8b86-4306-9042-396cf8fa1a9c",
+      "library": "f97f9e1f-848b-4ed4-bd47-1ddfa82b2777",
+      "service": "f97f9e1f-848b-4ed4-bd47-1ddfa82b5432",
+      "password": "$2a$10$ejkgWk/ChHcLyZiic1H2CeLdoVcz15eZ/3Lymj1ncimVvq6E7OvWy",
+      "unixPassword": "somestr",
+      "smbPassword": "066DDFD4EF0E9CD7C256FE77191EF43C",
+      "unixuid": 2000,
+      "unixname": "pandaa",
+      "friends": [],
+      "credentials": {
+        "publicKey": "some str",
+        "privateKey": "some str"
+      },
+      "lastChangeTime": 1489644639494
+    }
+  ],
+  "drives": [
+    {
+      "uuid": "b9aa7c34-8b86-4306-9042-396cf8fa1a9c",
+      "owner": "5da92303-33a1-4f79-8d8f-a7b6becde6c3",
+      "type": "private",
+      "label": "home"
+    },
+    {
+      "uuid": "f97f9e1f-848b-4ed4-bd47-1ddfa82b2777",
+      "owner": "5da92303-33a1-4f79-8d8f-a7b6becde6c3",
+      "type": "private",
+      "label": "library"
+    },
+    {
+      "uuid": "f97f9e1f-848b-4ed4-bd47-1ddfa82b5432",
+      "owner": "5da92303-33a1-4f79-8d8f-a7b6becde6c3",
+      "type": "private",
+      "label": "service"
+    },
+    {
+      "uuid": "b76ed624-d028-4959-b61a-119d212c0cb1",
+      "type": "public",
+      "label": "public driveB",
+      "writelist": [],
+      "readlist": [],
+      "shareAllowed": false
+    }
+  ]
+}

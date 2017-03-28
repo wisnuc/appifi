@@ -1,8 +1,8 @@
-var path = require('path')
-var os = require('os')
+const Promise = require('bluebird')
 
-var Promise = require('bluebird')
-var fs = Promise.promisifyAll(require('fs'))
+const path = require('path')
+const fs = Promise.promisifyAll(require('fs'))
+const os = require('os')
 
 var classNetPath ='/sys/class/net'
 
@@ -92,7 +92,7 @@ const enumerateNetworkInterfacesAsync = async () => {
 //   .then(r => console.log(JSON.stringify(r, null, '  ')))
 //   .catch(e => console.log(e))
 
-export default async () => ({
+module.exports = async () => ({
   os: os.networkInterfaces(),
   sysfs: await enumerateNetworkInterfacesAsync()
 })

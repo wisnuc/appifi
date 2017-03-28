@@ -1,6 +1,8 @@
-import path from 'path'
-import fs from 'fs'
-import UUID from 'node-uuid'
+const path = require('path')
+const fs = require('fs')
+
+const mkdirpAsync = Promise.promisify(require('mkdirp'))
+const UUID = require('node-uuid')
 
 // state: IDLE, PENDING, WIP
 //
@@ -45,6 +47,10 @@ class Pending extends State {
       this.setState(Working, this.data) 
     }, this.ctx.delay)
   }
+
+  exit() {
+    clearTimeout(this.timer)
+  }
 }
 
 class Working extends State {
@@ -57,18 +63,22 @@ class Working extends State {
 
     let tmpfile = path.join(this.ctx.tmpdir, UUID.v4())
     fs.writeFile(tmpfile, JSON.stringify(this.data), err => {
-      if (err) return this.error()
+
+      if (err) return this.error(err)
       fs.rename(tmpfile, this.ctx.target, err => {
 
         // console.log('finished saving data', data, err)
 
-        if (err) return this.error()
+        if (err) return this.error(err)
         this.success()
       }) 
     })
   } 
 
-  error() {
+  error(e) {
+
+    console.log('error writing persistent file', e)
+
     if (this.next)    
       this.setState(Pending, this.next)
     else
@@ -88,8 +98,7 @@ class Working extends State {
   }
 }
 
-
-class Persistent {
+class Persistence {
 
   constructor(target, tmpdir, delay) {
 
@@ -104,5 +113,13 @@ class Persistent {
   }
 }
 
-export default Persistent
+const createPersistenceAsync = async (target, tmpdir, delay) => {
+
+  let targetDir = path.dirname(target)
+  await mkdirpAsync(targetDir)
+  await mkdirpAsync(tmpdir)
+  return new Persistence(target, tmpdir, delay)
+}
+
+module.exports = createPersistenceAsync
 

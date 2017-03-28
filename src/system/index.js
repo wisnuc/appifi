@@ -1,64 +1,100 @@
-import child from 'child_process'
-import os from 'os'
+const Promise = require('bluebird')
+const child = require('child_process')
+const os = require('os')
 
-import express from 'express'
-import Debug from 'debug'
-import validator from 'validator'
+const router = require('express').Router()
+const validator = require('validator')
 
-import { storeState, storeDispatch } from '../reducers'
+const debug = require('debug')('system:index')
 
-import mir from './mir'
-import { mac2dev, aliases, addAliasAsync, deleteAliasAsync } from './ipaliasing'
-import eth from './eth'
-import deviceProbe from './device'
-import { readFanSpeed, writeFanScale } from './barcelona'
+const Boot = require('./boot')
+const Config = require('./config')
+const Device = require('./device')
+const Storage = require('./storage')
 
-const codeMap = new Map([
-  ['EINVAL', 400],
-  ['ENOENT', 404]
-]) 
-
-const debug = Debug('system:router')
-const router = express.Router()
-
-const nolog = (res) => {
-  res.nolog = true
-  return res 
-}
-
-const K = x => y => x
-const respond = (res, err, obj) => err ? 
-    res.status(codeMap.get(err.code) || 500)
-      .json({ code: err.code, message: err.message }) :
-    res.status(200)
-      .json((obj === null || obj === undefined) ? { message: 'success' } : obj)
-
-const timedate = (callback) => 
-  child.exec('timedatectl', (err, stdout, stderr) => 
-    err ? callback(err) : callback(null, stdout.toString().split('\n').filter(l => l.length)
-      .reduce((prev, curr) => {
-        let pair = curr.split(': ').map(str => str.trim())
-        prev[pair[0]] = pair[1]
-        return prev
-      }, {})))
-
-// device
-router.get('/device', (req, res) => {
-  res.status(200).json(storeState().device)
-})
+const { readFanSpeed, writeFanScale } = require('./barcelona')
+const eth = require('./eth')
+const { mac2dev, aliases, addAliasAsync, deleteAliasAsync } = require('./ipaliasing')
 
 
-// timedate
-router.get('/timedate', (req, res) => timedate((err, obj) => 
-  err ? K(res.status(500).end())(console.log(err)) : res.status(200).json(obj)))
+const nolog = (res) => Object.assign(res, { nolog: true })
+const unsupported = res => res.status(404).json({ code: 'EUNSUPPORTED', message: 'not supported' })
+const invalid = res => res.status(400).json({ code: 'EINVAL', message: 'invalid api arguments' })
+const error = (res, err) => res.status(500).json({ code: err.code, message: err.message })
+const ok = (res, obj) => res.status(200).json(obj ? obj : ({ message: 'ok' }))
 
-// network
-router.get('/net', (req, res) => eth().asCallback((err, obj) => 
-  err ? K(res.status(500).end())(console.log(err)) : res.status(200).json(obj))) 
+/**
+ *  GET /boot, return boot status
+ */
+router.get('/boot', (req, res) => nolog(res).status(200).json(Boot.get()))
 
-// aliasing
+/**
+ *  POST /boot
+ *  {
+ *    op: STRING_ENUM,      // 'poweroff', 'reboot', 'rebootMaintenance', 'rebootNormal' 
+ *    target: STRING_UUID,  // file system uuid, required only if op === 'rebootNormal'
+ *  }
+ */
+const isValidBootArgs = body => 
+  typeof body === 'object' 
+    && body !== null
+    && !!['poweroff', 'reboot', 'rebootMaintenance', 'rebootNormal'].includes(body.op)
+    && obj.op === 'rebootNormal' 
+      ? (typeof body.target === 'string' && validator.isUUID(body.target))
+      : true
+
+router.post('/boot', (req, res) =>
+  !isValidBootArgs(body)
+    ? invalid(res)
+    : rebootAsync(body.op, body.target).asCallback(err =>
+      err
+        ? error(res, err)
+        : ok(res)))
+
+/**
+ *  GET /device, return device info 
+ */
+router.get('/device', (req, res) => ok(res, Device.get()))
+
+/**
+ *  GET /fan, return { fanSpeed, fanScale }
+ */
+router.get('/fan', (req, res) => 
+  !Device.isWS215i() 
+    ? unsupported(res)
+    : readFanSpeed((err, fanSpeed) => err
+      ? error(res, err)
+      : ok(res, { fanSpeed, fanScale: Config.get().barcelonaFanScale })))
+
+/**
+ *  POST /fan
+ *  {
+ *    fanScale: INTEGER
+ *  }
+ */
+const isValidFanArgs = body => 
+  typeof body === 'object'
+    && body !== null
+    && Number.isIntegery(body.fanScale) 
+    && body.fanScale >= 0 
+    && body.fanScale <= 100
+
+router.post('/fan', (req, res) =>
+  !Device.isWS215i()
+    ? unsupported(res)
+    : !isValidFanArgs(req.body) 
+      ? invalid(res)
+      : writeFanScale(req.body.fanScale, err => 
+        err ? error(res, err) : ok(res)))
+
+/**
+ *  GET /ipaliasing, return ipaliasing (list)
+ */
 router.get('/ipaliasing', (req, res) => res.status(200).json(aliases()))
 
+/**
+ *  POST /ipaliasing
+ */
 router.post('/ipaliasing', (req, res) => (async () => {
 
   let { mac, ipv4 } = req.body
@@ -80,6 +116,9 @@ router.post('/ipaliasing', (req, res) => (async () => {
 
 })().asCallback((err, obj) => respond(res, err, obj)))
 
+/**
+ *  DELETE /ipaliasing
+ */
 router.delete('/ipaliasing', (req, res) => (async () => {
     
   let { mac, ipv4 } = req.body
@@ -96,69 +135,138 @@ router.delete('/ipaliasing', (req, res) => (async () => {
 
 })().asCallback((err, obj) => respond(res, err, obj)))
 
-//
-// fan
-//
-router.get('/fan', (req, res) => {
+/**
+  POST /mkfs
+  {
+    type: 'btrfs',
+    target: ['sda', 'sdb', ...],
+    mode: 'single' or 'raid0' or 'raid1'
+  }
+**/
+const isValidMkfsArgs = body => 
+  typeof body === 'object'
+    && body !== null
+    && body.type === 'btrfs'
+    && Array.isArray(body.target)
+    && body.target.every(item => typeof item === 'string' && item.length > 0)  
+    && -1 !== ['single', 'raid0', 'raid1'].indexOf(body.mode)
 
-  let device = storeState().device
-  if (!device.ws215i) 
-    return res.status(404).json({
-      message: 'not available on this device'
-    })
+router.post('/mkfs', (req, res) => 
+  !isValidMkfsArgs(req.body)
+    ? invalid(res)
+    : mkfsBtrfs(req.body, (err, volume) => 
+      err ? error(res, err) : ok(res, volume)))
 
-  readFanSpeed((err, fanSpeed) => {
-    err ? res.status(500).json({ message: err.message }) :
-      res.status(200).json({
-        fanSpeed, fanScale: storeState().config.barcelonaFanScale
-      })
-  })
+/**
+ * GET /net, return os and sysfs network interfaces
+ */
+router.get('/net', (req, res) => 
+  eth().asCallback((err, result) => 
+    err ? error(res, err) : ok(res, result)))
+
+
+/**
+  POST /run
+  { 
+    target: fsUUID 
+  }
+**/
+const isValidRunArgs = body => 
+  typeof body === 'object' 
+    && body !== null 
+    && typeof body.target !== 'string' 
+    && !validator.isUUID(body.target)
+
+router.post('/run', (req, res) => 
+  !isValidRunArgs(req.body) 
+    ? res.status(400).json({ code: 'EINVAL', message: 'invalid arguments' }) 
+    : manualBootAsync(req.body, false).asCallback(err => err
+      ? res.status(400).json({ code: err.code, message: err.message })
+      : res.status(200).json({ message: 'ok' })))
+
+/**
+  POST /mir/init
+  { 
+    target: fsUUID, 
+    username: non-empty STRING, 
+    password: non-empty STRING, 
+    remove: undefined, false or true
+  }
+**/
+const isValidInitArgs = body =>
+  typeof body === 'object'
+    && body !== null
+    && typeof body.target === 'string'
+    && validator.isUUID(body.target)
+    && typeof body.username === 'string'
+    && body.username.length > 0
+    && typeof body.password === 'string'
+    && body.password.length > 0
+    && (body.remove === undefined || typeof body.remove === 'boolean')
+
+router.post('/init', (req, res) => 
+  !isValidInitArgs(req.body)
+    ? invalid(res)
+    : manualBootAsync(req.body, true).asCallback(err => err
+      ? res.status(500).json({ code: err.code, message: err.message })
+      : res.status(200).json({ message: 'ok' })))
+
+/**
+  GET /storage
+
+	if query string raw=true, return original storage object
+  if query string wisnuc=true, return probed storage object
+	otherwise, just (pretty) storage without log
+**/
+router.get('/storage', (req, res) => {
+
+	if (req.query.raw === 'true')	
+		return res.status(200).json(Storage.get(true))
+
+	if (req.query.wisnuc !== 'true')
+		return nolog(res).status(200).json(Storage.get())	
+	else
+		Boot.probedStorageAsync().asCallback((err, storage) => {
+			if (err) return error(res, err)	
+			return ok(res, storage)
+		})
 })
 
-router.post('/fan', (req, res) => {
+////////////////////////////////////////
+/**
+const respond = (res, err, obj) => err ? 
+    res.status(codeMap.get(err.code) || 500)
+      .json({ code: err.code, message: err.message }) :
+    res.status(200)
+      .json((obj === null || obj === undefined) ? { message: 'success' } : obj)
 
-  let device = storeState().device
-  if (!device.ws215i)
-    return res.status(404).json({
-      message: 'not available on this device'
-    })
 
-  let { fanScale } = req.body
-  writeFanScale(fanScale, err => {
-    if (err) 
-    return res.status(500).json({ message: err.message })
 
-    storeDispatch({
-      type: 'CONFIG_BARCELONA_FANSCALE',
-      data: fanScale
-    })
 
-    res.status(200).json({ message: 'ok' })  
-  })
-})
+const timedate = (callback) => 
+  child.exec('timedatectl', (err, stdout, stderr) => 
+    err ? callback(err) : callback(null, stdout.toString().split('\n').filter(l => l.length)
+      .reduce((prev, curr) => {
+        let pair = curr.split(': ').map(str => str.trim())
+        prev[pair[0]] = pair[1]
+        return prev
+      }, {})))
+
+// device
+
+// timedate
+router.get('/timedate', (req, res) => timedate((err, obj) => 
+  err ? K(res.status(500).end())(console.log(err)) : res.status(200).json(obj)))
 
 router.use('/storage', mir)
 router.use('/mir', mir)
 
-router.get('/boot', (req, res) => {
 
-  let boot = storeState().boot
  
-  debug(boot) 
-
-  if (boot)
-    nolog(res).status(200).json(boot)
-  else 
-    res.status(500).end() // TODO
-})
-
-const shutdown = (cmd) =>
-  setTimeout(() => {
-    child.exec('echo "PWRD_LED 3" > /proc/BOARD_io', err => {})
-    child.exec(`${cmd}`, err => {})
-  }, 1000)
 
 router.post('/boot', (req, res) => {
+
+  
 
   let obj = req.body
   if (obj instanceof Object === false)
@@ -219,5 +327,5 @@ router.post('/boot', (req, res) => {
     message: 'ok'
   })
 })
-
-export default router
+**/
+module.exports = router

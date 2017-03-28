@@ -1,6 +1,6 @@
 import path from 'path'
 import fs from 'fs'
-import EventEmitter from 'events'
+// import EventEmitter from 'events'
 
 import bcrypt from 'bcrypt'
 import UUID from 'node-uuid'
@@ -31,9 +31,6 @@ const getUnixPwdEncrypt = password =>
 
 const arrDedup = (arr1, arr2) => 
   Array.from(new Set([...arr1, ...arr2]))
-
-const fileToJsonAsync = async filepath => 
-  JSON.parse(await fs.readFileAsync(filepath))
 
 const upgradeData = (users, drives) => {
 
@@ -67,10 +64,10 @@ const upgradeData = (users, drives) => {
   return { users: newUsers, drives: newDrives };
 }
 
-class ModelService extends EventEmitter {
+class ModelService {
 
   constructor(froot, modelData) {
-    super();
+    // super();
     this.froot = froot;
     this.modelData = modelData;
   }
@@ -84,19 +81,20 @@ class ModelService extends EventEmitter {
   }
 
   async initializeFallbackAsync () {
-    let mpath = this.modelData.modelPath;
+    let mpath = path.join(this.froot, 'models/model.json');
     let upath = path.join(path.dirname(mpath), 'users.json');
     let dpath = path.join(path.dirname(mpath), 'drives.json');
     try {
-      let users = await fileToJsonAsync(upath);
-      let drives = await fileToJsonAsync(dpath);
+      let users = JSON.parse(await fs.readFileAsync(upath));
+      let drives = JSON.parse(await fs.readFileAsync(dpath));
       let obj = upgradeData(users, drives);
       // upgrade data add create all service drive
-      this.modelData.emit('drivesCreated', obj.drives.filter(d => d.type ==='service'));
-      return await this.modelData.updateModelAsync(obj.users, obj.drives);
+      // this.modelData.emit('drivesCreated', obj.drives.filter(d => d.type ==='service'));
+      // return await this.modelData.updateModelAsync(obj.users, obj.drives);
+      return await this.modelData.initModelAsync(obj.users, obj.drives)
     } catch (e) {
       if (e.code !== 'ENOENT') throw e;
-      return await this.modelData.updateModelAsync([], []);
+      return await this.modelData.initModelAsync([], []);
     }
   }
 
@@ -104,8 +102,10 @@ class ModelService extends EventEmitter {
   async initializeAsync() {
 
     try {
-      let data = await fileToJsonAsync(this.modelData.modelPath);
-      return await this.modelData.updateModelAsync(data.users, data.drives);
+      let mpath = path.join(this.froot, 'models/model.json');
+      let data = JSON.parse(await fs.readFileAsync(mpath));
+      // return await this.modelData.updateModelAsync(data.users, data.drives);
+      return await this.modelData.initModelAsync(data.users, data.drives)
     }
     catch (e) {
       if (e.code !== 'ENOENT') throw e;
@@ -114,7 +114,10 @@ class ModelService extends EventEmitter {
 
   }
 
-  async createLocalUserAsync({ useruuid, props }) {
+  // async createLocalUserAsync({ useruuid, props }) {
+  async createLocalUserAsync(args) {
+
+    let { useruuid, props } = args;
     // check permission
     let users = this.modelData.users;
     let admins = users.filter(u => u.isAdmin === true).map(u => u.uuid);
@@ -171,8 +174,8 @@ class ModelService extends EventEmitter {
     let newDrives = [ homeDrive, libraryDrive, serviceDrive ];
     
     await this.modelData.createUserAsync(newUser, newDrives);
-    this.emit('drivesCreated', this.modelData.drives.filter(d =>
-      d.uuid === home || d.uuid === library || d.uuid === service));
+    // this.emit('drivesCreated', this.modelData.drives.filter(d =>
+    //  d.uuid === home || d.uuid === library || d.uuid === service));
 
     return {
       type, uuid, username, nologin, isFirstUser, isAdmin,
@@ -181,7 +184,10 @@ class ModelService extends EventEmitter {
     }
   }
 
-  async createRemoteUserAsync({ useruuid, props }) {
+  // async createRemoteUserAsync({ useruuid, props }) {
+  async createRemoteUserAsync(args) {
+
+    let { useruuid, props } = args;
     // check permission
     let users = this.modelData.users;
     let admins = users.filter(u => u.isAdmin === true).map(u => u.uuid);
@@ -204,12 +210,15 @@ class ModelService extends EventEmitter {
     }]
 
     await this.modelData.createUserAsync(newUser, newDrives);
-    this.emit('drivesCreated', this.modelData.drives.filter(d => d.uuid === service));
+    // this.emit('drivesCreated', this.modelData.drives.filter(d => d.uuid === service));
 
     return { type, username, uuid, email, avatar, service }
   }
 
-  async updateUserAsync({ useruuid, props }) {
+  // async updateUserAsync({ useruuid, props }) {
+  async updateUserAsync(args) {
+
+    let { useruuid, props } = args;
     // check permission
     let user = this.modelData.users.find(u => u.uuid === useruuid);
     if (!user)
@@ -220,7 +229,10 @@ class ModelService extends EventEmitter {
     return next;
   }
 
-  async updatePasswordAsync({ useruuid, pwd }) {
+  // async updatePasswordAsync({ useruuid, pwd }) {
+  async updatePasswordAsync(args) {
+
+    let { useruuid, pwd } = args;
     // check permission
     let user = this.modelData.users.find(u => u.uuid === useruuid);
     if (!user)
@@ -283,7 +295,7 @@ class ModelService extends EventEmitter {
     let newDrive = { uuid, type, label, writelist, readlist, shareAllowed };
     
     await this.modelData.createDriveAsync(newDrive);
-    this.emit('drivesCreated', [newDrive]);
+    // this.emit('drivesCreated', [newDrive]);
     return newDrive;
   }
 
@@ -299,7 +311,7 @@ class ModelService extends EventEmitter {
     let next = Object.assign({}, drive, props);
 
     await this.modelData.updateDriveAsync(next);
-    this.emit('driveUpdated', next);
+    // this.emit('driveUpdated', next);
     return next;
   }
 
@@ -313,20 +325,26 @@ class ModelService extends EventEmitter {
     let drive = this.modelData.drives.find(d => d.uuid === props.driveuuid);
     // delete
     await this.modelData.deleteDriveAsync(props.driveuuid);
-    this.emit('drivesDeleted', drive);
+    // this.emit('drivesDeleted', drive);
     return null;
   }
 
+/**
   register(ipc){
     ipc.register('createLocalUser', asCallback(this.createLocalUserAsync).bind(this))
     ipc.register('updateUser', asCallback(this.updateUserAsync).bind(this))
   }
+**/
 
+  register(ipc) {
+    ipc.register('createLocalUser', (args, callback) => this.createLocalUserAsync(args).asCallback(callback))
+    ipc.register('updateUser', (args, callback) => this.updateUserAsync(args).asCallback(callback))
+  }
 }
 
-const asCallback = (asyncFn) => 
-  (args, callback) => asyncFn.asCallback(args, (e, data) =>
-    e ? callback(e) : callback(null, data))
+// const asCallback = (asyncFn) => 
+//   (args, callback) => asyncFn.asCallback(args, (e, data) =>
+//     e ? callback(e) : callback(null, data))
 
 const createModelService = (froot) =>
   new ModelService(froot, createModelData(froot));

@@ -4,7 +4,7 @@ const os = require('os')
 
 import config from './cluster/config'
 
-import Main from './cluster/main'
+import Master from './cluster/master'
 import Worker from './cluster/worker'
 
 import IpcHandler from './cluster/ipcHandler'
@@ -42,7 +42,14 @@ if (cluster.isMaster) {
   })
 
   config.ipc = IpcHandler()
-  Main()
+  Master().asCallback(err => {
+
+		if (err) {
+			console.log('fruitmix master failed to start, exit', err)
+			process.exit(1)
+		}
+
+	})
 } 
 else {
 

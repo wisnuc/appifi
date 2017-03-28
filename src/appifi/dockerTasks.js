@@ -3,7 +3,7 @@ import EventEmitter from 'events'
 import deepmerge from 'deepmerge'
 import UUID from 'node-uuid'
 
-import { storeState } from '../reducers'
+import { storeState } from './reducers'
 import pullImage from './pullImage'
 import { containerCreate, containerStart } from './dockerApi'
 import containerCreateDefaultOpts from './containerDefault'

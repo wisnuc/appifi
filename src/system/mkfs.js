@@ -1,10 +1,6 @@
-import child from 'child_process'
-
-import Debug from 'debug'
-import { refreshStorageAsync } from './storage'
-import { adaptStorage } from './adapter'
-
-const debug = Debug('system:mkfs')
+const child = require('child_process')
+const debug = require('debug')('system:mkfs')
+const Storage = require('./storage')
 
 const umount = (mountpoint, callback) => child.exec(`umount ${mountpoint}`, err => callback(err)) 
 const umountAsync = Promise.promisify(umount)
@@ -85,8 +81,7 @@ const mkfsBtrfsAsync = async (target, mode, init) => {
   let storage, adapted, blocks, volumes
 
   target = Array.from(new Set(target)).sort()
-  storage = await refreshStorageAsync()
-  adapted = adaptStorage(storage)
+  adapted = await Storage.refreshAsync()
 
   for (let i = 0; i < target.length; i++) {
     let block = adapted.blocks.find(blk => blk.name === target[i])
@@ -109,12 +104,11 @@ const mkfsBtrfsAsync = async (target, mode, init) => {
     await child.execAsync(`partprobe`)
   }
   catch (e) {
-    await refreshStorageAsync()
+    await Storage.refreshAsync()
     throw e
   }
   
-  storage = await refreshStorageAsync()
-  adapted = adaptStorage(storage)
+  adapted = Storage.refreshAsync()
 
   blocks = adapted.blocks
   volumes = adapted.volumes
@@ -153,6 +147,8 @@ const mkfsBtrfs = (target, mode, init, callback) => {
   mkfsBtrfsAsync(target, mode, init).asCallback(callback)
 }
 
+/**
+
 const mkfsExt4 = async (target, opts) => {
 
   await refreshStorageAsync() // with decoration
@@ -183,5 +179,7 @@ const mkfsNtfs = async (target, opts) => {
   
   debug('mkfsNtfs success')
 }
+
+**/
 
 export { mkfsBtrfs, mkfsBtrfsAsync }
