@@ -1,154 +1,19 @@
-import path from 'path'
-import fs from 'fs'
-import child from 'child_process'
-import EventEmitter from 'events'
-import dgram from 'dgram'
-import mkdirp from 'mkdirp'
-
-import Debug from 'debug'
-const debug = Debug('appifi:samba')
-
-const mkdirpAsync = Promise.promisify(mkdirp)
-Promise.promisifyAll(fs)
-Promise.promisifyAll(child)
-
-// stat/event    new request (file change)                 timeout                success                        fail
-// init                                                                           idle                           exit
-// idle          wait (current req)
-// wait          wait (re-timer & req with next new req)   update (current req)    
-// update        update (save new req as next req)                                next ? wait(next req) : idle   counter > 3 ? (next ? wait(next req) : idle) : counter + 1 & update (current req)
-// exit
-
-class SambaManager {
-  constructor(contents) {
-    this.contents = contents
-  }
-
-  setState(nextState, ...args) {
-    this.contents.state = new nextState(this.contents, ...args)
-  }
-}
-
-class Idle extends SambaManager{
-  constructor(contents, data) {
-    super(contents)
-    this.enter()
-  }
-
-  resetSamba(data) {
-    this.exit()
-    this.setState(Wait, data)
-  }
-
-  enter() {console.log('Enter Idle')}
-
-  exit() {console.log('Leave Idle')}
-}
-
-class Wait extends SambaManager {
-  constructor(contents, data) {
-    super(contents)
-    this.enter()
-    this.resetSamba(data)
-  }
-
-  resetSamba(data) {
-    clearTimeout(this.timer)
-    this.data = data
-    this.timer = setTimeout(() => {
-      this.exit()
-      this.setState(Update, this.data) 
-    }, this.contents.delay)
-  }
-
-  enter() {console.log('Enter Wait')}
-
-  exit() {
-    console.log('Leave Wait')
-    clearTimeout(this.timer)
-  }
-}
-
-class Update extends SambaManager {
-  constructor(contents, data) { 
-    super(contents)
-    this.contents.counter = 0
-    this.enter()
-    updateSambaFiles().then(() => {
-      console.log(data)
-      this.success()
-      // this.error(err)
-    }).catch(err => {
-      this.error(err)
-    })
-  }
-
-  resetSamba(data) {
-    this.next = data
-  }
-
-  success() {
-    if (this.next) {
-      this.exit()
-      this.setState(Wait, this.next)
-    }
-    else {
-      this.exit()
-      this.setState(Idle)
-    }
-  }
-
-  error(err) {
-    this.contents.counter += 1
-    if(this.contents.counter >= 3) {
-      if (this.next) {
-        this.exit()
-        this.setState(Wait, this.next)
-      }
-      else {
-        this.exit()
-        this.setState(Idle)
-      }
-    }
-    else {
-      updateSambaFiles().then(() => {
-        console.log(data)
-        this.success()
-      }).catch(err => {
-        console.log('run again')
-        this.error(err)
-      })
-    }
-  }
-
-  enter() {console.log('Enter Update')}
-
-  exit() {console.log('Leave Update')}
-}
-
-class Persistence {
-  constructor(delay, echo) {
-    this.delay = delay || 500
-    this.state = new Idle(this) 
-  }
-
-  resetSamba(echo) {
-    this.state.resetSamba(echo)
-  }
-}
+let fs = require('fs')
+let child = require('child_process')
+let mkdirp = require('mkdirp')
+let getPrependPath = require('./prependPath')
 
 // define some parameters
 const userListConfigPath = '../../test/appifi/lib/samba/model.json'
-let indexProcessArgv = 0;
-let prependPath = null;
-// let prependPath = '/home/testonly'
+let prependPath = null
 
 // check & restart samba service
 let updatingSamba = false
 let sambaTimer = -1
 
-// debounce time
-let debounceTime = 5000; // millisecond
+const mkdirpAsync = Promise.promisify(mkdirp)
+Promise.promisifyAll(fs)
+Promise.promisifyAll(child)
 
 // turn uuid to unix name
 // xxxxxxxx-xxxx-Mxxx-Nxxx-xxxxxxxxxxxx <- hyphen and M are removed, then prefixed with letter x
@@ -219,7 +84,7 @@ const createShareListAsync = async () => {
     }
   })
 
-  debug('share list', shareList)
+  // console.log('share list', shareList)
   return shareList
 }
 
@@ -271,14 +136,14 @@ const retrieveSmbUsers = (callback) => {
       })
       .filter(u => !!u)
 
-    debug('retrieveSmbUsers', stdout.toString().split('\n'))
+    // console.log('retrieveSmbUsers', stdout.toString().split('\n'))
     callback(null, users)
   })
 }
 
 // add user to system
 const addUnixUserAsync = async (username, unixuid) => {
-  debug('addUnixUser', username, unixuid)
+  // console.log('addUnixUser', username, unixuid)
   let cmd = 'adduser --disabled-password --disabled-login --no-create-home --gecos ",,," ' + 
     `--uid ${unixuid} --gid 65534 ${username}`
   return child.execAsync(cmd)
@@ -286,18 +151,18 @@ const addUnixUserAsync = async (username, unixuid) => {
 
 // delete user from system
 const deleteUnixUserAsync = async (username) => {
-  debug('deleteUnixUser', username)
+  // console.log('deleteUnixUser', username)
   return child.execAsync(`deluser ${username}`)
 }
 
 // reconcile user list from system & fruitmix
 const reconcileUnixUsersAsync = async () => {
   let sysusers = await Promise.promisify(retrieveSysUsers)()
-  debug('reconcile unix users, unix users', sysusers)
+  // console.log('reconcile unix users, unix users', sysusers)
 
   let userList = await getUserListAsync();
   let fusers = userList['users'].map(u => ({ unixname: uuidToUnixName(u.uuid), unixuid:u.unixuid }))
-  debug('reconcile unix users, fruitmix users', fusers)
+  // console.log('reconcile unix users, fruitmix users', fusers)
 
   let common = new Set()
   fusers.forEach(fuser => {
@@ -306,13 +171,13 @@ const reconcileUnixUsersAsync = async () => {
     if (found) common.add(found.unixname + ':' + found.unixuid)
   })
 
-  debug('reconcile unix users, common', common)
+  // console.log('reconcile unix users, common', common)
 
   fusers = fusers.filter(f => !common.has(f.unixname + ':' + f.unixuid))
-  debug('reconcile unix users, fruitmix users (subtracted)', fusers)
+  // console.log('reconcile unix users, fruitmix users (subtracted)', fusers)
 
   sysusers = sysusers.filter(s => !common.has(s.unixname + ':' + s.unixuid))
-  debug('reconcile unix users, unix users (subtracted)', sysusers)
+  // console.log('reconcile unix users, unix users (subtracted)', sysusers)
 
   await Promise.map(sysusers, u => deleteUnixUserAsync(u.unixname).reflect())
   await Promise.map(fusers, u => addUnixUserAsync(u.unixname, u.unixuid).reflect())
@@ -320,7 +185,7 @@ const reconcileUnixUsersAsync = async () => {
 
 // delete samba user from local samba service
 const deleteSmbUserAsync = async (username) => {
-  debug('delete smb user', username)
+  // console.log('delete smb user', username)
   return child.execAsync(`pdbedit -x ${username}`)
 }
 
@@ -329,13 +194,13 @@ const addSmbUsersAsync = async (fusers) => {
   let text = fusers.map(u => `${u.unixname}:${u.unixuid}:` + 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX:' +
     `${u.md4}:[U          ]:${u.lct}:`).join('\n')
 
-  debug('addSmbUsers', text)
+  // console.log('addSmbUsers', text)
 
   await mkdirpAsync('/run/wisnuc/smb')
   await fs.writeFileAsync('/run/wisnuc/smb/tmp', text)
   await child.execAsync('pdbedit -i smbpasswd:/run/wisnuc/smb/tmp')
 
-  debug('addSmbUsers, after', await child.execAsync('pdbedit -Lw'))
+  // console.log('addSmbUsers, after', await child.execAsync('pdbedit -Lw'))
 }
 
 // reconcile user list from local samba service & fruitmix
@@ -344,7 +209,7 @@ const reconcileSmbUsersAsync = async () => {
     [user.unixname, user.unixuid.toString(), user.md4, user.lct].join(':')
 
   let smbusers = await Promise.promisify(retrieveSmbUsers)()
-  debug('reconcile smb users, smbusers', smbusers)
+  // console.log('reconcile smb users, smbusers', smbusers)
 
   let userList = await getUserListAsync();
   let fusers = userList['users'].map(u => ({
@@ -353,7 +218,7 @@ const reconcileSmbUsersAsync = async () => {
     md4: u.smbPassword.toUpperCase(),
     lct: 'LCT-' + Math.floor(u.lastChangeTime / 1000).toString(16).toUpperCase() // TODO
   }))
-  debug('reconcile smb users, fruitmix users', fusers)
+  // console.log('reconcile smb users, fruitmix users', fusers)
 
   let common = new Set()
   fusers.forEach(f => {
@@ -362,13 +227,13 @@ const reconcileSmbUsersAsync = async () => {
     if (found)
       common.add(key(found))
   })
-  debug('reconcile smb users, common', common)
+  // console.log('reconcile smb users, common', common)
 
   smbusers = smbusers.filter(s => !common.has(key(s)))
-  debug('reconcile smb users, smb users (subtracted)', smbusers)
+  // console.log('reconcile smb users, smb users (subtracted)', smbusers)
 
   fusers = fusers.filter(f => !common.has(key(f)))
-  debug('reconcile smb users, fruitmix users (subtracted)', fusers)
+  // console.log('reconcile smb users, fruitmix users (subtracted)', fusers)
 
   // remove
   await Promise.map(smbusers, (smbuser) => 
@@ -384,12 +249,18 @@ const generateUserMapAsync = async () => {
   let text = userList['users'].reduce((prev, user) =>
     prev + `${uuidToUnixName(user.uuid)} = "${user.username}"\n`, '')
 
-  debug('generate usermap', text)
+  // console.log('generate usermap', text)
   await fs.writeFileAsync('/etc/smbusermap', text)
 }
 
 // create samba's smb.conf
 const generateSmbConfAsync = async () => {
+
+	prependPath = getPrependPath()
+
+	if(prependPath === null) {
+		return null
+	}
 
   let global =  '[global]\n' +
                 '  username map = /etc/smbusermap\n' +
@@ -429,120 +300,18 @@ const generateSmbConfAsync = async () => {
     conf += section(share) + '\n';
   })
 
-  debug('generateSmbConf', conf)
+  // console.log('generateSmbConf', conf)
   await fs.writeFileAsync('/etc/samba/smb.conf', conf)
-}
-
-// a class contains samba audit infor which spread with udp
-class SmbAudit extends EventEmitter {
-  constructor(udp) {
-    super()
-
-    this.udp = udp
-    this.udp.on('message', (message, remote) => {
-   
-      const token = ' smbd_audit: ' 
-
-      let text = message.toString()
-      let tidx = text.indexOf(' smbd_audit: ')
-      if (tidx === -1) return
-
-      let arr = text.trim().slice(tidx + token.length).split('|')
-
-      // %u <- user
-      // %U <- represented user
-      // %S <- share
-      // %P <- path 
-
-      if (arr.length < 6 || arr[0] !== 'root' || arr[5] !== 'ok')
-        return    
- 
-      let user = arr[1]
-      let share = arr[2]
-      let abspath = arr[3]
-      let op = arr[4]
-      let arg0, arg1
-
-      // create_file arg0
-      // mkdir
-      // rename
-      // rmdir
-      // unlink (delete file)
-      // write (not used anymore)
-      // pwrite
-
-      switch (op) {
-      case 'create_file':
-        if (arr.length !== 10) return
-        if (arr[8] !== 'create') return
-        if (arr[7] !== 'file') return
-        arg0 = arr[9]
-        break
-
-      case 'mkdir':
-      case 'rmdir':
-      case 'unlink':
-      case 'pwrite':
-        if (arr.length !== 7) return
-        arg0 = arr[6]         
-        break
-
-      case 'rename':
-        if (arr.length !== 8) return
-        arg0 = arr[6]
-        arg1 = arr[7]
-        break
-
-      default:
-        return
-      }
-
-      let audit = { user, share, abspath, op, arg0 }
-      if (arg1) audit.arg1 = arg1
-      
-      console.log('##################################');
-      console.log(audit);
-      console.log('##################################');
-
-			return audit
-    })
-
-    this.udp.on('close', () => console.log('smbaudit upd server closed'))
-  }
-}
-
-const updateSambaFiles = async () => {
-
-  updatingSamba = true
-  try {
-
-    debug('updating samba files')
-
-    await reconcileUnixUsersAsync()
-    await reconcileSmbUsersAsync()
-    await generateUserMapAsync() 
-    await generateSmbConfAsync()
-
-    debug('reloading smbd configuration')
-    await child.execAsync('systemctl restart smbd')
-  }
-  catch (e) {
-    // console.log(e)
-  }
-
-  updatingSamba = false
 }
 
 // delay restart samba time for default 1 second
 const scheduleUpdate = () => {
-
   if (sambaTimer !== -1) {
     clearTimeout(sambaTimer)
     sambaTimer = -1
   }
 
   sambaTimer = setTimeout(() => {
-
     if (updatingSamba) {
       scheduleUpdate()
       return
@@ -552,75 +321,26 @@ const scheduleUpdate = () => {
   }, 1000)
 }
 
-// initial samba service
-const initSamba = async () => {
+const updateSambaFilesAsync = async () => {
+  updatingSamba = true
+  try {
+    // console.log('updating samba files')
+    await reconcileUnixUsersAsync()
+    await reconcileSmbUsersAsync()
+    await generateUserMapAsync()
 
-  const logConfigPath = '/etc/rsyslog.d/99-smbaudit.conf'
-  const logConfig = 'LOCAL7.*    @127.0.0.1:3721'
+    let result = await generateSmbConfAsync()
+		if(result === null) {
+			throw new Error('prependPath error')
+		}
 
-  // update rsyslog config if necessary
-  let config = null
-  try { config = await fs.readFileAsync(logConfigPath) } catch (e) {debug('initSamba: Not find Samba service')}
-  if (config !== logConfig) {
-    await fs.writeFileAsync(logConfigPath, logConfig)  
-    await child.execAsync('systemctl restart rsyslog')
+    await child.execAsync('systemctl restart smbd')
+  }
+  catch (e) {
+    console.log(e)
   }
 
-  await child.execAsync('systemctl start nmbd')
-  await child.execAsync('systemctl start smbd')
+  updatingSamba = false
 }
 
-// create udp server
-const createUdpServer = (callback) => {
-
-  let udp = dgram.createSocket('udp4')
-  udp.on('listening', () => {
-    callback(null, new SmbAudit(udp))
-  }) 
- 
-  udp.once('error', err => {
-    if (err.code === 'EADDRINUSE') callback(err)
-  }) 
-  udp.bind(3721)
-}
-
-// watch file for change
-const beginWatch = async () => {
-
-  let result = new Persistence(debounceTime);
-
-  let watcher = fs.watch(userListConfigPath, (eventType) => {
-
-    if (eventType === 'change') {
-        result.resetSamba('Only for test!!!');
-      }    
-  });
-
-  return watcher;
-}
-
-// quit watch
-const endWatch = async (watcher) => {
-  watcher.close();
-}
-
-// main process for samba service
-let prevUsers, prevDrives;
-const watchAndUpdateSambaAsync = async () => {
-
-  if((indexProcessArgv = (process.argv).indexOf('--froot')) >= 0) {
-    prependPath = (process.argv)[indexProcessArgv + 1]
-  }
-  else {
-    debug('generateSmbConfAsync: No "--froot" Parameters')
-    return;
-  }
-
-  await initSamba();
-  await updateSambaFiles();
-  let watchMan = await beginWatch();
-  let udp = await Promise.promisify(createUdpServer)();
-  return new SmbAudit(udp);
-}
-
-watchAndUpdateSambaAsync()
+module.exports = updateSambaFilesAsync
