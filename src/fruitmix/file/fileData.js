@@ -103,16 +103,22 @@ class FileData extends EventEmitter {
   findNodeByUUID(uuid) {
   }
 
-  userPermittedToRead(node) {
+  userPermittedToRead(userUUID, node) {
   }
 
-  userPermittedToReadByUUID(nodeUUID) {
+  userPermittedToReadByUUID(userUUID, nodeUUID) {
   }
 
-  userPermittedToWrite(node) {
+  userPermittedToWrite(userUUID, node) {
   }
 
-  userPermittedToShare(node) {
+  userPermittedToWriteByUUID(userUUID, nodeUUID) {
+  }
+
+  userPermittedToShare(userUUID, node) {
+  }
+
+  userPermittedToShareByUUID(userUUID, nodeUUID) {
   }
 }
 
