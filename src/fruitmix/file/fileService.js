@@ -40,28 +40,28 @@ class FileService {
   }
 
   // list all items inside a directory, with given
-  // TODO modified by jianjin.wu
-  navList({ userUUID, dirUUID, rootUUID }, callback) {
+  // TODO:modified by jianjin.wu
+  async navList({ userUUID, dirUUID, rootUUID }) {
 
     let node = this.data.findNodeByUUID(dirUUID)
 
     if (!node) {
       let e = new Error(`navList: ${dirUUID} not found`)
       e.code = 'ENOENT'
-      return callback(e)
+      throw e
     }
 
     if (!node.isDirectory()) {
       let e = new Error(`navList: ${dirUUID} is not a folder`)
       e.code = 'ENOTDIR'
-      return callback(e)
+      throw e
     }
 
     let root = this.data.findNodeByUUID(rootUUID)
     if (!root) {
       let e = new Error(`navList: ${rootUUID} not found`)
       e.code = 'ENOENT'
-      return callback(e)
+      throw e
     }
 
     let path = node.nodepath()
@@ -70,20 +70,20 @@ class FileService {
     if (index === -1) {
       let e = new Error(`navList: ${rootUUID} not an ancestor of ${dirUUID}`)
       e.code = 'EINVAL'
-      return callback(e)
+      throw e
     }
 
     let subpath = path.slice(index)
     if (!subpath.every(n => n.userReadable(userUUID))) {
       let e = new Error(`navList: not all ancestors accessible for given user ${userUUID}`)
       e.code = 'EACCESS'
-      return callback(e)
+      throw e
     }
 
-    return callback(null, {
+    return {
       path: subpath.map(n => nodeProps(n)),
       children: node.getChildren().map(n => nodeProps(n))
-    })
+    }
   }
 
   tree(userUUID, dirUUID) {
@@ -93,8 +93,8 @@ class FileService {
   }
 
   // return abspath of file
-  // TODO modified by jianjin.wu
-  readFile({ userUUID, fileUUID }, callback) {
+  // TODO: modified by jianjin.wu
+  async readFile({ userUUID, fileUUID }) {
 
     let node = this.data.findNodeByUUID(fileUUID)
     let result
@@ -110,9 +110,7 @@ class FileService {
       result = 'EACCESS'
     }
 
-    result = result || node.namepath()
-
-    return callback(null, result)
+    return result || node.namepath()
   }
 
   // dump a whole drive
@@ -227,8 +225,8 @@ class FileService {
     ipc.register('createFile', this.createFile.bind(this))
     ipc.register('createDirectory', this.createDirectory.bind(this))
     ipc.register('overwriteFile', this.overwriteFile.bind(this))
-    ipc.register('list', this.list.bind(this))
-    ipc.register('navList', this.navList.bind(this))
+    ipc.register('list', (args, callback) => this.list(args).asCallback(callback))
+    ipc.register('navList', (args, callback) => this.navList(args).asCallback(callback))
     ipc.register('readFile', this.readFile.bind(this))
     ipc.register('del', this.del.bind(this))
   }

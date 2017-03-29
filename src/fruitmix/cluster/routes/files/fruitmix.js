@@ -20,7 +20,7 @@ import auth from '../middleware/auth'
 // /files/xxxxxxx <- must be folder
 // TODO modified by jianjin.wu
 // /:nodeUUID?filename=xxx
-router.get('/:nodeUUID', auth.jwt(), (req, res) => {
+router.get('/:nodeUUID', (req, res) => {
 
   let user = req.user
   let query = req.query
