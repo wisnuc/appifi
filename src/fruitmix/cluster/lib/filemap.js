@@ -1,9 +1,13 @@
 import path from 'path'
 import fs from 'fs'
 import child from 'child_process'
+import stream from 'stream'
+import crypto from 'crypto'
+
 
 import xattr from 'fs-xattr'
 import Promise from 'bluebird'
+import UUID from 'node-uuid'
 
 import  paths from './paths'
 import HashTransform from '../lib/transform'
@@ -17,8 +21,10 @@ const createFileMapAsync = async ({ size, segmentsize, nodeuuid, sha256, name, u
   // fallocate -l 10G bigfile
   let folderPath = path.join(paths.get('filemap'), userUUID)
   try{
-    await fs.mkdirAsync(folderPath)
-    let filepath = path.join(folderPath, sha256)
+    if(!fs.existsSync(folderPath))
+      await fs.mkdirAsync(folderPath)
+    let taskId = UUID.v4()
+    let filepath = path.join(folderPath, taskId)
     await child.execAsync('fallocate -l ' + size +' ' + filepath)
     // may throw xattr ENOENT or JSON SyntaxError
     let segments = []
@@ -27,31 +33,39 @@ const createFileMapAsync = async ({ size, segmentsize, nodeuuid, sha256, name, u
     }
     let attr = { size, segmentsize, segments, nodeuuid, sha256, name }
     await xattr.setAsync(filepath, FILEMAP, JSON.stringify(attr))
-    return attr
+    return Object.assign({},attr,{ taskid: taskId })
   }catch(e){ throw e }
 }
 
-const updateFileMap = async ({ sha256, segmentHash, req , start, userUUID }, callback) => {
-  let filePath = path.join(paths.get('filemap'), userUUID, sha256)
+const updateFileMap = async ({ taskid, segmentHash, req , start, userUUID }, callback) => {
+  let filePath = path.join(paths.get('filemap'), userUUID, taskid)
   let abort = false
   try{
     await fs.statAsync(filePath)
-     
+    
     let attr = JSON.parse(await xattr.getAsync(filePath, FILEMAP))
 
     let segments = attr.segments
     if(segments.length < start || segments[start] === 1)
-      callback(null, false)
+      return callback(null, true)// already uploaded
 
     let position = attr.segmentsize * start
 
     let writeStream =  fs.createWriteStream(filePath,{ flags: 'r+', start: position})
     
-    let hashTransform = HashTransform()
+    let Transform = stream.Transform
 
-    req.pipe(hashTransform)
-
-    hashTransform.pipe(writeStream)
+    let hashStream = crypto.createHash('sha256')
+    hashStream.setEncoding('hex')
+    let hashTransform = new Transform({
+      transform: function (buf, enc, next){
+        hashStream.update(buf)
+        this.push(buf)
+        next()
+      }
+    })
+    // req.pipe(fs.createWriteStream('helloworld.txt'))
+    req.pipe(hashTransform).pipe(writeStream)
 
     hashTransform.on('error', err => {
       if(abort) return
@@ -70,19 +84,23 @@ const updateFileMap = async ({ sha256, segmentHash, req , start, userUUID }, cal
       abort = true
       return callback(err)
     })
-    
-    writeStream.on('finish', async () => {
+
+    req.on('end', async () => {
       if(abort) return 
       try{
-        if(hashTransform.getHash() !== segmentHash)
-          return callback(null, false)        
+        hashStream.end()
+        let hash = hashStream.read()
+        if(hash !== segmentHash){
+          console.log('失败' + hash)
+          return callback(null, false)        }
         let attr = JSON.parse(await xattr.getAsync(filePath, FILEMAP))
         attr.segments[start] = 1
-        await xattr.setAsync(filepath, FILEMAP, JSON.stringify(attr))
+        await xattr.setAsync(filePath, FILEMAP, JSON.stringify(attr))
         return callback(null, true) 
       }catch(e){ 
         if(abort) return 
         abort = true
+        console.log(e)
         return callback(e) 
       }        
     })
@@ -90,6 +108,7 @@ const updateFileMap = async ({ sha256, segmentHash, req , start, userUUID }, cal
   }catch(e){
      if(abort) return 
       abort = true
+      console.log('error5')
       return callback(e) 
    }
 

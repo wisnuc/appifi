@@ -81,7 +81,7 @@ const mkfsBtrfsAsync = async (target, mode, init) => {
   let storage, adapted, blocks, volumes
 
   target = Array.from(new Set(target)).sort()
-  adapted = await Storage.refreshAsync(true)
+  adapted = await Storage.refreshAsync()
 
   for (let i = 0; i < target.length; i++) {
     let block = adapted.blocks.find(blk => blk.name === target[i])
@@ -108,7 +108,7 @@ const mkfsBtrfsAsync = async (target, mode, init) => {
     throw e
   }
   
-  adapted = Storage.refreshAsync(true)
+  adapted = Storage.refreshAsync()
 
   blocks = adapted.blocks
   volumes = adapted.volumes
@@ -147,6 +147,8 @@ const mkfsBtrfs = (target, mode, init, callback) => {
   mkfsBtrfsAsync(target, mode, init).asCallback(callback)
 }
 
+/**
+
 const mkfsExt4 = async (target, opts) => {
 
   await refreshStorageAsync() // with decoration
@@ -177,5 +179,7 @@ const mkfsNtfs = async (target, opts) => {
   
   debug('mkfsNtfs success')
 }
+
+**/
 
 export { mkfsBtrfs, mkfsBtrfsAsync }

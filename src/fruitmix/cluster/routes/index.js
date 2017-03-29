@@ -3,6 +3,7 @@
  * the entrance of routes
  */
 import { Router } from 'express'
+import init from './init'
 import login from './login'
 import files from './files'
 import filemap from './filemap'
@@ -11,8 +12,9 @@ const auth = require('../middleware/auth')
 
 let router = Router()
 
+router.use('/init', init)
 router.use('/login', login)
-//fixme auth
+//FIXME: auth
 // app.use('/*', auth.jwt())
 router.use('/files', files)
 router.use('/filemap', filemap)

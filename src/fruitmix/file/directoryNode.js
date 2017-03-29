@@ -55,18 +55,24 @@ class DirectoryNode extends Node {
     this.worker = probe(dpath, uuid, mtime, delay)
 
     this.worker.on('error', (err, again) => {
+
       this.worker = null
       this.ctx.probeStopped(this) // audit
+
       if (err.code === 'EABORT') return
       this.parent.probe()
     })
 
     this.worker.on('finish', (data, again) => {
+
       this.worker = null
       this.ctx.probeStopped(this) // audit
-      if (this.data) thie.merge(data.mtime, data.xstats)
+
+      if (data) this.merge(data.mtime, data.xstats)
       if (again) this.probe()
     })
+
+    this.worker.start()
   }
 
   attach(parent) {

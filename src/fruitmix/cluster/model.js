@@ -1,11 +1,10 @@
 const path = require('path')
 const fs = require('fs')
-// const nodeify = require('nodeify')
 
-const config = require('./config')
+import config from './config'
 
 const localUsers = callback => {
-  let mpath = path.join(process.cwd(), 'models', 'model.json')
+  let mpath = path.join(config.path, 'models', 'model.json')
   fs.readFile(mpath, (err, data) => {
     if (err) return callback(err)
     let model

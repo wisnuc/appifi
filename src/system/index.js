@@ -10,6 +10,7 @@ const debug = require('debug')('system:index')
 const Boot = require('./boot')
 const Config = require('./config')
 const Device = require('./device')
+const Storage = require('./storage')
 
 const { readFanSpeed, writeFanScale } = require('./barcelona')
 const eth = require('./eth')
@@ -210,6 +211,26 @@ router.post('/init', (req, res) =>
       ? res.status(500).json({ code: err.code, message: err.message })
       : res.status(200).json({ message: 'ok' })))
 
+/**
+  GET /storage
+
+	if query string raw=true, return original storage object
+  if query string wisnuc=true, return probed storage object
+	otherwise, just (pretty) storage without log
+**/
+router.get('/storage', (req, res) => {
+
+	if (req.query.raw === 'true')	
+		return res.status(200).json(Storage.get(true))
+
+	if (req.query.wisnuc !== 'true')
+		return nolog(res).status(200).json(Storage.get())	
+	else
+		Boot.probedStorageAsync().asCallback((err, storage) => {
+			if (err) return error(res, err)	
+			return ok(res, storage)
+		})
+})
 
 ////////////////////////////////////////
 /**

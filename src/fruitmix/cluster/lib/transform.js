@@ -7,16 +7,18 @@ class HashTransform extends Transform {
   constructor() {
     super()
     this.hashStream = crypto.createHash('sha256')
+    this.hashStream.setEncoding('hex')
   }
 
   _transform(buf, enc, next) {
+    console.log(buf)
     this.hashStream.update(buf)
     this.push(buf)
     next()
   }
 
   getHash() {
-    return this.hashStream.digest('hex')
+    return this.hashStream.read()
   }
 }
 
