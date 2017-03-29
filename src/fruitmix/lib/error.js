@@ -42,7 +42,8 @@ define('EEXITCODE', 'exit with error code')
 define('EEXITSIGNAL', 'exit with signal')
 define('EACCESS', 'no permission')
 define('ENOENT', 'no entry')
-define('ELOCK', 'lock error');
+define('ENODENOTFOUND', 'node not found')   // be different from ENOENT, which is easily confused with fs error
+define('ELOCK', 'lock error')
 
 module.exports = Object.freeze(E)
 

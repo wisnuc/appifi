@@ -3,9 +3,12 @@ import EventEmitter from 'events'
 
 import mkdirp from 'mkdirp'
 
+import E from '../lib/error'
+
 import { forceDriveXstat } from './xstat'
 import Node from './node'
 import DriveNode from './driveNode'
+
 
 class FileData extends EventEmitter {
 
@@ -104,27 +107,63 @@ class FileData extends EventEmitter {
   }
 
   userPermittedToRead(userUUID, node) {
-    return true // FIXME
+
+    let drive = node.getDrive()
+    switch (drive.type) {
+    case 'private':
+      return userUUID === drive.owner
+    case 'public':
+      return drive.writelist.includes(userUUID) || drive.readlist.includes(userUUID)
+    default:
+      throw new Error('invalid drive type', drive)
+    }
   }
 
   userPermittedToReadByUUID(userUUID, nodeUUID) {
-    return true // FIXME
+    
+    let node = this.findNodeByUUID(nodeUUID)
+    if (!node) throw new E.ENODENOTFOUND()
+    return this.userPermittedToRead(userUUID, node.uuid)
   }
 
   userPermittedToWrite(userUUID, node) {
-    return true // FIXME
+
+    let drive = node.getDrive()
+    switch (drive.type) {
+    case 'private':
+      return userUUID === drive.owner
+    case 'public':
+      return drive.writelist.includes(userUUID)
+    default:
+      throw new Error('invalid drive type', drive)
+    }
   }
 
   userPermittedToWriteByUUID(userUUID, nodeUUID) {
-    return true // FIXME
+
+    let node = thsi.findNodeByUUID(nodeUUID)
+    if (!node) throw new E.ENODENOTFOUND()
+    return this.userPermittedToWrite(userUUID, node.uuid)
   }
 
   userPermittedToShare(userUUID, node) {
-    return true // FIXME
+
+    let drive = node.getDrive()
+    switch (drive.type) {
+    case 'private':
+      return userUUID === drive.owner
+    case 'public':
+      return drive.shareAllowed
+    default:
+      throw new Error('invalid drive type', drive)
+    }
   }
   
   userPermittedToShareByUUID(userUUID, nodeUUID) {
-    return true // FIXME
+
+    let node = this.findNodeByUUID(nodeUUID)
+    if (!node) throw new E.ENODENOTFOUND()
+    return this.userPermittedToShareByUUID(userUUID, node)
   }
 }
 

@@ -68,12 +68,14 @@ class Node {
   }
 
   preVisit(func) {
+
     func(this)
     if (this.children) 
       this.children.forEach(child => child.preVisit(func)) 
   }
 
   postVisit(func) {
+
     if (this.children)
       this.children.forEach(child => child.postVisit(func))
     func(this) 
@@ -83,21 +85,31 @@ class Node {
   nodepath() {
 
     let q = []
-    for (let n = this; n !== this.ctx.root; n = n.parent)
+    for (let n = this; n !== null; n = n.parent) {
+      if (n === this.ctx.root) return q
       q.unshift(n)
+    }
 
-    return q
+    throw new Error('the node is off-tree')
   } 
 
-  getDrive() {
+  // return drive node
+  getDrive() { 
+
+    for (let n = this; n !== null; n = n.parent) {
+      if (n.parent === this.ctx.root) return n.drive
+    }
     
+    throw new Error('the node is off-tree')
   }
 
   abspath() { 
-    return path.join(this.ctx.dir, ...this.nodepath.map(n => n.name))
+
+    return path.join(this.ctx.dir, ...this.nodepath().map(n => n.name))
   }
 
   namepath() {
+
     return path.join(...this.nodepath().map(n => n.name))
   }
 
