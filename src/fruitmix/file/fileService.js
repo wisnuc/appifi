@@ -29,7 +29,7 @@ class FileService {
   }
 
   // list all items inside a directory
-  list({ userUUID, dirUUID }, callback) {
+  list({ userUUID, dirUUID }) {
 
     let node = this.data.findNodeByUUID(dirUUID)
     if (!node) throw
