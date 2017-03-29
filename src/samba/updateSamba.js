@@ -273,6 +273,7 @@ const generateSmbConfAsync = async () => {
 }
 
 const updateSambaFilesAsync = async () => {
+  
   updatingSamba = true
 
   await reconcileUnixUsersAsync()
