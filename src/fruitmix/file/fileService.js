@@ -3,7 +3,7 @@ import { readXstat } from './xstat'
 
 class FileService {
 
-  constructor(froot,data) {
+  constructor(froot, data) {
     this.froot = froot
     this.data = data 
   }
@@ -29,67 +29,108 @@ class FileService {
   }
 
   // list all items inside a directory
-  list({ userUUID, dirUUID }) {
+  async list({ userUUID, dirUUID }) {
 
+    let err
     let node = this.data.findNodeByUUID(dirUUID)
-    if (!node) throw
-    if (!(node instanceof DirectoryNode)) throw
-    if (!(userCanRead(userUUID, node))) throw
+
+    if (!node) {
+      err = new Error(`list: ${dirUUID} not found`)
+      err.code = 'ENOENT'
+      throw err
+    } 
+    if (!node.isDirectory()) {
+      err = new Error(`list: ${dirUUID} is not a directory`)
+      err.code = 'ENOTDIR'
+      throw err
+    }
+    // if (!(node instanceof DirectoryNode)) throw 
+
+    //FIXME: userCanRead
+    // if (!(userCanRead(userUUID, node))) throw
 
     return node.getChildren().map(n => nodeProps(n))
   }
 
-  // list all items inside a directory, with given
-  // TODO:modified by jianjin.wu
+  // TODO: list all items inside a directory, with given
   async navList({ userUUID, dirUUID, rootUUID }) {
 
+    let err
     let node = this.data.findNodeByUUID(dirUUID)
 
     if (!node) {
-      let e = new Error(`navList: ${dirUUID} not found`)
-      e.code = 'ENOENT'
-      throw e
+      err = new Error(`navList: ${dirUUID} not found`)
+      err.code = 'ENOENT'
+      throw err
     }
 
     if (!node.isDirectory()) {
-      let e = new Error(`navList: ${dirUUID} is not a folder`)
-      e.code = 'ENOTDIR'
-      throw e
+      err = new Error(`navList: ${dirUUID} is not a directory`)
+      err.code = 'ENOTDIR'
+      throw err
     }
 
     let root = this.data.findNodeByUUID(rootUUID)
     if (!root) {
-      let e = new Error(`navList: ${rootUUID} not found`)
-      e.code = 'ENOENT'
-      throw e
+      err = new Error(`navList: ${rootUUID} not found`)
+      err.code = 'ENOENT'
+      throw err
     }
 
     let path = node.nodepath()
     let index = path.indexOf(root)
 
     if (index === -1) {
-      let e = new Error(`navList: ${rootUUID} not an ancestor of ${dirUUID}`)
-      e.code = 'EINVAL'
-      throw e
+      err = new Error(`navList: ${rootUUID} not an ancestor of ${dirUUID}`)
+      err.code = 'EINVAL'
+      throw err
     }
 
     let subpath = path.slice(index)
     if (!subpath.every(n => n.userReadable(userUUID))) {
-      let e = new Error(`navList: not all ancestors accessible for given user ${userUUID}`)
-      e.code = 'EACCESS'
-      throw e
+      err = new Error(`navList: not all ancestors accessible for given user ${userUUID}`)
+      err.code = 'EACCESS'
+      throw err
     }
 
     return {
       path: subpath.map(n => nodeProps(n)),
-      children: node.getChildren().map(n => nodeProps(n))
+      entries: node.getChildren().map(n => nodeProps(n))
     }
   }
 
-  tree(userUUID, dirUUID) {
+  async tree({ userUUID, dirUUID }) {
+    let err
+    let node = this.data.findNodeByUUID(dirUUID)
+
+    if (!node) {
+      err = new Error(`navList: ${dirUUID} not found`)
+      err.code = 'ENOENT'
+      throw err
+    }
+
+    if (!node.isDirectory()) {
+      err = new Error(`navList: ${dirUUID} is not a directory`)
+      err.code = 'ENOTDIR'
+      throw err
+    }
   }
 
-  navTree(userUUID, dirUUID, rootUUID) {
+  async navTree({ userUUID, dirUUID, rootUUID }) {
+    let err
+    let node = this.data.findNodeByUUID(dirUUID)
+
+    if (!node) {
+      err = new Error(`navList: ${dirUUID} not found`)
+      err.code = 'ENOENT'
+      throw err
+    }
+
+    if (!node.isDirectory()) {
+      err = new Error(`navList: ${dirUUID} is not a directory`)
+      err.code = 'ENOTDIR'
+      throw err
+    }
   }
 
   // return abspath of file
@@ -227,9 +268,12 @@ class FileService {
     ipc.register('overwriteFile', this.overwriteFile.bind(this))
     ipc.register('list', (args, callback) => this.list(args).asCallback(callback))
     ipc.register('navList', (args, callback) => this.navList(args).asCallback(callback))
+    ipc.register('tree', (args, callback) => this.tree(args).asCallback(callback))
+    ipc.register('navTree', (args, callback) => this.navTree(args).asCallback(callback))
     ipc.register('readFile', this.readFile.bind(this))
     ipc.register('del', this.del.bind(this))
   }
 }
+
 
 export default FileService

@@ -14,24 +14,46 @@ import auth from '../../middleware/auth'
 // import Models from '../models'
 
 // list, tree and nav a directory
-router.get('/:type/:dirUUID', (req, res) => {
+router.get('/:type/:dirUUID/:rootUUID', (req, res) => {
 
-  let user = req.user
-  let { type, dirUUID } = req.params
+  let userUUID = req.user.userUUID
+  let { type, dirUUID, rootUUID } = req.params
 
-  switch (type) {
-    case 'list': 
-      
-      break
-    case 'tree': 
-      break
-    case 'list-nav': 
-      break
-    case 'tree-nav': 
-      break
-    default: 
-      return res.error(null, 400)
-  }
+  let typeArr = ['list', 'tree' ,'list-nav', 'tree-nav']
+  if (typeArr.indexOf(type) === -1) return res.error(null, 400)
+
+  let args = { userUUID, dirUUID, rootUUID }
+
+  config.ipc.call(type, args, (err, data) => {
+    if (err) return res.error(err)
+    return res.success(data)
+  })
+
+  // switch (type) {
+  //   case 'list': 
+  //     config.ipc.call('list', args, (e, node) => {
+  //       if (e) return res.error(e)
+  //       return 
+  //     })
+  //     break
+  //   case 'tree': 
+  //     config.ipc.call('tree', args, (e, node) => {
+  //       if (e) return res.error(e)
+  //     })
+  //     break
+  //   case 'list-nav': 
+  //     config.ipc.call('navList', args, (e, node) => {
+  //       if (e) return res.error(e)
+  //     })
+  //     break
+  //   case 'tree-nav': 
+  //     config.ipc.call('navTree', args, (e, node) => {
+  //       if (e) return res.error(e)
+  //     })
+  //     break
+  //   default: 
+  //     return res.error(null, 400)
+  // }
 })
 
 // download a file
