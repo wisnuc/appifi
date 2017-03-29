@@ -13,19 +13,38 @@ import config from '../config'
 import auth from '../middleware/auth'
 // import Models from '../models'
 
-// list, tree and nav a  directory
+// list, tree and nav a directory
 router.get('/:type/:dirUUID', (req, res) => {
 
+  let user = req.user
+  let { type, dirUUID } = req.params
+
+  switch (type) {
+    case 'list': 
+      
+      break
+    case 'tree': 
+      break
+    case 'list-nav': 
+      break
+    case 'tree-nav': 
+      break
+    default: 
+      return res.error(null, 400)
+  }
 })
 
 // download a file
 router.get('/download/:dirUUID/:fileUUID', (req, res) => {
+
+  let { dirUUID, fileUUID } = req.params
 
 })
 
 // mkdir 
 router.post('/mkdir/:dirUUID/:dirname', (req, res) => {
 
+  let { dirUUID, dirname } = req.params
 })
 
 // upload a file
@@ -46,12 +65,9 @@ router.patch('/rename/:dirUUID/:sha256', (req, res) => {
 // delete dir or file
 router.delete('/:dirUUID/:nodeUUID', (req, res) => {
 
+  let { dirUUID, nodeUUID } = req.params
 })
 
-// upload a file
-router.put('/upload/:dirUUID/:sha256', (req, res) => {
-
-})
 
 
 // this may be either file or folder
