@@ -36,13 +36,13 @@ export default async () => {
 
   await makeDirectoriesAsync(froot)
 
-	// const modelService = createModelService(froot)
-	// const docStore = await createDocumentStoreAsync(froot)
-	// const fileData = new FileData(path.join(froot, 'drives'), modelService.modelData)	
+	const modelService = createModelService(froot)
+	const docStore = await createDocumentStoreAsync(froot)
+	const fileData = new FileData(path.join(froot, 'drives'), modelService.modelData)	
 
-	// await modelService.initializeAsync()
+	await modelService.initializeAsync()
 
-	// console.log(modelService.modelData)
+	console.log(modelService.modelData)
 
 	if (process.env.FORK) {
 		console.log('fruitmix started in forked mode')	
@@ -63,6 +63,6 @@ export default async () => {
 
   const ipc = config.ipc
   ipc.register('ipctest', (text, callback) => process.nextTick(() => callback(null, text.toUpperCase())))
-  // modelService.register(ipc) 
+  modelService.register(ipc) 
 }
 
