@@ -3,9 +3,10 @@ import { readXstat } from './xstat'
 
 class FileService {
 
-  constructor(froot, data) {
+  constructor(froot, data, shareData) {
     this.froot = froot
     this.data = data 
+    this.shareData = shareData
   }
 
   nodeProps(node) {
