@@ -67,7 +67,7 @@ class MediaData {
     this.fileShareData.on('fileShareCreated', fShare => {
       fShare.doc.collection.forEach((uuid, index, array) => {
         let node = this.fileData.uuidMap.get(u)
-        if(node.postVisit(node => )
+        // if(node.postVisit(node => )
       })
     })
 
