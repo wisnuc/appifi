@@ -1,19 +1,18 @@
-import path from 'path'
-import fs from 'fs'
-import crypto from 'crypto'
+const path = require('path')
+const fs = require('fs')
+const crypto = require('crypto')
 
-import { Router } from 'express'
-import formidable from 'formidable'
-import UUID from 'node-uuid'
-import validator from 'validator'
-import sanitize from 'sanitize-filename'
+const router = require('express').Router()
+const formidable = require('formidable')
+const UUID = require('node-uuid')
+const validator = require('validator')
+const sanitize = require('sanitize-filename')
 
 import paths from '../lib/paths'
 import config from '../config'
 import auth from '../middleware/auth'
 // import Models from '../models'
 
-const router = Router()
 
 // this may be either file or folder
 // if it's a folder, return childrens
@@ -236,4 +235,4 @@ router.delete('/:folderUUID/:nodeUUID', (req, res) => {
   })
 })
 
-export default router
+module.exports = router
