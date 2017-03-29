@@ -1,19 +1,58 @@
-import path from 'path'
-import fs from 'fs'
-import crypto from 'crypto'
+const path = require('path')
+const fs = require('fs')
+const crypto = require('crypto')
 
-import { Router } from 'express'
-import formidable from 'formidable'
-import UUID from 'node-uuid'
-import validator from 'validator'
-import sanitize from 'sanitize-filename'
+const router = require('express').Router()
+const formidable = require('formidable')
+const UUID = require('node-uuid')
+const validator = require('validator')
+const sanitize = require('sanitize-filename')
 
 import paths from '../../lib/paths'
 import config from '../../config'
 import auth from '../../middleware/auth'
 // import Models from '../models'
 
-const router = Router()
+// list, tree and nav a  directory
+router.get('/:type/:dirUUID', (req, res) => {
+
+})
+
+// download a file
+router.get('/download/:dirUUID/:fileUUID', (req, res) => {
+
+})
+
+// mkdir 
+router.post('/mkdir/:dirUUID/:dirname', (req, res) => {
+
+})
+
+// upload a file
+router.put('/upload/:dirUUID/:sha256', (req, res) => {
+
+})
+
+// overwrite a file
+router.put('/overwrite/:dirUUID/:sha256', (req, res) => {
+
+})
+
+// rename dir or file
+router.patch('/rename/:dirUUID/:sha256', (req, res) => {
+
+})
+
+// delete dir or file
+router.delete('/:dirUUID/:nodeUUID', (req, res) => {
+
+})
+
+// upload a file
+router.put('/upload/:dirUUID/:sha256', (req, res) => {
+
+})
+
 
 // this may be either file or folder
 // if it's a folder, return childrens
@@ -21,7 +60,7 @@ const router = Router()
 // /files/xxxxxxx <- must be folder
 // TODO modified by jianjin.wu
 // /:nodeUUID?filename=xxx
-router.get('/:nodeUUID', auth.jwt(), (req, res) => {
+router.get('/:nodeUUID', (req, res) => {
 
   let user = req.user
   let query = req.query
@@ -236,4 +275,4 @@ router.delete('/:folderUUID/:nodeUUID', (req, res) => {
   })
 })
 
-export default router
+module.exports = router

@@ -1,49 +1,113 @@
+
+class Media {
+   constructor(digest) {
+    this.digest = digest
+    this.type = 'JPEG'
+    this.metadata = null
+    this.nodes = new Set()
+    this.mShares = new Set()
+    this.fShares = new Set()
+   }
+}
+
 class MediaData {
 
   constructor() {
 
-    this.fileShare = fileShare
+    this.fileShareData = fileShareData
+    this.fileData = fileData
+    this.mediaShareData = mediaShareData
+    this.map = new Map()
 
-    fileData.on('mediaAppeared', node => {
+    this.fileData.on('mediaAppeared', node => {
       if (this.map.has(node.hash)) {
-        this.map.get(node.hash).nodes.push(node)
+        this.map.get(node.hash).nodes.add(node)
       }
       else {
         let m = new Media(node.hash)
-        m.nodes.push(node)
-        this.map.set(node.hash, new Media(node.hash)
+        m.nodes.add(node)
+        this.map.set(node.hash, m)
       }
     })
 
-    fileData.on('mediaDisappearing', node => {
+    this.fileData.on('mediaDisappearing', node => {
+      let media = this.map.get(node.hash)
+      media.nodes.delete(node)
+      if(!media.nodes.size && !media.shares.size) this.map.delete(node.hash)
+    })    
+
+    this.mediaShareData.on('shareCreated', mShare => {
+      mShare.doc.contents.forEach(item => {
+        let media = this.map.get(item.digest)
+        if(media) {
+          media.mShares.add(mShare)
+        }
+        else {
+          let m = new Media(item.digest)
+          m.mShares.add(mShare)
+          this.map.set(item.digest, m)
+        }
+      })
     })
 
-    this.fileData = fileData
-
-    mediaShareData.on('shareCreated', share => {
+    this.mediaShareData.on('shareUpdating', mShare => {
     })
 
-    mediaShareData.on('shareUpdating', share => {
+    this.mediaShareData.on('shareUpdated', (oldMShare, newMShare) => {
     })
 
-    mediaShareData.on('shareUpdated', (oldShare, newShare) => {
+    this.mediaShareData.on('shareDeleting', mShare => {
+      mShare.doc.contents.forEach(item => {
+        let media = this.map.get(item.digest)
+        media.mShares.delete(mShare)
+        if(!media.nodes.size && !media.shares.size) this.map.delete(item.digest)
+      })
     })
 
-    mediaShareData.on('shareDeleting', share => {
+    this.fileShareData.on('fileShareCreated', fShare => {
+      fShare.doc.collection.forEach((uuid, index, array) => {
+        let node = this.fileData.uuidMap.get(u)
+        if(node.postVisit(node => )
+      })
     })
 
-    this.mediaShareData = mediaShareData
+    this.fileShareData.on('fileShareUpdating', (oldFShare, newFShare) => {
 
-    this.map = new Map()
+    })
+
+    this.fileShareData.on('fileShareUpdated', (oldFShare, newFShare) => {
+
+    })
+
+    this.fileShareData.on('fileShareDeleting', fShare => {
+
+    })    
   }
 
   ifICanShare(user, digest) {
     // user own digest
     // or existing a file instance in public, sharable drive with user as members. 
+    let media = this.map.get(digest)
+    if(!media) return false
+    else {
+      if(!media.nodes.size) return false
+      else {
+        return !!(Array.from(media.nodes).find(n => 
+          n.root().owner === user || 
+          (n.root().shareAllowed && [...n.root().writelist, ...n.root().readlist].includes(user))))
+      }
+    }
   }
 
   ifICanView(user, digest) {
-    
+    let media = this.map.get(digest)
+    if(!meida) return false
+    else {
+      return !!(Array.from(media.nodes).find(n => n.root().owner === user 
+        || [...n.root().writelist, ...n.root().readlist].includes(user)))
+      || !!(Array.from(media.fShares).find(s => [...s.doc.writelist, ...s.doc.readlist].includes(user)))
+      || !!(Array.from(media.shares).find(s => [s.doc.author, ...s.doc.maintainers, ...s.doc.viewers].includes(user)))
+    }
   }
 
   // owned, from library or home
