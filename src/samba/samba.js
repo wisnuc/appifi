@@ -1,16 +1,15 @@
 let fs = require('fs')
 let child = require('child_process')
 
-let getPrependPath = require('./prependPath')
+// let getPrependPath = require('./prependPath')
 let createUdpServer = require('./udpServer')
-let SmbAudit = require('./sambaAudit')
-let SambaManager = require('./sambaManager')
 let updateSambaFilesAsync = require('./updateSamba')
+let { startWatchAsync } = require('./watcher')
 
 Promise.promisifyAll(fs)
 Promise.promisifyAll(child)
 
-const userListConfigPath = '../../test/appifi/lib/samba/model.json'
+const userListConfigPath = '../../test/samba/model.json'
 let debounceTime = 5000 // millisecond
 
 const initSambaAsync = async () => {
@@ -29,33 +28,16 @@ const initSambaAsync = async () => {
   await child.execAsync('systemctl start smbd')
 }
 
-const beginWatchAsync = async () => {
-  let handler = new SambaManager(debounceTime)
-  let watcher = fs.watch(userListConfigPath, (eventType) => {
-    if (eventType === 'change') {
-        handler.resetSamba('Just for testing!')
-      }    
-  })
-
-  return watcher
-}
-
-const endWatch = async (watcher) => {
-  watcher.close()
-}
-
 // main process for samba service
-const watchSambaAsync = async () => {
-  getPrependPath()
+const runSambaAsync = async () => {
+  // getPrependPath()
   await initSambaAsync()
   await updateSambaFilesAsync()
-  let watchMan = await beginWatchAsync()
-  let udp = await Promise.promisify(createUdpServer)()
-
-  return new SmbAudit(udp)
+  let watchMan = await startWatchAsync()
+  let smbAuditEntity = await Promise.promisify(createUdpServer)()
 }
 
-watchSambaAsync().then(() => {
+runSambaAsync().then(() => {
   console.log('Samba Watcher is running!')
 }, (error) => {
   console.log(error)

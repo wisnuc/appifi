@@ -1,4 +1,6 @@
 let updateSambaFilesAsync = require('./updateSamba')
+let DEFAULTDELAY = 500 // millisecond
+let RETRYTIMES = 3
 
 // stat/event    new request (file change)                 timeout                success                        fail
 // init                                                                           idle                           exit
@@ -73,7 +75,8 @@ class Update extends State {
       this.success()
       // this.error(err)
     }).catch(err => {
-      this.error(err)
+      console.log(err)
+      this.error()
     })
   }
 
@@ -92,9 +95,9 @@ class Update extends State {
     }
   }
 
-  error(err) {
+  error() {
     this.contents.counter += 1
-    if(this.contents.counter >= 3) {
+    if(this.contents.counter >= RETRYTIMES) {
       if (this.next) {
         this.exit()
         this.setState(Wait, this.next)
@@ -105,12 +108,13 @@ class Update extends State {
       }
     }
     else {
-      updateSambaFiles().then(() => {
+      updateSambaFilesAsync().then(() => {
         console.log(data)
         this.success()
       }).catch(err => {
+        console.log(err)
         console.log('retry... ...')
-        this.error(err)
+        this.error()
       })
     }
   }
@@ -126,7 +130,7 @@ class Update extends State {
 
 class SambaManager {
   constructor(delay, echo) {
-    this.delay = delay || 500
+    this.delay = delay || DEFAULTDELAY
     this.state = new Idle(this) 
   }
 

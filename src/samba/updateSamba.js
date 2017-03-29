@@ -4,7 +4,7 @@ let mkdirp = require('mkdirp')
 let getPrependPath = require('./prependPath')
 
 // define some parameters
-const userListConfigPath = '../../test/appifi/lib/samba/model.json'
+const userListConfigPath = '../../test/samba/model.json'
 let prependPath = null
 
 // check & restart samba service

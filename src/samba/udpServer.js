@@ -6,7 +6,7 @@ const defaultPort = 3721
 const createUdpServer = (callback) => {
 
   let udp = dgram.createSocket('udp4')
-  
+
   udp.on('listening', () => {
     callback(null, new SmbAudit(udp))
   }) 
