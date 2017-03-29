@@ -4,8 +4,10 @@ import child from 'child_process'
 import stream from 'stream'
 import crypto from 'crypto'
 
+
 import xattr from 'fs-xattr'
 import Promise from 'bluebird'
+import UUID from 'node-uuid'
 
 import  paths from './paths'
 import HashTransform from '../lib/transform'
@@ -19,8 +21,10 @@ const createFileMapAsync = async ({ size, segmentsize, nodeuuid, sha256, name, u
   // fallocate -l 10G bigfile
   let folderPath = path.join(paths.get('filemap'), userUUID)
   try{
-    await fs.mkdirAsync(folderPath)
-    let filepath = path.join(folderPath, sha256)
+    if(!fs.existsSync(folderPath))
+      await fs.mkdirAsync(folderPath)
+    let taskId = UUID.v4()
+    let filepath = path.join(folderPath, taskId)
     await child.execAsync('fallocate -l ' + size +' ' + filepath)
     // may throw xattr ENOENT or JSON SyntaxError
     let segments = []
@@ -29,12 +33,12 @@ const createFileMapAsync = async ({ size, segmentsize, nodeuuid, sha256, name, u
     }
     let attr = { size, segmentsize, segments, nodeuuid, sha256, name }
     await xattr.setAsync(filepath, FILEMAP, JSON.stringify(attr))
-    return attr
+    return Object.assign({},attr,{ taskid: taskId })
   }catch(e){ throw e }
 }
 
-const updateFileMap = async ({ sha256, segmentHash, req , start, userUUID }, callback) => {
-  let filePath = path.join(paths.get('filemap'), userUUID, sha256)
+const updateFileMap = async ({ taskid, segmentHash, req , start, userUUID }, callback) => {
+  let filePath = path.join(paths.get('filemap'), userUUID, taskid)
   let abort = false
   try{
     await fs.statAsync(filePath)
