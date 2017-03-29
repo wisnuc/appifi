@@ -79,21 +79,23 @@ class Node {
     func(this) 
   }
 
+  // return node array starting from drive node 
   nodepath() {
+
     let q = []
-    this.upEach(node => q.unshift(node))
+    for (let n = this; n !== this.ctx.root; n = n.parent)
+      q.unshift(n)
+
     return q
   } 
 
-
-  abspath() { 
-    let q = []
-    for (let n = this; n !== this.ctx.root; n = n.parent) 
-      q.unshift(n.name)
-
-    return path.join(this.ctx.dir, ...q)
+  getDrive() {
+    
   }
 
+  abspath() { 
+    return path.join(this.ctx.dir, ...this.nodepath.map(n => n.name))
+  }
 
   namepath() {
     return path.join(...this.nodepath().map(n => n.name))
@@ -106,7 +108,6 @@ class Node {
   // abort workers // TODO nullify worker?
   abort() {
     if (this.worker) this.worker.abort()
-    
   }
 
   isFile() {
