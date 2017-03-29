@@ -3,9 +3,10 @@ import { readXstat } from './xstat'
 
 class FileService {
 
-  constructor(froot,data) {
+  constructor(froot, data, shareData) {
     this.froot = froot
     this.data = data 
+    this.shareData = shareData
   }
 
   nodeProps(node) {
@@ -32,9 +33,9 @@ class FileService {
   list({ userUUID, dirUUID }) {
 
     let node = this.data.findNodeByUUID(dirUUID)
-    if (!node) throw
-    if (!(node instanceof DirectoryNode)) throw
-    if (!(userCanRead(userUUID, node))) throw
+    if (!node) throw new Error('TODO') // FIXME
+    if (!(node instanceof DirectoryNode)) throw new Error('TODO')
+    if (!(userCanRead(userUUID, node))) throw new Error('TODO')
 
     return node.getChildren().map(n => nodeProps(n))
   }

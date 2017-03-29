@@ -4,6 +4,9 @@
  */
 const router = require('express').Router()
 
+// import { Router } from 'express'
+import fruitmix from './fruitmix'
+
 const fruitmix = require('./fruitmix')
 const external = require('./external')
 const transfer = require('./transfer')
