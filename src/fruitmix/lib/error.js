@@ -30,6 +30,7 @@ const EClass = (code, message) => {
 const define = (code, message) => (E[code] = EClass(code, message))
 
 define('EINVAL', 'invalid parameters')
+define('EACCESS', 'access denied')
 define('EFORMAT', 'bad format')
 define('EABORT', 'aborted')
 define('ENOTDIR', 'not a directory')
@@ -42,7 +43,7 @@ define('EEXITCODE', 'exit with error code')
 define('EEXITSIGNAL', 'exit with signal')
 define('EACCESS', 'no permission')
 define('ENOENT', 'no entry')
-define('ENODENOTFOUND', 'node not found')   // be different from ENOENT, which is easily confused with fs error
+define('ENODENOTFOUND', 'node not found')   // be different from ENOENT, which is easily confused with fs error, TODO not sure if this is the right design
 define('ELOCK', 'lock error')
 
 module.exports = Object.freeze(E)

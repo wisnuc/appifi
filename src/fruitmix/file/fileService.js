@@ -1,5 +1,6 @@
-import fs from 'fs'
-import { readXstat } from './xstat'
+const path = require('path')
+const fs = Promise.promisifyAll(require('fs'))
+import { readXstat, readXstatAsync, updateFileHashAsync } from './xstat'
 
 class FileService {
 
@@ -28,6 +29,18 @@ class FileService {
       }
     }
   }
+
+  userReadable(userUUID, node) {
+
+    return this.data.userPermittedToRead(userUUID, node)
+      || this.shareData.userAuthorizedToRead(userUUID, node)
+  }
+
+  userWritable(userUUID, node) {
+
+    return this.data.userPermittedToWrite(userUUID, node)
+      || this.shareData.userAuthorizedToWrite(userUUID, node)
+  }  
 
   // list all items inside a directory
   async list({ userUUID, dirUUID }) {
@@ -234,6 +247,7 @@ class FileService {
 
   }
 
+  /**
   // create new file before check
   createFileCheck(args, callback){
     let { userUUID, dirUUID, name } = args
@@ -243,6 +257,56 @@ class FileService {
     if(node.isDirectory() && this.list(userUUID, dirUUID).find(child => child.name == name && child.type === 'file'))
       return callback(new Error('File exist')) // TODO
     callback(null, node)
+  }
+  **/
+
+  // check must be provided as boolean
+  // early return null if check is true
+  // name must be valid filename, this can be asserted with sanitize-filename TODO
+  // src must be absolute path
+  // hash is optional, if it is provided, it is trusted
+  async createFileAsync(args) {
+
+    let { userUUID, dirUUID, name, src, hash, check } = args
+
+    // if check is true
+    // userUUID, dirUUID, name, mandatory  
+    // if check is false
+    // userUUID, dirUUID, name, src, mandatory; hash optional
+
+    let node = this.data.findNodeByUUID(dirUUID)
+    if (!node) throw new E.NODENOTFOUND()
+    if (!node.isDirectory()) throw new E.ENOTDIR()
+    if (!this.userWritable(userUUID, node)) throw new E.EACCESS()
+    if (node.getChildren().map(n => n.name).includes(name)) throw new E.EEXIST()
+
+    if (check === true) return null
+
+    let dst = path.join(node.abspath(), name)
+
+    try {
+
+      // if failed, it is highly likely the path is invalid, so dir node should be probed
+      await fs.renameAsync(src, dst)
+
+      // read xstat
+      let xstat = await readXstatAsync(dst) 
+
+      // update hash if available
+      if (hash) { 
+        // no need to try / catch, we probe anyway
+        xstat = await updateFileHashAsync(dst, xstat.uuid, hash, xstat.mtime)
+      }
+
+      // create node
+      return this.data.createNode(node, xstat)
+    }
+    catch (e) {
+      throw e
+    }
+    finally {
+      this.data.requestProbeByUUID(dirUUID)
+    }
   }
 
   // overwrite existing file
@@ -262,9 +326,21 @@ class FileService {
 
   }
 
+  // for debug
+  printFiles(args, callback) {
+    let data = this.data.print()
+    console.log('printFiles', data)
+    process.nextTick(() => callback(null, data))
+  }
+
   register(ipc){
-    ipc.register('createFileCheck', this.createFileCheck.bind(this))
-    ipc.register('createFile', this.createFile.bind(this))
+
+    // ipc.register('createFileCheck', this.createFileCheck.bind(this))
+
+    // ipc.register('createFile', this.createFile.bind(this))
+    ipc.register('createFile', (args, callback) => 
+      this.createFileAsync(args).asCallback(callback))
+
     ipc.register('createDirectory', this.createDirectory.bind(this))
     ipc.register('overwriteFile', this.overwriteFile.bind(this))
     ipc.register('list', (args, callback) => this.list(args).asCallback(callback))
@@ -273,6 +349,8 @@ class FileService {
     ipc.register('navTree', (args, callback) => this.navTree(args).asCallback(callback))
     ipc.register('readFile', this.readFile.bind(this))
     ipc.register('del', this.del.bind(this))
+
+    ipc.register('printFiles', this.printFiles.bind(this)) 
   }
 }
 

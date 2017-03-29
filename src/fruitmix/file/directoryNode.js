@@ -94,7 +94,6 @@ class DirectoryNode extends Node {
   isDirectory() {
     return true
   }
-
 }
 
 export default DirectoryNode

@@ -130,6 +130,14 @@ class Node {
     return false
   }
 
+  genObject() {
+    return this
+      .getChildren()
+      .reduce((acc, c) => {
+        acc[c.name] = c.genObject() 
+        return acc
+      }, {})
+  }
 }
 
 

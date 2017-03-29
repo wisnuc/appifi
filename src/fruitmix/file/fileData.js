@@ -9,7 +9,6 @@ import { forceDriveXstat } from './xstat'
 import Node from './node'
 import DriveNode from './driveNode'
 
-
 class FileData extends EventEmitter {
 
   constructor(driveDir, model) {
@@ -70,18 +69,21 @@ class FileData extends EventEmitter {
     console.log(`node ${node.uuid} ${node.name} hash stopped`)
   }
 
-  createNode(parent, props) {
+  // create node does NOT probe parent automatically,
+  // the probe should be put in caller's try / finally block 
+  createNode(parent, xstat) {
+
     let node
 
     switch(props.type) {
       case 'directory':
-        node = new DirectoryNode(this, props)        
+        node = new DirectoryNode(this, xstat)        
         break
       case 'file':
-        node = new FileNode(this, props)
+        node = new FileNode(this, xstat)
         break
       default:
-        throw 'bad props' //TODO
+        throw 'bad xstat' //TODO
     } 
 
     // this.uuidMap.set(uuid, node)
@@ -89,8 +91,8 @@ class FileData extends EventEmitter {
   }
 
   // update means props changed
-  updateNode(node, props) {
-    node.update(props)
+  updateNode(node, xstat) {
+    node.update(xstat)
   }
 
   deleteNode(node) {
@@ -104,6 +106,16 @@ class FileData extends EventEmitter {
   }
 
   findNodeByUUID(uuid) {
+    return this.uuidMap.get(uuid)
+  }
+
+  // this function is permissive
+  requestProbeByUUID(uuid) {
+
+    let node = this.findNodeByUUID(uuid)
+    if (!node) return
+    if (!node.isDirectory()) return // TODO maybe we should throw
+    node.probe()
   }
 
   userPermittedToRead(userUUID, node) {
@@ -164,6 +176,15 @@ class FileData extends EventEmitter {
     let node = this.findNodeByUUID(nodeUUID)
     if (!node) throw new E.ENODENOTFOUND()
     return this.userPermittedToShareByUUID(userUUID, node)
+  }
+
+  print() {
+    /**
+    let q = {}
+    this.root.preVisit(node => q.push({name: node.name}))
+    return q
+    **/
+    return this.root.genObject()
   }
 }
 
