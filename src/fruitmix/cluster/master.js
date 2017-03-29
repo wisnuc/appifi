@@ -5,6 +5,10 @@ import config from './config'
 import createModelService from '../models/modelService'
 import { createDocumentStoreAsync } from '../lib/documentStore'
 import FileData from '../file/fileData'
+import { createFileShareStore, createMediaShareStore } from '../lib/shareStore'
+import { createFileShareData } from '../file/fileShareData'
+import { createFileShareService } from '../file/fileShareService'
+import FileService from '../file/fileService'
 
 const makeDirectoriesAsync = async froot => {
 
@@ -37,12 +41,17 @@ export default async () => {
   await makeDirectoriesAsync(froot)
 
 	const modelService = createModelService(froot)
+  const modelData = modelService.modelData
 	const docStore = await createDocumentStoreAsync(froot)
 	const fileData = new FileData(path.join(froot, 'drives'), modelService.modelData)	
+  const fileShareStore = await Promise.promisify(createFileShareStore)(froot, docStore) 
+  const fileShareData = createFileShareData(modelData, fileShareStore)
+  const fileShareService = createFileShareService(fileData, fileShareData)
+  const fileService = new FileService(froot, fileData, fileShareData) 
 
 	await modelService.initializeAsync()
 
-	console.log(modelService.modelData)
+	console.log('modelData', modelData.users, modelData.drives)
 
 	if (process.env.FORK) {
 		console.log('fruitmix started in forked mode')	
@@ -60,6 +69,8 @@ export default async () => {
 	else {
 		console.log('fruitmix started in standalone mode')
 	}
+
+  await fileShareService.load()
 
   const ipc = config.ipc
   ipc.register('ipctest', (text, callback) => process.nextTick(() => callback(null, text.toUpperCase())))

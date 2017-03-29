@@ -89,6 +89,10 @@ class FileShareService {
 
     await this.fsd.deleteMediaShare(shareUUID)
   }
+
+  async load() {
+    console.log('fileShareService pretends to be loaded')
+  }
 }
 
 const createFileShareService = (fileData, fsd) => {

@@ -4,14 +4,14 @@
  */
 
 import { Router } from 'express'
-import fruitmix from './fruitmix'
+// import fruitmix from './fruitmix'
 
 const external = require('./external')
 const transfer = require('./transfer')
 
 let router = Router()
 
-router.use('/fruitmix', fruitmix)
+// router.use('/fruitmix', fruitmix)
 router.use('/external', external)
 router.use('/transfer', transfer)
 

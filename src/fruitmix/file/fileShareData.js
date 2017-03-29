@@ -6,11 +6,22 @@ import E from '../lib/error'
 import { assert } from '../lib/types'
 
 class FileShare {
+
   constructor(digest, doc) {
     this.digest = digest
     this.doc = doc
 
     deepFreeze(this)
+  }
+
+  userAuthorizedToRead(userUUID) {
+  }
+
+  userAuthorizedToWrite(userUUID) {
+  }
+
+  // filter collection
+  effective() {
   }
 }
 
@@ -28,11 +39,37 @@ const invariantUpdate = (c, n) => {
 
 class FileShareData extends EventEmitter {
 
-  constructor(model, fileShareStore) {
+  constructor(model, fileShareStore, fileData) {
     super()
     this.model = model
     this.fss = fileShareStore
     this.fsMap = new Map()
+    this.fileData = fileData
+  }
+
+  userAuthorizedToRead(userUUID, node) { // starting from root
+    // 1. filter user in ReaderSet and user is not author
+    // 2. iterate collection list, find one in nodepath && effective
+
+    let arr = [...this.fsMap]
+
+    for (let i = 0; i < arr.length; i++) {
+      if (arr[0].authorizedRead(userUUID)) {
+        let collection
+
+        let found = collection.find(item => {
+          nodepath.includes(item) && 
+          this.fileData.userReadable(userUUID, item.uuid)
+        })
+
+        if (found) return true
+      }
+
+    }
+    return false
+  }
+
+  userAuthorizedToWrite(userUUID, node) {
   }
 
   async createFileShare(doc) {

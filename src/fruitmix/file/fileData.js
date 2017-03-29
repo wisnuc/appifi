@@ -102,6 +102,18 @@ class FileData extends EventEmitter {
 
   findNodeByUUID(uuid) {
   }
+
+  userPermittedToRead(node) {
+  }
+
+  userPermittedToReadByUUID(nodeUUID) {
+  }
+
+  userPermittedToWrite(node) {
+  }
+
+  userPermittedToShare(node) {
+  }
 }
 
 export default FileData
