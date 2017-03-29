@@ -67,9 +67,9 @@ class SmbAudit extends EventEmitter {
       let audit = { user, share, abspath, op, arg0 }
       if (arg1) audit.arg1 = arg1
       
-      console.log('##################################');
+      console.log('####################################################');
       console.log(audit);
-      console.log('##################################');
+      console.log('####################################################');
       
       return audit
     })

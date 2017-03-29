@@ -9,7 +9,6 @@ let prependPath = null
 
 // check & restart samba service
 let updatingSamba = false
-let sambaTimer = -1
 
 const mkdirpAsync = Promise.promisify(mkdirp)
 Promise.promisifyAll(fs)
@@ -22,13 +21,7 @@ const uuidToUnixName = (uuid) =>
 
 // read infors from local file
 const getUserListAsync = async () => {
-  let userList = {}
-  try {
-    userList = await fs.readFileAsync(userListConfigPath)
-  }
-  catch (error) {
-    return
-	}
+  let userList = await fs.readFileAsync(userListConfigPath)
 
   return JSON.parse(userList)
 }
@@ -84,7 +77,6 @@ const createShareListAsync = async () => {
     }
   })
 
-  // console.log('share list', shareList)
   return shareList
 }
 
@@ -136,14 +128,12 @@ const retrieveSmbUsers = (callback) => {
       })
       .filter(u => !!u)
 
-    // console.log('retrieveSmbUsers', stdout.toString().split('\n'))
     callback(null, users)
   })
 }
 
 // add user to system
 const addUnixUserAsync = async (username, unixuid) => {
-  // console.log('addUnixUser', username, unixuid)
   let cmd = 'adduser --disabled-password --disabled-login --no-create-home --gecos ",,," ' + 
     `--uid ${unixuid} --gid 65534 ${username}`
   return child.execAsync(cmd)
@@ -151,18 +141,15 @@ const addUnixUserAsync = async (username, unixuid) => {
 
 // delete user from system
 const deleteUnixUserAsync = async (username) => {
-  // console.log('deleteUnixUser', username)
   return child.execAsync(`deluser ${username}`)
 }
 
 // reconcile user list from system & fruitmix
 const reconcileUnixUsersAsync = async () => {
   let sysusers = await Promise.promisify(retrieveSysUsers)()
-  // console.log('reconcile unix users, unix users', sysusers)
 
   let userList = await getUserListAsync();
   let fusers = userList['users'].map(u => ({ unixname: uuidToUnixName(u.uuid), unixuid:u.unixuid }))
-  // console.log('reconcile unix users, fruitmix users', fusers)
 
   let common = new Set()
   fusers.forEach(fuser => {
@@ -171,13 +158,9 @@ const reconcileUnixUsersAsync = async () => {
     if (found) common.add(found.unixname + ':' + found.unixuid)
   })
 
-  // console.log('reconcile unix users, common', common)
-
   fusers = fusers.filter(f => !common.has(f.unixname + ':' + f.unixuid))
-  // console.log('reconcile unix users, fruitmix users (subtracted)', fusers)
 
   sysusers = sysusers.filter(s => !common.has(s.unixname + ':' + s.unixuid))
-  // console.log('reconcile unix users, unix users (subtracted)', sysusers)
 
   await Promise.map(sysusers, u => deleteUnixUserAsync(u.unixname).reflect())
   await Promise.map(fusers, u => addUnixUserAsync(u.unixname, u.unixuid).reflect())
@@ -185,7 +168,6 @@ const reconcileUnixUsersAsync = async () => {
 
 // delete samba user from local samba service
 const deleteSmbUserAsync = async (username) => {
-  // console.log('delete smb user', username)
   return child.execAsync(`pdbedit -x ${username}`)
 }
 
@@ -194,13 +176,10 @@ const addSmbUsersAsync = async (fusers) => {
   let text = fusers.map(u => `${u.unixname}:${u.unixuid}:` + 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX:' +
     `${u.md4}:[U          ]:${u.lct}:`).join('\n')
 
-  // console.log('addSmbUsers', text)
-
   await mkdirpAsync('/run/wisnuc/smb')
   await fs.writeFileAsync('/run/wisnuc/smb/tmp', text)
   await child.execAsync('pdbedit -i smbpasswd:/run/wisnuc/smb/tmp')
 
-  // console.log('addSmbUsers, after', await child.execAsync('pdbedit -Lw'))
 }
 
 // reconcile user list from local samba service & fruitmix
@@ -209,7 +188,6 @@ const reconcileSmbUsersAsync = async () => {
     [user.unixname, user.unixuid.toString(), user.md4, user.lct].join(':')
 
   let smbusers = await Promise.promisify(retrieveSmbUsers)()
-  // console.log('reconcile smb users, smbusers', smbusers)
 
   let userList = await getUserListAsync();
   let fusers = userList['users'].map(u => ({
@@ -218,7 +196,6 @@ const reconcileSmbUsersAsync = async () => {
     md4: u.smbPassword.toUpperCase(),
     lct: 'LCT-' + Math.floor(u.lastChangeTime / 1000).toString(16).toUpperCase() // TODO
   }))
-  // console.log('reconcile smb users, fruitmix users', fusers)
 
   let common = new Set()
   fusers.forEach(f => {
@@ -227,13 +204,10 @@ const reconcileSmbUsersAsync = async () => {
     if (found)
       common.add(key(found))
   })
-  // console.log('reconcile smb users, common', common)
 
   smbusers = smbusers.filter(s => !common.has(key(s)))
-  // console.log('reconcile smb users, smb users (subtracted)', smbusers)
 
   fusers = fusers.filter(f => !common.has(key(f)))
-  // console.log('reconcile smb users, fruitmix users (subtracted)', fusers)
 
   // remove
   await Promise.map(smbusers, (smbuser) => 
@@ -249,7 +223,6 @@ const generateUserMapAsync = async () => {
   let text = userList['users'].reduce((prev, user) =>
     prev + `${uuidToUnixName(user.uuid)} = "${user.username}"\n`, '')
 
-  // console.log('generate usermap', text)
   await fs.writeFileAsync('/etc/smbusermap', text)
 }
 
@@ -257,10 +230,6 @@ const generateUserMapAsync = async () => {
 const generateSmbConfAsync = async () => {
 
 	prependPath = getPrependPath()
-
-	if(prependPath === null) {
-		return null
-	}
 
   let global =  '[global]\n' +
                 '  username map = /etc/smbusermap\n' +
@@ -280,8 +249,8 @@ const generateSmbConfAsync = async () => {
                            '  force group = root\n');
 
     if(!share.readOnly) {
-      tmpStr = tmpStr.concat(`  write list = ${(share.validUsers).length > 1?share.writelist.join(', '):share.validUsers}\n` + // writelist
-                             `  valid users = ${(share.validUsers).length > 1?share.validUsers.join(', '):share.validUsers}\n` +
+      tmpStr = tmpStr.concat(`  write list = ${(share.validUsers).length > 1 ? share.writelist.join(', ') : share.validUsers}\n` + // writelist
+                             `  valid users = ${(share.validUsers).length > 1 ? share.validUsers.join(', ') : share.validUsers}\n` +
                              '  vfs objects = full_audit\n' +
                              '  full_audit:prefix = %u|%U|%S|%P\n' +
                              '  full_audit:success = create_file mkdir rename rmdir unlink write pwrite \n' + // dont remove write !!!!
@@ -300,45 +269,18 @@ const generateSmbConfAsync = async () => {
     conf += section(share) + '\n';
   })
 
-  // console.log('generateSmbConf', conf)
   await fs.writeFileAsync('/etc/samba/smb.conf', conf)
-}
-
-// delay restart samba time for default 1 second
-const scheduleUpdate = () => {
-  if (sambaTimer !== -1) {
-    clearTimeout(sambaTimer)
-    sambaTimer = -1
-  }
-
-  sambaTimer = setTimeout(() => {
-    if (updatingSamba) {
-      scheduleUpdate()
-      return
-    }
-    updateSambaFiles().then(() => {}).catch(e => {})
-
-  }, 1000)
 }
 
 const updateSambaFilesAsync = async () => {
   updatingSamba = true
-  try {
-    // console.log('updating samba files')
-    await reconcileUnixUsersAsync()
-    await reconcileSmbUsersAsync()
-    await generateUserMapAsync()
 
-    let result = await generateSmbConfAsync()
-		if(result === null) {
-			throw new Error('prependPath error')
-		}
+  await reconcileUnixUsersAsync()
+  await reconcileSmbUsersAsync()
+  await generateUserMapAsync()
+  await generateSmbConfAsync()
 
-    await child.execAsync('systemctl restart smbd')
-  }
-  catch (e) {
-    console.log(e)
-  }
+  await child.execAsync('systemctl restart smbd')
 
   updatingSamba = false
 }

@@ -1,66 +1,138 @@
-let fs = require('fs')
-let child = require('child_process')
-
-let getPrependPath = require('./prependPath')
-let createUdpServer = require('./udpServer')
-let SmbAudit = require('./sambaAudit')
-let Persistence = require('./persistence')
 let updateSambaFilesAsync = require('./updateSamba')
 
-Promise.promisifyAll(fs)
-Promise.promisifyAll(child)
+// stat/event    new request (file change)                 timeout                success                        fail
+// init                                                                           idle                           exit
+// idle          wait (current req)
+// wait          wait (re-timer & req with next new req)   update (current req)    
+// update        update (save new req as next req)                                next ? wait(next req) : idle   counter > 3 ? (next ? wait(next req) : idle) : counter + 1 & update (current req)
+// exit
 
-const userListConfigPath = '../../test/appifi/lib/samba/model.json'
-let debounceTime = 5000; // millisecond
-
-const initSambaAsync = async () => {
-  const logConfigPath = '/etc/rsyslog.d/99-smbaudit.conf'
-  const logConfig = 'LOCAL7.*    @127.0.0.1:3721'
-
-  // update rsyslog config if necessary
-  let config = null
-  try { config = await fs.readFileAsync(logConfigPath) } catch (e) {console.log('initSamba: Not find Samba service')}
-  if (config !== logConfig) {
-    await fs.writeFileAsync(logConfigPath, logConfig)  
-    await child.execAsync('systemctl restart rsyslog')
+class State {
+  constructor(contents) {
+    this.contents = contents
   }
 
-  await child.execAsync('systemctl start nmbd')
-  await child.execAsync('systemctl start smbd')
-}
-
-const beginWatchAsync = async () => {
-  let result = new Persistence(debounceTime)
-  let watcher = fs.watch(userListConfigPath, (eventType) => {
-    if (eventType === 'change') {
-        result.resetSamba('Only for test!!!')
-      }    
-  })
-
-  return watcher
-}
-
-const endWatch = async (watcher) => {
-  watcher.close()
-}
-
-// main process for samba service
-const watchSambaAsync = async () => {
-  try {
-    getPrependPath()
-    await initSambaAsync()
-    await updateSambaFilesAsync()
-    let watchMan = await beginWatchAsync()
-    let udp = await Promise.promisify(createUdpServer)()
-
-    return new SmbAudit(udp)
-  }
-  catch(error) {
-    console.log(error)
-    throw new Error('watch samba async error!')
+  setState(nextState, ...args) {
+    this.contents.state = new nextState(this.contents, ...args)
   }
 }
 
-watchSambaAsync().then(() => {
-  console.log('"WatchSamba" service is running!');
-}, (error) => {console.log(error)});
+class Idle extends State{
+  constructor(contents, data) {
+    super(contents)
+    this.enter()
+  }
+
+  resetSamba(data) {
+    this.exit()
+    this.setState(Wait, data)
+  }
+
+  enter() {
+    // console.log('Enter Update')
+  }
+
+  exit() {
+    // console.log('Leave Update')
+  }
+}
+
+class Wait extends State {
+  constructor(contents, data) {
+    super(contents)
+    this.enter()
+    this.resetSamba(data)
+  }
+
+  resetSamba(data) {
+    clearTimeout(this.timer)
+    this.data = data
+    this.timer = setTimeout(() => {
+      this.exit()
+      this.setState(Update, this.data) 
+    }, this.contents.delay)
+  }
+
+  enter() {
+    // console.log('Enter Wait')
+  }
+
+  exit() {
+    // console.log('Leave Wait')
+    clearTimeout(this.timer)
+  }
+}
+
+class Update extends State {
+  constructor(contents, data) { 
+    super(contents)
+    this.contents.counter = 0
+    this.enter()
+    updateSambaFilesAsync().then(() => {
+      console.log(data)
+      this.success()
+      // this.error(err)
+    }).catch(err => {
+      this.error(err)
+    })
+  }
+
+  resetSamba(data) {
+    this.next = data
+  }
+
+  success() {
+    if (this.next) {
+      this.exit()
+      this.setState(Wait, this.next)
+    }
+    else {
+      this.exit()
+      this.setState(Idle)
+    }
+  }
+
+  error(err) {
+    this.contents.counter += 1
+    if(this.contents.counter >= 3) {
+      if (this.next) {
+        this.exit()
+        this.setState(Wait, this.next)
+      }
+      else {
+        this.exit()
+        this.setState(Idle)
+      }
+    }
+    else {
+      updateSambaFiles().then(() => {
+        console.log(data)
+        this.success()
+      }).catch(err => {
+        console.log('retry... ...')
+        this.error(err)
+      })
+    }
+  }
+
+  enter() {
+    // console.log('Enter Update')
+  }
+
+  exit() {
+    // console.log('Leave Update')
+  }
+}
+
+class SambaManager {
+  constructor(delay, echo) {
+    this.delay = delay || 500
+    this.state = new Idle(this) 
+  }
+
+  resetSamba(echo) {
+    this.state.resetSamba(echo)
+  }
+}
+
+module.exports = SambaManager
