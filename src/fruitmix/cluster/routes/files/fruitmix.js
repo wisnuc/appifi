@@ -13,6 +13,46 @@ import config from '../config'
 import auth from '../middleware/auth'
 // import Models from '../models'
 
+// list, tree and nav a  directory
+router.get('/:type/:dirUUID', (req, res) => {
+
+})
+
+// download a file
+router.get('/download/:dirUUID/:fileUUID', (req, res) => {
+
+})
+
+// mkdir 
+router.post('/mkdir/:dirUUID/:dirname', (req, res) => {
+
+})
+
+// upload a file
+router.put('/upload/:dirUUID/:sha256', (req, res) => {
+
+})
+
+// overwrite a file
+router.put('/overwrite/:dirUUID/:sha256', (req, res) => {
+
+})
+
+// rename dir or file
+router.patch('/rename/:dirUUID/:sha256', (req, res) => {
+
+})
+
+// delete dir or file
+router.delete('/:dirUUID/:nodeUUID', (req, res) => {
+
+})
+
+// upload a file
+router.put('/upload/:dirUUID/:sha256', (req, res) => {
+
+})
+
 
 // this may be either file or folder
 // if it's a folder, return childrens

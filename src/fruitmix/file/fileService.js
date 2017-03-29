@@ -23,7 +23,7 @@ class FileService {
         type: 'file',
         name: node.name,
         size: node.size,
-        mtime: node.mtime, // FIXME need change mtime definition      
+        mtime: node.mtime, // FIXME: need change mtime definition      
       }
     }
   }
