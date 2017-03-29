@@ -8,9 +8,9 @@ import UUID from 'node-uuid'
 import validator from 'validator'
 import sanitize from 'sanitize-filename'
 
-import paths from '../lib/paths'
-import config from '../config'
-import auth from '../middleware/auth'
+import paths from '../../lib/paths'
+import config from '../../config'
+import auth from '../../middleware/auth'
 // import Models from '../models'
 
 const router = Router()
