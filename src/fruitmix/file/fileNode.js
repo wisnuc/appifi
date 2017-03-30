@@ -1,3 +1,5 @@
+const pretty = require('prettysize')
+
 import command from '../lib/command'
 import hash from './hash'
 import identify from './identify'
@@ -93,6 +95,10 @@ class FileNode extends Node {
 
   isFile() {
     return true
+  }
+
+  genObject() {
+    return pretty(this.size) + ' ' + (this.hash ? this.hash.slice(0, 8) : '')
   }
 }
 

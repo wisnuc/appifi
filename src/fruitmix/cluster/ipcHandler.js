@@ -29,9 +29,11 @@ class IpcHandler {
       })
     }
 
-    handler(msg.args, (err, data) => {
+    // default data to null, otherwise it will be eliminated
+    handler(msg.args, (err, data = null) => {
 
-      console.log('handler', err || data)
+      // change to debug TODO
+      // console.log('handler', err || data)
 
       if (err) {
         worker.send({

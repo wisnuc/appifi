@@ -15,13 +15,17 @@ class FileShare {
   }
 
   userAuthorizedToRead(userUUID) {
+    return [...this.doc.writelist, ...this.doc.readlist].includes(userUUID)
   }
 
   userAuthorizedToWrite(userUUID) {
+    return this.doc.writelist.includes(userUUID)
   }
 
   // filter collection
-  effective() {
+  // author of the share still has permission to share these nodes
+  effective(fileData) {
+    return this.doc.collection.filter(uuid => fileData.userPermittedToShareByUUID(this.doc.author, uuid))
   }
 }
 
@@ -37,6 +41,12 @@ const invariantUpdate = (c, n) => {
   ])
 }
 
+// whether a node is included in a share and still effective
+// const nodeIncluded = (share, node, fileData) => {
+//   let collection = share.effective(fileData)
+//   return collection.find(uuid => node.nodepath().includes(fileData.uuidMap.get(uuid)))
+// }
+
 class FileShareData extends EventEmitter {
 
   constructor(model, fileShareStore, fileData) {
@@ -47,29 +57,47 @@ class FileShareData extends EventEmitter {
     this.fileData = fileData
   }
 
+  load() {
+
+  }
+
   userAuthorizedToRead(userUUID, node) { // starting from root
     // 1. filter user in ReaderSet and user is not author
     // 2. iterate collection list, find one in nodepath && effective
 
-    let arr = [...this.fsMap]
+    let shares = [...this.fsMap.values()]
 
-    for (let i = 0; i < arr.length; i++) {
-      if (arr[0].authorizedRead(userUUID)) {
-        let collection
+    for (let i = 0; i < shares.length; i++) {
+      if (shares[i].userAuthorizedToRead(userUUID)) {
+        let collection = shares[i].effective(this.fileData)
 
-        let found = collection.find(item => {
-          nodepath.includes(item) && 
-          this.fileData.userReadable(userUUID, item.uuid)
+        let found = collection.find(uuid => {
+          let n = this.fileData.uuidMap.get(uuid)
+          let nodepath = node.nodepath()
+          return nodepath.includes(n) && this.fileData.userPermittedToRead(share[i].doc.author, n)
         })
-
         if (found) return true
       }
-
     }
     return false
   }
 
   userAuthorizedToWrite(userUUID, node) {
+    let shares = [...this.fsMap.values()]
+
+    for (let i = 0; i < shares.length; i++) {
+      if (shares[i].userAuthorizedToWrite(userUUID)) {
+        let collection = shares[i].effective(this.fileData)
+
+        let found = collection.find(uuid => {
+          let n = this.fileData.uuidMap.get(uuid)
+          let nodepath = node.nodepath()
+          return nodepath.includes(n) && this.fileData.userPermittedToWrite(share[i].doc.author, n)
+        })
+        if (found) return true
+      }
+    }
+    return false
   }
 
   async createFileShare(doc) {
