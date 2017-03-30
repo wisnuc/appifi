@@ -57,8 +57,12 @@ class FileShareData extends EventEmitter {
     this.fileData = fileData
   }
 
-  load() {
-
+  async load() {
+    let shares = await this.fss.retrieveAllAsync()
+    shares.forEach(share => {
+      this.fsMap.set(share.doc.uuid, share)
+    })
+    this.emit('fileShareCreated', shares)
   }
 
   userAuthorizedToRead(userUUID, node) { // starting from root
@@ -107,7 +111,7 @@ class FileShareData extends EventEmitter {
     let fileShare = new FileShare(digest, doc)
 
     this.fsMap.set(doc.uuid, fileShare)
-    this.emit('fileShareCreated', fileShare)
+    this.emit('fileShareCreated', [fileShare])
     return fileShare
   }
 
@@ -141,7 +145,9 @@ class FileShareData extends EventEmitter {
 
 const createFileShareData = (model, fileShareStore) => {
   Promise.promisifyAll(fileShareStore)
-  return new FileShareData(model, fileShareStore)
+  let fileShareData = new FileShareData(model, fileShareStore)
+  await fileShareData.load()
+  return fileShareData
 }
 
 export { createFileShareData }
