@@ -143,7 +143,7 @@ class FileShareData extends EventEmitter {
   }
 }
 
-const createFileShareData = (model, fileShareStore) => {
+const createFileShareData = async (model, fileShareStore) => {
   Promise.promisifyAll(fileShareStore)
   let fileShareData = new FileShareData(model, fileShareStore)
   await fileShareData.load()
