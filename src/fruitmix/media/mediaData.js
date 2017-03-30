@@ -1,87 +1,79 @@
-
 class Media {
-   constructor(digest) {
+
+  constructor(digest) {
     this.digest = digest
-    this.type = 'JPEG'
+    this.type = ''
     this.metadata = null
     this.nodes = new Set()
-    this.mShares = new Set()
-    this.fShares = new Set()
-   }
+    this.shares = new Set()
+  }
+
+  isEmpty() {
+    return this.nodes.size === 0 && this.shares.size === 0 
+  }
 }
 
 class MediaData {
 
-  constructor() {
+  constructor(modelData, fileData, mediaData, mediaShareData) {
 
     this.fileShareData = fileShareData
     this.fileData = fileData
     this.mediaShareData = mediaShareData
     this.map = new Map()
 
-    this.fileData.on('mediaAppeared', node => {
-      if (this.map.has(node.hash)) {
-        this.map.get(node.hash).nodes.add(node)
-      }
-      else {
-        let m = new Media(node.hash)
-        m.nodes.add(node)
-        this.map.set(node.hash, m)
-      }
-    })
 
-    this.fileData.on('mediaDisappearing', node => {
-      let media = this.map.get(node.hash)
-      media.nodes.delete(node)
-      if(!media.nodes.size && !media.shares.size) this.map.delete(node.hash)
-    })    
+    this.fileData.on('mediaAppeared', this.handleMediaAppeared.bind(this))
+    this.fileData.on('mediaDisappearing', this.handleMediaDisappearing.bind(this))
+    this.fileData.on('mediaIdentified', this.handleMediaIdentified.bind(this))
 
-    this.mediaShareData.on('shareCreated', mShare => {
-      mShare.doc.contents.forEach(item => {
-        let media = this.map.get(item.digest)
-        if(media) {
-          media.mShares.add(mShare)
-        }
-        else {
-          let m = new Media(item.digest)
-          m.mShares.add(mShare)
-          this.map.set(item.digest, m)
-        }
-      })
-    })
+    this.mediaShareData.on('shareCreated', this.handleMediaShareCreated.bind(this))
+    this.mediaShareData.on('shareUpdated', this.handleMediaShareUpdated.bind(this))
+    this.mediaShareData.on('shareDeleted', this.handleMediaShareDeleted.bind(this))
+  }
 
-    this.mediaShareData.on('shareUpdating', mShare => {
-    })
+  handleMediaAppeared(node) {
+    
+    let media = this.map.get(node.uuid)
+    if (!media) {
+      media = new Media(node.hash)
+      media.type = node.magic
+      this.nodes.add(node)
+      node.identify()
+    }
+    else {
+      this.media.nodes.add(node)
+      if (!media.metadata) node.identify()
+    }
+  }
 
-    this.mediaShareData.on('shareUpdated', (oldMShare, newMShare) => {
-    })
+  handleMediaDisappearing(node) {
 
-    this.mediaShareData.on('shareDeleting', mShare => {
-      mShare.doc.contents.forEach(item => {
-        let media = this.map.get(item.digest)
-        media.mShares.delete(mShare)
-        if(!media.nodes.size && !media.shares.size) this.map.delete(item.digest)
-      })
-    })
+    let media = this.map.get(node.uuid)
+    if (!media) {
+      // log
+      return 
+    }
 
-    this.fileShareData.on('fileShareCreated', fShare => {
-      fShare.doc.collection.forEach((uuid, index, array) => {
-        let node = this.fileData.uuidMap.get(u)
-        // if(node.postVisit(node => )
-      })
-    })
+    media.nodes.delete(node)
+    if (media.isEmpty()) this.map.delete(node.uuid)
+  }
 
-    this.fileShareData.on('fileShareUpdating', (oldFShare, newFShare) => {
+  handleShareCreated(share) {
+    
+    let arr = share.doc.contents 
+     
+  }
 
-    })
+  handleShareUpdated(oldShare, newShare) {
+  }
 
-    this.fileShareData.on('fileShareUpdated', (oldFShare, newFShare) => {
+  handleShareDeleted(share) {
+  }
 
-    })
-
-    this.fileShareData.on('fileShareDeleting', fShare => {
-
-    })    
+  mediaProperties(userUUID, media) {
+  
+      
   }
 
   ifICanShare(user, digest) {
@@ -107,7 +99,7 @@ class MediaData {
         || [...n.root().writelist, ...n.root().readlist].includes(user)))
       || !!(Array.from(media.fShares).find(s => [...s.doc.writelist, ...s.doc.readlist].includes(user)))
       || !!(Array.from(media.shares).find(s => [s.doc.author, ...s.doc.maintainers, ...s.doc.viewers].includes(user)))
-    }
+     
   }
 
   // owned, from library or home
@@ -149,3 +141,4 @@ class MediaData {
     })
   }
 }
+

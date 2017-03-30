@@ -101,6 +101,7 @@ class FileShareData extends EventEmitter {
   }
 
   async createFileShare(doc) {
+
     validateFileShareDoc(doc, this.model.getUsers())
 
     let digest = await this.fss.storeAsync(doc)
@@ -112,6 +113,7 @@ class FileShareData extends EventEmitter {
   }
 
   async updateFileShare(doc) {
+
     validateFileShareDoc(doc, this.model.getUsers())
 
     let share = this.fsMap.get(doc.uuid)
