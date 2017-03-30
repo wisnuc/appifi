@@ -53,31 +53,31 @@ describe(path.basename(__filename), function() {
    })
 
   
-   describe('test updateFileMap', function() {
-    beforeEach( async (done) => {
-      await rimrafAsync('filemap')
-      await mkdirpAsync('filemap')
-      let createFileMapArgs = { size, segmentsize, nodeuuid, sha256, name, userUUID}
-      createFileMap(createFileMapArgs, (e , data) => {
-        if(e) return done(e)
-        done()
-      })
-    })
+  //  describe('test updateFileMap', function() {
+  //   beforeEach( async (done) => {
+  //     await rimrafAsync('filemap')
+  //     await mkdirpAsync('filemap')
+  //     let createFileMapArgs = { size, segmentsize, nodeuuid, sha256, name, userUUID}
+  //     createFileMap(createFileMapArgs, (e , data) => {
+  //       if(e) return done(e)
+  //       done()
+  //     })
+  //   })
 
-    it(`should update file ${ sha256 } in file map `, (done) => {
-      //  /nodeuuid?filename=xxx&segmentHash=xxx&start=xx&sha256=xxx
-      let req = request(app).put(`/filemap/${ nodeuuid }?filename=${ name }&segmentHash=${ segmentHash }&start=0&sha256=${ sha256 }`)
-      let stream = fs.createReadStream(imagePath)
-      stream.pipe(req)
-      req.expect(200)
-      done()
-    })
+  //   it(`should update file ${ sha256 } in file map `, (done) => {
+  //     //  /nodeuuid?filename=xxx&segmentHash=xxx&start=xx&sha256=xxx
+  //     let req = request(app).put(`/filemap/${ nodeuuid }?filename=${ name }&segmentHash=${ segmentHash }&start=0&sha256=${ sha256 }`)
+  //     let stream = fs.createReadStream(imagePath)
+  //     stream.pipe(req)
+  //     req.expect(200)
+  //     done()
+  //   })
 
     // afterEach('clean filemap', async (done)=> {
     //   await rimrafAsync('filemap')
     //   await mkdirpAsync('filemap')
     //   done()
     // })
-   })
+  //  })
   
 })
