@@ -329,7 +329,6 @@ class FileService {
   // for debug
   printFiles(args, callback) {
     let data = this.data.print()
-    console.log('printFiles', data)
     process.nextTick(() => callback(null, data))
   }
 
