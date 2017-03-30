@@ -3,6 +3,7 @@ import fs from 'fs'
 import child from 'child_process'
 import stream from 'stream'
 import crypto from 'crypto'
+import EventEmitter from 'events'
 
 
 import xattr from 'fs-xattr'
@@ -34,84 +35,75 @@ const createFileMapAsync = async ({ size, segmentsize, nodeuuid, sha256, name, u
     let attr = { size, segmentsize, segments, nodeuuid, sha256, name }
     await xattr.setAsync(filepath, FILEMAP, JSON.stringify(attr))
     return Object.assign({},attr,{ taskid: taskId })
-  }catch(e){ throw e }
+  }catch(e){
+      console.log(e)
+     throw e
+     }
 }
 
-const updateFileMap = async ({ taskid, segmentHash, req , start, userUUID }, callback) => {
-  let filePath = path.join(paths.get('filemap'), userUUID, taskid)
-  let abort = false
-  try{
-    await fs.statAsync(filePath)
-    
-    let attr = JSON.parse(await xattr.getAsync(filePath, FILEMAP))
+class SegmentUpdater extends EventEmitter{
+  constructor(target, stream, offset, segmentHash, segmentSize) {
+    super()
+    this.finished = false
+    this.target = target
+    this.stream = stream
+    this.offset = offset
+    this.segmentHash = segmentHash
+    this.segmentSize = segmentSize
+  }
 
-    let segments = attr.segments
-    if(segments.length < start || segments[start] === 1)
-      return callback(null, true)// already uploaded
-
-    let position = attr.segmentsize * start
-
-    let writeStream =  fs.createWriteStream(filePath,{ flags: 'r+', start: position})
-    
-    let Transform = stream.Transform
-
-    let hashStream = crypto.createHash('sha256')
-    hashStream.setEncoding('hex')
-    let hashTransform = new Transform({
-      transform: function (buf, enc, next){
-        hashStream.update(buf)
+  start() {
+    let writeStream =  fs.createWriteStream(this.target,{ flags: 'r+', start: this.offset})
+    let hash = crypto.createHash('sha256')
+    let hashTransform = new stream.Transform({
+      transform: function (buf, enc, next) {
+        hash.update(buf, enc)
         this.push(buf)
         next()
       }
     })
-    // req.pipe(fs.createWriteStream('helloworld.txt'))
-    req.pipe(hashTransform).pipe(writeStream)
 
-    hashTransform.on('error', err => {
-      if(abort) return
-      abort = true 
-      return callback(err)
+    hashTransform.on('error', err => this.error(err))
+
+    writeStream.on('error', err => this.error(err))
+
+    writeStream.on('finish', () => {
+      if(this.finished) return 
+      if(writeStream.bytesWritten !== this.segmentSize) {
+        console.log('-0--'+ writeStream.bytesWritten + '---' + this.segmentSize)
+        return this.error(new Error('size error'))
+      }
+        
+      if(hash.digest('hex') !== this.segmentHash)
+        return this.error(new Error('hash mismatch'))
+      this.finish()
     })
 
-    writeStream.on('error', err =>{ 
-      if(abort) return 
-      abort = true
-      return callback(err)
-     })
+    this.stream.pipe(hashTransform).pipe(writeStream)
+  }
 
-    req.on('error', err => {
-      if(abort) return 
-      abort = true
-      return callback(err)
-    })
+  error(err) {
+    if(this.finished) return
+    this.finished = true 
+    console.log(err)
+    this.emit('error',err)
+  }
 
-    req.on('end', async () => {
-      if(abort) return 
-      try{
-        hashStream.end()
-        let hash = hashStream.read()
-        if(hash !== segmentHash){
-          console.log('失败' + hash)
-          return callback(null, false)        }
-        let attr = JSON.parse(await xattr.getAsync(filePath, FILEMAP))
-        attr.segments[start] = 1
-        await xattr.setAsync(filePath, FILEMAP, JSON.stringify(attr))
-        return callback(null, true) 
-      }catch(e){ 
-        if(abort) return 
-        abort = true
-        console.log(e)
-        return callback(e) 
-      }        
-    })
+  finish() {
+    if(this.finished ) return
+    this.finished = true
+    this.emit('finish', null)
+  }
 
-  }catch(e){
-     if(abort) return 
-      abort = true
-      console.log('error5')
-      return callback(e) 
-   }
+  isFinished() {
+    return this.finished
+  }
 
+  abort() {
+    if(this.finished) return 
+    this.finished = true
+    this.emit('abort')
+  }
 }
 
 const createFileMap = ({ size, segmentsize, nodeuuid, sha256, name, userUUID}, callback) => 
@@ -120,4 +112,5 @@ const createFileMap = ({ size, segmentsize, nodeuuid, sha256, name, userUUID}, c
   })
 
 
-export { createFileMap, updateFileMap }
+
+export { createFileMap, SegmentUpdater, FILEMAP }

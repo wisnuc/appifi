@@ -52,20 +52,24 @@ class FileShareData extends EventEmitter {
   constructor(model, fileShareStore, fileData) {
     super()
     this.model = model
-    this.fss = fileShareStore
-    this.fsMap = new Map()
+    this.fileShareStore = fileShareStore
+    this.fileShareMap = new Map()
     this.fileData = fileData
   }
 
-  load() {
-
+  async load() {
+    let shares = await this.fileShareStore.retrieveAllAsync()
+    shares.forEach(share => {
+      this.fileShareMap.set(share.doc.uuid, share)
+    })
+    this.emit('fileShareCreated', shares)
   }
 
   userAuthorizedToRead(userUUID, node) { // starting from root
     // 1. filter user in ReaderSet and user is not author
     // 2. iterate collection list, find one in nodepath && effective
 
-    let shares = [...this.fsMap.values()]
+    let shares = [...this.fileShareMap.values()]
 
     for (let i = 0; i < shares.length; i++) {
       if (shares[i].userAuthorizedToRead(userUUID)) {
@@ -83,7 +87,7 @@ class FileShareData extends EventEmitter {
   }
 
   userAuthorizedToWrite(userUUID, node) {
-    let shares = [...this.fsMap.values()]
+    let shares = [...this.fileShareMap.values()]
 
     for (let i = 0; i < shares.length; i++) {
       if (shares[i].userAuthorizedToWrite(userUUID)) {
@@ -104,11 +108,10 @@ class FileShareData extends EventEmitter {
 
     validateFileShareDoc(doc, this.model.getUsers())
 
-    let digest = await this.fss.storeAsync(doc)
+    let digest = await this.fileShareStore.storeAsync(doc)
     let fileShare = new FileShare(digest, doc)
-
-    this.fsMap.set(doc.uuid, fileShare)
-    this.emit('fileShareCreated', fileShare)
+    this.fileShareMap.set(doc.uuid, fileShare)
+    this.emit('fileShareCreated', [fileShare])
     return fileShare
   }
 
@@ -116,34 +119,36 @@ class FileShareData extends EventEmitter {
 
     validateFileShareDoc(doc, this.model.getUsers())
 
-    let share = this.fsMap.get(doc.uuid)
+    let share = this.fileShareMap.get(doc.uuid)
     if(!share) throw new E.ENOENT()
 
     invariantUpdate(share.doc, doc)
 
-    let digest = await this.fss.storeAsync(doc)
+    let digest = await this.fileShareStore.storeAsync(doc)
     let next = new FileShare(digest, doc)
 
     this.emit('fileShareUpdating', share, next)
-    this.fsMap.set(doc.uuid, next)
+    this.fileShareMap.set(doc.uuid, next)
     this.emit('fileShareUpdated', share, next)
     return next
   }
 
   async deleteFileShare(uuid) {
-    let share = this.fsMap.get(uuid)
+    let share = this.fileShareMap.get(uuid)
     if(!share) throw new E.ENOENT()
 
-    await this.fss.archiveAsync(uuid)
+    await this.fileShareStore.archiveAsync(uuid)
 
     this.emit('fileShareDeleting', share)
-    this.fsMap.delete(uuid)
+    this.fileShareMap.delete(uuid)
   }
 }
 
-const createFileShareData = (model, fileShareStore) => {
+const createFileShareData = async (model, fileShareStore) => {
   Promise.promisifyAll(fileShareStore)
-  return new FileShareData(model, fileShareStore)
+  let fileShareData = new FileShareData(model, fileShareStore)
+  await fileShareData.load()
+  return fileShareData
 }
 
 export { createFileShareData }

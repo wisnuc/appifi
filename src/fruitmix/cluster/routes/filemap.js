@@ -1,12 +1,16 @@
+import fs from 'fs'
+import path from 'path'
+
+import xattr from 'fs-xattr'
 import { Router } from 'express'
 import formidable from 'formidable'
-import fs from 'fs'
+
 import auth from '../middleware/auth'
 import config from '../config'
-import { createFileMap, updateFileMap } from '../lib/filemap'
+import { createFileMap, SegmentUpdater, FILEMAP } from '../lib/filemap'
+import paths from '../lib/paths'
 
 let router = Router()
-
 
 //create filemap
 router.post('/:nodeUUID', auth.jwt(), (req, res) => {
@@ -30,26 +34,45 @@ router.post('/:nodeUUID', auth.jwt(), (req, res) => {
   // })
 })
 
+
+
 //Maybe like /nodeuuid?filename=xxx&segmenthash=xxx&start=xx&taskid=xxx
 router.put('/:nodeUUID', auth.jwt(), (req, res) => {
   let user = req.user
   let nodeUUID = req.params.nodeUUID
-  let name = req.query.filename
-  let segmentHash = req.query.segmentHash
-  let start = req.query.start
-  let taskid = req.query.taskid
-  let checkArgs =  { userUUID:user.uuid, dirUUID: nodeUUID, name }
+  // let name = req.query.filename
+  // console.log(name)
+  let segmentHash = req.query.segmenthash
+  let start =  parseInt(req.query.start)
+  let taskId = req.query.taskid
+  // let checkArgs =  { userUUID:user.uuid, dirUUID: nodeUUID, name }
+  let fpath = path.join(paths.get('filemap'), user.uuid, taskId)
+
+  let attr = JSON.parse(xattr.getSync(fpath, FILEMAP))
   
-  // config.ipc.call('createFileCheck', checkArgs, (err, node) => {
-  //   if(err) return res.error(err,400)
-    let filemapArgs ={ taskid, segmentHash, req , start, userUUID:user.uuid }
-    updateFileMap(filemapArgs, (err, finished) => {
-      if(err || !finished)
-        return res.error(err, 400)
-      else
-        return res.success(null, 200)
-    })
-  // })
+  let segments = attr.segments
+  if(segments.length < (start + 1))
+    return res.status(400).json({ code: 'EINVAL', message:'start too large'})
+  if(segments[start] === 1)
+    return res.success(attr, 200)// already uploaded
+  
+  let segmentSize = attr.segmentsize
+  let segmentLength = segments.length > start + 1 ? segmentSize : (attr.size - start * segmentSize)
+  let position = attr.segmentsize * start
+
+  let updater = new SegmentUpdater(fpath, req, position, segmentHash, segmentLength)
+
+  updater.on('error', err => res.error(null, 400))
+  updater.on('finish', () => {
+    let attr = JSON.parse(xattr.getSync(fpath, FILEMAP))
+    attr.segments[start] = 1
+    xattr.setSync(fpath, FILEMAP, JSON.stringify(attr))
+    res.success(attr, 200)
+  })
+
+  req.on('close', () => updater.isFinished() || updater.abort())
+
+  updater.start()
 })
 
 

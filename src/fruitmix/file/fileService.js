@@ -1,9 +1,11 @@
 const path = require('path')
+const rimraf = require('rimraf')
 const fs = Promise.promisifyAll(require('fs'))
-
-import { readXstat, readXstatAsync, updateFileHashAsync, forceFileHashAsync } from './xstat'
+import { readXstat, readXstatAsync, updateFileHashAsync } from './xstat'
 import DirectoryNode from './directoryNode'
 import FileNode from './fileNode'
+import E from '../lib/error'
+
 
 class FileService {
 
@@ -48,69 +50,30 @@ class FileService {
   // list all items inside a directory
   async list({ userUUID, dirUUID }) {
 
-    let err
     let node = this.data.findNodeByUUID(dirUUID)
-
-    if (!node) {
-      err = new Error(`list: ${dirUUID} not found`)
-      err.code = 'ENOENT'
-      throw err
-    } 
-    // if (!(node instanceof DirectoryNode)) throw
-    if (!node.isDirectory()) {
-      err = new Error(`list: ${dirUUID} is not a directory`)
-      err.code = 'ENOTDIR'
-      throw err
-    }
-
-    if (!(this.userReadable(userUUID, node))) {
-      err = new Error(`list: ${userUUID} has no permission to read`)
-      err.code = 'EACCESS'
-      throw err
-    }
+  
+    if (!node) throw new E.NODENOTFOUND() 
+    if (!node.isDirectory()) throw new E.ENOTDIR()
+    if (!(this.userReadable(userUUID, node))) throw new E.EACCESS()
 
     return node.getChildren().map(n => this.nodeProps(n))
   }
 
   // list all items inside a directory, with given
+  // rootUUID must be a fileshare uuid or virtual drive uuid.
   async navList({ userUUID, dirUUID, rootUUID }) {
 
-    let err
     let node = this.data.findNodeByUUID(dirUUID)
-
-    if (!node) {
-      err = new Error(`navList: ${dirUUID} not found`)
-      err.code = 'ENOENT'
-      throw err
-    }
-
-    if (!node.isDirectory()) {
-      err = new Error(`navList: ${dirUUID} is not a directory`)
-      err.code = 'ENOTDIR'
-      throw err
-    }
-
     let root = this.data.findNodeByUUID(rootUUID)
-    if (!root) {
-      err = new Error(`navList: ${rootUUID} not found`)
-      err.code = 'ENOENT'
-      throw err
-    }
-
-    if (!(this.userReadable(userUUID, node))) {
-      err = new Error(`navList: ${userUUID} has no permission to read`)
-      err.code = 'EACCESS'
-      throw err
-    }
+  
+    if (!node || !root) throw new E.NODENOTFOUND() 
+    if (!node.isDirectory()) throw new E.ENOTDIR()
+    if (!(this.userReadable(userUUID, node))) throw new E.EACCESS()
 
     let path = node.nodepath()
     let index = path.indexOf(root)
 
-    if (index === -1) {
-      err = new Error(`navList: ${rootUUID} not an ancestor of ${dirUUID}`)
-      err.code = 'EINVAL'
-      throw err
-    }
+    if (index === -1) throw new E.ENOENT()
     let subpath = path.slice(index)
     
     return {
@@ -119,90 +82,39 @@ class FileService {
     }
   }
 
+  // list all tree inside a directory
   async tree({ userUUID, dirUUID }) {
-    let err
+    
     let node = this.data.findNodeByUUID(dirUUID)
-
-    if (!node) {
-      err = new Error(`tree: ${dirUUID} not found`)
-      err.code = 'ENOENT'
-      throw err
-    }
-
-    if (!node.isDirectory()) {
-      err = new Error(`tree: ${dirUUID} is not a directory`)
-      err.code = 'ENOTDIR'
-      throw err
-    }
-
-    if (!(this.userReadable(userUUID, node))) {
-      err = new Error(`tree: ${userUUID} has no permission to read`)
-      err.code = 'EACCESS'
-      throw err
-    }
+  
+    if (!node) throw new E.NODENOTFOUND() 
+    if (!node.isDirectory()) throw new E.ENOTDIR()
+    if (!(this.userReadable(userUUID, node))) throw new E.EACCESS()
   }
 
+  // list all tree inside a directory, with given
+  // rootUUID must be a fileshare uuid or virtual drive uuid.
   async navTree({ userUUID, dirUUID, rootUUID }) {
-    let err
+
     let node = this.data.findNodeByUUID(dirUUID)
-
-    if (!node) {
-      err = new Error(`navTree: ${dirUUID} not found`)
-      err.code = 'ENOENT'
-      throw err
-    }
-
-    if (!node.isDirectory()) {
-      err = new Error(`navTree: ${dirUUID} is not a directory`)
-      err.code = 'ENOTDIR'
-      throw err
-    }
-
     let root = this.data.findNodeByUUID(rootUUID)
-    if (!root) {
-      err = new Error(`navList: ${rootUUID} not found`)
-      err.code = 'ENOENT'
-      throw err
-    }
-
-    if (!(this.userReadable(userUUID, node))) {
-      err = new Error(`navTree: ${userUUID} has no permission to read`)
-      err.code = 'EACCESS'
-      throw err
-    }
+  
+    if (!node || !root) throw new E.NODENOTFOUND() 
+    if (!node.isDirectory()) throw new E.ENOTDIR()
+    if (!(this.userReadable(userUUID, node))) throw new E.EACCESS()
+   
   }
 
   // return abspath of file
-  //FIXME:  dirUUID ??
   async readFile({ userUUID, dirUUID, fileUUID }) {
 
-    let err
     let dirNode = this.data.findNodeByUUID(dirUUID)
     let fileNode = this.data.findNodeByUUID(fileUUID)
 
-    if (!dirNode || !fileNode) {
-      err = new Error(`readFile: ${dirUUID} or ${fileUUID} not found`)
-      err.code = 'ENOENT'
-      throw err
-    }
- 
-    if (!dirNode.isDirectory()) {
-      err = new Error(`readFile: ${dirUUID} is not a directory`)
-      err.code = 'ENOTDIR'
-      throw err
-    }
-
-    if (!fileNode.isFile()) {
-      err = new Error(`readFile: ${fileUUID} is not a file`)
-      err.code = 'ENOENT'
-      throw err
-    }
-
-    if (!(this.userReadable(userUUID, dirNode))) {
-      err = new Error(`readFile: ${userUUID} has no permission to read`)
-      err.code = 'EACCESS'
-      throw err
-    }
+    if (!dirNode || !fileNode) throw new E.NODENOTFOUND() 
+    if (!dirNode.isDirectory()) throw new E.ENOTDIR()
+    if (!fileNode.isFile()) throw new E.ENOENT()
+    if (!(this.userReadable(userUUID, dirNode))) throw new E.EACCESS()
 
     return fileNode.abspath()
   }
@@ -308,8 +220,6 @@ class FileService {
 
     let { userUUID, dirUUID, name, src, hash, check } = args
 
-    // assertIsUUID(userUUID)
-
     // if check is true
     // userUUID, dirUUID, name, mandatory  
     // if check is false
@@ -324,9 +234,6 @@ class FileService {
     if (check === true) return null
 
     let dst = path.join(node.abspath(), name)
-    
-    // stamp xattr before moving into fruitmix
-    if (hash) await forceFileXattrAsync(dst, { hash })
 
     try {
 
@@ -335,6 +242,12 @@ class FileService {
 
       // read xstat
       let xstat = await readXstatAsync(dst) 
+
+      // update hash if available
+      if (hash) { 
+        // no need to try / catch, we probe anyway
+        xstat = await updateFileHashAsync(dst, xstat.uuid, hash, xstat.mtime)
+      }
 
       // create node
       return this.data.createNode(node, xstat)
@@ -363,11 +276,29 @@ class FileService {
   // dirUUID cannot be a fileshare UUID
   async del({ userUUID, dirUUID, nodeUUID }) {
 
+    let share = this.shareData.fsMap.get(dirUUID)
+    if(share) throw new E.ENOENT()
+
+    let node = this.data.findNodeByUUID(nodeUUID)
+    let dirNode = this.data.findNodeByUUID(dirUUID)
+
+    if (!node) throw new E.NODENOTFOUND()
+    if (!dirNode) throw new E.NODENOTFOUND()
+
+    if (!this.userWritable(userUUID, dirNode)) throw new E.EACCESS()
+
+    //FIXME: 
+    // rimraf(node.namepath(), err => {
+    //   if (err) throw (err)
+    //   this.deleteSubTree(node)
+    //   return 
+    // })
   }
 
   // for debug
   printFiles(args, callback) {
     let data = this.data.print()
+    console.log('printFiles', data)
     process.nextTick(() => callback(null, data))
   }
 
@@ -376,7 +307,8 @@ class FileService {
     // ipc.register('createFileCheck', this.createFileCheck.bind(this))
 
     // ipc.register('createFile', this.createFile.bind(this))
-    ipc.register('createFile', (args, callback) => this.createFileAsync(args).asCallback(callback))
+    ipc.register('createFile', (args, callback) => 
+      this.createFileAsync(args).asCallback(callback))
 
     ipc.register('createDirectory', this.createDirectory.bind(this))
     ipc.register('overwriteFile', this.overwriteFile.bind(this))
@@ -390,7 +322,5 @@ class FileService {
     ipc.register('printFiles', this.printFiles.bind(this)) 
   }
 }
-
-let check
 
 export default FileService
