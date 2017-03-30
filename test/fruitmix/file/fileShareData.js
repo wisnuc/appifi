@@ -10,6 +10,7 @@ import E from '../../../src/fruitmix/lib/error'
 // import DirectoryNode from '../../../src/fruitmix/file/directoryNode'
 // import FileData from '../../../src/fruitmix/file/fileData'
 
+
 const userUUID = 'c9f1d82e-5d88-46d7-ad43-24d51b1b6628'
 const aliceUUID = 'b9aa7c34-8b86-4306-9042-396cf8fa1a9c'
 const bobUUID = 'f97f9e1f-848b-4ed4-bd47-1ddfa82b2777'
