@@ -5,6 +5,8 @@ import { readXstat, readXstatAsync, updateFileHashAsync } from './xstat'
 import DirectoryNode from './directoryNode'
 import FileNode from './fileNode'
 import E from '../lib/error'
+
+
 class FileService {
 
   constructor(froot, data, shareData) {
