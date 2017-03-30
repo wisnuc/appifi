@@ -1,8 +1,9 @@
 const path = require('path')
 const fs = Promise.promisifyAll(require('fs'))
-import { readXstat, readXstatAsync, updateFileHashAsync } from './xstat'
+
+import { readXstat, readXstatAsync, updateFileHashAsync, forceFileHashAsync } from './xstat'
 import DirectoryNode from './directoryNode'
-import FileNode from './FileNode'
+import FileNode from './fileNode'
 
 class FileService {
 
@@ -307,6 +308,8 @@ class FileService {
 
     let { userUUID, dirUUID, name, src, hash, check } = args
 
+    // assertIsUUID(userUUID)
+
     // if check is true
     // userUUID, dirUUID, name, mandatory  
     // if check is false
@@ -321,6 +324,9 @@ class FileService {
     if (check === true) return null
 
     let dst = path.join(node.abspath(), name)
+    
+    // stamp xattr before moving into fruitmix
+    if (hash) await forceFileXattrAsync(dst, { hash })
 
     try {
 
@@ -329,12 +335,6 @@ class FileService {
 
       // read xstat
       let xstat = await readXstatAsync(dst) 
-
-      // update hash if available
-      if (hash) { 
-        // no need to try / catch, we probe anyway
-        xstat = await updateFileHashAsync(dst, xstat.uuid, hash, xstat.mtime)
-      }
 
       // create node
       return this.data.createNode(node, xstat)
@@ -368,7 +368,6 @@ class FileService {
   // for debug
   printFiles(args, callback) {
     let data = this.data.print()
-    console.log('printFiles', data)
     process.nextTick(() => callback(null, data))
   }
 
@@ -377,8 +376,7 @@ class FileService {
     // ipc.register('createFileCheck', this.createFileCheck.bind(this))
 
     // ipc.register('createFile', this.createFile.bind(this))
-    ipc.register('createFile', (args, callback) => 
-      this.createFileAsync(args).asCallback(callback))
+    ipc.register('createFile', (args, callback) => this.createFileAsync(args).asCallback(callback))
 
     ipc.register('createDirectory', this.createDirectory.bind(this))
     ipc.register('overwriteFile', this.overwriteFile.bind(this))
