@@ -1,6 +1,8 @@
 const path = require('path')
 const fs = Promise.promisifyAll(require('fs'))
 import { readXstat, readXstatAsync, updateFileHashAsync } from './xstat'
+import DirectoryNode from './directoryNode'
+import FileNode from './FileNode'
 
 class FileService {
 
@@ -25,7 +27,7 @@ class FileService {
         type: 'file',
         name: node.name,
         size: node.size,
-        mtime: node.mtime, // FIXME: need change mtime definition      
+        mtime: node.mtime // FIXME: need change mtime definition      
       }
     }
   }
@@ -53,20 +55,23 @@ class FileService {
       err.code = 'ENOENT'
       throw err
     } 
+    // if (!(node instanceof DirectoryNode)) throw
     if (!node.isDirectory()) {
       err = new Error(`list: ${dirUUID} is not a directory`)
       err.code = 'ENOTDIR'
       throw err
     }
-    // if (!(node instanceof DirectoryNode)) throw 
 
-    //FIXME: userCanRead
-    // if (!(userCanRead(userUUID, node))) throw
+    if (!(this.userReadable(userUUID, node))) {
+      err = new Error(`list: ${userUUID} has no permission to read`)
+      err.code = 'EACCESS'
+      throw err
+    }
 
     return node.getChildren().map(n => this.nodeProps(n))
   }
 
-  // TODO: list all items inside a directory, with given
+  // list all items inside a directory, with given
   async navList({ userUUID, dirUUID, rootUUID }) {
 
     let err
@@ -91,6 +96,12 @@ class FileService {
       throw err
     }
 
+    if (!(this.userReadable(userUUID, node))) {
+      err = new Error(`navList: ${userUUID} has no permission to read`)
+      err.code = 'EACCESS'
+      throw err
+    }
+
     let path = node.nodepath()
     let index = path.indexOf(root)
 
@@ -99,14 +110,8 @@ class FileService {
       err.code = 'EINVAL'
       throw err
     }
-
     let subpath = path.slice(index)
-    if (!subpath.every(n => n.userReadable(userUUID))) {
-      err = new Error(`navList: not all ancestors accessible for given user ${userUUID}`)
-      err.code = 'EACCESS'
-      throw err
-    }
-
+    
     return {
       path: subpath.map(n => this.nodeProps(n)),
       entries: node.getChildren().map(n => this.nodeProps(n))
@@ -118,14 +123,20 @@ class FileService {
     let node = this.data.findNodeByUUID(dirUUID)
 
     if (!node) {
-      err = new Error(`navList: ${dirUUID} not found`)
+      err = new Error(`tree: ${dirUUID} not found`)
       err.code = 'ENOENT'
       throw err
     }
 
     if (!node.isDirectory()) {
-      err = new Error(`navList: ${dirUUID} is not a directory`)
+      err = new Error(`tree: ${dirUUID} is not a directory`)
       err.code = 'ENOTDIR'
+      throw err
+    }
+
+    if (!(this.userReadable(userUUID, node))) {
+      err = new Error(`tree: ${userUUID} has no permission to read`)
+      err.code = 'EACCESS'
       throw err
     }
   }
@@ -135,37 +146,64 @@ class FileService {
     let node = this.data.findNodeByUUID(dirUUID)
 
     if (!node) {
-      err = new Error(`navList: ${dirUUID} not found`)
+      err = new Error(`navTree: ${dirUUID} not found`)
       err.code = 'ENOENT'
       throw err
     }
 
     if (!node.isDirectory()) {
-      err = new Error(`navList: ${dirUUID} is not a directory`)
+      err = new Error(`navTree: ${dirUUID} is not a directory`)
       err.code = 'ENOTDIR'
+      throw err
+    }
+
+    let root = this.data.findNodeByUUID(rootUUID)
+    if (!root) {
+      err = new Error(`navList: ${rootUUID} not found`)
+      err.code = 'ENOENT'
+      throw err
+    }
+
+    if (!(this.userReadable(userUUID, node))) {
+      err = new Error(`navTree: ${userUUID} has no permission to read`)
+      err.code = 'EACCESS'
       throw err
     }
   }
 
   // return abspath of file
-  // TODO: modified by jianjin.wu
-  async readFile({ userUUID, fileUUID }) {
+  //FIXME:  dirUUID ??
+  async readFile({ userUUID, dirUUID, fileUUID }) {
 
-    let node = this.data.findNodeByUUID(fileUUID)
-    let result
-    if (!node) {
-      result = 'ENOENT'
+    let err
+    let dirNode = this.data.findNodeByUUID(dirUUID)
+    let fileNode = this.data.findNodeByUUID(fileUUID)
+
+    if (!dirNode || !fileNode) {
+      err = new Error(`readFile: ${dirUUID} or ${fileUUID} not found`)
+      err.code = 'ENOENT'
+      throw err
+    }
+ 
+    if (!dirNode.isDirectory()) {
+      err = new Error(`readFile: ${dirUUID} is not a directory`)
+      err.code = 'ENOTDIR'
+      throw err
     }
 
-    if (!node.isFile()) {
-      result = 'EINVAL'
+    if (!fileNode.isFile()) {
+      err = new Error(`readFile: ${fileUUID} is not a file`)
+      err.code = 'ENOENT'
+      throw err
     }
 
-    if (!node.userReadable(userUUID)) {
-      result = 'EACCESS'
+    if (!(this.userReadable(userUUID, dirNode))) {
+      err = new Error(`readFile: ${userUUID} has no permission to read`)
+      err.code = 'EACCESS'
+      throw err
     }
 
-    return result || node.namepath()
+    return fileNode.abspath()
   }
 
   // dump a whole drive
@@ -322,7 +360,8 @@ class FileService {
   }
 
   // delete a directory or file
-  del({ userUUID, targetUUID }, callback) {
+  // dirUUID cannot be a fileshare UUID
+  async del({ userUUID, dirUUID, nodeUUID }) {
 
   }
 
@@ -354,5 +393,6 @@ class FileService {
   }
 }
 
+let check
 
 export default FileService

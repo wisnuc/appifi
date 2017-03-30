@@ -28,39 +28,20 @@ router.get('/:type/:dirUUID/:rootUUID', (req, res) => {
     if (err) return res.error(err)
     return res.success(data)
   })
-
-  // switch (type) {
-  //   case 'list': 
-  //     config.ipc.call('list', args, (e, node) => {
-  //       if (e) return res.error(e)
-  //       return 
-  //     })
-  //     break
-  //   case 'tree': 
-  //     config.ipc.call('tree', args, (e, node) => {
-  //       if (e) return res.error(e)
-  //     })
-  //     break
-  //   case 'list-nav': 
-  //     config.ipc.call('navList', args, (e, node) => {
-  //       if (e) return res.error(e)
-  //     })
-  //     break
-  //   case 'tree-nav': 
-  //     config.ipc.call('navTree', args, (e, node) => {
-  //       if (e) return res.error(e)
-  //     })
-  //     break
-  //   default: 
-  //     return res.error(null, 400)
-  // }
 })
 
 // download a file
 router.get('/download/:dirUUID/:fileUUID', (req, res) => {
 
+  let userUUID = req.user.userUUID
   let { dirUUID, fileUUID } = req.params
 
+  let args = { userUUID, dirUUID, fileUUID }
+
+  config.ipc.call('readFile', args, (err, filepath) => {
+    if (err) return res.error(err)
+    return res.status(200).sendFile(filepath)
+  })
 })
 
 // mkdir 
@@ -85,55 +66,18 @@ router.patch('/rename/:dirUUID/:sha256', (req, res) => {
 })
 
 // delete dir or file
+// dirUUID cannot be a fileshare UUID
 router.delete('/:dirUUID/:nodeUUID', (req, res) => {
 
+  let userUUID = req.user.userUUID
   let { dirUUID, nodeUUID } = req.params
-})
 
+  let args = { userUUID, dirUUID, nodeUUID }
 
-
-// this may be either file or folder
-// if it's a folder, return childrens
-// if it's a file, download
-// /files/xxxxxxx <- must be folder
-// TODO modified by jianjin.wu
-// /:nodeUUID?filename=xxx
-router.get('/:nodeUUID', (req, res) => {
-
-  let user = req.user
-  let query = req.query
-  let params = req.params
-
-  let args =  { userUUID: user.uuid, dirUUID: params.dirUUID, name: query.filename }
-  config.ipc.call('createFileCheck', args, (e, node) => {
-    if (e) return res.error(e)
-    if (!node) return res.error('node not found')
-
-      if (node.isDirectory()) {
-
-        if (query.navroot) {
-
-          let args = { userUUID: user.uuid, dirUUID: node.uuid, rootUUID: query.navroot }
-          config.ipc.call('navList', args, (e, ret) => {
-            e ? res.error(e) : res.success(ret)
-          })
-        } else {
-
-          let args = { userUUID: user.uuid, dirUUID: node.uuid }
-          config.ipc.call('list', args, (e, ret) => {
-            e ? res.error(e) : res.success(ret)
-          })
-        }
-      } else if (node.isFile()) {
-
-        let args = { userUUID: user.uuid, fileUUID: node.uuid }
-        config.ipc.call('readFile', args, (e, filepath) => {
-          e ? res.error(e) : res.success(filepath)
-        })
-      } else {
-        res.error(null, 404)
-      }
-    })
+  config.ipc.call('del', args, (err, filepath) => {
+    if (err) return res.error(err)
+    return res.status(200).sendFile(filepath)
+  })
 })
 
 // /:nodeUUID?filename=xxx
