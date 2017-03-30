@@ -14,6 +14,7 @@ import auth from '../../middleware/auth'
 // import Models from '../models'
 
 // list, tree and nav a directory
+// rootUUID must be a fileshare uuid or virtual drive uuid.
 router.get('/:type/:dirUUID/:rootUUID', (req, res) => {
 
   let userUUID = req.user.userUUID
@@ -232,29 +233,6 @@ router.post('/segments', auth.jwt(), (req, res) => {
     })
     
   }
-})
-
-// delete a directory or file
-// TODO modified by jianjin.wu
-router.delete('/:folderUUID/:nodeUUID', (req, res) => {
-
-  let filer = Models.getModel('filer')
-  let user = req.user
-
-  let folderUUID = req.params.folderUUID
-  let nodeUUID = req.params.nodeUUID
-
-  let folder = filer.findNodeByUUID(folderUUID)
-  let node = filer.findNodeByUUID(nodeUUID)
-  let args = { userUUID: user.uuid, targetUUID: node.uuid }
-  config.ipc.call('del', args, (e, node) => {
-    if (e) return res.error(e)
-    if (!node) return res.error('node not found')
-  })
-  filer.deleteFileOrFolder(user.uuid, folder, node, err => {
-    if (err) res.status(500).json(null)
-    res.status(200).json(null)
-  })
 })
 
 module.exports = router
