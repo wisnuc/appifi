@@ -63,7 +63,7 @@ class FileService {
     //FIXME: userCanRead
     // if (!(userCanRead(userUUID, node))) throw
 
-    return node.getChildren().map(n => nodeProps(n))
+    return node.getChildren().map(n => this.nodeProps(n))
   }
 
   // TODO: list all items inside a directory, with given
@@ -108,8 +108,8 @@ class FileService {
     }
 
     return {
-      path: subpath.map(n => nodeProps(n)),
-      entries: node.getChildren().map(n => nodeProps(n))
+      path: subpath.map(n => this.nodeProps(n)),
+      entries: node.getChildren().map(n => this.nodeProps(n))
     }
   }
 
