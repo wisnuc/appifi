@@ -49,16 +49,16 @@ router.post('/mkdir/:dirUUID/:dirname', (req, res) => {
 
 // upload a file
 router.put('/upload/:dirUUID/:filename/:sha256', (req, res) => {
-
+  
 })
 
 // overwrite a file
 router.put('/overwrite/:dirUUID/:filename/:sha256', (req, res) => {
-
+  
 })
 
 // rename dir or file
-router.patch('/rename/:dirUUID/:sha256', (req, res) => {
+router.patch('/rename/:dirUUID/:nodeUUID/:filename', (req, res) => {
 
 })
 
