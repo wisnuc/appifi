@@ -47,6 +47,9 @@ class IpcWorker {
 
   call(op, args, callback) {
 
+    // change to debug TODO
+    // console.log('ipc call', op, args)
+
     let job
     try {
       job = this.createJob(op, args, callback)

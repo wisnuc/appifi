@@ -14,31 +14,35 @@ import auth from '../../middleware/auth'
 // import Models from '../models'
 
 // list, tree and nav a directory
-router.get('/:type/:dirUUID', (req, res) => {
+// rootUUID must be a fileshare uuid or virtual drive uuid.
+router.get('/:type/:dirUUID/:rootUUID', (req, res) => {
 
-  let user = req.user
-  let { type, dirUUID } = req.params
+  let userUUID = req.user.userUUID
+  let { type, dirUUID, rootUUID } = req.params
 
-  switch (type) {
-    case 'list': 
-      
-      break
-    case 'tree': 
-      break
-    case 'list-nav': 
-      break
-    case 'tree-nav': 
-      break
-    default: 
-      return res.error(null, 400)
-  }
+  let typeArr = ['list', 'tree' ,'list-nav', 'tree-nav']
+  if (typeArr.indexOf(type) === -1) return res.error(null, 400)
+
+  let args = { userUUID, dirUUID, rootUUID }
+
+  config.ipc.call(type, args, (err, data) => {
+    if (err) return res.error(err)
+    return res.success(data)
+  })
 })
 
 // download a file
 router.get('/download/:dirUUID/:fileUUID', (req, res) => {
 
+  let userUUID = req.user.userUUID
   let { dirUUID, fileUUID } = req.params
 
+  let args = { userUUID, dirUUID, fileUUID }
+
+  config.ipc.call('readFile', args, (err, filepath) => {
+    if (err) return res.error(err)
+    return res.status(200).sendFile(filepath)
+  })
 })
 
 // mkdir 
@@ -63,55 +67,18 @@ router.patch('/rename/:dirUUID/:nodeUUID/:filename', (req, res) => {
 })
 
 // delete dir or file
+// dirUUID cannot be a fileshare UUID
 router.delete('/:dirUUID/:nodeUUID', (req, res) => {
 
+  let userUUID = req.user.userUUID
   let { dirUUID, nodeUUID } = req.params
-})
 
+  let args = { userUUID, dirUUID, nodeUUID }
 
-
-// this may be either file or folder
-// if it's a folder, return childrens
-// if it's a file, download
-// /files/xxxxxxx <- must be folder
-// TODO modified by jianjin.wu
-// /:nodeUUID?filename=xxx
-router.get('/:nodeUUID', (req, res) => {
-
-  let user = req.user
-  let query = req.query
-  let params = req.params
-
-  let args =  { userUUID: user.uuid, dirUUID: params.dirUUID, name: query.filename }
-  config.ipc.call('createFileCheck', args, (e, node) => {
-    if (e) return res.error(e)
-    if (!node) return res.error('node not found')
-
-      if (node.isDirectory()) {
-
-        if (query.navroot) {
-
-          let args = { userUUID: user.uuid, dirUUID: node.uuid, rootUUID: query.navroot }
-          config.ipc.call('navList', args, (e, ret) => {
-            e ? res.error(e) : res.success(ret)
-          })
-        } else {
-
-          let args = { userUUID: user.uuid, dirUUID: node.uuid }
-          config.ipc.call('list', args, (e, ret) => {
-            e ? res.error(e) : res.success(ret)
-          })
-        }
-      } else if (node.isFile()) {
-
-        let args = { userUUID: user.uuid, fileUUID: node.uuid }
-        config.ipc.call('readFile', args, (e, filepath) => {
-          e ? res.error(e) : res.success(filepath)
-        })
-      } else {
-        res.error(null, 404)
-      }
-    })
+  config.ipc.call('del', args, (err, filepath) => {
+    if (err) return res.error(err)
+    return res.status(200).sendFile(filepath)
+  })
 })
 
 // /:nodeUUID?filename=xxx
@@ -266,29 +233,6 @@ router.post('/segments', auth.jwt(), (req, res) => {
     })
     
   }
-})
-
-// delete a directory or file
-// TODO modified by jianjin.wu
-router.delete('/:folderUUID/:nodeUUID', (req, res) => {
-
-  let filer = Models.getModel('filer')
-  let user = req.user
-
-  let folderUUID = req.params.folderUUID
-  let nodeUUID = req.params.nodeUUID
-
-  let folder = filer.findNodeByUUID(folderUUID)
-  let node = filer.findNodeByUUID(nodeUUID)
-  let args = { userUUID: user.uuid, targetUUID: node.uuid }
-  config.ipc.call('del', args, (e, node) => {
-    if (e) return res.error(e)
-    if (!node) return res.error('node not found')
-  })
-  filer.deleteFileOrFolder(user.uuid, folder, node, err => {
-    if (err) res.status(500).json(null)
-    res.status(200).json(null)
-  })
 })
 
 module.exports = router

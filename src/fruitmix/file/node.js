@@ -68,34 +68,48 @@ class Node {
   }
 
   preVisit(func) {
+
     func(this)
     if (this.children) 
       this.children.forEach(child => child.preVisit(func)) 
   }
 
   postVisit(func) {
+
     if (this.children)
       this.children.forEach(child => child.postVisit(func))
     func(this) 
   }
 
+  // return node array starting from drive node 
   nodepath() {
+
     let q = []
-    this.upEach(node => q.unshift(node))
-    return q
+    for (let n = this; n !== null; n = n.parent) {
+      if (n === this.ctx.root) return q
+      q.unshift(n)
+    }
+
+    throw new Error('the node is off-tree')
   } 
 
+  // return drive node
+  getDrive() { 
 
-  abspath() { 
-    let q = []
-    for (let n = this; n !== this.ctx.root; n = n.parent) 
-      q.unshift(n.name)
-
-    return path.join(this.ctx.dir, ...q)
+    for (let n = this; n !== null; n = n.parent) {
+      if (n.parent === this.ctx.root) return n.drive
+    }
+    
+    throw new Error('the node is off-tree')
   }
 
+  abspath() { 
+
+    return path.join(this.ctx.dir, ...this.nodepath().map(n => n.name))
+  }
 
   namepath() {
+
     return path.join(...this.nodepath().map(n => n.name))
   }
 
@@ -106,7 +120,6 @@ class Node {
   // abort workers // TODO nullify worker?
   abort() {
     if (this.worker) this.worker.abort()
-    
   }
 
   isFile() {
@@ -117,6 +130,14 @@ class Node {
     return false
   }
 
+  genObject() {
+    return this
+      .getChildren()
+      .reduce((acc, c) => {
+        acc[c.name] = c.genObject() 
+        return acc
+      }, {})
+  }
 }
 
 

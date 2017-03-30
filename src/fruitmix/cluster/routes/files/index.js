@@ -10,10 +10,11 @@ const router = require('express').Router()
 const fruitmix = require('./fruitmix')
 const external = require('./external')
 const transfer = require('./transfer')
-
+const test = require('./test')
 
 router.use('/fruitmix', fruitmix)
 router.use('/external', external)
 router.use('/transfer', transfer)
+router.use('/test', test)
 
 export default router
