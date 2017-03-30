@@ -3,7 +3,7 @@ const fs = Promise.promisifyAll(require('fs'))
 
 import { readXstat, readXstatAsync, updateFileHashAsync, forceFileHashAsync } from './xstat'
 import DirectoryNode from './directoryNode'
-import FileNode from './FileNode'
+import FileNode from './fileNode'
 
 class FileService {
 
