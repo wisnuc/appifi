@@ -3,7 +3,7 @@ const rimraf = require('rimraf')
 const fs = Promise.promisifyAll(require('fs'))
 import { readXstat, readXstatAsync, updateFileHashAsync } from './xstat'
 import DirectoryNode from './directoryNode'
-import FileNode from './FileNode'
+import FileNode from './fileNode'
 import E from '../lib/error'
 class FileService {
 
