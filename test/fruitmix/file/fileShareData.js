@@ -36,191 +36,226 @@ class Model {
   }
 }
 
-class Node {
-  constructor(uuid) {
-    this.uuid = uuid
-    this.parent = null
-    this.children = []
-  }
+const xstats = [{uuid: uuid1, name: '1'}, {uuid: uuid2, name: '2'}, {uuid: uuid3, name: '3'},
+                {uuid: uuid4, name: '4'}, {uuid: uuid5, name: '5'}, {uuid: uuid6, name: '6'},
+                {uuid: uuid7, name: '7'}, {uuid: uuid8, name: '8'}, {uuid: uuid9, name: '9'}]
 
-  upFind(func) {
-    let node = this
-    while (node !== null) {
-      if (func(node)) return node
-      node = node.parent
+const ctx = {
+      attached: [],
+      detaching: [],
+
+      nodeAttached(x) {
+        this.attached.push(x)
+      },
+
+      nodeDetaching(x) {
+        this.detaching.push(x)
+      }
     }
-  }
-}
 
-class FileData {
-  constructor() {
-    this.uuidMap = new Map()
-  }
-}
+const n1 = new DirectoryNode(ctx, xstats[0])
+const n2 = new DirectoryNode(ctx, xstats[1])
+const n3 = new DirectoryNode(ctx, xstats[2])
+const n4 = new DirectoryNode(ctx, xstats[3])
+const n5 = new DirectoryNode(ctx, xstats[4])
+const n6 = new DirectoryNode(ctx, xstats[5])
+const n7 = new DirectoryNode(ctx, xstats[6])
+const n8 = new DirectoryNode(ctx, xstats[7])
+const n9 = new DirectoryNode(ctx, xstats[8])
+n2.attach(n1)
+n3.attach(n2)
+n4.attach(n3)
+n5.attach(n1)
+n6.attach(n1)
+n7.attach(n6)
+n8.attach(n7)
 
-const model = new Model()
-const fileData = new FileData()
+// console.log(n2.parent)
+// class Node {
+//   constructor(uuid) {
+//     this.uuid = uuid
+//     this.parent = null
+//     this.children = []
+//   }
 
-const n1 = new Node(uuid1)
-const n2 = new Node(uuid2)
-n2.parent = n1
-n1.children.push(n2)
-const n3 = new Node(uuid3)
-n3.parent = n2
-n2.children.push(n3)
-const n4 = new Node(uuid4)
-n4.parent = n3
-n3.children.push(n4)
-const n5 = new Node(uuid5)
-n5.parent = n1
-n1.children.push(n5)
-const n6 = new Node(uuid6)
-n6.parent = n1
-n1.children.push(n6)
-const n7 = new Node(uuid7)
-n7.parent = n6
-n6.children.push(n7)
-const n8 = new Node(uuid8)
-n8.parent = n7
-n7.children.push(n8)
-const n9 = new Node(uuid9)
+//   upFind(func) {
+//     let node = this
+//     while (node !== null) {
+//       if (func(node)) return node
+//       node = node.parent
+//     }
+//   }
+// }
 
-fileData.uuidMap.set(n1.uuid, n1)
-fileData.uuidMap.set(n2.uuid, n2)
-fileData.uuidMap.set(n3.uuid, n3)
-fileData.uuidMap.set(n4.uuid, n4)
-fileData.uuidMap.set(n5.uuid, n5)
-fileData.uuidMap.set(n6.uuid, n6)
-fileData.uuidMap.set(n7.uuid, n7)
-fileData.uuidMap.set(n8.uuid, n8)
-fileData.uuidMap.set(n9.uuid, n9)
+// class FileData {
+//   constructor() {
+//     this.uuidMap = new Map()
+//   }
+// }
+
+// const model = new Model()
+// const fileData = new FileData()
+
+// const n1 = new Node(uuid1)
+// const n2 = new Node(uuid2)
+// n2.parent = n1
+// n1.children.push(n2)
+// const n3 = new Node(uuid3)
+// n3.parent = n2
+// n2.children.push(n3)
+// const n4 = new Node(uuid4)
+// n4.parent = n3
+// n3.children.push(n4)
+// const n5 = new Node(uuid5)
+// n5.parent = n1
+// n1.children.push(n5)
+// const n6 = new Node(uuid6)
+// n6.parent = n1
+// n1.children.push(n6)
+// const n7 = new Node(uuid7)
+// n7.parent = n6
+// n6.children.push(n7)
+// const n8 = new Node(uuid8)
+// n8.parent = n7
+// n7.children.push(n8)
+// const n9 = new Node(uuid9)
+
+// fileData.uuidMap.set(n1.uuid, n1)
+// fileData.uuidMap.set(n2.uuid, n2)
+// fileData.uuidMap.set(n3.uuid, n3)
+// fileData.uuidMap.set(n4.uuid, n4)
+// fileData.uuidMap.set(n5.uuid, n5)
+// fileData.uuidMap.set(n6.uuid, n6)
+// fileData.uuidMap.set(n7.uuid, n7)
+// fileData.uuidMap.set(n8.uuid, n8)
+// fileData.uuidMap.set(n9.uuid, n9)
 
 const cwd = process.cwd()
 const froot = path.join(cwd, 'tmptest')
 
-const createDocumentStoreAsync = Promise.promisify(createDocumentStore)
-const createFileShareStoreAsync = Promise.promisify(createFileShareStore)
+// const createDocumentStoreAsync = Promise.promisify(createDocumentStore)
+// const createFileShareStoreAsync = Promise.promisify(createFileShareStore)
 
-describe(path.basename(__filename), function() {
-  let fss, fsd
+// describe(path.basename(__filename), function() {
+//   let fss, fsd
 
-  beforeEach(async () => {
-    await rimrafAsync('tmptest')
-    await mkdirpAsync('tmptest')
+//   beforeEach(async () => {
+//     await rimrafAsync('tmptest')
+//     await mkdirpAsync('tmptest')
 
-    let docstore = await createDocumentStoreAsync(froot)
-    fss = await createFileShareStoreAsync(froot, docstore)
-    fsd = createFileShareData(model, fss)
-  })
+//     let docstore = await createDocumentStoreAsync(froot)
+//     fss = await createFileShareStoreAsync(froot, docstore)
+//     fsd = createFileShareData(model, fss)
+//   })
 
-  afterEach(async () => await rimrafAsync('tmptest'))
+//   afterEach(async () => await rimrafAsync('tmptest'))
   
-  describe('create a fileShareData', function() {
+//   describe('create a fileShareData', function() {
 
-    it('should create a fileShareData', done => {
-      expect(fsd.model).to.deep.equal(model)
-      expect(fsd.fss).to.deep.equal(fss)
-      expect(fsd.fsMap).to.deep.equal(new Map())
-      done()
-    })
-  })
+//     it('should create a fileShareData', done => {
+//       expect(fsd.model).to.deep.equal(model)
+//       expect(fsd.fss).to.deep.equal(fss)
+//       expect(fsd.fsMap).to.deep.equal(new Map())
+//       done()
+//     })
+//   })
 
-  describe('createFileShare', function() {
-    let doc
-    let post = { writelist: [aliceUUID],
-                 readlist: [bobUUID],
-                 collection: [uuid2, uuid4, uuid6, uuid9] 
-               }
+//   describe('createFileShare', function() {
+//     let doc
+//     let post = { writelist: [aliceUUID],
+//                  readlist: [bobUUID],
+//                  collection: [uuid2, uuid4, uuid6, uuid9] 
+//                }
 
-    beforeEach(() => doc = createFileShareDoc(fileData, userUUID, post))
+//     beforeEach(() => doc = createFileShareDoc(fileData, userUUID, post))
 
-    it('new fileshare should be set into fsMap', async () => {
-      await fsd.createFileShare(doc)
-      expect(fsd.fsMap.get(doc.uuid).doc).to.deep.equal(doc)
-    })
+//     it('new fileshare should be set into fsMap', async () => {
+//       await fsd.createFileShare(doc)
+//       expect(fsd.fsMap.get(doc.uuid).doc).to.deep.equal(doc)
+//     })
 
-    it('new fileshare should be a frozen object', async () => {
-      await fsd.createFileShare(doc)
-      expect(Object.isFrozen(fsd.fsMap.get(doc.uuid))).to.be.true
-    })
-  })
+//     it('new fileshare should be a frozen object', async () => {
+//       await fsd.createFileShare(doc)
+//       expect(Object.isFrozen(fsd.fsMap.get(doc.uuid))).to.be.true
+//     })
+//   })
 
-  describe('updateFileShare', function() {
-    let doc
-    let post = { writelist: [aliceUUID],
-                 readlist: [bobUUID],
-                 collection: [uuid2, uuid4, uuid6, uuid9] 
-               }
-    beforeEach(async () => {
-      doc = createFileShareDoc(fileData, userUUID, post)
-      await fsd.createFileShare(doc)
-    })
+//   describe('updateFileShare', function() {
+//     let doc
+//     let post = { writelist: [aliceUUID],
+//                  readlist: [bobUUID],
+//                  collection: [uuid2, uuid4, uuid6, uuid9] 
+//                }
+//     beforeEach(async () => {
+//       doc = createFileShareDoc(fileData, userUUID, post)
+//       await fsd.createFileShare(doc)
+//     })
 
-    it('updated fileshare should be put into fsMap', async () => {
-      let patch = [{path: 'writelist',
-                    operation: 'add',
-                    value: [charlieUUID]
-                  }]
-      let newDoc = updateFileShareDoc(fileData, doc, patch)
-      await fsd.updateFileShare(newDoc)
-      expect(fsd.fsMap.get(doc.uuid).doc).to.deep.equal(newDoc)
-    })
+//     it('updated fileshare should be put into fsMap', async () => {
+//       let patch = [{path: 'writelist',
+//                     operation: 'add',
+//                     value: [charlieUUID]
+//                   }]
+//       let newDoc = updateFileShareDoc(fileData, doc, patch)
+//       await fsd.updateFileShare(newDoc)
+//       expect(fsd.fsMap.get(doc.uuid).doc).to.deep.equal(newDoc)
+//     })
 
-    it('updated fileshare should be a frozen object', async () => {
-      let patch = [{path: 'writelist',
-                    operation: 'add',
-                    value: [charlieUUID]
-                  }]
-      let newDoc = updateFileShareDoc(fileData, doc, patch)
-      await fsd.updateFileShare(newDoc)
-      expect(Object.isFrozen(fsd.fsMap.get(doc.uuid))).to.be.true
-    })
+//     it('updated fileshare should be a frozen object', async () => {
+//       let patch = [{path: 'writelist',
+//                     operation: 'add',
+//                     value: [charlieUUID]
+//                   }]
+//       let newDoc = updateFileShareDoc(fileData, doc, patch)
+//       await fsd.updateFileShare(newDoc)
+//       expect(Object.isFrozen(fsd.fsMap.get(doc.uuid))).to.be.true
+//     })
 
-    it('should throw error if target uuid is not found', async () => {
-      let err
-      let patch = [{path: 'writelist',
-                    operation: 'add',
-                    value: [charlieUUID]
-                  }]
-      let newDoc = updateFileShareDoc(fileData, doc, patch)
-      fsd.fsMap.delete(doc.uuid)
+//     it('should throw error if target uuid is not found', async () => {
+//       let err
+//       let patch = [{path: 'writelist',
+//                     operation: 'add',
+//                     value: [charlieUUID]
+//                   }]
+//       let newDoc = updateFileShareDoc(fileData, doc, patch)
+//       fsd.fsMap.delete(doc.uuid)
 
-      try {
-        await fsd.updateFileShare(newDoc)
-      }
-      catch(e){
-        err = e
-      }
-      expect(err).to.be.an.instanceof(E.ENOENT)
-    })
-  })
+//       try {
+//         await fsd.updateFileShare(newDoc)
+//       }
+//       catch(e){
+//         err = e
+//       }
+//       expect(err).to.be.an.instanceof(E.ENOENT)
+//     })
+//   })
 
-  describe('deleteFileShare', function() {
-    let doc
-    let post = { writelist: [aliceUUID],
-                 readlist: [bobUUID],
-                 collection: [uuid2, uuid4, uuid6, uuid9] 
-               }
-    beforeEach(async () => {
-      doc = createFileShareDoc(fileData, userUUID, post)
-      await fsd.createFileShare(doc)
-    })
+//   describe('deleteFileShare', function() {
+//     let doc
+//     let post = { writelist: [aliceUUID],
+//                  readlist: [bobUUID],
+//                  collection: [uuid2, uuid4, uuid6, uuid9] 
+//                }
+//     beforeEach(async () => {
+//       doc = createFileShareDoc(fileData, userUUID, post)
+//       await fsd.createFileShare(doc)
+//     })
 
-    it('should throw error if uuid is not exist in fsMap', async () => {
-      let err
-      fsd.fsMap.delete(doc.uuid)
-      try {
-        await fsd.deleteFileShare(doc.uuid)
-      }
-      catch(e){
-        err = e
-      }
-      expect(err).to.be.an.instanceof(E.ENOENT)
-    })
+//     it('should throw error if uuid is not exist in fsMap', async () => {
+//       let err
+//       fsd.fsMap.delete(doc.uuid)
+//       try {
+//         await fsd.deleteFileShare(doc.uuid)
+//       }
+//       catch(e){
+//         err = e
+//       }
+//       expect(err).to.be.an.instanceof(E.ENOENT)
+//     })
 
-    it('should remove fileshare from fsMap successfully', async () => {
-      await fsd.deleteFileShare(doc.uuid)
-      expect(fsd.fsMap.get(doc.uuid)).to.be.undefined
-    })
-  })
-})
+//     it('should remove fileshare from fsMap successfully', async () => {
+//       await fsd.deleteFileShare(doc.uuid)
+//       expect(fsd.fsMap.get(doc.uuid)).to.be.undefined
+//     })
+//   })
+// })

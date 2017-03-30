@@ -83,13 +83,8 @@ class ShareStore {
   }
 }
 
-const createMediaShareStore = (froot, docstore, callback) => {
-
-  let rootdir = path.join(froot, DIR.MSHARE)
-  let arcdir = path.join(froot, DIR.MSHAREARC)
-  let tmpdir = path.join(froot, DIR.TMP)
-
-  mkdirp(rootdir, err => {
+const createShareStore = (rootdir, arcdir, tmpdir, docstore, callback) => {
+    mkdirp(rootdir, err => {
     if(err) return callback(err)
     mkdirp(arcdir, err => {
       if(err) return callback(err)
@@ -101,22 +96,20 @@ const createMediaShareStore = (froot, docstore, callback) => {
   })
 }
 
-const createFileShareStore = (froot, docstore, callback) => {
+const createMediaShareStore = (froot, docstore, callback) => {
+  let rootdir = path.join(froot, DIR.MSHARE)
+  let arcdir = path.join(froot, DIR.MSHAREARC)
+  let tmpdir = path.join(froot, DIR.TMP)
 
+  createShareStore(rootdir, arcdir, tmpdir, docstore, callback)
+}
+
+const createFileShareStore = (froot, docstore, callback) => {
   let rootdir = path.join(froot, DIR.FSHARE)
   let arcdir = path.join(froot, DIR.FSHAREARC)
   let tmpdir = path.join(froot, DIR.TMP)
 
-  mkdirp(rootdir, err => {
-    if(err) return callback(err)
-    mkdirp(arcdir, err => {
-      if(err) return callback(err)
-      mkdirp(tmpdir, err => {
-        if(err) return callback(err)
-        callback(null, new ShareStore(rootdir, arcdir, tmpdir, docstore))
-      })
-    })
-  })
+  createShareStore(rootdir, arcdir, tmpdir, docstore, callback)
 }
 
 export { 
