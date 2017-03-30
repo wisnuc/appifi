@@ -110,24 +110,24 @@ const createDocumentStoreAsync = Promise.promisify(createDocumentStore)
 const createFileShareStoreAsync = Promise.promisify(createFileShareStore)
 
 describe(path.basename(__filename), function() {
-  let fss, fsd, fsSer
+  let fileShareStore, fileShareData, fileShareService
 
   beforeEach(async () => {
     await rimrafAsync('tmptest')
     await mkdirpAsync('tmptest')
 
     let docstore = await createDocumentStoreAsync(froot)
-    fss = await createFileShareStoreAsync(froot, docstore)
-    fsd = createFileShareData(model, fss)
-    fsSer = createFileShareService(fileData, fsd)
+    fileShareStore = await createFileShareStoreAsync(froot, docstore)
+    fileShareData = await createFileShareData(model, fileShareStore)
+    fileShareService = createFileShareService(fileData, fileShareData)
   })
 
   afterEach(async () => await rimrafAsync('tmptest'))
 
   describe('create a fileShareService', function() {
     it('should create a fileShareService successfully', done => {
-      expect(fsSer.fd).to.deep.equal(fileData)
-      expect(fsSer.fsd).to.deep.equal(fsd)
+      expect(fileShareService.fileData).to.deep.equal(fileData)
+      expect(fileShareService.fileShareData).to.deep.equal(fileShareData)
       done()
     })
   })
@@ -141,7 +141,7 @@ describe(path.basename(__filename), function() {
                    collection: [uuid2, uuid4, uuid6, uuid9]
                  }
       try {
-        await fsSer.createFileShare('abcd', post)
+        await fileShareService.createFileShare('abcd', post)
       }
       catch(e){
         err = e
@@ -153,7 +153,7 @@ describe(path.basename(__filename), function() {
       let err
       let post = null
       try {
-        await fsSer.createFileShare(userUUID, post)
+        await fileShareService.createFileShare(userUUID, post)
       }
       catch(e){
         err = e
@@ -167,7 +167,7 @@ describe(path.basename(__filename), function() {
                   readlist: [bobUUID]
                  }
       try {
-        await fsSer.createFileShare(userUUID, post)
+        await fileShareService.createFileShare(userUUID, post)
       }
       catch(e){
         err = e
@@ -183,7 +183,7 @@ describe(path.basename(__filename), function() {
                    collection: uuid1
                  }
       try {
-        await fsSer.createFileShare(userUUID, post)
+        await fileShareService.createFileShare(userUUID, post)
       }
       catch(e){
         err = e
@@ -197,7 +197,7 @@ describe(path.basename(__filename), function() {
                   readlist: [bobUUID],
                   collection: []}
       try {
-        await fsSer.createFileShare(userUUID, post)
+        await fileShareService.createFileShare(userUUID, post)
       }
       catch(e){
         err = e
@@ -218,7 +218,7 @@ describe(path.basename(__filename), function() {
                   readlist: [bobUUID],
                   collection: [uuid_1]}
       try {
-        await fsSer.createFileShare(userUUID, post)
+        await fileShareService.createFileShare(userUUID, post)
       }
       catch(e){
         err = e
@@ -237,7 +237,7 @@ describe(path.basename(__filename), function() {
                   readlist: [bobUUID],
                   collection: [uuid_1]}
       try {
-        await fsSer.createFileShare(userUUID, post)
+        await fileShareService.createFileShare(userUUID, post)
       }
       catch(e){
         err = e
@@ -259,7 +259,7 @@ describe(path.basename(__filename), function() {
                   readlist: [bobUUID],
                   collection: [uuid_1]}
       try {
-        await fsSer.createFileShare(userUUID, post)
+        await fileShareService.createFileShare(userUUID, post)
       }
       catch(e){
         err = e
@@ -279,7 +279,7 @@ describe(path.basename(__filename), function() {
     n1.type = 'private'
     n1.owner = userUUID
     beforeEach(async() => {
-      let fileShare = await fsSer.createFileShare(userUUID, post)
+      let fileShare = await fileShareService.createFileShare(userUUID, post)  
       shareUUID = fileShare.doc.uuid
     })
 
@@ -291,7 +291,7 @@ describe(path.basename(__filename), function() {
                     value: [charlieUUID]
                   }]
       try {
-        await fsSer.updateFileShare(userUUID, uuid, patch)
+        await fileShareService.updateFileShare(userUUID, uuid, patch)
       }
       catch(e) {
         err = e
@@ -306,7 +306,7 @@ describe(path.basename(__filename), function() {
                     value: [charlieUUID]
                   }]
       try {
-        await fsSer.updateFileShare(aliceUUID, shareUUID, patch)
+        await fileShareService.updateFileShare(aliceUUID, shareUUID, patch)
       }
       catch(e) {
         err = e
@@ -320,7 +320,7 @@ describe(path.basename(__filename), function() {
                     value: [charlieUUID]
                   }]
       try {
-        await fsSer.updateFileShare(userUUID, shareUUID, patch)
+        await fileShareService.updateFileShare(userUUID, shareUUID, patch)
       }
       catch(e) {
         err = e
@@ -336,7 +336,7 @@ describe(path.basename(__filename), function() {
                     value: [charlieUUID]
                   }]
       try {
-        await fsSer.updateFileShare(userUUID, shareUUID, patch)
+        await fileShareService.updateFileShare(userUUID, shareUUID, patch)
       }
       catch(e) {
         err = e
@@ -351,7 +351,7 @@ describe(path.basename(__filename), function() {
                     value: [charlieUUID]
                   }]
       try {
-        await fsSer.updateFileShare(userUUID, shareUUID, patch)
+        await fileShareService.updateFileShare(userUUID, shareUUID, patch)
       }
       catch(e) {
         err = e
@@ -373,7 +373,7 @@ describe(path.basename(__filename), function() {
                     value: [uuid_1]
                   }]
       try {
-        await fsSer.updateFileShare(userUUID, shareUUID, patch)
+        await fileShareService.updateFileShare(userUUID, shareUUID, patch)
       }
       catch(e){
         err = e
@@ -396,7 +396,7 @@ describe(path.basename(__filename), function() {
                     value: [uuid_1]
                   }]
       try {
-        await fsSer.updateFileShare(userUUID, shareUUID, patch)
+        await fileShareService.updateFileShare(userUUID, shareUUID, patch)
       }
       catch(e){
         err = e
@@ -416,7 +416,7 @@ describe(path.basename(__filename), function() {
     n1.type = 'private'
     n1.owner = userUUID
     beforeEach(async() => {
-      let fileShare = await fsSer.createFileShare(userUUID, post)
+      let fileShare = await fileShareService.createFileShare(userUUID, post)
       shareUUID = fileShare.doc.uuid
     })
 
@@ -424,7 +424,7 @@ describe(path.basename(__filename), function() {
       let err
       let uuid = '6790cdcb-8bce-4c67-9768-202a90aad8bf'
       try {
-        await fsSer.deleteFileShare(userUUID, uuid)
+        await fileShareService.deleteFileShare(userUUID, uuid)
       }
       catch(e) {
         err = e
@@ -435,7 +435,7 @@ describe(path.basename(__filename), function() {
     it('should return error if user is not author', async () => {
       let err
       try {
-        await fsSer.updateFileShare(charlieUUID, shareUUID)
+        await fileShareService.updateFileShare(charlieUUID, shareUUID)
       }
       catch(e) {
         err = e

@@ -45,7 +45,7 @@ export default async () => {
 	const docStore = await createDocumentStoreAsync(froot)
 	const fileData = new FileData(path.join(froot, 'drives'), modelService.modelData)	
   const fileShareStore = await Promise.promisify(createFileShareStore)(froot, docStore) 
-  const fileShareData = createFileShareData(modelData, fileShareStore)
+  const fileShareData = await createFileShareData(modelData, fileShareStore)
   const fileShareService = createFileShareService(fileData, fileShareData)
   const fileService = new FileService(froot, fileData, fileShareData) 
 

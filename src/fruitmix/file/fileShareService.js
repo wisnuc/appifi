@@ -6,8 +6,8 @@ import { createFileShareDoc, updateFileShareDoc } from './fileShareDoc'
 class FileShareService {
 
   constructor(fileData, fileShareData) {
-    this.fd = fileData
-    this.fsd = fileShareData
+    this.fileData = fileData
+    this.fileShareData = fileShareData
   }
 
   async createFileShare(user, post) {
@@ -23,7 +23,7 @@ class FileShareService {
     if(!collection.length) throw new E.EINVAL()
     if(!collection.every(isUUID)) throw new E.EINVAL()
     if(!collection.every(uuid => {
-      let rootnode = this.fd.uuidMap.get(uuid).root()
+      let rootnode = this.fileData.uuidMap.get(uuid).root()
       if(rootnode.type === 'private') return user === rootnode.owner
       else return rootnode.shareAllowed && [...rootnode.writelist, ...rootnode.readlist].includes(user)
     }))
@@ -37,15 +37,15 @@ class FileShareService {
     if(!Array.isArray(readlist)) throw new E.EINVAL()
     if(!readlist.every(isUUID)) throw new  E.EINVAL()
 
-    let doc = createFileShareDoc(this.fd, user, post)
-    return await this.fsd.createFileShare(doc)
+    let doc = createFileShareDoc(this.fileData, user, post)
+    return await this.fileShareData.createFileShare(doc)
   }
 
   async updateFileShare(user, shareUUID, patch) {
     if(!isUUID(user)) throw new E.EINVAL()
     if(!isUUID(shareUUID)) throw new E.EINVAL()
 
-    let share = this.fsd.fsMap.get(shareUUID)
+    let share = this.fileShareData.fileShareMap.get(shareUUID)
     if(!share) throw new E.ENOENT()
     if(share.doc.author !== user) throw new E.EACCESS()
     
@@ -65,7 +65,7 @@ class FileShareService {
 
       if(op.path === 'collection') {
         if(!op.value.every(uuid => {
-          let rootnode = this.fd.uuidMap.get(uuid).root()
+          let rootnode = this.fileData.uuidMap.get(uuid).root()
           if(rootnode.type === 'private') return user === rootnode.owner
           else {
             return rootnode.shareAllowed && [...rootnode.writelist, ...rootnode.readlist].includes(user)
@@ -75,19 +75,19 @@ class FileShareService {
       }      
     })
 
-    let newDoc = updateFileShareDoc(this.fd, share.doc, patch)
-    return await this.fsd.updateFileShare(newDoc)
+    let newDoc = updateFileShareDoc(this.fileData, share.doc, patch)
+    return await this.fileShareData.updateFileShare(newDoc)
   }
 
   async deleteFileShare(user, shareUUID) {
     if(!isUUID(user)) throw new E.EINVAL()
     if(!isUUID(shareUUID)) throw new E.EINVAL()
 
-    let share = this.fsd.fsMap.get(shareUUID)
+    let share = this.fileShareData.fileShareMap.get(shareUUID)
     if(!share) throw new E.ENOENT()
     if(share.doc.author !== user) throw new E.EACCESS()
 
-    await this.fsd.deleteMediaShare(shareUUID)
+    await this.fileShareData.deleteMediaShare(shareUUID)
   }
 
   async load() {
@@ -95,8 +95,8 @@ class FileShareService {
   }
 }
 
-const createFileShareService = (fileData, fsd) => {
-  return new FileShareService(fileData, fsd)
+const createFileShareService = (fileData, fileShareData) => {
+  return new FileShareService(fileData, fileShareData)
 }
 
 export { createFileShareService }
