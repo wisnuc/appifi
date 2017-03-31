@@ -1,6 +1,7 @@
 const path = require('path')
 const fs = require('fs')
 const crypto = require('crypto')
+const Transform = require('stream').Transform
 
 const router = require('express').Router()
 const formidable = require('formidable')
@@ -53,17 +54,127 @@ router.post('/mkdir/:dirUUID/:dirname', (req, res) => {
 
 // upload a file
 router.put('/upload/:dirUUID/:filename/:sha256', (req, res) => {
-  
+  let { dirUUID, filename, sha256 } = req.params
+  let user = req.user
+  let finished = false
+  let tmpPath = path.join(paths.get('cluster_tmp'), UUID.v4())
+  const error = err => {
+    if(finished) return
+    finished = true
+    res.error(err, 400)
+  }
+
+  const finish = () => {
+    if(finish) return 
+    finished = true
+    res.status(200)
+  }
+  // TODO check createFileCheck
+  let args = { userUUID: user.uuid, src: tmpPath, dirUUID, name: filename , hash:sha256, check: true }
+  config.ipc('createFile', args, e => {
+
+    if(e) return error(e)
+
+    let hash = crypto.createHash('sha256')
+
+    let writeStream = fs.createWriteStream(tmpPath)
+
+    let hashTransform = new Transform({
+      transform: function (buf, enc, next) {
+        hash.update(buf, enc)
+        this.push(buf)
+        next()
+      }
+    })
+    
+    req.on('close', () => finished || (finished = true))
+    
+    hashTransform.on('error', err => error(err))
+
+    writeStream.on('error', err => error(err))
+
+    writeStream.on('finish', () => {
+      if(finished) return  
+      if(hash.digest('hex') !== sha256)
+        return error(new Error('hash mismatch'))
+
+      let args = { userUUID: user.uuid, src: tmpPath, dirUUID, name: filename , hash:sha256, check: false }
+      config.ipc('createFile', args, (e, newDode) => {
+        if(e) return error(e)
+        finish()
+      })
+    })
+
+    req.pipe(hashTransform).pipe(writeStream)
+  })
+
 })
 
 // overwrite a file
 router.put('/overwrite/:dirUUID/:filename/:sha256', (req, res) => {
-  
+  let { dirUUID, filename, sha256 } = req.params
+  let user = req.user
+  let finished = false
+  let tmpPath = path.join(paths.get('cluster_tmp'), UUID.v4())
+  const error = err => {
+    if(finished) return
+    finished = true
+    res.error(err, 400)
+  }
+
+  const finish = () => {
+    if(finish) return 
+    finished = true
+    res.status(200)
+  }
+  // TODO check createFileCheck
+  let args = { userUUID: user.uuid, src: tmpPath, dirUUID, name: filename , hash:sha256, check: true }
+  config.ipc('createFile', args, e => {
+
+    if(e) return error(e)
+
+    let hash = crypto.createHash('sha256')
+
+    let writeStream = fs.createWriteStream(tmpPath)
+
+    let hashTransform = new Transform({
+      transform: function (buf, enc, next) {
+        hash.update(buf, enc)
+        this.push(buf)
+        next()
+      }
+    })
+    
+    req.on('close', () => finished || (finished = true))
+    
+    hashTransform.on('error', err => error(err))
+
+    writeStream.on('error', err => error(err))
+
+    writeStream.on('finish', () => {
+      if(finished) return  
+      if(hash.digest('hex') !== sha256)
+        return error(new Error('hash mismatch'))
+
+      let args = { userUUID: user.uuid, src: tmpPath, dirUUID, name: filename , hash:sha256, check: false }
+      config.ipc.call('overwriteFile', args, (e, newNode) => {
+        if (err) return error(err)
+        finish()
+      })
+    })
+
+    req.pipe(hashTransform).pipe(writeStream)
+    
+  })
 })
 
 // rename dir or file
 router.patch('/rename/:dirUUID/:nodeUUID/:filename', (req, res) => {
-
+  let { dirUUID, nodeUUID, filename } = req.params
+  config.ipc.call('rename', { userUUI: req.user.uuid, targetUUID: dirUUID, name: filename }, (err, node) => {
+    if (err) return res.error(err)
+    return res.success(node,200)
+  })
 })
 
 // delete dir or file
@@ -208,31 +319,6 @@ router.post('/:nodeUUID', (req, res) => {
       }
     }
   })
-})
-
-//segments for upload 
-
-router.post('/segments', auth.jwt(), (req, res) => {
-  //fields maybe size sha256 start
-  if(req.is(multipart/form-data)){// upload a segment
-
-  }else{//create new file segments 
-    let { size, segmentsize, nodeuuid, sha256,  name } = req.body
-    let args =  { userUUID:req.user.uuid, dirUUID: nodeuuid, name }
-    
-    config.ipc.call('createFileCheck', args, (e, node) => {
-      if(e) return res.status(500).json({ code: 'ENOENT' })
-      if (node.isDirectory()) {
-        //create folder if not exist for user 
-        fs.mkdir(path.join(paths.get('segments'), req.user.uuid), (err) => {
-          if(err) return res.status(500).json({})
-          
-        })
-      }else // overwrite Forbidden
-        return res.status(401).json({})
-    })
-    
-  }
 })
 
 module.exports = router

@@ -65,10 +65,18 @@ class FileShareData extends EventEmitter {
     this.emit('fileShareCreated', shares)
   }
 
+  findShareCollectionByUUID(uuid) {
+    return this.findShareByUUID(uuid) 
+      ? this.findShareByUUID(uuid).doc.collection : null
+  }
+
+  findShareByUUID(uuid) {
+    return this.fileShareMap.get(uuid)
+  }
+
   userAuthorizedToRead(userUUID, node) { // starting from root
     // 1. filter user in ReaderSet and user is not author
     // 2. iterate collection list, find one in nodepath && effective
-
     let shares = [...this.fileShareMap.values()]
 
     for (let i = 0; i < shares.length; i++) {
@@ -76,9 +84,9 @@ class FileShareData extends EventEmitter {
         let collection = shares[i].effective(this.fileData)
 
         let found = collection.find(uuid => {
-          let n = this.fileData.uuidMap.get(uuid)
+          let n = this.fileData.findNodeByUUID(uuid)
           let nodepath = node.nodepath()
-          return nodepath.includes(n) && this.fileData.userPermittedToRead(share[i].doc.author, n)
+          return nodepath.includes(n) && this.fileData.userPermittedToRead(shares[i].doc.author, n)
         })
         if (found) return true
       }
@@ -94,9 +102,9 @@ class FileShareData extends EventEmitter {
         let collection = shares[i].effective(this.fileData)
 
         let found = collection.find(uuid => {
-          let n = this.fileData.uuidMap.get(uuid)
+          let n = this.fileData.findNodeByUUID(uuid)
           let nodepath = node.nodepath()
-          return nodepath.includes(n) && this.fileData.userPermittedToWrite(share[i].doc.author, n)
+          return nodepath.includes(n) && this.fileData.userPermittedToWrite(shares[i].doc.author, n)
         })
         if (found) return true
       }
@@ -119,7 +127,7 @@ class FileShareData extends EventEmitter {
 
     validateFileShareDoc(doc, this.model.getUsers())
 
-    let share = this.fileShareMap.get(doc.uuid)
+    let share = this.findShareByUUID(doc.uuid)
     if(!share) throw new E.ENOENT()
 
     invariantUpdate(share.doc, doc)
@@ -134,7 +142,7 @@ class FileShareData extends EventEmitter {
   }
 
   async deleteFileShare(uuid) {
-    let share = this.fileShareMap.get(uuid)
+    let share = this.findShareByUUID(uuid)
     if(!share) throw new E.ENOENT()
 
     await this.fileShareStore.archiveAsync(uuid)
@@ -144,9 +152,9 @@ class FileShareData extends EventEmitter {
   }
 }
 
-const createFileShareData = async (model, fileShareStore) => {
+const createFileShareData = async (model, fileShareStore, fileData) => {
   Promise.promisifyAll(fileShareStore)
-  let fileShareData = new FileShareData(model, fileShareStore)
+  let fileShareData = new FileShareData(model, fileShareStore, fileData)
   await fileShareData.load()
   return fileShareData
 }

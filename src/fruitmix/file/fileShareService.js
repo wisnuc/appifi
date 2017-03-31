@@ -23,7 +23,7 @@ class FileShareService {
     if(!collection.length) throw new E.EINVAL()
     if(!collection.every(isUUID)) throw new E.EINVAL()
     if(!collection.every(uuid => {
-      let rootnode = this.fileData.uuidMap.get(uuid).root()
+      let rootnode = this.fileData.findNodeByUUID(uuid).root()
       if(rootnode.type === 'private') return user === rootnode.owner
       else return rootnode.shareAllowed && [...rootnode.writelist, ...rootnode.readlist].includes(user)
     }))
@@ -45,7 +45,7 @@ class FileShareService {
     if(!isUUID(user)) throw new E.EINVAL()
     if(!isUUID(shareUUID)) throw new E.EINVAL()
 
-    let share = this.fileShareData.fileShareMap.get(shareUUID)
+    let share = this.fileShareData.findShareByUUID(shareUUID)
     if(!share) throw new E.ENOENT()
     if(share.doc.author !== user) throw new E.EACCESS()
     
@@ -65,7 +65,7 @@ class FileShareService {
 
       if(op.path === 'collection') {
         if(!op.value.every(uuid => {
-          let rootnode = this.fileData.uuidMap.get(uuid).root()
+          let rootnode = this.fileData.findNodeByUUID(uuid).root()
           if(rootnode.type === 'private') return user === rootnode.owner
           else {
             return rootnode.shareAllowed && [...rootnode.writelist, ...rootnode.readlist].includes(user)
@@ -83,7 +83,7 @@ class FileShareService {
     if(!isUUID(user)) throw new E.EINVAL()
     if(!isUUID(shareUUID)) throw new E.EINVAL()
 
-    let share = this.fileShareData.fileShareMap.get(shareUUID)
+    let share = this.fileShareData.findShareByUUID(shareUUID)
     if(!share) throw new E.ENOENT()
     if(share.doc.author !== user) throw new E.EACCESS()
 

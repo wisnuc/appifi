@@ -7,7 +7,7 @@ import formidable from 'formidable'
 
 import auth from '../middleware/auth'
 import config from '../config'
-import { createFileMap, SegmentUpdater, FILEMAP } from '../lib/filemap'
+import { createFileMap, SegmentUpdater, FILEMAP, readFileMapList, readFileMap } from '../lib/filemap'
 import paths from '../lib/paths'
 
 let router = Router()
@@ -75,5 +75,18 @@ router.put('/:nodeUUID', auth.jwt(), (req, res) => {
   updater.start()
 })
 
+router.get('/', auth.jwt(), (req, res) => {
+  readFileMapList(req.user.uuid, (e, list) => {
+    if(e) return res.error(e, 500)
+    return res.success(list, 200)
+  })
+})
+
+router.get('/:taskId', auth.jwt(), (req, res) => {
+  readFileMap(req.user.uuid, req.params.taskId, (e, attr) => {
+    if(e) return res.error(e, 500)
+    return res.success(attr, 200)
+  })
+})
 
 export default router

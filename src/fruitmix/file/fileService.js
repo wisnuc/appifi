@@ -261,17 +261,65 @@ class FileService {
   }
 
   // overwrite existing file
-  overwriteFile({ userUUID, srcpath, fileUUID }, callback) {
+  async overwriteFileAsync({ userUUID, srcpath, fileUUID, hash }) {
+    let node = this.data.findNodeByUUID(fileUUID)
+    if (!node) throw new E.NODENOTFOUND()
+    if (!node.isFile()) throw new E.ENOTDIR()
+    if (!this.userWritable(userUUID, node)) throw new E.EACCESS()
+    // if (node.getChildren().map(n => n.name).includes(name)) throw new E.EEXIST()
+    let dst = node.abspath()
+    try {
+
+      //TODO remove old file
+
+      await fs.renameAsync(src, dst)
+
+      let xstat = await readXstatAsync(dst) 
+
+      // update hash if available
+      if (hash) { 
+        // no need to try / catch, we probe anyway
+        xstat = await updateFileHashAsync(dst, xstat.uuid, hash, xstat.mtime)
+      }
+
+      // create node
+      return this.data.createNode(node, xstat)
+    }
+    catch (e) {
+      throw e
+    }
+    finally {
+      this.data.requestProbeByUUID(dirUUID)
+    }
   }
 
   // rename a directory or file
-  rename(userUUID, targetUUID, name, callback) {
+  async renameAsync({ userUUID, targetUUID, name }) {
+
+    let node = this.data.findNodeByUUID(fileUUID)
+    if (!node) throw new E.NODENOTFOUND()
+    if (!this.userWritable(userUUID, node)) throw new E.EACCESS()
+    if(typeof name !== 'string' || path.basename(path.normalize(name)) !== name) throw new E.EINVAL
+
+    let newPath = path.join(path.dirname(node.abspath()), name)
+    try{
+      await fs.renameAsync(node.abspath, newPath)
+      let xstat = await readXstatAsync(newPath)
+      this.data.updateNode(node, xstat)
+      return node
+    }catch(e){
+        throw e
+    }finally{
+      if(node.parent) this.data.requestProbeByUUID(node.parent)
+      else if(node.isDirectory()) this.data.requestProbeByUUID(node)
+    }
+    
   }
 
   // move a directory or file into given dirUUID
   move(userUUID, srcUUID, dirUUID, callback) {
   }
-
+  
   // delete a directory or file
   // dirUUID cannot be a fileshare UUID
   async del({ userUUID, dirUUID, nodeUUID }) {
@@ -309,9 +357,9 @@ class FileService {
     // ipc.register('createFile', this.createFile.bind(this))
     ipc.register('createFile', (args, callback) => 
       this.createFileAsync(args).asCallback(callback))
-
+    ipc.register('rename', (args, callback) => this.renameAsync(args).asCallback(callback))
     ipc.register('createDirectory', this.createDirectory.bind(this))
-    ipc.register('overwriteFile', this.overwriteFile.bind(this))
+    ipc.register('overwriteFile', (args, callback) => this.overwriteFileAsync(args).asCallback(callback))
     ipc.register('list', (args, callback) => this.list(args).asCallback(callback))
     ipc.register('navList', (args, callback) => this.navList(args).asCallback(callback))
     ipc.register('tree', (args, callback) => this.tree(args).asCallback(callback))

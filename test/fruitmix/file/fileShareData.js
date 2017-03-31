@@ -1,5 +1,6 @@
 import path from 'path'
 import { expect } from 'chai'
+import EventEmitter from 'events'
 
 import { rimrafAsync, mkdirpAsync } from '../../../src/fruitmix/util/async'
 import { createDocumentStore } from '../../../src/fruitmix/lib/documentStore'
@@ -7,8 +8,7 @@ import { createFileShareStore } from '../../../src/fruitmix/lib/shareStore'
 import { createFileShareDoc, updateFileShareDoc } from '../../../src/fruitmix/file/fileShareDoc'
 import { createFileShareData } from '../../../src/fruitmix/file/fileShareData'
 import E from '../../../src/fruitmix/lib/error'
-// import DirectoryNode from '../../../src/fruitmix/file/directoryNode'
-// import FileData from '../../../src/fruitmix/file/fileData'
+import FileData from '../../../src/fruitmix/file/fileData'
 
 
 const userUUID = 'c9f1d82e-5d88-46d7-ad43-24d51b1b6628'
@@ -26,8 +26,10 @@ const uuid7 = '75b5dac2-591a-4c63-8e5e-a955ce51b576'
 const uuid8 = '8359f954-ade1-43e1-918e-8ca9d2dc81a0'
 const uuid9 = '97e352f8-5535-473d-9dac-8706ffb79abb'
 
-class Model {
-  constructor() {}
+class Model extends EventEmitter {
+  constructor() {
+    super()
+  }
 
   getUsers() {
     return [ {uuid: 'c9f1d82e-5d88-46d7-ad43-24d51b1b6628', type: 'local'},
@@ -39,120 +41,76 @@ class Model {
   }
 }
 
-// const xstats = [{uuid: uuid1, name: '1'}, {uuid: uuid2, name: '2'}, {uuid: uuid3, name: '3'},
-//                 {uuid: uuid4, name: '4'}, {uuid: uuid5, name: '5'}, {uuid: uuid6, name: '6'},
-//                 {uuid: uuid7, name: '7'}, {uuid: uuid8, name: '8'}, {uuid: uuid9, name: '9'}]
-
-// const ctx = {
-//       attached: [],
-//       detaching: [],
-
-//       nodeAttached(x) {
-//         this.attached.push(x)
-//       },
-
-//       nodeDetaching(x) {
-//         this.detaching.push(x)
-//       }
-//     }
-
-// const n1 = new DirectoryNode(ctx, xstats[0])
-// const n2 = new DirectoryNode(ctx, xstats[1])
-// const n3 = new DirectoryNode(ctx, xstats[2])
-// const n4 = new DirectoryNode(ctx, xstats[3])
-// const n5 = new DirectoryNode(ctx, xstats[4])
-// const n6 = new DirectoryNode(ctx, xstats[5])
-// const n7 = new DirectoryNode(ctx, xstats[6])
-// const n8 = new DirectoryNode(ctx, xstats[7])
-// const n9 = new DirectoryNode(ctx, xstats[8])
-// n2.attach(n1)
-// n3.attach(n2)
-// n4.attach(n3)
-// n5.attach(n1)
-// n6.attach(n1)
-// n7.attach(n6)
-// n8.attach(n7)
-
-// console.log(n2.parent)
-class Node {
-  constructor(uuid) {
-    this.uuid = uuid
-    this.parent = null
-    this.children = []
-  }
-
-  upFind(func) {
-    let node = this
-    while (node !== null) {
-      if (func(node)) return node
-      node = node.parent
-    }
-  }
-}
-
-class FileData {
-  constructor() {
-    this.uuidMap = new Map()
-  }
-}
-
-const model = new Model()
-const fileData = new FileData()
-
-const n1 = new Node(uuid1)
-const n2 = new Node(uuid2)
-n2.parent = n1
-n1.children.push(n2)
-const n3 = new Node(uuid3)
-n3.parent = n2
-n2.children.push(n3)
-const n4 = new Node(uuid4)
-n4.parent = n3
-n3.children.push(n4)
-const n5 = new Node(uuid5)
-n5.parent = n1
-n1.children.push(n5)
-const n6 = new Node(uuid6)
-n6.parent = n1
-n1.children.push(n6)
-const n7 = new Node(uuid7)
-n7.parent = n6
-n6.children.push(n7)
-const n8 = new Node(uuid8)
-n8.parent = n7
-n7.children.push(n8)
-const n9 = new Node(uuid9)
-
-fileData.uuidMap.set(n1.uuid, n1)
-fileData.uuidMap.set(n2.uuid, n2)
-fileData.uuidMap.set(n3.uuid, n3)
-fileData.uuidMap.set(n4.uuid, n4)
-fileData.uuidMap.set(n5.uuid, n5)
-fileData.uuidMap.set(n6.uuid, n6)
-fileData.uuidMap.set(n7.uuid, n7)
-fileData.uuidMap.set(n8.uuid, n8)
-fileData.uuidMap.set(n9.uuid, n9)
-
 const cwd = process.cwd()
-const froot = path.join(cwd, 'tmptest')
+const tmpdir = path.join(cwd, 'tmptest')
+const froot = path.join(tmpdir, 'tmptest')
 
-const createDocumentStoreAsync = Promise.promisify(createDocumentStore)
-const createFileShareStoreAsync = Promise.promisify(createFileShareStore)
+describe(path.basename(__filename), () => {
 
-describe(path.basename(__filename), function() {
+  let model, fileData, n1, n2, n3, n4, n5, n6, n7, n8, n9
+
+  before(async () => {
+    await rimrafAsync('tmptest') 
+    await mkdirpAsync('tmptest')
+
+    model = new Model()
+    fileData = new FileData(tmpdir, model)
+
+    model.emit('drivesCreated', [{uuid: uuid1, type: 'private',owner: userUUID}, 
+                                {uuid: uuid9, type: 'private', owner: aliceUUID}
+                               ])
+    await Promise.delay(200)
+
+    // two drive-roots
+    n1 = fileData.root.children[0]
+    n9 = fileData.root.children[1]
+
+    fileData.createNode(n1, {type: 'directory', uuid: uuid2, name: 'n2'})
+    await Promise.delay(100)
+    n2 = fileData.uuidMap.get(uuid2)
+    // console.log(n2.parent.name)
+    fileData.createNode(n2, {type: 'directory', uuid: uuid3, name: 'n3'})
+    await Promise.delay(100)
+    n3 = fileData.uuidMap.get(uuid3)
+    // console.log(n3.parent.name)
+    fileData.createNode(n3, {type: 'directory', uuid: uuid4, name: 'n4'})
+    await Promise.delay(100)
+    n4 = fileData.uuidMap.get(uuid4)
+    // console.log(n4.parent.name)
+    fileData.createNode(n1, {type: 'directory', uuid: uuid5, name: 'n5'})
+    await Promise.delay(100)
+    n5 = fileData.uuidMap.get(uuid5)
+    // console.log(n5.parent.name)
+    fileData.createNode(n1, {type: 'directory', uuid: uuid6, name: 'n6'})
+    await Promise.delay(100)
+    n6 = fileData.uuidMap.get(uuid6)
+    // console.log(n6.parent.name)
+    fileData.createNode(n6, {type: 'directory', uuid: uuid7, name: 'n7'})
+    await Promise.delay(100)
+    n7 = fileData.uuidMap.get(uuid7)
+    // console.log(n7.parent.name)
+    fileData.createNode(n7, {type: 'directory', uuid: uuid8, name: 'n8'})
+    await Promise.delay(100)
+    n8 = fileData.uuidMap.get(uuid8)
+    // console.log(n8.parent.name)
+  })
+
+  const createDocumentStoreAsync = Promise.promisify(createDocumentStore)
+  const createFileShareStoreAsync = Promise.promisify(createFileShareStore)
+
   let fileShareStore, fileShareData
 
   beforeEach(async () => {
-    await rimrafAsync('tmptest')
-    await mkdirpAsync('tmptest')
+    await rimrafAsync(froot)
+    await mkdirpAsync(froot)
 
     let docstore = await createDocumentStoreAsync(froot)
     fileShareStore = await createFileShareStoreAsync(froot, docstore)
-    fileShareData = await createFileShareData(model, fileShareStore)
+    fileShareData = await createFileShareData(model, fileShareStore, fileData)
   })
 
-  afterEach(async () => await rimrafAsync('tmptest'))
-  
+  afterEach(async () => await rimrafAsync(froot))
+
   describe('create a fileShareData', function() {
 
     it('should create a fileShareData', done => {
@@ -167,19 +125,19 @@ describe(path.basename(__filename), function() {
     let doc
     let post = { writelist: [aliceUUID],
                  readlist: [bobUUID],
-                 collection: [uuid2, uuid4, uuid6, uuid9] 
+                 collection: [uuid2, uuid4, uuid6] 
                }
 
     beforeEach(() => doc = createFileShareDoc(fileData, userUUID, post))
 
     it('new fileshare should be set into fileShareMap', async () => {
       await fileShareData.createFileShare(doc)
-      expect(fileShareData.fileShareMap.get(doc.uuid).doc).to.deep.equal(doc)
+      expect(fileShareData.findShareByUUID(doc.uuid).doc).to.deep.equal(doc)
     })
 
     it('new fileshare should be a frozen object', async () => {
       await fileShareData.createFileShare(doc)
-      expect(Object.isFrozen(fileShareData.fileShareMap.get(doc.uuid))).to.be.true
+      expect(Object.isFrozen(fileShareData.findShareByUUID(doc.uuid))).to.be.true
     })
   })
 
@@ -187,7 +145,7 @@ describe(path.basename(__filename), function() {
     let doc
     let post = { writelist: [aliceUUID],
                  readlist: [bobUUID],
-                 collection: [uuid2, uuid4, uuid6, uuid9] 
+                 collection: [uuid2, uuid4, uuid6] 
                }
     beforeEach(async () => {
       doc = createFileShareDoc(fileData, userUUID, post)
@@ -201,7 +159,7 @@ describe(path.basename(__filename), function() {
                   }]
       let newDoc = updateFileShareDoc(fileData, doc, patch)
       await fileShareData.updateFileShare(newDoc)
-      expect(fileShareData.fileShareMap.get(doc.uuid).doc).to.deep.equal(newDoc)
+      expect(fileShareData.findShareByUUID(doc.uuid).doc).to.deep.equal(newDoc)
     })
 
     it('updated fileshare should be a frozen object', async () => {
@@ -211,7 +169,7 @@ describe(path.basename(__filename), function() {
                   }]
       let newDoc = updateFileShareDoc(fileData, doc, patch)
       await fileShareData.updateFileShare(newDoc)
-      expect(Object.isFrozen(fileShareData.fileShareMap.get(doc.uuid))).to.be.true
+      expect(Object.isFrozen(fileShareData.findShareByUUID(doc.uuid))).to.be.true
     })
 
     it('should throw error if target uuid is not found', async () => {
@@ -237,7 +195,7 @@ describe(path.basename(__filename), function() {
     let doc
     let post = { writelist: [aliceUUID],
                  readlist: [bobUUID],
-                 collection: [uuid2, uuid4, uuid6, uuid9] 
+                 collection: [uuid2, uuid4, uuid6] 
                }
     beforeEach(async () => {
       doc = createFileShareDoc(fileData, userUUID, post)
@@ -258,7 +216,57 @@ describe(path.basename(__filename), function() {
 
     it('should remove fileshare from fileShareMap successfully', async () => {
       await fileShareData.deleteFileShare(doc.uuid)
-      expect(fileShareData.fileShareMap.get(doc.uuid)).to.be.undefined
+      expect(fileShareData.findShareByUUID(doc.uuid)).to.be.undefined
     })
   })
+
+  describe('userAuthorizedToRead', function() {
+    let doc
+    let post = { writelist: [aliceUUID],
+                 readlist: [bobUUID],
+                 collection: [uuid2, uuid4, uuid6] 
+               }
+    beforeEach(async () => {
+      doc = createFileShareDoc(fileData, userUUID, post)
+      await fileShareData.createFileShare(doc)
+    })
+
+    it('should return true if user is in readerSet', done => {
+      let result = fileShareData.userAuthorizedToRead(bobUUID, n3)
+      expect(result).to.be.true
+      done()
+    })
+
+    it('should return false if user is not in readerSet', done => {
+      let result = fileShareData.userAuthorizedToRead(charlieUUID, n3)
+      expect(result).to.be.false
+      done()
+    })
+  })
+
+   describe('userAuthorizedToWrite', function() {
+    let doc
+    let post = { writelist: [aliceUUID],
+                 readlist: [bobUUID],
+                 collection: [uuid2, uuid4, uuid6] 
+               }
+    beforeEach(async () => {
+      doc = createFileShareDoc(fileData, userUUID, post)
+      await fileShareData.createFileShare(doc)
+    })
+
+    it('should return true if user is in writelist', done => {
+      let result = fileShareData.userAuthorizedToWrite(aliceUUID, n3)
+      expect(result).to.be.true
+      done()
+    })
+
+    it('should return false if user is not in writelist', done => {
+      let result = fileShareData.userAuthorizedToWrite(bobUUID, n3)
+      expect(result).to.be.false
+      done()
+    })
+  })
+
 })
+

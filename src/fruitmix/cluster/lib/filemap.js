@@ -11,7 +11,7 @@ import Promise from 'bluebird'
 import UUID from 'node-uuid'
 
 import  paths from './paths'
-import HashTransform from '../lib/transform'
+import E from '../../lib/error'
 
 Promise.promisifyAll(child)
 Promise.promisifyAll(xattr)
@@ -41,6 +41,37 @@ const createFileMapAsync = async ({ size, segmentsize, nodeuuid, sha256, name, u
      }
 }
 
+const readFileMapList = (userUUID, callback) => {
+  let folderPath = path.join(paths.get('filemap'), userUUID)
+  fs.readdir(folderPath, (err, list) => {
+    if(err) return callback(err)
+    return callback(null, list.map( f => {
+      try{
+        let attr = JSON.parse(xattr.getSync(path.join(folderPath, f), FILEMAP))
+        if(attr) return Object.assign({}, attr, {taskid: f})
+        return undefined
+      }catch(e){
+        return undefined
+      }
+    }))
+  })
+}
+
+const readFileMap = (userUUID, taskId, callback) => {
+  let fpath = path.join(paths.get('filemap'), userUUID, taskId)
+  if(fs.existsSync(fpath)){
+    xattr.get(fpath, FILEMAP, (err, attr) => {
+      if(err) return callback(err)
+      try{
+        return callback(null, Object.assign({}, JSON.parse(attr), {taskid: taskId}))
+      }catch(e){
+        callback(e)
+      }
+    })
+  }else
+    return callback(new Error('filemap not find'))
+}
+
 class SegmentUpdater extends EventEmitter{
   constructor(target, stream, offset, segmentHash, segmentSize) {
     super()
@@ -55,8 +86,14 @@ class SegmentUpdater extends EventEmitter{
   start() {
     let writeStream =  fs.createWriteStream(this.target,{ flags: 'r+', start: this.offset})
     let hash = crypto.createHash('sha256')
+    let length = 0
     let hashTransform = new stream.Transform({
       transform: function (buf, enc, next) {
+        length += buf.length
+        if(length > this.segmentSize){
+          this.end()
+          return 
+        }
         hash.update(buf, enc)
         this.push(buf)
         next()
@@ -113,4 +150,4 @@ const createFileMap = ({ size, segmentsize, nodeuuid, sha256, name, userUUID}, c
 
 
 
-export { createFileMap, SegmentUpdater, FILEMAP }
+export { createFileMap, SegmentUpdater, FILEMAP, readFileMapList, readFileMap }
