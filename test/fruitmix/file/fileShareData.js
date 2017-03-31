@@ -8,7 +8,6 @@ import { createFileShareStore } from '../../../src/fruitmix/lib/shareStore'
 import { createFileShareDoc, updateFileShareDoc } from '../../../src/fruitmix/file/fileShareDoc'
 import { createFileShareData } from '../../../src/fruitmix/file/fileShareData'
 import E from '../../../src/fruitmix/lib/error'
-// import DirectoryNode from '../../../src/fruitmix/file/directoryNode'
 import FileData from '../../../src/fruitmix/file/fileData'
 
 
@@ -44,171 +43,150 @@ class Model extends EventEmitter {
 
 const cwd = process.cwd()
 const tmpdir = path.join(cwd, 'tmptest')
-const froot = path.join(tmpdir, userUUID)
+const froot = path.join(tmpdir, 'tmptest')
 
 describe(path.basename(__filename), () => {
+
+  let model, fileData
 
   before(async () => {
     await rimrafAsync('tmptest') 
     await mkdirpAsync('tmptest')
 
-    const model = new Model()
-    const fileData = new FileData(tmpdir, model)
+    model = new Model()
+    fileData = new FileData(tmpdir, model)
+
+    model.emit('drivesCreated', [{uuid: uuid1, type: 'private',owner: userUUID}, 
+                                {uuid: uuid9, type: 'private', owner: aliceUUID}
+                               ])
+    await Promise.delay(200)
+
+    // two drive-roots
+    let n1 = fileData.root.children[0]
+    let n9 = fileData.root.children[1]
+
+    fileData.createNode(n1, {type: 'directory', uuid: uuid2, name: 'n2'})
+    await Promise.delay(100)
+    let n2 = fileData.uuidMap.get(uuid2)
+    // console.log(n2.parent.name)
+    fileData.createNode(n2, {type: 'directory', uuid: uuid3, name: 'n3'})
+    await Promise.delay(100)
+    let n3 = fileData.uuidMap.get(uuid3)
+    // console.log(n3.parent.name)
+    fileData.createNode(n3, {type: 'directory', uuid: uuid4, name: 'n4'})
+    await Promise.delay(100)
+    let n4 = fileData.uuidMap.get(uuid4)
+    // console.log(n4.parent.name)
+    fileData.createNode(n1, {type: 'directory', uuid: uuid5, name: 'n5'})
+    await Promise.delay(100)
+    let n5 = fileData.uuidMap.get(uuid5)
+    // console.log(n5.parent.name)
+    fileData.createNode(n1, {type: 'directory', uuid: uuid6, name: 'n6'})
+    await Promise.delay(100)
+    let n6 = fileData.uuidMap.get(uuid6)
+    // console.log(n6.parent.name)
+    fileData.createNode(n6, {type: 'directory', uuid: uuid7, name: 'n7'})
+    await Promise.delay(100)
+    let n7 = fileData.uuidMap.get(uuid7)
+    // console.log(n7.parent.name)
+    fileData.createNode(n7, {type: 'directory', uuid: uuid8, name: 'n8'})
+    await Promise.delay(100)
+    let n8 = fileData.uuidMap.get(uuid8)
+    // console.log(n8.parent.name)
   })
 
+  const createDocumentStoreAsync = Promise.promisify(createDocumentStore)
+  const createFileShareStoreAsync = Promise.promisify(createFileShareStore)
 
+  let fileShareStore, fileShareData
 
+  beforeEach(async () => {
+    await rimrafAsync(froot)
+    await mkdirpAsync(froot)
+
+    let docstore = await createDocumentStoreAsync(froot)
+    fileShareStore = await createFileShareStoreAsync(froot, docstore)
+    fileShareData = await createFileShareData(model, fileShareStore)
+  })
+
+  afterEach(async () => await rimrafAsync(froot))
+
+  describe('create a fileShareData', function() {
+
+    it('should create a fileShareData', done => {
+      expect(fileShareData.model).to.deep.equal(model)
+      expect(fileShareData.fileShareStore).to.deep.equal(fileShareStore)
+      expect(fileShareData.fileShareMap).to.deep.equal(new Map())
+      done()
+    })
+  })
+
+  describe('createFileShare', function() {
+    let doc
+    let post = { writelist: [aliceUUID],
+                 readlist: [bobUUID],
+                 collection: [uuid2, uuid4, uuid6, uuid9] 
+               }
+
+    beforeEach(() => doc = createFileShareDoc(fileData, userUUID, post))
+
+    it('new fileshare should be set into fileShareMap', async () => {
+      await fileShareData.createFileShare(doc)
+      expect(fileShareData.fileShareMap.get(doc.uuid).doc).to.deep.equal(doc)
+    })
+
+    it('new fileshare should be a frozen object', async () => {
+      await fileShareData.createFileShare(doc)
+      expect(Object.isFrozen(fileShareData.fileShareMap.get(doc.uuid))).to.be.true
+    })
+  })
 })
 
 
-
-model.emit('driveCreated', [{uuid: uuid1, type: 'private',owner: userUUID}, 
-                            {uuid: uuid9, type: 'private', owner: aliceUUID}
-                           ])
-
-await Promise.delay(200)
-console.log(fileData.root.children[0])
-// fileData.createNode()
-
-// const xstats = [{uuid: uuid1}, {uuid: uuid2}, {uuid: uuid3},
-//                 {uuid: uuid4}, {uuid: uuid5}, {uuid: uuid6},
-//                 {uuid: uuid7}, {uuid: uuid8}, {uuid: uuid9}]
-
-// const ctx = {
-//       attached: [],
-//       detaching: [],
-
-//       nodeAttached(x) {
-//         this.attached.push(x)
-//       },
-
-//       nodeDetaching(x) {
-//         this.detaching.push(x)
-//       }
-//     }
-
-// const n1 = new DriveNode(ctx, xstats[0], {type: 'private', owner: userUUID})
-// const n2 = new DirectoryNode(ctx, xstats[1])
-// const n3 = new DirectoryNode(ctx, xstats[2])
-// const n4 = new DirectoryNode(ctx, xstats[3])
-// const n5 = new DirectoryNode(ctx, xstats[4])
-// const n6 = new DirectoryNode(ctx, xstats[5])
-// const n7 = new DirectoryNode(ctx, xstats[6])
-// const n8 = new DirectoryNode(ctx, xstats[7])
-// const n9 = new DriveNode(ctx, xstats[8], {type: 'private', owner: aliceUUID})
-// n2.attach(n1)
-// n3.attach(n2)
-// n4.attach(n3)
-// n5.attach(n1)
-// n6.attach(n1)
-// n7.attach(n6)
-// n8.attach(n7)
-
-// console.log(n2.parent)
-// class Node {
-//   constructor(uuid) {
-//     this.uuid = uuid
-//     this.parent = null
-//     this.children = []
-//   }
-
-//   upFind(func) {
-//     let node = this
-//     while (node !== null) {
-//       if (func(node)) return node
-//       node = node.parent
-//     }
-//   }
-// }
-
-// class FileData {
-//   constructor() {
-//     this.uuidMap = new Map()
-//   }
-// }
-
-// const n1 = new Node(uuid1)
-// const n2 = new Node(uuid2)
-// n2.parent = n1
-// n1.children.push(n2)
-// const n3 = new Node(uuid3)
-// n3.parent = n2
-// n2.children.push(n3)
-// const n4 = new Node(uuid4)
-// n4.parent = n3
-// n3.children.push(n4)
-// const n5 = new Node(uuid5)
-// n5.parent = n1
-// n1.children.push(n5)
-// const n6 = new Node(uuid6)
-// n6.parent = n1
-// n1.children.push(n6)
-// const n7 = new Node(uuid7)
-// n7.parent = n6
-// n6.children.push(n7)
-// const n8 = new Node(uuid8)
-// n8.parent = n7
-// n7.children.push(n8)
-// const n9 = new Node(uuid9)
-
-// fileData.uuidMap.set(n1.uuid, n1)
-// fileData.uuidMap.set(n2.uuid, n2)
-// fileData.uuidMap.set(n3.uuid, n3)
-// fileData.uuidMap.set(n4.uuid, n4)
-// fileData.uuidMap.set(n5.uuid, n5)
-// fileData.uuidMap.set(n6.uuid, n6)
-// fileData.uuidMap.set(n7.uuid, n7)
-// fileData.uuidMap.set(n8.uuid, n8)
-// fileData.uuidMap.set(n9.uuid, n9)
-
-
-
-// const createDocumentStoreAsync = Promise.promisify(createDocumentStore)
-// const createFileShareStoreAsync = Promise.promisify(createFileShareStore)
 
 // describe(path.basename(__filename), function() {
 //   let fileShareStore, fileShareData
 
 //   beforeEach(async () => {
-//     await rimrafAsync('tmptest')
-//     await mkdirpAsync('tmptest')
+    // await rimrafAsync('tmptest')
+  //   await mkdirpAsync('tmptest')
 
-//     let docstore = await createDocumentStoreAsync(froot)
-//     fileShareStore = await createFileShareStoreAsync(froot, docstore)
-//     fileShareData = await createFileShareData(model, fileShareStore)
-//   })
+  //   let docstore = await createDocumentStoreAsync(froot)
+  //   fileShareStore = await createFileShareStoreAsync(froot, docstore)
+  //   fileShareData = await createFileShareData(model, fileShareStore)
+  // })
 
-//   afterEach(async () => await rimrafAsync('tmptest'))
+  // afterEach(async () => await rimrafAsync('tmptest'))
   
-//   describe('create a fileShareData', function() {
+  // describe('create a fileShareData', function() {
 
-//     it('should create a fileShareData', done => {
-//       expect(fileShareData.model).to.deep.equal(model)
-//       expect(fileShareData.fileShareStore).to.deep.equal(fileShareStore)
-//       expect(fileShareData.fileShareMap).to.deep.equal(new Map())
-//       done()
-//     })
-//   })
+  //   it('should create a fileShareData', done => {
+  //     expect(fileShareData.model).to.deep.equal(model)
+  //     expect(fileShareData.fileShareStore).to.deep.equal(fileShareStore)
+  //     expect(fileShareData.fileShareMap).to.deep.equal(new Map())
+  //     done()
+  //   })
+  // })
 
-//   describe('createFileShare', function() {
-//     let doc
-//     let post = { writelist: [aliceUUID],
-//                  readlist: [bobUUID],
-//                  collection: [uuid2, uuid4, uuid6, uuid9] 
-//                }
+  // describe('createFileShare', function() {
+  //   let doc
+  //   let post = { writelist: [aliceUUID],
+  //                readlist: [bobUUID],
+  //                collection: [uuid2, uuid4, uuid6, uuid9] 
+  //              }
 
-//     beforeEach(() => doc = createFileShareDoc(fileData, userUUID, post))
+  //   beforeEach(() => doc = createFileShareDoc(fileData, userUUID, post))
 
-//     it('new fileshare should be set into fileShareMap', async () => {
-//       await fileShareData.createFileShare(doc)
-//       expect(fileShareData.fileShareMap.get(doc.uuid).doc).to.deep.equal(doc)
-//     })
+  //   it('new fileshare should be set into fileShareMap', async () => {
+  //     await fileShareData.createFileShare(doc)
+  //     expect(fileShareData.fileShareMap.get(doc.uuid).doc).to.deep.equal(doc)
+  //   })
 
-//     it('new fileshare should be a frozen object', async () => {
-//       await fileShareData.createFileShare(doc)
-//       expect(Object.isFrozen(fileShareData.fileShareMap.get(doc.uuid))).to.be.true
-//     })
-//   })
+  //   it('new fileshare should be a frozen object', async () => {
+  //     await fileShareData.createFileShare(doc)
+  //     expect(Object.isFrozen(fileShareData.fileShareMap.get(doc.uuid))).to.be.true
+  //   })
+  // })
 
 //   describe('updateFileShare', function() {
 //     let doc
