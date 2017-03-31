@@ -45,6 +45,18 @@ class FileData extends EventEmitter {
     })
   }
 
+  // TODO
+  createDrivesAsync(drives) {
+  }
+
+  // TODO
+  deleteDrivesAsync(drives) {
+  }
+
+  // TODO
+  updateDrive(drive) {
+  }
+
   nodeAttached(node) {
     this.uuidMap.set(node.uuid, node)
   }
