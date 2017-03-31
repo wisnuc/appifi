@@ -319,7 +319,7 @@ class FileService {
   // move a directory or file into given dirUUID
   move(userUUID, srcUUID, dirUUID, callback) {
   }
-
+  
   // delete a directory or file
   // dirUUID cannot be a fileshare UUID
   async del({ userUUID, dirUUID, nodeUUID }) {
