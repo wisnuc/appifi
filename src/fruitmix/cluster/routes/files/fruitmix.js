@@ -171,7 +171,11 @@ router.put('/overwrite/:dirUUID/:filename/:sha256', (req, res) => {
 
 // rename dir or file
 router.patch('/rename/:dirUUID/:nodeUUID/:filename', (req, res) => {
-
+  let { dirUUID, nodeUUID, filename } = req.params
+  config.ipc.call('rename', { userUUI: req.user.uuid, targetUUID: dirUUID, name: filename }, (err, node) => {
+    if (err) return res.error(err)
+    return res.success(node,200)
+  })
 })
 
 // delete dir or file
@@ -316,31 +320,6 @@ router.post('/:nodeUUID', (req, res) => {
       }
     }
   })
-})
-
-//segments for upload 
-
-router.post('/segments', auth.jwt(), (req, res) => {
-  //fields maybe size sha256 start
-  if(req.is(multipart/form-data)){// upload a segment
-
-  }else{//create new file segments 
-    let { size, segmentsize, nodeuuid, sha256,  name } = req.body
-    let args =  { userUUID:req.user.uuid, dirUUID: nodeuuid, name }
-    
-    config.ipc.call('createFileCheck', args, (e, node) => {
-      if(e) return res.status(500).json({ code: 'ENOENT' })
-      if (node.isDirectory()) {
-        //create folder if not exist for user 
-        fs.mkdir(path.join(paths.get('segments'), req.user.uuid), (err) => {
-          if(err) return res.status(500).json({})
-          
-        })
-      }else // overwrite Forbidden
-        return res.status(401).json({})
-    })
-    
-  }
 })
 
 module.exports = router

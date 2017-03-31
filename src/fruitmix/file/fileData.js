@@ -8,6 +8,7 @@ import E from '../lib/error'
 import { forceDriveXstat } from './xstat'
 import Node from './node'
 import DriveNode from './driveNode'
+import DirectoryNode from './directoryNode'
 
 class FileData extends EventEmitter {
 
