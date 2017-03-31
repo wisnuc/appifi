@@ -178,6 +178,21 @@ class FileData extends EventEmitter {
     return this.userPermittedToShareByUUID(userUUID, node)
   }
 
+  fromUserHome(userUUID, node) {
+    let drive = node.getDrive()
+    return drive.owner === userUUID && drive.ref === 'home'
+  }
+
+  fromUserLibrary(userUUID, node) {
+    let drive = node.getDrive()
+    return drive.owner === userUUID && drive.ref === 'library'
+  }
+
+  fromUserService(userUUID, node) {
+    let drive = node.getDrive()
+    return drive.owner === userUUID && drive.ref === 'service'
+  }
+
   print() {
     /**
     let q = {}
