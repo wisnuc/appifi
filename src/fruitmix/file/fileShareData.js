@@ -65,6 +65,15 @@ class FileShareData extends EventEmitter {
     this.emit('fileShareCreated', shares)
   }
 
+  findShareCollectionByUUID(uuid) {
+    return this.fileShareMap.get(uuid) 
+      ? this.fileShareMap.get(uuid).doc.collection : null
+  }
+
+  findShareByUUID(uuid) {
+    return this.fileShareMap.get(uuid)
+  }
+  
   userAuthorizedToRead(userUUID, node) { // starting from root
     // 1. filter user in ReaderSet and user is not author
     // 2. iterate collection list, find one in nodepath && effective
@@ -76,7 +85,7 @@ class FileShareData extends EventEmitter {
         let collection = shares[i].effective(this.fileData)
 
         let found = collection.find(uuid => {
-          let n = this.fileData.uuidMap.get(uuid)
+          let n = this.fileData.findNodeByUUID(uuid)
           let nodepath = node.nodepath()
           return nodepath.includes(n) && this.fileData.userPermittedToRead(share[i].doc.author, n)
         })
@@ -94,7 +103,7 @@ class FileShareData extends EventEmitter {
         let collection = shares[i].effective(this.fileData)
 
         let found = collection.find(uuid => {
-          let n = this.fileData.uuidMap.get(uuid)
+          let n = this.fileData.findNodeByUUID(uuid)
           let nodepath = node.nodepath()
           return nodepath.includes(n) && this.fileData.userPermittedToWrite(share[i].doc.author, n)
         })
