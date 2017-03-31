@@ -267,8 +267,10 @@ class FileService {
     if (!node.isFile()) throw new E.ENOTDIR()
     if (!this.userWritable(userUUID, node)) throw new E.EACCESS()
     // if (node.getChildren().map(n => n.name).includes(name)) throw new E.EEXIST()
-    let dst = path.join(node.abspath(), node.name)
+    let dst = node.abspath()
     try {
+
+      //TODO remove old file
 
       await fs.renameAsync(src, dst)
 
@@ -292,13 +294,32 @@ class FileService {
   }
 
   // rename a directory or file
-  rename(userUUID, targetUUID, name, callback) {
+  async renameAsync({ userUUID, targetUUID, name }) {
+
+    let node = this.data.findNodeByUUID(fileUUID)
+    if (!node) throw new E.NODENOTFOUND()
+    if (!this.userWritable(userUUID, node)) throw new E.EACCESS()
+    if(typeof name !== 'string' || path.basename(path.normalize(name)) !== name) throw new E.EINVAL
+
+    let newPath = path.join(path.dirname(node.abspath()), name)
+    try{
+      await fs.renameAsync(node.abspath, newPath)
+      let xstat = await readXstatAsync(newPath)
+      this.data.updateNode(node, xstat)
+      return node
+    }catch(e){
+        throw e
+    }finally{
+      if(node.parent) this.data.requestProbeByUUID(node.parent)
+      else if(node.isDirectory()) this.data.requestProbeByUUID(node)
+    }
+    
   }
 
   // move a directory or file into given dirUUID
   move(userUUID, srcUUID, dirUUID, callback) {
   }
-
+  
   // delete a directory or file
   // dirUUID cannot be a fileshare UUID
   async del({ userUUID, dirUUID, nodeUUID }) {
@@ -336,7 +357,7 @@ class FileService {
     // ipc.register('createFile', this.createFile.bind(this))
     ipc.register('createFile', (args, callback) => 
       this.createFileAsync(args).asCallback(callback))
-
+    ipc.register('rename', (args, callback) => this.renameAsync(args).asCallback(callback))
     ipc.register('createDirectory', this.createDirectory.bind(this))
     ipc.register('overwriteFile', (args, callback) => this.overwriteFileAsync(args).asCallback(callback))
     ipc.register('list', (args, callback) => this.list(args).asCallback(callback))
