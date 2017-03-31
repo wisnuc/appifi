@@ -261,7 +261,34 @@ class FileService {
   }
 
   // overwrite existing file
-  overwriteFile({ userUUID, srcpath, fileUUID }, callback) {
+  async overwriteFileAsync({ userUUID, srcpath, fileUUID, hash }) {
+    let node = this.data.findNodeByUUID(fileUUID)
+    if (!node) throw new E.NODENOTFOUND()
+    if (!node.isFile()) throw new E.ENOTDIR()
+    if (!this.userWritable(userUUID, node)) throw new E.EACCESS()
+    // if (node.getChildren().map(n => n.name).includes(name)) throw new E.EEXIST()
+    let dst = path.join(node.abspath(), node.name)
+    try {
+
+      await fs.renameAsync(src, dst)
+
+      let xstat = await readXstatAsync(dst) 
+
+      // update hash if available
+      if (hash) { 
+        // no need to try / catch, we probe anyway
+        xstat = await updateFileHashAsync(dst, xstat.uuid, hash, xstat.mtime)
+      }
+
+      // create node
+      return this.data.createNode(node, xstat)
+    }
+    catch (e) {
+      throw e
+    }
+    finally {
+      this.data.requestProbeByUUID(dirUUID)
+    }
   }
 
   // rename a directory or file
@@ -311,7 +338,7 @@ class FileService {
       this.createFileAsync(args).asCallback(callback))
 
     ipc.register('createDirectory', this.createDirectory.bind(this))
-    ipc.register('overwriteFile', this.overwriteFile.bind(this))
+    ipc.register('overwriteFile', (args, callback) => this.overwriteFileAsync(args).asCallback(callback))
     ipc.register('list', (args, callback) => this.list(args).asCallback(callback))
     ipc.register('navList', (args, callback) => this.navList(args).asCallback(callback))
     ipc.register('tree', (args, callback) => this.tree(args).asCallback(callback))

@@ -75,7 +75,7 @@ class FileData extends EventEmitter {
 
     let node
 
-    switch(props.type) {
+    switch(xstat.type) {
       case 'directory':
         node = new DirectoryNode(this, xstat)        
         break
