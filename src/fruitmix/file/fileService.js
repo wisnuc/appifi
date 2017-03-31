@@ -50,36 +50,51 @@ class FileService {
   // list all items inside a directory
   async list({ userUUID, dirUUID }) {
 
-    let node = this.data.findNodeByUUID(dirUUID)
-  
-    if (!node) throw new E.NODENOTFOUND() 
-    if (!node.isDirectory()) throw new E.ENOTDIR()
-    if (!(this.userReadable(userUUID, node))) throw new E.EACCESS()
+    let fileShareDoc = this.shareData.findFileShareDocByUUID(dirUUID)
+    if (fileShareDoc) {
+      return fileShareDoc.collection.map(n => this.nodeProps(n))
+    } else {
+      let node = this.data.findNodeByUUID(dirUUID)
+      if (!node) throw new E.NODENOTFOUND() 
 
-    return node.getChildren().map(n => this.nodeProps(n))
+      if (!node.isDirectory()) throw new E.ENOTDIR()
+      if (!(this.userReadable(userUUID, node))) throw new E.EACCESS()
+
+      return node.getChildren().map(n => this.nodeProps(n))
+
+    }
   }
 
   // list all items inside a directory, with given
   // rootUUID must be a fileshare uuid or virtual drive uuid.
   async navList({ userUUID, dirUUID, rootUUID }) {
-
-    let node = this.data.findNodeByUUID(dirUUID)
-    let root = this.data.findNodeByUUID(rootUUID)
-  
-    if (!node || !root) throw new E.NODENOTFOUND() 
-    if (!node.isDirectory()) throw new E.ENOTDIR()
-    if (!(this.userReadable(userUUID, node))) throw new E.EACCESS()
-
-    let path = node.nodepath()
-    let index = path.indexOf(root)
-
-    if (index === -1) throw new E.ENOENT()
-    let subpath = path.slice(index)
     
-    return {
-      path: subpath.map(n => this.nodeProps(n)),
-      entries: node.getChildren().map(n => this.nodeProps(n))
+    let fileShareDoc = this.shareData.findFileShareDocByUUID(dirUUID)
+    if (fileShareDoc) {
+      return fileShareDoc.collection.map(n => this.nodeProps(n))
+      
+    } else {
+
+      let node = this.data.findNodeByUUID(dirUUID)
+      let root = this.data.findNodeByUUID(rootUUID)
+
+      if (!node || !root) throw new E.NODENOTFOUND()
+      if (!node.isDirectory()) throw new E.ENOTDIR()
+      if (!(this.userReadable(userUUID, node))) throw new E.EACCESS()
+
+      let path = node.nodepath()
+      let index = path.indexOf(root)
+
+      if (index === -1) throw new E.ENOENT()
+      let subpath = path.slice(index)
+
+      return {
+        path: subpath.map(n => this.nodeProps(n)),
+        entries: node.getChildren().map(n => this.nodeProps(n))
+      }
     }
+
+    
   }
 
   // list all tree inside a directory
