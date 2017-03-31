@@ -176,7 +176,7 @@ class FileData extends EventEmitter {
 
     let node = this.findNodeByUUID(nodeUUID)
     if (!node) throw new E.ENODENOTFOUND()
-    return this.userPermittedToShareByUUID(userUUID, node)
+    return this.userPermittedToShare(userUUID, node)
   }
 
   print() {
