@@ -268,5 +268,28 @@ describe(path.basename(__filename), () => {
     })
   })
 
+  describe('load', function() {
+    let doc1, doc2
+    let post1 = { writelist: [aliceUUID],
+                  readlist: [bobUUID],
+                  collection: [uuid2, uuid4, uuid6] 
+                }
+    let post2 = { writelist: [charlieUUID],
+                 readlist: [bobUUID],
+                 collection: [uuid9] 
+               }
+    beforeEach(async () => {
+      doc1 = createFileShareDoc(fileData, userUUID, post1)
+      doc2 = createFileShareDoc(fileData, aliceUUID, post2)
+      await fileShareData.fileShareStore.storeAsync(doc1)
+      await fileShareData.fileShareStore.storeAsync(doc2)
+    })
+
+    it('should load fileshare that is already exist', async () => {
+      await fileShareData.load()
+      expect(fileShareData.findShareByUUID(doc1.uuid).doc).to.deep.equal(doc1)
+      expect(fileShareData.findShareByUUID(doc2.uuid).doc).to.deep.equal(doc2)
+    })
+  })
 })
 
