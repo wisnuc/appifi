@@ -93,7 +93,6 @@ class FileShareData extends EventEmitter {
           return sharePath = namepath.slice(index)
         }
       })
-
       return found ? sharePath : new E.ENODENOTFOUND()
     } else {
       return new E.ENOENT()

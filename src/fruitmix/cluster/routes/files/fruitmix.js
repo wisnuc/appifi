@@ -11,11 +11,8 @@ const sanitize = require('sanitize-filename')
 
 import paths from '../../lib/paths'
 import config from '../../config'
-import auth from '../../middleware/auth'
-// import Models from '../models'
 
 // list, tree and nav a directory
-// rootUUID must be a fileshare uuid or virtual drive uuid.
 router.get('/:type/:dirUUID/:rootUUID', (req, res) => {
 
   let userUUID = req.user.userUUID

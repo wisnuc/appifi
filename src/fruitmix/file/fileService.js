@@ -50,36 +50,58 @@ class FileService {
   // list all items inside a directory
   async list({ userUUID, dirUUID }) {
 
-    let node = this.data.findNodeByUUID(dirUUID)
-  
-    if (!node) throw new E.NODENOTFOUND() 
-    if (!node.isDirectory()) throw new E.ENOTDIR()
-    if (!(this.userReadable(userUUID, node))) throw new E.EACCESS()
+    let shareCollection = this.shareData.findShareCollectionByUUID(dirUUID)
+    if (shareCollection) {
+      return shareCollection.map(n => this.nodeProps(n))
+      
+    } else {
+      let node = this.data.findNodeByUUID(dirUUID)
+      if (!node) throw new E.NODENOTFOUND() 
 
-    return node.getChildren().map(n => this.nodeProps(n))
+      if (!node.isDirectory()) throw new E.ENOTDIR()
+      if (!(this.userReadable(userUUID, node))) throw new E.EACCESS()
+
+      return node.getChildren().map(n => this.nodeProps(n))
+
+    }
   }
 
   // list all items inside a directory, with given
-  // rootUUID must be a fileshare uuid or virtual drive uuid.
+  // dirUUID must be a virtual drive uuid 
+  // rootUUID can be a fileshare uuid or virtual drive uuid.
   async navList({ userUUID, dirUUID, rootUUID }) {
 
     let node = this.data.findNodeByUUID(dirUUID)
-    let root = this.data.findNodeByUUID(rootUUID)
-  
-    if (!node || !root) throw new E.NODENOTFOUND() 
+    if (!node) throw new E.NODENOTFOUND()
+
     if (!node.isDirectory()) throw new E.ENOTDIR()
     if (!(this.userReadable(userUUID, node))) throw new E.EACCESS()
 
-    let path = node.nodepath()
-    let index = path.indexOf(root)
+    let share = this.shareData.findShareByUUID(rootUUID)
+    if (share) {
+      
+      let path = this.shareData.findSharePath(rootUUID,dirUUID)
+      return {
+        path: path,
+        entries: node.getChildren().map(n => this.nodeProps(n))
+      } 
+      
+    } else {
+      
+      let root = this.data.findNodeByUUID(rootUUID)
+      if (!root) throw new E.NODENOTFOUND()
 
-    if (index === -1) throw new E.ENOENT()
-    let subpath = path.slice(index)
-    
-    return {
-      path: subpath.map(n => this.nodeProps(n)),
-      entries: node.getChildren().map(n => this.nodeProps(n))
-    }
+      let path = node.nodepath()
+      let index = path.indexOf(root)
+
+      if (index === -1) throw new E.ENOENT()
+      let subpath = path.slice(index)
+
+      return {
+        path: subpath.map(n => this.nodeProps(n)),
+        entries: node.getChildren().map(n => this.nodeProps(n))
+      }    
+    } 
   }
 
   // list all tree inside a directory
@@ -323,15 +345,31 @@ class FileService {
   // delete a directory or file
   // dirUUID cannot be a fileshare UUID
   async del({ userUUID, dirUUID, nodeUUID }) {
+    
+    let share = this.shareData.findShareByUUID(dirUUID)
+    if (share) throw new E.ENOENT()
 
-    let share = this.shareData.fsMap.get(dirUUID)
-    if(share) throw new E.ENOENT()
+    let dirNode = this.data.findNodeByUUID(dirUUID)
+    if (!dirNode) throw new E.NODENOTFOUND()
+    if (!dirNode.isDirectory()) throw new E.ENOTDIR() 
 
     let node = this.data.findNodeByUUID(nodeUUID)
-    let dirNode = this.data.findNodeByUUID(dirUUID)
-
     if (!node) throw new E.NODENOTFOUND()
-    if (!dirNode) throw new E.NODENOTFOUND()
+
+    if (!this.userWritable(userUUID, node)) throw new E.EACCESS()
+
+    try {
+      await fs.rmdirSync(node.abspath())
+      await this.data.deleteNode(node)
+      return 
+    } 
+    catch (err) {
+      throw err
+    } 
+    finally {
+      if (node.parent) this.data.requestProbeByUUID(node.parent)
+    }
+
 
     if (!this.userWritable(userUUID, dirNode)) throw new E.EACCESS()
 
@@ -364,8 +402,8 @@ class FileService {
     ipc.register('navList', (args, callback) => this.navList(args).asCallback(callback))
     ipc.register('tree', (args, callback) => this.tree(args).asCallback(callback))
     ipc.register('navTree', (args, callback) => this.navTree(args).asCallback(callback))
-    ipc.register('readFile', this.readFile.bind(this))
-    ipc.register('del', this.del.bind(this))
+    ipc.register('readFile', (args, callback) => this.readFile(args).asCallback(callback))
+    ipc.register('del', (args, callback) => this.del(args).asCallback(callback))
 
     ipc.register('printFiles', this.printFiles.bind(this)) 
   }
