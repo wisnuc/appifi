@@ -46,11 +46,11 @@ export default (req, res, next) => {
       } else if (typeof err === 'string') {
 
         message = err
-        code = httpCode[status]
-
       }
     }
+    
     status = status || DEFAULT_ERROR_STATUS
+    code = httpCode[status]
 
     return res.status(status).json({
       code: code || 'no httpCode',
