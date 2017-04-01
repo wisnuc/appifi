@@ -61,7 +61,6 @@ coverage/
 cluster_tmp/
 cluster_file/
 filemap/
-models/
 
 _docpress/
 
