@@ -11,8 +11,6 @@ const sanitize = require('sanitize-filename')
 
 import paths from '../../lib/paths'
 import config from '../../config'
-import auth from '../../middleware/auth'
-// import Models from '../models'
 
 // list, tree and nav a directory
 router.get('/:type/:dirUUID/:rootUUID', (req, res) => {

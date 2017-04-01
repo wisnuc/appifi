@@ -87,7 +87,7 @@ class FileShareData extends EventEmitter {
         }
         else return false
       })
-      return found ? sharePath : null
+      return found ? sharePath : []
     }
     else return null
   }

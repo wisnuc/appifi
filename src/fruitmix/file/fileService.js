@@ -343,17 +343,33 @@ class FileService {
   }
   
   // delete a directory or file
+  // dirUUID cannot be a fileshare UUID
   async del({ userUUID, dirUUID, nodeUUID }) {
+    
+    let share = this.shareData.findShareByUUID(dirUUID)
+    if (share) throw new E.ENOENT()
 
-    // dirUUID cannot be a fileshare UUID
-    let shareCollection = this.shareData.findShareCollectionByUUID(dirUUID)
-    if (shareCollection) throw new E.ENOENT()
+    let dirNode = this.data.findNodeByUUID(dirUUID)
+    if (!dirNode) throw new E.NODENOTFOUND()
+    if (!dirNode.isDirectory()) throw new E.ENOTDIR() 
 
     let node = this.data.findNodeByUUID(nodeUUID)
-    let dirNode = this.data.findNodeByUUID(dirUUID)
-
     if (!node) throw new E.NODENOTFOUND()
-    if (!dirNode) throw new E.NODENOTFOUND()
+
+    if (!this.userWritable(userUUID, node)) throw new E.EACCESS()
+
+    try {
+      await fs.rmdirSync(node.abspath())
+      await this.data.deleteNode(node)
+      return 
+    } 
+    catch (err) {
+      throw err
+    } 
+    finally {
+      if (node.parent) this.data.requestProbeByUUID(node.parent)
+    }
+
 
     if (!this.userWritable(userUUID, dirNode)) throw new E.EACCESS()
 
@@ -386,8 +402,8 @@ class FileService {
     ipc.register('navList', (args, callback) => this.navList(args).asCallback(callback))
     ipc.register('tree', (args, callback) => this.tree(args).asCallback(callback))
     ipc.register('navTree', (args, callback) => this.navTree(args).asCallback(callback))
-    ipc.register('readFile', this.readFile.bind(this))
-    ipc.register('del', this.del.bind(this))
+    ipc.register('readFile', (args, callback) => this.readFile(args).asCallback(callback))
+    ipc.register('del', (args, callback) => this.del(args).asCallback(callback))
 
     ipc.register('printFiles', this.printFiles.bind(this)) 
   }
