@@ -77,17 +77,20 @@ class FileService {
     if (!node.isDirectory()) throw new E.ENOTDIR()
     if (!(this.userReadable(userUUID, node))) throw new E.EACCESS()
 
-    let shareCollection = this.shareData.findShareCollectionByUUID(dirUUID)
-    if (shareCollection) {
+    let share = this.shareData.findShareByUUID(rootUUID)
+    if (share) {
+      
+      let path = this.shareData.getPath(rootUUID) //TODO:
       return {
-        path: subpath.map(n => this.nodeProps(n)),
+        path: path,
         entries: node.getChildren().map(n => this.nodeProps(n))
       } 
       
     } else {
-      //TODO:
+      
       let root = this.data.findNodeByUUID(rootUUID)
       if (!root) throw new E.NODENOTFOUND()
+
       let path = node.nodepath()
       let index = path.indexOf(root)
 
