@@ -1,8 +1,10 @@
 import path from 'path'
+import E from '../lib/error'
 
 class Node {
 
   constructor(ctx) {
+
     this.ctx = ctx
     this.worker = null
     this.parent = null
@@ -90,7 +92,7 @@ class Node {
       q.unshift(n)
     }
 
-    throw new Error('the node is off-tree')
+    throw new E.ENODEDETACHED()
   } 
 
   // return drive node
@@ -100,7 +102,7 @@ class Node {
       if (n.parent === this.ctx.root) return n.drive
     }
     
-    throw new Error('the node is off-tree')
+    throw new E.ENODEDETACHED()
   }
 
   abspath() { 

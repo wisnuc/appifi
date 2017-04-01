@@ -276,6 +276,23 @@ class ModelData extends EventEmitter {
     this.lock = false;
   }
 
+  driveMap(drive) {
+
+    if (drive.type === 'private') {
+
+      let ref, user = this.users.find(u => u.uuid === drive.owner)
+
+      if (user.home === drive.uuid) ref = 'home'
+      else if (user.library === drive.uuid) ref = 'library'
+      else if (user.service === drive.uuid) ref = 'service'
+      else throw new Error('invalid data')
+
+      return Object.assign({}, drive, { ref })
+    }
+    else
+      return Object.assign({}, drive)
+  }
+
   async updateModelAsync(users, drives) {
     if (this.lock) throw new E.ELOCK();
     validateModel(users, drives)
@@ -298,7 +315,7 @@ class ModelData extends EventEmitter {
   async initModelAsync(users, drives) {
     await this.updateModelAsync(users, drives)
     // console.log('initModelAsync', drives)
-    this.emit('drivesCreated', drives)
+    this.emit('drivesCreated', drives.map(d => this.driveMap(d)))
   }
 
   // both local and remote user
@@ -308,7 +325,7 @@ class ModelData extends EventEmitter {
     let nextDrives = [...this.drives, ...newDrives]
 
     await this.updateModelAsync(nextUsers, nextDrives)
-    this.emit('drivesCreated', newDrives)
+    this.emit('drivesCreated', newDrives.map(d => this.driveMap(d)))
   }
 
   // both local and remote
@@ -362,7 +379,7 @@ class ModelData extends EventEmitter {
     let nextDrives = [...this.drives, newDrive]
     
     await this.updateModelAsync(this.users, nextDrives)
-    this.emit('drivesCreated', [newDrive])
+    this.emit('drivesCreated', [this.driveMap(newDrive)])
   } 
 
   async updateDriveAsync(next) {
@@ -382,7 +399,7 @@ class ModelData extends EventEmitter {
     ]
 
     await this.updateModelAsync(this.users, nextDrives)
-    this.emit('driveUpdated', drive, next)
+    this.emit('driveUpdated', this.driveMap(next))
   }
 
   async deleteDriveAsync(driveUUID) {
@@ -399,7 +416,7 @@ class ModelData extends EventEmitter {
     ]
 
     await this.updateModelAsync(this.users, nextDrives)
-    this.emit('drivesDeleted', [drive])
+    this.emit('drivesDeleted', [this.driveMap(drive)])
   }
 }
 

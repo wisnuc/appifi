@@ -106,6 +106,18 @@ class MediaShareService {
 
     await this.msd.deleteMediaShare(shareUUID)
   }
+
+  register(ipc) {
+    
+    ipc.register('createMediaShare', (args, callback) => 
+      this.createMediaShare(args.userUUID, args.post).asCallback(callback))
+
+    ipc.register('updateMediaShare', (args, callback) => 
+      this.updateMediaShare(args.userUUID, args.shareUUID, args.patch).asCallback(callback))
+
+    ipc.register('deleteMediaShare', (args, callback) => 
+      this.deleteMediaShare(args.userUUID, args.shareUUID).asCallback(callback))
+  }
 }
 
 const createMediaShareService = (mediaData, msd) => { 

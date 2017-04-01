@@ -46,6 +46,18 @@ class FileData extends EventEmitter {
     })
   }
 
+  // TODO
+  createDrivesAsync(drives) {
+  }
+
+  // TODO
+  deleteDrivesAsync(drives) {
+  }
+
+  // TODO
+  updateDrive(drive) {
+  }
+
   nodeAttached(node) {
     this.uuidMap.set(node.uuid, node)
   }
@@ -176,7 +188,22 @@ class FileData extends EventEmitter {
 
     let node = this.findNodeByUUID(nodeUUID)
     if (!node) throw new E.ENODENOTFOUND()
-    return this.userPermittedToShareByUUID(userUUID, node)
+    return this.userPermittedToShare(userUUID, node)
+  }
+
+  fromUserHome(userUUID, node) {
+    let drive = node.getDrive()
+    return drive.owner === userUUID && drive.ref === 'home'
+  }
+
+  fromUserLibrary(userUUID, node) {
+    let drive = node.getDrive()
+    return drive.owner === userUUID && drive.ref === 'library'
+  }
+
+  fromUserService(userUUID, node) {
+    let drive = node.getDrive()
+    return drive.owner === userUUID && drive.ref === 'service'
   }
 
   print() {
