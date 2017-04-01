@@ -47,7 +47,7 @@ const froot = path.join(tmpdir, 'tmptest')
 
 describe(path.basename(__filename), () => {
 
-  let model, fileData
+  let model, fileData, n1, n2, n3, n4, n5, n6, n7, n8, n9
 
   before(async () => {
     await rimrafAsync('tmptest') 
@@ -62,36 +62,36 @@ describe(path.basename(__filename), () => {
     await Promise.delay(200)
 
     // two drive-roots
-    let n1 = fileData.root.children[0]
-    let n9 = fileData.root.children[1]
+    n1 = fileData.root.children[0]
+    n9 = fileData.root.children[1]
 
     fileData.createNode(n1, {type: 'directory', uuid: uuid2, name: 'n2'})
     await Promise.delay(100)
-    let n2 = fileData.uuidMap.get(uuid2)
+    n2 = fileData.uuidMap.get(uuid2)
     // console.log(n2.parent.name)
     fileData.createNode(n2, {type: 'directory', uuid: uuid3, name: 'n3'})
     await Promise.delay(100)
-    let n3 = fileData.uuidMap.get(uuid3)
+    n3 = fileData.uuidMap.get(uuid3)
     // console.log(n3.parent.name)
     fileData.createNode(n3, {type: 'directory', uuid: uuid4, name: 'n4'})
     await Promise.delay(100)
-    let n4 = fileData.uuidMap.get(uuid4)
+    n4 = fileData.uuidMap.get(uuid4)
     // console.log(n4.parent.name)
     fileData.createNode(n1, {type: 'directory', uuid: uuid5, name: 'n5'})
     await Promise.delay(100)
-    let n5 = fileData.uuidMap.get(uuid5)
+    n5 = fileData.uuidMap.get(uuid5)
     // console.log(n5.parent.name)
     fileData.createNode(n1, {type: 'directory', uuid: uuid6, name: 'n6'})
     await Promise.delay(100)
-    let n6 = fileData.uuidMap.get(uuid6)
+    n6 = fileData.uuidMap.get(uuid6)
     // console.log(n6.parent.name)
     fileData.createNode(n6, {type: 'directory', uuid: uuid7, name: 'n7'})
     await Promise.delay(100)
-    let n7 = fileData.uuidMap.get(uuid7)
+    n7 = fileData.uuidMap.get(uuid7)
     // console.log(n7.parent.name)
     fileData.createNode(n7, {type: 'directory', uuid: uuid8, name: 'n8'})
     await Promise.delay(100)
-    let n8 = fileData.uuidMap.get(uuid8)
+    n8 = fileData.uuidMap.get(uuid8)
     // console.log(n8.parent.name)
   })
 
@@ -106,7 +106,7 @@ describe(path.basename(__filename), () => {
 
     let docstore = await createDocumentStoreAsync(froot)
     fileShareStore = await createFileShareStoreAsync(froot, docstore)
-    fileShareData = await createFileShareData(model, fileShareStore)
+    fileShareData = await createFileShareData(model, fileShareStore, fileData)
   })
 
   afterEach(async () => await rimrafAsync(froot))
@@ -125,145 +125,148 @@ describe(path.basename(__filename), () => {
     let doc
     let post = { writelist: [aliceUUID],
                  readlist: [bobUUID],
-                 collection: [uuid2, uuid4, uuid6, uuid9] 
+                 collection: [uuid2, uuid4, uuid6] 
                }
 
     beforeEach(() => doc = createFileShareDoc(fileData, userUUID, post))
 
     it('new fileshare should be set into fileShareMap', async () => {
       await fileShareData.createFileShare(doc)
-      expect(fileShareData.fileShareMap.get(doc.uuid).doc).to.deep.equal(doc)
+      expect(fileShareData.findShareByUUID(doc.uuid).doc).to.deep.equal(doc)
     })
 
     it('new fileshare should be a frozen object', async () => {
       await fileShareData.createFileShare(doc)
-      expect(Object.isFrozen(fileShareData.fileShareMap.get(doc.uuid))).to.be.true
+      expect(Object.isFrozen(fileShareData.findShareByUUID(doc.uuid))).to.be.true
     })
   })
+
+  describe('updateFileShare', function() {
+    let doc
+    let post = { writelist: [aliceUUID],
+                 readlist: [bobUUID],
+                 collection: [uuid2, uuid4, uuid6] 
+               }
+    beforeEach(async () => {
+      doc = createFileShareDoc(fileData, userUUID, post)
+      await fileShareData.createFileShare(doc)
+    })
+
+    it('updated fileshare should be put into fileShareMap', async () => {
+      let patch = [{path: 'writelist',
+                    operation: 'add',
+                    value: [charlieUUID]
+                  }]
+      let newDoc = updateFileShareDoc(fileData, doc, patch)
+      await fileShareData.updateFileShare(newDoc)
+      expect(fileShareData.findShareByUUID(doc.uuid).doc).to.deep.equal(newDoc)
+    })
+
+    it('updated fileshare should be a frozen object', async () => {
+      let patch = [{path: 'writelist',
+                    operation: 'add',
+                    value: [charlieUUID]
+                  }]
+      let newDoc = updateFileShareDoc(fileData, doc, patch)
+      await fileShareData.updateFileShare(newDoc)
+      expect(Object.isFrozen(fileShareData.findShareByUUID(doc.uuid))).to.be.true
+    })
+
+    it('should throw error if target uuid is not found', async () => {
+      let err
+      let patch = [{path: 'writelist',
+                    operation: 'add',
+                    value: [charlieUUID]
+                  }]
+      let newDoc = updateFileShareDoc(fileData, doc, patch)
+      fileShareData.fileShareMap.delete(doc.uuid)
+
+      try {
+        await fileShareData.updateFileShare(newDoc)
+      }
+      catch(e){
+        err = e
+      }
+      expect(err).to.be.an.instanceof(E.ENOENT)
+    })
+  })
+
+  describe('deleteFileShare', function() {
+    let doc
+    let post = { writelist: [aliceUUID],
+                 readlist: [bobUUID],
+                 collection: [uuid2, uuid4, uuid6] 
+               }
+    beforeEach(async () => {
+      doc = createFileShareDoc(fileData, userUUID, post)
+      await fileShareData.createFileShare(doc)
+    })
+
+    it('should throw error if uuid is not exist in fileShareMap', async () => {
+      let err
+      fileShareData.fileShareMap.delete(doc.uuid)
+      try {
+        await fileShareData.deleteFileShare(doc.uuid)
+      }
+      catch(e){
+        err = e
+      }
+      expect(err).to.be.an.instanceof(E.ENOENT)
+    })
+
+    it('should remove fileshare from fileShareMap successfully', async () => {
+      await fileShareData.deleteFileShare(doc.uuid)
+      expect(fileShareData.findShareByUUID(doc.uuid)).to.be.undefined
+    })
+  })
+
+  describe('userAuthorizedToRead', function() {
+    let doc
+    let post = { writelist: [aliceUUID],
+                 readlist: [bobUUID],
+                 collection: [uuid2, uuid4, uuid6] 
+               }
+    beforeEach(async () => {
+      doc = createFileShareDoc(fileData, userUUID, post)
+      await fileShareData.createFileShare(doc)
+    })
+
+    it('should return true if user is in readerSet', done => {
+      let result = fileShareData.userAuthorizedToRead(bobUUID, n3)
+      expect(result).to.be.true
+      done()
+    })
+
+    it('should return false if user is not in readerSet', done => {
+      let result = fileShareData.userAuthorizedToRead(charlieUUID, n3)
+      expect(result).to.be.false
+      done()
+    })
+  })
+
+   describe('userAuthorizedToWrite', function() {
+    let doc
+    let post = { writelist: [aliceUUID],
+                 readlist: [bobUUID],
+                 collection: [uuid2, uuid4, uuid6] 
+               }
+    beforeEach(async () => {
+      doc = createFileShareDoc(fileData, userUUID, post)
+      await fileShareData.createFileShare(doc)
+    })
+
+    it('should return true if user is in writelist', done => {
+      let result = fileShareData.userAuthorizedToWrite(aliceUUID, n3)
+      expect(result).to.be.true
+      done()
+    })
+
+    it('should return false if user is not in writelist', done => {
+      let result = fileShareData.userAuthorizedToWrite(bobUUID, n3)
+      expect(result).to.be.false
+      done()
+    })
+  })
+
 })
 
-
-
-// describe(path.basename(__filename), function() {
-//   let fileShareStore, fileShareData
-
-//   beforeEach(async () => {
-    // await rimrafAsync('tmptest')
-  //   await mkdirpAsync('tmptest')
-
-  //   let docstore = await createDocumentStoreAsync(froot)
-  //   fileShareStore = await createFileShareStoreAsync(froot, docstore)
-  //   fileShareData = await createFileShareData(model, fileShareStore)
-  // })
-
-  // afterEach(async () => await rimrafAsync('tmptest'))
-  
-  // describe('create a fileShareData', function() {
-
-  //   it('should create a fileShareData', done => {
-  //     expect(fileShareData.model).to.deep.equal(model)
-  //     expect(fileShareData.fileShareStore).to.deep.equal(fileShareStore)
-  //     expect(fileShareData.fileShareMap).to.deep.equal(new Map())
-  //     done()
-  //   })
-  // })
-
-  // describe('createFileShare', function() {
-  //   let doc
-  //   let post = { writelist: [aliceUUID],
-  //                readlist: [bobUUID],
-  //                collection: [uuid2, uuid4, uuid6, uuid9] 
-  //              }
-
-  //   beforeEach(() => doc = createFileShareDoc(fileData, userUUID, post))
-
-  //   it('new fileshare should be set into fileShareMap', async () => {
-  //     await fileShareData.createFileShare(doc)
-  //     expect(fileShareData.fileShareMap.get(doc.uuid).doc).to.deep.equal(doc)
-  //   })
-
-  //   it('new fileshare should be a frozen object', async () => {
-  //     await fileShareData.createFileShare(doc)
-  //     expect(Object.isFrozen(fileShareData.fileShareMap.get(doc.uuid))).to.be.true
-  //   })
-  // })
-
-//   describe('updateFileShare', function() {
-//     let doc
-//     let post = { writelist: [aliceUUID],
-//                  readlist: [bobUUID],
-//                  collection: [uuid2, uuid4, uuid6, uuid9] 
-//                }
-//     beforeEach(async () => {
-//       doc = createFileShareDoc(fileData, userUUID, post)
-//       await fileShareData.createFileShare(doc)
-//     })
-
-//     it('updated fileshare should be put into fileShareMap', async () => {
-//       let patch = [{path: 'writelist',
-//                     operation: 'add',
-//                     value: [charlieUUID]
-//                   }]
-//       let newDoc = updateFileShareDoc(fileData, doc, patch)
-//       await fileShareData.updateFileShare(newDoc)
-//       expect(fileShareData.fileShareMap.get(doc.uuid).doc).to.deep.equal(newDoc)
-//     })
-
-//     it('updated fileshare should be a frozen object', async () => {
-//       let patch = [{path: 'writelist',
-//                     operation: 'add',
-//                     value: [charlieUUID]
-//                   }]
-//       let newDoc = updateFileShareDoc(fileData, doc, patch)
-//       await fileShareData.updateFileShare(newDoc)
-//       expect(Object.isFrozen(fileShareData.fileShareMap.get(doc.uuid))).to.be.true
-//     })
-
-//     it('should throw error if target uuid is not found', async () => {
-//       let err
-//       let patch = [{path: 'writelist',
-//                     operation: 'add',
-//                     value: [charlieUUID]
-//                   }]
-//       let newDoc = updateFileShareDoc(fileData, doc, patch)
-//       fileShareData.fileShareMap.delete(doc.uuid)
-
-//       try {
-//         await fileShareData.updateFileShare(newDoc)
-//       }
-//       catch(e){
-//         err = e
-//       }
-//       expect(err).to.be.an.instanceof(E.ENOENT)
-//     })
-//   })
-
-//   describe('deleteFileShare', function() {
-//     let doc
-//     let post = { writelist: [aliceUUID],
-//                  readlist: [bobUUID],
-//                  collection: [uuid2, uuid4, uuid6, uuid9] 
-//                }
-//     beforeEach(async () => {
-//       doc = createFileShareDoc(fileData, userUUID, post)
-//       await fileShareData.createFileShare(doc)
-//     })
-
-//     it('should throw error if uuid is not exist in fileShareMap', async () => {
-//       let err
-//       fileShareData.fileShareMap.delete(doc.uuid)
-//       try {
-//         await fileShareData.deleteFileShare(doc.uuid)
-//       }
-//       catch(e){
-//         err = e
-//       }
-//       expect(err).to.be.an.instanceof(E.ENOENT)
-//     })
-
-//     it('should remove fileshare from fileShareMap successfully', async () => {
-//       await fileShareData.deleteFileShare(doc.uuid)
-//       expect(fileShareData.fileShareMap.get(doc.uuid)).to.be.undefined
-//     })
-//   })
-// })

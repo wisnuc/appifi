@@ -222,15 +222,17 @@ const statFsUsageDefined = blk => {
   else if (blk.props.id_fs_usage === 'other') {
 
     blk.stats.isOtherFileSystem = true
-
     if (blk.props.id_fs_type === 'swap') { // is swap disk
-      blk.stats.fileSystemtype = 'swap'
       blk.stats.isLinuxSwap = true
-      blk.stats.fileSystemUUID = blk.props.id_fs_uuid
     }
   }
+  else if (blk.props.id_fs_usage === 'raid') {
+    blk.stats.isRaidFileSystem = true
+  }
+  else if (blk.props.id_fs_usage === 'crypto') {
+    blk.stats.isCryptoFileSystem = true
+  }
   else {
-    // raid is something here
     blk.stats.isUnsupportedFsUsage = true
   }
 }
@@ -329,10 +331,11 @@ const statBlocksMountSwap = (blocks, volumes, mounts, swaps) =>
 //
 // the following code is not used, but it is a good reference for checking logic
 const unformattable = (block, blocks) => 
-  (block.stats.isDisk && blocks.stats.isPartitioned) ? 
-    blocks.filter(blk => blk.stats.parentName === block.name && !blk.stats.isExtended)
-      .some(blk => unformattable(blk)) : 
-      (block.stats.isRootFS || block.stats.isActiveSwap) // for volume device, isRootFS is copied from volume
+  (block.stats.isDisk && blocks.stats.isPartitioned) 
+    ?  blocks
+        .filter(blk => blk.stats.parentName === block.name && !blk.stats.isExtended)
+        .some(blk => unformattable(blk)) 
+    : (block.stats.isRootFS || block.stats.isActiveSwap) // for volume device, isRootFS is copied from volume
 
 // exactly the same logic with above
 // returns non-empty array or single object containing name and reason
