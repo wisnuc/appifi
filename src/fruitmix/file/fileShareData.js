@@ -65,31 +65,39 @@ class FileShareData extends EventEmitter {
     this.emit('fileShareCreated', shares)
   }
 
+  // return the collection of given share doc
   findShareCollectionByUUID(uuid) {
     return this.findShareByUUID(uuid) 
-      ? this.findShareByUUID(uuid).doc.collection : null
+      ? this.findShareByUUID(uuid).doc.collection 
+      : new E.ENOENT()
   }
 
   findShareByUUID(uuid) {
     return this.fileShareMap.get(uuid)
   }
 
+  // for a given share includes given node's ancestor, return the path 
+  // from ancestor to given node
   findSharePath(shareUUID, nodeUUID) {
     let share = this.findShareByUUID(shareUUID)
     let namepath = this.fileData.findNodeByUUID(nodeUUID).namepath()
     let sharePath
+
     if(share) {
       let found = share.doc.collection.find(uuid => {
+
         let name = this.fileData.findNodeByUUID(uuid).name
+
         if(namepath.includes(name)) {
-          let index = namepath.indexof(name)
+          let index = namepath.indexOf(name)
           return sharePath = namepath.slice(index)
         }
-        else return false
       })
-      return found ? sharePath : null
+
+      return found ? sharePath : new E.ENODENOTFOUND()
+    } else {
+      return new E.ENOENT()
     }
-    else return null
   }
 
   userAuthorizedToRead(userUUID, node) { // starting from root
