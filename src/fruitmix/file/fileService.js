@@ -50,9 +50,10 @@ class FileService {
   // list all items inside a directory
   async list({ userUUID, dirUUID }) {
 
-    let fileShareDoc = this.shareData.findFileShareDocByUUID(dirUUID)
-    if (fileShareDoc) {
-      return fileShareDoc.collection.map(n => this.nodeProps(n))
+    let shareCollection = this.shareData.findShareCollectionByUUID(dirUUID)
+    if (shareCollection) {
+      return shareCollection.map(n => this.nodeProps(n))
+      
     } else {
       let node = this.data.findNodeByUUID(dirUUID)
       if (!node) throw new E.NODENOTFOUND() 
@@ -66,22 +67,27 @@ class FileService {
   }
 
   // list all items inside a directory, with given
-  // rootUUID must be a fileshare uuid or virtual drive uuid.
+  // dirUUID must be a virtual drive uuid 
+  // rootUUID can be a fileshare uuid or virtual drive uuid.
   async navList({ userUUID, dirUUID, rootUUID }) {
-    
-    let fileShareDoc = this.shareData.findFileShareDocByUUID(dirUUID)
-    if (fileShareDoc) {
-      return fileShareDoc.collection.map(n => this.nodeProps(n))
+
+    let node = this.data.findNodeByUUID(dirUUID)
+    if (!node) throw new E.NODENOTFOUND()
+
+    if (!node.isDirectory()) throw new E.ENOTDIR()
+    if (!(this.userReadable(userUUID, node))) throw new E.EACCESS()
+
+    let shareCollection = this.shareData.findShareCollectionByUUID(dirUUID)
+    if (shareCollection) {
+      return {
+        path: subpath.map(n => this.nodeProps(n)),
+        entries: node.getChildren().map(n => this.nodeProps(n))
+      } 
       
     } else {
-
-      let node = this.data.findNodeByUUID(dirUUID)
+      //TODO:
       let root = this.data.findNodeByUUID(rootUUID)
-
-      if (!node || !root) throw new E.NODENOTFOUND()
-      if (!node.isDirectory()) throw new E.ENOTDIR()
-      if (!(this.userReadable(userUUID, node))) throw new E.EACCESS()
-
+      if (!root) throw new E.NODENOTFOUND()
       let path = node.nodepath()
       let index = path.indexOf(root)
 
@@ -91,10 +97,8 @@ class FileService {
       return {
         path: subpath.map(n => this.nodeProps(n)),
         entries: node.getChildren().map(n => this.nodeProps(n))
-      }
-    }
-
-    
+      }    
+    } 
   }
 
   // list all tree inside a directory
@@ -336,11 +340,11 @@ class FileService {
   }
   
   // delete a directory or file
-  // dirUUID cannot be a fileshare UUID
   async del({ userUUID, dirUUID, nodeUUID }) {
 
-    let share = this.shareData.fsMap.get(dirUUID)
-    if(share) throw new E.ENOENT()
+    // dirUUID cannot be a fileshare UUID
+    let shareCollection = this.shareData.findShareCollectionByUUID(dirUUID)
+    if (shareCollection) throw new E.ENOENT()
 
     let node = this.data.findNodeByUUID(nodeUUID)
     let dirNode = this.data.findNodeByUUID(dirUUID)

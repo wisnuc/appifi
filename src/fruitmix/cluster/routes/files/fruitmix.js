@@ -15,8 +15,6 @@ import auth from '../../middleware/auth'
 // import Models from '../models'
 
 // list, tree and nav a directory
-// dirUUID can be a virtual drive UUID or a fileshare document UUID.
-// rootUUID must be a fileshare uuid or virtual drive uuid.
 router.get('/:type/:dirUUID/:rootUUID', (req, res) => {
 
   let userUUID = req.user.userUUID
