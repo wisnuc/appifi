@@ -318,6 +318,7 @@ class FileService {
 
   // move a directory or file into given dirUUID
   move(userUUID, srcUUID, dirUUID, callback) {
+    
   }
   
   // delete a directory or file
