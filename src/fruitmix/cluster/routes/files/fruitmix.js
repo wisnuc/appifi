@@ -11,11 +11,8 @@ const sanitize = require('sanitize-filename')
 
 import paths from '../../lib/paths'
 import config from '../../config'
-import auth from '../../middleware/auth'
-// import Models from '../models'
 
 // list, tree and nav a directory
-// rootUUID must be a fileshare uuid or virtual drive uuid.
 router.get('/:type/:dirUUID/:rootUUID', (req, res) => {
 
   let userUUID = req.user.userUUID
@@ -47,9 +44,18 @@ router.get('/download/:dirUUID/:fileUUID', (req, res) => {
 })
 
 // mkdir 
+// dirUUID cannot be a fileshare UUID
 router.post('/mkdir/:dirUUID/:dirname', (req, res) => {
 
+  let userUUID = req.user.userUUID
   let { dirUUID, dirname } = req.params
+
+  let args = { userUUID, dirUUID, dirname }
+
+  config.ipc.call('createDirectory', args, (err, data) => {
+    if (err) return res.error(err)
+    return res.success(data)
+  })
 })
 
 // upload a file

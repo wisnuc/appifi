@@ -244,7 +244,7 @@ describe(path.basename(__filename), () => {
     })
   })
 
-   describe('userAuthorizedToWrite', function() {
+  describe('userAuthorizedToWrite', function() {
     let doc
     let post = { writelist: [aliceUUID],
                  readlist: [bobUUID],
@@ -268,5 +268,58 @@ describe(path.basename(__filename), () => {
     })
   })
 
+  describe('load', function() {
+    let doc1, doc2
+    let post1 = { writelist: [aliceUUID],
+                  readlist: [bobUUID],
+                  collection: [uuid2, uuid4, uuid6] 
+                }
+    let post2 = { writelist: [charlieUUID],
+                 readlist: [bobUUID],
+                 collection: [uuid9] 
+               }
+    beforeEach(async () => {
+      doc1 = createFileShareDoc(fileData, userUUID, post1)
+      doc2 = createFileShareDoc(fileData, aliceUUID, post2)
+      await fileShareStore.storeAsync(doc1)
+      await fileShareStore.storeAsync(doc2)
+    })
+
+    it('should load fileshare that is already exist', async () => {
+      await fileShareData.load()
+      expect(fileShareData.findShareByUUID(doc1.uuid).doc).to.deep.equal(doc1)
+      expect(fileShareData.findShareByUUID(doc2.uuid).doc).to.deep.equal(doc2)
+    })
+  })
+
+  describe('findSharePath', function() {
+    let doc
+    let post = { writelist: [aliceUUID],
+                 readlist: [bobUUID],
+                 collection: [uuid2, uuid4, uuid6] 
+               }
+    beforeEach(async () => {
+      doc = createFileShareDoc(fileData, userUUID, post)
+      await fileShareData.createFileShare(doc)
+    })
+
+    it('should return the path from ancestor to given node', done => {
+      let sharePath = fileShareData.findSharePath(doc.uuid, uuid4)
+      expect(sharePath).to.deep.equal('n2/n3/n4')
+      done()
+    })
+
+    it('should return error if share is not found', done => {
+      let sharePath = fileShareData.findSharePath(uuid1, uuid4)
+      expect(sharePath).to.be.an.instanceof(E.ENOENT)
+      done()
+    })
+
+    it('should return error if node is not in given share', done => {
+      let sharePath = fileShareData.findSharePath(doc.uuid, uuid5)
+      expect(sharePath).to.be.an.instanceof(E.ENODENOTFOUND)
+      done()
+    })
+  })
 })
 
