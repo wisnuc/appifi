@@ -44,9 +44,18 @@ router.get('/download/:dirUUID/:fileUUID', (req, res) => {
 })
 
 // mkdir 
+// dirUUID cannot be a fileshare UUID
 router.post('/mkdir/:dirUUID/:dirname', (req, res) => {
 
+  let userUUID = req.user.userUUID
   let { dirUUID, dirname } = req.params
+
+  let args = { userUUID, dirUUID, dirname }
+
+  config.ipc.call('createDirectory', args, (err, data) => {
+    if (err) return res.error(err)
+    return res.success(data)
+  })
 })
 
 // upload a file
