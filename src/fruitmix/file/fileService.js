@@ -80,7 +80,7 @@ class FileService {
     let share = this.shareData.findShareByUUID(rootUUID)
     if (share) {
       
-      let path = this.shareData.getPath(rootUUID) //TODO:
+      let path = this.shareData.findSharePath(rootUUID,dirUUID)
       return {
         path: path,
         entries: node.getChildren().map(n => this.nodeProps(n))
