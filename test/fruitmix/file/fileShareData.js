@@ -244,7 +244,7 @@ describe(path.basename(__filename), () => {
     })
   })
 
-   describe('userAuthorizedToWrite', function() {
+  describe('userAuthorizedToWrite', function() {
     let doc
     let post = { writelist: [aliceUUID],
                  readlist: [bobUUID],

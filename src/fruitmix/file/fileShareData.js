@@ -81,11 +81,11 @@ class FileShareData extends EventEmitter {
     if(share) {
       let found = share.doc.collection.find(uuid => {
         let name = this.fileData.findNodeByUUID(uuid).name
-        return namepath.includes(name)
-          ? ( let index = namepath.indexof(name)
-              return sharePath = namepath.slice(index)
-            )
-          : false
+        if(namepath.includes(name)) {
+          let index = namepath.indexof(name)
+          return sharePath = namepath.slice(index)
+        }
+        else return false
       })
       return found ? sharePath : null
     }
