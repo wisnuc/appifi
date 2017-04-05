@@ -106,7 +106,7 @@ describe(path.basename(__filename), () => {
 
     let docstore = await createDocumentStoreAsync(froot)
     fileShareStore = await createFileShareStoreAsync(froot, docstore)
-    fileShareData = await createFileShareData(model, fileShareStore, fileData)
+    fileShareData = createFileShareData(model, fileShareStore, fileData)
   })
 
   afterEach(async () => await rimrafAsync(froot))

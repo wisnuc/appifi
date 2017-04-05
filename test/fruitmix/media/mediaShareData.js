@@ -41,15 +41,15 @@ const createDocumentStoreAsync = Promise.promisify(createDocumentStore)
 const createMediaShareStoreAsync = Promise.promisify(createMediaShareStore)
 
 describe(path.basename(__filename), function() {
-  let mss, msd
+  let mediaShareStore, mediaShareData
 
   beforeEach(async () => {
     await rimrafAsync('tmptest')
     await mkdirpAsync('tmptest')
 
     let docstore = await createDocumentStoreAsync(froot)
-    mss = await createMediaShareStoreAsync(froot, docstore)
-    msd = createMediaShareData(model, mss)
+    mediaShareStore = await createMediaShareStoreAsync(froot, docstore)
+    mediaShareData = createMediaShareData(model, mediaShareStore)
   })
 
   afterEach(async () => await rimrafAsync('tmptest'))
@@ -57,10 +57,10 @@ describe(path.basename(__filename), function() {
   describe('create a mediaShareData', function() {
 
     it('should create a mediaShareData', done => {
-      expect(msd.model).to.deep.equal(model)
-      expect(msd.shareStore).to.deep.equal(mss)
-      expect(msd.shareMap).to.deep.equal(new Map())
-      expect(msd.lockSet).to.deep.equal(new Set())
+      expect(mediaShareData.model).to.deep.equal(model)
+      expect(mediaShareData.mediaShareStore).to.deep.equal(mediaShareStore)
+      expect(mediaShareData.shareMap).to.be.an.instanceof(Map)
+      expect(mediaShareData.lockSet).to.be.an.instanceof(Set)
       done()
     })    
   })
@@ -73,8 +73,8 @@ describe(path.basename(__filename), function() {
                    contents: [img001Hash]      
                  }
       let doc = createMediaShareDoc(userUUID, post)
-      await msd.createMediaShare(doc)
-      expect(msd.shareMap.get(doc.uuid).doc).to.deep.equal(doc)
+      await mediaShareData.createMediaShare(doc)
+      expect(mediaShareData.getShareByUUID(doc.uuid).doc).to.deep.equal(doc)
     })
 
     it('new share should be a frozen object', async () => {
@@ -84,8 +84,8 @@ describe(path.basename(__filename), function() {
                    contents: [img001Hash]      
                  }
       let doc = createMediaShareDoc(userUUID, post)
-      await msd.createMediaShare(doc)
-      expect(Object.isFrozen(msd.shareMap.get(doc.uuid))).to.be.true
+      await mediaShareData.createMediaShare(doc)
+      expect(Object.isFrozen(mediaShareData.getShareByUUID(doc.uuid))).to.be.true
     })
   })
 
@@ -98,7 +98,7 @@ describe(path.basename(__filename), function() {
                    contents: [img001Hash]      
                  }
       doc = createMediaShareDoc(userUUID, post)
-      await msd.createMediaShare(doc)
+      await mediaShareData.createMediaShare(doc)
     })
 
     it('updated doc should be put into shareMap', async () => {
@@ -107,8 +107,8 @@ describe(path.basename(__filename), function() {
                     value: [charlieUUID]
                   }]
       let newDoc = updateMediaShareDoc(userUUID, doc, patch)
-      await msd.updateMediaShare(newDoc)
-      expect(msd.shareMap.get(doc.uuid).doc).to.deep.equal(newDoc)
+      await mediaShareData.updateMediaShare(newDoc)
+      expect(mediaShareData.getShareByUUID(doc.uuid).doc).to.deep.equal(newDoc)
     })
 
     it('updated share should be a frozen object', async () => {
@@ -117,8 +117,8 @@ describe(path.basename(__filename), function() {
                     value: [charlieUUID]
                   }]
       let newDoc = updateMediaShareDoc(userUUID, doc, patch)
-      await msd.updateMediaShare(newDoc)
-      expect(Object.isFrozen(msd.shareMap.get(doc.uuid))).to.be.true
+      await mediaShareData.updateMediaShare(newDoc)
+      expect(Object.isFrozen(mediaShareData.getShareByUUID(doc.uuid))).to.be.true
     })
 
     it('should throw error if target uuid is not found', async () => {
@@ -128,10 +128,10 @@ describe(path.basename(__filename), function() {
                     value: [charlieUUID]
                   }]
       let newDoc = updateMediaShareDoc(userUUID, doc, patch)
-      msd.shareMap.delete(doc.uuid)
+      mediaShareData.shareMap.delete(doc.uuid)
 
       try {
-        await msd.updateMediaShare(newDoc)
+        await mediaShareData.updateMediaShare(newDoc)
       }
       catch(e){
         err = e
@@ -149,14 +149,14 @@ describe(path.basename(__filename), function() {
                    contents: [img001Hash]      
                  }
       doc = createMediaShareDoc(userUUID, post)
-      await msd.createMediaShare(doc)
+      await mediaShareData.createMediaShare(doc)
     })
 
     it('should throw error if uuid is not exist in shareMap', async () => {
       let err
-      msd.shareMap.delete(doc.uuid)
+      mediaShareData.shareMap.delete(doc.uuid)
       try {
-        await msd.deleteMediaShare(doc.uuid)
+        await mediaShareData.deleteMediaShare(doc.uuid)
       }
       catch(e){
         err = e
@@ -165,8 +165,8 @@ describe(path.basename(__filename), function() {
     })
 
     it('should remove share from shareMap successfully', async () => {
-      await msd.deleteMediaShare(doc.uuid)
-      expect(msd.shareMap.get(doc.uuid)).to.be.undefined
+      await mediaShareData.deleteMediaShare(doc.uuid)
+      expect(mediaShareData.getShareByUUID(doc.uuid)).to.be.undefined
     })
   })
 })
