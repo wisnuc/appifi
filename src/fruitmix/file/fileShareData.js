@@ -175,6 +175,18 @@ class FileShareData extends EventEmitter {
     this.emit('fileShareDeleting', share)
     this.fileShareMap.delete(uuid)
   }
+
+  getUserFileShares(userUUID) {
+    let shares = []
+    this.fileShareMap.forEach((value, key, map) => {
+      let share = value
+      if (share.doc.author === userUUID || 
+          share.doc.writelist.find(u => u === userUUID) || 
+          share.doc.readlist.find(u => u === userUUID)) 
+        shares.push(share) 
+    })
+    return shares
+  }
 }
 
 const createFileShareData = async (model, fileShareStore, fileData) => {
