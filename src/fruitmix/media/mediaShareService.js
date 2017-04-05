@@ -15,6 +15,13 @@ class MediaShareService {
     await this.mediaShareData.load()
   }
 
+  getMediaShareByUUID(shareUUID) {
+    if(!isUUID(shareUUID)) throw new E.EINVAL()
+    let share = this.mediaShareData.findShareByUUID(shareUUID)
+    if(share) return share
+    else throw new E.ENOENT()
+  }
+
   // return { digest, doc } // for compatibility
   // post should be non-null js object
   async createMediaShare(userUUID, post) {
@@ -58,8 +65,7 @@ class MediaShareService {
     if(!isUUID(userUUID)) throw new E.EINVAL()
     if(!isUUID(shareUUID)) throw new E.EINVAL()
 
-    let share = this.mediaShareData.findShareByUUID(shareUUID)
-    if(!share) throw new E.ENOENT()
+    let share = this.getMediaShareByUUID(shareUUID)
     if(share.doc.author !== userUUID && share.doc.maintainers.indexOf(userUUID) === -1) throw new E.EACCESS()
     
     if(!Array.isArray(patch)) throw new E.EINVAL()
@@ -104,14 +110,21 @@ class MediaShareService {
     if(!isUUID(userUUID)) throw new E.EINVAL()
     if(!isUUID(shareUUID)) throw new E.EINVAL()
 
-    let share = this.mediaShareData.findShareByUUID(shareUUID)
-    if(!share) throw new E.ENOENT()
+    let share = this.getMediaShareByUUID(shareUUID)
     if(share.doc.author !== userUUID) throw new E.EACCESS()
 
     await this.mediaShareData.deleteMediaShare(shareUUID)
   }
 
+  async getUserMediaShare(userUUID) {
+    if(!isUUID(userUUID)) throw new E.EINVAL()
+    return this.mediaShareData.getUserMediaShares(userUUID)
+  }
+
   register(ipc) {
+
+    ipc.register('getUserMediaShare', (args, callback) => 
+      this.createMediaShare(args.userUUID).asCallback(callback))
     
     ipc.register('createMediaShare', (args, callback) => 
       this.createMediaShare(args.userUUID, args.post).asCallback(callback))

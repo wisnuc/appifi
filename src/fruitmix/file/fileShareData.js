@@ -69,7 +69,7 @@ class FileShareData extends EventEmitter {
   findShareCollectionByUUID(uuid) {
     return this.findShareByUUID(uuid) 
       ? this.findShareByUUID(uuid).doc.collection 
-      : new E.ENOENT()
+      : null
   }
 
   findShareByUUID(uuid) {
