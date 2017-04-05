@@ -3,6 +3,7 @@ const path = require('path')
 import mkdirp from 'mkdirp'
 import { fs, child, mkdirpAsync } from '../common/async'
 import UUID from 'node-uuid'
+import deepFreeze from 'deep-freeze'
 
 
 import udevInfoAsync from './storage/udevInfoAsync'
@@ -513,6 +514,8 @@ module.exports = {
     statBlocks(storage)
 
     this.storage = storage
+    deepFreeze(this.storage)
+    
     if (this.persistence) this.persistence.save(prettyStorage(storage))
 
     return prettyStorage(this.storage)

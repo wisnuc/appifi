@@ -85,8 +85,8 @@ const localUserMProps = [
   'type', 'uuid', 'username', 'password', 'nologin', 
   'isFirstUser', 'isAdmin', 'email', 'avatar', 
   'home', 'library', 'service', 
-  'unixuid', 'smbPassword', 'lastChangeTime', 
-  'credentials', 'friends'
+  'unixuid', 'smbPassword', 'lastChangeTime', 'friends'
+  // 'credentials', 
 ]
 
 const localUserOProps = ['unixname', 'unixPassword']
@@ -229,8 +229,8 @@ const invariantUpdateLocalUser = (p, c) =>
   invariantProps(p, c, [
     'type', 'uuid', 'password', 'isFirstUser', 'email', 'avatar',
     'home', 'library', 'service', 
-    'unixuid', 'unixPassword', 'smbPassword', 'lastChangeTime',
-    'credentials'
+    'unixuid', 'unixPassword', 'smbPassword', 'lastChangeTime'
+    // , 'credentials'
   ])
 
 const invariantUpdateRemoteUser = (p, c) => 
@@ -241,8 +241,8 @@ const invariantUpdateRemoteUser = (p, c) =>
 const invariantUpdatePassword = (p, c) =>
   invariantProps(p, c, [
     'type', 'uuid', 'username', 'nologin', 'isFirstUser', 'isAdmin',
-    'email', 'avatar', 'home', 'library', 'service', 'unixuid', 'unixname',
-    'credentials', 'friends'
+    'email', 'avatar', 'home', 'library', 'service', 'unixuid', 'unixname', 'friends'
+    // 'credentials', 
   ])
 
 const invariantUpdatePublicDrive = (p, c) => 
