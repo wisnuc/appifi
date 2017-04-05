@@ -112,8 +112,11 @@ const createFileShareStore = (froot, docstore, callback) => {
   createShareStore(rootdir, arcdir, tmpdir, docstore, callback)
 }
 
+const createFileShareStoreAsync = Promise.promisify(createFileShareStore)
+
 export { 
   createMediaShareStore,
   createFileShareStore,
+  createFileShareStoreAsync
 }
 

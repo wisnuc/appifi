@@ -52,6 +52,7 @@ class FileService {
 
     let shareCollection = this.shareData.findShareCollectionByUUID(dirUUID)
     if (shareCollection) {
+      console.log(111,shareCollection)
       return shareCollection.map(n => this.nodeProps(n))
       
     } else {
