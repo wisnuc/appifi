@@ -69,7 +69,7 @@ class FileShareData extends EventEmitter {
   findShareCollectionByUUID(uuid) {
     return this.findShareByUUID(uuid) 
       ? this.findShareByUUID(uuid).doc.collection 
-      : new E.ENOENT()
+      : null
   }
 
   findShareByUUID(uuid) {
@@ -175,13 +175,26 @@ class FileShareData extends EventEmitter {
     this.emit('fileShareDeleting', share)
     this.fileShareMap.delete(uuid)
   }
+
+  getUserFileShares(userUUID) {
+    let shares = []
+    this.fileShareMap.forEach((value, key, map) => {
+      let share = value
+      if (share.doc.author === userUUID || 
+          share.doc.writelist.find(u => u === userUUID) || 
+          share.doc.readlist.find(u => u === userUUID)) 
+        shares.push(share) 
+    })
+    return shares
+  }
 }
 
 const createFileShareData = async (model, fileShareStore, fileData) => {
   Promise.promisifyAll(fileShareStore)
-  let fileShareData = new FileShareData(model, fileShareStore, fileData)
-  await fileShareData.load()
-  return fileShareData
+  // let fileShareData = new FileShareData(model, fileShareStore, fileData)
+  // await fileShareData.load()
+  // return fileShareData
+  return new FileShareData(model, fileShareStore, fileData)
 }
 
 export { createFileShareData }

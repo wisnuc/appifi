@@ -49,7 +49,7 @@ const upgradeData = (users, drives) => {
     // u.unixname = '';       // ???
     // u.unixPassword = '';   // ???
     u.friends = [];
-    u.credentials = getCredentials();
+    // u.credentials = getCredentials();
     // create service drive
     u.service = UUID.v4();
     newDrives.push({
@@ -157,14 +157,15 @@ class ModelService {
 
     let friends = [];
     // get credentials
-    let credentials = getCredentials();
+    // let credentials = getCredentials();
 
     let newUser = {
       type, uuid, username, nologin, isFirstUser, isAdmin,
       email, avatar, home, library, service, unixuid,
-      unixname, lastChangeTime, credentials, friends,
+      unixname, lastChangeTime, friends,
       unixPassword, smbPassword,
-      password: passwordEncrypted, 
+      password: passwordEncrypted
+      // , credentials
     };
     // install newDrives
     let common = { owner: uuid, type: 'private' };
