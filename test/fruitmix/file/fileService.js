@@ -142,11 +142,26 @@ describe(path.basename(__filename), () => {
     })
   })
 
-  describe('fileSerive', function () {
-    it('should list all items inside a directory', async () => {
-      let list = await fileService.list({ userUUID, uuid1 })
-      console.log(list)
+  describe('list should list all items inside a directory', function () {
+    it('userUUID isn`t onwer', async () => {
+      try {
+        await fileService.list({ userUUID: uuid9, dirUUID: uuid1 })
+      }
+      catch (err) {
+        expect(err).to.be.an.instanceof(E.EACCESS)
+      }
     })
   })
   
+  describe('navList should list all items inside a directory, with given', function () {
+    it('userUUID isn`t onwer', async () => {
+      try {
+        let list = await fileService.list({ userUUID, dirUUID: uuid1 ,rootUUID: uuid1})
+        console.log(list)
+      }
+      catch (err) {
+        expect(err).to.be.an.instanceof(E.EACCESS)
+      }
+    })
+  })
 })

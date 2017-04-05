@@ -52,13 +52,11 @@ class FileService {
 
     let shareCollection = this.shareData.findShareCollectionByUUID(dirUUID)
     if (shareCollection) {
-      console.log(111,shareCollection)
       return shareCollection.map(n => this.nodeProps(n))
       
     } else {
       let node = this.data.findNodeByUUID(dirUUID)
-      if (!node) throw new E.NODENOTFOUND() 
-
+      if (!node) throw new E.ENODENOTFOUND() 
       if (!node.isDirectory()) throw new E.ENOTDIR()
       if (!(this.userReadable(userUUID, node))) throw new E.EACCESS()
 
