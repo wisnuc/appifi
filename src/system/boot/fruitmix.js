@@ -94,7 +94,19 @@ const probeAsync = async mountpoint => {
     return {
       status: 'READY',
       users: users.map(u => ({
-        // TODO
+        type: u.type,
+        username: u.username,
+        uuid: u.uuid,
+        avatar: u.avatar,
+        email: u.email,
+        nologin: u.nologin,
+        isFirstUser: u.isFirstUser,
+        isAdmin: u.isAdmin,
+        home: u.home,
+        library: u.library,
+        service: u.service,
+        friends: u.friends,
+        lastChangeTime: u.lastChangeTime
       }))
     }    
   }
