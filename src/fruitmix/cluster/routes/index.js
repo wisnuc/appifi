@@ -8,6 +8,7 @@ import login from './login'
 import files from './files'
 import filemap from './filemap'
 import fileshare from './fileshare'
+import mediashare from './mediashare'
 const ipctest = require('./ipctest')
 const auth = require('../middleware/auth')
 
@@ -21,5 +22,6 @@ router.use('/files', files)
 router.use('/filemap', filemap)
 router.use('/ipctest', ipctest)
 router.use('/fileshare', fileshare)
+router.use('/mediashare', mediashare)
 
 export default router
