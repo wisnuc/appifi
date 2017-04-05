@@ -31,10 +31,10 @@ const users = [{
   unixuid: 2000,//
   unixname: 'pandaa',
   friends:[],//
-  credentials:{	//
-  	publicKey: 'some str',
-  	privateKey: 'some str'
-  },
+  // credentials:{	//
+  // 	publicKey: 'some str',
+  // 	privateKey: 'some str'
+  // },
   lastChangeTime: 1489644639494	//
 }];
 const drives = [{
