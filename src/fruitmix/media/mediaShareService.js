@@ -7,14 +7,18 @@ import { createMediaShareDoc, updateMediaShareDoc } from './mediaShareDoc'
 class MediaShareService {
 
   constructor(mediaData, mediaShareData) {
-    this.md = mediaData
-    this.msd = mediaShareData
+    this.mediaData = mediaData
+    this.mediaShareData = mediaShareData
+  }
+
+  async load() {
+    await this.mediaShareData.load()
   }
 
   // return { digest, doc } // for compatibility
   // post should be non-null js object
-  async createMediaShare(user, post) {
-    if(!isUUID(user)) throw new E.EINVAL()
+  async createMediaShare(userUUID, post) {
+    if(!isUUID(userUUID)) throw new E.EINVAL()
     if(typeof post !== 'object' || post === null) throw new E.EINVAL()
 
     validateProps(post, ['maintainers', 'viewers', 'album', 'contents'])
@@ -24,7 +28,7 @@ class MediaShareService {
     if(!Array.isArray(contents)) throw new E.EINVAL()
     if(!contents.length) throw new E.EINVAL()
     if(!contents.every(isSHA256)) throw new E.EINVAL()
-    if(!contents.every(digest => this.md.mediaShareAllowed(user, digest))) throw new E.EACCESS()
+    if(!contents.every(digest => this.mediaData.mediaShareAllowed(userUUID, digest))) throw new E.EACCESS()
 
     // maintainers format check
     if(!Array.isArray(maintainers)) throw new E.EINVAL()
@@ -44,19 +48,19 @@ class MediaShareService {
       }
     }
 
-    let doc = createMediaShareDoc(user, post)
-    return await this.msd.createMediaShare(doc)
+    let doc = createMediaShareDoc(userUUID, post)
+    return await this.mediaShareData.createMediaShare(doc)
   } 
 
   // return { digest, doc } // for compatibility 
   // patch should be non-null js object
-  async updateMediaShare(user, shareUUID, patch) {
-    if(!isUUID(user)) throw new E.EINVAL()
+  async updateMediaShare(userUUID, shareUUID, patch) {
+    if(!isUUID(userUUID)) throw new E.EINVAL()
     if(!isUUID(shareUUID)) throw new E.EINVAL()
 
-    let share = this.msd.shareMap.get(shareUUID)
+    let share = this.mediaShareData.findShareByUUID(shareUUID)
     if(!share) throw new E.ENOENT()
-    if(share.doc.author !== user && share.doc.maintainers.indexOf(user) === -1) throw new E.EACCESS()
+    if(share.doc.author !== userUUID && share.doc.maintainers.indexOf(userUUID) === -1) throw new E.EACCESS()
     
     if(!Array.isArray(patch)) throw new E.EINVAL()
     patch.forEach(op => {
@@ -72,7 +76,7 @@ class MediaShareService {
         if(!Array.isArray(op.value)) throw new E.EINVAL()
         if(op.path === 'contents') {
           if(!op.value.every(isSHA256)) throw new E.EINVAL()
-          if(!op.value.every(digest => this.md.mediaShareAllowed(user, digest))) throw new E.EACCESS()
+          if(!op.value.every(digest => this.mediaData.mediaShareAllowed(userUUID, digest))) throw new E.EACCESS()
         }
         else {
           if(!op.value.every(isUUID)) throw new E.EINVAL()
@@ -91,20 +95,20 @@ class MediaShareService {
       }
     })
 
-    let newDoc = updateMediaShareDoc(user, share.doc, patch)
-    return await this.msd.updateMediaShare(newDoc)
+    let newDoc = updateMediaShareDoc(userUUID, share.doc, patch)
+    return await this.mediaShareData.updateMediaShare(newDoc)
   } 
 
   // return undefined, never fail, idempotent
-  async deleteMediaShare(user, shareUUID) {
-    if(!isUUID(user)) throw new E.EINVAL()
+  async deleteMediaShare(userUUID, shareUUID) {
+    if(!isUUID(userUUID)) throw new E.EINVAL()
     if(!isUUID(shareUUID)) throw new E.EINVAL()
 
-    let share = this.msd.shareMap.get(shareUUID)
+    let share = this.mediaShareData.findShareByUUID(shareUUID)
     if(!share) throw new E.ENOENT()
-    if(share.doc.author !== user) throw new E.EACCESS()
+    if(share.doc.author !== userUUID) throw new E.EACCESS()
 
-    await this.msd.deleteMediaShare(shareUUID)
+    await this.mediaShareData.deleteMediaShare(shareUUID)
   }
 
   register(ipc) {
@@ -120,8 +124,8 @@ class MediaShareService {
   }
 }
 
-const createMediaShareService = (mediaData, msd) => { 
-  return new MediaShareService(mediaData, msd)
+const createMediaShareService = (mediaData, mediaShareData) => { 
+  return new MediaShareService(mediaData, mediaShareData)
 }
 
 export { createMediaShareService }
