@@ -15,7 +15,7 @@ class Media {
 
 class MediaData {
 
-  constructor(modelData, fileData, mediaData, mediaShareData) {
+  constructor(modelData, fileData, mediaShareData) {
 
     this.fileShareData = fileShareData
     this.fileData = fileData
