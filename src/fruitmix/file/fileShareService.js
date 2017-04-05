@@ -10,6 +10,10 @@ class FileShareService {
     this.fileShareData = fileShareData
   }
 
+  async load() {
+    await this.fileShareData.load()
+  }
+
   async createFileShare(user, post) {
     if(!isUUID(user)) throw new E.EINVAL()
     if(typeof post !== 'object' || post === null) throw new E.EINVAL()
