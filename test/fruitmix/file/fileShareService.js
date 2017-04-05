@@ -1,6 +1,7 @@
 import path from 'path'
 import { expect } from 'chai'
 import sinon from 'sinon'
+import EventEmitter from 'events'
 
 import { rimrafAsync, mkdirpAsync } from '../../../src/fruitmix/util/async'
 import { createDocumentStore } from '../../../src/fruitmix/lib/documentStore'
@@ -8,6 +9,8 @@ import { createFileShareStore } from '../../../src/fruitmix/lib/shareStore'
 import { createFileShareData } from '../../../src/fruitmix/file/fileShareData'
 import { createFileShareService } from '../../../src/fruitmix/file/fileShareService'
 import E from '../../../src/fruitmix/lib/error'
+import FileData from '../../../src/fruitmix/file/fileData'
+
 
 const userUUID = 'c9f1d82e-5d88-46d7-ad43-24d51b1b6628'
 const aliceUUID = 'b9aa7c34-8b86-4306-9042-396cf8fa1a9c'
@@ -23,9 +26,13 @@ const uuid6 = '6e702f92-6073-4c11-a406-0a4776212d14'
 const uuid7 = '75b5dac2-591a-4c63-8e5e-a955ce51b576'
 const uuid8 = '8359f954-ade1-43e1-918e-8ca9d2dc81a0'
 const uuid9 = '97e352f8-5535-473d-9dac-8706ffb79abb'
+const uuid10 = '016ca193-af05-467e-bbfa-844859bd7f9e'
+const uuid11 = 'a8eec3c8-70e5-411b-90fd-ee3e181254b9'
 
-class Model {
-  constructor() {}
+class Model extends EventEmitter {
+  constructor() {
+    super()
+  }
 
   getUsers() {
     return [ {uuid: 'c9f1d82e-5d88-46d7-ad43-24d51b1b6628', type: 'local'},
@@ -37,97 +44,85 @@ class Model {
   }
 }
 
-class Node {
-  constructor(uuid) {
-    this.uuid = uuid
-    this.parent = null
-    this.children = []
-  }
-
-   root() {
-    let node = this   
-    while (node.parent !== null) node = node.parent
-    return node
-  }
-
-  upFind(func) {
-    let node = this
-    while (node !== null) {
-      if (func(node)) return node
-      node = node.parent
-    }
-  }
-}
-
-class FileData {
-  constructor() {
-    this.uuidMap = new Map()
-  }
-}
-
-const model = new Model()
-const fileData = new FileData()
-
-const n1 = new Node(uuid1)
-const n2 = new Node(uuid2)
-n2.parent = n1
-n1.children.push(n2)
-const n3 = new Node(uuid3)
-n3.parent = n2
-n2.children.push(n3)
-const n4 = new Node(uuid4)
-n4.parent = n3
-n3.children.push(n4)
-const n5 = new Node(uuid5)
-n5.parent = n1
-n1.children.push(n5)
-const n6 = new Node(uuid6)
-n6.parent = n1
-n1.children.push(n6)
-const n7 = new Node(uuid7)
-n7.parent = n6
-n6.children.push(n7)
-const n8 = new Node(uuid8)
-n8.parent = n7
-n7.children.push(n8)
-const n9 = new Node(uuid9)
-n9.parent = n1
-
-fileData.uuidMap.set(n1.uuid, n1)
-fileData.uuidMap.set(n2.uuid, n2)
-fileData.uuidMap.set(n3.uuid, n3)
-fileData.uuidMap.set(n4.uuid, n4)
-fileData.uuidMap.set(n5.uuid, n5)
-fileData.uuidMap.set(n6.uuid, n6)
-fileData.uuidMap.set(n7.uuid, n7)
-fileData.uuidMap.set(n8.uuid, n8)
-fileData.uuidMap.set(n9.uuid, n9)
-
 const cwd = process.cwd()
-const froot = path.join(cwd, 'tmptest')
+const tmpdir = path.join(cwd, 'tmptest')
+const froot = path.join(tmpdir, 'tmptest')
 
-const createDocumentStoreAsync = Promise.promisify(createDocumentStore)
-const createFileShareStoreAsync = Promise.promisify(createFileShareStore)
+describe(path.basename(__filename), () => {
 
-describe(path.basename(__filename), function() {
-  let fss, fsd, fsSer
+  let model, fileData, n1, n2, n3, n4, n5, n6, n7, n8, n9
 
-  beforeEach(async () => {
-    await rimrafAsync('tmptest')
+  before(async () => {
+    await rimrafAsync('tmptest') 
     await mkdirpAsync('tmptest')
 
-    let docstore = await createDocumentStoreAsync(froot)
-    fss = await createFileShareStoreAsync(froot, docstore)
-    fsd = createFileShareData(model, fss)
-    fsSer = createFileShareService(fileData, fsd)
+    model = new Model()
+    fileData = new FileData(tmpdir, model)
+
+    model.emit('drivesCreated', [{uuid: uuid1, type: 'private',owner: userUUID}, 
+                                 {uuid: uuid9, type: 'private', owner: aliceUUID},
+                                 {uuid: uuid10, type: 'public', writelist: [userUUID], readlist: [bobUUID], shareAllowed: false},
+                                 {uuid: uuid11, type: 'public', writelist: [aliceUUID], readlist: [bobUUID], shareAllowed: true}
+                                ])
+    await Promise.delay(200)
+
+    // two drive-roots
+    n1 = fileData.root.children[0]
+    n9 = fileData.root.children[1]
+
+    fileData.createNode(n1, {type: 'directory', uuid: uuid2, name: 'n2'})
+    await Promise.delay(100)
+    n2 = fileData.uuidMap.get(uuid2)
+    // console.log(n2.parent.name)
+    fileData.createNode(n2, {type: 'directory', uuid: uuid3, name: 'n3'})
+    await Promise.delay(100)
+    n3 = fileData.uuidMap.get(uuid3)
+    // console.log(n3.parent.name)
+    fileData.createNode(n3, {type: 'directory', uuid: uuid4, name: 'n4'})
+    await Promise.delay(100)
+    n4 = fileData.uuidMap.get(uuid4)
+    // console.log(n4.parent.name)
+    fileData.createNode(n1, {type: 'directory', uuid: uuid5, name: 'n5'})
+    await Promise.delay(100)
+    n5 = fileData.uuidMap.get(uuid5)
+    // console.log(n5.parent.name)
+    fileData.createNode(n1, {type: 'directory', uuid: uuid6, name: 'n6'})
+    await Promise.delay(100)
+    n6 = fileData.uuidMap.get(uuid6)
+    // console.log(n6.parent.name)
+    fileData.createNode(n6, {type: 'directory', uuid: uuid7, name: 'n7'})
+    await Promise.delay(100)
+    n7 = fileData.uuidMap.get(uuid7)
+    // console.log(n7.parent.name)
+    fileData.createNode(n7, {type: 'directory', uuid: uuid8, name: 'n8'})
+    await Promise.delay(100)
+    n8 = fileData.uuidMap.get(uuid8)
+    // console.log(n8.parent.name)
   })
 
-  afterEach(async () => await rimrafAsync('tmptest'))
+  after(async () => await rimrafAsync('tmptest'))
+
+  const createDocumentStoreAsync = Promise.promisify(createDocumentStore)
+  const createFileShareStoreAsync = Promise.promisify(createFileShareStore)
+
+  let fileShareStore, fileShareData, fileShareService
+
+  beforeEach(async () => {
+    await rimrafAsync(froot)
+    await mkdirpAsync(froot)
+
+    let docstore = await createDocumentStoreAsync(froot)
+    fileShareStore = await createFileShareStoreAsync(froot, docstore)
+    fileShareData = await createFileShareData(model, fileShareStore)
+    fileShareService = createFileShareService(fileData, fileShareData)
+  })
+
+  afterEach(async () => await rimrafAsync(froot))
 
   describe('create a fileShareService', function() {
     it('should create a fileShareService successfully', done => {
-      expect(fsSer.fd).to.deep.equal(fileData)
-      expect(fsSer.fsd).to.deep.equal(fsd)
+      expect(fileShareService.fileData).to.deep.equal(fileData)
+      expect(fileShareService.fileShareData).to.deep.equal(fileShareData)
       done()
     })
   })
@@ -138,10 +133,10 @@ describe(path.basename(__filename), function() {
       let err
       let post = { writelist: [aliceUUID],
                    readlist: [bobUUID],
-                   collection: [uuid2, uuid4, uuid6, uuid9]
+                   collection: [uuid2, uuid4, uuid6]
                  }
       try {
-        await fsSer.createFileShare('abcd', post)
+        await fileShareService.createFileShare('abcd', post)
       }
       catch(e){
         err = e
@@ -153,7 +148,7 @@ describe(path.basename(__filename), function() {
       let err
       let post = null
       try {
-        await fsSer.createFileShare(userUUID, post)
+        await fileShareService.createFileShare(userUUID, post)
       }
       catch(e){
         err = e
@@ -167,7 +162,7 @@ describe(path.basename(__filename), function() {
                   readlist: [bobUUID]
                  }
       try {
-        await fsSer.createFileShare(userUUID, post)
+        await fileShareService.createFileShare(userUUID, post)
       }
       catch(e){
         err = e
@@ -183,7 +178,7 @@ describe(path.basename(__filename), function() {
                    collection: uuid1
                  }
       try {
-        await fsSer.createFileShare(userUUID, post)
+        await fileShareService.createFileShare(userUUID, post)
       }
       catch(e){
         err = e
@@ -197,7 +192,7 @@ describe(path.basename(__filename), function() {
                   readlist: [bobUUID],
                   collection: []}
       try {
-        await fsSer.createFileShare(userUUID, post)
+        await fileShareService.createFileShare(userUUID, post)
       }
       catch(e){
         err = e
@@ -205,20 +200,13 @@ describe(path.basename(__filename), function() {
       expect(err).to.be.an.instanceof(E.EINVAL)
     })
 
-    it('should return error if user is not the root owner', async () => {
-      let uuid_1 = 'd20e9aa2-7e66-41d1-8521-0c7e0b3f25d5'
-      let uuid_2 = 'a8eec3c8-70e5-411b-90fd-ee3e181254b9'
-      let node01 = new Node(uuid_1)
-      node01.type = 'private'
-      node01.owner = uuid_2
-      fileData.uuidMap.set(uuid_1, node01)
-
+    it('should return error if user is not the drive owner of shared node', async () => {
       let err
       let post = {writelist: [aliceUUID],
                   readlist: [bobUUID],
-                  collection: [uuid_1]}
+                  collection: [uuid9]}
       try {
-        await fsSer.createFileShare(userUUID, post)
+        await fileShareService.createFileShare(userUUID, post)
       }
       catch(e){
         err = e
@@ -226,18 +214,13 @@ describe(path.basename(__filename), function() {
       expect(err).to.be.an.instanceof(E.EACCESS)
     })
 
-    it('should return error if file is not allowed to share', async () => {
-      let uuid_1 = 'd20e9aa2-7e66-41d1-8521-0c7e0b3f25d5'
-      let node01 = new Node(uuid_1)
-      node01.type = 'public'
-      node01.shareAllowed = false
-      fileData.uuidMap.set(uuid_1, node01)
+    it('should return error if node is in public drive and not allowed to share', async () => {
       let err
       let post = {writelist: [aliceUUID],
                   readlist: [bobUUID],
-                  collection: [uuid_1]}
+                  collection: [uuid10]}
       try {
-        await fsSer.createFileShare(userUUID, post)
+        await fileShareService.createFileShare(userUUID, post)
       }
       catch(e){
         err = e
@@ -245,21 +228,13 @@ describe(path.basename(__filename), function() {
       expect(err).to.be.an.instanceof(E.EACCESS)
     })
 
-    it('should return error if user not in readSet', async () => {
-      let uuid_1 = 'd20e9aa2-7e66-41d1-8521-0c7e0b3f25d5'
-      let node01 = new Node(uuid_1)
-      node01.type = 'public'
-      node01.shareAllowed = true
-      node01.writelist = [aliceUUID]
-      node01.readlist = [bobUUID]
-      fileData.uuidMap.set(uuid_1, node01)
-
+    it('should return error if node is in public drive and user not in readerSet', async () => {
       let err
       let post = {writelist: [aliceUUID],
                   readlist: [bobUUID],
-                  collection: [uuid_1]}
+                  collection: [uuid11]}
       try {
-        await fsSer.createFileShare(userUUID, post)
+        await fileShareService.createFileShare(userUUID, post)
       }
       catch(e){
         err = e
@@ -272,14 +247,11 @@ describe(path.basename(__filename), function() {
     let shareUUID
     let post = { writelist: [aliceUUID],
                  readlist: [bobUUID],
-                 collection: [uuid2, uuid4, uuid6, uuid9]
+                 collection: [uuid2, uuid4, uuid6]
                }
-    // root node is different from general dirctory/file node
-    // root is a node, but with some special properties
-    n1.type = 'private'
-    n1.owner = userUUID
+
     beforeEach(async() => {
-      let fileShare = await fsSer.createFileShare(userUUID, post)
+      let fileShare = await fileShareService.createFileShare(userUUID, post)  
       shareUUID = fileShare.doc.uuid
     })
 
@@ -291,7 +263,7 @@ describe(path.basename(__filename), function() {
                     value: [charlieUUID]
                   }]
       try {
-        await fsSer.updateFileShare(userUUID, uuid, patch)
+        await fileShareService.updateFileShare(userUUID, uuid, patch)
       }
       catch(e) {
         err = e
@@ -306,7 +278,7 @@ describe(path.basename(__filename), function() {
                     value: [charlieUUID]
                   }]
       try {
-        await fsSer.updateFileShare(aliceUUID, shareUUID, patch)
+        await fileShareService.updateFileShare(aliceUUID, shareUUID, patch)
       }
       catch(e) {
         err = e
@@ -320,7 +292,7 @@ describe(path.basename(__filename), function() {
                     value: [charlieUUID]
                   }]
       try {
-        await fsSer.updateFileShare(userUUID, shareUUID, patch)
+        await fileShareService.updateFileShare(userUUID, shareUUID, patch)
       }
       catch(e) {
         err = e
@@ -336,7 +308,7 @@ describe(path.basename(__filename), function() {
                     value: [charlieUUID]
                   }]
       try {
-        await fsSer.updateFileShare(userUUID, shareUUID, patch)
+        await fileShareService.updateFileShare(userUUID, shareUUID, patch)
       }
       catch(e) {
         err = e
@@ -344,14 +316,14 @@ describe(path.basename(__filename), function() {
       expect(err).to.be.an.instanceof(E.EINVAL)
     })
 
-    it('should return error if op.operation is not add or delete', async () => {
+    it('should return error if op.operation is not add or delete(for writelist,readlist, collection)', async () => {
       let err
       let patch = [{path: 'writelist',
                     operation: 'update',
                     value: [charlieUUID]
                   }]
       try {
-        await fsSer.updateFileShare(userUUID, shareUUID, patch)
+        await fileShareService.updateFileShare(userUUID, shareUUID, patch)
       }
       catch(e) {
         err = e
@@ -359,46 +331,46 @@ describe(path.basename(__filename), function() {
       expect(err).to.be.an.instanceof(E.EINVAL)
     })
 
-    it('should return error if user is not the owner of root node', async () => {
-      let uuid_1 = 'd20e9aa2-7e66-41d1-8521-0c7e0b3f25d5'
-      let uuid_2 = 'a8eec3c8-70e5-411b-90fd-ee3e181254b9'
-      let node01 = new Node(uuid_1)
-      node01.type = 'private'
-      node01.owner = uuid_2
-      fileData.uuidMap.set(uuid_1, node01)
-
+    it('should return error if user is not the owner of uuid drive node', async () => {
       let err
       let patch = [{path: 'collection',
                     operation: 'add',
-                    value: [uuid_1]
+                    value: [uuid9]
                   }]
       try {
-        await fsSer.updateFileShare(userUUID, shareUUID, patch)
+        await fileShareService.updateFileShare(userUUID, shareUUID, patch)
       }
-      catch(e){
+      catch(e) {
         err = e
       }
       expect(err).to.be.an.instanceof(E.EACCESS)
     })
 
-    it('should return error if the node is in public drive but user not in readSet', async () => {
-      let uuid_1 = 'd20e9aa2-7e66-41d1-8521-0c7e0b3f25d5'
-      let node01 = new Node(uuid_1)
-      node01.type = 'public'
-      node01.shareAllowed = true
-      node01.writelist = [aliceUUID]
-      node01.readlist = [bobUUID]
-      fileData.uuidMap.set(uuid_1, node01)
-
+    it('should return error if the node is in public drive and not allowed to share', async () => {
       let err
       let patch = [{path: 'collection',
                     operation: 'add',
-                    value: [uuid_1]
+                    value: [uuid10]
                   }]
       try {
-        await fsSer.updateFileShare(userUUID, shareUUID, patch)
+        await fileShareService.updateFileShare(userUUID, shareUUID, patch)
       }
-      catch(e){
+      catch(e) {
+        err = e
+      }
+      expect(err).to.be.an.instanceof(E.EACCESS)
+    })
+
+    it('should return error if node is in public drive but user is not in readerSet', async () => {
+      let err
+      let patch = [{path: 'collection',
+                    operation: 'add',
+                    value: [uuid11]
+                  }]
+      try {
+        await fileShareService.updateFileShare(userUUID, shareUUID, patch)
+      }
+      catch(e) {
         err = e
       }
       expect(err).to.be.an.instanceof(E.EACCESS)
@@ -409,14 +381,11 @@ describe(path.basename(__filename), function() {
     let shareUUID
     let post = { writelist: [aliceUUID],
                  readlist: [bobUUID],
-                 collection: [uuid2, uuid4, uuid6, uuid9]
+                 collection: [uuid2, uuid4, uuid6]
                }
-    // root node is different from general dirctory/file node
-    // root is a node, but with some special properties
-    n1.type = 'private'
-    n1.owner = userUUID
+
     beforeEach(async() => {
-      let fileShare = await fsSer.createFileShare(userUUID, post)
+      let fileShare = await fileShareService.createFileShare(userUUID, post)
       shareUUID = fileShare.doc.uuid
     })
 
@@ -424,7 +393,7 @@ describe(path.basename(__filename), function() {
       let err
       let uuid = '6790cdcb-8bce-4c67-9768-202a90aad8bf'
       try {
-        await fsSer.deleteFileShare(userUUID, uuid)
+        await fileShareService.deleteFileShare(userUUID, uuid)
       }
       catch(e) {
         err = e
@@ -435,7 +404,7 @@ describe(path.basename(__filename), function() {
     it('should return error if user is not author', async () => {
       let err
       try {
-        await fsSer.updateFileShare(charlieUUID, shareUUID)
+        await fileShareService.deleteFileShare(charlieUUID, shareUUID)
       }
       catch(e) {
         err = e

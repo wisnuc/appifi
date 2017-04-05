@@ -30,6 +30,7 @@ const EClass = (code, message) => {
 const define = (code, message) => (E[code] = EClass(code, message))
 
 define('EINVAL', 'invalid parameters')
+define('EACCESS', 'access denied')
 define('EFORMAT', 'bad format')
 define('EABORT', 'aborted')
 define('ENOTDIR', 'not a directory')
@@ -40,9 +41,12 @@ define('ECONTENT', 'content changed (digest mismatch)')
 define('ETIMESTAMP', 'timestamp changed during operation')
 define('EEXITCODE', 'exit with error code')
 define('EEXITSIGNAL', 'exit with signal')
-define('EACCESS', 'no permission')
 define('ENOENT', 'no entry')
-define('ELOCK', 'lock error');
+define('ELOCK', 'lock error')
+
+define('ENODENOTFOUND', 'node not found')     // be different from ENOENT, which is easily confused with fs error, TODO not sure if this is the right design
+define('ENODEDETACHED', 'node is detached')   // 
+
 
 module.exports = Object.freeze(E)
 

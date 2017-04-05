@@ -10,6 +10,9 @@ import E from '../lib/error'
 import _ from '../lib/async'
 
 import { isUUID, isSHA256 } from '../lib/types'
+
+const isNonNullObject = obj => typeof obj === 'object' && obj !== null
+
 // constants
 const FRUITMIX = 'user.fruitmix'
 
@@ -171,6 +174,25 @@ const updateFileAsync = async (target, source, hash) => {
   return await readXstatAsync(target, false)
 }
 
+
+// props may have uuid and/or hash
+// if no uuid, a new uuid is generated
+const forceFileXattrAsync = async (target, props) => {
+
+  let magic = await fileMagicAsync(target)
+  let uuid = props.uuid || UUID.v4()
+  let attr = { uuid, magic } 
+
+  if (props.hash) {
+    let stats = await fs.statAsync(target)
+    attr.hash = props.hash
+    attr.htime = stats.mtime.getTime()
+  }
+
+  return await xattr.setAsync(target, FRUITMIX, JSON.stringify(attr))
+}
+
+// this function is used when init drive
 const forceDriveXstatAsync = async (target, driveUUID) => {
 
   let attr = { uuid: driveUUID }
@@ -206,6 +228,7 @@ export {
   updateFileAsync,
   forceDriveXstat,
   forceDriveXstatAsync,
+  forceFileXattrAsync,
 
   // testing only
   parseMagic,

@@ -91,6 +91,7 @@
     "node-uuid": "^1.4.7",
     "nodemon": "^1.9.2",
     "nyc": "^10.1.2",
+    "prettysize": "0.0.3",
     "raw-loader": "^0.5.1",
     "react": "^15.4.2",
     "react-addons-css-transition-group": "^15.4.2",
