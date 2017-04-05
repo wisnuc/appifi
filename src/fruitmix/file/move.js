@@ -7,7 +7,7 @@ import xattr from 'fs-xattr'
 import E from '../lib/error'
 import Worker from '../lib/worker'
 
-class Hash extends Worker {
+class Move extends Worker {
   constructor(src, dst) {
     super()
     this.src = src
@@ -26,9 +26,33 @@ class Hash extends Worker {
     switch(modeType){
       case 'FF':
       case 'FE':
+        this.copy(err => {
+          if(this.finished) return 
+          if(err) return this.error(err)
+          this.delete(err => {
+            if(this.finished) return 
+            if(err) return this.error(err)
+            return this.finish(this)//TODO probe
+          })
+        })
+        break
       case 'EF':
+        this.cleanXattr(err => {
+          if(this.finished) return 
+          if(err) return this.error(err)
+          this.move(err => {
+            if(this.finished) return 
+            if(err) return this.error(err)
+            return this.finish(this)
+          })
+        })
+        break
       case 'EE':
-      default:
+        this.move(err => {
+          if(this.finished) return 
+          if(err) return this.error(err)
+          return this.finish(this)
+        })
     }
   }
 
@@ -50,16 +74,21 @@ class Hash extends Worker {
 
   // visitor tree dump xattr
   cleanXattr(callback){
-    // const clean = (dir, dirContext, entry, callback) => {
-    //   let xattrType = dirContext.type
-    //   let path = path.join(dir, entry)
-    //   xattr.setSync(path, xattrType, JSON.stringify({}))
-    //   fs.lstatSync(path).isFile() ? callback() : callback({ type: xattrType})
-    // }
+    const clean = (dir, dirContext, entry, callback) => {
+      let xattrType = dirContext.type
+      let path = path.join(dir, entry)
+      xattr.setSync(path, xattrType, JSON.stringify({}))
+      fs.lstatSync(path).isFile() ? callback() : callback(dirContext)
+    }
+    this.visit(this.src, { type: 'user.fruitmix'}, clean, callback)
   }
 
   move(callback){
-
+    child.exec(`mv -f ${ this.src } ${ this.dst }`, (err, stdout, stderr) => {
+      if(err) return callback(err)
+      if(stderr) return callback(stderr)
+      return callback(null, stdout)
+    })
   }
 
   visit(dir, dirContext, func, done) { 
@@ -71,7 +100,6 @@ class Hash extends Worker {
 
         func(dir, dirContext, entry, (entryContext) => {
           if (entryContext) {
-            // console.log('entering entering')
             visit(path.join(dir, entry), entryContext, func, () => {
               count--
               if (count === 0) done()
@@ -87,7 +115,8 @@ class Hash extends Worker {
   }
 
   import(callback){
-
+    //probe 
+    
   }
 
 }
