@@ -135,7 +135,7 @@ describe(path.basename(__filename), () => {
                    readlist: [bobUUID],
                    collection: [uuid2, uuid4, uuid6]
                  }
-      try {
+      try { 
         await fileShareService.createFileShare('abcd', post)
       }
       catch(e){

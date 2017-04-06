@@ -71,8 +71,7 @@ class FileService {
   async navList({ userUUID, dirUUID, rootUUID }) {
 
     let node = this.data.findNodeByUUID(dirUUID)
-    if (!node) throw new E.NODENOTFOUND()
-
+    if (!node) throw new E.ENODENOTFOUND()
     if (!node.isDirectory()) throw new E.ENOTDIR()
     if (!(this.userReadable(userUUID, node))) throw new E.EACCESS()
 
@@ -88,7 +87,7 @@ class FileService {
     } else {
       
       let root = this.data.findNodeByUUID(rootUUID)
-      if (!root) throw new E.NODENOTFOUND()
+      if (!root) throw new E.ENODENOTFOUND()
 
       let path = node.nodepath()
       let index = path.indexOf(root)
@@ -108,7 +107,7 @@ class FileService {
     
     let node = this.data.findNodeByUUID(dirUUID)
   
-    if (!node) throw new E.NODENOTFOUND() 
+    if (!node) throw new E.ENODENOTFOUND() 
     if (!node.isDirectory()) throw new E.ENOTDIR()
     if (!(this.userReadable(userUUID, node))) throw new E.EACCESS()
   }
@@ -120,7 +119,7 @@ class FileService {
     let node = this.data.findNodeByUUID(dirUUID)
     let root = this.data.findNodeByUUID(rootUUID)
   
-    if (!node || !root) throw new E.NODENOTFOUND() 
+    if (!node || !root) throw new E.ENODENOTFOUND() 
     if (!node.isDirectory()) throw new E.ENOTDIR()
     if (!(this.userReadable(userUUID, node))) throw new E.EACCESS()
    
@@ -132,7 +131,7 @@ class FileService {
     let dirNode = this.data.findNodeByUUID(dirUUID)
     let fileNode = this.data.findNodeByUUID(fileUUID)
 
-    if (!dirNode || !fileNode) throw new E.NODENOTFOUND() 
+    if (!dirNode || !fileNode) throw new E.ENODENOTFOUND() 
     if (!dirNode.isDirectory()) throw new E.ENOTDIR()
     if (!fileNode.isFile()) throw new E.ENOENT()
     if (!(this.userReadable(userUUID, dirNode))) throw new E.EACCESS()
@@ -150,7 +149,7 @@ class FileService {
 
     let node = this.data.findNodeByUUID(dirUUID)
 
-    if (!node) throw new E.NODENOTFOUND() 
+    if (!node) throw new E.ENODENOTFOUND() 
     if (!node.isDirectory()) throw new E.ENOTDIR()
     // permission check
     if (!(this.userWritable(userUUID, node))) throw new E.EACCESS()
@@ -162,14 +161,14 @@ class FileService {
     
     try {
       //create new createDirectory
-      let targetpath = path.join(node.namepath(), dirname)
-      await fs.mkdir(targetpath)
+      let targetpath = path.join(node.abspath(), dirname)
+      fs.mkdir(targetpath)
 
       let xstat = await readXstatAsync(targetpath)
-      await this.data.createNode(parent, xstat)
-      return 
+      return this.data.createNode(dirUUID, xstat)
     }
     catch (err) {
+      console.log(11,err)
       throw err
     }
     finally {
@@ -243,7 +242,7 @@ class FileService {
     // userUUID, dirUUID, name, src, mandatory; hash optional
 
     let node = this.data.findNodeByUUID(dirUUID)
-    if (!node) throw new E.NODENOTFOUND()
+    if (!node) throw new E.ENODENOTFOUND()
     if (!node.isDirectory()) throw new E.ENOTDIR()
     if (!this.userWritable(userUUID, node)) throw new E.EACCESS()
     if (node.getChildren().map(n => n.name).includes(name)) throw new E.EEXIST()
@@ -280,7 +279,7 @@ class FileService {
   // overwrite existing file
   async overwriteFileAsync({ userUUID, srcpath, fileUUID, hash }) {
     let node = this.data.findNodeByUUID(fileUUID)
-    if (!node) throw new E.NODENOTFOUND()
+    if (!node) throw new E.ENODENOTFOUND()
     if (!node.isFile()) throw new E.ENOTDIR()
     if (!this.userWritable(userUUID, node)) throw new E.EACCESS()
     // if (node.getChildren().map(n => n.name).includes(name)) throw new E.EEXIST()
@@ -314,7 +313,7 @@ class FileService {
   async renameAsync({ userUUID, targetUUID, name }) {
 
     let node = this.data.findNodeByUUID(fileUUID)
-    if (!node) throw new E.NODENOTFOUND()
+    if (!node) throw new E.ENODENOTFOUND()
     if (!this.userWritable(userUUID, node)) throw new E.EACCESS()
     if(typeof name !== 'string' || path.basename(path.normalize(name)) !== name) throw new E.EINVAL
 
@@ -346,11 +345,11 @@ class FileService {
     if (share) throw new E.ENOENT()
 
     let dirNode = this.data.findNodeByUUID(dirUUID)
-    if (!dirNode) throw new E.NODENOTFOUND()
+    if (!dirNode) throw new E.ENODENOTFOUND()
     if (!dirNode.isDirectory()) throw new E.ENOTDIR() 
 
     let node = this.data.findNodeByUUID(nodeUUID)
-    if (!node) throw new E.NODENOTFOUND()
+    if (!node) throw new E.ENODENOTFOUND()
 
     if (!this.userWritable(userUUID, node)) throw new E.EACCESS()
 
