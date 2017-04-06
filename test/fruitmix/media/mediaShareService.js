@@ -3,8 +3,8 @@ import { expect } from 'chai'
 import sinon from 'sinon'
 
 import { rimrafAsync, mkdirpAsync } from '../../../src/fruitmix/util/async'
-import { createDocumentStore } from '../../../src/fruitmix/lib/documentStore'
-import { createMediaShareStore } from '../../../src/fruitmix/lib/shareStore'
+import { createDocumentStoreAsync } from '../../../src/fruitmix/lib/documentStore'
+import { createMediaShareStoreAsync } from '../../../src/fruitmix/lib/shareStore'
 import { createMediaShareData } from '../../../src/fruitmix/media/mediaShareData'
 import { createMediaShareService } from '../../../src/fruitmix/media/mediaShareService'
 import E from '../../../src/fruitmix/lib/error'
@@ -44,29 +44,25 @@ const img002Hash = '21cb9c64331d69f6134ed25820f46def3791f4439d2536b270b2f57f7267
 const cwd = process.cwd()
 const froot = path.join(cwd, 'tmptest')
 
-const createDocumentStoreAsync = Promise.promisify(createDocumentStore)
-const createMediaShareStoreAsync = Promise.promisify(createMediaShareStore)
-
-
 describe(path.basename(__filename), function() {
-  let mss, msd, msSer
+  let mediaShareStore, mediaShareData, mediaShareService
 
   beforeEach(async () => {
     await rimrafAsync('tmptest')
     await mkdirpAsync('tmptest')
 
     let docstore = await createDocumentStoreAsync(froot)
-    mss = await createMediaShareStoreAsync(froot, docstore)
-    msd = createMediaShareData(model, mss)
-    msSer = createMediaShareService(mediaData, msd)
+    mediaShareStore = await createMediaShareStoreAsync(froot, docstore)
+    mediaShareData = createMediaShareData(model, mediaShareStore)
+    mediaShareService = createMediaShareService(mediaData, mediaShareData)
   })
 
   afterEach(async () => await rimrafAsync('tmptest'))
 
   describe('create a mediaShareService', function() {
     it('should create a mediaShareService', done => {
-      expect(msSer.msd).to.deep.equal(msd)
-      expect(msSer.md).to.deep.equal(mediaData)
+      expect(mediaShareService.mediaShareData).to.deep.equal(mediaShareData)
+      expect(mediaShareService.mediaData).to.deep.equal(mediaData)
       done()
     })
   })
@@ -79,7 +75,7 @@ describe(path.basename(__filename), function() {
                   album: {title: 'testAlbum', text: 'this is a test album'},
                   contents: [img001Hash]}
       try {
-        await msSer.createMediaShare('abcd', post)
+        await mediaShareService.createMediaShare('abcd', post)
       }
       catch(e){
         err = e
@@ -91,7 +87,7 @@ describe(path.basename(__filename), function() {
       let err
       let post = null
       try {
-        await msSer.createMediaShare(userUUID, post)
+        await mediaShareService.createMediaShare(userUUID, post)
       }
       catch(e){
         err = e
@@ -105,7 +101,7 @@ describe(path.basename(__filename), function() {
                   viewers: [bobUUID],
                   contents: [img001Hash]}
       try {
-        await msSer.createMediaShare(userUUID, post)
+        await mediaShareService.createMediaShare(userUUID, post)
       }
       catch(e){
         err = e
@@ -121,7 +117,7 @@ describe(path.basename(__filename), function() {
                   album: {title: 'testAlbum', text: 'this is a test album'},
                   contents: img001Hash}
       try {
-        await msSer.createMediaShare(userUUID, post)
+        await mediaShareService.createMediaShare(userUUID, post)
       }
       catch(e){
         err = e
@@ -136,7 +132,7 @@ describe(path.basename(__filename), function() {
                   album: {title: 'testAlbum', text: 'this is a test album'},
                   contents: []}
       try {
-        await msSer.createMediaShare(userUUID, post)
+        await mediaShareService.createMediaShare(userUUID, post)
       }
       catch(e){
         err = e
@@ -153,7 +149,7 @@ describe(path.basename(__filename), function() {
       let stub = sinon.stub(mediaData, 'mediaShareAllowed')
       stub.returns(false)
       try {
-        await msSer.createMediaShare(userUUID, post)
+        await mediaShareService.createMediaShare(userUUID, post)
       }
       catch(e){
         err = e
@@ -169,7 +165,7 @@ describe(path.basename(__filename), function() {
                   album: {text: 'this is a test album'},
                   contents: [img001Hash]}
       try {
-        await msSer.createMediaShare(userUUID, post)
+        await mediaShareService.createMediaShare(userUUID, post)
       }
       catch(e){
         err = e
@@ -185,7 +181,7 @@ describe(path.basename(__filename), function() {
                   album: {title: 'testAlbum', text: 'this is a test album', name: 'alice'},
                   contents: [img001Hash]}
       try {
-        await msSer.createMediaShare(userUUID, post)
+        await mediaShareService.createMediaShare(userUUID, post)
       }
       catch(e){
         err = e
@@ -201,7 +197,7 @@ describe(path.basename(__filename), function() {
                   album: {title: 'testAlbum', text: ['this is a test album']},
                   contents: [img001Hash]}
       try {
-        await msSer.createMediaShare(userUUID, post)
+        await mediaShareService.createMediaShare(userUUID, post)
       }
       catch(e){
         err = e
@@ -217,7 +213,7 @@ describe(path.basename(__filename), function() {
                   album: {title: 'testAlbum', text: 'this is a test album'},
                   contents: [img001Hash]}
     beforeEach(async() => {
-      let share = await msSer.createMediaShare(userUUID, post)
+      let share = await mediaShareService.createMediaShare(userUUID, post)
       shareUUID = share.doc.uuid
     })
 
@@ -228,7 +224,7 @@ describe(path.basename(__filename), function() {
                     operation: 'add',
                     value: [charlieUUID]}]
       try {
-        await msSer.updateMediaShare(userUUID, uuid, patch)
+        await mediaShareService.updateMediaShare(userUUID, uuid, patch)
       }
       catch(e) {
         err = e
@@ -242,7 +238,7 @@ describe(path.basename(__filename), function() {
                     operation: 'add',
                     value: [charlieUUID]}]
       try {
-        await msSer.updateMediaShare(charlieUUID, shareUUID, patch)
+        await mediaShareService.updateMediaShare(charlieUUID, shareUUID, patch)
       }
       catch(e) {
         err = e
@@ -255,7 +251,7 @@ describe(path.basename(__filename), function() {
       let patch = [{path: 'maintainers',
                     value: [charlieUUID]}]
       try {
-        await msSer.updateMediaShare(userUUID, shareUUID, patch)
+        await mediaShareService.updateMediaShare(userUUID, shareUUID, patch)
       }
       catch(e) {
         err = e
@@ -270,7 +266,7 @@ describe(path.basename(__filename), function() {
                     operation: 'add',
                     value: [charlieUUID]}]
       try {
-        await msSer.updateMediaShare(userUUID, shareUUID, patch)
+        await mediaShareService.updateMediaShare(userUUID, shareUUID, patch)
       }
       catch(e) {
         err = e
@@ -285,7 +281,7 @@ describe(path.basename(__filename), function() {
                     value: [charlieUUID]
                   }]
       try {
-        await msSer.updateMediaShare(userUUID, shareUUID, patch)
+        await mediaShareService.updateMediaShare(userUUID, shareUUID, patch)
       }
       catch(e) {
         err = e
@@ -302,7 +298,7 @@ describe(path.basename(__filename), function() {
       let stub = sinon.stub(mediaData, 'mediaShareAllowed')
       stub.returns(false)
       try {
-        await msSer.updateMediaShare(userUUID, shareUUID, patch)
+        await mediaShareService.updateMediaShare(userUUID, shareUUID, patch)
       }
       catch(e) {
         err = e
@@ -319,7 +315,7 @@ describe(path.basename(__filename), function() {
                   album: {title: 'testAlbum', text: 'this is a test album'},
                   contents: [img001Hash]}
     beforeEach(async() => {
-      let share = await msSer.createMediaShare(userUUID, post)
+      let share = await mediaShareService.createMediaShare(userUUID, post)
       shareUUID = share.doc.uuid
     })
 
@@ -327,7 +323,7 @@ describe(path.basename(__filename), function() {
       let err
       let uuid = '6790cdcb-8bce-4c67-9768-202a90aad8bf'
       try {
-        await msSer.deleteMediaShare(userUUID, uuid)
+        await mediaShareService.deleteMediaShare(userUUID, uuid)
       }
       catch(e) {
         err = e
@@ -338,12 +334,36 @@ describe(path.basename(__filename), function() {
     it('should return error if user is not author', async () => {
       let err
       try {
-        await msSer.updateMediaShare(charlieUUID, shareUUID)
+        await mediaShareService.updateMediaShare(charlieUUID, shareUUID)
       }
       catch(e) {
         err = e
       }
       expect(err).to.be.an.instanceof(E.EACCESS)
+    })
+  })
+
+  describe('getUserMediaShares', function() {
+    let share1, share2
+    let post1 = { maintainers: [aliceUUID],
+                  viewers: [bobUUID],
+                  album: {title: 'testAlbum', text: 'this is a test album'},
+                  contents: [img001Hash]      
+                }
+    let post2 = { maintainers: [charlieUUID],
+                  viewers: [bobUUID],
+                  album: {title: 'test'},
+                  contents: [img002Hash]      
+                }
+    beforeEach(async () => {
+      share1 = await mediaShareService.createMediaShare(userUUID, post1)
+      share2 = await mediaShareService.createMediaShare(aliceUUID, post2)
+    })
+
+    it('shoud return shares user is the author or in viewerSet', async () => {
+      let shares = await mediaShareService.getUserMediaShares(aliceUUID)
+      expect(shares[0]).to.deep.equal(share1)
+      expect(shares[1]).to.deep.equal(share2)
     })
   })
 })
