@@ -4,8 +4,8 @@ import sinon from 'sinon'
 import EventEmitter from 'events'
 
 import { rimrafAsync, mkdirpAsync } from '../../../src/fruitmix/util/async'
-import { createDocumentStore } from '../../../src/fruitmix/lib/documentStore'
-import { createFileShareStore } from '../../../src/fruitmix/lib/shareStore'
+import { createDocumentStoreAsync } from '../../../src/fruitmix/lib/documentStore'
+import { createFileShareStoreAsync } from '../../../src/fruitmix/lib/shareStore'
 import { createFileShareData } from '../../../src/fruitmix/file/fileShareData'
 import { createFileShareService } from '../../../src/fruitmix/file/fileShareService'
 import E from '../../../src/fruitmix/lib/error'
@@ -101,9 +101,6 @@ describe(path.basename(__filename), () => {
   })
 
   after(async () => await rimrafAsync('tmptest'))
-
-  const createDocumentStoreAsync = Promise.promisify(createDocumentStore)
-  const createFileShareStoreAsync = Promise.promisify(createFileShareStore)
 
   let fileShareStore, fileShareData, fileShareService
 
@@ -410,6 +407,28 @@ describe(path.basename(__filename), () => {
         err = e
       }
       expect(err).to.be.an.instanceof(E.EACCESS)
+    })
+  })
+
+  describe('getUserFileShares', function() {
+    let share1, share2
+    let post1 = { writelist: [aliceUUID],
+                  readlist: [bobUUID],
+                  collection: [uuid2, uuid4, uuid6] 
+                }
+    let post2 = { writelist: [charlieUUID],
+                 readlist: [bobUUID],
+                 collection: [uuid9] 
+               }
+    beforeEach(async () => {
+      share1 = await fileShareService.createFileShare(userUUID, post1)
+      share2 = await fileShareService.createFileShare(aliceUUID, post2)
+    })
+
+    it('should return shares user is author or in readerSet', async () => {
+      let shares = await fileShareService.getUserFileShares(aliceUUID)
+      expect(shares[0]).to.deep.equal(share1)
+      expect(shares[1]).to.deep.equal(share2)
     })
   })
 })

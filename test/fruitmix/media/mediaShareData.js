@@ -2,8 +2,8 @@ import path from 'path'
 import { expect } from 'chai'
 
 import { rimrafAsync, mkdirpAsync } from '../../../src/fruitmix/util/async'
-import { createDocumentStore } from '../../../src/fruitmix/lib/documentStore'
-import { createMediaShareStore } from '../../../src/fruitmix/lib/shareStore'
+import { createDocumentStoreAsync } from '../../../src/fruitmix/lib/documentStore'
+import { createMediaShareStoreAsync } from '../../../src/fruitmix/lib/shareStore'
 import { createMediaShareDoc, updateMediaShareDoc } from '../../../src/fruitmix/media/mediaShareDoc'
 import { createMediaShareData } from '../../../src/fruitmix/media/mediaShareData'
 import E from '../../../src/fruitmix/lib/error'
@@ -37,9 +37,6 @@ const img002Hash = '21cb9c64331d69f6134ed25820f46def3791f4439d2536b270b2f57f7267
 const cwd = process.cwd()
 const froot = path.join(cwd, 'tmptest')
 
-const createDocumentStoreAsync = Promise.promisify(createDocumentStore)
-const createMediaShareStoreAsync = Promise.promisify(createMediaShareStore)
-
 describe(path.basename(__filename), function() {
   let mediaShareStore, mediaShareData
 
@@ -59,14 +56,14 @@ describe(path.basename(__filename), function() {
     it('should create a mediaShareData', done => {
       expect(mediaShareData.model).to.deep.equal(model)
       expect(mediaShareData.mediaShareStore).to.deep.equal(mediaShareStore)
-      expect(mediaShareData.shareMap).to.be.an.instanceof(Map)
+      expect(mediaShareData.mediaShareMap).to.be.an.instanceof(Map)
       expect(mediaShareData.lockSet).to.be.an.instanceof(Set)
       done()
     })    
   })
 
   describe('createMediaShare', function() {
-    it('new share should be set into shareMap', async () => {
+    it('new share should be set into mediaShareMap', async () => {
       let post = { maintainers: [aliceUUID],
                    viewers: [bobUUID],
                    album: {title: 'testAlbum', text: 'this is a test album'},
@@ -101,7 +98,7 @@ describe(path.basename(__filename), function() {
       await mediaShareData.createMediaShare(doc)
     })
 
-    it('updated doc should be put into shareMap', async () => {
+    it('updated doc should be put into mediaShareMap', async () => {
       let patch = [{path: 'maintainers',
                     operation: 'add',
                     value: [charlieUUID]
@@ -128,7 +125,7 @@ describe(path.basename(__filename), function() {
                     value: [charlieUUID]
                   }]
       let newDoc = updateMediaShareDoc(userUUID, doc, patch)
-      mediaShareData.shareMap.delete(doc.uuid)
+      mediaShareData.mediaShareMap.delete(doc.uuid)
 
       try {
         await mediaShareData.updateMediaShare(newDoc)
@@ -152,9 +149,9 @@ describe(path.basename(__filename), function() {
       await mediaShareData.createMediaShare(doc)
     })
 
-    it('should throw error if uuid is not exist in shareMap', async () => {
+    it('should throw error if uuid is not exist in mediaShareMap', async () => {
       let err
-      mediaShareData.shareMap.delete(doc.uuid)
+      mediaShareData.mediaShareMap.delete(doc.uuid)
       try {
         await mediaShareData.deleteMediaShare(doc.uuid)
       }
@@ -164,9 +161,61 @@ describe(path.basename(__filename), function() {
       expect(err).to.be.an.instanceof(E.ENOENT)
     })
 
-    it('should remove share from shareMap successfully', async () => {
+    it('should remove share from mediaShareMap successfully', async () => {
       await mediaShareData.deleteMediaShare(doc.uuid)
       expect(mediaShareData.getShareByUUID(doc.uuid)).to.be.undefined
+    })
+  })
+
+  describe('load', function() {
+    let doc1, doc2
+    let post1 = { maintainers: [aliceUUID],
+                  viewers: [bobUUID],
+                  album: {title: 'testAlbum', text: 'this is a test album'},
+                  contents: [img001Hash]      
+                }
+    let post2 = { maintainers: [charlieUUID],
+                  viewers: [bobUUID],
+                  album: {title: 'test'},
+                  contents: [img002Hash]      
+                }
+    beforeEach(async () => {
+      doc1 = createMediaShareDoc(userUUID, post1)
+      doc2 = createMediaShareDoc(aliceUUID, post2)
+      await mediaShareStore.storeAsync(doc1)
+      await mediaShareStore.storeAsync(doc2)
+    })
+
+    it('should load mediaShare that is already exist into mediaShareMap', async () => {
+      await mediaShareData.load()
+      expect(mediaShareData.getShareByUUID(doc1.uuid).doc).to.deep.equal(doc1)
+      expect(mediaShareData.getShareByUUID(doc2.uuid).doc).to.deep.equal(doc2)
+    })
+  })
+
+  describe('getUserMediaShares', function() {
+    let share1, share2
+    let post1 = { maintainers: [aliceUUID],
+                  viewers: [bobUUID],
+                  album: {title: 'testAlbum', text: 'this is a test album'},
+                  contents: [img001Hash]      
+                }
+    let post2 = { maintainers: [charlieUUID],
+                  viewers: [bobUUID],
+                  album: {title: 'test'},
+                  contents: [img002Hash]      
+                }
+    beforeEach(async () => {
+      let doc1 = createMediaShareDoc(userUUID, post1)
+      let doc2 = createMediaShareDoc(aliceUUID, post2)
+      share1 = await mediaShareData.createMediaShare(doc1)
+      share2 = await mediaShareData.createMediaShare(doc2)
+    })
+
+    it('shoud return shares user is the author or in viewerSet', async () => {
+      let shares = await mediaShareData.getUserMediaShares(aliceUUID)
+      expect(shares[0]).to.deep.equal(share1)
+      expect(shares[1]).to.deep.equal(share2)
     })
   })
 })
