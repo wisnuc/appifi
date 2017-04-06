@@ -71,7 +71,9 @@ class SmbAudit extends EventEmitter {
       console.log(audit);
       console.log('####################################################');
       
-      return audit
+      // return audit
+
+      process.send(audit);
     })
 
     this.udp.on('close', () => console.log('smbaudit upd server closed'))

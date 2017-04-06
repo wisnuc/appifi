@@ -6,6 +6,7 @@ const Developer = require('./developer')
 const Config = require('./config')
 const Storage = require('./storage')
 const fruitmix = require('./boot/fruitmix')
+const samba = require('./boot/samba')
 
 const debug = require('debug')('system:boot')
 
@@ -110,7 +111,8 @@ module.exports = {
   },
 
   bootAsync: async function (cfs, init) {
-   	await fruitmix.forkAsync(cfs, init) 
+   	await fruitmix.forkAsync(cfs, init)
+    await samba.forkAsync(cfs, init) 
     Config.updateLastFileSystem({type: cfs.type, uuid: cfs.uuid})
   },
 
