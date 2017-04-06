@@ -176,7 +176,7 @@ class FileShareData extends EventEmitter {
     this.fileShareMap.delete(uuid)
   }
 
-  getUserFileShares(userUUID) {
+  async getUserFileShares(userUUID) {
     let shares = []
     this.fileShareMap.forEach((value, key, map) => {
       let share = value

@@ -17,7 +17,7 @@ class MediaShareService {
 
   getMediaShareByUUID(shareUUID) {
     if(!isUUID(shareUUID)) throw new E.EINVAL()
-    let share = this.mediaShareData.findShareByUUID(shareUUID)
+    let share = this.mediaShareData.getShareByUUID(shareUUID)
     if(share) return share
     else throw new E.ENOENT()
   }
@@ -116,14 +116,14 @@ class MediaShareService {
     await this.mediaShareData.deleteMediaShare(shareUUID)
   }
 
-  async getUserMediaShare(userUUID) {
+  async getUserMediaShares(userUUID) {
     if(!isUUID(userUUID)) throw new E.EINVAL()
-    return this.mediaShareData.getUserMediaShares(userUUID)
+    return await this.mediaShareData.getUserMediaShares(userUUID)
   }
 
   register(ipc) {
 
-    ipc.register('getUserMediaShare', (args, callback) => 
+    ipc.register('getUserMediaShares', (args, callback) => 
       this.createMediaShare(args.userUUID).asCallback(callback))
     
     ipc.register('createMediaShare', (args, callback) => 

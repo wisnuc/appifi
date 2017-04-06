@@ -370,6 +370,25 @@ describe(path.basename(__filename), () => {
 			} catch(e) { done(e); }
 		});
 
+		it('determine whether local users', done => {
+			model.isLocalUser(uuid_1, (err, isLocal) => {
+				if(err) return done(err);
+				expect(isLocal).to.be.true;
+				done();
+			});
+		});
+
+		it('get drive info by driveuuid', done => {
+			model.getDriveInfo(uuid_2, (err, drive) => {
+				if(err) return done(err);
+				expect(drive.owner).to.equal(uuid_1);
+				expect(drive.type).to.equal('private');
+				expect(drive.label).to.equal('home');
+				expect(drive.ownername).to.equal('panda');
+				done();
+			});
+		});
+
 	});
 
 });
