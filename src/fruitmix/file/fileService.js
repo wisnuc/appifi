@@ -56,8 +56,7 @@ class FileService {
       
     } else {
       let node = this.data.findNodeByUUID(dirUUID)
-      if (!node) throw new E.NODENOTFOUND() 
-
+      if (!node) throw new E.ENODENOTFOUND() 
       if (!node.isDirectory()) throw new E.ENOTDIR()
       if (!(this.userReadable(userUUID, node))) throw new E.EACCESS()
 

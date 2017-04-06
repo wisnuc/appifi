@@ -69,7 +69,7 @@ class FileShareData extends EventEmitter {
   findShareCollectionByUUID(uuid) {
     return this.findShareByUUID(uuid) 
       ? this.findShareByUUID(uuid).doc.collection 
-      : new E.ENOENT()
+      : null
   }
 
   findShareByUUID(uuid) {
@@ -189,7 +189,7 @@ class FileShareData extends EventEmitter {
   }
 }
 
-const createFileShareData = async (model, fileShareStore, fileData) => {
+const createFileShareData = (model, fileShareStore, fileData) => {
   Promise.promisifyAll(fileShareStore)
   // let fileShareData = new FileShareData(model, fileShareStore, fileData)
   // await fileShareData.load()

@@ -88,10 +88,10 @@ const invariantUpdate = (c, n) => {
 
 class MediaShareData extends EventEmitter {
 
-  constructor(model, shareStore) {
+  constructor(model, mediaShareStore) {
     super()
     this.model = model 
-    this.shareStore = shareStore
+    this.mediaShareStore = mediaShareStore
     this.shareMap = new Map()
     this.lockSet = new Set()
   }
@@ -110,7 +110,7 @@ class MediaShareData extends EventEmitter {
 
     this.getLock(doc.uuid)
     try {
-      return await this.shareStore.storeAsync(doc)   
+      return await this.mediaShareStore.storeAsync(doc)   
     }
     finally {
       this.putLock(doc.uuid)
@@ -121,12 +121,24 @@ class MediaShareData extends EventEmitter {
 
     this.getLock(uuid)
     try {
-      return await this.shareStore.archiveAsync(uuid)
+      return await this.mediaShareStore.archiveAsync(uuid)
     }
     finally {
       this.putLock(uuid)
     }
   } 
+
+  getShareByUUID(uuid) {
+    return this.shareMap.get(uuid)
+  }
+
+  async load() {
+    let shares = await this.mediaShareStore.retrieveAllAsync()
+    shares.forEach(share => {
+      this.mediaShareMap.set(share.doc.uuid, share)
+    })
+    this.emit('mediaShareCreated', shares)
+  }
 
   async createMediaShare(doc) {
     validateMediaShareDoc(doc, this.model.getUsers())
@@ -135,14 +147,14 @@ class MediaShareData extends EventEmitter {
     let share = new MediaShare(digest, doc)
 
     this.shareMap.set(doc.uuid, share)
-    this.emit('mediaShareCreated', share)
+    this.emit('mediaShareCreated', [share])
     return share
   }
 
   async updateMediaShare(doc) {
     validateMediaShareDoc(doc, this.model.getUsers())
 
-    let share = this.shareMap.get(doc.uuid)
+    let share = this.getShareByUUID(doc.uuid)
     if (!share) throw new E.ENOENT() // 'uuid not found'
 
     invariantUpdate(share.doc, doc)
@@ -158,7 +170,7 @@ class MediaShareData extends EventEmitter {
 
   async deleteMediaShare(uuid) {
 
-    let share = this.shareMap.get(uuid)
+    let share = this.getShareByUUID(uuid)
     if (!share) throw new E.ENOENT() // 'uuid not found'
 
     await this.archiveAsync(uuid) 
@@ -166,11 +178,23 @@ class MediaShareData extends EventEmitter {
     this.emit('mediaShareDeleting', share)
     this.shareMap.delete(uuid)
   }
+
+  getUserMediaShares(userUUID) {
+    let shares = []
+    this.ShareMap.forEach((value, key, map) => {
+      let share = value
+      if (share.doc.author === userUUID || 
+          share.doc.maintainers.find(u => u === userUUID) || 
+          share.doc.viewers.find(u => u === userUUID)) 
+        shares.push(share) 
+    })
+    return shares
+  }
 }
 
-const createMediaShareData = (model, shareStore) => {
-  Promise.promisifyAll(shareStore)
-  return new MediaShareData(model, shareStore)
+const createMediaShareData = (model, mediaShareStore) => {
+  Promise.promisifyAll(mediaShareStore)
+  return new MediaShareData(model, mediaShareStore)
 }
 
 export { createMediaShareData }

@@ -113,7 +113,7 @@ describe(path.basename(__filename), () => {
 
     let docstore = await createDocumentStoreAsync(froot)
     fileShareStore = await createFileShareStoreAsync(froot, docstore)
-    fileShareData = await createFileShareData(model, fileShareStore)
+    fileShareData = createFileShareData(model, fileShareStore)
     fileShareService = createFileShareService(fileData, fileShareData)
   })
 
