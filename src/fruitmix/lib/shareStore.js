@@ -113,10 +113,12 @@ const createFileShareStore = (froot, docstore, callback) => {
 }
 
 const createFileShareStoreAsync = Promise.promisify(createFileShareStore)
+const createMediaShareStoreAsync = Promise.promisify(createMediaShareStore)
 
 export { 
   createMediaShareStore,
   createFileShareStore,
-  createFileShareStoreAsync
+  createFileShareStoreAsync,
+  createMediaShareStoreAsync
 }
 

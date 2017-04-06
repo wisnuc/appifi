@@ -168,7 +168,6 @@ class FileService {
       return this.data.createNode(dirUUID, xstat)
     }
     catch (err) {
-      console.log(11,err)
       throw err
     }
     finally {
@@ -314,6 +313,7 @@ class FileService {
 
     let node = this.data.findNodeByUUID(fileUUID)
     if (!node) throw new E.ENODENOTFOUND()
+
     if (!this.userWritable(userUUID, node)) throw new E.EACCESS()
     if(typeof name !== 'string' || path.basename(path.normalize(name)) !== name) throw new E.EINVAL
 
@@ -327,7 +327,7 @@ class FileService {
         throw e
     }finally{
       if(node.parent) this.data.requestProbeByUUID(node.parent)
-      else if(node.isDirectory()) this.data.requestProbeByUUID(node)
+      else if(node.isDirectory()) this.data.requestProbeByUUID(targetUUID)
     }
     
   }

@@ -3,8 +3,8 @@ import { expect } from 'chai'
 import EventEmitter from 'events'
 
 import { rimrafAsync, mkdirpAsync } from '../../../src/fruitmix/util/async'
-import { createDocumentStore } from '../../../src/fruitmix/lib/documentStore'
-import { createFileShareStore } from '../../../src/fruitmix/lib/shareStore'
+import { createDocumentStoreAsync } from '../../../src/fruitmix/lib/documentStore'
+import { createFileShareStoreAsync } from '../../../src/fruitmix/lib/shareStore'
 import { createFileShareDoc, updateFileShareDoc } from '../../../src/fruitmix/file/fileShareDoc'
 import { createFileShareData } from '../../../src/fruitmix/file/fileShareData'
 import E from '../../../src/fruitmix/lib/error'
@@ -95,8 +95,7 @@ describe(path.basename(__filename), () => {
     // console.log(n8.parent.name)
   })
 
-  const createDocumentStoreAsync = Promise.promisify(createDocumentStore)
-  const createFileShareStoreAsync = Promise.promisify(createFileShareStore)
+  after(async() => await rimrafAsync('tmptest'))
 
   let fileShareStore, fileShareData
 
@@ -320,6 +319,31 @@ describe(path.basename(__filename), () => {
       expect(sharePath).to.be.an.instanceof(E.ENODENOTFOUND)
       done()
     })
+  })
+
+  describe('getUserFlieShares', function() {
+    let share1, share2
+    let post1 = { writelist: [aliceUUID],
+                  readlist: [bobUUID],
+                  collection: [uuid2, uuid4, uuid6] 
+                }
+    let post2 = { writelist: [charlieUUID],
+                 readlist: [bobUUID],
+                 collection: [uuid9] 
+               }
+    beforeEach(async () => {
+      let doc1 = createFileShareDoc(fileData, userUUID, post1)
+      let doc2 = createFileShareDoc(fileData, aliceUUID, post2)
+      share1 = await fileShareData.createFileShare(doc1)
+      share2 = await fileShareData.createFileShare(doc2)
+    })
+
+    it('should return shares user is author or in readerSet', async () => {
+      let shares = await fileShareData.getUserFileShares(aliceUUID)
+      expect(shares[0]).to.deep.equal(share1)
+      expect(shares[1]).to.deep.equal(share2)
+    })
+
   })
 })
 

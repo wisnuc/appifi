@@ -92,7 +92,7 @@ class MediaShareData extends EventEmitter {
     super()
     this.model = model 
     this.mediaShareStore = mediaShareStore
-    this.shareMap = new Map()
+    this.mediaShareMap = new Map()
     this.lockSet = new Set()
   }
 
@@ -129,7 +129,7 @@ class MediaShareData extends EventEmitter {
   } 
 
   getShareByUUID(uuid) {
-    return this.shareMap.get(uuid)
+    return this.mediaShareMap.get(uuid)
   }
 
   async load() {
@@ -146,7 +146,7 @@ class MediaShareData extends EventEmitter {
     let digest = await this.storeAsync(doc)
     let share = new MediaShare(digest, doc)
 
-    this.shareMap.set(doc.uuid, share)
+    this.mediaShareMap.set(doc.uuid, share)
     this.emit('mediaShareCreated', [share])
     return share
   }
@@ -163,7 +163,7 @@ class MediaShareData extends EventEmitter {
     let next = new MediaShare(digest, doc)
    
     this.emit('mediaShareUpdating', share, next)
-    this.shareMap.set(doc.uuid, next)
+    this.mediaShareMap.set(doc.uuid, next)
     this.emit('mediaShareUpdated', share, next)
     return next
   }
@@ -176,12 +176,12 @@ class MediaShareData extends EventEmitter {
     await this.archiveAsync(uuid) 
 
     this.emit('mediaShareDeleting', share)
-    this.shareMap.delete(uuid)
+    this.mediaShareMap.delete(uuid)
   }
 
-  getUserMediaShares(userUUID) {
+  async getUserMediaShares(userUUID) {
     let shares = []
-    this.ShareMap.forEach((value, key, map) => {
+    this.mediaShareMap.forEach((value, key, map) => {
       let share = value
       if (share.doc.author === userUUID || 
           share.doc.maintainers.find(u => u === userUUID) || 

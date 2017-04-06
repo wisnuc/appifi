@@ -330,6 +330,26 @@ class ModelService {
     return null;
   }
 
+  // determine whether local users
+  isLocalUser(useruuid, callback) {
+    // find user by uuid
+    let user = this.modelData.users.find(u => u.uuid === useruuid);
+    user ? callback(null, user.type === 'local') : callback(new Error('user not found'))
+  }
+
+  // get drive info
+  getDriveInfo(driveuuid, callback){
+    // find drive by uuid
+    let drive = this.modelData.drives.find(d => d.uuid === driveuuid);
+    if (!drive)
+      callback(new Error('drive not found'))
+    else if (drive.owner) {
+      // not public drive get ownername
+      let ownername = (this.modelData.users.find(u => u.uuid === drive.owner)).username;
+      callback(null, Object.assign({}, drive, { ownername }))
+    } else callback(null, drive)
+  }
+
 /**
   register(ipc){
     ipc.register('createLocalUser', asCallback(this.createLocalUserAsync).bind(this))
@@ -340,6 +360,8 @@ class ModelService {
   register(ipc) {
     ipc.register('createLocalUser', (args, callback) => this.createLocalUserAsync(args).asCallback(callback))
     ipc.register('updateUser', (args, callback) => this.updateUserAsync(args).asCallback(callback))
+    ipc.register('isLocalUser', (args, callback) => isLocalUser(args, callback))
+    ipc.register('getDriveInfo', (args, callback) => getDriveInfo(args, callback))
   }
 }
 

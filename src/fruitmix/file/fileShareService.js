@@ -99,7 +99,7 @@ class FileShareService {
 
   async getUserFileShares(userUUID) {
     if(!isUUID(userUUID)) throw new E.EINVAL()
-    return this.fileShareData.getUserFileShares(userUUID)
+    return await this.fileShareData.getUserFileShares(userUUID)
   }
 
   register(ipc) {
