@@ -313,7 +313,7 @@ class FileService {
   // rename a directory or file
   async renameAsync({ userUUID, targetUUID, name }) {
 
-    let node = this.data.findNodeByUUID(fileUUID)
+    let node = this.data.findNodeByUUID(targetUUID)
     if (!node) throw new E.NODENOTFOUND()
     if (!this.userWritable(userUUID, node)) throw new E.EACCESS()
     if(typeof name !== 'string' || path.basename(path.normalize(name)) !== name) throw new E.EINVAL
@@ -328,7 +328,7 @@ class FileService {
         throw e
     }finally{
       if(node.parent) this.data.requestProbeByUUID(node.parent)
-      else if(node.isDirectory()) this.data.requestProbeByUUID(node)
+      else if(node.isDirectory()) this.data.requestProbeByUUID(targetUUID)
     }
     
   }

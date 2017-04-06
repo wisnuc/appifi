@@ -50,6 +50,9 @@ class Worker extends EventEmitter {
     return this.state === 'RUNNING'
   }
 
+  isPadding() {
+    return this.state === 'PADDING'
+  }
 
 }
 
@@ -62,10 +65,11 @@ class Worker extends EventEmitter {
  */
 
 class Move extends Worker {
-  constructor(src, dst) {
+  constructor(src, dst, data) {
     super()
     this.src = src
     this.dst = dst
+    this.data = data
   }
 
   cleanUp() {
@@ -88,6 +92,14 @@ class Move extends Worker {
           this.delete(err => {
             if(this.finished) return 
             if(err) return this.error(err)
+
+            let srcNode = this.data.findNodeByUUID(path.basename(this.src))
+            let dstNode = this.data.findNodeByUUID(path.basename(this.dst))
+            if(srcNode)
+              this.data.requestProbeByUUID(srcNode.parent)
+            if(dstNode)
+              this.data.requestProbeByUUID(dstNode.uuid)
+
             return this.finish(this)//TODO probe
           })
         })
@@ -99,6 +111,10 @@ class Move extends Worker {
           this.move(err => {
             if(this.finished) return 
             if(err) return this.error(err)
+
+            let dstNode = this.data.findNodeByUUID(path.basename(this.dst))
+            if(dstNode)
+              this.data.requestProbeByUUID(dstNode.uuid)
             return this.finish(this)
           })
         })
@@ -173,11 +189,12 @@ class Move extends Worker {
 }
 
 class Copy extends Worker {
-  constructor(src, dst, tmp) {
+  constructor(src, dst, tmp, data) {
     super()
     this.src = src
     this.dst = dst
     this.tmp = tmp
+    this.data = data
   }
 
   cleanUp() {
@@ -205,8 +222,19 @@ class Copy extends Worker {
       fs.rename(this.tmp, this.dst, err => {
         if(this.finished) return 
         if(err) return  this.error(err)
-        // if(modeType === 'FF') //probe src dst
-        // if(modeType === 'EF') //probe dst
+        if(modeType === 'FF') {
+          let srcNode = this.data.findNodeByUUID(path.basename(this.src))
+          let dstNode = this.data.findNodeByUUID(path.basename(this.dst))
+          if(srcNode)
+            this.data.requestProbeByUUID(srcNode.parent)
+          if(dstNode)
+            this.data.requestProbeByUUID(dstNode.uuid)
+        } //probe src dst
+        if(modeType === 'EF') {
+          let dstNode = this.data.findNodeByUUID(path.basename(this.dst))
+          if(dstNode)
+            this.data.requestProbeByUUID(dstNode.uuid)
+        }//probe dst
         return this.finish(this)
       })
     })
@@ -224,10 +252,11 @@ class Copy extends Worker {
 
 
 class Transfer {
-  constructor() {
+  constructor(data) {
     this.workersQueue = []
     this.warningQueue = []
     this.limit = 1
+    this.data = data
   }
 
   schedule() {
@@ -240,13 +269,17 @@ class Transfer {
   }
   
   createMove(src, dst, callback) {
-    createMoveWorker(src, dst, (err, worker) => {
+    createMoveWorker(src, dst, this.data, (err, worker) => {
       if(err) return callback(ett)
       worker.on('finish', worker => {
-        
+        worker.state = 'FINISHED'
+        this.schedule()
       })
       worker.on('error', worker => {
-
+        worker.state = 'WARNING'
+        this.workersQueue.splice(this.warningQueue.indexOf(worker), 1)
+        this.warningQueue.push(worker)
+        this.schedule()
       })
       this.workersQueue.push(worker)
       callback(null, worker)
@@ -255,13 +288,17 @@ class Transfer {
   }
 
   createCopy(src, dst, callback) {
-    createCopyWorker(src, dst, (err, worker) => {
+    createCopyWorker(src, dst, this.data, (err, worker) => {
       if(err) return callback(err)
       worker.on('finish', worker => {
-
+        worker.state = 'FINISHED'
+        this.schedule()
       })
       worker.on('error', worker => {
-
+        worker.state = 'WARNING'
+        this.workersQueue.splice(this.warningQueue.indexOf(worker), 1)
+        this.warningQueue.push(worker)
+        this.schedule()
       })
       this.workersQueue.push(worker)
       callback(null, worker)
@@ -272,20 +309,21 @@ class Transfer {
 }
 
 
-const createMoveWorker = (src, dst, callback) => {
+const createMoveWorker = (src, dst, data, callback) => {
   if(fs.existsSync(src) && fs.existsSync(dst)) {
-    let worker = new Move(src, dst)
+    let worker = new Move(src, dst, data)
     return callback(null, worker)
   }
   return callback(new Error('path not exists'))
 }
 
-const createCopyWorker = (src, dst, callback) => {
+const createCopyWorker = (src, dst, data, callback) => {
   let tmp = path.join(process.cwd(), 'tmp') //TODO Get tmp folder
   if(fs.existsSync(src) && fs.existsSync(dst)) {
-    let worker = new Copy(src, dst, tmp)
+    let worker = new Copy(src, dst, tmp, data)
     return callback(null, worker)
   }
   return callback(new Error('path not exists'))
 }
 
+export default Transfer
