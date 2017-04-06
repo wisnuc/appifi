@@ -128,7 +128,7 @@ class MediaShareData extends EventEmitter {
     }
   } 
 
-  getShareByUUID(uuid) {
+  findShareByUUID(uuid) {
     return this.mediaShareMap.get(uuid)
   }
 
@@ -154,7 +154,7 @@ class MediaShareData extends EventEmitter {
   async updateMediaShare(doc) {
     validateMediaShareDoc(doc, this.model.getUsers())
 
-    let share = this.getShareByUUID(doc.uuid)
+    let share = this.findShareByUUID(doc.uuid)
     if (!share) throw new E.ENOENT() // 'uuid not found'
 
     invariantUpdate(share.doc, doc)
@@ -170,7 +170,7 @@ class MediaShareData extends EventEmitter {
 
   async deleteMediaShare(uuid) {
 
-    let share = this.getShareByUUID(uuid)
+    let share = this.findShareByUUID(uuid)
     if (!share) throw new E.ENOENT() // 'uuid not found'
 
     await this.archiveAsync(uuid) 
