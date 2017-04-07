@@ -1,6 +1,8 @@
 const path = require('path')
 const fs = Promise.promisifyAll(require('fs'))
+
 const router = require('express').Router()
+const validator = require('validator')
 
 import auth from '../../middleware/auth'
 import config from '../../config'
