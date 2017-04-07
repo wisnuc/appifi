@@ -1,5 +1,6 @@
 {
   "version": 1,
+
   "users": [
     {
       "type": "local",
@@ -15,7 +16,7 @@
       "service": "f97f9e1f-848b-4ed4-bd47-1ddfa82b5432",
       "password": "$2a$10$ejkgWk/ChHcLyZiic1H2CeLdoVcz15eZ/3Lymj1ncimVvq6E7OvWy",
       "unixPassword": "somestr",
-      "smbPassword": "066DDFD4EF0E9CD7C256FE77191EF43C",
+      "smbPassword": "479EF128928BA3670B47961E8A8A61FE",
       "unixuid": 2000,
       "unixname": "panda",
       "friends": [],
@@ -25,6 +26,7 @@
       },
       "lastChangeTime": 1489644639494
     },
+
     {
       "type": "local",
       "uuid": "6da92303-33a1-4f79-8d8f-a7b6becde6c3",
@@ -49,6 +51,7 @@
       },
       "lastChangeTime": 1489644639494
     }
+
   ],
   "drives": [
     {

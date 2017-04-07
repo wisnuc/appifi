@@ -1,11 +1,19 @@
 let fs = require('fs')
-let path = require('path')
+//let path = require('path')
 
 let SambaManager = require('./sambaManager')
 
 Promise.promisifyAll(fs)
 
-const userListConfigPath = '../../test/samba/model.json'
+//const userListConfigPath = '../../test/samba/model.json'
+
+let path = require('path')
+let process = require('process')
+
+let cwd = process.cwd()
+const userListConfigPath = path.join(cwd, 'test/samba/model.json')
+
+
 let debounceTime = 5000 // millisecond
 
 const startWatchAsync = async () => {

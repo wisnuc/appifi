@@ -4,7 +4,15 @@ let mkdirp = require('mkdirp')
 let getPrependPath = require('./prependPath')
 
 // define some parameters
-const userListConfigPath = '../../test/samba/model.json'
+//const userListConfigPath = '../../test/samba/model.json'
+
+let path = require('path')
+let process = require('process')
+
+let cwd = process.cwd()
+const userListConfigPath = path.join(cwd, 'test/samba/model.json')
+
+
 let prependPath = null
 
 // check & restart samba service

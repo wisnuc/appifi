@@ -11,7 +11,9 @@ module.exports = system => {
 
   // development error handler will print stacktrace
   if (app.get('env') === 'development') {
-    app.use((err, req, res) => res.status(err.status || 500).send('error: ' + err.message))
+    app.use((err, req, res) => {
+      //res.status(err.status || 500).send('error: ' + err.message)
+    })
   }
 
   // production error handler no stacktraces leaked to user

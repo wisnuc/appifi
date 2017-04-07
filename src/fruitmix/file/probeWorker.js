@@ -91,7 +91,7 @@ export default probe
 class probeWorker extends EventEmitter {
 
   constructor() {
-
+    super()
     this.type = 'probe'
 
     this.dpath = dpath

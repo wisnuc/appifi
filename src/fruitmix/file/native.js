@@ -4,7 +4,7 @@ import fs from 'fs'
 class NativeFileService {
 
   constructor() {
-    super()
+ //   super()
   }
 
   list(userUUID, fsUUID, dpath, callback) {

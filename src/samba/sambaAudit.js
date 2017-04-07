@@ -7,8 +7,8 @@ class SmbAudit extends EventEmitter {
 
     this.udp = udp
     this.udp.on('message', (message, remote) => {
-   
-      const token = ' smbd_audit: ' 
+
+      const token = ' smbd_audit: '
 
       let text = message.toString()
       let tidx = text.indexOf(' smbd_audit: ')
@@ -19,11 +19,11 @@ class SmbAudit extends EventEmitter {
       // %u <- user
       // %U <- represented user
       // %S <- share
-      // %P <- path 
+      // %P <- path
 
       if (arr.length < 6 || arr[0] !== 'root' || arr[5] !== 'ok')
-        return    
- 
+        return
+
       let user = arr[1]
       let share = arr[2]
       let abspath = arr[3]
@@ -51,7 +51,7 @@ class SmbAudit extends EventEmitter {
       case 'unlink':
       case 'pwrite':
         if (arr.length !== 7) return
-        arg0 = arr[6]         
+        arg0 = arr[6]
         break
 
       case 'rename':
@@ -66,11 +66,11 @@ class SmbAudit extends EventEmitter {
 
       let audit = { user, share, abspath, op, arg0 }
       if (arg1) audit.arg1 = arg1
-      
-      console.log('####################################################');
-      console.log(audit);
-      console.log('####################################################');
-      
+
+      //console.log('####################################################');
+      //console.log(audit);
+      //console.log('####################################################');
+
       // return audit
 
       process.send(audit);

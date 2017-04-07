@@ -9,8 +9,8 @@ const createUdpServer = (callback) => {
 
   udp.on('listening', () => {
     callback(null, new SmbAudit(udp))
-  }) 
- 
+  })
+
   udp.once('error', err => {
     if (err.code === 'EADDRINUSE') {
       callback(err)

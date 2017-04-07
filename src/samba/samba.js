@@ -9,7 +9,14 @@ let { startWatchAsync } = require('./watcher')
 Promise.promisifyAll(fs)
 Promise.promisifyAll(child)
 
-const userListConfigPath = '../../test/samba/model.json'
+//const userListConfigPath = '../../test/samba/model.json'
+
+let path = require('path')
+let process = require('process')
+
+let cwd = process.cwd()
+const userListConfigPath = path.join(cwd, 'test/samba/model.json')
+
 let debounceTime = 5000 // millisecond
 
 const initSambaAsync = async () => {
