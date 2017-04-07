@@ -52,17 +52,17 @@ describe(path.basename(__filename), () => {
 
   let model, fileData
 
-  let uuid1 = tree.UUIDMap.get('uuid1')
-  let uuid2 = tree.UUIDMap.get('uuid2')
-  let uuid4 = tree.UUIDMap.get('uuid4')
-  let uuid6 = tree.UUIDMap.get('uuid6')
-  let uuid9 = tree.UUIDMap.get('uuid9')
-  let uuid10 = tree.UUIDMap.get('uuid10')
-  let uuid11 = tree.UUIDMap.get('uuid11')
-  let userUUID = tree.UUIDMap.get('userUUID')
-  let aliceUUID = tree.UUIDMap.get('aliceUUID')
-  let bobUUID = tree.UUIDMap.get('bobUUID')
-  let charlieUUID = tree.UUIDMap.get('charlieUUID')
+  let uuid1 = tree.uuids.uuid1
+  let uuid2 = tree.uuids.uuid2
+  let uuid4 = tree.uuids.uuid4
+  let uuid6 = tree.uuids.uuid6
+  let uuid9 = tree.uuids.uuid9
+  let uuid10 = tree.uuids.uuid10
+  let uuid11 = tree.uuid11
+  let userUUID = tree.uuids.userUUID
+  let aliceUUID = tree.uuids.aliceUUID
+  let bobUUID = tree.uuids.bobUUID
+  let charlieUUID = tree.uuids.charlieUUID
 
 
   before(async () => {
@@ -344,6 +344,7 @@ describe(path.basename(__filename), () => {
       catch(e) {
         err = e
       }
+      console.log(err)
       expect(err).to.be.an.instanceof(E.EACCESS)
     })
   })

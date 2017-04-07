@@ -28,6 +28,7 @@ const uuids = {
   'aliceUUID': 'b9aa7c34-8b86-4306-9042-396cf8fa1a9c',
   'bobUUID': 'f97f9e1f-848b-4ed4-bd47-1ddfa82b2777',
   'charlieUUID': 'e5f23cb9-1852-475d-937d-162d2554e22c',
+  'remoteUUID': 'b8ff0e08-0acb-4013-8129-a4d913e79339',
   'uuid1': '1ec6533f-fab8-4fad-8e76-adc76f80aa2f',
   'uuid2': '278a60cf-2ba3-4eab-8641-e9a837c12950',
   'uuid3': '3772dd7e-7a4c-461a-9a7e-79310678613a',
@@ -48,11 +49,11 @@ class Model extends EventEmitter {
   }
 
   getUsers() {
-    return [ {uuid: 'c9f1d82e-5d88-46d7-ad43-24d51b1b6628', type: 'local'},
+    return [ {uuid: uuids.userUUID, type: 'local'},
              {uuid: 'b9aa7c34-8b86-4306-9042-396cf8fa1a9c', type: 'local'},
              {uuid: 'f97f9e1f-848b-4ed4-bd47-1ddfa82b2777', type: 'local'},
              {uuid: 'e5f23cb9-1852-475d-937d-162d2554e22c', type: 'local'},
-             {uuid: 'b8ff0e08-0acb-4013-8129-a4d913e79339', type: 'remote'},
+             {uuid: 'b8ff0e08-0acb-4013-8129-a4d913e79339', type: 'remote'}
            ]
   }
 }
@@ -63,7 +64,7 @@ const createTestTrees = async (model, fileData) => {
   let n1, n2, n3, n4, n5, n6, n7, n8
    model.emit('drivesCreated', [ {uuid: uuids.uuid1, type: 'private',owner: uuids.userUUID}, 
                                  {uuid: uuids.uuid9, type: 'private', owner: uuids.aliceUUID},
-                                 {uuid: uuids.uuid10, type: 'public', writelist: [Uuuids.userUUID], readlist: [uuids.bobUUID], shareAllowed: false},
+                                 {uuid: uuids.uuid10, type: 'public', writelist: [uuids.userUUID], readlist: [uuids.bobUUID], shareAllowed: false},
                                  {uuid: uuids.uuid11, type: 'public', writelist: [uuids.aliceUUID], readlist: [uuids.bobUUID], shareAllowed: true}
                                ])
     await Promise.delay(200)
