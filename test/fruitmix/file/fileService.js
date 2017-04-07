@@ -10,7 +10,7 @@ import { createFileShareData } from '../../../src/fruitmix/file/fileShareData'
 import { createFileShareService } from '../../../src/fruitmix/file/fileShareService'
 import E from '../../../src/fruitmix/lib/error'
 import FileData from '../../../src/fruitmix/file/fileData'
-const FileService = require('../../../src/fruitmix/file/fileService').default
+import FileService from '../../../src/fruitmix/file/fileService'
 
 class Model extends EventEmitter {
   constructor() {
@@ -37,8 +37,6 @@ const userUUID = 'c9f1d82e-5d88-46d7-ad43-24d51b1b6628'
 const aliceUUID = 'b9aa7c34-8b86-4306-9042-396cf8fa1a9c'
 const bobUUID = 'f97f9e1f-848b-4ed4-bd47-1ddfa82b2777'
 // const charlieUUID = 'e5f23cb9-1852-475d-937d-162d2554e22c'
-//TODO: 
-const dirUUID = '1ec6533f-fab8-4fad-8e76-adc76f80aa2f'
 
 const uuid1 = '1ec6533f-fab8-4fad-8e76-adc76f80aa2f'
 const uuid2 = '278a60cf-2ba3-4eab-8641-e9a837c12950'
@@ -58,12 +56,13 @@ describe(path.basename(__filename), () => {
   // generate a tree
   before(async () => {
 
-    // await rimrafAsync('tmptest')
-    // await mkdirpAsync('tmptest')
+    await rimrafAsync('tmptest')
+    await mkdirpAsync('tmptest')
+
     model = new Model()
     fileData = new FileData(tmpdir, model)
 
-    //
+    //four different drive
     let arr = [
       { uuid: uuid1, type: 'private', owner: userUUID },
       { uuid: uuid9, type: 'private', owner: aliceUUID },
@@ -81,31 +80,24 @@ describe(path.basename(__filename), () => {
     fileData.createNode(n1, { type: 'directory', uuid: uuid2, name: 'n2' })
     await Promise.delay(100)
     n2 = fileData.uuidMap.get(uuid2)
-    // console.log(n2.parent.name)
     fileData.createNode(n2, { type: 'directory', uuid: uuid3, name: 'n3' })
     await Promise.delay(100)
     n3 = fileData.uuidMap.get(uuid3)
-    // console.log(n3.parent.name)
     fileData.createNode(n3, { type: 'directory', uuid: uuid4, name: 'n4' })
     await Promise.delay(100)
     n4 = fileData.uuidMap.get(uuid4)
-    // console.log(n4.parent.name)
     fileData.createNode(n1, { type: 'directory', uuid: uuid5, name: 'n5' })
     await Promise.delay(100)
     n5 = fileData.uuidMap.get(uuid5)
-    // console.log(n5.parent.name)
     fileData.createNode(n1, { type: 'directory', uuid: uuid6, name: 'n6' })
     await Promise.delay(100)
     n6 = fileData.uuidMap.get(uuid6)
-    // console.log(n6.parent.name)
     fileData.createNode(n6, { type: 'directory', uuid: uuid7, name: 'n7' })
     await Promise.delay(100)
     n7 = fileData.uuidMap.get(uuid7)
-    // console.log(n7.parent.name)
     fileData.createNode(n7, { type: 'directory', uuid: uuid8, name: 'n8' })
     await Promise.delay(100)
     n8 = fileData.uuidMap.get(uuid8)
-    // console.log(n8.parent.name)
 
     // n1
     //  |-n2
@@ -114,20 +106,33 @@ describe(path.basename(__filename), () => {
     //  |-n6
     //   |-n7
     //    |-n8
+
     // n9
+    // n10
+    // n11
   })
 
-  // after(async () => await rimrafAsync('tmptest'))
+  after(async () => await rimrafAsync('tmptest'))
 
   let fileShareStore, shareData, fileService
   beforeEach(async () => {
+
     await rimrafAsync(froot)
     await mkdirpAsync(froot)
 
     let docstore = await createDocumentStoreAsync(froot)
     fileShareStore = await createFileShareStoreAsync(froot, docstore)
-    shareData = await createFileShareData(model, fileShareStore)
+    shareData = createFileShareData(model, fileShareStore)
     fileService = new FileService(froot, fileData, shareData)
+
+    //FIXME: 
+    // let fileShareService = createFileShareService(fileData, shareData)
+    // let post = {
+    //   writelist: [aliceUUID],
+    //   readlist: [bobUUID],
+    //   collection: [uuid2, uuid4, uuid6]
+    // }
+    // await fileShareService.createFileShare('abcd', post)
   })
 
   afterEach(async () => await rimrafAsync(froot))
@@ -142,26 +147,44 @@ describe(path.basename(__filename), () => {
     })
   })
 
-  describe('list should list all items inside a directory', function () {
-    it('userUUID isn`t onwer', async () => {
+  describe('list', function () {
+    it('should return error if userUUID isn`t onwer', async () => {
+      let err,args = { userUUID: uuid9, dirUUID: uuid1 }
       try {
-        await fileService.list({ userUUID: uuid9, dirUUID: uuid1 })
+        await fileService.list(args)
       }
-      catch (err) {
-        expect(err).to.be.an.instanceof(E.EACCESS)
+      catch (e) {
+        err = e
       }
+      expect(err).to.be.an.instanceof(E.EACCESS)
     })
   })
   
-  describe('navList should list all items inside a directory, with given', function () {
-    it('userUUID isn`t onwer', async () => {
+  describe('navList', function () {
+    it('should return error if dirUUID isn`t a virtual drive uuid', async () => {
+      let err,args = { userUUID, dirUUID: uuid10, rootUUID: uuid1 }
       try {
-        let list = await fileService.list({ userUUID, dirUUID: uuid1 ,rootUUID: uuid1})
+        await fileService.navList(args)
+      }
+      catch (e) {
+        err = e
+      }
+      expect(err).to.be.an.instanceof(E.ENOENT)
+    })
+  })
+
+  describe('createDirectory', function () {
+    it('should return error if dirUUID is a fileShare uuid', async () => {
+      let err,args = { userUUID, dirUUID: uuid10, dirname: 'xxxxx' }
+      try {
+        let list = await fileService.createDirectory(args)
         console.log(list)
       }
-      catch (err) {
-        expect(err).to.be.an.instanceof(E.EACCESS)
+      catch (e) {
+        err = e
       }
+      console.log(err)
+      // expect(err).to.be.an.instanceof(E.NODENOTFOUND)
     })
   })
 })
