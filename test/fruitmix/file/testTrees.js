@@ -102,7 +102,7 @@ const createTestTrees = async (model, fileData) => {
 }
 
 module.exports = {
-  UUIDMap,
+  uuids,
   model,
   createTestTrees,
 }
