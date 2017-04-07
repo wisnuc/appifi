@@ -99,17 +99,20 @@ describe(path.basename(__filename), () => {
     await Promise.delay(100)
     n8 = fileData.uuidMap.get(uuid8)
 
-    // n1
-    //  |-n2
-    //   |-n3
-    //  |-n5
-    //  |-n6
-    //   |-n7
-    //    |-n8
+  /**
+   * n1   
+   *   n2
+   *     n3
+   *       n4
+   *   n5
+   *   n6
+   *     n7
+   *       n8
+   * n9
+   * n10
+   * n11
+   */
 
-    // n9
-    // n10
-    // n11
   })
 
   after(async () => await rimrafAsync('tmptest'))
