@@ -41,7 +41,7 @@ module.exports = system => {
   })
 
   httpServer.on('listening', () => {
-    console.log('[appifi] server listening on port ' + httpServer.address().port)
+    console.log('[system] server listening on port ' + httpServer.address().port)
   })
 
   httpServer.listen(port);

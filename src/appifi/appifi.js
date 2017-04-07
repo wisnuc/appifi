@@ -1,11 +1,11 @@
 const http = require('http')
 const app = require('./index')
-const port = 3000
+const port = 3720
 
-// inject (piggyback) system api
-module.exports = system => {
+// inject (piggyback) appifi api
+module.exports = appifi => {
 
-  app.use('/system', system)
+  app.use('/appifi', appifi)
 
   // catch 404 and forward to error handler
   app.use((req, res, next) => next(Object.assign(new Error('Not Found'), { status: 404 })))
