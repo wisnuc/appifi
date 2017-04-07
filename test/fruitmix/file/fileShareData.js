@@ -1,6 +1,5 @@
 import path from 'path'
 import { expect } from 'chai'
-import EventEmitter from 'events'
 
 import { rimrafAsync, mkdirpAsync } from '../../../src/fruitmix/util/async'
 import { createDocumentStoreAsync } from '../../../src/fruitmix/lib/documentStore'
@@ -19,16 +18,16 @@ describe(path.basename(__filename), () => {
 
   let model, fileData
 
-  let uuid2 = tree.UUIDMap.get('uuid2')
-  let uuid3 = tree.UUIDMap.get('uuid3')
-  let uuid4 = tree.UUIDMap.get('uuid4')
-  let uuid5 = tree.UUIDMap.get('uuid5')
-  let uuid6 = tree.UUIDMap.get('uuid6')
-  let uuid9 = tree.UUIDMap.get('uuid9')
-  let userUUID = tree.UUIDMap.get('userUUID')
-  let aliceUUID = tree.UUIDMap.get('aliceUUID')
-  let bobUUID = tree.UUIDMap.get('bobUUID')
-  let charlieUUID = tree.UUIDMap.get('charlieUUID')
+  let uuid2 = tree.uuids.uuid2
+  let uuid3 = tree.uuids.uuid3
+  let uuid4 = tree.uuids.uuid4
+  let uuid5 = tree.uuids.uuid5
+  let uuid6 = tree.uuids.uuid6
+  let uuid9 = tree.uuids.uuid9
+  let userUUID = tree.uuids.userUUID
+  let aliceUUID = tree.uuids.aliceUUID
+  let bobUUID = tree.uuids.bobUUID
+  let charlieUUID = tree.uuids.charlieUUID
 
 
   before(async () => {
