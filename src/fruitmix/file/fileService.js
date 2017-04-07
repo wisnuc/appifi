@@ -102,7 +102,7 @@ class FileService {
     } 
   }
 
-  // list all tree inside a directory
+  // list all descendant inside a directory
   async tree({ userUUID, dirUUID }) {
     
     let node = this.data.findNodeByUUID(dirUUID)
@@ -110,9 +110,11 @@ class FileService {
     if (!node) throw new E.ENODENOTFOUND() 
     if (!node.isDirectory()) throw new E.ENOTDIR()
     if (!(this.userReadable(userUUID, node))) throw new E.EACCESS()
+
+
   }
 
-  // list all tree inside a directory, with given
+  // list all descendant inside a directory, with given
   // rootUUID must be a fileshare uuid or virtual drive uuid.
   async navTree({ userUUID, dirUUID, rootUUID }) {
 

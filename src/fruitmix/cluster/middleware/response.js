@@ -8,9 +8,28 @@ const DEFAULT_ERROR_STATUS = 500
 
 //http code
 const httpCode = {
-  400: 'EINVAL',
-  404: 'ENOENT'
+  400: 'EINVAL',// invalid parameters
+  404: 'ENOTFOUND',// not found
+  500: 'ESYSER' // system error
 }
+
+// define('EINVAL', 'invalid parameters')
+// define('EACCESS', 'access denied')
+// define('EFORMAT', 'bad format')
+// define('EABORT', 'aborted')
+// define('ENOTDIR', 'not a directory')
+// define('ENOTFILE', 'not a regular file')
+// define('ENOTDIRFILE', 'not a directory or a regular file')
+// define('EINSTANCE', 'instance changed')
+// define('ECONTENT', 'content changed (digest mismatch)')
+// define('ETIMESTAMP', 'timestamp changed during operation')
+// define('EEXITCODE', 'exit with error code')
+// define('EEXITSIGNAL', 'exit with signal')
+// define('ENOENT', 'no entry')
+// define('ELOCK', 'lock error')
+
+// define('ENODENOTFOUND', 'node not found')     // be different from ENOENT, which is easily confused with fs error, TODO not sure if this is the right design
+// define('ENODEDETACHED', 'node is detached')
 
 export default (req, res, next) => {
 
