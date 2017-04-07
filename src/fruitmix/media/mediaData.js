@@ -128,7 +128,7 @@ class MediaData {
       let item = pair[0]
       let doc = pair[1].doc
       if (item.creator === userUUID) sharedWithOthers = true
-      if (doc.maintainers.includes(userUUID) || .doc.viewers.includes(userUUID)) {
+      if (doc.maintainers.includes(userUUID) || doc.viewers.includes(userUUID)) {
         sharedWithMe = true
         sharedWithMeAvailable = this.model.userIsLocal(doc.author) 
           ? true 

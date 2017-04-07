@@ -4,6 +4,9 @@ const path = require('path')
 const fs = Promise.promisifyAll(require('fs'))
 const child = require('child_process')
 
+const EventEmitter = require('events').EventEmitter
+const sambaAudit = new EventEmitter()
+
 const debug = require('debug')('fruitmix:tools')
 
 // return ENOENT, EPARSE or local users
@@ -108,7 +111,7 @@ const probeAsync = async mountpoint => {
         friends: u.friends,
         lastChangeTime: u.lastChangeTime
       }))
-    }    
+    }
   }
   catch (e) {
 
@@ -119,16 +122,20 @@ const probeAsync = async mountpoint => {
 
 const fork = (cfs, init, callback) => {
 
-	let froot = path.join(cfs.mountpoint, 'wisnuc', 'fruitmix')
-	let modpath = path.resolve(__dirname, '../../fruitmix/main')
+  let froot = path.join(cfs.mountpoint, 'wisnuc', 'fruitmix')
+  let modpath = path.resolve(__dirname, '../../fruitmix/main')
 
-	console.log(`forking fruitmix, waiting for 120s before timeout`)
+  console.log(`forking fruitmix, waiting for 120s before timeout`)
 
   let finished = false
   let fruitmix = child.fork(modpath, ['--path', froot], { 
 		env: Object.assign({}, process.env, { FORK: 1 }),
 		stdio: ['ignore', 1, 2, 'ipc'] 		// this looks weird, but must be in this format, see node doc
 	})
+
+  sambaAudit.on('sambaAudit', (data) => {
+    console.log(JSON.stringify(data))
+  })
 
   fruitmix.on('error', err => {
 
@@ -150,7 +157,7 @@ const fork = (cfs, init, callback) => {
     switch (message.type) {
       case 'fruitmixStarted':
 
-				console.log('[fork fruitmix] fruitmixStarted message received from child process')
+        console.log('[fork fruitmix] fruitmixStarted message received from child process')
 
         if (init) {
           fruitmix.send('message', {
@@ -162,7 +169,7 @@ const fork = (cfs, init, callback) => {
         else {
           fruitmix.removeAllListeners()
           finished = true
-          callback(null, fruitmix) 
+          callback(null, fruitmix)
         }
         break
 
@@ -212,7 +219,8 @@ const fork = (cfs, init, callback) => {
 }
 
 module.exports = {
-  probeAsync,  
+  probeAsync,
+  sambaAudit,
   forkAsync: async function (cfs, init = null) {
 		await Promise.promisify(fork)(cfs, init)
 	}
