@@ -15,7 +15,7 @@ const bootableFsTypes = ['btrfs', 'ext4', 'ntfs']
 /**
 const decorateStorageAsync = async pretty => {
 
-  let mps = [] 
+  let mps = []
 
   pretty.volumes.forEach(vol => {
     if (vol.isMounted && !vol.isMissing) mps.push({
@@ -48,18 +48,16 @@ const decorateStorageAsync = async pretty => {
 **/
 
 // extract file systems out of storage object
-const extractFileSystems = ({blocks, volumes}) => 
-  [ ...blocks.filter(blk => blk.isFileSystem && !blk.isVolumeDevice),  
+const extractFileSystems = ({blocks, volumes}) =>
+  [ ...blocks.filter(blk => blk.isFileSystem && !blk.isVolumeDevice),
     ...volumes.filter(vol => vol.isFileSystem) ]
 
-// 
 const shouldProbeFileSystem = fsys =>
-  (fsys.isVolume && fsys.isMounted && !fsys.isMissing) 
+  (fsys.isVolume && fsys.isMounted && !fsys.isMissing)
   || (!fsys.isVolume && fsys.isMounted && (fsys.isExt4 || fsys.isNTFS))
 
-// 
 const probeAllAsync = async fileSystems =>
-  Promise.map(fileSystems.filter(shouldProbeFileSystem), 
+  Promise.map(fileSystems.filter(shouldProbeFileSystem),
     async fsys => {
       try {
         fsys.wisnuc = await fruitmix.probeAsync(fsys.mountpoint)
@@ -74,20 +72,20 @@ const throwError = message => { throw new Error(message) }
 const assertFileSystemGood = fsys =>
   (!bootableFsTypes.includes(fsys.fileSystemType))
     ? throwError('unsupported bootable type')
-    : (!fsys.isMounted) 
+    : (!fsys.isMounted)
       ? throwError('file system is not mounted')
-      : (fsys.isVolume && fsys.isMissing) 
+      : (fsys.isVolume && fsys.isMissing)
         ? throwError('file system has missing device')
         : true
 
-const assertReadyToBoot = wisnuc => 
+const assertReadyToBoot = wisnuc =>
   (!wisnuc || typeof wisnuc !== 'object' || wisnuc.status !== 'READY')
     ? throwError('fruitmix status not READY')
     : true
 
 const assertReadyToInstall = wisnuc =>
   (!wisnuc || typeof wisnuc !== 'object' || wisnuc.status !== 'ENOENT')
-    ? throwError('fruitmix status not ENOENT')    
+    ? throwError('fruitmix status not ENOENT')
     : true
 
 const shutdownAsync = async reboot => {
@@ -111,8 +109,10 @@ module.exports = {
   },
 
   bootAsync: async function (cfs, init) {
-   	await fruitmix.forkAsync(cfs, init)
-    await samba.forkAsync(cfs, init) 
+
+    await fruitmix.forkAsync(cfs, init)
+    await samba.forkAsync(cfs, init)
+
     Config.updateLastFileSystem({type: cfs.type, uuid: cfs.uuid})
   },
 
@@ -123,7 +123,7 @@ module.exports = {
     let fileSystems = extractFileSystems(storage)
     await probeAllAsync(fileSystems)
 
-    console.log('[autoboot] storage and fruitmix', JSON.stringify(storage, null, '  '))
+    //console.log('[autoboot] storage and fruitmix', JSON.stringify(storage, null, '  '))
 
     let last = Config.get().lastFileSystem
     if (last) {    

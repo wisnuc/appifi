@@ -5,7 +5,7 @@ const port = 3720
 // inject (piggyback) appifi api
 module.exports = appifi => {
 
-  app.use('/appifi', appifi)
+  //app.use('/appifi', appifi)
 
   // catch 404 and forward to error handler
   app.use((req, res, next) => next(Object.assign(new Error('Not Found'), { status: 404 })))
@@ -44,5 +44,6 @@ module.exports = appifi => {
   })
 
   httpServer.listen(port);
+
 }
 

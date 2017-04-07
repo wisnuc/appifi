@@ -4,14 +4,16 @@ const path = require('path')
 const fs = Promise.promisifyAll(require('fs'))
 const child = require('child_process')
 
+let sambaAudit = require('./fruitmix').sambaAudit
+
 const debug = require('debug')('samba')
 
 const fork = (cfs, init, callback) => {
 
-	let froot = path.join(cfs.mountpoint, 'wisnuc', 'samba')
-	let modpath = path.resolve(__dirname, '../../samba/samba')
+  let froot = path.join(cfs.mountpoint, 'wisnuc', 'samba')
+  let modpath = path.resolve(__dirname, '../../samba/samba')
 
-	console.log(`forking samba, waiting for 120s before timeout`)
+  console.log(`forking samba, waiting for 120s before timeout`)
 
   let finished = false
   let samba = child.fork(modpath, ['--path', froot], {
@@ -22,7 +24,6 @@ const fork = (cfs, init, callback) => {
   if(samba && samba !== undefined && samba !== null) {
     finished = true
   }
-
 
   samba.on('error', err => {
 
@@ -39,7 +40,11 @@ const fork = (cfs, init, callback) => {
 
     //if (finished === true) return
 
-    console.log(`[BOOT] samba message: ${JSON.stringify(message)}`)
+    //console.log(`[BOOT] samba message: ${JSON.stringify(message)}`)
+
+    sambaAudit.emit('sambaAudit', message)
+
+    callback(null, samba)
 
     // switch (message.type) {
     //   case 'fruitmixStarted':
@@ -84,7 +89,7 @@ const fork = (cfs, init, callback) => {
   })
 
   samba.on('close', (code, signal) => {
-    
+
     //if (finished === true) return
 
     console.log(`[BOOT] samba closed. code: ${code}, signal: ${signal}`)
@@ -94,7 +99,7 @@ const fork = (cfs, init, callback) => {
   })
 
   setTimeout(() => {
-    
+
     if (finished === true) return
 
     console.log(`[BOOT] failed to start samba in 120s`)
@@ -103,6 +108,8 @@ const fork = (cfs, init, callback) => {
     finished = true
     callback(new Error('fork samba timeout'))
   }, 120000)
+
+  callback(null, samba)
 }
 
 module.exports = {

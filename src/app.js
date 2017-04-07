@@ -20,7 +20,7 @@ const main = async () => {
   await Device.probeAsync()
   await Storage.initAsync(storageFile, storageTmpDir)
   await Boot.autoBootAsync()
-  
+
   appifiServer(appifi)
   systemServer(system)
 }
