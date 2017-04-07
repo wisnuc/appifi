@@ -12,38 +12,6 @@ import E from '../../../src/fruitmix/lib/error'
 import FileData from '../../../src/fruitmix/file/fileData'
 const tree = require('./testTrees')
 
-// const userUUID = 'c9f1d82e-5d88-46d7-ad43-24d51b1b6628'
-// const aliceUUID = 'b9aa7c34-8b86-4306-9042-396cf8fa1a9c'
-// const bobUUID = 'f97f9e1f-848b-4ed4-bd47-1ddfa82b2777'
-// const charlieUUID = 'e5f23cb9-1852-475d-937d-162d2554e22c'
-
-// const uuid1 = '1ec6533f-fab8-4fad-8e76-adc76f80aa2f'
-// const uuid2 = '278a60cf-2ba3-4eab-8641-e9a837c12950'
-// const uuid3 = '3772dd7e-7a4c-461a-9a7e-79310678613a'
-// const uuid4 = '4ba43b18-326a-4011-90ce-ec78afca9c43'
-// const uuid5 = '5da92303-33a1-4f79-8d8f-a7b6becde6c3'
-// const uuid6 = '6e702f92-6073-4c11-a406-0a4776212d14'
-// const uuid7 = '75b5dac2-591a-4c63-8e5e-a955ce51b576'
-// const uuid8 = '8359f954-ade1-43e1-918e-8ca9d2dc81a0'
-// const uuid9 = '97e352f8-5535-473d-9dac-8706ffb79abb'
-// const uuid10 = '016ca193-af05-467e-bbfa-844859bd7f9e'
-// const uuid11 = 'a8eec3c8-70e5-411b-90fd-ee3e181254b9'
-
-// class Model extends EventEmitter {
-//   constructor() {
-//     super()
-//   }
-
-//   getUsers() {
-//     return [ {uuid: 'c9f1d82e-5d88-46d7-ad43-24d51b1b6628', type: 'local'},
-//              {uuid: 'b9aa7c34-8b86-4306-9042-396cf8fa1a9c', type: 'local'},
-//              {uuid: 'f97f9e1f-848b-4ed4-bd47-1ddfa82b2777', type: 'local'},
-//              {uuid: 'e5f23cb9-1852-475d-937d-162d2554e22c', type: 'local'},
-//              {uuid: 'b8ff0e08-0acb-4013-8129-a4d913e79339', type: 'remote'},
-//            ]
-//   }
-// }
-
 const cwd = process.cwd()
 const tmpdir = path.join(cwd, 'tmptest')
 const froot = path.join(tmpdir, 'tmptest')
@@ -52,17 +20,17 @@ describe(path.basename(__filename), () => {
 
   let model, fileData
 
-  let uuid1 = tree.UUIDMap.get('uuid1')
-  let uuid2 = tree.UUIDMap.get('uuid2')
-  let uuid4 = tree.UUIDMap.get('uuid4')
-  let uuid6 = tree.UUIDMap.get('uuid6')
-  let uuid9 = tree.UUIDMap.get('uuid9')
-  let uuid10 = tree.UUIDMap.get('uuid10')
-  let uuid11 = tree.UUIDMap.get('uuid11')
-  let userUUID = tree.UUIDMap.get('userUUID')
-  let aliceUUID = tree.UUIDMap.get('aliceUUID')
-  let bobUUID = tree.UUIDMap.get('bobUUID')
-  let charlieUUID = tree.UUIDMap.get('charlieUUID')
+  let uuid1 = tree.uuids.uuid1
+  let uuid2 = tree.uuids.uuid2
+  let uuid4 = tree.uuids.uuid4
+  let uuid6 = tree.uuids.uuid6
+  let uuid9 = tree.uuids.uuid9
+  let uuid10 = tree.uuids.uuid10
+  let uuid11 = tree.uuids.uuid11
+  let userUUID = tree.uuids.userUUID
+  let aliceUUID = tree.uuids.aliceUUID
+  let bobUUID = tree.uuids.bobUUID
+  let charlieUUID = tree.uuids.charlieUUID
 
 
   before(async () => {
