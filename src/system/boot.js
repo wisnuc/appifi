@@ -64,7 +64,7 @@ const probeAllAsync = async fileSystems =>
         fsys.wisnuc = await fruitmix.probeAsync(fsys.mountpoint)
       }
       catch (e) {
-        fsys.wisnuc = 'ERROR'
+        fsys.wisnuc = { status: 'EFAIL' }
       }
     })
 
