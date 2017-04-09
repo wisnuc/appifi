@@ -3,7 +3,7 @@ const http = require('http')
 const express = require('express')
 
 const app = express()
-const port = 3001
+const port = 3000
 
 module.exports = system => {
 
@@ -39,7 +39,7 @@ module.exports = system => {
   })
 
   httpServer.on('listening', () => {
-    console.log('[appifi] server listening on port ' + httpServer.address().port)
+    console.log('[system] server listening on port ' + httpServer.address().port)
   })
 
   httpServer.listen(port);
