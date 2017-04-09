@@ -5,7 +5,7 @@ import { readXstat, readXstatAsync, updateFileHashAsync } from './xstat'
 import DirectoryNode from './directoryNode'
 import FileNode from './fileNode'
 import E from '../lib/error'
-
+import { rimrafAsync } from '../util/async'
 
 class FileService {
 
@@ -50,56 +50,78 @@ class FileService {
   // list all items inside a directory
   async list({ userUUID, dirUUID }) {
 
-    let node = this.data.findNodeByUUID(dirUUID)
-  
-    if (!node) throw new E.NODENOTFOUND() 
-    if (!node.isDirectory()) throw new E.ENOTDIR()
-    if (!(this.userReadable(userUUID, node))) throw new E.EACCESS()
+    let shareCollection = this.shareData.findShareCollectionByUUID(dirUUID)
+    if (shareCollection) {
+      return shareCollection.map(n => this.nodeProps(n))
+      
+    } else {
+      let node = this.data.findNodeByUUID(dirUUID)
+      if (!node) throw new E.ENODENOTFOUND() 
+      if (!node.isDirectory()) throw new E.ENOTDIR()
+      if (!(this.userReadable(userUUID, node))) throw new E.EACCESS()
 
-    return node.getChildren().map(n => this.nodeProps(n))
-  }
+      return node.getChildren().map(n => this.nodeProps(n))
 
-  // list all items inside a directory, with given
-  // rootUUID must be a fileshare uuid or virtual drive uuid.
-  async navList({ userUUID, dirUUID, rootUUID }) {
-
-    let node = this.data.findNodeByUUID(dirUUID)
-    let root = this.data.findNodeByUUID(rootUUID)
-  
-    if (!node || !root) throw new E.NODENOTFOUND() 
-    if (!node.isDirectory()) throw new E.ENOTDIR()
-    if (!(this.userReadable(userUUID, node))) throw new E.EACCESS()
-
-    let path = node.nodepath()
-    let index = path.indexOf(root)
-
-    if (index === -1) throw new E.ENOENT()
-    let subpath = path.slice(index)
-    
-    return {
-      path: subpath.map(n => this.nodeProps(n)),
-      entries: node.getChildren().map(n => this.nodeProps(n))
     }
   }
 
-  // list all tree inside a directory
+  // list all items inside a directory, with given
+  // dirUUID must be a virtual drive uuid 
+  // rootUUID can be a fileshare uuid or virtual drive uuid.
+  async navList({ userUUID, dirUUID, rootUUID }) {
+
+    let node = this.data.findNodeByUUID(dirUUID)
+    if (!node) throw new E.ENODENOTFOUND()
+    if (!node.isDirectory()) throw new E.ENOTDIR()
+    if (!(this.userReadable(userUUID, node))) throw new E.EACCESS()
+
+    let share = this.shareData.findShareByUUID(rootUUID)
+    if (share) {
+      
+      let path = this.shareData.findSharePath(rootUUID,dirUUID)
+      return {
+        path: path,
+        entries: node.getChildren().map(n => this.nodeProps(n))
+      } 
+      
+    } else {
+      
+      let root = this.data.findNodeByUUID(rootUUID)
+      if (!root) throw new E.ENODENOTFOUND()
+
+      let path = node.nodepath()
+      let index = path.indexOf(root)
+
+      if (index === -1) throw new E.ENOENT()
+      let subpath = path.slice(index)
+
+      return {
+        path: subpath.map(n => this.nodeProps(n)),
+        entries: node.getChildren().map(n => this.nodeProps(n))
+      }    
+    } 
+  }
+
+  // list all descendant inside a directory
   async tree({ userUUID, dirUUID }) {
     
     let node = this.data.findNodeByUUID(dirUUID)
   
-    if (!node) throw new E.NODENOTFOUND() 
+    if (!node) throw new E.ENODENOTFOUND() 
     if (!node.isDirectory()) throw new E.ENOTDIR()
     if (!(this.userReadable(userUUID, node))) throw new E.EACCESS()
+
+
   }
 
-  // list all tree inside a directory, with given
+  // list all descendant inside a directory, with given
   // rootUUID must be a fileshare uuid or virtual drive uuid.
   async navTree({ userUUID, dirUUID, rootUUID }) {
 
     let node = this.data.findNodeByUUID(dirUUID)
     let root = this.data.findNodeByUUID(rootUUID)
   
-    if (!node || !root) throw new E.NODENOTFOUND() 
+    if (!node || !root) throw new E.ENODENOTFOUND() 
     if (!node.isDirectory()) throw new E.ENOTDIR()
     if (!(this.userReadable(userUUID, node))) throw new E.EACCESS()
    
@@ -111,7 +133,7 @@ class FileService {
     let dirNode = this.data.findNodeByUUID(dirUUID)
     let fileNode = this.data.findNodeByUUID(fileUUID)
 
-    if (!dirNode || !fileNode) throw new E.NODENOTFOUND() 
+    if (!dirNode || !fileNode) throw new E.ENODENOTFOUND() 
     if (!dirNode.isDirectory()) throw new E.ENOTDIR()
     if (!fileNode.isFile()) throw new E.ENOENT()
     if (!(this.userReadable(userUUID, dirNode))) throw new E.EACCESS()
@@ -124,40 +146,35 @@ class FileService {
   }
 
   // create new directory inside given dirUUID
-  createDirectory({ userUUID, dirUUID, name }, callback) {
+  // dirUUID cannot be a fileshare UUID
+  async createDirectory({ userUUID, dirUUID, dirname }) {
 
-    // permission check
     let node = this.data.findNodeByUUID(dirUUID)
-    if (!targetNode.isDirectory()) {
-      let error = new Error('createFolder: target should be a folder')
-      error.code = 'EINVAL' 
-      return process.nextTick(callback, error)
-    }
 
-    // if not writable, EACCESS
-    if (!targetNode.userWritable(userUUID)) {
-      let error = new Error('createFolder: operation not permitted')
-      error.code = 'EACCESS'
-      return process.nextTick(callback, error)
-    }
+    if (!node) throw new E.ENODENOTFOUND() 
+    if (!node.isDirectory()) throw new E.ENOTDIR()
+    // permission check
+    if (!(this.userWritable(userUUID, node))) throw new E.EACCESS()
 
     // if already exists, EEXIST
-    if (this.list(userUUID, dirUUID).find(child => child.name == name)) {
-      let error = new Error('createFolder: file or folder already exists')
-      error.code = 'EEXIST'
-      return process.nextTick(callback, error)
+    if (node.getChildren().find(child => child.name === dirname)) {
+      throw new E.EEXIST()
     }
+    
+    try {
+      //create new createDirectory
+      let targetpath = path.join(node.abspath(), dirname)
+      fs.mkdir(targetpath)
 
-    //create new folder
-    fs.mkdir(targetpath, err => {
-      if(err) return callback(err)
-      readXstat(targetpath, (err, xstat) => {
-        //create new node
-        let node = this.data.createNode(targetNode, xstat)
-        callback(null, node)
-      })
-    })
-
+      let xstat = await readXstatAsync(targetpath)
+      return this.data.createNode(dirUUID, xstat)
+    }
+    catch (err) {
+      throw err
+    }
+    finally {
+      if (node.parent) this.data.requestProbeByUUID(node.parent)
+    }
   }
 
   // create new file inside given dirUUID, 
@@ -226,7 +243,7 @@ class FileService {
     // userUUID, dirUUID, name, src, mandatory; hash optional
 
     let node = this.data.findNodeByUUID(dirUUID)
-    if (!node) throw new E.NODENOTFOUND()
+    if (!node) throw new E.ENODENOTFOUND()
     if (!node.isDirectory()) throw new E.ENOTDIR()
     if (!this.userWritable(userUUID, node)) throw new E.EACCESS()
     if (node.getChildren().map(n => n.name).includes(name)) throw new E.EEXIST()
@@ -263,7 +280,7 @@ class FileService {
   // overwrite existing file
   async overwriteFileAsync({ userUUID, srcpath, fileUUID, hash }) {
     let node = this.data.findNodeByUUID(fileUUID)
-    if (!node) throw new E.NODENOTFOUND()
+    if (!node) throw new E.ENODENOTFOUND()
     if (!node.isFile()) throw new E.ENOTDIR()
     if (!this.userWritable(userUUID, node)) throw new E.EACCESS()
     // if (node.getChildren().map(n => n.name).includes(name)) throw new E.EEXIST()
@@ -297,7 +314,8 @@ class FileService {
   async renameAsync({ userUUID, targetUUID, name }) {
 
     let node = this.data.findNodeByUUID(fileUUID)
-    if (!node) throw new E.NODENOTFOUND()
+    if (!node) throw new E.ENODENOTFOUND()
+
     if (!this.userWritable(userUUID, node)) throw new E.EACCESS()
     if(typeof name !== 'string' || path.basename(path.normalize(name)) !== name) throw new E.EINVAL
 
@@ -311,36 +329,43 @@ class FileService {
         throw e
     }finally{
       if(node.parent) this.data.requestProbeByUUID(node.parent)
-      else if(node.isDirectory()) this.data.requestProbeByUUID(node)
+      else if(node.isDirectory()) this.data.requestProbeByUUID(targetUUID)
     }
     
   }
 
   // move a directory or file into given dirUUID
   move(userUUID, srcUUID, dirUUID, callback) {
+    
   }
   
   // delete a directory or file
   // dirUUID cannot be a fileshare UUID
   async del({ userUUID, dirUUID, nodeUUID }) {
+    
+    let share = this.shareData.findShareByUUID(dirUUID)
+    if (share) throw new E.ENOENT()
 
-    let share = this.shareData.fsMap.get(dirUUID)
-    if(share) throw new E.ENOENT()
+    let dirNode = this.data.findNodeByUUID(dirUUID)
+    if (!dirNode) throw new E.ENODENOTFOUND()
+    if (!dirNode.isDirectory()) throw new E.ENOTDIR() 
 
     let node = this.data.findNodeByUUID(nodeUUID)
-    let dirNode = this.data.findNodeByUUID(dirUUID)
+    if (!node) throw new E.ENODENOTFOUND()
 
-    if (!node) throw new E.NODENOTFOUND()
-    if (!dirNode) throw new E.NODENOTFOUND()
+    if (!this.userWritable(userUUID, node)) throw new E.EACCESS()
 
-    if (!this.userWritable(userUUID, dirNode)) throw new E.EACCESS()
-
-    //FIXME: 
-    // rimraf(node.namepath(), err => {
-    //   if (err) throw (err)
-    //   this.deleteSubTree(node)
-    //   return 
-    // })
+    try {
+      await rimrafAsync(node.namepath())
+      await this.data.deleteNode(node)
+      return 
+    } 
+    catch (err) {
+      throw err
+    } 
+    finally {
+      if (node.parent) this.data.requestProbeByUUID(node.parent)
+    }
   }
 
   // for debug
@@ -358,14 +383,14 @@ class FileService {
     ipc.register('createFile', (args, callback) => 
       this.createFileAsync(args).asCallback(callback))
     ipc.register('rename', (args, callback) => this.renameAsync(args).asCallback(callback))
-    ipc.register('createDirectory', this.createDirectory.bind(this))
+    ipc.register('createDirectory', (args, callback) => this.createDirectory(args).asCallback(callback))
     ipc.register('overwriteFile', (args, callback) => this.overwriteFileAsync(args).asCallback(callback))
     ipc.register('list', (args, callback) => this.list(args).asCallback(callback))
     ipc.register('navList', (args, callback) => this.navList(args).asCallback(callback))
     ipc.register('tree', (args, callback) => this.tree(args).asCallback(callback))
     ipc.register('navTree', (args, callback) => this.navTree(args).asCallback(callback))
-    ipc.register('readFile', this.readFile.bind(this))
-    ipc.register('del', this.del.bind(this))
+    ipc.register('readFile', (args, callback) => this.readFile(args).asCallback(callback))
+    ipc.register('del', (args, callback) => this.del(args).asCallback(callback))
 
     ipc.register('printFiles', this.printFiles.bind(this)) 
   }

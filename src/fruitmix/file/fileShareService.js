@@ -10,8 +10,12 @@ class FileShareService {
     this.fileShareData = fileShareData
   }
 
-  async createFileShare(user, post) {
-    if(!isUUID(user)) throw new E.EINVAL()
+  async load() {
+    await this.fileShareData.load()
+  }
+
+  async createFileShare(userUUID, post) {
+    if(!isUUID(userUUID)) throw new E.EINVAL()
     if(typeof post !== 'object' || post === null) throw new E.EINVAL()
 
     validateProps(post, ['writelist', 'readlist', 'collection'])
@@ -23,9 +27,9 @@ class FileShareService {
     if(!collection.length) throw new E.EINVAL()
     if(!collection.every(isUUID)) throw new E.EINVAL()
     if(!collection.every(uuid => {
-      let rootnode = this.fileData.findNodeByUUID(uuid).root()
-      if(rootnode.type === 'private') return user === rootnode.owner
-      else return rootnode.shareAllowed && [...rootnode.writelist, ...rootnode.readlist].includes(user)
+      let drive = this.fileData.findNodeByUUID(uuid).getDrive()
+      if(drive.type === 'private') return userUUID === drive.owner
+      else return drive.shareAllowed && [...drive.writelist, ...drive.readlist].includes(userUUID)
     }))
       throw new E.EACCESS()
 
@@ -37,17 +41,16 @@ class FileShareService {
     if(!Array.isArray(readlist)) throw new E.EINVAL()
     if(!readlist.every(isUUID)) throw new  E.EINVAL()
 
-    let doc = createFileShareDoc(this.fileData, user, post)
+    let doc = createFileShareDoc(this.fileData, userUUID, post)
     return await this.fileShareData.createFileShare(doc)
   }
 
-  async updateFileShare(user, shareUUID, patch) {
-    if(!isUUID(user)) throw new E.EINVAL()
+  async updateFileShare(userUUID, shareUUID, patch) {
+    if(!isUUID(userUUID)) throw new E.EINVAL()
     if(!isUUID(shareUUID)) throw new E.EINVAL()
 
-    let share = this.fileShareData.findShareByUUID(shareUUID)
-    if(!share) throw new E.ENOENT()
-    if(share.doc.author !== user) throw new E.EACCESS()
+    let share = this.getFileShareByUUID(shareUUID)
+    if(share.doc.author !== userUUID) throw new E.EACCESS()
     
     if(!Array.isArray(patch)) throw new E.EINVAL()
     patch.forEach(op => {
@@ -57,19 +60,17 @@ class FileShareService {
 
       if(complement([op.path], ['writelist', 'readlist', 'collection']).length !== 0)
         throw new E.EINVAL()
-      if(op.operation !== 'add' && op.operation !== 'delete'){
+      if(op.operation !== 'add' && op.operation !== 'delete')
         throw new E.EINVAL()
-      }
+
       if(!Array.isArray(op.value)) throw new E.EINVAL()
       if(!op.value.every(isUUID)) throw new E.EINVAL()
 
       if(op.path === 'collection') {
         if(!op.value.every(uuid => {
-          let rootnode = this.fileData.findNodeByUUID(uuid).root()
-          if(rootnode.type === 'private') return user === rootnode.owner
-          else {
-            return rootnode.shareAllowed && [...rootnode.writelist, ...rootnode.readlist].includes(user)
-          }
+          let drive = this.fileData.findNodeByUUID(uuid).getDrive()
+          if(drive.type === 'private') return userUUID === drive.owner
+        else return drive.shareAllowed && [...drive.writelist, ...drive.readlist].includes(userUUID)
         }))
           throw new E.EACCESS()
       }      
@@ -79,19 +80,40 @@ class FileShareService {
     return await this.fileShareData.updateFileShare(newDoc)
   }
 
-  async deleteFileShare(user, shareUUID) {
-    if(!isUUID(user)) throw new E.EINVAL()
+  async deleteFileShare(userUUID, shareUUID) {
+    if(!isUUID(userUUID)) throw new E.EINVAL()
     if(!isUUID(shareUUID)) throw new E.EINVAL()
 
-    let share = this.fileShareData.findShareByUUID(shareUUID)
-    if(!share) throw new E.ENOENT()
-    if(share.doc.author !== user) throw new E.EACCESS()
+    let share = this.getFileShareByUUID(shareUUID)
+    if(share.doc.author !== userUUID) throw new E.EACCESS()
 
     await this.fileShareData.deleteMediaShare(shareUUID)
   }
 
-  async load() {
-    console.log('fileShareService pretends to be loaded')
+  getFileShareByUUID(shareUUID) {
+    if(!isUUID(shareUUID)) throw new E.EINVAL()
+    let share = this.fileShareData.findShareByUUID(shareUUID)
+    if(share) return share
+    else throw new E.ENOENT()
+  }
+
+  async getUserFileShares(userUUID) {
+    if(!isUUID(userUUID)) throw new E.EINVAL()
+    return await this.fileShareData.getUserFileShares(userUUID)
+  }
+
+  register(ipc) {
+    ipc.register('getUserFileShares', (args, callback) => 
+      this.getUserFileShare(args.userUUID).asCallback(callback))
+    
+    ipc.register('createFileShare', (args, callback) => 
+      this.createFileShare(args.userUUID, args.post).asCallback(callback))
+
+    ipc.register('updateFileShare', (args, callback) => 
+      this.updateFileShare(args.userUUID, args.shareUUID, args.patch).asCallback(callback))
+
+    ipc.register('deleteFileShare', (args, callback) => 
+      this.deleteFileShare(args.userUUID, args.shareUUID).asCallback(callback))
   }
 }
 

@@ -9,6 +9,7 @@ import { createFileShareStore, createMediaShareStore } from '../lib/shareStore'
 import { createFileShareData } from '../file/fileShareData'
 import { createFileShareService } from '../file/fileShareService'
 import FileService from '../file/fileService'
+import Transfer from '../file/transfer'
 
 const makeDirectoriesAsync = async froot => {
 
@@ -22,10 +23,10 @@ const makeDirectoriesAsync = async froot => {
     mkdirpAsync(join('documents')),
     mkdirpAsync(join('fileShare')),
     mkdirpAsync(join('fileShareArchive')),
-    mkdirpAsync(join('mediashare')),
-    mkdirpAsync(join('mediashareArchive')),
-    mkdirpAsync(join('mediatalk')),
-    mkdirpAsync(join('mediatallArchive')),
+    mkdirpAsync(join('mediaShare')),
+    mkdirpAsync(join('mediaShareArchive')),
+    mkdirpAsync(join('mediaTalk')),
+    mkdirpAsync(join('mediaTalkArchive')),
     mkdirpAsync(join('thumbnail')),
     mkdirpAsync(join('log')),
     mkdirpAsync(join('etc')),
@@ -45,9 +46,10 @@ export default async () => {
 	const docStore = await createDocumentStoreAsync(froot)
 	const fileData = new FileData(path.join(froot, 'drives'), modelService.modelData)	
   const fileShareStore = await Promise.promisify(createFileShareStore)(froot, docStore) 
-  const fileShareData = await createFileShareData(modelData, fileShareStore)
+  const fileShareData = createFileShareData(modelData, fileShareStore)
   const fileShareService = createFileShareService(fileData, fileShareData)
-  const fileService = new FileService(froot, fileData, fileShareData) 
+  const fileService = new FileService(froot, fileData, fileShareData)
+  const transfer = new Transfer(fileData) 
 
 	await modelService.initializeAsync()
 
@@ -76,5 +78,6 @@ export default async () => {
   ipc.register('ipctest', (text, callback) => process.nextTick(() => callback(null, text.toUpperCase())))
   modelService.register(ipc) 
   fileService.register(ipc)
+  transfer.register(ipc)
 }
 

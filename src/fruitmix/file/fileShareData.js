@@ -65,13 +65,38 @@ class FileShareData extends EventEmitter {
     this.emit('fileShareCreated', shares)
   }
 
+  // return the collection of given share doc
   findShareCollectionByUUID(uuid) {
     return this.findShareByUUID(uuid) 
-      ? this.findShareByUUID(uuid).doc.collection : null
+      ? this.findShareByUUID(uuid).doc.collection 
+      : null
   }
 
   findShareByUUID(uuid) {
     return this.fileShareMap.get(uuid)
+  }
+
+  // for a given share includes given node's ancestor, return the path 
+  // from ancestor to given node
+  findSharePath(shareUUID, nodeUUID) {
+    let share = this.findShareByUUID(shareUUID)
+    let namepath = this.fileData.findNodeByUUID(nodeUUID).namepath()
+    let sharePath
+
+    if(share) {
+      let found = share.doc.collection.find(uuid => {
+
+        let name = this.fileData.findNodeByUUID(uuid).name
+
+        if(namepath.includes(name)) {
+          let index = namepath.indexOf(name)
+          return sharePath = namepath.slice(index)
+        }
+      })
+      return found ? sharePath : new E.ENODENOTFOUND()
+    } else {
+      return new E.ENOENT()
+    }
   }
 
   userAuthorizedToRead(userUUID, node) { // starting from root
@@ -150,13 +175,26 @@ class FileShareData extends EventEmitter {
     this.emit('fileShareDeleting', share)
     this.fileShareMap.delete(uuid)
   }
+
+  async getUserFileShares(userUUID) {
+    let shares = []
+    this.fileShareMap.forEach((value, key, map) => {
+      let share = value
+      if (share.doc.author === userUUID || 
+          share.doc.writelist.find(u => u === userUUID) || 
+          share.doc.readlist.find(u => u === userUUID)) 
+        shares.push(share) 
+    })
+    return shares
+  }
 }
 
-const createFileShareData = async (model, fileShareStore, fileData) => {
+const createFileShareData = (model, fileShareStore, fileData) => {
   Promise.promisifyAll(fileShareStore)
-  let fileShareData = new FileShareData(model, fileShareStore, fileData)
-  await fileShareData.load()
-  return fileShareData
+  // let fileShareData = new FileShareData(model, fileShareStore, fileData)
+  // await fileShareData.load()
+  // return fileShareData
+  return new FileShareData(model, fileShareStore, fileData)
 }
 
 export { createFileShareData }
