@@ -2,6 +2,7 @@
 import { Router } from 'express'
 
 import auth from '../middleware/auth'
+import config from '../config'
 
 let router = Router()
 
