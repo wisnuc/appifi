@@ -45,7 +45,7 @@ const tree01 = {
 describe(path.basename(__filename), () => {
 
 
-  describe('should return', () => {
+  describe('create a hash worker', () => {
 
     beforeEach(async () => {
       await rimrafAsync(tmpdir)
@@ -57,9 +57,33 @@ describe(path.basename(__filename), () => {
       expect(h.finished).to.be.false
       done()
     })
+
+    it('should set fpath to given fpath', done => {
+      let h = hash(tmpdir, uuidArr[0])
+      expect(h.fpath).to.equal(tmpdir)
+      done()
+    })
+
+    it('should set uuid to given uuid', done => {
+      let h = hash(tmpdir, uuidArr[0])
+      expect(h.uuid).to.equal(uuidArr[0])
+      done()
+    })
+
+    it('should set cmd to undefined', done => {
+      let h = hash(tmpdir, uuidArr[0])
+      expect(h.cmd).to.be.undefined
+      done()
+    })
+
+    it('should set hash to undefined', done => {
+      let h = hash(tmpdir, uuidArr[0])
+      expect(h.hash).to.be.undefined
+      done()
+    })
   })
 
-  describe('should match digest for "world"', () => {
+  describe('hash computing', () => {
 
     let digest = '486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7'
     let xstat, fpath = path.join(tmpdir, 'hello')
@@ -79,6 +103,16 @@ describe(path.basename(__filename), () => {
         done()
       })
       h.start()
+    })
+
+    it('should return error if aborted', done => {
+      let h = hash(fpath, xstat.uuid)
+      h.on('error', err => {
+        expect(err).to.be.an.instanceof(E.EABROT)
+        done()
+      })
+      h.start()
+      setTimeout(() => h.abort(), 10)
     })
   })
 })
