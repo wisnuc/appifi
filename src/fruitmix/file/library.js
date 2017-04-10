@@ -11,18 +11,19 @@ import { localUsers } from '../cluster/model'
 const isUUID = (uuid) => (typeof uuid === 'string') ? validator.isUUID(uuid) : false
 
 
-const librariesMigration =  (filedata) => {
+const librariesMigration =  (filedata, callback) => {
   localUsers((e, users) => {
     let userLibraries = users.filter( user => user.library === 'string' && user.library )
                               .map( user => user.library)
-
-    userLibraries.forEach((library => {
-
-    }))                            
+    let count = userLibraries.length
+    userLibraries.forEach((library => libraryMigration(filedata.findNodeByUUID(library), () => {
+      count--
+      if(count == 0) return callback()
+    })))                            
   })
 }
 
-const libraryMigration = (libraryNode) => {
+const libraryMigration = (libraryNode, callback) => {
   if(!libraryNode) return 
   if(!(libraryNode.children instanceof Array)) return
   let libraryPath = libraryNode.absPath()
@@ -30,17 +31,18 @@ const libraryMigration = (libraryNode) => {
     if(!isUUID(uuid)) return 
     let devicePath = path.join(libraryPath, deviceUUID)
     fs.readdir(devicePath, (err, files) => {
-      if(err) return 
+      if(err) return fs.rmdir(devicePath, err => callback())
       
+      if(files.length === 0) 
+
       let count = files.length
       
       let done = () => {
         count--
-        if(count == 0){
-          //del devicePath
-
-        }
+        if(count == 0) return fs.rmdir(devicePath, err => callback())
       }
+
+      
 
       files.forEach(file => {
          // src is in tmp folder
@@ -58,3 +60,5 @@ const libraryMigration = (libraryNode) => {
     })
   })
 }
+
+export { librariesMigration }
