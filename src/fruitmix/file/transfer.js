@@ -15,6 +15,7 @@ class Worker extends EventEmitter {
     this.finished = false
     this.state = 'PADDING'
     this.id = UUID.v4()
+    this.userUUID = ''
   }
 
   cleanUp() {
@@ -65,11 +66,12 @@ class Worker extends EventEmitter {
  */
 
 class Move extends Worker {
-  constructor(src, dst, data) {
+  constructor(src, dst, data, userUUID) {
     super()
     this.src = src
     this.dst = dst
     this.data = data
+    this.userUUID = userUUID
   }
 
   cleanUp() {
@@ -79,8 +81,8 @@ class Move extends Worker {
   run() {
     if(this.state !== 'PADDING') return 
 
-    let srcType = isFruitmix(this.src)
-    let dstType = isFruitmix(this.dst)
+    let srcType = src.type === 'fruitmix'
+    let dstType = dst.type === 'fruitmix'
     let modeType = srcType && dstType ? 'FF' : srcType && !dstType ?
                     'FE' : !srcType && dstType ? 'EF' : 'EE'
     switch(modeType){
@@ -112,7 +114,7 @@ class Move extends Worker {
             if(this.finished) return 
             if(err) return this.error(err)
 
-            let dstNode = this.data.findNodeByUUID(path.basename(this.dst))
+            let dstNode = this.data.findNodeByUUID(path.basename(this.dst.path))
             if(dstNode)
               this.data.requestProbeByUUID(dstNode.uuid)
             return this.finish(this)
@@ -129,6 +131,8 @@ class Move extends Worker {
   }
 
   copy(callback) {
+    // let srcpath = this.src.type === 'fruitmix' ? this.data.findNodeByUUID(path.basename(this.src.path)) : 
+    // to join ext path
     child.exec(`cp -r --reflink=auto ${ this.src } ${ this.dst }`,(err, stdout, stderr) => {
       if(err) return callback(err)
       if(stderr) return callback(stderr)
@@ -189,12 +193,13 @@ class Move extends Worker {
 }
 
 class Copy extends Worker {
-  constructor(src, dst, tmp, data) {
+  constructor(src, dst, tmp, data, userUUID) {
     super()
     this.src = src
     this.dst = dst
     this.tmp = tmp
     this.data = data
+    this.userUUID = userUUID
   }
 
   cleanUp() {
@@ -206,6 +211,9 @@ class Copy extends Worker {
     this.state = 'RUNNING'
     let srcType = isFruitmix(this.src)
     let dstType = isFruitmix(this.dst)
+
+    //check src.type .path
+
     let modeType = srcType && dstType ? 'FF' : srcType && !dstType ?
                     'FE' : !srcType && dstType ? 'EF' : 'EE'
     // switch(modeType){
@@ -268,8 +276,8 @@ class Transfer {
       .forEach(worker => worker.start())
   }
   
-  createMove(src, dst, callback) {
-    createMoveWorker(src, dst, this.data, (err, worker) => {
+  createMove({ src, dst, userUUID }, callback) {
+    createMoveWorker(src, dst, this.data, userUUID, (err, worker) => {
       if(err) return callback(ett)
       worker.on('finish', worker => {
         worker.state = 'FINISHED'
@@ -287,8 +295,8 @@ class Transfer {
     })
   }
 
-  createCopy(src, dst, callback) {
-    createCopyWorker(src, dst, this.data, (err, worker) => {
+  createCopy({ src, dst, userUUID }, callback) {
+    createCopyWorker(src, dst, this.data, userUUID, (err, worker) => {
       if(err) return callback(err)
       worker.on('finish', worker => {
         worker.state = 'FINISHED'
@@ -301,15 +309,40 @@ class Transfer {
         this.schedule()
       })
       this.workersQueue.push(worker)
-      callback(null, worker)
       this.schedule()
+      callback(null, worker)
     })
   }
 
+  getWorkers (userUUID , callback) {
+    let data = this.workersQueue.filter(worker => worker.userUUID === userUUID)
+    process.nextTick(() => callback(null, data))
+  }
+
+  abortWorker ({userUUID , workerId}, callback){
+    let worker = this.workersQueue.find((worker => worker.id === workerId && worker.userUUID === userUUID))
+    if(worker){
+      try{
+        worker.abort()
+        process.nextTick(() => callback(null, true))
+      }catch(e){
+        process.nextTick(() => callback(e))
+      }
+    }else{
+      process.nextTick(() => callback(new E.EABORT()))
+    }
+  }
+
+  register(ipc){
+    ipc.register('createMove', this.createMove.bind(this)) 
+    ipc.register('createCopy', this.createCopy.bind(this))
+    ipc.register('getWorkers', this.getWorkers.bind(this))
+    ipc.register('abortWorker', this.abortWorker.bind(this))
+  }
 }
 
 
-const createMoveWorker = (src, dst, data, callback) => {
+const createMoveWorker = (src, dst, data, userUUID, callback) => {
   if(fs.existsSync(src) && fs.existsSync(dst)) {
     let worker = new Move(src, dst, data)
     return callback(null, worker)
@@ -317,7 +350,7 @@ const createMoveWorker = (src, dst, data, callback) => {
   return callback(new Error('path not exists'))
 }
 
-const createCopyWorker = (src, dst, data, callback) => {
+const createCopyWorker = (src, dst, data, userUUID, callback) => {
   let tmp = path.join(process.cwd(), 'tmp') //TODO Get tmp folder
   if(fs.existsSync(src) && fs.existsSync(dst)) {
     let worker = new Copy(src, dst, tmp, data)

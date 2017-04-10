@@ -9,6 +9,7 @@ import { createFileShareStore, createMediaShareStore } from '../lib/shareStore'
 import { createFileShareData } from '../file/fileShareData'
 import { createFileShareService } from '../file/fileShareService'
 import FileService from '../file/fileService'
+import Transfer from '../file/transfer'
 
 const makeDirectoriesAsync = async froot => {
 
@@ -47,7 +48,8 @@ export default async () => {
   const fileShareStore = await Promise.promisify(createFileShareStore)(froot, docStore) 
   const fileShareData = createFileShareData(modelData, fileShareStore)
   const fileShareService = createFileShareService(fileData, fileShareData)
-  const fileService = new FileService(froot, fileData, fileShareData) 
+  const fileService = new FileService(froot, fileData, fileShareData)
+  const transfer = new Transfer(fileData) 
 
 	await modelService.initializeAsync()
 
@@ -76,5 +78,6 @@ export default async () => {
   ipc.register('ipctest', (text, callback) => process.nextTick(() => callback(null, text.toUpperCase())))
   modelService.register(ipc) 
   fileService.register(ipc)
+  transfer.register(ipc)
 }
 
