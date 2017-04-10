@@ -40,6 +40,15 @@ class Hash extends Worker {
                   : err ? this.error(err)
                   : this.finish(xstat)))))
   }
+  // run() {
+  //   fs.lstat(this.fpath, (err, stats) => 
+  //     this.finished ? undefined
+  //     : err ? this.error(err)
+  //     : !stats.isFile() ?  this.error(new E.ENOTFILE())
+  //     : this.cmd = command('openssl', ['dgst', '-sha256', '-r', this.fpath], (err, data) => 
+  //         this.finished ? undefined
+  //         : err ? console.log('command error') :(function(){})()))
+  // }
 }
 
 export default (fpath, uuid) => new Hash(fpath, uuid)

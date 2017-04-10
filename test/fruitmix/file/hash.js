@@ -7,7 +7,7 @@ import sinon from 'sinon'
 import xattr from 'fs-xattr'
 import validator from 'validator'
 
-import E from '../../../src/fruitmix/lib/error'
+const E = require('../../../src/fruitmix/lib/error')
 import { FILE } from '../../../src/fruitmix/lib/const'
 
 import { mkdirpAsync, rimrafAsync } from '../../../src/fruitmix/lib/async'
@@ -105,12 +105,19 @@ describe(path.basename(__filename), () => {
       h.start()
     })
 
-    it('should return error if aborted', done => {
+    it.only('should return error if aborted', done => {
       let h = hash(fpath, xstat.uuid)
       h.on('error', err => {
-        expect(err).to.be.an.instanceof(E.EABROT)
+        console.log('error.....')
+        console.log(err)
+        expect(err).to.be.an.instanceof(E.EABORT)
         done()
       })
+      h.on('finish', xstat2 => {
+        console.log('fisn......')
+        console.log(xstat2)
+        done()
+      }) 
       h.start()
       setTimeout(() => h.abort(), 10)
     })

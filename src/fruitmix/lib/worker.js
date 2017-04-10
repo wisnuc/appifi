@@ -1,4 +1,5 @@
 import EventEmitter from 'events'
+const E = require('./error')
 
 class Worker extends EventEmitter {
 
