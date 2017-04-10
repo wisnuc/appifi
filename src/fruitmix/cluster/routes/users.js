@@ -98,4 +98,13 @@ router.patch('/',auth.jwt(), (req, res) => {
   }
 })
 
+// determine whether local users
+router.get('/isLocalUser', auth.jwt(), (req, res) => {
+  let user = req.user
+  config.ipc.call('isLocalUser', user.uuid, (err, isLocal) => {
+    if (err) return res.status(500).json({})
+    res.status(200).json(Object.assign({}, { isLocal }))
+  })
+})
+
 export default router
