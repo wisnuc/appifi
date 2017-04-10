@@ -5,6 +5,7 @@
 import { Router } from 'express'
 import init from './init'
 import login from './login'
+import token from './token'
 import files from './files'
 import filemap from './filemap'
 import fileshare from './fileshare'
@@ -16,6 +17,7 @@ let router = Router()
 
 router.use('/init', init)
 router.use('/login', login)
+router.use('/token', token)
 //FIXME: auth
 // app.use('/*', auth.jwt())
 router.use('/files', files)
