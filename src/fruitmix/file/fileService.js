@@ -5,7 +5,7 @@ import { readXstat, readXstatAsync, updateFileHashAsync } from './xstat'
 import DirectoryNode from './directoryNode'
 import FileNode from './fileNode'
 import E from '../lib/error'
-import { rimrafAsync } from '../util/async'
+import { rimrafAsync, mkdirpAsync } from '../util/async'
 
 class FileService {
 
@@ -277,6 +277,37 @@ class FileService {
     }
   }
 
+  // create file or check in user's library  
+  async createLibraryFileAsync(args) {
+    let { sha256, libraryUUID, src, check } = args
+    let libraryNode = this.data.findNodeByUUID(libraryUUID)
+    if(typeof sha256 !== 'string') throw new E.EINVAL()
+    if (!libraryNode) throw new E.ENODENOTFOUND()
+    if (!libraryNode.isDirectory()) throw new E.ENOTDIR()
+    let node = libraryNode.getChildren().find( l => l.name === sha256.slice(0, 2))
+    if(node && node.isDirectory() && node.getChildren.map(l => l.name).includes(sha256.slice(2)))
+      throw new E.EEXIST()
+    if(check === true) return null
+
+    let dstFolder = path.join(libraryNode.abspath(),sha256.slice(0, 2))    
+    let dst = path.join(dstFolder, sha256.slice(2))
+    try{
+      await mkdirpAsync(dstFolder)
+      await fs.renameAsync(src, dst)
+       // read xstat
+      let xstat = await readXstatAsync(dst) 
+
+      //set xstat
+      xstat = await updateFileHashAsync(dst, xstat.uuid, sha256, xstat.mtime)
+
+      return xstat
+    }catch(e){
+      throw e
+    }finally{
+      this.data.requestProbeByUUID(libraryUUID)
+    }
+  }
+
   // overwrite existing file
   async overwriteFileAsync({ userUUID, srcpath, fileUUID, hash }) {
     let node = this.data.findNodeByUUID(fileUUID)
@@ -382,9 +413,11 @@ class FileService {
     // ipc.register('createFile', this.createFile.bind(this))
     ipc.register('createFile', (args, callback) => 
       this.createFileAsync(args).asCallback(callback))
+    ipc.register('createLibraryFile', (args, callback) =>
+       this.createLibraryFileAsync(args).asCallback(callback))
     ipc.register('rename', (args, callback) => this.renameAsync(args).asCallback(callback))
     ipc.register('createDirectory', (args, callback) => this.createDirectory(args).asCallback(callback))
-    ipc.register('overwriteFile', (args, callback) => this.overwriteFileAsync(args).asCallback(callback))
+    ipc. register('overwriteFile', (args, callback) => this.overwriteFileAsync(args).asCallback(callback))
     ipc.register('list', (args, callback) => this.list(args).asCallback(callback))
     ipc.register('navList', (args, callback) => this.navList(args).asCallback(callback))
     ipc.register('tree', (args, callback) => this.tree(args).asCallback(callback))
