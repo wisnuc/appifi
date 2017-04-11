@@ -77,3 +77,5 @@ router.post('/:sha256', auth.jwt(), (req, res) => {
 
   })
 })
+
+export default router

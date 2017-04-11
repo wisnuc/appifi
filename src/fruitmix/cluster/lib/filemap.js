@@ -107,7 +107,6 @@ class SegmentUpdater extends EventEmitter{
     writeStream.on('finish', () => {
       if(this.finished) return 
       if(writeStream.bytesWritten !== this.segmentSize) {
-        console.log('-0--'+ writeStream.bytesWritten + '---' + this.segmentSize)
         return this.error(new Error('size error'))
       }
         
