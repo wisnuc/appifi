@@ -1,4 +1,5 @@
 import EventEmitter from 'events'
+const E = require('./error')
 
 class Worker extends EventEmitter {
 
@@ -11,8 +12,8 @@ class Worker extends EventEmitter {
   }
 
   finalize() {
-    this.cleanUp() 
     this.finished = true
+    this.cleanUp() 
   }
 
   error(e, ...args) {

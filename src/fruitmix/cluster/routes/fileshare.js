@@ -1,4 +1,4 @@
-import { Router } from 'express'
+const Router = require('express')
 import auth from '../middleware/auth'
 import config from '../config'
 
