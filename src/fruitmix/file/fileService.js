@@ -111,7 +111,7 @@ class FileService {
     if (!node.isDirectory()) throw new E.ENOTDIR()
     if (!(this.userReadable(userUUID, node))) throw new E.EACCESS()
 
-
+    node.
   }
 
   // list all descendant inside a directory, with given
