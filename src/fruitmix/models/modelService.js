@@ -88,9 +88,6 @@ class ModelService {
       let users = JSON.parse(await fs.readFileAsync(upath));
       let drives = JSON.parse(await fs.readFileAsync(dpath));
       let obj = upgradeData(users, drives);
-      // upgrade data add create all service drive
-      // this.modelData.emit('drivesCreated', obj.drives.filter(d => d.type ==='service'));
-      // return await this.modelData.updateModelAsync(obj.users, obj.drives);
       return await this.modelData.initModelAsync(obj.users, obj.drives)
     } catch (e) {
       if (e.code !== 'ENOENT') throw e;
@@ -118,6 +115,21 @@ class ModelService {
   async createLocalUserAsync(args) {
 
     let { useruuid, props } = args;
+    /** 
+    creating the first useruuid is undefined
+    props {
+      *  type: 'local',
+      *  username,     // string
+      *  password,     // string
+      *  unixname      // string
+      a  nologin,      // bool
+      a  isFirstUser,  // bool
+      a  isAdmin,      // bool
+      a  email,        // string
+      a  avatar,       // string
+    }
+    **/
+
     // check permission
     let users = this.modelData.users;
     let admins = users.filter(u => u.isAdmin === true).map(u => u.uuid);
@@ -175,8 +187,6 @@ class ModelService {
     let newDrives = [ homeDrive, libraryDrive, serviceDrive ];
     
     await this.modelData.createUserAsync(newUser, newDrives);
-    // this.emit('drivesCreated', this.modelData.drives.filter(d =>
-    //  d.uuid === home || d.uuid === library || d.uuid === service));
 
     return {
       type, uuid, username, nologin, isFirstUser, isAdmin,
@@ -189,6 +199,15 @@ class ModelService {
   async createRemoteUserAsync(args) {
 
     let { useruuid, props } = args;
+    /** 
+    props {
+      *  type: 'remote',
+      *  username,       // string
+      a  email,          // string
+      a  avatar,         // string
+    }
+    **/
+
     // check permission
     let users = this.modelData.users;
     let admins = users.filter(u => u.isAdmin === true).map(u => u.uuid);
@@ -211,7 +230,6 @@ class ModelService {
     }]
 
     await this.modelData.createUserAsync(newUser, newDrives);
-    // this.emit('drivesCreated', this.modelData.drives.filter(d => d.uuid === service));
 
     return { type, username, uuid, email, avatar, service }
   }
@@ -296,7 +314,6 @@ class ModelService {
     let newDrive = { uuid, type, label, writelist, readlist, shareAllowed };
     
     await this.modelData.createDriveAsync(newDrive);
-    // this.emit('drivesCreated', [newDrive]);
     return newDrive;
   }
 
@@ -312,7 +329,6 @@ class ModelService {
     let next = Object.assign({}, drive, props);
 
     await this.modelData.updateDriveAsync(next);
-    // this.emit('driveUpdated', next);
     return next;
   }
 
@@ -326,15 +342,15 @@ class ModelService {
     let drive = this.modelData.drives.find(d => d.uuid === props.driveuuid);
     // delete
     await this.modelData.deleteDriveAsync(props.driveuuid);
-    // this.emit('drivesDeleted', drive);
     return null;
   }
 
   // determine whether local users
-  isLocalUser(useruuid, callback) {
+  async isLocalUser(useruuid) {
     // find user by uuid
-    let user = this.modelData.users.find(u => u.uuid === useruuid);
-    user ? callback(null, user.type === 'local') : callback(new Error('user not found'))
+    let user = this.modelData.users.find(u => u.uuid === useruuid)
+    if (!user) throw new Error('user not found')
+    return user.type === 'local'
   }
 
   // get drive info
@@ -350,24 +366,13 @@ class ModelService {
     } else callback(null, drive)
   }
 
-/**
-  register(ipc){
-    ipc.register('createLocalUser', asCallback(this.createLocalUserAsync).bind(this))
-    ipc.register('updateUser', asCallback(this.updateUserAsync).bind(this))
-  }
-**/
-
   register(ipc) {
     ipc.register('createLocalUser', (args, callback) => this.createLocalUserAsync(args).asCallback(callback))
     ipc.register('updateUser', (args, callback) => this.updateUserAsync(args).asCallback(callback))
-    ipc.register('isLocalUser', (args, callback) => isLocalUser(args, callback))
+    ipc.register('isLocalUser', (args, callback) => this.isLocalUser(args).asCallback(callback))
     ipc.register('getDriveInfo', (args, callback) => getDriveInfo(args, callback))
   }
 }
-
-// const asCallback = (asyncFn) => 
-//   (args, callback) => asyncFn.asCallback(args, (e, data) =>
-//     e ? callback(e) : callback(null, data))
 
 const createModelService = (froot) =>
   new ModelService(froot, createModelData(froot));

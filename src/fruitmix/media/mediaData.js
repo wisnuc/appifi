@@ -31,9 +31,13 @@ class MediaData {
     this.mediaShareData.on('shareDeleted', this.handleMediaShareDeleted.bind(this))
   }
 
+  findMediaByUUID(uuid) {
+    return this.map.get(uuid)
+  }
+
   handleMediaAppeared(node) {
     
-    let media = this.map.get(node.uuid)
+    let media = this.findMediaByUUID(node.uuid)
     if (!media) {
       media = new Media(node.hash)
       media.type = node.magic
@@ -48,7 +52,7 @@ class MediaData {
 
   handleMediaDisappearing(node) {
 
-    let media = this.map.get(node.uuid)
+    let media = this.findMediaByUUID(node.uuid)
     if (!media) {
       // log
       return 
@@ -63,7 +67,7 @@ class MediaData {
     share.doc.contents.forEach(item => {
       
       let digest = item.digest
-      let medium = this.map.get(digest)
+      let medium = this.findMediaByUUID(digest)
       if (medium) {
         medium.sharedItems.push([item, share]) // use 2-tuple for faster check on both creator and member
       }
@@ -80,7 +84,7 @@ class MediaData {
 
     return share.doc.contents.reduce((acc, item) => {
 
-      let medium = this.map.get(item.digest) 
+      let medium = this.findMediaByUUID(item.digest) 
       let index = medium.sharedItems.findIndex(pair => pair[0] === item)
       medium.sharedItems.splice(index, 1)
       acc.push(medium)
@@ -128,7 +132,7 @@ class MediaData {
       let item = pair[0]
       let doc = pair[1].doc
       if (item.creator === userUUID) sharedWithOthers = true
-      if (doc.maintainers.includes(userUUID) || .doc.viewers.includes(userUUID)) {
+      if (doc.maintainers.includes(userUUID) || doc.viewers.includes(userUUID)) {
         sharedWithMe = true
         sharedWithMeAvailable = this.model.userIsLocal(doc.author) 
           ? true 
@@ -144,6 +148,7 @@ class MediaData {
     return { sharedWithOthers, sharedWithMe, sharedWithMeAvailable }
   }
 
+  //TODO:
   mediumProperties(userUUID, medium) {
 
     // 1. user permitted to share (from fileData)
@@ -156,10 +161,11 @@ class MediaData {
 
   getAllMedia(userUUID) {
 
-    let arr
+    let arr = []
     for (let pair of this.map) {
       let props = this.mediumProperties(userUUID, pair[1])
-      if (props.permittedToShare || props.authorizedToRead || sharedWithOthers || sharedWithMe) {
+      if (props.permittedToShare || props.authorizedToRead || 
+      props.sharedWithOthers || props.sharedWithMe) {
         arr.push({
           
         })

@@ -32,7 +32,7 @@ router.post('/:type', auth.jwt(), (req, res) => {
     if(!((dst.type === 'fruitmix' && isUUID(dst.path)) || !(dst.type === 'ext' && !path.isAbsolute(dst.path))))
       return res.error(new Error('dst error'), 400)
       
-    config.ipc.call('createMove', { src, dst, userUUID: req.user.uuid }, (e, data) => {
+    config.ipc.call(type, { src, dst, userUUID: req.user.uuid }, (e, data) => {
       if(e) return res.error(e, 500)
       return res.success(data, 200)
     })
