@@ -62,6 +62,15 @@ export default async () => {
 		process.on('message', message => {
 			switch (message.type) {
 			case 'createFirstUser':
+
+        let { username, password } = message
+
+        console.log('start with creating first user mode')
+        modelService.createLocalUserAsync({ props: { type: 'local', username, password }})
+          .asCallback((err, data) => {
+            console.log('creating first user return', err || data)
+            process.send({ type: 'createFirstUserDone', err, data })
+          })
 				break
 			default:
 				break	

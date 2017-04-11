@@ -10,11 +10,11 @@ const umountAsync = Promise.promisify(umount)
  * a volume device (disk), or standalone fs disk or partition.
  * eg. sdb, sdb1
  */ 
-const umountBlocks = async (adapted, target) => {
+const umountBlocks = async (storage, target) => {
 
-  debug('unmounte blocks, adapted, target', adapted, target)
+  debug('unmount blocks, storage, target', storage, target)
 
-  let {blocks, volumes } = adapted
+  let {blocks, volumes } = storage
 
   let blks = target.map(name => blocks.find(blk => blk.name === name))
 
@@ -64,27 +64,29 @@ const umountBlocks = async (adapted, target) => {
  * mode: must be 'single', 'raid0', 'raid1'
  * init: may be removed in future
  */
-const mkfsBtrfsAsync = async (target, mode, init) => {
+const mkfsBtrfsAsync = async args => {
 
   let error = null
+
+  let { target, mode } = args
 
   debug('mkfsBtrfs', target, mode)
 
   // validate mode
   if (['single', 'raid0', 'raid1'].indexOf(mode) === -1)
-    throw new Error('invalid mode')
+    throw new Error(`invalid mode: ${mode}`)
 
   // target must be string array
   if (!Array.isArray(target) || target.length === 0 || !target.every(name => typeof name === 'string'))
     throw new Error('invalid target names')
 
-  let storage, adapted, blocks, volumes
+  let storage, blocks, volumes
 
   target = Array.from(new Set(target)).sort()
-  adapted = await Storage.refreshAsync()
+  storage = await Storage.refreshAsync()
 
   for (let i = 0; i < target.length; i++) {
-    let block = adapted.blocks.find(blk => blk.name === target[i])
+    let block = storage.blocks.find(blk => blk.name === target[i])
     if (!block)
       throw new Error(`device ${target[i]} not found`)
     if (!block.isDisk)
@@ -98,54 +100,37 @@ const mkfsBtrfsAsync = async (target, mode, init) => {
   debug(`mkfs.btrfs ${mode}`, devnames)
 
   try {
-    await umountBlocks(adapted, target)
+    await umountBlocks(storage, target)
     await child.execAsync(`mkfs.btrfs -d ${mode} -f ${devnames.join(' ')}`)
     await Promise.delay(1500)
-    await child.execAsync(`partprobe`)
+    await child.execAsync(`partprobe`) // FIXME this should be in refresh
   }
   catch (e) {
-    await Storage.refreshAsync()
     throw e
   }
-  
-  adapted = Storage.refreshAsync()
-
-  blocks = adapted.blocks
-  volumes = adapted.volumes
-
-  debug('target[0]', target[0])
-  let block = blocks.find(blk => blk.name === target[0])
- 
-  debug('block', block) 
-  let uuid = block.fileSystemUUID
-
-  debug('uuid', uuid)
-  let volume = volumes.find(vol => vol.uuid === uuid)
-
-  debug('volume')
-  let mp = volume.mountpoint
-
-  debug('mountpoint')
-
-  console.log('[system] mkfs.btrfs success', volume)
-
-  if (init) {
-    await installFruitmixAsync(mp, init) 
-    debug('fruitmix installed')  
+  finally {
+    storage = await Storage.refreshAsync()
   }
+  
+  blocks = storage.blocks
+  volumes = storage.volumes
+
+  let block = blocks.find(blk => blk.name === target[0])
+  let uuid = block.fileSystemUUID
+  let volume = volumes.find(vol => vol.uuid === uuid)
 
   return uuid
 }
 
-const mkfsBtrfs = (target, mode, init, callback) => {
-
-  if (typeof init === 'function') {
-    callback = init
-    init = undefined
-  }
-
-  mkfsBtrfsAsync(target, mode, init).asCallback(callback)
-}
+const mkfsBtrfs = (args, callback) => 
+  mkfsBtrfsAsync(args).asCallback((err, result) => {
+    if (err) 
+      console.log('[system] mkfs error', err)
+    else
+      console.log(`[system] mkfs success, volume uuid: ${result}`)
+    
+    callback(err, result)
+  })
 
 /**
 
