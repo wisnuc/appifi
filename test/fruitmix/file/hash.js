@@ -7,7 +7,7 @@ import sinon from 'sinon'
 import xattr from 'fs-xattr'
 import validator from 'validator'
 
-import E from '../../../src/fruitmix/lib/error'
+const E = require('../../../src/fruitmix/lib/error')
 import { FILE } from '../../../src/fruitmix/lib/const'
 
 import { mkdirpAsync, rimrafAsync } from '../../../src/fruitmix/lib/async'
@@ -45,7 +45,7 @@ const tree01 = {
 describe(path.basename(__filename), () => {
 
 
-  describe('should return', () => {
+  describe('create a hash worker', () => {
 
     beforeEach(async () => {
       await rimrafAsync(tmpdir)
@@ -57,18 +57,43 @@ describe(path.basename(__filename), () => {
       expect(h.finished).to.be.false
       done()
     })
+
+    it('should set fpath to given fpath', done => {
+      let h = hash(tmpdir, uuidArr[0])
+      expect(h.fpath).to.equal(tmpdir)
+      done()
+    })
+
+    it('should set uuid to given uuid', done => {
+      let h = hash(tmpdir, uuidArr[0])
+      expect(h.uuid).to.equal(uuidArr[0])
+      done()
+    })
+
+    it('should set cmd to undefined', done => {
+      let h = hash(tmpdir, uuidArr[0])
+      expect(h.cmd).to.be.undefined
+      done()
+    })
+
+    it('should set hash to undefined', done => {
+      let h = hash(tmpdir, uuidArr[0])
+      expect(h.hash).to.be.undefined
+      done()
+    })
   })
 
-  describe('should match digest for "world"', () => {
+  describe('hash computing', () => {
 
     let digest = '486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7'
-    let xstat, fpath = path.join(tmpdir, 'hello')
+    let xstat, xstat1, fpath = path.join(tmpdir, 'hello')
 
     beforeEach(async () => {
       await rimrafAsync(tmpdir)
       await mkdirpAsync(tmpdir)
       await fs.writeFileAsync(fpath, 'world')
       xstat = await readXstatAsync(fpath)
+      xstat1 = await readXstatAsync(tmpdir)
     })
    
     it('should return hash value for world', done => {
@@ -80,20 +105,29 @@ describe(path.basename(__filename), () => {
       })
       h.start()
     })
+
+    it('should return error if aborted', done => {
+      let h = hash(fpath, xstat.uuid)
+      h.on('error', err => {
+        expect(err).to.be.an.instanceof(E.EABORT)
+        done()
+      })
+      h.on('finish', xstat2 => {
+        console.log(xstat2)
+        done()
+      }) 
+      h.start()
+      setTimeout(() => h.abort(), 10)
+    })
+
+    it('should return error if target is a dirtory', done => {
+      let h = hash(tmpdir, xstat1.uuid)
+      h.on('error', err => {
+        expect(err).to.be.an.instanceof(E.ENOTFILE)
+        done()
+      })
+      h.start()
+    })
   })
 })
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
