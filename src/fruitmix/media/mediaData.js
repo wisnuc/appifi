@@ -20,7 +20,7 @@ class MediaData {
     this.fileShareData = fileShareData
     this.fileData = fileData
     this.mediaShareData = mediaShareData
-    this.map = new Map()
+    this.mediaDataMap = new Map()
 
     this.fileData.on('mediaAppeared', this.handleMediaAppeared.bind(this))
     this.fileData.on('mediaDisappearing', this.handleMediaDisappearing.bind(this))
@@ -31,9 +31,13 @@ class MediaData {
     this.mediaShareData.on('shareDeleted', this.handleMediaShareDeleted.bind(this))
   }
 
+  findMediaByUUID(uuid) {
+    return this.mediaDataMap.get(uuid)
+  }
+
   handleMediaAppeared(node) {
     
-    let media = this.map.get(node.uuid)
+    let media = this.findMediaByUUID(node.uuid)
     if (!media) {
       media = new Media(node.hash)
       media.type = node.magic
@@ -48,7 +52,7 @@ class MediaData {
 
   handleMediaDisappearing(node) {
 
-    let media = this.map.get(node.uuid)
+    let media = this.findMediaByUUID(node.uuid)
     if (!media) {
       // log
       return 
@@ -63,7 +67,7 @@ class MediaData {
     share.doc.contents.forEach(item => {
       
       let digest = item.digest
-      let medium = this.map.get(digest)
+      let medium = this.findMediaByUUID(digest)
       if (medium) {
         medium.sharedItems.push([item, share]) // use 2-tuple for faster check on both creator and member
       }
@@ -80,7 +84,7 @@ class MediaData {
 
     return share.doc.contents.reduce((acc, item) => {
 
-      let medium = this.map.get(item.digest) 
+      let medium = this.findMediaByUUID(item.digest) 
       let index = medium.sharedItems.findIndex(pair => pair[0] === item)
       medium.sharedItems.splice(index, 1)
       acc.push(medium)
@@ -144,6 +148,7 @@ class MediaData {
     return { sharedWithOthers, sharedWithMe, sharedWithMeAvailable }
   }
 
+  //TODO:
   mediumProperties(userUUID, medium) {
 
     // 1. user permitted to share (from fileData)

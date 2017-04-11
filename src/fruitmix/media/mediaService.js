@@ -1,3 +1,5 @@
+import E from '../lib/error'
+
 module.exports = class MediaService {
 
   constructor(model, fileData, fileShareData, mediaData, mediaShareData) {
@@ -9,10 +11,26 @@ module.exports = class MediaService {
     this.mediaShareData = mediaShareData
   } 
 
-  getMeta(userUUID) {
+  async getMeta(userUUID) {
     // userUUID must be local user
+    let user = await this.model.isLocalUser(userUUID)
+    if (!user) throw E.EACCESS()
 
+    // let media = this.mediaData
+
+    // let arr = []
+    // this.hashMap.forEach((digestObj, digest) => {
+    //   if (digestObj.nodes.find(node => node.userReadable(userUUID)))
+    //     arr.push(Object.assign({}, digestObj.meta, { digest }))
+    // })
+
+    // return arr
     
+  }
+
+  register(ipc){
+    ipc.register('getMeta', (args, callback) => this.getMeta(args).asCallback(callback))
+
   }
 }
 
