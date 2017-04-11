@@ -11,7 +11,7 @@ class MediaService {
 
   getMeta(userUUID) {
     // userUUID must be local user
-
+    
     
   }
 }
