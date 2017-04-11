@@ -12,8 +12,8 @@ class Worker extends EventEmitter {
   }
 
   finalize() {
-    this.cleanUp() 
     this.finished = true
+    this.cleanUp() 
   }
 
   error(e, ...args) {

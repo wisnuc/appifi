@@ -86,13 +86,14 @@ describe(path.basename(__filename), () => {
   describe('hash computing', () => {
 
     let digest = '486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7'
-    let xstat, fpath = path.join(tmpdir, 'hello')
+    let xstat, xstat1, fpath = path.join(tmpdir, 'hello')
 
     beforeEach(async () => {
       await rimrafAsync(tmpdir)
       await mkdirpAsync(tmpdir)
       await fs.writeFileAsync(fpath, 'world')
       xstat = await readXstatAsync(fpath)
+      xstat1 = await readXstatAsync(tmpdir)
     })
    
     it('should return hash value for world', done => {
@@ -105,36 +106,28 @@ describe(path.basename(__filename), () => {
       h.start()
     })
 
-    it.only('should return error if aborted', done => {
+    it('should return error if aborted', done => {
       let h = hash(fpath, xstat.uuid)
       h.on('error', err => {
-        console.log('error.....')
-        console.log(err)
         expect(err).to.be.an.instanceof(E.EABORT)
         done()
       })
       h.on('finish', xstat2 => {
-        console.log('fisn......')
         console.log(xstat2)
         done()
       }) 
       h.start()
       setTimeout(() => h.abort(), 10)
     })
+
+    it('should return error if target is a dirtory', done => {
+      let h = hash(tmpdir, xstat1.uuid)
+      h.on('error', err => {
+        expect(err).to.be.an.instanceof(E.ENOTFILE)
+        done()
+      })
+      h.start()
+    })
   })
 })
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
