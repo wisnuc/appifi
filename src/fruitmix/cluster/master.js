@@ -9,6 +9,7 @@ import { createFileShareStore, createMediaShareStore } from '../lib/shareStore'
 import { createFileShareData } from '../file/fileShareData'
 import { createFileShareService } from '../file/fileShareService'
 import FileService from '../file/fileService'
+import Transfer from '../file/transfer'
 
 const makeDirectoriesAsync = async froot => {
 
@@ -22,10 +23,10 @@ const makeDirectoriesAsync = async froot => {
     mkdirpAsync(join('documents')),
     mkdirpAsync(join('fileShare')),
     mkdirpAsync(join('fileShareArchive')),
-    mkdirpAsync(join('mediashare')),
-    mkdirpAsync(join('mediashareArchive')),
-    mkdirpAsync(join('mediatalk')),
-    mkdirpAsync(join('mediatallArchive')),
+    mkdirpAsync(join('mediaShare')),
+    mkdirpAsync(join('mediaShareArchive')),
+    mkdirpAsync(join('mediaTalk')),
+    mkdirpAsync(join('mediaTalkArchive')),
     mkdirpAsync(join('thumbnail')),
     mkdirpAsync(join('log')),
     mkdirpAsync(join('etc')),
@@ -47,7 +48,8 @@ export default async () => {
   const fileShareStore = await Promise.promisify(createFileShareStore)(froot, docStore) 
   const fileShareData = createFileShareData(modelData, fileShareStore)
   const fileShareService = createFileShareService(fileData, fileShareData)
-  const fileService = new FileService(froot, fileData, fileShareData) 
+  const fileService = new FileService(froot, fileData, fileShareData)
+  const transfer = new Transfer(fileData) 
 
 	await modelService.initializeAsync()
 
@@ -60,6 +62,15 @@ export default async () => {
 		process.on('message', message => {
 			switch (message.type) {
 			case 'createFirstUser':
+
+        let { username, password } = message
+
+        console.log('start with creating first user mode')
+        modelService.createLocalUserAsync({ props: { type: 'local', username, password }})
+          .asCallback((err, data) => {
+            console.log('creating first user return', err || data)
+            process.send({ type: 'createFirstUserDone', err, data })
+          })
 				break
 			default:
 				break	
@@ -76,5 +87,6 @@ export default async () => {
   ipc.register('ipctest', (text, callback) => process.nextTick(() => callback(null, text.toUpperCase())))
   modelService.register(ipc) 
   fileService.register(ipc)
+  transfer.register(ipc)
 }
 

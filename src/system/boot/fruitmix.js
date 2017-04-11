@@ -3,6 +3,7 @@ const Promise = require('bluebird')
 const path = require('path')
 const fs = Promise.promisifyAll(require('fs'))
 const child = require('child_process')
+const EventEmitter = require('events')
 
 const EventEmitter = require('events').EventEmitter
 const sambaAudit = new EventEmitter()
@@ -120,109 +121,108 @@ const probeAsync = async mountpoint => {
   }
 }
 
-const fork = (cfs, init, callback) => {
+// state is a string which will be exposed to client
+// starting, started, exited
+// 
+class Fruitmix extends EventEmitter {
 
-  let froot = path.join(cfs.mountpoint, 'wisnuc', 'fruitmix')
-  let modpath = path.resolve(__dirname, '../../fruitmix/main')
+  constructor(child) {
+    super()
 
-  console.log(`forking fruitmix, waiting for 120s before timeout`)
+    this.child = child
+    this.state = 'starting'
 
-  let finished = false
-  let fruitmix = child.fork(modpath, ['--path', froot], { 
+    this.child.on('error', err => {
+      this.error = err
+    })
+
+    this.child.on('message', message => {
+      switch (message.type) {
+        case 'fruitmixStarted':
+          this.state = 'started'
+          break
+
+        case 'createFirstUserDone':
+          clearTimeout(this.timer)
+          if (this.callback) {
+            this.callback(message.error, message.data)
+            this.callback = null
+          }
+          break
+        }
+    })
+
+    this.child.on('exit', (code, signal) => {
+      this.state = 'exited'
+      this.code = code
+      this.signal = signal
+    })
+
+    sambaAudit.on('sambaAudit', (data) => {
+      console.log(JSON.stringify(data))
+    })
+
+    this.callback = null
+  }
+
+  getState() {
+
+    let obj = { state: this.state }
+    
+    if (this.error)
+      obj.error = {
+        code: this.error.code,
+        message: this.error.message
+      }
+
+    if (this.state === 'exited')
+      obj.exit = {
+        code: this.code,
+        signal: this.signal
+      }
+
+    return obj
+  } 
+
+  createFirstUser(username, password, callback) {
+
+    if (this.state !== 'started')
+      return process.nextTick(() => callback(new Error('fruitmix not started')))
+
+    if (this.callback !== null)
+      return process.netxTick(() => callback(new Error('try again later')))
+
+    this.callback = callback
+    this.timer = setTimeout(() => {
+      if (this.callback) this.callback(new Error('timeout'))      
+    }, 3000)
+
+    this.child.send({ type: 'createFirstUser', username, password })
+  } 
+
+  async createFirstUserAsync(username, password) {
+    return Promise.promisify(this.createFirstUser.bind(this))(username, password)
+  }
+}
+
+// fork is a synchronous method
+// cfs: type, uuid, mountpoint
+const fork = cfs => {
+
+	let froot = path.join(cfs.mountpoint, 'wisnuc', 'fruitmix')
+	let modpath = path.resolve(__dirname, '../../fruitmix/main')
+
+	console.log(`forking fruitmix, waiting for 120s before timeout`)
+
+  return new Fruitmix(child.fork(modpath, ['--path', froot], { 
 		env: Object.assign({}, process.env, { FORK: 1 }),
 		stdio: ['ignore', 1, 2, 'ipc'] 		// this looks weird, but must be in this format, see node doc
-	})
-
-  sambaAudit.on('sambaAudit', (data) => {
-    console.log(JSON.stringify(data))
-  })
-
-  fruitmix.on('error', err => {
-
-    if (finished === true) return
-
-    console.log('[BOOT] fruitmix error: ', err)
-
-    fruitmix.kill()
-    finished = true
-    callback(err)
-  })
-
-  fruitmix.on('message', message => {
-
-    if (finished === true) return
-
-    console.log(`[BOOT] fruitmix message: ${message}`)
-
-    switch (message.type) {
-      case 'fruitmixStarted':
-
-        console.log('[fork fruitmix] fruitmixStarted message received from child process')
-
-        if (init) {
-          fruitmix.send('message', {
-            type: 'createFirstUser',
-            username: init.username,
-            password: init.password
-          })
-        }
-        else {
-          fruitmix.removeAllListeners()
-          finished = true
-          callback(null, fruitmix)
-        }
-        break
-
-      case 'createFirstUserDone':
-
-        let data, err
-        if (message.data) {
-          datga = message.data 
-        } 
-        else {
-          err = new Error(message.error.message)
-          err.code = message.error.code
-        }
-
-        fruitmix.removeAllListeners()
-        finished = true
-        callback(null, fruitmix)
-        break
-
-      default:
-
-        console.log(`[BOOT] unknown message type: ${message.type}`) 
-        break 
-    }
-  })
-
-  fruitmix.on('close', (code, signal) => {
-    
-    if (finished === true) return
-
-    console.log(`[BOOT] fruitmix closed. code: ${code}, signal: ${signal}`)
-
-    finished = true
-    callback(new Error(`unexpected exit with code ${code} and signal ${signal}`))
-  })
-
-  setTimeout(() => {
-    
-    if (finished === true) return
-
-    console.log(`[BOOT] failed to start fruitmix in 120s`)
-
-    fruitmix.kill()
-    finished = true
-    callback(new Error('fork fruitmix timeout'))
-  }, 120000)
+	}))
 }
 
 module.exports = {
   probeAsync,
   sambaAudit,
-  forkAsync: async function (cfs, init = null) {
-		await Promise.promisify(fork)(cfs, init)
-	}
+  fork,
 }
 

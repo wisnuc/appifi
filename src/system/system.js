@@ -1,22 +1,27 @@
-
 const http = require('http')
-const express = require('express')
-
-const app = express()
-const port = 3001
+const app = require('express')()
+const logger = require('morgan')
+const bodyParser = require('body-parser')
 
 module.exports = system => {
 
+  const port = 3000
+
+  app.use(logger('dev', { skip: (req, res) => res.nolog === true }))
+
+  app.use(bodyParser.json())
+  app.use(bodyParser.urlencoded({ extended: false }))
+
+  app.set('json spaces', 2)
+
+  // mute polling
+  app.get('/server', (req, res) => (res.nolog = true) && res.status(404).end())
+
   app.use('/system', system)
 
-  // development error handler will print stacktrace
-  if (app.get('env') === 'development') {
-    app.use((err, req, res) => {
-      //res.status(err.status || 500).send('error: ' + err.message)
-    })
-  }
-
-  // production error handler no stacktraces leaked to user
+  // catch 404 and forward to error handler
+  app.use((req, res, next) => next(Object.assign(new Error('Not Found'), { status: 404 })))
+  // final catch ??? TODO
   app.use((err, req, res) => res.status(err.status || 500).send('error: ' + err.message))
 
   app.set('port', port);

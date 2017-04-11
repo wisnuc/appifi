@@ -15,6 +15,7 @@ const Storage = require('./storage')
 const { readFanSpeed, writeFanScale } = require('./barcelona')
 const eth = require('./eth')
 const { mac2dev, aliases, addAliasAsync, deleteAliasAsync } = require('./ipaliasing')
+const { mkfsBtrfs } = require('./mkfs')
 
 
 const nolog = (res) => Object.assign(res, { nolog: true })
@@ -26,7 +27,19 @@ const ok = (res, obj) => res.status(200).json(obj ? obj : ({ message: 'ok' }))
 /**
  *  GET /boot, return boot status
  */
-router.get('/boot', (req, res) => nolog(res).status(200).json(Boot.get()))
+router.get('/boot', (req, res) => {
+
+  let obj = Object.assign({}, Boot.get(), {
+    bootMode: Config.get().bootMode,
+    lastFileSystem: Config.get().lastFileSystem,
+    fruitmix: Boot.fruitmix ? Boot.fruitmix.getState() : null
+  }) 
+
+  // quick fix, TODO
+  if (!obj.currentFileSystem) obj.currentFileSystem = null
+
+  nolog(res).status(200).json(obj)
+})
 
 /**
  *  POST /boot
@@ -180,20 +193,20 @@ const isValidRunArgs = body =>
 router.post('/run', (req, res) => 
   !isValidRunArgs(req.body) 
     ? res.status(400).json({ code: 'EINVAL', message: 'invalid arguments' }) 
-    : manualBootAsync(req.body, false).asCallback(err => err
+    : Boot.manualBootAsync(req.body, false).asCallback(err => err
       ? res.status(400).json({ code: err.code, message: err.message })
       : res.status(200).json({ message: 'ok' })))
 
 /**
-  POST /mir/init
+  POST /install
   { 
-    target: fsUUID, 
+    target: uuid,
     username: non-empty STRING, 
     password: non-empty STRING, 
-    remove: undefined, false or true
+    intall or reinstall is true
   }
 **/
-const isValidInitArgs = body =>
+const isValidInstallArgs = body =>
   typeof body === 'object'
     && body !== null
     && typeof body.target === 'string'
@@ -202,13 +215,13 @@ const isValidInitArgs = body =>
     && body.username.length > 0
     && typeof body.password === 'string'
     && body.password.length > 0
-    && (body.remove === undefined || typeof body.remove === 'boolean')
+    && (body.install === true || typeof body.reinstall === true)
 
-router.post('/init', (req, res) => 
-  !isValidInitArgs(req.body)
+router.post('/install', (req, res) => 
+  !isValidInstallArgs(req.body)
     ? invalid(res)
-    : manualBootAsync(req.body, true).asCallback(err => err
-      ? res.status(500).json({ code: err.code, message: err.message })
+    : Boot.manualBootAsync(req.body).asCallback(err => err
+      ? console.log(err) || res.status(500).json({ code: err.code, message: err.message })
       : res.status(200).json({ message: 'ok' })))
 
 /**

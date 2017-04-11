@@ -6,6 +6,7 @@
     "start": "node build/app.js",
     "build": "babel src --out-dir build",
     "devel": "nodemon --exec babel-node --ignore web src/app.js",
+    "devel-bootstrap": "nodemon --exec babel-node --ignore web src/app.js --fake-bootstrap",
     "devel-assets": "nodemon --exec babel-node --ignore web --ignore public/bundle.js assets.js",
     "devel-appstore": "nodemon --exec babel-node --ignore web --ignore public/bundle.js src/app.js --appstore-master",
     "webpack": "webpack --watch --watch-poll",

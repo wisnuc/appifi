@@ -71,7 +71,7 @@ describe(path.basename(__filename), function() {
                  }
       let doc = createMediaShareDoc(userUUID, post)
       await mediaShareData.createMediaShare(doc)
-      expect(mediaShareData.getShareByUUID(doc.uuid).doc).to.deep.equal(doc)
+      expect(mediaShareData.findShareByUUID(doc.uuid).doc).to.deep.equal(doc)
     })
 
     it('new share should be a frozen object', async () => {
@@ -82,7 +82,7 @@ describe(path.basename(__filename), function() {
                  }
       let doc = createMediaShareDoc(userUUID, post)
       await mediaShareData.createMediaShare(doc)
-      expect(Object.isFrozen(mediaShareData.getShareByUUID(doc.uuid))).to.be.true
+      expect(Object.isFrozen(mediaShareData.findShareByUUID(doc.uuid))).to.be.true
     })
   })
 
@@ -105,7 +105,7 @@ describe(path.basename(__filename), function() {
                   }]
       let newDoc = updateMediaShareDoc(userUUID, doc, patch)
       await mediaShareData.updateMediaShare(newDoc)
-      expect(mediaShareData.getShareByUUID(doc.uuid).doc).to.deep.equal(newDoc)
+      expect(mediaShareData.findShareByUUID(doc.uuid).doc).to.deep.equal(newDoc)
     })
 
     it('updated share should be a frozen object', async () => {
@@ -115,7 +115,7 @@ describe(path.basename(__filename), function() {
                   }]
       let newDoc = updateMediaShareDoc(userUUID, doc, patch)
       await mediaShareData.updateMediaShare(newDoc)
-      expect(Object.isFrozen(mediaShareData.getShareByUUID(doc.uuid))).to.be.true
+      expect(Object.isFrozen(mediaShareData.findShareByUUID(doc.uuid))).to.be.true
     })
 
     it('should throw error if target uuid is not found', async () => {
@@ -163,7 +163,7 @@ describe(path.basename(__filename), function() {
 
     it('should remove share from mediaShareMap successfully', async () => {
       await mediaShareData.deleteMediaShare(doc.uuid)
-      expect(mediaShareData.getShareByUUID(doc.uuid)).to.be.undefined
+      expect(mediaShareData.findShareByUUID(doc.uuid)).to.be.undefined
     })
   })
 
@@ -188,8 +188,8 @@ describe(path.basename(__filename), function() {
 
     it('should load mediaShare that is already exist into mediaShareMap', async () => {
       await mediaShareData.load()
-      expect(mediaShareData.getShareByUUID(doc1.uuid).doc).to.deep.equal(doc1)
-      expect(mediaShareData.getShareByUUID(doc2.uuid).doc).to.deep.equal(doc2)
+      expect(mediaShareData.findShareByUUID(doc1.uuid).doc).to.deep.equal(doc1)
+      expect(mediaShareData.findShareByUUID(doc2.uuid).doc).to.deep.equal(doc2)
     })
   })
 

@@ -15,9 +15,9 @@ class MediaShareService {
     await this.mediaShareData.load()
   }
 
-  getMediaShareByUUID(shareUUID) {
+  findMediaShareByUUID(shareUUID) {
     if(!isUUID(shareUUID)) throw new E.EINVAL()
-    let share = this.mediaShareData.getShareByUUID(shareUUID)
+    let share = this.mediaShareData.findShareByUUID(shareUUID)
     if(share) return share
     else throw new E.ENOENT()
   }
@@ -65,7 +65,7 @@ class MediaShareService {
     if(!isUUID(userUUID)) throw new E.EINVAL()
     if(!isUUID(shareUUID)) throw new E.EINVAL()
 
-    let share = this.getMediaShareByUUID(shareUUID)
+    let share = this.findMediaShareByUUID(shareUUID)
     if(share.doc.author !== userUUID && share.doc.maintainers.indexOf(userUUID) === -1) throw new E.EACCESS()
     
     if(!Array.isArray(patch)) throw new E.EINVAL()
@@ -110,7 +110,7 @@ class MediaShareService {
     if(!isUUID(userUUID)) throw new E.EINVAL()
     if(!isUUID(shareUUID)) throw new E.EINVAL()
 
-    let share = this.getMediaShareByUUID(shareUUID)
+    let share = this.findMediaShareByUUID(shareUUID)
     if(share.doc.author !== userUUID) throw new E.EACCESS()
 
     await this.mediaShareData.deleteMediaShare(shareUUID)

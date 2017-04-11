@@ -1,4 +1,5 @@
 import passport from 'passport'
+import bcrypt from 'bcrypt'
 import { BasicStrategy } from 'passport-http'
 import { Strategy as JwtStrategy, ExtractJwt } from 'passport-jwt'
 
@@ -11,13 +12,12 @@ const httpBasicVerify = (userUUID, password, done) => {
   localUsers((err, users) => {
     if (err) return done(err)
 
-    let user = users.find(user.uuid === userUUID)
-    if (!err) return done(new Error('user not found'))
+    let user = users.find(user => user.uuid === userUUID)
+    if (!user) return done(new Error('user not found'))
 
     bcrypt.compare(password, user.password, (err, match) => {
-
       if (err) return done(err) 
-      match ? callback(null, user) : callback(null, false) 
+      match ? done(null, user) : done(null, false) 
     })
   })
 }
