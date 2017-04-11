@@ -346,10 +346,11 @@ class ModelService {
   }
 
   // determine whether local users
-  isLocalUser(useruuid, callback) {
+  async isLocalUser(useruuid) {
     // find user by uuid
-    let user = this.modelData.users.find(u => u.uuid === useruuid);
-    user ? callback(null, user.type === 'local') : callback(new Error('user not found'))
+    let user = this.modelData.users.find(u => u.uuid === useruuid)
+    if (!user) throw new Error('user not found')
+    return user.type === 'local'
   }
 
   // get drive info
@@ -368,7 +369,7 @@ class ModelService {
   register(ipc) {
     ipc.register('createLocalUser', (args, callback) => this.createLocalUserAsync(args).asCallback(callback))
     ipc.register('updateUser', (args, callback) => this.updateUserAsync(args).asCallback(callback))
-    ipc.register('isLocalUser', (args, callback) => isLocalUser(args, callback))
+    ipc.register('isLocalUser', (args, callback) => this.isLocalUser(args).asCallback(callback))
     ipc.register('getDriveInfo', (args, callback) => getDriveInfo(args, callback))
   }
 }
