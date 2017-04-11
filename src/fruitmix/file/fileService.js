@@ -104,27 +104,73 @@ class FileService {
 
   // list all descendant inside a directory
   async tree({ userUUID, dirUUID }) {
-    
-    let node = this.data.findNodeByUUID(dirUUID)
-  
-    if (!node) throw new E.ENODENOTFOUND() 
-    if (!node.isDirectory()) throw new E.ENOTDIR()
-    if (!(this.userReadable(userUUID, node))) throw new E.EACCESS()
 
+    let queue = []
+    let shareCollection = this.shareData.findShareCollectionByUUID(dirUUID)
+    if (shareCollection) {
+      shareCollection.map(n => {
+        let tempArr = []
+        n.preVisit(n => {
+          tempArr.push(this.nodeProps(n))
+        })
+        queue.push(tempArr)
+      })
+    } else {
+      let node = this.data.findNodeByUUID(dirUUID)
+      if (!node) throw new E.ENODENOTFOUND() 
+      if (!node.isDirectory()) throw new E.ENOTDIR()
+      if (!(this.userReadable(userUUID, node))) throw new E.EACCESS()
 
+      node.getChildren().map(n => {
+        let tempArr = []
+        n.preVisit(n => {
+          tempArr.push(this.nodeProps(n))
+        })
+        queue.push(tempArr)
+      })
+    }
+    return queue
   }
 
   // list all descendant inside a directory, with given
+  // dirUUID must be a virtual drive uuid
   // rootUUID must be a fileshare uuid or virtual drive uuid.
   async navTree({ userUUID, dirUUID, rootUUID }) {
 
+    let queue = []
+    let newPath
     let node = this.data.findNodeByUUID(dirUUID)
-    let root = this.data.findNodeByUUID(rootUUID)
-  
-    if (!node || !root) throw new E.ENODENOTFOUND() 
+    if (!node) throw new E.ENODENOTFOUND()
     if (!node.isDirectory()) throw new E.ENOTDIR()
     if (!(this.userReadable(userUUID, node))) throw new E.EACCESS()
-   
+
+    let share = this.shareData.findShareByUUID(rootUUID)
+    //get the path
+    if (share) {
+      newPath = this.shareData.findSharePath(rootUUID,dirUUID)
+    } else {
+      let root = this.data.findNodeByUUID(rootUUID)
+      if (!root) throw new E.ENODENOTFOUND()
+
+      let path = node.nodepath()
+      let index = path.indexOf(root)
+
+      if (index === -1) throw new E.ENOENT()
+      let subpath = path.slice(index)
+      newPath = subpath.map(n => this.nodeProps(n))
+    } 
+
+    node.getChildren().map(n => {
+      let tempArr = []
+      n.preVisit(n => {
+        tempArr.push(this.nodeProps(n))
+      })
+      queue.push(tempArr)
+    })
+    return {
+      path: newPath,
+      entries: queue
+    }   
   }
 
   // return abspath of file
