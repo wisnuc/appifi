@@ -32,7 +32,7 @@ describe(path.basename(__filename), () => {
 
   })
 
-  after(async () => await rimrafAsync('tmptest'))
+  // after(async () => await rimrafAsync('tmptest'))
 
   let fileShareStore, shareData, fileService
   beforeEach(async () => {
@@ -104,17 +104,53 @@ describe(path.basename(__filename), () => {
     it('should return error if dirUUID is a fileShare uuid', async () => {
       let err
       try {
-        let list = await fileService.createDirectory({ 
-          userUUID: uuids.userUUID, 
-          dirUUID: uuids.uuid10, 
-          dirname: 'xxxxx' })
+        let list = await fileService.createDirectory({
+          userUUID: uuids.userUUID,
+          dirUUID: uuids.uuid10,
+          dirname: 'xxxxx'
+        })
         console.log(list)
       }
       catch (e) {
         err = e
       }
-      console.log(err)
+      console.log('mkdir error: ' + err)
       // expect(err).to.be.an.instanceof(E.NODENOTFOUND)
+    })
+  })
+  
+  describe('tree', function () {
+    it('should return error if userUUID isn`t onwer', async () => {
+      let err
+      try {
+        await fileService.tree({
+          userUUID: uuids.uuid9,
+          dirUUID: uuids.uuid1
+        })
+      }
+      catch (e) {
+        err = e
+      }
+      expect(err).to.be.an.instanceof(E.EACCESS)
+    })
+  })
+
+    
+  describe('navTree', function () {
+    it('should return error if dirUUID isn`t a virtual drive uuid', async () => {
+      let err
+      try {
+        let list = await fileService.navTree({
+          userUUID: uuids.userUUID,
+          dirUUID: uuids.uuid10,
+          rootUUID: uuids.uuid1
+        })
+        console.log(list)
+      }
+      catch (e) {
+        err = e
+      }
+      expect(err).to.be.an.instanceof(E.ENOENT)
     })
   })
 })
