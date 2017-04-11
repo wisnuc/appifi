@@ -1,4 +1,4 @@
-class MediaService {
+module.exports = class MediaService {
 
   constructor(model, fileData, fileShareData, mediaData, mediaShareData) {
 
@@ -15,3 +15,4 @@ class MediaService {
     
   }
 }
+
