@@ -40,8 +40,7 @@ router.post('/:nodeUUID', auth.jwt(), (req, res) => {
 router.put('/:nodeUUID', auth.jwt(), (req, res) => {
   let user = req.user
   let nodeUUID = req.params.nodeUUID
-  // let name = req.query.filename
-  // console.log(name)
+
   let segmentHash = req.query.segmenthash
   let start =  parseInt(req.query.start)
   let taskId = req.query.taskid
@@ -62,17 +61,13 @@ router.put('/:nodeUUID', auth.jwt(), (req, res) => {
 
   let updater = new SegmentUpdater(fpath, req, position, segmentHash, segmentLength)
 
-  updater.on('error', err => res.error(null, 400))
-  updater.on('finish', () => {
+  updater.start(err => {
+    if(err) return res.error(null, 400)
     let attr = JSON.parse(xattr.getSync(fpath, FILEMAP))
     attr.segments[start] = 1
     xattr.setSync(fpath, FILEMAP, JSON.stringify(attr))
-    res.success(attr, 200)
+    return res.success(attr, 200)
   })
-
-  req.on('close', () => updater.isFinished() || updater.abort())
-
-  updater.start()
 })
 
 router.get('/', auth.jwt(), (req, res) => {

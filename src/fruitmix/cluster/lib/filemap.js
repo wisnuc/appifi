@@ -81,9 +81,15 @@ class SegmentUpdater extends EventEmitter{
     this.offset = offset
     this.segmentHash = segmentHash
     this.segmentSize = segmentSize
+    this.onStreamCloseEvent = this.onStreamClose.bind(this)
+    this.callback = null
   }
 
-  start() {
+  start(callback) {
+
+    this.listenStream()
+    this.callback = callback
+    
     let writeStream =  fs.createWriteStream(this.target,{ flags: 'r+', start: this.offset})
     let hash = crypto.createHash('sha256')
     let length = 0
@@ -121,23 +127,45 @@ class SegmentUpdater extends EventEmitter{
   error(err) {
     if(this.finished) return
     this.finished = true 
+    this.cheanUp()
     console.log(err)
-    this.emit('error',err)
+    // this.emit('error',err)
+    if(this.callback) callback(err)
   }
 
   finish() {
     if(this.finished ) return
     this.finished = true
-    this.emit('finish', null)
+    this.cheanUp()
+    // this.emit('finish', null)
+    if(this.callback) callback(null)
   }
 
   isFinished() {
     return this.finished
   }
 
+  listenStream() {
+    if(this.stream)  this.stream.on('close', this.onStreamCloseEvent)      
+  }
+
+  removeListenerStream() {
+     if(this.stream) this.stream.removeListener('close', this.onStreamCloseEvent)
+  }
+
+
+  onStreamClose() {
+    return this.isFinished() || this.abort()
+  }
+
+  cheanUp() {
+    this.removeListenerStream()
+  }
+
   abort() {
     if(this.finished) return 
     this.finished = true
+    this.cheanUp()
     this.emit('abort')
   }
 }
