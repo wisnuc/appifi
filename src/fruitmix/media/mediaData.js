@@ -150,12 +150,17 @@ class MediaData {
 
   //TODO:
   mediumProperties(userUUID, medium) {
-
+    let props
     // 1. user permitted to share (from fileData)
+    props.permittedToShare
     // 2. from user library (from fileData)
+    props.authorizedToRead
     // 3. user authorized to read (from fileShareData)
+    props.authorizedToRead
     // 4. shared with others 
+    props.sharedWithOthers
     // 5. shared with me
+    props.sharedWithMe
     // 5.1 serviceAvailable
   }
 
