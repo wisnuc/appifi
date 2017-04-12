@@ -159,7 +159,8 @@ class MediaData {
       permittedToShare: false,
       authorizedToRead: false,
       sharedWithOthers: false,
-      sharedWithMe: false
+      sharedWithMe: false,
+      serviceAvailable: false
     }
     let nodes = medium.nodes
     let shares = medium.shares
@@ -187,8 +188,13 @@ class MediaData {
         return false
       }
     })
-    // 5.1 serviceAvailable
-    //TODO:
+    // 5.1 serviceAvailable 
+    nodes.every(node => {
+      if(this.fileData.fromUserService(userUUID, node)) {
+        props.serviceAvailable = true
+        return false
+      }
+    })
   }
 
   getAllMedia(userUUID) {
@@ -197,7 +203,8 @@ class MediaData {
     for (let pair of this.map) {
       let props = this.mediumProperties(userUUID, pair[1])
       if (props.permittedToShare || props.authorizedToRead ||
-        props.sharedWithOthers || props.sharedWithMe) {
+        props.sharedWithOthers || props.sharedWithMe || 
+        props.serviceAvailable) {
         arr.push(pair[1].metadata)
       }
     }
