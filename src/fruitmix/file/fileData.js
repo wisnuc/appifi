@@ -205,7 +205,7 @@ class FileData extends EventEmitter {
     let drive = node.getDrive()
     return drive.owner === userUUID && drive.ref === 'service'
   }
-
+  
   print() {
     /**
     let q = {}
