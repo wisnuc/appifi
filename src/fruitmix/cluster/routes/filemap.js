@@ -37,7 +37,7 @@ router.post('/:nodeUUID', auth.jwt(), (req, res) => {
 
 
 //Maybe like /nodeuuid?filename=xxx&segmenthash=xxx&start=xx&taskid=xxx
-router.put('/:nodeUUID', auth.jwt(), (req, res) => {
+router.put('/:nodeUUID', auth.jwt(), async (req, res) => {
   let user = req.user
   let nodeUUID = req.params.nodeUUID
 
@@ -47,7 +47,7 @@ router.put('/:nodeUUID', auth.jwt(), (req, res) => {
   // let checkArgs =  { userUUID:user.uuid, dirUUID: nodeUUID, name }
   let fpath = path.join(paths.get('filemap'), user.uuid, taskId)
 
-  let attr = JSON.parse(xattr.getSync(fpath, FILEMAP))
+  let attr = JSON.parse(await xattr.getAsync(fpath, FILEMAP))
   
   let segments = attr.segments
   if(segments.length < (start + 1))
@@ -60,14 +60,16 @@ router.put('/:nodeUUID', auth.jwt(), (req, res) => {
   let position = attr.segmentsize * start
 
   let updater = new SegmentUpdater(fpath, req, position, segmentHash, segmentLength)
-
-  updater.start(err => {
-    if(err) return res.error(null, 400)
-    let attr = JSON.parse(xattr.getSync(fpath, FILEMAP))
+  
+  try{
+    await updater.startAsync()
+    let attr = JSON.parse(await xattr.getAsync(fpath, FILEMAP))
     attr.segments[start] = 1
     xattr.setSync(fpath, FILEMAP, JSON.stringify(attr))
     return res.success(attr, 200)
-  })
+  }catch(e){
+    return res.error(null, 400)
+  }
 })
 
 router.get('/', auth.jwt(), (req, res) => {

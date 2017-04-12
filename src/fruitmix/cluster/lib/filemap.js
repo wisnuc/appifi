@@ -118,19 +118,29 @@ class SegmentUpdater extends EventEmitter{
         
       if(hash.digest('hex') !== this.segmentHash)
         return this.error(new Error('hash mismatch'))
+      console.log('i am comming!')
       this.finish()
     })
 
     this.stream.pipe(hashTransform).pipe(writeStream)
   }
 
+  _run(callback) {
+    this.start(callback)
+  }
+
+  async startAsync() {
+    return Promise.promisify(this._run).bind(this)()
+  }
+  
+
   error(err) {
     if(this.finished) return
     this.finished = true 
     this.cheanUp()
-    console.log(err)
+    console.log(err.message)
     // this.emit('error',err)
-    if(this.callback) callback(err)
+    if(this.callback) this.callback(err)
   }
 
   finish() {
@@ -138,7 +148,7 @@ class SegmentUpdater extends EventEmitter{
     this.finished = true
     this.cheanUp()
     // this.emit('finish', null)
-    if(this.callback) callback(null)
+    if(this.callback) this.callback(null)
   }
 
   isFinished() {
@@ -160,6 +170,7 @@ class SegmentUpdater extends EventEmitter{
 
   cheanUp() {
     this.removeListenerStream()
+    this.callback = null
   }
 
   abort() {
