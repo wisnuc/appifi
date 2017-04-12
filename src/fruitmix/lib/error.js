@@ -43,6 +43,7 @@ define('EEXITCODE', 'exit with error code')
 define('EEXITSIGNAL', 'exit with signal')
 define('ENOENT', 'no entry')
 define('ELOCK', 'lock error')
+define('EPARSE', 'patse error')
 
 define('ENODENOTFOUND', 'node not found')     // be different from ENOENT, which is easily confused with fs error, TODO not sure if this is the right design
 define('ENODEDETACHED', 'node is detached')   // 

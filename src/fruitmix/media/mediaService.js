@@ -16,18 +16,12 @@ module.exports = class MediaService {
     let user = await this.model.isLocalUser(userUUID)
     if (!user) throw E.EACCESS()
 
-    // let media = this.mediaData
-
-    // let arr = []
-    // this.hashMap.forEach((digestObj, digest) => {
-    //   if (digestObj.nodes.find(node => node.userReadable(userUUID)))
-    //     arr.push(Object.assign({}, digestObj.meta, { digest }))
-    // })
-
-    // return arr
-    
+    let allMedia = this.mediaData.getAllMedia(userUUID)
+    return allMedia
   }
 
+
+  //
   register(ipc){
     ipc.register('getMeta', (args, callback) => this.getMeta(args).asCallback(callback))
 

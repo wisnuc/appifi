@@ -20,7 +20,7 @@ class MediaData {
     this.fileShareData = fileShareData
     this.fileData = fileData
     this.mediaShareData = mediaShareData
-    this.mediaDataMap = new Map()
+    this.map = new Map()
 
     this.fileData.on('mediaAppeared', this.handleMediaAppeared.bind(this))
     this.fileData.on('mediaDisappearing', this.handleMediaDisappearing.bind(this))
@@ -32,7 +32,7 @@ class MediaData {
   }
 
   findMediaByUUID(uuid) {
-    return this.mediaDataMap.get(uuid)
+    return this.map.get(uuid)
   }
 
   handleMediaAppeared(node) {
@@ -132,7 +132,7 @@ class MediaData {
       let item = pair[0]
       let doc = pair[1].doc
       if (item.creator === userUUID) sharedWithOthers = true
-      if (doc.maintainers.includes(userUUID) || .doc.viewers.includes(userUUID)) {
+      if (doc.maintainers.includes(userUUID) || doc.viewers.includes(userUUID)) {
         sharedWithMe = true
         sharedWithMeAvailable = this.model.userIsLocal(doc.author) 
           ? true 
@@ -161,10 +161,11 @@ class MediaData {
 
   getAllMedia(userUUID) {
 
-    let arr
+    let arr = []
     for (let pair of this.map) {
       let props = this.mediumProperties(userUUID, pair[1])
-      if (props.permittedToShare || props.authorizedToRead || sharedWithOthers || sharedWithMe) {
+      if (props.permittedToShare || props.authorizedToRead || 
+      props.sharedWithOthers || props.sharedWithMe) {
         arr.push({
           
         })
