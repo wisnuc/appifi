@@ -166,7 +166,7 @@ class FileData extends EventEmitter {
 
   userPermittedToWriteByUUID(userUUID, nodeUUID) {
 
-    let node = thsi.findNodeByUUID(nodeUUID)
+    let node = this.findNodeByUUID(nodeUUID)
     if (!node) throw new E.ENODENOTFOUND()
     return this.userPermittedToWrite(userUUID, node.uuid)
   }

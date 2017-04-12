@@ -190,6 +190,17 @@ class MediaShareData extends EventEmitter {
     })
     return shares
   }
+
+  sharedWithOthers(userUUID, shareMediaUUID) {
+    let share = this.findShareByUUID(shareMediaUUID) 
+    return share.doc.author === userUUID
+  }
+
+  sharedWithMe(userUUID, shareMediaUUID) {
+    let share = this.findShareByUUID(shareMediaUUID) 
+    return share.doc.maintainers.find(u => u === userUUID) 
+      || share.doc.viewers.find(u => u === userUUID) 
+  }
 }
 
 const createMediaShareData = (model, mediaShareStore) => {
