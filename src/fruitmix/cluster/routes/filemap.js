@@ -7,8 +7,9 @@ import formidable from 'formidable'
 
 import auth from '../middleware/auth'
 import config from '../config'
-import { createFileMap, SegmentUpdater, FILEMAP, readFileMapList, readFileMap } from '../lib/filemap'
+import { createFileMap, SegmentUpdater, FILEMAP, readFileMapList, readFileMap, deleteFileMap } from '../lib/filemap'
 import paths from '../lib/paths'
+import E from '../../lib/error'
 
 let router = Router()
 
@@ -35,41 +36,45 @@ router.post('/:nodeUUID', auth.jwt(), (req, res) => {
 })
 
 
+// 1. retrieve target async yes
+// 2. validate segement arguments no
+// 3. start worker async
+// 4. update file xattr async
 
-//Maybe like /nodeuuid?filename=xxx&segmenthash=xxx&start=xx&taskid=xxx
-router.put('/:nodeUUID', auth.jwt(), async (req, res) => {
-  let user = req.user
-  let nodeUUID = req.params.nodeUUID
-
-  let segmentHash = req.query.segmenthash
-  let start =  parseInt(req.query.start)
-  let taskId = req.query.taskid
-  // let checkArgs =  { userUUID:user.uuid, dirUUID: nodeUUID, name }
-  let fpath = path.join(paths.get('filemap'), user.uuid, taskId)
-
+const updateSegmentAsync = async (userUUID, nodeUUID, segmentHash, start, taskId, req) => {
+  let fpath = path.join(paths.get('filemap'), userUUID, taskId)
   let attr = JSON.parse(await xattr.getAsync(fpath, FILEMAP))
-  
   let segments = attr.segments
+
   if(segments.length < (start + 1))
-    return res.status(400).json({ code: 'EINVAL', message:'start too large'})
+    throw new E.EINVAL()
   if(segments[start] === 1)
-    return res.success(attr, 200)// already uploaded
+    throw new E.EEXISTS()
   
   let segmentSize = attr.segmentsize
   let segmentLength = segments.length > start + 1 ? segmentSize : (attr.size - start * segmentSize)
   let position = attr.segmentsize * start
 
   let updater = new SegmentUpdater(fpath, req, position, segmentHash, segmentLength)
-  
-  try{
-    await updater.startAsync()
-    let attr = JSON.parse(await xattr.getAsync(fpath, FILEMAP))
-    attr.segments[start] = 1
-    xattr.setSync(fpath, FILEMAP, JSON.stringify(attr))
-    return res.success(attr, 200)
-  }catch(e){
-    return res.error(null, 400)
-  }
+
+  await updater.startAsync()
+
+  attr = JSON.parse(await xattr.getAsync(fpath, FILEMAP))
+  attr.segments[start] = 1
+  return await xattr.setAsync(fpath, FILEMAP, JSON.stringify(attr))
+}
+
+//Maybe like /nodeuuid?filename=xxx&segmenthash=xxx&start=xx&taskid=xxx
+router.put('/:nodeUUID', auth.jwt(), (req, res) => {
+  let user = req.user
+  let segmentHash = req.query.segmenthash
+  let start =  parseInt(req.query.start)
+  let taskId = req.query.taskid
+
+  updateSegmentAsync(user.uuid, req.params.nodeUUID, segmentHash, start, taskId, req).asCallback((err, data) => {
+    if(err) return res.error(err, 400)
+    return res.success(data, 200)
+  })
 })
 
 router.get('/', auth.jwt(), (req, res) => {
@@ -83,6 +88,13 @@ router.get('/:taskId', auth.jwt(), (req, res) => {
   readFileMap(req.user.uuid, req.params.taskId, (e, attr) => {
     if(e) return res.error(e, 500)
     return res.success(attr, 200)
+  })
+})
+
+router.delete('/:taskId', auth.jwt(), (req, res) => {
+  deleteFileMap(req.user.uuid, req.params.taskId, err => {
+    if(err) return res.error(err, 500)
+    return res.success(null, 500)
   })
 })
 

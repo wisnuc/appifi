@@ -41,6 +41,17 @@ const createFileMapAsync = async ({ size, segmentsize, nodeuuid, sha256, name, u
      }
 }
 
+const deleteFileMap = (userUUID, taskId, callback) => {
+  let filePath = path.join(paths.get('filemap'), userUUID,taskId)
+  fs.lstat(filePath, err => {
+    if(err) return callback(err)
+    fs.unlink(filePath, err => {
+      if(err) return callback(err)
+      callback(null)
+    })
+  })
+}
+
 const readFileMapList = (userUUID, callback) => {
   let folderPath = path.join(paths.get('filemap'), userUUID)
   fs.readdir(folderPath, (err, list) => {
@@ -124,15 +135,10 @@ class SegmentUpdater extends EventEmitter{
 
     this.stream.pipe(hashTransform).pipe(writeStream)
   }
-
-  _run(callback) {
-    this.start(callback)
-  }
-
-  async startAsync() {
-    return Promise.promisify(this._run).bind(this)()
-  }
   
+  async startAsync() {
+    return Promise.promisify(this.start).bind(this)()
+  }
 
   error(err) {
     if(this.finished) return
@@ -144,11 +150,14 @@ class SegmentUpdater extends EventEmitter{
   }
 
   finish() {
+    console.log('finish 0')
     if(this.finished ) return
+    console.log('finish 1')
     this.finished = true
     this.cheanUp()
+    console.log('finish 2')
     // this.emit('finish', null)
-    if(this.callback) this.callback(null)
+    if(this.callback) this.callback(null, 'finish')
   }
 
   isFinished() {
@@ -170,7 +179,7 @@ class SegmentUpdater extends EventEmitter{
 
   cheanUp() {
     this.removeListenerStream()
-    this.callback = null
+    // this.callback = null
   }
 
   abort() {
@@ -188,4 +197,4 @@ const createFileMap = ({ size, segmentsize, nodeuuid, sha256, name, userUUID}, c
 
 
 
-export { createFileMap, SegmentUpdater, FILEMAP, readFileMapList, readFileMap }
+export { createFileMap, SegmentUpdater, FILEMAP, readFileMapList, readFileMap, deleteFileMap }
