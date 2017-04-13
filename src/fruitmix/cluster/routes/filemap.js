@@ -7,7 +7,7 @@ import formidable from 'formidable'
 
 import auth from '../middleware/auth'
 import config from '../config'
-import { createFileMap, SegmentUpdater, FILEMAP, readFileMapList, readFileMap, deleteFileMap } from '../lib/filemap'
+import { createFileMap, updateSegmentAsync, readFileMapList, readFileMap, deleteFileMap } from '../lib/filemap'
 import paths from '../lib/paths'
 import E from '../../lib/error'
 
@@ -34,35 +34,6 @@ router.post('/:nodeUUID', auth.jwt(), (req, res) => {
         return res.error(null, 404)    
   // })
 })
-
-
-// 1. retrieve target async yes
-// 2. validate segement arguments no
-// 3. start worker async
-// 4. update file xattr async
-
-const updateSegmentAsync = async (userUUID, nodeUUID, segmentHash, start, taskId, req) => {
-  let fpath = path.join(paths.get('filemap'), userUUID, taskId)
-  let attr = JSON.parse(await xattr.getAsync(fpath, FILEMAP))
-  let segments = attr.segments
-
-  if(segments.length < (start + 1))
-    throw new E.EINVAL()
-  if(segments[start] === 1)
-    throw new E.EEXISTS()
-  
-  let segmentSize = attr.segmentsize
-  let segmentLength = segments.length > start + 1 ? segmentSize : (attr.size - start * segmentSize)
-  let position = attr.segmentsize * start
-
-  let updater = new SegmentUpdater(fpath, req, position, segmentHash, segmentLength)
-
-  await updater.startAsync()
-
-  attr = JSON.parse(await xattr.getAsync(fpath, FILEMAP))
-  attr.segments[start] = 1
-  return await xattr.setAsync(fpath, FILEMAP, JSON.stringify(attr))
-}
 
 //Maybe like /nodeuuid?filename=xxx&segmenthash=xxx&start=xx&taskid=xxx
 router.put('/:nodeUUID', auth.jwt(), (req, res) => {

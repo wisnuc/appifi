@@ -12,6 +12,7 @@ import UUID from 'node-uuid'
 
 import  paths from './paths'
 import E from '../../lib/error'
+import config from '../config'
 
 Promise.promisifyAll(child)
 Promise.promisifyAll(xattr)
@@ -35,10 +36,8 @@ const createFileMapAsync = async ({ size, segmentsize, nodeuuid, sha256, name, u
     let attr = { size, segmentsize, segments, nodeuuid, sha256, name }
     await xattr.setAsync(filepath, FILEMAP, JSON.stringify(attr))
     return Object.assign({},attr,{ taskid: taskId })
-  }catch(e){
-      console.log(e)
-     throw e
-     }
+  }
+  catch(e){ throw e }
 }
 
 const deleteFileMap = (userUUID, taskId, callback) => {
@@ -190,6 +189,43 @@ class SegmentUpdater extends EventEmitter{
   }
 }
 
+// 1. retrieve target async yes
+// 2. validate segement arguments no
+// 3. start worker async
+// 4. update file xattr async
+
+const updateSegmentAsync = async (userUUID, nodeUUID, segmentHash, start, taskId, req) => {
+  let fpath = path.join(paths.get('filemap'), userUUID, taskId)
+  let attr = JSON.parse(await xattr.getAsync(fpath, FILEMAP))
+  let segments = attr.segments
+
+  if(segments.length < (start + 1))
+    throw new E.EINVAL()
+  if(segments[start] === 1)
+    throw new E.EEXISTS()
+  
+  let segmentSize = attr.segmentsize
+  let segmentLength = segments.length > start + 1 ? segmentSize : (attr.size - start * segmentSize)
+  let position = attr.segmentsize * start
+
+  let updater = new SegmentUpdater(fpath, req, position, segmentHash, segmentLength)
+
+  await updater.startAsync()
+
+  attr = JSON.parse(await xattr.getAsync(fpath, FILEMAP))
+  attr.segments[start] = 1
+  await xattr.setAsync(fpath, FILEMAP, JSON.stringify(attr))
+  if(attr.segments.includes(0)) return false
+  //TODO move filemap Jack
+  return true
+
+}
+
+const moveFileMap = (userUUID, dirUUID, name, src, hash, callback) => {
+  // config.ipc.call()
+  let args = { userUUID, dirUUID, name, src, hash }
+}
+
 const createFileMap = ({ size, segmentsize, nodeuuid, sha256, name, userUUID}, callback) => 
   createFileMapAsync({ size, segmentsize, nodeuuid, sha256, name, userUUID}).asCallback((e, data) => {
     e ? callback(e) : callback(null, data)
@@ -197,4 +233,4 @@ const createFileMap = ({ size, segmentsize, nodeuuid, sha256, name, userUUID}, c
 
 
 
-export { createFileMap, SegmentUpdater, FILEMAP, readFileMapList, readFileMap, deleteFileMap }
+export { createFileMap, SegmentUpdater, updateSegmentAsync, readFileMapList, readFileMap, deleteFileMap }
