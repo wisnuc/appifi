@@ -72,6 +72,7 @@ const createHttpServer = (app, callback) => {
 
 const createFruitmixAsync = async (sysroot) => {
 
+  console.log('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$')
   await system.initAsync(sysroot)
   // let server = await Promise.promisify(createHttpServer)()
   // let smbaudit = await Promise.promisify(createSmbAudit)()

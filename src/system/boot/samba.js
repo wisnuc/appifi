@@ -4,7 +4,8 @@ const path = require('path')
 const fs = Promise.promisifyAll(require('fs'))
 const child = require('child_process')
 
-let sambaAudit = require('./fruitmix').sambaAudit
+const EventEmitter = require('events').EventEmitter
+let { sambaAudit } = require('./fruitmix')
 
 const debug = require('debug')('samba')
 

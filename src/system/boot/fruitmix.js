@@ -3,7 +3,7 @@ const Promise = require('bluebird')
 const path = require('path')
 const fs = Promise.promisifyAll(require('fs'))
 const child = require('child_process')
-const EventEmitter = require('events')
+// const EventEmitter = require('events')
 
 const EventEmitter = require('events').EventEmitter
 const sambaAudit = new EventEmitter()
