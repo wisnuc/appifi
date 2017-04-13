@@ -370,12 +370,12 @@ describe(path.basename(__filename), () => {
 			} catch(e) { done(e); }
 		});
 
-		it('determine whether local users', done => {
-			model.isLocalUser(uuid_1, (err, isLocal) => {
-				if(err) return done(err);
+		it('determine whether local users',async done => {
+			try {
+				let isLocal = await model.isLocalUser(uuid_1);
 				expect(isLocal).to.be.true;
 				done();
-			});
+			} catch(e) { done(e); }
 		});
 
 		it('get drive info by driveuuid', done => {
