@@ -24,6 +24,7 @@ class Probe extends Worker {
 
   cleanUp() {
     clearTimeout(this.timer)
+    this.timer = null
   }
 
   readXstats(callback) {
@@ -61,8 +62,8 @@ class Probe extends Worker {
   }
 
   request() {
-    if (this.finished) throw 'probe worker already finished'
-    if (!this.timer) this.again = true
+    if (this.finished) throw new Error('probe worker already finished')
+    if (this.timer) this.again = true
   }
 }
 
