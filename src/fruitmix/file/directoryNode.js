@@ -9,7 +9,7 @@ class DirectoryNode extends Node {
     super(ctx)
     this.uuid = xstat.uuid
     this.name = xstat.name
-    this.mtime = FILE.NULLTIME
+    this.mtime = -xstat.mtime
   }
 
   merge(mtime, xstats) {
@@ -49,7 +49,7 @@ class DirectoryNode extends Node {
     let dpath = this.abspath()
     let uuid = this.uuid
     let mtime = this.mtime
-    let delay = mtime === FILE.NULLTIME ? 0 : 500
+    let delay = mtime < 0 ? 0 : 500
 
     this.ctx.probeStarted(this) // audit
     this.worker = probe(dpath, uuid, mtime, delay)
