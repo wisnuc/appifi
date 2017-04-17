@@ -28,7 +28,7 @@ const libraryMigration = (libraryNode, callback) => {
   if(!(libraryNode.children instanceof Array)) return
   let libraryPath = libraryNode.absPath()
   libraryNode.children.forEach(deviceUUID => {
-    if(!isUUID(uuid)) return 
+    if(!isUUID(deviceUUID)) return 
     let devicePath = path.join(libraryPath, deviceUUID)
     fs.readdir(devicePath, (err, files) => {
       if(err) return fs.rmdir(devicePath, err => callback())
@@ -42,8 +42,6 @@ const libraryMigration = (libraryNode, callback) => {
         if(count == 0) return fs.rmdir(devicePath, err => callback())
       }
 
-      
-
       files.forEach(file => {
          // src is in tmp folder
         let dirpath = path.join(libraryPath, file.slice(0, 2))
@@ -52,7 +50,7 @@ const libraryMigration = (libraryNode, callback) => {
         mkdirp(dirpath, err => { // create head dir
           if(err) return done()
           fs.rename(tmppath, filepath, err => {
-            // TODO  if error 
+            // TODO  if error  Jack
             return done()                    
           }) 
         })

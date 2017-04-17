@@ -12,7 +12,7 @@ const identifyFormatString = '%m|%w|%h|%[EXIF:Orientation]|%[EXIF:DateTime]|%[EX
 
 export const validateExifDateTime = str => {
 
-  // "2016:09:19 10:07:05"
+  // "2016:09:19 10:07:05" 
   if (str.length !== 19)
     return false
 

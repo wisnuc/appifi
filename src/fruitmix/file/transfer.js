@@ -285,7 +285,7 @@ class Transfer {
       })
       worker.on('error', worker => {
         worker.state = 'WARNING'
-        this.workersQueue.splice(this.warningQueue.indexOf(worker), 1)
+        this.workersQueue.splice(this.workersQueue.indexOf(worker), 1)
         this.warningQueue.push(worker)
         this.schedule()
       })
@@ -304,7 +304,7 @@ class Transfer {
       })
       worker.on('error', worker => {
         worker.state = 'WARNING'
-        this.workersQueue.splice(this.warningQueue.indexOf(worker), 1)
+        this.workersQueue.splice(this.workersQueue.indexOf(worker), 1)
         this.warningQueue.push(worker)
         this.schedule()
       })
@@ -351,7 +351,7 @@ const createMoveWorker = (src, dst, data, userUUID, callback) => {
 }
 
 const createCopyWorker = (src, dst, data, userUUID, callback) => {
-  let tmp = path.join(process.cwd(), 'tmp') //TODO Get tmp folder
+  let tmp = path.join(process.cwd(), 'tmp') //TODO Get tmp folder Jack
   if(fs.existsSync(src) && fs.existsSync(dst)) {
     let worker = new Copy(src, dst, tmp, data)
     return callback(null, worker)
