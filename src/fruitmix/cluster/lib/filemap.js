@@ -5,17 +5,15 @@ import stream from 'stream'
 import crypto from 'crypto'
 import EventEmitter from 'events'
 
-
 import xattr from 'fs-xattr'
 import Promise from 'bluebird'
 import UUID from 'node-uuid'
+import mkdirp from 'mkdirp'
 
 import  paths from './paths'
 import E from '../../lib/error'
 import config from '../config'
-
-Promise.promisifyAll(child)
-Promise.promisifyAll(xattr)
+import { mkdirpAsync } from '../../../common/async'
 
 let FILEMAP = 'user.filemap'
 
@@ -23,12 +21,11 @@ const createFileMapAsync = async ({ size, segmentsize, dirUUID, sha256, name, us
   // fallocate -l 10G bigfile
   let folderPath = path.join(paths.get('filemap'), userUUID)
   try{
-    if(!fs.existsSync(folderPath))
-      await fs.mkdirAsync(folderPath)
+    // if(!fs.existsSync(folderPath))
+    await mkdirpAsync(folderPath)
     let taskId = UUID.v4()
     let filepath = path.join(folderPath, taskId)
     await child.execAsync('fallocate -l ' + size +' ' + filepath)
-    // may throw xattr ENOENT or JSON SyntaxError
     let segments = []
     for(let i = 0; i < Math.ceil(size/segmentsize); i++){
       segments.push(0)
