@@ -46,11 +46,7 @@ class FileData extends EventEmitter {
 
   async updateDriveAsync(drive) {
     let node = this.root.getChildren.find(n => n.uuid === drive.uuid)
-    if(node) {
-      let target = path.join(this.dir, drive.uuid)
-      let xstat = await readXstatAsync(target, false)
-      node.update(xstat)
-    }
+    if(node) node.updateDrive(drive)
   }
 
   nodeAttached(node) {
