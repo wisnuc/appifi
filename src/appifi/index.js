@@ -66,7 +66,10 @@ const nolog = (res) => {
 app.get('/server', (req, res) => nolog(res).status(200).json(server.get()))
 app.get('/server/status', (req, res) => nolog(res).status(200).json(server.status()))
 
-app.post('/server', (req, res) => 
+app.post('/server', (req, res) => {
+
+  console.log(req.body)
+
   server.operation(req.body, (err, result) => 
     err ? res.status(200).json({
         err: err.message,
@@ -75,6 +78,9 @@ app.post('/server', (req, res) =>
       res.status(200).json({
         err: null,
         result
-      })))
+      })
+    )
+  }
+)
 
 module.exports = app

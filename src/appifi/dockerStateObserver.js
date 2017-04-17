@@ -4,82 +4,167 @@ import deepEqual from 'deep-equal'
 
 const debug = Debug('appifi:dockerStateObserver')
 
-import createAdvertiser from './advertiser'
+import Advertiser from './advertiser'
 
-const appifiAdvertiser = createAdvertiser('WISNUC AppStation', 3000)
+const wisnucAppstationPort = 3720
 
-let appAdvertisers = []
+// default service
+const appifiAdvertiser = new Advertiser('WISNUC AppStation', wisnucAppstationPort)
+appifiAdvertiser.start()
 
-// used for map // TODO why placed here
-const openable = (installed) => {
+class DockerStateObserver {
+  constructor() {
+    this.appAdvertisers = []
+  }
 
-  let container = installed.containers[0]
-  if (container.State !== 'running') return null
+  // used for map // TODO why placed here
+  _openable(installed) {
 
-  let Ports = container.Ports
-  if (!Ports || !Array.isArray(Ports) || Ports.length === 0)
-    return null
+    let container = installed.containers[0]
+    if (container.State !== 'running') {
+      return null
+    }
 
-  // { IP: '0.0.0.0', PrivatePort: 80, PublicPort: 10088, Type: 'tcp' }
-  let Port = Ports.find(p => p.Type === 'tcp' && p.PublicPort !== undefined) 
-  if (!Port) return null
+    let Ports = container.Ports
+    if (!Ports || !Array.isArray(Ports) || Ports.length === 0) {
+      return null
+    }
 
-  // console.log(typeof Port.PublicPort) is 'number' 
-  return {
-    appname: installed.recipe.appname,
-    open: Port.PublicPort
+    // { IP: '0.0.0.0', PrivatePort: 80, PublicPort: 10088, Type: 'tcp' }
+    let Port = Ports.find(p => p.Type === 'tcp' && p.PublicPort !== undefined) 
+    if (!Port) return null
+
+    // console.log(typeof Port.PublicPort) is 'number' 
+    return {
+      appname: installed.recipe.appname,
+      open: Port.PublicPort
+    }
+  }
+
+  _addAdvertising(advertising, services) {
+
+    let newServices = services.filter(srv => {
+      if (advertising.find(adv => adv.name === srv.appname && adv.port === srv.open)) 
+        return false
+      return true 
+    })
+
+    newServices.forEach(srv => {
+      let adv = new Advertiser(srv.appname, srv.open)
+      adv.start()
+      advertising.push(adv)
+    })
+
+    return advertising
+  }
+
+  _removeAdvertising(advertising, services) {
+
+    let survive = []
+
+    // find existing advertiser and stop it
+    advertising.forEach(adv => {
+
+      if (services.find(srv => srv.appname === adv.name && srv.open === adv.port)) {
+        survive.push(adv)
+      }
+      else {
+        adv.abort()
+      }
+    })
+
+    return survive
+  }
+
+  observe(newState, state) {
+    if (newState !== null && 
+      newState.data!== null && 
+      newState.computed !== null) {
+
+      let services = newState.computed.installeds
+        .map(inst => this._openable(inst))
+        .filter(obj => obj !== null)
+
+      let survive = this._removeAdvertising(this.appAdvertisers, services)
+      this.appAdvertisers = this._addAdvertising(survive, services) 
+    }
   }
 }
 
-const removeAdvertising = (advertising, services) => {
+export default DockerStateObserver
 
-  let survive = []
+// let appAdvertisers = []
 
-  // find existing advertiser and stop it
-  advertising.forEach(adv => {
+// // used for map // TODO why placed here
+// const openable = (installed) => {
 
-    if (services.find(srv => srv.appname === adv.name && srv.open === adv.port)) {
-      survive.push(adv)
-    }
-    else {
-      adv.abort()
-    }
-  })
+//   let container = installed.containers[0]
+//   if (container.State !== 'running') return null
 
-  return survive
-}
+//   let Ports = container.Ports
+//   if (!Ports || !Array.isArray(Ports) || Ports.length === 0)
+//     return null
 
-const addAdvertising = (advertising, services) => {
+//   // { IP: '0.0.0.0', PrivatePort: 80, PublicPort: 10088, Type: 'tcp' }
+//   let Port = Ports.find(p => p.Type === 'tcp' && p.PublicPort !== undefined) 
+//   if (!Port) return null
 
-  let newServices = services.filter(srv => {
-    if (advertising.find(adv => adv.name === srv.appname && adv.port === srv.open)) 
-      return false
-    return true 
-  })
+//   // console.log(typeof Port.PublicPort) is 'number' 
+//   return {
+//     appname: installed.recipe.appname,
+//     open: Port.PublicPort
+//   }
+// }
 
-  newServices.forEach(srv => {
-    let adv = createAdvertiser(srv.appname, srv.open)
-    advertising.push(adv)
-  })
+// const removeAdvertising = (advertising, services) => {
 
-  return advertising
-}
+//   let survive = []
 
-const dockerStateObserver = (newState, state) => {
+//   // find existing advertiser and stop it
+//   advertising.forEach(adv => {
 
-  if (newState !== null && 
-    newState.data!== null && 
-    newState.computed !== null) {
+//     if (services.find(srv => srv.appname === adv.name && srv.open === adv.port)) {
+//       survive.push(adv)
+//     }
+//     else {
+//       adv.abort()
+//     }
+//   })
 
-    let services = newState.computed.installeds
-      .map(inst => openable(inst))
-      .filter(obj => obj !== null)
+//   return survive
+// }
 
-    let survive = removeAdvertising(appAdvertisers, services)
-    appAdvertisers = addAdvertising(survive, services) 
-  }
-}
+// const addAdvertising = (advertising, services) => {
 
-export default dockerStateObserver
+//   let newServices = services.filter(srv => {
+//     if (advertising.find(adv => adv.name === srv.appname && adv.port === srv.open)) 
+//       return false
+//     return true 
+//   })
+
+//   newServices.forEach(srv => {
+//     let adv = createAdvertiser(srv.appname, srv.open)
+//     advertising.push(adv)
+//   })
+
+//   return advertising
+// }
+
+// const dockerStateObserver = (newState, state) => {
+
+//   if (newState !== null && 
+//     newState.data!== null && 
+//     newState.computed !== null) {
+
+//     let services = newState.computed.installeds
+//       .map(inst => openable(inst))
+//       .filter(obj => obj !== null)
+
+//     let survive = removeAdvertising(appAdvertisers, services)
+//     appAdvertisers = addAdvertising(survive, services) 
+//   }
+// }
+
+// export default dockerStateObserver
 
 

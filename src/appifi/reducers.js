@@ -1,7 +1,7 @@
 import { createStore, combineReducers } from 'redux'
 import Debug from 'debug'
 
-const debug = Debug('system:reducers')
+const REDUCERS = Debug('APPIFI:REDUCERS')
 
 const developer = (state = {}, action) => {
 
@@ -63,7 +63,7 @@ const tasks = (state = [], action) => {
   case 'TASK_REMOVE':
     let index = state.findIndex(t => t.type === action.task.type && t.id === action.task.id)
     if (index === -1) {
-      console.log(`ERROR: TASK_REMOVE, task not found, type: ${action.task.type}, id: ${action.task.id}`)
+      REDUCERS(`ERROR: TASK_REMOVE, task not found, type: ${action.task.type}, id: ${action.task.id}`)
       return state 
     }
     return [...state.slice(0, index), ...state.slice(index + 1)]
@@ -103,11 +103,11 @@ let store = createStore(combineReducers({
   tasks,
 }))
 
-console.log(`reducers module initialized`)
+REDUCERS(`Module initialized`)
 
 export const storeState = () => store.getState()
 export const storeDispatch = (action) => store.dispatch(action)
-export const storeSubscribe = (f) => store.subscribe(f)
+export const storeSubscribe = (listener) => store.subscribe(listener)
 
-export const testing = { store }
+// export const testing = { store }
 

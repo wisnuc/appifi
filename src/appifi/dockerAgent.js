@@ -61,6 +61,8 @@ class agent extends events {
       }
     }
 
+    console.log('[docker agent] options value: ' + JSON.stringify(options))
+
     this.aborted = false
     this.closed = false
 

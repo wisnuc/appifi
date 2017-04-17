@@ -7,14 +7,14 @@ import { storeState, storeDispatch } from './reducers'
 import { containerStart, containerStop, containerCreate, containerDelete } from './dockerApi'
 import appstore from './appstore' // TODO
 import { dockerEventsAgent, DockerEvents } from './dockerEvents'
-import dockerStateObserver from './dockerStateObserver'
+import DockerStateObserver from './dockerStateObserver'
 import { AppInstallTask } from './dockerTasks'
 import { calcRecipeKeyString, appMainContainer, containersToApps } from './dockerApps'
 
 const debug = Debug('appifi:docker')
 
 const dockerUrl = 'http://127.0.0.1:1688'
-const dockerPidFile = '/run/wisnuc/app/docker.pid'
+const dockerPidFile = '/home/wisnuc/git/appifi/run/wisnuc/app/docker.pid'
 
 let rootDir
 let appDataDir
@@ -32,7 +32,7 @@ let graphDir
 **/
 const prepareDirs = async (dir) => {
 
-  await mkdirpAsync('/run/wisnuc/app')
+  await mkdirpAsync('/home/wisnuc/git/appifi/run/wisnuc/app')
 
   rootDir = dir
   appDataDir = path.join(rootDir, 'appdata')
@@ -78,7 +78,8 @@ const startDockerEvents = async () => {
     })
 
     let newState = storeState().docker
-    dockerStateObserver(newState, oldState) 
+    let dockerStateObserver = new DockerStateObserver()
+    dockerStateObserver.observe(newState, oldState) 
   })
 
   events.on('end', () => {
@@ -252,14 +253,15 @@ async function daemonStartOp(uuid) {
   if (storeState().docker) 
     throw new Error('daemon already started') 
 
-  let storage = storeState().storage
-  let volume = storage.volumes.find(vol => vol.uuid === uuid)
-  if (!volume)
-    throw new Error('volume not found')
-  if (volume.missing)
-    throw new Error('volume missing')
+  // let storage = storeState().storage
+  // let volume = storage.volumes.find(vol => vol.uuid === uuid)
+  // if (!volume)
+  //   throw new Error('volume not found')
+  // if (volume.missing)
+  //   throw new Error('volume missing')
 
-  await daemonStart(volume.uuid)
+  // await daemonStart(volume.uuid)
+  await daemonStart()
 }
 
 async function containerDeleteCommand(id) {

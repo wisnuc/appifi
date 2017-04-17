@@ -1,10 +1,11 @@
 import child from 'child_process'
 import Debug from 'debug'
 
-import { storeState, storeDispatch, storeSubscribe } from './reducers'
+import { storeState, storeSubscribe } from './reducers'
 import { calcRecipeKeyString } from './dockerApps'
 import { daemonStart, daemonStop, daemonStartOp, containerStart, containerStop, containerDelete,
   installedStart, installedStop, appInstall, appUninstall} from './docker'
+import initAppifi from './docker'
 import appstore from './appstore'
 
 const debug = Debug('system:server')
@@ -182,8 +183,6 @@ export default {
   }
 }
 
-console.log('server module initialized')
+initAppifi.init('/home/wisnuc/git/appifi/run/wisnuc/app')
 
-
-
-
+console.log('[appifi] server module initialized')

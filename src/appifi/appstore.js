@@ -18,6 +18,9 @@ const getJsonRecipesUrl = () => {
     'https://raw.githubusercontent.com/wisnuc/appifi-recipes/release/release.json'
 
   debug(`using ${url}`)
+
+  console.log('[appifi] appStore url: ' + url)
+
   return url
 }
 

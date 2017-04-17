@@ -3,10 +3,10 @@ import EventEmitter from 'events'
 import deepmerge from 'deepmerge'
 import UUID from 'node-uuid'
 
-import { storeState } from './reducers'
 import pullImage from './pullImage'
 import { containerCreate, containerStart } from './dockerApi'
-import containerCreateDefaultOpts from './containerDefault'
+import ContainerDefault from './containerDefault'
+let containerCreateDefaultOpts = new ContainerDefault()
 
 import { calcRecipeKeyString, installAppifiLabel } from './dockerApps'
 function info(text) {
@@ -184,7 +184,7 @@ class AppInstallTask extends Task {
     // in reverse order
     for (var i = this.jobs.length - 1; i >= 0; i--) {
       let job = this.jobs[i]
-      let opt = deepmerge(containerCreateDefaultOpts(), job.compo.config)
+      let opt = deepmerge(containerCreateDefaultOpts.getDefault(), job.compo.config)
       opt.Image = `${job.compo.namespace}/${job.compo.name}`
       opt = this.processBinds(this.id, opt)
       opt = this.processPortBindings(this.id, opt)     
