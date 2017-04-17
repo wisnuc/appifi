@@ -20,11 +20,29 @@ module.exports = class MediaService {
     return allMedia
   }
 
+  // need to check authorazation 
+  async readMedia({userUUID, digest}) {
+    let digestObj = this.mediaData.findMediaByUUID(digest)
+    if (!digestObj) throw E.ENOENT()
 
-  //
-  register(ipc){
+    let props = this.mediaData.mediumProperties(userUUID, digest)
+    if (props.permittedToShare || props.authorizedToRead ||
+      props.sharedWithOthers || props.sharedWithMe) {
+
+      let nodes = digestObj.nodes
+      if (nodes.length === 0) throw E.ENODENOTFOUND()
+      return nodes.namepath()
+    } else {
+      throw E.ENOENT()
+    }
+  }
+
+  async getThumbnail({userUUID, digest, query}) {
+    
+  }
+  register(ipc) {
     ipc.register('getMeta', (args, callback) => this.getMeta(args).asCallback(callback))
-
+    ipc.register('readMedia', (args, callback) => this.readMedia(args).asCallback(callback))
   }
 }
 

@@ -12,7 +12,6 @@ import S from '../../assets/samples'
 chai.use(chaiAsPromised)
 
 const expect = chai.expect
-// const should = chai.should()
 
 const uuidArr = [
   'c3256d90-f789-47c6-8228-9878f2b106f6',
@@ -30,13 +29,6 @@ const cwd = process.cwd()
 const tmptest = 'tmptest'
 const tmpdir = path.join(cwd, tmptest)
 const smpdir = path.join(cwd, 'test', 'assets')
-
-// const tree01 = {
-//   'dir0': { uuid: uuidArr[0], type: 'directory' },
-//   'dir1': { uuid: uuidArr[1], type: 'directory' },
-//   'file0': { uuid: uuidArr[2], type: 'file' },
-//   'file1': { uuid: uuidArr[3], type: 'file' },
-// }
 
 describe(path.basename(__filename), () => {
 
@@ -90,6 +82,26 @@ describe(path.basename(__filename), () => {
         done()
       })
       id.start()
+    })
+
+    it('should return error if hash mismatch', done => {
+      let hash1 = '486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7'
+      let id = identify(fpath, xstat.uuid, hash1)
+      id.on('error', err => {
+        expect(err).to.be.an.instanceof(E.ECONTENT)
+        done()
+      })
+      id.start()
+    })
+
+    it('should return error if aborted', done => {
+      let id = identify(fpath, xstat.uuid, xstat.hash)
+      id.on('error', err => {
+        expect(err).to.be.an.instanceof(E.EABORT)
+        done()
+      })
+      id.start()
+      setTimeout(() => id.abort(), 5)
     })
   })
 })

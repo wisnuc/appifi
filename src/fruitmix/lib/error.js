@@ -41,9 +41,10 @@ define('ECONTENT', 'content changed (digest mismatch)')
 define('ETIMESTAMP', 'timestamp changed during operation')
 define('EEXITCODE', 'exit with error code')
 define('EEXITSIGNAL', 'exit with signal')
+define('EEXIST', 'exit with exist')
 define('ENOENT', 'no entry')
 define('ELOCK', 'lock error')
-define('EPARSE', 'patse error')
+define('EPARSE', 'parse error')
 
 define('ENODENOTFOUND', 'node not found')     // be different from ENOENT, which is easily confused with fs error, TODO not sure if this is the right design
 define('ENODEDETACHED', 'node is detached')   // 
