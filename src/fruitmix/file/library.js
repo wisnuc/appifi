@@ -28,7 +28,7 @@ const libraryMigration = (libraryNode, callback) => {
   if(!(libraryNode.children instanceof Array)) return
   let libraryPath = libraryNode.absPath()
   libraryNode.children.forEach(deviceUUID => {
-    if(!isUUID(uuid)) return 
+    if(!isUUID(deviceUUID)) return 
     let devicePath = path.join(libraryPath, deviceUUID)
     fs.readdir(devicePath, (err, files) => {
       if(err) return fs.rmdir(devicePath, err => callback())
