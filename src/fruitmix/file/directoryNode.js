@@ -1,4 +1,4 @@
-import { FILE } from '../lib/const'
+// import { FILE } from '../lib/const'
 import probe from './probe'
 import Node from './node'
 import FileNode from './fileNode'
