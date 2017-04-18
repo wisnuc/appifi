@@ -28,11 +28,11 @@ import validator from 'validator'
 import nodeUUID from 'node-uuid'
 import stringify from 'canonical-json'
 
-function textMatch(text) {
+const textMatch = (text) => {
   return  /^[A-Za-z][A-Za-z0-9-_+\.]*$/.test(text)
 }
 
-export function validateRecipe(recipe) {
+const validateRecipe = (recipe) => {
 
   if (!recipe) return false
 
@@ -54,7 +54,7 @@ export function validateRecipe(recipe) {
 }
 
 // extract key object from recipe or app object (ducktype)
-export function calcRecipeKey(recipe) {
+const calcRecipeKey = (recipe) => {
 
   if (recipe.components.length === 0) return null
   let compo = recipe.components[0]
@@ -69,7 +69,7 @@ export function calcRecipeKey(recipe) {
   return {registry, namespace, name, tag, flavor}  
 }
 
-export function calcRecipeKeyString(recipe) {
+const calcRecipeKeyString = (recipe) => {
 
   let key = calcRecipeKey(recipe)
   if (!key) return null
@@ -77,7 +77,7 @@ export function calcRecipeKeyString(recipe) {
   return `${key.registry}:${key.namespace}:${key.name}:${key.tag}:${key.flavor}`
 }
 
-export function splitRecipeKeyString(text) {
+const splitRecipeKeyString = (text) => {
 
   let keys = text.split(':')
   if (keys.length !== 5) return null
@@ -91,7 +91,7 @@ export function splitRecipeKeyString(text) {
   }  
 }
 
-export function composeJsonLabel(uuid, recipe) {
+const composeJsonLabel = (uuid, recipe) => {
   
   if (!uuid || !validator.isUUID(uuid)) return null
   if (!validateRecipe(recipe)) return null
@@ -100,13 +100,13 @@ export function composeJsonLabel(uuid, recipe) {
   return stringify({version, uuid, recipe})  
 }
 
-export function installAppifiLabel(labels, uuid, recipe) {
+const installAppifiLabel = (labels, uuid, recipe) => {
   
   if (!labels) return
   labels[APPIFI_KEY] = composeJsonLabel(uuid, recipe)
 }
 
-export function uncomposeJsonLabel(json) {
+const uncomposeJsonLabel = (json) => {
 
   if (typeof json !== 'string') return null
   if (!validator.isJSON(json)) return null
@@ -122,9 +122,6 @@ export function uncomposeJsonLabel(json) {
 
   return sig 
 }
-
-export const APPIFI_KEY = 'appifi-signature'
-
 
 /**************************************************
 
@@ -151,7 +148,7 @@ export const APPIFI_KEY = 'appifi-signature'
 *****************************************************/
 
 // group well-labelled container by uuid, using {sig, container} tuple as element
-function groupContainersByUUID(containers) {
+const groupContainersByUUID = (containers) => {
 
   let groups = []
   containers.forEach(container => { 
@@ -170,13 +167,13 @@ function groupContainersByUUID(containers) {
   return groups
 }
 
-function containerMatchComponent(container, component) {
+const containerMatchComponent = (container, component) => {
 
   let {name, namespace, tag} = component
   return (container.Image === `${namespace}/${name}`)
 }
 
-function containersMatchComponents(group) {
+const containersMatchComponents = (group) => {
 
   let components = group.pairs[0].sig.recipe.components
 
@@ -192,7 +189,7 @@ function containersMatchComponents(group) {
       containerMatchComponent(pair.container, compo)))
 }
 
-function containerGroupToApp(group) {
+const containerGroupToApp = (group) => {
 
   let recipe = group.pairs[0].sig.recipe
   let recipeKeyString = calcRecipeKeyString(recipe)
@@ -205,17 +202,29 @@ function containerGroupToApp(group) {
   return { recipe, recipeKeyString, uuid, sigVersion, match, containers }
 }
 
-export function appMainContainer(app) {
+const appMainContainer = (app) => {
   
   let {name, namespace, tag} = app.recipe.components[0]  
   return app.containers.find(c => c.Image === `${namespace}/${name}`)
 }
 
-export function containersToApps(containers) {
+const containersToApps = (containers) => {
 
   let groups = groupContainersByUUID(containers)
   groups.forEach(group => group.match = containersMatchComponents(group))
   return groups.map(group => containerGroupToApp(group))
 }
 
+export const APPIFI_KEY = 'appifi-signature'
 
+export {
+  validateRecipe,
+  calcRecipeKey,
+  calcRecipeKeyString,
+  splitRecipeKeyString,
+  composeJsonLabel,
+  installAppifiLabel,
+  uncomposeJsonLabel,
+  appMainContainer,
+  containersToApps
+}

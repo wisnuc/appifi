@@ -1,22 +1,30 @@
 import child from 'child_process'
 import Debug from 'debug'
+const SERVER = Debug('APPIFI:SERVER')
 
 import { storeState, storeSubscribe } from './reducers'
-import { calcRecipeKeyString } from './dockerApps'
-import { daemonStart, daemonStop, daemonStartOp, containerStart, containerStop, containerDelete,
-  installedStart, installedStop, appInstall, appUninstall} from './docker'
-import initAppifi from './docker'
-import appstore from './appstore'
+import { calcRecipeKeyString } from './utility'
+import {
+  daemonStart,
+  daemonStop,
+  daemonStartOp,
+  containerStart,
+  containerStop,
+  containerDelete,
+  installedStart,
+  installedStop,
+  appInstall,
+  appUninstall
+} from '../component/docker/docker'
 
-const debug = Debug('system:server')
+// import initDocker from '../component/docker/docker'
+import appstore from '../component/appstore/appstore'
 
 let status = 0
 
-const info = (text) => console.log(`[server] ${text}`)
-
 storeSubscribe(() => {
   status++
-  debug('status update', status)
+  SERVER('Status update', status)
 })
 
 const appstoreFacade = (appstore) => {
@@ -113,7 +121,7 @@ const facade = () => {
   
 const operationAsync = async (req) => {
 
-  info(`operation: ${req.operation}`)
+  SERVER(`Operation: ${req.operation}`)
 
   let f, args
 
@@ -154,7 +162,7 @@ const operationAsync = async (req) => {
       break
 
     default:
-      info(`operation not implemented, ${req.operation}`)
+      SERVER(`Operation not implemented, ${req.operation}`)
     }
   }
 
@@ -183,6 +191,6 @@ export default {
   }
 }
 
-initAppifi.init('/home/wisnuc/git/appifi/run/wisnuc/app')
-
-console.log('[appifi] server module initialized')
+// // docker init
+// initDocker.init('/home/wisnuc/git/appifi/run/wisnuc/app')
+// SERVER('Docker initialized')

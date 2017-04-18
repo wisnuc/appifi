@@ -1,10 +1,10 @@
 import child from 'child_process'
 import Debug from 'debug'
+const DOCKERSTATEOBSERVER = Debug('APPIFI:DOCKER_STATE_OBSERVER')
+
 import deepEqual from 'deep-equal'
 
-const debug = Debug('appifi:dockerStateObserver')
-
-import Advertiser from './advertiser'
+import Advertiser from '../avahi/advertiser'
 
 const wisnucAppstationPort = 3720
 
@@ -77,6 +77,9 @@ class DockerStateObserver {
   }
 
   observe(newState, state) {
+
+    DOCKERSTATEOBSERVER('Start')
+
     if (newState !== null && 
       newState.data!== null && 
       newState.computed !== null) {

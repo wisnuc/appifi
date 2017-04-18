@@ -2,7 +2,11 @@ import http from 'http'
 import stream from 'stream'
 import readline from 'readline'
 import events from 'events'
-import { HttpStatusError } from './error'
+
+import Debug from 'debug'
+const DOCKER_AGENT = Debug('APPIFI:DOCKER_AGENT')
+
+import { HttpStatusError } from '../../lib/error'
 
 /*
  * This class uses a transform as input into which user write data, and redirect data
@@ -61,7 +65,7 @@ class agent extends events {
       }
     }
 
-    console.log('[docker agent] options value: ' + JSON.stringify(options))
+    DOCKER_AGENT('Options value: ' + JSON.stringify(options))
 
     this.aborted = false
     this.closed = false

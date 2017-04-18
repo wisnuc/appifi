@@ -1,15 +1,11 @@
 import Debug from 'debug'
+const APPSTORE = Debug('APPIFI:APP_STORE')
+
 import request from 'superagent'
-import { storeState, storeDispatch } from './reducers'
-import { validateRecipe, calcRecipeKeyString } from './dockerApps'
+import { storeState, storeDispatch } from '../../lib/reducers'
+import { validateRecipe } from '../../lib/utility'
 
-const debug = Debug('appifi:appstore')
-const K = x => y => x
 const useLocalRecipes = false // used for test, obsolete
-
-function info(text) {
-  console.log(`[appstore] ${text}`)
-}
 
 const getJsonRecipesUrl = () => {
 
@@ -17,9 +13,7 @@ const getJsonRecipesUrl = () => {
     'https://raw.githubusercontent.com/wisnuc/appifi-recipes/master/release.json' :
     'https://raw.githubusercontent.com/wisnuc/appifi-recipes/release/release.json'
 
-  debug(`using ${url}`)
-
-  console.log('[appifi] appStore url: ' + url)
+  APPSTORE(`Using ${url}`)
 
   return url
 }
@@ -31,41 +25,41 @@ const retrieveTextAsync = Promise.promisify((url, callback) =>
       if (err) callback(err)
       else if (!res.ok) callback(new Error('bad response'))
       else callback(null, res.text) 
-    }))
+    })
+)
 
-async function retrieveRecipes() {
+const retrieveRecipes = async () => {
 
   let recipes = null
   if (useLocalRecipes) {
     recipes = localRecipes
   }
   else {
-    debug('retrieve json recipes')
+    APPSTORE('Retrieve json recipes...')
     let jsonRecipes = await retrieveTextAsync(getJsonRecipesUrl())
     if (jsonRecipes instanceof Error) return jsonRecipes
 
-    debug('parse json recipes')
+    APPSTORE('Parse json recipes...')
     try {
       recipes = JSON.parse(jsonRecipes)
     }
     catch (e) {
-      debug('json recipes parse error')
+      APPSTORE('Json recipes parse error')
       return e
     }
   }
 
   recipes = recipes.filter(recipe => validateRecipe(recipe))  
-  debug('recipes retrieved')
+  APPSTORE('Recipes retrieved')
   return recipes 
 }
 
 async function retrieveLocalRecipes() {
 
- 
 }
 
 /* this promise never reject */
-function retrieveRepo(namespace, name) {
+const retrieveRepo = (namespace, name) => {
 
   return new Promise((resolve) => { // never reject
     let url = `https://hub.docker.com/v2/repositories/${namespace}/${name}`
@@ -80,14 +74,15 @@ function retrieveRepo(namespace, name) {
 }
 
 // retrieve all repos for all recipes, return component -> repo map
-async function retrieveRepoMap(recipes) {
+const retrieveRepoMap = async (recipes) => {
 
   if (!recipes) {
-    warn(`retrieveRepoMap: recipes null or undefined`)
+    APPSTORE(`retrieveRepoMap: recipes null or undefined`)
     return new Error('recipes can\'t be null')
   }
 
-  info(`retrieving repos for recipes`)
+  APPSTORE(`Retrieving repos for recipes...`)
+
   let compos = []
   recipes.forEach(recipe => 
     (recipe.components && recipe.components.length) ?
@@ -97,7 +92,7 @@ async function retrieveRepoMap(recipes) {
         retrieveRepo(compo.namespace, compo.name)))
 
   let map = new Map()
-  for (let i = 0; i < recipes.length; i++) {
+  for (let i = 0; i < recipes.length; i ++) {
     map.set(compos[i], repos[i])
   }
   
@@ -114,11 +109,11 @@ async function retrieveRepoMap(recipes) {
 // } 
 //
 
-export async function refreshAppStore() {
+const refreshAppStore = async () => {
 
   let appstore = storeState().appstore
   if (appstore === 'LOADING') {
-    info('appstore is already loading')
+    APPSTORE('Already loading')
     return
   }
 
@@ -131,7 +126,6 @@ export async function refreshAppStore() {
 
   let recipes = await retrieveRecipes()
   if (recipes instanceof Error) {
-    console.log(recipes)
     storeDispatch({
       type: 'APPSTORE_UPDATE',
       data: {
@@ -145,7 +139,6 @@ export async function refreshAppStore() {
 
   let repoMap = await retrieveRepoMap(recipes)
   if (repoMap instanceof Error) { // TODO this seems unnecessary
-    console.log(repoMap)
     storeDispatch({
       type: 'APPSTORE_UPDATE',
       data: {
@@ -169,19 +162,17 @@ export async function refreshAppStore() {
 export default {
 
   reload: () => {
-    info('loading')
     refreshAppStore().then(r => {
       if (r instanceof Error) {
-        info('failed loading appstore')
-        console.log(r)
+        APPSTORE('Failed loading appstore', r)
         return
       }
-      info('loading success')
+      APPSTORE('Loading success')      
     }).catch(e => {
-      console.log(e) 
-      info('loading failed')
+      APPSTORE('Loading failed', e)
     })
-  },
+  }
 }
 
+export { refreshAppStore }
 

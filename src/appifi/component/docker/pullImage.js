@@ -1,6 +1,9 @@
 import EventEmitter from 'events'
+import Debug from 'debug'
+const PULLIMAGE = Debug('APPIFI:PULL_IMAGE')
+
 import dockerAgent from './dockerAgent'
-import { createStore } from './reduced'
+import { createStore } from '../../lib/redux'
 
 class pullImage extends EventEmitter {
 
@@ -43,8 +46,6 @@ class pullImage extends EventEmitter {
 
   reducer(state, msg) {
 
-    // console.log(msg)
-
     if (msg.status === undefined) 
       return Object.assign({}, state, {
         from: null,
@@ -83,9 +84,10 @@ class pullImage extends EventEmitter {
       }
     }
 
-    console.log('--- unexpected message') 
-    console.log(msg)
-    console.log('--- unexpected message end')
+    PULLIMAGE('--- unexpected message') 
+    PULLIMAGE(msg)
+    PULLIMAGE('--- unexpected message end')
+    
     return state
   }
 }

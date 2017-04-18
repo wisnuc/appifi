@@ -1,6 +1,8 @@
-import { createStore, combineReducers } from 'redux'
-import Debug from 'debug'
+// import { createStore, combineReducers } from 'redux'
 
+import { createStore, combineReducers } from './redux'
+
+import Debug from 'debug'
 const REDUCERS = Debug('APPIFI:REDUCERS')
 
 const developer = (state = {}, action) => {
