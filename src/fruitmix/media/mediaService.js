@@ -1,5 +1,6 @@
 import E from '../lib/error'
 
+
 module.exports = class MediaService {
 
   constructor(model, fileData, fileShareData, mediaData, mediaShareData) {
@@ -38,11 +39,13 @@ module.exports = class MediaService {
   }
 
   async getThumbnail({userUUID, digest, query}) {
-    
+    //TODO:
   }
+
   register(ipc) {
     ipc.register('getMeta', (args, callback) => this.getMeta(args).asCallback(callback))
     ipc.register('readMedia', (args, callback) => this.readMedia(args).asCallback(callback))
+    ipc.register('getThumbnail', (args, callback) => this.readMedia(args).asCallback(callback))
   }
 }
 
