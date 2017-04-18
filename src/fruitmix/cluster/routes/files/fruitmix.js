@@ -70,10 +70,10 @@ router.put('/upload/:dirUUID/:filename/:sha256', (req, res) => {
     res.error(err, 400)
   }
 
-  const finish = () => {
-    if(finish) return 
+  const finish = (newNode) => {
+    if(finished) return 
     finished = true
-    res.status(200)
+    res.success(newNode, 200)
   }
   // TODO check createFileCheck
   let args = { userUUID: user.uuid, src: tmpPath, dirUUID, name: filename , hash:sha256, check: true }
@@ -105,9 +105,9 @@ router.put('/upload/:dirUUID/:filename/:sha256', (req, res) => {
         return error(new Error('hash mismatch'))
 
       let args = { userUUID: user.uuid, src: tmpPath, dirUUID, name: filename , hash:sha256, check: false }
-      config.ipc('createFile', args, (e, newDode) => {
+      config.ipc('createFile', args, (e, newNode) => {
         if(e) return error(e)
-        finish()
+        finish(newNode)
       })
     })
 
@@ -128,10 +128,10 @@ router.put('/overwrite/:dirUUID/:filename/:sha256', (req, res) => {
     res.error(err, 400)
   }
 
-  const finish = () => {
-    if(finish) return 
+  const finish = (newNode) => {
+    if(finished) return 
     finished = true
-    res.status(200)
+    res.success(newNode, 200)
   }
   // TODO check createFileCheck
   let args = { userUUID: user.uuid, src: tmpPath, dirUUID, name: filename , hash:sha256, check: true }
@@ -165,7 +165,7 @@ router.put('/overwrite/:dirUUID/:filename/:sha256', (req, res) => {
       let args = { userUUID: user.uuid, src: tmpPath, dirUUID, name: filename , hash:sha256, check: false }
       config.ipc.call('overwriteFile', args, (e, newNode) => {
         if (err) return error(err)
-        finish()
+        finish(newNode)
       })
     })
 
