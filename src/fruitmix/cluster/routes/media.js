@@ -65,6 +65,6 @@ router.get('/:digest/thumbnail', (req, res) => {
       return res.status(200).sendFile(ret)
     })
 
-  })
+  // })
 })
 module.exports = router

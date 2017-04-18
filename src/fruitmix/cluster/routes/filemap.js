@@ -45,7 +45,7 @@ router.put('/:nodeUUID', auth.jwt(), (req, res) => {
 
   updateSegmentAsync(user.uuid, req.params.nodeUUID, segmentHash, start, taskId, req).asCallback((err, data) => {
     if(err) return res.error(err, 400)
-    return res.success({ type: 'filemap', taskId: taskId }, 200)
+    return res.success(null, 200)
   })
 })
 
@@ -66,7 +66,7 @@ router.get('/:taskId', auth.jwt(), (req, res) => {
 router.delete('/:taskId', auth.jwt(), (req, res) => {
   deleteFileMap(req.user.uuid, req.params.taskId, err => {
     if(err) return res.error(err, 500)
-    return res.success(null, 500)
+    return res.success(null, 200)
   })
 })
 
