@@ -119,17 +119,22 @@ const daemonStart = async () => {
 
   dockerDaemon.on('exit', (code, signal) => {
     dockerDaemon = null
-    if (code !== undefined) console.log(`daemon exits with exitcode ${code}`)
-    if (signal !== undefined) console.log(`daemon exits with signal ${signal}`)
+    if (code !== undefined) DOCKER(`Daemon exits with exitcode ${code}`)
+    if (signal !== undefined) DOCKER(`Daemon exits with signal ${signal}`)
   })
 
   await Promise.delay(3000)
 
   if (dockerDaemon === null) throw 'docker daemon stopped right after started'
   dockerDaemon.unref()
+
+  await startDockerEvents()
+  DOCKER('Events listener started')
+  appstore.reload()
+  DOCKER('Appstore reloading')
 }
 
-const daemonStopCmd = 'start-stop-daemon --stop --pidfile "/run/wisnuc/app/docker.pid" --retry 3'
+const daemonStopCmd = `start-stop-daemon --stop --pidfile ${dockerPidFile} --retry 3`
 
 const daemonStop3 = callback => 
   child.exec(daemonStopCmd, (err, stdout, stderr) => {

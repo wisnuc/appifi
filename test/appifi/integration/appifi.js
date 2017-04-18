@@ -1,16 +1,17 @@
-// import appifiConfig from '/home/wisnuc/git/appifi/src/appifi/lib/router'
-// import appifiHTTPServer from '/home/wisnuc/git/appifi/src/appifi/appifi'
+import {appifiInit, appstoreStart, appstoreStop} from '/home/wisnuc/git/appifi/src/appifi/index'
 
-// // import appifiServer from '/home/wisnuc/git/appifi/src/appifi/server'
 
-// appifiHTTPServer(appifiConfig)
+const sleep = (ms) => {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
 
-// // let test = {
-// //   operation: 'daemonStart'
-// // }
-// // appifiServer.operation(test, () => {
-// //   console.log('Run, Appifi run!')
-// // })
+async function run() {
+  await appifiInit()
+  await sleep(10000)
+  await appstoreStop()
+  await sleep(10000)
+  await appstoreStart()
+}
 
-import appifi from '/home/wisnuc/git/appifi/src/appifi/index'
-appifi()
+run()
+
