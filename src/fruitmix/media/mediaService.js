@@ -39,8 +39,9 @@ module.exports = class MediaService {
   }
 
   async getThumbnail({userUUID, digest, query}) {
-    
+    //TODO:
   }
+
   register(ipc) {
     ipc.register('getMeta', (args, callback) => this.getMeta(args).asCallback(callback))
     ipc.register('readMedia', (args, callback) => this.readMedia(args).asCallback(callback))

@@ -21,14 +21,13 @@ class MediaData {
     this.fileData = fileData
     this.mediaShareData = mediaShareData
     this.map = new Map()
+    this.fileData.on('mediaAppeared', node => this.handleMediaAppeared(node))
+    this.fileData.on('mediaDisappearing', node => this.mediaDisappearing(node))
+    this.fileData.on('mediaIdentified', node => this.mediaIdentified(node))
 
-    this.fileData.on('mediaAppeared', this.handleMediaAppeared.bind(this))
-    this.fileData.on('mediaDisappearing', this.handleMediaDisappearing.bind(this))
-    this.fileData.on('mediaIdentified', this.handleMediaIdentified.bind(this))
-
-    this.mediaShareData.on('shareCreated', this.handleMediaShareCreated.bind(this))
-    this.mediaShareData.on('shareUpdated', this.handleMediaShareUpdated.bind(this))
-    this.mediaShareData.on('shareDeleted', this.handleMediaShareDeleted.bind(this))
+    this.mediaShareData.on('shareCreated', share => this.handleMediaShareCreated(share))
+    this.mediaShareData.on('shareUpdated', share => this.handleMediaShareUpdatednode(share))
+    this.mediaShareData.on('shareDeleted', share => this.handleMediaShareDeleted(share))
   }
 
   findMediaByUUID(uuid) {

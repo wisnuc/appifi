@@ -31,7 +31,8 @@ router.get('/:digest/download', (req, res) => {
   height: 'integer'
   modifier: 'caret',      // optional
   autoOrient: 'true',     // optional
-  instant: 'true'         // optional
+  instant: 'true',        // optional
+  nonblock: 'true'        // optional
 
   width and height, provide at least one
   modifier effectvie only if both width and height provided
