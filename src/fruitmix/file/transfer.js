@@ -285,7 +285,7 @@ class Transfer {
       })
       worker.on('error', worker => {
         worker.state = 'WARNING'
-        this.workersQueue.splice(this.warningQueue.indexOf(worker), 1)
+        this.workersQueue.splice(this.workersQueue.indexOf(worker), 1)
         this.warningQueue.push(worker)
         this.schedule()
       })
@@ -304,7 +304,7 @@ class Transfer {
       })
       worker.on('error', worker => {
         worker.state = 'WARNING'
-        this.workersQueue.splice(this.warningQueue.indexOf(worker), 1)
+        this.workersQueue.splice(this.workersQueue.indexOf(worker), 1)
         this.warningQueue.push(worker)
         this.schedule()
       })
