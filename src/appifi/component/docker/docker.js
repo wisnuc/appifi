@@ -16,10 +16,11 @@ import { calcRecipeKeyString, appMainContainer, containersToApps } from '../../l
 const dockerUrl = 'http://127.0.0.1:1688'
 const dockerPidFile = '/home/wisnuc/git/appifi/run/wisnuc/app/docker.pid'
 
-let rootDir
-let appDataDir
-let execRootDir
-let graphDir
+let rootDir = null
+let appDataDir = null
+let execRootDir = null
+let graphDir = null
+let dockerStatus = {}
 
 /**
   docker daemon requires two base directories to work
@@ -132,6 +133,8 @@ const daemonStart = async () => {
   DOCKER('Events listener started')
   appstore.reload()
   DOCKER('Appstore reloading')
+
+  dockerStatus.status = 'Started'
 }
 
 const daemonStopCmd = `start-stop-daemon --stop --pidfile ${dockerPidFile} --retry 3`
@@ -142,6 +145,7 @@ const daemonStop3 = callback =>
       DOCKER('DaemonStop:', err, stdout, stderr)    
     else
       DOCKER('DaemonStop: success')
+      dockerStatus.status = 'Stopped'
 
     callback(err)
   })
@@ -149,6 +153,8 @@ const daemonStop3 = callback =>
 const daemonStop = Promise.promisify(daemonStop3)
 
 const initAsync = async (dir) => {
+
+  dockerStatus.status = 'Initialized'
 
   DOCKER('docker init dir: ', dir)
 
@@ -369,6 +375,10 @@ async function appUninstall(uuid) {
   }
 }
 
+const getDockerStatus = () => {
+  return dockerStatus
+}
+
 export default {
 
   init: (dir) => {
@@ -397,6 +407,8 @@ export {
 
   appInstall,
   appUninstall,
+
+  getDockerStatus,
 }
 
 

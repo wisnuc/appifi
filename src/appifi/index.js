@@ -3,7 +3,7 @@ const INDEX = Debug('APPIFI:INDEX')
 
 import httpServer from './component/http/httpServer'
 import dockerInit from './component/docker/docker'
-import { daemonStart, daemonStop } from './component/docker/docker'
+import { daemonStart, daemonStop, getDockerStatus } from './component/docker/docker'
 
 const appifiInit = async () => {
 
@@ -22,12 +22,13 @@ const appstoreStop = async () => {
   await daemonStop()
 }
 
-const getInfor = () => {
-
+const getDockerInfor = () => {
+  return getDockerStatus()
 }
 
 export {
   appifiInit,
   appstoreStart,
   appstoreStop,
+  getDockerInfor,
 }
