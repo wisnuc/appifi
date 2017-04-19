@@ -6,7 +6,7 @@ import config from '../config'
 let router = Router();
 
 // get account info
-router.get('/:userUUID', auth,jwt(), (req, res) => {
+router.get('/:userUUID', (req, res) => {
 
 	let userUUID = req.params.userUUID;
 	config.ipc.call('getAccountInfo', userUUID, (err, user) => {
