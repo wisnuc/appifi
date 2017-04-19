@@ -6,11 +6,12 @@ import config from '../config'
 
 let router = Router()
 
-// get local user and local user's friends
-router.get('/', auth.jwt(), (req, res) => {
-  config.ipc.call('getUsersAndFriends', (err, users) => {
+// get user friends
+router.get('/:userUUID', (req, res) => {
+  let useruuid = req.params.userUUID;
+  config.ipc.call('getUserFriends',useruuid, (err, friends) => {
     err ? res.status(500).json({})
-      : res.status(200).json(Object.assign({}, { users }))
+      : res.status(200).json(Object.assign({}, { friends }))
   })
 })
 
@@ -40,7 +41,7 @@ router.get('/', auth.jwt(), (req, res) => {
 //       type, username, password, nologin, isFirstUser,
 //       isAdmin, email, avatar, unixname
 // }
-router.post('/', auth.jwt(), (req, res) => {
+router.post('/', (req, res) => {
   const user = req.user 
   if(!user.isAdmin) return res.status(401).json({})
 
@@ -60,7 +61,7 @@ router.post('/', auth.jwt(), (req, res) => {
   })
 })
 
-router.patch('/:userUUID', auth.jwt(), (req, res) => {
+router.patch('/:userUUID', (req, res) => {
 
   const user = req.user
   const userUUID = req.params.userUUID
@@ -87,7 +88,7 @@ router.patch('/:userUUID', auth.jwt(), (req, res) => {
 })
 
 
-router.patch('/',auth.jwt(), (req, res) => {
+router.patch('/', (req, res) => {
   if (req.user.isAdmin === true ) {
     if(!req.body.uuid){return res.status(400).json('uuid is missing')}
     let props = Object.assign({}, req.body)
@@ -108,7 +109,7 @@ router.patch('/',auth.jwt(), (req, res) => {
 })
 
 // determine whether local users
-router.get('/isLocalUser', auth.jwt(), (req, res) => {
+router.get('/isLocalUser', (req, res) => {
   let user = req.user
   config.ipc.call('isLocalUser', user.uuid, (err, isLocal) => {
     err ? res.status(500).json({})
