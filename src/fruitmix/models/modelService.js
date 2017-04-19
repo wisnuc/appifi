@@ -284,6 +284,7 @@ class ModelService {
   }
 
   async deleteFriendAsync(useruuid, friend) {
+
     // check permission
     let user = this.modelData.users.find(u => u.uuid === useruuid);
     if (!user)
@@ -298,7 +299,16 @@ class ModelService {
     return next;
   }
 
-  async createPublicDriveAsync(useruuid, props) {
+  async createPublicDriveAsync(args) {
+
+    let { useruuid, props } = args
+    /*
+      props {
+        writerlist,   // array
+        readlist,     // array
+        shareAllowed  // bool
+      }
+    */
     // check permission
     let admin = this.modelData.users.find(u => u.uuid === useruuid);
     if (!admin)
@@ -317,7 +327,16 @@ class ModelService {
     return newDrive;
   }
 
-  async updatePublicDriveAsync(useruuid, props) {
+  async updatePublicDriveAsync(args) {
+
+    let { useruuid, props } = args;
+    /*
+      props {
+        writerlist,   // array
+        readlist,     // array
+        shareAllowed  // bool
+      }
+    */
     // check permission
     let admin = this.modelData.users.find(u => u.uuid === useruuid);
     if (!admin)
@@ -366,11 +385,49 @@ class ModelService {
     } else callback(null, drive)
   }
 
+  //get account info
+  getAccountInfo(useruuid, callback){
+    let user = this.modelData.users.find(u => u.uuid === useruuid);
+    if (!user)
+      return callback(new Error('user not found'))
+    delete user.password
+    delete user.unixPassword
+    delete user.smbPassword
+    callback(null, user)
+  }
+
+  // get home, library, & public drive
+  getDrives(callback){
+    callback(null, this.modelData.getDrives())
+  }
+
+  // get user friends
+  getUserFriends(useruuid, callback){
+    let user = this.modelData.users.find(u => u.uuid === useruuid && u.type === 'local')
+    if (!user)
+      return callback(new Error('no local users'))
+    callback(null, user.friends)
+  }
+
+  // get all local user
+  getAllLocalUser(useruuid, callback){
+    let user = this.modelData.user.find(u => u.uuid === useruuid && u.isAdmin)
+    if (!user)
+      return callback(new Error('no permission to get all local user'))
+    callback(null, this.modelData.getAllLocalUser())
+  }
+
   register(ipc) {
     ipc.register('createLocalUser', (args, callback) => this.createLocalUserAsync(args).asCallback(callback))
     ipc.register('updateUser', (args, callback) => this.updateUserAsync(args).asCallback(callback))
     ipc.register('isLocalUser', (args, callback) => this.isLocalUser(args).asCallback(callback))
-    ipc.register('getDriveInfo', (args, callback) => getDriveInfo(args, callback))
+    ipc.register('createPublicDrive', (args, callback) => this.createPublicDriveAsync(args).asCallback(callback))
+    ipc.register('updatePublicDrive', (args, callback) => this.updatePublicDriveAsync(args).asCallback(callback))
+    ipc.register('getDriveInfo', (args, callback) => this.getDriveInfo(args, callback))
+    ipc.register('getDrives', (callback) => this.getDrives(callback))
+    ipc.register('getAccountInfo', (args, callback) => this.getAccountInfo(args, callback))
+    ipc.register('getUserFriends', (args, callback) => this.getUserFriends(args, callback))
+    ipc.register('getAllLocalUser', (args, callback) => this.getAllLocalUser(args, callback))
   }
 }
 

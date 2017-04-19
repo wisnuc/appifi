@@ -22,43 +22,54 @@ class MediaData {
     this.mediaShareData = mediaShareData
     this.map = new Map()
 
-    this.fileData.on('mediaAppeared', this.handleMediaAppeared.bind(this))
-    this.fileData.on('mediaDisappearing', this.handleMediaDisappearing.bind(this))
-    this.fileData.on('mediaIdentified', this.handleMediaIdentified.bind(this))
+    this.fileData.on('mediaAppeared', node => this.handleMediaAppeared(node))
+    this.fileData.on('mediaDisappearing', node => this.handleMediaDisappearing(node))
+    this.fileData.on('mediaIdentified', (node, metadata) => this.mediaIdentified(node, metadata))
 
-    this.mediaShareData.on('shareCreated', this.handleMediaShareCreated.bind(this))
-    this.mediaShareData.on('shareUpdated', this.handleMediaShareUpdated.bind(this))
-    this.mediaShareData.on('shareDeleted', this.handleMediaShareDeleted.bind(this))
+    this.mediaShareData.on('mediaShareCreated', share => this.handleMediaShareCreated(share))
+    this.mediaShareData.on('mediaShareUpdated', (oldShare, newShare) => this.handleMediaShareUpdated(oldShare, newShare))
+    this.mediaShareData.on('mediaShareDeleted', share => this.handleMediaShareDeleted(share))
   }
 
-  findMediaByUUID(uuid) {
-    return this.map.get(uuid)
+  findMediaByHash(hash) {
+    return this.map.get(hash)
   }
 
   handleMediaAppeared(node) {
 
-    let media = this.findMediaByUUID(node.uuid)
+    let media = this.findMediaByHash(node.hash)
     if (!media) {
       media = new Media(node.hash)
       media.type = node.magic
-      this.nodes.add(node)
-      node.identify()
+      media.nodes.add(node)
+      this.map.set(node.hash, media)
     } else {
-      this.media.nodes.add(node)
-      if (!media.metadata) node.identify()
+      media.nodes.add(node)
     }
+
+    if (!media.metadata) node.identify()
+
   }
 
   handleMediaDisappearing(node) {
 
-    let media = this.findMediaByUUID(node.uuid)
+    let media = this.findMediaByHash(node.hash)
     if (!media) {
       // log
       return
     }
 
     media.nodes.delete(node)
-    if (media.isEmpty()) this.map.delete(node.uuid)
+    if (media.isEmpty()) this.map.delete(node.hash)
+  }
+
+  mediaIdentified(node, metadata) {
+    let media = this.findMediaByHash(node.hash)
+    if (!media) {
+      return
+    } else {
+      media.metadata = metadata
+    }
   }
 
   indexMediaShare(share) {
@@ -66,13 +77,13 @@ class MediaData {
     share.doc.contents.forEach(item => {
 
       let digest = item.digest
-      let medium = this.findMediaByUUID(digest)
-      if (medium) {
-        medium.sharedItems.push([item, share]) // use 2-tuple for faster check on both creator and member
+      let media = this.findMediaByHash(digest)
+      if (media) {
+        media.shares.add([item, share]) // use 2-tuple for faster check on both creator and member
       } else {
-        medium = new Media(digest)
-        medium.sharedItems.push([item, share])
-        this.map.set(digest)
+        media = new Media(digest)
+        media.shares.add([item, share])
+        this.map.set(digest, media)
       }
     })
   }
@@ -82,28 +93,34 @@ class MediaData {
 
     return share.doc.contents.reduce((acc, item) => {
 
-      let medium = this.findMediaByUUID(item.digest)
-      let index = medium.sharedItems.findIndex(pair => pair[0] === item)
-      medium.sharedItems.splice(index, 1)
-      acc.push(medium)
-      return acc
-
+      let media = this.findMediaByHash(item.digest)
+      if (media) {
+        if (media.shares.has([item, share])) {
+          media.shares.delete([item, share])
+          acc.push(media)
+          return acc
+        }
+      }
+      // let index = medium.sharedItems.findIndex(pair => pair[0] === item)
+      // medium.sharedItems.splice(index, 1)
+      // acc.push(medium)
+      // return acc
     }, [])
   }
 
-  cleanEmpty(media) {
-    media.forEach(medium => medium.isEmpty() && this.map.delete(medium.digest))
+  cleanEmpty(medias) {
+    medias.forEach(media => media.isEmpty() && this.map.delete(media.digest))
   }
 
-  handleShareCreated(share) {
+  handleMediaShareCreated(share) {
     this.indexMediaShare(share)
   }
 
   // share { doc { contents: [ item {creator, digest} ] } }
-  handleShareUpdated(oldShare, newShare) {
+  handleMediaShareUpdated(oldShare, newShare) {
 
     // 1. splice all indexed item inside media object
-    let spliced = unindexMediaShare(oldShare)
+    let spliced = this.unindexMediaShare(oldShare)
 
     // 2. index all new media.
     this.indexMediaShare(newShare)
@@ -112,21 +129,23 @@ class MediaData {
     this.cleanEmpty(spliced)
   }
 
-  handleShareDeleted(share) {
+  handleMediaShareDeleted(share) {
 
     let spliced = this.unindexMediaShare(share)
     this.cleanEmpty(spliced)
   }
 
-  mediaSharingStatus(userUUID, medium) {
+  mediaSharingStatus(userUUID, media) {
 
     let sharedWithOthers = false
     let sharedWithMe = false
     let sharedWithMeAvailable = false
+    let sharesArr = Array.from(media.shares)
+    let nodesArr = Array.from(media.nodes)
 
-    for (let i = 0; i < medium.sharedItems.length; i++) {
+    for (let i = 0; i < sharesArr.length; i++) {
 
-      let pair = medium.sharedItems[i]
+      let pair = sharesArr[i]
       let item = pair[0]
       let doc = pair[1].doc
       if (item.creator === userUUID) sharedWithOthers = true
@@ -134,7 +153,7 @@ class MediaData {
         sharedWithMe = true
         sharedWithMeAvailable = this.model.userIsLocal(doc.author) ?
           true :
-          medium.nodes.some(node => this.fileData.fromUserService(doc.author, node))
+          nodesArr.some(node => this.fileData.fromUserService(doc.author, node))
       }
 
       // if available is false, there is a chance that
@@ -154,15 +173,15 @@ class MediaData {
     }
   }
 
-  mediumProperties(userUUID, medium) {
+  mediaProperties(userUUID, media) {
     let props = {
       permittedToShare: false,
       authorizedToRead: false,
       sharedWithOthers: false,
       sharedWithMe: false
     }
-    let nodes = medium.nodes
-    let shares = medium.shares
+    let nodes = Array.from(media.nodes)
+    let shares = Array.from(media.shares)
     // 1. user permitted to share (from fileData)
     // 2. from user library (from fileData)
     nodes.every(node => {
@@ -172,7 +191,13 @@ class MediaData {
       }
     })
     // 3. user authorized to read (from fileShareData)
-    props.authorizedToRead = this.fileShareData.userAuthorizedToRead(userUUID)
+    nodes.every(node => {
+      if (this.fileShareData.userAuthorizedToRead(userUUID, node)) {
+        props.authorizedToRead = true
+        return false
+      }
+    })
+    // props.authorizedToRead = this.fileShareData.userAuthorizedToRead(userUUID)
     // 4. shared with others 
     shares.every(share => {
       if (this.mediaShareData.sharedWithOthers(userUUID, share)) {

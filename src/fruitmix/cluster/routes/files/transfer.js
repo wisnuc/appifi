@@ -24,7 +24,8 @@ router.post('/:type', auth.jwt(), (req, res) => {
   let type =  req.params.type === 'move' ? 'createMove'
                   : req.params.type === 'copy' ? 'createCopy' : undefined
   if(type){
-    let { src, dst } = req.body
+    let src = req.body.srcpath
+    let dst = req.body.dstpath
     if(typeof src.path !== 'string' || typeof dst.path !== 'string')
       return res.error(new Error('path type error'), 400)
     if(!((src.type === 'fruitmix' && isUUID(src.path)) || (src.type === 'ext' && !path.isAbsolute(src.path))))

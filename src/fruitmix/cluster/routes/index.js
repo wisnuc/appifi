@@ -11,24 +11,30 @@ import filemap from './filemap'
 import fileshare from './fileshare'
 import mediashare from './mediashare'
 import libraries from './libraries'
+import admin from './admin'
+import account from './account'
+import drives from './drives'
+import users from './users'
 
-// const media = require('./media')
+const media = require('./media')
 const ipctest = require('./ipctest')
-const auth = require('../middleware/auth')
+import auth from'../middleware/auth'
 
 let router = Router()
 
 router.use('/init', init)
 router.use('/login', login)
 router.use('/token', token)
-//FIXME: auth
-// app.use('/*', auth.jwt())
-router.use('/files', files)
-router.use('/filemap', filemap)
-router.use('/libraries', libraries)
-router.use('/ipctest', ipctest)
-router.use('/fileshare', fileshare)
-router.use('/mediashare', mediashare)
-// router.use('media', media)
+router.use('/files', auth.jwt(), files)
+router.use('/filemap', auth.jwt(), filemap)
+router.use('/libraries', auth.jwt(), libraries)
+router.use('/ipctest', auth.jwt(), ipctest)
+router.use('/fileshare', auth.jwt(), fileshare)
+router.use('/mediashare', auth.jwt(), mediashare)
+router.use('/media', auth.jwt(), media)
+router.use('/account', auth.jwt(), account)
+router.use('/users', auth.jwt(), users)
+router.use('/drives', auth.jwt(), drives)
+router.use('/admin', auth.jwt(), admin)
 
 export default router

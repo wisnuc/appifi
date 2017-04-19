@@ -3,7 +3,7 @@ import EventEmitter from 'events'
 
 import E from '../lib/error'
 
-import { forceDriveXstatAsync, readXstatAsync } from './xstat'
+import { forceDriveXstatAsync } from './xstat'
 import { mkdirpAsync } from '../util/async'
 import Node from './node'
 import DriveNode from './driveNode'
@@ -81,7 +81,7 @@ class FileData extends EventEmitter {
 
     switch(xstat.type) {
       case 'directory':
-        node = new DirectoryNode(this, xstat)        
+        node = new DirectoryNode(this, xstat)
         break
       case 'file':
         node = new FileNode(this, xstat)

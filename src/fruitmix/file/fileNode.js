@@ -18,12 +18,11 @@ class FileNode extends Node {
     this.hash = xstat.hash
   }
 
-  // TODO
   identify() {
     this.worker = this.createIdentifyWorker(() => {
       this.worker = null
-      if (err) return // TODO 
-      this.ctx.emit('metadata', meta)
+      if (err) return // TODO:
+      this.ctx.emit('mediaIdentified', this, metadata)
     })
   }
 

@@ -3,7 +3,7 @@ const router = require('express').Router()
 import config from '../config'
 
 // get mata data of all I can view
-router.get('/getMeta', (req, res) => {
+router.get('/', (req, res) => {
 
   let userUUID = req.user.userUUID
 
@@ -31,7 +31,8 @@ router.get('/:digest/download', (req, res) => {
   height: 'integer'
   modifier: 'caret',      // optional
   autoOrient: 'true',     // optional
-  instant: 'true'         // optional
+  instant: 'true',        // optional
+  nonblock: 'true'        // optional
 
   width and height, provide at least one
   modifier effectvie only if both width and height provided
@@ -64,6 +65,6 @@ router.get('/:digest/thumbnail', (req, res) => {
       return res.status(200).sendFile(ret)
     })
 
-  })
+  // })
 })
 module.exports = router
