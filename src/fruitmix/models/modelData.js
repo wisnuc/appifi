@@ -418,6 +418,15 @@ class ModelData extends EventEmitter {
     await this.updateModelAsync(this.users, nextDrives)
     this.emit('drivesDeleted', [this.driveMap(drive)])
   }
+
+  // get home, library & public drive
+  getDrives(){
+    return this.drives.filter(d => 
+      d.type === 'public' ||
+      d.ref === 'home' ||
+      d.ref === 'library')
+  }
+
 }
 
 const createModelData = froot => {
