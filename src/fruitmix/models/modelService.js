@@ -299,7 +299,16 @@ class ModelService {
     return next;
   }
 
-  async createPublicDriveAsync(useruuid, props) {
+  async createPublicDriveAsync(args) {
+
+    let { useruuid, props } = args
+    /*
+      props {
+        writerlist,   // array
+        readlist,     // array
+        shareAllowed  // bool
+      }
+    */
     // check permission
     let admin = this.modelData.users.find(u => u.uuid === useruuid);
     if (!admin)
@@ -318,7 +327,16 @@ class ModelService {
     return newDrive;
   }
 
-  async updatePublicDriveAsync(useruuid, props) {
+  async updatePublicDriveAsync(args) {
+
+    let { useruuid, props } = args;
+    /*
+      props {
+        writerlist,   // array
+        readlist,     // array
+        shareAllowed  // bool
+      }
+    */
     // check permission
     let admin = this.modelData.users.find(u => u.uuid === useruuid);
     if (!admin)
