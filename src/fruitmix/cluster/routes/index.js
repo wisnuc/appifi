@@ -14,6 +14,7 @@ import libraries from './libraries'
 import admin from './admin'
 import account from './account'
 import drives from './drives'
+import users from './users'
 
 const media = require('./media')
 const ipctest = require('./ipctest')
@@ -36,5 +37,6 @@ router.use('/media', media)
 router.use('/admin', admin)
 router.use('/account', account)
 router.use('/drives', drives)
+router.use('/users', users)
 
 export default router
