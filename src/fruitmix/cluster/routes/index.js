@@ -14,7 +14,7 @@ import libraries from './libraries'
 
 const media = require('./media')
 const ipctest = require('./ipctest')
-const auth = require('../middleware/auth')
+import auth from'../middleware/auth'
 
 let router = Router()
 
@@ -22,7 +22,7 @@ router.use('/init', init)
 router.use('/login', login)
 router.use('/token', token)
 //FIXME: auth
-// app.use('/*', auth.jwt())
+router.use('/*', auth.jwt())
 router.use('/files', files)
 router.use('/filemap', filemap)
 router.use('/libraries', libraries)

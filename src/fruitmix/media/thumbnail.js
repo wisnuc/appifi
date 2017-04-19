@@ -1,28 +1,43 @@
+
 const EventEmitter = require('events')
 const UUID = require('node-uuid')
 
 class State extends EventEmitter {
 
-  constructor(ctx) {
+  constructor() {
     super()
-    this.ctx = ctx
-    this.finished = false
+    this.finished = false,
+    this.id = UUID.v4()
   }
 
-  setState(nextState, ...args) {
+  // setState(nextState, ...args) {
+  //   this.exit()
+  //   this.ctx.state = new nextState(this.ctx, ...args)
+  // }
+
+  start() {
+    if (this.finished) throw new Error('worker is already finished')
+    this.run()
+  }
+
+  run() { 
+    this.finished = true
+  }
+
+  abort() {
+    if (this.finished) throw new Error('worker is already finished')
+    this.emit('error', new Error('worker is already aborted'))
     this.exit()
-    this.ctx.state = new nextState(this.ctx, ...args)
   }
-
-  run() {}
 
   finish(...args) {
     this.emit('finish', ...args)
     this.exit()
   }
 
-  abort(...args) {
+  error(...args) {
     this.emit('error', ...args)
+    this.exit()
   }
 
   exit() {
@@ -30,86 +45,90 @@ class State extends EventEmitter {
   }
 }
 
-class Pending extends State {
+// class Pending extends State {
 
-  constructor(ctx) {
-    super(ctx)
-    this.run(data)
-  }
+//   constructor(data) {
+//     super()
+//     this.isRunning = false
+//     this.state = 'PENDING'
+//     this.data = data
+//   }
 
-  run(data) {
-    //
-    this.
-    this.setState(Working, data)
-  }
+//   abort() {}
+ 
+//   exit() {}
+// }
 
-  exit() {
-    clearTimeout(this.timer)
-  }
-}
-
-class Working extends State {
+class Worker extends State {
 
   constructor(ctx, data) {
     super(ctx)
+    this.isRunning = false
+    this.state = 'PENDING'
     this.data = data
+
   }
   
-  run(data) {
-    // console.log('Working save', data)
-    this.next = data
+  run() {
+    this.state = 'WORKING'
+    //TODO: request(this.data)
+    this.finish()
   }
 
-  error(e) {
-    console.log('error writing persistent file', e)
-    if (this.next)
-      this.setState(Pending, this.next)
-    else
-      this.setState(Pending, this.data)
-  }
-
-  finish() {
-    if (this.next)
-      this.setState(Pending, this.next)
-    else
-      this.setState(Idle)
-  }
-
-  
 }
 
 class Thumbnail {
 
   constructor(limit) {
-
     this.workingQ = []
     this.limit = limit || 40
-    this.state = new Pending(this)
   }
 
+  // 调度器
   schedule() {
-    let workingQLength =
+    let workingQLength = 
       this.WorkingQ.filter(working => working.isRunning()).length
 
-    let diff = this.limit - workingQLength
+    let diff = this.limit - workingQLength 
     if (diff) return
-
-    this.workersQueue.filter(worker => !worker.isRunning())
+    
+    this.WorkingQ.filter(worker => !worker.isRunning())
       .slice(0, diff)
       .forEach(worker => worker.start())
   }
 
-  run(data) {
-    // this.state.run(data)
+  /**
+    digest: 'string'
+    userUUID： 'string'
+    query: 'object' 
+   */
+  async request(query) {
+    let working = this.createWorker(this.data, query)
+    working.on('finish', worker => {
+      worker.state = 'FINISHED'
+      this.schedule()
+    })
+    // error
+    working.on('error', worker => {
+      worker.state = 'WARNING'
+      this.WorkingQ.splice(this.WorkingQ.indexOf(worker), 1)
+      this.WorkingQ.push(worker)
+      this.schedule()
+    })
+    this.workingQ.push(working)
+    this.schedule()
+    
+
   }
-}
 
-const createPersistenceAsync = async(target, tmpdir, delay) => {
+  async createWorker(data) {
+    let working = new Worker(data)
+    return working
+  }
 
-  let targetDir = path.dirname(target)
-  await mkdirpAsync(targetDir)
-  await mkdirpAsync(tmpdir)
-  return new Persistence(target, tmpdir, delay)
+  abort() {
+    //FIXME: abort this.workingQ
+  }
 }
 
 module.exports = Thumbnail
