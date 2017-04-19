@@ -25,6 +25,6 @@ router.post('/drive', (req, res) => {
 })
 
 // update public drive
-router.patch('/:driveUUID', auth,jwt(), (req, res) => {})
+router.patch('/:driveUUID', (req, res) => {})
 
 export default router
