@@ -14,7 +14,7 @@ import E from '../../lib/error'
 let router = Router()
 
 //create filemap
-router.post('/:nodeUUID', auth.jwt(), (req, res) => {
+router.post('/:nodeUUID', (req, res) => {
   console.log(1233)
   let user = req.user
   let name = req.body.filename
@@ -37,7 +37,7 @@ router.post('/:nodeUUID', auth.jwt(), (req, res) => {
 })
 
 //Maybe like /nodeuuid?filename=xxx&segmenthash=xxx&start=xx&taskid=xxx
-router.put('/:nodeUUID', auth.jwt(), (req, res) => {
+router.put('/:nodeUUID', (req, res) => {
   let user = req.user
   let segmentHash = req.query.segmenthash
   let start =  parseInt(req.query.start)
@@ -49,21 +49,21 @@ router.put('/:nodeUUID', auth.jwt(), (req, res) => {
   })
 })
 
-router.get('/', auth.jwt(), (req, res) => {
+router.get('/', (req, res) => {
   readFileMapList(req.user.uuid, (e, list) => {
     if(e) return res.error(e, 500)
     return res.success(list, 200)
   })
 })
 
-router.get('/:taskId', auth.jwt(), (req, res) => {
+router.get('/:taskId', (req, res) => {
   readFileMap(req.user.uuid, req.params.taskId, (e, attr) => {
     if(e) return res.error(e, 500)
     return res.success(attr, 200)
   })
 })
 
-router.delete('/:taskId', auth.jwt(), (req, res) => {
+router.delete('/:taskId', (req, res) => {
   deleteFileMap(req.user.uuid, req.params.taskId, err => {
     if(err) return res.error(err, 500)
     return res.success(null, 200)

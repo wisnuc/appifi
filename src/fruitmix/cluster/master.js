@@ -5,10 +5,12 @@ import config from './config'
 import createModelService from '../models/modelService'
 import { createDocumentStoreAsync } from '../lib/documentStore'
 import FileData from '../file/fileData'
-import { createFileShareStore, createMediaShareStore } from '../lib/shareStore'
+import { createFileShareStoreAsync, createMediaShareStoreAsync } from '../lib/shareStore'
 import { createFileShareData } from '../file/fileShareData'
 import { createFileShareService } from '../file/fileShareService'
 import FileService from '../file/fileService'
+import { createMediaShareData } from '../media/mediaShareData'
+import { createMediaShareService } from '../media/mediaShareService'
 import Transfer from '../file/transfer'
 
 const makeDirectoriesAsync = async froot => {
@@ -45,10 +47,13 @@ export default async () => {
   const modelData = modelService.modelData
 	const docStore = await createDocumentStoreAsync(froot)
 	const fileData = new FileData(path.join(froot, 'drives'), modelService.modelData)	
-  const fileShareStore = await Promise.promisify(createFileShareStore)(froot, docStore) 
+  const fileShareStore = await createFileShareStoreAsync(froot, docStore) 
   const fileShareData = createFileShareData(modelData, fileShareStore)
   const fileShareService = createFileShareService(fileData, fileShareData)
   const fileService = new FileService(froot, fileData, fileShareData)
+  // const mediaShareStore = await createMediaShareStoreAsync(froot, docStore)
+  // const mediaShareData = createMediaShareData(modelData, mediaShareStore)
+  // const mediaShareService = createMediaShareService(mediaData, mediaShareData)
   const transfer = new Transfer(fileData) 
 
 	await modelService.initializeAsync()
@@ -82,11 +87,14 @@ export default async () => {
 	}
 
   await fileShareService.load()
+  // await mediaShareService.load()
 
   const ipc = config.ipc
   ipc.register('ipctest', (text, callback) => process.nextTick(() => callback(null, text.toUpperCase())))
   modelService.register(ipc) 
   fileService.register(ipc)
   transfer.register(ipc)
+  fileShareService.register(ipc)
+  // createMediaShareService.register(ipc)
 }
 

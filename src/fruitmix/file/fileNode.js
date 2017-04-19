@@ -23,7 +23,7 @@ class FileNode extends Node {
     this.worker = this.createIdentifyWorker(() => {
       this.worker = null
       if (err) return // TODO 
-      this.ctx.emit('metadata', meta)
+      this.ctx.emit('mediaIdentified', (this, metadata))
     })
   }
 
