@@ -1,6 +1,9 @@
-class Media {
+const EventEmitter = require('events')
+
+class Media extends EventEmitter{
 
   constructor(digest) {
+    super()
     this.digest = digest
     this.type = ''
     this.metadata = null
@@ -21,12 +24,13 @@ class MediaData {
     this.fileData = fileData
     this.mediaShareData = mediaShareData
     this.map = new Map()
+
     this.fileData.on('mediaAppeared', node => this.handleMediaAppeared(node))
     this.fileData.on('mediaDisappearing', node => this.mediaDisappearing(node))
     this.fileData.on('mediaIdentified', node => this.mediaIdentified(node))
 
     this.mediaShareData.on('shareCreated', share => this.handleMediaShareCreated(share))
-    this.mediaShareData.on('shareUpdated', share => this.handleMediaShareUpdatednode(share))
+    this.mediaShareData.on('shareUpdated', share => this.handleMediaShareUpdated(share))
     this.mediaShareData.on('shareDeleted', share => this.handleMediaShareDeleted(share))
   }
 
@@ -40,12 +44,16 @@ class MediaData {
     if (!media) {
       media = new Media(node.hash)
       media.type = node.magic
-      this.nodes.add(node)
-      node.identify()
+      media.nodes.add(node)
+      this.map.set(node.uuid, media)
     } else {
-      this.media.nodes.add(node)
-      if (!media.metadata) node.identify()
+      media.nodes.add(node)
     }
+
+    this.fileData.on('metadata', meta => media.metadata = meta)
+
+    if (!media.metadata) node.identify()
+
   }
 
   handleMediaDisappearing(node) {
