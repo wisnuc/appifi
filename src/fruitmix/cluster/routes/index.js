@@ -11,6 +11,10 @@ import filemap from './filemap'
 import fileshare from './fileshare'
 import mediashare from './mediashare'
 import libraries from './libraries'
+import admin from './admin'
+import account from './account'
+import drives from './drives'
+import users from './users'
 
 const media = require('./media')
 const ipctest = require('./ipctest')
