@@ -17,8 +17,7 @@ import {
   appUninstall
 } from '../component/docker/docker'
 
-// import initDocker from '../component/docker/docker'
-import appstore from '../component/appstore/appstore'
+import { refreshAppstore } from '../component/appstore/appstore'
 
 let status = 0
 
@@ -158,7 +157,7 @@ const operationAsync = async (req) => {
       f = appUninstall
       break
     case 'appstoreRefresh':
-      f = appstore.reload
+      f = refreshAppstore
       break
 
     default:

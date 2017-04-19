@@ -54,7 +54,7 @@ const validateRecipe = (recipe) => {
 }
 
 // extract key object from recipe or app object (ducktype)
-const calcRecipeKey = (recipe) => {
+const calcRecipeKeyString = (recipe) => {
 
   if (recipe.components.length === 0) return null
   let compo = recipe.components[0]
@@ -66,15 +66,7 @@ const calcRecipeKey = (recipe) => {
   tag = compo.tag ? compo.tag : 'latest'
   flavor = recipe.flavor ? recipe.flavor : 'vanilla'
 
-  return {registry, namespace, name, tag, flavor}  
-}
-
-const calcRecipeKeyString = (recipe) => {
-
-  let key = calcRecipeKey(recipe)
-  if (!key) return null
-
-  return `${key.registry}:${key.namespace}:${key.name}:${key.tag}:${key.flavor}`
+  return `${registry}:${namespace}:${name}:${tag}:${flavor}`
 }
 
 const splitRecipeKeyString = (text) => {
@@ -219,7 +211,6 @@ export const APPIFI_KEY = 'appifi-signature'
 
 export {
   validateRecipe,
-  calcRecipeKey,
   calcRecipeKeyString,
   splitRecipeKeyString,
   composeJsonLabel,

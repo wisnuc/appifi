@@ -188,13 +188,8 @@ class AppInstallTask extends Task {
       opt = this.processBinds(this.id, opt)
       opt = this.processPortBindings(this.id, opt)
 
-     
-
       // opt.Labels['appifi-signature'] = this.id
       installAppifiLabel(opt.Labels, this.uuid, this.recipe)
-
-
-       console.log(opt)
 
       let re = await containerCreate(opt)
       if (re instanceof Error) {

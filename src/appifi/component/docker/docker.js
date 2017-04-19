@@ -7,7 +7,7 @@ import request from 'superagent'
 
 import { storeState, storeDispatch } from '../../lib/reducers'
 import { containerStart, containerStop, containerCreate, containerDelete } from './dockerApi'
-import appstore from '../appstore/appstore' // TODO
+import { refreshAppstore } from '../appstore/appstore' // TODO
 import { dockerEventsAgent, DockerEvents } from './dockerEvents'
 import DockerStateObserver from './dockerStateObserver'
 import { AppInstallTask } from './dockerTasks'
@@ -131,7 +131,7 @@ const daemonStart = async () => {
 
   await startDockerEvents()
   DOCKER('Events listener started')
-  appstore.reload()
+  refreshAppstore()
   DOCKER('Appstore reloading')
 
   dockerStatus.status = 'Started'
@@ -186,7 +186,7 @@ const initAsync = async (dir) => {
 
   await startDockerEvents()
   DOCKER('Events listener started')
-  appstore.reload()
+  refreshAppstore()
   DOCKER('Appstore reloading')
 }
 
