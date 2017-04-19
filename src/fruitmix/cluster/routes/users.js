@@ -7,10 +7,11 @@ import config from '../config'
 let router = Router()
 
 // get user friends
-router.get('/', (req, res) => {
-  config.ipc.call('getUserFriends', (err, users) => {
+router.get('/:userUUID', (req, res) => {
+  let useruuid = req.params.userUUID;
+  config.ipc.call('getUserFriends',useruuid, (err, friends) => {
     err ? res.status(500).json({})
-      : res.status(200).json(Object.assign({}, { users }))
+      : res.status(200).json(Object.assign({}, { friends }))
   })
 })
 

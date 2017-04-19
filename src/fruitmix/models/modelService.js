@@ -371,7 +371,7 @@ class ModelService {
   getAccountInfo(useruuid, callback){
     let user = this.modelData.users.find(u => u.uuid === useruuid);
     if (!user)
-      callback(new Error('user not found'))
+      return callback(new Error('user not found'))
     delete user.password
     delete user.unixPassword
     delete user.smbPassword
@@ -383,18 +383,20 @@ class ModelService {
     callback(null, this.modelData.getDrives())
   }
 
-  // get local users and user's friends
+  // get user friends
   getUserFriends(useruuid, callback){
-    callback(null, this.modelDate.getUserFriends())
+    let user = this.modelData.users.find(u => u.uuid === useruuid && u.type === 'local')
+    if (!user)
+      return callback(new Error('no local users'))
+    callback(null, user.friends)
   }
 
   // get all local user
   getAllLocalUser(useruuid, callback){
     let user = this.modelData.user.find(u => u.uuid === useruuid && u.isAdmin)
     if (!user)
-      callback(new Error('no permission to get all local user'))
-    let users = this.modelData.user.filter(u => u.type === 'local')
-    callback(null, users)
+      return callback(new Error('no permission to get all local user'))
+    callback(null, this.modelData.getAllLocalUser())
   }
 
   register(ipc) {
@@ -406,7 +408,7 @@ class ModelService {
     ipc.register('getDriveInfo', (args, callback) => this.getDriveInfo(args, callback))
     ipc.register('getDrives', (callback) => this.getDrives(callback))
     ipc.register('getAccountInfo', (args, callback) => this.getAccountInfo(args, callback))
-    ipc.register('getUserFriends', (callback) => this.getUserFriends(callback))
+    ipc.register('getUserFriends', (args, callback) => this.getUserFriends(args, callback))
     ipc.register('getAllLocalUser', (args, callback) => this.getAllLocalUser(args, callback))
   }
 }
