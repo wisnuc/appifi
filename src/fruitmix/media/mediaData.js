@@ -184,7 +184,12 @@ class MediaData {
       }
     })
     // 3. user authorized to read (from fileShareData)
-    props.authorizedToRead = this.fileShareData.userAuthorizedToRead(userUUID)
+    nodes.every(node => {
+      if (this.fileShareData.userAuthorizedToRead(userUUID, node)) {
+        props.authorizedToRead = true
+        return false
+      }
+    })
     // 4. shared with others 
     shares.every(share => {
       if (this.mediaShareData.sharedWithOthers(userUUID, share)) {

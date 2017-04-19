@@ -62,7 +62,6 @@ class Worker extends EventEmitter {
 
   constructor() {
     super()
-    this.isRunning = false
     this.finished = false
     this.state = 'PENDING'
     // this.data = data
@@ -74,12 +73,18 @@ class Worker extends EventEmitter {
     this.run()
   }
 
-  run() {
-    this.finished = true
-    this.state = 'WORKING'
-    //TODO: 
-    // request(this.data)
-    this.finish()
+  run(query) {
+    if (this.state != 'PENDING') return 
+    this.state = 'RUNNING'
+    setInterval( () => {
+      this.isRunning = true
+      // this.state = 'WORKING'
+      console.log('wujj')
+      //TODO: 
+      // request(this.data)
+      this.finish(this)
+    }, 1000)
+   
   }
 
   abort() {
@@ -97,7 +102,10 @@ class Worker extends EventEmitter {
     this.emit('error', ...args)
     this.exit()
   }
-
+  
+  isRunning() {
+    return this.state === 'RUNNING'
+  }
   exit() {
     this.finished = true
   }
@@ -106,30 +114,21 @@ class Worker extends EventEmitter {
 class Thumbnail {
 
   constructor(limit) {
-    this.workingQ = []
+    this.pendingQ = []
+    this.runningQ = []
     this.limit = limit || 40
   }
 
   // 调度器
   schedule() {
-    function isBigEnough(value) {
-      return value >= 10;
-    }
+    console.log('schedule: ', JSON.stringify(this.runningQ))
+    let runningQLength =
+      this.runningQ.filter(working => working.isRunning).length
 
-    var filtered = [12, 5, 8, 130, 44].filter(isBigEnough);
-    // filtered is [12, 130, 44]
-    console.log(filtered);
-    console.log(222, typeof this.workingQ[0])
-    let workingQLength =
-      this.WorkingQ.filter(working => {
-        console.log(2)
-        working.isRunning
-      }).length
+    let diff = this.limit - runningQLength
+    if (diff <= 0) return
 
-    let diff = this.limit - workingQLength
-    if (diff) return
-
-    this.WorkingQ.filter(worker => !worker.isRunning())
+    this.runningQ.filter(worker => !worker.isRunning)
       .slice(0, diff)
       .forEach(worker => worker.start())
   }
@@ -141,19 +140,20 @@ class Thumbnail {
    */
   request(query) {
     let working = this.createWorker(query)
-    console.log(11, JSON.stringify(working))
+    //1. 往pendingQ塞
     working.on('finish', worker => {
-      worker.state = 'FINISHED'
+      // console.log(123123,worker)
+      // worker.state = 'FINISHED'
       this.schedule()
     })
-    // error
-    working.on('error', worker => {
-      worker.state = 'WARNING'
-      this.WorkingQ.splice(this.WorkingQ.indexOf(worker), 1)
-      this.WorkingQ.push(worker)
-      this.schedule()
-    })
-    this.workingQ.push(working)
+    // // error
+    // working.on('error', worker => {
+    //   worker.state = 'WARNING'
+    //   this.runningQ.splice(this.runningQ.indexOf(worker), 1)
+    //   this.runningQ.push(worker)
+    //   this.schedule()
+    // })
+    this.runningQ.push(working)
     this.schedule()
 
 
@@ -165,7 +165,7 @@ class Thumbnail {
   }
 
   abort() {
-    //FIXME: abort this.workingQ
+    //FIXME: abort this.runningQ
   }
 
   register(ipc) {
@@ -174,12 +174,17 @@ class Thumbnail {
 }
 
 
-let tl = new Thumbnail(40)
+let tl = new Thumbnail(4)
 console.log('tl:', tl)
 
-tl.request({
-  age: 2
-})
 
+setInterval(function(){
+  tl.request({
+    age: 2
+  })
+},1000)
+// tl.request({
+//   age: 2
+// })
 
 module.exports = Thumbnail
