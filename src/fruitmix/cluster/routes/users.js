@@ -6,24 +6,30 @@ import config from '../config'
 
 let router = Router()
 
+// get local user and local user's friends
 router.get('/', auth.jwt(), (req, res) => {
-  const user = req.user
-  if(user.isAdmin)
-    localUsers((e, users) => {
-      if(e) return res.status(500).json({})
-      return res.status(200).json(list.map(u => Object.assign({}, u, {
-        password: undefined,
-        smbPassword: undefined,
-        lastChangeTime: undefined
-      })))
-    })
-  else
-    return res.status(200).json([Object.assign({}, user, {
-      password: undefined,
-      smbPassword: undefined,
-      lastChangeTime: undefined
-    })])
+  
 })
+
+
+// router.get('/', auth.jwt(), (req, res) => {
+//   const user = req.user
+//   if(user.isAdmin)
+//     localUsers((e, users) => {
+//       if(e) return res.status(500).json({})
+//       return res.status(200).json(list.map(u => Object.assign({}, u, {
+//         password: undefined,
+//         smbPassword: undefined,
+//         lastChangeTime: undefined
+//       })))
+//     })
+//   else
+//     return res.status(200).json([Object.assign({}, user, {
+//       password: undefined,
+//       smbPassword: undefined,
+//       lastChangeTime: undefined
+//     })])
+// })
 
 
 //req.body 
@@ -102,8 +108,8 @@ router.patch('/',auth.jwt(), (req, res) => {
 router.get('/isLocalUser', auth.jwt(), (req, res) => {
   let user = req.user
   config.ipc.call('isLocalUser', user.uuid, (err, isLocal) => {
-    if (err) return res.status(500).json({})
-    res.status(200).json(Object.assign({}, { isLocal }))
+    err ? res.status(500).json({})
+      : res.status(200).json(Object.assign({}, { isLocal }))
   })
 })
 
