@@ -79,10 +79,10 @@ class MediaData {
       let digest = item.digest
       let medium = this.findMediaByHash(digest)
       if (medium) {
-        medium.sharedItems.push([item, share]) // use 2-tuple for faster check on both creator and member
+        medium.shares.add([item, share]) // use 2-tuple for faster check on both creator and member
       } else {
         medium = new Media(digest)
-        medium.sharedItems.push([item, share])
+        medium.shares.add([item, share])
         this.map.set(digest, medium)
       }
     })
@@ -94,8 +94,8 @@ class MediaData {
     return share.doc.contents.reduce((acc, item) => {
 
       let medium = this.findMediaByHash(item.digest)
-      let index = medium.sharedItems.findIndex(pair => pair[0] === item)
-      medium.sharedItems.splice(index, 1)
+      let index = medium.shares.findIndex(pair => pair[0] === item)
+      medium.shares.splice(index, 1)
       acc.push(medium)
       return acc
 
@@ -114,7 +114,7 @@ class MediaData {
   handleMediaShareUpdated(oldShare, newShare) {
 
     // 1. splice all indexed item inside media object
-    let spliced = unindexMediaShare(oldShare)
+    let spliced = this.unindexMediaShare(oldShare)
 
     // 2. index all new media.
     this.indexMediaShare(newShare)
@@ -135,9 +135,10 @@ class MediaData {
     let sharedWithMe = false
     let sharedWithMeAvailable = false
 
-    for (let i = 0; i < medium.sharedItems.length; i++) {
+    //FIXME:
+    for (let i = 0; i < medium.shares.size; i++) {
 
-      let pair = medium.sharedItems[i]
+      let pair = medium.shares[i]
       let item = pair[0]
       let doc = pair[1].doc
       if (item.creator === userUUID) sharedWithOthers = true
@@ -227,3 +228,5 @@ class MediaData {
     return arr
   }
 }
+
+module.exports = MediaData
