@@ -3,7 +3,7 @@ const router = require('express').Router()
 import config from '../config'
 
 // get mata data of all I can view
-router.get('/getMeta', (req, res) => {
+router.get('/', (req, res) => {
 
   let userUUID = req.user.userUUID
 

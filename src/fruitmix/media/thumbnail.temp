@@ -1,0 +1,138 @@
+
+const EventEmitter = require('events')
+const UUID = require('node-uuid')
+
+class Worker extends State {
+
+  constructor() {
+    super()
+    this.finished = false,
+    this.id = UUID.v4()
+  }
+
+  start() {
+    if (this.finished) throw new Error('worker is already finished')
+    this.run()
+  }
+
+  run() {}
+
+  abort() {
+    if (this.finished) throw new Error('worker is already finished')
+    this.emit('error', new Error('worker is already aborted'))
+    this.exit()
+  }
+
+  finish(data, ...args) {
+    this.emit('finish', e, ...args)
+    this.exit()
+  }
+
+  error(e, ...args) {
+    this.emit('error', e, ...args)
+    this.exit()
+  }
+
+
+  exit() {
+    this.finished = true
+  }
+}
+
+class Working extends State {
+
+  constructor(data) {
+    super()
+    this.isRunning = true
+    this.state = 'WORKING'
+    this.data = data
+
+  }
+
+  run(data) {
+
+  }
+  abort() {}
+
+  isRunning() {
+    this.isRunning = true
+  }
+  exit() {}
+
+}
+
+class Pending extends State {
+
+  constructor(data) {
+    super()
+    this.isRunning = false
+    this.state = 'PENDING'
+    this.data = data
+  }
+
+  run(data) {
+    if (this.ctx) {
+
+    }
+  }
+  abort() {}
+  isRunning() {
+    return true
+  }
+  cleanUp() {}
+  exit() {}
+}
+
+class Queue {
+  constructor() {
+
+  }
+
+}
+class Thumbnail {
+
+  constructor(data) {
+    this.WorkingQ = []
+    this.pendingQ = []
+    this.limit = 40
+    this.data = data
+  }
+
+  // 调度器
+  schedule() {
+    let diff = this.WorkingQ.length
+    if (this.limit.length <= this.WorkingQ.length) {
+      createPending()
+    } else {
+      createWorking()
+    }
+   
+  }
+
+  /**
+    digest: 'string'
+    userUUID： 'string'
+    query: 'object' 
+   */
+
+  run(query) {
+    //TODO:
+    if (err) throw new Error('xxx')
+    createPending(query) {
+      this.pendingQ.push()
+    }
+
+  }
+
+  createWorking(data) {
+    this.pendingQ.push()
+  }
+
+  createPending(data) {
+
+  }
+
+  abort() {}
+}
+
+module.exports = Thumbnail
