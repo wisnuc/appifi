@@ -5,11 +5,20 @@ import config from '../config'
 
 let router = Router();
 
-// get local user info
-router.get('/users', auth.jwt(), (req, res) => {})
+// get all local user info
+router.get('/users', auth.jwt(), (req, res) => {
+
+	// permission useruuid
+	let useruuid = req.useruuid;
+	config.ipc.register('getAllLocalUser', useruuid, (err, users) => {
+		err ? res.status(500).json({})
+			: res.status(200).json(Object.assgin({}, { users }))
+	})
+})
 
 // add pulbic drive
 router.post('/drive', auth.jwt(), (req, res) => {
+	// permission useruuid
 	let useruuid = req.useruuid;
 	let drive = req.drive;
 	// config.ipc.call()

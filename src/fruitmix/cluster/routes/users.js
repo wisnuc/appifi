@@ -8,7 +8,10 @@ let router = Router()
 
 // get local user and local user's friends
 router.get('/', auth.jwt(), (req, res) => {
-  
+  config.ipc.call('getUsersAndFriends', (err, users) => {
+    err ? res.status(500).json({})
+      : res.status(200).json(Object.assign({}, { users }))
+  })
 })
 
 
