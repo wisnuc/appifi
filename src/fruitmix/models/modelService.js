@@ -284,6 +284,7 @@ class ModelService {
   }
 
   async deleteFriendAsync(useruuid, friend) {
+
     // check permission
     let user = this.modelData.users.find(u => u.uuid === useruuid);
     if (!user)
@@ -386,6 +387,8 @@ class ModelService {
     ipc.register('createLocalUser', (args, callback) => this.createLocalUserAsync(args).asCallback(callback))
     ipc.register('updateUser', (args, callback) => this.updateUserAsync(args).asCallback(callback))
     ipc.register('isLocalUser', (args, callback) => this.isLocalUser(args).asCallback(callback))
+    ipc.register('createPublicDrive', (args, callback) => this.createPublicDriveAsync(args).asCallback(callback))
+    ipc.register('updatePublicDrive', (args, callback) => this.updatePublicDriveAsync(args).asCallback(callback))
     ipc.register('getDriveInfo', (args, callback) => this.getDriveInfo(args, callback))
     ipc.register('getDrives', (callback) => this.getDrives(callback))
     ipc.register('getAccountInfo', (args, callback) => this.getAccountInfo(args, callback))

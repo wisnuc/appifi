@@ -9,7 +9,11 @@ let router = Router();
 router.get('/users', auth.jwt(), (req, res) => {})
 
 // add pulbic drive
-router.post('/drive', auth.jwt(), (req, res) => {})
+router.post('/drive', auth.jwt(), (req, res) => {
+	let useruuid = req.useruuid;
+	let drive = req.drive;
+	// config.ipc.call()
+})
 
 // update public drive
 router.patch('/:driveUUID', auth,jwt(), (req, res) => {})
