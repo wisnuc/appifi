@@ -5,7 +5,6 @@ import xattr from 'fs-xattr'
 import { Router } from 'express'
 import formidable from 'formidable'
 
-import auth from '../middleware/auth'
 import config from '../config'
 import { createFileMap, updateSegmentAsync, readFileMapList, readFileMap, deleteFileMap } from '../lib/filemap'
 import paths from '../lib/paths'
