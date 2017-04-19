@@ -427,6 +427,19 @@ class ModelData extends EventEmitter {
       d.ref === 'library')
   }
 
+  // get local users and user's friends
+  getUsersAndFriends(){
+    let localUsers = this.users.filter(u => u.type === 'local')
+    let friends;
+    localUsers.forEach(u => u.friends.forEach(f => friends.push(f)))
+    let mixUser = Array.from(new Set([...localUsers, ...friends]))
+    return mixUser.map(u => ({
+      type: u.type,
+      uuid: u.uuid,
+      username: u.username
+    }))
+  }
+
 }
 
 const createModelData = froot => {
