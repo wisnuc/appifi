@@ -6,9 +6,9 @@ import config from '../config'
 
 let router = Router()
 
-// get local user and local user's friends
+// get user friends
 router.get('/', auth.jwt(), (req, res) => {
-  config.ipc.call('getUsersAndFriends', (err, users) => {
+  config.ipc.call('getUserFriends', (err, users) => {
     err ? res.status(500).json({})
       : res.status(200).json(Object.assign({}, { users }))
   })

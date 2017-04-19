@@ -384,8 +384,8 @@ class ModelService {
   }
 
   // get local users and user's friends
-  getUsersAndFriends(callback){
-    callback(null, this.modelDate.getUsersAndFriends())
+  getUserFriends(useruuid, callback){
+    callback(null, this.modelDate.getUserFriends())
   }
 
   // get all local user
@@ -406,7 +406,7 @@ class ModelService {
     ipc.register('getDriveInfo', (args, callback) => this.getDriveInfo(args, callback))
     ipc.register('getDrives', (callback) => this.getDrives(callback))
     ipc.register('getAccountInfo', (args, callback) => this.getAccountInfo(args, callback))
-    ipc.register('getUsersAndFriends', (callback) => this.getUsersAndFriends(callback))
+    ipc.register('getUserFriends', (callback) => this.getUserFriends(callback))
     ipc.register('getAllLocalUser', (args, callback) => this.getAllLocalUser(args, callback))
   }
 }
