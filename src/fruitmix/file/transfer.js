@@ -7,6 +7,7 @@ import xattr from 'fs-xattr'
 import UUID from 'node-uuid'
 
 import E from '../lib/error'
+import config from '../cluster/config'
 
 class Worker extends EventEmitter {
 
@@ -132,7 +133,7 @@ class Move extends Worker {
 
   copy(callback) {
     // let srcpath = this.src.type === 'fruitmix' ? this.data.findNodeByUUID(path.basename(this.src.path)) : 
-    // to join ext path
+    // TODO to join ext path Jack
     child.exec(`cp -r --reflink=auto ${ this.src } ${ this.dst }`,(err, stdout, stderr) => {
       if(err) return callback(err)
       if(stderr) return callback(stderr)
@@ -141,6 +142,7 @@ class Move extends Worker {
   }
 
   delete(callback) {
+    // TODO  join Path Jack
     child.exec(`rm -rf ${ this.src }`, (err, stdout, stderr) => {
       if(err) return callback(err)
       if(stderr) return callback(stderr)

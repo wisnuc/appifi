@@ -11,10 +11,12 @@ import filemap from './filemap'
 import fileshare from './fileshare'
 import mediashare from './mediashare'
 import libraries from './libraries'
+import admin from './admin'
+import account from './account'
 
 const media = require('./media')
 const ipctest = require('./ipctest')
-const auth = require('../middleware/auth')
+import auth from'../middleware/auth'
 
 let router = Router()
 
@@ -22,13 +24,15 @@ router.use('/init', init)
 router.use('/login', login)
 router.use('/token', token)
 //FIXME: auth
-// app.use('/*', auth.jwt())
+router.use('/*', auth.jwt())
 router.use('/files', files)
 router.use('/filemap', filemap)
-router.use('/libraries', libraries)
+// router.use('/libraries', libraries)
 router.use('/ipctest', ipctest)
 router.use('/fileshare', fileshare)
 router.use('/mediashare', mediashare)
-router.use('media', media)
+router.use('/media', media)
+router.use('/admin', admin)
+router.use('/account', account)
 
 export default router
