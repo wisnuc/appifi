@@ -23,7 +23,7 @@ module.exports = class MediaService {
 
   // need to check authorazation 
   async readMedia({userUUID, digest}) {
-    let digestObj = this.mediaData.findMediaByUUID(digest)
+    let digestObj = this.mediaData.findMediaByHash(digest)
     if (!digestObj) throw E.ENOENT()
 
     let props = this.mediaData.mediumProperties(userUUID, digest)

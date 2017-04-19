@@ -104,7 +104,7 @@ class FileShareService {
 
   register(ipc) {
     ipc.register('getUserFileShares', (args, callback) => 
-      this.getUserFileShare(args.userUUID).asCallback(callback))
+      this.getUserFileShares(args.userUUID).asCallback(callback))
     
     ipc.register('createFileShare', (args, callback) => 
       this.createFileShare(args.userUUID, args.post).asCallback(callback))

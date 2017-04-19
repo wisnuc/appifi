@@ -5,7 +5,7 @@ import config from '../config'
 let router = Router()
 
 // get all mediaShares of a user
-router.get('/', auth.jwt(), (req, res) => {
+router.get('/', (req, res) => {
   let user = req.user
 
   config.ipc.call('getUserMediaShares', { userUUID: user.uuid }, (err, shares) => {
@@ -15,7 +15,7 @@ router.get('/', auth.jwt(), (req, res) => {
 })
 
 // create a mediaShare
-router.post('/', auth.jwt(), (req, res) => {
+router.post('/', (req, res) => {
   let user = req.user
   let props = Object.assign({}, req.body)
 
@@ -26,7 +26,7 @@ router.post('/', auth.jwt(), (req, res) => {
 })
 
 // update a mediaShare
-router.patch('/:shareUUID', auth.jwt(), (req, res) => {
+router.patch('/:shareUUID', (req, res) => {
   let user = req.user
   let shareUUID = req.params.shareUUID
   let props = Object.assign({}, req.body)
@@ -38,7 +38,7 @@ router.patch('/:shareUUID', auth.jwt(), (req, res) => {
 })
 
 // delete a mediaShare 
-router.delete('/:shareUUID', auth.jwt(), (req, res) => {
+router.delete('/:shareUUID', (req, res) => {
   let user = req.user
   let shareUUID = req.params.shareUUID
 

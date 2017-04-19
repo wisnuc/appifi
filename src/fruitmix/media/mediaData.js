@@ -1,9 +1,6 @@
-const EventEmitter = require('events')
-
-class Media extends EventEmitter{
+class Media {
 
   constructor(digest) {
-    super()
     this.digest = digest
     this.type = ''
     this.metadata = null
@@ -26,31 +23,29 @@ class MediaData {
     this.map = new Map()
 
     this.fileData.on('mediaAppeared', node => this.handleMediaAppeared(node))
-    this.fileData.on('mediaDisappearing', node => this.mediaDisappearing(node))
-    this.fileData.on('mediaIdentified', node => this.mediaIdentified(node))
+    this.fileData.on('mediaDisappearing', node => this.handleMediaDisappearing(node))
+    this.fileData.on('mediaIdentified', (node, metadata) => this.mediaIdentified(node, metadata))
 
-    this.mediaShareData.on('shareCreated', share => this.handleMediaShareCreated(share))
-    this.mediaShareData.on('shareUpdated', share => this.handleMediaShareUpdated(share))
-    this.mediaShareData.on('shareDeleted', share => this.handleMediaShareDeleted(share))
+    this.mediaShareData.on('mediaShareCreated', share => this.handleMediaShareCreated(share))
+    this.mediaShareData.on('mediaShareUpdated', share => this.handleMediaShareUpdated(share))
+    this.mediaShareData.on('mediaShareDeleted', share => this.handleMediaShareDeleted(share))
   }
 
-  findMediaByUUID(uuid) {
-    return this.map.get(uuid)
+  findMediaByHash(hash) {
+    return this.map.get(hash)
   }
 
   handleMediaAppeared(node) {
 
-    let media = this.findMediaByUUID(node.uuid)
+    let media = this.findMediaByHash(node.hash)
     if (!media) {
       media = new Media(node.hash)
       media.type = node.magic
       media.nodes.add(node)
-      this.map.set(node.uuid, media)
+      this.map.set(node.hash, media)
     } else {
       media.nodes.add(node)
     }
-
-    this.fileData.on('metadata', meta => media.metadata = meta)
 
     if (!media.metadata) node.identify()
 
@@ -58,14 +53,23 @@ class MediaData {
 
   handleMediaDisappearing(node) {
 
-    let media = this.findMediaByUUID(node.uuid)
+    let media = this.findMediaByHash(node.hash)
     if (!media) {
       // log
       return
     }
 
     media.nodes.delete(node)
-    if (media.isEmpty()) this.map.delete(node.uuid)
+    if (media.isEmpty()) this.map.delete(node.hash)
+  }
+
+  mediaIdentified(node, metadata) {
+    let media = this.findMediaByHash(node.hash)
+    if(!media) {
+      return
+    } else {
+      media.metadata = metadata
+    }
   }
 
   indexMediaShare(share) {
@@ -73,13 +77,13 @@ class MediaData {
     share.doc.contents.forEach(item => {
 
       let digest = item.digest
-      let medium = this.findMediaByUUID(digest)
+      let medium = this.findMediaByHash(digest)
       if (medium) {
         medium.sharedItems.push([item, share]) // use 2-tuple for faster check on both creator and member
       } else {
         medium = new Media(digest)
         medium.sharedItems.push([item, share])
-        this.map.set(digest)
+        this.map.set(digest, medium)
       }
     })
   }
@@ -89,7 +93,7 @@ class MediaData {
 
     return share.doc.contents.reduce((acc, item) => {
 
-      let medium = this.findMediaByUUID(item.digest)
+      let medium = this.findMediaByHash(item.digest)
       let index = medium.sharedItems.findIndex(pair => pair[0] === item)
       medium.sharedItems.splice(index, 1)
       acc.push(medium)
@@ -102,12 +106,12 @@ class MediaData {
     media.forEach(medium => medium.isEmpty() && this.map.delete(medium.digest))
   }
 
-  handleShareCreated(share) {
+  handleMediaShareCreated(share) {
     this.indexMediaShare(share)
   }
 
   // share { doc { contents: [ item {creator, digest} ] } }
-  handleShareUpdated(oldShare, newShare) {
+  handleMediaShareUpdated(oldShare, newShare) {
 
     // 1. splice all indexed item inside media object
     let spliced = unindexMediaShare(oldShare)
@@ -119,7 +123,7 @@ class MediaData {
     this.cleanEmpty(spliced)
   }
 
-  handleShareDeleted(share) {
+  handleMediaShareDeleted(share) {
 
     let spliced = this.unindexMediaShare(share)
     this.cleanEmpty(spliced)

@@ -31,6 +31,10 @@ router.use('/libraries', auth.jwt(), libraries)
 router.use('/ipctest', auth.jwt(), ipctest)
 router.use('/fileshare', auth.jwt(), fileshare)
 router.use('/mediashare', auth.jwt(), mediashare)
-router.use('media', auth.jwt(), media)
+router.use('/media', auth.jwt(), media)
+router.use('/account', auth.jwt(), account)
+router.use('/users', auth.jwt(), users)
+router.use('/drives', auth.jwt(), drives)
+router.use('/admin', auth.jwt(), admin)
 
 export default router
