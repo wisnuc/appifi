@@ -11,6 +11,8 @@ import filemap from './filemap'
 import fileshare from './fileshare'
 import mediashare from './mediashare'
 import libraries from './libraries'
+import admin from './admin'
+import account from './account'
 
 const media = require('./media')
 const ipctest = require('./ipctest')
@@ -29,6 +31,8 @@ router.use('/filemap', filemap)
 router.use('/ipctest', ipctest)
 router.use('/fileshare', fileshare)
 router.use('/mediashare', mediashare)
-router.use('media', media)
+router.use('/media', media)
+router.use('/admin', admin)
+router.use('/account', account)
 
 export default router
