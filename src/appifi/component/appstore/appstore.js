@@ -1,11 +1,9 @@
 import Debug from 'debug'
-const APPSTORE = Debug('APPIFI:APP_STORE')
+const APP_STORE = Debug('APPIFI:APP_STORE')
 
 import request from 'superagent'
 import { storeState, storeDispatch } from '../../lib/reducers'
 import { validateRecipe } from '../../lib/utility'
-
-const useLocalRecipes = false // used for test, obsolete
 
 const getJsonRecipesUrl = () => {
 
@@ -13,44 +11,52 @@ const getJsonRecipesUrl = () => {
     'https://raw.githubusercontent.com/wisnuc/appifi-recipes/master/release.json' :
     'https://raw.githubusercontent.com/wisnuc/appifi-recipes/release/release.json'
 
-  APPSTORE(`Using ${url}`)
+  APP_STORE(`Using ${url}`)
 
   return url
 }
 
-const retrieveTextAsync = Promise.promisify((url, callback) => 
-  request.get(url)
-    .set('Accept', 'text/plain')
-    .end((err, res) => {
-      if (err) callback(err)
-      else if (!res.ok) callback(new Error('bad response'))
-      else callback(null, res.text) 
-    })
-)
+const retrieveTextAsync = async (url) => {
+  try {
+    let response = await request
+                                .get(url)
+                                .set('Accept', 'text/plain')
+    if(response.error) {
+      APP_STORE('Retrieve Failed')
+      return
+    }
+    else if(!response.ok) {
+      APP_STORE('Bad response')
+      return
+    }
+    else {
+      return response.text
+    }
+  }
+  catch(error) {
+    APP_STORE('Unknown Error')
+    return
+  }
+}
 
 const retrieveRecipes = async () => {
 
   let recipes = null
-  if (useLocalRecipes) {
-    recipes = localRecipes
-  }
-  else {
-    APPSTORE('Retrieve json recipes...')
-    let jsonRecipes = await retrieveTextAsync(getJsonRecipesUrl())
-    if (jsonRecipes instanceof Error) return jsonRecipes
+  APP_STORE('Retrieve json recipes...')
+  let jsonRecipes = await retrieveTextAsync(getJsonRecipesUrl())
+  if (jsonRecipes instanceof Error) return jsonRecipes
 
-    APPSTORE('Parse json recipes...')
-    try {
-      recipes = JSON.parse(jsonRecipes)
-    }
-    catch (e) {
-      APPSTORE('Json recipes parse error')
-      return e
-    }
+  APP_STORE('Parse json recipes...')
+  try {
+    recipes = JSON.parse(jsonRecipes)
+  }
+  catch (e) {
+    APP_STORE('Json recipes parse error')
+    return e
   }
 
   recipes = recipes.filter(recipe => validateRecipe(recipe))  
-  APPSTORE('Recipes retrieved')
+  APP_STORE('Recipes retrieved')
   return recipes 
 }
 
@@ -77,11 +83,11 @@ const retrieveRepo = (namespace, name) => {
 const retrieveRepoMap = async (recipes) => {
 
   if (!recipes) {
-    APPSTORE(`retrieveRepoMap: recipes null or undefined`)
+    APP_STORE(`retrieveRepoMap: recipes null or undefined`)
     return new Error('recipes can\'t be null')
   }
 
-  APPSTORE(`Retrieving repos for recipes...`)
+  APP_STORE(`Retrieving repos for recipes...`)
 
   let compos = []
   recipes.forEach(recipe => 
@@ -113,7 +119,7 @@ const refreshAppStore = async () => {
 
   let appstore = storeState().appstore
   if (appstore === 'LOADING') {
-    APPSTORE('Already loading')
+    APP_STORE('Already loading')
     return
   }
 
@@ -164,12 +170,12 @@ export default {
   reload: () => {
     refreshAppStore().then(r => {
       if (r instanceof Error) {
-        APPSTORE('Failed loading appstore', r)
+        APP_STORE('Failed loading appstore', r)
         return
       }
-      APPSTORE('Loading success')      
+      APP_STORE('Loading success')      
     }).catch(e => {
-      APPSTORE('Loading failed', e)
+      APP_STORE('Loading failed', e)
     })
   }
 }
