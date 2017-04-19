@@ -6,7 +6,7 @@ import config from '../config'
 let router = Router();
 
 // get all local user info
-router.get('/users', auth.jwt(), (req, res) => {
+router.get('/users', (req, res) => {
 
 	// permission useruuid
 	let useruuid = req.useruuid;
@@ -17,7 +17,7 @@ router.get('/users', auth.jwt(), (req, res) => {
 })
 
 // add pulbic drive
-router.post('/drive', auth.jwt(), (req, res) => {
+router.post('/drive', (req, res) => {
 	// permission useruuid
 	let useruuid = req.useruuid;
 	let drive = req.drive;
