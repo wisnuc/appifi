@@ -1,5 +1,5 @@
 import E from '../lib/error'
-
+import { request, abort } from './thumbnail'
 
 module.exports = class MediaService {
 
@@ -12,10 +12,21 @@ module.exports = class MediaService {
     this.mediaShareData = mediaShareData
   } 
 
+  findMediaPath(digest) {
+
+    let media = this.mediaData.findMediaByHash(digest)
+    if (!media) throw new E.ENOENT()
+
+    let nodes = Array.from(media.nodes)
+    for (let n of nodes) {
+      return n.namepath()
+    }
+  }
+
   async getMeta(userUUID) {
     // userUUID must be local user
     let user = await this.model.isLocalUser(userUUID)
-    if (!user) throw E.EACCESS()
+    if (!user) throw new E.EACCESS()
 
     let allMedia = this.mediaData.getAllMedia(userUUID)
     return allMedia
@@ -23,23 +34,27 @@ module.exports = class MediaService {
 
   // need to check authorazation 
   async readMedia({userUUID, digest}) {
-    let digestObj = this.mediaData.findMediaByHash(digest)
-    if (!digestObj) throw E.ENOENT()
+    let media = this.mediaData.findMediaByHash(digest)
+    if (!media) throw new E.ENOENT()
 
-    let props = this.mediaData.mediumProperties(userUUID, digest)
+    let props = this.mediaData.mediaProperties(userUUID, digest)
     if (props.permittedToShare || props.authorizedToRead ||
       props.sharedWithOthers || props.sharedWithMe) {
 
-      let nodes = digestObj.nodes
-      if (nodes.length === 0) throw E.ENODENOTFOUND()
-      return nodes.namepath()
+      return this.findMediaPath(digest)
     } else {
-      throw E.ENOENT()
+      throw new E.ENOENT()
     }
   }
 
   async getThumbnail({userUUID, digest, query}) {
+
+    let path = this.findMediaPath(digest)
     //TODO:
+    let props = {
+      
+    }
+    request(path)
   }
 
   register(ipc) {

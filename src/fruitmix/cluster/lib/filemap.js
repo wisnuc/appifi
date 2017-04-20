@@ -218,6 +218,7 @@ const updateSegmentAsync = async (userUUID, nodeUUID, segmentHash, start, taskId
 
 const autoRename = (userUUID, dirUUID, filename, callback) => {
   config.ipc.call('list',{ userUUID, dirUUID }, (err, nodes) => {
+    if(err) return callback(err)
     let files = nodes.map(n => n.name)
     if(!files.includes(filename)) return callback(null, filename)
 

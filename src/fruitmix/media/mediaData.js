@@ -143,6 +143,7 @@ class MediaData {
     let sharesArr = Array.from(media.shares)
     let nodesArr = Array.from(media.nodes)
 
+    //FIXME:
     for (let i = 0; i < sharesArr.length; i++) {
 
       let pair = sharesArr[i]
@@ -197,7 +198,6 @@ class MediaData {
         return false
       }
     })
-    // props.authorizedToRead = this.fileShareData.userAuthorizedToRead(userUUID)
     // 4. shared with others 
     shares.every(share => {
       if (this.mediaShareData.sharedWithOthers(userUUID, share)) {
@@ -225,19 +225,24 @@ class MediaData {
 
   getAllMedia(userUUID) {
 
-    let arr = []
+    let map = new Map()
     for (let pair of this.map) {
-      let props = this.mediumProperties(userUUID, pair[1])
+      let props = this.mediaProperties(userUUID, pair[1])
+     
       if (props.permittedToShare || props.authorizedToRead ||
         props.sharedWithOthers || props.sharedWithMe) {
         //put authorization in metadata
-        pair[1].metadata.permittedToShare = props.permittedToShare
-        pair[1].metadata.authorizedToRead = props.authorizedToRead
-        pair[1].metadata.sharedWithOthers = props.sharedWithOthers
-        pair[1].metadata.sharedWithMe = props.sharedWithMe
-        arr.push(pair[1].metadata)
+        map.set(pair[0], {
+          metadata: pair[1].metadata,
+          permittedToShare: props.permittedToShare,
+          authorizedToRead: props.authorizedToRead,
+          sharedWithOthers: props.sharedWithOthers,
+          sharedWithMe: props.sharedWithMe
+        })
       }
     }
-    return arr
+    return map
   }
 }
+
+module.exports = MediaData

@@ -1,185 +1,231 @@
-const EventEmitter = require('events')
-const UUID = require('node-uuid')
+import path from 'path'
+import fs from 'fs'
 
-class State extends EventEmitter {
+import child from 'child_process'
+import crypto from 'crypto'
 
-  constructor() {
-    super()
-    this.finished = false,
-      this.id = UUID.v4()
-  }
+import UUID from 'node-uuid'
+import { DIR } from '../lib/const' 
 
-  // setState(nextState, ...args) {
-  //   this.exit()
-  //   this.ctx.state = new nextState(this.ctx, ...args)
-  // }
+const ERROR = (code, _text) => (text => 
+  Object.assign(new Error(text || _text), { code }))
 
-  start() {
-    if (this.finished) throw new Error('worker is already finished')
-    this.run()
-  }
+const EFAIL = ERROR('EFAIL', 'operation failed') 
+const EINVAL = ERROR('EINVAL', 'invalid argument')
+const EINTR = ERROR('EINTR', 'operation interrupted')
+const ENOENT = ERROR('ENOENT', 'entry not found')
 
-  run() {
-    this.finished = true
-  }
+// a simple version to avoid canonical json, for easy debug
+const stringify = (object) => 
+  JSON.stringify(Object.keys(object)
+    .sort().reduce((obj, key) => {
+      obj[key] = object[key]
+      return obj
+    }, {}))
 
-  abort() {
-    if (this.finished) throw new Error('worker is already finished')
-    this.emit('error', new Error('worker is already aborted'))
-    this.exit()
-  }
+// hash stringified option object
+const optionHash = (opts) => 
+  crypto.createHash('sha256')
+    .update(stringify(opts))
+    .digest('hex')
 
-  finish(...args) {
-    this.emit('finish', ...args)
-    this.exit()
-  }
+// generate geometry string for convert
+const geometry = (width, height, modifier) => {
 
-  error(...args) {
-    this.emit('error', ...args)
-    this.exit()
-  }
+  let str
+  
+  if (!height)
+    str = `${width.toString()}`
+  else if (!width)
+    str = `x${height.toString()}`
+  else {
+    str = `${width.toString()}x${height.toString()}`
 
-  exit() {
-    this.finished = true
-  }
+    switch (modifier) {
+      case 'caret':
+        str += '^'
+        break
+      default:
+
+    }
+  } 
+  return str
 }
 
-// class Pending extends State {
+// parse query to opts
+const parseQuery = (query) => {
 
-//   constructor(data) {
-//     super()
-//     this.isRunning = false
-//     this.state = 'PENDING'
-//     this.data = data
-//   }
+  let { width, height, modifier, autoOrient } = query
 
-//   abort() {}
-
-//   exit() {}
-// }
-
-class Worker extends EventEmitter {
-
-  constructor() {
-    super()
-    this.isRunning = false
-    this.finished = false
-    this.state = 'PENDING'
-    // this.data = data
-
+  if (width !== undefined) {
+    width = parseInt(width) 
+    if (!Number.isInteger(width) || width === 0 || width > 4096)
+      return EINVAL('invalid width') 
   }
 
-  start() {
-    if (this.finished) throw new Error('worker is already finished')
-    this.run()
+  if (height !== undefined) {
+    height = parseInt(height)
+    if (!Number.isInteger(height) || height === 0 || height > 4096)
+      return EINVAL('invalid height')
   }
 
-  run() {
-    this.finished = true
-    this.state = 'WORKING'
-    //TODO: 
-    // request(this.data)
-    this.finish()
+  if (!width && !height) return EINVAL('no geometry')
+
+  if (!width || !height) modifier = undefined
+  if (modifier && modifier !== 'caret') return EINVAL('unknown modifier')
+
+  if (autoOrient !== undefined) {
+    if (autoOrient !== 'true') 
+      return EINVAL('invalid autoOrient') 
+    autoOrient = true
   }
 
-  abort() {
-    if (this.finished) throw new Error('worker is already finished')
-    this.emit('error', new Error('worker is already aborted'))
-    this.exit()
-  }
-
-  finish(...args) {
-    this.emit('finish', ...args)
-    this.exit()
-  }
-
-  error(...args) {
-    this.emit('error', ...args)
-    this.exit()
-  }
-
-  exit() {
-    this.finished = true
-  }
+  return { width, height, modifier, autoOrient }
 }
 
-class Thumbnail {
+// convert, return abort function
+const convert = (src, tmp, dst, opts, callback) => {
 
-  constructor(limit) {
-    this.workingQ = []
-    this.limit = limit || 40
+  let finished = false
+
+  let args = []
+  args.push(src)
+  if (opts.autoOrient) args.push('-auto-orient')
+  args.push('-thumbnail')
+  args.push(geometry(opts.width, opts.height, opts.modifier))
+  args.push(tmp) 
+
+  let spawn = child.spawn('convert', args)
+    .on('error', err => CALLBACK(err))
+    .on('close', code => {
+      spawn = null 
+      if (finished) return
+      if (code !== 0) 
+        CALLBACK(EFAIL('convert spawn failed with exit code ${code}'))
+      else
+        fs.rename(tmp, dst, CALLBACK)
+    })
+
+  function CALLBACK(err) {
+    if (finished) return
+    if (spawn) spawn = spawn.kill()
+    finished = true
+    callback(err)
   }
 
-  // 调度器
-  schedule() {
-    function isBigEnough(value) {
-      return value >= 10;
+  return () => CALLBACK(EINTR())
+}
+
+
+
+const createThumbnailer = () => {
+
+  let limit = 1
+  let jobs = []
+
+  // create a job, using function scope as context / object
+  function createJob(key, digest, opts) {
+
+    let intr, listeners = [] 
+    let dst = path.join(DIR.THUMB, key)
+
+    function run() {
+      //FIXME:
+      // const src = models.getModel('filer').readMediaPath(digest)
+      if (!src) return finish(ENOENT('src not found'))
+      const tmp = path.join(DIR.TMP, UUID.v4())
+      //TODO: 
+      intr = convert(src, tmp, dst, opts, finish)
     }
 
-    var filtered = [12, 5, 8, 130, 44].filter(isBigEnough);
-    // filtered is [12, 130, 44]
-    console.log(filtered);
-    console.log(222, typeof this.workingQ[0])
-    let workingQLength =
-      this.WorkingQ.filter(working => {
-        console.log(2)
-        working.isRunning
-      }).length
+    function finish(err) {
+      listeners.forEach(cb => err ? cb(err) : cb(null, dst))
+      intr = undefined
+      jobs.splice(jobs.findIndex(j => j.key === key), 1)
+      schedule()
+    }
+   
+    return { 
+      key, run, 
+      isRunning: () => !!intr,
+      addListener: (listener) => listeners.push(listener),
+      abort: () => intr && (intr = intr()) 
+    }
+  }
 
-    let diff = this.limit - workingQLength
-    if (diff) return
+  function schedule() {
+  
+    let diff = limit - jobs.filter(job => job.isRunning()).length
+    if (diff <= 0) return
 
-    this.WorkingQ.filter(worker => !worker.isRunning())
+    jobs.filter(job => !job.isRunning())
       .slice(0, diff)
-      .forEach(worker => worker.start())
+      .forEach(job => job.run())
   }
 
-  /**
-    digest: 'string'
-    userUUID： 'string'
-    query: 'object' 
-   */
-  request(query) {
-    let working = this.createWorker(query)
-    console.log(11, JSON.stringify(working))
-    working.on('finish', worker => {
-      worker.state = 'FINISHED'
-      this.schedule()
+  function generate(key, digest, opts) {
+
+    let job = jobs.find(j => j.key === key)
+    if (job) return job
+
+    job = createJob(key, digest, opts)
+    jobs.push(job)
+    if (jobs.filter(job => job.isRunning()).length < limit) job.run()
+    return job
+  }
+
+  function abort() {
+
+    jobs.filter(job => job.isRunning())
+      .forEach(job => job.abort())
+    jobs = []
+  }
+
+  function request (digest, query, callback) {
+
+    let opts = parseQuery(query)
+    if (opts instanceof Error)
+      return process.nextTick(callback, opts)
+    
+    
+    let key = digest + optionHash(opts)
+    let thumbpath = path.join(DIR.THUMB, key) 
+
+    // find the thumbnail file first
+    fs.stat(thumbpath, (err, stat) => {
+
+      // if existing, return path for instant, or status ready for pending
+      if (!err) return callback(null, thumbpath)
+
+      // if error other than ENOENT, return err
+      if (err.code !== 'ENOENT') return callback(err)
+
+      // request a job to generate thumbnail 
+      let job = generate(key, digest, opts)
+
+      if (query.nonblock === 'true') {
+        if (job.isRunning()) {
+          callback({ status: 'running' }) 
+        }
+        else {
+          callback({ status: 'pending' })
+        }
+      }
+      else {
+        if (job.isRunning()) {
+          job.addListener(callback)
+        }
+        else {
+          callback({ status: 'pending' })
+        }
+      }
     })
-    // error
-    working.on('error', worker => {
-      worker.state = 'WARNING'
-      this.WorkingQ.splice(this.WorkingQ.indexOf(worker), 1)
-      this.WorkingQ.push(worker)
-      this.schedule()
-    })
-    this.workingQ.push(working)
-    this.schedule()
-
-
   }
 
-  createWorker(data) {
-    let working = new Worker(data)
-    return working
-  }
-
-  abort() {
-    //FIXME: abort this.workingQ
-  }
-
-  register(ipc) {
-    ipc.register('run', this.run.bind(this))
-  }
+  return { request, abort }
 }
 
-
-let tl = new Thumbnail(40)
-console.log('tl:', tl)
-
-tl.request({
-  age: 2
-})
+export default createThumbnailer
 
 
-module.exports = Thumbnail
+
