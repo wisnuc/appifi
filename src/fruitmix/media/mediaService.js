@@ -15,7 +15,7 @@ module.exports = class MediaService {
   findMediaPath(digest) {
 
     let media = this.mediaData.findMediaByHash(digest)
-    if (!media) throw new new E.ENODENOTFOUND()
+    if (!media) throw new E.ENOENT()
 
     let nodes = Array.from(media.nodes)
     for (let n of nodes) {
@@ -34,8 +34,8 @@ module.exports = class MediaService {
 
   // need to check authorazation 
   async readMedia({userUUID, digest}) {
-    let digestObj = this.mediaData.findMediaByHash(digest)
-    if (!digestObj) throw new E.ENOENT()
+    let media = this.mediaData.findMediaByHash(digest)
+    if (!media) throw new E.ENOENT()
 
     let props = this.mediaData.mediumProperties(userUUID, digest)
     if (props.permittedToShare || props.authorizedToRead ||

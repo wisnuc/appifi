@@ -144,9 +144,9 @@ class MediaData {
     let nodesArr = Array.from(media.nodes)
 
     //FIXME:
-    for (let i = 0; i < medium.shares.size; i++) {
+    for (let i = 0; i < sharesArr.length; i++) {
 
-      let pair = medium.shares[i]
+      let pair = sharesArr[i]
       let item = pair[0]
       let doc = pair[1].doc
       if (item.creator === userUUID) sharedWithOthers = true
@@ -227,7 +227,7 @@ class MediaData {
 
     let map = new Map()
     for (let pair of this.map) {
-      let props = this.mediumProperties(userUUID, pair[1])
+      let props = this.mediaProperties(userUUID, pair[1])
      
       if (props.permittedToShare || props.authorizedToRead ||
         props.sharedWithOthers || props.sharedWithMe) {
