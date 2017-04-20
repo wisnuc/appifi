@@ -73,6 +73,14 @@ class FileData extends EventEmitter {
     console.log(`node ${node.uuid} ${node.name} hash stopped`)
   }
 
+  identifyStarted(node) {
+    console.log(`node ${node.uuid} ${node.name} identify started`)
+  }
+
+  identifyStopped(node) {
+    console.log(`node ${node.uuid} ${node.name} identify stopped`)
+  }
+
   // create node does NOT probe parent automatically,
   // the probe should be put in caller's try / finally block 
   createNode(parent, xstat) {
