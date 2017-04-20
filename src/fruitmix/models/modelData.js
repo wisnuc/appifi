@@ -422,9 +422,9 @@ class ModelData extends EventEmitter {
   // get home, library & public drive
   getDrives(){
     return this.drives.filter(d => 
-      d.type === 'public' ||
-      d.ref === 'home' ||
-      d.ref === 'library')
+      d.type === 'public'
+      this.driveMap(d).ref === 'home' ||
+      this.driveMap(d).ref === 'library')
   }
 
   // get all local user
