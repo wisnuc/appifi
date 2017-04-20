@@ -1,6 +1,6 @@
 import EventEmitter from 'events'
 import Debug from 'debug'
-const PULLIMAGE = Debug('APPIFI:PULL_IMAGE')
+const PULL_IMAGE = Debug('APPIFI:PULL_IMAGE')
 
 import dockerAgent from './dockerAgent'
 import { createStore } from '../../lib/redux'
@@ -84,9 +84,9 @@ class pullImage extends EventEmitter {
       }
     }
 
-    PULLIMAGE('--- unexpected message') 
-    PULLIMAGE(msg)
-    PULLIMAGE('--- unexpected message end')
+    PULL_IMAGE('--- unexpected message') 
+    PULL_IMAGE(msg)
+    PULL_IMAGE('--- unexpected message end')
     
     return state
   }

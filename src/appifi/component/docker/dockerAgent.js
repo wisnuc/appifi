@@ -1,63 +1,25 @@
 import http from 'http'
-import stream from 'stream'
-import readline from 'readline'
 import events from 'events'
 
 import Debug from 'debug'
 const DOCKER_AGENT = Debug('APPIFI:DOCKER_AGENT')
 
+import { Transform } from '../../lib/transform'
 import { HttpStatusError } from '../../lib/error'
+import DefaultParam from '../../lib/defaultParam'
 
-/*
- * This class uses a transform as input into which user write data, and redirect data
- * to readline, emit parsed json object 
- */
-class connection extends events {
-
-  constructor(response) {
-    super() 
-    this.response = response
-    this.transform = new stream.Transform({ 
-      transform: function (chunk, encoding, callback) {
-        this.push(chunk)
-        callback()
-      }
-    })
-
-    this.rl = readline
-      .createInterface({input: this.transform})
-      .on('line', (line) => {
-        let json = null
-        try {
-          json = JSON.parse(line)
-          this.emit('json', json)
-        }
-        catch (e) {
-          // this.emit('error', new JSONParserError(e))
-          // console.log(e)
-          console.log(line)
-        } 
-      })
-      .on('close', () => {
-        this.emit('close') 
-      })
-
-    response.setEncoding('utf8')
-    response.on('data', chunk => this.transform.write(chunk))
-    response.on('end', () => this.transform.end()) 
-  }
-}
+let dockerURL = new DefaultParam().getDockerURL()
 
 /*
  * This class holds a request object, and delegate connection events to user, if connected.
  */
-class agent extends events {
+class Agent extends events {
 
   constructor(method, path, callback) { 
     super()
     let options = {
-      hostname: '127.0.0.1',
-      port: 1688,
+      hostname: dockerURL.ip,
+      port: dockerURL.port,
       path: path,
       method: method,
       headers: {
@@ -71,19 +33,20 @@ class agent extends events {
     this.closed = false
 
     this.req = http.request(options, (res) => { 
-        if (res.statusCode === 200) {    
-          let conn = new connection(res)
-          conn.on('json', data => this.emit('json', data))
-          conn.on('close', () => {
-            this.closed = true
-            this.emit('close')
-          })
-          callback(null, this)
-        }
-        else {
-          callback(new HttpStatusError(res.statusCode))
-        }
-      }) // dont chain
+      if (res.statusCode === 200) {    
+        let conn = new Transform(res)
+        conn.on('json', data => this.emit('json', data))
+        conn.on('close', () => {
+          this.closed = true
+          this.emit('close')
+        })
+        callback(null, this)
+      }
+      else {
+        callback(new HttpStatusError(res.statusCode))
+      }
+    }) // dont chain
+
     this.req.on('error', e => callback(e))
     this.req.end() 
   }
@@ -95,9 +58,13 @@ class agent extends events {
 }
 
 /** the agent emit HttpStatusError / errno: EHTTPSTATUS **/
-const get = (path, callback) => new agent('GET', path, callback)  
-const post = (path, callback) => new agent('POST', path, callback)
+const get = (path, callback) => {
+  return new Agent('GET', path, callback)
+}
+const post = (path, callback) => {
+  return new Agent('POST', path, callback)
+}
 
-export default {get, post}
+export default { get, post }
 
 

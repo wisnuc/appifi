@@ -7,8 +7,8 @@ const DOCKER_TASKS = Debug('APPIFI:DOCKER_TASKS')
 
 import pullImage from './pullImage'
 import { containerCreate, containerStart } from './dockerApi'
-import ContainerDefault from './containerDefault'
-let containerCreateDefaultOpts = new ContainerDefault()
+import DefaultParam from '../../lib/defaultParam'
+let containerDefaultOpts = new DefaultParam().getContainerDefault()
 
 import { calcRecipeKeyString, installAppifiLabel } from '../../lib/utility'
 
@@ -183,7 +183,7 @@ class AppInstallTask extends Task {
     // in reverse order
     for (var i = this.jobs.length - 1; i >= 0; i--) {
       let job = this.jobs[i]
-      let opt = deepmerge(containerCreateDefaultOpts.getDefault(), job.compo.config)
+      let opt = deepmerge(containerDefaultOpts, job.compo.config)
       opt.Image = `${job.compo.namespace}/${job.compo.name}`
       opt = this.processBinds(this.id, opt)
       opt = this.processPortBindings(this.id, opt)

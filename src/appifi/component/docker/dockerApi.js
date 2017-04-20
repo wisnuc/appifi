@@ -1,92 +1,125 @@
 import request from 'superagent'
+import Debug from 'debug'
+const DOCKER_API = Debug('APPIFI:DOCKER_API')
+
 import { HttpStatusError } from '../../lib/error'
+import DefaultParam from '../../lib/defaultParam'
 
-const dockerUrl = 'http://127.0.0.1:1688'
+let getDockerURL = new DefaultParam().getDockerURL()
+const dockerURL = `${getDockerURL.protocol}://${getDockerURL.ip}:${getDockerURL.port}`
+DOCKER_API('Docker URL: ', dockerURL)
 
 // return err
-async function containerStart(id) {
+const containerStart = async (id) => {
 
-  return new Promise((resolve, reject) => 
-    request.post(`${dockerUrl}/containers/${id}/start`)
-      .set('Accept', 'application/json')
-      .end((err, res) => {
-        if (err) return resolve (err)
-        
-        /*  see api doc, v1.23
-            204 no error
-            304 container already started
-            404 no such container
-            500 server error */
+  try {
+    let result = await request.post(`${dockerURL}/containers/${id}/start`)
+                              .set('Accept', 'application/json')
 
-        if (res.statusCode === 204 || res.statusCode === 304) 
-          return resolve(null)
+    /*
+      see api doc, v1.23
+      204 no error
+      304 container already started
+      404 no such container
+      500 server error
+    */
 
-        resolve(new HttpStatusError(res.statusCode))
-      }))
+    if(result.statusCode === 204 || result.statusCode === 304) {
+      DOCKER_API('Start Success, statusCode: ', result.statusCode)
+      return 
+    }
+    else {
+      DOCKER_API('Start Failed, statusCode: ', result.statusCode)
+      return new HttpStatusError(result.statusCode)
+    }
+  }
+  catch(error) {
+    DOCKER_API('Start Unknown Error, error: ', error)
+    return error
+  }
 }
 
 // return err
-async function containerStop(id) {
+const containerStop = async (id) => {
 
-  return new Promise((resolve, reject) => 
-    request.post(`${dockerUrl}/containers/${id}/stop`)
-      .set('Accept', 'application/json')
-      .end((err, res) => {
+  try {
+    let result = await request.post(`${dockerURL}/containers/${id}/stop`)
+                              .set('Accept', 'application/json')
 
-        if (err) return resolve (err)
-        
-        /*  see api doc, v1.23
-            204 no error
-            304 container already started
-            404 no such container
-            500 server error */
+    /*
+      see api doc, v1.23
+      204 no error
+      304 container already started
+      404 no such container
+      500 server error
+    */
 
-        if (res.statusCode === 204 || res.statusCode === 304) 
-          return resolve(null)
-
-        resolve(new HttpStatusError(res.statusCode))
-      }))
+    if(result.statusCode === 204 || result.statusCode === 304) {
+      DOCKER_API('Stop Success, statusCode: ', result.statusCode)
+      return 
+    }
+    else {
+      DOCKER_API('Stop Failed, statusCode: ', result.statusCode)
+      return new HttpStatusError(result.statusCode)
+    }
+  }
+  catch(error) {
+    // DOCKER_API('Stop Unknown Error, error: ', error)
+    DOCKER_API('Stop Unknown Error')
+    return error
+  }
 }
 
 // return err
-async function containerCreate(option) {
+const containerCreate = async (option) => {
 
-  return new Promise((resolve, reject) => {
-    request
-      .post(`${dockerUrl}/containers/create`)
-      .set('Accept', 'application/json')
-      .send(option)
-      .end((err, res) => {
-        if (err) {
-          resolve(err)
-        }
-        else {
-          resolve(res.body)
-        }
-      })
-  })
+  try {
+    let result = await request.post(`${dockerURL}/containers/create`)
+                        .set('Accept', 'application/json')
+                        .send(option)
+
+    if(result.statusCode === 201) {
+      DOCKER_API('Create Success, statusCode: ', result.statusCode)
+      return result.body
+    }
+    else {
+      DOCKER_API('Create Maybe Failed, statusCode: ', result.statusCode)
+      return result.body
+    }
+  }
+  catch(error) {
+    DOCKER_API('Create Unknown Error, error: ', error)
+    return error
+  }
 }
 
 // return err
-async function containerDelete(id) {
+const containerDelete = async (id) => {
 
-  return new Promise((resolve, reject) => {
-    request
-      .del(`${dockerUrl}/containers/${id}?force=true`)
-      .end((err, res) => {
+  try {
+    let result = await request.del(`${dockerURL}/containers/${id}?force=true`)
 
-        if (err) return resolve(err);    
+    /*
+      api doc
+      204 no error
+      400 bad parameter
+      404 no such container
+      500 server error
+    */
 
-      /* api doc
-        204 no error
-        400 bad parameter
-        404 no such container
-        500 server error */
-
-        if (res.statusCode === 204) return resolve(null)
-        resolve(new HttpStatusError(res.statusCode))
-      })
-  })
+    if(result.statusCode === 204) {
+      DOCKER_API('Delete Success, statusCode: ', result.statusCode)
+      return
+    }
+    else {
+      DOCKER_API('Delete Failed, statusCode: ', result.statusCode)
+      return new HttpStatusError(result.statusCode)
+    }
+  }
+  catch(error) {
+    DOCKER_API('Delete Unknown Error, error: ', error)
+    return error
+  }
 }
 
 export { 

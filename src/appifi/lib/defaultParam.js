@@ -1,5 +1,5 @@
-class ContainerDefault {
-  getDefault() {
+class DefaultParam {
+  getContainerDefault() {
     return {
       'Hostname': '',
       'Domainname': '',
@@ -92,9 +92,17 @@ class ContainerDefault {
       }
     }
   }
+
+  getDockerURL() {
+    return {
+      protocol: 'http',
+      ip: '127.0.0.1',
+      port: '1688'
+    }
+  }
 }
 
-export default ContainerDefault
+export default DefaultParam
 
 
 
