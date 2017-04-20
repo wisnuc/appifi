@@ -16,7 +16,7 @@ router.get('/users', (req, res) => {
 })
 
 // add pulbic drive
-router.post('/drive', (req, res) => {
+router.post('/drives', (req, res) => {
 	// permission useruuid
 	let useruuid = req.useruuid;
 	let drive = req.drive;

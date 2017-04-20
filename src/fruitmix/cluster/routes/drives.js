@@ -8,7 +8,7 @@ let router = Router()
 router.get('/', (req, res) => {
 	config.ipc.call('getDrives', (err, drives) => {
 		err ? res.status(500).json({})
-			: res.status(200).json(Object.assign({}, drives))
+			: res.status(200).json(Object.assign({}, { drives }))
 	})
 })
 
