@@ -225,20 +225,23 @@ class MediaData {
 
   getAllMedia(userUUID) {
 
-    let arr = []
+    let map = new Map()
     for (let pair of this.map) {
       let props = this.mediumProperties(userUUID, pair[1])
+     
       if (props.permittedToShare || props.authorizedToRead ||
         props.sharedWithOthers || props.sharedWithMe) {
         //put authorization in metadata
-        pair[1].metadata.permittedToShare = props.permittedToShare
-        pair[1].metadata.authorizedToRead = props.authorizedToRead
-        pair[1].metadata.sharedWithOthers = props.sharedWithOthers
-        pair[1].metadata.sharedWithMe = props.sharedWithMe
-        arr.push(pair[1].metadata)
+        map.set(pair[0], {
+          MediaData: pair[1].metadata,
+          permittedToShare: props.permittedToShare,
+          authorizedToRead: props.authorizedToRead,
+          sharedWithOthers: props.sharedWithOthers,
+          sharedWithMe: props.sharedWithMe
+        })
       }
     }
-    return arr
+    return map
   }
 }
 
