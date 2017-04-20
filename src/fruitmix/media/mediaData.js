@@ -143,9 +143,10 @@ class MediaData {
     let sharesArr = Array.from(media.shares)
     let nodesArr = Array.from(media.nodes)
 
-    for (let i = 0; i < sharesArr.length; i++) {
+    //FIXME:
+    for (let i = 0; i < medium.shares.size; i++) {
 
-      let pair = sharesArr[i]
+      let pair = medium.shares[i]
       let item = pair[0]
       let doc = pair[1].doc
       if (item.creator === userUUID) sharedWithOthers = true
@@ -197,7 +198,6 @@ class MediaData {
         return false
       }
     })
-    // props.authorizedToRead = this.fileShareData.userAuthorizedToRead(userUUID)
     // 4. shared with others 
     shares.every(share => {
       if (this.mediaShareData.sharedWithOthers(userUUID, share)) {
@@ -241,3 +241,5 @@ class MediaData {
     return arr
   }
 }
+
+module.exports = MediaData
