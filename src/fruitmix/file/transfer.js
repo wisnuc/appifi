@@ -85,7 +85,7 @@ class Move extends Worker {
 
   run() {
     if(this.state !== 'PADDING') return 
-
+    this.state = 'RUNNING'
     let srcType = src.type === 'fruitmix'
     let dstType = dst.type === 'fruitmix'
     let modeType = srcType && dstType ? 'FF' : srcType && !dstType ?
@@ -158,9 +158,9 @@ class Move extends Worker {
   cleanXattr(callback){
     const clean = (dir, dirContext, entry, callback) => {
       let xattrType = dirContext.type
-      let path = path.join(dir, entry)
-      xattr.setSync(path, xattrType, JSON.stringify({}))
-      fs.lstatSync(path).isFile() ? callback() : callback(dirContext)
+      let fpath = path.join(dir, entry)
+      xattr.setSync(fpath, xattrType, JSON.stringify({}))
+      fs.lstatSync(fpath).isFile() ? callback() : callback(dirContext)
     }
     this.visit(this.src, { type: 'user.fruitmix'}, clean, callback)
   }
@@ -357,7 +357,7 @@ const createMoveWorker = (src, dst, data, userUUID, callback) => {
 }
 
 const createCopyWorker = (src, dst, data, userUUID, callback) => {
-  let tmp = path.join(process.cwd(), 'tmp') //TODO Get tmp folder Jack
+  let tmp = path.join(config.path, 'tmp') //TODO Get tmp folder Jack
   if(fs.existsSync(src) && fs.existsSync(dst)) {
     let worker = new Copy(src, dst, tmp, data)
     return callback(null, worker)
