@@ -28,7 +28,6 @@ const jwtOpts = {
 }
 
 const jwtVerify = (jwt_payload, done) => {
-  console.log(123456)
   localUsers((e, users) => {
     if(e) return done(e)
     let user = users.find(u => u.uuid === jwt_payload.uuid)

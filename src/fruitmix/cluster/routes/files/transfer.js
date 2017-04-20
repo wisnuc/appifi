@@ -4,7 +4,6 @@ const fs = Promise.promisifyAll(require('fs'))
 const router = require('express').Router()
 const validator = require('validator')
 
-import auth from '../../middleware/auth'
 import config from '../../config'
 
 const isUUID = (uuid) => (typeof uuid === 'string') ? validator.isUUID(uuid) : false
@@ -13,14 +12,14 @@ router.get('/hello', (req, res) => {
   res.status(200).end()
 })
 
-router.get('/', auth.jwt(), (req, res) => {
+router.get('/', (req, res) => {
   config.ipc.call('getWorkers', req.user.uuid, (e, workers) => {
     if(e) return res.error(e, 500)
     return res.success(workers, 200)
   })
 })
 
-router.post('/:type', auth.jwt(), (req, res) => {
+router.post('/:type', (req, res) => {
   let type =  req.params.type === 'move' ? 'createMove'
                   : req.params.type === 'copy' ? 'createCopy' : undefined
   if(type){
@@ -40,6 +39,14 @@ router.post('/:type', auth.jwt(), (req, res) => {
   }else{
     res.error(null, 404)
   }
+})
+
+router.post('/abort/:taskid', (req, res) => {
+  let args = { userUUID: req.user.uuid , workerId: req.params.taskid }
+  config.ipc.call('abortWorker', args, (err, data) => {
+    if(err) return res.error(err, 500)
+    return res.success(null, 200)
+  })
 })
 
 module.exports = router

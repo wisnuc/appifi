@@ -5,7 +5,6 @@ import xattr from 'fs-xattr'
 import { Router } from 'express'
 import formidable from 'formidable'
 
-import auth from '../middleware/auth'
 import config from '../config'
 import { createFileMap, updateSegmentAsync, readFileMapList, readFileMap, deleteFileMap } from '../lib/filemap'
 import paths from '../lib/paths'
@@ -19,7 +18,7 @@ router.post('/:nodeUUID', (req, res) => {
   let user = req.user
   let name = req.body.filename
   let dirUUID　= req.params.nodeUUID
-  let args =  { userUUID:user.uuid, dirUUID, name }
+  // let args =  { userUUID:user.uuid, dirUUID, name }
    // config.ipc.call('createFileCheck', args, (err, node) => {
   //   if(err) return res.error(err, 400)
   //   if(!node.isDirectory()) return res.error(null, 400)

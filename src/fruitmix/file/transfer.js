@@ -9,6 +9,10 @@ import UUID from 'node-uuid'
 import E from '../lib/error'
 import config from '../cluster/config'
 
+const isFruitmix = (uuid) => {
+  
+}
+
 class Worker extends EventEmitter {
 
   constructor() {
@@ -321,7 +325,7 @@ class Transfer {
     process.nextTick(() => callback(null, data))
   }
 
-  abortWorker ({userUUID , workerId}, callback){
+  abortWorker ({ userUUID , workerId }, callback){
     let worker = this.workersQueue.find((worker => worker.id === workerId && worker.userUUID === userUUID))
     if(worker){
       try{
