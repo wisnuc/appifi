@@ -18,7 +18,7 @@ router.post('/:nodeUUID', (req, res) => {
   let user = req.user
   let name = req.body.filename
   let dirUUID　= req.params.nodeUUID
-  let args =  { userUUID:user.uuid, dirUUID, name }
+  // let args =  { userUUID:user.uuid, dirUUID, name }
    // config.ipc.call('createFileCheck', args, (err, node) => {
   //   if(err) return res.error(err, 400)
   //   if(!node.isDirectory()) return res.error(null, 400)

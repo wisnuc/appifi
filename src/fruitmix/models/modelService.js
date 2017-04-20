@@ -424,7 +424,7 @@ class ModelService {
     ipc.register('createPublicDrive', (args, callback) => this.createPublicDriveAsync(args).asCallback(callback))
     ipc.register('updatePublicDrive', (args, callback) => this.updatePublicDriveAsync(args).asCallback(callback))
     ipc.register('getDriveInfo', (args, callback) => this.getDriveInfo(args, callback))
-    ipc.register('getDrives', (callback) => this.getDrives(callback))
+    ipc.register('getDrives', (args, callback) => this.getDrives(callback))
     ipc.register('getAccountInfo', (args, callback) => this.getAccountInfo(args, callback))
     ipc.register('getUserFriends', (args, callback) => this.getUserFriends(args, callback))
     ipc.register('getAllLocalUser', (args, callback) => this.getAllLocalUser(args, callback))

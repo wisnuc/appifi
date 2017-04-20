@@ -41,4 +41,12 @@ router.post('/:type', (req, res) => {
   }
 })
 
+router.post('/abort/:taskid', (req, res) => {
+  let args = { userUUID: req.user.uuid , workerId: req.params.taskid }
+  config.ipc.call('abortWorker', args, (err, data) => {
+    if(err) return res.error(err, 500)
+    return res.success(null, 200)
+  })
+})
+
 module.exports = router
