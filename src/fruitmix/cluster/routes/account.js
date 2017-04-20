@@ -5,9 +5,9 @@ import config from '../config'
 let router = Router();
 
 // get account info
-router.get('/:userUUID', (req, res) => {
+router.get('/', (req, res) => {
 
-	let userUUID = req.params.userUUID;
+	let userUUID = req.user.useruuid;
 	config.ipc.call('getAccountInfo', userUUID, (err, user) => {
 		err ? res.status(500).json({})
 			: res.status(200).json(Object.assign({}, user))
