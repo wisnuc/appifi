@@ -316,8 +316,8 @@ describe(path.basename(__filename), () => {
 
 		it('create public dirve', async done => {
 			try {
-				await model.createPublicDriveAsync(uuid_1,
-						{ label: 'public driveB' });
+				await model.createPublicDriveAsync({useruuid: uuid_1,
+					props: { label: 'public driveB' }});
 				fs.readFile(mfile, (err, data) => {
 					if(err) return done(err);
 					let res = JSON.parse(data.toString());
@@ -330,13 +330,13 @@ describe(path.basename(__filename), () => {
 
 		it('update public drive', async done => {
 			try {
-				await model.createPublicDriveAsync(uuid_1,
-						{ label: 'public driveA' });
+				await model.createPublicDriveAsync({ useruuid: uuid_1,
+						props: { label: 'public driveA' }});
 				let duuid = model.modelData.drives
 					.filter(d => d.type === 'public')
 					.map(d => d.uuid);
-				await model.updatePublicDriveAsync(uuid_1,
-						{ uuid: duuid[0], label: 'public driveB' });
+				await model.updatePublicDriveAsync({ useruuid: uuid_1,
+						props: { uuid: duuid[0], label: 'public driveB' }});
 				fs.readFile(mfile, (err, data) => {
 					if(err) return done(err);
 					let res = JSON.parse(data.toString());
@@ -349,10 +349,10 @@ describe(path.basename(__filename), () => {
 
 		it('delete public dirve', async done => {
 			try {
-				await model.createPublicDriveAsync(uuid_1,
-						{ label: 'public driveA' });
-				await model.createPublicDriveAsync(uuid_1,
-						{ label: 'public driveB' });
+				await model.createPublicDriveAsync({ useruuid: uuid_1,
+						props: { label: 'public driveA' }});
+				await model.createPublicDriveAsync({ useruuid: uuid_1,
+						props: { label: 'public driveB' }});
 
 				let duuid = model.modelData.drives
 					.filter(d => d.type === 'public')

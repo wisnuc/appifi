@@ -9,7 +9,7 @@ router.get('/users', (req, res) => {
 
 	// permission useruuid
 	let useruuid = req.useruuid;
-	config.ipc.register('getAllLocalUser', useruuid, (err, users) => {
+	config.ipc.call('getAllLocalUser', useruuid, (err, users) => {
 		err ? res.status(500).json({})
 			: res.status(200).json(Object.assign({}, { users }))
 	})
