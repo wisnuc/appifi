@@ -37,7 +37,7 @@ module.exports = class MediaService {
     let media = this.mediaData.findMediaByHash(digest)
     if (!media) throw new E.ENOENT()
 
-    let props = this.mediaData.mediumProperties(userUUID, digest)
+    let props = this.mediaData.mediaProperties(userUUID, digest)
     if (props.permittedToShare || props.authorizedToRead ||
       props.sharedWithOthers || props.sharedWithMe) {
 

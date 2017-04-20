@@ -233,7 +233,7 @@ class MediaData {
         props.sharedWithOthers || props.sharedWithMe) {
         //put authorization in metadata
         map.set(pair[0], {
-          MediaData: pair[1].metadata,
+          metadata: pair[1].metadata,
           permittedToShare: props.permittedToShare,
           authorizedToRead: props.authorizedToRead,
           sharedWithOthers: props.sharedWithOthers,
