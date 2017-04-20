@@ -411,7 +411,7 @@ class ModelService {
 
   // get all local user
   getAllLocalUser(useruuid, callback){
-    let user = this.modelData.user.find(u => u.uuid === useruuid && u.isAdmin)
+    let user = this.modelData.users.find(u => u.uuid === useruuid && u.isAdmin)
     if (!user)
       return callback(new Error('no permission to get all local user'))
     callback(null, this.modelData.getAllLocalUser())
