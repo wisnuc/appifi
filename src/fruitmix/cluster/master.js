@@ -9,6 +9,7 @@ import { createFileShareStoreAsync, createMediaShareStoreAsync } from '../lib/sh
 import { createFileShareData } from '../file/fileShareData'
 import { createFileShareService } from '../file/fileShareService'
 import FileService from '../file/fileService'
+// const {MediaData} = require('')
 import { createMediaShareData } from '../media/mediaShareData'
 import { createMediaShareService } from '../media/mediaShareService'
 import Transfer from '../file/transfer'
@@ -51,6 +52,7 @@ export default async () => {
   const fileShareData = createFileShareData(modelData, fileShareStore)
   const fileShareService = createFileShareService(fileData, fileShareData)
   const fileService = new FileService(froot, fileData, fileShareData)
+  // const mediaData = 
   // const mediaShareStore = await createMediaShareStoreAsync(froot, docStore)
   // const mediaShareData = createMediaShareData(modelData, mediaShareStore)
   // const mediaShareService = createMediaShareService(mediaData, mediaShareData)
