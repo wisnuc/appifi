@@ -26,7 +26,7 @@ class MediaData {
     this.fileData.on('mediaDisappearing', node => this.handleMediaDisappearing(node))
     this.fileData.on('mediaIdentified', (node, metadata) => this.mediaIdentified(node, metadata))
 
-    this.mediaShareData.on('mediaShareCreated', share => this.handleMediaShareCreated(share))
+    this.mediaShareData.on('mediaShareCreated', shares => this.handleMediaShareCreated(shares))
     this.mediaShareData.on('mediaShareUpdated', (oldShare, newShare) => this.handleMediaShareUpdated(oldShare, newShare))
     this.mediaShareData.on('mediaShareDeleted', share => this.handleMediaShareDeleted(share))
   }
@@ -112,8 +112,8 @@ class MediaData {
     medias.forEach(media => media.isEmpty() && this.map.delete(media.digest))
   }
 
-  handleMediaShareCreated(share) {
-    this.indexMediaShare(share)
+  handleMediaShareCreated(shares) {
+    shares.forEach(share => this.indexMediaShare(share))
   }
 
   // share { doc { contents: [ item {creator, digest} ] } }

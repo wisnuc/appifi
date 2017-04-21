@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import auth from '../middleware/auth'
+// import auth from '../middleware/auth'
 import config from '../config'
 
 let router = Router()
@@ -7,7 +7,6 @@ let router = Router()
 // get all mediaShares of a user
 router.get('/', (req, res) => {
   let user = req.user
-
   config.ipc.call('getUserMediaShares', { userUUID: user.uuid }, (err, shares) => {
     if(err) return res.error(err, 400)
     res.success(shares)

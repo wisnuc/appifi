@@ -124,7 +124,7 @@ class MediaShareService {
   register(ipc) {
 
     ipc.register('getUserMediaShares', (args, callback) => 
-      this.createMediaShare(args.userUUID).asCallback(callback))
+      this.getUserMediaShares(args.userUUID).asCallback(callback))
     
     ipc.register('createMediaShare', (args, callback) => 
       this.createMediaShare(args.userUUID, args.post).asCallback(callback))
