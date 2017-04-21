@@ -1,4 +1,3 @@
-// import { createStore, combineReducers } from 'redux'
 import { createStore, combineReducers } from './redux'
 
 import Debug from 'debug'
@@ -41,6 +40,7 @@ const docker = (state = null, action) => {
       newState = state
       break
   }
+  
   return newState
 }
 

@@ -8,8 +8,6 @@ import { Transform } from '../../lib/transform'
 import { HttpStatusError } from '../../lib/error'
 import DefaultParam from '../../lib/defaultParam'
 
-let dockerURL = new DefaultParam().getDockerURL()
-
 /*
  * This class holds a request object, and delegate connection events to user, if connected.
  */
@@ -17,9 +15,10 @@ class Agent extends events {
 
   constructor(method, path, callback) { 
     super()
+    this.dockerURL = new DefaultParam().getDockerURL()
     let options = {
-      hostname: dockerURL.ip,
-      port: dockerURL.port,
+      hostname: this.dockerURL.ip,
+      port: this.dockerURL.port,
       path: path,
       method: method,
       headers: {
