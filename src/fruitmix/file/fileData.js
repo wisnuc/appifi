@@ -18,6 +18,9 @@ class FileData extends EventEmitter {
     this.model = model
     this.root = new Node(this)
     this.uuidMap = new Map()
+    this.probeTotal = 0
+    this.probeNow = 0
+    
 
     // drives created and deleted are processed in batch
     // it is easier to do assertion after change
@@ -58,10 +61,13 @@ class FileData extends EventEmitter {
   }
 
   probeStarted(node) {
+    this.probeTotal++
+    this.probeNow++
     console.log(`node ${node.uuid} ${node.name} probe started`)
   }
 
   probeStopped(node) {
+    this.probeNow--
     console.log(`node ${node.uuid} ${node.name} probe stopped`)
   }
 
