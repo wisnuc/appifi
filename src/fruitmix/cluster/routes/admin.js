@@ -8,7 +8,7 @@ let router = Router();
 router.get('/users', (req, res) => {
 
 	// permission useruuid
-	let useruuid = req.useruuid;
+	let useruuid = req.user.uuid;
 	config.ipc.call('getAllLocalUser', useruuid, (err, users) => {
 		err ? res.status(500).json({})
 			: res.status(200).json(Object.assign({}, { users }))
@@ -18,7 +18,7 @@ router.get('/users', (req, res) => {
 // add pulbic drive
 router.post('/drives', (req, res) => {
 	// permission useruuid
-	let useruuid = req.useruuid;
+	let useruuid = req.user.uuid;
 	let drive = req.drive;
 	config.ipc.call('createPublicDrive', { useruuid, props:drive }, (err, drive) => {
 		err ? res.status(500).json({})
@@ -29,7 +29,7 @@ router.post('/drives', (req, res) => {
 // update public drive
 router.patch('/:driveUUID', (req, res) => {
 	// permission useruuid
-	let useruuid = req.useruuid;
+	let useruuid = req.user.uuid;
 	let drive = req.drive;
 	config.ipc.call('updatePublicDrive', { useruuid, props:drive }, (err, drive) => {
 		err ? res.status(500).json({})

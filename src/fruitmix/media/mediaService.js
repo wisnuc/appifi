@@ -1,5 +1,5 @@
 import E from '../lib/error'
-import { request, abort } from './thumbnail'
+import { request, abort } from './thumb'
 
 module.exports = class MediaService {
 
@@ -47,20 +47,31 @@ module.exports = class MediaService {
     }
   }
 
-  async getThumbnail({userUUID, digest, query}) {
+  getThumb({ userUUID, digest, query }, callback) {
 
-    let path = this.findMediaPath(digest)
-    //TODO:
-    let props = {
-      
-    }
-    request(path)
+    let src = this.findMediaPath(digest)
+    request({ src, digest, query }, (err, data) => {
+      if (err)
+        return callback(err)
+      return callback(null, data)
+    })
+
+
+  }
+
+  abort({ userUUID, digest, query }, callback) {
+    abort({ digest, query }, (err, data) => {
+      if (err)
+        return callback(err)
+      return callback(null, data)
+    })
   }
 
   register(ipc) {
     ipc.register('getMeta', (args, callback) => this.getMeta(args).asCallback(callback))
     ipc.register('readMedia', (args, callback) => this.readMedia(args).asCallback(callback))
-    ipc.register('getThumbnail', (args, callback) => this.readMedia(args).asCallback(callback))
+    ipc.register('getThumb', this.getThumb.bind(this))
+    ipc.register('abort', this.abort.bind(this))
   }
 }
 

@@ -6,7 +6,7 @@ let router = Router()
 
 // get user friends
 router.get('/', (req, res) => {
-  let useruuid = req.user.useruuid;
+  let useruuid = req.user.uuid;
   config.ipc.call('getUserFriends',useruuid, (err, friends) => {
     err ? res.status(500).json({})
       : res.status(200).json(Object.assign({}, { friends }))
