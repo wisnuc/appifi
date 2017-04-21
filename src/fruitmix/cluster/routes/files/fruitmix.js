@@ -30,8 +30,7 @@ router.get('/:type/:dirUUID/:rootUUID', (req, res) => {
   let args = { userUUID, dirUUID, rootUUID }
 
   config.ipc.call(typeObj[type], args, (err, data) => {
-    console.log('err',err);
-    if (err) return res.error(err.err)
+    if (err) return res.error(err)
     return res.success(data)
   })
 })
