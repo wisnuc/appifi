@@ -10,7 +10,7 @@ const DEFAULT_ERROR_STATUS = 500
 const httpCode = {
   400: 'EINVAL',// invalid parameters
   404: 'ENOTFOUND',// not found
-  500: 'ESYSER' // system error
+  500: 'ESYSERR' // system error
 }
 
 // define('EINVAL', 'invalid parameters')
@@ -54,17 +54,17 @@ export default (req, res, next) => {
     let code, message, stack
 
     if (err) {
-
       if (err instanceof Error) {
-
         status = status || err.status
         code = err.code
         message = err.message
         stack = err.stack
-
-      } else if (typeof err === 'string') {
-
+      } 
+      else if (typeof err === 'string') {
         message = err
+      }
+      else if (typeof err === 'object') {
+        
       }
     }
     

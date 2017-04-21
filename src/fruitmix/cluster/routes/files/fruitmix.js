@@ -15,7 +15,6 @@ import { DIR } from '../../../lib/const'
 
 // list, tree and nav a directory
 router.get('/:type/:dirUUID/:rootUUID', (req, res) => {
-
   let userUUID = req.user.userUUID
   let { type, dirUUID, rootUUID } = req.params
 
@@ -31,7 +30,8 @@ router.get('/:type/:dirUUID/:rootUUID', (req, res) => {
   let args = { userUUID, dirUUID, rootUUID }
 
   config.ipc.call(typeObj[type], args, (err, data) => {
-    if (err) return res.error(err)
+    console.log('err',err);
+    if (err) return res.error(err.err)
     return res.success(data)
   })
 })

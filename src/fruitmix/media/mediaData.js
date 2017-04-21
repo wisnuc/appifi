@@ -245,4 +245,4 @@ class MediaData {
   }
 }
 
-module.exports = MediaData
+export default MediaData
