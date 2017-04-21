@@ -19,12 +19,18 @@ router.get('/:type/:dirUUID/:rootUUID', (req, res) => {
   let userUUID = req.user.userUUID
   let { type, dirUUID, rootUUID } = req.params
 
-  let typeArr = ['list', 'tree' ,'list-nav', 'tree-nav']
-  if (typeArr.indexOf(type) === -1) return res.error(null, 400)
+  let typeObj = {
+    'list': 'list',
+    'tree': 'tree',
+    'list-nav': 'navList',
+    'tree-nav': 'navTree'
+  }
+  if (Object.keys(typeObj).indexOf(type) === -1) 
+    return res.error(null, 400)
 
   let args = { userUUID, dirUUID, rootUUID }
 
-  config.ipc.call(type, args, (err, data) => {
+  config.ipc.call(typeObj[type], args, (err, data) => {
     if (err) return res.error(err)
     return res.success(data)
   })
