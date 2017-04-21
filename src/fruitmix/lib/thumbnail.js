@@ -192,7 +192,7 @@ const createThumbnailer = () => {
 
       // if error other than ENOENT, return err
       if (err.code !== 'ENOENT') return callback(err)
-
+        
       // request a job to generate thumbnail 
       let job = generate(key, digest, opts)
 

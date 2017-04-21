@@ -1,6 +1,6 @@
 const pretty = require('prettysize')
 
-import command from '../lib/command'
+// import command from '../lib/command'
 import hash from './hash'
 import identify from './identify'
 import Node from './node'
@@ -19,11 +19,24 @@ class FileNode extends Node {
   }
 
   identify() {
-    this.worker = this.createIdentifyWorker(() => {
+    this.worker = identify(this.abspath(), this.uuid, this.hash)
+    this.worker.on('error', err => {
       this.worker = null
-      if (err) return // TODO:
+      this.ctx.identifyStopped(this)
+    })
+
+    this.worker.on('finish', metadata => {
+      this.worker = null
+      this.ctx.identifyStopped(this)
       this.ctx.emit('mediaIdentified', this, metadata)
     })
+
+    this.worker.start()
+    // this.worker = this.createIdentifyWorker(() => {
+    //   this.worker = null
+    //   if (err) return // TODO:
+    //   this.ctx.emit('mediaIdentified', this, metadata)
+    // })
   }
 
   // before update

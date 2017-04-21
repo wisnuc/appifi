@@ -12,6 +12,7 @@ import FileService from '../file/fileService'
 import { createMediaShareData } from '../media/mediaShareData'
 import { createMediaShareService } from '../media/mediaShareService'
 import Transfer from '../file/transfer'
+import Recorder from '../file/recorder'
 
 const makeDirectoriesAsync = async froot => {
 
@@ -53,9 +54,10 @@ export default async () => {
   const fileService = new FileService(froot, fileData, fileShareData)
   // const mediaShareStore = await createMediaShareStoreAsync(froot, docStore)
   // const mediaShareData = createMediaShareData(modelData, mediaShareStore)
-  // const mediaShareService = createMediaShareService(mediaData, mediaShareData)
+  // const mediaShareService = createMediaShareService(undefined, mediaShareData)
   const transfer = new Transfer(fileData) 
-
+  // const recorder = new Recorder(path.join(froot, 'log'), fileData, 1000)
+  // recorder.start()
 	await modelService.initializeAsync()
 
 	console.log('modelData', modelData.users, modelData.drives)
