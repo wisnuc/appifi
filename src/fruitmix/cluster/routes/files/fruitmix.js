@@ -15,7 +15,7 @@ import { DIR } from '../../../lib/const'
 
 // list, tree and nav a directory
 router.get('/:type/:dirUUID/:rootUUID', (req, res) => {
-  let userUUID = req.user.userUUID
+  let userUUID = req.user.uuid
   let { type, dirUUID, rootUUID } = req.params
 
   let typeObj = {
