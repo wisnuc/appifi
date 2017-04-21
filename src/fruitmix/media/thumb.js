@@ -127,7 +127,7 @@ class Worker extends EventEmitter {
     this.state = 'pending'
     this.id = hash
     this.src = src
-    this.digest = opts
+    this.opts = opts
     this.callback = null
   }
   
@@ -219,7 +219,8 @@ class Thumb {
       this.schedule()
     })
     worker.on('error', worker => {
-      worker.state = 'warning'
+      //FIXME: 重复调用
+      // worker.state = 'pending'
       this.workingQ.splice(this.workingQ.indexOf(worker), 1)
       this.workingQ.push(worker)
       this.schedule()
