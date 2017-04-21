@@ -1,7 +1,7 @@
 
 import { Router } from 'express'
 import config from '../config'
-
+import { localUsers } from '../model'
 
 let router = Router();
 
@@ -9,10 +9,15 @@ let router = Router();
 router.get('/', (req, res) => {
 
 	let userUUID = req.user.uuid;
-	config.ipc.call('getAccountInfo', userUUID, (err, user) => {
-		err ? res.status(500).json({})
-			: res.status(200).json(Object.assign({}, user))
+	localUsers((err, users) => {
+		err ? res.status(500).json(Object.assign({}, err))
+			: res.status(200).json(Object.assign({}, users.filter(u => u.uuid === userUUID)[0]))
 	})
+
+	// config.ipc.call('getAccountInfo', userUUID, (err, user) => {
+	// 	err ? res.status(500).json({})
+	// 		: res.status(200).json(Object.assign({}, user))
+	// })
 })
 
 export default router
