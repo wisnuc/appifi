@@ -96,14 +96,14 @@ const convert = (key, src, opts, callback) => {
   if (opts.autoOrient) args.push('-auto-orient')
   args.push('-thumbnail')
   args.push(geometry(opts.width, opts.height, opts.modifier))
-  args.push(tmp) 
+  args.push(tmp)
 
   let spawn = child.spawn('convert', args)
     .on('error', err => CALLBACK(err))
     .on('close', code => {
-      spawn = null 
+      spawn = null
       if (finished) return
-      if (code !== 0) 
+      if (code !== 0)
         CALLBACK(EFAIL('convert spawn failed with exit code ${code}'))
       else
         fs.rename(tmp, dst, CALLBACK)
@@ -119,6 +119,23 @@ const convert = (key, src, opts, callback) => {
   return () => CALLBACK(EINTR())
 }
 
+const generate = (key, src, opts, callback) => {
+
+  let thumbpath = path.join(DIR.THUMB, key)
+
+  // find the thumbnail file first
+  fs.stat(thumbpath, (err, stat) => {
+
+    // if existing, return path for instant, or status ready for pending
+    if (!err) return callback(null, thumbpath)
+
+    // if error other than ENOENT, return err
+    if (err.code !== 'ENOENT') return callback(err)
+
+    return convert(key, src, opts, callback)
+  })
+}
+
 class Worker extends EventEmitter {
 
   constructor(hash, src, opts) {
@@ -128,12 +145,11 @@ class Worker extends EventEmitter {
     this.id = hash
     this.src = src
     this.opts = opts
-    this.callback = null
+    this.cbMap = new Map()
   }
   
-  setCallback(cb) {
-    this.callback ? 
-      this.callback.push(cb) : this.callback = [cb]
+  setCallback(requestId, cb) {
+    this.cbMap.set(requestId, cb)
   }
   start() {
     if (this.finished) throw new Error('worker is already finished')
@@ -144,13 +160,12 @@ class Worker extends EventEmitter {
     if (this.state != 'pending') return
     this.state = 'running'
 
-    convert(this.id, this.src, this.opts, (err, data) => {
+    generate(this.id, this.src, this.opts, (err, data) => {
       if(err) {
         return this.error(err)
       }
       this.finish(this, data)
     })
-    
   }
 
   abort() {
@@ -172,8 +187,14 @@ class Worker extends EventEmitter {
   isRunning() {
     return this.state === 'running'
   }
+
   exit() {
     this.finished = true
+  }
+
+  reset() {
+    this.finished = false
+    this.state === 'pending'
   }
 }
 
@@ -200,27 +221,22 @@ class Thumb {
     userUUID： 'string'
     query: 'object' 
    */
-  request({src, digest, query}, callback) {
+  request({requestId, src, digest, query}, callback) {
     
     if (this.workingQ.length > 1040) {
       throw new Error('请求过于频繁')
     } 
-    console.log(this.workingQ.length)
     let worker = this.createrWorker(src, digest, query, callback) 
-    console.log('worker', JSON.stringify(worker))
     worker.on('finish', (worker, data) => {
-      worker.state = 'finished'
-      console.log('worker', JSON.stringify(worker))
-      // callbackArr
-      worker.callback.forEach(cb => {
+      // callback map
+      for (let cb of worker.cbMap.values()) {
         process.nextTick(() => cb(null, data))
         this.workingQ.splice(this.workingQ.indexOf(worker), 1)
-      })
+      }
       this.schedule()
     })
     worker.on('error', worker => {
-      //FIXME: 重复调用
-      // worker.state = 'pending'
+      worker.reset()
       this.workingQ.splice(this.workingQ.indexOf(worker), 1)
       this.workingQ.push(worker)
       this.schedule()
@@ -230,7 +246,7 @@ class Thumb {
 
   
   // factory function
-  createrWorker(src, digest, query, callback) {
+  createrWorker(requestId, src, digest, query, callback) {
 
     let opts = parseQuery(query)
     if (opts instanceof Error)  return opts
@@ -243,22 +259,12 @@ class Thumb {
       // this.pendingQ.unshift(worker) : this.pendingQ.push(worker)
       this.workingQ.push(worker)
     }
-    worker.setCallback(callback)
+    worker.setCallback(requestId, callback)
     return worker
   }
 
-  abort(digest, query, callback) {
-
-    let opts = parseQuery(query)
-    if (opts instanceof Error)
-      return process.nextTick(callback, opts)
-
-    let hash = digest + digest + optionHash(opts)
-    this.workingQ.forEach(worker => {
-      if (worker.id === hash) {
-        worker.callback = null
-      }
-    })
+  abort(requestId) {
+    return this.cbMap.delelte(requestId)
   }
 
   register(ipc) {

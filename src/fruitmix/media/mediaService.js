@@ -47,7 +47,7 @@ module.exports = class MediaService {
     }
   }
 
-  getThumb({ userUUID, digest, query }, callback) {
+  getThumb({ requestId, userUUID, digest, query }, callback) {
 
     let src = this.findMediaPath(digest)
     request({ src, digest, query }, (err, data) => {
@@ -55,16 +55,11 @@ module.exports = class MediaService {
         return callback(err)
       return callback(null, data)
     })
-
-
   }
 
-  abort({ userUUID, digest, query }, callback) {
-    abort({ digest, query }, (err, data) => {
-      if (err)
-        return callback(err)
-      return callback(null, data)
-    })
+  abort(requestId, callback) {
+    abort(requestId)
+    callback(null, true)
   }
 
   register(ipc) {

@@ -1,4 +1,5 @@
 
+const UUID = require('node-uuid')
 const router = require('express').Router()
 import config from '../config'
 
@@ -40,39 +41,30 @@ router.get('/:digest/download', (req, res) => {
   
 router.get('/:digest/thumbnail', (req, res) => {
 
-  //FIXME: delete
-  // const user = req.user
-  // const digest = req.params.digest
-  // const query = req.query
-
-  // const thumbnailer = models.getModel('thumbnailer')
-  // thumbnailer.request(digest, query, (err, ret) => {
-
-  //   if (err) return res.error(err)
-
-  //   if (typeof ret === 'object') {
-  //     res.status(202).json(ret)
-  //   }
-  //   else {
-  //     res.status(200).sendFile(ret)
-  //   }
-  // })
-
+  let requestId = UUID.v4() 
   let userUUID = req.user.uuid
   let digest = req.params.digest
   let query = req.query
-  
-  config.ipc.call('getThumb', { userUUID, digest, query }, (err, ret) => {
+
+  config.ipc.call('getThumb', { requestId, userUUID, digest, query }, (err, ret) => {
     if (err) {
       return res.error(err)
     }
-    return res.status(200).sendFile(ret)
 
-  })
-  //FIXME: req.close()
-  req.on('close',(err, data) => {
+    req.on('close', () => {
+      config.ip.call('abort', requestId, () => {
+        req.end()
+      })
+    })
 
+    if (typeof ret === 'object') {
+      return res.status(202).json(ret)
+    }
+    else {
+      return res.status(200).sendFile(ret)
+    }
   })
 
 })
+
 module.exports = router
