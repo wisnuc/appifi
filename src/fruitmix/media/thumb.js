@@ -43,12 +43,15 @@ const geometry = (width, height, modifier) => {
   else {
     str = `${width.toString()}x${height.toString()}`
 
-    switch (modifier) {
-      case 'caret':
-        str += '^'
-        break
-      default:
+    if (modifier === 'caret') {
+      str += '^'
     }
+    // switch (modifier) {
+    //   case 'caret':
+    //     str += '^'
+    //     break
+    //   default:
+    // }
   } 
   return str
 }
@@ -90,7 +93,6 @@ const convert = (key, src, opts, callback) => {
   let dst = path.join(DIR.THUMB, key)
   let tmp = path.join(DIR.TMP, UUID.v4())
 
-  let finished = false
   let args = []
   args.push(src)
   if (opts.autoOrient) args.push('-auto-orient')
@@ -98,25 +100,27 @@ const convert = (key, src, opts, callback) => {
   args.push(geometry(opts.width, opts.height, opts.modifier))
   args.push(tmp)
 
-  let spawn = child.spawn('convert', args)
-    .on('error', err => CALLBACK(err))
+  child.spawn('convert', args)
+    .on('error', err => {
+      callback(err)
+    })
     .on('close', code => {
-      spawn = null
-      if (finished) return
-      if (code !== 0)
-        CALLBACK(EFAIL('convert spawn failed with exit code ${code}'))
-      else
-        fs.rename(tmp, dst, CALLBACK)
+      if (code !== 0) {
+        callback(EFAIL('convert spawn failed with exit code ${code}'))
+      }
+      else {
+        return fs.rename(tmp, dst, callback)
+      }
     })
 
-  function CALLBACK(err) {
-    if (finished) return
-    if (spawn) spawn = spawn.kill()
-    finished = true
-    callback(err)
-  }
+  // function CALLBACK(err) {
+  //   if (finished) return
+  //   if (spawn) spawn = spawn.kill()
+  //   finished = true
+  //   callback(err)
+  // }
 
-  return () => CALLBACK(EINTR())
+  // return () => CALLBACK(EINTR())
 }
 
 const generate = (key, src, opts, callback) => {
