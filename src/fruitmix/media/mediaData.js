@@ -223,6 +223,15 @@ class MediaData {
     }
   }
 
+  mediaShareAllowed(userUUID, digest) {
+    let media = this.findMediaByHash(digest)
+    if(!media) return
+    else {
+      let nodes = Array.form(media.nodes)
+      return nodes.find(node => this.fileData.userPermittedToShare(userUUID, node))
+    }
+  }
+
   getAllMedia(userUUID) {
 
     let map = new Map()
