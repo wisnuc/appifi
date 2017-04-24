@@ -209,7 +209,7 @@ class MediaData {
     if(!media) return
     else {
       let nodes = Array.form(media.nodes)
-      return nodes.find(node => this.fileData.userPermittedToShare(userUUID, node))
+      return nodes.some(node => this.fileData.userPermittedToShare(userUUID, node))
     }
   }
 
