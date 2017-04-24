@@ -226,7 +226,7 @@ class Thumb {
     if (this.workingQ.length > 1040) {
       throw new Error('请求过于频繁')
     } 
-    let worker = this.createrWorker(src, digest, query, callback) 
+    let worker = this.createrWorker(requestId, src, digest, query, callback) 
     worker.on('finish', (worker, data) => {
       // callback map
       for (let cb of worker.cbMap.values()) {
@@ -251,7 +251,7 @@ class Thumb {
     let opts = parseQuery(query)
     if (opts instanceof Error)  return opts
     
-    let hash = digest + digest + optionHash(opts)
+    let hash = digest + optionHash(opts)
     let worker = this.workingQ.find(worker => worker.id === hash)
     if (!worker) {
       worker = new Worker(hash, src, opts)
