@@ -5,7 +5,7 @@ import config from '../config'
 // get mata data of all I can view
 router.get('/', (req, res) => {
 
-  let userUUID = req.user.userUUID
+  let userUUID = req.user.uuid
 
   config.ipc.call('getMeta', userUUID, (err, data) => {
     if (err) return res.error(err)
@@ -15,7 +15,7 @@ router.get('/', (req, res) => {
 
 router.get('/:digest/download', (req, res) => {
 
-  let userUUID = req.user.userUUID
+  let userUUID = req.user.uuid
   let digest = req.params.digest
  
   config.ipc.call('readMedia', {userUUID, digest}, (err, filepath) => {
@@ -58,7 +58,7 @@ router.get('/:digest/thumbnail', (req, res) => {
   //   }
   // })
 
-  let userUUID = req.user.userUUID
+  let userUUID = req.user.uuid
   let digest = req.params.digest
   let query = req.query
   

@@ -38,7 +38,7 @@ router.get('/:type/:dirUUID/:rootUUID', (req, res) => {
 // download a file
 router.get('/download/:dirUUID/:fileUUID', (req, res) => {
 
-  let userUUID = req.user.userUUID
+  let userUUID = req.user.uuid
   let { dirUUID, fileUUID } = req.params
 
   let args = { userUUID, dirUUID, fileUUID }
@@ -53,7 +53,7 @@ router.get('/download/:dirUUID/:fileUUID', (req, res) => {
 // dirUUID cannot be a fileshare UUID
 router.post('/mkdir/:dirUUID/:dirname', (req, res) => {
 
-  let userUUID = req.user.userUUID
+  let userUUID = req.user.uuid
   let { dirUUID, dirname } = req.params
 
   let args = { userUUID, dirUUID, dirname }
@@ -193,7 +193,7 @@ router.patch('/rename/:dirUUID/:nodeUUID/:filename', (req, res) => {
 // dirUUID cannot be a fileshare UUID
 router.delete('/:dirUUID/:nodeUUID', (req, res) => {
 
-  let userUUID = req.user.userUUID
+  let userUUID = req.user.uuid
   let { dirUUID, nodeUUID } = req.params
 
   let args = { userUUID, dirUUID, nodeUUID }
