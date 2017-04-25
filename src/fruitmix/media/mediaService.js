@@ -12,6 +12,14 @@ module.exports = class MediaService {
     this.mediaShareData = mediaShareData
   } 
 
+  // determine whether local users
+  async isLocalUser(useruuid) {
+    // find user by uuid
+    let user = this.model.users.find(u => u.uuid === useruuid)
+    if (!user) throw new Error('user not found')
+    return user.type === 'local'
+  }
+
   findMediaPath(digest) {
 
     let media = this.mediaData.findMediaByHash(digest)
@@ -25,7 +33,7 @@ module.exports = class MediaService {
 
   async getMeta(userUUID) {
     // userUUID must be local user
-    let user = await this.model.isLocalUser(userUUID)
+    let user = await this.isLocalUser(userUUID)
     if (!user) throw new E.EACCESS()
 
     let allMedia = this.mediaData.getAllMedia(userUUID)

@@ -7,8 +7,8 @@ const crypto = require('crypto')
 const EventEmitter = require('events')
 const UUID = require('node-uuid')
 
-const E = require('../lib/error').default
-const { DIR } = require('../lib/const' ).default
+import E from '../lib/error' 
+import { DIR } from '../lib/const' 
 
 const ERROR = (code, _text) => (text => 
   Object.assign(new Error(text || _text), { code }))

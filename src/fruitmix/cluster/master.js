@@ -9,6 +9,7 @@ import { createFileShareStoreAsync, createMediaShareStoreAsync } from '../lib/sh
 import { createFileShareData } from '../file/fileShareData'
 import { createFileShareService } from '../file/fileShareService'
 import FileService from '../file/fileService'
+import MediaService from '../media/mediaService'
 import MediaData from '../media/mediaData'
 import { createMediaShareData } from '../media/mediaShareData'
 import { createMediaShareService } from '../media/mediaShareService'
@@ -48,7 +49,7 @@ export default async () => {
   const modelService = createModelService(froot)
   const modelData = modelService.modelData
   const docStore = await createDocumentStoreAsync(froot)
-  const fileData = new FileData(path.join(froot, 'drives'), modelService.modelData)	
+  const fileData = new FileData(path.join(froot, 'drives'), modelData)	
   const fileShareStore = await createFileShareStoreAsync(froot, docStore) 
   const fileShareData = createFileShareData(modelData, fileShareStore)
   const fileShareService = createFileShareService(fileData, fileShareData)
@@ -56,6 +57,7 @@ export default async () => {
   const mediaShareStore = await createMediaShareStoreAsync(froot, docStore)
   const mediaShareData = createMediaShareData(modelData, mediaShareStore)
   const mediaData = new MediaData(modelData, fileData, fileShareData, mediaShareData)
+  const mediaService = new MediaService(modelData, fileData, fileShareData, mediaData, mediaShareData)
   const mediaShareService = createMediaShareService(mediaData, mediaShareData)
   const transfer = new Transfer(fileData) 
   // const recorder = new Recorder(path.join(froot, 'log'), fileData, 1000)
@@ -100,5 +102,6 @@ export default async () => {
   transfer.register(ipc)
   fileShareService.register(ipc)
   mediaShareService.register(ipc)
+  mediaService.register(ipc)
 }
 
