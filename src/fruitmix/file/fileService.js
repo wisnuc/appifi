@@ -42,7 +42,7 @@ class FileService {
   }
 
   userWritable(userUUID, node) {
-
+    //FIXME: home下新建文件出错
     return this.data.userPermittedToWrite(userUUID, node)
       || this.shareData.userAuthorizedToWrite(userUUID, node)
   }  
