@@ -210,10 +210,9 @@ class FileService {
     try {
       //create new createDirectory
       let targetpath = path.join(node.abspath(), dirname)
-      fs.mkdir(targetpath)
-
+      await fs.mkdirAsync(targetpath)
       let xstat = await readXstatAsync(targetpath)
-      return this.data.createNode(dirUUID, xstat)
+      return this.data.createNode(node, xstat)
     }
     catch (err) {
       throw err
