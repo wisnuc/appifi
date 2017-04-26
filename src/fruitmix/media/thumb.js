@@ -271,7 +271,6 @@ class Thumb {
     return this.cbMap.delelte(requestId)
   }
 
-  // FIXME: maybe move to cluster layer
   // register(ipc) {
   //   ipc.register('request', this.request.bind(this))
   //   ipc.register('abort', this.abort.bind(this))

@@ -1,5 +1,6 @@
 import E from '../lib/error'
 import { request, abort } from './thumb'
+import config from '../'
 
 module.exports = class MediaService {
 
