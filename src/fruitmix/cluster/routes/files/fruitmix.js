@@ -65,8 +65,10 @@ router.post('/mkdir/:dirUUID', (req, res) => {
 })
 
 // upload a file
-router.put('/upload/:dirUUID/:filename/:sha256', (req, res) => {
-  let { dirUUID, filename, sha256 } = req.params
+// query : filename=xxx
+router.put('/upload/:dirUUID/:sha256', (req, res) => {
+  let { dirUUID, sha256 } = req.params
+  let filename = req.query.filename
   let user = req.user
   let finished = false
   let tmpPath = path.join(paths.get('cluster_tmp'), UUID.v4())
@@ -122,9 +124,12 @@ router.put('/upload/:dirUUID/:filename/:sha256', (req, res) => {
 
 })
 
-// overwrite a file
-router.put('/overwrite/:dirUUID/:filename/:sha256', (req, res) => {
-  let { dirUUID, filename, sha256 } = req.params
+// overwrite a file     
+// query string option ?filename=xxx
+// TODO check need filename or fileUUID ? Jack
+router.put('/overwrite/:dirUUID/:sha256', (req, res) => {
+  let { dirUUID, sha256 } = req.params
+  let filename = req.query.filename
   let user = req.user
   let finished = false
   let tmpPath = path.join(paths.get('cluster_tmp'), UUID.v4())
@@ -206,6 +211,8 @@ router.delete('/:dirUUID/:nodeUUID', (req, res) => {
   })
 })
 
+
+// old libraries api
 router.post('/:digest', (req, res) => {
   let userUUID = req.user.uuid
   let libraryUUID = req.user.library
