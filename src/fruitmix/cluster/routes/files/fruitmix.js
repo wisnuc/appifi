@@ -54,7 +54,7 @@ router.get('/download/:dirUUID/:fileUUID', (req, res) => {
 router.post('/mkdir/:dirUUID', (req, res) => {
 
   let userUUID = req.user.uuid
-  let { dirUUID, dirname } = req.params
+  let { dirUUID } = req.params
   let dirname = req.body.dirname
   let args = { userUUID, dirUUID, dirname }
 

@@ -1,6 +1,5 @@
 import E from '../lib/error'
 import Thumb from './thumb'
-import config from '../'
 
 const tb = new Thumb(40)
 
