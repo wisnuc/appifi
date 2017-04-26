@@ -180,7 +180,7 @@ class Worker extends EventEmitter {
 
   finish(data, ...args) {
     this.emit('finish', data, ...args)
-    this.exit()
+    this.reset()
   }
 
   error(err) {
@@ -240,7 +240,6 @@ class Thumb {
       this.schedule()
     })
     worker.on('error', worker => {
-      worker.reset()
       this.workingQ.splice(this.workingQ.indexOf(worker), 1)
       this.workingQ.push(worker)
       this.schedule()
