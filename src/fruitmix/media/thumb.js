@@ -278,8 +278,9 @@ class Thumb {
 }
 
 
-// let tl = new Thumb(40)
+// let tb = new Thumb(40)
 
+// let request = ()
 // let count = 0
 // //test
 // setInterval(function () {
@@ -296,8 +297,6 @@ class Thumb {
 //     console.log(++count , 'data: ', data)
 //   })
 // }, 100)
-
-
 
 // // tl.request({
 // //   age: 2

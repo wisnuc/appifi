@@ -1,6 +1,8 @@
 import E from '../lib/error'
-import { request, abort } from './thumb'
+import Thumb from './thumb'
 import config from '../'
+
+const tb = new Thumb(40)
 
 module.exports = class MediaService {
 
@@ -59,7 +61,7 @@ module.exports = class MediaService {
   getThumb({ requestId, userUUID, digest, query }, callback) {
 
     let src = this.findMediaPath(digest)
-    request({ src, digest, query }, (err, data) => {
+    tb.request({ src, digest, query }, (err, data) => {
       if (err)
         return callback(err)
       return callback(null, data)
@@ -67,7 +69,7 @@ module.exports = class MediaService {
   }
 
   abort(requestId, callback) {
-    abort(requestId)
+    tb.abort(requestId)
     callback(null, true)
   }
 
