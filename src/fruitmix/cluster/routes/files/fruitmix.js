@@ -204,6 +204,8 @@ router.delete('/:dirUUID/:nodeUUID', (req, res) => {
   })
 })
 
+
+// old libraries api
 router.post('/:digest', (req, res) => {
   let userUUID = req.user.uuid
   let libraryUUID = req.user.library
