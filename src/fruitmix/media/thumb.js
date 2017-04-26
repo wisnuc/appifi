@@ -304,4 +304,4 @@ class Thumb {
 // //   age: 2
 // // })
 
-module.exports = Thumb
+export default Thumb
