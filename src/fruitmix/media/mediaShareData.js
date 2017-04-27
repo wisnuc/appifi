@@ -179,27 +179,43 @@ class MediaShareData extends EventEmitter {
     this.mediaShareMap.delete(uuid)
   }
 
+  userAuthorizedToRead(userUUID, shareUUID) {
+    let share = this.findShareByUUID(shareUUID)
+    return [share.doc.author, ...share.doc.maintainers, ...share.doc.viewers].includes(userUUID)
+  }
+
+  userAuthorizedToWrite(userUUID, shareUUID) {
+    let share = this.findShareByUUID(shareUUID)
+    return [share.doc.author, ...share.doc.maintainers].includes(userUUID)
+  }
+
+  // return all the shares user can view
+  // accompanied with its read and write authorization
+  // share: {digest, doc, authorizedToRead (boolean), authorizedToWrite (boolean)}
   async getUserMediaShares(userUUID) {
     let shares = []
     this.mediaShareMap.forEach((value, key, map) => {
-      let share = value
+      let share = Object.assign({}, value)
       if (share.doc.author === userUUID || 
-          share.doc.maintainers.find(u => u === userUUID) || 
-          share.doc.viewers.find(u => u === userUUID)) 
-        shares.push(share) 
+          share.doc.maintainers.includes(userUUID) || 
+          share.doc.viewers.includes(userUUID)) {
+        share.authorizedToRead = this.userAuthorizedToRead(userUUID, share.doc.uuid)
+        share.authorizedToWrite = this.userAuthorizedToWrite(userUUID, share.doc.uuid)
+        shares.push(share)
+      }
     })
     return shares
   }
 
-  sharedWithOthers(userUUID, shareMediaUUID) {
-    let share = this.findShareByUUID(shareMediaUUID) 
+  sharedWithOthers(userUUID, shareUUID) {
+    let share = this.findShareByUUID(shareUUID) 
     return share.doc.author === userUUID
   }
 
-  sharedWithMe(userUUID, shareMediaUUID) {
-    let share = this.findShareByUUID(shareMediaUUID) 
-    return share.doc.maintainers.find(u => u === userUUID) 
-      || share.doc.viewers.find(u => u === userUUID) 
+  sharedWithMe(userUUID, shareUUID) {
+    let share = this.findShareByUUID(shareUUID) 
+    return share.doc.maintainers.includes(userUUID) 
+      || share.doc.viewers.includes(userUUID) 
   }
 }
 
