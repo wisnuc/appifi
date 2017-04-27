@@ -68,9 +68,18 @@ export default async () => {
   console.log('modelData', modelData.users, modelData.drives)
 
   if (process.env.FORK) {
-    console.log('fruitmix started in forked mode')	
+    let isSendNotify = false
 
-    process.send({ type: 'fruitmixStarted' })
+    let fruitmixStart = (args, callback) => {
+      if(isSendNotify) return callback()
+      console.log('fruitmix started in forked mode')	
+      process.send({ type: 'fruitmixStarted' })
+      isSendNotify = true
+      return callback()
+    }
+
+    config.ipc.register('fruitmixStart', fruitmixStart.bind(this))
+    
     process.on('message', message => {
       switch (message.type) {
         case 'createFirstUser':
