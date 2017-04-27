@@ -106,7 +106,7 @@ const convert = (key, src, opts, callback) => {
     })
     .on('close', code => {
       if (code !== 0) {
-        console.log('code:',code)
+        console.log('code:',code, args)
         callback(EFAIL('convert spawn failed with exit code ${code}'))
       }
       else {
