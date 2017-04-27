@@ -58,11 +58,11 @@ class FileShareData extends EventEmitter {
   }
 
   async load() {
-    let shares = await this.fileShareStore.retrieveAllAsync()
-    shares.forEach(share => {
-      this.fileShareMap.set(share.doc.uuid, share)
+    let fileShares = await this.fileShareStore.retrieveAllAsync()
+    fileShares.forEach(fileShare => {
+      this.fileShareMap.set(fileShare.doc.uuid, fileShare)
     })
-    this.emit('fileShareCreated', shares)
+    this.emit('fileShareCreated', fileShares)
   }
 
   // return the collection of given share doc

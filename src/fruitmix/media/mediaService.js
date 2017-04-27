@@ -1,5 +1,7 @@
 import E from '../lib/error'
-import { request, abort } from './thumb'
+import Thumb from './thumb'
+
+const tb = new Thumb(40)
 
 module.exports = class MediaService {
 
@@ -11,6 +13,14 @@ module.exports = class MediaService {
     this.mediaData = mediaData
     this.mediaShareData = mediaShareData
   } 
+
+  // determine whether local users
+  async isLocalUser(useruuid) {
+    // find user by uuid
+    let user = this.model.users.find(u => u.uuid === useruuid)
+    if (!user) throw new Error('user not found')
+    return user.type === 'local'
+  }
 
   findMediaPath(digest) {
 
@@ -25,7 +35,7 @@ module.exports = class MediaService {
 
   async getMeta(userUUID) {
     // userUUID must be local user
-    let user = await this.model.isLocalUser(userUUID)
+    let user = await this.isLocalUser(userUUID)
     if (!user) throw new E.EACCESS()
 
     let allMedia = this.mediaData.getAllMedia(userUUID)
@@ -47,24 +57,19 @@ module.exports = class MediaService {
     }
   }
 
-  getThumb({ userUUID, digest, query }, callback) {
+  getThumb({ requestId, userUUID, digest, query }, callback) {
 
     let src = this.findMediaPath(digest)
-    request({ src, digest, query }, (err, data) => {
+    tb.request({ src, digest, query }, (err, data) => {
       if (err)
         return callback(err)
       return callback(null, data)
     })
-
-
   }
 
-  abort({ userUUID, digest, query }, callback) {
-    abort({ digest, query }, (err, data) => {
-      if (err)
-        return callback(err)
-      return callback(null, data)
-    })
+  abort(requestId, callback) {
+    tb.abort(requestId)
+    callback(null, true)
   }
 
   register(ipc) {

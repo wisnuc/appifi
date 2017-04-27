@@ -26,7 +26,7 @@ class MediaData {
     this.fileData.on('mediaDisappearing', node => this.handleMediaDisappearing(node))
     this.fileData.on('mediaIdentified', (node, metadata) => this.mediaIdentified(node, metadata))
 
-    this.mediaShareData.on('mediaShareCreated', share => this.handleMediaShareCreated(share))
+    this.mediaShareData.on('mediaShareCreated', shares => this.handleMediaShareCreated(shares))
     this.mediaShareData.on('mediaShareUpdated', (oldShare, newShare) => this.handleMediaShareUpdated(oldShare, newShare))
     this.mediaShareData.on('mediaShareDeleted', share => this.handleMediaShareDeleted(share))
   }
@@ -112,8 +112,8 @@ class MediaData {
     medias.forEach(media => media.isEmpty() && this.map.delete(media.digest))
   }
 
-  handleMediaShareCreated(share) {
-    this.indexMediaShare(share)
+  handleMediaShareCreated(shares) {
+    shares.forEach(share => this.indexMediaShare(share))
   }
 
   // share { doc { contents: [ item {creator, digest} ] } }
@@ -185,41 +185,31 @@ class MediaData {
     let shares = Array.from(media.shares)
     // 1. user permitted to share (from fileData)
     // 2. from user library (from fileData)
-    nodes.every(node => {
-      if (this.fileData.userPermittedToShare(userUUID, node)) {
-        props.permittedToShare = true
-        return false
-      }
-    })
+    props.permittedToShare = nodes.some(node =>  
+      this.fileData.userPermittedToShare(userUUID, node))
     // 3. user authorized to read (from fileShareData)
-    nodes.every(node => {
-      if (this.fileShareData.userAuthorizedToRead(userUUID, node)) {
-        props.authorizedToRead = true
-        return false
-      }
-    })
+    props.authorizedToRead = nodes.some(node => 
+      this.fileShareData.userAuthorizedToRead(userUUID, node)) 
     // 4. shared with others 
-    shares.every(share => {
-      if (this.mediaShareData.sharedWithOthers(userUUID, share)) {
-        props.sharedWithOthers = true
-        return false
-      }
-    })
+    props.sharedWithOthers = shares.some(share => 
+      this.mediaShareData.sharedWithOthers(userUUID, share))
     // 5. shared with me
-    shares.every(share => {
-      if (this.mediaShareData.sharedWithMe(userUUID, share)) {
-        props.sharedWithMe = true
-        return false
-      }
-    })
+    props.sharedWithMe = shares.some(share => 
+      this.mediaShareData.sharedWithMe(userUUID, share))
     // 5.1 serviceAvailable 
     if (!props.sharedWithMe) {
-      nodes.every(node => {
-        if (this.fileData.fromUserService(userUUID, node)) {
-          props.serviceAvailable = true
-          return false
-        }
-      })
+      props.serviceAvailable = nodes.some(node => 
+        this.fileData.fromUserService(userUUID, node))
+    }
+    return props
+  }
+
+  mediaShareAllowed(userUUID, digest) {
+    let media = this.findMediaByHash(digest)
+    if(!media) return
+    else {
+      let nodes = Array.form(media.nodes)
+      return nodes.some(node => this.fileData.userPermittedToShare(userUUID, node))
     }
   }
 

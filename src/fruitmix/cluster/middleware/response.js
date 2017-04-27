@@ -49,10 +49,10 @@ export default (req, res, next) => {
    * @param err {Error} or {String}
    * @param status no required
    */
+  //FIXME: err {code:' ',message: ''}
   res.error = (err, status) => {
 
     let code, message, stack
-
     if (err) {
       if (err instanceof Error) {
         status = status || err.status
@@ -64,12 +64,13 @@ export default (req, res, next) => {
         message = err
       }
       else if (typeof err === 'object') {
-        
+        code = err.code
+        message = err.message
       }
     }
     
     status = status || DEFAULT_ERROR_STATUS
-    code = httpCode[status]
+    code = code || httpCode[status]
 
     return res.status(status).json({
       code: code || 'no httpCode',

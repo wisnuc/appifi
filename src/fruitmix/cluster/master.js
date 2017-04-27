@@ -9,10 +9,13 @@ import { createFileShareStoreAsync, createMediaShareStoreAsync } from '../lib/sh
 import { createFileShareData } from '../file/fileShareData'
 import { createFileShareService } from '../file/fileShareService'
 import FileService from '../file/fileService'
+import MediaService from '../media/mediaService'
+import MediaData from '../media/mediaData'
 import { createMediaShareData } from '../media/mediaShareData'
 import { createMediaShareService } from '../media/mediaShareService'
 import Transfer from '../file/transfer'
 import Recorder from '../file/recorder'
+import Thumb from '../media/thumb'
 
 const makeDirectoriesAsync = async froot => {
 
@@ -40,35 +43,46 @@ const makeDirectoriesAsync = async froot => {
 
 export default async () => {
 
-	const froot = config.path
+  const froot = config.path
 
   await makeDirectoriesAsync(froot)
 
-	const modelService = createModelService(froot)
+  const modelService = createModelService(froot)
   const modelData = modelService.modelData
-	const docStore = await createDocumentStoreAsync(froot)
-	const fileData = new FileData(path.join(froot, 'drives'), modelService.modelData)	
+  const docStore = await createDocumentStoreAsync(froot)
+  const fileData = new FileData(path.join(froot, 'drives'), modelData)	
   const fileShareStore = await createFileShareStoreAsync(froot, docStore) 
   const fileShareData = createFileShareData(modelData, fileShareStore)
   const fileShareService = createFileShareService(fileData, fileShareData)
   const fileService = new FileService(froot, fileData, fileShareData)
-  // const mediaShareStore = await createMediaShareStoreAsync(froot, docStore)
-  // const mediaShareData = createMediaShareData(modelData, mediaShareStore)
-  // const mediaShareService = createMediaShareService(undefined, mediaShareData)
+  const mediaShareStore = await createMediaShareStoreAsync(froot, docStore)
+  const mediaShareData = createMediaShareData(modelData, mediaShareStore)
+  const mediaData = new MediaData(modelData, fileData, fileShareData, mediaShareData)
+  const mediaService = new MediaService(modelData, fileData, fileShareData, mediaData, mediaShareData)
+  const mediaShareService = createMediaShareService(mediaData, mediaShareData)
   const transfer = new Transfer(fileData) 
   // const recorder = new Recorder(path.join(froot, 'log'), fileData, 1000)
   // recorder.start()
-	await modelService.initializeAsync()
+  await modelService.initializeAsync()
 
-	console.log('modelData', modelData.users, modelData.drives)
+  console.log('modelData', modelData.users, modelData.drives)
 
-	if (process.env.FORK) {
-		console.log('fruitmix started in forked mode')	
+  if (process.env.FORK) {
+    let isSendNotify = false
 
-		process.send({ type: 'fruitmixStarted' })
-		process.on('message', message => {
-			switch (message.type) {
-			case 'createFirstUser':
+    let fruitmixStart = (args, callback) => {
+      if(isSendNotify) return callback()
+      console.log('fruitmix started in forked mode')	
+      process.send({ type: 'fruitmixStarted' })
+      isSendNotify = true
+      return callback()
+    }
+
+    config.ipc.register('fruitmixStart', fruitmixStart.bind(this))
+    
+    process.on('message', message => {
+      switch (message.type) {
+        case 'createFirstUser':
 
         let { username, password } = message
 
@@ -78,18 +92,18 @@ export default async () => {
             console.log('creating first user return', err || data)
             process.send({ type: 'createFirstUserDone', err, data })
           })
-				break
-			default:
+        break
+        default:
 				break	
-			}
-		})
-	}
-	else {
-		console.log('fruitmix started in standalone mode')
-	}
+      }
+    })
+  }
+  else {
+    console.log('fruitmix started in standalone mode')
+  }
 
   await fileShareService.load()
-  // await mediaShareService.load()
+  await mediaShareService.load()
 
   const ipc = config.ipc
   ipc.register('ipctest', (text, callback) => process.nextTick(() => callback(null, text.toUpperCase())))
@@ -97,6 +111,8 @@ export default async () => {
   fileService.register(ipc)
   transfer.register(ipc)
   fileShareService.register(ipc)
-  // createMediaShareService.register(ipc)
+  mediaShareService.register(ipc)
+  mediaService.register(ipc)
+  
 }
 

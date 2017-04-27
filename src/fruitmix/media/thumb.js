@@ -7,8 +7,8 @@ const crypto = require('crypto')
 const EventEmitter = require('events')
 const UUID = require('node-uuid')
 
-const E = require('../lib/error').default
-const { DIR } = require('../lib/const' ).default
+import E from '../lib/error' 
+import { DIR } from '../lib/const' 
 
 const ERROR = (code, _text) => (text => 
   Object.assign(new Error(text || _text), { code }))
@@ -43,12 +43,15 @@ const geometry = (width, height, modifier) => {
   else {
     str = `${width.toString()}x${height.toString()}`
 
-    switch (modifier) {
-      case 'caret':
-        str += '^'
-        break
-      default:
+    if (modifier === 'caret') {
+      str += '^'
     }
+    // switch (modifier) {
+    //   case 'caret':
+    //     str += '^'
+    //     break
+    //   default:
+    // }
   } 
   return str
 }
@@ -90,33 +93,51 @@ const convert = (key, src, opts, callback) => {
   let dst = path.join(DIR.THUMB, key)
   let tmp = path.join(DIR.TMP, UUID.v4())
 
-  let finished = false
   let args = []
   args.push(src)
   if (opts.autoOrient) args.push('-auto-orient')
   args.push('-thumbnail')
   args.push(geometry(opts.width, opts.height, opts.modifier))
-  args.push(tmp) 
+  args.push(tmp)
 
-  let spawn = child.spawn('convert', args)
-    .on('error', err => CALLBACK(err))
+  child.spawn('convert', args)
+    .on('error', err => {
+      callback(err)
+    })
     .on('close', code => {
-      spawn = null 
-      if (finished) return
-      if (code !== 0) 
-        CALLBACK(EFAIL('convert spawn failed with exit code ${code}'))
-      else
-        fs.rename(tmp, dst, CALLBACK)
+      if (code !== 0) {
+        callback(EFAIL('convert spawn failed with exit code ${code}'))
+      }
+      else {
+        return fs.rename(tmp, dst, callback)
+      }
     })
 
-  function CALLBACK(err) {
-    if (finished) return
-    if (spawn) spawn = spawn.kill()
-    finished = true
-    callback(err)
-  }
+  // function CALLBACK(err) {
+  //   if (finished) return
+  //   if (spawn) spawn = spawn.kill()
+  //   finished = true
+  //   callback(err)
+  // }
 
-  return () => CALLBACK(EINTR())
+  // return () => CALLBACK(EINTR())
+}
+
+const generate = (key, src, opts, callback) => {
+
+  let thumbpath = path.join(DIR.THUMB, key)
+
+  // find the thumbnail file first
+  fs.stat(thumbpath, (err, stat) => {
+
+    // if existing, return path for instant, or status ready for pending
+    if (!err) return callback(null, thumbpath)
+
+    // if error other than ENOENT, return err
+    if (err.code !== 'ENOENT') return callback(err)
+
+    return convert(key, src, opts, callback)
+  })
 }
 
 class Worker extends EventEmitter {
@@ -128,12 +149,11 @@ class Worker extends EventEmitter {
     this.id = hash
     this.src = src
     this.opts = opts
-    this.callback = null
+    this.cbMap = new Map()
   }
   
-  setCallback(cb) {
-    this.callback ? 
-      this.callback.push(cb) : this.callback = [cb]
+  setCallback(requestId, cb) {
+    this.cbMap.set(requestId, cb)
   }
   start() {
     if (this.finished) throw new Error('worker is already finished')
@@ -144,13 +164,12 @@ class Worker extends EventEmitter {
     if (this.state != 'pending') return
     this.state = 'running'
 
-    convert(this.id, this.src, this.opts, (err, data) => {
+    generate(this.id, this.src, this.opts, (err, data) => {
       if(err) {
         return this.error(err)
       }
       this.finish(this, data)
     })
-    
   }
 
   abort() {
@@ -161,7 +180,7 @@ class Worker extends EventEmitter {
 
   finish(data, ...args) {
     this.emit('finish', data, ...args)
-    this.exit()
+    this.reset()
   }
 
   error(err) {
@@ -172,8 +191,14 @@ class Worker extends EventEmitter {
   isRunning() {
     return this.state === 'running'
   }
+
   exit() {
     this.finished = true
+  }
+
+  reset() {
+    this.finished = false
+    this.state === 'pending'
   }
 }
 
@@ -200,27 +225,21 @@ class Thumb {
     userUUID： 'string'
     query: 'object' 
    */
-  request({src, digest, query}, callback) {
+  request({requestId, src, digest, query}, callback) {
     
     if (this.workingQ.length > 1040) {
       throw new Error('请求过于频繁')
     } 
-    console.log(this.workingQ.length)
-    let worker = this.createrWorker(src, digest, query, callback) 
-    console.log('worker', JSON.stringify(worker))
+    let worker = this.createrWorker(requestId, src, digest, query, callback) 
     worker.on('finish', (worker, data) => {
-      worker.state = 'finished'
-      console.log('worker', JSON.stringify(worker))
-      // callbackArr
-      worker.callback.forEach(cb => {
+      // callback map
+      for (let cb of worker.cbMap.values()) {
         process.nextTick(() => cb(null, data))
         this.workingQ.splice(this.workingQ.indexOf(worker), 1)
-      })
+      }
       this.schedule()
     })
     worker.on('error', worker => {
-      //FIXME: 重复调用
-      // worker.state = 'pending'
       this.workingQ.splice(this.workingQ.indexOf(worker), 1)
       this.workingQ.push(worker)
       this.schedule()
@@ -230,12 +249,12 @@ class Thumb {
 
   
   // factory function
-  createrWorker(src, digest, query, callback) {
+  createrWorker(requestId, src, digest, query, callback) {
 
     let opts = parseQuery(query)
     if (opts instanceof Error)  return opts
     
-    let hash = digest + digest + optionHash(opts)
+    let hash = digest + optionHash(opts)
     let worker = this.workingQ.find(worker => worker.id === hash)
     if (!worker) {
       worker = new Worker(hash, src, opts)
@@ -243,33 +262,24 @@ class Thumb {
       // this.pendingQ.unshift(worker) : this.pendingQ.push(worker)
       this.workingQ.push(worker)
     }
-    worker.setCallback(callback)
+    worker.setCallback(requestId, callback)
     return worker
   }
 
-  abort(digest, query, callback) {
-
-    let opts = parseQuery(query)
-    if (opts instanceof Error)
-      return process.nextTick(callback, opts)
-
-    let hash = digest + digest + optionHash(opts)
-    this.workingQ.forEach(worker => {
-      if (worker.id === hash) {
-        worker.callback = null
-      }
-    })
+  abort(requestId) {
+    return this.cbMap.delelte(requestId)
   }
 
-  register(ipc) {
-    ipc.register('request', this.request.bind(this))
-    ipc.register('abort', this.abort.bind(this))
-  }
+  // register(ipc) {
+  //   ipc.register('request', this.request.bind(this))
+  //   ipc.register('abort', this.abort.bind(this))
+  // }
 }
 
 
-// let tl = new Thumb(40)
+// let tb = new Thumb(40)
 
+// let request = ()
 // let count = 0
 // //test
 // setInterval(function () {
@@ -287,10 +297,8 @@ class Thumb {
 //   })
 // }, 100)
 
-
-
 // // tl.request({
 // //   age: 2
 // // })
 
-module.exports = Thumb
+export default Thumb

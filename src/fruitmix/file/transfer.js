@@ -274,7 +274,7 @@ class Transfer {
   }
 
   schedule() {
-    let diff = limit - this.workersQueue.filter(worker => worker.isRunning()).length
+    let diff = this.limit - this.workersQueue.filter(worker => worker.isRunning()).length
     if (diff <= 0) return
 
     this.workersQueue.filter(worker => !worker.isRunning())
