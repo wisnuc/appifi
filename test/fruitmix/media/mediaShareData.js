@@ -213,9 +213,11 @@ describe(path.basename(__filename), function() {
     })
 
     it('shoud return shares user is the author or in viewerSet', async () => {
-      let shares = await mediaShareData.getUserMediaShares(aliceUUID)
-      expect(shares[0]).to.deep.equal(share1)
-      expect(shares[1]).to.deep.equal(share2)
+      let shares = await mediaShareData.getUserMediaShares(bobUUID)
+      let share_1 = Object.assign({}, share1, {authorizedToRead: true, authorizedToWrite: false})
+      let share_2 = Object.assign({}, share2, {authorizedToRead: true, authorizedToWrite: false})
+      expect(shares[0]).to.deep.equal(share_1)
+      expect(shares[1]).to.deep.equal(share_2)
     })
   })
 })
