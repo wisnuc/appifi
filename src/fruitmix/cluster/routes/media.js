@@ -10,6 +10,7 @@ router.get('/', (req, res) => {
 
   config.ipc.call('getMeta', userUUID, (err, data) => {
     if (err) return res.error(err)
+    console.log('metadata:' ,data)
     return res.success(data) 
   })
 })

@@ -211,7 +211,10 @@ class Thumb {
 
   schedule() {
 
-    let diff = this.limit - this.workingQ.filter(worker => worker.isRunning()).length
+    let diff = this.limit - this.workingQ.filter(worker => {
+      console.log('worker: ', worker)
+      worker.isRunning()
+    }).length
     if (diff <= 0) return
 
     this.workingQ.filter(worker => !worker.isRunning())
