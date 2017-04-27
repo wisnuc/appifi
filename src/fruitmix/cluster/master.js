@@ -15,6 +15,7 @@ import { createMediaShareData } from '../media/mediaShareData'
 import { createMediaShareService } from '../media/mediaShareService'
 import Transfer from '../file/transfer'
 import Recorder from '../file/recorder'
+import Thumb from '../media/thumb'
 
 const makeDirectoriesAsync = async froot => {
 
@@ -112,5 +113,6 @@ export default async () => {
   fileShareService.register(ipc)
   mediaShareService.register(ipc)
   mediaService.register(ipc)
+  
 }
 

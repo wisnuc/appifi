@@ -39,7 +39,22 @@ class Node {
 
   attach(parent) {
 
-    if (this.parent) throw new Error('node is already attached')
+    if (this.parent) {
+      let e = new Error('node is already attached')
+      console.log('>>>>>>>>')
+      console.log('this, parent, e', this, parent, e)
+      console.log('<<<<<<<<')
+      throw e
+    }
+
+    if (!(parent instanceof Node)) {
+      let e = new Error('parent is not a directory node')
+      console.log('>>>>>>>>')
+      console.log('this, parent, e', this, parent, e)
+      console.log('<<<<<<<<')
+      throw e
+    }
+
     this.parent = parent
     if (parent) parent.setChild(this)
     this.ctx.nodeAttached(this)

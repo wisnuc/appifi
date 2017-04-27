@@ -180,7 +180,7 @@ class Worker extends EventEmitter {
 
   finish(data, ...args) {
     this.emit('finish', data, ...args)
-    this.exit()
+    this.reset()
   }
 
   error(err) {
@@ -240,7 +240,6 @@ class Thumb {
       this.schedule()
     })
     worker.on('error', worker => {
-      worker.reset()
       this.workingQ.splice(this.workingQ.indexOf(worker), 1)
       this.workingQ.push(worker)
       this.schedule()
@@ -271,7 +270,6 @@ class Thumb {
     return this.cbMap.delelte(requestId)
   }
 
-  // FIXME: maybe move to cluster layer
   // register(ipc) {
   //   ipc.register('request', this.request.bind(this))
   //   ipc.register('abort', this.abort.bind(this))
@@ -279,8 +277,9 @@ class Thumb {
 }
 
 
-// let tl = new Thumb(40)
+// let tb = new Thumb(40)
 
+// let request = ()
 // let count = 0
 // //test
 // setInterval(function () {
@@ -297,8 +296,6 @@ class Thumb {
 //     console.log(++count , 'data: ', data)
 //   })
 // }, 100)
-
-
 
 // // tl.request({
 // //   age: 2

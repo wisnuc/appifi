@@ -51,11 +51,14 @@ router.get('/download/:dirUUID/:fileUUID', (req, res) => {
 
 // mkdir 
 // dirUUID cannot be a fileshare UUID
-router.post('/mkdir/:dirUUID/:dirname', (req, res) => {
+router.post('/mkdir/:dirUUID', (req, res) => {
 
   let userUUID = req.user.uuid
-  let { dirUUID, dirname } = req.params
 
+  console.info('uuid:' + userUUID)
+  
+  let { dirUUID } = req.params
+  let dirname = req.body.dirname
   let args = { userUUID, dirUUID, dirname }
 
   config.ipc.call('createDirectory', args, (err, data) => {
@@ -186,8 +189,10 @@ router.put('/overwrite/:dirUUID/:sha256', (req, res) => {
 })
 
 // rename dir or file
-router.patch('/rename/:dirUUID/:nodeUUID/:filename', (req, res) => {
-  let { dirUUID, nodeUUID, filename } = req.params
+router.patch('/rename/:dirUUID/:nodeUUID', (req, res) => {
+  
+  let { dirUUID, nodeUUID } = req.params
+  let filename = req.body.filename
   config.ipc.call('rename', { userUUI: req.user.uuid, targetUUID: dirUUID, name: filename }, (err, node) => {
     if (err) return res.error(err)
     return res.success(node,200)
