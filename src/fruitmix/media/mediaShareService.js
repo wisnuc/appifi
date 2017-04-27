@@ -118,7 +118,15 @@ class MediaShareService {
 
   async getUserMediaShares(userUUID) {
     if(!isUUID(userUUID)) throw new E.EINVAL()
-    return await this.mediaShareData.getUserMediaShares(userUUID)
+    let shares = await this.mediaShareData.getUserMediaShares(userUUID)
+    let shares_1 = []
+    shares.forEach(share => {
+      let item = Object.assign({}, share)
+      item.readable = (userUUID === share.doc.author) || share.userAuthorizedToRead(userUUID)
+      item.writeable = (userUUID === share.doc.author) || share.userAuthorizedToWrite(userUUID)
+      shares_1.push(item)
+    })
+    return shares_1
   }
 
   register(ipc) {
