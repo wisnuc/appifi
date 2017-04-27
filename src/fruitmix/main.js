@@ -52,10 +52,10 @@ if (cluster.isMaster) {
 	})
 } 
 else {
-
   console.log(`Worker ${process.pid} started`);
   config.ipc = IpcWorker()
   Worker()
+  config.ipc.call('fruitmixStart', {}, () => {})
 }
 
 
