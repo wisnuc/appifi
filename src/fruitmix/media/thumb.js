@@ -106,6 +106,7 @@ const convert = (key, src, opts, callback) => {
     })
     .on('close', code => {
       if (code !== 0) {
+        console.log('code:',code)
         callback(EFAIL('convert spawn failed with exit code ${code}'))
       }
       else {
@@ -212,7 +213,7 @@ class Thumb {
   schedule() {
 
     let diff = this.limit - this.workingQ.filter(worker => {
-      console.log('worker: ', worker)
+      console.error('worker: ', worker)
       worker.isRunning()
     }).length
     if (diff <= 0) return
