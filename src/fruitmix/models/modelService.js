@@ -239,23 +239,38 @@ class ModelService {
 
     let { useruuid, props } = args;
     // check permission
-    let user = this.modelData.users.find(u => u.uuid === useruuid);
+    let permissionUser = this.modelData.users.find(u => u.uuid === useruuid);
+    let user = this.modelData.users.find(u => u.uuid === props.uuid);
+
     if (!user)
-      throw new Error('user does not exist');
+      throw new Error('user does not exist')
+    if (!permissionUser.isAdmin && useruuid !== user.uuid)
+      throw new Error('no permission to change user information')
 
     let next = Object.assign({}, user, props );
     await this.modelData.updateUserAsync(next);
+    delete next.password;
+    delete next.smbPassword;
+    delete next.unixPassword;
     return next;
   }
 
-  // async updatePasswordAsync({ useruuid, pwd }) {
+  // async updatePasswordAsync({ useruuid, props }) {
   async updatePasswordAsync(args) {
 
-    let { useruuid, pwd } = args;
+    let { useruuid, props } = args;
+    let pwd = props.password
     // check permission
-    let user = this.modelData.users.find(u => u.uuid === useruuid);
+    let permissionUser = this.modelData.users.find(u => u.uuid === useruuid);
+    let user = this.modelData.users.find(u => u.uuid === props.uuid);
+
     if (!user)
       throw new Error('user does not exist');
+    if (!permissionUser.isAdmin && useruuid !== user.uuid)
+      throw new Error('no permission to change user information')
+    if (user.type !== 'local')
+      throw new Error('local user password only')
+
     // install user
     let password = passwordEncrypt(pwd, 10);
     let unixPassword = getUnixPwdEncrypt(pwd);
@@ -427,7 +442,9 @@ class ModelService {
 
   register(ipc) {
     ipc.register('createLocalUser', (args, callback) => this.createLocalUserAsync(args).asCallback(callback))
+    ipc.register('createRemoteUser', (args, callback) => this.createRemoteUserAsync(args).asCallback(callback))
     ipc.register('updateUser', (args, callback) => this.updateUserAsync(args).asCallback(callback))
+    ipc.register('updatePassword', (args, callback) => this.updatePasswordAsync(args).asCallback(callback))
     ipc.register('isLocalUser', (args, callback) => this.isLocalUser(args).asCallback(callback))
     ipc.register('createPublicDrive', (args, callback) => this.createPublicDriveAsync(args).asCallback(callback))
     ipc.register('updatePublicDrive', (args, callback) => this.updatePublicDriveAsync(args).asCallback(callback))

@@ -25,7 +25,7 @@ const users = [{
   home: uuid_2,//
   library: uuid_3,//
   service: uuid_4,//
-  password: '$2a$10$ejkgWk/ChHcLyZiic1H2CeLdoVcz15eZ/3Lymj1ncimVvq6E7OvWy',//
+  password: '$2a$10$BQRFyxLvFHE0dQLqlTvoT.DRRCRwPMkpjYUMX2sh.evYzK3cK51vC',//123
   unixPassword: 'some str',
   smbPassword: 'some str',//
   unixuid: 2000,//
