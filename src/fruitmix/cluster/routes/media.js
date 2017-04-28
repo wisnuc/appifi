@@ -10,6 +10,7 @@ router.get('/', (req, res) => {
 
   config.ipc.call('getMeta', userUUID, (err, data) => {
     if (err) return res.error(err)
+    console.log('metadata:' ,data)
     return res.success(data) 
   })
 })
@@ -57,7 +58,9 @@ router.get('/:digest/thumbnail', (req, res) => {
       })
     })
 
+   
     if (typeof ret === 'object') {
+       console.log('ret:', ret);
       return res.status(202).json(ret)
     }
     else {

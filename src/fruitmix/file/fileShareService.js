@@ -99,7 +99,40 @@ class FileShareService {
 
   async getUserFileShares(userUUID) {
     if(!isUUID(userUUID)) throw new E.EINVAL()
-    return await this.fileShareData.getUserFileShares(userUUID)
+    let shares = await this.fileShareData.getUserFileShares(userUUID)
+    let shares_1 = []
+    shares.forEach(share => {
+      let map = new Map()
+      share.doc.collection.forEach(u => {
+        let props = {
+          writeable: false,
+          readable: false,
+          shareable:false
+        }
+
+        if(this.fileData.userPermittedToShareByUUID(userUUID, u))
+          props.shareable = true
+
+        if(this.fileData.userPermittedToShareByUUID(share.doc.author, u)) {
+          if(this.fileData.userPermittedToReadByUUID(share.doc.author, u) &&
+             (share.doc.author === userUUID || share.userAuthorizedToRead(userUUID)))
+            props.readable = true
+          
+          if(this.fileData.userPermittedToWriteByUUID(share.doc.author, u) &&
+             (share.doc.author === userUUID || share.userAuthorizedToWrite(userUUID)))
+            props.writeable = true
+        }
+
+        map.set(u, {uuid: u, props})
+      })
+      
+      let doc = Object.assign({}, share.doc)
+      delete doc.collection
+      doc.collection = map
+      let item = { digest: share.digest, doc}
+      shares_1.push(item)
+    })
+    return shares_1
   }
 
   register(ipc) {

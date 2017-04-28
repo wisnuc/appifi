@@ -362,8 +362,8 @@ describe(path.basename(__filename), function() {
 
     it('shoud return shares user is the author or in viewerSet', async () => {
       let shares = await mediaShareService.getUserMediaShares(aliceUUID)
-      let share_1 = Object.assign({}, share1, {authorizedToRead: true, authorizedToWrite: true})
-      let share_2 = Object.assign({}, share2, {authorizedToRead: true, authorizedToWrite: true})
+      let share_1 = Object.assign({}, share1, {readable: true, writeable: true})
+      let share_2 = Object.assign({}, share2, {readable: true, writeable: true})
       expect(shares[0]).to.deep.equal(share_1)
       expect(shares[1]).to.deep.equal(share_2)
     })

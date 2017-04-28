@@ -245,16 +245,7 @@ router.get('/storage', (req, res) => {
 		})
 })
 
-////////////////////////////////////////
-/**
-const respond = (res, err, obj) => err ? 
-    res.status(codeMap.get(err.code) || 500)
-      .json({ code: err.code, message: err.message }) :
-    res.status(200)
-      .json((obj === null || obj === undefined) ? { message: 'success' } : obj)
-
-
-
+const K = x => y => x
 
 const timedate = (callback) => 
   child.exec('timedatectl', (err, stdout, stderr) => 
@@ -265,21 +256,23 @@ const timedate = (callback) =>
         return prev
       }, {})))
 
-// device
-
 // timedate
 router.get('/timedate', (req, res) => timedate((err, obj) => 
   err ? K(res.status(500).end())(console.log(err)) : res.status(200).json(obj)))
+
+////////////////////////////////////////
+/**
+const respond = (res, err, obj) => err ? 
+    res.status(codeMap.get(err.code) || 500)
+      .json({ code: err.code, message: err.message }) :
+    res.status(200)
+      .json((obj === null || obj === undefined) ? { message: 'success' } : obj)
 
 router.use('/storage', mir)
 router.use('/mir', mir)
 
 
- 
-
 router.post('/boot', (req, res) => {
-
-  
 
   let obj = req.body
   if (obj instanceof Object === false)

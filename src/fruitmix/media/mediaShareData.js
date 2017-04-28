@@ -63,6 +63,14 @@ class MediaShare {
 
     deepFreeze(this)
   }
+
+  userAuthorizedToRead(userUUID) {
+    return [...this.doc.maintainers, ...this.doc.viewers].includes(userUUID)
+  }
+
+  userAuthorizedToWrite(userUUID) {
+    return [...this.doc.maintainers].includes(userUUID)
+  }
 }
 
 const invariantProps = (c, n, props) => {
@@ -179,30 +187,14 @@ class MediaShareData extends EventEmitter {
     this.mediaShareMap.delete(uuid)
   }
 
-  userAuthorizedToRead(userUUID, shareUUID) {
-    let share = this.findShareByUUID(shareUUID)
-    return [share.doc.author, ...share.doc.maintainers, ...share.doc.viewers].includes(userUUID)
-  }
-
-  userAuthorizedToWrite(userUUID, shareUUID) {
-    let share = this.findShareByUUID(shareUUID)
-    return [share.doc.author, ...share.doc.maintainers].includes(userUUID)
-  }
-
   // return all the shares user can view
-  // accompanied with its read and write authorization
-  // share: {digest, doc, authorizedToRead (boolean), authorizedToWrite (boolean)}
   async getUserMediaShares(userUUID) {
     let shares = []
     this.mediaShareMap.forEach((value, key, map) => {
-      let share = Object.assign({}, value)
-      if (share.doc.author === userUUID || 
-          share.doc.maintainers.includes(userUUID) || 
-          share.doc.viewers.includes(userUUID)) {
-        share.authorizedToRead = this.userAuthorizedToRead(userUUID, share.doc.uuid)
-        share.authorizedToWrite = this.userAuthorizedToWrite(userUUID, share.doc.uuid)
-        shares.push(share)
-      }
+      if (value.doc.author === userUUID || 
+          value.doc.maintainers.includes(userUUID) || 
+          value.doc.viewers.includes(userUUID)) 
+        shares.push(value)
     })
     return shares
   }
