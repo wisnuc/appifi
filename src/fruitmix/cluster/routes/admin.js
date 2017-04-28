@@ -15,6 +15,58 @@ router.get('/users', (req, res) => {
 	})
 })
 
+// admin create local user
+router.post('/users', (req, res) => {
+
+	// permission user uuid
+  let useruuid = req.user.uuid
+
+  let props = Object.assign({}, req.body)
+
+  if (props.type === 'local'){
+    // create local user
+    config.ipc.call('createLocalUser', { useruuid, props }, (err, user) => {
+      err ? res.status(500).json(err)
+        : res.status(200).json(user)
+    })
+  } else if (props.type === 'remote'){
+    // create remote user
+    config.ipc.call('createRemoteUser', { useruuid, props }, (err, user) => {
+      err ? res.status(500).json(err)
+        : res.status(200).json(user)
+    })
+  } else {
+    res.status(401).json({ message: 'user type invalid' })
+  }
+})
+
+// admin update user
+router.patch('/users/:userUUID', (req, res) => {
+
+	// permission user uuid
+  let useruuid = req.user.uuid
+  let props = Object.assign({}, req.body, {
+    uuid: req.params.userUUID
+  })
+
+  if (!props.uuid)
+    return res.status(400).json('uuid is missing')
+
+  if (props.password){
+    // update password
+    config.ipc.call('updatePassword', { useruuid, props }, (err, aaa) => {
+      err ? res.status(500).json(err)
+        : res.status(200).json({ message: 'change password sucessfully' })
+    })
+  } else {
+    // update user without password
+    config.ipc.call('updateUser', { useruuid, props }, (err, user) => {
+      err ? res.status(500).json(err)
+        : res.status(200).json(user)
+    })
+  }
+})
+
 // get all public drive
 router.get('/drives', (req, res) => {
 	let useruuid = req.user.uuid
