@@ -239,53 +239,6 @@ describe(path.basename(__filename), () => {
 			} catch (e) { done(e); }
 		});
 
-		it('update admin', async done => {
-			try {
-				await model.updateUserAsync({ useruuid:uuid_1, props: { username : 'pandaa', uuid: uuid_1 } });
-				fs.readFile(mfile, (err, data) => {
-					if(err) return done(err);
-					let res = JSON.parse(data.toString());
-					expect(model.modelData.users).to.deep.equal(res.users);
-					expect(model.modelData.drives).to.deep.equal(res.drives);
-					done();
-				});
-			} catch (e) { done(e); }
-		});
-
-		it('update user', async done => {
-			let props = {
-				type: 'local',
-				username: 'pandab',
-				unixname: 'hello',
-				password: 'world',
-			};
-			try {
-				await model.createLocalUserAsync({ useruuid: uuid_1, props });
-				let uuid = model.modelData.users.filter(u => u.username === 'pandab').map(u => u.uuid);
-				await model.updateUserAsync({ useruuid: uuid[0], props: { username : 'pandac' } });
-				fs.readFile(mfile, (err, data) => {
-					if(err) return done(err);
-					let res = JSON.parse(data.toString());
-					expect(model.modelData.users).to.deep.equal(res.users);
-					expect(model.modelData.drives).to.deep.equal(res.drives);
-					done();
-				});
-			} catch (e) { done(e); }
-		});
-
-		it('update password', async done => {
-			try {
-				await model.updatePasswordAsync({ useruuid: uuid_1, pwd: 'hello' })
-				fs.readFile(mfile, (err, data) => {
-					if(err) return done(err);
-					let res = JSON.parse(data.toString());
-					expect(model.modelData.users).to.deep.equal(res.users);
-					expect(model.modelData.drives).to.deep.equal(res.drives);
-					done();
-				});
-			} catch(e) { done(e); } 
-		});
-
 		it('create friends', async done => {
 			try {
 				await model.createFriendAsync(uuid_1, uuid_2);
