@@ -15,6 +15,49 @@ router.get('/users', (req, res) => {
 	})
 })
 
+// admin create local user
+router.post('/users', (req, res) => {
+
+	let userUUID = req.user.uuid
+	let props = Object.assign({}, req.body, {
+		type: 'local'
+	})
+
+	config.ipc.call('createLocalUser', {
+		useruuid: userUUID,
+		props
+	}, (err, user) => {
+		err ? res.status(500).json(Object.assign({}, err))
+			: res.status(200).json(user)
+	})
+})
+
+// admin update user
+router.patch('/users/:userUUID', (req, res) => {
+
+	let permissionUser = req.user
+	let useruuid = req.params.userUUID
+
+	if (!user.isAdmin && userUUID !== permissionUser.uuid)
+		return res.status(401).json({ message: 'permission error'})
+
+	let props = Object.assign({}, req.body)
+
+	config.ipc.call('updateUser', {
+		useruuid: userUUID,
+		props
+	}, (err, user) => {
+		err ? res.status(500).json({
+			code: err.code,
+			message: err.message
+		}) : res.status(200).json(Object.assign({}, user, {
+			password: undefined,
+			smbPassword: undefined,
+			lastChangetime: undefined
+		}))
+	})
+})
+
 // get all public drive
 router.get('/drives', (req, res) => {
 	let useruuid = req.user.uuid
