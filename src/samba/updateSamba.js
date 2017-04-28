@@ -3,15 +3,8 @@ let child = require('child_process')
 let mkdirp = require('mkdirp')
 let getPrependPath = require('./prependPath')
 
-// define some parameters
-//const userListConfigPath = '../../test/samba/model.json'
-
 let path = require('path')
 let process = require('process')
-
-let cwd = process.cwd()
-const userListConfigPath = path.join(cwd, 'test/samba/model.json')
-
 
 let prependPath = null
 
@@ -29,6 +22,13 @@ const uuidToUnixName = (uuid) =>
 
 // read infors from local file
 const getUserListAsync = async () => {
+
+  const userListConfigPath = path.join(getPrependPath(), '..', '/fruitmix/models/model.json')
+  if(!fs.existsSync(userListConfigPath)) {
+    console.log(userListConfigPath)
+    throw Error('No Model.json Found!')
+  }
+
   let userList = await fs.readFileAsync(userListConfigPath)
 
   return JSON.parse(userList)
@@ -283,6 +283,8 @@ const generateSmbConfAsync = async () => {
 const updateSambaFilesAsync = async () => {
   
   updatingSamba = true
+
+  await mkdirpAsync(getPrependPath())
 
   await reconcileUnixUsersAsync()
   await reconcileSmbUsersAsync()

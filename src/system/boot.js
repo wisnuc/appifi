@@ -78,7 +78,8 @@ module.exports = {
   boot(cfs) {
 
    	this.fruitmix = fruitmix.fork(cfs)
-    this.samba = samba.fork(cfs)
+    // this.samba = samba.fork(cfs)
+    this.samba = Promise.delay(10000).then(() => {samba.fork(cfs)})
     this.data = { state: 'normal', currentFileSystem: cfs }
 
     Config.updateLastFileSystem({type: cfs.type, uuid: cfs.uuid})

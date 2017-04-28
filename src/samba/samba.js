@@ -6,6 +6,8 @@ let createUdpServer = require('./udpServer')
 let updateSambaFilesAsync = require('./updateSamba')
 let { startWatchAsync } = require('./watcher')
 
+let getPrependPath = require('./prependPath')
+
 Promise.promisifyAll(fs)
 Promise.promisifyAll(child)
 
@@ -14,8 +16,11 @@ Promise.promisifyAll(child)
 let path = require('path')
 let process = require('process')
 
-let cwd = process.cwd()
-const userListConfigPath = path.join(cwd, 'test/samba/model.json')
+// let cwd = process.cwd()
+// const userListConfigPath = path.join(getPrependPath(), '..', '/fruitmix/models/model.json')
+// if(!fs.existsSync(userListConfigPath)) {
+//   throw Error('No Model.json Found!')
+// }
 
 let debounceTime = 5000 // millisecond
 
