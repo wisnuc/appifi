@@ -58,8 +58,9 @@ router.get('/:digest/thumbnail', (req, res) => {
       })
     })
 
-    console.log('ret:', ret);
+   
     if (typeof ret === 'object') {
+       console.log('ret:', ret);
       return res.status(202).json(ret)
     }
     else {
