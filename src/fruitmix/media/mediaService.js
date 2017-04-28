@@ -64,6 +64,8 @@ module.exports = class MediaService {
     tb.request({ src, digest, query }, (err, data) => {
       if (err)
         return callback(err)
+
+      console.error('data: ', data);
       return callback(null, data)
     })
   }
