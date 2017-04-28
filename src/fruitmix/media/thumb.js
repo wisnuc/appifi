@@ -7,6 +7,7 @@ const crypto = require('crypto')
 const EventEmitter = require('events')
 const UUID = require('node-uuid')
 
+import config from '../cluster/config'
 import E from '../lib/error' 
 import { DIR } from '../lib/const' 
 
@@ -90,9 +91,10 @@ const parseQuery = (query) => {
 // convert, return abort function
 const convert = (key, src, opts, callback) => {
 
-  let dst = path.join(DIR.THUMB, key)
-  let tmp = path.join(DIR.TMP, UUID.v4())
-
+  let dst = path.join(config.path, DIR.THUMB, key)
+  let tmp = path.join(config.path, DIR.TMP, UUID.v4())
+  console.log('dst: ', dst);
+  console.log('tmp: ', tmp);
   let args = []
   args.push(src)
   if (opts.autoOrient) args.push('-auto-orient')
@@ -106,6 +108,7 @@ const convert = (key, src, opts, callback) => {
     })
     .on('close', code => {
       if (code !== 0) {
+        console.log('code:',code, args)
         callback(EFAIL('convert spawn failed with exit code ${code}'))
       }
       else {
@@ -125,8 +128,8 @@ const convert = (key, src, opts, callback) => {
 
 const generate = (key, src, opts, callback) => {
 
-  let thumbpath = path.join(DIR.THUMB, key)
-
+  let thumbpath = path.join(config.path, DIR.THUMB, key)
+  console.log('thumbpath: ', thumbpath);
   // find the thumbnail file first
   fs.stat(thumbpath, (err, stat) => {
 
@@ -211,7 +214,10 @@ class Thumb {
 
   schedule() {
 
-    let diff = this.limit - this.workingQ.filter(worker => worker.isRunning()).length
+    let diff = this.limit - this.workingQ.filter(worker => {
+      console.error('worker: ', worker)
+      worker.isRunning()
+    }).length
     if (diff <= 0) return
 
     this.workingQ.filter(worker => !worker.isRunning())

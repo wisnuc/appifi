@@ -417,6 +417,14 @@ class ModelService {
     callback(null, this.modelData.getAllLocalUser())
   }
 
+  // get all public drive
+  getAllPublicDrive(useruuid, callback){
+    let user = this.modelData.users.find(u => u.uuid === useruuid && u.isAdmin)
+    if (!user)
+      return callback(new Error('no permission to get all local user'))
+    callback(null, this.modelData.getAllPublicDrive())
+  }
+
   register(ipc) {
     ipc.register('createLocalUser', (args, callback) => this.createLocalUserAsync(args).asCallback(callback))
     ipc.register('updateUser', (args, callback) => this.updateUserAsync(args).asCallback(callback))
@@ -428,6 +436,7 @@ class ModelService {
     ipc.register('getAccountInfo', (args, callback) => this.getAccountInfo(args, callback))
     ipc.register('getUserFriends', (args, callback) => this.getUserFriends(args, callback))
     ipc.register('getAllLocalUser', (args, callback) => this.getAllLocalUser(args, callback))
+    ipc.register('getAllPublicDrive', (args, callback) => this.getAllPublicDrive(args, callback))
   }
 }
 

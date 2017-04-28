@@ -438,6 +438,11 @@ class ModelData extends EventEmitter {
     })
   }
 
+  // get all public drive
+  getAllPublicDrive(){
+    return this.drives.filter(d => d.type === 'public')
+  }
+
 }
 
 const createModelData = froot => {
