@@ -14,95 +14,61 @@ router.get('/', (req, res) => {
 })
 
 
-// router.get('/', auth.jwt(), (req, res) => {
-//   const user = req.user
-//   if(user.isAdmin)
-//     localUsers((e, users) => {
-//       if(e) return res.status(500).json({})
-//       return res.status(200).json(list.map(u => Object.assign({}, u, {
-//         password: undefined,
-//         smbPassword: undefined,
-//         lastChangeTime: undefined
-//       })))
-//     })
-//   else
-//     return res.status(200).json([Object.assign({}, user, {
-//       password: undefined,
-//       smbPassword: undefined,
-//       lastChangeTime: undefined
-//     })])
-// })
-
-
 //req.body 
 // {
 //       type, username, password, nologin, isFirstUser,
 //       isAdmin, email, avatar, unixname
 // }
+
+// create user
 router.post('/', (req, res) => {
-  const user = req.user 
-  if(!user.isAdmin) return res.status(401).json({})
 
-
-  let props = Object.assign({}, req.body, {
-    type: 'local'
-  })
-
-  //ipc create user
-  config.ipc.call('createLocalUser', { useruuid: user.uuid, props }, (err, newUser) => {
-    if (err) return res.status(500).json({})
-    res.status(200).json(Object.assign({}, newUser, {
-        password: undefined,
-        smbPassword: undefined, 
-        lastChangeTime: undefined
-      }))
-  })
-})
-
-router.patch('/:userUUID', (req, res) => {
-
-  const user = req.user
-  const userUUID = req.params.userUUID
-
-  if (!user.isAdmin && userUUID !== user.uuid) {
-    return res.status(401).json({})
-  }
+  // permission user uuid
+  let useruuid = req.user.uuid
 
   let props = Object.assign({}, req.body)
 
-
-  config.ipc.call('updateUser', { useruuid: userUUID, props }, (err, newUser) => {
-    if (err) return res.status(500).json({
-      code: err.code,
-      message: err.message
+  if (props.type === 'local'){
+    // create local user
+    config.ipc.call('createLocalUser', { useruuid, props }, (err, user) => {
+      err ? res.status(500).json(err)
+        : res.status(200).json(user)
     })
-
-    return res.status(200).json(Object.assign({}, newUser, {
-      password: undefined,
-      smbPassword: undefined,
-      lastChangeTime: undefined
-    }))
-  })
+  } else if (props.type === 'remote'){
+    // create remote user
+    config.ipc.call('createRemoteUser', { useruuid, props }, (err, user) => {
+      err ? res.status(500).json(err)
+        : res.status(200).json(user)
+    })
+  } else {
+    res.status(401).json({ message: 'user type invalid' })
+  }
 })
 
+// update user information or password
+router.patch('/:userUUID', (req, res) => {
 
-router.patch('/', (req, res) => {
-  if (req.user.isAdmin === true ) {
-    if(!req.body.uuid){return res.status(400).json('uuid is missing')}
-    let props = Object.assign({}, req.body)
-    config.ipc.call('updateUser', { useruuid: req.body.uuid, props }, (err, newUser) => {
-      if (err) return res.status(500).json({
-        code: err.code,
-        message: err.message
-      })
-      return res.status(200).json(Object.assign({}, newUser, {
-        password: undefined,
-        smbPassword: undefined,
-        lastChangeTime: undefined
-      }))
-    })}
-  else{
-    return res.status(403).json('403 Permission denied')
+  // permission user uuid
+  let useruuid = req.user.uuid
+  let props = Object.assign({}, req.body, {
+    uuid: req.params.userUUID
+  })
+
+  if (!props.uuid)
+    return res.status(400).json('uuid is missing')
+
+  if (props.password){
+    // update password
+    config.ipc.call('updatePassword', { useruuid, props }, (err, aaa) => {
+      err ? res.status(500).json(err)
+        : res.status(200).json({ message: 'change password sucessfully' })
+    })
+  } else {
+    // update user without password
+    config.ipc.call('updateUser', { useruuid, props }, (err, user) => {
+      err ? res.status(500).json(err)
+        : res.status(200).json(user)
+    })
   }
 })
 
