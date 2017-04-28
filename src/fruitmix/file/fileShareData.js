@@ -179,11 +179,10 @@ class FileShareData extends EventEmitter {
   async getUserFileShares(userUUID) {
     let shares = []
     this.fileShareMap.forEach((value, key, map) => {
-      let share = value
-      if (share.doc.author === userUUID || 
-          share.doc.writelist.includes(userUUID) || 
-          share.doc.readlist.includes(userUUID)) 
-        shares.push(share) 
+      if (value.doc.author === userUUID || 
+          value.doc.writelist.includes(userUUID) || 
+          value.doc.readlist.includes(userUUID)) 
+        shares.push(value) 
     })
     return shares
   }

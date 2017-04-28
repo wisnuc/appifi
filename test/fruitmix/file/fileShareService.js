@@ -353,7 +353,7 @@ describe(path.basename(__filename), () => {
   })
 
   describe('getUserFileShares', function() {
-    let share1, share2
+    // let share1, share2
     let post1 = { writelist: [aliceUUID],
                   readlist: [bobUUID],
                   collection: [uuid2, uuid4, uuid6] 
@@ -363,14 +363,22 @@ describe(path.basename(__filename), () => {
                  collection: [uuid9] 
                }
     beforeEach(async () => {
-      share1 = await fileShareService.createFileShare(userUUID, post1)
-      share2 = await fileShareService.createFileShare(aliceUUID, post2)
+      await fileShareService.createFileShare(userUUID, post1)
+      await fileShareService.createFileShare(aliceUUID, post2)
     })
 
     it('should return shares user is author or in readerSet', async () => {
       let shares = await fileShareService.getUserFileShares(aliceUUID)
-      expect(shares[0]).to.deep.equal(share1)
-      expect(shares[1]).to.deep.equal(share2)
+      let map1 = new Map([
+        [uuid2, {uuid: uuid2, props:{shareable: false, readable: true, writeable: true}}],
+        [uuid6, {uuid: uuid6, props:{shareable: false, readable: true, writeable: true}}]
+      ])
+      let map2 = new Map([
+        [uuid9, {uuid: uuid9, props:{shareable: true, readable: true, writeable: true}}]
+      ])
+      expect(shares[0].doc.collection.get(uuid2)).to.deep.equal(map1.get(uuid2))
+      expect(shares[0].doc.collection.get(uuid6)).to.deep.equal(map1.get(uuid6))
+      expect(shares[1].doc.collection.get(uuid9)).to.deep.equal(map2.get(uuid9))
     })
   })
 })
