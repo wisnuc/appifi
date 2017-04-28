@@ -1,6 +1,7 @@
 import E from '../lib/error'
 import Thumb from './thumb'
-
+import config from '../cluster/config'
+import path from 'path'
 const tb = new Thumb(40)
 
 module.exports = class MediaService {
@@ -29,7 +30,7 @@ module.exports = class MediaService {
 
     let nodes = Array.from(media.nodes)
     for (let n of nodes) {
-      return n.namepath()
+      return n.abspath()
     }
   }
 
