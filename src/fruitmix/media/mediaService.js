@@ -1,6 +1,7 @@
 import E from '../lib/error'
 import Thumb from './thumb'
-
+import config from '../cluster/config'
+import path from 'path'
 const tb = new Thumb(40)
 
 module.exports = class MediaService {
@@ -29,7 +30,7 @@ module.exports = class MediaService {
 
     let nodes = Array.from(media.nodes)
     for (let n of nodes) {
-      return n.namepath()
+      return n.abspath()
     }
   }
 
@@ -44,13 +45,13 @@ module.exports = class MediaService {
 
   // need to check authorazation 
   async readMedia({userUUID, digest}) {
+
     let media = this.mediaData.findMediaByHash(digest)
     if (!media) throw new E.ENOENT()
 
-    let props = this.mediaData.mediaProperties(userUUID, digest)
+    let props = this.mediaData.mediaProperties(userUUID, media)
     if (props.permittedToShare || props.authorizedToRead ||
       props.sharedWithOthers || props.sharedWithMe) {
-
       return this.findMediaPath(digest)
     } else {
       throw new E.ENOENT()
