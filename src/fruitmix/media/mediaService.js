@@ -45,13 +45,13 @@ module.exports = class MediaService {
 
   // need to check authorazation 
   async readMedia({userUUID, digest}) {
+
     let media = this.mediaData.findMediaByHash(digest)
     if (!media) throw new E.ENOENT()
 
-    let props = this.mediaData.mediaProperties(userUUID, digest)
+    let props = this.mediaData.mediaProperties(userUUID, media)
     if (props.permittedToShare || props.authorizedToRead ||
       props.sharedWithOthers || props.sharedWithMe) {
-
       return this.findMediaPath(digest)
     } else {
       throw new E.ENOENT()

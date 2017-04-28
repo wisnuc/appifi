@@ -153,7 +153,7 @@ class FileData extends EventEmitter {
     
     let node = this.findNodeByUUID(nodeUUID)
     if (!node) throw new E.ENODENOTFOUND()
-    return this.userPermittedToRead(userUUID, node.uuid)
+    return this.userPermittedToRead(userUUID, node)
   }
 
   userPermittedToWrite(userUUID, node) {
@@ -173,7 +173,7 @@ class FileData extends EventEmitter {
 
     let node = this.findNodeByUUID(nodeUUID)
     if (!node) throw new E.ENODENOTFOUND()
-    return this.userPermittedToWrite(userUUID, node.uuid)
+    return this.userPermittedToWrite(userUUID, node)
   }
 
   userPermittedToShare(userUUID, node) {

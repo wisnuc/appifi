@@ -25,7 +25,7 @@ const users = [{
   home: uuid_2,//
   library: uuid_3,//
   service: uuid_4,//
-  password: '$2a$10$ejkgWk/ChHcLyZiic1H2CeLdoVcz15eZ/3Lymj1ncimVvq6E7OvWy',//
+  password: '$2a$10$BQRFyxLvFHE0dQLqlTvoT.DRRCRwPMkpjYUMX2sh.evYzK3cK51vC',//123
   unixPassword: 'some str',
   smbPassword: 'some str',//
   unixuid: 2000,//
@@ -237,53 +237,6 @@ describe(path.basename(__filename), () => {
 					done();
 				});
 			} catch (e) { done(e); }
-		});
-
-		it('update admin', async done => {
-			try {
-				await model.updateUserAsync({ useruuid:uuid_1, props: { username : 'pandaa', uuid: uuid_1 } });
-				fs.readFile(mfile, (err, data) => {
-					if(err) return done(err);
-					let res = JSON.parse(data.toString());
-					expect(model.modelData.users).to.deep.equal(res.users);
-					expect(model.modelData.drives).to.deep.equal(res.drives);
-					done();
-				});
-			} catch (e) { done(e); }
-		});
-
-		it('update user', async done => {
-			let props = {
-				type: 'local',
-				username: 'pandab',
-				unixname: 'hello',
-				password: 'world',
-			};
-			try {
-				await model.createLocalUserAsync({ useruuid: uuid_1, props });
-				let uuid = model.modelData.users.filter(u => u.username === 'pandab').map(u => u.uuid);
-				await model.updateUserAsync({ useruuid: uuid[0], props: { username : 'pandac' } });
-				fs.readFile(mfile, (err, data) => {
-					if(err) return done(err);
-					let res = JSON.parse(data.toString());
-					expect(model.modelData.users).to.deep.equal(res.users);
-					expect(model.modelData.drives).to.deep.equal(res.drives);
-					done();
-				});
-			} catch (e) { done(e); }
-		});
-
-		it('update password', async done => {
-			try {
-				await model.updatePasswordAsync({ useruuid: uuid_1, pwd: 'hello' })
-				fs.readFile(mfile, (err, data) => {
-					if(err) return done(err);
-					let res = JSON.parse(data.toString());
-					expect(model.modelData.users).to.deep.equal(res.users);
-					expect(model.modelData.drives).to.deep.equal(res.drives);
-					done();
-				});
-			} catch(e) { done(e); } 
 		});
 
 		it('create friends', async done => {
