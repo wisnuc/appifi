@@ -28,10 +28,28 @@ const isSanitizedName = name => typeof name === 'string' && sanitize(name) === n
 
 const rootPathAsync = async (type, uuid) => {
 
-  if (type !== 'fs') throw new Error('type not supported')
+  if (type !== 'fs') throw new Error('type not supported, yet')
+  if (uuid !== undefined && !isUUID(uuid)) throw new Error(`Bad uuid ${uuid}`)
+
   let storage = JSON.parse(await fs.readFileAsync('/run/wisnuc/storage'))
-  let fileSystem = something
-  let target = fileSystem.find(fsys => fsys.fileSystemUUID === uuid)
+  let { blocks, volumes } = storage
+  if (!Array.isArray(blocks) || !Array.isArray(volumes)) throw new Error('bad storage format')
+
+  /** TODO this function should be in sync with extractFileSystem in boot.js **/
+  let fileSystems = [
+    ...blocks.filter(blk => blk.isFileSystem 
+      && !blk.isVolumeDevice
+      && blk.isMounted), // no limitation for file system type
+    ...volumes.filter(vol => vol.isFileSystem
+      && !vol.isMissing
+      && vol.isMounted)
+  ]
+
+  if (!uuid) {
+    return fileSystems
+  } 
+
+  let target = fileSystems.find(fsys => fsys.fileSystemUUID === uuid)
   if (!target) throw new Error('not found')
   return target.mountpoint
 }
@@ -154,6 +172,14 @@ const deleteAsync = async (type, uuid, relpath) => {
   let abspath = path.join(rootpath, relpath)
   await rimrafAsync(abspath)
 }
+
+router.get('/fs', (req, res) => 
+  rootPathAsync('fs')
+    .then(fileSystems => res.status(200).json(fileSystems))
+    .catch(e => e.code === 'EINVAL'
+      ? res.status(400).json({ code: 'EINVAL', message: e.message })
+      : res.status(400).json({ code: e.code, message: e.message })))
+
 
 /**
 list or download
