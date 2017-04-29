@@ -36,7 +36,7 @@ router.post('/users', (req, res) => {
         : res.status(200).json(user)
     })
   } else {
-    res.status(401).json({ message: 'user type invalid' })
+    res.status(400).json({ message: 'invalid user type, must be local or remote' })
   }
 })
 
