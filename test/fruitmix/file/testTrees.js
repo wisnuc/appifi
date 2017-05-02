@@ -46,10 +46,7 @@ const uuids = {
 class Model extends EventEmitter {
   constructor() {
     super()
-  }
-  getUsers() {
-
-    return [
+    this.users = [
       { uuid: uuids.userUUID, type: 'local' },
       { uuid: uuids.aliceUUID, type: 'local' },
       { uuid: uuids.bobUUID, type: 'local' },
@@ -57,6 +54,16 @@ class Model extends EventEmitter {
       { uuid: uuids.remoteUUID, type: 'remote' }
     ]
   }
+  // getUsers() {
+
+  //   return [
+  //     { uuid: uuids.userUUID, type: 'local' },
+  //     { uuid: uuids.aliceUUID, type: 'local' },
+  //     { uuid: uuids.bobUUID, type: 'local' },
+  //     { uuid: uuids.charlieUUID, type: 'local' },
+  //     { uuid: uuids.remoteUUID, type: 'remote' }
+  //   ]
+  // }
 }
 
 let model = new Model()
