@@ -15,7 +15,7 @@ router.get('/users', (req, res) => {
 	})
 })
 
-// admin create local user
+// admin create user
 router.post('/users', (req, res) => {
 
 	// permission user uuid
