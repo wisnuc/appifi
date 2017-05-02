@@ -137,44 +137,44 @@ class MediaData {
   //   this.cleanEmpty(spliced)
   // }
 
-  mediaSharingStatus(userUUID, media) {
+  // mediaSharingStatus(userUUID, media) {
 
-    let sharedWithOthers = false
-    let sharedWithMe = false
-    let sharedWithMeAvailable = false
-    let sharesArr = Array.from(media.shares)
-    let nodesArr = Array.from(media.nodes)
+  //   let sharedWithOthers = false
+  //   let sharedWithMe = false
+  //   let sharedWithMeAvailable = false
+  //   let sharesArr = Array.from(media.shares)
+  //   let nodesArr = Array.from(media.nodes)
 
-    //FIXME:
-    for (let i = 0; i < sharesArr.length; i++) {
+  //   //FIXME:
+  //   for (let i = 0; i < sharesArr.length; i++) {
 
-      let pair = sharesArr[i]
-      let item = pair[0]
-      let doc = pair[1].doc
-      if (item.creator === userUUID) sharedWithOthers = true
-      if (doc.maintainers.includes(userUUID) || doc.viewers.includes(userUUID)) {
-        sharedWithMe = true
-        sharedWithMeAvailable = this.model.userIsLocal(doc.author) ?
-          true :
-          nodesArr.some(node => this.fileData.fromUserService(doc.author, node))
-      }
+  //     let pair = sharesArr[i]
+  //     let item = pair[0]
+  //     let doc = pair[1].doc
+  //     if (item.creator === userUUID) sharedWithOthers = true
+  //     if (doc.maintainers.includes(userUUID) || doc.viewers.includes(userUUID)) {
+  //       sharedWithMe = true
+  //       sharedWithMeAvailable = this.model.userIsLocal(doc.author) ?
+  //         true :
+  //         nodesArr.some(node => this.fileData.fromUserService(doc.author, node))
+  //     }
 
-      // if available is false, there is a chance that
-      // another remote user shared the same medium with me
-      if (sharedWithOthers && sharedWithMe && sharedWithMeAvailable)
-        return {
-          sharedWithOthers,
-          sharedWithMe,
-          sharedWithMeAvailable
-        }
-    }
+  //     // if available is false, there is a chance that
+  //     // another remote user shared the same medium with me
+  //     if (sharedWithOthers && sharedWithMe && sharedWithMeAvailable)
+  //       return {
+  //         sharedWithOthers,
+  //         sharedWithMe,
+  //         sharedWithMeAvailable
+  //       }
+  //   }
 
-    return {
-      sharedWithOthers,
-      sharedWithMe,
-      sharedWithMeAvailable
-    }
-  }
+  //   return {
+  //     sharedWithOthers,
+  //     sharedWithMe,
+  //     sharedWithMeAvailable
+  //   }
+  // }
 
   mediaProperties(userUUID, media) {
     let props = {
