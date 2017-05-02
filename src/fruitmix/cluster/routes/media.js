@@ -10,8 +10,7 @@ router.get('/', (req, res) => {
 
   config.ipc.call('getMeta', userUUID, (err, data) => {
     if (err) return res.error(err)
-    console.log('metadata:' ,data)
-    return res.success(data) 
+    return res.success(data)
   })
 })
 
@@ -19,8 +18,8 @@ router.get('/:digest/download', (req, res) => {
 
   let userUUID = req.user.uuid
   let digest = req.params.digest
- 
-  config.ipc.call('readMedia', {userUUID, digest}, (err, filepath) => {
+
+  config.ipc.call('readMedia', { userUUID, digest }, (err, filepath) => {
     if (err) return res.error(err)
     return res.status(200).sendFile(filepath)
   })
@@ -39,28 +38,27 @@ router.get('/:digest/download', (req, res) => {
   width and height, provide at least one
   modifier effectvie only if both width and height provided
 **/
-  
+
 router.get('/:digest/thumbnail', (req, res) => {
 
-  let requestId = UUID.v4() 
+  let requestId = UUID.v4()
   let userUUID = req.user.uuid
   let digest = req.params.digest
   let query = req.query
+
+  req.on('close', () => {
+    config.ipc.call('abort', requestId, () => {
+      req.end()
+    })
+  })
 
   config.ipc.call('getThumb', { requestId, userUUID, digest, query }, (err, ret) => {
     if (err) {
       return res.error(err)
     }
 
-    req.on('close', () => {
-      config.ip.call('abort', requestId, () => {
-        req.end()
-      })
-    })
-
-   
     if (typeof ret === 'object') {
-       console.log('ret:', ret);
+      console.error('ret:', ret)
       return res.status(202).json(ret)
     }
     else {
