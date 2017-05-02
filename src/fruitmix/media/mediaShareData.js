@@ -96,9 +96,9 @@ const invariantUpdate = (c, n) => {
 
 class MediaShareData extends EventEmitter {
 
-  constructor(model, mediaShareStore) {
+  constructor(modelData, mediaShareStore) {
     super()
-    this.model = model 
+    this.modelData = modelData 
     this.mediaShareStore = mediaShareStore
     this.mediaShareMap = new Map()
     this.lockSet = new Set()
@@ -149,7 +149,8 @@ class MediaShareData extends EventEmitter {
   }
 
   async createMediaShare(doc) {
-    validateMediaShareDoc(doc, this.model.getUsers())
+    console.log(this.medelData.users)
+    validateMediaShareDoc(doc, this.modelData.users)
 
     let digest = await this.storeAsync(doc)
     let share = new MediaShare(digest, doc)
@@ -160,7 +161,7 @@ class MediaShareData extends EventEmitter {
   }
 
   async updateMediaShare(doc) {
-    validateMediaShareDoc(doc, this.model.getUsers())
+    validateMediaShareDoc(doc, this.modelData.users)
 
     let share = this.findShareByUUID(doc.uuid)
     if (!share) throw new E.ENOENT() // 'uuid not found'
@@ -211,9 +212,9 @@ class MediaShareData extends EventEmitter {
   }
 }
 
-const createMediaShareData = (model, mediaShareStore) => {
+const createMediaShareData = (modelData, mediaShareStore) => {
   Promise.promisifyAll(mediaShareStore)
-  return new MediaShareData(model, mediaShareStore)
+  return new MediaShareData(modelData, mediaShareStore)
 }
 
 export { createMediaShareData }

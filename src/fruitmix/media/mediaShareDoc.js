@@ -254,6 +254,6 @@ const updateMediaShareDoc = (userUUID, doc, ops) => {
 export { 
   createMediaShareDoc, 
   updateMediaShareDoc,
-  validateMediaShareDoc,
+  validateMediaShareDoc
 }
 
