@@ -149,7 +149,6 @@ class MediaShareData extends EventEmitter {
   }
 
   async createMediaShare(doc) {
-    console.log(this.medelData.users)
     validateMediaShareDoc(doc, this.modelData.users)
 
     let digest = await this.storeAsync(doc)
