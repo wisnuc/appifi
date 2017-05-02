@@ -210,6 +210,7 @@ class Thumb {
 
   schedule() {
 
+    console.log('workingQ length: ', this.workingQ.length)
     let diff = this.limit - this.workingQ.filter(worker => {
       worker.isRunning()
     }).length
