@@ -102,6 +102,7 @@ const convert = (key, src, opts, callback) => {
   args.push(geometry(opts.width, opts.height, opts.modifier))
   args.push(tmp)
 
+  //FIXME: 不能立即返回
   child.spawn('convert', args)
     .on('error', err => {
       callback(err)
