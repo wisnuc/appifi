@@ -208,7 +208,7 @@ class MediaData {
     let media = this.findMediaByHash(digest)
     if(!media) return
     else {
-      let nodes = Array.form(media.nodes)
+      let nodes = Array.from(media.nodes)
       return nodes.some(node => this.fileData.userPermittedToShare(userUUID, node))
     }
   }
