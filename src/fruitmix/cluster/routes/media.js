@@ -42,23 +42,20 @@ router.get('/:digest/download', (req, res) => {
 router.get('/:digest/thumbnail', (req, res) => {
 
   let requestId = UUID.v4()
-  let userUUID = req.user.uuid
+  // let userUUID = req.user.uuid
   let digest = req.params.digest
   let query = req.query
 
   req.on('close', () => {
-    config.ipc.call('abort', requestId, () => {
-      req.end()
-    })
+    config.ipc.call('abort', { requestId, digest, query }, () => {})
   })
 
-  config.ipc.call('getThumb', { requestId, userUUID, digest, query }, (err, ret) => {
+  config.ipc.call('getThumb', { requestId, digest, query }, (err, ret) => {
     if (err) {
       return res.error(err)
     }
 
     if (typeof ret === 'object') {
-      console.error('ret:', ret)
       return res.status(202).json(ret)
     }
     else {
