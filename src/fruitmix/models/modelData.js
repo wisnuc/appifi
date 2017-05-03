@@ -430,12 +430,11 @@ class ModelData extends EventEmitter {
   // get all local user
   getAllLocalUser(){
     let locals = this.users.filter(u => u.type === 'local')
-    return locals.map(u => {
-      delete u.password
-      delete u.unixPassword
-      delete u.smbPassword
-      return u
-    })
+    return locals.map(u => Object.assign({}, u, {
+      password: undefined,
+      unixPassword: undefined,
+      smbPassword: undefined
+    }))
   }
 
   // get all public drive

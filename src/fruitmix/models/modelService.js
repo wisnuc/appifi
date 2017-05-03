@@ -42,7 +42,7 @@ const upgradeData = (users, drives) => {
   }));
 
   let newUsers = users.map(user => {
-    let u = user;
+    let u = Object.assign({}, user);
     u.unixuid = user.unixUID;
     delete u.unixUID;
     u.nologin = false;
