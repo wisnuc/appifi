@@ -93,13 +93,16 @@ const convert = (key, src, opts, callback) => {
 
   let dst = path.join(config.path, DIR.THUMB, key)
   let tmp = path.join(config.path, DIR.TMP, UUID.v4())
+  let finished = false
   let args = []
+
   args.push(src)
   if (opts.autoOrient) args.push('-auto-orient')
   args.push('-thumbnail')
   args.push(geometry(opts.width, opts.height, opts.modifier))
   args.push(tmp)
 
+  //FIXME: 不能立即返回
   child.spawn('convert', args)
     .on('error', err => {
       callback(err)
@@ -112,6 +115,17 @@ const convert = (key, src, opts, callback) => {
         return fs.rename(tmp, dst, callback)
       }
     })
+
+  // let spawn = child.spawn('convert', args)
+  //   .on('error', err => CALLBACK(err))
+  //   .on('close', code => {
+  //     spawn = null 
+  //     if (finished) return
+  //     if (code !== 0) 
+  //       CALLBACK(EFAIL('convert spawn failed with exit code ${code}'))
+  //     else
+  //       fs.rename(tmp, dst, CALLBACK)
+  //   })
 
   // function CALLBACK(err) {
   //   if (finished) return
@@ -167,6 +181,8 @@ class Worker extends EventEmitter {
       if(err) {
         return this.error(err)
       }
+
+      console.error('convert: ', JSON.stringify(data))
       this.finish(this, data)
     })
   }
@@ -268,8 +284,16 @@ class Thumb {
     return worker
   }
 
-  abort(requestId) {
-    return this.cbMap.delelte(requestId)
+  abort({requestId, digest, query}) {
+   
+    let opts = parseQuery(query)
+    if (opts instanceof Error)  return opts
+    
+    let hash = digest + optionHash(opts)
+     //先找到woker，再去callbackArr找
+    let worker = this.workingQ.find(worker => worker.id === hash)
+
+    return worker === undefined ? true : worker.cbMap.delete(requestId)
   }
 
   // register(ipc) {

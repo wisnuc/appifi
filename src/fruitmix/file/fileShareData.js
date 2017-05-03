@@ -139,7 +139,7 @@ class FileShareData extends EventEmitter {
 
   async createFileShare(doc) {
 
-    validateFileShareDoc(doc, this.model.getUsers())
+    validateFileShareDoc(doc, this.model.users)
 
     let digest = await this.fileShareStore.storeAsync(doc)
     let fileShare = new FileShare(digest, doc)
@@ -150,7 +150,7 @@ class FileShareData extends EventEmitter {
 
   async updateFileShare(doc) {
 
-    validateFileShareDoc(doc, this.model.getUsers())
+    validateFileShareDoc(doc, this.model.users)
 
     let share = this.findShareByUUID(doc.uuid)
     if(!share) throw new E.ENOENT()
