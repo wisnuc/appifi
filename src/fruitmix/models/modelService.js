@@ -121,7 +121,7 @@ class ModelService {
       *  type: 'local',
       *  username,     // string
       *  password,     // string
-      *  unixname      // string
+      o  unixname      // string
       a  nologin,      // bool
       a  isFirstUser,  // bool
       a  isAdmin,      // bool
@@ -179,6 +179,7 @@ class ModelService {
       password: passwordEncrypted
       // , credentials
     };
+    if (!newUser.unixname) delete newUser.unixname
     // install newDrives
     let common = { owner: uuid, type: 'private' };
     let homeDrive     = Object.assign({}, common, { uuid: home, label: `${username} home` });
