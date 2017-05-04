@@ -59,7 +59,7 @@ const isValidBootArgs = body =>
 router.post('/boot', (req, res) =>
   !isValidBootArgs(req.body)
     ? invalid(res)
-    : rebootAsync(req.body.op, req.body.target).asCallback(err =>
+    : Boot.rebootAsync(req.body.op, req.body.target).asCallback(err =>
       err
         ? error(res, err)
         : ok(res)))
