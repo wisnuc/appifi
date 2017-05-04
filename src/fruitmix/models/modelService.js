@@ -250,10 +250,12 @@ class ModelService {
 
     let next = Object.assign({}, user, props );
     await this.modelData.updateUserAsync(next);
-    delete next.password;
-    delete next.smbPassword;
-    delete next.unixPassword;
-    return next;
+
+    let newUser = Object.assign({}, next)
+    delete newUser.password;
+    delete newUser.smbPassword;
+    delete newUser.unixPassword;
+    return newUser;
   }
 
   // async updatePasswordAsync({ useruuid, props }) {
