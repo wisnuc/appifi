@@ -52,7 +52,7 @@ const isValidBootArgs = body =>
   typeof body === 'object' 
     && body !== null
     && !!['poweroff', 'reboot', 'rebootMaintenance', 'rebootNormal'].includes(body.op)
-    && obj.op === 'rebootNormal' 
+    && body.op === 'rebootNormal' 
       ? (typeof body.target === 'string' && validator.isUUID(body.target))
       : true
 
