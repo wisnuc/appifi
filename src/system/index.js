@@ -187,8 +187,8 @@ router.get('/net', (req, res) =>
 const isValidRunArgs = body => 
   typeof body === 'object' 
     && body !== null 
-    && typeof body.target !== 'string' 
-    && !validator.isUUID(body.target)
+    && typeof body.target === 'string' 
+    && validator.isUUID(body.target)
 
 router.post('/run', (req, res) => 
   !isValidRunArgs(req.body) 
