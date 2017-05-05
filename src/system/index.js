@@ -215,7 +215,7 @@ const isValidInstallArgs = body =>
     && body.username.length > 0
     && typeof body.password === 'string'
     && body.password.length > 0
-    && (body.install === true || typeof body.reinstall === true)
+    && (body.install === true || body.reinstall === true)
 
 router.post('/install', (req, res) => 
   !isValidInstallArgs(req.body)

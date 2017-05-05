@@ -1,6 +1,8 @@
 const path = require('path')
 const fs = require('fs')
 const child = require('child_process')
+const rimraf = require('rimraf')
+const mkdirp = require('mkdirp')
 
 const Developer = require('./developer')
 const Config = require('./config')
@@ -10,6 +12,9 @@ const fruitmix = require('./boot/fruitmix')
 const debug = require('debug')('system:boot')
 
 const bootableFsTypes = ['btrfs', 'ext4', 'ntfs']
+
+const rimrafAsync = Promise.promisify(rimraf)
+const mkdirpAsync = Promise.promisify(mkdirp)
 
 /**
 const decorateStorageAsync = async pretty => {
