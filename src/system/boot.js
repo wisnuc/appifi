@@ -118,7 +118,12 @@ module.exports = {
   boot(cfs) {
 
    	this.fruitmix = fruitmix.fork(cfs) 
-    this.data = { state: 'normal', currentFileSystem: cfs }
+    // console.log('[boot log config]', Config.get().bootMode)
+    // this.data = { state: 'normal', currentFileSystem: cfs }
+    this.data = {
+      state: Config.get().bootMode,
+      currentFileSystem: cfs
+    }
     Config.updateLastFileSystem({type: cfs.type, uuid: cfs.uuid})
   },
 
