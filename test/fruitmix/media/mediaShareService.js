@@ -10,9 +10,8 @@ import { createMediaShareService } from '../../../src/fruitmix/media/mediaShareS
 import E from '../../../src/fruitmix/lib/error'
 
 class Model {
-  constructor() {}
-  getUsers() {
-    return [{uuid: '5da92303-33a1-4f79-8d8f-a7b6becde6c3'},
+  constructor() {
+    this.users = [{uuid: '5da92303-33a1-4f79-8d8f-a7b6becde6c3'},
             {uuid: 'b9aa7c34-8b86-4306-9042-396cf8fa1a9c'},
             {uuid: 'f97f9e1f-848b-4ed4-bd47-1ddfa82b2777'},
             {uuid: 'e5f23cb9-1852-475d-937d-162d2554e22c'},

@@ -42,7 +42,7 @@ const upgradeData = (users, drives) => {
   }));
 
   let newUsers = users.map(user => {
-    let u = user;
+    let u = Object.assign({}, user);
     u.unixuid = user.unixUID;
     delete u.unixUID;
     u.nologin = false;
@@ -121,7 +121,7 @@ class ModelService {
       *  type: 'local',
       *  username,     // string
       *  password,     // string
-      *  unixname      // string
+      o  unixname      // string
       a  nologin,      // bool
       a  isFirstUser,  // bool
       a  isAdmin,      // bool
@@ -179,6 +179,7 @@ class ModelService {
       password: passwordEncrypted
       // , credentials
     };
+    if (!newUser.unixname) delete newUser.unixname
     // install newDrives
     let common = { owner: uuid, type: 'private' };
     let homeDrive     = Object.assign({}, common, { uuid: home, label: `${username} home` });
@@ -249,10 +250,12 @@ class ModelService {
 
     let next = Object.assign({}, user, props );
     await this.modelData.updateUserAsync(next);
-    delete next.password;
-    delete next.smbPassword;
-    delete next.unixPassword;
-    return next;
+
+    let newUser = Object.assign({}, next)
+    delete newUser.password;
+    delete newUser.smbPassword;
+    delete newUser.unixPassword;
+    return newUser;
   }
 
   // async updatePasswordAsync({ useruuid, props }) {

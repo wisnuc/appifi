@@ -1,6 +1,8 @@
 const path = require('path')
 const fs = require('fs')
 const child = require('child_process')
+const rimraf = require('rimraf')
+const mkdirp = require('mkdirp')
 
 const Developer = require('./developer')
 const Config = require('./config')
@@ -11,6 +13,44 @@ const samba = require('./boot/samba')
 const debug = require('debug')('system:boot')
 
 const bootableFsTypes = ['btrfs', 'ext4', 'ntfs']
+
+const rimrafAsync = Promise.promisify(rimraf)
+const mkdirpAsync = Promise.promisify(mkdirp)
+
+/**
+const decorateStorageAsync = async pretty => {
+
+  let mps = [] 
+
+  pretty.volumes.forEach(vol => {
+    if (vol.isMounted && !vol.isMissing) mps.push({
+      ref: vol,
+      mp: vol.mountpoint
+    })
+  })
+
+  pretty.blocks.forEach(blk => {
+    if (!blk.isVolumeDevice && blk.isMounted && blk.isExt4)
+      mps.push({
+        ref: blk,
+        mp: blk.mountpoint
+      })
+  })
+
+  await Promise
+    .map(mps, obj => fruitmix.probeAsync(obj.mp).reflect())
+    .each((inspection, index) => {
+      if (inspection.isFulfilled())
+        mps[index].ref.wisnuc = inspection.value() 
+      else {
+        console.log(inspection.reason())
+        mps[index].ref.wisnuc = 'ERROR'
+      }
+    })
+
+  return pretty
+}
+**/
 
 // extract file systems out of storage object
 const extractFileSystems = ({blocks, volumes}) =>
@@ -79,8 +119,15 @@ module.exports = {
 
    	this.fruitmix = fruitmix.fork(cfs)
     // this.samba = samba.fork(cfs)
+    // console.log('[boot log config]', Config.get().bootMode)
+    // this.data = { state: 'normal', currentFileSystem: cfs }
+
     this.samba = Promise.delay(10000).then(() => {samba.fork(cfs)})
-    this.data = { state: 'normal', currentFileSystem: cfs }
+
+    this.data = {
+      state: Config.get().bootMode,
+      currentFileSystem: cfs
+    }
 
     Config.updateLastFileSystem({type: cfs.type, uuid: cfs.uuid})
   },

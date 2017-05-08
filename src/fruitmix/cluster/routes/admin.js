@@ -15,7 +15,7 @@ router.get('/users', (req, res) => {
 	})
 })
 
-// admin create local user
+// admin create user
 router.post('/users', (req, res) => {
 
 	// permission user uuid
@@ -88,14 +88,16 @@ router.post('/drives', (req, res) => {
 })
 
 // update public drive
-router.patch('/:driveUUID', (req, res) => {
-	// permission useruuid
-	let useruuid = req.user.uuid;
-	let drive = req.drive;
-	config.ipc.call('updatePublicDrive', { useruuid, props:drive }, (err, drive) => {
-		err ? res.status(500).json(Object.assign({}, err))
-			: res.status(200).json(Object.assign({}, { drive }))
-	})
+router.patch('/drives/:driveUUID', (req, res) => {
+  // permission useruuid
+  let useruuid = req.user.uuid;
+  let props = Object.assign({}, req.body, {
+    uuid: req.params.driveUUID
+  })
+  config.ipc.call('updatePublicDrive', { useruuid, props }, (err, drive) => {
+    err ? res.status(500).json(Object.assign({}, err))
+      : res.status(200).json(Object.assign({}, { drive }))
+  })
 })
 
 export default router

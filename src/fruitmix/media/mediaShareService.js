@@ -135,10 +135,10 @@ class MediaShareService {
       this.getUserMediaShares(args.userUUID).asCallback(callback))
     
     ipc.register('createMediaShare', (args, callback) => 
-      this.createMediaShare(args.userUUID, args.post).asCallback(callback))
+      this.createMediaShare(args.userUUID, args.props).asCallback(callback))
 
     ipc.register('updateMediaShare', (args, callback) => 
-      this.updateMediaShare(args.userUUID, args.shareUUID, args.patch).asCallback(callback))
+      this.updateMediaShare(args.userUUID, args.shareUUID, args.props).asCallback(callback))
 
     ipc.register('deleteMediaShare', (args, callback) => 
       this.deleteMediaShare(args.userUUID, args.shareUUID).asCallback(callback))

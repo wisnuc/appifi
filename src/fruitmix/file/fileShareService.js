@@ -140,10 +140,10 @@ class FileShareService {
       this.getUserFileShares(args.userUUID).asCallback(callback))
     
     ipc.register('createFileShare', (args, callback) => 
-      this.createFileShare(args.userUUID, args.post).asCallback(callback))
+      this.createFileShare(args.userUUID, args.props).asCallback(callback))
 
     ipc.register('updateFileShare', (args, callback) => 
-      this.updateFileShare(args.userUUID, args.shareUUID, args.patch).asCallback(callback))
+      this.updateFileShare(args.userUUID, args.shareUUID, args.props).asCallback(callback))
 
     ipc.register('deleteFileShare', (args, callback) => 
       this.deleteFileShare(args.userUUID, args.shareUUID).asCallback(callback))
