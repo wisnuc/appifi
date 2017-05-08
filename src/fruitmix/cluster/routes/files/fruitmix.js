@@ -88,7 +88,7 @@ router.put('/upload/:dirUUID/:sha256', (req, res) => {
   }
   // TODO check createFileCheck
   let args = { userUUID: user.uuid, src: tmpPath, dirUUID, name: filename , hash:sha256, check: true }
-  config.ipc('createFile', args, e => {
+  config.ipc.call('createFile', args, e => {
 
     if(e) return error(e)
 
@@ -116,7 +116,7 @@ router.put('/upload/:dirUUID/:sha256', (req, res) => {
         return error(new Error('hash mismatch'))
 
       let args = { userUUID: user.uuid, src: tmpPath, dirUUID, name: filename , hash:sha256, check: false }
-      config.ipc('createFile', args, (e, newNode) => {
+      config.ipc.call('createFile', args, (e, newNode) => {
         if(e) return error(e)
         finish(newNode)
       })
@@ -149,7 +149,7 @@ router.put('/overwrite/:dirUUID/:sha256', (req, res) => {
   }
   // TODO check createFileCheck
   let args = { userUUID: user.uuid, src: tmpPath, dirUUID, name: filename , hash:sha256, check: true }
-  config.ipc('createFile', args, e => {
+  config.ipc.call('createFile', args, e => {
 
     if(e) return error(e)
 
