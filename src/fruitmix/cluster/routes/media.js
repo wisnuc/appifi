@@ -5,7 +5,7 @@ const formidable = require('formidable')
 const router = require('express').Router()
 
 import config from '../config'
-import { DIR } from '../../../lib/const'
+import { DIR } from '../../lib/const'
 
 // get mata data of all I can view
 router.get('/', (req, res) => {
