@@ -80,10 +80,11 @@ router.post('/:digest', (req, res) => {
   let args = { sha256, libraryUUID, src: '', check: true }
 
   config.ipc.call('createLibraryFile', args, err => {
-    if(err){
+    if(err) {
       if(err.code === 'EEXIST')
         return res.success(null, 200)
       
+      console.log('err1: ',err)
       return res.error(err, 500)
     }
     let form = new formidable.IncomingForm()
@@ -97,6 +98,8 @@ router.post('/:digest', (req, res) => {
       if (abort) return
       if (sha256 !== file.hash) {
         return fs.unlink(file.path, err => {
+
+          console.log('err2: ',err)
           res.status(500).json({
             code: 'EAGAIN',
             message: 'sha256 mismatch'
@@ -106,7 +109,10 @@ router.post('/:digest', (req, res) => {
 
       args = { sha256, libraryUUID, src: file.path, check: false }
       config.ipc.call('createLibraryFile', args, (err, data) => {
-        if(err) return res.error(err)
+        if(err) {
+          console.log('err3: ',err)
+          return res.error(err)
+        }
         let entry = {
           digest: sha256,
           ctime: new Date().getTime()
@@ -117,6 +123,7 @@ router.post('/:digest', (req, res) => {
     })
 
     form.on('error', err => {
+      console.log('err4: ',err)
       if (abort) return
       abort = true
       return res.status(500).json({})  // TODO

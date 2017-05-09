@@ -4,14 +4,10 @@ const crypto = require('crypto')
 const Transform = require('stream').Transform
 
 const router = require('express').Router()
-const formidable = require('formidable')
 const UUID = require('node-uuid')
-const validator = require('validator')
-const sanitize = require('sanitize-filename')
 
 import paths from '../../lib/paths'
 import config from '../../config'
-import { DIR } from '../../../lib/const'
 
 // list, tree and nav a directory
 router.get('/:type/:dirUUID/:rootUUID', (req, res) => {
