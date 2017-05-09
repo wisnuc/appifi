@@ -415,7 +415,7 @@ class FileService {
     
   }
 
-  // move a directory or file into given dirUUID
+  // TODO: move a directory or file into given dirUUID
   move(userUUID, srcUUID, dirUUID, callback) {
     
   }
