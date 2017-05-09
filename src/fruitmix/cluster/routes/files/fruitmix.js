@@ -10,7 +10,7 @@ import paths from '../../lib/paths'
 import config from '../../config'
 
 // list, tree and nav a directory
-router.get('/:type/:dirUUID/:rootUUID', (req, res) => {
+router.get('/:type/:dirUUID/:rootUUID', (req, res, next) => {
   let userUUID = req.user.uuid
   let { type, dirUUID, rootUUID } = req.params
 
@@ -20,8 +20,10 @@ router.get('/:type/:dirUUID/:rootUUID', (req, res) => {
     'list-nav': 'navList',
     'tree-nav': 'navTree'
   }
+  
+  // next router
   if (Object.keys(typeObj).indexOf(type) === -1) 
-    return res.error(null, 400)
+    return next()
 
   let args = { userUUID, dirUUID, rootUUID }
 
@@ -33,7 +35,7 @@ router.get('/:type/:dirUUID/:rootUUID', (req, res) => {
 
 // download a file
 router.get('/download/:dirUUID/:fileUUID', (req, res) => {
-
+  
   let userUUID = req.user.uuid
   let { dirUUID, fileUUID } = req.params
 
@@ -41,7 +43,7 @@ router.get('/download/:dirUUID/:fileUUID', (req, res) => {
 
   config.ipc.call('readFile', args, (err, filepath) => {
     if (err) return res.error(err)
-    return res.status(200).sendFile(filepath)
+    return res.success(filepath)
   })
 })
 
