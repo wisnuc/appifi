@@ -190,7 +190,7 @@ module.exports = {
 
     if (this.data.state !== 'maintenance') throw new Error('not in maintenance mode')    
 
-    let { target, username, password, install, reinstall, runOnly } = args 
+    let { target, username, password, install, reinstall } = args 
 
     let storage = await Storage.refreshAsync() 
     let fileSystems = extractFileSystems(storage)
@@ -214,10 +214,8 @@ module.exports = {
       assertReadyToBoot(wisnuc) 
     }
 
-    if (runOnly) {
-      Config.merge({ bootMode: 'normal'})
-      await Promise.delay(200)
-    }
+    Config.merge({ bootMode: 'normal'})
+    await Promise.delay(200)
 
     this.boot(cfs(fsys))
   },
