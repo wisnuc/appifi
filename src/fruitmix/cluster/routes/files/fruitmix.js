@@ -43,7 +43,7 @@ router.get('/download/:dirUUID/:fileUUID', (req, res) => {
 
   config.ipc.call('readFile', args, (err, filepath) => {
     if (err) return res.error(err)
-    return res.success(filepath)
+    return res.status(200).sendFile(filepath)
   })
 })
 
