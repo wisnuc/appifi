@@ -117,8 +117,10 @@ module.exports = {
 
   boot(cfs) {
 
-   	this.fruitmix = fruitmix.fork(cfs) 
-    // console.log('[boot log config]', Config.get().bootMode)
+   	// maintenance mode does not need to start fruitmix
+    if (Config.get().bootMode === 'normal')
+      this.fruitmix = fruitmix.fork(cfs)
+
     // this.data = { state: 'normal', currentFileSystem: cfs }
     this.data = {
       state: Config.get().bootMode,
@@ -188,7 +190,7 @@ module.exports = {
 
     if (this.data.state !== 'maintenance') throw new Error('not in maintenance mode')    
 
-    let { target, username, password, install, reinstall } = args 
+    let { target, username, password, install, reinstall, runOnly } = args 
 
     let storage = await Storage.refreshAsync() 
     let fileSystems = extractFileSystems(storage)
@@ -210,6 +212,11 @@ module.exports = {
     }
     else { // direct boot, fruitmix status must be 'READY'
       assertReadyToBoot(wisnuc) 
+    }
+
+    if (runOnly) {
+      Config.merge({ bootMode: 'normal'})
+      await Promise.delay(200)
     }
 
     this.boot(cfs(fsys))
