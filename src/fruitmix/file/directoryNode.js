@@ -55,11 +55,15 @@ class DirectoryNode extends Node {
     this.worker = probe(dpath, uuid, mtime, delay)
 
     this.worker.on('error', (err, again) => {
+      
+      console.log('~~~~~~~~~~~~~~')
+      console.log('err:', err, again)
 
       this.worker = null
       this.ctx.probeStopped(this) // audit
 
       if (err.code === 'EABORT') return
+      //FIXME: 
       this.parent.probe()
     })
 
