@@ -193,7 +193,7 @@ const isValidRunArgs = body =>
 router.post('/run', (req, res) => 
   !isValidRunArgs(req.body) 
     ? res.status(400).json({ code: 'EINVAL', message: 'invalid arguments' }) 
-    : Boot.manualBootAsync(req.body, false).asCallback(err => err
+    : Boot.manualBootAsync(Object.assign({}, req.body, { runOnly: true }), false).asCallback(err => err
       ? res.status(400).json({ code: err.code, message: err.message })
       : res.status(200).json({ message: 'ok' })))
 
