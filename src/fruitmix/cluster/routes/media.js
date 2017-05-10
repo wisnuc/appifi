@@ -72,7 +72,7 @@ router.get('/:digest/thumbnail', (req, res) => {
 
 // old libraries api
 router.post('/:digest', (req, res) => {
-  let userUUID = req.user.uuid
+  // let userUUID = req.user.uuid
   let libraryUUID = req.user.library
 
   let sha256 = req.params.digest
@@ -122,10 +122,11 @@ router.post('/:digest', (req, res) => {
 
     })
 
+    //FIXME:
     form.on('error', err => {
-      console.log('err4: ',err)
       if (abort) return
       abort = true
+      console.log('err4: ')
       return res.status(500).json({})  // TODO
     })
 

@@ -63,8 +63,14 @@ class DirectoryNode extends Node {
       this.ctx.probeStopped(this) // audit
 
       if (err.code === 'EABORT') return
+      console.log('this.parent:', this.parent)
       //FIXME: 
-      this.parent.probe()
+      try {
+        this.parent.probe()
+      }
+      catch (err) {
+        throw err
+      }
     })
 
     this.worker.on('finish', (data, again) => {
