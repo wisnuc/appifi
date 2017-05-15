@@ -1,6 +1,7 @@
 import path from 'path'
 import fs from 'fs'
 
+/**
 class NativeFileService {
 
   constructor() {
@@ -29,5 +30,6 @@ class NativeFileService {
   renameAsync(userUUID, fpath) {
   }
 }
+**/
 
 
