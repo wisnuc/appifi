@@ -392,17 +392,18 @@ class FileService {
   }
 
   // rename a directory or file
-  async renameAsync({ userUUID, targetUUID, name }) {
+  async renameAsync({ userUUID, targetUUID, dirUUID, name }) {
 
+    let dirnode = this.data.findNodeByUUID(dirUUID)
     let node = this.data.findNodeByUUID(targetUUID)
-    if (!node) throw new E.ENODENOTFOUND()
+    if (!dirnode) throw new E.ENODENOTFOUND()
 
-    if (!this.userWritable(userUUID, node)) throw new E.EACCESS()
+    if (!this.userWritable(userUUID, dirnode)) throw new E.EACCESS()
     if(typeof name !== 'string' || path.basename(path.normalize(name)) !== name) throw new E.EINVAL
 
     let newPath = path.join(path.dirname(node.abspath()), name)
     try{
-      await fs.renameAsync(node.abspath, newPath)
+      await fs.renameAsync(node.abspath(), newPath)
       let xstat = await readXstatAsync(newPath)
       this.data.updateNode(node, xstat)
       return node
