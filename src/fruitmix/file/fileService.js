@@ -397,7 +397,7 @@ class FileService {
     let dirnode = this.data.findNodeByUUID(dirUUID)
     let node = this.data.findNodeByUUID(targetUUID)
     if (!dirnode) throw new E.ENODENOTFOUND()
-
+    if(!node) throw new E.ENODENOTFOUND()
     if (!this.userWritable(userUUID, dirnode)) throw new E.EACCESS()
     if(typeof name !== 'string' || path.basename(path.normalize(name)) !== name) throw new E.EINVAL
 
