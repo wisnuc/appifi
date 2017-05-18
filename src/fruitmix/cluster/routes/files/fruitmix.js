@@ -193,7 +193,7 @@ router.patch('/rename/:dirUUID/:nodeUUID', (req, res) => {
   let filename = req.body.filename
   config.ipc.call('rename', { userUUID: req.user.uuid, targetUUID: nodeUUID, dirUUID, name: filename }, (err, node) => {
     if (err) return res.error(err)
-    return res.success(node,200)
+    return res.success(null,200)
   })
 })
 
