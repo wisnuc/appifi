@@ -403,12 +403,10 @@ class FileService {
 
     let newPath = path.join(dirnode.abspath(), name)
     try{
-      console.log('xxxxxxx', node.abspath())
-      console.log('0000000', newPath)
       await fs.renameAsync(node.abspath(), newPath)
       let xstat = await readXstatAsync(newPath)
       this.data.updateNode(node, xstat)
-      return node
+      return 
     }catch(e){
       throw e
     }finally{
