@@ -126,7 +126,7 @@ router.post('/:digest', (req, res) => {
     form.on('error', err => {
       if (abort) return
       abort = true
-      console.log('err4: ')
+      console.log('err4: ',err.message)
       return res.status(500).json({})  // TODO
     })
 

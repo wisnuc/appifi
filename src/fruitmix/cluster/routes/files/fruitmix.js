@@ -206,9 +206,9 @@ router.delete('/:dirUUID/:nodeUUID', (req, res) => {
 
   let args = { userUUID, dirUUID, nodeUUID }
 
-  config.ipc.call('del', args, (err, filepath) => {
+  config.ipc.call('del', args, (err, data) => {
     if (err) return res.error(err)
-    return res.status(200).sendFile(filepath)
+    return res.success(data)
   })
 })
 

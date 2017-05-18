@@ -62,7 +62,7 @@ class DirectoryNode extends Node {
 
       if (err.code === 'EABORT') return
 
-      // if parent`s exit 
+      // if parent`s exist 
       this.parent ? this.parent.probe() : this.probe()
       return
     })

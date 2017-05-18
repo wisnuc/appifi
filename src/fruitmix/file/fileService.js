@@ -437,7 +437,7 @@ class FileService {
     if (!this.userWritable(userUUID, node)) throw new E.EACCESS()
 
     try {
-      await rimrafAsync(node.namepath())
+      await rimrafAsync(node.abspath())
       await this.data.deleteNode(node)
       return 
     } 
