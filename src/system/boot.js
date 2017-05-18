@@ -117,8 +117,10 @@ module.exports = {
 
   boot(cfs) {
 
-   	this.fruitmix = fruitmix.fork(cfs) 
-    // console.log('[boot log config]', Config.get().bootMode)
+   	// maintenance mode does not need to start fruitmix
+    if (Config.get().bootMode === 'normal')
+      this.fruitmix = fruitmix.fork(cfs)
+
     // this.data = { state: 'normal', currentFileSystem: cfs }
     this.data = {
       state: Config.get().bootMode,
@@ -211,6 +213,9 @@ module.exports = {
     else { // direct boot, fruitmix status must be 'READY'
       assertReadyToBoot(wisnuc) 
     }
+
+    Config.merge({ bootMode: 'normal'})
+    await Promise.delay(200)
 
     this.boot(cfs(fsys))
   },

@@ -84,7 +84,7 @@ const createIpcWorker = () => {
 
   process.on('message', msg => {
 
-    console.log('ipcworker, msg', msg)
+    // console.log('ipcworker, msg', msg)
 
     switch(msg.type) {
       case 'command':

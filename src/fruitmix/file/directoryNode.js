@@ -54,13 +54,17 @@ class DirectoryNode extends Node {
     this.ctx.probeStarted(this) // audit
     this.worker = probe(dpath, uuid, mtime, delay)
 
+    // 
     this.worker.on('error', (err, again) => {
-
+      
       this.worker = null
       this.ctx.probeStopped(this) // audit
 
       if (err.code === 'EABORT') return
-      this.parent.probe()
+
+      // if parent`s exist 
+      this.parent ? this.parent.probe() : this.probe()
+      return
     })
 
     this.worker.on('finish', (data, again) => {

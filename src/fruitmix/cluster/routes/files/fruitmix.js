@@ -4,17 +4,13 @@ const crypto = require('crypto')
 const Transform = require('stream').Transform
 
 const router = require('express').Router()
-const formidable = require('formidable')
 const UUID = require('node-uuid')
-const validator = require('validator')
-const sanitize = require('sanitize-filename')
 
 import paths from '../../lib/paths'
 import config from '../../config'
-import { DIR } from '../../../lib/const'
 
 // list, tree and nav a directory
-router.get('/:type/:dirUUID/:rootUUID', (req, res) => {
+router.get('/:type/:dirUUID/:rootUUID', (req, res, next) => {
   let userUUID = req.user.uuid
   let { type, dirUUID, rootUUID } = req.params
 
@@ -24,8 +20,10 @@ router.get('/:type/:dirUUID/:rootUUID', (req, res) => {
     'list-nav': 'navList',
     'tree-nav': 'navTree'
   }
+  
+  // next router
   if (Object.keys(typeObj).indexOf(type) === -1) 
-    return res.error(null, 400)
+    return next()
 
   let args = { userUUID, dirUUID, rootUUID }
 
@@ -37,7 +35,7 @@ router.get('/:type/:dirUUID/:rootUUID', (req, res) => {
 
 // download a file
 router.get('/download/:dirUUID/:fileUUID', (req, res) => {
-
+  
   let userUUID = req.user.uuid
   let { dirUUID, fileUUID } = req.params
 
@@ -208,68 +206,11 @@ router.delete('/:dirUUID/:nodeUUID', (req, res) => {
 
   let args = { userUUID, dirUUID, nodeUUID }
 
-  config.ipc.call('del', args, (err, filepath) => {
+  config.ipc.call('del', args, (err, data) => {
     if (err) return res.error(err)
-    return res.status(200).sendFile(filepath)
+    return res.success(data)
   })
 })
 
-
-// old libraries api
-router.post('/:digest', (req, res) => {
-  let userUUID = req.user.uuid
-  let libraryUUID = req.user.library
-
-  let sha256 = req.params.digest
-
-  let args = { sha256, libraryUUID, src: '', check: true }
-
-  config.ipc.call('createLibraryFile', args, err => {
-    if(err){
-      if(err.code === 'EEXIST')
-        return res.success(null, 200)
-      
-      return res.error(err, 500)
-    }
-    let form = new formidable.IncomingForm()
-    form.hash = 'sha256'
-    let abort = false
-    form.on('fileBegin', (name, file) => {
-      file.path = path.join(config.path, DIR.TMP, UUID.v4()) 
-    })
-
-    form.on('file', (name, file) => {
-      if (abort) return
-      if (sha256 !== file.hash) {
-        return fs.unlink(file.path, err => {
-          res.status(500).json({
-            code: 'EAGAIN',
-            message: 'sha256 mismatch'
-          })
-        })
-      }
-
-      args = { sha256, libraryUUID, src: file.path, check: false }
-      config.ipc.call('createLibraryFile', args, (err, data) => {
-        if(err) return res.error(err)
-        let entry = {
-          digest: sha256,
-          ctime: new Date().getTime()
-        }
-        return res.success(entry, 200)
-      })
-
-    })
-
-    form.on('error', err => {
-      if (abort) return
-      abort = true
-      return res.status(500).json({})  // TODO
-    })
-
-    form.parse(req)
-
-  })
-})
 
 module.exports = router
