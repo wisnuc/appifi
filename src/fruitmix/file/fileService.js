@@ -401,8 +401,10 @@ class FileService {
     if (!this.userWritable(userUUID, dirnode)) throw new E.EACCESS()
     if(typeof name !== 'string' || path.basename(path.normalize(name)) !== name) throw new E.EINVAL
 
-    let newPath = path.join(path.dirname(node.abspath()), name)
+    let newPath = path.join(dirnode.abspath(), name)
     try{
+      console.log('xxxxxxx', node.abspath())
+      console.log('0000000', newPath)
       await fs.renameAsync(node.abspath(), newPath)
       let xstat = await readXstatAsync(newPath)
       this.data.updateNode(node, xstat)
