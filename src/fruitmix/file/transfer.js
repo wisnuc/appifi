@@ -61,11 +61,13 @@ class Worker extends EventEmitter {
   }
 
   error(e, ...args) {
+    console.log('error')
     this.emit('error', e, ...args)
     this.finalize()
   }
 
   finish(data, ...args) {
+    console.log('finish')
     this.emit('finish', data, ...args)
     this.finalize()
   }
@@ -76,6 +78,7 @@ class Worker extends EventEmitter {
   }
 
   abort() {
+    console.log('abort')
     if (this.finished) throw 'worker already finished'
     this.emit('error', new E.EABORT())
     this.finalize()
@@ -99,6 +102,16 @@ class Worker extends EventEmitter {
  * WARNING
  */
 
+/**
+ * src / dst:{
+ *  type: 'fruitmix' or 'ext'
+ *  path:  if type = 'fruitmix', UUID / else relpath
+ *  rootPath: if type = 'fruitmix' ,it undefine, else UUID
+ * }
+ * 
+ * 
+ */
+
 class Move extends Worker {
   constructor(src, dst, data, userUUID) {
     super()
@@ -116,7 +129,7 @@ class Move extends Worker {
     let srcType = src.type === 'fruitmix'
     
     if(!srcType){
-      let spath = await rootPathAsync('fs', path.basename(this.src.path))
+      let spath = await rootPathAsync('fs', this.src.rootPath)
       this.srcPath = path.join(spath, this.src.path)
       return this.srcPath
     }else{
@@ -128,7 +141,7 @@ class Move extends Worker {
   async setDstPath() {
     let dstType = dst.type === 'fruitmix'
     if(!dstType){
-      let dpath = await rootPathAsync('fs', path.basename(this.dst.path))
+      let dpath = await rootPathAsync('fs', this.dst.rootPath)
       this.dstPath = path.join(dpath, this.dst.path)
       return this.dstPath
     }else{
@@ -163,6 +176,8 @@ class Move extends Worker {
   }
 
   work(modeType){
+    console.log('start run new task')
+    console.log(this.srcPath, this.dstPath)
     switch(modeType){
       case 'FF':
       case 'FE':
