@@ -438,20 +438,20 @@ class Transfer {
 
 
 const createMoveWorker = (src, dst, data, userUUID, callback) => {
-  if(fs.existsSync(src) && fs.existsSync(dst)) {
-    let worker = new Move(src, dst, data)
-    return callback(null, worker)
-  }
-  return callback(new Error('path not exists'))
+  // if(fs.existsSync(src) && fs.existsSync(dst)) {
+  let worker = new Move(src, dst, data)
+  return callback(null, worker)
+  // }
+  // return callback(new Error('path not exists'))
 }
 
 const createCopyWorker = (src, dst, data, userUUID, callback) => {
   let tmp = path.join(config.path, 'tmp') //TODO Get tmp folder Jack
-  if(fs.existsSync(src) && fs.existsSync(dst)) {
+  // if(fs.existsSync(src) && fs.existsSync(dst)) {
     let worker = new Copy(src, dst, tmp, data)
     return callback(null, worker)
-  }
-  return callback(new Error('path not exists'))
+  // }
+  // return callback(new Error('path not exists'))
 }
 
 export default Transfer
