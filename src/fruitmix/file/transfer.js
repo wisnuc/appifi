@@ -67,13 +67,14 @@ class Worker extends EventEmitter {
   }
 
   finish(data, ...args) {
-    console.log('finish')
+    console.log('finish this task')
     this.emit('finish', data, ...args)
     this.finalize()
   }
 
   start() {
     if (this.finished) throw 'worker already finished'
+    console.log('start run worker')
     this.run()
   }
 
@@ -189,13 +190,18 @@ class Move extends Worker {
             if(this.finished) return 
             if(err) return this.error(err)
 
-            let srcNode = this.data.findNodeByUUID(path.basename(this.srcPath))
-            let dstNode = this.data.findNodeByUUID(path.basename(this.dstPath))
-            if(srcNode)
-              this.data.requestProbeByUUID(srcNode.parent)
+            let srcNode = this.data.findNodeByUUID(this.src.path)
+            let dstNode = this.data.findNodeByUUID(this.dst.path)
+            if(srcNode){
+              if(srcNode.parent)
+                this.data.requestProbeByUUID(srcNode.parent)
+              else
+                this.data.requestProbeByUUID(srcNode.uuid)
+            }
+              
             if(dstNode)
               this.data.requestProbeByUUID(dstNode.uuid)
-
+            
             return this.finish(this)//TODO probe
           })
         })
