@@ -29,7 +29,7 @@ const isSanitizedName = name => typeof name === 'string' && sanitize(name) === n
 const rootPathAsync = async (type, uuid) => {
 
   if (type !== 'fs') throw new Error('type not supported, yet')
-  //TODO problem of uuid 
+  //TODO uuid error 
   // if (uuid !== undefined && !isUUID(uuid)) throw new Error(`Bad uuid ${uuid}`)
 
   let storage = JSON.parse(await fs.readFileAsync('/run/wisnuc/storage'))
