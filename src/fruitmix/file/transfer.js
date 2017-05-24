@@ -189,8 +189,8 @@ class Move extends Worker {
             if(this.finished) return 
             if(err) return this.error(err)
 
-            let srcNode = this.data.findNodeByUUID(path.basename(this.src))
-            let dstNode = this.data.findNodeByUUID(path.basename(this.dst))
+            let srcNode = this.data.findNodeByUUID(path.basename(this.srcPath))
+            let dstNode = this.data.findNodeByUUID(path.basename(this.dstPath))
             if(srcNode)
               this.data.requestProbeByUUID(srcNode.parent)
             if(dstNode)
