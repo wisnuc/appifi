@@ -65,7 +65,7 @@ const readdirOrDownloadAsync = async (type, uuid, relpath) => {
 
   if ( type === 'fs'
     && isUUID(uuid)
-    && typeof relpath === 'string'
+    && (typeof relpath === 'string' || typeof relpath === 'undefined')
     && (relpath.length === 0 || isNormalizedPath(relpath))) {}
   else
     throw new Error('invalid arguments')
@@ -160,7 +160,7 @@ const renameAsync = async (type, uuid, relpath, name) => {
 
 // rimraf is OK
 const deleteAsync = async (type, uuid, relpath) => {
-
+  
   if ( type === 'fs'
     && isUUID(uuid)
     && typeof relpath === 'string'
@@ -185,13 +185,12 @@ router.get('/fs', (req, res) =>
 list or download
 GET /external/[appifi|fs]/:uuid/path/to/directory/or/file
 **/
-router.get('/:type/:uuid/*', (req, res) => {
-  console.log('***************',req.params[0].length === 0)
+router.get('/:type/:uuid/*', (req, res) => 
   readdirOrDownloadAsync(req.params.type, req.params.uuid, req.params[0])
     .then(data => res.status(200).json(data))
     .catch(e => e.code === 'EINVAL'
       ? res.status(400).json({ code: 'EINVAL', message: e.message })
-      : res.status(500).json({ code: e.code, message: e.message }))})
+      : res.status(500).json({ code: e.code, message: e.message })))
 
 /**
 mkdir
