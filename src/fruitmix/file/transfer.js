@@ -366,7 +366,7 @@ class Transfer {
     let diff = this.limit - this.workersQueue.filter(worker => worker.isRunning()).length
     if (diff <= 0) return
 
-    this.workersQueue.filter(worker => !worker.isRunning())
+    this.workersQueue.filter(worker => worker.isPadding())
       .slice(0, diff)
       .forEach(worker => worker.start())
   }
