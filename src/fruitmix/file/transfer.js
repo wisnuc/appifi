@@ -126,7 +126,7 @@ class Move extends Worker {
   }
 
   async setSrcPath() {
-    let srcType = src.type === 'fruitmix'
+    let srcType = this.src.type === 'fruitmix'
     
     if(!srcType){
       let spath = await rootPathAsync('fs', this.src.rootPath)
@@ -139,7 +139,7 @@ class Move extends Worker {
   }
 
   async setDstPath() {
-    let dstType = dst.type === 'fruitmix'
+    let dstType = this.dst.type === 'fruitmix'
     if(!dstType){
       let dpath = await rootPathAsync('fs', this.dst.rootPath)
       this.dstPath = path.join(dpath, this.dst.path)
