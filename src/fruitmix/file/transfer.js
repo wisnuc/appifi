@@ -164,8 +164,8 @@ class Move extends Worker {
   run() {
     if(this.state !== 'PADDING') return 
     this.state = 'RUNNING'
-    let srcType = src.type === 'fruitmix'
-    let dstType = dst.type === 'fruitmix'
+    let srcType = this.src.type === 'fruitmix'
+    let dstType = this.dst.type === 'fruitmix'
     let modeType = srcType && dstType ? 'FF' : srcType && !dstType ?
                     'FE' : !srcType && dstType ? 'EF' : 'EE'
                    
