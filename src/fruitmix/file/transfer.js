@@ -373,7 +373,7 @@ class Transfer {
   
   createMove({ src, dst, userUUID }, callback) {
     createMoveWorker(src, dst, this.data, userUUID, (err, worker) => {
-      if(err) return callback(ett)
+      if(err) return callback(err)
       worker.on('finish', worker => {
         worker.state = 'FINISHED'
         this.schedule()
