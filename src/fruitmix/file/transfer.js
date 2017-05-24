@@ -17,7 +17,7 @@ const isFruitmix = (type) => {
 const rootPathAsync = async (type, uuid) => {
 
   if (type !== 'fs') throw new Error('type not supported, yet')
-  if (uuid !== undefined && !isUUID(uuid)) throw new Error(`Bad uuid ${uuid}`)
+  // if (uuid !== undefined && !isUUID(uuid)) throw new Error(`Bad uuid ${uuid}`)
 
   let storage = JSON.parse(await fs.readFileAsync('/run/wisnuc/storage'))
   let { blocks, volumes } = storage
