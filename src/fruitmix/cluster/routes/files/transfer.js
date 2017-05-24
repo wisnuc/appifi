@@ -38,7 +38,7 @@ router.post('/:type', (req, res) => {
       return res.error(new Error('path type error'), 400)
     if(!((src.type === 'fruitmix' && isUUID(src.path)) || (src.type === 'ext' && path.isAbsolute(src.path))))
       return res.error(new Error('src error'), 400)
-    if(!((dst.type === 'fruitmix' && isUUID(dst.path)) || !(dst.type === 'ext' && path.isAbsolute(dst.path))))
+    if(!((dst.type === 'fruitmix' && isUUID(dst.path)) || (dst.type === 'ext' && path.isAbsolute(dst.path))))
       return res.error(new Error('dst error'), 400)
       
     config.ipc.call(type, { src, dst, userUUID: req.user.uuid }, (e, data) => {
