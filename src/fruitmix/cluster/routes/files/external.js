@@ -23,7 +23,7 @@ DELETE /external/[appifi|fs]/:uuid/path/to/directory/or/file
 **/
 
 const isUUID = text => typeof text === 'string' && validator.isUUID(text)
-const isNormalizedPath = rpath => typeof rppath === 'string' && path.normalize(rpath) === rpath
+const isNormalizedPath = rpath => typeof rpath === 'string' && path.normalize(rpath) === rpath
 const isSanitizedName = name => typeof name === 'string' && sanitize(name) === name
 
 const rootPathAsync = async (type, uuid) => {
