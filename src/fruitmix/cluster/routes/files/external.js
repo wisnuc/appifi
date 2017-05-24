@@ -66,6 +66,7 @@ const readdirOrDownloadAsync = async (type, uuid, relpath) => {
   console.log(type === 'fs')
   console.log(isUUID(uuid))
   console.log(relpath.length === 0 || isNormalizedPath(relpath))
+  console.log(relpath)
   if ( type === 'fs'
     // && isUUID(uuid)
     && (relpath.length === 0 || isNormalizedPath(relpath))) {}
