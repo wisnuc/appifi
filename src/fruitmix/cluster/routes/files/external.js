@@ -62,10 +62,11 @@ const tmpFile = () => {
 
 // relpath empty is OK
 const readdirOrDownloadAsync = async (type, uuid, relpath) => {
-
+  console.log(type === 'fs')
+  console.log(isUUID(uuid))
+  console.log(relpath.length === 0 || isNormalizedPath(relpath))
   if ( type === 'fs'
     && isUUID(uuid)
-    && (typeof relpath === 'string' || typeof relpath === 'undefined')
     && (relpath.length === 0 || isNormalizedPath(relpath))) {}
   else
     throw new Error('invalid arguments')
