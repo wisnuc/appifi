@@ -61,7 +61,7 @@ class Worker extends EventEmitter {
   }
 
   error(e, ...args) {
-    console.log('error')
+    console.log('error',e)
     this.emit('error', e, ...args)
     this.finalize()
   }
