@@ -168,9 +168,10 @@ class Move extends Worker {
     let dstType = dst.type === 'fruitmix'
     let modeType = srcType && dstType ? 'FF' : srcType && !dstType ?
                     'FE' : !srcType && dstType ? 'EF' : 'EE'
-
+                   
     this.setPath(e => {
       if(e) return this.error(e)
+      if(this.dstPath.indexOf(this.srcPath) !== -1) return this.error(new Error('dst could not be child of src'))
       this.work(modeType)
     })
   }
