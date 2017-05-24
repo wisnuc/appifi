@@ -385,7 +385,7 @@ class Transfer {
         this.schedule()
       })
       this.workersQueue.push(worker)
-      callback(null, worker)
+      callback(null, worker.id)
       this.schedule()
     })
   }
