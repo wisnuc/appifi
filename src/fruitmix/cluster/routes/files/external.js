@@ -23,13 +23,14 @@ DELETE /external/[appifi|fs]/:uuid/path/to/directory/or/file
 **/
 
 const isUUID = text => typeof text === 'string' && validator.isUUID(text)
-const isNormalizedPath = rpath => typeof rppath === 'string' && path.normalize(rpath) === rpath
+const isNormalizedPath = rpath => typeof rpath === 'string' && path.normalize(rpath) === rpath
 const isSanitizedName = name => typeof name === 'string' && sanitize(name) === name
 
 const rootPathAsync = async (type, uuid) => {
 
   if (type !== 'fs') throw new Error('type not supported, yet')
-  if (uuid !== undefined && !isUUID(uuid)) throw new Error(`Bad uuid ${uuid}`)
+  //TODO uuid error 
+  // if (uuid !== undefined && !isUUID(uuid)) throw new Error(`Bad uuid ${uuid}`)
 
   let storage = JSON.parse(await fs.readFileAsync('/run/wisnuc/storage'))
   let { blocks, volumes } = storage
@@ -62,10 +63,12 @@ const tmpFile = () => {
 
 // relpath empty is OK
 const readdirOrDownloadAsync = async (type, uuid, relpath) => {
-
+  console.log(type === 'fs')
+  console.log(isUUID(uuid))
+  console.log(relpath.length === 0 || isNormalizedPath(relpath))
+  console.log(relpath)
   if ( type === 'fs'
-    && isUUID(uuid)
-    && typeof relpath === 'string'
+    // && isUUID(uuid)
     && (relpath.length === 0 || isNormalizedPath(relpath))) {}
   else
     throw new Error('invalid arguments')
@@ -160,7 +163,7 @@ const renameAsync = async (type, uuid, relpath, name) => {
 
 // rimraf is OK
 const deleteAsync = async (type, uuid, relpath) => {
-
+  
   if ( type === 'fs'
     && isUUID(uuid)
     && typeof relpath === 'string'
