@@ -2,25 +2,26 @@
 
 const path = require('path')
 const fs = require('fs')
-const child = require('child_process') 
+const child = require('child_process')
 const crypto = require('crypto')
 const EventEmitter = require('events')
 const UUID = require('node-uuid')
+const Promise = require('bluebird')
 
 import config from '../cluster/config'
-import E from '../lib/error' 
-import { DIR } from '../lib/const' 
+import E from '../lib/error'
+import { DIR } from '../lib/const'
 
-const ERROR = (code, _text) => (text => 
+const ERROR = (code, _text) => (text =>
   Object.assign(new Error(text || _text), { code }))
 
-const EFAIL = ERROR('EFAIL', 'operation failed') 
+const EFAIL = ERROR('EFAIL', 'operation failed')
 const EINVAL = ERROR('EINVAL', 'invalid argument')
-const EINTR = ERROR('EINTR', 'operation interrupted')
-const ENOENT = ERROR('ENOENT', 'entry not found')
+// const EINTR = ERROR('EINTR', 'operation interrupted')
+// const ENOENT = ERROR('ENOENT', 'entry not found')
 
 // a simple version to avoid canonical json, for easy debug
-const stringify = (object) => 
+const stringify = (object) =>
   JSON.stringify(Object.keys(object)
     .sort().reduce((obj, key) => {
       obj[key] = object[key]
@@ -28,7 +29,7 @@ const stringify = (object) =>
     }, {}))
 
 // hash stringified option object
-const optionHash = (opts) => 
+const optionHash = (opts) =>
   crypto.createHash('sha256')
     .update(stringify(opts))
     .digest('hex')
@@ -53,7 +54,7 @@ const geometry = (width, height, modifier) => {
     //     break
     //   default:
     // }
-  } 
+  }
   return str
 }
 
@@ -63,9 +64,9 @@ const parseQuery = (query) => {
   let { width, height, modifier, autoOrient } = query
 
   if (width !== undefined) {
-    width = parseInt(width) 
+    width = parseInt(width)
     if (!Number.isInteger(width) || width === 0 || width > 4096)
-      return EINVAL('invalid width') 
+      return EINVAL('invalid width')
   }
 
   if (height !== undefined) {
@@ -80,8 +81,8 @@ const parseQuery = (query) => {
   if (modifier && modifier !== 'caret') return EINVAL('unknown modifier')
 
   if (autoOrient !== undefined) {
-    if (autoOrient !== 'true') 
-      return EINVAL('invalid autoOrient') 
+    if (autoOrient !== 'true')
+      return EINVAL('invalid autoOrient')
     autoOrient = true
   }
 
@@ -94,6 +95,7 @@ const convert = (key, src, opts, callback) => {
   let dst = path.join(config.path, DIR.THUMB, key)
   let tmp = path.join(config.path, DIR.TMP, UUID.v4())
   let args = []
+
   args.push(src)
   if (opts.autoOrient) args.push('-auto-orient')
   args.push('-thumbnail')
@@ -112,15 +114,6 @@ const convert = (key, src, opts, callback) => {
         return fs.rename(tmp, dst, callback)
       }
     })
-
-  // function CALLBACK(err) {
-  //   if (finished) return
-  //   if (spawn) spawn = spawn.kill()
-  //   finished = true
-  //   callback(err)
-  // }
-
-  // return () => CALLBACK(EINTR())
 }
 
 const generate = (key, src, opts, callback) => {
@@ -139,6 +132,22 @@ const generate = (key, src, opts, callback) => {
   })
 }
 
+const recursive = async (count, key) => {
+
+  if (count > 3) throw new Error('get thumb error')
+  let thumbpath = path.join(config.path, DIR.THUMB, key)
+
+  try {
+    // find the thumbnail file first
+    await Promise.promisify(fs.stat)(thumbpath)
+    return thumbpath
+  }
+  catch (err) {
+    if (err.code !== 'ENOENT') throw err
+    count++
+    recursive(count, key)
+  }
+}
 class Worker extends EventEmitter {
 
   constructor(hash, src, opts) {
@@ -146,11 +155,12 @@ class Worker extends EventEmitter {
     this.finished = false
     this.state = 'pending'
     this.id = hash
+    this.count = 0
     this.src = src
     this.opts = opts
     this.cbMap = new Map()
   }
-  
+
   setCallback(requestId, cb) {
     this.cbMap.set(requestId, cb)
   }
@@ -164,10 +174,21 @@ class Worker extends EventEmitter {
     this.state = 'running'
 
     generate(this.id, this.src, this.opts, (err, data) => {
-      if(err) {
+      if (err) {
         return this.error(err)
       }
-      this.finish(this, data)
+      // if no exist, try again
+      if (!data) {
+        recursive(this.count, this.id)
+          .then(result => {
+            this.finish(this, result)
+          })
+          .catch(err => {
+            return this.error(err)
+          })
+      } else {
+        this.finish(this, data)
+      }
     })
   }
 
@@ -210,6 +231,7 @@ class Thumb {
 
   schedule() {
 
+    console.log('workingQ length: ', this.workingQ.length)
     let diff = this.limit - this.workingQ.filter(worker => {
       worker.isRunning()
     }).length
@@ -226,12 +248,12 @@ class Thumb {
     userUUID： 'string'
     query: 'object' 
    */
-  request({requestId, src, digest, query}, callback) {
-    
+  request({ requestId, src, digest, query }, callback) {
+
     if (this.workingQ.length > 1040) {
       throw new Error('请求过于频繁')
-    } 
-    let worker = this.createrWorker(requestId, src, digest, query, callback) 
+    }
+    let worker = this.createrWorker(requestId, src, digest, query, callback)
     worker.on('finish', (worker, data) => {
       // callback map
       for (let cb of worker.cbMap.values()) {
@@ -248,13 +270,13 @@ class Thumb {
     this.schedule()
   }
 
-  
+
   // factory function
   createrWorker(requestId, src, digest, query, callback) {
 
     let opts = parseQuery(query)
-    if (opts instanceof Error)  return opts
-    
+    if (opts instanceof Error) return opts
+
     let hash = digest + optionHash(opts)
     let worker = this.workingQ.find(worker => worker.id === hash)
     if (!worker) {
@@ -267,14 +289,18 @@ class Thumb {
     return worker
   }
 
-  abort(requestId) {
-    return this.cbMap.delelte(requestId)
+  abort({ requestId, digest, query }) {
+
+    let opts = parseQuery(query)
+    if (opts instanceof Error) return opts
+
+    let hash = digest + optionHash(opts)
+    //先找到woker，再去callbackArr找对应的callback
+    let worker = this.workingQ.find(worker => worker.id === hash)
+    if (worker) 
+      return worker.cbMap.size === 1 ? this.workingQ.splice(this.workingQ.indexOf(worker), 1) : worker.cbMap.delete(requestId)
   }
 
-  // register(ipc) {
-  //   ipc.register('request', this.request.bind(this))
-  //   ipc.register('abort', this.abort.bind(this))
-  // }
 }
 
 export default Thumb

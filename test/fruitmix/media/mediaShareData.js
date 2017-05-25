@@ -10,10 +10,8 @@ import E from '../../../src/fruitmix/lib/error'
 
 class Model {
 
-  constructor() {}
-
-  getUsers() {
-    return [{uuid: '5da92303-33a1-4f79-8d8f-a7b6becde6c3'},
+  constructor() {
+    this.users = [{uuid: '5da92303-33a1-4f79-8d8f-a7b6becde6c3'},
             {uuid: 'b9aa7c34-8b86-4306-9042-396cf8fa1a9c'},
             {uuid: 'f97f9e1f-848b-4ed4-bd47-1ddfa82b2777'},
             {uuid: 'e5f23cb9-1852-475d-937d-162d2554e22c'},
@@ -22,6 +20,17 @@ class Model {
             {uuid: '916bcacf-e610-4f55-ad39-106e306d982e'},
             {uuid: '20e62448-7df5-4670-bf2b-9f2f97f17136'}]
   }
+
+  // users() {
+  //   return [{uuid: '5da92303-33a1-4f79-8d8f-a7b6becde6c3'},
+  //           {uuid: 'b9aa7c34-8b86-4306-9042-396cf8fa1a9c'},
+  //           {uuid: 'f97f9e1f-848b-4ed4-bd47-1ddfa82b2777'},
+  //           {uuid: 'e5f23cb9-1852-475d-937d-162d2554e22c'},
+  //           {uuid: 'ed1d9638-8130-4077-9ed8-05be641a9ab4'},
+  //           {uuid: 'c18aa308-ab32-4e2d-bc34-0c6385711b55'},
+  //           {uuid: '916bcacf-e610-4f55-ad39-106e306d982e'},
+  //           {uuid: '20e62448-7df5-4670-bf2b-9f2f97f17136'}]
+  // }
 }
 
 const model = new Model()
@@ -54,7 +63,7 @@ describe(path.basename(__filename), function() {
   describe('create a mediaShareData', function() {
 
     it('should create a mediaShareData', done => {
-      expect(mediaShareData.model).to.deep.equal(model)
+      expect(mediaShareData.modelData).to.deep.equal(model)
       expect(mediaShareData.mediaShareStore).to.deep.equal(mediaShareStore)
       expect(mediaShareData.mediaShareMap).to.be.an.instanceof(Map)
       expect(mediaShareData.lockSet).to.be.an.instanceof(Set)

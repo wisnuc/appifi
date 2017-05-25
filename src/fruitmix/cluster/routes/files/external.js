@@ -23,15 +23,34 @@ DELETE /external/[appifi|fs]/:uuid/path/to/directory/or/file
 **/
 
 const isUUID = text => typeof text === 'string' && validator.isUUID(text)
-const isNormalizedPath = rpath => typeof rppath === 'string' && path.normalize(rpath) === rpath
+const isNormalizedPath = rpath => typeof rpath === 'string' && path.normalize(rpath) === rpath
 const isSanitizedName = name => typeof name === 'string' && sanitize(name) === name
 
 const rootPathAsync = async (type, uuid) => {
 
-  if (type !== 'fs') throw new Error('type not supported')
+  if (type !== 'fs') throw new Error('type not supported, yet')
+  //TODO uuid error 
+  // if (uuid !== undefined && !isUUID(uuid)) throw new Error(`Bad uuid ${uuid}`)
+
   let storage = JSON.parse(await fs.readFileAsync('/run/wisnuc/storage'))
-  let fileSystem = something
-  let target = fileSystem.find(fsys => fsys.fileSystemUUID === uuid)
+  let { blocks, volumes } = storage
+  if (!Array.isArray(blocks) || !Array.isArray(volumes)) throw new Error('bad storage format')
+
+  /** TODO this function should be in sync with extractFileSystem in boot.js **/
+  let fileSystems = [
+    ...blocks.filter(blk => blk.isFileSystem 
+      && !blk.isVolumeDevice
+      && blk.isMounted), // no limitation for file system type
+    ...volumes.filter(vol => vol.isFileSystem
+      && !vol.isMissing
+      && vol.isMounted)
+  ]
+
+  if (!uuid) {
+    return fileSystems
+  } 
+
+  let target = fileSystems.find(fsys => fsys.fileSystemUUID === uuid)
   if (!target) throw new Error('not found')
   return target.mountpoint
 }
@@ -44,10 +63,12 @@ const tmpFile = () => {
 
 // relpath empty is OK
 const readdirOrDownloadAsync = async (type, uuid, relpath) => {
-
+  console.log(type === 'fs')
+  console.log(isUUID(uuid))
+  console.log(relpath.length === 0 || isNormalizedPath(relpath))
+  console.log(relpath)
   if ( type === 'fs'
-    && isUUID(uuid)
-    && typeof relpath === 'string'
+    // && isUUID(uuid)
     && (relpath.length === 0 || isNormalizedPath(relpath))) {}
   else
     throw new Error('invalid arguments')
@@ -142,7 +163,7 @@ const renameAsync = async (type, uuid, relpath, name) => {
 
 // rimraf is OK
 const deleteAsync = async (type, uuid, relpath) => {
-
+  
   if ( type === 'fs'
     && isUUID(uuid)
     && typeof relpath === 'string'
@@ -154,6 +175,14 @@ const deleteAsync = async (type, uuid, relpath) => {
   let abspath = path.join(rootpath, relpath)
   await rimrafAsync(abspath)
 }
+
+router.get('/fs', (req, res) => 
+  rootPathAsync('fs')
+    .then(fileSystems => res.status(200).json(fileSystems))
+    .catch(e => e.code === 'EINVAL'
+      ? res.status(400).json({ code: 'EINVAL', message: e.message })
+      : res.status(400).json({ code: e.code, message: e.message })))
+
 
 /**
 list or download

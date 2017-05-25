@@ -52,14 +52,14 @@ const isValidBootArgs = body =>
   typeof body === 'object' 
     && body !== null
     && !!['poweroff', 'reboot', 'rebootMaintenance', 'rebootNormal'].includes(body.op)
-    && obj.op === 'rebootNormal' 
+    && body.op === 'rebootNormal' 
       ? (typeof body.target === 'string' && validator.isUUID(body.target))
       : true
 
 router.post('/boot', (req, res) =>
   !isValidBootArgs(req.body)
     ? invalid(res)
-    : rebootAsync(req.body.op, req.body.target).asCallback(err =>
+    : Boot.rebootAsync(req.body.op, req.body.target).asCallback(err =>
       err
         ? error(res, err)
         : ok(res)))
@@ -187,8 +187,8 @@ router.get('/net', (req, res) =>
 const isValidRunArgs = body => 
   typeof body === 'object' 
     && body !== null 
-    && typeof body.target !== 'string' 
-    && !validator.isUUID(body.target)
+    && typeof body.target === 'string' 
+    && validator.isUUID(body.target)
 
 router.post('/run', (req, res) => 
   !isValidRunArgs(req.body) 
@@ -215,7 +215,7 @@ const isValidInstallArgs = body =>
     && body.username.length > 0
     && typeof body.password === 'string'
     && body.password.length > 0
-    && (body.install === true || typeof body.reinstall === true)
+    && (body.install === true || body.reinstall === true)
 
 router.post('/install', (req, res) => 
   !isValidInstallArgs(req.body)

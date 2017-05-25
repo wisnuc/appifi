@@ -1,3 +1,5 @@
+
+
 class Media {
 
   constructor(digest) {
@@ -5,11 +7,11 @@ class Media {
     this.type = ''
     this.metadata = null
     this.nodes = new Set()
-    this.shares = new Set()
+    // this.shares = new Set()
   }
 
   isEmpty() {
-    return this.nodes.size === 0 && this.shares.size === 0
+    return this.nodes.size === 0
   }
 }
 
@@ -17,18 +19,18 @@ class MediaData {
 
   constructor(modelData, fileData, fileShareData, mediaShareData) {
 
-    this.fileShareData = fileShareData
+    // this.fileShareData = fileShareData
     this.fileData = fileData
-    this.mediaShareData = mediaShareData
+    // this.mediaShareData = mediaShareData
     this.map = new Map()
 
     this.fileData.on('mediaAppeared', node => this.handleMediaAppeared(node))
     this.fileData.on('mediaDisappearing', node => this.handleMediaDisappearing(node))
     this.fileData.on('mediaIdentified', (node, metadata) => this.mediaIdentified(node, metadata))
 
-    this.mediaShareData.on('mediaShareCreated', shares => this.handleMediaShareCreated(shares))
-    this.mediaShareData.on('mediaShareUpdated', (oldShare, newShare) => this.handleMediaShareUpdated(oldShare, newShare))
-    this.mediaShareData.on('mediaShareDeleted', share => this.handleMediaShareDeleted(share))
+    // this.mediaShareData.on('mediaShareCreated', shares => this.handleMediaShareCreated(shares))
+    // this.mediaShareData.on('mediaShareUpdated', (oldShare, newShare) => this.handleMediaShareUpdated(oldShare, newShare))
+    // this.mediaShareData.on('mediaShareDeleted', share => this.handleMediaShareDeleted(share))
   }
 
   findMediaByHash(hash) {
@@ -72,130 +74,131 @@ class MediaData {
     }
   }
 
-  indexMediaShare(share) {
-
-    share.doc.contents.forEach(item => {
-
-      let digest = item.digest
-      let media = this.findMediaByHash(digest)
-      if (media) {
-        media.shares.add([item, share]) // use 2-tuple for faster check on both creator and member
-      } else {
-        media = new Media(digest)
-        media.shares.add([item, share])
-        this.map.set(digest, media)
-      }
-    })
-  }
+  // indexMediaShare(share) {
+  //   //FIXME:
+  //   share.doc.contents.forEach(item => {
+  //     let digest = item.digest
+  //     let media = this.findMediaByHash(digest)
+  //     if (media) {
+  //       // use 2-tuple for faster check on both creator and member
+  //       media.shares.add([item, share]) 
+  //     } else {
+  //       media = new Media(digest)
+  //       media.shares.add([item, share])
+  //       this.map.set(digest, media)
+  //     }
+  //   })
+  // }
 
   // return all media objects that has item removed, but empty ones are not removed out of map
-  unindexMediaShare(share) {
+  // unindexMediaShare(share) {
 
-    return share.doc.contents.reduce((acc, item) => {
+  //   return share.doc.contents.reduce((acc, item) => {
 
-      let media = this.findMediaByHash(item.digest)
-      if (media) {
-        if (media.shares.has([item, share])) {
-          media.shares.delete([item, share])
-          acc.push(media)
-          return acc
-        }
-      }
-      // let index = medium.sharedItems.findIndex(pair => pair[0] === item)
-      // medium.sharedItems.splice(index, 1)
-      // acc.push(medium)
-      // return acc
-    }, [])
-  }
+  //     let media = this.findMediaByHash(item.digest)
+  //     if (media) {
+  //       if (media.shares.has([item, share])) {
+  //         media.shares.delete([item, share])
+  //         acc.push(media)
+  //         return acc
+  //       }
+  //     }
+  //     // let index = medium.sharedItems.findIndex(pair => pair[0] === item)
+  //     // medium.sharedItems.splice(index, 1)
+  //     // acc.push(medium)
+  //     // return acc
+  //   }, [])
+  // }
 
   cleanEmpty(medias) {
     medias.forEach(media => media.isEmpty() && this.map.delete(media.digest))
   }
 
-  handleMediaShareCreated(shares) {
-    shares.forEach(share => this.indexMediaShare(share))
-  }
+  // handleMediaShareCreated(shares) {
+  //   shares.forEach(share => this.indexMediaShare(share))
+  // }
 
   // share { doc { contents: [ item {creator, digest} ] } }
-  handleMediaShareUpdated(oldShare, newShare) {
+  // handleMediaShareUpdated(oldShare, newShare) {
 
-    // 1. splice all indexed item inside media object
-    let spliced = this.unindexMediaShare(oldShare)
+  //   // 1. splice all indexed item inside media object
+  //   let spliced = this.unindexMediaShare(oldShare)
 
-    // 2. index all new media.
-    this.indexMediaShare(newShare)
+  //   // 2. index all new media.
+  //   this.indexMediaShare(newShare)
 
-    // 3. remove empty spliced.
-    this.cleanEmpty(spliced)
-  }
+  //   // 3. remove empty spliced.
+  //   this.cleanEmpty(spliced)
+  // }
 
-  handleMediaShareDeleted(share) {
+  // handleMediaShareDeleted(share) {
 
-    let spliced = this.unindexMediaShare(share)
-    this.cleanEmpty(spliced)
-  }
+  //   let spliced = this.unindexMediaShare(share)
+  //   this.cleanEmpty(spliced)
+  // }
 
-  mediaSharingStatus(userUUID, media) {
+  // mediaSharingStatus(userUUID, media) {
 
-    let sharedWithOthers = false
-    let sharedWithMe = false
-    let sharedWithMeAvailable = false
-    let sharesArr = Array.from(media.shares)
-    let nodesArr = Array.from(media.nodes)
+  //   let sharedWithOthers = false
+  //   let sharedWithMe = false
+  //   let sharedWithMeAvailable = false
+  //   let sharesArr = Array.from(media.shares)
+  //   let nodesArr = Array.from(media.nodes)
 
-    //FIXME:
-    for (let i = 0; i < sharesArr.length; i++) {
+  //   //FIXME:
+  //   for (let i = 0; i < sharesArr.length; i++) {
 
-      let pair = sharesArr[i]
-      let item = pair[0]
-      let doc = pair[1].doc
-      if (item.creator === userUUID) sharedWithOthers = true
-      if (doc.maintainers.includes(userUUID) || doc.viewers.includes(userUUID)) {
-        sharedWithMe = true
-        sharedWithMeAvailable = this.model.userIsLocal(doc.author) ?
-          true :
-          nodesArr.some(node => this.fileData.fromUserService(doc.author, node))
-      }
+  //     let pair = sharesArr[i]
+  //     let item = pair[0]
+  //     let doc = pair[1].doc
+  //     if (item.creator === userUUID) sharedWithOthers = true
+  //     if (doc.maintainers.includes(userUUID) || doc.viewers.includes(userUUID)) {
+  //       sharedWithMe = true
+  //       sharedWithMeAvailable = this.model.userIsLocal(doc.author) ?
+  //         true :
+  //         nodesArr.some(node => this.fileData.fromUserService(doc.author, node))
+  //     }
 
-      // if available is false, there is a chance that
-      // another remote user shared the same medium with me
-      if (sharedWithOthers && sharedWithMe && sharedWithMeAvailable)
-        return {
-          sharedWithOthers,
-          sharedWithMe,
-          sharedWithMeAvailable
-        }
-    }
+  //     // if available is false, there is a chance that
+  //     // another remote user shared the same medium with me
+  //     if (sharedWithOthers && sharedWithMe && sharedWithMeAvailable)
+  //       return {
+  //         sharedWithOthers,
+  //         sharedWithMe,
+  //         sharedWithMeAvailable
+  //       }
+  //   }
 
-    return {
-      sharedWithOthers,
-      sharedWithMe,
-      sharedWithMeAvailable
-    }
-  }
+  //   return {
+  //     sharedWithOthers,
+  //     sharedWithMe,
+  //     sharedWithMeAvailable
+  //   }
+  // }
 
   mediaProperties(userUUID, media) {
     let props = {
-      permittedToShare: false,
-      authorizedToRead: false,
-      sharedWithOthers: false,
-      sharedWithMe: false
+      permittedToShare: false
+      // authorizedToRead: false,
+      // sharedWithOthers: false,
+      // sharedWithMe: false
     }
     let nodes = Array.from(media.nodes)
-    let shares = Array.from(media.shares)
+    // let shares = Array.from(media.shares)
     // 1. user permitted to share (from fileData)
     // 2. from user library (from fileData)
     props.permittedToShare = nodes.some(node =>  
       this.fileData.userPermittedToShare(userUUID, node))
-    // 3. user authorized to read (from fileShareData)
-    props.authorizedToRead = nodes.some(node => 
-      this.fileShareData.userAuthorizedToRead(userUUID, node)) 
-    // 4. shared with others 
-    props.sharedWithOthers = shares.some(share => 
-      this.mediaShareData.sharedWithOthers(userUUID, share))
-    // 5. shared with me
-    props.sharedWithMe = shares.some(share => 
-      this.mediaShareData.sharedWithMe(userUUID, share))
+
+    // // 3. user authorized to read (from fileShareData)
+    // props.authorizedToRead = nodes.some(node => 
+    //   this.fileShareData.userAuthorizedToRead(userUUID, node)) 
+    // // 4. shared with others 
+    // props.sharedWithOthers = shares.some(share => 
+    //   this.mediaShareData.sharedWithOthers(userUUID, share))
+    // // 5. shared with me
+    // props.sharedWithMe = shares.some(share => 
+    //   this.mediaShareData.sharedWithMe(userUUID, share))
     // 5.1 serviceAvailable 
     if (!props.sharedWithMe) {
       props.serviceAvailable = nodes.some(node => 
@@ -204,14 +207,14 @@ class MediaData {
     return props
   }
 
-  mediaShareAllowed(userUUID, digest) {
-    let media = this.findMediaByHash(digest)
-    if(!media) return
-    else {
-      let nodes = Array.form(media.nodes)
-      return nodes.some(node => this.fileData.userPermittedToShare(userUUID, node))
-    }
-  }
+  // mediaShareAllowed(userUUID, digest) {
+  //   let media = this.findMediaByHash(digest)
+  //   if(!media) return
+  //   else {
+  //     let nodes = Array.from(media.nodes)
+  //     return nodes.some(node => this.fileData.userPermittedToShare(userUUID, node))
+  //   }
+  // }
 
   getAllMedia(userUUID) {
 
@@ -224,10 +227,10 @@ class MediaData {
         //put authorization in metadata
         map.set(pair[0], {
           metadata: pair[1].metadata,
-          permittedToShare: props.permittedToShare,
-          authorizedToRead: props.authorizedToRead,
-          sharedWithOthers: props.sharedWithOthers,
-          sharedWithMe: props.sharedWithMe
+          permittedToShare: props.permittedToShare
+          // authorizedToRead: props.authorizedToRead,
+          // sharedWithOthers: props.sharedWithOthers,
+          // sharedWithMe: props.sharedWithMe
         })
       }
     }

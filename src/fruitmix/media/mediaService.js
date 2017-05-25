@@ -58,18 +58,20 @@ module.exports = class MediaService {
     }
   }
 
-  getThumb({ requestId, userUUID, digest, query }, callback) {
+  getThumb({ requestId, digest, query }, callback) {
 
     let src = this.findMediaPath(digest)
-    tb.request({ src, digest, query }, (err, data) => {
+    tb.request({ requestId, src, digest, query }, (err, data) => {
       if (err)
         return callback(err)
+
       return callback(null, data)
     })
   }
 
-  abort(requestId, callback) {
-    tb.abort(requestId)
+  abort({ requestId, digest, query }, callback) {
+
+    tb.abort({ requestId, digest, query })
     callback(null, true)
   }
 

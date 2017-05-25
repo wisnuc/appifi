@@ -48,7 +48,7 @@ class FileData extends EventEmitter {
   }
 
   async updateDriveAsync(drive) {
-    let node = this.root.getChildren.find(n => n.uuid === drive.uuid)
+    let node = this.root.getChildren().find(n => n.uuid === drive.uuid)
     if(node) node.updateDrive(drive)
   }
 
@@ -106,6 +106,7 @@ class FileData extends EventEmitter {
 
     // this.uuidMap.set(uuid, node)
     node.attach(parent)
+    return node.uuid
   }
 
   // update means props changed
