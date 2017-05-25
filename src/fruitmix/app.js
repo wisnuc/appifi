@@ -18,7 +18,7 @@ import drives from './routes/drives'
 import libraries from './routes/libraries'
 import media from './routes/media'
 import mediashare from './routes/mediashare'
-import samba from './routes/samba'
+// import samba from './routes/samba'
 
 import winsun from './routes/winsun'
 
@@ -57,7 +57,7 @@ app.use('/media', media)
 app.use('/mediashare', mediashare)
 
 app.use('/authtest', require('./routes/authtest'))
-app.use('/samba', samba)
+// app.use('/samba', samba)
 app.use('/winsun', winsun)
 
 // app.use('/library', require('./routes/library'))

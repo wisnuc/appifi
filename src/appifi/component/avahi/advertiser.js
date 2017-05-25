@@ -1,7 +1,10 @@
 import child from 'child_process'
 import events from 'events'
 
-class advertiser extends events {
+import Debug from 'debug'
+const debug = Debug('APPIFI:ADVERTISER')
+
+class Advertiser extends events {
 
   constructor(name, port) {
     super()
@@ -18,17 +21,16 @@ class advertiser extends events {
       ], { stdio: 'ignore'})
 
     this.handle.on('error', error => {
-      console.log('[advertiser] error', error)
+      debug('Start error', error)
     })
 
     this.handle.on('exit', (code, signal) => {
-
-      console.log(`[advertiser] stop advertising ${this.name} @ ${this.port}`)
+      debug(`Stop advertising: ${this.name} @ ${this.port}`)
       this.handle = null
       this.emit('exit', code, signal)
     })
 
-    console.log(`[advertiser] start advertising ${this.name} @ ${this.port}`)
+    debug(`Start advertising: ${this.name} @ ${this.port}`)
   }
 
   isAdvertising() {
@@ -42,11 +44,5 @@ class advertiser extends events {
   }
 }
 
-const createAdvertiser = (name, port) => {
-  let adv = new advertiser(name, port)
-  adv.start()
-  return adv
-}
-
-export default createAdvertiser
+export default Advertiser
 

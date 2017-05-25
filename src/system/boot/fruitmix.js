@@ -3,7 +3,10 @@ const Promise = require('bluebird')
 const path = require('path')
 const fs = Promise.promisifyAll(require('fs'))
 const child = require('child_process')
-const EventEmitter = require('events')
+// const EventEmitter = require('events')
+
+const EventEmitter = require('events').EventEmitter
+const sambaAudit = new EventEmitter()
 
 const debug = require('debug')('fruitmix:tools')
 
@@ -109,7 +112,7 @@ const probeAsync = async mountpoint => {
         friends: u.friends,
         lastChangeTime: u.lastChangeTime
       }))
-    }    
+    }
   }
   catch (e) {
 
@@ -135,25 +138,29 @@ class Fruitmix extends EventEmitter {
 
     this.child.on('message', message => {
       switch (message.type) {
-      case 'fruitmixStarted':
-        this.state = 'started'
-        break
+        case 'fruitmixStarted':
+          this.state = 'started'
+          break
 
-      case 'createFirstUserDone':
-        clearTimeout(this.timer)
-        if (this.callback) {
-          this.callback(message.error, message.data)
-          this.callback = null
+        case 'createFirstUserDone':
+          clearTimeout(this.timer)
+          if (this.callback) {
+            this.callback(message.error, message.data)
+            this.callback = null
+          }
+          break
         }
-        break
-      }
     })
 
     this.child.on('exit', (code, signal) => {
       this.state = 'exited'
       this.code = code
       this.signal = signal
-    }) 
+    })
+
+    sambaAudit.on('sambaAudit', (data) => {
+      console.log(JSON.stringify(data))
+    })
 
     this.callback = null
   }
@@ -214,7 +221,8 @@ const fork = cfs => {
 }
 
 module.exports = {
-  probeAsync,  
+  probeAsync,
+  sambaAudit,
   fork,
 }
 
