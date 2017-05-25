@@ -3,7 +3,6 @@ const cluster = require('cluster')
 const os = require('os')
 
 import config from './cluster/config'
-
 import Master from './cluster/master'
 import Worker from './cluster/worker'
 
