@@ -1,11 +1,15 @@
-const http = require('http')
-const app = require('./index')
-const port = 3000
+import http from 'http'
+import app from '../../lib/router'
 
-// inject (piggyback) system api
-module.exports = system => {
+import Debug from 'debug'
+const HTTP_SERVER = Debug('APPIFI:HTTP_SERVER')
 
-  app.use('/system', system)
+const port = 3720
+
+// inject (piggyback) appifi api
+const httpServer = () => {
+
+  //app.use('/appifi', appifi)
 
   // catch 404 and forward to error handler
   app.use((req, res, next) => next(Object.assign(new Error('Not Found'), { status: 404 })))
@@ -18,20 +22,20 @@ module.exports = system => {
   // production error handler no stacktraces leaked to user
   app.use((err, req, res) => res.status(err.status || 500).send('error: ' + err.message))
 
-  app.set('port', port);
+  app.set('port', port)
 
-  const httpServer = http.createServer(app);
+  const httpServer = http.createServer(app)
 
   httpServer.on('error', error => {
 
-    if (error.syscall !== 'listen') throw error;
+    if (error.syscall !== 'listen') throw error
     switch (error.code) {
       case 'EACCES':
-        console.error(`Port ${port} requires elevated privileges`)
+        HTTPSERVER(`Port ${port} requires elevated privileges`)
         process.exit(1)
         break
       case 'EADDRINUSE':
-        console.error(`Port ${port} is already in use`)
+        HTTPSERVER(`Port ${port} is already in use`)
         process.exit(1)
         break
       default:
@@ -40,9 +44,10 @@ module.exports = system => {
   })
 
   httpServer.on('listening', () => {
-    console.log('[appifi] server listening on port ' + httpServer.address().port)
+    HTTP_SERVER('Server listening on port ' + httpServer.address().port)
   })
 
-  httpServer.listen(port);
+  httpServer.listen(port)
 }
 
+export default httpServer

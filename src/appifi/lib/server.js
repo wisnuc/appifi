@@ -1,21 +1,29 @@
 import child from 'child_process'
 import Debug from 'debug'
+const SERVER = Debug('APPIFI:SERVER')
 
-import { storeState, storeDispatch, storeSubscribe } from './reducers'
-import { calcRecipeKeyString } from './dockerApps'
-import { daemonStart, daemonStop, daemonStartOp, containerStart, containerStop, containerDelete,
-  installedStart, installedStop, appInstall, appUninstall} from './docker'
-import appstore from './appstore'
+import { storeState, storeSubscribe } from './reducers'
+import { calcRecipeKeyString } from './utility'
+import {
+  daemonStart,
+  daemonStop,
+  daemonStartOp,
+  containerStart,
+  containerStop,
+  containerDelete,
+  installedStart,
+  installedStop,
+  appInstall,
+  appUninstall
+} from '../component/docker/docker'
 
-const debug = Debug('system:server')
+import { refreshAppstore } from '../component/appstore/appstore'
 
 let status = 0
 
-const info = (text) => console.log(`[server] ${text}`)
-
 storeSubscribe(() => {
   status++
-  debug('status update', status)
+  SERVER('Status update', status)
 })
 
 const appstoreFacade = (appstore) => {
@@ -112,7 +120,7 @@ const facade = () => {
   
 const operationAsync = async (req) => {
 
-  info(`operation: ${req.operation}`)
+  SERVER(`Operation: ${req.operation}`)
 
   let f, args
 
@@ -149,11 +157,11 @@ const operationAsync = async (req) => {
       f = appUninstall
       break
     case 'appstoreRefresh':
-      f = appstore.reload
+      f = refreshAppstore
       break
 
     default:
-      info(`operation not implemented, ${req.operation}`)
+      SERVER(`Operation not implemented, ${req.operation}`)
     }
   }
 
@@ -182,8 +190,6 @@ export default {
   }
 }
 
-console.log('server module initialized')
-
-
-
-
+// // docker init
+// initDocker.init('/home/wisnuc/git/appifi/run/wisnuc/app')
+// SERVER('Docker initialized')
