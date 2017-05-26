@@ -9,10 +9,11 @@ import { rimrafAsync, mkdirpAsync } from '../util/async'
 
 class FileService {
 
-  constructor(froot, data, shareData) {
+  constructor(froot, data, shareData, mediaData) {
     this.froot = froot
     this.data = data 
     this.shareData = shareData
+    this.mediaData = mediaData
   }
 
   nodeProps(node) {
@@ -25,12 +26,16 @@ class FileService {
       }
     }
     else if (node instanceof FileNode) {
+      
+      let media = this.mediaData.findMediaByHash(node.hash)
       return {
         uuid: node.uuid,
         type: 'file',
         name: node.name,
         size: node.size,
-        mtime: node.mtime // FIXME: need change mtime definition      
+        mtime: node.mtime, // need change mtime definition 
+        digest: media ? media.digest : null,
+        metadata: media ? media.metadata : null
       }
     }
   }
