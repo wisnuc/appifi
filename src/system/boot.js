@@ -117,17 +117,22 @@ module.exports = {
 
   boot(cfs) {
 
-   	this.fruitmix = fruitmix.fork(cfs)
+    // this.fruitmix = fruitmix.fork(cfs)
     // this.samba = samba.fork(cfs)
     // console.log('[boot log config]', Config.get().bootMode)
     // this.data = { state: 'normal', currentFileSystem: cfs }
 
-    this.samba = Promise.delay(10000).then(() => {samba.fork(cfs)})
+    //this.samba = Promise.delay(10000).then(() => {samba.fork(cfs)})
 
-    this.data = {
-      state: Config.get().bootMode,
-      currentFileSystem: cfs
-    }
+    //this.data = {
+    //  state: Config.get().bootMode,
+    //  currentFileSystem: cfs
+    //}
+
+    this.fruitmix = fruitmix.fork(cfs)
+    // this.samba = samba.fork(cfs)
+    this.samba = Promise.delay(10000).then(() => {samba.fork(cfs)})
+    this.data = { state: 'normal', currentFileSystem: cfs }
 
     Config.updateLastFileSystem({type: cfs.type, uuid: cfs.uuid})
   },
@@ -215,6 +220,9 @@ module.exports = {
       assertReadyToBoot(wisnuc) 
     }
 
+    Config.merge({ bootMode: 'normal'})
+    await Promise.delay(200)
+
     this.boot(cfs(fsys))
   },
 
@@ -254,4 +262,3 @@ module.exports = {
     return this.data
   },
 }
-

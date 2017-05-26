@@ -10,9 +10,9 @@ class Media {
     // this.shares = new Set()
   }
 
-  // isEmpty() {
-  //   return this.nodes.size === 0 && this.shares.size === 0
-  // }
+  isEmpty() {
+    return this.nodes.size === 0
+  }
 }
 
 class MediaData {

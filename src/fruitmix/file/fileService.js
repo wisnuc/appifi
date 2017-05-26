@@ -42,7 +42,6 @@ class FileService {
   }
 
   userWritable(userUUID, node) {
-    //FIXME: home下新建文件出错
     return this.data.userPermittedToWrite(userUUID, node)
       || this.shareData.userAuthorizedToWrite(userUUID, node)
   }  
@@ -324,14 +323,20 @@ class FileService {
 
   // create file or check in user's library  
   async createLibraryFileAsync(args) {
+
     let { sha256, libraryUUID, src, check } = args
+
     let libraryNode = this.data.findNodeByUUID(libraryUUID)
     if(typeof sha256 !== 'string') throw new E.EINVAL()
     if (!libraryNode) throw new E.ENODENOTFOUND()
     if (!libraryNode.isDirectory()) throw new E.ENOTDIR()
-    let node = libraryNode.getChildren().find( l => l.name === sha256.slice(0, 2))
-    if(node && node.isDirectory() && node.getChildren.map(l => l.name).includes(sha256.slice(2)))
+
+    let node = libraryNode.getChildren()
+      .find( l => l.name === sha256.slice(0, 2))
+
+    if(node && node.isDirectory() && node.getChildren().map(l => l.name).includes(sha256.slice(2))) {
       throw new E.EEXIST()
+    }
     if(check === true) return null
 
     let dstFolder = path.join(libraryNode.abspath(),sha256.slice(0, 2))    
@@ -365,7 +370,7 @@ class FileService {
 
       //TODO remove old file
 
-      await fs.renameAsync(src, dst)
+      await fs.renameAsync(srcpath, dst)
 
       let xstat = await readXstatAsync(dst) 
 
@@ -382,27 +387,28 @@ class FileService {
       throw e
     }
     finally {
-      this.data.requestProbeByUUID(dirUUID)
+      this.data.requestProbeByUUID(fileUUID)
     }
   }
 
   // rename a directory or file
-  async renameAsync({ userUUID, targetUUID, name }) {
+  async renameAsync({ userUUID, targetUUID, dirUUID, name }) {
 
-    let node = this.data.findNodeByUUID(fileUUID)
-    if (!node) throw new E.ENODENOTFOUND()
-
-    if (!this.userWritable(userUUID, node)) throw new E.EACCESS()
+    let dirnode = this.data.findNodeByUUID(dirUUID)
+    let node = this.data.findNodeByUUID(targetUUID)
+    if (!dirnode) throw new E.ENODENOTFOUND()
+    if(!node) throw new E.ENODENOTFOUND()
+    if (!this.userWritable(userUUID, dirnode)) throw new E.EACCESS()
     if(typeof name !== 'string' || path.basename(path.normalize(name)) !== name) throw new E.EINVAL
 
-    let newPath = path.join(path.dirname(node.abspath()), name)
+    let newPath = path.join(dirnode.abspath(), name)
     try{
-      await fs.renameAsync(node.abspath, newPath)
+      await fs.renameAsync(node.abspath(), newPath)
       let xstat = await readXstatAsync(newPath)
       this.data.updateNode(node, xstat)
-      return node
+      return 
     }catch(e){
-        throw e
+      throw e
     }finally{
       if(node.parent) this.data.requestProbeByUUID(node.parent)
       else if(node.isDirectory()) this.data.requestProbeByUUID(targetUUID)
@@ -410,7 +416,7 @@ class FileService {
     
   }
 
-  // move a directory or file into given dirUUID
+  // TODO: move a directory or file into given dirUUID
   move(userUUID, srcUUID, dirUUID, callback) {
     
   }
@@ -432,7 +438,7 @@ class FileService {
     if (!this.userWritable(userUUID, node)) throw new E.EACCESS()
 
     try {
-      await rimrafAsync(node.namepath())
+      await rimrafAsync(node.abspath())
       await this.data.deleteNode(node)
       return 
     } 

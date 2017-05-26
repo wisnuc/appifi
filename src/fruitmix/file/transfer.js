@@ -9,8 +9,37 @@ import UUID from 'node-uuid'
 import E from '../lib/error'
 import config from '../cluster/config'
 
-const isFruitmix = (uuid) => {
-  
+const isFruitmix = (type) => {
+  return type === 'fruitmix'
+}
+
+
+const rootPathAsync = async (type, uuid) => {
+
+  if (type !== 'fs') throw new Error('type not supported, yet')
+  // if (uuid !== undefined && !isUUID(uuid)) throw new Error(`Bad uuid ${uuid}`)
+
+  let storage = JSON.parse(await fs.readFileAsync('/run/wisnuc/storage'))
+  let { blocks, volumes } = storage
+  if (!Array.isArray(blocks) || !Array.isArray(volumes)) throw new Error('bad storage format')
+
+  /** TODO this function should be in sync with extractFileSystem in boot.js **/
+  let fileSystems = [
+    ...blocks.filter(blk => blk.isFileSystem 
+      && !blk.isVolumeDevice
+      && blk.isMounted), // no limitation for file system type
+    ...volumes.filter(vol => vol.isFileSystem
+      && !vol.isMissing
+      && vol.isMounted)
+  ]
+
+  if (!uuid) {
+    return fileSystems
+  } 
+
+  let target = fileSystems.find(fsys => fsys.fileSystemUUID === uuid)
+  if (!target) throw new Error('not found')
+  return target.mountpoint
 }
 
 class Worker extends EventEmitter {
@@ -32,21 +61,25 @@ class Worker extends EventEmitter {
   }
 
   error(e, ...args) {
+    console.log('error',e)
     this.emit('error', e, ...args)
     this.finalize()
   }
 
   finish(data, ...args) {
+    console.log('finish this task')
     this.emit('finish', data, ...args)
     this.finalize()
   }
 
   start() {
     if (this.finished) throw 'worker already finished'
+    console.log('start run worker')
     this.run()
   }
 
   abort() {
+    console.log('abort')
     if (this.finished) throw 'worker already finished'
     this.emit('error', new E.EABORT())
     this.finalize()
@@ -70,26 +103,83 @@ class Worker extends EventEmitter {
  * WARNING
  */
 
+/**
+ * src / dst:{
+ *  type: 'fruitmix' or 'ext'
+ *  path:  if type = 'fruitmix', UUID / else relpath
+ *  rootPath: if type = 'fruitmix' ,it undefine, else UUID
+ * }
+ * 
+ * 
+ */
+
 class Move extends Worker {
   constructor(src, dst, data, userUUID) {
     super()
     this.src = src
     this.dst = dst
     this.data = data
-    this.userUUID = userUUID
+    this.userUUID = userUUID    
   }
 
   cleanUp() {
 
   }
 
+  async setSrcPath() {
+    let srcType = this.src.type === 'fruitmix'
+    
+    if(!srcType){
+      let spath = await rootPathAsync('fs', this.src.rootPath)
+      this.srcPath = path.join(spath, this.src.path)
+      return this.srcPath
+    }else{
+      this.srcPath = this.data.findNodeByUUID(this.src.path).abspath()
+      return this.srcPath
+    }
+  }
+
+  async setDstPath() {
+    let dstType = this.dst.type === 'fruitmix'
+    if(!dstType){
+      let dpath = await rootPathAsync('fs', this.dst.rootPath)
+      this.dstPath = path.join(dpath, this.dst.path)
+      return this.dstPath
+    }else{
+      this.dstPath = this.data.findNodeByUUID(this.dst.path).abspath()
+      return this.dstPath
+    }
+  }
+
+  setPath(callback) {
+    this.setSrcPath().asCallback(e => {
+      if(e) return callback(e)
+      this.setDstPath().asCallback(e => {
+        if(e) return callback(e)
+        return callback()
+      })
+    })
+  }
+
+
   run() {
     if(this.state !== 'PADDING') return 
     this.state = 'RUNNING'
-    let srcType = src.type === 'fruitmix'
-    let dstType = dst.type === 'fruitmix'
+    let srcType = this.src.type === 'fruitmix'
+    let dstType = this.dst.type === 'fruitmix'
     let modeType = srcType && dstType ? 'FF' : srcType && !dstType ?
                     'FE' : !srcType && dstType ? 'EF' : 'EE'
+                   
+    this.setPath(e => {
+      if(e) return this.error(e)
+      if(this.dstPath.indexOf(this.srcPath) !== -1) return this.error(new Error('dst could not be child of src'))
+      this.work(modeType)
+    })
+  }
+
+  work(modeType){
+    console.log('start run new task')
+    console.log(this.srcPath, this.dstPath)
     switch(modeType){
       case 'FF':
       case 'FE':
@@ -100,13 +190,18 @@ class Move extends Worker {
             if(this.finished) return 
             if(err) return this.error(err)
 
-            let srcNode = this.data.findNodeByUUID(path.basename(this.src))
-            let dstNode = this.data.findNodeByUUID(path.basename(this.dst))
-            if(srcNode)
-              this.data.requestProbeByUUID(srcNode.parent)
+            let srcNode = this.data.findNodeByUUID(this.src.path)
+            let dstNode = this.data.findNodeByUUID(this.dst.path)
+            if(srcNode){
+              if(srcNode.parent)
+                this.data.requestProbeByUUID(srcNode.parent.uuid)
+              else
+                this.data.requestProbeByUUID(srcNode.uuid)
+            }
+              
             if(dstNode)
               this.data.requestProbeByUUID(dstNode.uuid)
-
+            
             return this.finish(this)//TODO probe
           })
         })
@@ -119,9 +214,13 @@ class Move extends Worker {
             if(this.finished) return 
             if(err) return this.error(err)
 
-            let dstNode = this.data.findNodeByUUID(path.basename(this.dst.path))
-            if(dstNode)
-              this.data.requestProbeByUUID(dstNode.uuid)
+            let dstNode = this.data.findNodeByUUID(this.dst.path)
+            if(dstNode){
+              if(dstNode.parent)
+                this.data.requestProbeByUUID(dstNode.parent.uuid)
+              else                
+                this.data.requestProbeByUUID(dstNode.uuid)
+            }
             return this.finish(this)
           })
         })
@@ -138,7 +237,7 @@ class Move extends Worker {
   copy(callback) {
     // let srcpath = this.src.type === 'fruitmix' ? this.data.findNodeByUUID(path.basename(this.src.path)) : 
     // TODO to join ext path Jack
-    child.exec(`cp -r --reflink=auto ${ this.src } ${ this.dst }`,(err, stdout, stderr) => {
+    child.exec(`cp -r --reflink=auto ${ this.srcPath } ${ this.dstPath }`,(err, stdout, stderr) => {
       if(err) return callback(err)
       if(stderr) return callback(stderr)
       return callback(null, stdout)
@@ -147,7 +246,7 @@ class Move extends Worker {
 
   delete(callback) {
     // TODO  join Path Jack
-    child.exec(`rm -rf ${ this.src }`, (err, stdout, stderr) => {
+    child.exec(`rm -rf ${ this.srcPath }`, (err, stdout, stderr) => {
       if(err) return callback(err)
       if(stderr) return callback(stderr)
       return callback(null, stdout)
@@ -162,11 +261,11 @@ class Move extends Worker {
       xattr.setSync(fpath, xattrType, JSON.stringify({}))
       fs.lstatSync(fpath).isFile() ? callback() : callback(dirContext)
     }
-    this.visit(this.src, { type: 'user.fruitmix'}, clean, callback)
+    this.visit(this.srcPath, { type: 'user.fruitmix'}, clean, callback)
   }
 
   move(callback){
-    child.exec(`mv -f ${ this.src } ${ this.dst }`, (err, stdout, stderr) => {
+    child.exec(`mv -f ${ this.srcPath } ${ this.dstPath }`, (err, stdout, stderr) => {
       if(err) return callback(err)
       if(stderr) return callback(stderr)
       return callback(null, stdout)
@@ -215,8 +314,8 @@ class Copy extends Worker {
   run() {
     if(this.state !== 'PADDING') return 
     this.state = 'RUNNING'
-    let srcType = isFruitmix(this.src)
-    let dstType = isFruitmix(this.dst)
+    let srcType = isFruitmix(this.src.type)
+    let dstType = isFruitmix(this.dst.type)
 
     //check src.type .path
 
@@ -277,14 +376,14 @@ class Transfer {
     let diff = this.limit - this.workersQueue.filter(worker => worker.isRunning()).length
     if (diff <= 0) return
 
-    this.workersQueue.filter(worker => !worker.isRunning())
+    this.workersQueue.filter(worker => worker.isPadding())
       .slice(0, diff)
       .forEach(worker => worker.start())
   }
   
   createMove({ src, dst, userUUID }, callback) {
     createMoveWorker(src, dst, this.data, userUUID, (err, worker) => {
-      if(err) return callback(ett)
+      if(err) return callback(err)
       worker.on('finish', worker => {
         worker.state = 'FINISHED'
         this.schedule()
@@ -296,7 +395,7 @@ class Transfer {
         this.schedule()
       })
       this.workersQueue.push(worker)
-      callback(null, worker)
+      callback(null, {id: worker.id, state: worker.state})
       this.schedule()
     })
   }
@@ -349,20 +448,20 @@ class Transfer {
 
 
 const createMoveWorker = (src, dst, data, userUUID, callback) => {
-  if(fs.existsSync(src) && fs.existsSync(dst)) {
-    let worker = new Move(src, dst, data)
-    return callback(null, worker)
-  }
-  return callback(new Error('path not exists'))
+  // if(fs.existsSync(src) && fs.existsSync(dst)) {
+  let worker = new Move(src, dst, data)
+  return callback(null, worker)
+  // }
+  // return callback(new Error('path not exists'))
 }
 
 const createCopyWorker = (src, dst, data, userUUID, callback) => {
   let tmp = path.join(config.path, 'tmp') //TODO Get tmp folder Jack
-  if(fs.existsSync(src) && fs.existsSync(dst)) {
+  // if(fs.existsSync(src) && fs.existsSync(dst)) {
     let worker = new Copy(src, dst, tmp, data)
     return callback(null, worker)
-  }
-  return callback(new Error('path not exists'))
+  // }
+  // return callback(new Error('path not exists'))
 }
 
 export default Transfer

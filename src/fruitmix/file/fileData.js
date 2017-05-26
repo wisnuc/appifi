@@ -106,6 +106,7 @@ class FileData extends EventEmitter {
 
     // this.uuidMap.set(uuid, node)
     node.attach(parent)
+    return node.uuid
   }
 
   // update means props changed
