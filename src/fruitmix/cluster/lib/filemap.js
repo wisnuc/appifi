@@ -161,7 +161,7 @@ class SegmentUpdater extends EventEmitter{
   }
 
   removeListenerStream() {
-     if(this.stream) this.stream.removeListener('close', this.onStreamCloseEvent)
+    if(this.stream) this.stream.removeListener('close', this.onStreamCloseEvent)
   }
 
 
@@ -193,10 +193,14 @@ const updateSegmentAsync = async (userUUID, nodeUUID, segmentHash, start, taskId
   let attr = JSON.parse(await xattr.getAsync(fpath, FILEMAP))
   let segments = attr.segments
 
-  if(segments.length < (start + 1))
+  if(segments.length < (start + 1)){
+    console.log('上传的段大于实际总段数')
     throw new E.EINVAL()
-  if(segments[start] === 1)
-    throw new E.EEXISTS()
+  }
+  if(segments[start] === 1){
+    console.log('该段以上传', segments)
+    throw new E.EEXIST()
+  }
   
   let segmentSize = attr.segmentsize
   let segmentLength = segments.length > start + 1 ? segmentSize : (attr.size - start * segmentSize)
@@ -205,15 +209,19 @@ const updateSegmentAsync = async (userUUID, nodeUUID, segmentHash, start, taskId
   let updater = new SegmentUpdater(fpath, req, position, segmentHash, segmentLength)
 
   await updater.startAsync()
-
-  attr = JSON.parse(await xattr.getAsync(fpath, FILEMAP))
-  attr.segments[start] = 1
-  await xattr.setAsync(fpath, FILEMAP, JSON.stringify(attr))
-  if(attr.segments.includes(0)) return false
-  let fname = await autoRenameAsync(attr.userUUID, attr.dirUUID, attr.name)
-  console.log('----------------' + fname)
-  await moveFileMapAsync(attr.userUUID, attr.dirUUID, fname, fpath, attr.sha256)
-  return true
+  try{
+    attr = JSON.parse(await xattr.getAsync(fpath, FILEMAP))
+    attr.segments[start] = 1
+    await xattr.setAsync(fpath, FILEMAP, JSON.stringify(attr))
+    if(attr.segments.includes(0)) return false
+    let fname = await autoRenameAsync(attr.userUUID, attr.dirUUID, attr.name)
+    console.log('----------------' + fname)
+    await moveFileMapAsync(attr.userUUID, attr.dirUUID, fname, fpath, attr.sha256)
+    return true
+  }catch(e){
+    console.log(e)
+    throw e
+  }
 }
 
 const autoRename = (userUUID, dirUUID, filename, callback) => {

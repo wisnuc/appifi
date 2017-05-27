@@ -43,7 +43,10 @@ router.put('/:nodeUUID', (req, res) => {
   let taskId = req.query.taskid
 
   updateSegmentAsync(user.uuid, req.params.nodeUUID, segmentHash, start, taskId, req).asCallback((err, data) => {
-    if (err) return res.error(err, 400)
+    if (err){
+      console.log(err)
+      return res.error(err, 400)
+    }
     return res.success(null, 200)
   })
 })

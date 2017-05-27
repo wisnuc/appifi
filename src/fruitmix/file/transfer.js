@@ -62,12 +62,14 @@ class Worker extends EventEmitter {
 
   error(e, ...args) {
     console.log('error',e)
+    this.state = 'WARNING'
     this.emit('error', e, ...args)
     this.finalize()
   }
 
   finish(data, ...args) {
     console.log('finish this task')
+    this.state = 'FINISHED'
     this.emit('finish', data, ...args)
     this.finalize()
   }
@@ -181,63 +183,63 @@ class Move extends Worker {
     console.log('start run new task')
     console.log(this.srcPath, this.dstPath)
     switch(modeType){
-      case 'FF':
-      case 'FE':
-        this.copy(err => {
+    case 'FF':
+    case 'FE':
+      this.copy(err => {
+        if(this.finished) return 
+        if(err) return this.error(err)
+        this.delete(err => {
           if(this.finished) return 
           if(err) return this.error(err)
-          this.delete(err => {
-            if(this.finished) return 
-            if(err) return this.error(err)
 
-            let srcNode = this.data.findNodeByUUID(this.src.path)
-            let dstNode = this.data.findNodeByUUID(this.dst.path)
-            if(srcNode){
-              if(srcNode.parent)
-                this.data.requestProbeByUUID(srcNode.parent.uuid)
-              else
-                this.data.requestProbeByUUID(srcNode.uuid)
-            }
-              
-            if(dstNode)
-              this.data.requestProbeByUUID(dstNode.uuid)
+          let srcNode = this.data.findNodeByUUID(this.src.path)
+          let dstNode = this.data.findNodeByUUID(this.dst.path)
+          if(srcNode){
+            if(srcNode.parent)
+              this.data.requestProbeByUUID(srcNode.parent.uuid)
+            else
+              this.data.requestProbeByUUID(srcNode.uuid)
+          }
             
-            return this.finish(this)//TODO probe
-          })
+          if(dstNode)
+            this.data.requestProbeByUUID(dstNode.uuid)
+          
+          return this.finish(this)//TODO probe
         })
-        break
-      case 'EF':
-        this.cleanXattr(err => {
-          if(this.finished) return 
-          if(err) return this.error(err)
-          this.move(err => {
-            if(this.finished) return 
-            if(err) return this.error(err)
-
-            let dstNode = this.data.findNodeByUUID(this.dst.path)
-            if(dstNode){
-              if(dstNode.parent)
-                this.data.requestProbeByUUID(dstNode.parent.uuid)
-              else                
-                this.data.requestProbeByUUID(dstNode.uuid)
-            }
-            return this.finish(this)
-          })
-        })
-        break
-      case 'EE':
+      })
+      break
+    case 'EF':
+      this.cleanXattr(err => {
+        if(this.finished) return 
+        if(err) return this.error(err)
         this.move(err => {
           if(this.finished) return 
           if(err) return this.error(err)
+
+          let dstNode = this.data.findNodeByUUID(this.dst.path)
+          if(dstNode){
+            if(dstNode.parent)
+              this.data.requestProbeByUUID(dstNode.parent.uuid)
+            else                
+              this.data.requestProbeByUUID(dstNode.uuid)
+          }
           return this.finish(this)
         })
+      })
+      break
+    case 'EE':
+      this.move(err => {
+        if(this.finished) return 
+        if(err) return this.error(err)
+        return this.finish(this)
+      })
     }
   }
 
   copy(callback) {
     // let srcpath = this.src.type === 'fruitmix' ? this.data.findNodeByUUID(path.basename(this.src.path)) : 
     // TODO to join ext path Jack
-    child.exec(`cp -r --reflink=auto ${ this.srcPath } ${ this.dstPath }`,(err, stdout, stderr) => {
+    child.exec(`cp -r --reflink=auto --preserve=xattr ${ this.srcPath } ${ this.dstPath }`,(err, stdout, stderr) => {
       if(err) return callback(err)
       if(stderr) return callback(stderr)
       return callback(null, stdout)
@@ -281,7 +283,7 @@ class Move extends Worker {
 
         func(dir, dirContext, entry, (entryContext) => {
           if (entryContext) {
-            visit(path.join(dir, entry), entryContext, func, () => {
+            this.visit(path.join(dir, entry), entryContext, func, () => {
               count--
               if (count === 0) done()
             })
@@ -390,8 +392,8 @@ class Transfer {
       })
       worker.on('error', worker => {
         worker.state = 'WARNING'
-        this.workersQueue.splice(this.workersQueue.indexOf(worker), 1)
-        this.warningQueue.push(worker)
+        // this.workersQueue.splice(this.workersQueue.indexOf(worker), 1)
+        // this.warningQueue.push(worker)
         this.schedule()
       })
       this.workersQueue.push(worker)
@@ -409,8 +411,8 @@ class Transfer {
       })
       worker.on('error', worker => {
         worker.state = 'WARNING'
-        this.workersQueue.splice(this.workersQueue.indexOf(worker), 1)
-        this.warningQueue.push(worker)
+        // this.workersQueue.splice(this.workersQueue.indexOf(worker), 1)
+        // this.warningQueue.push(worker)
         this.schedule()
       })
       this.workersQueue.push(worker)
@@ -419,8 +421,8 @@ class Transfer {
     })
   }
 
-  getWorkers (userUUID , callback) {
-    let data = this.workersQueue.filter(worker => worker.userUUID === userUUID)
+  getWorkers ({userUUID}, callback) {
+    let data = this.workersQueue.filter(worker => worker.userUUID === userUUID).map( w => ({ id: w.id, state: w.state}))
     process.nextTick(() => callback(null, data))
   }
 
@@ -458,8 +460,8 @@ const createMoveWorker = (src, dst, data, userUUID, callback) => {
 const createCopyWorker = (src, dst, data, userUUID, callback) => {
   let tmp = path.join(config.path, 'tmp') //TODO Get tmp folder Jack
   // if(fs.existsSync(src) && fs.existsSync(dst)) {
-    let worker = new Copy(src, dst, tmp, data)
-    return callback(null, worker)
+  let worker = new Copy(src, dst, tmp, data)
+  return callback(null, worker)
   // }
   // return callback(new Error('path not exists'))
 }
