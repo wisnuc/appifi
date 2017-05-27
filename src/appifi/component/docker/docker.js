@@ -12,9 +12,7 @@ import { dockerEventsAgent, DockerEvents } from './dockerEvents'
 import DockerStateObserver from './dockerStateObserver'
 import { AppInstallTask } from './dockerTasks'
 import { calcRecipeKeyString, appMainContainer, containersToApps } from '../../lib/utility'
-
-const dockerUrl = 'http://127.0.0.1:1688'
-const dockerPidFile = '/home/wisnuc/git/appifi/run/wisnuc/app/docker.pid'
+import { dockerUrl, dockerPidFile } from './config.js'
 
 let rootDir = null
 let appDataDir = null
@@ -33,7 +31,7 @@ let dockerStatus = {}
 **/
 const prepareDirs = async (dir) => {
 
-  await mkdirpAsync('/home/wisnuc/git/appifi/run/wisnuc/app')
+  await mkdirpAsync(path.dirname(dockerPidFile))
 
   rootDir = dir
   appDataDir = path.join(rootDir, 'appdata')

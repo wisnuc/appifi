@@ -6,6 +6,8 @@ let getPrependPath = require('./prependPath')
 let path = require('path')
 let process = require('process')
 
+const userListConfigPath = require('../fruitmix/cluster/config').path
+
 let prependPath = null
 
 // check & restart samba service
@@ -23,7 +25,7 @@ const uuidToUnixName = (uuid) =>
 // read infors from local file
 const getUserListAsync = async () => {
 
-  const userListConfigPath = path.join(getPrependPath(), '..', '/fruitmix/models/model.json')
+  // const userListConfigPath = path.join(getPrependPath(), '..', '/fruitmix/models/model.json')
   if(!fs.existsSync(userListConfigPath)) {
     console.log(userListConfigPath)
     throw Error('No Model.json Found!')

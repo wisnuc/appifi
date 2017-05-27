@@ -5,8 +5,7 @@ const Storage = require('./system/storage')
 
 const system = require('./system/index')
 const systemServer = require('./system/system')
-
-// const appifiInit = require('./appifi/index').appifiInit
+const appifiInit = require('./appifi/index').appifiInit
 
 const configFile = '/etc/wisnuc.json'
 const configTmpDir = '/etc/wisnuc/tmp'
@@ -14,13 +13,13 @@ const storageFile = '/run/wisnuc/storage'
 const storageTmpDir = '/run/wisnuc/tmp'
 
 const main = async () => {
+
 	// config should start before device, otherwise, barcelona init would fail.
   await Config.initAsync(configFile, configTmpDir)
   await Device.probeAsync()
   await Storage.initAsync(storageFile, storageTmpDir)
   await Boot.autoBootAsync()
-
-  // await appifiInit()
+  await appifiInit()
 
   systemServer(system)
 }
