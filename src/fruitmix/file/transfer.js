@@ -62,12 +62,14 @@ class Worker extends EventEmitter {
 
   error(e, ...args) {
     console.log('error',e)
+    this.state = 'WARNING'
     this.emit('error', e, ...args)
     this.finalize()
   }
 
   finish(data, ...args) {
     console.log('finish this task')
+    this.state = 'FINISHED'
     this.emit('finish', data, ...args)
     this.finalize()
   }
@@ -390,8 +392,8 @@ class Transfer {
       })
       worker.on('error', worker => {
         worker.state = 'WARNING'
-        this.workersQueue.splice(this.workersQueue.indexOf(worker), 1)
-        this.warningQueue.push(worker)
+        // this.workersQueue.splice(this.workersQueue.indexOf(worker), 1)
+        // this.warningQueue.push(worker)
         this.schedule()
       })
       this.workersQueue.push(worker)
@@ -409,8 +411,8 @@ class Transfer {
       })
       worker.on('error', worker => {
         worker.state = 'WARNING'
-        this.workersQueue.splice(this.workersQueue.indexOf(worker), 1)
-        this.warningQueue.push(worker)
+        // this.workersQueue.splice(this.workersQueue.indexOf(worker), 1)
+        // this.warningQueue.push(worker)
         this.schedule()
       })
       this.workersQueue.push(worker)
@@ -420,7 +422,7 @@ class Transfer {
   }
 
   getWorkers (userUUID , callback) {
-    let data = this.workersQueue.filter(worker => worker.userUUID === userUUID)
+    let data = this.workersQueue.filter(worker => worker.userUUID === userUUID).map( w => ({ id: w.id, state: w.state}))
     process.nextTick(() => callback(null, data))
   }
 
