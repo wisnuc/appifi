@@ -175,7 +175,7 @@ router.put('/overwrite/:dirUUID/:sha256', (req, res) => {
         return error(new Error('hash mismatch'))
 
       let args = { userUUID: user.uuid, src: tmpPath, dirUUID, name: filename , hash:sha256, check: false }
-      config.ipc.call('overwriteFile', args, (e, newNode) => {
+      config.ipc.call('overwriteFile', args, (err, newNode) => {
         if (err) return error(err)
         finish(newNode)
       })

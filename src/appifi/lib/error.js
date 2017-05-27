@@ -32,5 +32,10 @@ class HttpStatusError extends Error {
   }
 }
 
-export { HttpRequestError, HttpResponseError, JSONParserError, HttpStatusError }
+export {
+  HttpRequestError,
+  HttpResponseError,
+  JSONParserError,
+  HttpStatusError
+}
 

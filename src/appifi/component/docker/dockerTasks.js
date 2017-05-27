@@ -1,17 +1,16 @@
 import EventEmitter from 'events'
-
 import deepmerge from 'deepmerge'
 import UUID from 'node-uuid'
 
-import { storeState } from './reducers'
+import Debug from 'debug'
+const DOCKER_TASKS = Debug('APPIFI:DOCKER_TASKS')
+
 import pullImage from './pullImage'
 import { containerCreate, containerStart } from './dockerApi'
-import containerCreateDefaultOpts from './containerDefault'
+import DefaultParam from '../../lib/defaultParam'
+let containerDefaultOpts = new DefaultParam().getContainerDefault()
 
-import { calcRecipeKeyString, installAppifiLabel } from './dockerApps'
-function info(text) {
-  console.log(`[docker task] ${text}`)
-}
+import { calcRecipeKeyString, installAppifiLabel } from '../../lib/utility'
 
 class Task extends EventEmitter {
 
@@ -49,7 +48,7 @@ class ImageCreateTask extends Task {
   constructor(name, tag, parent) {
 
     super('imageCreate', `${name}:${tag}`, parent)
-    info(`imageCreate ${name}:${tag}`)
+    DOCKER_TASKS(`imageCreate ${name}:${tag}`)
     this.data = null
 
     pullImage(name, tag, (e, agent) => {
@@ -59,7 +58,7 @@ class ImageCreateTask extends Task {
         this.errno = e.errno
         this.message = e.message
         
-        info(`pullImage ${name}:${tag} failed (errno: ${e.errno}): ${e.message}`)
+        DOCKER_TASKS(`PullImage ${name}:${tag} failed (errno: ${e.errno}): ${e.message}`)
         this.emit('end')
       }
       else {
@@ -100,7 +99,7 @@ class AppInstallTask extends Task {
 
   constructor(recipe, appdataDir) {
 
-    info(`appInstall ${recipe.appname}`)
+    DOCKER_TASKS(`AppInstall ${recipe.appname}`)
     super('appInstall', `${recipe.appname}`, null)
 
     this.recipe = recipe
@@ -127,7 +126,7 @@ class AppInstallTask extends Task {
           this.errno = -1
           this.message = 'pullImage failed'
           this.status = 'stopped'
-          info(`appInstall ${this.recipe.appname} failed, pullImage failed`)
+          DOCKER_TASKS(`AppInstall ${this.recipe.appname} failed, pullImage failed`)
            
           return
         }
@@ -138,12 +137,12 @@ class AppInstallTask extends Task {
               this.errno = e.errno
               this.message = e.message
               console.error(e)
-              info(`appInstall ${this.recipe.appname} failed`)
+              DOCKER_TASKS(`AppInstall ${this.recipe.appname} failed`)
             }
             else {
               this.errno = 0
               this.message = null
-              info(`appInstall ${this.recipe.appname} success`)
+              DOCKER_TASKS(`AppInstall ${this.recipe.appname} success`)
             }
             this.status = 'stopped'
             this.emit('end', this)
@@ -152,7 +151,7 @@ class AppInstallTask extends Task {
             this.errno = e.errno
             this.message = e.message
             this.status = 'stopped'
-            info(`appInstall ${this.recipe.appname} failed (${e.errno}), ${e.message}`)
+            DOCKER_TASKS(`AppInstall ${this.recipe.appname} failed (${e.errno}), ${e.message}`)
             this.emit('end', this) 
           })
       })
@@ -184,10 +183,10 @@ class AppInstallTask extends Task {
     // in reverse order
     for (var i = this.jobs.length - 1; i >= 0; i--) {
       let job = this.jobs[i]
-      let opt = deepmerge(containerCreateDefaultOpts(), job.compo.config)
+      let opt = deepmerge(containerDefaultOpts, job.compo.config)
       opt.Image = `${job.compo.namespace}/${job.compo.name}`
       opt = this.processBinds(this.id, opt)
-      opt = this.processPortBindings(this.id, opt)     
+      opt = this.processPortBindings(this.id, opt)
 
       // opt.Labels['appifi-signature'] = this.id
       installAppifiLabel(opt.Labels, this.uuid, this.recipe)
@@ -210,7 +209,7 @@ class AppInstallTask extends Task {
     }
 
     let id = this.jobs[0].container.result.Id
-    info(`starting container ${id}`)
+    DOCKER_TASKS(`Starting container ${id}`)
     return containerStart(this.jobs[0].container.result.Id) 
   }
 

@@ -33,7 +33,7 @@ const libraryMigration = (libraryNode, callback) => {
     fs.readdir(devicePath, (err, files) => {
       if(err) return fs.rmdir(devicePath, err => callback())
       
-      // if(files.length === 0) FIXME
+      if(files.length === 0) return
 
       let count = files.length
       
