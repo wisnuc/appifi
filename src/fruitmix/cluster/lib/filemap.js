@@ -161,7 +161,7 @@ class SegmentUpdater extends EventEmitter{
   }
 
   removeListenerStream() {
-     if(this.stream) this.stream.removeListener('close', this.onStreamCloseEvent)
+    if(this.stream) this.stream.removeListener('close', this.onStreamCloseEvent)
   }
 
 
@@ -198,8 +198,8 @@ const updateSegmentAsync = async (userUUID, nodeUUID, segmentHash, start, taskId
     throw new E.EINVAL()
   }
   if(segments[start] === 1){
-    console.log('该段以上传')
-    throw new E.EEXISTS()
+    console.log('该段以上传', segments)
+    throw new E.EEXIST()
   }
   
   let segmentSize = attr.segmentsize
