@@ -239,7 +239,7 @@ class Move extends Worker {
   copy(callback) {
     // let srcpath = this.src.type === 'fruitmix' ? this.data.findNodeByUUID(path.basename(this.src.path)) : 
     // TODO to join ext path Jack
-    child.exec(`cp -r --reflink=auto ${ this.srcPath } ${ this.dstPath }`,(err, stdout, stderr) => {
+    child.exec(`cp -r --reflink=auto --preserve=xattr ${ this.srcPath } ${ this.dstPath }`,(err, stdout, stderr) => {
       if(err) return callback(err)
       if(stderr) return callback(stderr)
       return callback(null, stdout)
