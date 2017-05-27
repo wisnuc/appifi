@@ -215,13 +215,17 @@ class Move extends Worker {
         this.move(err => {
           if(this.finished) return 
           if(err) return this.error(err)
-
+          console.log('开始准备probe')
           let dstNode = this.data.findNodeByUUID(this.dst.path)
           if(dstNode){
-            if(dstNode.parent)
+            if(dstNode.parent){
+              console.log('开始probe ---->>　Node。parent',dstNode.parent.uuid)
               this.data.requestProbeByUUID(dstNode.parent.uuid)
-            else                
+            }
+            else{                
+              console.log('开始probe ---->>　Node。uuid',dstNode.uuid)
               this.data.requestProbeByUUID(dstNode.uuid)
+            }
           }else
             console.log('未找到Ｎｏｄｅ ,　取消　probe')
           return this.finish(this)
