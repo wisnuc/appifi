@@ -181,56 +181,56 @@ class Move extends Worker {
     console.log('start run new task')
     console.log(this.srcPath, this.dstPath)
     switch(modeType){
-      case 'FF':
-      case 'FE':
-        this.copy(err => {
+    case 'FF':
+    case 'FE':
+      this.copy(err => {
+        if(this.finished) return 
+        if(err) return this.error(err)
+        this.delete(err => {
           if(this.finished) return 
           if(err) return this.error(err)
-          this.delete(err => {
-            if(this.finished) return 
-            if(err) return this.error(err)
 
-            let srcNode = this.data.findNodeByUUID(this.src.path)
-            let dstNode = this.data.findNodeByUUID(this.dst.path)
-            if(srcNode){
-              if(srcNode.parent)
-                this.data.requestProbeByUUID(srcNode.parent.uuid)
-              else
-                this.data.requestProbeByUUID(srcNode.uuid)
-            }
-              
-            if(dstNode)
-              this.data.requestProbeByUUID(dstNode.uuid)
+          let srcNode = this.data.findNodeByUUID(this.src.path)
+          let dstNode = this.data.findNodeByUUID(this.dst.path)
+          if(srcNode){
+            if(srcNode.parent)
+              this.data.requestProbeByUUID(srcNode.parent.uuid)
+            else
+              this.data.requestProbeByUUID(srcNode.uuid)
+          }
             
-            return this.finish(this)//TODO probe
-          })
+          if(dstNode)
+            this.data.requestProbeByUUID(dstNode.uuid)
+          
+          return this.finish(this)//TODO probe
         })
-        break
-      case 'EF':
-        this.cleanXattr(err => {
-          if(this.finished) return 
-          if(err) return this.error(err)
-          this.move(err => {
-            if(this.finished) return 
-            if(err) return this.error(err)
-
-            let dstNode = this.data.findNodeByUUID(this.dst.path)
-            if(dstNode){
-              if(dstNode.parent)
-                this.data.requestProbeByUUID(dstNode.parent.uuid)
-              else                
-                this.data.requestProbeByUUID(dstNode.uuid)
-            }
-            return this.finish(this)
-          })
-        })
-        break
-      case 'EE':
+      })
+      break
+    case 'EF':
+      this.cleanXattr(err => {
+        if(this.finished) return 
+        if(err) return this.error(err)
         this.move(err => {
           if(this.finished) return 
           if(err) return this.error(err)
+
+          let dstNode = this.data.findNodeByUUID(this.dst.path)
+          if(dstNode){
+            if(dstNode.parent)
+              this.data.requestProbeByUUID(dstNode.parent.uuid)
+            else                
+              this.data.requestProbeByUUID(dstNode.uuid)
+          }
           return this.finish(this)
         })
+      })
+      break
+    case 'EE':
+      this.move(err => {
+        if(this.finished) return 
+        if(err) return this.error(err)
+        return this.finish(this)
+      })
     }
   }
 
@@ -281,7 +281,7 @@ class Move extends Worker {
 
         func(dir, dirContext, entry, (entryContext) => {
           if (entryContext) {
-            visit(path.join(dir, entry), entryContext, func, () => {
+            this.visit(path.join(dir, entry), entryContext, func, () => {
               count--
               if (count === 0) done()
             })
@@ -458,8 +458,8 @@ const createMoveWorker = (src, dst, data, userUUID, callback) => {
 const createCopyWorker = (src, dst, data, userUUID, callback) => {
   let tmp = path.join(config.path, 'tmp') //TODO Get tmp folder Jack
   // if(fs.existsSync(src) && fs.existsSync(dst)) {
-    let worker = new Copy(src, dst, tmp, data)
-    return callback(null, worker)
+  let worker = new Copy(src, dst, tmp, data)
+  return callback(null, worker)
   // }
   // return callback(new Error('path not exists'))
 }
