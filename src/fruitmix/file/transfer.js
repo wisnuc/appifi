@@ -421,7 +421,7 @@ class Transfer {
     })
   }
 
-  getWorkers (userUUID , callback) {
+  getWorkers ({userUUID}, callback) {
     let data = this.workersQueue.filter(worker => worker.userUUID === userUUID).map( w => ({ id: w.id, state: w.state}))
     process.nextTick(() => callback(null, data))
   }
