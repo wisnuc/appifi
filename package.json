@@ -16,8 +16,8 @@
     "fruit-unit": "NODE_PATH=. mocha --compilers js:babel-core/register --recursive --sort test/fruitmix/unit",
     "fruit-algo": "NODE_PATH=. NODE_ENV=test mocha --compilers js:babel-core/register --recursive --sort test/fruitmix/algo",
     "fruit-agent": "NODE_PATH=. NODE_ENV=test mocha --compilers js:babel-core/register --recursive --sort test/fruitmix/agent",
-    "mochamon": "NODE_ENV=test nodemon --exec mocha --compilers js:babel-core/register --recursive --sort",
-    "mocha": "NODE_ENV=test mocha --compilers js:babel-core/register --recursive --sort",
+    "mochamon": "nodemon --exec \"NODE_ENV=test NODE_PATH=. mocha\" --compilers js:babel-core/register --recursive --sort",
+    "mocha": "NODE_PATH=. NODE_ENV=test mocha --compilers js:babel-core/register --recursive --sort",
     "lyc": "NODE_ENV=test nyc --reporter=lcov --reporter=text mocha --compilers js:babel-core/register",
     "lycmon": "NODE_ENV=test nodemon --exec nyc --reporter=lcov --reporter=text mocha --compilers js:babel-core/register"
   },
@@ -87,6 +87,7 @@
     "eslint": "^2.10.2",
     "eslint-plugin-react": "^5.1.1",
     "file-loader": "^0.9.0",
+    "file-type": "^4.3.0",
     "istanbul": "^0.4.5",
     "material-ui": "^0.17.0",
     "mocha": "^2.5.3",
@@ -100,8 +101,10 @@
     "react-addons-css-transition-group": "^15.4.2",
     "react-dom": "^15.4.2",
     "react-tap-event-plugin": "^2.0.0",
+    "read-chunk": "^2.0.0",
     "sinon": "^1.17.4",
     "supertest": "^2.0.0",
+    "uuid": "^3.0.1",
     "webpack": "^1.12.14"
   }
 }

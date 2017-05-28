@@ -1,10 +1,31 @@
-import path from 'path'
-import fs from 'fs'
-import child from 'child_process'
+/*
+ *  Copyright 2017 Shanghai Wisnuc Incorporated. All rights reserved.
+ *
+ *  This file is part of Wisnuc Fruitmix software.
+ *
+ *  Wisnuc Fruitmix is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  Wisnuc Fruitmix is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Wisnuc Fruitmix.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
-import xattr from 'fs-xattr'
-import UUID from 'node-uuid'
-import validator from 'validator'
+const path = require('path')
+const fs = require('fs')
+const child = require('child_process')
+
+const xattr = require('fs-xattr')
+const UUID = require('uuid')
+const validator = require('validator')
+
+const filetype = require('../lib/filetype')
 
 import E from '../lib/error'
 import _ from '../lib/async'
@@ -33,7 +54,16 @@ const fileMagic = (target, callback) =>
     ? callback(err) 
     : callback(null, parseMagic(stdout.toString())))
 
-const fileMagicAsync = Promise.promisify(fileMagic)
+const fileMagic2 = (target, callback) => 
+  filetype(target, (err, type) => {
+    if (err) return callback(err)
+    if (type && type.ext === 'jpg')
+      return callback(null, 'JPEG')
+    else
+      return callback(null, UNINTERESTED_MAGIC_VERSION)
+  })
+
+const fileMagicAsync = Promise.promisify(fileMagic2)
 
 const readTimeStamp = (target, callback) =>
   fs.lstat(target, (err, stats) => err 

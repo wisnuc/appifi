@@ -1,6 +1,6 @@
 import path from 'path'
 import fs from 'fs'
-import UUID from 'node-uuid'
+import UUID from 'uuid'
 import xattr from 'fs-xattr'
 import validator from 'validator'
 
@@ -49,7 +49,6 @@ describe(path.basename(__filename) + ' readTimeStamp', () => {
       await rimrafAsync(tmptest) 
       await mkdirpAsync(tmptest)
     })
-
 
 		it('should read timestamp', done => 
       fs.stat(tmpdir, (err, stats) => 
