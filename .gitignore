@@ -71,3 +71,5 @@ _docpress/
 # IDE webstorm
 .idea/
 example/
+
+out/

@@ -27,11 +27,12 @@ const validator = require('validator')
 
 const filetype = require('../lib/filetype')
 
-import E from '../lib/error'
-import _ from '../lib/async'
+import E from '../lib/error'  // TODO
+import _ from '../lib/async'  // TODO
 
-import { isUUID, isSHA256 } from '../lib/types'
+import { isUUID, isSHA256 } from '../lib/types' // TODO
 
+// TODO
 const isNonNullObject = obj => typeof obj === 'object' && obj !== null
 
 // constants
@@ -65,12 +66,23 @@ const fileMagic2 = (target, callback) =>
 
 const fileMagicAsync = Promise.promisify(fileMagic2)
 
+/**
+ * Return timestamp (mtime)
+ *
+ *
+ */
 const readTimeStamp = (target, callback) =>
   fs.lstat(target, (err, stats) => err 
     ? callback(err) 
     : callback(null, stats.mtime.getTime()))
 
 // async version of readXstat, simpler to implement than callback version
+
+/**
+ * Read xstat (xattr + fs.lstat) from target
+ *
+ * 
+ */
 const readXstatAsync = async (target, raw) => {
 
   let dirty = false, attr
@@ -79,6 +91,7 @@ const readXstatAsync = async (target, raw) => {
   let stats = await fs.lstatAsync(target)
   if (!stats.isDirectory() && !stats.isFile()) throw new E.ENOTDIRFILE()
 
+  // retrieve attr
   try {
     // may throw xattr ENOENT or JSON SyntaxError
     attr = JSON.parse(await xattr.getAsync(target, FRUITMIX))
