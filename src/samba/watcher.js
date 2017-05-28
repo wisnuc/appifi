@@ -7,12 +7,14 @@ let getPrependPath = require('./prependPath')
 
 const userListConfigPath = require('../fruitmix/cluster/config').path
 
+let DEBOUNCE_TIME = require('./config').DEBOUNCE_TIME
+
 Promise.promisifyAll(fs)
 
-let debounceTime = 5000 // millisecond
+// let debounceTime = 5000 // millisecond
 
 const startWatchAsync = async () => {
-  let handler = new SambaManager(debounceTime)
+  let handler = new SambaManager(DEBOUNCE_TIME)
 
   // const userListConfigPath = path.join(getPrependPath(), '..', '/fruitmix/models/model.json')
   if(!fs.existsSync(userListConfigPath)) {

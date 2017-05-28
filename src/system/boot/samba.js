@@ -59,6 +59,8 @@ const fork = cfs => {
   let froot = path.join(cfs.mountpoint, 'wisnuc', 'samba')
   let modpath = path.resolve(__dirname, '../../samba/samba')
 
+  console.log(modpath)
+
 	console.log(`Forking samba, waiting for 120s before timeout`)
 
   return new Samba(child.fork(modpath, ['--path', froot], { 

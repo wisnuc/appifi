@@ -1,7 +1,7 @@
 let dgram = require('dgram')
 let SmbAudit = require('./sambaAudit')
-
-const defaultPort = 3721
+let DEFAULT_PORT = require('./config').DEFAULT_PORT
+// const defaultPort = 3721
 
 const createUdpServer = (callback) => {
 
@@ -17,7 +17,7 @@ const createUdpServer = (callback) => {
     }
   })
 
-  udp.bind(defaultPort)
+  udp.bind(DEFAULT_PORT)
 }
 
 module.exports = createUdpServer

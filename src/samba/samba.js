@@ -1,7 +1,6 @@
 let fs = require('fs')
 let child = require('child_process')
 
-// let getPrependPath = require('./prependPath')
 let createUdpServer = require('./udpServer')
 let updateSambaFilesAsync = require('./updateSamba')
 let { startWatchAsync } = require('./watcher')
@@ -22,7 +21,7 @@ let process = require('process')
 //   throw Error('No Model.json Found!')
 // }
 
-let debounceTime = 5000 // millisecond
+// let debounceTime = 5000 // millisecond
 
 const initSambaAsync = async () => {
   const logConfigPath = '/etc/rsyslog.d/99-smbaudit.conf'
