@@ -5,8 +5,6 @@ let process = require('process')
 let SambaManager = require('./sambaManager')
 let getPrependPath = require('./prependPath')
 
-const userListConfigPath = require('../fruitmix/cluster/config').path
-
 let DEBOUNCE_TIME = require('./config').DEBOUNCE_TIME
 
 Promise.promisifyAll(fs)
@@ -16,7 +14,7 @@ Promise.promisifyAll(fs)
 const startWatchAsync = async () => {
   let handler = new SambaManager(DEBOUNCE_TIME)
 
-  // const userListConfigPath = path.join(getPrependPath(), '..', '/fruitmix/models/model.json')
+  const userListConfigPath = path.join(getPrependPath(), '..', '/fruitmix/models/model.json')
   if(!fs.existsSync(userListConfigPath)) {
     console.log(userListConfigPath)
     throw Error('No Model.json Found!')
