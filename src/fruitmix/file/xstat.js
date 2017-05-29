@@ -288,6 +288,15 @@ const readXstatAsync = async target => {
 }
 
 /**
+callback version of readXstatAsync
+@func readXstat
+@param {string} target - absolute path for file or dir
+@param {function} callback
+*/
+const readXstat = (target, callback) => readXstatAsync(target).asCallback(callback)
+
+
+/**
 Forcefully set xattr with given uuid and/or hash. 
 
 This function should only be used for:
@@ -318,14 +327,6 @@ const forceXstatAsync = async (target, { uuid, hash }) => {
   attr = await updateXattrAsync(target, attr, isFile)
   return createXstat(target, stats, attr)
 }
-
-/**
-callback version of readXstatAsync
-@func readXstat
-@param {string} target - absolute path for file or dir
-@param {function} callback
-*/
-const readXstat = (target, callback) => readXstatAsync(target).asCallback(callback)
 
 /**
 Update file hash
