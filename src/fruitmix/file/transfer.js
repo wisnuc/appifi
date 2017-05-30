@@ -195,7 +195,7 @@ class Move extends Worker {
           let srcNode = this.data.findNodeByUUID(this.src.path)
           let dstNode = this.data.findNodeByUUID(this.dst.path)
           if(srcNode){
-            if(srcNode.parent)
+            if(srcNode.parent && srcNode.parent.uuid)
               this.data.requestProbeByUUID(srcNode.parent.uuid)
             else
               this.data.requestProbeByUUID(srcNode.uuid)
@@ -215,14 +215,19 @@ class Move extends Worker {
         this.move(err => {
           if(this.finished) return 
           if(err) return this.error(err)
-
+          console.log('开始准备probe')
           let dstNode = this.data.findNodeByUUID(this.dst.path)
           if(dstNode){
-            if(dstNode.parent)
+            if(dstNode.parent && dstNode.parent.uuid){
+              console.log('开始probe ---->>　Node。parent',dstNode.parent.uuid)
               this.data.requestProbeByUUID(dstNode.parent.uuid)
-            else                
+            }
+            else{                
+              console.log('开始probe ---->>　Node。uuid',dstNode.uuid)
               this.data.requestProbeByUUID(dstNode.uuid)
-          }
+            }
+          }else
+            console.log('未找到Ｎｏｄｅ ,　取消　probe')
           return this.finish(this)
         })
       })
@@ -237,8 +242,6 @@ class Move extends Worker {
   }
 
   copy(callback) {
-    // let srcpath = this.src.type === 'fruitmix' ? this.data.findNodeByUUID(path.basename(this.src.path)) : 
-    // TODO to join ext path Jack
     child.exec(`cp -r --reflink=auto --preserve=xattr ${ this.srcPath } ${ this.dstPath }`,(err, stdout, stderr) => {
       if(err) return callback(err)
       if(stderr) return callback(stderr)
@@ -247,7 +250,6 @@ class Move extends Worker {
   }
 
   delete(callback) {
-    // TODO  join Path Jack
     child.exec(`rm -rf ${ this.srcPath }`, (err, stdout, stderr) => {
       if(err) return callback(err)
       if(stderr) return callback(stderr)
