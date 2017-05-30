@@ -1,8 +1,25 @@
-import child from 'child_process'
-import E from '../lib/error'
+const child = require('child_process')
+const E = require('./error')
 
-// cmd must be a string
-// args must be a string array
+/**
+Exports a single function for running command.
+
+@module command
+*/
+
+/**
+`command` is a simple version of state-machine based worker class.
+
+It uses `child.spawn` internally and return an abort function. When aborting, a `EABORT` error is returned via callback function. This behavior is consistent with that of worker class.
+
+For running a shell command where `child.exec` is not applicable and worker class overkills, `command` is the right choice.
+
+@function command
+@param {string} cmd - command
+@param {string[]} args - command args
+@param {function} callback - `(err, 
+@returns {function} abort function, can be used to abort this command.
+*/
 const command = (cmd, args, callback) => {
 
   let output, h, finished = false
@@ -22,11 +39,4 @@ const command = (cmd, args, callback) => {
   return () => !finished && error(new E.EABORT())
 }
 
-export default command
-
-
-
-
-
-
-
+module.exports = command

@@ -467,20 +467,17 @@ class FileService {
     // ipc.register('createFileCheck', this.createFileCheck.bind(this))
 
     // ipc.register('createFile', this.createFile.bind(this))
-    ipc.register('createFile', (args, callback) => 
-      this.createFileAsync(args).asCallback(callback))
-    ipc.register('createLibraryFile', (args, callback) =>
-       this.createLibraryFileAsync(args).asCallback(callback))
+    ipc.register('createFile', (args, callback) => this.createFileAsync(args).asCallback(callback))
+    ipc.register('createLibraryFile', (args, callback) => this.createLibraryFileAsync(args).asCallback(callback))
     ipc.register('rename', (args, callback) => this.renameAsync(args).asCallback(callback))
     ipc.register('createDirectory', (args, callback) => this.createDirectory(args).asCallback(callback))
-    ipc. register('overwriteFile', (args, callback) => this.overwriteFileAsync(args).asCallback(callback))
+    ipc.register('overwriteFile', (args, callback) => this.overwriteFileAsync(args).asCallback(callback))
     ipc.register('list', (args, callback) => this.list(args).asCallback(callback))
     ipc.register('navList', (args, callback) => this.navList(args).asCallback(callback))
     ipc.register('tree', (args, callback) => this.tree(args).asCallback(callback))
     ipc.register('navTree', (args, callback) => this.navTree(args).asCallback(callback))
     ipc.register('readFile', (args, callback) => this.readFile(args).asCallback(callback))
     ipc.register('del', (args, callback) => this.del(args).asCallback(callback))
-
     ipc.register('printFiles', this.printFiles.bind(this)) 
   }
 }

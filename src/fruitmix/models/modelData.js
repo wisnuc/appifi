@@ -1,13 +1,15 @@
-import fs from 'fs'
-import EventEmitter from 'events'
-import UUID from 'node-uuid'
-import E from '../lib/error'
-import path from 'path'
-import deepFreeze from 'deep-freeze'
-import { isUUID } from '../lib/types'
+const path = require('path')
+const fs = Promise.promisify(require('fs'))
+const EventEmitter = require('events')
+
+const UUID = require('uuid')
+const deepFreeze = require('deep-freeze')
+const E = require('../lib/error')
+
+const { isUUID } = require('../lib/is')
 
 
-/**
+/*
   data integrity (stateless)
 {
   type: 'local'
@@ -56,13 +58,29 @@ a friends: [],      // uuid array, each uuid is a remote user, no dup
   service:        // uuid, exclusive
   
 }
-**/ 
+*/ 
 
+/**
+Model Data encapsulates data integrity and persistence.
+
+@module ModelData
+*/
+
+
+/**
+Throw an error with given message if given predicate evaluates to false 
+
+@function assert
+@param {*} predicate - an expression that should evaluates to true
+@param {string} message - message 
+*/
 const assert = (predicate, message) => {
-  if (!predicate)
-    throw new Error(message);
+  if (!predicate) throw new Error(message);
 }
 
+/**
+
+*/
 const unique = arr => new Set(arr).size === arr.length
 
 const isUniqueUUIDArray = arr => unique(arr)
@@ -251,8 +269,14 @@ const invariantUpdatePublicDrive = (p, c) =>
     'type', 'uuid'
   ])
 
+/**
+*/
 class ModelData extends EventEmitter {
 
+  /**
+  @param {string} modelPath - model file path
+  @param {string} tmpDir - temp file directory
+  */
   constructor(modelPath, tmpDir) {
 
     super()

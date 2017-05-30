@@ -1,12 +1,11 @@
-import path from 'path'
-import fs from 'fs'
+const path = require('path')
+const fs = require('fs')
 
-import Promise from 'bluebird'
-import express from 'express'
-import favicon from 'serve-favicon'
-import logger from 'morgan'
-import bodyParser from 'body-parser'
+const express = require('express')
+const logger = require('morgan')
+const bodyParser = require('body-parser')
 
+/**
 import auth from './middleware/auth'
 import init from './routes/init'
 import users from './routes/users'
@@ -18,29 +17,17 @@ import drives from './routes/drives'
 import libraries from './routes/libraries'
 import media from './routes/media'
 import mediashare from './routes/mediashare'
-// import samba from './routes/samba'
-
-import winsun from './routes/winsun'
+**/
 
 let app = express()
 
-let env = app.get('env')
-if (env !== 'production' && env !== 'development' && env !== 'test') {
-  console.log('[fruitmix] Unrecognized NODE_ENV string: ' + env +', exit')
-  process.exit(1)
-} else {
-  console.log('[fruitmix] NODE_ENV is set to ' + env)
-}
-
-app.use(logger('dev', {
-  skip: (req, res) => res.nolog === true
-}))
-
+app.use(logger('dev', { skip: (req, res) => res.nolog === true }))
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: false }))
+
 app.use(auth.init())
 
-app.use(express.static(path.join(__dirname, 'public')))
+/**
 app.use('/init', init)
 app.use('/login', login)
 
@@ -55,15 +42,8 @@ app.use('/meta', meta)
 app.use('/share', share)
 app.use('/media', media)
 app.use('/mediashare', mediashare)
-
 app.use('/authtest', require('./routes/authtest'))
-// app.use('/samba', samba)
-app.use('/winsun', winsun)
-
-// app.use('/library', require('./routes/library'))
-// app.use('/mediashare', require('./routes/mediashare'))
-
-// app.use(multer({ dest:'/data/fruitmix/files' }).any())
+**/
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
