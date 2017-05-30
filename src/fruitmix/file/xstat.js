@@ -16,41 +16,86 @@
  *  You should have received a copy of the GNU General Public License
  *  along with Wisnuc Fruitmix.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 const path = require('path')
-const fs = require('fs')
+const fs = Promise.promisifyAll(require('fs'))
 const child = require('child_process')
 
-const xattr = require('fs-xattr')
+const xattr = Promise.promisifyAll(require('fs-xattr'))
 const UUID = require('uuid')
 const validator = require('validator')
 
 const filetype = require('../lib/filetype')
 
-import E from '../lib/error'  // TODO
-import _ from '../lib/async'  // TODO
+// import E from '../lib/error'  // TODO
+// import _ from '../lib/async'  // TODO
 
-import { isUUID, isSHA256 } from '../lib/types' // TODO
+const E = require('../lib/error')
+
+// import { isUUID, isSHA256 } from '../lib/types' // TODO
+const isUUID = function(uuid) { return typeof uuid === 'string' && validator.isUUID(uuid) }
+const isSHA256 = function(hash) { return /[a-f0-9]{64}/.test(hash) }
 
 /** 
- * Xstat is something ...
- *
- * @module xstat 
- * @description
+### Overview
 
-### 
-#### Member
-+ 1
-+ 2
+#### xattr
 
- * 
- */
+Fruitmix uses linux file system specific **extended attributes** (xattr) to store information for regular files and directories.
 
-/** @constant {string} FRUITMIX **/
+xattr stores information as key value pair. 
+
+Fruitmix use `user.fruitmix` as key, where `user` is namespace and a dot must be used as separator.
+
+An object is stored as json string in xattr value.
+
+The object has a uuid for both files and directories.
+
++ uuid: a uuid string
+
+For files, the object has extra properties:
+
++ hash: file hash in hex string (sha256)
++ htime: timestamp in number (mtime.getTime()), used to detect outdated hash
++ magic: string | version number
+
+magic is mandatory. hash and htime is optional, but they must exist together.
+
+magic is either a string representing a file type, or a number representing a version.
+
+For example, in version 0, only 'JPEG' file type is supported. If a file is a JPEG file, the magic string is set to 'JPEG', and if it is a PNG file, it is set to 0.
+
+When PNG is supported in version 1. An old file with magic set to 0 will be re-examined. If it is a PNG file, the magic will be set to 'PNG'. If not, the magic is set to 1 to prevent it from being examined again. The JPEG file will not be influenced.
+
+#### xstat
+
+`xstat` is an mixin object from file path, `fs.stats`, and xattr object.
+
+```javascript
+xstat (dir) {
+  uuid: 'uuid string',
+  type: 'directory',
+  name: 'directory name',
+  mtime: stats.mtime.getTime()
+}
+
+xstat (file) {
+  uuid: 'uuid string',
+  type: 'file',
+  name: 'file name',
+  mtime: stats.mtime.getTime(),
+  size: stats.size,
+  magic: 'string or number',
+  hash: 'file hash, optional' 
+}
+```
+
+@module xstat 
+*/
+
+/** @constant {string} FRUITMIX - `user.fruitmix`, xattr key **/
 const FRUITMIX = 'user.fruitmix'
 
-/** @constant {number} MAGICVER - 
-bump version when more file type supported **/
+/** @constant {number} MAGICVER - bump version for magic **/
 const MAGICVER = 0
 
 /** @func isNonNullObject **/
@@ -66,9 +111,7 @@ Parse file magic output to magic
 @param {string} text
 @returns {(string|number)}
 */
-const parseMagic = text => text.startsWith('JPEG image data') 
-  ? 'JPEG' 
-  : MAGICVER
+const parseMagic = text => text.startsWith('JPEG image data') ? 'JPEG' : MAGICVER
 
 /**
 Return magic by file magic
@@ -143,7 +186,9 @@ Tests:
 
 @method readXattrAsync
 @param {string} target - absolute path
+@param {object} stats - `fs.stats` object for target
 @returns {object} - `{attr, dirty}`, dirty available iff attr defined.
+@public
 */
 const readXattrAsync = async (target, stats) => {
 
@@ -274,6 +319,7 @@ Tests:
 @func readXstatAsync
 @param {string} target - absolute path
 @returns {object} - xstat object
+@alias xstat.readXstatAsync
 */
 const readXstatAsync = async target => {
 
@@ -294,7 +340,6 @@ callback version of readXstatAsync
 @param {function} callback
 */
 const readXstat = (target, callback) => readXstatAsync(target).asCallback(callback)
-
 
 /**
 Forcefully set xattr with given uuid and/or hash. 
@@ -354,7 +399,10 @@ const updateFileHashAsync = async (target, uuid, hash, htime) => {
   return createXstat(target, stats, attr)
 }
 
-// this function is used when init drive
+/**
+@func forceDriveXstatAsync
+@deprecated
+*/
 const forceDriveXstatAsync = async (target, driveUUID) => {
 
   let attr = { uuid: driveUUID }
@@ -365,24 +413,35 @@ const forceDriveXstatAsync = async (target, driveUUID) => {
 /**
 callback version of updateFileHashAsync
 @func updateFileHash
+@param {string} target - absolute path
+@param {string} uuid - file uuid
+@param {string} hash - file hash
+@param {number} htime - timestamp before calculating file hash
+@param {function} callback - `(err, xstat) => {}`
 */
 const updateFileHash = (target, uuid, hash, htime, callback) =>
   updateFileHashAsync(target, uuid, hash, htime).asCallback(callback)
 
+/** 
+@func forceDriveXstat
+@deprecated
+*/
 const forceDriveXstat = (target, driveUUID, callback) => 
   forceDriveXstatAsync(target, driveUUID).asCallback(callback) 
 
-export { 
+module.exports = { 
 
   readTimeStamp,
   readXstat,
   readXstatAsync,
   updateFileHash,
   updateFileHashAsync,
-  forceDriveXstat,
-  forceDriveXstatAsync,
+  forceDriveXstat,        // deprecated
+  forceDriveXstatAsync,   // deprecated
 
   // testing only
   parseMagic,
   fileMagic,
 }
+
+
