@@ -340,11 +340,16 @@ class Copy extends Worker {
     }
   }
 
+  setTmpPath() {
+    this.tmpPath = path.join(this.tmp, this.id)
+  }
+
   setPath(callback) {
     this.setSrcPath().asCallback(e => {
       if(e) return callback(e)
       this.setDstPath().asCallback(e => {
         if(e) return callback(e)
+        this.setTmpPath()
         return callback()
       })
     })
@@ -381,7 +386,7 @@ class Copy extends Worker {
     this.copy(err => {
       if(this.finished) return 
       if(err) return  this.error(err)
-      fs.rename(this.tmp, this.dstPath, err => {
+      fs.rename(this.tmpPath, this.dstPath, err => {
         if(this.finished) return 
         if(err) return  this.error(err)
         if(modeType === 'FF') {
@@ -415,7 +420,7 @@ class Copy extends Worker {
   }
 
   copy(callback) {
-    child.exec(`cp -r --reflink=auto ${ this.srcPath } ${ this.tmp }`,(err, stdout, stderr) => {
+    child.exec(`cp -r --reflink=auto ${ this.srcPath } ${ this.tmpPath }`,(err, stdout, stderr) => {
       if(err) return callback(err)
       if(stderr) return callback(stderr)
       return callback(null, stdout)
