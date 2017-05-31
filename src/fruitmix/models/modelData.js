@@ -50,12 +50,12 @@ a friends: [],      // uuid array, each uuid is a remote user, no dup
 {
   type: 'remote',
   
-  uuid:         // uuid, unique
-  username:       // string
-  email:        // null
-  avatar:         // null
+  uuid:             // uuid, unique
+  username:         // string
+  email:            // null
+  avatar:           // null
   
-  service:        // uuid, exclusive
+  service:          // uuid, exclusive
   
 }
 */ 

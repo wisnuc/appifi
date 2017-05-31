@@ -52,4 +52,3 @@ define('ENODEDETACHED', 'node is detached')   //
 
 module.exports = Object.freeze(E)
 
-

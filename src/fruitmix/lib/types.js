@@ -1,4 +1,4 @@
-import validator from 'validator'
+const validator = require('validator')
 import deepEqual from 'deep-equal'
 
 const isUUID = uuid => typeof uuid === 'string' && validator.isUUID(uuid)
