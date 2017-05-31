@@ -1,19 +1,7 @@
 const dockerUrl = 'http://127.0.0.1:1688'
-
-const dockerPidFile = '/home/wisnuc/git/appifi/run/wisnuc/app/docker.pid'
-
-const modelJsonPath = ['path'].reduce((acc, c) => {
-    Object.assign(acc, { [c] : argv(c) }), {}
-  }
-)
+let DOCKER_PID_FILE
 
 export {
   dockerUrl,
-  dockerPidFile,
-  modelJsonPath,
+  DOCKER_PID_FILE,
 }
-
-
-  // console.log('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>')
-  // console.log(mpath)
-  // console.log('<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<')

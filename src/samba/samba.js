@@ -8,6 +8,9 @@ let createUdpServer = require('./udpServer')
 let updateSambaFilesAsync = require('./updateSamba')
 let { startWatchAsync } = require('./watcher')
 
+const LOG_CONFIG_PATH = require('./config').LOG_CONFIG_PATH
+const LOG_CONFIG = require('./config').LOG_CONFIG
+
 Promise.promisifyAll(fs)
 Promise.promisifyAll(child)
 
@@ -15,14 +18,12 @@ let path = require('path')
 let process = require('process')
 
 const initSambaAsync = async () => {
-  const logConfigPath = '/etc/rsyslog.d/99-smbaudit.conf'
-  const logConfig = 'LOCAL7.*    @127.0.0.1:3721'
 
   // update rsyslog config if necessary
-  let config = await fs.readFileAsync(logConfigPath)
+  let config = await fs.readFileAsync(LOG_CONFIG_PATH)
 
-  if (config !== logConfig) {
-    await fs.writeFileAsync(logConfigPath, logConfig)  
+  if (config !== LOG_CONFIG) {
+    await fs.writeFileAsync(LOG_CONFIG_PATH, LOG_CONFIG)  
     await child.execAsync('systemctl restart rsyslog')
   }
 
