@@ -332,7 +332,7 @@ class Copy extends Worker {
     let dstType = this.dst.type === 'fruitmix'
     if(!dstType){
       let dpath = await rootPathAsync('fs', this.dst.rootPath)
-      this.dstPath = path.join(dpath, this.dst.path)
+      this.dstPath = path.join(dpath, this.dst.path, path.basename(this.srcPath))
       return this.dstPath
     }else{
       this.dstPath = path.join(this.data.findNodeByUUID(this.dst.path).abspath(), path.basename(this.srcPath))
@@ -377,6 +377,8 @@ class Copy extends Worker {
 
     this.setPath(e => {
       if(e) return this.error(e)
+      console.log('DST:   ', this.dstPath)
+      console.log('SRC:   ', this.srcPath)
       if(this.dstPath.indexOf(this.srcPath) !== -1) return this.error(new Error('dst could not be child of src'))
       this.work(modeType)
     })
