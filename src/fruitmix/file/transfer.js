@@ -388,7 +388,7 @@ class Copy extends Worker {
     this.copy(err => {
       if(this.finished) return 
       if(err) return  this.error(err)
-      fs.rename(this.tmpPath, this.dstPath, err => {
+      this.move(err => {
         if(this.finished) return 
         if(err) return  this.error(err)
         if(modeType === 'FF') {
@@ -429,6 +429,13 @@ class Copy extends Worker {
     })
   }
 
+  move(callback){
+    child.exec(`mv -f ${ this.tmpPath } ${ this.dstPath }`, (err, stdout, stderr) => {
+      if(err) return callback(err)
+      if(stderr) return callback(stderr)
+      return callback(null, stdout)
+    })
+  }
 }
 
 
