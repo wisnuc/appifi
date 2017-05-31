@@ -77,6 +77,8 @@ UserEntry represents an entry in user list, like a record in a database table. I
 @prop {string} unionId - WeChat unionId
 */
 
+
+
 const userEntryMProps = [
   'uuid', 
   'username', 
@@ -92,7 +94,7 @@ const userEntryMProps = [
   'email',
   'avatar',
   'unionId'
-}
+]
 
 /**
 User includes a subset of props in UserEntry. It is used by other parts of fruitmix.
@@ -159,12 +161,58 @@ class UserList {
     
   }
 
-  /** create a new user **/
-  async createUser() {
+  /**
+  create a user
+  @param {User} user - operator
+  @param {Object} props - props
+  @param {string} props.username - non-empty string, no conflict with existing username
+  @param {string} props.password - non-empty string
+  @param {boolean} [props.isAdmin] - set new user's isAdmin. Operator must be first user to have this prop.
+  */
+  async createUser(user, props) {
+
+    if (user.isAdmin) throw E.EACCESS('only admin can create a new user') 
+
+    let newUser = {
+
+      uuid: UUID.v4(),
+      username: props.username,
+      unixuid: this.allocateUnixUID(),
+      unixname: null,
+      password: passwordEncrypt(props.password, 10),
+      unixPassword: unixPasswordEncrypt(props.password),
+      smbPassword: md4Encrypt(password),
+      lastChangeTime: new Date().getTime(),
+      isFirstUser: this.users.length === 0 ? true : false,
+      isAdmin: false,
+      nologin: false,
+      email: null,
+      avatar: null,
+      unionId: null  
+    } 
+
+    return newUser
   }
 
-  /** update a user property **/
-  async updateUser() {
+  /**
+  update a user
+
+  @param {User} user - operator
+  @param {Object} props - props
+  @param {string} props.username - non-empty string, no conflict with existing username
+  @param {boolean} [props.isAdmin] - set user's isAdmin. Operator must be first user to have this prop.
+  @param {boolean} [props.nologin] - set user's nologin. Operator must be 
+  **/
+  async updateUser(user, props) {
+  }
+
+  async updatePassword(user, props) {
+  } 
+
+  /**
+  update a user's union
+  */
+  async updateWeChatBinding(user, unionId) {
   }
 }
 
