@@ -335,7 +335,7 @@ class Copy extends Worker {
       this.dstPath = path.join(dpath, this.dst.path)
       return this.dstPath
     }else{
-      this.dstPath = this.data.findNodeByUUID(this.dst.path).abspath()
+      this.dstPath = path.join(this.data.findNodeByUUID(this.dst.path).abspath(), path.basename(this.srcPath))
       return this.dstPath
     }
   }
