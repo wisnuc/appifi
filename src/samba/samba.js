@@ -1,27 +1,18 @@
 let fs = require('fs')
 let child = require('child_process')
 
+import Debug from 'debug'
+const SAMBA = Debug('SAMBA:SAMBA')
+
 let createUdpServer = require('./udpServer')
 let updateSambaFilesAsync = require('./updateSamba')
 let { startWatchAsync } = require('./watcher')
 
-let getPrependPath = require('./prependPath')
-
 Promise.promisifyAll(fs)
 Promise.promisifyAll(child)
 
-//const userListConfigPath = '../../test/samba/model.json'
-
 let path = require('path')
 let process = require('process')
-
-// let cwd = process.cwd()
-// const userListConfigPath = path.join(getPrependPath(), '..', '/fruitmix/models/model.json')
-// if(!fs.existsSync(userListConfigPath)) {
-//   throw Error('No Model.json Found!')
-// }
-
-// let debounceTime = 5000 // millisecond
 
 const initSambaAsync = async () => {
   const logConfigPath = '/etc/rsyslog.d/99-smbaudit.conf'
@@ -37,19 +28,22 @@ const initSambaAsync = async () => {
 
   await child.execAsync('systemctl start nmbd')
   await child.execAsync('systemctl start smbd')
+
+  SAMBA('Init samba')
 }
 
 // main process for samba service
 const runSambaAsync = async () => {
-  // getPrependPath()
   await initSambaAsync()
   await updateSambaFilesAsync()
   let watchMan = await startWatchAsync()
   let smbAuditEntity = await Promise.promisify(createUdpServer)()
+
+  SAMBA('Run samba')
 }
 
 runSambaAsync().then(() => {
-  console.log('Samba Watcher is running!')
+  SAMBA('Samba Watcher is running!')
 }, (error) => {
-  console.log(error)
+  SAMBA(error)
 })

@@ -5,18 +5,19 @@ let process = require('process')
 let SambaManager = require('./sambaManager')
 let getPrependPath = require('./prependPath')
 
+import Debug from 'debug'
+const WATCHER = Debug('SAMBA:WATCHER')
+
 let DEBOUNCE_TIME = require('./config').DEBOUNCE_TIME
 
 Promise.promisifyAll(fs)
 
-// let debounceTime = 5000 // millisecond
-
 const startWatchAsync = async () => {
   let handler = new SambaManager(DEBOUNCE_TIME)
 
-  const userListConfigPath = path.join(getPrependPath(), '..', '/fruitmix/models/model.json')
+  const userListConfigPath = path.join(getPrependPath(), '..', '/models/model.json')
   if(!fs.existsSync(userListConfigPath)) {
-    console.log(userListConfigPath)
+    WATCHER('Wrong path: ' + userListConfigPath)
     throw Error('No Model.json Found!')
   }
 
@@ -26,10 +27,15 @@ const startWatchAsync = async () => {
       }    
   })
 
+  WATCHER('Start watcher')
+
   return watcher
 }
 
 const endWatchAsync = async (watcher) => {
+
+  WATCHER('Stop watch')
+
   watcher.close()
 }
 
