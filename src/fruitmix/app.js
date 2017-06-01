@@ -5,6 +5,9 @@ const express = require('express')
 const logger = require('morgan')
 const bodyParser = require('body-parser')
 
+const auth = require('./middleware/auth')
+const users = require('./routes/users')
+
 /**
 import auth from './middleware/auth'
 import init from './routes/init'
@@ -26,14 +29,13 @@ app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: false }))
 
 app.use(auth.init())
+app.use('/users', users)
 
 /**
 app.use('/init', init)
 app.use('/login', login)
 
 app.use('/token', require('./routes/token'))
-
-app.use('/users', users)
 
 app.use('/libraries', libraries)
 app.use('/drives', drives)

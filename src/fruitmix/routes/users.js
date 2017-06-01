@@ -1,10 +1,22 @@
-import Models from '../models/models'
-var router = require('express').Router()
-const auth = require('../middleware/auth').default
+const router = require('express').Router()
+const auth = require('../middleware/auth')
 const uuid = require('node-uuid')
-var url = require('url')
-var spawnSync = require('child_process').spawnSync
 
+router.get('/', (req, res, next) => {
+
+
+    console.log(req.get('Authorization'))
+    next()
+  }, 
+
+  auth.jwt(), 
+
+  (req, res) => {
+
+
+})
+
+/**
 router.get('/', auth.jwt(), (req, res) => {
 
   const user = req.user
@@ -117,7 +129,7 @@ router.post('/',auth.jwt(), (req, res) => {
   }
 })
 **/
-
+/*
 router.delete('/',auth.jwt(), (req, res) => {
   if (req.user.isAdmin === true ) {
     if(!req.body.uuid){return res.status(400).json('uuid is missing')}
@@ -143,7 +155,7 @@ router.patch('/',auth.jwt(), (req, res) => {
 })
 
 module.exports = router
-
+*/
 
 /*
 import { Router } from 'express'
@@ -178,7 +190,7 @@ router.delete('/', (req, res) => {
   })
 })
 
-
-export default router
 */
+
+module.exports = router
 

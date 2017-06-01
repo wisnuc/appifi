@@ -77,8 +77,6 @@ UserEntry represents an entry in user list, like a record in a database table. I
 @prop {string} unionId - WeChat unionId
 */
 
-
-
 const userEntryMProps = [
   'uuid', 
   'username', 
@@ -137,7 +135,7 @@ class UserList {
   */
   constructor(path, tmpDir) {
 
-    this.path = path
+    this.fpath = fpath
     this.tmpDir = tmpDir
 
     this.users = []
@@ -216,4 +214,6 @@ class UserList {
   }
 }
 
-
+module.exports = {
+  
+}
