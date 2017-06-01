@@ -60,6 +60,15 @@ Test if the two given array are equal
 const isArrayEqual = (arr1, arr2) => arr1.length === arr2.length
   && arr1.every((item, index) => item === arr2[index])
 
+
+/**
+Test if given argument is a non-null object
+
+@function isNonNullObject
+@param {*} arg
+*/
+const isNonNullObject = arg => typeof arg === 'object' && arg !== null
+
 /**
 Test if given argument is a non-empty string
 
@@ -112,6 +121,8 @@ const validateProps = (obj, mandatory, optional = []) => {
 
 module.exports = {
   isUUID,
-  isSHA256
+  isSHA256,
+  isNonNullObject,
+  isNonEmptyString,
 }
 

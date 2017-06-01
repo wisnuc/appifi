@@ -1,1 +1,1 @@
-export const secret = 'JsonWebTokenIsAwesome'
+module.exports = 'JsonWebTokenIsAwesome'

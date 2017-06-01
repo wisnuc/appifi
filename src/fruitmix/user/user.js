@@ -1,15 +1,16 @@
 const path = require('path')
-const fs = Promise.promisify(requrie('fs'))
+const fs = Promise.promisifyAll(require('fs'))
 const EventEmitter = require('events')
-
+const bcrypt = require('bcrypt')
 const UUID = require('uuid')
 const deepFreeze = require('deep-freeze')
 const E = require('../lib/error')
 
-const { isUUID } = require('../lib/is')
+const { isUUID, isNonNullObject, isNonEmptyString } = require('../lib/assertion')
+const { saveObjectAsync, passwordEncrypt, unixPasswordEncrypt, md4Encrypt } = require('../lib/utils')
 
 /**
-User module maintains user list like a database.
+User module exports a UserList Singleton.
 
 ### Description
 
@@ -19,13 +20,14 @@ In this version. `user` and `drive` are split into two modules.
 
 (`user`, `drive`) relationship is defined as a dependent relationship and is maintained in `drive` module. Hence there are no home, library, service, etc props in user data structure.
 
+All user props that are not related to fruitmix are removed, except for passwords. UnixUID should be maintained externally.
+
 ### User Object Types
 
 There are several types of user object. 
 
 + UserEntry includes full user information is used in this module. 
 + User is used by other parts of fruitmix. Some internal information are removed.
-+ UserSmb is used for samba.
 + UserBasic is used for login.
 
 See Type section for detail.
@@ -56,11 +58,11 @@ data = {
 /**
 UserEntry represents an entry in user list, like a record in a database table. It includes full information for a user.
 
-@typedef {Object} UserRecord
+All props defined below are mandatory. If there is no value assigned, it should be null, not undefined.
+
+@typedef {Object} UserEntry
 @prop {string} uuid - user's identity in station domain.
 @prop {string} username - user's display name (not identity).
-@prop {number} unixuid - user's unix user id, automatically allocated.
-@prop {string} unixname - user's unix user name, automatically generated or manually set by user.
 
 @prop {string} password - user password.
 @prop {string} unixPassword - user's unix password (/etc/passwd).
@@ -69,141 +71,232 @@ UserEntry represents an entry in user list, like a record in a database table. I
 
 @prop {boolean} isFirstUser - first user is the most privileged user.
 @prop {boolean} isAdmin - privileged user.
-@prop {boolean} nologin - the user is forbidden.
 
-@prop {(null|string)} email - email address, not used. null
 @prop {(null|string)} avatar - avatar identity, not used. null
 
 @prop {string} unionId - WeChat unionId
 */
-
 const userEntryMProps = [
   'uuid', 
   'username', 
-  'unixuid', 
-  'unixname', 
   'password', 
   'unixPassword',
   'smbPassword',
   'lastChangeTime',
   'isFirstUser',
   'isAdmin',
-  'nologin',
-  'email',
   'avatar',
   'unionId'
 ]
 
 /**
-User includes a subset of props in UserEntry. It is used by other parts of fruitmix.
+User includes all props in UserEntry except from password related ones. It is used by other parts of fruitmix.
 
 Prop description are not repeated here. Instead, RW authorization is described here.
 
 Besides the following props, password is a prop when user serviced as restful resource. It is writable by user.
 
 @typedef {Object} User
-@prop {string} uuid - RO
-@prop {string} username - W by user.
-@prop {number} unixuid - RO (module maintained)
-@prop {string} unixname - RO (module maintained)
-
-@prop {boolean} isFirstUser - RO
+@prop {string} uuid - FIXED
+@prop {string} username - W by user or Admin.
+@prop {boolean} isFirstUser - FIXED
 @prop {boolean} isAdmin - W by first user.
-@prop {boolean} nologin - For admin, W by first user. For non-privileged user, W by admin. For first user, RO.
-
-@prop {(null|string)} email - RO now.
-@prop {(null|string)} avatar - RO now.
-
+@prop {(null|string)} avatar - FIXED now.
 @prop {string} unionId - W by user.
 */
-
 const validateUserEntry = u => {
 
 
 }
 
+
 /**
 UserList manages users.
 
-Internally, UserList uses lock to avoid race on file operation.
+There are two steps to initialize a UserList:
++ call `init` first to set paths
++ call `loadUsersAsync` to load file. 
+
+This is convenient for tests.
+
+Internally, opportunistic locc is used to avoid race for transactional file operation.
 */
-class UserList {
+class UserList extends EventEmitter {
 
   /**
-  @param {string} path - absolute path of user list file (file name is users.json)
-  @param {string} tmpDir - temp file directory
+  Construct an uninitialized UserList. 
   */
-  constructor(path, tmpDir) {
+  constructor() {
+    super()
 
-    this.fpath = fpath
-    this.tmpDir = tmpDir
+    /**
+    @member {boolean} lock - internal file operation lock
+    */
+    this.lock = false
 
+    /**
+    @member 
+    */
     this.users = []
+    deepFreeze(this.users)
+  }
+
+  /**
+  Strip off sensitive information in user
+
+  @param {UserEntry} user
+  */
+  stripUser(user) {
+
+    return {
+      uuid: user.uuid,
+      username: user.username,
+      isFirstUser: user.isFirstUser,
+      isAdmin: user.isAdmin,
+      avatar: user.avatar,
+      unionId: user.unionId
+    }
+  }
+  
+  findUser(uuid) {
+    let user = this.users.find(u => u.uuid === uuid)       
+    if (user) return this.stripUser(user)
+  }
+
+  verifyPassword(userUUID, password, done) {
+
+    let user = this.users.find(u => u.uuid === userUUID)
+    if (!user) return done(new Error('user not found'))
+
+    bcrypt.compare(password, user.password, (err, match) => {
+      if (err) return done(err) 
+      match ? done(null, this.stripUser(user)) : done(null, false) 
+    })
+  }
+
+  /** 
+  Load users from file. If file does not exist, set users to [].
+
+  @param {string} fpath - absolute path of user json file
+  @param {string} tmpDir - temp file directory
+  @todo do integrity check
+  **/
+  async initAsync(fpath, tmpDir) {
+
+    try {
+      this.users = JSON.parse(await fs.readFileAsync(fpath))
+    } 
+    catch (e) {
+      if (e.code !== 'ENOENT') throw e
+      this.users = []
+    }
 
     deepFreeze(this.users)
-    this.lock = false
-  }
-
-  getLock() {
-    if (this.lock === true) throw new E.ELOCK('locked')
-    this.lock = true
-  }
-
-  putLock() {
-    if (this.lock === false) throw new E.ELOCK('not locked')
-    this.lock = false
-  }
-
-  /** load users from file **/
-  async initAsync() {
-    
+    this.fpath = fpath
+    this.tmpDir = tmpDir
   }
 
   /**
-  create a user
-  @param {User} user - operator
+  Save users to file. This operation use opportunistic lock.
+
+  @param {Object} currUsers - current users, should be preserved right before transactional update
+  @param {Object} nextUsers - next users, object created during transactional update
+  */
+  async commitUsersAsync(currUsers, nextUsers) {
+
+    // referential equality check
+    if (currUsers !== this.users) throw E.ECOMMITFAIL()
+
+    // check atomic operation lock
+    if (this.lock == true) throw E.ECOMMITFAIL()
+
+    // get lock
+    this.lock = true
+    try {
+
+      // save to file
+      saveObjectAsync(this.fpath, this.tmpDir, nextUsers)
+
+      // update in-memory object
+      this.users = nextUsers
+
+      // enforce immutability
+      deepFreeze(this.users)
+    }
+    finally {
+
+      // put lock
+      this.lock = false
+    }
+  }
+
+  /**
+  */
+  async migrateAsync() {
+  }
+
+
+  /**
+  Create a user
+
   @param {Object} props - props
   @param {string} props.username - non-empty string, no conflict with existing username
   @param {string} props.password - non-empty string
-  @param {boolean} [props.isAdmin] - set new user's isAdmin. Operator must be first user to have this prop.
+  @param {boolean} [props.isAdmin] - set new user's isAdmin. For first user, this props is forced to be true
   */
-  async createUser(user, props) {
+  async createUserAsync(props) {
 
-    if (user.isAdmin) throw E.EACCESS('only admin can create a new user') 
+    if (!isNonNullObject(props)) throw E.EINVAL('props must be non-null object')
+    if (!isNonEmptyString(props.username)) throw E.EINVAL('username must be non-empty string')
 
+    let currUsers = this.users
+
+    let isFirstUser = this.users.length === 0 ? true : false
+    let isAdmin = isFirstUser ? true : props.isAdmin === true ? true : false
     let newUser = {
 
       uuid: UUID.v4(),
       username: props.username,
-      unixuid: this.allocateUnixUID(),
-      unixname: null,
       password: passwordEncrypt(props.password, 10),
       unixPassword: unixPasswordEncrypt(props.password),
-      smbPassword: md4Encrypt(password),
+      smbPassword: md4Encrypt(props.password),
       lastChangeTime: new Date().getTime(),
-      isFirstUser: this.users.length === 0 ? true : false,
-      isAdmin: false,
-      nologin: false,
-      email: null,
+      isFirstUser,
+      isAdmin,
       avatar: null,
       unionId: null  
     } 
 
-    return newUser
+    let nextUsers = [...currUsers, newUser]
+    await this.commitUsersAsync(currUsers, nextUsers)
+    return this.stripUser(newUser)
   }
 
   /**
-  update a user
+  Update a user
 
   @param {User} user - operator
   @param {Object} props - props
   @param {string} props.username - non-empty string, no conflict with existing username
   @param {boolean} [props.isAdmin] - set user's isAdmin. Operator must be first user to have this prop.
-  @param {boolean} [props.nologin] - set user's nologin. Operator must be 
   **/
-  async updateUser(user, props) {
+  async updateUser(uuid, props) {
+    
+    let currUsers = this.users
+
+    // do something
+
+    let nextUsers = [
+      ...currUsers.slice(0, index),
+      nextUser,
+      ...currUsers.slice(index + 1)
+    ] 
+
+    return await this.commitUsersAsync(currUsers, nextUsers)
   }
 
+  /**
+  */
   async updatePassword(user, props) {
   } 
 
@@ -214,6 +307,5 @@ class UserList {
   }
 }
 
-module.exports = {
-  
-}
+module.exports = new UserList()
+

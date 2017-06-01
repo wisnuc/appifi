@@ -6,12 +6,12 @@ const logger = require('morgan')
 const bodyParser = require('body-parser')
 
 const auth = require('./middleware/auth')
+
+const token = require('./routes/token')
 const users = require('./routes/users')
 
 /**
-import auth from './middleware/auth'
 import init from './routes/init'
-import users from './routes/users'
 import login from './routes/login'
 import files from './routes/files'
 import meta from './routes/meta'
@@ -29,6 +29,7 @@ app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: false }))
 
 app.use(auth.init())
+app.use('/token', token)
 app.use('/users', users)
 
 /**

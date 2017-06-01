@@ -2,18 +2,41 @@ const router = require('express').Router()
 const auth = require('../middleware/auth')
 const uuid = require('node-uuid')
 
+const User = require('../user/user')
+
 router.get('/', (req, res, next) => {
 
+  if (req.get('Authorization')) return next()   
 
-    console.log(req.get('Authorization'))
-    next()
-  }, 
+  res.status(200).json(User.users.map(u => ({
+    uuid: u.uuid,
+    username: u.username,
+    avatar: u.avatar
+  })))
 
-  auth.jwt(), 
-
-  (req, res) => {
+}, auth.jwt(), (req, res) => {
 
 
+})
+
+router.post('/', (req, res, next) => {
+
+  if (User.users.length !== 0) return next()
+
+  User.createUserAsync(req.body).asCallback((err, user) => {
+
+    console.log(err || user)
+
+    if (err) 
+      return res.status(500).json({
+        code: err.code,
+        message: err.message  
+      })
+
+    return res.status(200).json(user)
+  })
+
+}, auth.jwt(), (req, res) => {
 })
 
 /**
@@ -38,6 +61,7 @@ router.get('/', auth.jwt(), (req, res) => {
     })])
   }
 })
+
 
 router.post('/', auth.jwt(), (req, res) => {
 
