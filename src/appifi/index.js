@@ -14,7 +14,7 @@ const appifiInit = async (mountpoint) => {
   httpServer()
   INDEX('Appifi HTTP server ran...')
 
-  dockerInit.init(path.join(mountpoint, 'wisnuc/appifi'))
+  dockerInit.init(path.join(mountpoint, 'appifi'))
   INDEX('Docker initialized')
 }
 

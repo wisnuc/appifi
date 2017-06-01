@@ -139,7 +139,6 @@ module.exports = {
 
   // autoboot
   autoBootAsync: async function() {
-    let mountInfor = {}
     let storage = await Storage.refreshAsync() 
     let fileSystems = extractFileSystems(storage)
     await probeAllAsync(fileSystems)
@@ -161,10 +160,6 @@ module.exports = {
           this.data = { state: 'maintenance', error: 'EFAIL', message: e.message }
         }
     		console.log('[autoboot] boot state', this.data)
-
-        mountInfor = cfs(fsys)
-
-        return mountInfor
       }
     } 
     else {
@@ -183,19 +178,12 @@ module.exports = {
       } 
     })
 
-    if (alts.length === 1) {
-
+    if (alts.length === 1)
       this.boot(cfs(alts[0]))
-
-      mountInfor = cfs(alts[0])
-      
-    }
     else 
       this.data = { state: 'maintenance', error: alts.length === 0 ? 'ENOALT' : 'EMULTIALT' }
 
     console.log('[autoboot] boot state', this.data)
-
-    return mountInfor
   },
 
   // manual boot only occurs in maintenance mode.

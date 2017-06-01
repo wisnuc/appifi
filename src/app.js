@@ -19,10 +19,10 @@ const main = async () => {
   await Config.initAsync(configFile, configTmpDir)
   await Device.probeAsync()
   await Storage.initAsync(storageFile, storageTmpDir)
+  await Boot.autoBootAsync()
 
-  let mountInfor = await Boot.autoBootAsync()
-  if(mountInfor.mountpoint) {
-    await appifiInit(mountInfor.mountpoint)
+  if(Boot.get().state === 'normal') {
+    await appifiInit(Boot.get().currentFileSystem.mountpoint)
     await appifiStart()
   }
 

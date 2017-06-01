@@ -12,8 +12,9 @@ import { dockerEventsAgent, DockerEvents } from './dockerEvents'
 import DockerStateObserver from './dockerStateObserver'
 import { AppInstallTask } from './dockerTasks'
 import { calcRecipeKeyString, appMainContainer, containersToApps } from '../../lib/utility'
-import { DOCKER_PID_FILE } from './config.js'
+// import { DOCKER_PID_FILE } from './config.js'
 
+let DOCKER_PID_FILE = null
 let rootDir = null
 let appDataDir = null
 let execRootDir = null
@@ -31,14 +32,20 @@ let dockerStatus = {}
 **/
 const prepareDirs = async (dir) => {
 
-  await mkdirpAsync(path.dirname(DOCKER_PID_FILE))
-  DOCKER('Create: ' + DOCKER_PID_FILE)
-  await fs.openAsync(DOCKER_PID_FILE, 'w+', (err) => {DOCKER('Create pid file failed: ' + err)})
+  DOCKER_PID_FILE = path.join(dir, 'docker.pid')
+
+  // await mkdirpAsync(path.dirname(DOCKER_PID_FILE))
+  // DOCKER('Create: ' + DOCKER_PID_FILE)
+  // await fs.openAsync(DOCKER_PID_FILE, 'w', (err) => {DOCKER('Create pid file failed: ' + err)})
 
   rootDir = dir
   appDataDir = path.join(rootDir, 'appdata')
   execRootDir = path.join(rootDir, 'r')
   graphDir = path.join(rootDir, 'g')
+
+  // await mkdirpAsync(path.dirname(DOCKER_PID_FILE))
+  // DOCKER('Create: ' + DOCKER_PID_FILE)
+  await fs.openAsync(DOCKER_PID_FILE, 'w', (err) => {DOCKER('Create pid file failed: ' + err)})
 
   await mkdirpAsync(appDataDir) 
   await mkdirpAsync(execRootDir)
@@ -121,6 +128,7 @@ const daemonStart = async () => {
   dockerDaemon.on('exit', (code, signal) => {
     dockerDaemon = null
     if (code !== undefined) DOCKER(`Daemon exits with exitcode ${code}`)
+    DOCKER(args)
     if (signal !== undefined) DOCKER(`Daemon exits with signal ${signal}`)
   })
 
