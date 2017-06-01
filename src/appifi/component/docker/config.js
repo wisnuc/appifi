@@ -1,5 +1,5 @@
 const dockerUrl = 'http://127.0.0.1:1688'
-let DOCKER_PID_FILE
+const DOCKER_PID_FILE = '/run/wisnuc/appifi/docker.pid'
 
 export {
   dockerUrl,

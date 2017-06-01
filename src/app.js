@@ -6,6 +6,7 @@ const Storage = require('./system/storage')
 const system = require('./system/index')
 const systemServer = require('./system/system')
 const appifiInit = require('./appifi/index').appifiInit
+const appifiStart = require('./appifi/index').appstoreStart
 
 const configFile = '/etc/wisnuc.json'
 const configTmpDir = '/etc/wisnuc/tmp'
@@ -22,7 +23,8 @@ const main = async () => {
   let mountInfor = await Boot.autoBootAsync()
   if(mountInfor.mountpoint) {
     await appifiInit(mountInfor.mountpoint)
-  }  
+    await appifiStart()
+  }
 
   systemServer(system)
 }

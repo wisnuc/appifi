@@ -12,7 +12,7 @@ import { dockerEventsAgent, DockerEvents } from './dockerEvents'
 import DockerStateObserver from './dockerStateObserver'
 import { AppInstallTask } from './dockerTasks'
 import { calcRecipeKeyString, appMainContainer, containersToApps } from '../../lib/utility'
-import { dockerUrl, dockerPidFile } from './config.js'
+import { DOCKER_PID_FILE } from './config.js'
 
 let rootDir = null
 let appDataDir = null
@@ -31,7 +31,9 @@ let dockerStatus = {}
 **/
 const prepareDirs = async (dir) => {
 
-  await mkdirpAsync(path.dirname(dockerPidFile))
+  await mkdirpAsync(path.dirname(DOCKER_PID_FILE))
+  DOCKER('Create: ' + DOCKER_PID_FILE)
+  await fs.openAsync(DOCKER_PID_FILE, 'w+', (err) => {DOCKER('Create pid file failed: ' + err)})
 
   rootDir = dir
   appDataDir = path.join(rootDir, 'appdata')
@@ -39,8 +41,8 @@ const prepareDirs = async (dir) => {
   graphDir = path.join(rootDir, 'g')
 
   await mkdirpAsync(appDataDir) 
-  await mkdirpAsync(path.join(rootDir, 'r'))
-  await mkdirpAsync(path.join(rootDir, 'g'))
+  await mkdirpAsync(execRootDir)
+  await mkdirpAsync(graphDir)
 }
 
 const probeDaemonGraphDir = (callback) => 
@@ -105,7 +107,7 @@ const daemonStart = async () => {
     `--exec-root=${execRootDir}`,
     `--graph=${graphDir}`,
     '--host=127.0.0.1:1688',  
-    `--pidfile=${dockerPidFile}`
+    `--pidfile=${DOCKER_PID_FILE}`
   ]
 
   let dockerDaemon = child.spawn('docker', args, opts)
@@ -135,7 +137,7 @@ const daemonStart = async () => {
   dockerStatus.status = 'Started'
 }
 
-const daemonStopCmd = `start-stop-daemon --stop --pidfile ${dockerPidFile} --retry 3`
+const daemonStopCmd = `start-stop-daemon --stop --pidfile ${DOCKER_PID_FILE} --retry 3`
 
 const daemonStop3 = callback => 
   child.exec(daemonStopCmd, (err, stdout, stderr) => {
@@ -158,7 +160,8 @@ const initAsync = async (dir) => {
 
   await prepareDirs(dir)
 
-  DOCKER('graph dir: ', graphDir)
+  DOCKER('Root of the Docker runtime: ', graphDir)
+  DOCKER('Root directory for execution state files: ', execRootDir)
 
   let probedGraphDir
   try { 
