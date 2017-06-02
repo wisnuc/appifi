@@ -1,5 +1,8 @@
 let EventEmitter = require('events')
 
+import Debug from 'debug'
+const SAMBA_AUDIT = Debug('SAMBA:SAMBA_AUDIT')
+
 // a class contains samba audit infor which spread with udp
 class SmbAudit extends EventEmitter {
   constructor(udp) {
@@ -67,11 +70,7 @@ class SmbAudit extends EventEmitter {
       let audit = { user, share, abspath, op, arg0 }
       if (arg1) audit.arg1 = arg1
 
-      //console.log('####################################################');
-      //console.log(audit);
-      //console.log('####################################################');
-
-      // return audit
+      SAMBA_AUDIT(audit)
 
       process.send(audit);
     })
