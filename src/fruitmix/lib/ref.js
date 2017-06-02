@@ -14,6 +14,8 @@ const { writeFileToDisk } = require('./util')
 const commandAsync = Promise.promisify(command)
 const writeFileToDiskAsync = Promise.promisify(writeFileToDisk)
 
+Promise.promisifyAll(child)
+
 // test 1: file path is not absolute path
 // test 2: file path is not a regular file
 const filehashAsync = async filepath => {
@@ -54,7 +56,7 @@ const validateTree = (object) => {
               commits   // database
 */
 class Ref {
-
+  
   constructor(repoDir, tmpdir, docDir) {
     this.repoDir = repoDir
     this.tmpdir = tmpdir
@@ -64,7 +66,10 @@ class Ref {
 
   // internal
   async copyAsync(src, dst) {
-    await child.execAsync(`cp -r --reflink=auto --preserve=all ${src} ${dst}`)
+    
+    // console.log(fs)
+    let dir = path.dirname(dst)
+    await child.execAsync(`mkdir -p ${dir} && cp -r --reflink=auto --preserve=all ${src} ${dst}`)
   }
 
   // external (interface)
