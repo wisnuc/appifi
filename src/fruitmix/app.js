@@ -26,7 +26,9 @@ import mediashare from './routes/mediashare'
 
 let app = express()
 
-app.use(logger('dev', { skip: (req, res) => res.nolog === true }))
+if (process.env.NODE_ENV === 'test') app.nolog = true
+
+app.use(logger('dev', { skip: (req, res) => res.nolog === true || app.nolog === true }))
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: false }))
 

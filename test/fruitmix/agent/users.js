@@ -14,6 +14,20 @@ const app = require('src/fruitmix/app')
 const { saveObjectAsync } = require('src/fruitmix/lib/utils')
 const User = require('src/fruitmix/user/user')
 
+
+/*
+
+first user: alice:alice
+
+alice create second user: bob:bob (admin)
+
+alice create third user: charlie:charlie (non-privileged)
+
+bob: create fourth user: david:david (non-priviledged)
+
+
+*/
+
 const aliceUUID = '9f93db43-02e6-4b26-8fae-7d6f51da12af'
 
 const cwd = process.cwd()
@@ -119,11 +133,7 @@ describe(path.basename(__filename), () => {
         .get('/token')
         .auth(firstUser.uuid, 'world')
         .expect(200)
-        .end((err, res) => {
-          console.log(err || res.body)
-          done(err)
-        })
-    })
+        .end(done))
 
     it('GET /token should fail', done => {
       request(app)
@@ -181,6 +191,8 @@ describe(path.basename(__filename), () => {
 
   })
 
+   
+  
 })
 
 
