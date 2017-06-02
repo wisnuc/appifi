@@ -117,20 +117,7 @@ module.exports = {
 
   boot(cfs) {
 
-    // this.fruitmix = fruitmix.fork(cfs)
-    // this.samba = samba.fork(cfs)
-    // console.log('[boot log config]', Config.get().bootMode)
-    // this.data = { state: 'normal', currentFileSystem: cfs }
-
-    //this.samba = Promise.delay(10000).then(() => {samba.fork(cfs)})
-
-    //this.data = {
-    //  state: Config.get().bootMode,
-    //  currentFileSystem: cfs
-    //}
-
     this.fruitmix = fruitmix.fork(cfs)
-    // this.samba = samba.fork(cfs)
     this.samba = Promise.delay(10000).then(() => {samba.fork(cfs)})
     this.data = { state: 'normal', currentFileSystem: cfs }
 
@@ -139,6 +126,7 @@ module.exports = {
 
   // autoboot
   autoBootAsync: async function() {
+
     let storage = await Storage.refreshAsync() 
     let fileSystems = extractFileSystems(storage)
     await probeAllAsync(fileSystems)
@@ -159,7 +147,10 @@ module.exports = {
 					console.log('[autoboot] failed to boot lastfs', last, e)
           this.data = { state: 'maintenance', error: 'EFAIL', message: e.message }
         }
+
     		console.log('[autoboot] boot state', this.data)
+
+        return
       }
     } 
     else {
