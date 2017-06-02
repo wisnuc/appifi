@@ -31,11 +31,11 @@ const httpServer = () => {
     if (error.syscall !== 'listen') throw error
     switch (error.code) {
       case 'EACCES':
-        HTTPSERVER(`Port ${port} requires elevated privileges`)
+        HTTP_SERVER(`Port ${port} requires elevated privileges`)
         process.exit(1)
         break
       case 'EADDRINUSE':
-        HTTPSERVER(`Port ${port} is already in use`)
+        HTTP_SERVER(`Port ${port} is already in use`)
         process.exit(1)
         break
       default:
