@@ -25,8 +25,6 @@ router.post('/', (req, res, next) => {
 
   User.createUserAsync(req.body).asCallback((err, user) => {
 
-    console.log(err || user)
-
     if (err) 
       return res.status(500).json({
         code: err.code,
@@ -37,6 +35,30 @@ router.post('/', (req, res, next) => {
   })
 
 }, auth.jwt(), (req, res) => {
+})
+
+router.get('/:uuid', auth.jwt(), (req, res) => {
+  
+  let user = req.user
+  if (user.uuid === uuid) 
+    res.status(200).json(user)
+  else if (user.isAdmin) {
+    let u = User.findUser(uuid) 
+    if (u) 
+      res.status(200).json(u)
+    else
+      res.status(404).end()
+  }
+  else 
+    res.status(403).end() // TODO message? 
+})
+
+router.post('/:uuid', auth.jwt(), (req, res) => {
+
+})
+
+router.post('/:uuid/password', auth.jwt(), (req, res) => {
+
 })
 
 /**
