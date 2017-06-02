@@ -28,11 +28,12 @@ bob: create fourth user: david:david (non-priviledged)
 
 */
 
-const userUUID = '9f93db43-02e6-4b26-8fae-7d6f51da12af'
+const aliceUUID = '9f93db43-02e6-4b26-8fae-7d6f51da12af'
 
 const cwd = process.cwd()
 const tmptest = path.join(cwd, 'tmptest')
 const usersPath = path.join(tmptest, 'users.json')
+
 
 const createFirstUser = callback => 
   request(app)
@@ -51,7 +52,7 @@ const createFirstUserAsync = Promise.promisify(createFirstUser)
 const firstUserRetrieveToken = callback => 
   request(app)
     .get('/token')
-    .auth(userUUID, 'world')
+    .auth(aliceUUID, 'world')
     .end((err, res) => {
       if (err) return callback(err)
       callback(null, res.body.token)
@@ -61,11 +62,11 @@ const firstUserRetrieveTokenAsync = Promise.promisify(firstUserRetrieveToken)
 
 describe(path.basename(__filename), () => {
 
-  describe('no users', () => {
+  describe('When no users', () => {
 
     const firstUser = { 
-      uuid: userUUID,
-      username: 'hello',
+      uuid: aliceUUID,
+      username: 'alice',
       isFirstUser: true,
       isAdmin: true,
       avatar: null,
@@ -76,7 +77,7 @@ describe(path.basename(__filename), () => {
       await rimrafAsync(tmptest) 
       await mkdirpAsync(tmptest) 
       await User.initAsync(usersPath, tmptest)
-      sinon.stub(UUID, 'v4').returns(userUUID)
+      sinon.stub(UUID, 'v4').returns(aliceUUID)
     })
 
     afterEach(() => {
@@ -93,12 +94,12 @@ describe(path.basename(__filename), () => {
           done()
         }))
 
-    it('POST /users should create first user', done =>
+    it('POST /users should create alice', done =>
       request(app)
         .post('/users')
         .send({
-          username: 'hello',
-          password: 'world'
+          username: 'alice',
+          password: 'alice'
         })
         .expect(200)
         .end((err, res) => {
@@ -108,7 +109,7 @@ describe(path.basename(__filename), () => {
         }))
   })
 
-  describe('first user retrieve token', () => {
+  describe('alice (first user) retrieve token', () => {
 
     let firstUser
 
@@ -117,17 +118,17 @@ describe(path.basename(__filename), () => {
       await rimrafAsync(tmptest) 
       await mkdirpAsync(tmptest) 
       await User.initAsync(usersPath, tmptest)
-      sinon.stub(UUID, 'v4').returns(userUUID)
+      sinon.stub(UUID, 'v4').returns(aliceUUID)
       firstUser = await createFirstUserAsync() 
       UUID.v4.restore()
-      if (firstUser.uuid !== userUUID) {
-        console.log(`expected user uuid: ${userUUID}`)
+      if (firstUser.uuid !== aliceUUID) {
+        console.log(`expected user uuid: ${aliceUUID}`)
         console.log(`real user uuid: ${firstUser.uuid}`)
         throw new Error('user uuid mismatch')
       }
     })
 
-    it('GET /token should succeed', done => 
+    it('GET /token should succeed with', done => {
       request(app)
         .get('/token')
         .auth(firstUser.uuid, 'world')
@@ -143,7 +144,7 @@ describe(path.basename(__filename), () => {
     })
   })
 
-  describe('first user verify token', () => {
+  describe('alice with token', () => {
 
     let firstUser
     let token
@@ -154,12 +155,12 @@ describe(path.basename(__filename), () => {
       await mkdirpAsync(tmptest) 
       await User.initAsync(usersPath, tmptest)
 
-      sinon.stub(UUID, 'v4').returns(userUUID)
+      sinon.stub(UUID, 'v4').returns(aliceUUID)
       firstUser = await createFirstUserAsync() 
       UUID.v4.restore()
 
-      if (firstUser.uuid !== userUUID) {
-        console.log(`expected user uuid: ${userUUID}`)
+      if (firstUser.uuid !== aliceUUID) {
+        console.log(`expected user uuid: ${aliceUUID}`)
         console.log(`real user uuid: ${firstUser.uuid}`)
         throw new Error('user uuid mismatch')
       }
@@ -179,6 +180,13 @@ describe(path.basename(__filename), () => {
         .get('/token/verify')
         .set('Authorization', 'JWT ' + token.toUpperCase())
         .expect(401)
+        .end(done))
+
+    it('GET /drives should get two private drives', done => 
+      request(app)
+        .get('/drives')
+        .set('Authorization', 'JWT ' + token)
+        .expect(200)
         .end(done))
 
   })

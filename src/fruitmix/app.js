@@ -9,6 +9,7 @@ const auth = require('./middleware/auth')
 
 const token = require('./routes/token')
 const users = require('./routes/users')
+const drives = require('./routes/drives')
 
 /**
 import init from './routes/init'
@@ -33,6 +34,7 @@ app.use(bodyParser.urlencoded({ extended: false }))
 app.use(auth.init())
 app.use('/token', token)
 app.use('/users', users)
+app.use('/drives', drives)
 
 /**
 app.use('/init', init)

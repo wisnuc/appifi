@@ -1,6 +1,6 @@
 const router = require('express').Router()
 const auth = require('../middleware/auth')
-const uuid = require('node-uuid')
+const uuid = require('uuid')
 
 const User = require('../user/user')
 

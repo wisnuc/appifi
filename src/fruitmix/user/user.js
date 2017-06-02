@@ -113,12 +113,6 @@ const validateUserEntry = u => {
 /**
 UserList manages users.
 
-There are two steps to initialize a UserList:
-+ call `init` first to set paths
-+ call `loadUsersAsync` to load file. 
-
-This is convenient for tests.
-
 Internally, opportunistic locc is used to avoid race for transactional file operation.
 */
 class UserList extends EventEmitter {
@@ -208,7 +202,7 @@ class UserList extends EventEmitter {
     if (currUsers !== this.users) throw E.ECOMMITFAIL()
 
     // check atomic operation lock
-    if (this.lock == true) throw E.ECOMMITFAIL()
+    if (this.lock === true) throw E.ECOMMITFAIL()
 
     // get lock
     this.lock = true
