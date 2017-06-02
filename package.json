@@ -21,7 +21,8 @@
     "mocha": "NODE_PATH=. NODE_ENV=test mocha --compilers js:babel-core/register --recursive --sort",
     "lyc": "NODE_ENV=test nyc --reporter=lcov --reporter=text mocha --compilers js:babel-core/register",
     "lycmon": "NODE_ENV=test nodemon --exec nyc --reporter=lcov --reporter=text mocha --compilers js:babel-core/register",
-    "doc": "nodemon --exec jsdoc -c jsdoc.conf.json -t node_modules/ink-docstrap/template"
+    "doc": "nodemon --exec jsdoc -c jsdoc.conf.json -t node_modules/ink-docstrap/template",
+    "sidekick": "node src/fruitmix/sidekick/cluster"
   },
   "dependencies": {
     "babel-runtime": "https://registry.npmjs.org/babel-runtime/-/babel-runtime-6.18.0.tgz",
@@ -53,6 +54,7 @@
     "passport-jwt": "^2.1.0",
     "pidusage": "^1.1.1",
     "redux": "^3.3.1",
+    "request": "^2.81.0",
     "respawn": "^2.4.1",
     "rimraf": "^2.5.3",
     "sanitize-filename": "^1.6.0",

@@ -1,12 +1,12 @@
 const path = require('path')
 const fs = require('fs')
-
 const express = require('express')
 const logger = require('morgan')
 const bodyParser = require('body-parser')
 
-const auth = require('./middleware/auth')
+require('./sidekick/sidekick')
 
+const auth = require('./middleware/auth')
 const token = require('./routes/token')
 const users = require('./routes/users')
 const drives = require('./routes/drives')
@@ -22,6 +22,7 @@ import libraries from './routes/libraries'
 import media from './routes/media'
 import mediashare from './routes/mediashare'
 **/
+
 
 let app = express()
 
