@@ -1,3 +1,4 @@
+const Promise = require('bluebird')
 const router = require('express').Router()
 const auth = require('../middleware/auth')
 const uuid = require('uuid')
@@ -23,16 +24,9 @@ router.post('/', (req, res, next) => {
 
   if (User.users.length !== 0) return next()
 
-  User.createUserAsync(req.body).asCallback((err, user) => {
-
-    if (err) 
-      return res.status(500).json({
-        code: err.code,
-        message: err.message  
-      })
-
-    return res.status(200).json(user)
-  })
+  User.createUserAsync(req.body)
+    .then(user => res.status(200).json(user))
+    .catch(e => res.status(500).json({ code: err.code, message: err.message }))
 
 }, auth.jwt(), (req, res) => {
 })

@@ -4,7 +4,7 @@ const express = require('express')
 const logger = require('morgan')
 const bodyParser = require('body-parser')
 
-require('./sidekick/sidekick')
+// require('./sidekick/sidekick')
 
 const auth = require('./middleware/auth')
 const token = require('./routes/token')

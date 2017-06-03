@@ -1,15 +1,15 @@
+const path = require('path')
 const fs = require('fs')
 const crypto = require('crypto')
-const Writable = require('stream').Writable
+const { Writable, Transform } = require('stream')
 
-const UUID = require('uuid')
 const router = require('express').Router()
 
 class HashStream extends Writable {
 
   constructor(options) {
-    super(options)
 
+    super(options)
     this.bytesWritten = 0 
     this.hash = crypto.createHash('sha256')
   }
@@ -24,69 +24,88 @@ class HashStream extends Writable {
   }
 }
 
-router.put('/', (req, res) => {
+class HashTransform extends Transform {
 
-  let uuid = UUID.v4() 
-  let os = fs.createWriteStream(uuid)
-  let hash = new HashStream()
-
-  let finished = false
-  let count = 2 
-
-  const finalize = () => {
-    if (os.bytesWritten !== hash.bytesWritten)  
-      return res.status(500).json({
-        message: 'bytesWritten mismatch'
-      })
-
-    res.status(200).json({
-      uuid,
-      size: hash.bytesWritten,
-      hash: hash.digest()
-    })
+  constructor(options) {
+    super(options)
+    this.size = 0
+    this.hash = crypto.createHash('sha256')
   }
 
-  hash.on('error', err => {
-    if (finished) return 
-    finished = true
-    res.status(500).json({
-      code: err.code,
-      message: err.message 
-    })
-  })
+  digest() {
+    return this.hash.digest('hex')
+  }
 
-  hash.on('finish', () => {
-    if (finished) return
-    count--
-    if (count === 0) finalize()
-  })
+  transform(chunk, encoding, callback) {
+    this.size += chunk.length
+    this.hash.update(chunk, encoding)
+    this.push(chunk)
+    callback()
+  }
+}
 
-  os.on('error', err => {
+router.put('/', (req, res) => {
+
+  console.log('hello hello')
+
+  let fpath = req.query.path
+  let os = fs.createWriteStream(fpath)
+  let hash = new HashTransform()
+
+  let finished = false
+
+  const error = err => {
+
+    console.log(err)
+
     if (finished) return
     finished = true
-    res.status(500).json({
-      code: err.code,
-      message: err.message
-    })
-  })
+
+    req.unpipe()
+
+    let { code, message } = err
+    res.status(500).json({ code, message })
+  }
+
+  hash.on('error', error)
+
+  os.on('error', error)
 
   os.on('close', () => {
+
+    console.log('output stream closed, bytesWritten', os.bytesWritten)
+
     if (finished) return
-    count--
-    if (count === 0) finalize() 
+    finished = true
+
+    os.bytesWritten !== hash.size
+      ? res.status(500).json({ message: 'bytesWritten mismatch' })
+      : res.status(200).json({ 
+          size: hash.size, 
+          hash: hash.digest() 
+        })
   })
 
-  req.on('error', () => {
+  req.on('aborted', () => {
+
+    console.log('request aborted')
+
     if (finished) return 
     finished = true 
+    req.unpipe() // unpipe all according to node documents
   })
 
   req.on('close', () => {
+
+    console.log('request closed')
+
     if (finished) return
+    finished = true
+    req.unpipe() // unpipe all according to node documents
   })
 
-  req.pipe(hash)
   req.pipe(os)
 })
 
 module.exports = router
+

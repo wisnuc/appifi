@@ -1,4 +1,5 @@
 const path = require('path')
+const Promise = require('bluebird')
 const fs = Promise.promisifyAll(require('fs'))
 const child = Promise.promisifyAll(require('child_process'))
 

@@ -1,6 +1,7 @@
 const path = require('path')
 const request = require('supertest')
 const superagent = require('superagent')
+const Promise = require('bluebird')
 const rimrafAsync = Promise.promisify(require('rimraf'))
 const mkdirpAsync = Promise.promisify(require('mkdirp'))
 const UUID = require('uuid')
@@ -33,7 +34,6 @@ const aliceUUID = '9f93db43-02e6-4b26-8fae-7d6f51da12af'
 const cwd = process.cwd()
 const tmptest = path.join(cwd, 'tmptest')
 const usersPath = path.join(tmptest, 'users.json')
-
 
 const createFirstUser = callback => 
   request(app)
@@ -128,7 +128,7 @@ describe(path.basename(__filename), () => {
       }
     })
 
-    it('GET /token should succeed with', done => {
+    it('GET /token should succeed with', done => 
       request(app)
         .get('/token')
         .auth(firstUser.uuid, 'world')
@@ -190,9 +190,6 @@ describe(path.basename(__filename), () => {
         .end(done))
 
   })
-
-   
-  
 })
 
 
