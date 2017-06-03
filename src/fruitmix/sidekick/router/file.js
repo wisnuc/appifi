@@ -1,14 +1,12 @@
-const path = require('path')
 const fs = require('fs')
 const crypto = require('crypto')
-const { Writable, Transform } = require('stream')
+const Writable = require('stream').Writable
 
 const router = require('express').Router()
 
 class HashStream extends Writable {
 
   constructor(options) {
-
     super(options)
     this.bytesWritten = 0 
     this.hash = crypto.createHash('sha256')
@@ -24,88 +22,68 @@ class HashStream extends Writable {
   }
 }
 
-class HashTransform extends Transform {
-
-  constructor(options) {
-    super(options)
-    this.size = 0
-    this.hash = crypto.createHash('sha256')
-  }
-
-  digest() {
-    return this.hash.digest('hex')
-  }
-
-  transform(chunk, encoding, callback) {
-    this.size += chunk.length
-    this.hash.update(chunk, encoding)
-    this.push(chunk)
-    callback()
-  }
-}
-
 router.put('/', (req, res) => {
 
-  console.log('hello hello')
-
-  let fpath = req.query.path
-  let os = fs.createWriteStream(fpath)
-  let hash = new HashTransform()
+  let os = fs.createWriteStream(req.query.path)
+  let hash = new HashStream()
 
   let finished = false
+  let count = 2 
 
-  const error = err => {
+  const finalize = () => {
+    if (os.bytesWritten !== hash.bytesWritten)  
+      return res.status(500).json({
+        message: 'bytesWritten mismatch'
+      })
 
-    console.log(err)
-
-    if (finished) return
-    finished = true
-
-    req.unpipe()
-
-    let { code, message } = err
-    res.status(500).json({ code, message })
+    res.status(200).json({
+      path: req.query.path,
+      size: hash.bytesWritten,
+      hash: hash.digest()
+    })
   }
 
-  hash.on('error', error)
-
-  os.on('error', error)
-
-  os.on('close', () => {
-
-    console.log('output stream closed, bytesWritten', os.bytesWritten)
-
-    if (finished) return
+  hash.on('error', err => {
+    if (finished) return 
     finished = true
-
-    os.bytesWritten !== hash.size
-      ? res.status(500).json({ message: 'bytesWritten mismatch' })
-      : res.status(200).json({ 
-          size: hash.size, 
-          hash: hash.digest() 
-        })
+    res.status(500).json({
+      code: err.code,
+      message: err.message 
+    })
   })
 
-  req.on('aborted', () => {
+  hash.on('finish', () => {
+    if (finished) return
+    count--
+    if (count === 0) finalize()
+  })
 
-    console.log('request aborted')
+  os.on('error', err => {
+    if (finished) return
+    finished = true
+    res.status(500).json({
+      code: err.code,
+      message: err.message
+    })
+  })
 
+  os.on('close', () => {
+    if (finished) return
+    count--
+    if (count === 0) finalize() 
+  })
+
+  req.on('error', () => {
     if (finished) return 
     finished = true 
-    req.unpipe() // unpipe all according to node documents
   })
 
   req.on('close', () => {
-
-    console.log('request closed')
-
     if (finished) return
-    finished = true
-    req.unpipe() // unpipe all according to node documents
   })
 
+  req.pipe(hash)
   req.pipe(os)
 })
 
 module.exports = router
-

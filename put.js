@@ -1,50 +1,17 @@
 const path = require('path')
 const fs = require('fs')
 const mkdirp = require('mkdirp')
-const request = require('superagent')
-// const request = require('request')
+const request = require('request')
 const UUID = require('uuid')
 
-const cwd = process.cwd()
-const tmptest = path.join(cwd, 'tmptest')
+const tmptest = path.join(process.cwd(), 'tmptest')
+mkdirp.sync(tmptest)
 
-if (process.argv.length < 3) return
+if (!process.argv[2]) process.exit()
 
-// 'http+unix://%2Fabsolute%2Fpath%2Fto%2Funix.sock/search'
+let stream = fs.createReadStream(process.argv[2])
+let req = request.put(`http://localhost:4005/file?path=${path.join(tmptest, UUID.v4())}`, (err, res, body) => console.log(err || res))
 
-/**
-mkdirp(tmptest, err => {
-
-  let fpath = path.join(tmptest, UUID.v4())
-  let stream = fs.createReadStream(process.argv[2])
-  let req = request
-    .put('http+unix://%2Ftmp%2Fsidekick/file') //    .put('http://localhost:8964/file')
-    .query({ path: fpath })
-    .on('error', err => {
-      console.log('error', err)
-    })
-    .on('response', res => {
-      console.log('response', res.body)
-    })
-
-  stream.pipe(req)
-})
-**/
-
-mkdirp(tmptest, err => {
-
-  let fpath = path.join(tmptest, UUID.v4())
-  let stream = fs.createReadStream(process.argv[2])
-  let req = request
-    .put(`http://localhost:4005/file?path=${fpath}`)
-    .on('error', err => {
-      console.log('error', err)
-    })
-    .on('response', res => {
-      console.log('response', res.body)
-    })
-
-  stream.pipe(req)
-})
+stream.pipe(req)
 
 
