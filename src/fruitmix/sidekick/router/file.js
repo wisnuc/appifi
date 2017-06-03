@@ -1,14 +1,13 @@
 const fs = require('fs')
 const crypto = require('crypto')
-const Writable = require('stream').Writable
+const { Transform } = require('stream')
 
 const router = require('express').Router()
 
-class HashStream extends Writable {
+class HashTransform extends Transform {
 
   constructor(options) {
     super(options)
-    this.bytesWritten = 0 
     this.hash = crypto.createHash('sha256')
   }
 
@@ -16,74 +15,49 @@ class HashStream extends Writable {
     return this.hash.digest('hex')
   }
 
-  write(chunk, encoding) {
-    this.bytesWritten += chunk.length
+  _transform(chunk, encoding, callback) {
     this.hash.update(chunk, encoding)
+    this.push(chunk)
+    callback()
   }
 }
 
 router.put('/', (req, res) => {
 
   let os = fs.createWriteStream(req.query.path)
-  let hash = new HashStream()
-
+  let hash = new HashTransform()
   let finished = false
-  let count = 2 
 
-  const finalize = () => {
-    if (os.bytesWritten !== hash.bytesWritten)  
-      return res.status(500).json({
-        message: 'bytesWritten mismatch'
-      })
-
-    res.status(200).json({
-      path: req.query.path,
-      size: hash.bytesWritten,
-      hash: hash.digest()
-    })
-  }
-
-  hash.on('error', err => {
+  const error = err => {
     if (finished) return 
     finished = true
     res.status(500).json({
       code: err.code,
       message: err.message 
     })
-  })
+  }
 
-  hash.on('finish', () => {
-    if (finished) return
-    count--
-    if (count === 0) finalize()
-  })
-
-  os.on('error', err => {
-    if (finished) return
-    finished = true
-    res.status(500).json({
-      code: err.code,
-      message: err.message
-    })
-  })
+  hash.on('error', err => error(err))
+  os.on('error', err => error(err))
 
   os.on('close', () => {
     if (finished) return
-    count--
-    if (count === 0) finalize() 
+    finished = true
+    res.status(200).json({
+      path: req.query.path,
+      size: os.bytesWritten,
+      hash: hash.digest()
+    })
   })
 
-  req.on('error', () => {
+  req.on('aborted', () => {
     if (finished) return 
     finished = true 
+    req.unpipe()
   })
 
-  req.on('close', () => {
-    if (finished) return
-  })
+  req.pipe(hash).pipe(os)
 
-  req.pipe(hash)
-  req.pipe(os)
 })
 
 module.exports = router
