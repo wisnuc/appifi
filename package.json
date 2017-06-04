@@ -18,6 +18,7 @@
     "fruit-agent": "NODE_PATH=. NODE_ENV=test mocha --compilers js:babel-core/register --recursive --sort test/fruitmix/agent",
     "agentmon": "nodemon --exec \"NODE_ENV=test NODE_PATH=. mocha\" --compilers js:babel-core/register",
     "mochamon": "nodemon --exec \"NODE_ENV=test NODE_PATH=. mocha\" --compilers js:babel-core/register --recursive --sort",
+    "mochamon2": "nodemon --exec \"NODE_ENV=test NODE_PATH=. mocha\" --recursive --sort",
     "mocha": "NODE_PATH=. NODE_ENV=test mocha --compilers js:babel-core/register --recursive --sort",
     "mocha2": "NODE_PATH=. NODE_ENV=test mocha --recursive --sort",
     "lyc": "NODE_ENV=test nyc --reporter=lcov --reporter=text mocha --compilers js:babel-core/register",

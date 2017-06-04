@@ -1,6 +1,10 @@
+const Promise = require('bluebird')
 const path = require('path')
+const fs = Promise.promisifyAll(require('fs'))
 const EventEmitter = require('events')
+const UUID = require('uuid')
 const deepFreeze = require('deep-freeze')
+const { saveObjectAsync } = require('../lib/utils')
 
 /**
 Drive module exports a DriveList Singleton
@@ -61,14 +65,14 @@ class DriveList extends EventEmitter {
       this.drives = []
     }
 
-    deepFreeze(this.drive)
+    deepFreeze(this.drives)
     this.fpath = fpath
     this.tmpDir = tmpDir
   }
 
   async commitDrivesAsync(currDrives, nextDrives) {
   
-    if (currentDrives !== this.drives) throw E.ECOMMITFAIL()
+    if (currDrives !== this.drives) throw E.ECOMMITFAIL()
     if (this.lock === true) throw E.ECOMMITFAIL() 
 
     this.lock = true
@@ -82,27 +86,34 @@ class DriveList extends EventEmitter {
     }
   }
 
-  async createPrivateDrives(owner) {
+  async createPrivateDriveAsync(owner, tag) {
 
-    let home = { type: 'private', owner, tag }
+    let drive = { 
+      uuid: UUID.v4(), 
+      type: 'private', 
+      owner, 
+      tag 
+    }
 
     let nextDrives = [...this.drives, drive]
-    await this.commitDrivesAsync(this.drives, [...this.drives, drive])
+    await this.commitDrivesAsync(this.drives, nextDrives)
     this.drives = nextDrives
     deepFreeze(this.drives)
     return drive
   }
 
-  async createPublicDrive(opts) {
+  async createPublicDriveAsync(props) {
 
     let drive = {
+      uuid: UUID.v4(),
       type: 'public',
-      writelist: opts.writelist || [],
-      readlist: opts.readlist || [], 
+      writelist: props.writelist || [],
+      readlist: props.readlist || [], 
+      label: props.label || ''
     }
 
     let nextDrives = [...this.drives, drive]
-    await this.commitDriveAsync(this.drives, nextDrives)
+    await this.commitDrivesAsync(this.drives, nextDrives)
     this.drives = nextDrives
     deepFreeze(this.drives)
     return drive 

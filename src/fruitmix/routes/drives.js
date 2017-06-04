@@ -19,5 +19,13 @@ router.get('/', auth.jwt(), (req, res) => {
   res.status(200).json(drives)
 })
 
+router.post('/', auth.jwt(), (req, res) => {
+
+  let props = req.body
+  Drive.createPublicDriveAsync(props)
+    .then(drive => res.status(200).json(drive))
+    .catch(e => res.status(500).json({ code: e.code, message: e.message }))
+})
+
 module.exports = router
 

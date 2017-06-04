@@ -4,6 +4,7 @@ const auth = require('../middleware/auth')
 const uuid = require('uuid')
 
 const User = require('../user/user')
+const Drive = require('../drive/drive')
 
 router.get('/', (req, res, next) => {
 
@@ -17,18 +18,28 @@ router.get('/', (req, res, next) => {
 
 }, auth.jwt(), (req, res) => {
 
-
 })
+
+const createUserWithDrivesAsync = async props => {
+
+  let user = await User.createUserAsync(props)
+  let drive = await Drive.createPrivateDriveAsync(user.uuid, 'home')
+  return user
+}
 
 router.post('/', (req, res, next) => {
 
-  if (User.users.length !== 0) return next()
-
-  User.createUserAsync(req.body)
-    .then(user => res.status(200).json(user))
-    .catch(e => res.status(500).json({ code: err.code, message: err.message }))
+  return User.users.length === 0 
+    ? createUserWithDrivesAsync(req.body)
+      .then(user => res.status(200).json(user))
+      .catch(e => res.status(500).json({ code: e.code, message: e.message }))
+    : next()
 
 }, auth.jwt(), (req, res) => {
+
+  createUserWithDrivesAsync(req.body)
+    .then(user => res.status(200).json(user))
+    .catch(e => res.status(500).json({code: e.code, message: e.message }))
 })
 
 router.get('/:uuid', auth.jwt(), (req, res) => {

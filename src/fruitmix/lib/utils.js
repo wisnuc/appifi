@@ -9,6 +9,9 @@ const bcrypt = require('bcrypt')
 const crypt3 = require('crypt3')
 const UUID = require('uuid')
 
+let tmpNum = 0
+const tmpPrefix = UUID.v4()
+
 /**
 Utility functions
 
@@ -35,7 +38,7 @@ const saveObject = (fpath, tmpDir, object, callback) => {
     return
   }
 
-  let tmpPath = path.join(tmpDir, UUID.v4())
+  let tmpPath = path.join(tmpDir, tmpPrefix + (tmpNum++))
 
   // create a write stream
   let os = fs.createWriteStream(tmpPath)
