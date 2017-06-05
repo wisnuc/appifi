@@ -154,12 +154,16 @@ class Ref {
       hash.update(text)
       digest = hash.digest().toString('hex')
 
-      filepath = path.join(this.docDir, digest)
-      tmppath = path.join(this.tmpdir, digest)
-      
-      await writeFileToDiskAsync(tmppath, text)
       await mkdirpAsync(this.docDir)
-      await fs.renameAsync(tmppath, filepath)
+      let entries = await fs.readdirAsync(this.docDir)
+      if(entries.indexOf(digest) === -1) {
+        filepath = path.join(this.docDir, digest)
+        tmppath = path.join(this.tmpdir, digest)
+        
+        await writeFileToDiskAsync(tmppath, text)
+        await child.execAsync(`chmod 444 ${tmppath}`)
+        await fs.renameAsync(tmppath, filepath)
+      }
       return digest
     } catch(e) {
       throw e
