@@ -13,11 +13,16 @@ const tmptest = path.join(process.cwd(), 'tmptest')
 describe(path.basename(__filename), function() {
   let filepath = path.join(tmptest, 'test.js')
   let sha256 = '2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824'
+  let repoDir = path.join(tmptest, DIR.REPO)
+  let tmpDir = path.join(tmptest, DIR.TMP)
+  let docDir = path.join(tmptest, DIR.DOC)
+  let ref
 
   beforeEach(async () => {
     await rimrafAsync(tmptest) 
     await mkdirpAsync(tmptest)
     await fs.writeFileAsync(filepath, 'hello')
+    ref = new Ref(repoDir, tmpDir, docDir)
   })
 
   afterEach(async () => {
@@ -50,14 +55,6 @@ describe(path.basename(__filename), function() {
   })
 
   describe('storeFlieAsync', function() {
-    let repoDir = path.join(tmptest, DIR.REPO)
-    let tmpDir = path.join(tmptest, DIR.TMP)
-    let docDir = path.join(tmptest, DIR.DOC)
-    let ref
-
-    before(() => {
-      ref = new Ref(repoDir, tmpDir, docDir)
-    })
 
     it('should throw error if filepath is not absolute', async () => {
       let fpath = '../../../../tmptest/test'
@@ -110,15 +107,73 @@ describe(path.basename(__filename), function() {
       let hash = await ref.storeFileAsync(filepath)
       expect(hash).to.equal(sha256)
     })
+
+    it('stored file should be read only', async () => {
+      let hash = await ref.storeFileAsync(filepath)
+      try {
+        await fs.writeFileAsync(path.join(ref.repoDir, hash), 'world')   
+      } catch(e) {
+        expect(e.code).to.equal('EACCES')
+      }
+    })
+
+    it('should not store again if file is already exist', async () => {
+      await ref.storeFileAsync(filepath)
+      await ref.storeFileAsync(filepath)
+      let entries = await fs.readdirAsync(ref.repoDir)
+      expect(entries.length).to.equal(1)
+    })
   })
 
-  // describe('retrieveFilePath', function() {
+  describe('retrieveFilePath', function() {
 
-  // })
+    it('should throw error if hash is not invalid', async () => {
+      await ref.storeFileAsync(filepath)
+      try {
+        ref.retrieveFilePath('123')
+      } catch(e) {
+        expect(e).to.be.an.instanceof(E.EINVAL)
+      }
+    })
 
-  // describe('storeDirAsync', function() {
+    it('should return a valid path', async () => {
+      let hash = await ref.storeFileAsync(filepath)
+      let fpath = ref.retrieveFilePath(hash)
+      expect(fpath).to.equal(path.join(ref.repoDir, sha256))
+    })
+  })
 
-  // })
+  describe('storeDirAsync', function() {
+
+    let testFolder = path.join(tmptest, 'testFolder')
+    let fpath1 = path.join(testFolder, 'a.js' )
+    let fpath2 = path.join(testFolder, 'b.js')
+    let folder = path.join(testFolder, 'test')
+    let fpath3 = path.join(folder, 'c.js')
+    let fpath4 = path.join(folder, 'D.js')
+
+    beforeEach(async () => { 
+      await mkdirpAsync(testFolder)
+      await fs.writeFileAsync(fpath1, 'this is a')
+      await fs.writeFileAsync(fpath2, 'this is b')
+      await mkdirpAsync(folder)
+      await fs.writeFileAsync(fpath3, 'this is c')
+      await fs.writeFileAsync(fpath4, 'this is D')
+    })
+
+    it('should throw error if path is not a directory', async () => {
+      try {
+        await ref.storeDirAsync(filepath)
+      } catch(e) {
+        expect(e).to.be.an.instanceof(E.ENOTDIR)
+      }
+    })
+
+    it('should return a hash', async () => {
+      let hash = await ref.storeDirAsync(testFolder)
+      console.log(hash)
+    })
+  })
 
   // describe('retrieveObjectAsync', function() {
 

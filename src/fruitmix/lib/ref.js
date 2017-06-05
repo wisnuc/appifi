@@ -8,7 +8,7 @@ const { peekXattrAsync } = require('../file/xstat')
 const command = require('../lib/command').default
 const E = require('../lib/error')
 const { isSHA256, assert, unique } = require('./types')
-const { rimrafAsync } = require('../util/async')
+const { rimrafAsync, mkdirpAsync } = require('../util/async')
 const { writeFileToDisk } = require('./util')
 
 const commandAsync = Promise.promisify(command)
@@ -119,15 +119,18 @@ class Ref {
       hash = await filehashAsync(tmppath)
     }
     // now hash is ready
-    let target = path.join(this.repoDir, hash)
-    try {
-      await this.copyAsync(tmppath, target)
-    } catch(e) {
-      throw e
-    } finally {
-      await rimrafAsync(tmppath)
+    await mkdirpAsync(this.repoDir)
+    let entries = await fs.readdirAsync(this.repoDir)
+    // if file is already in repo, return
+    if(entries.indexOf(hash) === -1) {
+      let target = path.join(this.repoDir, hash)
+      try {
+        await this.copyAsync(tmppath, target)
+      } catch(e) {
+        throw e
+      } 
     }
-
+    await rimrafAsync(tmppath)
     return hash
   }
 
@@ -155,6 +158,7 @@ class Ref {
       tmppath = path.join(this.tmpdir, digest)
       
       await writeFileToDiskAsync(tmppath, text)
+      await mkdirpAsync(this.docDir)
       await fs.renameAsync(tmppath, filepath)
       return digest
     } catch(e) {
@@ -181,13 +185,15 @@ class Ref {
     treeEntries = treeEntries.filter(te => !!te)
   **/
   async storeDirAsync(dir) {
+    let stat = await fs.lstatAsync(dir)
+    if(!stat.isDirectory()) throw new E.ENOTDIR()
 
     let entries = await fs.readdirAsync(dir)
     let treeEntries = await Promise
       .map(entries, async entry => {
       
         let entryPath = path.join(dir, entry)
-        let stat = await fs.lstatAync(entryPath)
+        let stat = await fs.lstatAsync(entryPath)
         
         if (stat.isDirectory())
           return ['tree', entry, await this.storeDirAsync(entryPath)]
