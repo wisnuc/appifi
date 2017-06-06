@@ -10,6 +10,7 @@ const auth = require('./middleware/auth')
 const token = require('./routes/token')
 const users = require('./routes/users')
 const drives = require('./routes/drives')
+// const files = require('./routes/files')
 
 /**
 import init from './routes/init'
@@ -23,7 +24,6 @@ import media from './routes/media'
 import mediashare from './routes/mediashare'
 **/
 
-
 let app = express()
 
 if (process.env.NODE_ENV === 'test') app.nolog = true
@@ -36,6 +36,7 @@ app.use(auth.init())
 app.use('/token', token)
 app.use('/users', users)
 app.use('/drives', drives)
+// app.use('/files', files)
 
 /**
 app.use('/init', init)

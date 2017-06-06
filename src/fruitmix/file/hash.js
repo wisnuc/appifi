@@ -1,14 +1,28 @@
-import path from 'path'
-import fs from 'fs'
-import E from '../lib/error'
-import Worker from '../lib/worker'
-import command from '../lib/command'
+const path = require('path')
+const fs = require('fs')
 
-import { isSHA256 } from '../lib/types'
-import { updateFileHash } from './xstat'
+const E = require('../lib/error')
+const Worker = require('./worker')
 
-class Hash extends Worker {
+const command = require('../lib/command')
+const isSHA256 = require('../lib/is').isSHA256
+const updateFileHash = require('../file/xstat')
 
+/**
+@module Hash
+*/
+
+/**
+A concrete worker class for hashing a fruitmix file.
+@extends Worker
+@todo Support non-fruitmix file.
+*/
+class HashWorker extends Worker {
+
+  /**
+  @param {string} fpath - absolute file path
+  @param {string} uuid - file object uuid
+  */
   constructor(fpath, uuid) {
     super()
     this.fpath = fpath
@@ -17,10 +31,16 @@ class Hash extends Worker {
     this.hash = undefined
   }
 
+  /**
+  abort cmd before finishing.
+  */
   cleanUp() {
     this.cmd && this.cmd()
   }
 
+  /**
+  hash given file using openssl
+  */
   run() {
     fs.lstat(this.fpath, (err, stats) => 
       this.finished ? undefined
@@ -42,6 +62,15 @@ class Hash extends Worker {
   }
 }
 
-export default (fpath, uuid) => new Hash(fpath, uuid)
+/**
+Constructs a HashWorker instance. Factory method.
 
+@function Hash
+@param {string} fpath - absolute file path
+@param {string} [uuid] - fruitmix file uuid
+@returns {HashWorker}
+*/
+const Hash = (fpath, uuid) => new HashWorker(fpath, uuid)
+
+module.exports = Hash
 
