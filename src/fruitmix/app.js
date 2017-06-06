@@ -11,6 +11,7 @@ const token = require('./routes/token')
 const users = require('./routes/users')
 const drives = require('./routes/drives')
 // const files = require('./routes/files')
+const boxes = require('./routes/boxes')
 
 /**
 import init from './routes/init'
@@ -37,6 +38,7 @@ app.use('/token', token)
 app.use('/users', users)
 app.use('/drives', drives)
 // app.use('/files', files)
+app.use('/boxes', boxes)
 
 /**
 app.use('/init', init)
