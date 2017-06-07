@@ -68,26 +68,40 @@ class Node {
   @throws When root node is not a DriveNode
   */
   driveUUID() {
-    if (this.root() instanceof DriveNode) return this.root()
-    throw new Error('root node is not a DriveNode') 
+    if (!this.root().isDrive()) 
+      throw new Error('root node is not a DriveNode') 
+    return this.root().driveUUID
   }
 
   /**
   return node array starting from root
+  @throws When root node is not a DriveNode
   */
   nodepath() {
 
-    let q = []
-    for (let n = this; n !== null; n = n.parent) {
-      if (n === this.ctx.root) return q
-      q.unshift(n)
+    let node, q = []
+    for (node = this;;node = node.parent) {
+      q.unshift[node]
+      if (node.parent === null) { // this is root node
+        if (!node.isDrive())
+          throw new Error('root node is not a DriveNode')
+        return q 
+      }
     }
-    throw new E.ENODEDETACHED()
   }   
+
+  /**
+  return absolute path 
+  @throws When root node is not a DriveNode
+  */
+  abspath() { 
+    return path.join(this.ctx.dir, ...this.nodepath().map(n => n.name))
+  }
 
   /**
   Attach this node to a parent node
   @param {DirectoryNode} parent - parent node to attach 
+  @throws When node is already attached, or, parent is not a DirectoryNode
   */
   attach(parent) {
     if (this.parent !== null) throw new Error('node is already attached') 
@@ -128,46 +142,22 @@ class Node {
     func(this) 
   }
 
-
-
-  // return drive node
-  getDrive() { 
-
-    for (let n = this; n !== null; n = n.parent) {
-      if (n.parent === this.ctx.root) return n.drive
-    }
-    
-    throw new E.ENODEDETACHED()
-  }
-
-  abspath() { 
-    return path.join(this.ctx.dir, ...this.nodepath().map(n => n.name))
-  }
-
   walkdown(names) {
     // TODO
   }
 
-  // abort workers // TODO nullify worker?
+  /**
+  Abort worker
+  */
   abort() {
-    if (this.worker) this.worker.abort()
+    if (this.worker) {
+      this.worker.abort()
+      this.worker = null
+    }
   }
 
-  /**
-  */
-  isFile() {
-    return false
-  }
-
-  /**
-  */
-  isDirectory() {
-    return false
-  }
-
-  /**
+  /*
   Generate an JavaScript object, for debugging
-  */
   genObject() {
     return this
       .children
@@ -176,12 +166,14 @@ class Node {
         return acc
       }, {})
   }
+  */
 }
 
 /**
 FileNode is a tree node representing a regular file.
 
 If a file has a interested magic but no hash, hash should be calculated.
+If a file has a hash and (externally) meta has not been extracted yet, meta should be extracted.
 */
 class FileNode extends Node {
 
@@ -295,7 +287,6 @@ class FileNode extends Node {
 
 /**
 DirectoryNode is a tree node representing a directory.
-
 */
 class DirectoryNode extends Node {
 
