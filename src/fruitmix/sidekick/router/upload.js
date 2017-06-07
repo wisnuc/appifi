@@ -62,11 +62,17 @@ Upload a file, save to given path and return size and hash.
 */
 router.put('/', (req, res) => {
 
+  if (typeof req.query.path !== 'string')
+    return res.status(400).json({ message: 'path must be a valid path' })
+
   let os = fs.createWriteStream(req.query.path)
   let hash = new HashTransform()
   let finished = false
 
   const error = err => {
+
+    console.log(err)
+
     if (finished) return 
     finished = true
     res.status(500).json({
@@ -95,7 +101,6 @@ router.put('/', (req, res) => {
   })
 
   req.pipe(hash).pipe(os)
-
 })
 
 module.exports = router

@@ -10,7 +10,7 @@ mkdirp.sync(tmptest)
 if (!process.argv[2]) process.exit()
 
 let stream = fs.createReadStream(process.argv[2])
-let req = request.put(`http://localhost:4005/file?path=${path.join(tmptest, UUID.v4())}`, (err, res, body) => console.log(err || res))
+let req = request.put(`http://localhost:4005/upload?path=${path.join(tmptest, UUID.v4())}`, (err, res, body) => console.log(err || res))
 
 stream.pipe(req)
 

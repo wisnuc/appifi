@@ -6,6 +6,8 @@ const UUID = require('uuid')
 const deepFreeze = require('deep-freeze')
 const { saveObjectAsync } = require('../lib/utils')
 
+const File = require('../file/file')
+
 /**
 Drive module exports a DriveList Singleton
 
@@ -99,6 +101,7 @@ class DriveList extends EventEmitter {
     await this.commitDrivesAsync(this.drives, nextDrives)
     this.drives = nextDrives
     deepFreeze(this.drives)
+    await File.createDriveAsync(drive)
     return drive
   }
 

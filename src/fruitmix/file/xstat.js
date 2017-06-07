@@ -16,6 +16,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with Wisnuc Fruitmix.  If not, see <http://www.gnu.org/licenses/>.
  */
+const Promise = require('bluebird')
 const path = require('path')
 const fs = Promise.promisifyAll(require('fs'))
 const child = require('child_process')
@@ -339,7 +340,10 @@ callback version of readXstatAsync
 @param {string} target - absolute path for file or dir
 @param {function} callback
 */
-const readXstat = (target, callback) => readXstatAsync(target).asCallback(callback)
+const readXstat = (target, callback) => 
+  readXstatAsync(target)
+    .then(xstat => callback(null, xstat))
+    .catch(e => callback(e))
 
 /**
 Forcefully set xattr with given uuid and/or hash. 
@@ -420,14 +424,18 @@ callback version of updateFileHashAsync
 @param {function} callback - `(err, xstat) => {}`
 */
 const updateFileHash = (target, uuid, hash, htime, callback) =>
-  updateFileHashAsync(target, uuid, hash, htime).asCallback(callback)
+  updateFileHashAsync(target, uuid, hash, htime)
+    .then(xstat => callback(null, xstat))
+    .catch(e => callback(e))
 
 /** 
 @func forceDriveXstat
 @deprecated
 */
 const forceDriveXstat = (target, driveUUID, callback) => 
-  forceDriveXstatAsync(target, driveUUID).asCallback(callback) 
+  forceDriveXstatAsync(target, driveUUID)
+    .then(xstat => callback(null, xstat))
+    .catch(e => callback(e))
 
 module.exports = { 
 
