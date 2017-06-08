@@ -210,7 +210,7 @@ class UserList extends EventEmitter {
     try {
 
       // save to file
-      saveObjectAsync(this.fpath, this.tmpDir, nextUsers)
+      await saveObjectAsync(this.fpath, this.tmpDir, nextUsers)
 
       // update in-memory object
       this.users = nextUsers

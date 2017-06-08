@@ -5,6 +5,8 @@ const jwt = require('jwt-simple')
 const secret = require('../config/passportJwt')
 
 const User = require('../user/user')
+const Box = require('../box/box')
+
 /**
 This auth requires client providing:
 1. both local user token AND wechat token
@@ -22,10 +24,12 @@ const auth = (req, res, next) => {
 
   if (split.length < 2 || split.length > 3 || split[0] !== 'JWT')
     return res.status(401).end()
- 
-  let wechat = jwt.decode(split[1]) 
-  if (wechat.deadline > new Date().getTime())
+
+  let wechat = jwt.decode(split[1], secret) 
+  if (wechat.deadline < new Date().getTime()) {
+    console.log('overdue')
     return res.status(401).end()
+  }
 
   if (split.length === 2) {
     req.guest = {
@@ -34,17 +38,31 @@ const auth = (req, res, next) => {
     return next()
   }
 
-  let local = jwt.decode(split[2])
+  let local = jwt.decode(split[2], secret)
   let user = User.users.find(u => u.uuid === local.uuid)
   if (!user || user.unionId !== wechat.unionId)
     return res.status(401).end()
 
-  req.user = user 
+  req.user = User.stripUser(user)
   next()
 }
 
 router.get('/', auth, (req, res) => {
+
+  // console.log('auth', req.user, req.guest)
+
   res.status(200).json([])
+})
+
+router.post('/', auth, (req, res, next) => {
+
+  if (!req.user) return res.status(403).end()
+
+  let props = Object.assign({}, req.body, { owner: req.user.unionId })
+
+  Box.createBoxAsync(props)
+    .then(box => res.status(200).json(box))
+    .catch(next)
 })
 
 module.exports = router
