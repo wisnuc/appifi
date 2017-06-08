@@ -79,7 +79,7 @@ class DriveList extends EventEmitter {
 
     this.lock = true
     try {
-      saveObjectAsync(this.fpath, this.tmpDir, nextDrives)
+      await saveObjectAsync(this.fpath, this.tmpDir, nextDrives)
       this.drives = nextDrives
       deepFreeze(this.drives)
     }

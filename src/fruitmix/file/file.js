@@ -130,6 +130,8 @@ class File extends EventEmitter {
 
   async mkdirAsync(parent, name) {
 
+    if (!parent instanceof Node) throw new Error('mkdirAsync: parent is not a dir node')
+
     let dirPath = path.join(parent.abspath(), name)
     await fs.mkdirAsync(dirPath)
     let xstat = await readXstatAsync(dirPath)

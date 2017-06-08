@@ -66,7 +66,7 @@ const error = (res, e) =>
     message: e.message
   })
 
-router.post('/:driveUUID/dirs', auth.jwt(), (req, res) => {
+router.post('/:driveUUID/dirs', auth.jwt(), (req, res, next) => {
 
   let { driveUUID } = req.params
 
@@ -79,7 +79,7 @@ router.post('/:driveUUID/dirs', auth.jwt(), (req, res) => {
       name: node.name,
       mtime: node.mtime
     }))
-    .catch(e => console.log(e) || res.status(500).json({ code: e.code, message: e.message }))
+    .catch(next)
 })
 
 // [/drives/{driveUUID}/dirs/{dirUUID}]
