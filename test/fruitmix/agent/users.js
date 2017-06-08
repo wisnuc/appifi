@@ -16,6 +16,7 @@ const { saveObjectAsync } = require('src/fruitmix/lib/utils')
 
 const User = require('src/fruitmix/user/user')
 const Drive = require('src/fruitmix/drive/drive')
+const File = require('src/fruitmix/file/file')
 
 const IDS = {
 
@@ -96,11 +97,6 @@ ef4d117e-e47e-45c3-9a9d-e89fe2c03592
 
 **/
 
-const cwd = process.cwd()
-const tmptest = path.join(cwd, 'tmptest')
-const usersPath = path.join(tmptest, 'users.json')
-const drivesPath = path.join(tmptest, 'drives.json')
-
 const stubUserUUID = username => 
   sinon.stub(UUID, 'v4')
     .onFirstCall().returns(IDS[username].uuid)
@@ -162,14 +158,23 @@ const createPublicDriveAsync = async (props, token, uuid) => {
   }
 }
 
+const cwd = process.cwd()
+const tmptest = path.join(cwd, 'tmptest')
+const tmpDir = path.join(tmptest, 'tmp')
+const usersPath = path.join(tmptest, 'users.json')
+const drivesPath = path.join(tmptest, 'drives.json')
+const drivesDir = path.join(tmptest, 'drives')
+
 /**
 Reset directories and reinit User module
 */
 const resetAsync = async() => {
   await rimrafAsync(tmptest) 
-  await mkdirpAsync(tmptest) 
-  await User.initAsync(usersPath, tmptest)
-  await Drive.initAsync(drivesPath, tmptest)
+  await mkdirpAsync(tmpDir) 
+  
+  await User.initAsync(usersPath, tmpDir)
+  await Drive.initAsync(drivesPath, tmpDir)
+  await File.initAsync(drivesDir, tmpDir)
 }
 
 describe(path.basename(__filename), () => {
@@ -183,7 +188,7 @@ describe(path.basename(__filename), () => {
 
     afterEach(() => UUID.v4.restore())
 
-    it('GET /users should return [] (callback)', done => 
+    it('GET /users should return [] (callback)', done => {
       request(app)
         .get('/users')
         .expect(200)
@@ -191,7 +196,8 @@ describe(path.basename(__filename), () => {
           if (err) return done(err)
           expect(res.body).to.deep.equal([])
           done()
-        }))
+        })
+    })
 
     it('GET /users should return [] (async and eventually)', async() => 
       request(app)
@@ -232,12 +238,13 @@ describe(path.basename(__filename), () => {
         .end(done)
     })
 
-    it('GET /token should return token with correct password', done => 
+    it('GET /token should return token with correct password', done => {
       request(app)
         .get('/token')
         .auth(IDS.alice.uuid, 'alice')
         .expect(200)
-        .end(done))
+        .end(done)
+    })
   })
 
   describe('After alice created', () => {
@@ -249,25 +256,28 @@ describe(path.basename(__filename), () => {
       token = await retrieveTokenAsync('alice')
     })
 
-    it('GET /token/verify should fail without token', done => 
+    it('GET /token/verify should fail without token', done => {
       request(app)
         .get('/token/verify')
         .expect(401)
-        .end(done))
+        .end(done)
+    })
 
-    it('GET /token/verify should fail with wrong token', done => 
+    it('GET /token/verify should fail with wrong token', done => {
       request(app)
         .get('/token/verify')
         .set('Authorization', 'JWT ' + token.toUpperCase())
         .expect(401)
-        .end(done))
+        .end(done)
+    })
 
-    it('GET /token/verify should succeed', done => 
+    it('GET /token/verify should succeed', done => {
       request(app)
         .get('/token/verify')
         .set('Authorization', 'JWT ' + token)
         .expect(200)
-        .end(done))
+        .end(done)
+    })
 
     it("GET /drives should return alice's home drive", async() => 
       request(app)

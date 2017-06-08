@@ -29,17 +29,18 @@ const createUserWithDrivesAsync = async props => {
 
 router.post('/', (req, res, next) => {
 
-  return User.users.length === 0 
-    ? createUserWithDrivesAsync(req.body)
-      .then(user => res.status(200).json(user))
-      .catch(e => res.status(500).json({ code: e.code, message: e.message }))
-    : next()
-
-}, auth.jwt(), (req, res) => {
+  if (User.users.length)
+    return next()
 
   createUserWithDrivesAsync(req.body)
     .then(user => res.status(200).json(user))
-    .catch(e => res.status(500).json({code: e.code, message: e.message }))
+    .catch(next)
+
+}, auth.jwt(), (req, res, next) => {
+
+  createUserWithDrivesAsync(req.body)
+    .then(user => res.status(200).json(user))
+    .catch(next)
 })
 
 router.get('/:uuid', auth.jwt(), (req, res) => {

@@ -65,6 +65,10 @@ app.use(function(req, res, next) {
 
 // error handlers
 app.use(function(err, req, res, next) {
+
+  if (err && process.env.NODE_ENV === 'test')
+    console.log(err)
+
   res.status(err.status || 500)
   res.type('text/plain')
   res.send(err.status + ' ' + err.message)
