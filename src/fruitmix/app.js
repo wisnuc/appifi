@@ -12,7 +12,7 @@ const users = require('./routes/users')
 const drives = require('./routes/drives')
 // const files = require('./routes/files')
 const boxes = require('./routes/boxes')
-
+const wxtoken = require('./routes/wxtoken')
 /**
 import init from './routes/init'
 import login from './routes/login'
@@ -39,6 +39,7 @@ app.use('/users', users)
 app.use('/drives', drives)
 // app.use('/files', files)
 app.use('/boxes', boxes)
+app.use('/wxtoken', wxtoken)
 
 /**
 app.use('/init', init)

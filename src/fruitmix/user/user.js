@@ -270,24 +270,27 @@ class UserList extends EventEmitter {
   /**
   Update a user
 
-  @param {User} user - operator
   @param {Object} props - props
   @param {string} props.username - non-empty string, no conflict with existing username
   @param {boolean} [props.isAdmin] - set user's isAdmin. Operator must be first user to have this prop.
   **/
-  async updateUser(uuid, props) {
+  async updateUserAsync (uuid, props) {
     
     let currUsers = this.users
 
-    // do something
+    let { unionId } = props
+    let index = this.users.findIndex(u => u.uuid === uuid) 
+    if (index === -1) throw new Error('user not found')
 
+    let nextUser = Object.assign({}, this.users[index], { unionId })
     let nextUsers = [
       ...currUsers.slice(0, index),
       nextUser,
       ...currUsers.slice(index + 1)
     ] 
 
-    return await this.commitUsersAsync(currUsers, nextUsers)
+    await this.commitUsersAsync(currUsers, nextUsers)
+    return this.stripUser(nextUser)
   }
 
   /**

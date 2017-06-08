@@ -59,8 +59,16 @@ router.get('/:uuid', auth.jwt(), (req, res) => {
     res.status(403).end() // TODO message? 
 })
 
-router.post('/:uuid', auth.jwt(), (req, res) => {
+router.patch('/:userUUID', auth.jwt(), (req, res, next) => {
 
+  let { userUUID } = req.params
+
+  if (!User.users.find(u => u.uuid === userUUID))
+    return res.status(404).end()
+
+  User.updateUserAsync(userUUID, req.body)
+    .then(user => res.status(200).json(user))  
+    .catch(next)
 })
 
 router.post('/:uuid/password', auth.jwt(), (req, res) => {

@@ -9,7 +9,7 @@ router.get('/', auth.jwt(), (req, res) => {
   if (user.unionId) {
     let token = {
       unionId: user.unionId,
-      time: new Date().getTime()  
+      deadline: new Date().getTime() + 4 * 60 * 60 * 1000
     }
     res.status(200).json({ type: 'JWT', token: jwt.encode(token, secret) })
   }
@@ -21,18 +21,8 @@ router.get('/', auth.jwt(), (req, res) => {
 // { token: xxxxx }
 router.post('/decode', (req, res) => {
 
-  let decoded
-  try { 
-    decoded = jwt.decode(req.body.token, secret)
-    res.status(200).json(decoded)
-  }
-  catch (e) {
-    res.status(500).json({
-      type: e.constructor.name,
-      code: e.code,
-      message: e.message
-    })
-  }
+  let decoded = jwt.decode(req.body.token, secret)
+  res.status(200).json(decoded)
 })
 
 module.exports = router
