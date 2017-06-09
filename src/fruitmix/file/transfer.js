@@ -1,10 +1,11 @@
 import path from 'path'
-import fs from 'fs'
 import child from 'child_process'
 import EventEmitter from 'events'
 
 import xattr from 'fs-xattr'
 import UUID from 'node-uuid'
+import fs from 'fs-extra'
+import rimraf from 'rimraf'
 
 import E from '../lib/error'
 import config from '../cluster/config'
@@ -242,18 +243,27 @@ class Move extends Worker {
   }
 
   copy(callback) {
-    child.exec(`cp -r --reflink=auto --preserve=xattr ${ this.srcPath } ${ this.dstPath }`,(err, stdout, stderr) => {
+    // child.exec(`cp -r --reflink=auto --preserve=xattr ${ this.srcPath } ${ this.dstPath }`,(err, stdout, stderr) => {
+    //   if(err) return callback(err)
+    //   if(stderr) return callback(stderr)
+    //   return callback(null, stdout)
+    // })
+
+    fs.copy(this.srcPath, this.dstPath, err => {
       if(err) return callback(err)
-      if(stderr) return callback(stderr)
-      return callback(null, stdout)
+      return callback(null)
     })
   }
 
   delete(callback) {
-    child.exec(`rm -rf ${ this.srcPath }`, (err, stdout, stderr) => {
+    // child.exec(`rm -rf ${ this.srcPath }`, (err, stdout, stderr) => {
+    //   if(err) return callback(err)
+    //   if(stderr) return callback(stderr)
+    //   return callback(null, stdout)
+    // })
+    rimraf(this.srcPath, err => {
       if(err) return callback(err)
-      if(stderr) return callback(stderr)
-      return callback(null, stdout)
+      return callback(null)
     })
   }
 
@@ -269,10 +279,14 @@ class Move extends Worker {
   }
 
   move(callback){
-    child.exec(`mv -f ${ this.srcPath } ${ this.dstPath }`, (err, stdout, stderr) => {
+    // child.exec(`mv -f ${ this.srcPath } ${ this.dstPath }`, (err, stdout, stderr) => {
+    //   if(err) return callback(err)
+    //   if(stderr) return callback(stderr)
+    //   return callback(null, stdout)
+    // })
+    fs.move(this.srcPath, this.dstPath, err => {
       if(err) return callback(err)
-      if(stderr) return callback(stderr)
-      return callback(null, stdout)
+      return callback(null)
     })
   }
 
@@ -422,18 +436,26 @@ class Copy extends Worker {
   }
 
   copy(callback) {
-    child.exec(`cp -r --reflink=auto ${ this.srcPath } ${ this.tmpPath }`,(err, stdout, stderr) => {
+    // child.exec(`cp -r --reflink=auto ${ this.srcPath } ${ this.tmpPath }`,(err, stdout, stderr) => {
+    //   if(err) return callback(err)
+    //   if(stderr) return callback(stderr)
+    //   return callback(null, stdout)
+    // })
+    fs.copy(this.srcPath, this.tmpPath, err => {
       if(err) return callback(err)
-      if(stderr) return callback(stderr)
-      return callback(null, stdout)
+      return callback(null)
     })
   }
 
   move(callback){
-    child.exec(`mv -f ${ this.tmpPath } ${ this.dstPath }`, (err, stdout, stderr) => {
+    // child.exec(`mv -f ${ this.tmpPath } ${ this.dstPath }`, (err, stdout, stderr) => {
+    //   if(err) return callback(err)
+    //   if(stderr) return callback(stderr)
+    //   return callback(null, stdout)
+    // })
+    fs.move(this.tmpPath, this.dstPath, err => {
       if(err) return callback(err)
-      if(stderr) return callback(stderr)
-      return callback(null, stdout)
+      return callback(null)
     })
   }
 }
