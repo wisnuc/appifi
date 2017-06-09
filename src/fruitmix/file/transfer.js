@@ -145,11 +145,11 @@ class Move extends Worker {
   async setDstPath() {
     let dstType = this.dst.type === 'fruitmix'
     if(!dstType){
-      let dpath = await rootPathAsync('fs', this.dst.rootPath)
-      this.dstPath = path.join(dpath, this.dst.path)
+      let dpath = await rootPathAsync('fs', this.dst.rootPath)   
+      this.dstPath = path.join(dpath, this.dst.path, path.basename(this.srcPath))
       return this.dstPath
     }else{
-      this.dstPath = this.data.findNodeByUUID(this.dst.path).abspath()
+      this.dstPath = path.join(this.data.findNodeByUUID(this.dst.path).abspath(), path.basename(this.srcPath))
       return this.dstPath
     }
   }
