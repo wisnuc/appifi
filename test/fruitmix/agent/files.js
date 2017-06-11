@@ -124,5 +124,25 @@ describe(path.basename(__filename), () => {
 
         })
     })
+
+    it("GET /drives/:home/dirs/:home should return home dir", done => {
+
+      request(app)
+        .get(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}`)
+        .set('Authorization', 'JWT ' + token)
+        .expect(200)
+        .end((err, res) => {
+          if (err) return done(err)
+
+          expect(Object.assign({}, res.body, { mtime: -1 })).to.deep.equal({
+            uuid: IDS.alice.home,
+            parent: null,
+            name: IDS.alice.home,
+            mtime: -1
+          })
+
+          done()
+        })
+    }) 
   }) 
 })

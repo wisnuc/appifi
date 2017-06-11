@@ -12,6 +12,10 @@ const File = require('../file/file')
 const { readXstatAsync } = require('../file/xstat')
 const formdata = require('./formdata')
 
+const success = (res, data) => data
+  ? res.status(200).json(data)
+  : res.status(200).end()
+
 router.get('/', auth.jwt(), (req, res) => {
 
   let drives = Drive.drives.filter(drv => {
@@ -66,28 +70,80 @@ const error = (res, e) =>
     message: e.message
   })
 
-router.post('/:driveUUID/dirs', auth.jwt(), (req, res, next) => {
+const f = af => (req, res, next) => af(req, res).then(x => x, next)
+
+router.post('/:driveUUID/dirs', auth.jwt(), f(async (req, res) => {
 
   let { driveUUID } = req.params
+  
+  let parent = File.findDirectoryByUUID(req.body.parent) 
+  if (!parent) 
+    return res.status(404).end()
 
-  let parent = File.findNodeByUUID(req.body.parent)
-  if (!parent) res.status(404).end()
+  let parentPath = parent.abspath()
+  let xstat = await readXstatAsync(parentPath)
+  let dirPath = path.join(parent.abspath(), req.body.name)
 
-  File.mkdirAsync(parent, req.body.name)
-    .then(node => res.status(200).json({
-      uuid: node.uuid,
-      name: node.name,
-      mtime: node.mtime
-    }))
-    .catch(next)
-})
+  try {
+    await fs.mkdirAsync(dirPath)
+  }
+  catch (e) {
+    if (e.code === 'ENOENT') {
+    } 
+    else if (e.code === 'ENOTDIR') {
+    }
+    else {
+    }
+  }
 
-// [/drives/{driveUUID}/dirs/{dirUUID}]
-router.get('/:driveUUID/dirs/:dirUUID', auth.jwt(), (req, res) => {
+  xstat = await readXstatAsync(dirPath)
+  res.status(200).json({
+    uuid: xstat.uuid,
+    name: xstat.name,
+    mtime: xstat.mtime
+  })
+
+}))
+
+/**
+get single directory object
+*/
+router.get('/:driveUUID/dirs/:dirUUID', auth.jwt(), f(async(req, res) => {
 
   let { driveUUID, dirUUID } = req.params
-  res.status(200).end()
-})
+  let dir = File.findDirectoryByUUID(dirUUID)
+  if (!dir) return res.status(404).end()
+
+  let dirPath = dir.abspath() 
+  let xstat = await readXstatAsync(dirPath)
+
+  res.status(200).json({
+    uuid: xstat.uuid,
+    parent: dir.parent,
+    name: xstat.name,
+    mtime: xstat.mtime
+  })
+}))
+
+/**
+list single directory 
+*/
+router.get('/:driveUUID/dirs/:dirUUID/list', auth.jwt(), f(async(req, res) => {
+
+  let { driveUUID, dirUUID } = req.params
+  let dir = File.findDirectoryByUUID(dirUUID)
+  if (!dir) return res.status(404).end()
+
+  let dirPath = dir.abspath() 
+  let xstat = await readXstatAsync(dirPath)
+
+  res.status(200).json({
+    uuid: xstat.uuid,
+    parent: dir.parent,
+    name: xstat.name,
+    mtime: xstat.mtime
+  })
+}))
 
 // rename a directory
 router.patch('/:driveUUID/dirs/:dirUUID', auth.jwt(), (req, res) => {

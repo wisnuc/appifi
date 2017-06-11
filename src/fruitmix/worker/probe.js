@@ -1,11 +1,12 @@
-import path from 'path'
-import fs from 'fs'
-import E from '../lib/error'
-import Worker from '../lib/worker'
-import { readXstat, readXstatAsync } from './xstat'
+const Promise = require('bluebird')
+const path = require('path')
+const fs = Promise.promisifyAll(require('fs'))
+const E = require('../lib/error')
+const Worker = require('./worker')
+const { readXstat, readXstatAsync } = require('../file/xstat')
 
 // the reason to prefer emitter version over closure one is:
-// 1. easire to test
+// 1. easier to test
 // 2. explicit state
 // 3. can emit again (state) when error
 class Probe extends Worker {
@@ -42,13 +43,14 @@ class Probe extends Worker {
   }
 
   run() {
+  
     this.timer = setTimeout(() => 
       readXstat(this.dpath, (err, xstat) => 
         this.finished ? undefined
         : err ? this.error(err, this.again)
         : xstat.type !== 'directory' ? this.error(new E.ENOTDIR(), this.again)
         : xstat.uuid !== this.uuid ? this.error(new E.EINSTANCE(), this.again)
-        : xstat.mtime === this.mtime ? this.finish(null, this.again)
+        : xstat.mtime === this.mtime ? this.finish(null, this.again)  // early finish
         : this.readXstats((err, xstats) => 
             this.finished ? undefined
             : err ? this.error(err, this.again) 
@@ -58,7 +60,7 @@ class Probe extends Worker {
                 : xstat2.type !== 'directory' ? this.error(new E.ENOTDIR(), this.again)
                 : xstat2.uuid !== this.uuid ? this.error(new E.EINSTANCE(), this.again)
                 : xstat2.mtime !== xstat.mtime ? this.error(new E.ETIMESTAMP(), this.again)
-                : this.finish({ mtime: xstat.mtime, xstats }, this.again)))), this.delay)
+                : this.finish({ mtime: xstat.mtime, xstats }, this.again)))), this.delay) // final finish
   }
 
   request() {
@@ -67,6 +69,6 @@ class Probe extends Worker {
   }
 }
 
-export default (dpath, uuid, mtime, delay) => new Probe(dpath, uuid, mtime, delay)
+module.exports = (dpath, uuid, mtime, delay) => new Probe(dpath, uuid, mtime, delay)
 
 

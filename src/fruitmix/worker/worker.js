@@ -62,8 +62,8 @@ class Worker extends EventEmitter {
     @param {*} args - other arguments to be passed to event handler
   */
   error(e, ...args) {
-    this.emit('error', e, ...args)
     this.finalize()
+    this.emit('error', e, ...args)
   }
 
   /**
@@ -72,8 +72,9 @@ class Worker extends EventEmitter {
     @param {*} args - other arguments to be passed to event handler
   */
   finish(data, ...args) {
-    this.emit('finish', data, ...args)
+
     this.finalize()
+    this.emit('finish', data, ...args)
   }
 
   /**
