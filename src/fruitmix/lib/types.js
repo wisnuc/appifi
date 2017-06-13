@@ -3,6 +3,7 @@ import deepEqual from 'deep-equal'
 
 const isUUID = uuid => typeof uuid === 'string' && validator.isUUID(uuid)
 const isSHA256 = hash => /[a-f0-9]{64}/.test(hash)
+const unique = arr => new Set(arr).size === arr.length
 
 const addUUIDArray = (a, b) => {
   let c = Array.from(new Set([...a, ...b]))
@@ -29,5 +30,6 @@ export {
   complement,
   assert,
   validateProps,
+  unique
 }
 
