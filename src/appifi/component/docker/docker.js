@@ -38,12 +38,12 @@ const prepareDirs = async (dir) => {
   execRootDir = path.join(rootDir, 'r')
   graphDir = path.join(rootDir, 'g')
 
-  DOCKER('Create: ' + dockerPidFile)
-  await fs.openAsync(dockerPidFile, 'w', (err) => { DOCKER('Create pid file failed: ' + err) })
-
   await mkdirpAsync(appDataDir) 
   await mkdirpAsync(execRootDir)
   await mkdirpAsync(graphDir)
+
+  DOCKER('Create: ' + dockerPidFile)
+  await fs.openAsync(dockerPidFile, 'w', (err) => { DOCKER('Create pid file failed: ' + err) })
 }
 
 const probeDaemonGraphDir = (callback) => 

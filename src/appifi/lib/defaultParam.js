@@ -100,6 +100,10 @@ class DefaultParam {
       port: '1688'
     }
   }
+
+  getWisnucAppstationPort() {
+    return 3720
+  }
 }
 
 export default DefaultParam

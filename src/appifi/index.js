@@ -10,7 +10,7 @@ import { daemonStart, daemonStop, getDockerStatus } from './component/docker/doc
 const appifiInit = async (mountpoint) => {
 
   httpServer()
-  INDEX('Appifi HTTP server ran...')
+  INDEX('Appifi HTTP server runs')
 
   // /run/wisnuc/volumes/xxxx/appifi
   dockerInit.init(path.join(mountpoint, 'appifi'))
