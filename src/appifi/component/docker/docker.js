@@ -13,9 +13,7 @@ import DockerStateObserver from './dockerStateObserver'
 import { AppInstallTask } from './dockerTasks'
 import { calcRecipeKeyString, appMainContainer, containersToApps } from '../../lib/utility'
 
-const dockerUrl = 'http://127.0.0.1:1688'
-const dockerPidFile = '/home/wisnuc/git/appifi/run/wisnuc/app/docker.pid'
-
+let dockerPidFile = null
 let rootDir = null
 let appDataDir = null
 let execRootDir = null
@@ -33,7 +31,7 @@ let dockerStatus = {}
 **/
 const prepareDirs = async (dir) => {
 
-  await mkdirpAsync('/home/wisnuc/git/appifi/run/wisnuc/app')
+  dockerPidFile = path.join(dir, 'docker.pid')
 
   rootDir = dir
   appDataDir = path.join(rootDir, 'appdata')
@@ -41,8 +39,11 @@ const prepareDirs = async (dir) => {
   graphDir = path.join(rootDir, 'g')
 
   await mkdirpAsync(appDataDir) 
-  await mkdirpAsync(path.join(rootDir, 'r'))
-  await mkdirpAsync(path.join(rootDir, 'g'))
+  await mkdirpAsync(execRootDir)
+  await mkdirpAsync(graphDir)
+
+  DOCKER('Create: ' + dockerPidFile)
+  await fs.openAsync(dockerPidFile, 'w', (err) => { DOCKER('Create pid file failed: ' + err) })
 }
 
 const probeDaemonGraphDir = (callback) => 
@@ -121,6 +122,7 @@ const daemonStart = async () => {
   dockerDaemon.on('exit', (code, signal) => {
     dockerDaemon = null
     if (code !== undefined) DOCKER(`Daemon exits with exitcode ${code}`)
+    DOCKER(args)
     if (signal !== undefined) DOCKER(`Daemon exits with signal ${signal}`)
   })
 
@@ -160,7 +162,8 @@ const initAsync = async (dir) => {
 
   await prepareDirs(dir)
 
-  DOCKER('graph dir: ', graphDir)
+  DOCKER('Root of the Docker runtime: ', graphDir)
+  DOCKER('Root directory for execution state files: ', execRootDir)
 
   let probedGraphDir
   try { 

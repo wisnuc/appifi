@@ -7,7 +7,8 @@ const child = require('child_process')
 const EventEmitter = require('events').EventEmitter
 let { sambaAudit } = require('./fruitmix')
 
-const debug = require('debug')('samba')
+import Debug from 'debug'
+const BOOT_SAMBA = Debug('SAMBA:BOOT_SAMBA')
 
 class Samba extends EventEmitter {
 
@@ -56,71 +57,16 @@ class Samba extends EventEmitter {
 
 const fork = cfs => {
 
-  let froot = path.join(cfs.mountpoint, 'wisnuc', 'samba')
+  let froot = path.join(cfs.mountpoint, 'wisnuc', 'fruitmix/drives')
   let modpath = path.resolve(__dirname, '../../samba/samba')
 
-	console.log(`Forking samba, waiting for 120s before timeout`)
+	BOOT_SAMBA(`Forking samba, waiting for 10s before start`)
 
   return new Samba(child.fork(modpath, ['--path', froot], { 
 		env: Object.assign({}, process.env, { FORK: 1 }),
-		stdio: ['ignore', 1, 2, 'ipc'] 		// this looks weird, but must be in this format, see node doc
+		stdio: ['ignore', 1, 2, 'ipc'] // this looks weird, but must be in this format, see node doc
 	}))
 }
-
-// const fork = (cfs, init, callback) => {
-
-//   let froot = path.join(cfs.mountpoint, 'wisnuc', 'samba')
-//   let modpath = path.resolve(__dirname, '../../samba/samba')
-
-//   console.log(`forking samba, waiting for 120s before timeout`)
-
-//   let finished = false
-//   let samba = child.fork(modpath, ['--path', froot], {
-//     env: Object.assign({}, process.env, { FORK: 1 }),
-//     stdio: ['ignore', 1, 2, 'ipc']  // this looks weird, but must be in this format, see node doc
-//   })
-
-//   if(samba && samba !== undefined && samba !== null) {
-//     finished = true
-//   }
-
-//   samba.on('error', err => {
-
-//     console.log('[BOOT] samba error: ', err)
-
-//     samba.kill()
-//     finished = true
-//     callback(err)
-//   })
-
-//   samba.on('message', message => {
-
-//     sambaAudit.emit('sambaAudit', message)
-
-//     callback(null, samba)
-//   })
-
-//   samba.on('close', (code, signal) => {
-
-//     console.log(`[BOOT] samba closed. code: ${code}, signal: ${signal}`)
-
-//     finished = true
-//     callback(new Error(`unexpected exit with code ${code} and signal ${signal}`))
-//   })
-
-//   setTimeout(() => {
-
-//     if (finished === true) return
-
-//     console.log(`[BOOT] failed to start samba in 120s`)
-
-//     samba.kill()
-//     finished = true
-//     callback(new Error('fork samba timeout'))
-//   }, 120000)
-
-//   callback(null, samba)
-// }
 
 module.exports = {
   fork

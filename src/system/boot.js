@@ -14,7 +14,6 @@ const debug = require('debug')('system:boot')
 
 const bootableFsTypes = ['btrfs', 'ext4', 'ntfs']
 
-
 const rimrafAsync = Promise.promisify(rimraf)
 const mkdirpAsync = Promise.promisify(mkdirp)
 
@@ -118,9 +117,7 @@ module.exports = {
 
   boot(cfs) {
 
-
-   	this.fruitmix = fruitmix.fork(cfs)
-    // this.samba = samba.fork(cfs)
+    this.fruitmix = fruitmix.fork(cfs)
     this.samba = Promise.delay(10000).then(() => {samba.fork(cfs)})
     this.data = { state: 'normal', currentFileSystem: cfs }
 
@@ -128,7 +125,7 @@ module.exports = {
   },
 
   // autoboot
-  autoBootAsync: async function () {
+  autoBootAsync: async function() {
 
     let storage = await Storage.refreshAsync() 
     let fileSystems = extractFileSystems(storage)
@@ -150,7 +147,9 @@ module.exports = {
 					console.log('[autoboot] failed to boot lastfs', last, e)
           this.data = { state: 'maintenance', error: 'EFAIL', message: e.message }
         }
+
     		console.log('[autoboot] boot state', this.data)
+
         return
       }
     } 
@@ -170,7 +169,7 @@ module.exports = {
       } 
     })
 
-    if (alts.length === 1) 
+    if (alts.length === 1)
       this.boot(cfs(alts[0]))
     else 
       this.data = { state: 'maintenance', error: alts.length === 0 ? 'ENOALT' : 'EMULTIALT' }
@@ -252,4 +251,3 @@ module.exports = {
     return this.data
   },
 }
-

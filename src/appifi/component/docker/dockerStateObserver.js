@@ -1,24 +1,25 @@
 import child from 'child_process'
-import Debug from 'debug'
-const DOCKERSTATEOBSERVER = Debug('APPIFI:DOCKER_STATE_OBSERVER')
-
 import deepEqual from 'deep-equal'
 
-import Advertiser from '../avahi/advertiser'
+import Debug from 'debug'
+const DOCKER_STATE_OBSERVER = Debug('APPIFI:DOCKER_STATE_OBSERVER')
 
-const wisnucAppstationPort = 3720
+import Advertiser from '../avahi/advertiser'
+import DefaultParam from '../../lib/defaultParam'
 
 // default service
+let wisnucAppstationPort = new DefaultParam().getWisnucAppstationPort()
 const appifiAdvertiser = new Advertiser('WISNUC AppStation', wisnucAppstationPort)
 appifiAdvertiser.start()
 
 class DockerStateObserver {
+
   constructor() {
-    this.appAdvertisers = []
+    this.appAdvertiserList = []
   }
 
   // used for map // TODO why placed here
-  _openable(installed) {
+  _getRunningContainerInfo(installed) {
 
     let container = installed.containers[0]
     if (container.State !== 'running') {
@@ -34,62 +35,62 @@ class DockerStateObserver {
     let Port = Ports.find(p => p.Type === 'tcp' && p.PublicPort !== undefined) 
     if (!Port) return null
 
-    // console.log(typeof Port.PublicPort) is 'number' 
+    // typeof Port.PublicPort is 'number' 
     return {
       appname: installed.recipe.appname,
       open: Port.PublicPort
     }
   }
 
-  _addAdvertising(advertising, services) {
+  _createNewAdvertisingList(advertisingList, serviceList) {
 
-    let newServices = services.filter(srv => {
-      if (advertising.find(adv => adv.name === srv.appname && adv.port === srv.open)) 
+    let newServiceList = serviceList.filter(srv => {
+      if (advertisingList.find(adv => adv.name === srv.appname && adv.port === srv.open)) 
         return false
       return true 
     })
 
-    newServices.forEach(srv => {
+    newServiceList.forEach(srv => {
       let adv = new Advertiser(srv.appname, srv.open)
       adv.start()
-      advertising.push(adv)
+      advertisingList.push(adv)
     })
 
-    return advertising
+    return advertisingList
   }
 
-  _removeAdvertising(advertising, services) {
+  _createSurvivorAdvertisingList(advertisingList, serviceList) {
 
-    let survive = []
+    let survivorList = []
 
     // find existing advertiser and stop it
-    advertising.forEach(adv => {
+    advertisingList.forEach(adv => {
 
-      if (services.find(srv => srv.appname === adv.name && srv.open === adv.port)) {
-        survive.push(adv)
+      if (serviceList.find(srv => srv.appname === adv.name && srv.open === adv.port)) {
+        survivorList.push(adv)
       }
       else {
         adv.abort()
       }
     })
 
-    return survive
+    return survivorList
   }
 
   observe(newState, state) {
 
-    DOCKERSTATEOBSERVER('Start')
+    DOCKER_STATE_OBSERVER('Process advertising list')
 
     if (newState !== null && 
       newState.data!== null && 
       newState.computed !== null) {
 
-      let services = newState.computed.installeds
-        .map(inst => this._openable(inst))
+      let runningServiceList = newState.computed.installeds
+        .map(inst => this._getRunningContainerInfo(inst))
         .filter(obj => obj !== null)
 
-      let survive = this._removeAdvertising(this.appAdvertisers, services)
-      this.appAdvertisers = this._addAdvertising(survive, services) 
+      let survivorList = this._createSurvivorAdvertisingList(this.appAdvertiserList, runningServiceList)
+      this.appAdvertiserList = this._createNewAdvertisingList(survivorList, runningServiceList) 
     }
   }
 }
