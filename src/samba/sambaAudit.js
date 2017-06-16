@@ -3,6 +3,7 @@ let EventEmitter = require('events')
 // a class contains samba audit infor which spread with udp
 class SmbAudit extends EventEmitter {
   constructor(udp) {
+
     super()
 
     this.udp = udp

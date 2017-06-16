@@ -5,14 +5,14 @@ File is a in-memory file node maintaining (some) xstat props and related tasks.
 
 There are four state combinations for a file in terms of magic and hash props:
 
-1. magic is number, no hash
-2. magic is number, with hash
+1. ~~magic is number, no hash~~
+2. ~~magic is number, with hash~~
 3. magic is string, no hash
 4. magic is string, with hash
 
 In this version, only files with magic string are maintained in memory. This dramatically reduces the memory footprint.
 
-Another state introduced in this version is `paused`. Any operations changing file system path (structure) should `pause` all workers in sub-tree, and `resume` them after the operation.
+Another (experimental) state introduced in this version is `paused`. Any operations changing file system path (structure) should `pause` all workers in sub-tree, and `resume` them after the operation.
 
 We have three choices in code pattern:
 
@@ -28,29 +28,17 @@ In our good old C pattern, only `hashed` and `hashless` are used as explicit sta
 + new xstat may drop magic string. The Directory class should take care of this. Before removing a File object, the desctructor method (`exit`) should be called. Or, the `update` method cleans up everything before returning a null.
 */
 class File extends Node {
-  
-  constructor(ctx, xstat) {
+
+    
+  constructor(ctx, parent, xstat) {
     
     if (typeof xstat.magic !== 'string') 
       throw new Error('file must have magic string')  
 
     if (xstat.hash !== undefined && typeof xstat.hash !== 'string')
-      throw new Error('xstat hash must be either a string or undefined')
+      throw new Error('xstat hash must be string or undefined')
 
-    super(ctx)
-
-    /**
-    file identifier, fixed.
-    @type {string}
-    */
-    this.uuid = xstat.uuid
-
-    /** 
-    file name. 
-    Updating a file name is a structural change. `worker` should be aborted before `fs.rename` and restarted after the operation.
-    @type {string}
-    **/
-    this.name = xstat.name
+    super(ctx, parent, xstat)
 
     /**
     file magic string. For xstat, magic may be a number or a string. But for file object, only string is accepted.
@@ -77,32 +65,33 @@ class File extends Node {
     @type {number}
     */
     this.hashFail = 0
+
+    this.index()
+    this.startWorker() 
   } 
 
-  attach(parent) {
-    super.attach(parent)
-    this.index()      
-    this.startWorker()
-  }
+  /**
+  Destroys this file node
+  */
+  destroy() {
 
-  detach() {
     this.stopWorker()
-    this.unindex()
-    super.detach() 
+    this.unindex(this)
+    super.destroy()
   }
 
   /**
   Index this file if it has hash
   */
   index() {
-    if (this.hash) this.root().index(this)
+    if (this.hash) this.ctx.indexFile(this)
   }
 
   /**
   Unindex this file before hash dropped, changed, or file object destroyed
   */
   unindex() {
-    if (this.hash) this.root().unindex(this)
+    if (this.hash) this.ctx.unindexFile(this)
   }
 
   /**
@@ -142,35 +131,20 @@ class File extends Node {
   }
 
   /**
-  Pause hash worker if any, and preventing future hash worker from starting during state update until Resume is called.
-  */
-  pause() {
-
-    if (this.paused) throw new Error('paused')
-
-    this.stopWorker()
-    this.paused = true
-  }
-
-  /**
-  Clear `paused` flag and start hash worker if required.
-  */
-  resume() {
-
-    this.paused = false
-    this.startWorker()
-  }
-
-  /**
   Update xstat.
+
   Only name and hash can be changed.
   */
   update(xstat) {
-    
-    if (typeof xstat.magic !== 'string') throw new Error('xstat.magic must be a string')
-    if (xstat.uuid !== this.uuid) throw new Error('xstat.uuid mismatch')
 
-    if (this.name === xstat.name && this.hash === xstat.hash) return 
+    if (xstat.uuid !== this.uuid) 
+      throw new Error('xstat.uuid mismatch')
+
+    // suicide
+    if (xstat.magic !== 'string') this.destroy()
+   
+    if (this.name === xstat.name && this.hash === xstat.hash) 
+      return 
 
     if (this.name !== xstat.name) {
       this.stopWorker()
@@ -185,8 +159,7 @@ class File extends Node {
     }
 
     // reset hashFail
-    if (this.hash === undefined)
-      this.hashFail = 0
+    if (this.hash === undefined) this.hashFail = 0
   }
 }
 

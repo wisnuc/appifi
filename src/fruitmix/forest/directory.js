@@ -1,282 +1,140 @@
+const path = require('path')
 const Node = require('./node')
 const Readdir = require('./readdir')
 
 /**
+Directory represents a directory in the underlying file system.
 
-readdir state:
-+ running (requested, callbacks, worker)
-+ 
+In this version, `children` contains only sub directories and files with interested type (magic is string)
+
 
 */
 class Directory extends Node {
  
   /**
-  @param {Forest} ctx - reference to forest
-  @param {xstat} xstat - an xstat object, must be directory 
+  @param {Forest} ctx
+  @param {Directory} parent - parent `Directory` object
+  @param {xstat} xstat
+  @param {Monitor} [monitor]
   */ 
-  constructor(ctx, xstat) {
+  constructor(ctx, parent, xstat, monitors) {
 
-    if (xstat.type !== 'directory') 
-      throw new Error('xstat is not a directory')
+    if (xstat.type !== 'directory') throw new Error('xstat is not a directory')
     
-    super(ctx)
+    super(ctx, parent, xstat)
 
-    /**
-    array of child directory
-    */
     this.children = []
 
-    /**
-    uuid
-    */
+    /** uuid **/
     this.uuid = xstat.uuid
 
-    /**
-    directory name
-    */
-    this.name = xstat.name
+    /** name **/
+    this.name = xstat.name 
 
-    /**
-    directory timestamp
-    */
-    this.mtime = xstat.mtime
+    /** mtime **/
+    this.mtime = -xstat.mtime
 
-    /**
-    probe timer
-    */
-    this.timer = -1
-    
-    /**
-    pending read request
-    */
-    this.pending = false
-
-    /**
-    readdir callbacks
-    */
-    this.queue = []
+    // index
+    this.ctx.indexDirectory(this)
 
     /**
     readdir worker
     */
-    this.reader = null
-
-    /**
-    readdir count in subtree
-    */
-    this.count = 0
-  }
-
-  isDrive() {
-    return !!this.basePath 
+    this.readdir = Readdir(this, monitors)
   }
 
   /**
-  Add a child node
+  Destructor
   */
-  setChild(child) {
-    this.children.push(child) 
+  destroy() {
+    [...this.children].forEach(child => child.destroy()) 
+    this.readdir.abort()
+    this.readdir = null
+    this.ctx.unindexDirectory(this) 
+    super.destroy()
   }
 
   /**
-  Remove a child node
+  Update children according to xstats returned from `read`.
+
+  This is a internal function and is only called in `readdir`.
+  @param {xstat[]} xstats
+  @param {Monitor[]} monitors
   */
-  unsetChild(child) {
-    let index = this.children.findIndex(c => c === child)
-    if (index === -1) throw new Error('Directory has no given child')
-    this.children.splice(index, 1)
-  }
+  merge(xstats, monitors) { 
 
-  /**
-  Attach this dir to a parent dir
-  @param {(null|Dir)} parent - parent node to attach, or null
-  @throws When node is already attached, or, parent is not a DirectoryNode
-  */
-  attach(parent) {
+    // remove non-interested files
+    xstats = xstats.filter(x => x.type === 'directory' 
+      || (x.type === 'file' && typeof x.magic === 'stirng'))
 
-    if (this.parent !== null) throw new Error('node is already attached') 
+    // convert to a map
+    let map = new Map(xstats.map(x => [x.uuid, x]))
 
-    if (parent === null) {
-    }
-    else {
-      if (!(parent instanceof Directory)) 
-        throw new Error('parent is not a node')
-      this.parent = parent
-      parent.setChild(this)
-    }
+    // update found child, remove found out of map, then destroy lost
+    Array.from(this.children)
+      .reduce((lost, child) => {
 
-    this.ctx.nodeAttached(this)
-  } 
-
-  /**
-  */
-  detach() {
-    [...this.children].forEach(child => child.detach)
-    [...this.files].forEach(file => file.detach)
-     
-  }
-
-  /**
-  return node array starting from root
-  */
-  nodepath() {
-
-    let q = []
-    for (let node = this; node !== null; node = node.parent)
-      q.unshift(node)
-
-    return q
-  }   
-
-  /**
-  return absolute path 
-
-  @throws When root node is not a Drive
-  */
-  abspath() {
-    return path.join(this.root().basePath, ...this.nodepath().map(n => n.name))
-  }
-
-  // error handling
-  childMissing(code) {
-  }
-
-  // error handling
-  fileMissing(code) {
-  }
-
-  readAfter(n = 1) {
-
-    clearTimeout(this.timer)
-    this.timer = setTimeout(() => {
-
-      if (this.paused) return this.readAfter()
-
-      readXstat(this.abspath(), (err, xstat) => {
-
-        if (this.paused) return this.readAfter()
-
-        if (err) return // TODO
-        if (xstat.mtime !== this.mtime) this.readdir()
-      })
-    }, n * 128)
-  }
-
-  startReader() {
-
-    // clear pending
-    this.pending = false
-
-    this.queue = []
-    this.worker = Readdir(this.abspath(), this.uuid, (err, xstats, mtime, transient) => {
-
-      // fires all callbacks
-      this.queue.forEach(cb => cb(err))
-      this.queue = []
-      this.worker = null
-      
-      if (err && (err.code === 'ENOENT' || err.code === 'ENOTDIR' || err.code === 'EINSTANCE')) {
-        // suicide
-
-        return
-      }
-
-      if (err && err.code === 'EABORT') {
-        // nothing to do
-        return
-      }
-     
-      if (err) { // other io error
-        if (this.request) {
-          this.enterRunning()
-        } 
-        else {
-          this.requestProbe()
+        let xstat = map.find(child.uuid)
+        if (xstat) {
+          child.update(xstat) 
+          map.delete(child.uuid)
         }
-        return
-      }
+        else
+          lost.push(child)
 
-      this.update(xstats, mtime)
+        return lost
+      }, [])
+      .forEach(child => child.destroy())
 
-      // here we take request, timer, and transient into consideration
-      // if request, re-run anyway, until there is no further requests
-      if (this.request) {
-        this.enterRunning()
-        return
-      }
-
-      this.mtime = mtime
-      this.requestProbe()
-    })
+    // new 
+    map.forEach(val => new Directory(this.ctx, this, val, monitors))
   }
 
-  stopReader() { 
+  /**
+  Update xstat props, this is an internal function
+
+  Only `name` may be updated. `mtime` is updated by `readdir`. Either name or mtime change will trigger a `read`.
+  @param {xstat} xstat - new `xstat`
+  @param {Monitor[]} [monitors]
+  */ 
+  update(xstat, monitors) {
     
+    // guard
+    if (xstat.uuid !== this.uuid) throw new Error('uuid mismatch')    
+
+    // if nothing changed, return
+    if (this.name === xstat.name && this.mtime === xstat.mtime) return
+
+    // either name or timestamp changed, a read is required.
+    this.name = xstat.name
+    this.read()
   }
 
   /**
-  read (for all states)
+  Request a `readdir` operation
+
+  + if `handler` is not provided, request a immediate `readdir` operation
+  + if `handler` is a number, request a deferred `readdir` operation
+  + if `handler` is a (node) callback, request a immediate `readdir` operation
+  + if `handler` is a Monitor, request a immediate `readdir` operation
+  @param {(function|Monitor)} [handler] - handler may be a callback function or a Monitor
   */
-  read(callback) {
-
-    if (this.paused) {
-
-      if (callback) return callback(new Error('EAGAIN'))    // TODO
-      this.pending = true
-      return
-    }
-
-    if (this.reader) {                      // running state
-
-      if (callback) 
-        this.queue.push(callback)
-      else
-        this.pending = true
-      return
-    }
-
-    this.startReader()
+  read(handler) {
+    this.readdir.read(handler)
   }
 
   /**
-  pause only applicable for free-idle and running states
-  */
-  pause() { 
+  Read xstats of the directory
 
-    if (this.paused) throw new Error('already paused')
-
-    if (this.reader) {  
-      this.stopReader()
-      this.pending = true
-    }
-    this.paused = true
-  }
-
-  /**
-  resume only applicable for paused-idle and pending states
-  */
-  resume() {
-
-    if (!this.paused) throw new Error('not paused') 
-
-    this.paused = false
-    if (this.pending) this.startReader()
-  }
-
-  /**
-  This is 
+  @returns {xstats[]}
   */
   async readdirAsync() {
-
     return await new Promise((resolve, reject) => 
-      this.readdir((err, xstats) =>
-        err ? reject(err) : resolve(xstats)))
+      this.read((err, xstats) => err ? reject(err) : resolve(xstats)))
   }
 }
 
 module.exports = Directory
-
-
 
 
 

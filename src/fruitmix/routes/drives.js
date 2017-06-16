@@ -8,7 +8,7 @@ const router = require('express').Router()
 const auth = require('../middleware/auth')
 
 const Drive = require('../drive/drive')
-const File = require('../file/file')
+const Forest = require('../forest/forest')
 const { readXstatAsync } = require('../file/xstat')
 const formdata = require('./formdata')
 
@@ -40,20 +40,16 @@ router.post('/', auth.jwt(), (req, res) => {
     .catch(e => res.status(500).json({ code: e.code, message: e.message }))
 })
 
+
+// get all directories in a drive
 router.get('/:driveUUID/dirs', auth.jwt(), (req, res) => {
 
   let { driveUUID } = req.params
 
-  let root = File.roots.find(r => r.uuid === driveUUID)
-  if (!root) res.status(404).end()
+  if (!Forest.roots.has(driveUUID)) 
+    return res.status(404).end()
 
-  res.status(200).json([
-    {
-      uuid: root.uuid,
-      name: root.name,
-      mtime: root.mtime
-    }
-  ])
+  res.status(200).json(Forest.getDriveDirs(driveUUID))
 })
 
 const mkdirAsync = async (pnode, name) => {
@@ -72,17 +68,18 @@ const error = (res, e) =>
 
 const f = af => (req, res, next) => af(req, res).then(x => x, next)
 
+
+// create a new directory in a drive
 router.post('/:driveUUID/dirs', auth.jwt(), f(async (req, res) => {
 
   let { driveUUID } = req.params
-  
-  let parent = File.findDirectoryByUUID(req.body.parent) 
-  if (!parent) 
-    return res.status(404).end()
 
-  let parentPath = parent.abspath()
-  let xstat = await readXstatAsync(parentPath)
+  let parent = Forest.getDriveDir(driveUUID, req.body.parent)
+  if (!parent) return res.status(404).end()
+
   let dirPath = path.join(parent.abspath(), req.body.name)
+
+  // TODO let xstat = await readXstatAsync(parentPath)
 
   try {
     await fs.mkdirAsync(dirPath)
@@ -96,9 +93,13 @@ router.post('/:driveUUID/dirs', auth.jwt(), f(async (req, res) => {
     }
   }
 
-  xstat = await readXstatAsync(dirPath)
+  let xstat = await readXstatAsync(dirPath)
+  parent.read()
+
   res.status(200).json({
+
     uuid: xstat.uuid,
+    parent: parent.uuid,
     name: xstat.name,
     mtime: xstat.mtime
   })
@@ -106,54 +107,67 @@ router.post('/:driveUUID/dirs', auth.jwt(), f(async (req, res) => {
 }))
 
 /**
-get single directory object
+get single dir in a drive
 */
-router.get('/:driveUUID/dirs/:dirUUID', auth.jwt(), f(async(req, res) => {
+router.get('/:driveUUID/dirs/:dirUUID', auth.jwt(), 
+  f(async(req, res) => {
 
   let { driveUUID, dirUUID } = req.params
-  let dir = File.findDirectoryByUUID(dirUUID)
+
+  let dir = Forest.getDriveDir(driveUUID, dirUUID)
   if (!dir) return res.status(404).end()
 
-  let dirPath = dir.abspath() 
-  let xstat = await readXstatAsync(dirPath)
-
   res.status(200).json({
-    uuid: xstat.uuid,
-    parent: dir.parent,
-    name: xstat.name,
-    mtime: xstat.mtime
+    uuid: dir.uuid,
+    parent: dir.parent ? dir.parent.uuid : '',
+    name: dir.name,
+    mtime: Math.abs(dir.mtime)
   })
 }))
 
 /**
-list single directory 
+list single dir in a drive
 */
-router.get('/:driveUUID/dirs/:dirUUID/list', auth.jwt(), f(async(req, res) => {
+router.get('/:driveUUID/dirs/:dirUUID/list', auth.jwt(), 
+  f(async(req, res) => {
 
   let { driveUUID, dirUUID } = req.params
-  let dir = File.findDirectoryByUUID(dirUUID)
+  let dir = Forest.getDriveDir(driveUUID, dirUUID)
   if (!dir) return res.status(404).end()
 
-  let dirPath = dir.abspath() 
-  let xstat = await readXstatAsync(dirPath)
+  let xstats = await dir.readdirAsync()
+  res.status(200).json(xstats)
 
+}))
+
+/**
+listnav single dir in a drive
+*/
+router.get('/:driveUUID/dirs/:dirUUID/listnav', auth.jwt(), 
+  f(async(req, res) => {
+
+  let { driveUUID, dirUUID } = req.params
+  let dir = Forest.getDriveDir(driveUUID, dirUUID)
+  if (!dir) return res.status(404).end()
+
+  let xstats = await dir.readdirAsync()
   res.status(200).json({
-    uuid: xstat.uuid,
-    parent: dir.parent,
-    name: xstat.name,
-    mtime: xstat.mtime
+    path: [],
+    entries: xstats
   })
 }))
 
-// rename a directory
+/** 
+rename a directory
+*/
 router.patch('/:driveUUID/dirs/:dirUUID', auth.jwt(), (req, res) => {
 
   let { driveUUID, dirUUID } = req.params
  
-  let node = File.findNodeByUUID(dirUUID)
+  let node = Forest.findNodeByUUID(dirUUID)
   if (!node) res.status(404).end()
 
-  File.renameDirAsync(node, req.body.name) 
+  Forest.renameDirAsync(node, req.body.name) 
     .then(node => res.status(200).json({
       uuid: node.uuid,
       name: node.name,
@@ -162,6 +176,8 @@ router.patch('/:driveUUID/dirs/:dirUUID', auth.jwt(), (req, res) => {
     .catch(e => console.log(e) || error(e))
 })
 
+/**
+*/
 router.delete('/:driveUUID/dirs/:dirUUID', auth.jwt(), (req, res) => {
 
   let { driveUUID, dirUUID } = req.params
