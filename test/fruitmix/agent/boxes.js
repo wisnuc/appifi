@@ -26,20 +26,9 @@ const {
   retrieveTokenAsync,
   createPublicDriveAsync,
   setUserUnionIdAsync,
+  retrieveWxTokenAsync,
+  createBoxAsync
 } = require('./lib')
-
-const retrieveWxTokenAsync = async username => {
-
-  let token = await retrieveTokenAsync(username)
-
-  let res = await request(app)
-    .get('/wxtoken')
-    .set('Authorization', 'JWT ' + token)
-    .expect(200)
-
-  return res.body.token
-}
-
 
 const cwd = process.cwd()
 const tmptest = path.join(cwd, 'tmptest')
@@ -144,7 +133,7 @@ describe(path.basename(__filename), () => {
         .expect(200)
         .end((err, res) => {
           if (err) return done(err)
-          console.log(res.body)
+          expect(res.body).to.deep.equal([])
           done()
         })
     })
@@ -165,7 +154,88 @@ describe(path.basename(__filename), () => {
           }) 
           done()
         })
-    }) 
+    })
+  })
+
+  describe('Alice create box, Bob in users list', () => {
+    let aliceToken, aliceWxToken, bobToken, bobWxtoken, box
+    let boxUUID = 'a96241c5-bfe2-458f-90a0-46ccd1c2fa9a'
+
+    beforeEach(async () => {
+      await resetAsync()
+      await createUserAsync('alice')
+      await setUserUnionIdAsync('alice')
+      aliceToken = await retrieveTokenAsync('alice')
+      aliceWxToken = await retrieveWxTokenAsync('alice')
+
+      await createUserAsync('bob', aliceToken, true)
+      await setUserUnionIdAsync('bob')
+      bobToken = await retrieveTokenAsync('bob')
+      bobWxtoken = await retrieveWxTokenAsync('bob')
+
+      sinon.stub(UUID, 'v4').returns(boxUUID)
+
+      let props = {name: 'hello', users: [IDS.bob.unionId]}
+      box = await createBoxAsync(props, 'alice')
+    })
+
+    afterEach(() => UUID.v4.restore())
+
+    it("GET /boxes bob should get box", done => {
+      request(app)
+        .get('/boxes')
+        .set('Authorization', 'JWT ' + bobWxtoken)
+        .expect(200)
+        .end((err, res) => {
+          if (err) return done(err)
+          expect(res.body).to.deep.equal([box])
+          done()
+        })
+    })
+
+    it("GET /boxes/{uuid} bob should get appointed box", done => {
+      request(app)
+        .get(`/boxes/${boxUUID}`)
+        .set('Authorization', 'JWT ' + bobWxtoken)
+        .expect(200)
+        .end((err, res) => {
+          if(err) return done(err)
+          expect(res.body).to.deep.equal(box)
+          done()
+        })
+    })
+
+    it("PATCH /boxes/{uuid} ailce update the box successfully", done => {
+      let props = [
+                   {path: 'name', operation: 'update', value: 'world'},
+                   {path: 'users', operation: 'add', value: [IDS.charlie.unionId]}
+                  ]
+      request(app)
+        .patch(`/boxes/${boxUUID}`)
+        .send(props)
+        .set('Authorization', 'JWT ' + aliceWxToken + ' ' + aliceToken)
+        .expect(200)
+        .end((err, res) => {
+          if(err) return done(err)
+          expect(res.body).to.deep.equal({
+            uuid: boxUUID,
+            name: 'world',
+            owner: IDS.alice.unionId,
+            users: [IDS.bob.unionId, IDS.charlie.unionId]
+          })
+          done()
+        })
+    })
+
+    it("PATCH /boxes/{uuid} bob could not update the box created by alice", done => {
+      let props = [{path: 'name', operation: 'update', value: 'world'}]
+      request(app)
+        .patch(`/boxes/${boxUUID}`)
+        .send(props)
+        .set('Authorization', 'JWT ' + bobWxtoken + ' ' + bobToken)
+        .expect(403)
+        .end(done)
+    })
   })
 })
 

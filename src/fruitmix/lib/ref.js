@@ -5,9 +5,9 @@ const Stringify = require('canonical-json')
 const crypto = require('crypto')
 
 const { peekXattrAsync } = require('../file/xstat')
-const command = require('../lib/command').default
+const command = require('../lib/command')
 const E = require('../lib/error')
-const { isSHA256, assert, unique } = require('./types')
+const { isSHA256, assert } = require('./types')
 const { rimrafAsync, mkdirpAsync } = require('../util/async')
 const { writeFileToDisk } = require('./util')
 
@@ -44,6 +44,15 @@ const filehashAsync = async filepath => {
 }
 
 /**
+ * 
+ * @param {object} arr - array to be inspected, each item is an array too
+ * @return {boolean} true/false - true for no repeat value
+ */
+const unique = (arr) => {
+  let dedupe = arr.sort().filter((item, index, array) => JSON.stringify(item) !== JSON.stringify(array[index-1]))
+  return arr.length === dedupe.length
+}
+/**
 @validateTree
 
 distinct
@@ -53,12 +62,12 @@ distinct
   ['blob', '1.js', xxxx]
 ]
 */
-const validateTree = (object) => {
+const validateTree = (arr) => {
 
-  assert(Array.isArray(object), 'invalid format')
-  assert(unique(object), 'item not unique')
+  assert(Array.isArray(arr), 'invalid format')
+  assert(unique(arr), 'item not unique')
 
-  object.forEach(item => {
+  arr.forEach(item => {
     assert(Array.isArray(item), 'invalid item format')
     
     assert(item[0] === 'blob' || item[0] === 'tree', 'invalid file type')
@@ -86,7 +95,7 @@ class Repo {
   
   async initAsync(repoDir, tmpDir, docDir) {
     this.repoDir = repoDir
-    this.tmpdir = tmpdir
+    this.tmpDir = tmpDir
     this.docDir = docDir
     await mkdirpAsync(repoDir)
     await mkdirpAsync(tmpDir)
@@ -143,7 +152,7 @@ class Repo {
     let stats = await fs.lstatAsync(filepath)
     if(!stats.isFile()) throw new E.EINVAL()
 
-    let tmppath = path.join(this.tmpdir, path.basename(filepath))
+    let tmppath = path.join(this.tmpDir, path.basename(filepath))
     try {
       await this.copyAsync(filepath, tmppath)
       // read only
@@ -161,18 +170,18 @@ class Repo {
     } else {
       hash = await filehashAsync(tmppath)
     }
+
     // now hash is ready
-    await mkdirpAsync(this.repoDir)
-    let entries = await fs.readdirAsync(this.repoDir)
-    // if file is already in repo, return
-    if(entries.indexOf(hash) === -1) {
-      let target = path.join(this.repoDir, hash)
-      try {
-        await this.copyAsync(tmppath, target)
-      } catch(e) {
-        throw e
-      } 
+    let target = path.join(this.docDir, hash)
+    try {
+      let stats3 = await fs.lstatAsync(target)
+    } catch (e) {
+      if (e.code !== 'ENOENT') throw e
+      await this.copyAsync(tmppath, target)
+    } finally {
+      await rimrafAsync(tmppath)
     }
+   
     await rimrafAsync(tmppath)
     return hash
   }

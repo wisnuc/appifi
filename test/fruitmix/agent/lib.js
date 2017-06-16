@@ -15,11 +15,13 @@ const IDS = {
   bob: {
     uuid: 'a278930c-261b-4a9c-a296-f99ed00ac089',
     home: 'b7566c69-91f5-4299-b4f4-194df92b01a9',
+    unionId: "ocMvos6NjeKLIBqg5Mr9QjxrP1FB"
   },
 
   charlie: {
     uuid: 'c12f1332-be48-488b-a3ae-d5f7636c42d6',
     home: '1da855c5-33a9-43b2-a93a-279c6c17ab58',
+    unionId: "ocMvos6NjeKLIBqg5Mr9QjxrP1FC"
   },
 
   david: {
@@ -48,7 +50,7 @@ const stubUserUUID = username =>
     .onSecondCall().returns(IDS[username].home)
     .onThirdCall().throws(new Error('function called more than twice'))
 
-const createUserAsync = async(username, token, isAdmin) => {
+const createUserAsync = async (username, token, isAdmin) => {
 
   let props = { username, password: username }
   if (isAdmin) props.isAdmin = true
@@ -114,12 +116,40 @@ const setUserUnionIdAsync = async username => {
     .expect(200)).body
 }
 
+const retrieveWxTokenAsync = async username => {
+
+  let token = await retrieveTokenAsync(username)
+
+  let res = await request(app)
+    .get('/wxtoken')
+    .set('Authorization', 'JWT ' + token)
+    .expect(200)
+
+  return res.body.token
+}
+
+const createBoxAsync = async (props, username) => {
+
+  let token = await retrieveTokenAsync(username)
+  let wxToken = await retrieveWxTokenAsync(username)
+
+  let res = await request(app)
+    .post('/boxes')
+    .send(props)
+    .set('Authorization', 'JWT ' + wxToken + ' ' + token)
+    .expect(200)
+
+  return res.body
+}
+
 module.exports = {
   IDS,
   stubUserUUID,
   createUserAsync,
   retrieveTokenAsync,
   createPublicDriveAsync,
-  setUserUnionIdAsync
+  setUserUnionIdAsync,
+  retrieveWxTokenAsync,
+  createBoxAsync
 }
 
