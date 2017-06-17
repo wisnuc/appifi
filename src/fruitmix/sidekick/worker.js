@@ -1,7 +1,5 @@
 const path = require('path')
 const http = require('http')
-const rimraf = require('rimraf')
-const mkdirp = require('mkdirp')
 const app = require('./app')
 
 console.log(`worker starting, pid ${process.pid}`)

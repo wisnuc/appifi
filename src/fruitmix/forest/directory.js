@@ -5,9 +5,9 @@ const Readdir = require('./readdir')
 /**
 Directory represents a directory in the underlying file system.
 
-In this version, `children` contains only sub directories and files with interested type (magic is string)
+In this version, `children` contains only sub directories and files with interested type (magic is string).
 
-
+Another change is the `Directory` should NOT be directly updated. Instead, external components MUST call `read` method after a file system operation finished.
 */
 class Directory extends Node {
  
@@ -56,7 +56,6 @@ class Directory extends Node {
 
   /**
   Update children according to xstats returned from `read`.
-
   This is a internal function and is only called in `readdir`.
   @param {xstat[]} xstats
   @param {Monitor[]} monitors
@@ -65,7 +64,7 @@ class Directory extends Node {
 
     // remove non-interested files
     xstats = xstats.filter(x => x.type === 'directory' 
-      || (x.type === 'file' && typeof x.magic === 'stirng'))
+      || (x.type === 'file' && typeof x.magic === 'string'))
 
     // convert to a map
     let map = new Map(xstats.map(x => [x.uuid, x]))
@@ -76,7 +75,7 @@ class Directory extends Node {
 
         let xstat = map.find(child.uuid)
         if (xstat) {
-          child.update(xstat) 
+          child.update(xstat, monitors) 
           map.delete(child.uuid)
         }
         else
@@ -91,8 +90,8 @@ class Directory extends Node {
   }
 
   /**
-  Update xstat props, this is an internal function
-
+  Update this object with xstat props.
+  This is an internal function and can only be called by `readdir`.
   Only `name` may be updated. `mtime` is updated by `readdir`. Either name or mtime change will trigger a `read`.
   @param {xstat} xstat - new `xstat`
   @param {Monitor[]} [monitors]
@@ -107,15 +106,18 @@ class Directory extends Node {
 
     // either name or timestamp changed, a read is required.
     this.name = xstat.name
-    this.read()
+
+    monitors
+      ? monitors.forEach(monitor => this.read(monitor))
+      : this.read()
   }
 
   /**
-  Request a `readdir` operation
+  Request a `readdir` operation. 
 
   + if `handler` is not provided, request a immediate `readdir` operation
   + if `handler` is a number, request a deferred `readdir` operation
-  + if `handler` is a (node) callback, request a immediate `readdir` operation
+  + if `handler` is a callback, request a immediate `readdir` operation
   + if `handler` is a Monitor, request a immediate `readdir` operation
   @param {(function|Monitor)} [handler] - handler may be a callback function or a Monitor
   */

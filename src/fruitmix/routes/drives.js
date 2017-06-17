@@ -192,18 +192,24 @@ router.get('/:driveUUID/dirs/:dirUUID/files', auth.jwt(), (req, res) => {
 })
 
 // create a new file
-router.post('/:driveUUID/dirs/:dirUUID/files', auth.jwt(), (req, res) => {
+router.post('/:driveUUID/dirs/:dirUUID/files', auth.jwt(), (req, res, next) => {
 
-  if (!req.is('multipart/form-data'))
-    return res.status(403).json({ message: 'this api accepts only formdata' })
+    let { driveUUID, dirUUID } = req.params
 
-  let { driveUUID, dirUUID } = req.params
+    req.formdata = { 
+      filePath: path.join(_fruitmixPath, 'tmp', UUID.v4()) 
+    }
 
-  formdata(req, (err, ret) => {
+    next()
 
-    if (err) return res.status(500).end()
+  }, formdata, (req, res) => {
+
+    let { driveUUID, dirUUID } = req.params
+    let { filePath, fileName, size, sha256 } = req.formdata
+
+    
+
     res.status(200).end()
-  })
 })
 
 // [/drives/{driveUUID}/dirs/{dirUUID}/files/{fileUUID}]

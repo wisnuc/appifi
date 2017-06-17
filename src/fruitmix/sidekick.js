@@ -5,10 +5,7 @@ const UUID = require('uuid')
 const rimraf = require('rimraf')
 const mkdirp = require('mkdirp')
 
-cluster.setupMaster({
-  exec: path.join(__dirname, 'sidekick', 'worker'),
-  args: ['--use', 'http'],
-})
+cluster.setupMaster({ exec: path.join(__dirname, 'sidekick', 'worker'), })
 
 cluster.fork()
 cluster.fork()
