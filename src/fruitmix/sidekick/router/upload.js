@@ -1,3 +1,4 @@
+const path = require('path')
 const fs = require('fs')
 const crypto = require('crypto')
 const stream = require('stream')
@@ -22,24 +23,41 @@ class HashTransform extends stream.Transform {
   /**
   Constructor
 
-  @param {object} options - options
+  @param {number} expectedSize - expected file or file chunk size
+  @param {string} expectedSha256 - expected file or file chunk sha256 hash
   */
-  constructor(options) {
-    super(options)
+  constructor(expectedSize, expectedSha256) {
+
+    super()
+
+    this.expectedSize = expectedSize
+    this.expectedSha256 = expectedSha256
     this.hash = crypto.createHash('sha256')
+    this.size = 0
   }
 
   /**
-  Return digest (after stream close)
+  Return true if both size and hash match expected value
   */
-  digest() {
-    return this.hash.digest('hex')
+  match() {
+    return this.size === this.expectedSize && this.hash.digest('hex') === this.expectedSha256
   }
 
   /**
   Implement `_transform`
   */
   _transform(chunk, encoding, callback) {
+
+    // blocking multiple times of error emission
+    if (this.size > this.expectedSize)
+      return callback()
+
+    this.size += chunk.length
+    if (this.size > this.expectedSize) {
+      this.emit('error', new Error('over size'))
+      return callback()
+    }
+
     this.hash.update(chunk, encoding)
     this.push(chunk)
     callback()
@@ -54,19 +72,40 @@ class HashTransform extends stream.Transform {
 */
 
 /**
-Upload a file, save to given path and return size and hash.
+Upload a file or a file segment, with given expected size and hash.
 
 @function upload
 @param {string} path - save upcoming http stream to this file path
+@param {number} [size] - expected size
+@param {string} [sha256] - expected sha256
+@param {number} [offset] - start position
 @returns {UploadResponse} path, size, and hash
 */
 router.put('/', (req, res) => {
 
+try {
+
+  console.log('query', req.query)
+
+  let { path: filePath, size, sha256, offset } = req.query
+
+  // return res.status(200).end()
+
+  if (!filePath || !path.isAbsolute(filePath))
+    return res.status(400).json({ message: 'invalid path' })
+
+  size = parseInt(size)
+
   if (typeof req.query.path !== 'string')
     return res.status(400).json({ message: 'path must be a valid path' })
 
-  let os = fs.createWriteStream(req.query.path)
-  let hash = new HashTransform()
+  let opts = typeof offset === 'number' 
+    ? { flags: 'r+', start: offset} 
+    : undefined
+
+  let ws = fs.createWriteStream(filePath, opts)
+  let hash = new HashTransform(size, sha256)
+
   let finished = false
 
   const error = err => {
@@ -75,32 +114,46 @@ router.put('/', (req, res) => {
 
     if (finished) return 
     finished = true
+
     res.status(500).json({
       code: err.code,
       message: err.message 
     })
+
+    req.unpipe()
+    hash.unpipe() 
   }
 
-  hash.on('error', err => error(err))
-  os.on('error', err => error(err))
+  hash.on('error', error)
+  ws.on('error', error)
+  ws.on('close', () => {
 
-  os.on('close', () => {
     if (finished) return
     finished = true
-    res.status(200).json({
-      path: req.query.path,
-      size: os.bytesWritten,
-      sha256: hash.digest()
-    })
+
+    if (hash.match() && size === ws.bytesWritten)
+      res.status(200).end()
+    else 
+      res.status(500).json({ })
+    
   })
 
   req.on('aborted', () => {
+
+    console.log('Sidekick Upload: request aborted')
+
     if (finished) return 
     finished = true 
+
     req.unpipe()
   })
 
-  req.pipe(hash).pipe(os)
+  // chain pipe
+  req.pipe(hash).pipe(ws)
+}
+catch (e) {
+  console.log(e)
+}
 })
 
 module.exports = router

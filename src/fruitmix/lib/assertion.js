@@ -119,6 +119,9 @@ const validateProps = (obj, mandatory, optional = []) => {
     throw new Error('object has props that are neither mandatory nor optional')
 }
 
+const isNormalizedAbsolutePath = abspath => 
+  typeof abspath === 'string' && path.isAbsolute(abspath) && path.normalize(abspath) === abspath
+
 module.exports = {
   isUUID,
   isSHA256,
