@@ -50,7 +50,7 @@ class HashTransform extends stream.Transform {
 @typedef {Object} UploadResponse
 @prop {string} path - path argument, for debugging purpose
 @prop {number} size - bytes written into file
-@prop {string} hash - sha256 hash (hex) string
+@prop {string} sha256 - sha256 hash (hex) string
 */
 
 /**
@@ -90,7 +90,7 @@ router.put('/', (req, res) => {
     res.status(200).json({
       path: req.query.path,
       size: os.bytesWritten,
-      hash: hash.digest()
+      sha256: hash.digest()
     })
   })
 

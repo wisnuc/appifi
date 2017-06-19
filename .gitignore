@@ -60,6 +60,8 @@ cluster_tmp/
 cluster_file/
 filemap/
 example/
+station-testdata/
+testdata/
 
 _docpress/
 

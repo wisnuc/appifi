@@ -10,8 +10,6 @@ const expect = chai.expect
 const should = chai.should()
 
 const Forest = require('src/fruitmix/forest/forest')
-const Monitor = require('src/fruitmix/forest/monitor')
-
 const { readXstatAsync, forceDriveXstatAsync } = require('src/fruitmix/file/xstat')
 
 const cwd = process.cwd()
@@ -39,15 +37,38 @@ describe(path.basename(__filename), () => {
       await Forest.initAsync(drivesDir, tmpDir)
     })
 
-    it('read', async () => {
-
-      let monitor = new Monitor()
-      await Forest.createDriveAsync(drive1, [monitor])
-      await monitor.done
-
-      r = Forest.getDirs(drive1.uuid)
-  
-      console.log(r)
+    it('create drive1 and assert instantly', async () => {
+      await Forest.createDriveAsync(drive1)
+/**
+      expect(Forest.roots).to.deep.equal([{
+        ctx: Forest,
+        paused: false,
+        parent: null,
+        children: [],
+        uuid: drive1.uuid,
+        name: drive1.uuid,
+        mtime: mtime,
+        reader: null,
+        queue: [],
+        pending: false,
+        timer: -1,
+      }])
+**/
+      // wait for scan done
+      await Promise.delay(100)
     })
+/**
+    it('create drive1 and assert until scan done', done => {
+      Forest.createDriveAsync(drive1, () => {
+        try {
+          expect(Forest.uuidMap.size).to.equal(5)
+          done()
+        }
+        catch(e) {
+          done(e)
+        }
+      }).then(x => x, x => x)
+    })
+**/
   })
 })

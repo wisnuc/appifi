@@ -25,6 +25,8 @@ import media from './routes/media'
 import mediashare from './routes/mediashare'
 **/
 
+global.fruitmixPath = 'hello'
+
 let app = express()
 
 if (process.env.NODE_ENV === 'test') app.nolog = true

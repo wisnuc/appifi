@@ -86,7 +86,7 @@ xstat (file) {
   mtime: stats.mtime.getTime(),
   size: stats.size,
   magic: 'string or number',
-  hash: 'file hash, optional' 
+  hash: 'file hash, optional'
 }
 ```
 

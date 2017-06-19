@@ -1,22 +1,31 @@
 const path = require('path')
 
 /**
-Abstract base class for file system tree node
+Abstract base class for file system tree node.
 */
 class Node {
 
   /**
-  @param {Forest} ctx - Context, forest singleton
+  Constructs a new Node
+  @param {Forest} ctx - Forest singleton
   */
-  constructor(ctx, paused) {
+  constructor(ctx, parent) {
 
     this.ctx = ctx
     this.parent = null
-    this.paused = paused
+    this.attach(parent)
   }
 
   /**
-  Return tree root 
+  Destroys the node
+  */
+  destroy() { 
+    this.detach()
+    this.ctx = null
+  }
+
+  /**
+  Returns the tree root. Tree root is not necessarily a drive root.
   */
   root() {
     let node = this   
@@ -25,23 +34,35 @@ class Node {
   }
 
   /**
-  Attach this node to a parent node
+  Attaches this node to a parent node
+
+  @throws When node is already attached
   */
   attach(parent) {
-    
-    if (this.parent !== null)
+
+    if (this.parent !== null) 
       throw new Error('node is already attached')
 
-    this.parent = parent
-    if (parent) parent.setChild(this)
+    if (parent) {
+      this.parent = parent
+      parent.children.push(this)
+    }
   } 
 
   /**
-  Detach this node from parent node
+  Detaches this node from the parent node
+
+  @throws When node is not in parent's children list
   */
   detach() {
-    if (this.parent === null) throw new Error('node is already detached')
-    this.parent.unsetChild(this)
+
+    if (this.parent === null) return 
+
+    let index = this.parent.children.findIndex(child => child === this) 
+    if (index === -1)
+      throw new Error("`this` is not in parent's children list")
+
+    this.parent.children.splice(index, 1)
     this.parent = null
   }
 
@@ -65,62 +86,23 @@ class Node {
   }
 
   /**
-  return node array starting from root
-  */
-  nodepath() {
+  Return Absolute path of the node
 
-    let q = []
-    for (let node = this; node !== null; node = node.parent) 
-      q.unshift(n)
-
-    return q
-  } 
-
-  /**
-  FIXME
-  */
-  getDrive() { 
-
-    for (let n = this; n !== null; n = n.parent) {
-      if (n.parent === this.ctx.root) return n.drive
-    }
-    
-    throw new E.ENODEDETACHED()
-  }
-
-  /**
-  FIXME
+  @throws When node has been destroyed or disconnected from a drive root
   */
   abspath() { 
-    return path.join(this.ctx.dir, ...this.nodepath().map(n => n.name))
-  }
 
-  /**
-  */
-  walkdown(names) {
-    // TODO
-  }
+    if (!this.ctx) throw new Error('abspath: node is already destroyed')
 
-  /**
-  whether a 
-  */
-  isPaused() {
-    if (this.paused) return true
-    return this.children
-      ? this.children.some(child => child.isPaused())
-      : false
-  }
+    let q = []
+    for (let node = this; node !== null; node = node.parent)
+      q.unshift(node)
 
-  /**
-  pause
-  */
-  pause() {
-  }
+    // the first one must be root FIXME
+//    if (!this.ctx.isRoot(q[0])) 
+//      throw new Error('abspath: node is not a descendant of drive root')
 
-  /**
-  resume
-  */
-  resume() {
+    return path.join(this.ctx.dir, ...q.map(n => n.name))
   }
 }
 
