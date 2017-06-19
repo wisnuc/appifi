@@ -1,6 +1,6 @@
 const path = require('path')
 const fs = require('fs')
-const { readXstat } = require('../file/xstat')
+const { readXstat } = require('../models/xstat')
 const Monitor = require('./monitor')
 
 /**

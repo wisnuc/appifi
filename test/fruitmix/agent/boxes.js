@@ -14,9 +14,9 @@ const should = chai.should()
 const app = require('src/fruitmix/app')
 const { saveObjectAsync } = require('src/fruitmix/lib/utils')
 
-const User = require('src/fruitmix/user/user')
-const Drive = require('src/fruitmix/drive/drive')
-const File = require('src/fruitmix/file/file')
+const User = require('src/fruitmix/models/user')
+const Drive = require('src/fruitmix/models/drive')
+const Forest = require('src/fruitmix/forest/forest')
 const Box = require('src/fruitmix/box/box')
 
 const {
@@ -47,7 +47,7 @@ const resetAsync = async() => {
   
   await User.initAsync(usersPath, tmpDir)
   await Drive.initAsync(drivesPath, tmpDir)
-  await File.initAsync(drivesDir, tmpDir)
+  await Forest.initAsync(drivesDir, tmpDir)
   await Box.initAsync(boxesDir, tmpDir)
 }
 
@@ -158,7 +158,7 @@ describe(path.basename(__filename), () => {
   })
 
   describe('Alice create box, Bob in users list', () => {
-    let aliceToken, aliceWxToken, bobToken, bobWxtoken, box
+    let aliceToken, aliceWxToken, bobToken, bobWxToken, box
     let boxUUID = 'a96241c5-bfe2-458f-90a0-46ccd1c2fa9a'
 
     beforeEach(async () => {
@@ -171,7 +171,7 @@ describe(path.basename(__filename), () => {
       await createUserAsync('bob', aliceToken, true)
       await setUserUnionIdAsync('bob')
       bobToken = await retrieveTokenAsync('bob')
-      bobWxtoken = await retrieveWxTokenAsync('bob')
+      bobWxToken = await retrieveWxTokenAsync('bob')
 
       sinon.stub(UUID, 'v4').returns(boxUUID)
 
@@ -184,7 +184,7 @@ describe(path.basename(__filename), () => {
     it("GET /boxes bob should get box", done => {
       request(app)
         .get('/boxes')
-        .set('Authorization', 'JWT ' + bobWxtoken)
+        .set('Authorization', 'JWT ' + bobWxToken)
         .expect(200)
         .end((err, res) => {
           if (err) return done(err)
@@ -196,7 +196,7 @@ describe(path.basename(__filename), () => {
     it("GET /boxes/{uuid} bob should get appointed box", done => {
       request(app)
         .get(`/boxes/${boxUUID}`)
-        .set('Authorization', 'JWT ' + bobWxtoken)
+        .set('Authorization', 'JWT ' + bobWxToken)
         .expect(200)
         .end((err, res) => {
           if(err) return done(err)
@@ -232,7 +232,23 @@ describe(path.basename(__filename), () => {
       request(app)
         .patch(`/boxes/${boxUUID}`)
         .send(props)
-        .set('Authorization', 'JWT ' + bobWxtoken + ' ' + bobToken)
+        .set('Authorization', 'JWT ' + bobWxToken + ' ' + bobToken)
+        .expect(403)
+        .end(done)
+    })
+
+    it('DELETE /boxes/{uuid} alice delete box successfully', done => {
+      request(app)
+        .delete(`/boxes/${boxUUID}`)
+        .set('Authorization', 'JWT ' + aliceWxToken + ' ' + aliceToken)
+        .expect(200)
+        .end(done)
+    })
+
+    it('DELETE /boxes/{uuid} bob can not delete box', done => {
+      request(app)
+        .delete(`/boxes/${boxUUID}`)
+        .set('Authorization', 'JWT ' + bobWxToken + ' ' + bobToken)
         .expect(403)
         .end(done)
     })

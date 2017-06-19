@@ -7,9 +7,9 @@ const UUID = require('uuid')
 const router = require('express').Router()
 const auth = require('../middleware/auth')
 
-const Drive = require('../drive/drive')
+const Drive = require('../models/drive')
 const Forest = require('../forest/forest')
-const { readXstatAsync } = require('../file/xstat')
+const { readXstatAsync } = require('../models/xstat')
 const formdata = require('./formdata')
 
 const success = (res, data) => data

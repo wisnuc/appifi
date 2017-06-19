@@ -4,7 +4,7 @@ const uuid = require('uuid')
 const jwt = require('jwt-simple')
 const secret = require('../config/passportJwt')
 
-const User = require('../user/user')
+const User = require('../models/user')
 const Box = require('../box/box')
 
 /**
@@ -96,6 +96,19 @@ router.patch('/:boxUUID', auth, (req, res, next) => {
   if(box.owner !== req.user.unionId) return res.status(403).end()
   Box.updateBoxAsync(req.body, box)
     .then(box => res.status(200).json(box))
+    .catch(next)
+})
+
+router.delete('/:boxUUID', auth, (req, res, next) => {
+  if(!req.user) return res.status(403).end()
+
+  const boxUUID = req.params.boxUUID
+
+  let box = Box.map.get(boxUUID)
+  if(!box) return res.status(404).end()
+  if(box.owner !== req.user.unionId) return res.status(403).end()
+  Box.deleteBoxAsync(boxUUID)
+    .then(() => res.status(200).end())
     .catch(next)
 })
 

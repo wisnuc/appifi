@@ -2,6 +2,7 @@ const Promise = require('bluebird')
 const path = require('path')
 const fs = Promise.promisifyAll(require('fs'))
 const mkdirpAsync = Promise.promisify(require('mkdirp'))
+const rimrafAsync = Promise.promisify(require('rimraf'))
 const UUID = require('uuid')
 const deepEqual = require('deep-equal')
 
@@ -71,6 +72,13 @@ class Box {
     return box
   }
 
+/**
+ * update a box (rename, add or delete users)
+ * 
+ * @param {array} props - properties to be updated
+ * @param {object} box - contents before update
+ * @return {object} newbox
+ */
   async updateBoxAsync(props, box) {
     let op
     let { name, users } = box
@@ -97,6 +105,17 @@ class Box {
     
     this.map.set(box.uuid, newBox)
     return newBox
+  }
+
+/**
+ * delete a box
+ * 
+ * @param {string} boxUUID - uuid of box to be deleted
+ */
+  async deleteBoxAsync(boxUUID) {
+    await rimrafAsync(path.join(this.dir, boxUUID))
+    this.map.delete(boxUUID)
+    return
   }
 }
 
