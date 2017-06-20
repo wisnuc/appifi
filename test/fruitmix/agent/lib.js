@@ -45,13 +45,13 @@ const IDS = {
 const FILES = {
 
   hello: {
-    path: 'img/hello',
+    path: 'testdata/hello',
     size: 6,
     hash: '5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03'
   },
 
   alonzo: {
-    path: 'img/alonzo_church.jpg',
+    path: 'testdata/alonzo_church.jpg',
     size: 39499, 
     hash: '8e28737e8cdf679e65714fe2bdbe461c80b2158746f4346b06af75b42f212408'
   } 

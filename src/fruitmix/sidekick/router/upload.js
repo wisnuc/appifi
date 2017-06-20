@@ -83,13 +83,7 @@ Upload a file or a file segment, with given expected size and hash.
 */
 router.put('/', (req, res) => {
 
-try {
-
-  console.log('query', req.query)
-
   let { path: filePath, size, sha256, offset } = req.query
-
-  // return res.status(200).end()
 
   if (!filePath || !path.isAbsolute(filePath))
     return res.status(400).json({ message: 'invalid path' })
@@ -150,10 +144,6 @@ try {
 
   // chain pipe
   req.pipe(hash).pipe(ws)
-}
-catch (e) {
-  console.log(e)
-}
 })
 
 module.exports = router

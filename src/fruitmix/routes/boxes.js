@@ -4,7 +4,7 @@ const uuid = require('uuid')
 const jwt = require('jwt-simple')
 const secret = require('../config/passportJwt')
 
-const User = require('../user/user')
+const User = require('../models/user')
 const Box = require('../box/box')
 
 /**

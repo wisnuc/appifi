@@ -12,11 +12,13 @@ const sinon = require('sinon')
 const expect = chai.expect
 const should = chai.should()
 
+const debug = require('debug')('divider')
+
 const app = require('src/fruitmix/app')
 const { saveObjectAsync } = require('src/fruitmix/lib/utils')
 
-const User = require('src/fruitmix/user/user')
-const Drive = require('src/fruitmix/drive/drive')
+const User = require('src/fruitmix/models/user')
+const Drive = require('src/fruitmix/models/drive')
 const Forest = require('src/fruitmix/forest/forest')
 
 const {
@@ -104,8 +106,9 @@ describe(path.basename(__filename), () => {
     let token, stat
 
     beforeEach(async () => {
-      console.log('------ I am a beautiful divider ------')
-      Promise.delay(100)
+
+      debug('------ I am a beautiful divider ------')
+      Promise.delay(150)
       await resetAsync()
       await createUserAsync('alice')
       token = await retrieveTokenAsync('alice')
@@ -230,6 +233,8 @@ describe(path.basename(__filename), () => {
         })
     })
 **/
+
+    // create a new file
     it("POST should create a file hello in alice home", done => {
       request(app)
         .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/files`)

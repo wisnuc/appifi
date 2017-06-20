@@ -13,7 +13,7 @@ const Node = require('./node')
 const File = require('./file')
 const Directory = require('./directory')
 
-const { readXstatAsync, forceDriveXstatAsync } = require('../file/xstat')
+const { readXstatAsync, forceDriveXstatAsync } = require('../lib/xstat')
 
 /**
 Forest is a collection of file system cache for each `Drive` defined in Fruitmix.

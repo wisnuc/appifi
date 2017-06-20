@@ -1,7 +1,11 @@
 const path = require('path')
 const fs = require('fs')
-const { readXstat } = require('../file/xstat')
+
+const debug = require('debug')('readdir')
+
+const { readXstat } = require('../lib/xstat')
 const Monitor = require('./monitor')
+
 
 /**
 `readdir` reads the contents of directories and updates `Directory` children and mtime accordingly.
@@ -29,7 +33,7 @@ class Idle {
     */
     this.dir = dir
 
-    console.log('readdir enter idle')
+    debug('readdir enter idle')
   }
 
   /** Implement `read` virtual method, see `Directory` for definition. */
@@ -73,7 +77,7 @@ class Pending {
     this.timer = -1
     this.read(delay)
 
-    console.log('readdir enter pending')
+    debug('readdir enter pending')
   }
 
   /** Implement `read` virtual method, see `Directory` for definition. */
@@ -146,7 +150,7 @@ class Working {
 
     this.start()
 
-    console.log('readdir enter working')
+    debug('readdir enter working')
   }
 
   /**
@@ -196,7 +200,7 @@ class Working {
       err.code = 'EINTERRUPTED'
     } 
 
-    console.log('readdir working finished')
+    debug('readdir working finished')
 
     // processing error or result
     if (err) {
@@ -234,7 +238,7 @@ class Working {
         handler.end(this.dir.uuid, this.dir.name)
     })
 
-    console.log('readdir working next', this.pending, transient)
+    debug('readdir working next', this.pending, transient)
 
     if (Array.isArray(this.pending))
       this.dir.readdir = new Working(this.dir, this.pending)

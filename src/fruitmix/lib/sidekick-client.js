@@ -2,6 +2,7 @@ const Promise = require('bluebird')
 const path = require('path')
 const http = require('http')
 const querystring = require('querystring')
+const debug = require('debug')('sidekick-client')
 
 /**
 This is the sidekick client.
@@ -18,43 +19,32 @@ It provides `abort` method. When aborted, the callback receives an error with `E
 */
 const upload = (query, callback) => {
 
+  debug('sidekick query', query)
+
   let finished = false
 
   const options = {
 
     hostname: '127.0.0.1',
     port: 4005,
-    path: '/upload?' + quertystring.stringify(query),
+    path: '/upload?' + querystring.stringify(query),
     method: 'PUT'
   }
 
   const request = http.request(options, response => {
 
+    debug(`sidekick response statusCode ${response.statusCode}`, finished)
+
     if (finished) return
+    finished = true
 
-    response.setEncoding('utf8')
-
-    response.on('error', err => { 
-
-      if (finished) return
-      finished = true
-
-      // this is a transmission error or malformatted response
-      // pretending that we do not have statusCode
-      callback(err)
-    })
-
-    response.on('end', () => {
-
-      if (finished) return
-      finished = true    
-  
-      callback(null, response.statusCode)
-    })
+    return callback(null, response.statusCode)
   })
 
   request.on('error', err => {
-    
+
+    debug('sidekick request abort', finished)
+   
     if (finished) return
     finished = true
 
@@ -62,6 +52,8 @@ const upload = (query, callback) => {
   })
 
   request.on('abort', () => {
+
+    debug('sidekick request abort', finished)
 
     if (finished) return
     finished = true

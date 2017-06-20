@@ -3,8 +3,8 @@ const router = require('express').Router()
 const auth = require('../middleware/auth')
 const uuid = require('uuid')
 
-const User = require('../user/user')
-const Drive = require('../drive/drive')
+const User = require('../models/user')
+const Drive = require('../models/drive')
 
 router.get('/', (req, res, next) => {
 

@@ -7,9 +7,9 @@ const UUID = require('uuid')
 const router = require('express').Router()
 const auth = require('../middleware/auth')
 
-const Drive = require('../drive/drive')
+const Drive = require('../models/drive')
 const Forest = require('../forest/forest')
-const { readXstatAsync } = require('../file/xstat')
+const { readXstatAsync } = require('../lib/xstat')
 const formdata = require('./formdata')
 
 const success = (res, data) => data
@@ -197,7 +197,7 @@ router.post('/:driveUUID/dirs/:dirUUID/files', auth.jwt(), (req, res, next) => {
     let { driveUUID, dirUUID } = req.params
 
     req.formdata = { 
-      filePath: path.join(_fruitmixPath, 'tmp', UUID.v4()) 
+      path: path.join(_fruitmixPath, 'tmp', UUID.v4()) 
     }
 
     next()
@@ -205,9 +205,7 @@ router.post('/:driveUUID/dirs/:dirUUID/files', auth.jwt(), (req, res, next) => {
   }, formdata, (req, res) => {
 
     let { driveUUID, dirUUID } = req.params
-    let { filePath, fileName, size, sha256 } = req.formdata
-
-    
+    let { path, fileName, size, sha256 } = req.formdata
 
     res.status(200).end()
 })

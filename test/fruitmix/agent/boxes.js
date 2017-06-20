@@ -14,9 +14,9 @@ const should = chai.should()
 const app = require('src/fruitmix/app')
 const { saveObjectAsync } = require('src/fruitmix/lib/utils')
 
-const User = require('src/fruitmix/user/user')
-const Drive = require('src/fruitmix/drive/drive')
-const File = require('src/fruitmix/file/file')
+const User = require('src/fruitmix/models/user')
+const Drive = require('src/fruitmix/models/drive')
+const Forest = require('src/fruitmix/forest/forest')
 const Box = require('src/fruitmix/box/box')
 
 const {
@@ -58,7 +58,7 @@ const resetAsync = async() => {
   
   await User.initAsync(usersPath, tmpDir)
   await Drive.initAsync(drivesPath, tmpDir)
-  await File.initAsync(drivesDir, tmpDir)
+  await Forest.initAsync(drivesDir, tmpDir)
   await Box.initAsync(boxesDir, tmpDir)
 }
 
@@ -144,7 +144,7 @@ describe(path.basename(__filename), () => {
         .expect(200)
         .end((err, res) => {
           if (err) return done(err)
-          console.log(res.body)
+          expect(res.body).to.deep.equal([])
           done()
         })
     })

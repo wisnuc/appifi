@@ -1,3 +1,4 @@
+const path = require('path')
 const validator = require('validator')
 
 /**
@@ -127,5 +128,6 @@ module.exports = {
   isSHA256,
   isNonNullObject,
   isNonEmptyString,
+  isNormalizedAbsolutePath,
 }
 

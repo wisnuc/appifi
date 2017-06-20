@@ -14,9 +14,9 @@ const should = chai.should()
 const app = require('src/fruitmix/app')
 const { saveObjectAsync } = require('src/fruitmix/lib/utils')
 
-const User = require('src/fruitmix/user/user')
-const Drive = require('src/fruitmix/drive/drive')
-const File = require('src/fruitmix/file/file')
+const User = require('src/fruitmix/models/user')
+const Drive = require('src/fruitmix/models/drive')
+const Forest = require('src/fruitmix/forest/forest')
 
 const {
   IDS,
@@ -43,7 +43,7 @@ const resetAsync = async() => {
   
   await User.initAsync(usersPath, tmpDir)
   await Drive.initAsync(drivesPath, tmpDir)
-  await File.initAsync(drivesDir, tmpDir)
+  await Forest.initAsync(drivesDir, tmpDir)
 }
 
 describe(path.basename(__filename), () => {

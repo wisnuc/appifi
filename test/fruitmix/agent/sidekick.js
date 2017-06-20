@@ -32,6 +32,8 @@ const fileHashSync = (fpath) => {
   return hash.digest('hex')
 }
 
+const sidekick = require('src/fruitmix/lib/sidekick-client')
+
 describe(path.basename(__filename), () => {
 
   describe("upload a file", () => {
@@ -63,9 +65,10 @@ describe(path.basename(__filename), () => {
           .put('/upload')
           .query({ size: alonzo.size })
           .query({ sha256: alonzo.sha256 })
-          .expect(400))
+          .expect(400)
+          .expect(() => done()))
+          
     })
-
   })
 
   describe("upload a file chunk", () => {
