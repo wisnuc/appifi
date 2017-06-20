@@ -85,6 +85,17 @@ class Node {
     func(this) 
   }
 
+  nodepath() {
+    
+    if (!this.ctx) throw new Error('nodepath: node is already destroyed')
+
+    let q = []
+    for (let node = this; node !== null; node = node.parent)
+      q.unshift(node)
+
+    return q 
+  }
+
   /**
   Return Absolute path of the node
 

@@ -3,9 +3,9 @@ const path = require('path')
 const fs = Promise.promisifyAll(require('fs'))
 const child = Promise.promisifyAll(require('child_process'))
 const request = require('supertest')
-const superagent = require('superagent')
 const rimrafAsync = Promise.promisify(require('rimraf'))
 const mkdirpAsync = Promise.promisify(require('mkdirp'))
+const xattr = Promise.promisifyAll(require('fs-xattr'))
 const UUID = require('uuid')
 const chai = require('chai').use(require('chai-as-promised'))
 const sinon = require('sinon')
@@ -49,7 +49,7 @@ global._fruitmixPath = tmptest
 const tmpDir = path.join(tmptest, 'tmp')
 const usersPath = path.join(tmptest, 'users.json')
 const drivesPath = path.join(tmptest, 'drives.json')
-const drivesDir = path.join(tmptest, 'drives')
+const forestDir = path.join(tmptest, 'drives')
 
 /**
 Reset directories and reinit User module
@@ -61,46 +61,53 @@ const resetAsync = async() => {
   
   await User.initAsync(usersPath, tmpDir)
   await Drive.initAsync(drivesPath, tmpDir)
-  await Forest.initAsync(drivesDir)
+  await Forest.initAsync(forestDir)
 }
-
-/**
-
-010   get dirs
-020 * create a dir (mkdir)
-
-030   get a dir
-031 * get a dir alt1 (list / readdir)
-032   get a dir alt2 (listnav)
-040 * patch a dir (rename)
-050 * delete a dir (rmdir)
-
-060   get files
-070 * create a new file (upload / new)
-
-080   get a file
-090 * patch a file (rename)
-100 * delete a file (rm)
-
-110 * get file data (download)
-120 * put file data (upload / overwrite)
-
-**/
 
 describe(path.basename(__filename), () => {
 
-  describe("Alice w/ token and empty home", () => {
+  /**
+
+  Scenario 01                                 Alice w/empty home
+
+  Dir List
+  010   get dirs                              return [{alice home}]
+  020 * create new dir (mkdir)                new dir xstat
+
+
+  Dir                                         alice.home
+  030   get a dir                             alice.home xstat
+  031 * list a dir                            [] 
+  032   listnav a dir                         { path: [alice.home], entries: [] }
+  040 * patch a dir (rename)                  (forbidden)
+  050 * delete a dir (rmdir)                  (forbidden)
+
+  File List
+  060   get files                             []
+  070 * create new file (upload / new)        new file xstat
+
+  File
+  080   get a file                            n/a
+  090 * patch a file (rename)                 n/a
+  100 * delete a file (rm)                    n/a
+
+  File Data
+  110 * get file data (download)              n/a
+  120 * put file data (upload / overwrite)    n/a
+
+  **/
+  describe("Alice w/ empty home", () => {
 
     let sidekick
 
     before(async () => {
       sidekick = child.fork('src/fruitmix/sidekick/worker')      
-      await Promise.delay(300)
+      await Promise.delay(100)
     })
 
     after(async () => {
       sidekick.kill()
-      await Promise.delay(300) 
+      await Promise.delay(100) 
     })
     
     let token, stat
@@ -108,14 +115,17 @@ describe(path.basename(__filename), () => {
     beforeEach(async () => {
 
       debug('------ I am a beautiful divider ------')
+
       Promise.delay(150)
       await resetAsync()
       await createUserAsync('alice')
       token = await retrieveTokenAsync('alice')
-      stat = await fs.lstatAsync(path.join(drivesDir, IDS.alice.home))
+      stat = await fs.lstatAsync(path.join(forestDir, IDS.alice.home))
     })
-  
-    it("GET /drives should return [alice home drive] ", done => {
+ 
+/** TODO drives
+
+    it(" should return [alice home drive] ", done => {
 
       // array of drive object
       let expected = [{
@@ -135,9 +145,10 @@ describe(path.basename(__filename), () => {
           done()
         })
     }) 
+**/
 
-    // get all directories in a drive
-    it("GET /drives/:home/dirs should return [alice home dir] 01", done => {
+    // Get directories in alice home drive
+    it("010 GET /drives/:home/dirs should return [alice.home]", done => {
 
       // array of (mapped) dir object
       let expected = [{
@@ -158,34 +169,39 @@ describe(path.basename(__filename), () => {
         })
     }) 
 
+    // Create new dir in alice home drive (root)
+    it("020 POST /drives/:home/dirs should return new dir", async () => {
 
-    // create a new directory in a drive
-    it("POST /drives/:home/dirs should return a new dir {hello} 02", done => {
+      let dir = await new Promise((resolve, reject) => 
+        request(app)
+          .post(`/drives/${IDS.alice.home}/dirs`)
+          .set('Authorization', 'JWT ' + token)
+          .send({ parent: IDS.alice.home, name: 'hello' })
+          .expect(200)
+          .end((err, res) => err ? reject(err) : resolve(res.body)))
 
-      let uuid1 = '26a808bd-9a7d-474d-ac4d-9b733b60f93f'
-      sinon.stub(UUID, 'v4').returns(uuid1)
-      request(app)
-        .post(`/drives/${IDS.alice.home}/dirs`)
-        .set('Authorization', 'JWT ' + token)
-        .send({ parent: IDS.alice.home, name: 'hello' })
-        .expect(200)
-        .end((err, res) => {
+      let dirPath = path.join(forestDir, IDS.alice.home, 'hello')
+      let attr = JSON.parse(await xattr.getAsync(dirPath, 'user.fruitmix'))
+      let stats = await fs.lstatAsync(dirPath)
 
-          UUID.v4.restore()
-          if (err) return done(err)
+      expect(dir).to.deep.equal({ 
+        uuid: attr.uuid,
+        parent: IDS.alice.home,
+        name: 'hello',
+        mtime: stats.mtime.getTime() 
+      })
 
-          let { uuid, name } = res.body
-          expect({ uuid, name }).to.deep.equal({
-            uuid: uuid1,
-            name: 'hello'
-          })
-          done()
-
-        })
     })
 
-    // get single dir in a drive
-    it("GET /drives/:home/dirs/:home should return {home dir} 03", done => {
+    // Get a dir
+    it("030 GET /drives/:home/dirs/:home should return alice.home", done => {
+
+      let expected = {
+        uuid: IDS.alice.home,
+        parent: '',
+        name: IDS.alice.home,
+        mtime: stat.mtime.getTime()
+      }
 
       request(app)
         .get(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}`)
@@ -193,20 +209,13 @@ describe(path.basename(__filename), () => {
         .expect(200)
         .end((err, res) => {
           if (err) return done(err)
-
-          expect(res.body).to.deep.equal({
-            uuid: IDS.alice.home,
-            parent: '',
-            name: IDS.alice.home,
-            mtime: stat.mtime.getTime()
-          })
-
+          expect(res.body).to.deep.equal(expected)
           done()
         })
     }) 
 
-    // list a dir
-    it("GET /drives/:home/dirs/:home/list list home should return [] 04", done => {
+    // List a dir
+    it("031 GET /drives/:home/dirs/:home/list should return []", done => {
 
       request(app)
         .get(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/list`) 
@@ -218,9 +227,15 @@ describe(path.basename(__filename), () => {
         })
     })
 
-/**
     // list nav a dir    
-    it("GET /drives/:home/dirs/:home/listnav list nav home should return 05", done => {
+    it("032 GET /drives/:home/dirs/:home/listnav should return list [] and nav [alice.home]", done => {
+
+      let root = {
+        uuid: IDS.alice.home,
+        parent: '',
+        name: IDS.alice.home,
+        mtime: stat.mtime.getTime()
+      }
 
       request(app)
         .get(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/listnav`)
@@ -228,26 +243,74 @@ describe(path.basename(__filename), () => {
         .expect(200)
         .end((err, res) => {
           if (err) return done(err)
-          expect(res.body).to.deep.equal({})
+          expect(res.body).to.deep.equal({
+            path: [root],
+            entries: []
+          })
           done()
         })
     })
-**/
+
+    // rename
+    it("040 PATCH /drives/:home/dirs/:home should return 403", done => {
+
+      request(app)
+        .patch(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}`)
+        .set('Authorization', 'JWT ' + token)
+        .send({ name: 'anything' })
+        .expect(403)
+        .end(done)
+    })
+
+    // delete 
+    it("050 DELETE /drives/:home/dirs/:home should return 403", done => {
+
+      request(app)
+        .delete(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}`)
+        .set('Authorization', 'JWT ' + token)
+        .expect(403)
+        .end(done)
+    })
+
+    // get files
+    it("060 GET /drives/:home/dirs/:home/files should return []", done => {
+
+      request(app)
+        .delete(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}`)
+        .set('Authorization', 'JWT ' + token)
+        .expect(403)
+        .end(done)
+    })
 
     // create a new file
-    it("POST should create a file hello in alice home", done => {
-      request(app)
-        .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/files`)
-        .set('Authorization', 'JWT ' + token)
-        .expect(200)
-        .field('size', FILES.hello.size)
-        .field('sha256', FILES.hello.hash)
-        .attach('file', FILES.hello.path)
-        .end((err, res) => {
-          if (err) return done(err)
-          done()
-        })
+    it("070 POST /drives/:home/dirs/:home/files should create new file", 
+      async () => {
+
+      let file = await new Promise((resolve, reject) => 
+        request(app)
+          .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/files`)
+          .set('Authorization', 'JWT ' + token)
+          .expect(200)
+          .field('size', FILES.hello.size)
+          .field('sha256', FILES.hello.hash)
+          .attach('file', FILES.hello.path)
+          .end((err, res) => err ? reject(err) : resolve(res.body)))
+
+      let filePath = path.join(forestDir, IDS.alice.home, 'hello')
+      let attr = JSON.parse(await xattr.getAsync(filePath, 'user.fruitmix'))
+
+      let stats = await fs.lstatAsync(filePath)
+
+      expect(file).to.deep.equal({
+        uuid: attr.uuid,
+        name: 'hello',
+        mtime: stats.mtime.getTime(),
+        size: stats.size,
+        magic: 0
+      })
     })
   }) 
+
+
 })
 

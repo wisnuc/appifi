@@ -142,7 +142,7 @@ const formdata = (req, res, next) => {
 
         req.formdata.size = size  
         req.formdata.sha256 = sha256
-        req.formdata.filename = filename 
+        req.formdata.filename = part.filename
 
         if (offset) req.formdata.offset = offset 
 

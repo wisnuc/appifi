@@ -3,6 +3,8 @@ const path = require('path')
 const fs = Promise.promisifyAll(require('fs'))
 const http = require('http')
 const querystring = require('querystring')
+const rimraf = require('rimraf')
+const mkdirp = require('mkdirp')
 const UUID = require('uuid')
 const router = require('express').Router()
 const auth = require('../middleware/auth')
@@ -11,6 +13,9 @@ const Drive = require('../models/drive')
 const Forest = require('../forest/forest')
 const { readXstatAsync } = require('../lib/xstat')
 const formdata = require('./formdata')
+
+const rimrafAsync = Promise.promisify(rimraf)
+const mkdirpAsync = Promise.promisify(mkdirp)
 
 const success = (res, data) => data
   ? res.status(200).json(data)
@@ -150,39 +155,66 @@ router.get('/:driveUUID/dirs/:dirUUID/listnav', auth.jwt(),
   let dir = Forest.getDriveDir(driveUUID, dirUUID)
   if (!dir) return res.status(404).end()
 
-  let xstats = await dir.readdirAsync()
-  res.status(200).json({
-    path: [],
-    entries: xstats
-  })
+  let list = await dir.readdirAsync()
+  let nav = dir.nodepath().map(dir => ({
+    uuid: dir.uuid,
+    parent: dir.parent ? dir.parent.uuid : '',
+    name: dir.name,
+    mtime: Math.abs(dir.mtime)
+  }))
+
+  res.status(200).json({ path: nav, entries: list })
 }))
 
 /** 
 rename a directory
 */
-router.patch('/:driveUUID/dirs/:dirUUID', auth.jwt(), (req, res) => {
+router.patch('/:driveUUID/dirs/:dirUUID', auth.jwt(), 
+  f(async(req, res) => {
+
+  let { driveUUID, dirUUID } = req.params
+  let { name } = req.body
+
+  let dir = Forest.getDriveDir(driveUUID, dirUUID)
+  if (!dir) return res.status(404).end()
+  if (Forest.isRoot(dir)) return res.status(403).end()
+
+  let oldPath = dir.abspath()
+  let newPath = path.join(oldPath.dirname(), name)
+
+  // to avoid rename to existing file
+  await fs.closeAsync(await fs.openAsync(newPath, 'wx'))
+  await fs.renameAsync(oldPath, newPath) 
+
+  dir.parent.read()
+
+  let xstat = await readXstatAsync(newPath)
+
+  res.status(200).json({
+    uuid: xstat.uuid,
+    parent: dir.parent.uuid,
+    name: xstat.name,
+    mtime: xstat.mtime
+  })
+
+}))
+
+/**
+delete a directory
+*/
+router.delete('/:driveUUID/dirs/:dirUUID', auth.jwt(), 
+  f(async (req, res) => {
 
   let { driveUUID, dirUUID } = req.params
  
-  let node = Forest.findNodeByUUID(dirUUID)
-  if (!node) res.status(404).end()
-
-  Forest.renameDirAsync(node, req.body.name) 
-    .then(node => res.status(200).json({
-      uuid: node.uuid,
-      name: node.name,
-      mtime: node.mtime,
-    }))
-    .catch(e => console.log(e) || error(e))
-})
-
-/**
-*/
-router.delete('/:driveUUID/dirs/:dirUUID', auth.jwt(), (req, res) => {
-
-  let { driveUUID, dirUUID } = req.params
+  let dir = Forest.getDriveDir(driveUUID, dirUUID)
+  if (!dir) return res.status(404).end() 
+  if (Forest.isRoot(dir)) return res.status(403).end()
+ 
+  await rimrafAsync(dir.abspath())
   res.status(200).end()
-})
+
+}))
 
 // [/drives/{driveUUID}/dirs/{dirUUID}/files]
 router.get('/:driveUUID/dirs/:dirUUID/files', auth.jwt(), (req, res) => {
@@ -191,8 +223,11 @@ router.get('/:driveUUID/dirs/:dirUUID/files', auth.jwt(), (req, res) => {
   res.status(200).end()
 })
 
-// create a new file
-router.post('/:driveUUID/dirs/:dirUUID/files', auth.jwt(), (req, res, next) => {
+/**
+create a new file
+*/
+router.post('/:driveUUID/dirs/:dirUUID/files', auth.jwt(), 
+  (req, res, next) => {
 
     let { driveUUID, dirUUID } = req.params
 
@@ -202,13 +237,45 @@ router.post('/:driveUUID/dirs/:dirUUID/files', auth.jwt(), (req, res, next) => {
 
     next()
 
-  }, formdata, (req, res) => {
+  }, formdata, f(async (req, res) => {
 
     let { driveUUID, dirUUID } = req.params
-    let { path, fileName, size, sha256 } = req.formdata
+    let { path: srcPath, filename, size, sha256 } = req.formdata
 
-    res.status(200).end()
-})
+    let dir = Forest.getDriveDir(driveUUID, dirUUID)
+
+    /**
+    race condition detected if dir.read() and readXstat() called simultaneously on the same virgin file.
+    so we equip src (temp) file before renaming
+    **/
+    let xstat = await readXstatAsync(srcPath)
+
+    let name, dstPath
+    for (let suffix = 0;; suffix++) {
+
+      name = suffix === 0 
+        ? filename
+        : `${filename} (${suffix})`
+
+      dstPath = path.join(dir.abspath(), name)
+
+      try {
+        await fs.closeAsync(await fs.openAsync(dstPath, 'wx')) 
+        break
+      }
+      catch (e) {
+        if (e.code !== 'EEXIST') throw e
+      } 
+    }
+
+    await fs.renameAsync(srcPath, dstPath)
+    dir.read()
+
+    delete xstat.type
+    xstat.name = name
+
+    res.status(200).json(xstat)
+}))
 
 // [/drives/{driveUUID}/dirs/{dirUUID}/files/{fileUUID}]
 router.get('/:driveUUID/dirs/:dirUUID/files/:fileUUID', auth.jwt(), (req, res) => {
