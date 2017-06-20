@@ -1,5 +1,7 @@
 FORMAT: 1A
 
+HOST: http://wisnuc.station:3722
+
 # Appifi API
 
 **Appifi** is essentially a docker management tool, providing a easy-to-use way for home user to extend **wisnuc os** functionality.
@@ -12,6 +14,15 @@ It is focused on docker image and container management.
 + [Wisnuc Cloud](https://github.com/wisnuc/*.md)
 + [Wisnuc Fruitmix](https://github.com/wisnuc/*.md)
 
+## Data Structures
+
+### installDocker
++ operation: `appInstall` (string, required) - operation name
++ args: `dockerhub: library: busybox: latest: vanilla` (array, required) - operation args
+
+### uninstallDocker
++ operation: `appUninstall` (string, required) - operation name
++ args: `918b3900-b190-44bb-8c1f-9c9aa8182050` (array, required) - operation args
 
 # Group Modules
 
@@ -638,10 +649,11 @@ It will get all modules' current status.
             }
 
 
-### Install Docker [POST]
-Use for **appstore**, it can download a new specified docker image into appstore.
+### Docker [POST]
 
-+ Request
+Use for **appstore**, it can download a new specified docker image into appstore or remove a specified docker image which stored in appstore.
+
++ Request install
 
   + Header
 
@@ -649,12 +661,7 @@ Use for **appstore**, it can download a new specified docker image into appstore
 
   + Body
 
-            {
-              operation: 'appInstall',
-              args: [
-                'dockerhub: library: busybox: latest: vanilla'
-              ]
-            }
+    + Attributes (installDocker)
 
 + Response 200
 
@@ -666,11 +673,7 @@ Use for **appstore**, it can download a new specified docker image into appstore
 
             {}
 
-
-### Uninstall Docker [POST]
-Use for **appstore**, it can remove a specified docker image which stored in appstore.
-
-+ Request
++ Request uninstall
 
   + Header
 
@@ -678,10 +681,7 @@ Use for **appstore**, it can remove a specified docker image which stored in app
 
   + Body
 
-            {
-              operation: 'appUninstall',
-              args: [ '918b3900-b190-44bb-8c1f-9c9aa8182050' ]
-            }
+    + Attributes (uninstallDocker)
 
 + Response 200
 
@@ -692,6 +692,7 @@ Use for **appstore**, it can remove a specified docker image which stored in app
   + Body
 
             {}
+
 
 ## Appifi Own Status [/server/status]
 
