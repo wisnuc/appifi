@@ -21,15 +21,15 @@ const assert = (predicate, message) => {
 
 
 /**
-Test if given variable is a valid uuid string.
+Test if given variable is a valid uuid string (lowercase only).
 
 @function isUUID
 @param {*} uuid
 */
-const isUUID = uuid => typeof uuid === 'string' && validator.isUUID(uuid)
+const isUUID = uuid => typeof uuid === 'string' && /[a-f0-9\-]/.test(uuid) && validator.isUUID(uuid)
 
 /**
-Test if given variable is a valid sha256 string by regex.
+Test if given variable is a valid sha256 string by regex (lowercase only).
 
 @function isSHA256
 @param {*} hash
@@ -124,6 +124,8 @@ const isNormalizedAbsolutePath = abspath =>
   typeof abspath === 'string' && path.isAbsolute(abspath) && path.normalize(abspath) === abspath
 
 module.exports = {
+  assert,
+  validateProps,
   isUUID,
   isSHA256,
   isNonNullObject,
