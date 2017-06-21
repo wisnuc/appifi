@@ -311,6 +311,32 @@ const createXstat = (target, stats, attr) => {
 
 /**
 Read xstat object from target.
+// return attr only if hash is effective
+const peekXattrAsync = async (target) => {
+  let attr
+  let stats = await fs.lstatAsync(target)
+  if (!stats.isFile()) throw new E.ENOTFILE()
+
+  try {
+    // may throw xattr ENOENT or JSON SyntaxError
+    attr = JSON.parse(await xattr.getAsync(target, FRUITMIX))
+  }
+  catch (e) {
+    // unexpected error
+    if (e.code !== 'ENODATA' && !(e instanceof SyntaxError)) throw e 
+  }
+
+  if (attr
+    && attr.hasOwnProperty('hash')
+    && isSHA256(attr.hash)
+    && attr.htime === stats.mtime.getTime()) return attr
+  else return 
+}
+
+const updateFileHashAsync = async (target, uuid, hash, htime) => {
+  
+  if (!isSHA256(hash) || !Number.isInteger(htime))
+    throw new E.EINVAL()
 
 Tests:
 + disk1
@@ -419,6 +445,13 @@ callback version of updateFileHashAsync
 @param {number} htime - timestamp before calculating file hash
 @param {function} callback - `(err, xstat) => {}`
 */
+
+const readXstat = (target, callback) => 
+  readXstatAsync(target, false).asCallback(callback)
+
+const peekXattr = (target, callback) => 
+  peekXattrAsync(target).asCallback(callback)
+
 const updateFileHash = (target, uuid, hash, htime, callback) =>
   updateFileHashAsync(target, uuid, hash, htime).asCallback(callback)
 
@@ -434,6 +467,8 @@ module.exports = {
   readTimeStamp,
   readXstat,
   readXstatAsync,
+  peekXattr,
+  peekXattrAsync,
   updateFileHash,
   updateFileHashAsync,
   forceDriveXstat,        // deprecated
@@ -441,7 +476,7 @@ module.exports = {
 
   // testing only
   parseMagic,
-  fileMagic,
+  fileMagic
 }
 
 

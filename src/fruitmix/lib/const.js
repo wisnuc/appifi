@@ -12,7 +12,9 @@ const DIR = {
   LOG: 'log',
   ETC: 'etc',
   SMB: 'smb',
-  TMP: 'tmp' 
+  TMP: 'tmp',
+  REPO: 'repo',
+  BOX: 'boxes'
 }
 
 Object.freeze(DIR)
