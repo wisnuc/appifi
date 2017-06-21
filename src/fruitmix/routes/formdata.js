@@ -111,7 +111,6 @@ const formdata = (req, res, next) => {
       break
 
     default:
-
       console.log('formdata, unexpected key value', key, value)
       break
     }
@@ -130,12 +129,12 @@ const formdata = (req, res, next) => {
       return res.status(400).json({ message: 'size and sha256 must be provided before uploading file data' })
     }
 
-    let opts = { path: formdata.path, size, sha256 }
+    let opts = { path: req.formdata.path, size, sha256 }
 
     if (offset !== undefined) opts.offset = offset   
  
     upload = sidekick.upload(opts, (err, status) => {
-      
+
       if (finished) return 
       finished = true
 
@@ -143,7 +142,7 @@ const formdata = (req, res, next) => {
 
         req.formdata.size = size  
         req.formdata.sha256 = sha256
-        req.formdata.filename = filename 
+        req.formdata.filename = part.filename
 
         if (offset) req.formdata.offset = offset 
 

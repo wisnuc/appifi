@@ -10,22 +10,8 @@ const auth = require('./middleware/auth')
 const token = require('./routes/token')
 const users = require('./routes/users')
 const drives = require('./routes/drives')
-// const files = require('./routes/files')
 const boxes = require('./routes/boxes')
 const wxtoken = require('./routes/wxtoken')
-/**
-import init from './routes/init'
-import login from './routes/login'
-import files from './routes/files'
-import meta from './routes/meta'
-import share from './routes/share'
-import drives from './routes/drives'
-import libraries from './routes/libraries'
-import media from './routes/media'
-import mediashare from './routes/mediashare'
-**/
-
-global.fruitmixPath = 'hello'
 
 let app = express()
 
@@ -39,25 +25,8 @@ app.use(auth.init())
 app.use('/token', token)
 app.use('/users', users)
 app.use('/drives', drives)
-// app.use('/files', files)
 app.use('/boxes', boxes)
 app.use('/wxtoken', wxtoken)
-
-/**
-app.use('/init', init)
-app.use('/login', login)
-
-app.use('/token', require('./routes/token'))
-
-app.use('/libraries', libraries)
-app.use('/drives', drives)
-app.use('/files', files)
-app.use('/meta', meta)
-app.use('/share', share)
-app.use('/media', media)
-app.use('/mediashare', mediashare)
-app.use('/authtest', require('./routes/authtest'))
-**/
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
