@@ -1,13 +1,19 @@
-const getPrependPath = () => {
-	let indexProcessArgv = null
+import Debug from 'debug'
+const PREPEND_PATH = Debug('SAMBA:PREPEND_PATH')
 
-	if((indexProcessArgv = (process.argv).indexOf('--path')) >= 0) {
-		let prependPath = (process.argv)[indexProcessArgv + 1]
-		return prependPath
-	}
-	else {
-		throw new Error('getPrependPath error: No "--path" Parameters')
-	}
+const getPrependPath = () => {
+
+  let indexProcessArgv = null
+
+  if((indexProcessArgv = (process.argv).indexOf('--path')) >= 0) {
+    let prependPath = (process.argv)[indexProcessArgv + 1]
+    PREPEND_PATH(prependPath)
+    return prependPath
+  }
+  else {
+    throw new Error('getPrependPath error: No "--path" Parameters')
+  }
+
 }
 
 module.exports = getPrependPath
