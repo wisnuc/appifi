@@ -124,7 +124,10 @@ class UserList extends EventEmitter {
   Construct an uninitialized UserList. 
   */
   constructor() {
+
     super()
+
+    this.started = false
 
     this.fpath = undefined
     this.tmpDir = undefined
@@ -207,6 +210,11 @@ class UserList extends EventEmitter {
     this.tmpDir = tmpDir
 
     broadcast.emit('UserInitialized')
+  }
+
+  deinit() {
+    
+    
   }
 
   /**
