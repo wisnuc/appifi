@@ -69,7 +69,7 @@ const btrfs_fi_show_uuid = async (uuid) => {
   return vol
 } 
 
-export default async () => {
+module.exports = async () => {
 
   let cmd = 'btrfs fi show | grep -P \'^Label: \' | sed -n -e \'s/^.*uuid: //p\''
 

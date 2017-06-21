@@ -13,7 +13,7 @@ const Node = require('./node')
 const File = require('./file')
 const Directory = require('./directory')
 
-const { readXstatAsync, forceDriveXstatAsync } = require('../lib/xstat')
+const { readXstatAsync, forceXstatAsync } = require('../lib/xstat')
 
 /**
 Forest is a collection of file system cache for each `Drive` defined in Fruitmix.
@@ -164,7 +164,8 @@ class Forest extends EventEmitter {
 
     let dirPath = path.join(this.dir, drive.uuid)   
     await mkdirpAsync(dirPath)
-    let xstat = await forceDriveXstatAsync(dirPath, drive.uuid)
+
+    let xstat = await forceXstatAsync(dirPath, { uuid: drive.uuid })
     let root = new Directory(this, null, xstat, monitor)
     this.roots.set(root.uuid, root)
   }    

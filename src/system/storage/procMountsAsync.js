@@ -1,7 +1,7 @@
 const Promise = require('bluebird')
 const fs = Promise.promisifyAll(require('fs'))
 
-export default async () => {
+module.exports = async () => {
 
   let data = await fs.readFileAsync('/proc/mounts')
   let lines = data.toString().split(/\n/).filter(l => l.length)

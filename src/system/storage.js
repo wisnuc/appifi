@@ -1,16 +1,20 @@
+const Promise = require('bluebird')
 const path = require('path')
+const fs = Promise.promisifyAll(require('fs'))
+const child = Promise.promisifyAll(require('child_process'))
+const mkdirp = require('mkdirp')
+const rimraf = require('rimraf')
+const UUID = require('uuid')
+const deepFreeze = require('deep-freeze')
 
-import mkdirp from 'mkdirp'
-import { fs, child, mkdirpAsync } from '../common/async'
-import UUID from 'node-uuid'
-import deepFreeze from 'deep-freeze'
+const mkdirpAsync = Promise.promisify(mkdirp)
+const rimrafAsync = Promise.promisify(rimraf)
 
-
-import udevInfoAsync from './storage/udevInfoAsync'
-import probeMountsAsync from './storage/procMountsAsync'
-import probeSwapsAsync from './storage/procSwapsAsync'
-import probeVolumesAsync from './storage/btrfsfishowAsync'
-import probeUsageAsync from './storage/btrfsusageAsync'
+const udevInfoAsync = require('./storage/udevInfoAsync')
+const probeMountsAsync = require('./storage/procMountsAsync')
+const probeSwapsAsync = require('./storage/procSwapsAsync')
+const probeVolumesAsync = require('./storage/btrfsfishowAsync')
+const probeUsageAsync = require('./storage/btrfsusageAsync')
 
 const createPersistenceAsync = require('../common/persistence')
 

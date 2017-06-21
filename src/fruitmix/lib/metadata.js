@@ -1,6 +1,5 @@
 const Promise = require('bluebird')
 const path = require('path')
-
 const { isSHA256 } = require('../lib/assertion')
 
 /**

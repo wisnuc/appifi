@@ -140,7 +140,7 @@ const btrfs_device_usage = async (mountpoint) => {
   return result
 }
 
-export default async (mountpoint) => {
+module.exports = async (mountpoint) => {
 
   let usage = await Promise.all([
     btrfs_filesystem_usage(mountpoint),
