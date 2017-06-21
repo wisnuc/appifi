@@ -6,7 +6,9 @@ const UUID = require('uuid')
 const deepFreeze = require('deep-freeze')
 const { saveObjectAsync } = require('../lib/utils')
 
-const Forest = require('../forest/forest')
+const broadcast = require('../../common/broadcast')
+
+// const Forest = require('../forest/forest')
 
 /**
 Drive module exports a DriveList Singleton
@@ -51,13 +53,29 @@ class DriveList extends EventEmitter {
   Construct an uninitialzied DriveList
   */
   constructor() {
+
     super()
+
+    this.fpath = undefined
+    this.tmpDir = undefined
+
     this.lock = false
     this.drives = []
     deepFreeze(this.drives)
+
+    broadcast.on('FruitmixStart', froot => {
+
+      let fpath = path.join(froot, 'drives.json')
+      let tmpDir = path.join(froot, 'tmp')
+
+      this.initAsync(fpath, tmpDir).then(x => x, err => console.log(err))
+    })
   }
 
   async initAsync(fpath, tmpDir) {
+
+    if (this.fpath !== undefined) 
+      throw new Error('drive module already initialized')
     
     try {
       this.drives = JSON.parse(await fs.readFileAsync(fpath))
@@ -68,8 +86,13 @@ class DriveList extends EventEmitter {
     }
 
     deepFreeze(this.drives)
+
     this.fpath = fpath
     this.tmpDir = tmpDir
+
+    this.drives.forEach(drive => broadcast.emit('DriveCreated', drive))
+
+    broadcast.emit('DriveInitialized')
   }
 
   async commitDrivesAsync(currDrives, nextDrives) {
@@ -101,7 +124,10 @@ class DriveList extends EventEmitter {
     await this.commitDrivesAsync(this.drives, nextDrives)
     this.drives = nextDrives
     deepFreeze(this.drives)
-    await Forest.createDriveAsync(drive)
+
+    // await Forest.createDriveAsync(drive)
+
+    broadcast.emit('DriveCreated', drive)    
     return drive
   }
 

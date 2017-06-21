@@ -16,6 +16,8 @@ const debug = require('debug')('divider')
 
 const app = require('src/fruitmix/app')
 
+const broadcast = require('src/common/broadcast')
+
 const User = require('src/fruitmix/models/user')
 const Drive = require('src/fruitmix/models/drive')
 const Forest = require('src/fruitmix/forest/forest')
@@ -45,9 +47,9 @@ const resetAsync = async () => {
   await rimrafAsync(tmptest)
   await mkdirpAsync(tmpDir)
   
-  await User.initAsync(usersPath, tmpDir)
-  await Drive.initAsync(drivesPath, tmpDir)
-  await Forest.initAsync(forestDir)
+  broadcast.emit('FruitmixStart', tmptest) 
+
+  await broadcast.until('UserInitialized', 'DriveInitialized')
 }
 
 describe(path.basename(__filename), () => {

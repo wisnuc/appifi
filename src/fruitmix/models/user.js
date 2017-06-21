@@ -7,6 +7,8 @@ const UUID = require('uuid')
 const deepFreeze = require('deep-freeze')
 const E = require('../lib/error')
 
+const broadcast = require('../../common/broadcast')
+
 const { isUUID, isNonNullObject, isNonEmptyString } = require('../lib/assertion')
 const { saveObjectAsync, passwordEncrypt, unixPasswordEncrypt, md4Encrypt } = require('../lib/utils')
 
@@ -124,6 +126,9 @@ class UserList extends EventEmitter {
   constructor() {
     super()
 
+    this.fpath = undefined
+    this.tmpDir = undefined
+
     /**
     @member {boolean} lock - internal file operation lock
     */
@@ -134,6 +139,14 @@ class UserList extends EventEmitter {
     */
     this.users = []
     deepFreeze(this.users)
+
+    broadcast.on('FruitmixStart', froot => {
+
+      let filePath = path.join(froot, 'user.json') 
+      let tmpDir = path.join(froot, 'tmp')
+
+      this.initAsync(filePath, tmpDir).then(x => x, err => console.log(err))
+    })
   }
 
   /**
@@ -178,6 +191,9 @@ class UserList extends EventEmitter {
   **/
   async initAsync(fpath, tmpDir) {
 
+    if (this.fpath !== undefined)
+      throw new Error('user module already initialized')
+
     try {
       this.users = JSON.parse(await fs.readFileAsync(fpath))
     } 
@@ -189,6 +205,8 @@ class UserList extends EventEmitter {
     deepFreeze(this.users)
     this.fpath = fpath
     this.tmpDir = tmpDir
+
+    broadcast.emit('UserInitialized')
   }
 
   /**

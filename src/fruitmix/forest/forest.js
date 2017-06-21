@@ -15,6 +15,8 @@ const Directory = require('./directory')
 
 const { readXstatAsync, forceXstatAsync } = require('../lib/xstat')
 
+const broadcast = require('../../common/broadcast')
+
 /**
 Forest is a collection of file system cache for each `Drive` defined in Fruitmix.
 
@@ -50,14 +52,14 @@ In either case, a `read` on the `Directory` object is enough.
 */
 class Forest extends EventEmitter {
 
-  constructor(dir) {
+  constructor() {
 
     super()
 
     /**
     Absolute path of Fruitmix drive directory 
     */
-    this.dir = dir
+    this.dir = undefined
 
     /**
     The collection of drive cache. Using Map for better performance 
@@ -73,6 +75,12 @@ class Forest extends EventEmitter {
     Indexing all media files by file hash
     */
     this.hashMap = new Map()
+
+    broadcast.on('FruitmixStart', froot => this.init(path.join(froot, 'drives')))
+
+    broadcast.on('DriveCreated', drive => 
+      this.createDriveAsync(drive)
+        .then(x => x, err => console.log(err)))
   }
 
   isRoot(dir) {
@@ -145,11 +153,9 @@ class Forest extends EventEmitter {
 
   @param {string} drivesDir
   */
-  async initAsync(drivesDir) {
+  init(forestDir) {
 
-    this.roots.forEach(root => root.destroy())
-
-    this.dir = drivesDir
+    this.dir = forestDir
     this.roots = new Map()
     this.uuidMap = new Map()
     this.hashMap = new Map()
