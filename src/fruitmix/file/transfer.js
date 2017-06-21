@@ -48,7 +48,7 @@ class Worker extends EventEmitter {
   constructor() {
     super()
     this.finished = false
-    this.state = 'PADDING'
+    this.state = 'PENDING'
     this.id = UUID.v4()
     this.userUUID = ''
   }
@@ -92,15 +92,15 @@ class Worker extends EventEmitter {
     return this.state === 'RUNNING'
   }
 
-  isPadding() {
-    return this.state === 'PADDING'
+  isPending() {
+    return this.state === 'PENDING'
   }
 
 }
 
 /**
  * state:
- * PADDING
+ * PENDING
  * RUNNING
  * FINISHED
  * WARNING
@@ -166,7 +166,7 @@ class Move extends Worker {
 
 
   run() {
-    if(this.state !== 'PADDING') return 
+    if(this.state !== 'PENDING') return 
     this.state = 'RUNNING'
     let srcType = this.src.type === 'fruitmix'
     let dstType = this.dst.type === 'fruitmix'
@@ -371,7 +371,7 @@ class Copy extends Worker {
 
 
   run() {
-    if(this.state !== 'PADDING') return 
+    if(this.state !== 'PENDING') return 
     this.state = 'RUNNING'
     let srcType = isFruitmix(this.src.type)
     let dstType = isFruitmix(this.dst.type)
@@ -473,7 +473,7 @@ class Transfer {
     let diff = this.limit - this.workersQueue.filter(worker => worker.isRunning()).length
     if (diff <= 0) return
 
-    this.workersQueue.filter(worker => worker.isPadding())
+    this.workersQueue.filter(worker => worker.isPending())
       .slice(0, diff)
       .forEach(worker => worker.start())
   }
