@@ -102,7 +102,7 @@ class DefaultParam {
   }
 
   getWisnucAppstationPort() {
-    return 3720
+    return 3722
   }
 }
 
