@@ -1,3 +1,4 @@
+const Promise = require('bluebird')
 const fs = Promise.promisifyAll(require('fs'))
 const validator = require('validator')
 const deepEqual = require('deep-equal')

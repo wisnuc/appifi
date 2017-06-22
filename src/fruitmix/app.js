@@ -12,6 +12,7 @@ const users = require('./routes/users')
 const drives = require('./routes/drives')
 const boxes = require('./routes/boxes')
 const wxtoken = require('./routes/wxtoken')
+const uploads = require('./routes/uploads')
 
 let app = express()
 
@@ -27,6 +28,7 @@ app.use('/users', users)
 app.use('/drives', drives)
 app.use('/boxes', boxes)
 app.use('/wxtoken', wxtoken)
+app.use('/uploads', uploads)
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

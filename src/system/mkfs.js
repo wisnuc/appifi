@@ -1,3 +1,4 @@
+const Promise = require('bluebird')
 const child = require('child_process')
 const debug = require('debug')('system:mkfs')
 const Storage = require('./storage')
@@ -167,4 +168,4 @@ const mkfsNtfs = async (target, opts) => {
 
 **/
 
-export { mkfsBtrfs, mkfsBtrfsAsync }
+module.exports = { mkfsBtrfs, mkfsBtrfsAsync }

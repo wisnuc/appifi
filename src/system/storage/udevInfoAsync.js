@@ -71,5 +71,6 @@ const udevInfoBoth = async path =>
     sysfsProps: await udevInfoAttr(path)
   })
 
-export default async paths => Promise.map(paths, path => udevInfoBoth(path))
+// export default async paths => Promise.map(paths, path => udevInfoBoth(path))
+module.exports = async paths => Promise.map(paths, path => udevInfoBoth(path))
 

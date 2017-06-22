@@ -25,5 +25,7 @@ const main = async () => {
   systemServer(system)
 }
 
-main().asCallback(err => err && console.log(err))
+// main().asCallback(err => err && console.log(err))
+
+main().then(x => x, err => console.log(err))
 

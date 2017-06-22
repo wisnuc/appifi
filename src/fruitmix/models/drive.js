@@ -6,7 +6,9 @@ const UUID = require('uuid')
 const deepFreeze = require('deep-freeze')
 const { saveObjectAsync } = require('../lib/utils')
 
-const Forest = require('../forest/forest')
+const broadcast = require('../../common/broadcast')
+
+// const Forest = require('../forest/forest')
 
 /**
 Drive module exports a DriveList Singleton
@@ -51,25 +53,78 @@ class DriveList extends EventEmitter {
   Construct an uninitialzied DriveList
   */
   constructor() {
+
     super()
+
+    this.initialized = false
+
+    this.fpath = undefined
+    this.tmpDir = undefined
+
     this.lock = false
     this.drives = []
     deepFreeze(this.drives)
+
+    broadcast.on('FruitmixStart', froot => {
+
+      let fpath = path.join(froot, 'drives.json')
+      let tmpDir = path.join(froot, 'tmp')
+
+      this.init(fpath, tmpDir)
+    })
+
+    broadcast.on('FruitmixStop', () => this.deinit())
   }
 
-  async initAsync(fpath, tmpDir) {
-    
-    try {
-      this.drives = JSON.parse(await fs.readFileAsync(fpath))
-    }
-    catch (e) {
-      if (e.code !== 'ENOENT') throw e
-      this.drives = []
-    }
+  init(fpath, tmpDir) {
 
-    deepFreeze(this.drives)
-    this.fpath = fpath
-    this.tmpDir = tmpDir
+    if (this.initialized)
+      throw new Error('drive module already initialized')
+
+    fs.readFile(fpath, (err, data) => {
+
+      if (err) {
+        if (err.code === 'ENOENT') {
+          this.drives = []
+        }
+        else {
+          console.log(err)
+          broadcast.emit('DriveInitDone', err)
+          return
+        } 
+      }
+      else {
+
+        try {
+          this.drives = JSON.parse(data)
+        }
+        catch (err) {
+          console.log(err)
+          broadcast.emit('DriveInitDone', err)
+          return
+        }
+      }
+
+      this.drives.forEach(drive => broadcast.emit('DriveCreated', drive))
+
+      deepFreeze(this.drives)
+      this.fpath = fpath
+      this.tmpDir = tmpDir
+      
+      this.initialized = true
+      broadcast.emit('DriveInitDone')
+    })
+  }
+
+  deinit() {
+
+    this.initialized = false
+    
+    this.fpath = undefined
+    this.tmpDir = undefined
+    this.drives = []
+
+    process.nextTick(() => broadcast.emit('DriveDeinitDone'))
   }
 
   async commitDrivesAsync(currDrives, nextDrives) {
@@ -101,7 +156,10 @@ class DriveList extends EventEmitter {
     await this.commitDrivesAsync(this.drives, nextDrives)
     this.drives = nextDrives
     deepFreeze(this.drives)
-    await Forest.createDriveAsync(drive)
+
+    // await Forest.createDriveAsync(drive)
+
+    broadcast.emit('DriveCreated', drive)    
     return drive
   }
 

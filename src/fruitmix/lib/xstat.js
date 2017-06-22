@@ -27,14 +27,10 @@ const validator = require('validator')
 
 const filetype = require('../lib/filetype')
 
-// import E from '../lib/error'  // TODO
-// import _ from '../lib/async'  // TODO
-
 const E = require('../lib/error')
 
-// import { isUUID, isSHA256 } from '../lib/types' // TODO
-const isUUID = function(uuid) { return typeof uuid === 'string' && validator.isUUID(uuid) }
-const isSHA256 = function(hash) { return /[a-f0-9]{64}/.test(hash) }
+const { isUUID, isSHA256 } = require('./assertion')
+
 
 /** 
 ### Overview
@@ -147,16 +143,6 @@ Return magic for a regular file. This function uses fileMagic2.
 @returns {(string|number)}
 **/
 const fileMagicAsync = Promise.promisify(fileMagic2)
-
-/**
-Return timestamp (mtime.getTime()).
-@func readTimeStamp
-@param {string} target - absolute path
-*/
-const readTimeStamp = (target, callback) =>
-  fs.lstat(target, (err, stats) => err 
-    ? callback(err) 
-    : callback(null, stats.mtime.getTime()))
 
 /**
 Read and validate xattr, drop invalid properties.
@@ -368,13 +354,16 @@ const forceXstatAsync = async (target, { uuid, hash }) => {
   if (hash && !isSHA256(hash)) throw new E.EINVAL() 
 
   let stats = await fs.lstatAsync(target)
-  if (!stats.isFile()) throw new E.ENOTDIRFILE() // TODO
+
+  // IS THIS NECESSARY? TODO
+  if (!stats.isFile() && hash) throw new Error('forceXstatAsync: not a file')
 
   let attr = { uuid: uuid || UUID.v4() }
   if (hash) Object.assign(attr, { hash, htime: stats.mtime.getTime() })
 
-  attr = await updateXattrAsync(target, attr, isFile)
-  return createXstat(target, stats, attr)
+  attr = await updateXattrAsync(target, attr, stats.isFile())
+  let xstat = createXstat(target, stats, attr)
+  return xstat
 }
 
 /**
@@ -439,13 +428,13 @@ const forceDriveXstat = (target, driveUUID, callback) =>
 
 module.exports = { 
 
-  readTimeStamp,
   readXstat,
   readXstatAsync,
+
   updateFileHash,
   updateFileHashAsync,
-  forceDriveXstat,        // deprecated
-  forceDriveXstatAsync,   // deprecated
+
+  forceXstatAsync,
 
   // testing only
   parseMagic,

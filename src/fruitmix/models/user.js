@@ -7,6 +7,8 @@ const UUID = require('uuid')
 const deepFreeze = require('deep-freeze')
 const E = require('../lib/error')
 
+const broadcast = require('../../common/broadcast')
+
 const { isUUID, isNonNullObject, isNonEmptyString } = require('../lib/assertion')
 const { saveObjectAsync, passwordEncrypt, unixPasswordEncrypt, md4Encrypt } = require('../lib/utils')
 
@@ -122,7 +124,14 @@ class UserList extends EventEmitter {
   Construct an uninitialized UserList. 
   */
   constructor() {
+
     super()
+
+    this.initialized = false
+
+    this.fpath = undefined
+
+    this.tmpDir = undefined
 
     /**
     @member {boolean} lock - internal file operation lock
@@ -134,6 +143,16 @@ class UserList extends EventEmitter {
     */
     this.users = []
     deepFreeze(this.users)
+
+    broadcast.on('FruitmixStart', froot => {
+
+      let filePath = path.join(froot, 'user.json') 
+      let tmpDir = path.join(froot, 'tmp')
+
+      this.init(filePath, tmpDir)
+    })
+
+    broadcast.on('FruitmixStop', () => this.deinit())
   }
 
   /**
@@ -176,19 +195,54 @@ class UserList extends EventEmitter {
   @param {string} tmpDir - temp file directory
   @todo do integrity check
   **/
-  async initAsync(fpath, tmpDir) {
+  init(fpath, tmpDir) {
 
-    try {
-      this.users = JSON.parse(await fs.readFileAsync(fpath))
-    } 
-    catch (e) {
-      if (e.code !== 'ENOENT') throw e
-      this.users = []
-    }
+    if (this.initialized) 
+      throw new Error('user module already initialized')
 
-    deepFreeze(this.users)
-    this.fpath = fpath
-    this.tmpDir = tmpDir
+    fs.readFile(fpath, (err, data) => {
+
+      if (err) {
+
+        if (err.code === 'ENOENT') {
+          this.users = []
+        }
+        else {
+          console.log(err) // TODO
+          broadcast.emit('UserInitDone', err)
+          return
+        }
+      } 
+      else {
+
+        try {
+          this.users = JSON.parse(data)
+        }
+        catch (err) {
+          console.log(err)
+          broadcast.emit('UserInitDone', err)
+          return
+        }
+      }
+
+      deepFreeze(this.users) 
+      this.fpath = fpath
+      this.tmpDir = tmpDir
+
+      this.initialized = true
+      broadcast.emit('UserInitDone')
+    })
+  }
+
+  deinit() {
+    
+    this.initialized = false 
+
+    this.fpath = undefined
+    this.tmpDir = undefined
+    this.users = []
+
+    process.nextTick(() => broadcast.emit('UserDeinitDone'))
   }
 
   /**

@@ -68,6 +68,7 @@ const upload = (query, callback) => {
 }
 
 module.exports = {
-  upload
+  upload,
+  uploadAsync: Promise.promisify(upload)
 }
 

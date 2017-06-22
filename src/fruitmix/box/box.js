@@ -1,11 +1,13 @@
 const Promise = require('bluebird')
 const path = require('path')
 const fs = Promise.promisifyAll(require('fs'))
-const mkdirpAsync = Promise.promisify(require('mkdirp'))
 const rimrafAsync = Promise.promisify(require('rimraf'))
+const mkdirp = require('mkdirp')
+const mkdirpAsync = Promise.promisify(mkdirp)
 const UUID = require('uuid')
 const deepEqual = require('deep-equal')
 
+const broadcast = require('../../common/broadcast')
 const { saveObjectAsync } = require('../lib/utils')
 
 const addArray = (a, b) => {
@@ -30,8 +32,53 @@ class Box {
 
   constructor() {
 
+    this.initialized = false
+
+    this.dir = undefined
+    this.tmpDir = undefined
+    this.map = undefined
+
+    broadcast.on('FruitmixStart', froot => {
+    
+      let dir = path.join(froot, 'boxes')
+      let tmpDir = path.join(froot, 'tmp') 
+
+      this.init(dir, tmpDir)
+    })
+
+    broadcast.on('FruitmixStop', () => this.deinit())
   }
 
+  init(dir, tmpDir) {
+
+    mkdirp(dir, err => {
+
+      if (err) {
+        console.log(err) 
+        broadcast.emit('BoxInitDone', err)
+        return
+      }
+
+      this.initialized = true
+      this.dir = dir
+      this.tmpDir = tmpDir
+      this.map = new Map()
+
+      broadcast.emit('BoxInitDone')
+    })
+  }
+
+  deinit() {
+
+    this.initialized = false
+    this.dir = undefined
+    this.tmpDir = undefined
+    this.map = undefined
+
+    process.nextTick(() => broadcast.emit('BoxDeinitDone'))
+  }
+
+/**
   async initAsync(boxesDir, tmpDir) {
 
     this.dir = boxesDir
@@ -40,6 +87,7 @@ class Box {
 
     await mkdirpAsync(this.dir)
   }
+**/
 
 /**
  * Create a box

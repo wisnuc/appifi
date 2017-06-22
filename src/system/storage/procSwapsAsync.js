@@ -1,7 +1,7 @@
 const Promise = require('bluebird')
 const fs = Promise.promisifyAll(require('fs'))
 
-export default async () => 
+module.exports = async () => 
   (await fs.readFileAsync('/proc/swaps'))
     .toString().split(/\n/).filter(l => l.length)
     .map(l => l.replace(/\t/g, ' '))

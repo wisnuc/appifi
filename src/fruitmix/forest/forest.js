@@ -13,7 +13,9 @@ const Node = require('./node')
 const File = require('./file')
 const Directory = require('./directory')
 
-const { readXstatAsync, forceDriveXstatAsync } = require('../lib/xstat')
+const { readXstatAsync, forceXstatAsync } = require('../lib/xstat')
+
+const broadcast = require('../../common/broadcast')
 
 /**
 Forest is a collection of file system cache for each `Drive` defined in Fruitmix.
@@ -50,29 +52,38 @@ In either case, a `read` on the `Directory` object is enough.
 */
 class Forest extends EventEmitter {
 
-  constructor(dir) {
+  constructor() {
 
     super()
+
+    this.initialized = false
 
     /**
     Absolute path of Fruitmix drive directory 
     */
-    this.dir = dir
+    this.dir = undefined
 
     /**
     The collection of drive cache. Using Map for better performance 
     */ 
-    this.roots = new Map()
+    this.roots = undefined
 
     /**
     Indexing all directories by uuid
     */
-    this.uuidMap = new Map()
+    this.uuidMap = undefined
 
     /**
     Indexing all media files by file hash
     */
-    this.hashMap = new Map()
+    this.hashMap = undefined
+
+    broadcast.on('FruitmixStart', froot => this.init(path.join(froot, 'drives')))
+    broadcast.on('FruitmixStop', () => this.deinit())
+
+    broadcast.on('DriveCreated', drive => 
+      this.createDriveAsync(drive)
+        .then(x => x, err => console.log(err)))
   }
 
   isRoot(dir) {
@@ -145,15 +156,30 @@ class Forest extends EventEmitter {
 
   @param {string} drivesDir
   */
-  async initAsync(drivesDir) {
+  init(dir) {
 
-    this.roots.forEach(root => root.destroy())
+    if (this.initialized) 
+      throw new Error('forest already initialized')
 
-    this.dir = drivesDir
+    this.initialized = true
+    this.dir = dir
     this.roots = new Map()
     this.uuidMap = new Map()
     this.hashMap = new Map()
+
+    process.nextTick(() => broadcast.emit('ForestInitDone'))
   }
+
+  deinit() {
+
+    this.initialized = false
+    this.dir = undefined
+    this.roots = undefined
+    this.uuidMap = undefined
+    this.hashMap = undefined
+  }
+
+  
 
   /**
   Create the file system cache for given `Drive` 
@@ -164,7 +190,8 @@ class Forest extends EventEmitter {
     
     let dirPath = path.join(this.dir, drive.uuid) 
     await mkdirpAsync(dirPath)
-    let xstat = await forceDriveXstatAsync(dirPath, drive.uuid)
+
+    let xstat = await forceXstatAsync(dirPath, { uuid: drive.uuid })
     let root = new Directory(this, null, xstat, monitor)
     this.roots.set(root.uuid, root)
   }    

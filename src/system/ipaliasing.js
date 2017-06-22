@@ -1,5 +1,6 @@
-import os from 'os'
-import child from 'child_process'
+const Promise = require('bluebird')
+const os = require('os')
+const child = require('child_process')
 
 const Config = require('./config')
 
@@ -88,6 +89,6 @@ init()
   .then(() => console.log(`[system] ipaliasing initialized`, aliases()))
   .catch(e => console.log(e))
 
-export { mac2dev, aliases, addAliasAsync, deleteAliasAsync }
+module.exports = { mac2dev, aliases, addAliasAsync, deleteAliasAsync }
 
 
