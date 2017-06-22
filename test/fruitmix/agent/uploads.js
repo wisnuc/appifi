@@ -44,12 +44,16 @@ const forestDir = path.join(tmptest, 'drives')
 
 const resetAsync = async () => {
 
+  broadcast.emit('FruitmixStop')
+
+  await broadcast.until('UserDeinitDone', 'DriveDeinitDone')
+
   await rimrafAsync(tmptest)
   await mkdirpAsync(tmpDir)
-  
+
   broadcast.emit('FruitmixStart', tmptest) 
 
-  await broadcast.until('UserInitialized', 'DriveInitialized')
+  await broadcast.until('UserInitDone', 'DriveInitDone')
 }
 
 describe(path.basename(__filename), () => {

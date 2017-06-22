@@ -56,6 +56,8 @@ class DriveList extends EventEmitter {
 
     super()
 
+    this.initialized = false
+
     this.fpath = undefined
     this.tmpDir = undefined
 
@@ -68,31 +70,61 @@ class DriveList extends EventEmitter {
       let fpath = path.join(froot, 'drives.json')
       let tmpDir = path.join(froot, 'tmp')
 
-      this.initAsync(fpath, tmpDir).then(x => x, err => console.log(err))
+      this.init(fpath, tmpDir)
+    })
+
+    broadcast.on('FruitmixStop', () => this.deinit())
+  }
+
+  init(fpath, tmpDir) {
+
+    if (this.initialized)
+      throw new Error('drive module already initialized')
+
+    fs.readFile(fpath, (err, data) => {
+
+      if (err) {
+        if (err.code === 'ENOENT') {
+          this.drives = []
+        }
+        else {
+          console.log(err)
+          broadcast.emit('DriveInitDone', err)
+          return
+        } 
+      }
+      else {
+
+        try {
+          this.drives = JSON.parse(data)
+        }
+        catch (err) {
+          console.log(err)
+          broadcast.emit('DriveInitDone', err)
+          return
+        }
+      }
+
+      this.drives.forEach(drive => broadcast.emit('DriveCreated', drive))
+
+      deepFreeze(this.drives)
+      this.fpath = fpath
+      this.tmpDir = tmpDir
+      
+      this.initialized = true
+      broadcast.emit('DriveInitDone')
     })
   }
 
-  async initAsync(fpath, tmpDir) {
+  deinit() {
 
-    if (this.fpath !== undefined) 
-      throw new Error('drive module already initialized')
+    this.initialized = false
     
-    try {
-      this.drives = JSON.parse(await fs.readFileAsync(fpath))
-    }
-    catch (e) {
-      if (e.code !== 'ENOENT') throw e
-      this.drives = []
-    }
+    this.fpath = undefined
+    this.tmpDir = undefined
+    this.drives = []
 
-    deepFreeze(this.drives)
-
-    this.fpath = fpath
-    this.tmpDir = tmpDir
-
-    this.drives.forEach(drive => broadcast.emit('DriveCreated', drive))
-
-    broadcast.emit('DriveInitialized')
+    process.nextTick(() => broadcast.emit('DriveDeinitDone'))
   }
 
   async commitDrivesAsync(currDrives, nextDrives) {

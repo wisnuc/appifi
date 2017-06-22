@@ -127,9 +127,10 @@ class UserList extends EventEmitter {
 
     super()
 
-    this.started = false
+    this.initialized = false
 
     this.fpath = undefined
+
     this.tmpDir = undefined
 
     /**
@@ -148,8 +149,10 @@ class UserList extends EventEmitter {
       let filePath = path.join(froot, 'user.json') 
       let tmpDir = path.join(froot, 'tmp')
 
-      this.initAsync(filePath, tmpDir).then(x => x, err => console.log(err))
+      this.init(filePath, tmpDir)
     })
+
+    broadcast.on('FruitmixStop', () => this.deinit())
   }
 
   /**
@@ -192,29 +195,54 @@ class UserList extends EventEmitter {
   @param {string} tmpDir - temp file directory
   @todo do integrity check
   **/
-  async initAsync(fpath, tmpDir) {
+  init(fpath, tmpDir) {
 
-    if (this.fpath !== undefined)
+    if (this.initialized) 
       throw new Error('user module already initialized')
 
-    try {
-      this.users = JSON.parse(await fs.readFileAsync(fpath))
-    } 
-    catch (e) {
-      if (e.code !== 'ENOENT') throw e
-      this.users = []
-    }
+    fs.readFile(fpath, (err, data) => {
 
-    deepFreeze(this.users)
-    this.fpath = fpath
-    this.tmpDir = tmpDir
+      if (err) {
 
-    broadcast.emit('UserInitialized')
+        if (err.code === 'ENOENT') {
+          this.users = []
+        }
+        else {
+          console.log(err) // TODO
+          broadcast.emit('UserInitDone', err)
+          return
+        }
+      } 
+      else {
+
+        try {
+          this.users = JSON.parse(data)
+        }
+        catch (err) {
+          console.log(err)
+          broadcast.emit('UserInitDone', err)
+          return
+        }
+      }
+
+      deepFreeze(this.users) 
+      this.fpath = fpath
+      this.tmpDir = tmpDir
+
+      this.initialized = true
+      broadcast.emit('UserInitDone')
+    })
   }
 
   deinit() {
     
-    
+    this.initialized = false 
+
+    this.fpath = undefined
+    this.tmpDir = undefined
+    this.users = []
+
+    process.nextTick(() => broadcast.emit('UserDeinitDone'))
   }
 
   /**
