@@ -5,7 +5,7 @@ const xattr = require('fs-xattr')
 const child = require('child_process')
 
 const { DIR } = require('../../../../src/fruitmix/lib/const')
-const { Ref, filehashAsync } = require('../../../../src/fruitmix/lib/ref')
+const repo = require('../../../../src/fruitmix/lib/ref')
 const { rimrafAsync, mkdirpAsync } = require('../../../../src/fruitmix/util/async')
 const E = require('../../../../src/fruitmix/lib/error')
 
@@ -18,50 +18,49 @@ describe(path.basename(__filename), function() {
   let repoDir = path.join(tmptest, DIR.REPO)
   let tmpDir = path.join(tmptest, DIR.TMP)
   let docDir = path.join(tmptest, DIR.DOC)
-  let ref
 
   beforeEach(async () => {
     await rimrafAsync(tmptest) 
     await mkdirpAsync(tmptest)
     await fs.writeFileAsync(filepath, 'hello')
-    ref = new Ref(repoDir, tmpDir, docDir)
+    await repo.initAsync(repoDir, tmpDir, docDir)
   })
 
   // afterEach(async () => {
   //   await rimrafAsync(tmptest)
   // })
 
-  describe('filehashAsync', function() {
+  // describe('filehashAsync', function() {
 
-    it('should throw error if filepath is not absolute path', async () => {
-      let fpath = '../../../../tmptest/test'
-      try {
-        await filehashAsync(fpath)
-      } catch(e) {
-        expect(e).to.be.an.instanceof(E.EINVAL)
-      }
-    })
+  //   it('should throw error if filepath is not absolute path', async () => {
+  //     let fpath = '../../../../tmptest/test'
+  //     try {
+  //       await filehashAsync(fpath)
+  //     } catch(e) {
+  //       expect(e).to.be.an.instanceof(E.EINVAL)
+  //     }
+  //   })
 
-    it('should throw error if path is not a file', async () => {
-      try {
-        await filehashAsync(tmptest)
-      } catch(e) {
-        expect(e).to.be.an.instanceof(E.EINVAL)
-      }
-    })
+  //   it('should throw error if path is not a file', async () => {
+  //     try {
+  //       await filehashAsync(tmptest)
+  //     } catch(e) {
+  //       expect(e).to.be.an.instanceof(E.EINVAL)
+  //     }
+  //   })
 
-    it('should return a valid hash', async () => {
-      let hash = await filehashAsync(filepath)
-      expect(hash).to.equal(sha256)
-    })
-  })
+  //   it('should return a valid hash', async () => {
+  //     let hash = await filehashAsync(filepath)
+  //     expect(hash).to.equal(sha256)
+  //   })
+  // })
 
   describe('storeFlieAsync', function() {
 
     it('should throw error if filepath is not absolute', async () => {
       let fpath = '../../../../tmptest/test'
       try {
-        await ref.storeFileAsync(fpath)
+        await repo.storeFileAsync(fpath)
       } catch(e) {
         expect(e).to.be.an.instanceof(E.EINVAL)
       }
@@ -69,7 +68,7 @@ describe(path.basename(__filename), function() {
 
     it('should throw error if path is not file', async () => {
       try {
-        await ref.storeFileAsync(tmptest)
+        await repo.storeFileAsync(tmptest)
       } catch(e) {
         expect(e).to.be.an.instanceof(E.EINVAL)
       }
@@ -82,7 +81,7 @@ describe(path.basename(__filename), function() {
         expect(e.code).to.be.equal('ENODATA')
       }
       
-      let hash = await ref.storeFileAsync(filepath)
+      let hash = await repo.storeFileAsync(filepath)
       expect(hash).to.equal(sha256)
     })
 
@@ -94,7 +93,7 @@ describe(path.basename(__filename), function() {
 
       await xattr.setAsync(filepath, 'user.fruitmix', JSON.stringify(attr))
 
-      let hash = await ref.storeFileAsync(filepath)
+      let hash = await repo.storeFileAsync(filepath)
       expect(hash).to.equal(sha256)
     })
 
@@ -106,23 +105,23 @@ describe(path.basename(__filename), function() {
       }
       await xattr.setAsync(filepath, 'user.fruitmix', JSON.stringify(attr))
 
-      let hash = await ref.storeFileAsync(filepath)
+      let hash = await repo.storeFileAsync(filepath)
       expect(hash).to.equal(sha256)
     })
 
     it('stored file should be read only', async () => {
-      let hash = await ref.storeFileAsync(filepath)
+      let hash = await repo.storeFileAsync(filepath)
       try {
-        await fs.writeFileAsync(path.join(ref.repoDir, hash), 'world')   
+        await fs.writeFileAsync(path.join(repo.repoDir, hash), 'world')   
       } catch(e) {
         expect(e.code).to.equal('EACCES')
       }
     })
 
     it('should not store again if file is already exist', async () => {
-      await ref.storeFileAsync(filepath)
-      await ref.storeFileAsync(filepath)
-      let entries = await fs.readdirAsync(ref.repoDir)
+      await repo.storeFileAsync(filepath)
+      await repo.storeFileAsync(filepath)
+      let entries = await fs.readdirAsync(repo.repoDir)
       expect(entries.length).to.equal(1)
     })
   })
@@ -130,18 +129,18 @@ describe(path.basename(__filename), function() {
   describe('retrieveFilePath', function() {
 
     it('should throw error if hash is not invalid', async () => {
-      await ref.storeFileAsync(filepath)
+      await repo.storeFileAsync(filepath)
       try {
-        ref.retrieveFilePath('123')
+        repo.retrieveFilePath('123')
       } catch(e) {
         expect(e).to.be.an.instanceof(E.EINVAL)
       }
     })
 
     it('should return a valid path', async () => {
-      let hash = await ref.storeFileAsync(filepath)
-      let fpath = ref.retrieveFilePath(hash)
-      expect(fpath).to.equal(path.join(ref.repoDir, sha256))
+      let hash = await repo.storeFileAsync(filepath)
+      let fpath = repo.retrieveFilePath(hash)
+      expect(fpath).to.equal(path.join(repo.repoDir, sha256))
     })
   })
 
@@ -167,7 +166,7 @@ describe(path.basename(__filename), function() {
 
     it('should throw error if path is not a directory', async () => {
       try {
-        await ref.storeDirAsync(filepath)
+        await repo.storeDirAsync(filepath)
       } catch(e) {
         expect(e).to.be.an.instanceof(E.ENOTDIR)
       }
@@ -175,21 +174,21 @@ describe(path.basename(__filename), function() {
 
     it('should return a valid hash', async () => {
       let result = 'd03af66298b78708d94dc7909145635c6c07e5de3fcf2b6885f7ddbc591b585f'
-      let hash = await ref.storeDirAsync(folder)
+      let hash = await repo.storeDirAsync(folder)
       expect(hash).to.equal(result)
     })
 
     it('stored object should be ordered by name (localeCompare)', async () => {
-      let hash = await ref.storeDirAsync(folder)
-      let items = await fs.readFileAsync(path.join(ref.docDir, hash))
+      let hash = await repo.storeDirAsync(folder)
+      let items = await fs.readFileAsync(path.join(repo.docDir, hash))
       items = JSON.parse(items)
       expect(items[0][1]).to.equal('c.js')
       expect(items[1][1]).to.equal('D.js')
     })
 
     it('only file and directory can be identified', async () => {
-      let hash = await ref.storeDirAsync(testFolder)
-      let items = await fs.readFileAsync(path.join(ref.docDir, hash))
+      let hash = await repo.storeDirAsync(testFolder)
+      let items = await fs.readFileAsync(path.join(repo.docDir, hash))
       items = JSON.parse(items)
       expect(items.length).to.equal(3)
       expect(items[0][1]).to.equal('a.js')
@@ -218,9 +217,9 @@ describe(path.basename(__filename), function() {
     })
 
     it('should throw error if hash is invalid', async () => {
-      await ref.storeDirAsync(testFolder)
+      await repo.storeDirAsync(testFolder)
       try {
-        await ref.retrieveObjectAsync('123')
+        await repo.retrieveObjectAsync('123')
       } catch(e) {
         expect(e).to.be.an.instanceof(E.EINVAL)
       }
@@ -232,16 +231,16 @@ describe(path.basename(__filename), function() {
                     ['blob','b.js','9aa32d51315cf2761b2dc81b0212e9a3f576929ea74cae49bf662730e55e8901'],
                     ['tree','test','d03af66298b78708d94dc7909145635c6c07e5de3fcf2b6885f7ddbc591b585f']
                    ]
-      let hash = await ref.storeDirAsync(testFolder)
-      let data = await ref.retrieveObjectAsync(hash)
+      let hash = await repo.storeDirAsync(testFolder)
+      let data = await repo.retrieveObjectAsync(hash)
       expect(data).to.deep.equal(result)
     })
 
     it('should throw error if file is not exist', async () => {
       let hash = '0515fce20cc8b5a8785d4a9d8e51dd14e9ca5e3bab09e1bc0bd5195235e259ca'
-      await ref.storeDirAsync(testFolder)
+      await repo.storeDirAsync(testFolder)
       try {
-        await ref.retrieveObjectAsync(hash)
+        await repo.retrieveObjectAsync(hash)
       } catch(e) {
         expect(e.code).to.equal('ENOENT')
       }

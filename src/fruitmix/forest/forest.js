@@ -187,8 +187,8 @@ class Forest extends EventEmitter {
   @param {Drive}
   */
   async createDriveAsync(drive, monitor) {
-
-    let dirPath = path.join(this.dir, drive.uuid)   
+    
+    let dirPath = path.join(this.dir, drive.uuid) 
     await mkdirpAsync(dirPath)
 
     let xstat = await forceXstatAsync(dirPath, { uuid: drive.uuid })

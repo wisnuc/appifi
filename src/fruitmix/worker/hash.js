@@ -6,7 +6,7 @@ const Worker = require('./worker')
 
 const command = require('../lib/command')
 const { isSHA256 } = require('../lib/assertion')
-const updateFileHash = require('../file/xstat')
+const updateFileHash = require('../models/xstat')
 
 /**
 @module Hash

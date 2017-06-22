@@ -42,7 +42,6 @@ const auth = (req, res, next) => {
   let user = User.users.find(u => u.uuid === local.uuid)
   if (!user || user.unionId !== wechat.unionId)
     return res.status(401).end()
-
   req.user = User.stripUser(user)
   next()
 }
@@ -50,8 +49,14 @@ const auth = (req, res, next) => {
 router.get('/', auth, (req, res) => {
 
   // console.log('auth', req.user, req.guest)
+  let unionId
+  if(req.user) unionId = req.user.unionId
+  else unionId = req.guest.unionId
 
-  res.status(200).json([])
+  let boxes = [...Box.map.values()].filter(box => 
+              box.owner === unionId ||
+              box.users.includes(unionId))
+  res.status(200).json(boxes)
 })
 
 router.post('/', auth, (req, res, next) => {
@@ -62,6 +67,48 @@ router.post('/', auth, (req, res, next) => {
 
   Box.createBoxAsync(props)
     .then(box => res.status(200).json(box))
+    .catch(next)
+})
+
+router.get('/:boxUUID', auth, (req, res) => {
+  const boxUUID = req.params.boxUUID
+
+  let box = Box.map.get(boxUUID)
+  if(!box) return res.status(404).end()
+
+  let unionId
+  if(req.user) unionId = req.user.unionId
+  else unionId = req.guest.unionId
+
+  if(box.owner !== unionId && !box.users.includes(unionId)) return res.status(403).end()
+
+  res.status(200).json(box)
+})
+
+router.patch('/:boxUUID', auth, (req, res, next) => {
+
+  if(!req.user) return res.status(403).end()
+
+  const boxUUID = req.params.boxUUID
+
+  let box = Box.map.get(boxUUID)
+  if(!box) return res.status(404).end()
+  if(box.owner !== req.user.unionId) return res.status(403).end()
+  Box.updateBoxAsync(req.body, box)
+    .then(box => res.status(200).json(box))
+    .catch(next)
+})
+
+router.delete('/:boxUUID', auth, (req, res, next) => {
+  if(!req.user) return res.status(403).end()
+
+  const boxUUID = req.params.boxUUID
+
+  let box = Box.map.get(boxUUID)
+  if(!box) return res.status(404).end()
+  if(box.owner !== req.user.unionId) return res.status(403).end()
+  Box.deleteBoxAsync(boxUUID)
+    .then(() => res.status(200).end())
     .catch(next)
 })
 

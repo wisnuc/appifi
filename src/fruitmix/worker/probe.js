@@ -3,7 +3,7 @@ const path = require('path')
 const fs = Promise.promisifyAll(require('fs'))
 const E = require('../lib/error')
 const Worker = require('./worker')
-const { readXstat, readXstatAsync } = require('../file/xstat')
+const { readXstat, readXstatAsync } = require('../models/xstat')
 
 // the reason to prefer emitter version over closure one is:
 // 1. easier to test
