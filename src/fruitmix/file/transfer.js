@@ -1,10 +1,11 @@
 import path from 'path'
-import fs from 'fs'
 import child from 'child_process'
 import EventEmitter from 'events'
 
 import xattr from 'fs-xattr'
 import UUID from 'node-uuid'
+import fs from 'fs-extra'
+import rimraf from 'rimraf'
 
 import E from '../lib/error'
 import config from '../cluster/config'
@@ -144,11 +145,11 @@ class Move extends Worker {
   async setDstPath() {
     let dstType = this.dst.type === 'fruitmix'
     if(!dstType){
-      let dpath = await rootPathAsync('fs', this.dst.rootPath)
-      this.dstPath = path.join(dpath, this.dst.path)
+      let dpath = await rootPathAsync('fs', this.dst.rootPath)   
+      this.dstPath = path.join(dpath, this.dst.path, path.basename(this.srcPath))
       return this.dstPath
     }else{
-      this.dstPath = this.data.findNodeByUUID(this.dst.path).abspath()
+      this.dstPath = path.join(this.data.findNodeByUUID(this.dst.path).abspath(), path.basename(this.srcPath))
       return this.dstPath
     }
   }
@@ -242,18 +243,27 @@ class Move extends Worker {
   }
 
   copy(callback) {
-    child.exec(`cp -r --reflink=auto --preserve=xattr ${ this.srcPath } ${ this.dstPath }`,(err, stdout, stderr) => {
+    // child.exec(`cp -r --reflink=auto --preserve=xattr ${ this.srcPath } ${ this.dstPath }`,(err, stdout, stderr) => {
+    //   if(err) return callback(err)
+    //   if(stderr) return callback(stderr)
+    //   return callback(null, stdout)
+    // })
+
+    fs.copy(this.srcPath, this.dstPath, err => {
       if(err) return callback(err)
-      if(stderr) return callback(stderr)
-      return callback(null, stdout)
+      return callback(null)
     })
   }
 
   delete(callback) {
-    child.exec(`rm -rf ${ this.srcPath }`, (err, stdout, stderr) => {
+    // child.exec(`rm -rf ${ this.srcPath }`, (err, stdout, stderr) => {
+    //   if(err) return callback(err)
+    //   if(stderr) return callback(stderr)
+    //   return callback(null, stdout)
+    // })
+    rimraf(this.srcPath, err => {
       if(err) return callback(err)
-      if(stderr) return callback(stderr)
-      return callback(null, stdout)
+      return callback(null)
     })
   }
 
@@ -269,10 +279,14 @@ class Move extends Worker {
   }
 
   move(callback){
-    child.exec(`mv -f ${ this.srcPath } ${ this.dstPath }`, (err, stdout, stderr) => {
+    // child.exec(`mv -f ${ this.srcPath } ${ this.dstPath }`, (err, stdout, stderr) => {
+    //   if(err) return callback(err)
+    //   if(stderr) return callback(stderr)
+    //   return callback(null, stdout)
+    // })
+    fs.move(this.srcPath, this.dstPath, err => {
       if(err) return callback(err)
-      if(stderr) return callback(stderr)
-      return callback(null, stdout)
+      return callback(null)
     })
   }
 
@@ -315,6 +329,47 @@ class Copy extends Worker {
 
   }
 
+  async setSrcPath() {
+    let srcType = this.src.type === 'fruitmix'
+    
+    if(!srcType){
+      let spath = await rootPathAsync('fs', this.src.rootPath)
+      this.srcPath = path.join(spath, this.src.path)
+      return this.srcPath
+    }else{
+      this.srcPath = this.data.findNodeByUUID(this.src.path).abspath()
+      return this.srcPath
+    }
+  }
+
+  async setDstPath() {
+    let dstType = this.dst.type === 'fruitmix'
+    if(!dstType){
+      let dpath = await rootPathAsync('fs', this.dst.rootPath)
+      this.dstPath = path.join(dpath, this.dst.path, path.basename(this.srcPath))
+      return this.dstPath
+    }else{
+      this.dstPath = path.join(this.data.findNodeByUUID(this.dst.path).abspath(), path.basename(this.srcPath))
+      return this.dstPath
+    }
+  }
+
+  setTmpPath() {
+    this.tmpPath = path.join(this.tmp, this.id)
+  }
+
+  setPath(callback) {
+    this.setSrcPath().asCallback(e => {
+      if(e) return callback(e)
+      this.setDstPath().asCallback(e => {
+        if(e) return callback(e)
+        this.setTmpPath()
+        return callback()
+      })
+    })
+  }
+
+
   run() {
     if(this.state !== 'PADDING') return 
     this.state = 'RUNNING'
@@ -333,24 +388,47 @@ class Copy extends Worker {
     //   case 'EE':
     //     break
     // }
+
+    this.setPath(e => {
+      if(e) return this.error(e)
+      console.log('DST:   ', this.dstPath)
+      console.log('SRC:   ', this.srcPath)
+      if(this.dstPath.indexOf(this.srcPath) !== -1) return this.error(new Error('dst could not be child of src'))
+      this.work(modeType)
+    })
+  }
+
+  work(modeType){
     this.copy(err => {
       if(this.finished) return 
       if(err) return  this.error(err)
-      fs.rename(this.tmp, this.dst, err => {
+      this.move(err => {
         if(this.finished) return 
         if(err) return  this.error(err)
         if(modeType === 'FF') {
-          let srcNode = this.data.findNodeByUUID(path.basename(this.src))
-          let dstNode = this.data.findNodeByUUID(path.basename(this.dst))
-          if(srcNode)
-            this.data.requestProbeByUUID(srcNode.parent)
-          if(dstNode)
-            this.data.requestProbeByUUID(dstNode.uuid)
+          let srcNode = this.data.findNodeByUUID(this.src.path)
+          let dstNode = this.data.findNodeByUUID(this.dst.path)
+          if(srcNode){
+            if(srcNode.parent && srcNode.parent.uuid)
+              this.data.requestProbeByUUID(srcNode.parent.uuid)
+            else
+              this.data.requestProbeByUUID(srcNode.uuid)
+          }
+          if(dstNode){
+            if(dstNode.parent && dstNode.parent.uuid)
+              this.data.requestProbeByUUID(dstNode.parent.uuid)
+            else
+              this.data.requestProbeByUUID(dstNode.uuid)
+          }
         } //probe src dst
         if(modeType === 'EF') {
-          let dstNode = this.data.findNodeByUUID(path.basename(this.dst))
-          if(dstNode)
-            this.data.requestProbeByUUID(dstNode.uuid)
+          let dstNode = this.data.findNodeByUUID(this.dst.path)
+          if(dstNode){
+            if(dstNode.parent && dstNode.parent.uuid)
+              this.data.requestProbeByUUID(dstNode.parent.uuid)
+            else
+              this.data.requestProbeByUUID(dstNode.uuid)
+          }
         }//probe dst
         return this.finish(this)
       })
@@ -358,13 +436,28 @@ class Copy extends Worker {
   }
 
   copy(callback) {
-    child.exec(`cp -r --reflink=auto ${ this.src } ${ this.tmp }`,(err, stdout, stderr) => {
+    // child.exec(`cp -r --reflink=auto ${ this.srcPath } ${ this.tmpPath }`,(err, stdout, stderr) => {
+    //   if(err) return callback(err)
+    //   if(stderr) return callback(stderr)
+    //   return callback(null, stdout)
+    // })
+    fs.copy(this.srcPath, this.tmpPath, err => {
       if(err) return callback(err)
-      if(stderr) return callback(stderr)
-      return callback(null, stdout)
+      return callback(null)
     })
   }
 
+  move(callback){
+    // child.exec(`mv -f ${ this.tmpPath } ${ this.dstPath }`, (err, stdout, stderr) => {
+    //   if(err) return callback(err)
+    //   if(stderr) return callback(stderr)
+    //   return callback(null, stdout)
+    // })
+    fs.move(this.tmpPath, this.dstPath, err => {
+      if(err) return callback(err)
+      return callback(null)
+    })
+  }
 }
 
 
@@ -419,7 +512,7 @@ class Transfer {
       })
       this.workersQueue.push(worker)
       this.schedule()
-      callback(null, worker)
+      callback(null, {id: worker.id, state: worker.state})
     })
   }
 

@@ -222,7 +222,7 @@ class FileService {
       throw err
     }
     finally {
-      if (node.parent && node.parent.uuid) this.data.requestProbeByUUID(node.parent.uuid)
+      this.data.requestProbeByUUID(dirUUID)
     }
   }
 

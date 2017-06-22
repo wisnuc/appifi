@@ -14,6 +14,8 @@ const DIR = {
   SMB: 'smb',
   TMP: 'tmp',
   REPO: 'repo'
+  REPO: 'repo',
+  BOX: 'boxes'
 }
 
 Object.freeze(DIR)

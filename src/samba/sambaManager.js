@@ -1,6 +1,9 @@
 let updateSambaFilesAsync = require('./updateSamba')
-let DEFAULTDELAY = 500 // millisecond
-let RETRYTIMES = 3
+let DEFAULT_DELAY = require('./config').DEFAULT_DELAY
+let RETRY_TIMES = require('./config').RETRY_TIMES
+
+import Debug from 'debug'
+const SAMBA_MANAGER = Debug('SAMBA:SAMBA_MANAGER')
 
 // stat/event    new request (file change)                 timeout                success                        fail
 // init                                                                           idle                           exit
@@ -31,11 +34,11 @@ class Idle extends State{
   }
 
   enter() {
-    // console.log('Enter Update')
+    // SAMBA_MANAGER('Enter Update')
   }
 
   exit() {
-    // console.log('Leave Update')
+    // SAMBA_MANAGER('Leave Update')
   }
 }
 
@@ -56,11 +59,11 @@ class Wait extends State {
   }
 
   enter() {
-    // console.log('Enter Wait')
+    // SAMBA_MANAGER('Enter Wait')
   }
 
   exit() {
-    // console.log('Leave Wait')
+    // SAMBA_MANAGER('Leave Wait')
     clearTimeout(this.timer)
   }
 }
@@ -71,11 +74,10 @@ class Update extends State {
     this.contents.counter = 0
     this.enter()
     updateSambaFilesAsync().then(() => {
-      console.log(data)
+      SAMBA_MANAGER(data)
       this.success()
-      // this.error(err)
     }).catch(err => {
-      console.log(err)
+      SAMBA_MANAGER(err)
       this.error()
     })
   }
@@ -97,7 +99,7 @@ class Update extends State {
 
   error() {
     this.contents.counter += 1
-    if(this.contents.counter >= RETRYTIMES) {
+    if(this.contents.counter >= RETRY_TIMES) {
       if (this.next) {
         this.exit()
         this.setState(Wait, this.next)
@@ -109,28 +111,28 @@ class Update extends State {
     }
     else {
       updateSambaFilesAsync().then(() => {
-        console.log(data)
+        SAMBA_MANAGER(data)
         this.success()
       }).catch(err => {
-        console.log(err)
-        console.log('retry... ...')
+        SAMBA_MANAGER(err)
+        SAMBA_MANAGER('Retry... ...')
         this.error()
       })
     }
   }
 
   enter() {
-    // console.log('Enter Update')
+    // SAMBA_MANAGER('Enter Update')
   }
 
   exit() {
-    // console.log('Leave Update')
+    // SAMBA_MANAGER('Leave Update')
   }
 }
 
 class SambaManager {
   constructor(delay, echo) {
-    this.delay = delay || DEFAULTDELAY
+    this.delay = delay || DEFAULT_DELAY
     this.state = new Idle(this) 
   }
 
