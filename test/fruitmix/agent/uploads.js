@@ -20,7 +20,6 @@ const broadcast = require('src/common/broadcast')
 
 const User = require('src/fruitmix/models/user')
 const Drive = require('src/fruitmix/models/drive')
-const Forest = require('src/fruitmix/forest/forest')
 
 const {
   IDS,
@@ -34,13 +33,7 @@ const {
 
 const cwd = process.cwd()
 const tmptest = path.join(cwd, 'tmptest')
-
-global._fruitmixPath = tmptest
-
 const tmpDir = path.join(tmptest, 'tmp')
-const usersPath = path.join(tmptest, 'users.json')
-const drivesPath = path.join(tmptest, 'drives.json')
-const forestDir = path.join(tmptest, 'drives')
 
 const resetAsync = async () => {
 
@@ -111,7 +104,7 @@ describe(path.basename(__filename), () => {
           .expect(200)
           .end((err, res) => err ? reject(err) : resolve(res.body)))
 
-      let dirPath = path.join(_fruitmixPath, 'uploads', IDS.alice.uuid)
+      let dirPath = path.join(tmptest, 'uploads', IDS.alice.uuid)
       let entries = await fs.readdirAsync(dirPath)
 
       expect(entries.length).to.equal(1)

@@ -8,6 +8,7 @@ const mkdirp = require('mkdirp')
 const UUID = require('uuid')
 const router = require('express').Router()
 const auth = require('../middleware/auth')
+const broadcast = require('../../common/broadcast')
 
 const Drive = require('../models/drive')
 const Forest = require('../forest/forest')
@@ -16,6 +17,10 @@ const formdata = require('./formdata')
 
 const rimrafAsync = Promise.promisify(rimraf)
 const mkdirpAsync = Promise.promisify(mkdirp)
+
+let fruitmixPath = undefined
+broadcast.on('FruitmixStart', froot => fruitmixPath = froot)
+broadcast.on('FruitmixStop', () => fruitmixPath = undefined)
 
 const success = (res, data) => data
   ? res.status(200).json(data)
@@ -232,7 +237,7 @@ router.post('/:driveUUID/dirs/:dirUUID/files', auth.jwt(),
     let { driveUUID, dirUUID } = req.params
 
     req.formdata = { 
-      path: path.join(_fruitmixPath, 'tmp', UUID.v4()) 
+      path: path.join(fruitmixPath, 'tmp', UUID.v4()) // TODO
     }
 
     next()

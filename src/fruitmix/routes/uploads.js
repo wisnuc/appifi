@@ -8,17 +8,18 @@ const rimrafAsync = Promise.promisify(require('rimraf'))
 const UUID = require('uuid')
 
 const router = require('express').Router()
-
 const auth = require('../middleware/auth')
-const { assert, validateProps, isUUID, isSHA256, isNonNullObject } = require('../lib/assertion')
 const sidekick = require('../lib/sidekick-client')
+const { assert, validateProps, isUUID, isSHA256, isNonNullObject } = require('../lib/assertion')
+const broadcast = require('../../common/broadcast')
 
 const f = af => (req, res, next) => af(req, res).then(x => x, next)
 
-/**
+let fruitmixPath = undefined
+broadcast.on('FruitmixStart', froot => fruitmixPath = froot)
+broadcast.on('FruitmixStop', () => fruitmixPath = undefined)
 
-*/
-const userUploadDir = userUUID => path.join(_fruitmixPath, 'uploads', userUUID)
+const userUploadDir = userUUID => path.join(fruitmixPath, 'uploads', userUUID)
 
 /**
 Calculate expected chunk size for given index

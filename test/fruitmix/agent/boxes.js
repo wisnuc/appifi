@@ -13,10 +13,9 @@ const should = chai.should()
 
 const app = require('src/fruitmix/app')
 const { saveObjectAsync } = require('src/fruitmix/lib/utils')
+const broadcast = require('src/common/broadcast')
 
 const User = require('src/fruitmix/models/user')
-const Drive = require('src/fruitmix/models/drive')
-const Forest = require('src/fruitmix/forest/forest')
 const Box = require('src/fruitmix/box/box')
 
 const {
@@ -44,22 +43,22 @@ const retrieveWxTokenAsync = async username => {
 const cwd = process.cwd()
 const tmptest = path.join(cwd, 'tmptest')
 const tmpDir = path.join(tmptest, 'tmp')
-const usersPath = path.join(tmptest, 'users.json')
-const drivesPath = path.join(tmptest, 'drives.json')
-const drivesDir = path.join(tmptest, 'drives')
-const boxesDir = path.join(tmptest, 'boxes')
 
 /**
 Reset directories and reinit User module
 */
 const resetAsync = async() => {
+
+  broadcast.emit('FruitmixStop')
+
+  await broadcast.until('UserDeinitDone', 'BoxDeinitDone')
+
   await rimrafAsync(tmptest) 
   await mkdirpAsync(tmpDir) 
-  
-  await User.initAsync(usersPath, tmpDir)
-  await Drive.initAsync(drivesPath, tmpDir)
-  await Forest.initAsync(drivesDir, tmpDir)
-  await Box.initAsync(boxesDir, tmpDir)
+ 
+  broadcast.emit('FruitmixStart', 'tmptest') 
+
+  await broadcast.until('UserInitDone', 'BoxInitDone')
 }
 
 describe(path.basename(__filename), () => {
