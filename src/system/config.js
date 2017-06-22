@@ -4,6 +4,7 @@ const validator = require('validator')
 const deepEqual = require('deep-equal')
 const deepFreeze = require('deep-freeze')
 const createPersistenceAsync = require('../common/persistence')
+const broadcast = require('../common/broadcast') 
 
 /*******************************************************************************
 
