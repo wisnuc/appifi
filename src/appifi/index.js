@@ -1,3 +1,5 @@
+import path from 'path'
+
 import Debug from 'debug'
 const INDEX = Debug('APPIFI:INDEX')
 
@@ -5,12 +7,13 @@ import httpServer from './component/http/httpServer'
 import dockerInit from './component/docker/docker'
 import { daemonStart, daemonStop, getDockerStatus } from './component/docker/docker'
 
-const appifiInit = async () => {
+const appifiInit = async (mountpoint) => {
 
   httpServer()
-  INDEX('Appifi HTTP server ran...')
+  INDEX('Appifi HTTP server runs')
 
-  dockerInit.init('/home/wisnuc/git/appifi/run/wisnuc/app')
+  // /run/wisnuc/volumes/xxxx/appifi
+  dockerInit.init(path.join(mountpoint, 'appifi'))
   INDEX('Docker initialized')
 }
 

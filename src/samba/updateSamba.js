@@ -6,6 +6,9 @@ let getPrependPath = require('./prependPath')
 let path = require('path')
 let process = require('process')
 
+import Debug from 'debug'
+const UPDATE_SAMBA = Debug('SAMBA:UPDATE_SAMBA')
+
 let prependPath = null
 
 // check & restart samba service
@@ -23,13 +26,15 @@ const uuidToUnixName = (uuid) =>
 // read infors from local file
 const getUserListAsync = async () => {
 
-  const userListConfigPath = path.join(getPrependPath(), '..', '/fruitmix/models/model.json')
+  const userListConfigPath = path.join(getPrependPath(), '..', '/models/model.json')
   if(!fs.existsSync(userListConfigPath)) {
     console.log(userListConfigPath)
     throw Error('No Model.json Found!')
   }
 
   let userList = await fs.readFileAsync(userListConfigPath)
+
+  UPDATE_SAMBA('Get appifi user list')
 
   return JSON.parse(userList)
 }
@@ -46,11 +51,12 @@ const createShareListAsync = async () => {
 
     if (drive.type === 'private') {
 
-      let owner = ulist.find(user => user.home === drive.uuid || user.library === drive.uuid)
+      // let owner = ulist.find(user => user.home === drive.uuid || user.library === drive.uuid)
+      let owner = ulist.find(user => user.home === drive.uuid)
       if (owner) {
         let shareName        
         if (owner.home === drive.uuid) shareName = owner.username + ' (home)'
-        else if (owner.library === drive.uuid) shareName = owner.username + ' (library)'
+        // else if (owner.library === drive.uuid) shareName = owner.username + ' (library)'
         else shareName = owner.username + ` (${drive.uuid.slice(0, 8)})`
 
         let sharePath = drive.uuid
@@ -85,6 +91,8 @@ const createShareListAsync = async () => {
     }
   })
 
+  UPDATE_SAMBA('Get appifi share list')
+
   return shareList
 }
 
@@ -113,6 +121,8 @@ const retrieveSysUsers = (callback) => {
       .filter(u => !!u)
       .filter(u => u.unixuid >= 2000 && u.unixuid < 5000)
 
+    UPDATE_SAMBA('Get system user list')
+
     callback(null, users)
   })
 }
@@ -136,6 +146,8 @@ const retrieveSmbUsers = (callback) => {
       })
       .filter(u => !!u)
 
+    UPDATE_SAMBA('Get system samba user list')
+
     callback(null, users)
   })
 }
@@ -144,11 +156,17 @@ const retrieveSmbUsers = (callback) => {
 const addUnixUserAsync = async (username, unixuid) => {
   let cmd = 'adduser --disabled-password --disabled-login --no-create-home --gecos ",,," ' + 
     `--uid ${unixuid} --gid 65534 ${username}`
+
+  UPDATE_SAMBA('Add system user')
+
   return child.execAsync(cmd)
 }
 
 // delete user from system
 const deleteUnixUserAsync = async (username) => {
+
+  UPDATE_SAMBA('Delete system user')
+
   return child.execAsync(`deluser ${username}`)
 }
 
@@ -172,10 +190,15 @@ const reconcileUnixUsersAsync = async () => {
 
   await Promise.map(sysusers, u => deleteUnixUserAsync(u.unixname).reflect())
   await Promise.map(fusers, u => addUnixUserAsync(u.unixname, u.unixuid).reflect())
+
+  UPDATE_SAMBA('Reconcile system user')
 }
 
 // delete samba user from local samba service
 const deleteSmbUserAsync = async (username) => {
+
+  UPDATE_SAMBA('Delete samba user')
+
   return child.execAsync(`pdbedit -x ${username}`)
 }
 
@@ -188,6 +211,7 @@ const addSmbUsersAsync = async (fusers) => {
   await fs.writeFileAsync('/run/wisnuc/smb/tmp', text)
   await child.execAsync('pdbedit -i smbpasswd:/run/wisnuc/smb/tmp')
 
+  UPDATE_SAMBA('Add samba user')
 }
 
 // reconcile user list from local samba service & fruitmix
@@ -223,6 +247,8 @@ const reconcileSmbUsersAsync = async () => {
 
   // add 
   await addSmbUsersAsync(fusers)
+
+  UPDATE_SAMBA('Reconcile samba user')
 }
 
 // mapping usernames from the clients to the local samba server
@@ -232,6 +258,8 @@ const generateUserMapAsync = async () => {
     prev + `${uuidToUnixName(user.uuid)} = "${user.username}"\n`, '')
 
   await fs.writeFileAsync('/etc/smbusermap', text)
+
+  UPDATE_SAMBA('Create samba user map file')
 }
 
 // create samba's smb.conf
@@ -278,6 +306,8 @@ const generateSmbConfAsync = async () => {
   })
 
   await fs.writeFileAsync('/etc/samba/smb.conf', conf)
+
+  UPDATE_SAMBA('Create samba config file')
 }
 
 const updateSambaFilesAsync = async () => {
@@ -294,6 +324,8 @@ const updateSambaFilesAsync = async () => {
   await child.execAsync('systemctl restart smbd')
 
   updatingSamba = false
+
+  UPDATE_SAMBA('Update samba')
 }
 
 module.exports = updateSambaFilesAsync
