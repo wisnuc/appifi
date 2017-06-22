@@ -9,6 +9,7 @@ const debug = require('debug')('system:barcelona')
 const BOARD_EVENT = '/proc/BOARD_event'
 const FAN_IO = '/proc/FAN_io'
 
+
 const readFanSpeed = callback => 
   fs.readFile(FAN_IO, (err, data) => {
     if (err) 
@@ -76,6 +77,10 @@ const init = () => {
   })
 } 
 
-module.exports = { readFanSpeed, writeFanScale, init }
+module.exports = { 
+  readFanSpeed, 
+  writeFanScale, 
+  init 
+}
 
 
