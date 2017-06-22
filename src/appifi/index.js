@@ -1,11 +1,12 @@
-import path from 'path'
+const Promise = require('bluebird')
+const path = require('path')
 
-import Debug from 'debug'
+const Debug = require('debug')
 const INDEX = Debug('APPIFI:INDEX')
 
-import httpServer from './component/http/httpServer'
-import dockerInit from './component/docker/docker'
-import { daemonStart, daemonStop, getDockerStatus } from './component/docker/docker'
+const httpServer = require('./component/http/httpServer')
+const dockerInit = require('./component/docker/docker')
+const { daemonStart, daemonStop, getDockerStatus } = require('./component/docker/docker')
 
 const appifiInit = async (mountpoint) => {
 
@@ -29,7 +30,7 @@ const getDockerInfor = () => {
   return getDockerStatus()
 }
 
-export {
+module.exports = {
   appifiInit,
   appstoreStart,
   appstoreStop,

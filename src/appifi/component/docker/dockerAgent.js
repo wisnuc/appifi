@@ -1,12 +1,12 @@
-import http from 'http'
-import events from 'events'
+const http = require('http')
+const events = require('events')
 
-import Debug from 'debug'
+const Debug = require('debug')
 const DOCKER_AGENT = Debug('APPIFI:DOCKER_AGENT')
 
-import { Transform } from '../../lib/transform'
-import { HttpStatusError } from '../../lib/error'
-import DefaultParam from '../../lib/defaultParam'
+const { Transform } = require('../../lib/transform')
+const { HttpStatusError } = require('../../lib/error')
+const DefaultParam = require('../../lib/defaultParam')
 
 /*
  * This class holds a request object, and delegate connection events to user, if connected.
@@ -64,6 +64,6 @@ const post = (path, callback) => {
   return new Agent('POST', path, callback)
 }
 
-export default { get, post }
+module.exports = { get, post }
 
 

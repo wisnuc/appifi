@@ -1,9 +1,10 @@
-import request from 'superagent'
-import Debug from 'debug'
+const Promise = require('bluebird')
+const request = require('superagent')
+const Debug = require('debug')
 const DOCKER_API = Debug('APPIFI:DOCKER_API')
 
-import { HttpStatusError } from '../../lib/error'
-import DefaultParam from '../../lib/defaultParam'
+const { HttpStatusError } = require('../../lib/error')
+const DefaultParam = require('../../lib/defaultParam')
 
 class DockerAPI {
   constructor() {
@@ -132,7 +133,7 @@ const containerStop = async (id) => dockerAPI.containerStop(id)
 const containerCreate = async (option) => dockerAPI.containerCreate(option)
 const containerDelete = async (id) => dockerAPI.containerDelete(id)  
 
-export { 
+module.exports = { 
   containerStart, 
   containerStop,
   containerCreate,

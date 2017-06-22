@@ -32,7 +32,7 @@ class HttpStatusError extends Error {
   }
 }
 
-export {
+module.exports = {
   HttpRequestError,
   HttpResponseError,
   JSONParserError,

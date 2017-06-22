@@ -1,8 +1,8 @@
-import stream from 'stream'
-import readline from 'readline'
-import events from 'events'
+const stream = require('stream')
+const readline = require('readline')
+const events = require('events')
 
-import Debug from 'debug'
+const Debug = require('debug')
 const TRANSFORM = Debug('APPIFI:TRANSFORM')
 
 /*
@@ -42,4 +42,4 @@ class Transform extends events {
   }
 }
 
-export { Transform }
+module.exports = { Transform }

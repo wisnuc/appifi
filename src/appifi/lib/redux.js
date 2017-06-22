@@ -34,7 +34,7 @@ const combineReducers = (reducers) => {
   }
 }
 
-export { createStore, combineReducers }
+module.exports = { createStore, combineReducers }
 
 
 

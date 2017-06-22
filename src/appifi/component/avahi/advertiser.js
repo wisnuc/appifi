@@ -1,7 +1,7 @@
-import child from 'child_process'
-import events from 'events'
+const child = require('child_process')
+const events = require('events')
 
-import Debug from 'debug'
+const Debug = require('debug')
 const debug = Debug('APPIFI:ADVERTISER')
 
 class Advertiser extends events {
@@ -44,5 +44,5 @@ class Advertiser extends events {
   }
 }
 
-export default Advertiser
+module.exports = Advertiser
 

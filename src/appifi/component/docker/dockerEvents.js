@@ -1,10 +1,10 @@
-import events from 'events'
-import request from 'superagent'
-import Debug from 'debug'
+const events = require('events')
+const request = require('superagent')
+const Debug = require('debug')
 const DOCKER_EVENTS = Debug('APPIFI:DOCKER_EVENTS')
 
-import dockerAgent from './dockerAgent'
-import DefaultParam from '../../lib/defaultParam'
+const dockerAgent = require('./dockerAgent')
+const DefaultParam = require('../../lib/defaultParam')
 
 /*
 * agent or null
@@ -142,4 +142,4 @@ class DockerEvents extends events {
   }
 }
 
-export { dockerEventsAgent, DockerEvents }
+module.exports = { dockerEventsAgent, DockerEvents }

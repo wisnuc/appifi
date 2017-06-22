@@ -1,6 +1,6 @@
-import { createStore, combineReducers } from './redux'
+const { createStore, combineReducers } = require('./redux')
 
-import Debug from 'debug'
+const Debug = require('debug')
 const REDUCERS = Debug('APPIFI:REDUCERS')
 
 const developer = (state = {}, action) => {
@@ -110,7 +110,7 @@ const storeState = () => store.getState()
 const storeDispatch = (action) => store.dispatch(action)
 const storeSubscribe = (listener) => store.subscribe(listener)
 
-export {
+module.exports = {
   storeState,
   storeDispatch,
   storeSubscribe

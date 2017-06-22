@@ -1,10 +1,11 @@
-import Debug from 'debug'
+const Promise = require('bluebird')
+const Debug = require('debug')
 const APP_STORE = Debug('APPIFI:APP_STORE')
 
-import request from 'superagent'
-import { storeState, storeDispatch } from '../../lib/reducers'
-import { validateRecipe } from '../../lib/utility'
-import { retrieveRecipes, retrieveRepo, recipesRepoMap } from './retrieve'
+const request = require('superagent')
+const { storeState, storeDispatch } = require('../../lib/reducers')
+const { validateRecipe } = require('../../lib/utility')
+const { retrieveRecipes, retrieveRepo, recipesRepoMap } = require('./retrieve')
 
 class Appstore {
 
@@ -73,7 +74,7 @@ const refreshAppstore = async () => appstore.refreshAppstore()
                                     //   APP_STORE('Reloading Failed', e)
                                     // })
 
-export {
+module.export = {
   refreshAppstore,  
 }
 

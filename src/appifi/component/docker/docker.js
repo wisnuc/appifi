@@ -1,17 +1,25 @@
-import path from 'path'
-import { fs, child, rimrafAsync, mkdirpAsync } from '../../../common/async'
-import Debug from 'debug'
+const Promise = require('bluebird')
+const path = require('path')
+
+const fs = Promise.promisifyAll(require('fs'))
+const child = Promise.promisifyAll(require('child_process'))
+const rimraf = require('rimraf')
+const mkdirp = require('mkdirp')
+const rimrafAsync = Promise.promisify(rimraf)
+const mkdirpAsync = Promise.promisify(mkdirp)
+
+const Debug = require('debug')
 const DOCKER = Debug('APPIFI:DOCKER')
 
-import request from 'superagent'
+const request = require('superagent')
 
-import { storeState, storeDispatch } from '../../lib/reducers'
-import { containerStart, containerStop, containerCreate, containerDelete } from './dockerApi'
-import { refreshAppstore } from '../appstore/appstore' // TODO
-import { dockerEventsAgent, DockerEvents } from './dockerEvents'
-import DockerStateObserver from './dockerStateObserver'
-import { AppInstallTask } from './dockerTasks'
-import { calcRecipeKeyString, appMainContainer, containersToApps } from '../../lib/utility'
+const { storeState, storeDispatch } = require('../../lib/reducers')
+const { containerStart, containerStop, containerCreate, containerDelete } = require('./dockerApi')
+const { refreshAppstore } = require('../appstore/appstore') // TODO what?
+const { dockerEventsAgent, DockerEvents } = require('./dockerEvents')
+const DockerStateObserver = require('./dockerStateObserver')
+const { AppInstallTask } = require('./dockerTasks')
+const { calcRecipeKeyString, appMainContainer, containersToApps } = require('../../lib/utility')
 
 let dockerPidFile = null
 let rootDir = null
@@ -382,7 +390,7 @@ const getDockerStatus = () => {
   return dockerStatus
 }
 
-export default {
+module.exports = {
 
   init: (dir) => {
     initAsync(dir)
@@ -393,9 +401,6 @@ export default {
         DOCKER('ERROR: init failed', e)
       })
   },
-}
-
-export { 
 
   daemonStart, 
   daemonStop,

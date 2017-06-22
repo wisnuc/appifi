@@ -1,11 +1,11 @@
-import child from 'child_process'
-import deepEqual from 'deep-equal'
+const child = require('child_process')
+const deepEqual = require('deep-equal')
 
-import Debug from 'debug'
+const Debug = require('debug')
 const DOCKER_STATE_OBSERVER = Debug('APPIFI:DOCKER_STATE_OBSERVER')
 
-import Advertiser from '../avahi/advertiser'
-import DefaultParam from '../../lib/defaultParam'
+const Advertiser = require('../avahi/advertiser')
+const DefaultParam = require('../../lib/defaultParam')
 
 // default service
 let wisnucAppstationPort = new DefaultParam().getWisnucAppstationPort()
@@ -95,6 +95,6 @@ class DockerStateObserver {
   }
 }
 
-export default DockerStateObserver
+module.exports = DockerStateObserver
 
 

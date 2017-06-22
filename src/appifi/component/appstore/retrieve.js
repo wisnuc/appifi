@@ -1,9 +1,9 @@
-import Debug from 'debug'
+const Debug = require('debug')
 const RETRIEVE = Debug('APPIFI:APP_STORE:RETRIEVE')
 
-import request from 'superagent'
-import { storeState, storeDispatch } from '../../lib/reducers'
-import { validateRecipe } from '../../lib/utility'
+const request = require('superagent')
+const { storeState, storeDispatch } = require('../../lib/reducers')
+const { validateRecipe } = require('../../lib/utility')
 
 const defaultPrefixRepoPath = 'https://hub.docker.com/v2/repositories'
 
@@ -136,7 +136,7 @@ const retrieveRecipes = async () => await retrieve.retrieveRecipes()
 const retrieveRepo = async (namespace, name) => await retrieve.retrieveRepo(namespace, name)
 const recipesRepoMap = async (recipes) => await retrieve.recipesRepoMap(recipes)
 
-export {
+module.exports = {
   retrieveRecipes,
   retrieveRepo,
   recipesRepoMap,

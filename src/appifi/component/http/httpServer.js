@@ -1,7 +1,7 @@
-import http from 'http'
-import app from '../../lib/router'
+const http = require('http')
+const app = require('../../lib/router')
 
-import Debug from 'debug'
+const Debug = require('debug')
 const HTTP_SERVER = Debug('APPIFI:HTTP_SERVER')
 
 const port = 3720
@@ -50,4 +50,4 @@ const httpServer = () => {
   httpServer.listen(port)
 }
 
-export default httpServer
+module.exports = httpServer

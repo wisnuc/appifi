@@ -1,16 +1,17 @@
-import EventEmitter from 'events'
-import deepmerge from 'deepmerge'
-import UUID from 'node-uuid'
+const EventEmitter = require('events')
+const deepmerge = require('deepmerge')
+const UUID = require('uuid')
 
-import Debug from 'debug'
+const Debug = require('debug')
 const DOCKER_TASKS = Debug('APPIFI:DOCKER_TASKS')
 
-import pullImage from './pullImage'
-import { containerCreate, containerStart } from './dockerApi'
-import DefaultParam from '../../lib/defaultParam'
+const pullImage = require('./pullImage')
+const { containerCreate, containerStart } = require('./dockerApi')
+const DefaultParam = require('../../lib/defaultParam')
+
 let containerDefaultOpts = new DefaultParam().getContainerDefault()
 
-import { calcRecipeKeyString, installAppifiLabel } from '../../lib/utility'
+const { calcRecipeKeyString, installAppifiLabel } = require('../../lib/utility')
 
 class Task extends EventEmitter {
 
@@ -230,5 +231,5 @@ class AppInstallTask extends Task {
   }
 }
 
-export { AppInstallTask }
+module.exports = { AppInstallTask }
 

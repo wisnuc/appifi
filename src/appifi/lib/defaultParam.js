@@ -106,7 +106,7 @@ class DefaultParam {
   }
 }
 
-export default DefaultParam
+module.exports = DefaultParam
 
 
 

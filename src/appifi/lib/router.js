@@ -1,11 +1,11 @@
-import express from 'express'
-import logger from 'morgan'
-import bodyParser from 'body-parser'
+const express = require('express')
+const logger = require('morgan')
+const bodyParser = require('body-parser')
 
-import assets from '../../../assets'
-import server from './server'
+// const assets = require('../../../assets')
+const server = require('./server')
 
-import Debug from 'debug'
+const Debug = require('debug')
 const ROUTER = Debug('APPIFI:ROUTER')
 
 const app = express()
@@ -17,6 +17,7 @@ app.use(bodyParser.urlencoded({ extended: false }))
 
 app.set('json spaces', 2)
 
+/**
 app.get('/', (req, res) => 
   res.set('Content-Type', 'text/html').send(assets.indexHtml))
 
@@ -61,6 +62,7 @@ app.get('/stylesheets/Roboto-Black-webfont.woff', (req, res) =>
   res.set('Content-Type', 'application/font-woff')
     .send(assets.robotoBlack))
 
+*/
 const nolog = (res) => {
   res.nolog = true
   return res
@@ -86,4 +88,4 @@ app.post('/server', (req, res) => {
   }
 )
 
-export default app
+module.exports = app

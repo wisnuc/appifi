@@ -24,9 +24,9 @@
   label is a {uuid, recipe} tuple
  */
 
-import validator from 'validator'
-import nodeUUID from 'node-uuid'
-import stringify from 'canonical-json'
+const validator = require('validator')
+const UUID = require('uuid')
+const stringify = require('canonical-json')
 
 const textMatch = (text) => {
   return  /^[A-Za-z][A-Za-z0-9-_+\.]*$/.test(text)
@@ -207,9 +207,10 @@ const containersToApps = (containers) => {
   return groups.map(group => containerGroupToApp(group))
 }
 
-export const APPIFI_KEY = 'appifi-signature'
+// export const APPIFI_KEY = 'appifi-signature'
 
-export {
+module.exports = {
+  APPIFI_KEY: 'appifi-signature',
   validateRecipe,
   calcRecipeKeyString,
   splitRecipeKeyString,

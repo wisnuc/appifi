@@ -1,9 +1,9 @@
-import EventEmitter from 'events'
-import Debug from 'debug'
+const EventEmitter = require('events')
+const Debug = require('debug')
 const PULL_IMAGE = Debug('APPIFI:PULL_IMAGE')
 
-import dockerAgent from './dockerAgent'
-import { createStore } from '../../lib/redux'
+const dockerAgent = require('./dockerAgent')
+const { createStore } = require('../../lib/redux')
 
 class pullImage extends EventEmitter {
 
@@ -92,7 +92,7 @@ class pullImage extends EventEmitter {
   }
 }
 
-export default (image, tag, callback) => new pullImage(image, tag, callback)     
+module.exports = (image, tag, callback) => new pullImage(image, tag, callback)     
 
 
 

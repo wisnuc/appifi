@@ -1,10 +1,10 @@
-import child from 'child_process'
-import Debug from 'debug'
+const child = require('child_process')
+const Debug = require('debug')
 const SERVER = Debug('APPIFI:SERVER')
 
-import { storeState, storeSubscribe } from './reducers'
-import { calcRecipeKeyString } from './utility'
-import {
+const { storeState, storeSubscribe } = require('./reducers')
+const { calcRecipeKeyString } = require('./utility')
+const {
   daemonStart,
   daemonStop,
   daemonStartOp,
@@ -15,9 +15,9 @@ import {
   installedStop,
   appInstall,
   appUninstall
-} from '../component/docker/docker'
+} = require('../component/docker/docker')
 
-import { refreshAppstore } from '../component/appstore/appstore'
+const { refreshAppstore } = require('../component/appstore/appstore')
 
 let status = 0
 
@@ -172,7 +172,7 @@ const operationAsync = async (req) => {
   return null
 }
 
-export default {
+module.exports = {
 
   status: () => {
     return { status }

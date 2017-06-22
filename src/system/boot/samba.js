@@ -7,7 +7,7 @@ const child = require('child_process')
 const EventEmitter = require('events').EventEmitter
 let { sambaAudit } = require('./fruitmix')
 
-import Debug from 'debug'
+const Debug = require('debug')
 const BOOT_SAMBA = Debug('SAMBA:BOOT_SAMBA')
 
 class Samba extends EventEmitter {
