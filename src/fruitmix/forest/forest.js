@@ -56,6 +56,8 @@ class Forest extends EventEmitter {
 
     super()
 
+    this.initialized = false
+
     /**
     Absolute path of Fruitmix drive directory 
     */
@@ -64,19 +66,20 @@ class Forest extends EventEmitter {
     /**
     The collection of drive cache. Using Map for better performance 
     */ 
-    this.roots = new Map()
+    this.roots = undefined
 
     /**
     Indexing all directories by uuid
     */
-    this.uuidMap = new Map()
+    this.uuidMap = undefined
 
     /**
     Indexing all media files by file hash
     */
-    this.hashMap = new Map()
+    this.hashMap = undefined
 
     broadcast.on('FruitmixStart', froot => this.init(path.join(froot, 'drives')))
+    broadcast.on('FruitmixStop', () => this.deinit())
 
     broadcast.on('DriveCreated', drive => 
       this.createDriveAsync(drive)
@@ -153,13 +156,30 @@ class Forest extends EventEmitter {
 
   @param {string} drivesDir
   */
-  init(forestDir) {
+  init(dir) {
 
-    this.dir = forestDir
+    if (this.initialized) 
+      throw new Error('forest already initialized')
+
+    this.initialized = true
+    this.dir = dir
     this.roots = new Map()
     this.uuidMap = new Map()
     this.hashMap = new Map()
+
+    process.nextTick(() => broadcast.emit('ForestInitDone'))
   }
+
+  deinit() {
+
+    this.initialized = false
+    this.dir = undefined
+    this.roots = undefined
+    this.uuidMap = undefined
+    this.hashMap = undefined
+  }
+
+  
 
   /**
   Create the file system cache for given `Drive` 
