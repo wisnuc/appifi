@@ -1,4 +1,4 @@
-const events = require('events')
+const EventEmitter = require('events')
 const request = require('superagent')
 const Debug = require('debug')
 const DOCKER_EVENTS = Debug('APPIFI:DOCKER_EVENTS')
@@ -25,7 +25,7 @@ const dockerEventsAgent = async () => {
 /*
  * important class, wrap timeout and probeDockerState
  */ 
-class DockerEvents extends events {
+class DockerEvents extends EventEmitter {
   
   constructor(agent, interval) {
     super()
