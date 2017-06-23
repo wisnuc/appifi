@@ -6,6 +6,15 @@ const deepFreeze = require('deep-freeze')
 const createPersistenceAsync = require('../common/persistence')
 const broadcast = require('../common/broadcast') 
 
+/**
+Config maintains configuration.
+
+ 
+
+@module Config
+@memberof System
+*/
+
 /*******************************************************************************
 
 Example wisnuc.json file

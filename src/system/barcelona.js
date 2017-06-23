@@ -1,15 +1,27 @@
 const Promise = require('bluebird')
-
 const fs = Promise.promisifyAll(require('fs'))
 const child = Promise.promisifyAll(require('child_process'))
 
 const Config = require('./config')
+
 const debug = require('debug')('system:barcelona')
+
+/**
+Barcelona wraps functions specific to WS215i
+
+@module Barcelona
+@memberof System
+@requires System.Config
+*/
+
 
 const BOARD_EVENT = '/proc/BOARD_event'
 const FAN_IO = '/proc/FAN_io'
 
-
+/**
+Read fan speed
+@private
+*/
 const readFanSpeed = callback => 
   fs.readFile(FAN_IO, (err, data) => {
     if (err) 
@@ -22,6 +34,9 @@ const readFanSpeed = callback =>
     callback(null, fanSpeed)
   })
 
+/**
+Write fan scale
+*/
 const writeFanScale = (fanScale, callback) => 
   (!Number.isInteger(fanScale) || fanScale < 0 || fanScale > 100) ?
     callback(new Error('fanScale must be integer from 0 to 100')) :

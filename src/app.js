@@ -13,6 +13,10 @@ const configTmpDir = '/etc/wisnuc/tmp'
 const storageFile = '/run/wisnuc/storage'
 const storageTmpDir = '/run/wisnuc/tmp'
 
+/** @namespace System */
+/** @namespace Appifi */
+/** @namespace Fruitmix */
+
 const main = async () => {
 
 	// config should start before device, otherwise, barcelona init would fail.

@@ -13,7 +13,6 @@ const DIR = {
   ETC: 'etc',
   SMB: 'smb',
   TMP: 'tmp',
-  REPO: 'repo'
   REPO: 'repo',
   BOX: 'boxes'
 }
