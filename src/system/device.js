@@ -3,15 +3,29 @@ const path = require('path')
 const fs = require('fs')
 const child = require('child_process')
 
+const broadcast = require('../common/broadcast')
 const barcelona = require('./barcelona')
 
 /**
+This module probes cpu, memory, dmi info (or barcelona equivalent), software release revision, source code revision (commit), when system inits.
+
+These information are probed once and results are cached. 
 
 @module Device
+@requires Barcelona
+@fires DeviceProbeDone
+*/
+
+/**
+Fired when device probe finished during system inits.
+
+@event DeviceProbeDone
+@global
 */
 
 // K combinator
 const K = x => y => x
+
 
 const dminames = [
   'bios-vendor', 'bios-version', 'bios-release-date',
@@ -125,22 +139,21 @@ const probeRevisionAsync = async () => {
   return null
 }
 
-fs.stat('/proc/BOARD_io', err => err || barcelona.init()) 
+let device = null
+let promises = [ 
+  probeProcAsync('cpuinfo', true),
+  probeProcAsync('meminfo', false),
+  probeWS215iAsync(),
+  dmiDecodeAsync(),
+  probeReleaseAsync(),
+  probeRevisionAsync() 
+]
 
-module.exports = {
+Promise
+  .all(promises)
+  .then(arr => {
 
-  probeAsync: async function () {
-
-    let arr = await Promise.all([
-      probeProcAsync('cpuinfo', true),
-      probeProcAsync('meminfo', false),
-      probeWS215iAsync(),
-      dmiDecodeAsync(),
-      probeReleaseAsync(),
-      probeRevisionAsync() 
-    ])
-
-    return this.data = {
+    device = {
       cpuInfo: arr[0],
       memInfo: arr[1],
       ws215i: arr[2],
@@ -148,15 +161,9 @@ module.exports = {
       release: arr[4],
       commit: arr[5]  // for historical reason, this is named commit
     }
-  },
 
-  get() {
-    return this.data
-  },
+    broadcast.emit('DeviceProbeDone')
+  })
 
-  isWS215i() {
-    return this.data && this.data.ws215i
-  }
-}
-
+module.exports = () => device
 

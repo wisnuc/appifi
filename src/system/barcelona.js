@@ -40,12 +40,15 @@ Telling if this device is barcelona. Initialized when module loaded using sync i
 */
 const isBarcelona = (() => {
 
+  let x 
   try {
-    return !!fs.lstatSync(BOARD_EVENT)
+    x = !!fs.lstatSync(BOARD_EVENT)
   }
   catch (e) {
-    return false
+    x = false
   }
+
+  console.log(`[system] is barcelona ? ${x}`)
 
 })()
 

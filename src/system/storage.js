@@ -16,8 +16,8 @@ const probeSwapsAsync = require('./storage/procSwapsAsync')
 const probeVolumesAsync = require('./storage/btrfsfishowAsync')
 const probeUsageAsync = require('./storage/btrfsusageAsync')
 
+const broadcast = require('../common/broadcast')
 const createPersistenceAsync = require('../common/persistence')
-
 const debug = require('debug')('system:storage')
 
 /**
@@ -489,6 +489,11 @@ const prettyStorage = storage => {
   return { ports, blocks, volumes }
 }
 
+broadcast.on('SystemInit', () => {
+
+  
+})
+
 /**
 
   Since persistence has no abort method (even if it has one, instant stopping all actions
@@ -537,5 +542,49 @@ module.exports = {
     this.storage = null
   }
 }
+
+module.exports = new class {
+
+  constructor() {
+
+    this.storage = null
+    this.pretty = null
+
+    broadcast.on('SystemInit', () => {
+
+      this.refreshAsync()
+        .then(() => {
+          broadcast.emit('StorageInitDone', null, this.pretty)
+        })
+        .catch(e => {
+          broadcast.emit('StorageInitDone', e)
+        })
+    })
+  }
+
+  async refreshAsync () {
+
+    let storage = await probeStorageWithUsages() 
+    statVolumes(storage.volumes, storage.mounts)
+    statBlocks(storage)
+
+    this.storage = storage
+    deepFreeze(this.storage)
+
+    this.pretty = prettyStorage(this.storage)
+    deepFreeze(this.pretty)
+
+    return this.pretty
+  }
+
+  get(raw) {
+    return this.storage === null
+      ? null
+      : raw
+        ? this.storage
+        : prettyStorage(this.storage)
+  } 
+}
+
 
 

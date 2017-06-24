@@ -5,10 +5,24 @@ const logger = require('morgan')
 const bodyParser = require('body-parser')
 
 const app = express()
-
+const broadcast = require('./common/broadcast')
 const auth = require('./fruitmix/middleware/auth')
 
-if (process.env.NODE_ENV === 'test') app.nolog = true
+/**
+Fired when all modules are loaded. 
+
+Theoretically, all modules emitting global events should defer initialization until this event, ensure that all listeners have been subscribed.
+
+@event SystemInit
+@global
+*/
+
+/**
+This module is the entry point of the whole application.
+
+@module App
+@fires SystemInit
+*/
 
 app.use(logger('dev', { skip: (req, res) => res.nolog === true || app.nolog === true }))
 app.use(bodyParser.json())
@@ -36,6 +50,28 @@ app.use(function(err, req, res, next) {
   res.type('text/plain')
   res.send(err.status + ' ' + err.message)
 })
+
+let { NODE_ENV, NODE_PATH } = process.env
+const isAutoTesting = NODE_ENV === 'test' && NODE_PATH !== undefined
+
+if (NODE_ENV === 'test') 
+  app.nolog = true
+
+if (!isAutoTesting) {
+
+  app.listen(3000, err => {
+
+    if (err) {
+      console.log('failed to listen on port 3000')
+      return process.exit(1)
+    }
+
+    console.log('server started on port 3000')
+  })
+}
+
+
+broadcast.emit('SystemInit')
 
 module.exports = app
 

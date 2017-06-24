@@ -1,35 +1,64 @@
 const Promise = require('bluebird')
+const path = require('path')
 const fs = Promise.promisifyAll(require('fs'))
+const mkdirpAsync = Promise.promisify(require('mkdirp'))
 const validator = require('validator')
-const deepEqual = require('deep-equal')
 const deepFreeze = require('deep-freeze')
-const createPersistenceAsync = require('../common/persistence')
+
 const broadcast = require('../common/broadcast') 
+const createPersistenceAsync = require('../common/persistence')
+
 
 /**
-Config maintains configuration.
+This module maintains station-wide configuration.
 
-@module Config
+It requries a file to persist data and a temporary file directory.
+
+In `production` mode, the paths are `/etc/wisnuc.json` and `/etc/wisnuc-tmp/`, respectively.
+In `test` mode, the paths are `<cwd>/tmptest/wisnuc.json` and `<cwd>/tmptest/tmp`, respectively.
+
+Initialization is deferred until `SystemInit` event
+
+@module   Config
+@requires Broadcast
+@requires Persistence
 */
 
-/*******************************************************************************
+/**
+Fired when `Config` module initialized.
 
-Example wisnuc.json file
+@event ConfigInitDone
+@global
+*/
 
-{
-  "version": 1,
-  "dockerInstall": null,
-  "lastFileSystem": {
-    "type": "btrfs",
-    "uuid": "09f8a66c-0fac-4096-8274-7fcf33a6b87c"
-  },
-  "bootMode": "normal",
-  "barcelonaFanScale": 65,
-  "ipAliasing": [{ "mac": "xxxx", "ipv4": "xxxx"}]
-}
+// TODO move this definition to ipaliasing module
 
-*******************************************************************************/
+/**
+@typedef IpAliasing
+@property {string} mac - mac address
+@property {string} ipv4 - ipv4 address
+*/
 
+/**
+`Config` is an data type internally used in this module. It's JSON equivalent is persisted to a file.
+
+@typedef {object} Config
+@property {number} version - configuration version, 1 for current version.
+@property {(null|string)} dockerInstall - docker install path other than default
+@property {object} lastFileSystem - last booted file system containing fruitmix and appifi
+@property {string} lastFileSystem.type - file system type, only btrfs is used in current version
+@property {string} lastFileSystem.uuid - file system uuid
+@property {string} bootMode - normal or maintenance
+@property {number} barcelonaFanScale - barcelona specific setting
+@property {IpAliasing[]} ipAliasing - a list of ip aliasing 
+*/
+
+/**
+Default config object if config file not found or NODE_ENV is `test`
+
+@const
+@type {Config}
+*/
 const defaultConfig = {
   version: 1,
   dockerInstall: null,
@@ -39,11 +68,19 @@ const defaultConfig = {
   ipAliasing: []
 } 
 
+/** validate uuid string TODO **/
 const isUUID = uuid => typeof uuid === 'string' && validator.isUUID(uuid)
 
+/** validate last file system object **/
 const isValidLastFileSystem = lfs => lfs === null || (lfs.type === 'btrfs' && isUUID(lfs.uuid))
+
+/** validate boot mode **/
 const isValidBootMode = bm => bm === 'normal' || bm === 'maintenance'
+
+/** validate fan scale **/
 const isValidBarcelonaFanScale = bfs => Number.isInteger(bfs) && bfs >= 0 && bfs <= 100
+
+/** valdiate ipaliasing **/
 const isValidIpAliasing = arr => 
   arr.every(ia => 
     typeof ia.mac === 'string' 
@@ -51,55 +88,123 @@ const isValidIpAliasing = arr =>
     && typeof ia.ipv4 === 'string'
     && validator.isIP(ia.ipv4, 4))
 
-/**
- * pseudo class singleton
- */
-module.exports = {
+module.exports = new class {
 
-  // cannot be written as async initAsync(...) 
-  initAsync: async function(fpath, tmpdir) {
+  constructor() {
 
-    let read, dirty = false
+    /**
+    Configuration
+    @member config
+    @type {Config}
+    */
+    this.config = null
 
+    /**
+    Persistence worker for persisting config file    
+
+    @member persistence
+    @type {Persistence}
+    */
+    this.persistence = null
+
+    /**
+    Config file path
+
+    @member filePath 
+    @type {string}
+    */
+    this.filePath = ''
+
+    /**
+    Temp dir for saving config file
+    @member tmpDir
+    @type {string}
+    */
+    this.tmpDir = ''
+
+    this.initAsync().then(() => {})
+  }
+
+  /**
+  Load and validate config from file, or set it to default.
+  @inner
+  @listens SystemInit
+  @fires ConfigInitDone
+  */
+  async initAsync() {
+
+    await broadcast.until('SystemInit')
+
+    let cwd = process.cwd()
+
+    // initialize paths
+    if (process.env.NODE_ENV === 'test') {
+
+      this.filePath = path.join(cwd, 'tmptest', 'wisnuc.json')
+      this.tmpDir = path.join(cwd, 'tmp')
+    }
+    else {
+
+      this.filePath = '/etc/wisnuc.json'
+      this.tmpDir = '/etc/wisnuc-tmp'
+    }
+
+    // initialize member
     this.config = Object.assign({}, defaultConfig)
-    this.persistence = await createPersistenceAsync(fpath, tmpdir, 500)
+    this.persistence = await createPersistenceAsync(this.filePath, this.tmpDir, 500)
 
-    try { read = JSON.parse(await fs.readFileAsync(fpath)) } catch (e) {}
+    // load file
+    let read, dirty = false
+    try { 
+      read = JSON.parse(await fs.readFileAsync(fpath)) 
+    } 
+    catch (e) {
+      // ingore all errors 
+    }
 
     if (!read) {
       dirty = true
     }
     else {
 
+      this.config = read
+
       if (isValidLastFileSystem(read.lastFileSystem))
-        Object.assign(this.config, { lastFileSystem: read.lastFileSystem })
+        Object.assign({}, this.config, { lastFileSystem: read.lastFileSystem })
 
       if (isValidBootMode(read.bootMode))
-        Object.assign(this.config, { bootMode: read.bootMode })
+        Object.assign({}, this.config, { bootMode: read.bootMode })
 
       if (isValidBarcelonaFanScale(read.barcelonaFanScale))
-        Object.assign(this.config, { barcelonaFanScale: read.barcelonaFanScale })
+        Object.assign({}, this.config, { barcelonaFanScale: read.barcelonaFanScale })
 
       if (isValidIpAliasing(read.ipAliasing))
-        Object.assign(this.config, { ipAliasing: read.ipAliasing })
+        Object.assign({}, this.config, { ipAliasing: read.ipAliasing })
 
-      if (!deepEqual(this.config, read)) dirty = true
+      if (this.config !== read) dirty = true
     }
 
     deepFreeze(this.config)
+
     if (dirty) this.persistence.save(this.config)
 
-		console.log('[system] config loaded', this.config)
-  },
+    broadcast.emit('ConfigInitDone', null, this.config)
+  }
 
+  /**
+  @inner TODO boot calls this function
+  */
   merge(props) {
 
     this.config = Object.assign({}, this.config, props)
     deepFreeze(this.config)
 
     this.persistence.save(this.config)
-  },
+  }
 
+  /**
+  
+  */
   updateLastFileSystem(lfs, forceNormal) {
 
     if (!isValidLastFileSystem(lfs)) return 
@@ -109,20 +214,32 @@ module.exports = {
       this.merge({ lastFileSystem, bootMode: 'normal' })
     else
       this.merge({ lastFileSystem })
-  },
+  }
 
+  /**
+  update boot mode in configuration file.
+  */
   updateBootMode(bm) {
     isValidBootMode(bm) && this.merge({ bootMode: bm })
-  },
+  }
 
+  /**
+  update barcelona fan scale
+  */ 
   updateBarcelonaFanScale(bfs) {
     isValidBarcelonaFanScale(bfs) && this.merge({ barcelonaFanScale: bfs })
-  },
+  }
 
+  /**
+  update ip aliasing
+  */
   updateIpAliasing(arr) {
     isValidIpAliasing(arr) && this.merge({ ipAliasing: arr })
-  },
+  }
 
+  /**
+  Get current configuration.
+  */
   get() {
     return this.config
   }
