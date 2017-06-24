@@ -1,4 +1,8 @@
-import child from 'child_process'
+const child = require('child_process')
+
+/**
+@module timedate
+*/
 
 export default (callback) => 
   child.exec('timedatectl', (err, stdout, stderr) => 

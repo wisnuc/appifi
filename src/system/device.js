@@ -5,6 +5,11 @@ const child = require('child_process')
 
 const barcelona = require('./barcelona')
 
+/**
+
+@module Device
+*/
+
 // K combinator
 const K = x => y => x
 

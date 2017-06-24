@@ -7,6 +7,7 @@ const rimraf = require('rimraf')
 const mkdirp = require('mkdirp')
 const UUID = require('uuid')
 const router = require('express').Router()
+
 const auth = require('../middleware/auth')
 const broadcast = require('../../common/broadcast')
 

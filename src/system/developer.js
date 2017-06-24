@@ -1,6 +1,12 @@
 const child = require('child_process')
 const UUID = require('node-uuid')
 
+/**
+This module is responsible for parsing command line arguments and set developer settings accordingly
+
+@module Developer
+*/
+
 const setting = {}
 const hostname = `wisnuc-generic-deadbeef${UUID.v4().split('-').join('').slice(0, 16)}`
 

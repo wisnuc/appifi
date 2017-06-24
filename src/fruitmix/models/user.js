@@ -55,6 +55,7 @@ data = {
   }
 }
 ```
+
 @module User
 */
 
@@ -112,6 +113,15 @@ const validateUserEntry = u => {
 
 }
 
+/**
+@event UserInitDone
+@global
+*/
+
+/**
+@event UserDeinitDone
+@global
+*/
 
 /**
 UserList manages users.

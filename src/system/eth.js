@@ -4,6 +4,11 @@ const path = require('path')
 const fs = Promise.promisifyAll(require('fs'))
 const os = require('os')
 
+/**
+
+@module Eth
+*/
+
 var classNetPath ='/sys/class/net'
 
 const mapAsyncMapFilter = async (arr, asyncMapper, mapper, options) => 

@@ -9,10 +9,7 @@ const broadcast = require('../common/broadcast')
 /**
 Config maintains configuration.
 
- 
-
 @module Config
-@memberof System
 */
 
 /*******************************************************************************

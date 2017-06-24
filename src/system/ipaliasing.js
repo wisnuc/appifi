@@ -4,6 +4,11 @@ const child = require('child_process')
 
 const Config = require('./config')
 
+/**
+
+@module Ipaliasing
+*/
+
 // ip addr add ${ipaddr}/24 dev ${dev} label ${dev}:wisnuc
 // ip addr del ${ipaddr}/24 dev ${dev}:wisnuc
 

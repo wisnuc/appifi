@@ -1,6 +1,9 @@
 const Debug = require('debug')
 
 /**
+The global event bus.
+
+@module Broadcast
 */
 module.exports = new class extends require('events') {
 

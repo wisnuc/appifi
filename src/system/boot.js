@@ -19,6 +19,11 @@ const rimrafAsync = Promise.promisify(rimraf)
 const mkdirpAsync = Promise.promisify(mkdirp)
 
 /**
+
+@module
+*/
+
+/**
 const decorateStorageAsync = async pretty => {
 
   let mps = [] 

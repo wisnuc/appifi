@@ -1,5 +1,5 @@
-import child from 'child_process'
-import EventEmitter from 'events'
+const child = require('child_process')
+const EventEmitter = require('events')
 import readline from 'readline'
 import { refreshStorage } from './storage'
 

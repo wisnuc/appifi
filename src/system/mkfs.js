@@ -7,6 +7,11 @@ const umount = (mountpoint, callback) => child.exec(`umount ${mountpoint}`, err 
 const umountAsync = Promise.promisify(umount)
 
 /**
+
+@module mkfs
+*/
+
+/**
  * unmount all blocks contained by target, target may be 
  * a volume device (disk), or standalone fs disk or partition.
  * eg. sdb, sdb1

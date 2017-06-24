@@ -20,6 +20,12 @@ const createPersistenceAsync = require('../common/persistence')
 
 const debug = require('debug')('system:storage')
 
+/**
+
+
+@module Storage
+*/
+
 const volumeMountpoint = vol => '/run/wisnuc/volumes/' + vol.uuid
 const blockMountpoint = blk => '/run/wisnuc/blocks/' + blk.name
 
