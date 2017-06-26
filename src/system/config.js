@@ -8,7 +8,6 @@ const deepFreeze = require('deep-freeze')
 const broadcast = require('../common/broadcast') 
 const createPersistenceAsync = require('../common/persistence')
 
-
 /**
 This module maintains station-wide configuration.
 
@@ -122,18 +121,17 @@ module.exports = new class {
     */
     this.tmpDir = ''
 
-    this.initAsync().then(() => {})
+    this.initAsync()
+      .then(() => broadcast.emit('ConfigUpdate', null, this.config))
+      .catch(e => broadcast.emit('ConfigUpdate', e))
   }
 
   /**
   Load and validate config from file, or set it to default.
   @inner
-  @listens SystemInit
-  @fires ConfigInitDone
+  @fires ConfigUpdate
   */
   async initAsync() {
-
-    await broadcast.until('SystemInit')
 
     let cwd = process.cwd()
 
@@ -187,8 +185,6 @@ module.exports = new class {
     deepFreeze(this.config)
 
     if (dirty) this.persistence.save(this.config)
-
-    broadcast.emit('ConfigInitDone', null, this.config)
   }
 
   /**

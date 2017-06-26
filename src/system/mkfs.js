@@ -138,39 +138,5 @@ const mkfsBtrfs = (args, callback) =>
     callback(err, result)
   })
 
-/**
-
-const mkfsExt4 = async (target, opts) => {
-
-  await refreshStorageAsync() // with decoration
-
-  debug('mkfsExt4', target, opts)
-
-  target = Array.from(new Set(target)).sort()
-
-  let err = validateExt4Candidates(target)
-  if (err) throw err
-
-  await umountBlocks(target)
-
-  debug('mkfsExt4 success')
-}
-
-const mkfsNtfs = async (target, opts) => {
-
-  await refreshStorageAsync() 
-  
-  debug('mkfsNtfs', target, opts)
-
-  target = Array.from(new Set(target)).sort()
-  let err = validateOtherFSCandidates(target)
-  if (err) throw err
-
-  await umountBlocks(target)
-  
-  debug('mkfsNtfs success')
-}
-
-**/
-
 module.exports = { mkfsBtrfs, mkfsBtrfsAsync }
+

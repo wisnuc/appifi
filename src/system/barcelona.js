@@ -2,16 +2,15 @@ const Promise = require('bluebird')
 const fs = Promise.promisifyAll(require('fs'))
 const child = Promise.promisifyAll(require('child_process'))
 
-const Config = require('./config')
-
 const debug = require('debug')('system:barcelona')
+
+const broadcast = require('../common/broadcast')
 
 /**
 Barcelona wraps functions specific to WS215i
 
 @module Barcelona
 @requires Broadcast
-@requires Config
 */
 
 /**
@@ -47,9 +46,7 @@ const isBarcelona = (() => {
   catch (e) {
     x = false
   }
-
   console.log(`[system] is barcelona ? ${x}`)
-
 })()
 
 /**
@@ -137,32 +134,41 @@ const romInfoAsync = async () => {
   } catch (e) {}
 }
 
+let fanScale = 50
+
 const init = () => {
 
-  console.log('[system] barcelona init')
-
-  child.exec('echo "PWR_LED 1" > /proc/BOARD_io')
   console.log('[barcelona] set power LED to white on')
- 
-  pollingPowerButton() 
-  console.log('[barcelona] start polling power button')
+  child.exec('echo "PWR_LED 1" > /proc/BOARD_io')
 
-  let fanScale = Config.get().barcelonaFanScale
-  writeFanScale(fanScale, err => {
-    if (err) {
-      console.log('[barcelona] failed set barcelonaFanScale')
-      console.log(err)
-    }
-    else {
-      console.log(`[barcelona] fanScale set to ${fanScale}`)
-    }
+  console.log('[barcelona] start polling power button')
+  pollingPowerButton() 
+
+  broadcast.on('ConfigUpdate', (err, config) => {
+
+    if (err) return 
+    if (config.barcelonaFanScale === fanScale) return
+
+    writeFanScale(config.barcelonaFanScale, err => {
+
+      if (err) {
+        console.log('[barcelona] failed set barcelonaFanScale')
+        console.log(err)
+      }
+      else {
+        console.log(`[barcelona] fanScale set to ${fanScale}`)
+        fanScale = config.barcelonaFanScale
+      }
+    })
+   
   })
 } 
+
+isBarcelona && init()
 
 module.exports = { 
   readFanSpeed, 
   writeFanScale, 
-  init, 
   isBarcelona
 }
 

@@ -5,6 +5,7 @@ const fs = Promise.promisifyAll(require('fs'))
 const os = require('os')
 
 /**
+Pure function for retrieving Ethernet interface information
 
 @module Eth
 */
@@ -92,14 +93,144 @@ const enumerateNetworkInterfacesAsync = async () => {
     (name, obj) => Object.assign(obj, { name }))
 }
 
-//// temporary test code
-// enumerateNetworkInterfacesAsync()
-//   .then(r => console.log(JSON.stringify(r, null, '  ')))
-//   .catch(e => console.log(e))
+/**
+Return object combining ethernet interface information extracted from both node.js API and sysfs
 
+```
+// example
+{
+  "os": {
+    "lo": [
+      {
+        "address": "127.0.0.1",
+        "netmask": "255.0.0.0",
+        "family": "IPv4",
+        "mac": "00:00:00:00:00:00",
+        "internal": true
+      },
+      {
+        "address": "::1",
+        "netmask": "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff",
+        "family": "IPv6",
+        "mac": "00:00:00:00:00:00",
+        "scopeid": 0,
+        "internal": true
+      }
+    ],
+    "enp0s3": [
+      {
+        "address": "10.10.15.250",
+        "netmask": "255.255.252.0",
+        "family": "IPv4",
+        "mac": "08:00:27:e4:37:b2",
+        "internal": false
+      },
+      {
+        "address": "fe80::a00:27ff:fee4:37b2",
+        "netmask": "ffff:ffff:ffff:ffff::",
+        "family": "IPv6",
+        "mac": "08:00:27:e4:37:b2",
+        "scopeid": 2,
+        "internal": false
+      }
+    ]
+  },
+  "sysfs": [
+    {
+      "addr_assign_type": 0,
+      "addr_len": 6,
+      "address": "08:00:27:e4:37:b2",
+      "broadcast": "ff:ff:ff:ff:ff:ff",
+      "carrier": 1,
+      "carrier_changes": 4,
+      "dev_id": "0x0",
+      "dev_port": 0,
+      "device": "../../../0000:00:03.0",
+      "dormant": 0,
+      "duplex": "full",
+      "flags": "0x1003",
+      "gro_flush_timeout": 0,
+      "ifalias": "",
+      "ifindex": 2,
+      "iflink": 2,
+      "link_mode": 0,
+      "mtu": 1500,
+      "name_assign_type": 4,
+      "netdev_group": 0,
+      "operstate": "up",
+      "power": {
+        "async": "disabled",
+        "control": "auto",
+        "runtime_active_kids": 0,
+        "runtime_active_time": 0,
+        "runtime_enabled": "disabled",
+        "runtime_status": "unsupported",
+        "runtime_suspended_time": 0,
+        "runtime_usage": 0
+      },
+      "proto_down": 0,
+      "queues": {
+        "rx-0": {
+          "rps_cpus": 0,
+          "rps_flow_cnt": 0
+        },
+        "tx-0": {
+          "byte_queue_limits": {
+            "hold_time": 1000,
+            "inflight": 0,
+            "limit": 332364,
+            "limit_max": 1879048192,
+            "limit_min": 0
+          },
+          "tx_maxrate": 0,
+          "tx_timeout": 0,
+          "xps_cpus": 0
+        }
+      },
+      "speed": 1000,
+      "statistics": {
+        "collisions": 0,
+        "multicast": 243,
+        "rx_bytes": 15775560,
+        "rx_compressed": 0,
+        "rx_crc_errors": 0,
+        "rx_dropped": 0,
+        "rx_errors": 0,
+        "rx_fifo_errors": 0,
+        "rx_frame_errors": 0,
+        "rx_length_errors": 0,
+        "rx_missed_errors": 0,
+        "rx_over_errors": 0,
+        "rx_packets": 70756,
+        "tx_aborted_errors": 0,
+        "tx_bytes": 230267444,
+        "tx_carrier_errors": 0,
+        "tx_compressed": 0,
+        "tx_dropped": 0,
+        "tx_errors": 0,
+        "tx_fifo_errors": 0,
+        "tx_heartbeat_errors": 0,
+        "tx_packets": 148759,
+        "tx_window_errors": 0
+      },
+      "subsystem": "../../../../../class/net",
+      "tx_queue_len": 1000,
+      "type": 1,
+      "uevent": {
+        "INTERFACE": "enp0s3",
+        "IFINDEX": 2
+      },
+      "name": "enp0s3"
+    }
+  ]
+}
+```
+*/
 module.exports = async () => ({
   os: os.networkInterfaces(),
   sysfs: await enumerateNetworkInterfacesAsync()
 })
+
+// module.exports().then(r => console.log(JSON.stringify(r, null, '  ')))
 
 

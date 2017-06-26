@@ -306,7 +306,6 @@ Tests:
 @func readXstatAsync
 @param {string} target - absolute path
 @returns {object} - xstat object
-@alias xstat.readXstatAsync
 */
 const readXstatAsync = async target => {
 
@@ -322,49 +321,14 @@ const readXstatAsync = async target => {
 
 /**
 callback version of readXstatAsync
-@func readXstat
 @param {string} target - absolute path for file or dir
 @param {function} callback
+@alias module:xstat.readXstat
 */
 const readXstat = (target, callback) => 
   readXstatAsync(target)
     .then(xstat => callback(null, xstat))
     .catch(e => callback(e))
-
-/**
-Forcefully set xattr with given uuid and/or hash. 
-
-This function should only be used for:
-1. drive dir
-2. temp file
-
-Tests:
-+ test1
-+ test2
-
-@func forceFileXstatAsync
-@param {string} target - absolute path
-@param {string} uuid - target uuid
-@param {string} hash - file hash (optional)
-@returns {object} - xstat object
-*/
-const forceXstatAsync = async (target, { uuid, hash }) => {
-
-  if (uuid && !isUUID(uuid)) throw new E.EINVAL()
-  if (hash && !isSHA256(hash)) throw new E.EINVAL() 
-
-  let stats = await fs.lstatAsync(target)
-
-  // IS THIS NECESSARY? TODO
-  if (!stats.isFile() && hash) throw new Error('forceXstatAsync: not a file')
-
-  let attr = { uuid: uuid || UUID.v4() }
-  if (hash) Object.assign(attr, { hash, htime: stats.mtime.getTime() })
-
-  attr = await updateXattrAsync(target, attr, stats.isFile())
-  let xstat = createXstat(target, stats, attr)
-  return xstat
-}
 
 /**
 Update file hash
@@ -393,19 +357,8 @@ const updateFileHashAsync = async (target, uuid, hash, htime) => {
 }
 
 /**
-@func forceDriveXstatAsync
-@deprecated
-*/
-const forceDriveXstatAsync = async (target, driveUUID) => {
-
-  let attr = { uuid: driveUUID }
-  await xattr.setAsync(target, FRUITMIX, JSON.stringify(attr))
-  return await readXstatAsync(target)
-}
-
-/**
 callback version of updateFileHashAsync
-@func updateFileHash
+
 @param {string} target - absolute path
 @param {string} uuid - file uuid
 @param {string} hash - file hash
@@ -417,14 +370,6 @@ const updateFileHash = (target, uuid, hash, htime, callback) =>
     .then(xstat => callback(null, xstat))
     .catch(e => callback(e))
 
-/** 
-@func forceDriveXstat
-@deprecated
-*/
-const forceDriveXstat = (target, driveUUID, callback) => 
-  forceDriveXstatAsync(target, driveUUID)
-    .then(xstat => callback(null, xstat))
-    .catch(e => callback(e))
 
 module.exports = { 
 
@@ -434,11 +379,39 @@ module.exports = {
   updateFileHash,
   updateFileHashAsync,
 
-  forceXstatAsync,
+  /**
+  Forcefully set xattr with given uuid and/or hash. 
 
-  // testing only
-  parseMagic,
-  fileMagic,
+  This function should only be used for:
+  1. drive dir
+  2. temp file
+
+  Tests:
+  + test1
+  + test2
+
+  @param {string} target - absolute path
+  @param {string} uuid - target uuid
+  @param {string} hash - file hash (optional)
+  @returns {object} - xstat object
+  */
+  forceXstatAsync: async (target, { uuid, hash }) => {
+
+    if (uuid && !isUUID(uuid)) throw new E.EINVAL()
+    if (hash && !isSHA256(hash)) throw new E.EINVAL() 
+
+    let stats = await fs.lstatAsync(target)
+
+    // IS THIS NECESSARY? TODO
+    if (!stats.isFile() && hash) throw new Error('forceXstatAsync: not a file')
+
+    let attr = { uuid: uuid || UUID.v4() }
+    if (hash) Object.assign(attr, { hash, htime: stats.mtime.getTime() })
+
+    attr = await updateXattrAsync(target, attr, stats.isFile())
+    let xstat = createXstat(target, stats, attr)
+    return xstat
+  },
 }
 
 

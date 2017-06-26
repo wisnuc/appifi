@@ -13,7 +13,7 @@ These information are probed once and results are cached.
 
 @module Device
 @requires Barcelona
-@fires DeviceProbeDone
+@fires DeviceUpdate
 */
 
 /**
@@ -162,7 +162,7 @@ Promise
       commit: arr[5]  // for historical reason, this is named commit
     }
 
-    broadcast.emit('DeviceProbeDone')
+    broadcast.emit('DeviceUpdate', null, device)
   })
 
 module.exports = () => device

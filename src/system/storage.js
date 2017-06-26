@@ -489,11 +489,6 @@ const prettyStorage = storage => {
   return { ports, blocks, volumes }
 }
 
-broadcast.on('SystemInit', () => {
-
-  
-})
-
 /**
 
   Since persistence has no abort method (even if it has one, instant stopping all actions
@@ -549,32 +544,66 @@ module.exports = new class {
 
     this.storage = null
     this.pretty = null
+    this.error = null
 
-    broadcast.on('SystemInit', () => {
+    this.pending = []
+    this.working = []
 
-      this.refreshAsync()
-        .then(() => {
-          broadcast.emit('StorageInitDone', null, this.pretty)
-        })
-        .catch(e => {
-          broadcast.emit('StorageInitDone', e)
-        })
-    })
+    this.probe()  
+  }
+
+  finish() {
+
+    this.working.forEach(cb => cb(this.error, this.pretty))
+    this.working = []
+
+    broadcast.emit('StorageUpdate', this.error, this.pretty)
+
+    if (this.pending.length) {
+      this.working = this.pending
+      this.pending = []
+      this.probe()
+    }
+  }
+
+  probe() {
+
+    probeStorageWithUsages()
+      .then(storage => {
+
+        statVolumes(storage.volumes, storage.mounts)
+        statBlocks(storage)
+
+        this.storage = storage
+        deepFreeze(this.storage)
+
+        this.pretty = prettyStorage(storage)
+        deepFreeze(this.pretty)
+
+        this.error = null
+        this.finish()
+      })
+      .catch(e => {
+        this.error = e
+        this.finish()
+      })
+  }
+
+  refresh(callback) {
+
+    if (this.working.length) {
+      this.pending.push(callback)
+      return
+    }
+
+    this.working = [callback]
+    this.probe()
   }
 
   async refreshAsync () {
 
-    let storage = await probeStorageWithUsages() 
-    statVolumes(storage.volumes, storage.mounts)
-    statBlocks(storage)
-
-    this.storage = storage
-    deepFreeze(this.storage)
-
-    this.pretty = prettyStorage(this.storage)
-    deepFreeze(this.pretty)
-
-    return this.pretty
+    return new Promise((resolve, reject) => 
+      this.refresh(err => err ? reject(err) : resolve(this.pretty)))
   }
 
   get(raw) {

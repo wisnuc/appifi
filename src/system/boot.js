@@ -4,8 +4,10 @@ const fs = require('fs')
 const child = require('child_process')
 const rimraf = require('rimraf')
 const mkdirp = require('mkdirp')
+const rimrafAsync = Promise.promisify(rimraf)
+const mkdirpAsync = Promise.promisify(mkdirp)
 
-const Developer = require('./developer')
+const broadcast = require('../common/broadcast')
 const Config = require('./config')
 const Storage = require('./storage')
 const fruitmix = require('./boot/fruitmix')
@@ -15,15 +17,12 @@ const debug = require('debug')('system:boot')
 
 const bootableFsTypes = ['btrfs', 'ext4', 'ntfs']
 
-const rimrafAsync = Promise.promisify(rimraf)
-const mkdirpAsync = Promise.promisify(mkdirp)
-
 /**
 
-@module
+@module Boot
 */
 
-/**
+/*
 const decorateStorageAsync = async pretty => {
 
   let mps = [] 
@@ -56,17 +55,21 @@ const decorateStorageAsync = async pretty => {
 
   return pretty
 }
-**/
+*/
 
 // extract file systems out of storage object
 const extractFileSystems = ({blocks, volumes}) =>
   [ ...blocks.filter(blk => blk.isFileSystem && !blk.isVolumeDevice),
     ...volumes.filter(vol => vol.isFileSystem) ]
 
+/**
+*/
 const shouldProbeFileSystem = fsys =>
   (fsys.isVolume && fsys.isMounted && !fsys.isMissing)
   || (!fsys.isVolume && fsys.isMounted && (fsys.isExt4 || fsys.isNTFS))
 
+/**
+*/
 const probeAllAsync = async fileSystems =>
   Promise.map(fileSystems.filter(shouldProbeFileSystem),
     async fsys => {
@@ -77,9 +80,12 @@ const probeAllAsync = async fileSystems =>
         fsys.wisnuc = { status: 'EFAIL' }
       }
     })
-
+/**
+*/
 const throwError = message => { throw new Error(message) }
 
+/**
+*/
 const assertFileSystemGood = fsys =>
   (!bootableFsTypes.includes(fsys.fileSystemType))
     ? throwError('unsupported bootable type')
@@ -88,17 +94,22 @@ const assertFileSystemGood = fsys =>
       : (fsys.isVolume && fsys.isMissing)
         ? throwError('file system has missing device')
         : true
-
+/**
+*/
 const assertReadyToBoot = wisnuc =>
   (!wisnuc || typeof wisnuc !== 'object' || wisnuc.status !== 'READY')
     ? throwError('fruitmix status not READY')
     : true
 
+/**
+*/
 const assertReadyToInstall = wisnuc =>
   (!wisnuc || typeof wisnuc !== 'object' || wisnuc.status !== 'ENOENT')
     ? throwError('fruitmix status not ENOENT')
     : true
 
+/**
+*/
 const shutdownAsync = async reboot => {
   let cmd = reboot === true ? 'reboot' : 'poweroff'
   await child.execAsync('echo "PWR_LED 3" > /proc/BOARD_io').reflect()
@@ -106,20 +117,22 @@ const shutdownAsync = async reboot => {
   await child.execAsync(cmd)
 }
 
+/**
+*/
 const cfs = fsys => ({ type: fsys.fileSystemType, uuid: fsys.fileSystemUUID, mountpoint: fsys.mountpoint })
 
-module.exports = {
+module.exports = new class {
 
-  data: null,
-  fruitmix: null,
-  samba: null,
+  constructor() {
 
-  probedStorageAsync: async function () {
-    let storage = Storage.get()
-    let fileSystems = extractFileSystems(storage)
-    await probeAllAsync(fileSystems)
-    return storage
-  },
+    this.data = null
+    this.fruitmix = null
+    this.samba = null
+
+    this.initAsync()
+      .then(() => {})
+      .catch(e => console.log(e))
+  }
 
   boot(cfs) {
 
@@ -128,12 +141,13 @@ module.exports = {
     this.data = { state: 'normal', currentFileSystem: cfs }
 
     Config.updateLastFileSystem({type: cfs.type, uuid: cfs.uuid})
-  },
+  }
 
-  // autoboot
-  autoBootAsync: async function() {
+  async initAsync() {
 
-    let storage = await Storage.refreshAsync() 
+    await broadcast.until('ConfigUpdate', 'StorageUpdate') 
+
+    let storage = Storage.pretty
     let fileSystems = extractFileSystems(storage)
     await probeAllAsync(fileSystems)
 
@@ -181,13 +195,13 @@ module.exports = {
       this.data = { state: 'maintenance', error: alts.length === 0 ? 'ENOALT' : 'EMULTIALT' }
 
     console.log('[autoboot] boot state', this.data)
-  },
+  }
 
   // manual boot only occurs in maintenance mode.
   // this operation should not update boot state if failed.
   // target: file system UUID
   // username, password, if install is true or reinstall is true
-  manualBootAsync: async function (args) {
+  async manualBootAsync(args) {
 
     if (this.data.state !== 'maintenance') throw new Error('not in maintenance mode')    
 
@@ -219,10 +233,10 @@ module.exports = {
     await Promise.delay(200)
 
     this.boot(cfs(fsys))
-  },
+  }
 
   // reboot
-  rebootAsync: async function (op, target) {
+  async rebootAsync(op, target) {
 
     switch(op) {
     case 'poweroff':
@@ -251,9 +265,11 @@ module.exports = {
     default:
       throw new Error('unexpected case') // TODO
     }
-  },
+  }
 
   get() {
     return this.data
-  },
+  }
 }
+
+

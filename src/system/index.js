@@ -237,7 +237,7 @@ router.get('/storage', (req, res) => {
 		return res.status(200).json(Storage.get(true))
 
 	if (req.query.wisnuc !== 'true')
-		return nolog(res).status(200).json(Storage.get())	
+		return nolog(res).status(200).json(Storage.pretty)	
 	else
 		Boot.probedStorageAsync().asCallback((err, storage) => {
 			if (err) return error(res, err)	

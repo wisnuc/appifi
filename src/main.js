@@ -4,24 +4,15 @@ const express = require('express')
 const logger = require('morgan')
 const bodyParser = require('body-parser')
 
-const app = express()
 const broadcast = require('./common/broadcast')
+
+const app = express()
 const auth = require('./fruitmix/middleware/auth')
-
-/**
-Fired when all modules are loaded. 
-
-Theoretically, all modules emitting global events should defer initialization until this event, ensure that all listeners have been subscribed.
-
-@event SystemInit
-@global
-*/
 
 /**
 This module is the entry point of the whole application.
 
 @module App
-@fires SystemInit
 */
 
 app.use(logger('dev', { skip: (req, res) => res.nolog === true || app.nolog === true }))
@@ -54,8 +45,7 @@ app.use(function(err, req, res, next) {
 let { NODE_ENV, NODE_PATH } = process.env
 const isAutoTesting = NODE_ENV === 'test' && NODE_PATH !== undefined
 
-if (NODE_ENV === 'test') 
-  app.nolog = true
+if (NODE_ENV === 'test') app.nolog = true
 
 if (!isAutoTesting) {
 
@@ -69,9 +59,6 @@ if (!isAutoTesting) {
     console.log('server started on port 3000')
   })
 }
-
-
-broadcast.emit('SystemInit')
 
 module.exports = app
 

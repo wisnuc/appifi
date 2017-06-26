@@ -19,7 +19,7 @@
     "mocha": "NODE_PATH=. NODE_ENV=test nodemon --ignore tmptest --exec mocha --recursive --sort",
     "lyc": "NODE_ENV=test nyc --reporter=lcov --reporter=text mocha --compilers js:babel-core/register",
     "lycmon": "NODE_ENV=test nodemon --exec nyc --reporter=lcov --reporter=text mocha --compilers js:babel-core/register",
-    "doc": "nodemon --ignore out --ignore tmpest --exec 'jsdoc -c jsdoc.conf.json -t node_modules/ink-docstrap/template -r -p src'",
+    "doc": "nodemon --ignore out --ignore tmpest --exec 'jsdoc -c jsdoc.conf.json -t node_modules/ink-docstrap/template -r -p src src/README.md'",
     "sidekick": "node src/fruitmix/sidekick/cluster"
   },
   "dependencies": {

@@ -7,6 +7,8 @@ const Config = require('./config')
 /**
 
 @module Ipaliasing
+
+@requires Config
 */
 
 // ip addr add ${ipaddr}/24 dev ${dev} label ${dev}:wisnuc
