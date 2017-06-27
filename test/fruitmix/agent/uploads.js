@@ -14,7 +14,7 @@ const should = chai.should()
 
 const debug = require('debug')('divider')
 
-const app = require('src/fruitmix/app')
+const app = require('src/app')
 
 const broadcast = require('src/common/broadcast')
 

@@ -1,35 +1,76 @@
-const Boot = require('./system/boot')
-const Config = require('./system/config')
-const Device = require('./system/device')
-const Storage = require('./system/storage')
+const path = require('path')
+const fs = require('fs')
+const express = require('express')
+const logger = require('morgan')
+const bodyParser = require('body-parser')
 
-const system = require('./system/index')
-const systemServer = require('./system/system')
-const appifiInit = require('./appifi/index').appifiInit
-const appifiStart = require('./appifi/index').appstoreStart
+const broadcast = require('./common/broadcast')
 
-const configFile = '/etc/wisnuc.json'
-const configTmpDir = '/etc/wisnuc/tmp'
-const storageFile = '/run/wisnuc/storage'
-const storageTmpDir = '/run/wisnuc/tmp'
+const app = express()
+const auth = require('./fruitmix/middleware/auth')
+const token = require('./fruitmix/routes/token')
+const users = require('./fruitmix/routes/users')
+const drives = require('./fruitmix/routes/drives')
+const boxes = require('./fruitmix/routes/boxes')
+const wxtoken = require('./fruitmix/routes/wxtoken')
+const uploads = require('./fruitmix/routes/uploads')
 
-const main = async () => {
+/**
+This module is the entry point of the whole application.
 
-	// config should start before device, otherwise, barcelona init would fail.
-  await Config.initAsync(configFile, configTmpDir)
-  await Device.probeAsync()
-  await Storage.initAsync(storageFile, storageTmpDir)
-  await Boot.autoBootAsync()
+@module App
+*/
 
-  if(Boot.get().state === 'normal') {
-    await appifiInit(Boot.get().currentFileSystem.mountpoint)
-    await appifiStart()
-  }
+app.use(logger('dev', { skip: (req, res) => res.nolog === true || app.nolog === true }))
+app.use(bodyParser.json())
+app.use(bodyParser.urlencoded({ extended: false }))
 
-  systemServer(system)
+app.use(auth.init())
+
+app.use('system', require('./system'))
+
+app.use('/token', token)
+app.use('/users', users)
+app.use('/drives', drives)
+app.use('/boxes', boxes)
+app.use('/wxtoken', wxtoken)
+app.use('/uploads', uploads)
+
+// catch 404 and forward to error handler
+app.use(function(req, res, next) {
+  var err = new Error('Not Found')
+  err.status = 404
+  next(err)
+})
+
+// error handlers
+app.use(function(err, req, res, next) {
+
+  if (err && process.env.NODE_ENV === 'test')
+    console.log(err)
+
+  res.status(err.status || 500)
+  res.type('text/plain')
+  res.send(err.status + ' ' + err.message)
+})
+
+let { NODE_ENV, NODE_PATH } = process.env
+const isAutoTesting = NODE_ENV === 'test' && NODE_PATH !== undefined
+
+if (NODE_ENV === 'test') app.nolog = true
+
+if (!isAutoTesting) {
+
+  app.listen(3000, err => {
+
+    if (err) {
+      console.log('failed to listen on port 3000')
+      return process.exit(1)
+    }
+
+    console.log('server started on port 3000')
+  })
 }
 
-// main().asCallback(err => err && console.log(err))
-
-main().then(x => x, err => console.log(err))
+module.exports = app
 
