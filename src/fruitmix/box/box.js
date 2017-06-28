@@ -25,6 +25,7 @@ const complement = (a, b) =>
             [uuid]/
               manifest  // 
               commits   // database
+              pull/push //
 */
 
 
