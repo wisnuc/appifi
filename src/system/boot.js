@@ -1,60 +1,28 @@
 const Promise = require('bluebird')
 const path = require('path')
-const fs = require('fs')
-const child = require('child_process')
+const fs = Promise.promisifyAll(require('fs'))
+const child = Promise.promisifyAll(require('child_process'))
+
 const rimraf = require('rimraf')
 const mkdirp = require('mkdirp')
 const rimrafAsync = Promise.promisify(rimraf)
 const mkdirpAsync = Promise.promisify(mkdirp)
 
 const broadcast = require('../common/broadcast')
+
 const Config = require('./config')
 const Storage = require('./storage')
+
 const fruitmix = require('./boot/fruitmix')
 const samba = require('./boot/samba')
 
 const debug = require('debug')('system:boot')
 
-const bootableFsTypes = ['btrfs', 'ext4', 'ntfs']
+const bootableFsTypes = ['btrfs']
 
 /**
 
 @module Boot
-*/
-
-/*
-const decorateStorageAsync = async pretty => {
-
-  let mps = [] 
-
-  pretty.volumes.forEach(vol => {
-    if (vol.isMounted && !vol.isMissing) mps.push({
-      ref: vol,
-      mp: vol.mountpoint
-    })
-  })
-
-  pretty.blocks.forEach(blk => {
-    if (!blk.isVolumeDevice && blk.isMounted && blk.isExt4)
-      mps.push({
-        ref: blk,
-        mp: blk.mountpoint
-      })
-  })
-
-  await Promise
-    .map(mps, obj => fruitmix.probeAsync(obj.mp).reflect())
-    .each((inspection, index) => {
-      if (inspection.isFulfilled())
-        mps[index].ref.wisnuc = inspection.value() 
-      else {
-        console.log(inspection.reason())
-        mps[index].ref.wisnuc = 'ERROR'
-      }
-    })
-
-  return pretty
-}
 */
 
 // extract file systems out of storage object
@@ -64,9 +32,8 @@ const extractFileSystems = ({blocks, volumes}) =>
 
 /**
 */
-const shouldProbeFileSystem = fsys =>
+const shouldProbeFileSystem = fsys => 
   (fsys.isVolume && fsys.isMounted && !fsys.isMissing)
-  || (!fsys.isVolume && fsys.isMounted && (fsys.isExt4 || fsys.isNTFS))
 
 /**
 */
@@ -80,6 +47,7 @@ const probeAllAsync = async fileSystems =>
         fsys.wisnuc = { status: 'EFAIL' }
       }
     })
+
 /**
 */
 const throwError = message => { throw new Error(message) }
@@ -129,9 +97,16 @@ module.exports = new class {
     this.fruitmix = null
     this.samba = null
 
-    this.initAsync()
-      .then(() => {})
-      .catch(e => console.log(e))
+    broadcast.on('ConfigUpdate', config => this.config = config)
+    broadcast.on('StorageUpdate', storage => this.storage = storage)
+
+    broadcast
+      .until('ConfigUpdate', 'StorageUpdate')
+      .then(() => {
+        this.initAsync()
+          .then(x => x)
+          .catch(e => console.log(e))
+      })
   }
 
   boot(cfs) {
@@ -145,9 +120,8 @@ module.exports = new class {
 
   async initAsync() {
 
-    await broadcast.until('ConfigUpdate', 'StorageUpdate') 
-
     let storage = Storage.pretty
+
     let fileSystems = extractFileSystems(storage)
     await probeAllAsync(fileSystems)
 

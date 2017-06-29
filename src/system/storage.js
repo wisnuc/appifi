@@ -411,6 +411,11 @@ const statVolumes = (volumes, mounts) =>
     }
   })
 
+// extract file systems out of storage object
+const extractFileSystems = ({blocks, volumes}) =>
+  [ ...blocks.filter(blk => blk.isFileSystem && !blk.isVolumeDevice),
+    ...volumes.filter(vol => vol.isFileSystem) ]
+
 const prettyStorage = storage => {
 
   // adapt ports
@@ -486,7 +491,12 @@ const prettyStorage = storage => {
     return mapped
   })
 
-  return { ports, blocks, volumes }
+  let fileSystems = [ 
+    ...blocks.filter(blk => blk.isFileSystem && !blk.isVolumeDevice),
+    ...volumes.filter(vol => vol.isFileSystem) 
+  ]
+
+  return { ports, blocks, volumes, fileSystems }
 }
 
 /**
@@ -542,12 +552,28 @@ module.exports = new class {
 
   constructor() {
 
+    /**
+    Raw probed storage, for debug purpose
+    */
     this.storage = null
+
+    /**
+    
+    */
     this.pretty = null
     this.error = null
 
+    /**
+    Pending request
+    */
     this.pending = []
+
+    /**
+    Working request
+    @member {function[]} - callbacks
+    */
     this.working = []
+
 
     this.probe()  
   }
