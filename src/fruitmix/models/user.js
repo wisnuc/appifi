@@ -367,6 +367,25 @@ class UserList extends EventEmitter {
   */
   async updateWeChatBinding(user, unionId) {
   }
+
+  /**
+  static function
+  */
+  async retriveNewUsersAsync(froot) {
+  }
+
+  /**
+  static function
+  */
+  async retrieveOldUsersAsync(froot) {
+  }
+
+  /**
+  static function
+  */
+  retrieveUsersAsync(froot) {
+   
+  }
 }
 
 module.exports = new UserList()

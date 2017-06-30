@@ -1,53 +1,181 @@
-const http = require('http')
-const app = require('express')()
-const logger = require('morgan')
-const bodyParser = require('body-parser')
+const Promise = require('bluebird')
+const path = require('path')
+const fs = require('fs')
+const child = require('child_process')
 
-module.exports = system => {
+const broadcast = require('../common/broadcast')
+const barcelona = require('./barcelona')
 
-  const port = 3000
+/**
+This module probes the following system information:
 
-  app.use(logger('dev', { skip: (req, res) => res.nolog === true }))
++ cpu
++ memory 
++ dmidecode or barcelona equivalent
++ software release revision (github release)
++ source code revision (commit)
 
-  app.use(bodyParser.json())
-  app.use(bodyParser.urlencoded({ extended: false }))
+These information are probed when system starts and cached. 
 
-  app.set('json spaces', 2)
+@module System
+@requires Barcelona
+@fires SystemUpdate
+*/
 
-  // mute polling
-  app.get('/server', (req, res) => (res.nolog = true) && res.status(404).end())
+/**
+Fired when system probe finished during system inits.
 
-  app.use('/system', system)
+@event SystemUpdate
+@global
+*/
 
-  // catch 404 and forward to error handler
-  app.use((req, res, next) => next(Object.assign(new Error('Not Found'), { status: 404 })))
-  // final catch ??? TODO
-  app.use((err, req, res) => res.status(err.status || 500).send('error: ' + err.message))
+// K combinator
+const K = x => y => x
 
-  app.set('port', port);
+const dminames = [
+  'bios-vendor', 'bios-version', 'bios-release-date',
+  'system-manufacturer', 'system-product-name',
+  'system-version', 'system-serial-number', 'system-uuid',
+  'baseboard-manufacturer', 'baseboard-product-name',
+  'baseboard-version', 'baseboard-serial-number',
+  'baseboard-asset-tag',
+  'chassis-manufacturer', 'chassis-type', 'chassis-version',
+  'chassis-serial-number', 'chassis-asset-tag',
+  'processor-family', 'processor-manufacturer',
+  'processor-version', 'processor-frequency'
+]
 
-  const httpServer = http.createServer(app);
+// this function change string format 'processor-family' to js style 'processorFamily'
+const camelCase = text => 
+  text.split(/[_\- ()]/)
+    .map((w, idx) => idx === 0 
+      ? w.charAt(0).toLowerCase() + w.slice(1)
+      : w.charAt(0).toUpperCase() + w.slice(1))
+    .join('')
 
-  httpServer.on('error', error => {
+// parse
+const parseSingleSectionOutput = stdout => 
+  stdout.toString().split('\n')                                               // split to lines
+    .map(l => l.trim()).filter(l => l.length)                                 // trim and remove empty line
+    .map(l => l.split(':').map(w => w.trim()))                                // split to word array (kv)
+    .filter(arr => arr.length === 2 && arr[0].length)                         // filter out non-kv
+    .reduce((obj, arr) => K(obj)(obj[camelCase(arr[0])] = arr[1]), {})        // merge into one object
 
-    if (error.syscall !== 'listen') throw error;
-    switch (error.code) {
-      case 'EACCES':
-        console.error(`Port ${port} requires elevated privileges`)
-        process.exit(1)
-        break
-      case 'EADDRINUSE':
-        console.error(`Port ${port} is already in use`)
-        process.exit(1)
-        break
-      default:
-        throw error
-    }
-  })
+// parse
+const parseMultiSectionOutput = stdout =>
+  stdout.toString().split('\n\n')                                             // split to sections
+    .map(sect => sect.trim())                                                 // trim
+    .filter(sect => sect.length)                                              // remove last empty
+    .map(sect => 
+      sect.split('\n')                                                        // process each section
+        .map(l => l.trim()).filter(l => l.length)                             // trim and remove empty line     
+        .map(l => l.split(':').map(w => w.trim()))                            // split to word array (kv)     
+        .filter(arr => arr.length === 2 && arr[0].length)                     // filter out non-kv     
+        .reduce((obj, arr) => K(obj)(obj[camelCase(arr[0])] = arr[1]), {}))   // merge into one object 
 
-  httpServer.on('listening', () => {
-    console.log('[system] server listening on port ' + httpServer.address().port)
-  })
 
-  httpServer.listen(port);
+const probeProcAsync = async (path, multi) => {
+
+  let stdout = await child.execAsync(`cat /proc/${path}`)
+  return multi 
+    ? parseMultiSectionOutput(stdout)  
+    : parseSingleSectionOutput(stdout)
 }
+
+// return undefined if not barcelona
+const probeWS215iAsync = async () => {
+
+  try {
+    await fs.statAsync('/proc/BOARD_io')
+    let arr = await Promise.all([
+      child.execAsync('dd if=/dev/mtd0ro bs=1 skip=1697760 count=11'),
+      child.execAsync('dd if=/dev/mtd0ro bs=1 skip=1697664 count=20'),
+      child.execAsync('dd if=/dev/mtd0ro bs=1 skip=1660976 count=6 | xxd -p')
+    ])
+    return {
+      serial: arr[0].toString(),
+      p2p: arr[1].toString(),
+      mac: arr[2].trim().match(/.{2}/g).join(':')
+    }
+  } catch (e) {}
+}
+
+// callback version is much easier than that of async version with bluebird promise reflection
+const dmiDecode = cb => {
+
+  let count = dminames.length, dmidecode = {}
+  const end = () => (!--count) && cb(null, dmidecode)
+  
+  dminames.forEach(name => 
+    child.exec(`dmidecode -s ${name}`, (err, stdout) => 
+      end(!err && stdout.length && 
+        (dmidecode[camelCase(name)] = stdout.toString().split('\n')[0].trim()))))
+}
+
+// return undefined for barcelona
+const dmiDecodeAsync = async () => {
+  try {
+    await fs.statAsync('/proc/BOARD_io')
+    return
+  } catch (e) {}
+
+  return await Promise.promisify(dmiDecode)()
+}
+
+// return null if not in production deployment
+const probeReleaseAsync = async () => {
+
+  if (process.cwd() === '/wisnuc/appifi') {
+    try {
+      return JSON.parse(await fs.readFileAsync('/wisnuc/appifi/.release.json'))
+    } catch(e) {}
+  }
+  return null
+}
+
+// return null if not in production deployment
+const probeRevisionAsync = async () => {
+
+  if (process.cwd() === '/wisnuc/appifi') {
+    try {
+      return (await fs.readFileAsync('/wisnuc/appifi/.revision')).toString().trim()
+    } catch (e) {}
+  }
+  return null
+}
+
+let system = null
+
+let promises = [ 
+  probeProcAsync('cpuinfo', true),
+  probeProcAsync('meminfo', false),
+  probeWS215iAsync(),
+  dmiDecodeAsync(),
+  probeReleaseAsync(),
+  probeRevisionAsync() 
+]
+
+Promise
+  .all(promises)
+  .then(arr => {
+
+    system = {
+      cpuInfo: arr[0],
+      memInfo: arr[1],
+      ws215i: arr[2],
+      dmidecode: arr[3],
+      release: arr[4],
+      commit: arr[5]  // for historical reason, this is named commit
+    }
+
+    broadcast.emit('SystemUpdate', null, system)
+  })
+
+/**
+Returns system information
+```
+// example TODO
+```
+*/
+module.exports = () => system
+

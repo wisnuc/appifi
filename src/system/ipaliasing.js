@@ -11,10 +11,36 @@ const Config = require('./config')
 @requires Config
 */
 
-// ip addr add ${ipaddr}/24 dev ${dev} label ${dev}:wisnuc
-// ip addr del ${ipaddr}/24 dev ${dev}:wisnuc
+// ip addr add ${ipaddr}/24 dev ${dev} label ${dev}:app
+// ip addr del ${ipaddr}/24 dev ${dev}:app
 
 const K = x => y => x
+
+const interfaces = () => {
+
+  let obj = os.networkInterfaces()
+  return Object
+    .keys(obj)
+    .reduce((arr, key) => [...arr, { dev: key, addresses: obj[key] }], [])
+}
+
+const aliases = () => {
+
+  let obj = os.networkInterfaces()
+  let aliasKeys = Object
+    .keys(obj)
+    .reduce((aliases, key, idx, keys) => {
+
+      if (!key.endsWith(':app') || key === ':app') return aliases
+
+      let orig = key.slice(0, -4)  
+      if (!keys.includes(orig)) return aliases
+
+      let alias = {
+        dev: 
+      }
+    })
+}
 
 const parseAliasing = (net) => 
   Object.keys(net).reduce((prev, curr, idx, arr) => 

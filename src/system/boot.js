@@ -12,7 +12,7 @@ const broadcast = require('../common/broadcast')
 
 const Config = require('./config')
 const Storage = require('./storage')
-
+const User = require('../fruitmix/models/user')
 const fruitmix = require('./boot/fruitmix')
 const samba = require('./boot/samba')
 
@@ -24,6 +24,45 @@ const bootableFsTypes = ['btrfs']
 
 @module Boot
 */
+
+/**
+
+  this module should not change anything on file system
+
+  { status: 'EFAIL' } operation error
+  { status: 'ENOENT' or 'ENOTDIR' } fruitmix not found
+  { status: 'EDATA' } fruitmix installed but user data not found or cannot be parsed
+  { status: 'READY', users: [...] } empty users are possible
+
+**/
+const probeAsync = async mountpoint => {
+
+  let froot = path.join(mountpoint, 'wisnuc', 'fruitmix')
+
+  // test fruitmix dir
+  try {
+    await fs.readdirAsync(froot)
+  }
+  catch (e) {
+
+    if (e.code !== 'ENOENT' && e.code !== 'ENODIR') 
+      e.code = 'EFAIL'
+    throw e
+  }
+
+  // retrieve users
+  try {
+    let json = await fs.readFile(path.join(froot, 'models', 'users.json'))
+    let data = JSON.parse(json) 
+  }
+  catch (e) {
+
+    if (e.code === 'ENOENT' || e.code === 'EISDIR' || e instanceof SyntaxError)
+      e.code = 'EDATA'
+
+    throw e
+  }
+}
 
 // extract file systems out of storage object
 const extractFileSystems = ({blocks, volumes}) =>
@@ -93,20 +132,23 @@ module.exports = new class {
 
   constructor() {
 
-    this.data = null
-    this.fruitmix = null
-    this.samba = null
+    this.state = 'starting'
 
-    broadcast.on('ConfigUpdate', config => this.config = config)
-    broadcast.on('StorageUpdate', storage => this.storage = storage)
+    this.error = null
+
+    this.currentFileSystem = null
 
     broadcast
       .until('ConfigUpdate', 'StorageUpdate')
-      .then(() => {
-        this.initAsync()
-          .then(x => x)
-          .catch(e => console.log(e))
-      })
+      .then(() => this.initAsync()
+        .then(() => {})
+        .catch(e => {
+
+          this.state = 'failed',
+          this.error = e.message
+          this.currentFileSystem = null
+
+        }))
   }
 
   boot(cfs) {
@@ -133,8 +175,10 @@ module.exports = new class {
 
       if (fsys) {
         try {
+
           assertFileSystemGood(fsys)
           assertReadyToBoot(fsys.wisnuc)
+
           this.boot(cfs(fsys))
         }
         catch (e) {

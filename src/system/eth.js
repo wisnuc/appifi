@@ -231,6 +231,3 @@ module.exports = async () => ({
   sysfs: await enumerateNetworkInterfacesAsync()
 })
 
-// module.exports().then(r => console.log(JSON.stringify(r, null, '  ')))
-
-

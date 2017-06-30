@@ -1,5 +1,5 @@
 const child = require('child_process')
-const UUID = require('node-uuid')
+const UUID = require('uuid')
 
 /**
 This module is responsible for parsing command line arguments and set developer settings accordingly
@@ -19,7 +19,7 @@ process.argv.forEach((val, index, array) => {
     console.log('fake bootsrap advertising')
     setting.fakeBootstrap = true
     child.exec(`avahi-set-host-name ${hostname}`)    
-    child.spawn('avahi-publish-service', ['fakeBootstrap', '_http._tcp', 3002], { stdio: 'ignore' })
+    child.spawn('avahi-publish-service', ['fakeBootstrap', '_http._tcp', 3000], { stdio: 'ignore' })
   }
 })
 

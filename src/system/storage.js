@@ -2,13 +2,14 @@ const Promise = require('bluebird')
 const path = require('path')
 const fs = Promise.promisifyAll(require('fs'))
 const child = Promise.promisifyAll(require('child_process'))
+
 const mkdirp = require('mkdirp')
 const rimraf = require('rimraf')
-const UUID = require('uuid')
-const deepFreeze = require('deep-freeze')
-
 const mkdirpAsync = Promise.promisify(mkdirp)
 const rimrafAsync = Promise.promisify(rimraf)
+
+const UUID = require('uuid')
+const deepFreeze = require('deep-freeze')
 
 const udevInfoAsync = require('./storage/udevInfoAsync')
 const probeMountsAsync = require('./storage/procMountsAsync')
@@ -17,8 +18,8 @@ const probeVolumesAsync = require('./storage/btrfsfishowAsync')
 const probeUsageAsync = require('./storage/btrfsusageAsync')
 
 const broadcast = require('../common/broadcast')
-const createPersistenceAsync = require('../common/persistence')
 const debug = require('debug')('system:storage')
+
 
 /**
 
