@@ -213,7 +213,7 @@ class Repo {
     digest = hash.digest().toString('hex')
 
     // await mkdirpAsync(this.docDir)
-
+    tmppath = path.join(this.tmpDir, digest)
     filepath = path.join(this.docDir, digest)
     try {
       let stats = await fs.lstatAsync(filepath)
@@ -269,6 +269,7 @@ class Repo {
       .filter(treeEntry => !!treeEntry)
 
     treeEntries = treeEntries.sort((a, b) => a[1].localeCompare(b[1]))
+    // validateTree(treeEntries)
     return await this.storeObjectAsync(treeEntries)
   }
  

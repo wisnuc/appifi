@@ -71,7 +71,7 @@ router.post('/', auth, (req, res, next) => {
 })
 
 router.get('/:boxUUID', auth, (req, res) => {
-  const boxUUID = req.params.boxUUID
+  let boxUUID = req.params.boxUUID
 
   let box = Box.map.get(boxUUID)
   if(!box) return res.status(404).end()
@@ -89,7 +89,7 @@ router.patch('/:boxUUID', auth, (req, res, next) => {
 
   if(!req.user) return res.status(403).end()
 
-  const boxUUID = req.params.boxUUID
+  let boxUUID = req.params.boxUUID
 
   let box = Box.map.get(boxUUID)
   if(!box) return res.status(404).end()
@@ -102,13 +102,34 @@ router.patch('/:boxUUID', auth, (req, res, next) => {
 router.delete('/:boxUUID', auth, (req, res, next) => {
   if(!req.user) return res.status(403).end()
 
-  const boxUUID = req.params.boxUUID
+  let boxUUID = req.params.boxUUID
 
   let box = Box.map.get(boxUUID)
   if(!box) return res.status(404).end()
   if(box.owner !== req.user.unionId) return res.status(403).end()
   Box.deleteBoxAsync(boxUUID)
     .then(() => res.status(200).end())
+    .catch(next)
+})
+
+router.get('/:boxUUID/branches', auth, (req, res) => {
+  let boxUUID = req.params.boxUUID
+  let box = Box.map.get(boxUUID)
+  if(!box) return res.status(404).end()
+
+
+
+  res.status(200).end()
+})
+
+router.post('/:boxUUID/branches', auth, (req, res, next) => {
+  let boxUUID = req.params.boxUUID
+  let box = Box.map.get(boxUUID)
+  if(!box) return res.status(404).end()
+
+  let props = req.body
+  box.createBranchAsync(boxUUID, props)
+    .then(branch => res.status(200).end(branch))
     .catch(next)
 })
 

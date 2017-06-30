@@ -28,8 +28,60 @@ const complement = (a, b) =>
               pull/push //
 */
 
-
 class Box {
+  constructor(dir, tmpDir, doc) {
+    this.dir = dir
+    this.tmpDir = tmpDir
+    this.doc = doc
+    this.branchMap = new Map()
+  }
+
+  async createBranchAsync(props) {
+    let branch = {
+      uuid: UUID.v4(),
+      name: props.name,
+      head: props.head
+    }
+
+    let targetDir = path.join(this.dir, this.doc.uuid, 'branches')
+    await mkdirpAsync(targetDir)
+    let targetPath = path.join(targetDir, props.name)
+    await saveObjectAsync(targetPath, this.tmpDir, branch)
+    return branch
+  }
+
+  async listBranchesAsync() {
+    let target = path.join(this.dir, this.doc.uuid, 'branches')
+
+
+  }
+
+    /**
+   * create a commit
+   * 
+   * @param {Object} props 
+   * @param {string} props.tree - hash string
+   * @param {array} props.parent - parent commit
+   * @param {string} props.user - user unionId
+   * @param {string} props.comment - comment for the commit
+   * @return {string} hash
+   */
+  async createCommitAsync(props) {
+    let commit = {
+      tree: props.tree,
+      parent: props.parent,
+      user: props.user,
+      ctime: new Date().getTime(),
+      comment: props.comment
+    }
+
+    return await this.storeObjectAsync(commit)
+  }
+
+}
+
+
+class BoxData {
 
   constructor() {
 
@@ -106,18 +158,19 @@ class Box {
     // move to boxes dir
 
     let tmpDir = await fs.mkdtempAsync(path.join(this.tmpDir, 'tmp'))
-    let box = {
+    let doc = {
       uuid: UUID.v4(),
       name: props.name,
       owner: props.owner,
-      users: props.users,
+      users: props.users
     }  
 
     // FIXME refactor saveObject to avoid rename twice
-    await saveObjectAsync(path.join(tmpDir, 'manifest'), this.tmpDir, box)
-    await fs.renameAsync(tmpDir, path.join(this.dir, box.uuid))
+    await saveObjectAsync(path.join(tmpDir, 'manifest'), this.tmpDir, doc)
+    await fs.renameAsync(tmpDir, path.join(this.dir, doc.uuid))
+    let box = new Box(path.join(this.dir, doc.uuid), this.tmpDir, doc)
 
-    this.map.set(box.uuid, box)
+    this.map.set(doc.uuid, box)
     return box
   }
 
@@ -130,7 +183,7 @@ class Box {
  */
   async updateBoxAsync(props, box) {
     let op
-    let { name, users } = box
+    let { name, users } = box.doc
 
     op = props.find(op => (op.path === 'name' && op.operation === 'update'))
     if(op) name = op.value
@@ -141,19 +194,21 @@ class Box {
     op = props.find(op => (op.path === 'users' && op.operation === 'delete'))
     if(op) users = complement(users, op.value)
 
-    if(name === box.name && users === box.users) return box
+    if(name === box.doc.name && users === box.doc.users) return box
 
-    let newBox = {
+    let newDoc = {
       uuid: box.uuid,
       name,
       owner: box.owner,
       users
     }
 
-    await saveObjectAsync(path.join(this.dir, box.uuid, 'manifest'), this.tmpDir, newBox)
+    await saveObjectAsync(path.join(this.dir, box.doc.uuid, 'manifest'), this.tmpDir, newDoc)
     
-    this.map.set(box.uuid, newBox)
-    return newBox
+    box.doc = newDoc
+    this.map.set(box.doc.uuid, box)
+
+    return box
   }
 
 /**
