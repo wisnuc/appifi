@@ -1,14 +1,16 @@
 const Promise = require('bluebird')
 const path = require('path')
-const fs = Promise.promisifyAll(require('fs'))
+// const fs = Promise.promisifyAll(require('fs'))
 const child = Promise.promisifyAll(require('child_process'))
 
 const mkdirp = require('mkdirp')
-const rimraf = require('rimraf')
-const mkdirpAsync = Promise.promisify(mkdirp)
-const rimrafAsync = Promise.promisify(rimraf)
+// const rimraf = require('rimraf')
 
-const UUID = require('uuid')
+const mkdirpAsync = Promise.promisify(mkdirp)
+// const rimrafAsync = Promise.promisify(rimraf)
+
+const debug = require('debug')('system:storage')
+// const UUID = require('uuid')
 const deepFreeze = require('deep-freeze')
 
 const udevInfoAsync = require('./storage/udevInfoAsync')
@@ -18,37 +20,84 @@ const probeVolumesAsync = require('./storage/btrfsfishowAsync')
 const probeUsageAsync = require('./storage/btrfsusageAsync')
 
 const broadcast = require('../common/broadcast')
-const debug = require('debug')('system:storage')
-
 
 /**
+Storage module probes all storage devices and annotates extra information, including:
 
++ ports (ata only for now)
++ blocks, all linux block devices
++ volumes, all btrfs volumes
++ formattable, whether this device can be formatted
++ wisnuc station information on devices.
+
+A full probe including the following steps:
+
+1. probe raw ports, blocks, volumes, mounts, and swaps
+2. mount all file systems. If there is error, error information is annotated on file system.
+  1. mount all btrfs volumes. Volumes with missing devices are mounted with `degraded,ro` option.
+  2. mount all block devices, including both standalone file system and partitions.
+    1. usb disk or partitions are mounted using `udisksctl` command.
+    2. non-usb disk or partitions are mounted using `mount` command.
+3. probe mounts again
+4. probe btrfs usage
+5. merge all results into a single storage object (raw)
+6. annotate all volumes and blocks, if blocks is unformmatble, the reason is annotated.
+7. extract a pretty version
+8. all file systems are extracted
+9. btrfs volumes are probed for wisnuc installation status.
+
+This final version is stored as storage. It is freezed.
+
+raw data are not defined as type in this document. Final version are defined in detail.
 
 @module Storage
 */
 
-const volumeMountpoint = vol => '/run/wisnuc/volumes/' + vol.uuid
-const blockMountpoint = blk => '/run/wisnuc/blocks/' + blk.name
+/**
+Returns volume mountpoint. This is where it should mount, not where it is actually mounted.
 
-// probe ports
+@param {RawVolume} vol - raw volume object
+@returns {string} Absolute path of mountpoint
+*/
+const volumeMountpoint = vol => `/run/wisnuc/volumes/${vol.uuid}`
+
+/**
+Returns block device mountpoint. This is where is should mount, not where it is actually mounted.
+@returns {string} Absolute path of mountpoint
+*/
+const blockMountpoint = blk => `/run/wisnuc/blocks/${blk.name}`
+
+/**
+Probe ports
+@returns raw ports
+*/
 const probePorts = async () => udevInfoAsync((
   await child.execAsync('find /sys/class/ata_port -type l'))
     .toString().split('\n').map(l => l.trim()).filter(l => l.length))
 
-// probe blocks
+/**
+Probe blocks
+@returns raw blocks
+*/
 const probeBlocks = async () => udevInfoAsync((
   await child.execAsync('find /sys/class/block -type l'))
     .toString().split('\n').map(l => l.trim()).filter(l => l.length)
     .filter(l => l.startsWith('/sys/class/block/sd')))
 
-// probe ports, blocks, volumes, mounts, and swaps
+/**
+Probe raw ports, blocks, volumes, mounts, and swaps
+@returns raw storage object without usages
+*/
 const probeStorage = async () => {
-
-  let result = await Promise.all([
-    probePorts(), probeBlocks(), probeVolumesAsync(), probeMountsAsync(), probeSwapsAsync()
+  const result = await Promise.all([
+    probePorts(),
+    probeBlocks(),
+    probeVolumesAsync(),
+    probeMountsAsync(),
+    probeSwapsAsync()
   ])
 
-  let storage = {
+  const storage = {
     ports: result[0],
     blocks: result[1],
     volumes: result[2],
@@ -63,76 +112,78 @@ const probeStorage = async () => {
 /**
  * Find out the mount for given volume, return mount object or undefined
  */
-const volumeMount = (volume, mounts) => mounts.find(mnt => volume.devices.find(dev => dev.path === mnt.device))
+const volumeMount = (volume, mounts) =>
+  mounts.find(mnt => volume.devices.find(dev => dev.path === mnt.device))
 
 /**
  * Find out the volume the given block device belongs to, return volume or undefined
  */
-const blockVolume = (block, volumes) => volumes.find(vol => vol.devices.find(dev => dev.path === block.props.devname))
+const blockVolume = (block, volumes) =>
+  volumes.find(vol => vol.devices.find(dev => dev.path === block.props.devname))
 
 /**
  * a callback for two mount functions
  */
 const stampMountError = (inspection, item) => {
-  if (inspection.isFulfilled())
+  if (inspection.isFulfilled()) {
     item.mountError = null
-  else if (inspection.isRejected()) {
+  } else if (inspection.isRejected()) {
+    // TODO
     console.log('[storage] failed to mount volume or block: ', item)
     item.mountError = inspection.reason().message
-  }
-  else {
+  } else {
+    // TODO
     console.log('[storage] unexpected inspection which is neither fulfilled or rejected for volume or block: ', item)
     item.mountError = 'neither fulfilled nor rejected'
   }
 }
 
 /**
- * mount single volume, with opts
- */
+Mount single volume, with opts
+*/
 const mountVolumeAsync = async (uuid, mountpoint, opts) => {
-
   await mkdirpAsync(mountpoint)
 
-  let cmd = opts ? 
-    `mount -t btrfs -o ${opts} UUID=${uuid} ${mountpoint}` : 
-    `mount -t btrfs UUID=${uuid} ${mountpoint}`
+  const cmd = opts
+    ? `mount -t btrfs -o ${opts} UUID=${uuid} ${mountpoint}`
+    : `mount -t btrfs UUID=${uuid} ${mountpoint}`
 
-  await child.execAsync(cmd) 
+  await child.execAsync(cmd)
 }
 
 /**
- * try to mount all volumes not mounted yet
- */
+Mount all volumes not mounted yet.
+Volumes with missing devices are mounted with `degrade,ro` option.
+*/
 const mountVolumesAsync = async (volumes, mounts) => {
+  const unmounted = volumes.filter(vol => volumeMount(vol, mounts) === undefined)
 
-  let unmounted = volumes.filter(vol => volumeMount(vol, mounts) === undefined)
+  debug('mounting volumes', unmounted)
 
-  console.log('[storage] mounting volumes', unmounted)
-
-  return Promise
-    .map(unmounted, vol => mountVolumeAsync(vol.uuid, volumeMountpoint(vol), vol.missing ? 'degraded,ro' : null).reflect())
-    .each((inspection, index) => {
-      stampMountError(inspection, unmounted[index]) 
-    })
+  return Promise.all(unmounted.map(async (vol) => {
+    try {
+      mountVolumeAsync(vol.uuid, volumeMountpoint(vol), vol.missing ? 'degraded,ro' : null)
+    } catch (e) {
+      vol.mountError = e.message
+    }
+  }))
 }
 
 /**
- * try to mount all blocks with supported file systems that not mounted yet
- */
+Try to mount all blocks with supported file systems that not mounted yet.
+*/
 const mountNonVolumesAsync = async (blocks, mounts) => {
-
   const mountNonUSB = async (blk) => {
-
     const dir = blockMountpoint(blk)
     await mkdirpAsync(dir)
     await child.execAsync(`mount ${blk.props.devname} ${dir}`)
   }
 
   // only for known file system type on standalone disk or partition, whitelist policy
-  let unmounted = blocks.filter(blk => {
-
+  const unmounted = blocks.filter((blk) => {
     // if blk is disk
-    //   blk is fs (and no partition table) && fs type is (ext4 or ntfs or vfat) && blk is not mounted
+    //   blk is fs (and no partition table)
+    //     && fs type is (ext4 or ntfs or vfat) && blk is not mounted
     // if block is partition
     //   blk is fs && fs type is (ext4 or ntfs or vfat) && blk is not mounted
     if ((blk.props.devtype === 'disk' && !blk.props.id_part_table_type) || blk.props.devtype === 'partition') {
@@ -144,14 +195,12 @@ const mountNonVolumesAsync = async (blocks, mounts) => {
     }
   })
 
-  console.log('[storage] mounting blocks', unmounted)
+  debug('mounting blocks', unmounted)
 
   return Promise
-    .map(unmounted, blk => {
-      if (blk.props.id_bus === 'usb')
-        return child.execAsync(`udisksctl mount --block-device ${blk.props.devname} --no-user-interaction`).reflect()
-      else
-        return mountNonUSB(blk).reflect()
+    .map(unmounted, (blk) => {
+      if (blk.props.id_bus === 'usb') { return child.execAsync(`udisksctl mount --block-device ${blk.props.devname} --no-user-interaction`).reflect() }
+      return mountNonUSB(blk).reflect()
     })
     .each((inspection, index) => {
       stampMountError(inspection, unmounted[index])
@@ -159,35 +208,33 @@ const mountNonVolumesAsync = async (blocks, mounts) => {
 }
 
 /**
- * probe btrfs volume usages
- */
-const probeUsages = async mounts => {
-
-  let filtered = mounts.filter(mnt => mnt.fs_type === 'btrfs' && 
+Probe btrfs volume usages
+*/
+const probeUsages = async (mounts) => {
+  const filtered = mounts.filter(mnt => mnt.fs_type === 'btrfs' &&
     mnt.mountpoint.startsWith('/run/wisnuc/volumes/') && !mnt.mountpoint.endsWith('/graph/btrfs'))
-  return await Promise.all(filtered.map(mnt => probeUsageAsync(mnt.mountpoint)))
+  return Promise.all(filtered.map(mnt => probeUsageAsync(mnt.mountpoint)))
 }
 
 /**
  * probe (expect usages), mount, reprobe mount, then probe usages, all result merged
- */ 
+ */
 const probeStorageWithUsages = async () => {
+  const storage = await probeStorage()
 
-  let storage = await probeStorage()
+  await mountVolumesAsync(storage.volumes, storage.mounts)
+  await mountNonVolumesAsync(storage.blocks, storage.mounts)
 
-  await mountVolumesAsync(storage.volumes, storage.mounts),
-  await mountNonVolumesAsync(storage.blocks, storage.mounts) 
-
-  let mounts = await probeMountsAsync()
+  const mounts = await probeMountsAsync()
 
   await Promise.delay(100)
 
-  let usages = await probeUsages(mounts)
+  const usages = await probeUsages(mounts)
   return Object.assign({}, storage, { mounts, usages })
 }
 
 // a block obj may be:
-// 
+//
 // 1 isDisk
 //   1.1 isFileSystem
 //     1.1.1 isBtrfsDevice
@@ -195,105 +242,93 @@ const probeStorageWithUsages = async () => {
 //     partitionTableType
 // 2 isPartition
 //   2.1 isExtended
-//     2.1.1 (isExtended=false) fileSystemType 
+//     2.1.1 (isExtended=false) fileSystemType
 //   2.2 parent
 // 3 isMounted
 // 4 isRootFS (for partition, is rootfs partition, for disk && btrfs device, is rootfs volume)
-// 5 isSwap 
+// 5 isSwap
 
-const statFsUsageDefined = blk => {
-
+const statFsUsageDefined = (blk) => {
   blk.stats.fsUsageDefined = true
   blk.stats.idFsUsage = blk.props.id_fs_usage
   blk.stats.fileSystemType = blk.props.id_fs_type
   blk.stats.fileSystemUUID = blk.props.id_fs_uuid
 
   if (blk.props.id_fs_usage === 'filesystem') { // used as file system
-
     blk.stats.isFileSystem = true
     switch (blk.props.id_fs_type) {
-    case 'btrfs':
-      blk.stats.isVolumeDevice = true
-      blk.stats.isBtrfs = true
-      blk.stats.btrfsVolume = blk.props.id_fs_uuid
-      blk.stats.btrfsDevice = blk.props.id_fs_uuid_sub
-      break
-    case 'ext4':
-      blk.stats.isExt4 = true
-      break
-    case 'ntfs':
-      blk.stats.isNtfs = true
-      break
-    case 'vfat':
-      blk.stats.isVfat = true
-      break
-    default:
-      break
-    } 
-  }
-  else if (blk.props.id_fs_usage === 'other') {
-
+      case 'btrfs':
+        blk.stats.isVolumeDevice = true
+        blk.stats.isBtrfs = true
+        blk.stats.btrfsVolume = blk.props.id_fs_uuid
+        blk.stats.btrfsDevice = blk.props.id_fs_uuid_sub
+        break
+      case 'ext4':
+        blk.stats.isExt4 = true
+        break
+      case 'ntfs':
+        blk.stats.isNtfs = true
+        break
+      case 'vfat':
+        blk.stats.isVfat = true
+        break
+      default:
+        break
+    }
+  } else if (blk.props.id_fs_usage === 'other') {
     blk.stats.isOtherFileSystem = true
     if (blk.props.id_fs_type === 'swap') { // is swap disk
       blk.stats.isLinuxSwap = true
     }
-  }
-  else if (blk.props.id_fs_usage === 'raid') {
+  } else if (blk.props.id_fs_usage === 'raid') {
     blk.stats.isRaidFileSystem = true
-  }
-  else if (blk.props.id_fs_usage === 'crypto') {
+  } else if (blk.props.id_fs_usage === 'crypto') {
     blk.stats.isCryptoFileSystem = true
-  }
-  else {
+  } else {
     blk.stats.isUnsupportedFsUsage = true
   }
 }
 
-
 // stat props (including hardware info)
 // stat parentName
-const statBlocksStatic = blocks => 
+const statBlocksStatic = blocks =>
   blocks.forEach((blk, idx, arr) => {
-    if (blk.props.devtype === 'disk') { // start of device is disk
-
+    if (blk.props.devtype === 'disk') {
+      // start of device is disk
       blk.stats.isDisk = true
       blk.stats.model = blk.props.id_model
       blk.stats.serial = blk.props.id_serial_short
 
       // id_part_table_type override id_fs_usage, to fix #16
-      if (blk.props.id_part_table_type) { // is partitioned disk
+      if (blk.props.id_part_table_type) {
+        // is partitioned disk
         blk.stats.isPartitioned = true
         blk.stats.partitionTableType = blk.props.id_part_table_type
         blk.stats.partitionTableUUID = blk.props.id_part_table_uuid
-      }
-      else if (blk.props.id_fs_usage) // id_fs_usage defined
+      } else if (blk.props.id_fs_usage) {
+        // id_fs_usage defined
         statFsUsageDefined(blk)
-    }
-    else if (blk.props.devtype === 'partition') { // is partitioned
-
+      }
+    } else if (blk.props.devtype === 'partition') {
+      // is partitioned
       // we dont know if the partition is whether formatted or not TODO
       blk.stats.isPartition = true
-      if (blk.props.id_fs_usage) 
+      if (blk.props.id_fs_usage) {
         statFsUsageDefined(blk)
-      else if (blk.props.id_part_entry_type === '0x5')
+      } else if (blk.props.id_part_entry_type === '0x5') {
         blk.stats.isExtended = true
+      }
 
-      let parent = arr.find(b => b.path === path.dirname(blk.path))
-      if (parent) 
-        blk.stats.parentName = parent.name
+      const parent = arr.find(b => b.path === path.dirname(blk.path))
+      if (parent) { blk.stats.parentName = parent.name }
     }
   })
 
 // easy job, append idBus
-const statBlocksBus = blocks => 
-  blocks.forEach(blk => {
+const statBlocksBus = blocks =>
+  blocks.forEach((blk) => {
     blk.stats.idBus = blk.props.id_bus
-    if (blk.props.id_bus === 'usb')
-      blk.stats.isUSB = true
-    else if (blk.props.id_bus === 'ata')
-      blk.stats.isATA = true
-    else if (blk.props.id_bus === 'scsi')
-      blk.stats.isSCSI = true
+    if (blk.props.id_bus === 'usb') { blk.stats.isUSB = true } else if (blk.props.id_bus === 'ata') { blk.stats.isATA = true } else if (blk.props.id_bus === 'scsi') { blk.stats.isSCSI = true }
   })
 
 /**
@@ -304,36 +339,32 @@ const statBlocksBus = blocks =>
  * for volume device, such info is copied from corresponding volume
  */
 const statBlocksMountSwap = (blocks, volumes, mounts, swaps) =>
-  blocks.forEach(blk => {
-
+  blocks.forEach((blk) => {
     if (blk.stats.isVolumeDevice) {
-      let volume = blockVolume(blk, volumes)
+      const volume = blockVolume(blk, volumes)
       if (volume && volume.stats.isMounted) {
         blk.stats.isMounted = true
         blk.stats.mountpoint = volume.stats.mountpoint
-        if (volume.stats.isRootFS)
-          blk.stats.isRootFS = true
+        if (volume.stats.isRootFS) { blk.stats.isRootFS = true }
       }
-    }
-    else if (blk.stats.isFileSystem) {
-      // it doesn't matter if this is a disk or a partition, as long as it has 
+    } else if (blk.stats.isFileSystem) {
+      // it doesn't matter if this is a disk or a partition, as long as it has
       // id_fs_usage === filesystem
-      let mount = mounts.find(mnt => mnt.device === blk.props.devname)
+      const mount = mounts.find(mnt => mnt.device === blk.props.devname)
       if (mount) {
         blk.stats.isMounted = true
         blk.stats.mountpoint = mount.mountpoint
-        if (mount.mountpoint === '/')
-          blk.stats.isRootFS = true
-      } 
-    }
-    else if (blk.stats.isLinuxSwap) {
-      let swap = swaps.find(swap => swap.filename === blk.props.devname)
+        if (mount.mountpoint === '/') { blk.stats.isRootFS = true }
+      }
+    } else if (blk.stats.isLinuxSwap) {
+      const swap = swaps.find(swap => swap.filename === blk.props.devname)
       if (swap) blk.stats.isActiveSwap = true
     }
   })
 
 //
-// formattable is a concept applicable only for blocks, either disk or partition (including non-formatted)
+// formattable is a concept applicable only for blocks,
+// either disk or partition (including non-formatted)
 // extended partition is not formattable
 // for partitioned disk
 //   containing partitions that either isRootFS or isActiveSwap is unformattable
@@ -342,25 +373,24 @@ const statBlocksMountSwap = (blocks, volumes, mounts, swaps) =>
 //   isExtended, or isRootFS, or isActiveSwap is unformattable
 //
 // the following code is not used, but it is a good reference for checking logic
-const unformattable = (block, blocks) => 
-  (block.stats.isDisk && blocks.stats.isPartitioned) 
-    ?  blocks
+const unformattable = (block, blocks) =>
+  (block.stats.isDisk && blocks.stats.isPartitioned)
+    ? blocks
         .filter(blk => blk.stats.parentName === block.name && !blk.stats.isExtended)
-        .some(blk => unformattable(blk)) 
-    : (block.stats.isRootFS || block.stats.isActiveSwap) // for volume device, isRootFS is copied from volume
+        .some(blk => unformattable(blk))
+    // for volume device, isRootFS is copied from volume
+    : (block.stats.isRootFS || block.stats.isActiveSwap)
 
 // exactly the same logic with above
 // returns non-empty array or single object containing name and reason
 const unformattableReason = (block, blocks) => {
-  
   if (block.stats.isDisk && block.stats.isPartitioned) {
-    let reasons = blocks
+    const reasons = blocks
       .filter(blk => blk.stats.parentName === block.name && !blk.stats.isExtended)
       .map(blk => unformattableReason(blk, blocks))
       .filter(r => !!r)
     if (reasons.length) return reasons // return array
-  }
-  else if (block.stats.isRootFS || block.stats.isActiveSwap) {
+  } else if (block.stats.isRootFS || block.stats.isActiveSwap) {
     // return object
     return {
       name: block.name,
@@ -370,31 +400,29 @@ const unformattableReason = (block, blocks) => {
   return null
 }
 
-
 /**
  * volumes must be stated first.
  */
-const statBlocks = ({blocks, volumes, mounts, swaps}) => {
-
-  blocks.forEach(blk => blk.stats = {})
-  statBlocksStatic(blocks) 
+const statBlocks = ({ blocks, volumes, mounts, swaps }) => {
+  blocks.forEach((blk) => {
+    blk.stats = {}
+  })
+  statBlocksStatic(blocks)
   statBlocksBus(blocks)
   statBlocksMountSwap(blocks, volumes, mounts, swaps)
- 
-  // stat unformattable reason 
-  blocks.forEach(blk => {
-    let reason = unformattableReason(blk, blocks)
+
+  // stat unformattable reason
+  blocks.forEach((blk) => {
+    const reason = unformattableReason(blk, blocks)
     if (reason) blk.stats.unformattable = reason
   })
 }
 
-
 // duplicate minimal information
-const statVolumes = (volumes, mounts) => 
-  volumes.forEach(vol => {
-
+const statVolumes = (volumes, mounts) =>
+  volumes.forEach((vol) => {
     // volume must keep file system info since it may be used as file system object
-    vol.stats = { 
+    vol.stats = {
       isVolume: true,
       isMissing: vol.missing,
       isFileSystem: true,
@@ -403,64 +431,59 @@ const statVolumes = (volumes, mounts) =>
       fileSystemUUID: vol.uuid
     }
 
-    let mount = volumeMount(vol, mounts)
+    const mount = volumeMount(vol, mounts)
     if (mount) {
       vol.stats.isMounted = true
       vol.stats.mountpoint = mount.mountpoint
-      if (mount.mountpoint === '/')
-        vol.stats.isRootFS = true
+      if (mount.mountpoint === '/') { vol.stats.isRootFS = true }
     }
   })
 
 // extract file systems out of storage object
-const extractFileSystems = ({blocks, volumes}) =>
-  [ ...blocks.filter(blk => blk.isFileSystem && !blk.isVolumeDevice),
-    ...volumes.filter(vol => vol.isFileSystem) ]
+/**
+const extractFileSystems = ({ blocks, volumes }) =>
+  [...blocks.filter(blk => blk.isFileSystem && !blk.isVolumeDevice),
+    ...volumes.filter(vol => vol.isFileSystem)]
+**/
 
-const prettyStorage = storage => {
-
+const prettyStorage = (storage) => {
   // adapt ports
-  let ports = storage.ports.map(port => ({
+  const ports = storage.ports.map(port => ({
     path: port.path,
     subsystem: port.props.subsystem
   }))
 
   // add name, devname, path, removable and size, merged into stats
-  let blocks 
-  blocks = storage.blocks.map(blk => Object.assign({
+  const blocks = storage.blocks.map(blk => Object.assign({
     name: blk.name,
     devname: blk.props.devname,
     path: blk.path,
-    removable: blk.sysfsProps[0].attrs.removable === "1",
-    size: parseInt(blk.sysfsProps[0].attrs.size)
+    removable: blk.sysfsProps[0].attrs.removable === '1',
+    size: parseInt(blk.sysfsProps[0].attrs.size, 10)
   }, blk.stats))
 
   // process volumes
-  let volumes = storage.volumes.map(vol => { 
-
+  const volumes = storage.volumes.map((vol) => {
     // find usage for this volume
-    let usage = storage.usages.find(usg => usg.mountpoint === vol.stats.mountpoint)
+    const usage = storage.usages.find(usg => usg.mountpoint === vol.stats.mountpoint)
 
     // this is possible if volume mount failed, which is observed on at least one machine
     if (!usage) {
-
-      let mapped = Object.assign({}, vol, vol.stats) // without usage
+      const mapped = Object.assign({}, vol, vol.stats) // without usage
       delete mapped.stats
 
-      mapped.devices = vol.devices.map(dev => {
-        return {
-          name: path.basename(dev.path), // tricky
-          path: dev.path,
-          id: dev.id,
-          used: dev.used,
-        }
-      })
+      mapped.devices = vol.devices.map(dev => ({
+        name: path.basename(dev.path), // tricky
+        path: dev.path,
+        id: dev.id,
+        used: dev.used
+      }))
 
       return mapped
     }
 
     // copy level 1 props
-    let copy = {
+    const copy = {
       overall: usage.overall,
       system: usage.system,
       metadata: usage.metadata,
@@ -469,13 +492,12 @@ const prettyStorage = storage => {
     }
 
     // copy volume object, merge stats and usage
-    let mapped = Object.assign({}, vol, vol.stats, { usage: copy })
+    const mapped = Object.assign({}, vol, vol.stats, { usage: copy })
     delete mapped.stats
 
     // copy level 2 (usage for each volume device) into devices
-    mapped.devices = vol.devices.map(dev => {
-
-      let devUsage = usage.devices.find(ud => ud.name === dev.path)
+    mapped.devices = vol.devices.map((dev) => {
+      const devUsage = usage.devices.find(ud => ud.name === dev.path)
       return {
         name: path.basename(dev.path), // tricky
         path: dev.path,
@@ -488,16 +510,11 @@ const prettyStorage = storage => {
         data: devUsage.data
       }
     })
-    
+
     return mapped
   })
 
-  let fileSystems = [ 
-    ...blocks.filter(blk => blk.isFileSystem && !blk.isVolumeDevice),
-    ...volumes.filter(vol => vol.isFileSystem) 
-  ]
-
-  return { ports, blocks, volumes, fileSystems }
+  return { ports, blocks, volumes }
 }
 
 /**
@@ -513,53 +530,44 @@ const prettyStorage = storage => {
   it is a global object itself, which eliminates the need of another global object as holder.
 
   But all states are held in one object and initAsync method will refresh them all. This
-  enables testability. 
-   
+  enables testability.
+
 **/
+/**
 module.exports = {
 
   persistence: null,
   storage: null,
-  
-  get: function (raw) {
-    if (!this.storage) return null
-    return raw
-			? this.storage
-      : prettyStorage(this.storage)
-  },
 
-  refreshAsync: async function () {
-
-    let storage = await probeStorageWithUsages() 
+  async refreshAsync() {
+    const storage = await probeStorageWithUsages()
     statVolumes(storage.volumes, storage.mounts)
     statBlocks(storage)
 
     this.storage = storage
     deepFreeze(this.storage)
-    
+
     if (this.persistence) this.persistence.save(prettyStorage(storage))
 
     return prettyStorage(this.storage)
   },
 
-  initAsync: async function (fpath, tmpdir) {
-
+  async initAsync(fpath, tmpdir) {
     this.persistence = await createPersistenceAsync(fpath, tmpdir, 500)
     this.storage = null
-  }
+  },
 }
+**/
 
 module.exports = new class {
-
-  constructor() {
-
+  constructor () {
     /**
     Raw probed storage, for debug purpose
     */
     this.storage = null
 
     /**
-    
+
     */
     this.pretty = null
     this.error = null
@@ -575,12 +583,10 @@ module.exports = new class {
     */
     this.working = []
 
-
-    this.probe()  
+    this.probe()
   }
 
-  finish() {
-
+  finish () {
     this.working.forEach(cb => cb(this.error, this.pretty))
     this.working = []
 
@@ -593,11 +599,9 @@ module.exports = new class {
     }
   }
 
-  probe() {
-
+  probe () {
     probeStorageWithUsages()
-      .then(storage => {
-
+      .then((storage) => {
         statVolumes(storage.volumes, storage.mounts)
         statBlocks(storage)
 
@@ -610,14 +614,13 @@ module.exports = new class {
         this.error = null
         this.finish()
       })
-      .catch(e => {
+      .catch((e) => {
         this.error = e
         this.finish()
       })
   }
 
-  refresh(callback) {
-
+  refresh (callback) {
     if (this.working.length) {
       this.pending.push(callback)
       return
@@ -626,21 +629,4 @@ module.exports = new class {
     this.working = [callback]
     this.probe()
   }
-
-  async refreshAsync () {
-
-    return new Promise((resolve, reject) => 
-      this.refresh(err => err ? reject(err) : resolve(this.pretty)))
-  }
-
-  get(raw) {
-    return this.storage === null
-      ? null
-      : raw
-        ? this.storage
-        : prettyStorage(this.storage)
-  } 
-}
-
-
-
+}()
