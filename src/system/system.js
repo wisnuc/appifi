@@ -3,6 +3,8 @@ const path = require('path')
 const fs = require('fs')
 const child = require('child_process')
 
+const router = require('express').Router()
+
 const broadcast = require('../common/broadcast')
 const barcelona = require('./barcelona')
 
@@ -171,11 +173,7 @@ Promise
     broadcast.emit('SystemUpdate', null, system)
   })
 
-/**
-Returns system information
-```
-// example TODO
-```
-*/
-module.exports = () => system
+router.get('/', (req, res) => res.status(200).json(system))
+
+module.exports = router
 

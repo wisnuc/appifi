@@ -1,157 +1,190 @@
-const path = require('path')
-const fs = require('fs')
 const os = require('os')
+const child = require('child_process')
+const router = require('express').Router()
+
+const broadcast = require('../common/broadcast')
+const sysfsNetworkInterfaces = require('./networkInterfaces')
+const Config = require('./config')
 
 /**
-Pure function for retrieving network interfaces information from sys fs
 
-@module networkInterfaces
+
+@requires Broadcast
+@requires Config
+@module Net
+*/
+
+/**
+This data type represents a configuration for a network interface, identified by name.
+
+```
+networkInterfaceConfig {
+  name: 'enp14s0',
+  aliases: [
+    '192.168.5.150/24',
+    '192.168.5.166/24'
+  ]
+}
+```
+
+@typedef {object} networkInterfaceConfig
+@property {string} name - network interface name
+@property {string[]} aliases - array of ipv4 or ipv6 addresses in cidr notation.
+@global
 */
 
 
-const classNetPath ='/sys/class/net'
+/**
 
-const autoInt = (string) => parseInt(string).toString() === string ? parseInt(string) : string
+*/
+let nics = []
 
-const formatFileValue = (value) => {
+/**
+Returns network interfaces, annotated with config.
+*/
+const interfaces = callback => 
+  sysfsNetworkInterfaces((err, _its) => {
+    if (err) return callback(err)
 
-  let arr = value.toString().trim().split('\n')
+    // reformat
+    const its = _its
+      .map(it => ({
+        name: it.name,
+        address: it.address,
+        mtu: it.mtu,
+        speed: it.speed,
+        wireless: !!it.wireless,
+        state: it.operstate,
 
-  // if all have key=value format, return an object
-  if (arr.every(item => (item.match(/=/g) || []).length === 1)) {
-    let object = {}
-    arr.forEach(item => object[item.split('=')[0]] = autoInt(item.split('=')[1]))
-    return object
-  }
+        // for node address
+        ipAddresses: [],
 
-  arr = arr.map(item => autoInt(item))
+        // for config
+        config: null,
+      }))
+      .filter(it => it.state === 'up' || it.state === 'down')
 
-  // otherwise return single string or string array
-  return arr.length === 1 ? arr[0] : arr
-}
+    // annotate ip addresses
+    const obj = os.networkInterfaces()
 
-const objectify = (dirPath, callback) => {
+    Object.keys(obj).forEach((key) => {
+      if (!key.includes(':')) {
+        const it = its.find(i => i.name === key)
+        if (it) it.ipAddresses.push(...obj[key])
+        return
+      }
 
-  let object = {}
-  fs.readdir(dirPath, (err, entries) => {
+      const split = key.split(':')
+      if (split.length !== 2 || split[0].length === 0 || split[1].length === 0) return
 
-    if (err) return callback(err) 
-    if (entries.length === 0) return callback(null, {})
-   
-    let count = entries.length 
-    let stats = []
-    entries.forEach(entry => {
+      const number = parseInt(split[1], 10)
+      if (!Number.isInteger(number) || number < 0 || `${number}` !== split[1]) return
 
-      let entryPath = path.join(dirPath, entry)
-      fs.lstat(entryPath, (err, stat) => {
+      const it = its.find(i => i.name === split[0])
+      if (!it) return
 
-        const finish = () => !--count && callback(null, object)
+      const addrs = obj[key]
+        .filter(addr => addr.family === 'IPv4')
+        .map(addr => Object.assign({ number }, addr))
 
-        if (err) return finish()
-        if (stat.isFile()) 
-          fs.readFile(entryPath, (err, data) => {
-            if (!err) object[entry] = formatFileValue(data)
-            finish()
-          })
-        else if (stat.isSymbolicLink())
+      it.ipAddresses.push(...addrs)
+    })
 
-          fs.readlink(entryPath, (err, linkString) => {
+    // annotate nics
+    nics.forEach((config) => {
+      const it = its.find(i => i.name === config.name)
+      if (it) it.config = config
+    })
 
-            if (err) return finish()
-            if (entry !== 'phy80211') {
-              object[entry] = linkString.toString()
-              return finish()
-            }
+    callback(null, its)
+  })
 
-            objectify(entryPath, (err, obj) => {
 
-              if (err) return finish()
-              object[entry] = obj
-              return finish()
-            }) 
-          })
-        else if (stat.isDirectory())
-          objectify(entryPath, (err, obj) => {
-            if (!err) object[entry] = obj
-            finish()
-          })
-        else
-          finish()
-      })  
+const update = () => interfaces((err, its) => {
+  if (err) return
+  its.forEach(it => {
+    if (it.state !== 'up') return
+
+    // find out the largest number used
+    let num = it.ipAddresses
+      .reduce((curr, { number }) => (number ? Math.max(number, curr) : curr), 0) + 1
+
+    // bring up all aliases not up
+    if (it.config && it.config.aliases) {
+      it.config.aliases.forEach((alias) => {
+        if (it.ipAddresses.find(ipAddr => ipAddr.address === alias.split('/')[0])) return
+
+        child.exec(`ip addr add ${alias} dev ${it.name} label ${it.name}:${num}`)
+        num += 1
+      })
+    }
+
+    // shutdown all aliases not in config
+    it.ipAddresses.forEach((ipAddr) => {
+      if (!ipAddr.number) return
+
+      let aliases = it.config && it.config.aliases
+      if (!aliases || !aliases.find(alias => alias.split('/')[0] === ipAddr.address)) {
+        child.exec(`ip addr del ${ipAddr.address} dev ${it.name}:${ipAddr.number}`)
+      }
     })
   })
-}
-
-const enumerate = callback => fs.readdir('/sys/class/net', (err, entries) => {
-
-  let count
-
-  if (err) return callback(err)
-  if (entries.length === 0) return callback(null, [])
-
-  count = entries.length
-  let links = []
-  entries.forEach(entry => fs.lstat(path.join('/sys/class/net', entry), (err, stat) => {
-
-    if (!err && stat.isSymbolicLink()) links.push(entry)
-    if (!--count) {
-
-      if (links.length === 0) return callback(null, [])
-
-      count = links.length 
-      let nonvirts = []
-      links.forEach(link => fs.readlink(path.join('/sys/class/net', link), (err, linkString) => {
-
-        if (!err && !linkString.startsWith('../../devices/virtual')) nonvirts.push(link)
-        if (!--count) {
-
-          if (nonvirts.length === 0) return callback(null, [])
-
-          count = nonvirts.length 
-          let arr = []
-          nonvirts.forEach(name => objectify(path.join('/sys/class/net', name), (err, object) => {
-
-            if (!err) arr.push(Object.assign({ name }, object))
-            if (!--count) callback(null, arr)
-          }))
-
-        }
-      }))
-    }
-  }))
-}) 
-
-const interfaces = callback => enumerate((err, interfaces) => {
-
-  if (err) return callback(err)
-
-  let its = interfaces.map(it => ({
-    name: it.name,
-    address: it.address,
-    mtu: it.mtu,
-    speed: it.speed, 
-    wireless: !!it.wireless,
-    state: it.operstate
-  }))
-
-  let obj = os.networkInterfaces()
-
-  Object.keys(obj).forEach(key => {
-
-    if (key.endsWith(':app')) {
-
-      let orig = key.slice(0, -4)
-      let it = its.find(i => i.name === orig)
-      if (it) it.ipAliases = obj[key]
-    }
-    else {
-
-      let it = its.find(i => i.name === key)
-      if (it) it.ipAddresses = obj[key]
-    }
-  })
-
-  callback(null, its)
 })
 
 
+broadcast.on('ConfigUpdate', (err, config) => {
+  if (nics === config.networkInterfaces) return
+  nics = config.networkInterfaces
+  update()
+})
+
+module.exports = new class {
+
+}()
+
+
+router.get('/', (req, res) => 
+  interfaces((err, its) => err ? res.status(500).end() : res.status(200).json(its)))
+
+router.post('/:name/aliases', (req, res, next) => {
+  let name = req.params.name
+  let ipv4 = req.body.ipv4
+  let mask = req.body.mask
+
+  interfaces((err, its) => {
+    if (err) return next(err)
+
+    let it = its.find(i => i.name === name)
+    if (!it) return res.status(404).end()
+
+    let cidr = `${ipv4}/${mask}`
+    let conf = { name, aliases: [cidr] }
+    let index = nics.findIndex(c => c.name === name)
+    let next = index === -1
+      ? [...nics, conf] 
+      : [...nics.slice(0, index), conf, ...nics.slice(index + 1)]
+
+    next.sort((a, b) => a.name.localeCompare(b.name))
+    Config.updateNetworkInterfaces(next)
+    res.status(200).end()
+  })
+})
+
+router.delete('/:name/aliases/:ipv4', (req, res, next) => {
+
+  let name = req.params.name
+  let ipv4 = req.params.ipv4
+
+  interfaces((err, its) => {
+    if (err) return next(err)
+    
+    let it = its.find(i => i.name === name)
+    if (!it) return res.status(404).end()
+
+
+
+    res.status(200).end()
+  })
+})
+
+module.exports = router
