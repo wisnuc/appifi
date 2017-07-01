@@ -3,11 +3,13 @@ const path = require('path')
 const child = Promise.promisifyAll(require('child_process'))
 
 const mkdirpAsync = Promise.promisify(require('mkdirp'))
+const router = require('express').Router()
 
 const debug = require('debug')('system:storage')
 const deepFreeze = require('deep-freeze')
 
-const udevInfoAsync = require('./storage/udevInfoAsync')
+const probePortsAsync = require('./storage/probePortsAsync')
+const probeBlocksAsync = require('./storage/probeBlocksAsync')
 const probeMountsAsync = require('./storage/procMountsAsync')
 const probeSwapsAsync = require('./storage/procSwapsAsync')
 const probeVolumesAsync = require('./storage/btrfsfishowAsync')
@@ -21,64 +23,95 @@ Storage module probes all storage devices and annotates extra information, inclu
 + ports (ata only for now)
 + blocks, all linux block devices
 + volumes, all btrfs volumes
++ mount, mountpoint, mount error, active swap.
 + formattable, whether this device can be formatted
 + wisnuc station information on devices.
 
-A full probe including the following steps:
-
-1. probe raw ports, blocks, volumes, mounts, and swaps
-2. mount all file systems. If there is error, error information is annotated on file system.
-  1. mount all btrfs volumes. Volumes with missing devices are mounted with `degraded,ro` option.
-  2. mount all block devices, including both standalone file system and partitions.
-    1. usb disk or partitions are mounted using `udisksctl` command.
-    2. non-usb disk or partitions are mounted using `mount` command.
-3. probe mounts again
-4. probe btrfs usage
-5. merge all results into a single storage object (raw)
-6. annotate all volumes and blocks, if blocks is unformmatble, the reason is annotated.
-7. extract a pretty version
-8. all file systems are extracted
-9. btrfs volumes are probed for wisnuc installation status.
-
-This final version is stored as storage. It is freezed.
 
 raw data are not defined as type in this document. Final version are defined in detail.
 
 @module Storage
 */
 
-/**
-Probe ports
-@returns raw ports
-*/
-const probePorts = async () => udevInfoAsync((
-  await child.execAsync('find /sys/class/ata_port -type l'))
-    .toString().split('\n').map(l => l.trim()).filter(l => l.length))
 
 /**
-Probe blocks
-@returns raw blocks
+An annotated block device
+
+For linux block device, `id_fs_usage`  indicates a block device contains a file system, 
+including special file system.
+
+For regular file system, `idFsUsage` is `filesystem`. 
+For linux swap, it is `other`. 
+For lvm/md raid, it is `raid`.
+For encrypted file system, which usually requires a userspace driver, it is `crypto`.
+
+@typedef {object} Block
+@property {string} name
+@property {string} [parentName] - when block device is a partition
+@property {string} devname
+@property {string} path
+@property {boolean} removable
+@property {number} size in 512 byte block
+@property {boolean} [isDisk] - when block device is a physical disk
+@property {string} [model] - disk model
+@property {string} [serial] - disk serial number
+@property {boolean} [isPartitioned] - when disk is partitioned
+@property {string} [partitionTableType]
+@property {string} [partitionTableUUID]
+@property {boolean} [isPartition] - when block device is a partition
+@property {boolean} [isExtended] - when block device is an extended partition (DOS)
+@property {boolean} [fsUsageDefined] - when block device contains file system
+@property {boolean} [idFsUsage] - `filesystem`, `other`, `raid`, or `crypto`.
+@property {boolean} [isFileSystem] - is regular file system
+@property {boolean} [isVolumeDevice] - btrfs volume device
+@property {boolean} [isBtrfs] - btrfs volume device
+@property {string} [btrfsVolume] - btrfs volume uuid, the same as file system uuid
+@property {string} [btrfsDevice] - btrfs device uuid (sub uuid)
+@property {boolean} [isExt4] - ext4 file system
+@property {boolean} [isNtfs] - NTFS file system
+@property {boolean} [isVfat] - fat16, fat32, and exFat file system
+@property {boolean} [isOtherFileSystem] - special file system other than raid or crypto
+@property {boolean} [isLinuxSwap] - linux swap file system
+@property {boolean} [isRaidFileSystem] - `idFsUsage` is `raid`
+@property {boolean} [isCryptoFileSystem] - `idFsUsage` is `crypto`
+@property {boolean} [isUnsupportedFsUsage] - unknown usage for kernel
+@property {boolean} [isUSB] - usb device
+@property {boolean} [isATA] - ata device
+@property {boolean} [isSCSI] - scsi device
+@property {boolean} [isMounted] - mounted
+@property {string} [mountpoint] - mountpoint, when mounted
+@property {boolean} [isRootFS] - the file system is root file system
+@property {boolean} [isActiveSwap] - the file system is linux swap in use
+@property {string} [mountError] - error message, if the block is regular file system and not mounted. 
+@property {string} [unformattable] - enum string, unformattable reason
 */
-const probeBlocks = async () => udevInfoAsync((
-  await child.execAsync('find /sys/class/block -type l'))
-    .toString().split('\n').map(l => l.trim()).filter(l => l.length)
-    .filter(l => l.startsWith('/sys/class/block/sd')))
+
+
 
 /**
-Find out the mount for given volume, return mount object or undefined
+@typedef {object} Storage 
+@property {Block[]} blocks
+*/
+
+/**
+Returns the (raw) mount object for given volume, or undefined
+@param {volume} volume
+@param {mount[]} mounts
 */
 const volumeMount = (volume, mounts) =>
   mounts.find(mnt => volume.devices.find(dev => dev.path === mnt.device))
 
 /**
-Find out the volume the given block device belongs to, return volume or undefined
+Returns the (raw) volume the given block device belongs to, or undefined
+@param {block} 
 */
 const blockVolume = (block, volumes) =>
   volumes.find(vol => vol.devices.find(dev => dev.path === block.props.devname))
 
 /**
-Mount all volumes not mounted yet.
-Volumes with missing devices are mounted with `degrade,ro` option.
+Mount all volumes not mounted yet. Volumes with missing devices are mounted with `degrade,ro` option.
+@param {volume[]} volumes
+@param {mount[]} mounts
 */
 const mountVolumesAsync = async (volumes, mounts) => {
   const unmounted = volumes.filter(vol => volumeMount(vol, mounts) === undefined)
@@ -102,7 +135,14 @@ const mountVolumesAsync = async (volumes, mounts) => {
 }
 
 /**
-Try to mount all blocks with supported file systems that not mounted yet.
+Mount all blocks with supported file systems that not mounted yet.
+`ext4`, `ntfs`, and `vfat` file system are supported for now.
+
+For usb device, `udisksctl` is used. `/media/${username}/${uuid or label}`
+For non-usb device, `mount` is used. `/run/wisnuc/blocks/${blk.name}`
+
+@param {block[]} blocks
+@param {mount[]} mounts
 */
 const mountNonVolumesAsync = async (blocks, mounts) => {
   // only for known file system type on standalone disk or partition, whitelist policy
@@ -112,7 +152,8 @@ const mountNonVolumesAsync = async (blocks, mounts) => {
     //     && fs type is (ext4 or ntfs or vfat) && blk is not mounted
     // if block is partition
     //   blk is fs && fs type is (ext4 or ntfs or vfat) && blk is not mounted
-    if ((blk.props.devtype === 'disk' && !blk.props.id_part_table_type) || blk.props.devtype === 'partition') {
+    if ((blk.props.devtype === 'disk' && !blk.props.id_part_table_type) 
+      || blk.props.devtype === 'partition') {
       if (blk.props.id_fs_usage === 'filesystem' &&
         ['ext4', 'ntfs', 'vfat'].indexOf(blk.props.id_fs_type) !== -1 &&
         !mounts.find(mnt => mnt.device === blk.props.devname)) {
@@ -140,6 +181,8 @@ const mountNonVolumesAsync = async (blocks, mounts) => {
 
 /**
 Probe btrfs volume usages
+
+@param {mount[]} mounts
 */
 const probeUsages = async (mounts) => {
   const filtered = mounts.filter(mnt => mnt.fs_type === 'btrfs' &&
@@ -163,6 +206,9 @@ const probeUsages = async (mounts) => {
 // 5 isSwap
 
 /**
+Annotate a block device with `idFsUsage` defined
+
+@param {block} blk
 */
 const statFsUsageDefined = (blk) => {
   blk.stats.fsUsageDefined = true
@@ -205,9 +251,10 @@ const statFsUsageDefined = (blk) => {
   }
 }
 
-/** 
-stat props (including hardware info)
-stat parentName
+/**
+Annotate static information for all block devices
+
+@param {block[]} blocks
 */
 const statBlocksStatic = blocks =>
   blocks.forEach((blk, idx, arr) => {
@@ -243,7 +290,9 @@ const statBlocksStatic = blocks =>
   })
 
 /**
-annotate bus
+Annotate bus information for all block devices
+
+@param {block[]} blocks
 */
 const statBlocksBus = blocks =>
   blocks.forEach((blk) => {
@@ -259,12 +308,15 @@ const statBlocksBus = blocks =>
   })
 
 /**
- * stat blocks mount and swap, requires volumes stated first!
- *
- * isMounted, mountpoint, isRootFs, isActiveSwap
- *
- * for volume device, such info is copied from corresponding volume
- */
+Annotate mount and swap information for all block devices
+`volumes` must be annotated first!
+for volume device, information are copied from volume.
+
+@param {block[]} blocks
+@param {volume[]} volumes
+@param {mount[]} mounts
+@param {swap[]} swaps
+*/
 const statBlocksMountSwap = (blocks, volumes, mounts, swaps) =>
   blocks.forEach((blk) => {
     if (blk.stats.isVolumeDevice) {
@@ -282,6 +334,8 @@ const statBlocksMountSwap = (blocks, volumes, mounts, swaps) =>
         blk.stats.isMounted = true
         blk.stats.mountpoint = mount.mountpoint
         if (mount.mountpoint === '/') { blk.stats.isRootFS = true }
+      } else if (typeof blk.mountError === 'string') {
+        blk.stats.mountError = blk.mountError
       }
     } else if (blk.stats.isLinuxSwap) {
       const swap = swaps.find(swap => swap.filename === blk.props.devname)
@@ -289,48 +343,55 @@ const statBlocksMountSwap = (blocks, volumes, mounts, swaps) =>
     }
   })
 
-//
-// formattable is a concept applicable only for blocks,
-// either disk or partition (including non-formatted)
-// extended partition is not formattable
-// for partitioned disk
-//   containing partitions that either isRootFS or isActiveSwap is unformattable
-//   if (extended partition is excluded, this can be dont in recursive way.
-// for partition or volume device
-//   isExtended, or isRootFS, or isActiveSwap is unformattable
-//
-// the following code is not used, but it is a good reference for checking logic
-const unformattable = (block, blocks) =>
-  (block.stats.isDisk && blocks.stats.isPartitioned)
-    ? blocks
-        .filter(blk => blk.stats.parentName === block.name && !blk.stats.isExtended)
-        .some(blk => unformattable(blk))
-    // for volume device, isRootFS is copied from volume
-    : (block.stats.isRootFS || block.stats.isActiveSwap)
+/**
+`unformattable` is a concept applicable only for blocks.
 
-// exactly the same logic with above
-// returns non-empty array or single object containing name and reason
+This function returns a string or a joined string. Valid values include:
++ `RootFS`, the block is or contains root file system
++ `ActiveSwap`, the block is or contains active swap file system
++ `Extended`, the block is an extended partition
+
+If a block is a partitioned disk and contains several unformattable partition, 
+the reason is a joined string delimited by `:`, deduplicated. Example:
+`ActiveSwap:RootFS`
+
+@param {RawBlock} block - block device
+@param {RawBlock[]} blocks - all block devices
+@returns {string} A string indicating unformattable reason, or undefined
+*/
 const unformattableReason = (block, blocks) => {
+  // check partitioned disk first, then either standalone fs or partition
   if (block.stats.isDisk && block.stats.isPartitioned) {
     const reasons = blocks
       .filter(blk => blk.stats.parentName === block.name && !blk.stats.isExtended)
       .map(blk => unformattableReason(blk, blocks))
       .filter(r => !!r)
-    if (reasons.length) return reasons // return array
-  } else if (block.stats.isRootFS || block.stats.isActiveSwap) {
-    // return object
-    return {
-      name: block.name,
-      reason: block.stats.isRootFS ? 'isRootFS' : 'isActiveSwap'
+    if (reasons.length) {
+      return Array
+        .from(new Set(reasons))
+        .sort()
+        .join(':')
+    } else {
+      return undefined
     }
+  } else if (block.stats.isRootFS) {
+    return 'RootFS'
+  } else if (block.stats.isActiveSwap) {
+    return 'ActiveSwap'
+  } else if (block.stats.isExtended) {
+    return 'Extended'
+  } else {
+    return undefined
   }
-  return null
 }
 
 /**
-format blocks
+Annotate all information on all block devices
+
+@param {storage} storage
 */
-const statBlocks = ({ blocks, volumes, mounts, swaps }) => {
+const statBlocks = storage => {
+  const { blocks, volumes, mounts, swaps } = storage
   blocks.forEach(blk => (blk.stats = {}))
   statBlocksStatic(blocks)
   statBlocksBus(blocks)
@@ -344,9 +405,12 @@ const statBlocks = ({ blocks, volumes, mounts, swaps }) => {
 }
 
 /**
-format volumes
+Annotate all information on all volumes
+
+@param {storage} storage
 */
-const statVolumes = (volumes, mounts) =>
+const statVolumes = storage => {
+  const {volumes, mounts} = storage
   volumes.forEach((vol) => {
     // volume must keep file system info since it may be used as file system object
     vol.stats = {
@@ -365,11 +429,15 @@ const statVolumes = (volumes, mounts) =>
       if (mount.mountpoint === '/') vol.stats.isRootFS = true
     }
   })
+}
+
 
 /**
-Format storage
+Reformat storage object. Extract useful information and merge with annotations.
+
+@param {storage} storage
 */
-const formatStorage = storage => {
+const reformatStorage = storage => {
   // adapt ports
   const ports = storage.ports.map(port => ({
     path: port.path,
@@ -441,13 +509,30 @@ const formatStorage = storage => {
 }
 
 /**
+A full storage probe, including the following steps:
 
+1. probe raw ports, blocks, volumes, mounts, and swaps
+2. mount all file systems. If there is error, error information is annotated on file system.
+  1. mount all btrfs volumes. Volumes with missing devices are mounted with `degraded,ro` option.
+  2. mount all block devices, including both standalone file system and partitions.
+    1. usb disk or partitions are mounted using `udisksctl` command.
+    2. non-usb disk or partitions are mounted using `mount` command.
+3. probe mounts again
+4. probe btrfs usage
+5. merge all results into storage object (raw)
+6. annotate all volumes and blocks.
+7. reformat
+8. fruitmix are probed on all healthy volumes.
+
+This final version is freezed and returned.
+
+@return {Storage} the final fully annotated storage object
 */
 const probeAsync = async () => {
   // first probe
   const arr = await Promise.all([
-    probePorts(),
-    probeBlocks(),
+    probePortsAsync(),
+    probeBlocksAsync(),
     probeVolumesAsync(),
     probeMountsAsync(),
     probeSwapsAsync()
@@ -461,7 +546,7 @@ const probeAsync = async () => {
     swaps: arr[4]
   }
 
-  debug('probe storage without usages', s0)
+  debug('probe storage without usages', JSON.stringify(s0, null, '  '))
 
   // mount all file systems
   await mountVolumesAsync(s0.volumes, s0.mounts)
@@ -478,13 +563,13 @@ const probeAsync = async () => {
   const s1 = Object.assign({}, s0, { mounts, usages })
 
   // annotate
-  statVolumes(s1.volumes, s1.mounts)
+  statVolumes(s1)
   statBlocks(s1)
 
-  // format (pretty)
-  const storage = formatStorage(s1)
+  // reformat (prettify)
+  const storage = reformatStorage(s1)
 
-  // probe fruitmix 
+  // probe fruitmix
   await Promise.all(storage.volumes
     .filter(v => v.isMounted && !v.isMissing)
     .map(async v => {
@@ -554,3 +639,11 @@ module.exports = new class extends Synchronized {
       .catch(e => this.finish(e))
   }
 }()
+
+router.get('/', (req, res, next) => {
+})
+
+router.post('/volumes', (req, res, next) => {
+})
+
+
