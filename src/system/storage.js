@@ -1,16 +1,10 @@
 const Promise = require('bluebird')
 const path = require('path')
-// const fs = Promise.promisifyAll(require('fs'))
 const child = Promise.promisifyAll(require('child_process'))
 
-const mkdirp = require('mkdirp')
-// const rimraf = require('rimraf')
-
-const mkdirpAsync = Promise.promisify(mkdirp)
-// const rimrafAsync = Promise.promisify(rimraf)
+const mkdirpAsync = Promise.promisify(require('mkdirp'))
 
 const debug = require('debug')('system:storage')
-// const UUID = require('uuid')
 const deepFreeze = require('deep-freeze')
 
 const udevInfoAsync = require('./storage/udevInfoAsync')
@@ -54,20 +48,6 @@ raw data are not defined as type in this document. Final version are defined in 
 */
 
 /**
-Returns volume mountpoint. This is where it should mount, not where it is actually mounted.
-
-@param {RawVolume} vol - raw volume object
-@returns {string} Absolute path of mountpoint
-*/
-const volumeMountpoint = vol => `/run/wisnuc/volumes/${vol.uuid}`
-
-/**
-Returns block device mountpoint. This is where is should mount, not where it is actually mounted.
-@returns {string} Absolute path of mountpoint
-*/
-const blockMountpoint = blk => `/run/wisnuc/blocks/${blk.name}`
-
-/**
 Probe ports
 @returns raw ports
 */
@@ -85,71 +65,16 @@ const probeBlocks = async () => udevInfoAsync((
     .filter(l => l.startsWith('/sys/class/block/sd')))
 
 /**
-Probe raw ports, blocks, volumes, mounts, and swaps
-@returns raw storage object without usages
+Find out the mount for given volume, return mount object or undefined
 */
-const probeStorage = async () => {
-  const result = await Promise.all([
-    probePorts(),
-    probeBlocks(),
-    probeVolumesAsync(),
-    probeMountsAsync(),
-    probeSwapsAsync()
-  ])
-
-  const storage = {
-    ports: result[0],
-    blocks: result[1],
-    volumes: result[2],
-    mounts: result[3],
-    swaps: result[4]
-  }
-
-  debug('probe storage without usages', storage)
-  return storage
-}
-
-/**
- * Find out the mount for given volume, return mount object or undefined
- */
 const volumeMount = (volume, mounts) =>
   mounts.find(mnt => volume.devices.find(dev => dev.path === mnt.device))
 
 /**
- * Find out the volume the given block device belongs to, return volume or undefined
- */
+Find out the volume the given block device belongs to, return volume or undefined
+*/
 const blockVolume = (block, volumes) =>
   volumes.find(vol => vol.devices.find(dev => dev.path === block.props.devname))
-
-/**
- * a callback for two mount functions
- */
-const stampMountError = (inspection, item) => {
-  if (inspection.isFulfilled()) {
-    item.mountError = null
-  } else if (inspection.isRejected()) {
-    // TODO
-    console.log('[storage] failed to mount volume or block: ', item)
-    item.mountError = inspection.reason().message
-  } else {
-    // TODO
-    console.log('[storage] unexpected inspection which is neither fulfilled or rejected for volume or block: ', item)
-    item.mountError = 'neither fulfilled nor rejected'
-  }
-}
-
-/**
-Mount single volume, with opts
-*/
-const mountVolumeAsync = async (uuid, mountpoint, opts) => {
-  await mkdirpAsync(mountpoint)
-
-  const cmd = opts
-    ? `mount -t btrfs -o ${opts} UUID=${uuid} ${mountpoint}`
-    : `mount -t btrfs UUID=${uuid} ${mountpoint}`
-
-  await child.execAsync(cmd)
-}
 
 /**
 Mount all volumes not mounted yet.
@@ -160,9 +85,16 @@ const mountVolumesAsync = async (volumes, mounts) => {
 
   debug('mounting volumes', unmounted)
 
-  return Promise.all(unmounted.map(async (vol) => {
+  return Promise.all(unmounted.map(async vol => {
     try {
-      mountVolumeAsync(vol.uuid, volumeMountpoint(vol), vol.missing ? 'degraded,ro' : null)
+      const mountpoint = `/run/wisnuc/volumes/${vol.uuid}`
+      await mkdirpAsync(mountpoint)
+
+      const cmd = vol.missing
+        ? `mount -t btrfs -o degraded,ro UUID=${vol.uuid} ${mountpoint}`
+        : `mount -t btrfs UUID=${vol.uuid} ${mountpoint}`
+
+      await child.execAsync(cmd)
     } catch (e) {
       vol.mountError = e.message
     }
@@ -173,12 +105,6 @@ const mountVolumesAsync = async (volumes, mounts) => {
 Try to mount all blocks with supported file systems that not mounted yet.
 */
 const mountNonVolumesAsync = async (blocks, mounts) => {
-  const mountNonUSB = async (blk) => {
-    const dir = blockMountpoint(blk)
-    await mkdirpAsync(dir)
-    await child.execAsync(`mount ${blk.props.devname} ${dir}`)
-  }
-
   // only for known file system type on standalone disk or partition, whitelist policy
   const unmounted = blocks.filter((blk) => {
     // if blk is disk
@@ -197,14 +123,19 @@ const mountNonVolumesAsync = async (blocks, mounts) => {
 
   debug('mounting blocks', unmounted)
 
-  return Promise
-    .map(unmounted, (blk) => {
-      if (blk.props.id_bus === 'usb') { return child.execAsync(`udisksctl mount --block-device ${blk.props.devname} --no-user-interaction`).reflect() }
-      return mountNonUSB(blk).reflect()
-    })
-    .each((inspection, index) => {
-      stampMountError(inspection, unmounted[index])
-    })
+  return Promise.all(unmounted.map(async (blk) => {
+    try {
+      if (blk.props.id_bus === 'usb') {
+        await child.execAsync(`udisksctl mount --block-device ${blk.props.devname} --no-user-interaction`)
+      } else {
+        const dir = `/run/wisnuc/blocks/${blk.name}`
+        await mkdirpAsync(dir)
+        await child.execAsync(`mount ${blk.props.devname} ${dir}`)
+      }
+    } catch (e) {
+      blk.mountError = e.message
+    }
+  }))
 }
 
 /**
@@ -214,23 +145,6 @@ const probeUsages = async (mounts) => {
   const filtered = mounts.filter(mnt => mnt.fs_type === 'btrfs' &&
     mnt.mountpoint.startsWith('/run/wisnuc/volumes/') && !mnt.mountpoint.endsWith('/graph/btrfs'))
   return Promise.all(filtered.map(mnt => probeUsageAsync(mnt.mountpoint)))
-}
-
-/**
- * probe (expect usages), mount, reprobe mount, then probe usages, all result merged
- */
-const probeStorageWithUsages = async () => {
-  const storage = await probeStorage()
-
-  await mountVolumesAsync(storage.volumes, storage.mounts)
-  await mountNonVolumesAsync(storage.blocks, storage.mounts)
-
-  const mounts = await probeMountsAsync()
-
-  await Promise.delay(100)
-
-  const usages = await probeUsages(mounts)
-  return Object.assign({}, storage, { mounts, usages })
 }
 
 // a block obj may be:
@@ -248,6 +162,8 @@ const probeStorageWithUsages = async () => {
 // 4 isRootFS (for partition, is rootfs partition, for disk && btrfs device, is rootfs volume)
 // 5 isSwap
 
+/**
+*/
 const statFsUsageDefined = (blk) => {
   blk.stats.fsUsageDefined = true
   blk.stats.idFsUsage = blk.props.id_fs_usage
@@ -289,8 +205,10 @@ const statFsUsageDefined = (blk) => {
   }
 }
 
-// stat props (including hardware info)
-// stat parentName
+/** 
+stat props (including hardware info)
+stat parentName
+*/
 const statBlocksStatic = blocks =>
   blocks.forEach((blk, idx, arr) => {
     if (blk.props.devtype === 'disk') {
@@ -324,11 +242,20 @@ const statBlocksStatic = blocks =>
     }
   })
 
-// easy job, append idBus
+/**
+annotate bus
+*/
 const statBlocksBus = blocks =>
   blocks.forEach((blk) => {
     blk.stats.idBus = blk.props.id_bus
-    if (blk.props.id_bus === 'usb') { blk.stats.isUSB = true } else if (blk.props.id_bus === 'ata') { blk.stats.isATA = true } else if (blk.props.id_bus === 'scsi') { blk.stats.isSCSI = true }
+
+    if (blk.props.id_bus === 'usb') {
+      blk.stats.isUSB = true
+    } else if (blk.props.id_bus === 'ata') {
+      blk.stats.isATA = true
+    } else if (blk.props.id_bus === 'scsi') {
+      blk.stats.isSCSI = true
+    }
   })
 
 /**
@@ -401,12 +328,10 @@ const unformattableReason = (block, blocks) => {
 }
 
 /**
- * volumes must be stated first.
- */
+format blocks
+*/
 const statBlocks = ({ blocks, volumes, mounts, swaps }) => {
-  blocks.forEach((blk) => {
-    blk.stats = {}
-  })
+  blocks.forEach(blk => (blk.stats = {}))
   statBlocksStatic(blocks)
   statBlocksBus(blocks)
   statBlocksMountSwap(blocks, volumes, mounts, swaps)
@@ -418,7 +343,9 @@ const statBlocks = ({ blocks, volumes, mounts, swaps }) => {
   })
 }
 
-// duplicate minimal information
+/**
+format volumes
+*/
 const statVolumes = (volumes, mounts) =>
   volumes.forEach((vol) => {
     // volume must keep file system info since it may be used as file system object
@@ -435,18 +362,14 @@ const statVolumes = (volumes, mounts) =>
     if (mount) {
       vol.stats.isMounted = true
       vol.stats.mountpoint = mount.mountpoint
-      if (mount.mountpoint === '/') { vol.stats.isRootFS = true }
+      if (mount.mountpoint === '/') vol.stats.isRootFS = true
     }
   })
 
-// extract file systems out of storage object
 /**
-const extractFileSystems = ({ blocks, volumes }) =>
-  [...blocks.filter(blk => blk.isFileSystem && !blk.isVolumeDevice),
-    ...volumes.filter(vol => vol.isFileSystem)]
-**/
-
-const prettyStorage = (storage) => {
+Format storage
+*/
+const formatStorage = storage => {
   // adapt ports
   const ports = storage.ports.map(port => ({
     path: port.path,
@@ -519,114 +442,115 @@ const prettyStorage = (storage) => {
 
 /**
 
-  Since persistence has no abort method (even if it has one, instant stopping all actions
-  can not be guaranteed in nodejs), this may be an issue for testing.
+*/
+const probeAsync = async () => {
+  // first probe
+  const arr = await Promise.all([
+    probePorts(),
+    probeBlocks(),
+    probeVolumesAsync(),
+    probeMountsAsync(),
+    probeSwapsAsync()
+  ])
 
-  one way is using different fpath for each test, avoiding race in writing files.
-
-  another way is to nullify persistence in testing, if that feature are not going to be tested.
-
-  this module is not written in JavaScript class and singleton-ized with an object. Instead,
-  it is a global object itself, which eliminates the need of another global object as holder.
-
-  But all states are held in one object and initAsync method will refresh them all. This
-  enables testability.
-
-**/
-/**
-module.exports = {
-
-  persistence: null,
-  storage: null,
-
-  async refreshAsync() {
-    const storage = await probeStorageWithUsages()
-    statVolumes(storage.volumes, storage.mounts)
-    statBlocks(storage)
-
-    this.storage = storage
-    deepFreeze(this.storage)
-
-    if (this.persistence) this.persistence.save(prettyStorage(storage))
-
-    return prettyStorage(this.storage)
-  },
-
-  async initAsync(fpath, tmpdir) {
-    this.persistence = await createPersistenceAsync(fpath, tmpdir, 500)
-    this.storage = null
-  },
-}
-**/
-
-module.exports = new class {
-  constructor () {
-    /**
-    Raw probed storage, for debug purpose
-    */
-    this.storage = null
-
-    /**
-
-    */
-    this.pretty = null
-    this.error = null
-
-    /**
-    Pending request
-    */
-    this.pending = []
-
-    /**
-    Working request
-    @member {function[]} - callbacks
-    */
-    this.working = []
-
-    this.probe()
+  const s0 = {
+    ports: arr[0],
+    blocks: arr[1],
+    volumes: arr[2],
+    mounts: arr[3],
+    swaps: arr[4]
   }
 
-  finish () {
-    this.working.forEach(cb => cb(this.error, this.pretty))
+  debug('probe storage without usages', s0)
+
+  // mount all file systems
+  await mountVolumesAsync(s0.volumes, s0.mounts)
+  await mountNonVolumesAsync(s0.blocks, s0.mounts)
+
+  // probe mount again
+  const mounts = await probeMountsAsync()
+
+  await Promise.delay(100)
+
+  // probe usages
+  const usages = await probeUsages(mounts)
+  // merge to s1
+  const s1 = Object.assign({}, s0, { mounts, usages })
+
+  // annotate
+  statVolumes(s1.volumes, s1.mounts)
+  statBlocks(s1)
+
+  // format (pretty)
+  const storage = formatStorage(s1)
+
+  // probe fruitmix 
+  await Promise.all(storage.volumes
+    .filter(v => v.isMounted && !v.isMissing)
+    .map(async v => {
+      try {
+        // v.users = await user.detectFruitmix(v.mountpoint) TODO
+      } catch (e) {
+        v.users = e.code || e.message
+      }
+    }))
+
+  // freeze all
+  deepFreeze(storage)
+  return storage
+}
+
+class Synchronized {
+  constructor () {
+    this.pending = []
     this.working = []
+  }
 
-    broadcast.emit('StorageUpdate', this.error, this.pretty)
-
+  finish (err, data) {
+    this.working.forEach(cb => cb(err, data))
     if (this.pending.length) {
       this.working = this.pending
       this.pending = []
-      this.probe()
+      this.run()
     }
   }
 
-  probe () {
-    probeStorageWithUsages()
-      .then((storage) => {
-        statVolumes(storage.volumes, storage.mounts)
-        statBlocks(storage)
-
-        this.storage = storage
-        deepFreeze(this.storage)
-
-        this.pretty = prettyStorage(storage)
-        deepFreeze(this.pretty)
-
-        this.error = null
-        this.finish()
-      })
-      .catch((e) => {
-        this.error = e
-        this.finish()
-      })
-  }
-
-  refresh (callback) {
-    if (this.working.length) {
+  request (callback = () => {}) {
+    if (this.working.length === 0) {
+      this.working = [callback]
+      this.run()
+    } else {
       this.pending.push(callback)
-      return
     }
+  }
 
-    this.working = [callback]
-    this.probe()
+  async requestAsync () {
+    return new Promise((resolve, reject) => {
+      this.request((err, data) => {
+        if (err) {
+          reject(err)
+        } else {
+          resolve(data)
+        }
+      })
+    })
+  }
+}
+
+module.exports = new class extends Synchronized {
+  constructor () {
+    super()
+    this.request()
+  }
+
+  finish (err, data) {
+    super.finish(err, data)
+    broadcast.emit('StorageUpdate', err, data)
+  }
+
+  run () {
+    probeAsync()
+      .then(data => this.finish(null, data))
+      .catch(e => this.finish(e))
   }
 }()
