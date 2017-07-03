@@ -13,10 +13,9 @@ This module maintains station-wide configuration.
 
 It requries a file to persist data and a temporary file directory.
 
-In `production` mode, the paths are `/etc/wisnuc.json` and `/etc/wisnuc-tmp/`, respectively.
+In `production` mode, the paths are `/etc/wisnuc.json` and `/etc/wisnuc-tmp`, respectively.
 In `test` mode, the paths are `<cwd>/tmptest/wisnuc.json` and `<cwd>/tmptest/tmp`, respectively.
 
-Initialization is deferred until `SystemInit` event
 
 @module   Config
 @requires Broadcast
@@ -26,7 +25,7 @@ Initialization is deferred until `SystemInit` event
 /**
 Fired when `Config` module initialized.
 
-@event ConfigInitDone
+@event ConfigUpdate
 @global
 */
 
@@ -51,8 +50,6 @@ Default config object if config file not found or NODE_ENV is `test`
 @type {Config}
 */
 const defaultConfig = {
-  version: 1,
-  dockerInstall: null,
   lastFileSystem: null,
   bootMode: 'normal',
   barcelonaFanScale: 50,
@@ -155,7 +152,7 @@ module.exports = new class {
 
     // initialize member
     this.config = Object.assign({}, defaultConfig)
-    this.persistence = await createPersistenceAsync(this.filePath, this.tmpDir, 500)
+    this.persistence = await createPersistenceAsync(this.filePath, this.tmpDir, 50)
 
     // load file
     let read, dirty = false

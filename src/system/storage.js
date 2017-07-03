@@ -1,5 +1,6 @@
 const Promise = require('bluebird')
 const path = require('path')
+const fs = Promise.promisifyAll(require('fs'))
 const child = Promise.promisifyAll(require('child_process'))
 
 const mkdirpAsync = Promise.promisify(require('mkdirp'))
@@ -530,7 +531,10 @@ const probeFruitmix = async mountpoint => {
     await fs.readdirAsync(fruitmixDir)
   }
   catch (e) {
-    throw (e.code === 'ENOENT' || e.code === 'ENODIR')
+
+    debug('readdir fruitmix error', e)
+
+    throw (e.code === 'ENOENT' || e.code === 'ENOTDIR')
       ? e
       : Object.assign(new Error('' + e.code + ':' + e.message), { code: 'EFAIL' })
   }
@@ -542,6 +546,9 @@ const probeFruitmix = async mountpoint => {
     return users
   }
   catch (e) {
+  
+    debug('read users.json file error', e)
+
     throw (e.code === 'ENOENT' || e.code === 'EISDIR' || e instanceof SyntaxError)
       ? Object.assign(new Error('' + e.code + ':' + e.message), { code: 'EDATA' })
       : Object.assign(new Error('' + e.code + ':' + e.message), { code: 'EFAIL' })
@@ -570,6 +577,9 @@ This final version is freezed and returned.
 @return {Storage} the final fully annotated storage object
 */
 const probeAsync = async () => {
+
+  console.log('probe start')
+
   // first probe
   const arr = await Promise.all([
     probePortsAsync(),
@@ -626,8 +636,6 @@ const probeAsync = async () => {
   return storage
 }
 
-
-
 class Synchronized {
   constructor () {
     this.pending = []
@@ -636,6 +644,8 @@ class Synchronized {
 
   finish (err, data) {
     this.working.forEach(cb => cb(err, data))
+    this.working = []
+
     if (this.pending.length) {
       this.working = this.pending
       this.pending = []
@@ -644,6 +654,7 @@ class Synchronized {
   }
 
   request (callback = () => {}) {
+
     if (this.working.length === 0) {
       this.working = [callback]
       this.run()
@@ -678,10 +689,136 @@ const singleton = new class extends Synchronized {
 
   run () {
     probeAsync()
-      .then(data => this.finish(null, data))
-      .catch(e => this.finish(e))
+      .then(data => {
+        console.log('data', data)
+        this.finish(null, data)
+      })
+      .catch(e => {
+        console.log('error', e)
+        this.finish(e)
+      })
   }
 }()
+
+const refreshAsync = async () => singleton.requestAsync() 
+
+const unmountAsync = async mountpoint => child.execAsync(`umount ${mountpoint}`, err => callback(err)) 
+
+/**
+ * unmount all blocks contained by target, target may be 
+ * a volume device (disk), or standalone fs disk or partition.
+ * eg. sdb, sdb1
+ */ 
+const umountBlocks = async (storage, target) => {
+
+  debug('unmount blocks, storage, target', storage, target)
+
+  let {blocks, volumes } = storage
+
+  let blks = target.map(name => blocks.find(blk => blk.name === name))
+
+  // if it is volume device
+  let uuids = blks.filter(blk => blk.isMounted)         // filter mounted
+                .filter(blk => blk.isVolumeDevice)      // filter volume devices
+                .map(blk => blk.btrfsVolume)            // map to uuid (may dup) TODO
+
+  let mvols = Array.from(new Set(uuids)).sort()         // dedup
+                .map(uuid => volumes.find(vol =>        // map to volume
+                  vol.uuid === uuid))
+
+  // if it is partitioned disk (not necessarily mounted)
+  let mparts = blks.filter(blk => blk.isDisk && blk.isPartitioned)
+                .reduce((prev, curr) => prev.concat(blocks.filter(blk => 
+                  blk.parentName === curr.name)) , [])
+                .filter(blk => blk.isMounted)
+
+  // the left should be partition or disk with standalone fs
+  let mblks = blks.filter(blk => blk.isMounted)   // filter mounted 
+                .filter(blk => blk.isPartition || // is partition
+                  (blk.isDisk && blk.isFileSystem && !blk.isVolumeDevice)) // is non-volume filesystem disk
+
+  // for mounted volumes, normal umount
+  // for mounted blocks (with fs)
+  //  umount usb by udisksctl
+  //  umount non-usb by normal umount
+  let i
+  for (i = 0; i < mvols.length; i++) {
+    debug(`un-mounting volume ${mvols[i].uuid}`)
+    await umountAsync(mvols[i].mountpoint)
+  }
+
+  for (i = 0; i < mparts.length; i++) {
+    debug(`un-mounting partition ${mparts[i].name}`)
+    await umountAsync(mparts[i].mountpoint)
+  }
+
+  for (i = 0; i < mblks.length; i++) {
+    debug(`un-mounting block ${mblks[i].name}`)
+    await umountAsync(mblks[i].mountpoint)
+  }
+}
+
+/**
+target: array of device name ['sda', 'sdb', etc]
+mode: must be 'single', 'raid0', 'raid1'
+*/
+const mkfsBtrfsAsync = async args => {
+
+  let error = null
+
+  let { target, mode } = args
+
+  debug('mkfsBtrfs', target, mode)
+
+  // validate mode
+  if (['single', 'raid0', 'raid1'].indexOf(mode) === -1)
+    throw new Error(`invalid mode: ${mode}`)
+
+  // target must be string array
+  if (!Array.isArray(target) || target.length === 0 || !target.every(name => typeof name === 'string'))
+    throw new Error('invalid target names')
+
+  let storage, blocks, volumes
+
+  target = Array.from(new Set(target)).sort()
+  storage = await refreshAsync()
+
+  for (let i = 0; i < target.length; i++) {
+    let block = storage.blocks.find(blk => blk.name === target[i])
+    if (!block)
+      throw new Error(`device ${target[i]} not found`)
+    if (!block.isDisk)
+      throw new Error(`device ${target[i]} is not a disk`)
+    if (block.unformattable)
+      throw new Error(`device ${target[i]} is not formattable`)
+  }
+
+  // dirty !!! FIXME
+  let devnames = target.map(name => '/dev/' + name) 
+  debug(`mkfs.btrfs ${mode}`, devnames)
+
+  try {
+    await umountBlocks(storage, target)
+    await child.execAsync(`mkfs.btrfs -d ${mode} -f ${devnames.join(' ')}`)
+    await Promise.delay(1500)
+    await child.execAsync(`partprobe`) // FIXME this should be in refresh
+  }
+  catch (e) {
+    throw e
+  }
+  finally {
+    storage = await refreshAsync()
+  }
+  
+  blocks = storage.blocks
+  volumes = storage.volumes
+
+  let block = blocks.find(blk => blk.name === target[0])
+  let uuid = block.fileSystemUUID
+  let volume = volumes.find(vol => vol.uuid === uuid)
+
+  return uuid
+}
 
 router.get('/', (req, res, next) => 
   singleton.request((err, data) => err
@@ -689,6 +826,9 @@ router.get('/', (req, res, next) =>
     : res.status(200).json(data))) 
 
 router.post('/volumes', (req, res, next) => {
+  mkfsBtrfsAsync(req.body)
+    .then(uuid => res.status(200).json({ uuid }))
+    .catch(e => res.status(500).json({ code: e.code, message: e.message }))
 })
 
 module.exports = router
