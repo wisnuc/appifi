@@ -10,7 +10,6 @@ const Config = require('./config')
 
 
 @requires Broadcast
-@requires Config
 @module Net
 */
 
@@ -138,11 +137,6 @@ broadcast.on('ConfigUpdate', (err, config) => {
   update()
 })
 
-module.exports = new class {
-
-}()
-
-
 router.get('/', (req, res) => 
   interfaces((err, its) => err ? res.status(500).end() : res.status(200).json(its)))
 
@@ -165,7 +159,7 @@ router.post('/:name/aliases', (req, res, next) => {
       : [...nics.slice(0, index), conf, ...nics.slice(index + 1)]
 
     next.sort((a, b) => a.name.localeCompare(b.name))
-    Config.updateNetworkInterfaces(next)
+    broadcast.emit('NetworkInterfacesUpdate', next)
     res.status(200).end()
   })
 })
@@ -188,3 +182,5 @@ router.delete('/:name/aliases/:ipv4', (req, res, next) => {
 })
 
 module.exports = router
+
+

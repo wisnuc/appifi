@@ -2,13 +2,11 @@ const child = require('child_process')
 const router = require('express').Router()
 
 /**
-Timedate is a pure function, transforming `timedatectl` command output to clients.
+`timedate` is a pure function, transforming `timedatectl` command output to clients.
+This module exports a router.
 
 @module timedate
 */
-
-
-
 router.get('/', (req, res) => child.exec('timedatectl', (err, stdout, stderr) => {
   if (err) {
     res.status(500).json({code: err.code, message: err.message})

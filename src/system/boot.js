@@ -13,6 +13,7 @@ const router = require('express').Router()
 
 const broadcast = require('../common/broadcast')
 
+const barcelona = require('./barcelona')
 const Config = require('./config')
 const Storage = require('./storage')
 
@@ -139,7 +140,7 @@ router.patch('/', (req, res) => {
 
     (async () => {
       try {
-        if (barcelona) await child.execAsync('echo "PWR_LED 3" > /proc/BOARD_io')
+        if (barcelona.isBarcelona) await child.execAsync('echo "PWR_LED 3" > /proc/BOARD_io')
       }
       finally {
       }

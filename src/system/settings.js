@@ -6,7 +6,6 @@ This module is responsible for parsing command line arguments and set developer 
 
 @module Developer
 */
-
 const setting = {}
 const hostname = `wisnuc-generic-deadbeef${UUID.v4().split('-').join('').slice(0, 16)}`
 

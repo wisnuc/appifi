@@ -9,6 +9,7 @@ const router = require('express').Router()
 const debug = require('debug')('system:storage')
 const deepFreeze = require('deep-freeze')
 
+const Synchronized = require('../common/synchronized')
 const probePortsAsync = require('./storage/probePortsAsync')
 const probeBlocksAsync = require('./storage/probeBlocksAsync')
 const probeMountsAsync = require('./storage/procMountsAsync')
@@ -636,46 +637,6 @@ const probeAsync = async () => {
   return storage
 }
 
-class Synchronized {
-  constructor () {
-    this.pending = []
-    this.working = []
-  }
-
-  finish (err, data) {
-    this.working.forEach(cb => cb(err, data))
-    this.working = []
-
-    if (this.pending.length) {
-      this.working = this.pending
-      this.pending = []
-      this.run()
-    }
-  }
-
-  request (callback = () => {}) {
-
-    if (this.working.length === 0) {
-      this.working = [callback]
-      this.run()
-    } else {
-      this.pending.push(callback)
-    }
-  }
-
-  async requestAsync () {
-    return new Promise((resolve, reject) => {
-      this.request((err, data) => {
-        if (err) {
-          reject(err)
-        } else {
-          resolve(data)
-        }
-      })
-    })
-  }
-}
-
 const singleton = new class extends Synchronized {
   constructor () {
     super()
@@ -701,8 +662,6 @@ const singleton = new class extends Synchronized {
 }()
 
 const refreshAsync = async () => singleton.requestAsync() 
-
-const unmountAsync = async mountpoint => child.execAsync(`umount ${mountpoint}`, err => callback(err)) 
 
 /**
  * unmount all blocks contained by target, target may be 
@@ -736,6 +695,8 @@ const umountBlocks = async (storage, target) => {
   let mblks = blks.filter(blk => blk.isMounted)   // filter mounted 
                 .filter(blk => blk.isPartition || // is partition
                   (blk.isDisk && blk.isFileSystem && !blk.isVolumeDevice)) // is non-volume filesystem disk
+
+  const umountAsync = async mountpoint => child.execAsync(`umount ${mountpoint}`, err => callback(err)) 
 
   // for mounted volumes, normal umount
   // for mounted blocks (with fs)
