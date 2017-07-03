@@ -158,6 +158,8 @@ const init = () => {
     })
   })
 
+  broadcast.on('SystemShutdown', () => child.exec('echo "PWR_LED 3" > /proc/BOARD_io'))
+
   router.get('/', (req, res) => readFanSpeed((e, fanSpeed) => e
     ? res.status(500).json({ code: e.code, message: e.message })
     : res.status(200).json({ fanScale, fanSpeed })))

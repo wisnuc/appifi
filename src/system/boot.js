@@ -4,10 +4,11 @@ const child = Promise.promisifyAll(require('child_process'))
 
 const router = require('express').Router()
 
+const { isUUID } = require('../common/assertion')
 const broadcast = require('../common/broadcast')
-const barcelona = require('./barcelona')
 
 /**
+
 @module Boot
 */
 
@@ -53,19 +54,29 @@ Module init. Hook listeners to `ConfigUpdate` and `StorageUpdate` events.
 @listens StorageUpdate
 */
 const init = () => {
+  const readyToBoot = () =>
+    mode !== undefined && last !== undefined && storage !== undefined
+
   broadcast.on('ConfigUpdate', (err, config) => {
     if (err) return
-    if (mode === config.bootMode && last === config.lastFileSystem) return
-    if (mode === undefined && storage !== undefined) process.nextTick(() => boot())
+    if (config.bootMode !== 'normal' && config.bootMode !== 'maintenance') {
+      process.nextTick(() => broadcast.emit('BootModeUpdate', null, 'normal'))
+      return
+    }
+    if (config.lastFileSystem !== null && !isUUID(config.lastFileSystem)) {
+      process.nextTick(() => broadcast.emit('FileSystemUpdate', null, null))
+      return
+    }
     mode = config.bootMode
     last = config.lastFileSystem
+    if (state === 'starting' && readyToBoot()) boot()
   })
 
   broadcast.on('StorageUpdate', (err, _storage) => {
     if (err) return
     if (storage === _storage) return
-    if (storage === undefined && mode !== undefined) process.nextTick(() => boot())
     storage = _storage
+    if (state === 'starting' && readyToBoot()) boot()
   })
 }
 
@@ -79,15 +90,12 @@ const boot = () => {
 
   if (last && (v = volumes.find(v => v.fileSystemUUID === last.uuid))) {
     if (!v.isMounted) {
-      // last file system found but not mounted
       current = null
-      error = 'ELASTMOUNT'
+      error = 'ELASTNOTMOUNT'
     } else if (v.isMissing) {
-      // last file system found but has missing devices
       current = null
       error = 'ELASTMISSING'
     } else if (!Array.isArray(v.users)) {
-      // last file system user file damaged
       current = null
       error = 'ELASTDAMAGED'
     } else {
@@ -102,12 +110,12 @@ const boot = () => {
       current = volumes[0].fileSystemUUID
       error = null
     } else {
-      state = 'started'
       current = null
       error = 'ENOALT'
     }
   }
 
+  state = 'started'
   broadcast.emit('FileSystemUpdate', error, current)
 }
 
@@ -128,40 +136,30 @@ router.patch('/', (req, res) => {
   const err = (code, message) => res.status(code).json({ message })
 
   if (arg.hasOwnProperty('current')) {
-    if (arg.hasOwnProperty('state')) { return err(400, 'curent and state cannot be patched simultaneously') }
-    if (arg.hasOwnProperty('mode')) { return err(400, 'current and mode cannot be patched simultaneously') }
-    if (current !== null) { return err(400, 'current file system is already set') }
+    if (arg.hasOwnProperty('state')) return err(400, 'curent and state cannot be patched simultaneously')
+    if (arg.hasOwnProperty('mode')) return err(400, 'current and mode cannot be patched simultaneously')
+    if (current !== null) return err(400, 'current file system is already set')
 
     let v = storage.volumes.find(v => v.uuid === arg.current.uuid)
     if (!v) return err(400, 'volume not found')
     if (!v.isMounted) return err(400, 'volume is not mounted')
     if (v.isMissing) return err(400, 'volume has missing devices')
-    if (!Array.isArray(v.users) && v.users !== 'ENOENT') { return err(400, 'only volumes without fruitmix or with users can be used') }
+    if (!Array.isArray(v.users) && v.users !== 'ENOENT') return err(400, 'only volumes without fruitmix or with users can be used')
 
-    let { fileSystemType: type, fileSystemUUID: uuid, mountpoint } = v
-    current = { type, uuid, mountpoint }
+    current = v.fileSystemUUID
     error = null
-    broadcast.emit('FileSystemUpdate', error, current)
+
+    if (mode === 'maintenance') broadcast.emit('BootModeUpdate', null, 'normal')
+    broadcast.emit('FileSystemUpdate', null, current)
 
     res.status(200).end()
   } else if (arg.hasOwnProperty('state')) {
-    if (arg.state !== 'poweroff' && arg.state !== 'reboot') { return err(400, 'invalid state') }
+    if (arg.state !== 'poweroff' && arg.state !== 'reboot') return err(400, 'invalid state')
+    if (arg.state === 'reboot' && arg.mode === 'maintenance') broadcast.emit('BootModeUpdate', null, 'maintenance')
 
-    if (arg.mode === 'maintenance') {
-      // TODO
-    }
-
-    (async () => {
-      try {
-        if (barcelona.isBarcelona) await child.execAsync('echo "PWR_LED 3" > /proc/BOARD_io')
-      } finally {
-      }
-
-      await Promise.delay(3000)
-      await child.execAsync(arg.state)
-    })()
-      .then(() => res.status(200).end())
-      .catch(e => res.status(500).json({ code: e.code, message: e.message }))
+    broadcast.emit('SystemShutdown')
+    setTimeout(() => child.exec(arg.state), 4000)
+    res.status(200).end()
   } else {
     err(400, 'either current or state must be provided')
   }

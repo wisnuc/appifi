@@ -1,13 +1,11 @@
 const Promise = require('bluebird')
 const path = require('path')
 const fs = Promise.promisifyAll(require('fs'))
-const mkdirpAsync = Promise.promisify(require('mkdirp'))
-const validator = require('validator')
+// const mkdirpAsync = Promise.promisify(require('mkdirp'))
 const deepFreeze = require('deep-freeze')
 
-const broadcast = require('../common/broadcast') 
+const broadcast = require('../common/broadcast')
 const createPersistenceAsync = require('../common/persistence')
-
 
 /**
 This module maintains station-wide configuration.
@@ -16,7 +14,6 @@ It requries a file to persist data and a temporary file directory.
 
 In `production` mode, the paths are `/etc/wisnuc.json` and `/etc/wisnuc-tmp`, respectively.
 In `test` mode, the paths are `<cwd>/tmptest/wisnuc.json` and `<cwd>/tmptest/tmp`, respectively.
-
 
 @module   Config
 @requires Broadcast
@@ -55,12 +52,10 @@ const defaultConfig = {
   bootMode: 'normal',
   barcelonaFanScale: 50,
   networkInterfaces: []
-} 
+}
 
 module.exports = new class {
-
-  constructor() {
-
+  constructor () {
     /**
     Configuration
     @member config
@@ -69,7 +64,7 @@ module.exports = new class {
     this.config = null
 
     /**
-    Persistence worker for persisting config file    
+    Persistence worker for persisting config file
 
     @member persistence
     @type {Persistence}
@@ -79,7 +74,7 @@ module.exports = new class {
     /**
     Config file path
 
-    @member filePath 
+    @member filePath
     @type {string}
     */
     this.filePath = ''
@@ -101,18 +96,14 @@ module.exports = new class {
   @inner
   @fires ConfigUpdate
   */
-  async initAsync() {
-
+  async initAsync () {
     let cwd = process.cwd()
 
     // initialize paths
     if (process.env.NODE_ENV === 'test') {
-
       this.filePath = path.join(cwd, 'tmptest', 'wisnuc.json')
       this.tmpDir = path.join(cwd, 'tmp')
-    }
-    else {
-
+    } else {
       this.filePath = '/etc/wisnuc.json'
       this.tmpDir = '/etc/wisnuc-tmp'
     }
@@ -122,10 +113,9 @@ module.exports = new class {
     this.persistence = await createPersistenceAsync(this.filePath, this.tmpDir, 50)
 
     // load file
-    try { 
-      this.config = JSON.parse(await fs.readFileAsync(fpath)) 
-    } 
-    catch (e) {
+    try {
+      this.config = JSON.parse(await fs.readFileAsync(this.filePath))
+    } catch (e) {
       this.config = defaultConfig
     }
 
@@ -134,18 +124,16 @@ module.exports = new class {
     broadcast.on('FanScaleUpdate', (err, data) => err || this.update({barcelonaFanScale: data}))
     broadcast.on('FileSystemUpdate', (err, data) => err || this.update({lastFileSystem: data}))
     broadcast.on('NetworkInterfacesUpdate', (err, data) => err || this.update({networkInterfaces: data}))
-    broadcast.on('BootModeUpdate', (err, data) => err || this.update({ bootMode: data }))  
+    broadcast.on('BootModeUpdate', (err, data) => err || this.update({ bootMode: data }))
   }
 
   /**
-  Update configuration 
+  Update configuration
   */
-  update(props) {
+  update (props) {
     this.config = Object.assign({}, this.config, props)
     deepFreeze(this.config)
     this.persistence.save(this.config)
     process.nextTick(() => broadcast.emit('ConfigUpdate', null, this.config))
   }
-}
-
-
+}()
