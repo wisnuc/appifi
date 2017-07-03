@@ -30,14 +30,6 @@ Fired when `Config` module initialized.
 @global
 */
 
-// TODO move this definition to ipaliasing module
-
-/**
-@typedef IpAliasing
-@property {string} mac - mac address
-@property {string} ipv4 - ipv4 address
-*/
-
 /**
 `Config` is an data type internally used in this module. It's JSON equivalent is persisted to a file.
 
@@ -49,7 +41,7 @@ Fired when `Config` module initialized.
 @property {string} lastFileSystem.uuid - file system uuid
 @property {string} bootMode - normal or maintenance
 @property {number} barcelonaFanScale - barcelona specific setting
-@property {IpAliasing[]} ipAliasing - a list of ip aliasing 
+@property {networkInterfaceConfig[]} networkInterfaces - a list of network interface config.
 */
 
 /**
@@ -64,7 +56,7 @@ const defaultConfig = {
   lastFileSystem: null,
   bootMode: 'normal',
   barcelonaFanScale: 50,
-  ipAliasing: []
+  networkInterfaces: []
 } 
 
 /** validate uuid string TODO **/
@@ -86,6 +78,20 @@ const isValidIpAliasing = arr =>
     && validator.isMACAddress(ia.mac)
     && typeof ia.ipv4 === 'string'
     && validator.isIP(ia.ipv4, 4))
+
+/*
+const isCIDR = str =>
+  typeof str === 'string'
+  && str.split('/').length === 2
+  && validator.isIP(str.split('/')[0], 4)
+  && 
+
+const isValidNetworkInterfaceConfig = arr =>
+  arr.every(nic => 
+    typeof nic.name === 'string'
+    && Array.isArray(nic.aliases)
+    && 
+*/
 
 module.exports = new class {
 
@@ -196,6 +202,8 @@ module.exports = new class {
     deepFreeze(this.config)
 
     this.persistence.save(this.config)
+
+    process.nextTick(() => broadcast.emit('ConfigUpdate', null, this.config))
   }
 
   /**
@@ -231,6 +239,10 @@ module.exports = new class {
   */
   updateIpAliasing(arr) {
     isValidIpAliasing(arr) && this.merge({ ipAliasing: arr })
+  }
+
+  updateNetworkInterfaces(networkInterfaces) {
+    this.merge({ networkInterfaces })
   }
 
   /**

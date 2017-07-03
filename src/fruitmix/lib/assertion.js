@@ -19,7 +19,6 @@ const assert = (predicate, message) => {
   if (!predicate) throw new Error(message);
 }
 
-
 /**
 Test if given variable is a valid uuid string (lowercase only).
 
@@ -107,7 +106,7 @@ Validate object props (structure)
 @throws Throw error if any argument or object structure invalid
 */
 const validateProps = (obj, mandatory, optional = []) => {
-
+  //
   if (typeof obj !== 'object') throw new Error('obj is not an object')
   if (obj === null) throw new Error('obj is null')
   if (!Array.isArray(mandatory)) throw new Error('mandatory is not an array')
@@ -123,6 +122,18 @@ const validateProps = (obj, mandatory, optional = []) => {
 const isNormalizedAbsolutePath = abspath => 
   typeof abspath === 'string' && path.isAbsolute(abspath) && path.normalize(abspath) === abspath
 
+const isCIDR = str => {
+
+  if (typeof str !== 'string') return false
+
+  let split = str.split('/')  
+  if (split.length !== 2) return false
+  if (!validator.isIP(split[0], 4)) return false
+  
+  let num = parseInt(split[1])
+  return Number.isInteger(num) && num >= 0 && num <= 32 && ('' + num === split[1])
+}
+
 module.exports = {
   assert,
   validateProps,
@@ -131,5 +142,6 @@ module.exports = {
   isNonNullObject,
   isNonEmptyString,
   isNormalizedAbsolutePath,
+  isCIDR
 }
 

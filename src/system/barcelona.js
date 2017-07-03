@@ -2,6 +2,7 @@ const Promise = require('bluebird')
 const fs = Promise.promisifyAll(require('fs'))
 const child = Promise.promisifyAll(require('child_process'))
 
+const router = require('express').Router()
 const debug = require('debug')('system:barcelona')
 
 const broadcast = require('../common/broadcast')
@@ -164,12 +165,39 @@ const init = () => {
   })
 } 
 
+/**
+ *  GET /fan, return { fanSpeed, fanScale }
+ */
+router.get('/', (req, res) => 
+  !Device.isWS215i() 
+    ? unsupported(res)
+    : readFanSpeed((err, fanSpeed) => err
+      ? error(res, err)
+      : ok(res, { fanSpeed, fanScale: Config.get().barcelonaFanScale })))
+
+/**
+ *  POST /fan
+ *  {
+ *    fanScale: INTEGER
+ *  }
+ */
+const isValidFanArgs = body => 
+  typeof body === 'object'
+    && body !== null
+    && Number.isIntegery(body.fanScale) 
+    && body.fanScale >= 0 
+    && body.fanScale <= 100
+
+router.post('/', (req, res) =>
+  !Device.isWS215i()
+    ? unsupported(res)
+    : !isValidFanArgs(req.body) 
+      ? invalid(res)
+      : writeFanScale(req.body.fanScale, err => 
+        err ? error(res, err) : ok(res)))
+
 isBarcelona && init()
 
-module.exports = { 
-  readFanSpeed, 
-  writeFanScale, 
-  isBarcelona
-}
+module.exports = isBarcelona ? router : null
 
 

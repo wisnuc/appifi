@@ -6,7 +6,16 @@ const bodyParser = require('body-parser')
 
 const broadcast = require('./common/broadcast')
 
+const settings = require('./system/settings')
+
 const app = express()
+
+const barcelona = require('./system/barcelona')
+const system = require('./system/system')
+const net = require('./system/net')
+const timedate = require('./system/timedate')
+const boot = require('./system/routes/boot')
+const storage = require('./system/routes/storage')
 const auth = require('./fruitmix/middleware/auth')
 const token = require('./fruitmix/routes/token')
 const users = require('./fruitmix/routes/users')
@@ -21,14 +30,18 @@ This module is the entry point of the whole application.
 @module App
 */
 
+
+app.set('json spaces', 0)
 app.use(logger('dev', { skip: (req, res) => res.nolog === true || app.nolog === true }))
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: false }))
-
 app.use(auth.init())
-
-app.use('system', require('./system'))
-
+app.use('/boot', boot)
+app.use('/storage', storage)
+app.use('/control/system', system) 
+app.use('/control/net/interfaces', net)
+app.use('/control/timedata', timedate)
+if (barcelona) app.use('/control/fan', barcelona)
 app.use('/token', token)
 app.use('/users', users)
 app.use('/drives', drives)
