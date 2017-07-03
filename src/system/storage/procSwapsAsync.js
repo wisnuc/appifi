@@ -1,7 +1,7 @@
 const Promise = require('bluebird')
 const fs = Promise.promisifyAll(require('fs'))
 
-module.exports = async () => 
+module.exports = async () =>
   (await fs.readFileAsync('/proc/swaps'))
     .toString().split(/\n/).filter(l => l.length)
     .map(l => l.replace(/\t/g, ' '))
@@ -13,7 +13,6 @@ module.exports = async () =>
         type: tmp[1],
         size: tmp[2],
         used: tmp[3],
-        priority: tmp[4]  
+        priority: tmp[4]
       }
     })
-
