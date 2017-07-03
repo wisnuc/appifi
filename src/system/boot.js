@@ -8,13 +8,12 @@ const mkdirp = require('mkdirp')
 const rimrafAsync = Promise.promisify(rimraf)
 const mkdirpAsync = Promise.promisify(mkdirp)
 
+const router = require('express').Router()
+
 const broadcast = require('../common/broadcast')
 
 const Config = require('./config')
 const Storage = require('./storage')
-const User = require('../fruitmix/models/user')
-const fruitmix = require('./boot/fruitmix')
-const samba = require('./boot/samba')
 
 const debug = require('debug')('system:boot')
 
@@ -290,4 +289,22 @@ module.exports = new class {
   }
 }
 
+router.get('/', (req, res) => {
 
+  let { state, error } = Boot
+  let { bootMode, lastFileSystem } = Config.config
+
+  console.log(Config.config)
+
+  let currentFileSystem = Boot.currentFileSystem 
+    ? ({
+        type: Boot.currentFileSystem.type,
+        uuid: Boot.currentFileSystem.uuid
+      })
+    : null
+
+  res.status(200).json({ mode: bootMode, lastFileSystem, 
+    state, error, currentFileSystem })
+})
+
+module.exports = router

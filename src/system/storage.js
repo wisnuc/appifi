@@ -509,6 +509,47 @@ const reformatStorage = storage => {
 }
 
 /**
+This function probes fruitmix installation on given file system. If found, it returns the list of users. Otherwise, it throws an error, with error code modified for clients to proceed.
+
+It does NOT change anything on file system. 
+
+@param {string} mountpoint - absolute path
+@returns {user[]} list of users. may be an empty list.
+@throws {ENOENT} `wisnuc/fruitmix` does not exist. It is safe to init fruitmix here.
+@throws {ENOTDIR} either `wisnuc` or `wisnuc/fruitmix` is not a directory. It is danger to init fruitmix here.
+@throws {EDATA} `wisnuc/fruitmix` directory exists. Either `users.json` not found or can not be parsed.
+@thorws {EFAIL} operation error
+*/
+const probeFruitmix = async mountpoint => {
+
+
+  let fruitmixDir = path.join(mountpoint, 'wisnuc', 'fruitmix')
+
+  // test fruitmix dir
+  try {
+    await fs.readdirAsync(fruitmixDir)
+  }
+  catch (e) {
+    throw (e.code === 'ENOENT' || e.code === 'ENODIR')
+      ? e
+      : Object.assign(new Error('' + e.code + ':' + e.message), { code: 'EFAIL' })
+  }
+
+  // retrieve users
+  try {
+    let filePath = path.join(fruitmixDir, 'models', 'users.json')
+    let users = JSON.parse(await fs.readFileAsync(filePath))
+    return users
+  }
+  catch (e) {
+    throw (e.code === 'ENOENT' || e.code === 'EISDIR' || e instanceof SyntaxError)
+      ? Object.assign(new Error('' + e.code + ':' + e.message), { code: 'EDATA' })
+      : Object.assign(new Error('' + e.code + ':' + e.message), { code: 'EFAIL' })
+  }
+}
+
+
+/**
 A full storage probe, including the following steps:
 
 1. probe raw ports, blocks, volumes, mounts, and swaps
@@ -574,9 +615,9 @@ const probeAsync = async () => {
     .filter(v => v.isMounted && !v.isMissing)
     .map(async v => {
       try {
-        // v.users = await user.detectFruitmix(v.mountpoint) TODO
+        v.users = await probeFruitmix(v.mountpoint) 
       } catch (e) {
-        v.users = e.code || e.message
+        v.users = e.code || 'EFAIL'
       }
     }))
 
@@ -584,6 +625,8 @@ const probeAsync = async () => {
   deepFreeze(storage)
   return storage
 }
+
+
 
 class Synchronized {
   constructor () {
@@ -622,7 +665,7 @@ class Synchronized {
   }
 }
 
-module.exports = new class extends Synchronized {
+const singleton = new class extends Synchronized {
   constructor () {
     super()
     this.request()
@@ -640,10 +683,13 @@ module.exports = new class extends Synchronized {
   }
 }()
 
-router.get('/', (req, res, next) => {
-})
+router.get('/', (req, res, next) => 
+  singleton.request((err, data) => err
+    ? res.status(500).json({ code: err.code, message: err.message })   
+    : res.status(200).json(data))) 
 
 router.post('/volumes', (req, res, next) => {
 })
 
+module.exports = router
 
