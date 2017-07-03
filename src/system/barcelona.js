@@ -111,7 +111,10 @@ const pollingPowerButton = () => setInterval(() => {
 }, 1000)
 
 /**
-Return true if fanScale is valid
+Check if given fan scale value is valid.
+
+@param {number} fanScale - a integer between 0 and 100, inclusive.
+@returns {boolean}
 */
 const isValidFanScale = fanScale => Number.isInteger(fanScale) && fanScale >= 0 && fanScale <= 100
 
@@ -171,13 +174,6 @@ const init = () => {
   module.exports = {
     /**
     `romcodes` is an object containing serial number, p2p code and mac address.
-    ```
-    {
-      serial:
-      p2p:
-      mac:
-    }
-    ```
     @member
     @const
     */
@@ -202,7 +198,7 @@ const init = () => {
     })(),
 
     /**
-    See api documents
+    See API documents
     @member
     */
     router
