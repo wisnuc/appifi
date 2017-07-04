@@ -658,7 +658,7 @@ const refreshAsync = async () => singleton.requestAsync()
 const umountBlocks = async (storage, target) => {
   debug('unmount blocks, storage, target', storage, target)
 
-  let {blocks, volumes } = storage
+  let { blocks, volumes } = storage
 
   let blks = target.map(name => blocks.find(blk => blk.name === name))
 
@@ -682,7 +682,7 @@ const umountBlocks = async (storage, target) => {
                 .filter(blk => blk.isPartition || // is partition
                   (blk.isDisk && blk.isFileSystem && !blk.isVolumeDevice)) // is non-volume filesystem disk
 
-  const umountAsync = async mountpoint => child.execAsync(`umount ${mountpoint}`, err => callback(err))
+  const umountAsync = async mountpoint => child.execAsync(`umount ${mountpoint}`)
 
   // for mounted volumes, normal umount
   // for mounted blocks (with fs)
@@ -710,8 +710,6 @@ target: array of device name ['sda', 'sdb', etc]
 mode: must be 'single', 'raid0', 'raid1'
 */
 const mkfsBtrfsAsync = async args => {
-  let error = null
-
   let { target, mode } = args
 
   debug('mkfsBtrfs', target, mode)
@@ -722,7 +720,7 @@ const mkfsBtrfsAsync = async args => {
   // target must be string array
   if (!Array.isArray(target) || target.length === 0 || !target.every(name => typeof name === 'string')) { throw new Error('invalid target names') }
 
-  let storage, blocks, volumes
+  let storage, blocks
 
   target = Array.from(new Set(target)).sort()
   storage = await refreshAsync()
@@ -750,12 +748,11 @@ const mkfsBtrfsAsync = async args => {
   }
 
   blocks = storage.blocks
-  volumes = storage.volumes
+  // volumes = storage.volumes
 
   let block = blocks.find(blk => blk.name === target[0])
   let uuid = block.fileSystemUUID
-  let volume = volumes.find(vol => vol.uuid === uuid)
-
+  // let volume = volumes.find(vol => vol.uuid === uuid)
   return uuid
 }
 

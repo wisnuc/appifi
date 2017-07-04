@@ -10,6 +10,7 @@ const settings = require('./system/settings')
 
 const app = express()
 
+const config = require('./system/config')
 const barcelona = require('./system/barcelona')
 const system = require('./system/system')
 const net = require('./system/net')

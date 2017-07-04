@@ -4,7 +4,7 @@ const child = Promise.promisifyAll(require('child_process'))
 /*
  * parse single volume info
  */
-const btrfs_fi_show_uuid = async (uuid) => {
+const btrfsFiShowUUID = async (uuid) => {
   let stdout = await child.execAsync(`btrfs fi show ${uuid}`)
 
   let lines = stdout.toString().split(/\n/).filter(l => l.length).map(l => l.trim())
@@ -38,11 +38,10 @@ const btrfs_fi_show_uuid = async (uuid) => {
         used: tmp[5],
         path: tmp[7]
       })
-    }
-    // FIXME warning devid 2 not found already (not sure stdout or stderr)
-    // FIXME also, the error message won't print if volume mounted
-    // warning, device 2 is missing
-    else if (l.startsWith('warning, device')) {
+    } else if (l.startsWith('warning, device')) {
+      // FIXME warning devid 2 not found already (not sure stdout or stderr)
+      // FIXME also, the error message won't print if volume mounted
+      // warning, device 2 is missing
       let tmp = l.split(' ')
       vol.devices.push({
         id: parseInt(tmp[2])
@@ -69,5 +68,5 @@ module.exports = async () => {
   let stdout = await child.execAsync(cmd)
   let uuids = stdout.toString().split(/\n/).filter(l => l.length)
 
-  return Promise.map(uuids, uuid => btrfs_fi_show_uuid(uuid))
+  return Promise.map(uuids, uuid => btrfsFiShowUUID(uuid))
 }

@@ -1,8 +1,9 @@
 const Promise = require('bluebird')
 const child = Promise.promisifyAll(require('child_process'))
 
-const btrfs_filesystem_usage = async (mountpoint) => {
-  let tmp, cmd = 'btrfs filesystem usage -b ' + mountpoint
+const btrfsFilesystemUsage = async (mountpoint) => {
+  let tmp
+  let cmd = 'btrfs filesystem usage -b ' + mountpoint
   let stdout = await child.execAsync(cmd)
   let result = {
     mountpoint: mountpoint,
@@ -84,7 +85,7 @@ const btrfs_filesystem_usage = async (mountpoint) => {
   return result
 }
 
-const btrfs_device_usage = async (mountpoint) => {
+const btrfsDeviceUsage = async (mountpoint) => {
   let cmd = 'btrfs device usage -b ' + mountpoint
   let stdout = await child.execAsync(cmd)
   let lines = stdout.toString().split(/\n/).map(l => l.trim()).filter(l => l.length)
@@ -120,8 +121,8 @@ const btrfs_device_usage = async (mountpoint) => {
 
 module.exports = async (mountpoint) => {
   let usage = await Promise.all([
-    btrfs_filesystem_usage(mountpoint),
-    btrfs_device_usage(mountpoint)])
+    btrfsFilesystemUsage(mountpoint),
+    btrfsDeviceUsage(mountpoint)])
 
   return Object.assign({}, usage[0], { devices: usage[1] })
 }

@@ -4,12 +4,18 @@ const router = require('express').Router()
 
 const broadcast = require('../common/broadcast')
 const sysfsNetworkInterfaces = require('./networkInterfaces')
-const Config = require('./config')
 
 /**
 
 @requires Broadcast
 @module Net
+*/
+
+/**
+Fired when network interface config updated by user.
+
+@event NetworkInterfacesUpdate
+@global
 */
 
 /**
@@ -128,6 +134,11 @@ const update = () => interfaces((err, its) => {
 })
 
 broadcast.on('ConfigUpdate', (err, config) => {
+  if (err) return
+  if (!Array.isArray(config.networkInterfaces)) {
+    process.nextTick(() => broadcast.emit('NetworkInterfacesUpdate', null, []))
+    return
+  }
   if (nics === config.networkInterfaces) return
   nics = config.networkInterfaces
   update()
@@ -150,12 +161,12 @@ router.post('/:name/aliases', (req, res, next) => {
     let cidr = `${ipv4}/${mask}`
     let conf = { name, aliases: [cidr] }
     let index = nics.findIndex(c => c.name === name)
-    let next = index === -1
+    let newNics = index === -1
       ? [...nics, conf]
       : [...nics.slice(0, index), conf, ...nics.slice(index + 1)]
 
-    next.sort((a, b) => a.name.localeCompare(b.name))
-    broadcast.emit('NetworkInterfacesUpdate', next)
+    newNics.sort((a, b) => a.name.localeCompare(b.name))
+    broadcast.emit('NetworkInterfacesUpdate', newNics)
     res.status(200).end()
   })
 })

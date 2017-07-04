@@ -123,6 +123,7 @@ Module init function. It starts power button polling and hooks `ConfigUpdate` li
 
 @fires FanScaleUpdate
 @listens ConfigUpdate
+@listens SystemShutdown
 */
 const init = () => {
   try {
@@ -166,7 +167,7 @@ const init = () => {
 
   router.patch('/', (req, res) => {
     if (Number.isInteger(req.body.fanScale) && req.body.fanScale >= 0 && req.body.fanScale <= 100) {
-      broadcast.emit('BarcelonaFanScaleUpdate', req.body.fanScale)
+      broadcast.emit('FanScaleUpdate', req.body.fanScale)
       res.status(200).end()
     } else {
       res.status(400).end()

@@ -31,11 +31,7 @@ Fired when `Config` module initialized.
 `Config` is an data type internally used in this module. It's JSON equivalent is persisted to a file.
 
 @typedef {object} Config
-@property {number} version - configuration version, 1 for current version.
-@property {(null|string)} dockerInstall - docker install path other than default
-@property {object} lastFileSystem - last booted file system containing fruitmix and appifi
-@property {string} lastFileSystem.type - file system type, only btrfs is used in current version
-@property {string} lastFileSystem.uuid - file system uuid
+@property {string} lastFileSystem - last booted file system containing fruitmix and appifi
 @property {string} bootMode - normal or maintenance
 @property {number} barcelonaFanScale - barcelona specific setting
 @property {networkInterfaceConfig[]} networkInterfaces - a list of network interface config.
@@ -95,6 +91,10 @@ module.exports = new class {
   Load and validate config from file, or set it to default.
   @inner
   @fires ConfigUpdate
+  @listens FanScaleUpdate
+  @listens BootModeUpdate
+  @listens FileSystemUpdate
+  @listens NetworkInterfacesUpdate`
   */
   async initAsync () {
     let cwd = process.cwd()
