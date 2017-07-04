@@ -24,26 +24,26 @@ boot {
 
 `mode` is a user configuration rather than a run-time state.
 
-There are two modes defined to boot the system.  
+There are two modes defined to boot the system.
 
-+ In `normal` mode, boot module tries to select a file system and to bring up all applications automatically.  
++ In `normal` mode, boot module tries to select a file system and to bring up all applications automatically.
 + In `maintenance` mode, boot module won't bring up any application. User can select this mode to fulfill jobs related to disk or file system management.
 
 `last` is a read-only configuration. Each time a file system is selected to bring up applications, the file system is saved to `last` configuration.
 
 `state` is the state of boot module (not the state of applications). It can be `starting`, `started`, `stopping`.
 
-`current` is the currently selected file system used by applications. `error` records an error code when `boot` module fails to set `current`. `error` and `current` are used like `err` and `data` in a node callback. 
+`current` is the currently selected file system used by applications. `error` records an error code when `boot` module fails to set `current`. `error` and `current` are used like `err` and `data` in a node callback.
 
-It is possible that both of them are `null`, when: 
-+ the system boots into `maintenance` mode by the user, 
+It is possible that both of them are `null`, when:
++ the system boots into `maintenance` mode by the user,
 + applications are stopped by the user but the system is not shutdown. (not supported yet)
 
 #### Boot Logic
 
 + If `mode` is `maintenance`, boot module stops, waiting for user requests.
-+ If `mode` is `normal`, boot module tries to find the `last` file system. 
-  + If `last` is found and is OK, it is used as current file system. 
++ If `mode` is `normal`, boot module tries to find the `last` file system.
+  + If `last` is found and is OK, it is used as current file system.
   + If `last` is found but not OK, `error` is set.
   + If `last` is not found
     + If there is exactly one btrfs volume and it is OK with fruitmix installed, it is used as current file systme.
@@ -53,11 +53,11 @@ It is possible that both of them are `null`, when:
 
 `state` or `current` can be updated via http patch.
 
-Updating state to `poweroff` or `reboot` would shutdown or reboot the system, respectively. 
+Updating state to `poweroff` or `reboot` would shutdown or reboot the system, respectively.
 
 When `state` is `reboot`, `mode` can be `normal` or `maintenance` as an option (reboot to normal / maintenance mode)
 
-When `current` is null, it can be set to a btrfs file system uuid. This is the `run` operation. 
+When `current` is null, it can be set to a btrfs file system uuid. This is the `run` operation.
 
 The file system must either have a good fruitmix installation (`users` is an array) or have no fruitmix at all (`users` is `ENOENT`)
 
@@ -208,7 +208,7 @@ router.get('/', (req, res) => {
 
 /**
 see apib document
-@function 
+@function
 @fires FileSystemUpdate
 @fires BootModeUpdate
 */
