@@ -15,6 +15,10 @@ class Synchronized {
     }
   }
 
+  run () {
+    throw new Error('subclass must implement this method')
+  }
+
   request (callback = () => {}) {
 
     if (this.working.length === 0) {
@@ -39,3 +43,4 @@ class Synchronized {
 }
 
 module.exports = Synchronized
+
