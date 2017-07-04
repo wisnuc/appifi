@@ -1,5 +1,4 @@
 const Promise = require('bluebird')
-const path = require('path')
 const fs = require('fs')
 const child = require('child_process')
 
@@ -12,16 +11,16 @@ const barcelona = require('./barcelona')
 This module probes the following system information:
 
 + cpu
-+ memory 
++ memory
 + dmidecode or barcelona equivalent
 + software release revision (github release)
 + source code revision (commit)
 
-These information are probed when system starts and cached. 
+These information are probed once and cached.
 
 @module System
+@requires Broadcast
 @requires Barcelona
-@fires SystemUpdate
 */
 
 /**
@@ -31,9 +30,15 @@ Fired when system probe finished during system inits.
 @global
 */
 
-// K combinator
+/**
+K combinator
+*/
 const K = x => y => x
 
+/**
+list of dmidecode names
+@const
+*/
 const dminames = [
   'bios-vendor', 'bios-version', 'bios-release-date',
   'system-manufacturer', 'system-product-name',
@@ -47,16 +52,25 @@ const dminames = [
   'processor-version', 'processor-frequency'
 ]
 
-// this function change string format 'processor-family' to js style 'processorFamily'
-const camelCase = text => 
+/**
+System Information
+*/
+let system = null
+
+/**
+This function change string format 'processor-family' to js style 'processorFamily'
+@param {string} text
+@returns camelCased strings.
+*/
+const camelCase = text =>
   text.split(/[_\- ()]/)
-    .map((w, idx) => idx === 0 
+    .map((w, idx) => idx === 0
       ? w.charAt(0).toLowerCase() + w.slice(1)
       : w.charAt(0).toUpperCase() + w.slice(1))
     .join('')
 
 // parse
-const parseSingleSectionOutput = stdout => 
+const parseSingleSectionOutput = stdout =>
   stdout.toString().split('\n')                                               // split to lines
     .map(l => l.trim()).filter(l => l.length)                                 // trim and remove empty line
     .map(l => l.split(':').map(w => w.trim()))                                // split to word array (kv)
@@ -68,76 +82,62 @@ const parseMultiSectionOutput = stdout =>
   stdout.toString().split('\n\n')                                             // split to sections
     .map(sect => sect.trim())                                                 // trim
     .filter(sect => sect.length)                                              // remove last empty
-    .map(sect => 
+    .map(sect =>
       sect.split('\n')                                                        // process each section
-        .map(l => l.trim()).filter(l => l.length)                             // trim and remove empty line     
-        .map(l => l.split(':').map(w => w.trim()))                            // split to word array (kv)     
-        .filter(arr => arr.length === 2 && arr[0].length)                     // filter out non-kv     
-        .reduce((obj, arr) => K(obj)(obj[camelCase(arr[0])] = arr[1]), {}))   // merge into one object 
+        .map(l => l.trim()).filter(l => l.length)                             // trim and remove empty line
+        .map(l => l.split(':').map(w => w.trim()))                            // split to word array (kv)
+        .filter(arr => arr.length === 2 && arr[0].length)                     // filter out non-kv
+        .reduce((obj, arr) => K(obj)(obj[camelCase(arr[0])] = arr[1]), {}))   // merge into one object
 
+/**
+Convert proc file system information to JavaScript object
 
+@param {string} path - proc file system path
+@param {boolean} multi - if true, treat the output as multiple section
+*/
 const probeProcAsync = async (path, multi) => {
-
   let stdout = await child.execAsync(`cat /proc/${path}`)
-  return multi 
-    ? parseMultiSectionOutput(stdout)  
+  return multi
+    ? parseMultiSectionOutput(stdout)
     : parseSingleSectionOutput(stdout)
 }
 
-// return undefined if not barcelona
-const probeWS215iAsync = async () => {
-
-  try {
-    await fs.statAsync('/proc/BOARD_io')
-    let arr = await Promise.all([
-      child.execAsync('dd if=/dev/mtd0ro bs=1 skip=1697760 count=11'),
-      child.execAsync('dd if=/dev/mtd0ro bs=1 skip=1697664 count=20'),
-      child.execAsync('dd if=/dev/mtd0ro bs=1 skip=1660976 count=6 | xxd -p')
-    ])
-    return {
-      serial: arr[0].toString(),
-      p2p: arr[1].toString(),
-      mac: arr[2].trim().match(/.{2}/g).join(':')
-    }
-  } catch (e) {}
-}
-
-// callback version is much easier than that of async version with bluebird promise reflection
+/**
+Callback versoin of dmidecode
+*/
 const dmiDecode = cb => {
+  let count = dminames.length
+  let dmidecode = {}
 
-  let count = dminames.length, dmidecode = {}
   const end = () => (!--count) && cb(null, dmidecode)
-  
-  dminames.forEach(name => 
-    child.exec(`dmidecode -s ${name}`, (err, stdout) => 
-      end(!err && stdout.length && 
+
+  dminames.forEach(name =>
+    child.exec(`dmidecode -s ${name}`, (err, stdout) =>
+      end(!err && stdout.length &&
         (dmidecode[camelCase(name)] = stdout.toString().split('\n')[0].trim()))))
 }
 
-// return undefined for barcelona
-const dmiDecodeAsync = async () => {
-  try {
-    await fs.statAsync('/proc/BOARD_io')
-    return
-  } catch (e) {}
+/**
+Async version of dmidecode, returns undefined for barcelona
+*/
+const dmiDecodeAsync = async () => barcelona ? undefined : Promise.promisify(dmiDecode)()
 
-  return await Promise.promisify(dmiDecode)()
-}
-
-// return null if not in production deployment
+/**
+Probe .release.json file. Returns null if `cwd` is not `/wisnuc/appifi`
+*/
 const probeReleaseAsync = async () => {
-
   if (process.cwd() === '/wisnuc/appifi') {
     try {
       return JSON.parse(await fs.readFileAsync('/wisnuc/appifi/.release.json'))
-    } catch(e) {}
+    } catch (e) {}
   }
   return null
 }
 
-// return null if not in production deployment
+/**
+Probe .revision file. Returns null if `cwd` is not `/wisnuc/appifi`
+*/
 const probeRevisionAsync = async () => {
-
   if (process.cwd() === '/wisnuc/appifi') {
     try {
       return (await fs.readFileAsync('/wisnuc/appifi/.revision')).toString().trim()
@@ -146,34 +146,36 @@ const probeRevisionAsync = async () => {
   return null
 }
 
-let system = null
+/**
+Init module and set `system`
 
-let promises = [ 
-  probeProcAsync('cpuinfo', true),
-  probeProcAsync('meminfo', false),
-  probeWS215iAsync(),
-  dmiDecodeAsync(),
-  probeReleaseAsync(),
-  probeRevisionAsync() 
-]
-
-Promise
-  .all(promises)
-  .then(arr => {
-
-    system = {
-      cpuInfo: arr[0],
-      memInfo: arr[1],
-      ws215i: arr[2],
-      dmidecode: arr[3],
-      release: arr[4],
-      commit: arr[5]  // for historical reason, this is named commit
-    }
-
-    broadcast.emit('SystemUpdate', null, system)
-  })
+@fires SystemUpdate
+*/
+const init = () =>
+  Promise.all([
+    probeProcAsync('cpuinfo', true),
+    probeProcAsync('meminfo', false),
+    dmiDecodeAsync(),
+    probeReleaseAsync(),
+    probeRevisionAsync()
+  ])
+    .then(arr => {
+      system = {
+        cpuInfo: arr[0],
+        memInfo: arr[1],
+        ws215i: barcelona ? barcelona.romcodes : undefined,
+        dmidecode: arr[2],
+        release: arr[3],
+        commit: arr[4]  // for historical reason, this is named commit
+      }
+      broadcast.emit('SystemUpdate', null, system)
+    })
 
 router.get('/', (req, res) => res.status(200).json(system))
 
-module.exports = router
+init()
 
+/**
+See API documents.
+*/
+module.exports = router

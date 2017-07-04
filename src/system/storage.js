@@ -1,5 +1,6 @@
 const Promise = require('bluebird')
 const path = require('path')
+const fs = Promise.promisifyAll(require('fs'))
 const child = Promise.promisifyAll(require('child_process'))
 
 const mkdirpAsync = Promise.promisify(require('mkdirp'))
@@ -8,6 +9,7 @@ const router = require('express').Router()
 const debug = require('debug')('system:storage')
 const deepFreeze = require('deep-freeze')
 
+const Synchronized = require('../common/synchronized')
 const probePortsAsync = require('./storage/probePortsAsync')
 const probeBlocksAsync = require('./storage/probeBlocksAsync')
 const probeMountsAsync = require('./storage/procMountsAsync')
@@ -27,21 +29,19 @@ Storage module probes all storage devices and annotates extra information, inclu
 + formattable, whether this device can be formatted
 + wisnuc station information on devices.
 
-
 raw data are not defined as type in this document. Final version are defined in detail.
 
 @module Storage
 */
 
-
 /**
 An annotated block device
 
-For linux block device, `id_fs_usage`  indicates a block device contains a file system, 
+For linux block device, `id_fs_usage`  indicates a block device contains a file system,
 including special file system.
 
-For regular file system, `idFsUsage` is `filesystem`. 
-For linux swap, it is `other`. 
+For regular file system, `idFsUsage` is `filesystem`.
+For linux swap, it is `other`.
 For lvm/md raid, it is `raid`.
 For encrypted file system, which usually requires a userspace driver, it is `crypto`.
 
@@ -82,14 +82,12 @@ For encrypted file system, which usually requires a userspace driver, it is `cry
 @property {string} [mountpoint] - mountpoint, when mounted
 @property {boolean} [isRootFS] - the file system is root file system
 @property {boolean} [isActiveSwap] - the file system is linux swap in use
-@property {string} [mountError] - error message, if the block is regular file system and not mounted. 
+@property {string} [mountError] - error message, if the block is regular file system and not mounted.
 @property {string} [unformattable] - enum string, unformattable reason
 */
 
-
-
 /**
-@typedef {object} Storage 
+@typedef {object} Storage
 @property {Block[]} blocks
 */
 
@@ -103,7 +101,7 @@ const volumeMount = (volume, mounts) =>
 
 /**
 Returns the (raw) volume the given block device belongs to, or undefined
-@param {block} 
+@param {block}
 */
 const blockVolume = (block, volumes) =>
   volumes.find(vol => vol.devices.find(dev => dev.path === block.props.devname))
@@ -152,8 +150,8 @@ const mountNonVolumesAsync = async (blocks, mounts) => {
     //     && fs type is (ext4 or ntfs or vfat) && blk is not mounted
     // if block is partition
     //   blk is fs && fs type is (ext4 or ntfs or vfat) && blk is not mounted
-    if ((blk.props.devtype === 'disk' && !blk.props.id_part_table_type) 
-      || blk.props.devtype === 'partition') {
+    if ((blk.props.devtype === 'disk' && !blk.props.id_part_table_type) ||
+      blk.props.devtype === 'partition') {
       if (blk.props.id_fs_usage === 'filesystem' &&
         ['ext4', 'ntfs', 'vfat'].indexOf(blk.props.id_fs_type) !== -1 &&
         !mounts.find(mnt => mnt.device === blk.props.devname)) {
@@ -351,7 +349,7 @@ This function returns a string or a joined string. Valid values include:
 + `ActiveSwap`, the block is or contains active swap file system
 + `Extended`, the block is an extended partition
 
-If a block is a partitioned disk and contains several unformattable partition, 
+If a block is a partitioned disk and contains several unformattable partition,
 the reason is a joined string delimited by `:`, deduplicated. Example:
 `ActiveSwap:RootFS`
 
@@ -431,7 +429,6 @@ const statVolumes = storage => {
   })
 }
 
-
 /**
 Reformat storage object. Extract useful information and merge with annotations.
 
@@ -509,6 +506,46 @@ const reformatStorage = storage => {
 }
 
 /**
+This function probes fruitmix installation on given file system. If found, it returns the list of users. Otherwise, it throws an error, with error code modified for clients to proceed.
+
+It does NOT change anything on file system.
+
+@param {string} mountpoint - absolute path
+@returns {user[]} list of users. may be an empty list.
+@throws {ENOENT} `wisnuc/fruitmix` does not exist. It is safe to init fruitmix here.
+@throws {ENOTDIR} either `wisnuc` or `wisnuc/fruitmix` is not a directory. It is danger to init fruitmix here.
+@throws {EDATA} `wisnuc/fruitmix` directory exists. Either `users.json` not found or can not be parsed.
+@thorws {EFAIL} operation error
+*/
+const probeFruitmix = async mountpoint => {
+  let fruitmixDir = path.join(mountpoint, 'wisnuc', 'fruitmix')
+
+  // test fruitmix dir
+  try {
+    await fs.readdirAsync(fruitmixDir)
+  } catch (e) {
+    debug('readdir fruitmix error', e)
+
+    throw (e.code === 'ENOENT' || e.code === 'ENOTDIR')
+      ? e
+      : Object.assign(new Error('' + e.code + ':' + e.message), { code: 'EFAIL' })
+  }
+
+  // retrieve users
+  try {
+    let filePath = path.join(fruitmixDir, 'models', 'users.json')
+    let users = JSON.parse(await fs.readFileAsync(filePath))
+    return users
+  } catch (e) {
+    debug('read users.json file error', e)
+
+    throw (e.code === 'ENOENT' || e.code === 'EISDIR' || e instanceof SyntaxError)
+      ? Object.assign(new Error('' + e.code + ':' + e.message), { code: 'EDATA' })
+      : Object.assign(new Error('' + e.code + ':' + e.message), { code: 'EFAIL' })
+  }
+}
+
+/**
 A full storage probe, including the following steps:
 
 1. probe raw ports, blocks, volumes, mounts, and swaps
@@ -529,6 +566,8 @@ This final version is freezed and returned.
 @return {Storage} the final fully annotated storage object
 */
 const probeAsync = async () => {
+  console.log('probe start')
+
   // first probe
   const arr = await Promise.all([
     probePortsAsync(),
@@ -574,9 +613,9 @@ const probeAsync = async () => {
     .filter(v => v.isMounted && !v.isMissing)
     .map(async v => {
       try {
-        // v.users = await user.detectFruitmix(v.mountpoint) TODO
+        v.users = await probeFruitmix(v.mountpoint)
       } catch (e) {
-        v.users = e.code || e.message
+        v.users = e.code || 'EFAIL'
       }
     }))
 
@@ -585,44 +624,7 @@ const probeAsync = async () => {
   return storage
 }
 
-class Synchronized {
-  constructor () {
-    this.pending = []
-    this.working = []
-  }
-
-  finish (err, data) {
-    this.working.forEach(cb => cb(err, data))
-    if (this.pending.length) {
-      this.working = this.pending
-      this.pending = []
-      this.run()
-    }
-  }
-
-  request (callback = () => {}) {
-    if (this.working.length === 0) {
-      this.working = [callback]
-      this.run()
-    } else {
-      this.pending.push(callback)
-    }
-  }
-
-  async requestAsync () {
-    return new Promise((resolve, reject) => {
-      this.request((err, data) => {
-        if (err) {
-          reject(err)
-        } else {
-          resolve(data)
-        }
-      })
-    })
-  }
-}
-
-module.exports = new class extends Synchronized {
+const singleton = new class extends Synchronized {
   constructor () {
     super()
     this.request()
@@ -635,15 +637,137 @@ module.exports = new class extends Synchronized {
 
   run () {
     probeAsync()
-      .then(data => this.finish(null, data))
-      .catch(e => this.finish(e))
+      .then(data => {
+        console.log('data', data)
+        this.finish(null, data)
+      })
+      .catch(e => {
+        console.log('error', e)
+        this.finish(e)
+      })
   }
 }()
 
-router.get('/', (req, res, next) => {
-})
+const refreshAsync = async () => singleton.requestAsync()
+
+/**
+ * unmount all blocks contained by target, target may be
+ * a volume device (disk), or standalone fs disk or partition.
+ * eg. sdb, sdb1
+ */
+const umountBlocks = async (storage, target) => {
+  debug('unmount blocks, storage, target', storage, target)
+
+  let {blocks, volumes } = storage
+
+  let blks = target.map(name => blocks.find(blk => blk.name === name))
+
+  // if it is volume device
+  let uuids = blks.filter(blk => blk.isMounted)         // filter mounted
+                .filter(blk => blk.isVolumeDevice)      // filter volume devices
+                .map(blk => blk.btrfsVolume)            // map to uuid (may dup) TODO
+
+  let mvols = Array.from(new Set(uuids)).sort()         // dedup
+                .map(uuid => volumes.find(vol =>        // map to volume
+                  vol.uuid === uuid))
+
+  // if it is partitioned disk (not necessarily mounted)
+  let mparts = blks.filter(blk => blk.isDisk && blk.isPartitioned)
+                .reduce((prev, curr) => prev.concat(blocks.filter(blk =>
+                  blk.parentName === curr.name)), [])
+                .filter(blk => blk.isMounted)
+
+  // the left should be partition or disk with standalone fs
+  let mblks = blks.filter(blk => blk.isMounted)   // filter mounted
+                .filter(blk => blk.isPartition || // is partition
+                  (blk.isDisk && blk.isFileSystem && !blk.isVolumeDevice)) // is non-volume filesystem disk
+
+  const umountAsync = async mountpoint => child.execAsync(`umount ${mountpoint}`, err => callback(err))
+
+  // for mounted volumes, normal umount
+  // for mounted blocks (with fs)
+  //  umount usb by udisksctl
+  //  umount non-usb by normal umount
+  let i
+  for (i = 0; i < mvols.length; i++) {
+    debug(`un-mounting volume ${mvols[i].uuid}`)
+    await umountAsync(mvols[i].mountpoint)
+  }
+
+  for (i = 0; i < mparts.length; i++) {
+    debug(`un-mounting partition ${mparts[i].name}`)
+    await umountAsync(mparts[i].mountpoint)
+  }
+
+  for (i = 0; i < mblks.length; i++) {
+    debug(`un-mounting block ${mblks[i].name}`)
+    await umountAsync(mblks[i].mountpoint)
+  }
+}
+
+/**
+target: array of device name ['sda', 'sdb', etc]
+mode: must be 'single', 'raid0', 'raid1'
+*/
+const mkfsBtrfsAsync = async args => {
+  let error = null
+
+  let { target, mode } = args
+
+  debug('mkfsBtrfs', target, mode)
+
+  // validate mode
+  if (['single', 'raid0', 'raid1'].indexOf(mode) === -1) { throw new Error(`invalid mode: ${mode}`) }
+
+  // target must be string array
+  if (!Array.isArray(target) || target.length === 0 || !target.every(name => typeof name === 'string')) { throw new Error('invalid target names') }
+
+  let storage, blocks, volumes
+
+  target = Array.from(new Set(target)).sort()
+  storage = await refreshAsync()
+
+  for (let i = 0; i < target.length; i++) {
+    let block = storage.blocks.find(blk => blk.name === target[i])
+    if (!block) { throw new Error(`device ${target[i]} not found`) }
+    if (!block.isDisk) { throw new Error(`device ${target[i]} is not a disk`) }
+    if (block.unformattable) { throw new Error(`device ${target[i]} is not formattable`) }
+  }
+
+  // dirty !!! FIXME
+  let devnames = target.map(name => '/dev/' + name)
+  debug(`mkfs.btrfs ${mode}`, devnames)
+
+  try {
+    await umountBlocks(storage, target)
+    await child.execAsync(`mkfs.btrfs -d ${mode} -f ${devnames.join(' ')}`)
+    await Promise.delay(1500)
+    await child.execAsync(`partprobe`) // FIXME this should be in refresh
+  } catch (e) {
+    throw e
+  } finally {
+    storage = await refreshAsync()
+  }
+
+  blocks = storage.blocks
+  volumes = storage.volumes
+
+  let block = blocks.find(blk => blk.name === target[0])
+  let uuid = block.fileSystemUUID
+  let volume = volumes.find(vol => vol.uuid === uuid)
+
+  return uuid
+}
+
+router.get('/', (req, res, next) =>
+  singleton.request((err, data) => err
+    ? res.status(500).json({ code: err.code, message: err.message })
+    : res.status(200).json(data)))
 
 router.post('/volumes', (req, res, next) => {
+  mkfsBtrfsAsync(req.body)
+    .then(uuid => res.status(200).json({ uuid }))
+    .catch(e => res.status(500).json({ code: e.code, message: e.message }))
 })
 
-
+module.exports = router

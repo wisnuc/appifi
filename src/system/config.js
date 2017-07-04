@@ -1,11 +1,10 @@
 const Promise = require('bluebird')
 const path = require('path')
 const fs = Promise.promisifyAll(require('fs'))
-const mkdirpAsync = Promise.promisify(require('mkdirp'))
-const validator = require('validator')
+// const mkdirpAsync = Promise.promisify(require('mkdirp'))
 const deepFreeze = require('deep-freeze')
 
-const broadcast = require('../common/broadcast') 
+const broadcast = require('../common/broadcast')
 const createPersistenceAsync = require('../common/persistence')
 
 /**
@@ -13,10 +12,8 @@ This module maintains station-wide configuration.
 
 It requries a file to persist data and a temporary file directory.
 
-In `production` mode, the paths are `/etc/wisnuc.json` and `/etc/wisnuc-tmp/`, respectively.
+In `production` mode, the paths are `/etc/wisnuc.json` and `/etc/wisnuc-tmp`, respectively.
 In `test` mode, the paths are `<cwd>/tmptest/wisnuc.json` and `<cwd>/tmptest/tmp`, respectively.
-
-Initialization is deferred until `SystemInit` event
 
 @module   Config
 @requires Broadcast
@@ -26,7 +23,7 @@ Initialization is deferred until `SystemInit` event
 /**
 Fired when `Config` module initialized.
 
-@event ConfigInitDone
+@event ConfigUpdate
 @global
 */
 
@@ -51,52 +48,14 @@ Default config object if config file not found or NODE_ENV is `test`
 @type {Config}
 */
 const defaultConfig = {
-  version: 1,
-  dockerInstall: null,
   lastFileSystem: null,
   bootMode: 'normal',
   barcelonaFanScale: 50,
   networkInterfaces: []
-} 
-
-/** validate uuid string TODO **/
-const isUUID = uuid => typeof uuid === 'string' && validator.isUUID(uuid)
-
-/** validate last file system object **/
-const isValidLastFileSystem = lfs => lfs === null || (lfs.type === 'btrfs' && isUUID(lfs.uuid))
-
-/** validate boot mode **/
-const isValidBootMode = bm => bm === 'normal' || bm === 'maintenance'
-
-/** validate fan scale **/
-const isValidBarcelonaFanScale = bfs => Number.isInteger(bfs) && bfs >= 0 && bfs <= 100
-
-/** valdiate ipaliasing **/
-const isValidIpAliasing = arr => 
-  arr.every(ia => 
-    typeof ia.mac === 'string' 
-    && validator.isMACAddress(ia.mac)
-    && typeof ia.ipv4 === 'string'
-    && validator.isIP(ia.ipv4, 4))
-
-/*
-const isCIDR = str =>
-  typeof str === 'string'
-  && str.split('/').length === 2
-  && validator.isIP(str.split('/')[0], 4)
-  && 
-
-const isValidNetworkInterfaceConfig = arr =>
-  arr.every(nic => 
-    typeof nic.name === 'string'
-    && Array.isArray(nic.aliases)
-    && 
-*/
+}
 
 module.exports = new class {
-
-  constructor() {
-
+  constructor () {
     /**
     Configuration
     @member config
@@ -105,7 +64,7 @@ module.exports = new class {
     this.config = null
 
     /**
-    Persistence worker for persisting config file    
+    Persistence worker for persisting config file
 
     @member persistence
     @type {Persistence}
@@ -115,7 +74,7 @@ module.exports = new class {
     /**
     Config file path
 
-    @member filePath 
+    @member filePath
     @type {string}
     */
     this.filePath = ''
@@ -137,120 +96,44 @@ module.exports = new class {
   @inner
   @fires ConfigUpdate
   */
-  async initAsync() {
-
+  async initAsync () {
     let cwd = process.cwd()
 
     // initialize paths
     if (process.env.NODE_ENV === 'test') {
-
       this.filePath = path.join(cwd, 'tmptest', 'wisnuc.json')
       this.tmpDir = path.join(cwd, 'tmp')
-    }
-    else {
-
+    } else {
       this.filePath = '/etc/wisnuc.json'
       this.tmpDir = '/etc/wisnuc-tmp'
     }
 
     // initialize member
     this.config = Object.assign({}, defaultConfig)
-    this.persistence = await createPersistenceAsync(this.filePath, this.tmpDir, 500)
+    this.persistence = await createPersistenceAsync(this.filePath, this.tmpDir, 50)
 
     // load file
-    let read, dirty = false
-    try { 
-      read = JSON.parse(await fs.readFileAsync(fpath)) 
-    } 
-    catch (e) {
-      // ingore all errors 
-    }
-
-    if (!read) {
-      dirty = true
-    }
-    else {
-
-      this.config = read
-
-      if (isValidLastFileSystem(read.lastFileSystem))
-        Object.assign({}, this.config, { lastFileSystem: read.lastFileSystem })
-
-      if (isValidBootMode(read.bootMode))
-        Object.assign({}, this.config, { bootMode: read.bootMode })
-
-      if (isValidBarcelonaFanScale(read.barcelonaFanScale))
-        Object.assign({}, this.config, { barcelonaFanScale: read.barcelonaFanScale })
-
-      if (isValidIpAliasing(read.ipAliasing))
-        Object.assign({}, this.config, { ipAliasing: read.ipAliasing })
-
-      if (this.config !== read) dirty = true
+    try {
+      this.config = JSON.parse(await fs.readFileAsync(this.filePath))
+    } catch (e) {
+      this.config = defaultConfig
     }
 
     deepFreeze(this.config)
 
-    if (dirty) this.persistence.save(this.config)
+    broadcast.on('FanScaleUpdate', (err, data) => err || this.update({barcelonaFanScale: data}))
+    broadcast.on('FileSystemUpdate', (err, data) => err || this.update({lastFileSystem: data}))
+    broadcast.on('NetworkInterfacesUpdate', (err, data) => err || this.update({networkInterfaces: data}))
+    broadcast.on('BootModeUpdate', (err, data) => err || this.update({ bootMode: data }))
   }
 
   /**
-  @inner TODO boot calls this function
+  Update configuration
   */
-  merge(props) {
-
+  update (props) {
     this.config = Object.assign({}, this.config, props)
     deepFreeze(this.config)
-
     this.persistence.save(this.config)
-
     process.nextTick(() => broadcast.emit('ConfigUpdate', null, this.config))
   }
-
-  /**
-  
-  */
-  updateLastFileSystem(lfs, forceNormal) {
-
-    if (!isValidLastFileSystem(lfs)) return 
-    if (forceNormal !== undefined && typeof forceNormal !== 'boolean') return
-    let lastFileSystem = { type: 'btrfs', uuid: lfs.uuid }
-    if (forceNormal) 
-      this.merge({ lastFileSystem, bootMode: 'normal' })
-    else
-      this.merge({ lastFileSystem })
-  }
-
-  /**
-  update boot mode in configuration file.
-  */
-  updateBootMode(bm) {
-    isValidBootMode(bm) && this.merge({ bootMode: bm })
-  }
-
-  /**
-  update barcelona fan scale
-  */ 
-  updateBarcelonaFanScale(bfs) {
-    isValidBarcelonaFanScale(bfs) && this.merge({ barcelonaFanScale: bfs })
-  }
-
-  /**
-  update ip aliasing
-  */
-  updateIpAliasing(arr) {
-    isValidIpAliasing(arr) && this.merge({ ipAliasing: arr })
-  }
-
-  updateNetworkInterfaces(networkInterfaces) {
-    this.merge({ networkInterfaces })
-  }
-
-  /**
-  Get current configuration.
-  */
-  get() {
-    return this.config
-  }
-}
-
-
+}()

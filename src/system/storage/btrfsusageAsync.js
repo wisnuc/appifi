@@ -2,10 +2,9 @@ const Promise = require('bluebird')
 const child = Promise.promisifyAll(require('child_process'))
 
 const btrfs_filesystem_usage = async (mountpoint) => {
-
   let tmp, cmd = 'btrfs filesystem usage -b ' + mountpoint
   let stdout = await child.execAsync(cmd)
-  let result = { 
+  let result = {
     mountpoint: mountpoint,
     overall: {},
     data: { devices: [] },
@@ -16,79 +15,64 @@ const btrfs_filesystem_usage = async (mountpoint) => {
 
   let o = result.overall
   let filling = null
-  
+
   stdout.toString().split(/\n\n/)
   .forEach(sec => {
     if (sec.startsWith('Overall')) {
       sec.split(/\n/).filter(l => l.startsWith('  '))
         .map(l => l.replace(/\t+/, ' ').trim())
         .forEach(l => {
-         
           let tmp = l.split(': ').map(s => s.trim())
 
           if (tmp[0] === 'Device size') {
             o.deviceSize = parseInt(tmp[1])
-          }
-          else if (tmp[0] === 'Device allocated') {
+          } else if (tmp[0] === 'Device allocated') {
             o.deviceAllocated = parseInt(tmp[1])
-          }
-          else if (tmp[0] === 'Device unallocated') {
+          } else if (tmp[0] === 'Device unallocated') {
             o.deviceUnallocated = parseInt(tmp[1])
-          }
-          else if (tmp[0] === 'Device missing') {
+          } else if (tmp[0] === 'Device missing') {
             o.deviceMissing = parseInt(tmp[1])
-          }
-          else if (tmp[0] === 'Used') {
+          } else if (tmp[0] === 'Used') {
             o.used = parseInt(tmp[1])
-          }
-          else if (tmp[0] === 'Free (estimated)') {
+          } else if (tmp[0] === 'Free (estimated)') {
             o.free = parseInt(tmp[1])
             o.freeMin = parseInt(tmp[2])
-          }
-          else if (tmp[0] === 'Data ratio') {
+          } else if (tmp[0] === 'Data ratio') {
             o.dataRatio = tmp[1]
-          }
-          else if (tmp[0] === 'Metadata ratio') {
+          } else if (tmp[0] === 'Metadata ratio') {
             o.metadataRatio = tmp[1]
-          }
-          else if (tmp[0] === 'Global reserve') {
+          } else if (tmp[0] === 'Global reserve') {
             o.globalReserve = parseInt(tmp[1])
             o.globalReserveUsed = parseInt(tmp[2])
           }
           // else { TODO
           // }
-        }) 
-    }
-    else {
+        })
+    } else {
       sec.split(/\n/).filter(l => l.length)
         .forEach(l => {
           if (l.startsWith('Data') || l.startsWith('Metadata') || l.startsWith('System') || l.startsWith('Unallocated')) {
-
             tmp = l.split(' ').filter(l => l.length)
 
             if (l.startsWith('Data')) {
-              result.data.mode = tmp[0].slice(5,-1)
-              result.data.size = parseInt(tmp[1].slice(5,-1))
+              result.data.mode = tmp[0].slice(5, -1)
+              result.data.size = parseInt(tmp[1].slice(5, -1))
               result.data.used = parseInt(tmp[2].slice(5))
               filling = 'data'
-            }
-            else if (l.startsWith('Metadata')) {
-              result.metadata.mode = tmp[0].slice(9,-1)
-              result.metadata.size = parseInt(tmp[1].slice(5,-1))
+            } else if (l.startsWith('Metadata')) {
+              result.metadata.mode = tmp[0].slice(9, -1)
+              result.metadata.size = parseInt(tmp[1].slice(5, -1))
               result.metadata.used = parseInt(tmp[2].slice(5))
               filling = 'metadata'
-            }
-            else if (l.startsWith('System')) {
-              result.system.mode = tmp[0].slice(7,-1)
-              result.system.size = parseInt(tmp[1].slice(5,-1))
+            } else if (l.startsWith('System')) {
+              result.system.mode = tmp[0].slice(7, -1)
+              result.system.size = parseInt(tmp[1].slice(5, -1))
               result.system.used = parseInt(tmp[2].slice(5))
               filling = 'system'
-            }
-            else if (l.startsWith('Unallocated')) {
+            } else if (l.startsWith('Unallocated')) {
               filling = 'unallocated'
             }
-          }
-          else {
+          } else {
             tmp = l.replace(/\t+/, ' ').split(' ').filter(l => l.length)
             if (tmp[0].startsWith('/dev/')) {
               result[filling].devices[tmp[0]] = tmp[1]
@@ -96,14 +80,13 @@ const btrfs_filesystem_usage = async (mountpoint) => {
           }
         })
     }
-  }) 
+  })
   return result
 }
 
 const btrfs_device_usage = async (mountpoint) => {
-  
   let cmd = 'btrfs device usage -b ' + mountpoint
-  let stdout = await child.execAsync(cmd)  
+  let stdout = await child.execAsync(cmd)
   let lines = stdout.toString().split(/\n/).map(l => l.trim()).filter(l => l.length)
   let result = []
   let dev = null
@@ -115,23 +98,18 @@ const btrfs_device_usage = async (mountpoint) => {
       dev = { data: {}, metadata: {}, system: {} }
       dev.name = tmp[0].slice(0, -1)
       dev.id = parseInt(tmp[2])
-    }
-    else if (l.startsWith('Device size')) {
+    } else if (l.startsWith('Device size')) {
       dev.size = parseInt(tmp[2])
-    }
-    else if (l.startsWith('Data')) {
+    } else if (l.startsWith('Data')) {
       dev.data.mode = tmp[0].slice(5, -1)
       dev.data.size = parseInt(tmp[1])
-    }
-    else if (l.startsWith('Metadata')) {
+    } else if (l.startsWith('Metadata')) {
       dev.metadata.mode = tmp[0].slice(9, -1)
       dev.metadata.size = parseInt(tmp[1])
-    }
-    else if (l.startsWith('System')) {
+    } else if (l.startsWith('System')) {
       dev.system.mode = tmp[0].slice(7, -1)
       dev.system.size = parseInt(tmp[1])
-    }
-    else if (l.startsWith('Unallocated')) {
+    } else if (l.startsWith('Unallocated')) {
       dev.unallocated = parseInt(tmp[1])
     }
   })
@@ -141,13 +119,9 @@ const btrfs_device_usage = async (mountpoint) => {
 }
 
 module.exports = async (mountpoint) => {
-
   let usage = await Promise.all([
     btrfs_filesystem_usage(mountpoint),
-    btrfs_device_usage(mountpoint)]) 
+    btrfs_device_usage(mountpoint)])
 
   return Object.assign({}, usage[0], { devices: usage[1] })
 }
-
-
-

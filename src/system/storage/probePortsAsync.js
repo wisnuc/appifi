@@ -9,5 +9,3 @@ Probe ports
 module.exports = async () => udevInfoAsync((
   await child.execAsync('find /sys/class/ata_port -type l'))
     .toString().split('\n').map(l => l.trim()).filter(l => l.length))
-
-

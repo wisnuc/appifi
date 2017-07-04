@@ -8,9 +8,7 @@ const Config = require('./config')
 
 /**
 
-
 @requires Broadcast
-@requires Config
 @module Net
 */
 
@@ -33,7 +31,6 @@ networkInterfaceConfig {
 @global
 */
 
-
 /**
 
 */
@@ -42,7 +39,7 @@ let nics = []
 /**
 Returns network interfaces, annotated with config.
 */
-const interfaces = callback => 
+const interfaces = callback =>
   sysfsNetworkInterfaces((err, _its) => {
     if (err) return callback(err)
 
@@ -60,7 +57,7 @@ const interfaces = callback =>
         ipAddresses: [],
 
         // for config
-        config: null,
+        config: null
       }))
       .filter(it => it.state === 'up' || it.state === 'down')
 
@@ -99,7 +96,6 @@ const interfaces = callback =>
     callback(null, its)
   })
 
-
 const update = () => interfaces((err, its) => {
   if (err) return
   its.forEach(it => {
@@ -131,19 +127,13 @@ const update = () => interfaces((err, its) => {
   })
 })
 
-
 broadcast.on('ConfigUpdate', (err, config) => {
   if (nics === config.networkInterfaces) return
   nics = config.networkInterfaces
   update()
 })
 
-module.exports = new class {
-
-}()
-
-
-router.get('/', (req, res) => 
+router.get('/', (req, res) =>
   interfaces((err, its) => err ? res.status(500).end() : res.status(200).json(its)))
 
 router.post('/:name/aliases', (req, res, next) => {
@@ -161,27 +151,24 @@ router.post('/:name/aliases', (req, res, next) => {
     let conf = { name, aliases: [cidr] }
     let index = nics.findIndex(c => c.name === name)
     let next = index === -1
-      ? [...nics, conf] 
+      ? [...nics, conf]
       : [...nics.slice(0, index), conf, ...nics.slice(index + 1)]
 
     next.sort((a, b) => a.name.localeCompare(b.name))
-    Config.updateNetworkInterfaces(next)
+    broadcast.emit('NetworkInterfacesUpdate', next)
     res.status(200).end()
   })
 })
 
 router.delete('/:name/aliases/:ipv4', (req, res, next) => {
-
   let name = req.params.name
   let ipv4 = req.params.ipv4
 
   interfaces((err, its) => {
     if (err) return next(err)
-    
+
     let it = its.find(i => i.name === name)
     if (!it) return res.status(404).end()
-
-
 
     res.status(200).end()
   })
