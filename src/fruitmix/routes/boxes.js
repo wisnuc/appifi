@@ -5,7 +5,7 @@ const jwt = require('jwt-simple')
 const secret = require('../config/passportJwt')
 
 const User = require('../models/user')
-const Box = require('../box/box')
+const BoxData = require('../box/box')
 
 /**
 This auth requires client providing:
@@ -25,22 +25,22 @@ const auth = (req, res, next) => {
   if (split.length < 2 || split.length > 3 || split[0] !== 'JWT')
     return res.status(401).end()
 
-  let wechat = jwt.decode(split[1], secret) 
-  if (wechat.deadline < new Date().getTime()) {
+  let cloud = jwt.decode(split[1], secret) 
+  if (cloud.deadline < new Date().getTime()) {
     console.log('overdue')
     return res.status(401).end()
   }
 
   if (split.length === 2) {
     req.guest = {
-      unionId: wechat.unionId
+      guid: cloud.guid
     }
     return next()
   }
 
   let local = jwt.decode(split[2], secret)
   let user = User.users.find(u => u.uuid === local.uuid)
-  if (!user || user.unionId !== wechat.unionId)
+  if (!user || user.guid !== cloud.guid)
     return res.status(401).end()
   req.user = User.stripUser(user)
   next()
@@ -49,13 +49,13 @@ const auth = (req, res, next) => {
 router.get('/', auth, (req, res) => {
 
   // console.log('auth', req.user, req.guest)
-  let unionId
-  if(req.user) unionId = req.user.unionId
-  else unionId = req.guest.unionId
+  let guid
+  if(req.user) guid = req.user.guid
+  else guid = req.guest.guid
 
-  let boxes = [...Box.map.values()].filter(box => 
-              box.owner === unionId ||
-              box.users.includes(unionId))
+  let boxes = [...BoxData.map.values()].filter(box => 
+              box.doc.owner === guid ||
+              box.doc.users.includes(guid))
   res.status(200).json(boxes)
 })
 
@@ -63,9 +63,9 @@ router.post('/', auth, (req, res, next) => {
 
   if (!req.user) return res.status(403).end()
 
-  let props = Object.assign({}, req.body, { owner: req.user.unionId })
+  let props = Object.assign({}, req.body, { owner: req.user.guid })
 
-  Box.createBoxAsync(props)
+  BoxData.createBoxAsync(props)
     .then(box => res.status(200).json(box))
     .catch(next)
 })
@@ -73,28 +73,30 @@ router.post('/', auth, (req, res, next) => {
 router.get('/:boxUUID', auth, (req, res) => {
   let boxUUID = req.params.boxUUID
 
-  let box = Box.map.get(boxUUID)
+  let box = BoxData.map.get(boxUUID)
   if(!box) return res.status(404).end()
 
-  let unionId
-  if(req.user) unionId = req.user.unionId
-  else unionId = req.guest.unionId
+  let guid
+  if(req.user) guid = req.user.guid
+  else guid = req.guest.guid
 
-  if(box.owner !== unionId && !box.users.includes(unionId)) return res.status(403).end()
+  if(box.doc.owner !== guid && !box.doc.users.includes(guid)) return res.status(403).end()
 
   res.status(200).json(box)
 })
 
+// FIXME: permission: who can patch the box ?
+// here only box owner is allowed
 router.patch('/:boxUUID', auth, (req, res, next) => {
 
   if(!req.user) return res.status(403).end()
 
   let boxUUID = req.params.boxUUID
 
-  let box = Box.map.get(boxUUID)
+  let box = BoxData.map.get(boxUUID)
   if(!box) return res.status(404).end()
-  if(box.owner !== req.user.unionId) return res.status(403).end()
-  Box.updateBoxAsync(req.body, box)
+  if(box.doc.owner !== req.user.guid) return res.status(403).end()
+  BoxData.updateBoxAsync(req.body, box)
     .then(box => res.status(200).json(box))
     .catch(next)
 })
@@ -104,33 +106,63 @@ router.delete('/:boxUUID', auth, (req, res, next) => {
 
   let boxUUID = req.params.boxUUID
 
-  let box = Box.map.get(boxUUID)
+  let box = BoxData.map.get(boxUUID)
   if(!box) return res.status(404).end()
-  if(box.owner !== req.user.unionId) return res.status(403).end()
-  Box.deleteBoxAsync(boxUUID)
+  if(box.doc.owner !== req.user.guid) return res.status(403).end()
+  BoxData.deleteBoxAsync(boxUUID)
     .then(() => res.status(200).end())
     .catch(next)
 })
 
 router.get('/:boxUUID/branches', auth, (req, res) => {
   let boxUUID = req.params.boxUUID
-  let box = Box.map.get(boxUUID)
+  let box = BoxData.map.get(boxUUID)
   if(!box) return res.status(404).end()
 
+  let guid
+  if(req.user) guid = req.user.guid
+  else guid = req.guest.guid
 
-
-  res.status(200).end()
+  if(box.doc.owner !== guid && !box.doc.users.includes(guid)) return res.status(403).end()
+  
+  box.retrieveAllBranches((err, data) => {
+    if(err) return res.status(500).json({ code: err.code, message: err.message })
+    return res.status(200).json(data)
+  })
 })
 
 router.post('/:boxUUID/branches', auth, (req, res, next) => {
   let boxUUID = req.params.boxUUID
-  let box = Box.map.get(boxUUID)
+  let box = BoxData.map.get(boxUUID)
   if(!box) return res.status(404).end()
 
-  let props = req.body
-  box.createBranchAsync(boxUUID, props)
-    .then(branch => res.status(200).end(branch))
+  let guid
+  if(req.user) guid = req.user.guid
+  else guid = req.guest.guid
+
+  if(box.doc.owner !== guid && !box.doc.users.includes(guid)) return res.status(403).end()
+
+  box.createBranchAsync(req.body)
+    .then(branch => res.status(200).json(branch))
     .catch(next)
+})
+
+router.get('/:boxUUID/branches/:branchUUID', auth, (req, res) => {
+  let boxUUID = req.params.boxUUID
+  let branchUUID = req.params.branchUUID
+  let box = BoxData.map.get(boxUUID)
+  if(!box) return res.status(404).end()
+
+  let guid
+  if(req.user) guid = req.user.guid
+  else guid = req.guest.guid
+
+  if(box.doc.owner !== guid && !box.doc.users.includes(guid)) return res.status(403).end()
+  
+  box.retrieveBranch(branchUUID, (err, data) => {
+    if(err) return res.status(404).end()
+    return res.status(200).json(data)
+  })
 })
 
 module.exports = router

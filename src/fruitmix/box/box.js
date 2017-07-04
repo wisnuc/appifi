@@ -10,11 +10,27 @@ const deepEqual = require('deep-equal')
 const broadcast = require('../../common/broadcast')
 const { saveObjectAsync } = require('../lib/utils')
 
+/**
+ * @module Box
+ */
+
+/**
+ * add array
+ * @param {array} a
+ * @param {array} b
+ * @return {array} union of a and b
+ */
 const addArray = (a, b) => {
   let c = Array.from(new Set([...a, ...b]))
   return deepEqual(a, c) ? a :c
 }
 
+/**
+ * 
+ * @param {array} a 
+ * @param {array} b 
+ * @return {array} elements not in b
+ */
 const complement = (a, b) => 
   a.reduce((acc, c) => 
     b.includes(c) ? acc : [...acc, c], [])
@@ -28,14 +44,25 @@ const complement = (a, b) =>
               pull/push //
 */
 
+
+/**
+
+*/
 class Box {
   constructor(dir, tmpDir, doc) {
     this.dir = dir
     this.tmpDir = tmpDir
     this.doc = doc
-    this.branchMap = new Map()
+    // this.branchMap = new Map()
   }
 
+  /**
+   * create a branch
+   * @param {Object} props 
+   * @param {string} props.name - branch name
+   * @param {string} props.head - SHA256, a commit ref
+   * @return {Object} branch
+   */
   async createBranchAsync(props) {
     let branch = {
       uuid: UUID.v4(),
@@ -43,17 +70,54 @@ class Box {
       head: props.head
     }
 
-    let targetDir = path.join(this.dir, this.doc.uuid, 'branches')
+    let targetDir = path.join(this.dir, 'branches')
     await mkdirpAsync(targetDir)
-    let targetPath = path.join(targetDir, props.name)
+    let targetPath = path.join(targetDir, branch.uuid)
     await saveObjectAsync(targetPath, this.tmpDir, branch)
+    // this.branchMap.set(branch.uuid, branch)
     return branch
   }
 
-  async listBranchesAsync() {
-    let target = path.join(this.dir, this.doc.uuid, 'branches')
+  /**
+   * retrieve a branch content
+   * @param {string} uuid - branch uuid
+   * @param {function} callback 
+   * @return {Object} branch content
+   */
+  retrieveBranch(uuid, callback) {
+    let srcpath = path.join(this.dir, 'branches', uuid)
+    fs.readFile(srcpath, (err,data) => {
+      if(err) return callback(err)
+      try{
+        callback(null, JSON.parse(data.toString()))
+      }
+      catch(e) {
+        callback(e)
+      }
+    })
+  }
 
+  /**
+   * retrieve all branches
+   * @param {function} callback 
+   * @return {array} branches
+   */
+  retrieveAllBranches(callback) {
+    let target = path.join(this.dir, 'branches')
+    fs.readdir(target, (err, entries) => {
+      if(err) return callback(err)
 
+      let count = entries.length
+      if (!count) return callback(null, [])
+
+      let result = []
+      entries.forEach(entry => {
+        this.retrieveBranch(entry, (err, obj) => {
+          if (!err) result.push(obj)
+          if (!--count) callback(null, result)
+        })
+      })
+    })
   }
 
     /**
@@ -80,7 +144,9 @@ class Box {
 
 }
 
-
+/**
+ * 
+ */
 class BoxData {
 
   constructor() {
@@ -197,9 +263,9 @@ class BoxData {
     if(name === box.doc.name && users === box.doc.users) return box
 
     let newDoc = {
-      uuid: box.uuid,
+      uuid: box.doc.uuid,
       name,
-      owner: box.owner,
+      owner: box.doc.owner,
       users
     }
 
@@ -223,4 +289,4 @@ class BoxData {
   }
 }
 
-module.exports = new Box()
+module.exports = new BoxData()
