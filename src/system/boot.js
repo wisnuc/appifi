@@ -201,10 +201,7 @@ init()
 /**
 see apib document
 */
-router.get('/', (req, res) => {
-  console.log('----------------------------------------------------------', mode, last)
-  res.status(200).json({ mode, last, state, current, error })
-})
+router.get('/', (req, res) => res.status(200).json({ mode, last, state, current, error }))
 
 /**
 see apib document
@@ -222,7 +219,7 @@ router.patch('/', (req, res) => {
     if (arg.hasOwnProperty('mode')) return err(400, 'current and mode cannot be patched simultaneously')
     if (current !== null) return err(400, 'current file system is already set')
 
-    let v = storage.volumes.find(v => v.uuid === arg.current.uuid)
+    let v = storage.volumes.find(v => v.uuid === arg.current)
     if (!v) return err(400, 'volume not found')
     if (!v.isMounted) return err(400, 'volume is not mounted')
     if (v.isMissing) return err(400, 'volume has missing devices')
@@ -234,7 +231,7 @@ router.patch('/', (req, res) => {
     if (mode === 'maintenance') broadcast.emit('BootModeUpdate', null, 'normal')
     broadcast.emit('FileSystemUpdate', null, current)
 
-    res.status(200).end()
+    process.nextTick(() => res.status(200).json({ mode, last, state, current, error }))
   } else if (arg.hasOwnProperty('state')) {
     if (arg.state !== 'poweroff' && arg.state !== 'reboot') return err(400, 'invalid state')
     if (arg.state === 'reboot' && arg.mode === 'maintenance') broadcast.emit('BootModeUpdate', null, 'maintenance')

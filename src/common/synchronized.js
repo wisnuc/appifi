@@ -20,7 +20,6 @@ class Synchronized {
   }
 
   request (callback = () => {}) {
-
     if (this.working.length === 0) {
       this.working = [callback]
       this.run()
@@ -43,4 +42,3 @@ class Synchronized {
 }
 
 module.exports = Synchronized
-

@@ -2,7 +2,7 @@ const sinon = require('sinon')
 const UUID = require('uuid')
 const request = require('supertest')
 
-const app = require('src/fruitmix/app')
+const app = require('src/app')
 
 const IDS = {
 
