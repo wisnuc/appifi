@@ -126,7 +126,11 @@ router.get('/:boxUUID/branches', auth, (req, res) => {
   if(box.doc.owner !== guid && !box.doc.users.includes(guid)) return res.status(403).end()
   
   box.retrieveAllBranches((err, data) => {
-    if(err) return res.status(500).json({ code: err.code, message: err.message })
+    if(err) {
+      if(err.code === 'ENOENT') 
+        return res.status(404).end()
+      else return res.status(500).end()
+    }
     return res.status(200).json(data)
   })
 })
@@ -160,9 +164,30 @@ router.get('/:boxUUID/branches/:branchUUID', auth, (req, res) => {
   if(box.doc.owner !== guid && !box.doc.users.includes(guid)) return res.status(403).end()
   
   box.retrieveBranch(branchUUID, (err, data) => {
-    if(err) return res.status(404).end()
+    if(err) {
+      if(err.code === 'ENOENT') 
+        return res.status(404).end()
+      else return res.status(500).end()
+    }
     return res.status(200).json(data)
   })
+})
+
+router.patch('/:boxUUID/branches/:branchUUID', auth, (req, res, next) => {
+  let boxUUID = req.params.boxUUID
+  let branchUUID = req.params.branchUUID
+  let box = BoxData.map.get(boxUUID)
+  if(!box) return res.status(404).end()
+
+  let guid
+  if(req.user) guid = req.user.guid
+  else guid = req.guest.guid
+
+  if(box.doc.owner !== guid && !box.doc.users.includes(guid)) return res.status(403).end()
+  
+  box.updateBranchAsync(branchUUID, req.body)
+    .then(updated => res.status(200).json(updated))
+    .catch(next)
 })
 
 module.exports = router

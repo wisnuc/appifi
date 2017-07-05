@@ -344,7 +344,8 @@ describe(path.basename(__filename), () => {
     let aliceToken, aliceCloudToken, box, branch
     let boxUUID = 'a96241c5-bfe2-458f-90a0-46ccd1c2fa9a'
     let uuid = 'ff5d42b9-4b8f-452d-a102-ebfde5cdf948'
-    let commit = '486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7'
+    let commit_1 = '486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7'
+    let commit_2 = '2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824'
     
     beforeEach(async () => {
       await resetAsync()
@@ -358,7 +359,7 @@ describe(path.basename(__filename), () => {
 
       let props = {name: 'hello', users: [IDS.bob.guid]}
       box = await createBoxAsync(props, 'alice')
-      let props_1 = {name: 'testBranch', head: commit}
+      let props_1 = {name: 'testBranch', head: commit_1}
       branch = await createBranchAsync(props_1, boxUUID, 'alice')
     })
 
@@ -385,7 +386,22 @@ describe(path.basename(__filename), () => {
         .end(done)
     })
 
-    it('PATCH /boxes/{uuid}/branches/{branchUUID} ')
+    it('PATCH /boxes/{uuid}/branches/{branchUUID} should update a branch', done => {
+      request(app)
+        .patch(`/boxes/${boxUUID}/branches/${uuid}`)
+        .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
+        .send({ name: 'newName', head: commit_2 })
+        .expect(200)
+        .end((err, res) => {
+          if(err) return done(err)
+          expect(res.body).to.deep.equal({
+            // uuid: uuid,
+            // name: 'newName',
+            // head: commit_2
+          })
+          done()
+        })
+    })
     
   })
 

@@ -120,6 +120,16 @@ class Box {
     })
   }
 
+  async updateBranchAsync(branchUUID, props) {
+    return {}
+    let target = path.join(this.dir, 'branches', branchUUID)
+    try {
+
+    } catch(e) {
+
+    }
+  }
+
     /**
    * create a commit
    * 
