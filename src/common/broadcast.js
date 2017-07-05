@@ -41,7 +41,7 @@ module.exports = new class extends require('events') {
   @param {*} - if event fires an data
   */
   emit(name, err, data) {
-    Debug(`event: ${name}`)(err, data)
+    Debug(`event: ${name}`)(err, JSON.stringify(data, null, '  '))
     super.emit(name, err, data)
   }
 

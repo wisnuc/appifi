@@ -11,7 +11,7 @@ const sinon = require('sinon')
 const expect = chai.expect
 const should = chai.should()
 
-const app = require('src/fruitmix/app')
+const app = require('src/app')
 const { saveObjectAsync } = require('src/fruitmix/lib/utils')
 const broadcast = require('src/common/broadcast')
 

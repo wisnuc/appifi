@@ -566,8 +566,6 @@ This final version is freezed and returned.
 @return {Storage} the final fully annotated storage object
 */
 const probeAsync = async () => {
-  console.log('probe start')
-
   // first probe
   const arr = await Promise.all([
     probePortsAsync(),
@@ -638,11 +636,11 @@ const singleton = new class extends Synchronized {
   run () {
     probeAsync()
       .then(data => {
-        console.log('data', data)
+        // console.log('data', data)
         this.finish(null, data)
       })
       .catch(e => {
-        console.log('error', e)
+        // console.log('error', e)
         this.finish(e)
       })
   }

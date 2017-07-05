@@ -94,7 +94,7 @@ module.exports = new class {
   @listens FanScaleUpdate
   @listens BootModeUpdate
   @listens FileSystemUpdate
-  @listens NetworkInterfacesUpdate`
+  @listens NetworkInterfacesUpdate
   */
   async initAsync () {
     let cwd = process.cwd()
