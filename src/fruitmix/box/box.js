@@ -9,6 +9,7 @@ const deepEqual = require('deep-equal')
 
 const broadcast = require('../../common/broadcast')
 const { saveObjectAsync } = require('../lib/utils')
+const E = require('../lib/error')
 
 /**
  * @module Box
@@ -97,6 +98,9 @@ class Box {
     })
   }
 
+  async retrieveBranchAsync(uuid) {
+    return Promise.promisify(this.retrieveBranch).bind(this)(uuid)
+  }
   /**
    * retrieve all branches
    * @param {function} callback 
@@ -120,14 +124,38 @@ class Box {
     })
   }
 
+  async retrieveAllBranchesAsync() {
+    return Promise.promisify(this.retrieveAllBranches).bind(this)()
+  }
+
   async updateBranchAsync(branchUUID, props) {
-    return {}
     let target = path.join(this.dir, 'branches', branchUUID)
+    let branch
+
     try {
-
+      let data = await fs.readFileAsync(target)
+      branch = JSON.parse(data.toString())
     } catch(e) {
-
+      throw e
     }
+
+    let {name, head} = props
+    if(head) {
+      let cpath = path.join(this.dir, 'commits', head)
+      let data = await fs.readFileAsync(cpath)
+      let obj = JSON.parse(data.toString())
+      if(obj.parent !== branch.head) throw new E.ECONTENT()
+    }
+
+    let updated = {
+      uuid: branch.uuid,
+      name: name || branch.name,
+      head: head || branch.head
+    }
+
+    if(updated === branch) return branch    
+    await saveObjectAsync(target, this.tmpDir, updated)
+    return updated
   }
 
     /**

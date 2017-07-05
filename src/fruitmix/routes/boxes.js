@@ -125,14 +125,21 @@ router.get('/:boxUUID/branches', auth, (req, res) => {
 
   if(box.doc.owner !== guid && !box.doc.users.includes(guid)) return res.status(403).end()
   
-  box.retrieveAllBranches((err, data) => {
-    if(err) {
+  box.retrieveAllBranchesAsync()
+    .then(branches => res.status(200).json(branches))
+    .catch(err => {
       if(err.code === 'ENOENT') 
         return res.status(404).end()
       else return res.status(500).end()
-    }
-    return res.status(200).json(data)
-  })
+    })
+  // box.retrieveAllBranches((err, data) => {
+  //   if(err) {
+  //     if(err.code === 'ENOENT') 
+  //       return res.status(404).end()
+  //     else return res.status(500).end()
+  //   }
+  //   return res.status(200).json(data)
+  // })
 })
 
 router.post('/:boxUUID/branches', auth, (req, res, next) => {
@@ -163,14 +170,21 @@ router.get('/:boxUUID/branches/:branchUUID', auth, (req, res) => {
 
   if(box.doc.owner !== guid && !box.doc.users.includes(guid)) return res.status(403).end()
   
-  box.retrieveBranch(branchUUID, (err, data) => {
-    if(err) {
+  box.retrieveBranchAsync(branchUUID)
+    .then(branch => res.status(200).json(branch))
+    .catch(err => {
       if(err.code === 'ENOENT') 
         return res.status(404).end()
       else return res.status(500).end()
-    }
-    return res.status(200).json(data)
-  })
+    })
+  // box.retrieveBranch(branchUUID, (err, data) => {
+  //   if(err) {
+  //     if(err.code === 'ENOENT') 
+  //       return res.status(404).end()
+  //     else return res.status(500).end()
+  //   }
+  //   return res.status(200).json(data)
+  // })
 })
 
 router.patch('/:boxUUID/branches/:branchUUID', auth, (req, res, next) => {
@@ -187,7 +201,11 @@ router.patch('/:boxUUID/branches/:branchUUID', auth, (req, res, next) => {
   
   box.updateBranchAsync(branchUUID, req.body)
     .then(updated => res.status(200).json(updated))
-    .catch(next)
+    .catch(e => {
+      if(e.code === 'ENOENT') return res.status(404).end()
+      if(e.code === 'ECONTENT') return res.status(400).end()
+      return res.status(500).end()
+    })
 })
 
 module.exports = router

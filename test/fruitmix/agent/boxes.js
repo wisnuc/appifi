@@ -386,22 +386,24 @@ describe(path.basename(__filename), () => {
         .end(done)
     })
 
-    it('PATCH /boxes/{uuid}/branches/{branchUUID} should update a branch', done => {
+    it('PATCH /boxes/{uuid}/branches/{branchUUID} should update a branch name', done => {
       request(app)
         .patch(`/boxes/${boxUUID}/branches/${uuid}`)
         .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
-        .send({ name: 'newName', head: commit_2 })
+        .send({ name: 'newName'})
         .expect(200)
         .end((err, res) => {
           if(err) return done(err)
           expect(res.body).to.deep.equal({
-            // uuid: uuid,
-            // name: 'newName',
-            // head: commit_2
+            uuid: uuid,
+            name: 'newName',
+            head: commit_1
           })
           done()
         })
     })
+
+    
     
   })
 
