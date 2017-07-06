@@ -125,7 +125,7 @@ router.get('/:boxUUID/branches', auth, (req, res) => {
 
   if(box.doc.owner !== guid && !box.doc.users.includes(guid)) return res.status(403).end()
   
-  box.retrieveAllBranchesAsync()
+  box.retrieveAllAsync('branches')
     .then(branches => res.status(200).json(branches))
     .catch(err => {
       if(err.code === 'ENOENT') 
@@ -170,7 +170,7 @@ router.get('/:boxUUID/branches/:branchUUID', auth, (req, res) => {
 
   if(box.doc.owner !== guid && !box.doc.users.includes(guid)) return res.status(403).end()
   
-  box.retrieveBranchAsync(branchUUID)
+  box.retrieveAsync('branches', branchUUID)
     .then(branch => res.status(200).json(branch))
     .catch(err => {
       if(err.code === 'ENOENT') 
@@ -187,7 +187,7 @@ router.get('/:boxUUID/branches/:branchUUID', auth, (req, res) => {
   // })
 })
 
-router.patch('/:boxUUID/branches/:branchUUID', auth, (req, res, next) => {
+router.patch('/:boxUUID/branches/:branchUUID', auth, (req, res) => {
   let boxUUID = req.params.boxUUID
   let branchUUID = req.params.branchUUID
   let box = BoxData.map.get(boxUUID)
@@ -203,9 +203,27 @@ router.patch('/:boxUUID/branches/:branchUUID', auth, (req, res, next) => {
     .then(updated => res.status(200).json(updated))
     .catch(e => {
       if(e.code === 'ENOENT') return res.status(404).end()
-      if(e.code === 'ECONTENT') return res.status(400).end()
-      return res.status(500).end()
+      else if(e.code === 'ECONTENT') return res.status(400).end()
+      else return res.status(500).end()
     })
+})
+
+// FIXME: who can delete branch ?
+router.delete('/:boxUUID/branches/:branchUUID', auth, (req, res, next) => {
+  let boxUUID = req.params.boxUUID
+  let branchUUID = req.params.branchUUID
+  let box = BoxData.map.get(boxUUID)
+  if(!box) return res.status(404).end()
+
+  let guid
+  if(req.user) guid = req.user.guid
+  else guid = req.guest.guid
+
+  if(box.doc.owner !== guid && !box.doc.users.includes(guid)) return res.status(403).end()
+  
+  box.deleteBranchAsync(branchUUID)
+    .then(() => res.status(200).end())
+    .catch(next)
 })
 
 module.exports = router

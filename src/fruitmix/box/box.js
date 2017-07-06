@@ -50,6 +50,12 @@ const complement = (a, b) =>
 
 */
 class Box {
+
+  /**
+   * @param {string} dir - root path of box
+   * @param {string} tmpDir - temporary directory path
+   * @param {Object} doc - document of box
+   */
   constructor(dir, tmpDir, doc) {
     this.dir = dir
     this.tmpDir = tmpDir
@@ -81,12 +87,26 @@ class Box {
 
   /**
    * retrieve a branch content
-   * @param {string} uuid - branch uuid
+   * @param {string} type - branches or commits
+   * @param {string} id - branch uuid or commit hash
    * @param {function} callback 
    * @return {Object} branch content
    */
-  retrieveBranch(uuid, callback) {
-    let srcpath = path.join(this.dir, 'branches', uuid)
+  // retrieveBranch(uuid, callback) {
+  //   let srcpath = path.join(this.dir, 'branches', uuid)
+  //   fs.readFile(srcpath, (err,data) => {
+  //     if(err) return callback(err)
+  //     try{
+  //       callback(null, JSON.parse(data.toString()))
+  //     }
+  //     catch(e) {
+  //       callback(e)
+  //     }
+  //   })
+  // }
+
+  retrieve(type, id, callback) {
+    let srcpath = path.join(this.dir, type, id)
     fs.readFile(srcpath, (err,data) => {
       if(err) return callback(err)
       try{
@@ -98,16 +118,42 @@ class Box {
     })
   }
 
-  async retrieveBranchAsync(uuid) {
-    return Promise.promisify(this.retrieveBranch).bind(this)(uuid)
+  /**
+   * async edition of retrieveBranch
+   * @param {string} type - branches or commits
+   * @param {string} id - branch uuid or commit hash
+   * @return {Object} branch content
+   */
+  async retrieveAsync(type, id) {
+    return Promise.promisify(this.retrieve).bind(this)(type, id)
   }
+
   /**
    * retrieve all branches
+   * @param {string} type - branches or commits
    * @param {function} callback 
    * @return {array} branches
    */
-  retrieveAllBranches(callback) {
-    let target = path.join(this.dir, 'branches')
+  // retrieveAllBranches(callback) {
+  //   let target = path.join(this.dir, 'branches')
+  //   fs.readdir(target, (err, entries) => {
+  //     if(err) return callback(err)
+
+  //     let count = entries.length
+  //     if (!count) return callback(null, [])
+
+  //     let result = []
+  //     entries.forEach(entry => {
+  //       this.retrieveBranch(entry, (err, obj) => {
+  //         if (!err) result.push(obj)
+  //         if (!--count) callback(null, result)
+  //       })
+  //     })
+  //   })
+  // }
+
+  retrieveAll(type, callback) {
+    let target = path.join(this.dir, type)
     fs.readdir(target, (err, entries) => {
       if(err) return callback(err)
 
@@ -116,7 +162,7 @@ class Box {
 
       let result = []
       entries.forEach(entry => {
-        this.retrieveBranch(entry, (err, obj) => {
+        this.retrieve(type, entry, (err, obj) => {
           if (!err) result.push(obj)
           if (!--count) callback(null, result)
         })
@@ -124,26 +170,28 @@ class Box {
     })
   }
 
-  async retrieveAllBranchesAsync() {
-    return Promise.promisify(this.retrieveAllBranches).bind(this)()
+  /**
+   * async edition of retrieveAllBranches
+   * @return {array} branches
+   */
+  async retrieveAllAsync(type) {
+    return Promise.promisify(this.retrieveAll).bind(this)(type)
   }
 
+  /**
+   * update a branch doc
+   * @param {string} branchUUID - uuid string
+   * @param {Object} props - properties to be updated
+   * @param {string} props.name - optional, branch name
+   * @param {string} props.head - optional, commit hash
+   */
   async updateBranchAsync(branchUUID, props) {
     let target = path.join(this.dir, 'branches', branchUUID)
-    let branch
-
-    try {
-      let data = await fs.readFileAsync(target)
-      branch = JSON.parse(data.toString())
-    } catch(e) {
-      throw e
-    }
+    let branch = await this.retrieveAsync('branches', branchUUID)
 
     let {name, head} = props
     if(head) {
-      let cpath = path.join(this.dir, 'commits', head)
-      let data = await fs.readFileAsync(cpath)
-      let obj = JSON.parse(data.toString())
+      let obj = await this.retrieveAsync('commits', head)
       if(obj.parent !== branch.head) throw new E.ECONTENT()
     }
 
@@ -158,9 +206,14 @@ class Box {
     return updated
   }
 
+  async deleteBranchAsync(branchUUID) {
+    let target = path.join(this.dir, 'branches', branchUUID)
+    await rimrafAsync(target)
+    return
+  }
+
     /**
    * create a commit
-   * 
    * @param {Object} props 
    * @param {string} props.tree - hash string
    * @param {array} props.parent - parent commit

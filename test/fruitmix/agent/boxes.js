@@ -403,12 +403,25 @@ describe(path.basename(__filename), () => {
         })
     })
 
-    
-    
+    it('PATCH /boxes/{uuid}/branches/{branchUUID} should return 404 if commit not found', done => {
+      request(app)
+        .patch(`/boxes/${boxUUID}/branches/${uuid}`)
+        .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
+        .send({ name: 'newName', head: commit_2})
+        .expect(404)
+        .end(done)
+    })
+
+    it('DELETE /boxes/{uuid}/branches/{branchUUID} should delete appointed branch', done => {
+      request(app)
+        .delete(`/boxes/${boxUUID}/branches/${uuid}`)
+        .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
+        .expect(200)
+        .end(done)
+    })   
   })
 
 
 
 
 })
-

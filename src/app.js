@@ -22,7 +22,7 @@ const token = require('./fruitmix/routes/token')
 const users = require('./fruitmix/routes/users')
 const drives = require('./fruitmix/routes/drives')
 const boxes = require('./fruitmix/routes/boxes')
-const wxtoken = require('./fruitmix/routes/wxtoken')
+const cloudToken = require('./fruitmix/routes/wxtoken')
 const uploads = require('./fruitmix/routes/uploads')
 
 /**
@@ -47,7 +47,7 @@ app.use('/token', token)
 app.use('/users', users)
 app.use('/drives', drives)
 app.use('/boxes', boxes)
-app.use('/wxtoken', wxtoken)
+app.use('/cloudToken', cloudToken)
 app.use('/uploads', uploads)
 
 // catch 404 and forward to error handler
