@@ -46,6 +46,22 @@ const auth = (req, res, next) => {
   next()
 }
 
+const boxAuth = (req, res, next) => {
+  let boxUUID = req.params.boxUUID
+  let box = BoxData.map.get(boxUUID)
+  if(!box) return res.status(404).end()
+
+  let guid
+  if(req.user) guid = req.user.guid
+  else guid = req.guest.guid
+
+  if(box.doc.owner !== guid && !box.doc.users.includes(guid)) 
+    return res.status(403).end()
+  
+  req.body.box = box
+  next()
+}
+
 router.get('/', auth, (req, res) => {
 
   // console.log('auth', req.user, req.guest)
@@ -96,6 +112,7 @@ router.patch('/:boxUUID', auth, (req, res, next) => {
   let box = BoxData.map.get(boxUUID)
   if(!box) return res.status(404).end()
   if(box.doc.owner !== req.user.guid) return res.status(403).end()
+
   BoxData.updateBoxAsync(req.body, box)
     .then(box => res.status(200).json(box))
     .catch(next)
@@ -114,16 +131,8 @@ router.delete('/:boxUUID', auth, (req, res, next) => {
     .catch(next)
 })
 
-router.get('/:boxUUID/branches', auth, (req, res) => {
-  let boxUUID = req.params.boxUUID
-  let box = BoxData.map.get(boxUUID)
-  if(!box) return res.status(404).end()
-
-  let guid
-  if(req.user) guid = req.user.guid
-  else guid = req.guest.guid
-
-  if(box.doc.owner !== guid && !box.doc.users.includes(guid)) return res.status(403).end()
+router.get('/:boxUUID/branches', auth, boxAuth, (req, res) => {
+  let box = req.body.box
   
   box.retrieveAllAsync('branches')
     .then(branches => res.status(200).json(branches))
@@ -132,43 +141,19 @@ router.get('/:boxUUID/branches', auth, (req, res) => {
         return res.status(404).end()
       else return res.status(500).end()
     })
-  // box.retrieveAllBranches((err, data) => {
-  //   if(err) {
-  //     if(err.code === 'ENOENT') 
-  //       return res.status(404).end()
-  //     else return res.status(500).end()
-  //   }
-  //   return res.status(200).json(data)
-  // })
 })
 
-router.post('/:boxUUID/branches', auth, (req, res, next) => {
-  let boxUUID = req.params.boxUUID
-  let box = BoxData.map.get(boxUUID)
-  if(!box) return res.status(404).end()
-
-  let guid
-  if(req.user) guid = req.user.guid
-  else guid = req.guest.guid
-
-  if(box.doc.owner !== guid && !box.doc.users.includes(guid)) return res.status(403).end()
+router.post('/:boxUUID/branches', auth, boxAuth, (req, res, next) => {
+  let box = req.body.box
 
   box.createBranchAsync(req.body)
     .then(branch => res.status(200).json(branch))
     .catch(next)
 })
 
-router.get('/:boxUUID/branches/:branchUUID', auth, (req, res) => {
-  let boxUUID = req.params.boxUUID
+router.get('/:boxUUID/branches/:branchUUID', auth, boxAuth, (req, res) => {
   let branchUUID = req.params.branchUUID
-  let box = BoxData.map.get(boxUUID)
-  if(!box) return res.status(404).end()
-
-  let guid
-  if(req.user) guid = req.user.guid
-  else guid = req.guest.guid
-
-  if(box.doc.owner !== guid && !box.doc.users.includes(guid)) return res.status(403).end()
+  let box = req.body.box
   
   box.retrieveAsync('branches', branchUUID)
     .then(branch => res.status(200).json(branch))
@@ -177,28 +162,12 @@ router.get('/:boxUUID/branches/:branchUUID', auth, (req, res) => {
         return res.status(404).end()
       else return res.status(500).end()
     })
-  // box.retrieveBranch(branchUUID, (err, data) => {
-  //   if(err) {
-  //     if(err.code === 'ENOENT') 
-  //       return res.status(404).end()
-  //     else return res.status(500).end()
-  //   }
-  //   return res.status(200).json(data)
-  // })
 })
 
-router.patch('/:boxUUID/branches/:branchUUID', auth, (req, res) => {
-  let boxUUID = req.params.boxUUID
+router.patch('/:boxUUID/branches/:branchUUID', auth, boxAuth, (req, res) => {
   let branchUUID = req.params.branchUUID
-  let box = BoxData.map.get(boxUUID)
-  if(!box) return res.status(404).end()
+  let box = req.body.box
 
-  let guid
-  if(req.user) guid = req.user.guid
-  else guid = req.guest.guid
-
-  if(box.doc.owner !== guid && !box.doc.users.includes(guid)) return res.status(403).end()
-  
   box.updateBranchAsync(branchUUID, req.body)
     .then(updated => res.status(200).json(updated))
     .catch(e => {
@@ -209,21 +178,20 @@ router.patch('/:boxUUID/branches/:branchUUID', auth, (req, res) => {
 })
 
 // FIXME: who can delete branch ?
-router.delete('/:boxUUID/branches/:branchUUID', auth, (req, res, next) => {
-  let boxUUID = req.params.boxUUID
+router.delete('/:boxUUID/branches/:branchUUID', auth, boxAuth, (req, res, next) => {
   let branchUUID = req.params.branchUUID
-  let box = BoxData.map.get(boxUUID)
-  if(!box) return res.status(404).end()
-
-  let guid
-  if(req.user) guid = req.user.guid
-  else guid = req.guest.guid
-
-  if(box.doc.owner !== guid && !box.doc.users.includes(guid)) return res.status(403).end()
+  let box = req.body.box
   
   box.deleteBranchAsync(branchUUID)
     .then(() => res.status(200).end())
     .catch(next)
+})
+
+router.post('/:boxUUID/twits', auth, boxAuth, (req, res, next) => {
+  let box = req.body.box
+  box.createTwitAsync()
+    .then()
+    .catch()
 })
 
 module.exports = router
