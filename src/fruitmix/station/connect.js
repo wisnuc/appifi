@@ -56,6 +56,10 @@ class Connect {
     if(this.socket.connected) 
       this.socket.disconnect()
   }
+
+  isConnect() {
+    return this.socket.connected
+  }
 }
 
 module.exports = Connect

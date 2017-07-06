@@ -6,6 +6,7 @@ const Promise = require('bluebird')
 const Router = require('express').Router
 
 const { registerAsync } = require('./register')
+const { FILE, CONFIG } = require('./const')
 const broadcast = require('../../common/broadcast')
 const Connect = require('./connect')
 
@@ -14,10 +15,9 @@ Promise.promisifyAll(fs)
 let sa, connect
 
 const initAsync = async () => {
+  let pbkPath = path.join(__dirname, 'data', FILE.PUBKEY)
+  let pvkPath = path.join(__dirname, 'data', FILE.PVKEY)
   let createKeysAsync = async () => {
-    let pbkPath = path.join(process.cwd(), FILE.PUBKEY)
-    let pvkPath = path.join(process.cwd(), FILE.PVKEY)
-
     //remove keys 
     try{
       await fs.unlinkAsync(pbkPath)
@@ -42,8 +42,9 @@ const initAsync = async () => {
   }
 
   try{
-      let pbStat = await fs.lstatAsync(path.join(process.cwd(), FILE.PUBKEY))
-      let pvStat = await fs.lstatAsync(path.join(process.cwd(), FILE.PVKEY))
+      //TODO
+      let pbStat = await fs.lstatAsync(pbkPath)
+      let pvStat = await fs.lstatAsync(pvkPath)
       if(pbStat.isFile() && pvStat.isFile())
         return
       return await createKeysAsync()
@@ -61,7 +62,7 @@ const startAsync = async () => {
   try{
      sa = await registerAsync()
      //connect to cloud
-     connect = new Connect('http://10.10.9.59:5757', sa)
+     connect = new Connect(CONFIG.CLOUD_PATH, sa)
   }catch(e){
     console.log(e)
   }
@@ -82,5 +83,10 @@ broadcast.on('FruitmixStarted', (err, data) => {
 
 let router = Router()
 
+let stationFinishStart = (req, res, next) => {
+  if(sa !== undefined && connect !== undefined && connect.isConnect)
+    next()
+  return res.status(500).json()
+}
 
 module.exports = router
