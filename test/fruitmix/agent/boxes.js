@@ -253,7 +253,7 @@ describe(path.basename(__filename), () => {
     })
   })
 
-  describe('Alice create box, Bob is a user', () => {
+  describe('after box is created', () => {
     let aliceToken, aliceCloudToken, bobToken, bobCloudToken, box
     let boxUUID = 'a96241c5-bfe2-458f-90a0-46ccd1c2fa9a'
     let uuid_1 = 'ff5d42b9-4b8f-452d-a102-ebfde5cdf948'
@@ -282,6 +282,21 @@ describe(path.basename(__filename), () => {
     })
 
     afterEach(() => UUID.v4.restore())
+
+    it('POST /boxes/{uuid}/twits alice should add a twit into twitsDB', done => {
+      request(app)
+        .post(`/boxes/${boxUUID}/twits`)
+        .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
+        .send({comment: 'hello'})
+        .expect(200)
+        .end((err, res) => {
+          if(err) return done(err)
+          expect(res.body.uuid).to.equal(uuid_1)
+          expect(res.body.twitter).to.equal(IDS.alice.guid)
+          expect(res.body.comment).to.equal('hello')
+          done()
+        })
+    })
 
     it('POST /boxes/{uuid}/branches alice create a new branch successfully', done => {
       request(app)
@@ -340,7 +355,7 @@ describe(path.basename(__filename), () => {
     })
   })
 
-  describe('a branch is created', () => {
+  describe('after branch is created', () => {
     let aliceToken, aliceCloudToken, box, branch
     let boxUUID = 'a96241c5-bfe2-458f-90a0-46ccd1c2fa9a'
     let uuid = 'ff5d42b9-4b8f-452d-a102-ebfde5cdf948'

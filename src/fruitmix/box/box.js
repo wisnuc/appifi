@@ -70,7 +70,9 @@ class Box {
    * @private
    */
   async appendTwitsAsync (obj) {
+    console.log(obj)
     let text = Stringify(obj)
+    console.log(text)
     let target = path.join(this.dir, 'twits')
     await fs.appendFileAsync(target, `\n${text}`)
   }
@@ -246,7 +248,7 @@ class Box {
   }
 
   async createTwitAsync(props) {
-    let { type, comment } = props.type
+    let { type, comment } = props
     let twit
 
     if(type) {
@@ -262,6 +264,7 @@ class Box {
     }
 
     await this.appendTwitsAsync(twit)
+    return twit
     
   }
 
