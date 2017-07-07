@@ -4,7 +4,10 @@ const fs = Promise.promisifyAll(require('fs'))
 const child = Promise.promisifyAll(require('child_process'))
 
 const mkdirpAsync = Promise.promisify(require('mkdirp'))
+const rimraf = require('rimraf')
 const router = require('express').Router()
+const formidable = require('formidable')
+const sanitize = require('sanitize-filename')
 
 const debug = require('debug')('system:storage')
 const deepFreeze = require('deep-freeze')
@@ -17,6 +20,7 @@ const probeSwapsAsync = require('./storage/procSwapsAsync')
 const probeVolumesAsync = require('./storage/btrfsfishowAsync')
 const probeUsageAsync = require('./storage/btrfsusageAsync')
 
+const { isNormalizedAbsolutePath } = require('../common/assertion')
 const broadcast = require('../common/broadcast')
 
 /**
@@ -622,6 +626,8 @@ const probeAsync = async () => {
   return storage
 }
 
+let storage = null
+
 const singleton = new class extends Synchronized {
   constructor () {
     super()
@@ -630,13 +636,13 @@ const singleton = new class extends Synchronized {
 
   finish (err, data) {
     super.finish(err, data)
+    storage = data
     broadcast.emit('StorageUpdate', err, data)
   }
 
   run () {
     probeAsync()
       .then(data => {
-        // console.log('data', data)
         this.finish(null, data)
       })
       .catch(e => {
@@ -758,6 +764,198 @@ router.get('/', (req, res, next) =>
   singleton.request((err, data) => err
     ? res.status(500).json({ code: err.code, message: err.message })
     : res.status(200).json(data)))
+
+router.get('/blocks', (req, res) => {
+  let blocks = storage ? storage.blocks : []
+  res.status(200).json(blocks)
+})
+
+const readdir = (abspath, callback) => {
+  fs.readdir(abspath, (err, entries) => {
+    if (err) return callback(err)
+    if (entries.length === 0) return callback(null, [])
+
+    let count = entries.length
+    let arr = []
+    entries.forEach(entry => {
+      fs.lstat(path.join(abspath, entry), (err, stat) => {
+        if (!err) {
+          arr.push({
+            name: entry,
+            type: stat.isFile()
+              ? 'file'
+              : stat.isDirectory()
+                ? 'directory'
+                : stat.isSymbolicLink()
+                  ? 'link'
+                  : stat.isSocket()
+                    ? 'socket'
+                    : stat.isFIFO()
+                      ? 'fifo'
+                      : stat.isCharacterDevice()
+                        ? 'char'
+                        : stat.isBlockDevice()
+                          ? 'block'
+                          : 'unknown',
+            size: stat.size,
+            ctime: stat.ctime.getTime()
+          })
+        }
+        if (!--count) callback(null, arr)
+      })
+    })
+  })
+}
+
+// this middleware consumes block name in url and produces req.body.block
+const blockName = (req, res, next) => {
+  if (!storage) return res.status(503).json({ message: 'storage not available' })
+  let blocks = storage.blocks
+  let block = blocks.find(blk => blk.name === req.params.name)
+  if (!block) return res.status(404).end()
+  if (!block.isFileSystem || block.isVolumeDevice || !block.isMounted) return res.status(403).end()
+
+  req.body.block = block
+  next()
+}
+
+// this middleware consumes query string and produces req.body.path
+const blockPath = (req, res, next) => {
+  if (typeof req.query.path !== 'string' && req.query.path !== undefined) return res.status(400).json({ message: 'invalid path' })
+  let abspath = path.join(req.body.block.mountpoint, req.query.path || '')
+  if (!isNormalizedAbsolutePath(abspath)) return res.status(400).end()
+
+  req.body.path = abspath
+  next()
+}
+
+// list or download
+router.get('/blocks/:name', blockName, blockPath, (req, res, next) => fs.lstat(req.body.path, (err, stat) => {
+  if (err) return next(err)
+  if (!stat.isFile() && !stat.isDirectory()) return res.status(403).json({ message: 'must be a regular file or directory' })
+  if (stat.isDirectory()) {
+    readdir(req.body.path, (err, files) => err ? next(err) : res.status(200).json(files))
+  } else {
+    res.status(200).sendFile(req.body.path)
+  }
+}))
+
+// create dir or file (multipart/formdata), path must be a directory
+router.post('/blocks/:name', blockName, blockPath, (req, res, next) => fs.readdir(req.body.path, (err, entries) => {
+  if (err) return next(err)
+  if (req.is('application/json')) {
+    let dirname = req.body.dirname
+    if (dirname !== 'string' || dirname.length === 0) return res.status(400).json({ message: 'dirname must be a valid file name' })
+    if (sanitize(dirname) !== dirname) return res.status(400).json({ message: 'invalid filename' })
+
+    fs.mkdir(path.join(req.body.path, req.body.dirname), err => err ? next(err) : res.status(200).end())
+  } else if (req.is('multipart/form-data')) {
+    let finished = false
+    let name
+    let size = 0
+    let form = new formidable.IncomingForm()
+
+    form.on('fileBegin', (_name, file) => {
+      if (finished) return
+      if (entries.includes(file.name)) {
+        finished = true
+        res.status(403).json({ message: 'file already exists' })
+        return
+      }
+
+      name = file.name
+      file.path = path.join(req.body.path, file.name) // TODO
+    })
+
+    form.on('file', (name, file) => {
+      if (finished) return
+      size = file.size
+    })
+
+    form.on('error', err => {
+      if (finished) return
+      finished = true
+      next(err)
+    })
+
+    form.on('aborted', () => {
+      finished = true
+    })
+
+    form.on('end', () => {
+      if (finished) return
+      finished = true
+      console.log(name, size)
+      res.status(200).json({ name, size })
+    })
+
+    form.parse(req)
+  } else {
+    res.status(415).json({ message: 'content type must be either application/json or multipart/form-data' })
+  }
+}))
+
+// rename
+router.patch('/blocks/:name', blockName, (req, res, next) => {
+  let { oldPath, newPath } = req.body
+  let invalid = typeof oldPath !== 'string' || oldPath.length === 0 || typeof newPath !== 'string' || newPath.length === 0 
+  if (invalid) return res.status(400).json({ message: 'invalid oldPath or newPath' })
+
+  fs.rename(path.join(req.body.block.mountpoint, oldPath), path.join(req.body.block.mountpoint, newPath), err =>
+    err ? next(err) : res.status(200).end())
+})
+
+// overwrite
+router.put('/blocks/:name', blockName, blockPath, (req, res, next) => fs.lstat(req.body.path, (err, stat) => {
+  if (err) return next(err)
+  if (!stat.isFile()) return res.status(403).json({ message: 'path must be a file' })
+
+  let finished = false
+
+  let os = fs.createWriteStream(req.body.path)
+  os.on('error', err => {
+    if (finished) return
+    finished = true
+    next(err)
+  })
+
+  os.on('close', () => {
+    if (finished) return
+    finished = true
+    res.status(200).end()
+  })
+
+  req.on('abort', () => {
+    if (finished) return
+    finished = true
+    req.unpipe()
+  })
+
+  req.pipe(os)
+}))
+
+// delete
+router.delete('/blocks/:name', blockName, blockPath, (req, res, next) => req.body.path === ''
+  ? res.status(403).json({ message: 'root cannot be deleted' })
+  : rimraf(req.body.path, err => err ? next(err) : res.status(200).end()))
+
+router.get('/volumes', (req, res) => {
+  let volumes = storage ? storage.volumes : []
+  res.status(200).json(volumes)
+})
+
+router.get('/volumes/:volumeUUID', (req, res, next) => {
+  if (!storage) return res.status(503).json({ message: 'storage not available' })
+  let volumes = storage.volumes
+  let volume = volumes.find(vol => vol.uuid === req.params.volumeUUID)
+  if (!volume) return res.status(404).end()
+  if (volume.isMissing || !volume.isMounted) return res.status(403).end()
+  if (typeof req.query.path !== 'string' && req.query.path !== undefined) return res.status(400).json({ message: 'invalid path' })
+  let abspath = path.join(volume.mountpoint, req.query.path || '')
+  if (!isNormalizedAbsolutePath(abspath)) return res.status(400).end()
+
+  readdir(abspath, (err, files) => err ? next(err) : res.status(200).json(files))
+})
 
 router.post('/volumes', (req, res, next) => {
   mkfsBtrfsAsync(req.body)

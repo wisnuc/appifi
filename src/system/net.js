@@ -38,7 +38,7 @@ networkInterfaceConfig {
 */
 
 /**
-
+List of network interface configs
 */
 let nics = []
 
@@ -73,24 +73,25 @@ const interfaces = callback =>
     Object.keys(obj).forEach((key) => {
       if (!key.includes(':')) {
         const it = its.find(i => i.name === key)
-        if (it) it.ipAddresses.push(...obj[key])
-        return
+        if (it) {
+          it.ipAddresses.push(...obj[key])
+        }
+      } else { 
+        const split = key.split(':')
+        if (split.length !== 2 || split[0].length === 0 || split[1].length === 0) return
+
+        const number = parseInt(split[1], 10)
+        if (!Number.isInteger(number) || number < 0 || '' + number !== split[1]) return
+
+        const it = its.find(i => i.name === split[0])
+        if (it) {
+          const addrs = obj[key]
+            .filter(addr => addr.family === 'IPv4')
+            .map(addr => Object.assign({ number }, addr))
+
+          it.ipAddresses.push(...addrs)
+        }
       }
-
-      const split = key.split(':')
-      if (split.length !== 2 || split[0].length === 0 || split[1].length === 0) return
-
-      const number = parseInt(split[1], 10)
-      if (!Number.isInteger(number) || number < 0 || `${number}` !== split[1]) return
-
-      const it = its.find(i => i.name === split[0])
-      if (!it) return
-
-      const addrs = obj[key]
-        .filter(addr => addr.family === 'IPv4')
-        .map(addr => Object.assign({ number }, addr))
-
-      it.ipAddresses.push(...addrs)
     })
 
     // annotate nics
@@ -147,7 +148,7 @@ broadcast.on('ConfigUpdate', (err, config) => {
 router.get('/', (req, res) =>
   interfaces((err, its) => err ? res.status(500).end() : res.status(200).json(its)))
 
-router.post('/:name/aliases', (req, res, next) => {
+router.post('/:name/config/aliases', (req, res, next) => {
   let name = req.params.name
   let ipv4 = req.body.ipv4
   let mask = req.body.mask
@@ -171,7 +172,7 @@ router.post('/:name/aliases', (req, res, next) => {
   })
 })
 
-router.delete('/:name/aliases/:ipv4', (req, res, next) => {
+router.delete('/:name/config/aliases/:ipv4', (req, res, next) => {
   let name = req.params.name
   let ipv4 = req.params.ipv4
 

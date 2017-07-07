@@ -19,6 +19,9 @@ const formdata = require('./formdata')
 const rimrafAsync = Promise.promisify(rimraf)
 const mkdirpAsync = Promise.promisify(mkdirp)
 
+let storage = undefined
+broadcast.on('StorageUpdate', (err, _storage) => console.log(err || (storage = _storage)))
+
 let fruitmixPath = undefined
 broadcast.on('FruitmixStart', froot => fruitmixPath = froot)
 broadcast.on('FruitmixStop', () => fruitmixPath = undefined)
