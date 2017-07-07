@@ -31,7 +31,6 @@ This module is the entry point of the whole application.
 @module App
 */
 
-
 app.set('json spaces', 0)
 app.use(logger('dev', { skip: (req, res) => res.nolog === true || app.nolog === true }))
 app.use(bodyParser.json())
@@ -41,7 +40,7 @@ app.use('/boot', boot)
 app.use('/storage', storage)
 app.use('/control/system', system) 
 app.use('/control/net/interfaces', net)
-app.use('/control/timedata', timedate)
+app.use('/control/timedate', timedate)
 if (barcelona.isBarcelona) app.use('/control/fan', barcelona.router)
 app.use('/token', token)
 app.use('/users', users)
@@ -63,15 +62,16 @@ app.use(function(err, req, res, next) {
   if (err && process.env.NODE_ENV === 'test')
     console.log(err)
 
-  res.status(err.status || 500)
-  res.type('text/plain')
-  res.send(err.status + ' ' + err.message)
+  res.status(err.status || 500).json({
+    code: err.code,
+    message: err.message
+  })
 })
 
 let { NODE_ENV, NODE_PATH } = process.env
 const isAutoTesting = NODE_ENV === 'test' && NODE_PATH !== undefined
 
-if (NODE_ENV === 'test') app.nolog = true
+// if (NODE_ENV === 'test') app.nolog = true
 
 if (!isAutoTesting) {
 
