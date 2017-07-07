@@ -1,5 +1,6 @@
 const Promise = require('bluebird')
 const path = require('path')
+const Stringify = require('canonical-json')
 const fs = Promise.promisifyAll(require('fs'))
 const rimrafAsync = Promise.promisify(require('rimraf'))
 const mkdirp = require('mkdirp')
@@ -64,6 +65,17 @@ class Box {
   }
 
   /**
+   * append twits
+   * @param {Object} obj - content to be stored
+   * @private
+   */
+  async appendTwitsAsync (obj) {
+    let text = Stringify(obj)
+    let target = path.join(this.dir, 'twits')
+    await fs.appendFileAsync(target, `\n${text}`)
+  }
+
+  /**
    * create a branch
    * @param {Object} props 
    * @param {string} props.name - branch name
@@ -86,7 +98,7 @@ class Box {
   }
 
   /**
-   * retrieve a branch content
+   * retrieve a branch or commit
    * @param {string} type - branches or commits
    * @param {string} id - branch uuid or commit hash
    * @param {function} callback 
@@ -129,7 +141,7 @@ class Box {
   }
 
   /**
-   * retrieve all branches
+   * retrieve all
    * @param {string} type - branches or commits
    * @param {function} callback 
    * @return {array} branches
@@ -233,9 +245,27 @@ class Box {
     return await this.storeObjectAsync(commit)
   }
 
-  async createTwitAsync() {
+  async createTwitAsync(props) {
+    let { type, comment } = props.type
+    let twit
+
+    if(type) {
+      // TODO:
+
+    } else {
+      twit = {
+        uuid: UUID.v4(),
+        twitter: props.guid,
+        comment: props.comment,
+        ctime: new Date().getTime()
+      }
+    }
+
+    await this.appendTwitsAsync(twit)
     
   }
+
+  
 
 }
 

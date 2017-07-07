@@ -2,6 +2,7 @@ const Promise = require('bluebird')
 const router = require('express').Router()
 const uuid = require('uuid')
 const jwt = require('jwt-simple')
+const formidable = require('formidable')
 const secret = require('../config/passportJwt')
 
 const User = require('../models/user')
@@ -58,7 +59,7 @@ const boxAuth = (req, res, next) => {
   if(box.doc.owner !== guid && !box.doc.users.includes(guid)) 
     return res.status(403).end()
   
-  req.body.box = box
+  req.box = box
   next()
 }
 
@@ -132,7 +133,7 @@ router.delete('/:boxUUID', auth, (req, res, next) => {
 })
 
 router.get('/:boxUUID/branches', auth, boxAuth, (req, res) => {
-  let box = req.body.box
+  let box = req.box
   
   box.retrieveAllAsync('branches')
     .then(branches => res.status(200).json(branches))
@@ -144,7 +145,7 @@ router.get('/:boxUUID/branches', auth, boxAuth, (req, res) => {
 })
 
 router.post('/:boxUUID/branches', auth, boxAuth, (req, res, next) => {
-  let box = req.body.box
+  let box = req.box
 
   box.createBranchAsync(req.body)
     .then(branch => res.status(200).json(branch))
@@ -153,7 +154,7 @@ router.post('/:boxUUID/branches', auth, boxAuth, (req, res, next) => {
 
 router.get('/:boxUUID/branches/:branchUUID', auth, boxAuth, (req, res) => {
   let branchUUID = req.params.branchUUID
-  let box = req.body.box
+  let box = req.box
   
   box.retrieveAsync('branches', branchUUID)
     .then(branch => res.status(200).json(branch))
@@ -166,7 +167,7 @@ router.get('/:boxUUID/branches/:branchUUID', auth, boxAuth, (req, res) => {
 
 router.patch('/:boxUUID/branches/:branchUUID', auth, boxAuth, (req, res) => {
   let branchUUID = req.params.branchUUID
-  let box = req.body.box
+  let box = req.box
 
   box.updateBranchAsync(branchUUID, req.body)
     .then(updated => res.status(200).json(updated))
@@ -180,7 +181,7 @@ router.patch('/:boxUUID/branches/:branchUUID', auth, boxAuth, (req, res) => {
 // FIXME: who can delete branch ?
 router.delete('/:boxUUID/branches/:branchUUID', auth, boxAuth, (req, res, next) => {
   let branchUUID = req.params.branchUUID
-  let box = req.body.box
+  let box = req.box
   
   box.deleteBranchAsync(branchUUID)
     .then(() => res.status(200).end())
@@ -188,10 +189,28 @@ router.delete('/:boxUUID/branches/:branchUUID', auth, boxAuth, (req, res, next) 
 })
 
 router.post('/:boxUUID/twits', auth, boxAuth, (req, res, next) => {
-  let box = req.body.box
-  box.createTwitAsync()
-    .then()
-    .catch()
+  let box = req.box
+  if(req.is('multipart/form-data')){
+    //UPLOAD TODO:
+
+
+
+
+  }else if(req.is('application/json')){
+    // let type = req.body.type
+    let guid
+    if(req.user) guid = req.user.guid
+    else guid = req.guest.guid
+
+    let props = Object.assign({}, req.body, { guid })
+    console.log(props)
+
+    box.createTwitAsync(props)
+    .then(twit => res.status(200).json(twit))
+    .catch(next)
+  }else
+    next()
+  
 })
 
 module.exports = router
