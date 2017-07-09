@@ -71,7 +71,7 @@ app.use(function(err, req, res, next) {
 let { NODE_ENV, NODE_PATH } = process.env
 const isAutoTesting = NODE_ENV === 'test' && NODE_PATH !== undefined
 
-// if (NODE_ENV === 'test') app.nolog = true
+if (NODE_PATH) app.nolog = true
 
 if (!isAutoTesting) {
 

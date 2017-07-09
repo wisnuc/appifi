@@ -753,3 +753,5 @@ const mkfsBtrfsAsync = async args => {
 }
 
 module.exports = { mkfsBtrfsAsync }
+
+debug('storage module loaded')

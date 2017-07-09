@@ -88,8 +88,8 @@ const checkPath = (req, res, next) => {
   let abspath = path.join(mp, relpath)
   if (!isNormalizedAbsolutePath(abspath)) return res.status(400).json({ message: 'invalid path' })
 
-  req.path = relpath
-  req.abspath = abspath
+  req.body.path = relpath
+  req.body.abspath = abspath
   next()
 }
 
@@ -150,7 +150,7 @@ This function fails if given dir or file name already exists. It won't rename au
 @returns 403 if path is not a directory, with error cdoe ENOTDIR 
 @returns 403 if dirname (dir) or filename (file) already exists, with error code EEXIST
 @returns 400 if dirname invalid (dir) or filename invalid (file)
-@returns 200 no body (dir) or an object containing name and file (file)
+@returns 200 with file or directory object
 */
 const mkdirOrNewFile = (req, res, next) => fs.lstat(req.body.abspath, (err, stat) => {
   if (err) {
@@ -160,7 +160,7 @@ const mkdirOrNewFile = (req, res, next) => fs.lstat(req.body.abspath, (err, stat
 
   if (!stat.isDirectory()) return res.status(403).json({ code: 'ENOTDIR', message: 'path is not a directory' })
 
-  fs.readdir(req.body.path, (err, entries) => {
+  fs.readdir(req.body.abspath, (err, entries) => {
     if (err) return next(err)
 
     if (req.is('application/json')) {
@@ -168,10 +168,25 @@ const mkdirOrNewFile = (req, res, next) => fs.lstat(req.body.abspath, (err, stat
       let invalid = typeof dirname !== 'string' || dirname.length === 0 || sanitize(dirname) !== dirname
       if (invalid) return res.status(400).json({ message: 'dirname must be a valid file name' })
       if (entries.includes(dirname)) return res.status(403).json({ code: 'EEXIST', message: 'dirname already exists' })
-      fs.mkdir(path.join(req.body.abspath, dirname), err => err ? next(err) : res.status(200).end())
+
+      let dirPath = path.join(req.body.abspath, dirname)
+      fs.mkdir(dirPath, err => {
+        if (err) return next(err)
+        fs.lstat(dirPath, (err, stat) => {
+          if (err) return next(err)
+          if (!stat.isDirectory()) return next(new Error('type mismatch, race?'))
+          res.status(200).json({ 
+            name: dirname, 
+            type: 'directory', 
+            size: stat.size, 
+            ctime: stat.ctime.getTime()
+          })
+        })
+      })
     } else if (req.is('multipart/form-data')) {
+
       let finished = false
-      let name
+      let name, filePath
       let size = 0
       let form = new formidable.IncomingForm()
 
@@ -190,12 +205,37 @@ const mkdirOrNewFile = (req, res, next) => fs.lstat(req.body.abspath, (err, stat
         }
 
         name = file.name
-        file.path = path.join(req.body.abspath, file.name)
+        filePath = file.path = path.join(req.body.abspath, file.name)
       })
 
       form.on('file', (name, file) => {
         if (finished) return
         size = file.size
+
+        if (size === 0) {
+
+          let invalid = typeof file.name !== 'string' || file.name.length === 0 || sanitize(file.name) !== file.name
+          if (invalid) {
+            finished = true
+            return res.status(400).json({ message: 'invalid file name' })
+          }
+
+          if (entries.includes(file.name)) {
+            finished = true
+            return res.status(403).json({ code: 'EEXIST', message: 'filename already exists' })
+          }
+
+          name = file.name
+          filePath = file.path = path.join(req.body.abspath, file.name)
+
+          try {
+            fs.closeSync(fs.openSync(filePath, 'a'))
+          }
+          catch(e) {
+            finished = true
+            next(e)
+          }
+        }
       })
 
       form.on('error', err => {
@@ -210,8 +250,15 @@ const mkdirOrNewFile = (req, res, next) => fs.lstat(req.body.abspath, (err, stat
 
       form.on('end', () => {
         if (finished) return
-        finished = true
-        res.status(200).json({ name, size })
+        fs.lstat(filePath, (err, stat) => {
+
+          if (finished) return
+          finished = true
+
+          if (err) return next(err)
+          if (!stat.isFile() || stat.size !== size) return next(new Error('type or size mismatch, race?'))
+          res.status(200).json({ name, type: 'file', size, ctime: stat.ctime.getTime() })
+        })
       })
 
       form.parse(req)
@@ -268,7 +315,7 @@ returns 200 if success
 */
 const del = (req, res, next) => req.body.path === ''
   ? res.status(403).json({ message: 'root cannot be deleted' })
-  : rimraf(req.body.path, err => err ? next(err) : res.status(200).end())
+  : rimraf(req.body.abspath, err => err ? next(err) : res.status(200).end())
 
 /**
 This router function rename files.
@@ -341,4 +388,19 @@ router.delete('/volumes/:volumeUUID', avail, volumeUUID, checkPath, del)
 // rename
 router.patch('/volumes/:volumeUUID', avail, volumeUUID, rename)
 
+//
 module.exports = router
+
+// test hook
+if (process.env.NODE_ENV === 'test') {
+
+  Object.defineProperty(module.exports, 'storage', {
+    get: function() {
+      return storage
+    },
+    set: function(value) {
+      storage = value
+    }
+  })
+}
+
