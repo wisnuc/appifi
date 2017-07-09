@@ -24,7 +24,7 @@ const {
   createUserAsync,
   retrieveTokenAsync,
   createPublicDriveAsync,
-  setUserUnionIdAsync
+  setUserGuidAsync
 } = require('./lib')
 
 const cwd = process.cwd()
@@ -90,7 +90,7 @@ describe(path.basename(__filename), () => {
           isFirstUser: true,
           isAdmin: true,
           avatar: null,
-          unionId: null 
+          guid: null 
         }))
 
   })
@@ -165,10 +165,10 @@ describe(path.basename(__filename), () => {
         }]))
 
     // TODO move to other place
-    it("PATCH /users/:userUUID alice set unionId", async () =>
-      setUserUnionIdAsync('alice')
-        .should.eventually.have.deep.property('unionId')
-        .that.equal(IDS.alice.unionId))
+    it("PATCH /users/:userUUID alice set guid", async () =>
+      setUserGuidAsync('alice')
+        .should.eventually.have.deep.property('guid')
+        .that.equal(IDS.alice.guid))
   })
 
   describe('After alice created, create bob', () => {
@@ -202,7 +202,7 @@ describe(path.basename(__filename), () => {
           isFirstUser: false,
           isAdmin: true,  
           avatar: null,
-          unionId: null
+          guid: null
         })) 
   })
 

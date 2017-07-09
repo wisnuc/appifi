@@ -5,10 +5,10 @@ const ursa = require('ursa')
 const Promise = require('bluebird')
 const Router = require('express').Router
 
-const { registerAsync } = require('./register')
-const { FILE, CONFIG } = require('./const')
+const { registerAsync } = require('./lib/register')
+const { FILE, CONFIG } = require('./lib/const')
 const broadcast = require('../../common/broadcast')
-const Connect = require('./connect')
+const Connect = require('./lib/connect')
 
 Promise.promisifyAll(fs)
 
@@ -84,9 +84,14 @@ broadcast.on('FruitmixStarted', (err, data) => {
 let router = Router()
 
 let stationFinishStart = (req, res, next) => {
-  if(sa !== undefined && connect !== undefined && connect.isConnect)
-    next()
+  if(sa !== undefined && connect !== undefined && connect.isConnect){
+    req.body.sa = sa
+    req.body.connect = connect
+    return next()
+  }
   return res.status(500).json()
 }
+
+router.use('/ticket', require('./route/tickets'))
 
 module.exports = router

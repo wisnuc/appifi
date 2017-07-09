@@ -48,7 +48,7 @@ data = {
   "province": "Guangdong",
   "country": "CN",
   "avatarUrl": "http://wx.qlogo.cn/xxxx",
-  "unionId": "ocMvos6NjeKLIBqg5Mr9QjxrP1FA",
+  "guid": "ocMvos6NjeKLIBqg5Mr9QjxrP1FA",
   "watermark": {
     "timestamp": 1477314187,
     "appid": "wx4f4bc4dec97d474b"
@@ -78,7 +78,7 @@ All props defined below are mandatory. If there is no value assigned, it should 
 
 @prop {(null|string)} avatar - avatar identity, not used. null
 
-@prop {string} unionId - WeChat unionId
+@prop {string} guid - guid
 */
 const userEntryMProps = [
   'uuid', 
@@ -90,7 +90,7 @@ const userEntryMProps = [
   'isFirstUser',
   'isAdmin',
   'avatar',
-  'unionId'
+  'guid'
 ]
 
 /**
@@ -106,7 +106,7 @@ Besides the following props, password is a prop when user serviced as restful re
 @prop {boolean} isFirstUser - FIXED
 @prop {boolean} isAdmin - W by first user.
 @prop {(null|string)} avatar - FIXED now.
-@prop {string} unionId - W by user.
+@prop {string} guid - W by user.
 */
 const validateUserEntry = u => {
 
@@ -178,7 +178,7 @@ class UserList extends EventEmitter {
       isFirstUser: user.isFirstUser,
       isAdmin: user.isAdmin,
       avatar: user.avatar,
-      unionId: user.unionId
+      guid: user.guid
     }
   }
   
@@ -323,7 +323,7 @@ class UserList extends EventEmitter {
       isFirstUser,
       isAdmin,
       avatar: null,
-      unionId: null  
+      guid: null  
     } 
 
     let nextUsers = [...currUsers, newUser]
@@ -342,11 +342,11 @@ class UserList extends EventEmitter {
     
     let currUsers = this.users
 
-    let { unionId } = props
+    let { guid } = props
     let index = this.users.findIndex(u => u.uuid === uuid) 
     if (index === -1) throw new Error('user not found')
 
-    let nextUser = Object.assign({}, this.users[index], { unionId })
+    let nextUser = Object.assign({}, this.users[index], { guid })
     let nextUsers = [
       ...currUsers.slice(0, index),
       nextUser,

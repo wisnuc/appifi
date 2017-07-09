@@ -9,19 +9,19 @@ const IDS = {
   alice: {
     uuid:'9f93db43-02e6-4b26-8fae-7d6f51da12af',
     home: 'e2adb5d0-c3c7-4f2a-bd64-3320a1ed0dee',
-    unionId: "ocMvos6NjeKLIBqg5Mr9QjxrP1FA"
+    guid: "ocMvos6NjeKLIBqg5Mr9QjxrP1FA"
   },
 
   bob: {
     uuid: 'a278930c-261b-4a9c-a296-f99ed00ac089',
     home: 'b7566c69-91f5-4299-b4f4-194df92b01a9',
-    unionId: "ocMvos6NjeKLIBqg5Mr9QjxrP1FB"
+    guid: "ocMvos6NjeKLIBqg5Mr9QjxrP1FB"
   },
 
   charlie: {
     uuid: 'c12f1332-be48-488b-a3ae-d5f7636c42d6',
     home: '1da855c5-33a9-43b2-a93a-279c6c17ab58',
-    unionId: "ocMvos6NjeKLIBqg5Mr9QjxrP1FC"
+    guid: "ocMvos6NjeKLIBqg5Mr9QjxrP1FC"
   },
 
   david: {
@@ -120,23 +120,23 @@ const createPublicDriveAsync = async (props, token, uuid) => {
   }
 }
 
-const setUserUnionIdAsync = async username => {
+const setUserGuidAsync = async username => {
 
   let token = await retrieveTokenAsync(username)
 
   return (await request(app)
     .patch(`/users/${IDS[username].uuid}`)
     .set('Authorization', 'JWT ' + token)
-    .send({ unionId: IDS[username].unionId })
+    .send({ guid: IDS[username].guid })
     .expect(200)).body
 }
 
-const retrieveWxTokenAsync = async username => {
+const retrieveCloudTokenAsync = async username => {
 
   let token = await retrieveTokenAsync(username)
 
   let res = await request(app)
-    .get('/wxtoken')
+    .get('/cloudToken')
     .set('Authorization', 'JWT ' + token)
     .expect(200)
 
@@ -146,12 +146,26 @@ const retrieveWxTokenAsync = async username => {
 const createBoxAsync = async (props, username) => {
 
   let token = await retrieveTokenAsync(username)
-  let wxToken = await retrieveWxTokenAsync(username)
+  let cloudToken = await retrieveCloudTokenAsync(username)
 
   let res = await request(app)
     .post('/boxes')
     .send(props)
-    .set('Authorization', 'JWT ' + wxToken + ' ' + token)
+    .set('Authorization', 'JWT ' + cloudToken + ' ' + token)
+    .expect(200)
+
+  return res.body
+}
+
+const createBranchAsync = async (props, boxUUID, username) => {
+  let token = await retrieveTokenAsync(username)
+  let cloudToken = await retrieveCloudTokenAsync(username)
+  let commit = '486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7'
+  
+  let res = await request(app)
+    .post(`/boxes/${boxUUID}/branches`)
+    .send({ name: 'branch_1', head: commit })
+    .set('Authorization', 'JWT ' + cloudToken + ' ' + token)
     .expect(200)
 
   return res.body
@@ -164,8 +178,9 @@ module.exports = {
   createUserAsync,
   retrieveTokenAsync,
   createPublicDriveAsync,
-  setUserUnionIdAsync,
-  retrieveWxTokenAsync,
-  createBoxAsync
+  setUserGuidAsync,
+  retrieveCloudTokenAsync,
+  createBoxAsync,
+  createBranchAsync
 }
 
