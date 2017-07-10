@@ -1,5 +1,8 @@
 const Promise = require('bluebird')
+const path = require('path')
 const child = Promise.promisifyAll(require('child_process'))
+const mkdirp = require('mkdirp')
+const rimraf = require('rimraf')
 // const debug = require('debug')('system:boot')
 
 const router = require('express').Router()
@@ -209,7 +212,7 @@ see apib document
 @fires FileSystemUpdate
 @fires BootModeUpdate
 */
-router.patch('/', (req, res) => {
+router.patch('/', (req, res, next) => {
   let arg = req.body
 
   const err = (code, message) => res.status(code).json({ message })
@@ -225,13 +228,21 @@ router.patch('/', (req, res) => {
     if (v.isMissing) return err(400, 'volume has missing devices')
     if (!Array.isArray(v.users) && v.users !== 'ENOENT') return err(400, 'only volumes without fruitmix or with users can be used')
 
-    current = v.fileSystemUUID
-    error = null
+    let froot = path.join(v.mountpoint, 'wisnuc', 'fruitmix')
+    let tmp = path.join(froot, 'tmp')
+    rimraf(tmp, err => {
+      if (err) return next(err) 
+      mkdirp(tmp, err => {
+        if (err) return next(err)
+        current = v.fileSystemUUID
+        error = null
 
-    if (mode === 'maintenance') broadcast.emit('BootModeUpdate', null, 'normal')
-    broadcast.emit('FileSystemUpdate', null, current)
-
-    process.nextTick(() => res.status(200).json({ mode, last, state, current, error }))
+        if (mode === 'maintenance') broadcast.emit('BootModeUpdate', null, 'normal')
+        broadcast.emit('FileSystemUpdate', null, current)
+        broadcast.emit('FruitmixStart', froot)
+        process.nextTick(() => res.status(200).json({ mode, last, state, current, error }))
+      })
+    })
   } else if (arg.hasOwnProperty('state')) {
     if (arg.state !== 'poweroff' && arg.state !== 'reboot') return err(400, 'invalid state')
     if (arg.state === 'reboot' && arg.mode === 'maintenance') broadcast.emit('BootModeUpdate', null, 'maintenance')

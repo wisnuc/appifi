@@ -521,7 +521,12 @@ const probeFruitmix = async mountpoint => {
 
   // test fruitmix dir
   try {
-    await fs.readdirAsync(fruitmixDir)
+    let entries = await fs.readdirAsync(fruitmixDir)
+    if (entries.length === 0) {
+      let err = new Error('empty fruitmix dir')
+      err.code = 'ENOENT'
+      throw err
+    }
   } catch (e) {
     debug('readdir fruitmix error', e)
 

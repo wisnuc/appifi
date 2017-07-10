@@ -32,16 +32,15 @@ const fileHashSync = (fpath) => {
   return hash.digest('hex')
 }
 
-const sidekick = require('src/fruitmix/lib/sidekick-client')
+// const sidekick = require('src/fruitmix/lib/sidekick-client')
 
 describe(path.basename(__filename), () => {
 
   describe("upload a file", () => {
 
-    it("should upload a file (alonzo)", done => {
+    it("should upload a file (alonzo) w/ sha256", done => {
 
       let target = path.join(tmptest, UUID.v4())
-
       fs.createReadStream(alonzo.path)
         .pipe(request(app)
           .put('/upload')
@@ -49,11 +48,61 @@ describe(path.basename(__filename), () => {
           .query({ size: alonzo.size })
           .query({ sha256: alonzo.sha256 })
           .expect(200)
-          .expect(() => {
-            if (fileHashSync(target) !== alonzo.sha256)
-              throw new Error('hash mismatch')
+          .expect(res => {
+            expect(res.body).to.deep.equal(Object.assign({}, alonzo, { path: target }))
             done()
           }))
+    })
+
+    it("should fail file upload w/ sha256, if size mismatch (409)", done => {
+      let target = path.join(tmptest, UUID.v4())
+      fs.createReadStream(alonzo.path)
+        .pipe(request(app)
+          .put('/upload')
+          .query({ path: target }) 
+          .query({ size: alonzo.size - 1 })
+          .query({ sha256: alonzo.sha256 })
+          .expect(409)
+          .expect(() => done()))
+    })
+
+    it("should fail file upload w/ sha256, if sha256 mismatch (409)", done => {
+
+      let target = path.join(tmptest, UUID.v4())
+      fs.createReadStream(alonzo.path)
+        .pipe(request(app)
+          .put('/upload')
+          .query({ path: target }) 
+          .query({ size: alonzo.size })
+          .query({ sha256: 'a' + alonzo.sha256.slice(1) })
+          .expect(409)
+          .expect(() => done()))
+    })
+
+    it("should upload a file (alonzo) w/o sha256", done => {
+
+      let target = path.join(tmptest, UUID.v4())
+      fs.createReadStream(alonzo.path)
+        .pipe(request(app)
+          .put('/upload')
+          .query({ path: target }) 
+          .query({ size: alonzo.size })
+          .expect(res => {
+            expect(res.body).to.deep.equal(Object.assign({}, alonzo, { path: target }))
+            done()
+          }))
+    })
+
+    it("should fail file upload w/o sha256, if size mismatch (409)", done => {
+
+      let target = path.join(tmptest, UUID.v4())
+      fs.createReadStream(alonzo.path)
+        .pipe(request(app)
+          .put('/upload')
+          .query({ path: target }) 
+          .query({ size: alonzo.size - 1 })
+          .expect(409)
+          .expect(() => done()))
     })
 
     it("should return 400 if path not provided", done => {
@@ -73,6 +122,7 @@ describe(path.basename(__filename), () => {
 
   describe("upload a file chunk", () => {
 
+/**
     it("should upload a file chunk", done => {
 
       let target = path.join(tmptest, UUID.v4())
@@ -90,6 +140,7 @@ describe(path.basename(__filename), () => {
             done()
           }))
     })
+**/
   })
 })
 
