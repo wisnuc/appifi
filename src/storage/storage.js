@@ -5,7 +5,7 @@ const child = Promise.promisifyAll(require('child_process'))
 
 const mkdirpAsync = Promise.promisify(require('mkdirp'))
 
-const debug = require('debug')('system:storage')
+const debug = require('debug')('storage')
 const deepFreeze = require('deep-freeze')
 
 const Synchronized = require('../common/synchronized')
@@ -517,35 +517,21 @@ It does NOT change anything on file system.
 @thorws {EFAIL} operation error
 */
 const probeFruitmix = async mountpoint => {
-  let fruitmixDir = path.join(mountpoint, 'wisnuc', 'fruitmix')
-
-  // test fruitmix dir
+  let filePath = path.join(mountpoint, 'wisnuc', 'fruitmix', 'users.json')
   try {
-    let entries = await fs.readdirAsync(fruitmixDir)
-    if (entries.length === 0) {
-      let err = new Error('empty fruitmix dir')
-      err.code = 'ENOENT'
-      throw err
-    }
-  } catch (e) {
-    debug('readdir fruitmix error', e)
-
-    throw (e.code === 'ENOENT' || e.code === 'ENOTDIR')
-      ? e
-      : Object.assign(new Error('' + e.code + ':' + e.message), { code: 'EFAIL' })
-  }
-
-  // retrieve users
-  try {
-    let filePath = path.join(fruitmixDir, 'models', 'users.json')
-    let users = JSON.parse(await fs.readFileAsync(filePath))
-    return users
+    return JSON.parse(await fs.readFileAsync(filePath))
+            .map(user => {
+              let { uuid, username, isFirstUser, isAdmin, avatar, global } = user 
+              return { uuid, username, isFirstUser, isAdmin, avatar, global }
+            })
   } catch (e) {
     debug('read users.json file error', e)
-
-    throw (e.code === 'ENOENT' || e.code === 'EISDIR' || e instanceof SyntaxError)
-      ? Object.assign(new Error('' + e.code + ':' + e.message), { code: 'EDATA' })
-      : Object.assign(new Error('' + e.code + ':' + e.message), { code: 'EFAIL' })
+    if (e.code === 'ENOENT' || e.code === 'ENOTDIR') 
+      throw e
+    else if (e.code === 'EISDIR' || e instanceof SyntaxError) 
+      throw Object.assign(new Error('' + e.code + ':' + e.message), { code: 'EDATA' })
+    else 
+      throw Object.assign(new Error('' + e.code + ':' + e.message), { code: 'EFAIL' })
   }
 }
 

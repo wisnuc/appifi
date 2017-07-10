@@ -161,12 +161,13 @@ Boot the system
 @fires FileSystemUpdate
 */
 const boot = () => {
+
+  let v
   if (mode === 'maintenance') {
     current = null
     error = null
   } else {
     let volumes = storage.volumes
-    let v
 
     if (last && (v = volumes.find(v => v.fileSystemUUID === last.uuid))) {
       if (!v.isMounted) {
@@ -187,7 +188,8 @@ const boot = () => {
         volumes[0].isMounted &&
         !volumes[0].isMissing &&
         Array.isArray(volumes[0].users)) {
-        current = volumes[0].fileSystemUUID
+        v = volumes[0]
+        current = v.fileSystemUUID
         error = null
       } else {
         current = null
@@ -195,6 +197,7 @@ const boot = () => {
       }
     }
     broadcast.emit('FileSystemUpdate', error, current)
+    if (current) broadcast.emit('FruitmixStart', path.join(v.mountpoint, 'wisnuc', 'fruitmix'))
   }
   state = 'started'
 }
