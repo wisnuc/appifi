@@ -1,6 +1,8 @@
+const fs = require('fs')
+
 const request = require('superagent')
 
-module.exports = (type, url, params, opts, callback) => {
+module.exports.request = (type, url, params, opts, callback) => {
   let req
   if(typeof type !== 'string' || !type.length || typeof url !== 'string' || !url.length)
     return callback(new Error('args error'))
@@ -36,4 +38,66 @@ module.exports = (type, url, params, opts, callback) => {
           req.set(i, opts[i])
     }
   req.end(callback)
+}
+
+module.exports.download = (url, params, fpath, opts, callback) => {
+  let req = request.get(url)
+  if(params)
+    req.send(params)
+  if(opts)
+    for(let i in opts){
+      if (opts.hasOwnProperty(i))
+          req.set(i, opts[i])
+  }
+  try{
+    let writeable = fs.createWriteStream(fpath)
+  }catch(e){
+    return callback(e)
+  }
+
+  let abort = false
+
+  req.on('finish', () => {
+    if(abort) return 
+    return callback(null)
+  })
+
+  req.on('error', err => {
+    if(abort) return 
+    abort = true
+    return callback(err)
+  })
+
+  req.pipe(writeable)
+}
+
+module.exports.upload = (url, params, fpath, opts, callback) => {
+  let req = request.put(url)
+  if(params)
+    req.send(params)
+  if(opts)
+    for(let i in opts){
+      if (opts.hasOwnProperty(i))
+          req.set(i, opts[i])
+  }
+  try{
+    let readable = fs.createReadStream(fpath)
+  }catch(e){
+    return callback(e)
+  }
+
+  let abort = false
+
+  req.on('finish', () => {
+    if(abort) return 
+    return callback(null)
+  })
+
+  req.on('error', err => {
+    if(abort) return 
+    abort = true
+    return callback(err)
+  })
+
+  readable.pipe(req)
 }
