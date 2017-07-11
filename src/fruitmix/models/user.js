@@ -78,7 +78,7 @@ All props defined below are mandatory. If there is no value assigned, it should 
 
 @prop {(null|string)} avatar - avatar identity, not used. null
 
-@prop {string} guid - guid
+@prop {object} global - global
 */
 const userEntryMProps = [
   'uuid', 
@@ -90,7 +90,7 @@ const userEntryMProps = [
   'isFirstUser',
   'isAdmin',
   'avatar',
-  'guid'
+  'global'
 ]
 
 /**
@@ -106,7 +106,7 @@ Besides the following props, password is a prop when user serviced as restful re
 @prop {boolean} isFirstUser - FIXED
 @prop {boolean} isAdmin - W by first user.
 @prop {(null|string)} avatar - FIXED now.
-@prop {string} guid - W by user.
+@prop {object} global - W by station
 */
 const validateUserEntry = u => {
 
@@ -156,9 +156,8 @@ class UserList extends EventEmitter {
 
     broadcast.on('FruitmixStart', froot => {
 
-      let filePath = path.join(froot, 'user.json') 
+      let filePath = path.join(froot, 'users.json') 
       let tmpDir = path.join(froot, 'tmp')
-
       this.init(filePath, tmpDir)
     })
 
@@ -178,7 +177,7 @@ class UserList extends EventEmitter {
       isFirstUser: user.isFirstUser,
       isAdmin: user.isAdmin,
       avatar: user.avatar,
-      guid: user.guid
+      global: user.global
     }
   }
   
@@ -323,7 +322,7 @@ class UserList extends EventEmitter {
       isFirstUser,
       isAdmin,
       avatar: null,
-      guid: null  
+      global: null
     } 
 
     let nextUsers = [...currUsers, newUser]
@@ -342,11 +341,11 @@ class UserList extends EventEmitter {
     
     let currUsers = this.users
 
-    let { guid } = props
+    let { global } = props
     let index = this.users.findIndex(u => u.uuid === uuid) 
     if (index === -1) throw new Error('user not found')
 
-    let nextUser = Object.assign({}, this.users[index], { guid })
+    let nextUser = Object.assign({}, this.users[index], { global })
     let nextUsers = [
       ...currUsers.slice(0, index),
       nextUser,
