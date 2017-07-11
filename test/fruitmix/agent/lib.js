@@ -52,6 +52,18 @@ const FILES = {
     hash: '5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03'
   },
 
+  world: {
+    path: 'testdata/world', 
+    size: 6,
+    hash: 'e258d248fda94c63753607f7c4494ee0fcbe92f1a76bfdac795c9d84101eb317'  
+  },
+
+  bar: {
+    path: 'testdata/bar',
+    size: 4,
+    hash: '7d865e959b2466918c9863afca942d0fb89d7c9ac0c99bafc3749504ded97730' 
+  },
+
   alonzo: {
     path: 'testdata/alonzo_church.jpg',
     size: 39499, 

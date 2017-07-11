@@ -64,11 +64,10 @@ const resetAsync = async () => {
 describe(path.basename(__filename), () => {
 
   /**
-
   Scenario 01                                 Alice w/empty home
 
   Dir List
-  010   get dirs                              return [{alice home}]
+  010   get dirs                              return [{alice home}]                 
   020 * create new dir (mkdir)                new dir xstat
 
 
@@ -224,7 +223,7 @@ describe(path.basename(__filename), () => {
         })
     })
 
-    // list nav a dir    
+    // List nav a dir    
     it("032 GET /drives/:home/dirs/:home/listnav should return list [] and nav [alice.home]", done => {
 
       let root = {
@@ -308,5 +307,175 @@ describe(path.basename(__filename), () => {
     })
   }) 
 
+  /**
+  Scenario 02                                 Alice w/  /hello 
+                                                          world (world)
+                                                          /foo
+                                                            bar (bar)
+  Dir List
+  010   get dirs                              return [{alice home}]                 
+  020 * create new dir (mkdir)                new dir xstat
+
+  Dir                                         alice.home
+  030   get a dir                             alice.home xstat
+  031 * list a dir                            [] 
+  032   listnav a dir                         { path: [alice.home], entries: [] }
+  040 * patch a dir (rename)                  (forbidden)
+  050 * delete a dir (rmdir)                  (forbidden)
+
+  File List
+  060   get files                             []
+  070 * create new file (upload / new)        new file xstat
+
+  File
+  080   get a file                            n/a
+  090 * patch a file (rename)                 n/a
+  100 * delete a file (rm)                    n/a
+
+  File Data
+  110 * get file data (download)              n/a
+  120 * put file data (upload / overwrite)    n/a
+
+  **/
+  describe("Alice w/ hello world foo bar", () => {
+
+    let sidekick
+
+    before(async () => {
+      sidekick = child.fork('src/fruitmix/sidekick/worker')      
+      await Promise.delay(100)
+    })
+
+    after(async () => {
+      sidekick.kill()
+      await Promise.delay(100) 
+    })
+    
+    let token, stat, hello, world, foo, bar
+
+    beforeEach(async () => {
+
+      debug('------ I am a beautiful divider ------')
+
+      await Promise.delay(100)
+      await resetAsync()
+      await createUserAsync('alice')
+      token = await retrieveTokenAsync('alice')
+      stat = await fs.lstatAsync(path.join(forestDir, IDS.alice.home))
+
+      hello = await new Promise((resolve, reject) =>
+        request(app)
+          .post(`/drives/${IDS.alice.home}/dirs`)
+          .set('Authorization', 'JWT ' + token)
+          .send({ parent: IDS.alice.home, name: 'hello' })
+          .expect(200)
+          .end((err, res) => err ? reject(err) : resolve(res.body))) 
+
+      await Promise.delay(50)
+
+      foo = await new Promise((resolve, reject) => 
+        request(app) 
+          .post(`/drives/${IDS.alice.home}/dirs`)
+          .set('Authorization', 'JWT ' + token)
+          .send({ parent: hello.uuid, name: 'foo' })
+          .expect(200)
+          .end((err, res) => err ? reject(err) : resolve(res.body)))
+
+      world = await new Promise((resolve, reject) =>
+        request(app) 
+          .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/files`)
+          .set('Authorization', 'JWT ' + token)
+          .field('size', FILES.world.size)
+          .field('sha256', FILES.world.hash)
+          .attach('file', FILES.world.path)
+          .expect(200)
+          .end((err, res) => err ? reject(err) : resolve(res.body)))
+
+      bar = await new Promise((resolve, reject) =>
+        request(app)
+          .post(`/drives/${IDS.alice.home}/dirs/${hello.uuid}/files`)
+          .set('Authorization', 'JWT ' + token)
+          .field('size', FILES.bar.size)
+          .field('sha256', FILES.bar.hash) 
+          .attach('file', FILES.bar.path)
+          .expect(200)
+          .end((err, res) => err ? reject(err) : resolve(res.body)))
+    })
+
+
+    // 010
+    it("010 GET all dirs return root, foo, and hello", done => {
+
+      request(app) 
+        .get(`/drives/${IDS.alice.home}/dirs`)
+        .set('Authorization', 'JWT ' + token)
+        .expect(200)
+        .end((err, res) => {
+          if (err) return done(err)
+          let arr = res.body
+            .map(x => ({
+              uuid: x.uuid,
+              parent: x.parent,
+              name: x.name
+            }))
+            .sort((a, b) => a.name.localeCompare(b.name))
+
+          expect(arr).to.deep.equal([{
+              uuid: IDS.alice.home,
+              name: IDS.alice.home,
+              parent: ''
+            },{
+              uuid: foo.uuid,
+              name: 'foo',
+              parent: hello.uuid
+            },{
+              uuid: hello.uuid,
+              name: 'hello',
+              parent: IDS.alice.home
+            }])
+          done()
+        })
+    })
+
+    // 020
+    it("020 create new dir in hello", done => {
+      
+      request(app) 
+        .post(`/drives/${IDS.alice.home}/dirs`)
+        .set('Authorization', 'JWT ' + token)
+        .send({ parent: hello.uuid, name: 'deadbeef' })
+        .expect(200)
+        .end((err, res) => {
+          if (err) return done(err)
+          console.log(res.body)
+          done()
+        }) 
+    })   
+
+    // 060
+    it("060 get files in root should return world", done => {
+
+      request(app)
+        .get(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/files`)
+        .set('Authorization', 'JWT ' + token)
+        .expect(200)
+        .end((err, res) => {
+          if (err) return done(err)
+          console.log(res.body)
+          done()
+        })
+    })
+
+    // 070
+/**
+    it("070 create new file in hello", done => {
+
+      request(app)
+        .post
+    })
+**/
+    // 080
+    // 090
+  })
 })
 
