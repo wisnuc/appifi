@@ -1,8 +1,6 @@
 const Promise = require('bluebird')
 const path = require('path')
 const fs = Promise.promisifyAll(require('fs'))
-const http = require('http')
-const querystring = require('querystring')
 const rimraf = require('rimraf')
 const mkdirp = require('mkdirp')
 const UUID = require('uuid')
@@ -19,16 +17,12 @@ const formdata = require('./formdata')
 const rimrafAsync = Promise.promisify(rimraf)
 const mkdirpAsync = Promise.promisify(mkdirp)
 
-let storage
-broadcast.on('StorageUpdate', (err, _storage) => console.log(err || (storage = _storage)))
+const f = af => (req, res, next) => af(req, res).then(x => x, next)
 
 let fruitmixPath
-broadcast.on('FruitmixStart', froot => fruitmixPath = froot)
-broadcast.on('FruitmixStop', () => fruitmixPath = undefined)
 
-const success = (res, data) => data
-  ? res.status(200).json(data)
-  : res.status(200).end()
+broadcast.on('FruitmixStart', froot => (fruitmixPath = froot))
+broadcast.on('FruitmixStop', () => (fruitmixPath = undefined))
 
 router.get('/', auth.jwt(), (req, res) => {
   let drives = Drive.drives.filter(drv => {
@@ -50,31 +44,20 @@ router.post('/', auth.jwt(), (req, res) => {
     .catch(e => res.status(500).json({ code: e.code, message: e.message }))
 })
 
-// get all directories in a drive
+/**
+010   get dirs
+*/
 router.get('/:driveUUID/dirs', auth.jwt(), (req, res) => {
   let { driveUUID } = req.params
 
-  if (!Forest.roots.has(driveUUID)) { return res.status(404).end() }
+  if (!Forest.roots.has(driveUUID)) return res.status(404).end()
 
   res.status(200).json(Forest.getDriveDirs(driveUUID))
 })
 
-const mkdirAsync = async (pnode, name) => {
-  let abspath = pnode.abspath()
-  await fs.mkdirAsync(path.join(abspath, name))
-  let xstat = await readXstatAsync(abspath)
-  console.log(xstat)
-}
-
-const error = (res, e) =>
-  console.log(e) || res.status(500).json({
-    code: e.code,
-    message: e.message
-  })
-
-const f = af => (req, res, next) => af(req, res).then(x => x, next)
-
-// create a new directory in a drive
+/**
+020 * create a new dir (mkdir)
+*/
 router.post('/:driveUUID/dirs', auth.jwt(), f(async (req, res) => {
   let { driveUUID } = req.params
 
@@ -107,7 +90,7 @@ router.post('/:driveUUID/dirs', auth.jwt(), f(async (req, res) => {
 }))
 
 /**
-get single dir in a drive
+030   get a dir
 */
 router.get('/:driveUUID/dirs/:dirUUID', auth.jwt(),
   f(async(req, res) => {
@@ -125,7 +108,7 @@ router.get('/:driveUUID/dirs/:dirUUID', auth.jwt(),
   }))
 
 /**
-list single dir in a drive
+031 * list a dir
 */
 router.get('/:driveUUID/dirs/:dirUUID/list', auth.jwt(), f(async(req, res) => {
   let { driveUUID, dirUUID } = req.params
@@ -137,7 +120,7 @@ router.get('/:driveUUID/dirs/:dirUUID/list', auth.jwt(), f(async(req, res) => {
 }))
 
 /**
-listnav single dir in a drive
+032    listnav a dir
 */
 router.get('/:driveUUID/dirs/:dirUUID/listnav', auth.jwt(),
   f(async(req, res) => {
@@ -157,7 +140,7 @@ router.get('/:driveUUID/dirs/:dirUUID/listnav', auth.jwt(),
   }))
 
 /**
-rename a directory
+040 * patch a directory (rename)
 */
 router.patch('/:driveUUID/dirs/:dirUUID', auth.jwt(),
   f(async(req, res) => {
@@ -188,7 +171,7 @@ router.patch('/:driveUUID/dirs/:dirUUID', auth.jwt(),
   }))
 
 /**
-delete a directory
+050 * delete a directory (rmdir)
 */
 router.delete('/:driveUUID/dirs/:dirUUID', auth.jwt(),
   f(async (req, res) => {
@@ -202,14 +185,16 @@ router.delete('/:driveUUID/dirs/:dirUUID', auth.jwt(),
     res.status(200).end()
   }))
 
-// [/drives/{driveUUID}/dirs/{dirUUID}/files]
+/**
+060   get files
+*/
 router.get('/:driveUUID/dirs/:dirUUID/files', auth.jwt(), (req, res) => {
   let { driveUUID, dirUUID } = req.params
   res.status(200).end()
 })
 
 /**
-create a new file
+070 * create a new file (upload / new)
 */
 router.post('/:driveUUID/dirs/:dirUUID/files', auth.jwt(),
   (req, res, next) => {
@@ -257,28 +242,41 @@ router.post('/:driveUUID/dirs/:dirUUID/files', auth.jwt(),
     res.status(200).json(xstat)
   }))
 
-// [/drives/{driveUUID}/dirs/{dirUUID}/files/{fileUUID}]
+/**
+080   get a file
+*/
 router.get('/:driveUUID/dirs/:dirUUID/files/:fileUUID', auth.jwt(), (req, res) => {
   let { driveUUID, dirUUID, fileUUID } = req.params
   res.status(200).end()
 })
 
+/**
+090 * patch a file (rename)
+*/
 router.patch('/:driveUUID/dirs/:dirUUID/files/:fileUUID', auth.jwt(), (req, res) => {
   let { driveUUID, dirUUID, fileUUID } = req.params
   res.status(200).end()
 })
 
+/**
+100 * delete a file
+*/
 router.delete('/:driveUUID/dirs/:dirUUID/files/:fileUUID', auth.jwt(), (req, res) => {
   let { driveUUID, dirUUID, fileUUID } = req.params
   res.status(200).end()
 })
 
-// [/drives/{driveUUID}/dirs/{dirUUID}/files/{fileUUID}/data]
+/**
+110 * get file data (download)
+*/
 router.get('/:driveUUID/dirs/:dirUUID/files/:fileUUID/data', auth.jwt(), (req, res) => {
   let { driveUUID, dirUUID, fileUUID } = req.params
   res.status(200).end()
 })
 
+/**
+120 * put file data (upload /overwrite)
+*/
 router.put('/:driveUUID/dirs/:dirUUID/files/:fileUUID/data', auth.jwt(), (req, res) => {
   let { driveUUID, dirUUID, fileUUID } = req.params
   res.status(200).end()
