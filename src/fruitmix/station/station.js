@@ -12,7 +12,7 @@ const Connect = require('./lib/connect')
 
 Promise.promisifyAll(fs)
 
-let sa, connect
+let sa, connect, fruitmixPath, pubKey, pvKey
 
 const initAsync = async () => {
   let pbkPath = path.join(__dirname, 'data', FILE.PUBKEY)
@@ -45,8 +45,9 @@ const initAsync = async () => {
       //TODO
       let pbStat = await fs.lstatAsync(pbkPath)
       let pvStat = await fs.lstatAsync(pvkPath)
-      if(pbStat.isFile() && pvStat.isFile())
-        return
+      if(pbStat.isFile() && pvStat.isFile()){
+        pubKey
+      }
       return await createKeysAsync()
       
     }catch(e){
@@ -56,9 +57,9 @@ const initAsync = async () => {
     }
 
 }
-
-const startAsync = async () => {
-  await initAsync() // init station for keys
+ 
+const startAsync = async (froot) => {
+  await initAsync(froot) // init station for keys
   try{
      sa = await registerAsync()
      //connect to cloud
@@ -69,10 +70,11 @@ const startAsync = async () => {
 }
 
 
-broadcast.on('FruitmixStarted', (err, data) => {
+broadcast.on('FruitmixStart', froot => {
   if(err) return
+  fruitmixPath = froot
   startAsync
-    .then(data => {
+    .then(froot => {
 
     })
     .catch(e => {
@@ -92,6 +94,19 @@ let stationFinishStart = (req, res, next) => {
   return res.status(500).json()
 }
 
-router.use('/ticket', require('./route/tickets'))
+const auth = require('../middleware/auth')
+const authCloud = (req, res, next) => {
+
+}
+
+router.use('/ticket', auth.jwt(), require('./route/tickets'))
+
+router.get('/info', auth.jwt(), (req, res) => {
+  return res.status(200).json({
+    "uuid": sa.id,
+    "name": "station name",
+    "pubkey": pubKey
+  })
+})
 
 module.exports = router
