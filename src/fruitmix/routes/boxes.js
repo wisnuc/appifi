@@ -7,6 +7,7 @@ const secret = require('../config/passportJwt')
 
 const User = require('../models/user')
 const BoxData = require('../box/box')
+const { isSHA256 } = require('../lib/assertion')
 
 /**
 This auth requires client providing:
@@ -190,38 +191,72 @@ router.delete('/:boxUUID/branches/:branchUUID', auth, boxAuth, (req, res, next) 
 
 router.post('/:boxUUID/twits', auth, boxAuth, (req, res, next) => {
   let box = req.box
-  if(req.is('multipart/form-data')){
-    //UPLOAD TODO:
+  if (req.is('multipart/form-data')) {
+    // UPLOAD
     let form = new formidable.IncomingForm()
-    form.sha256 = 'sha256'
-    let sha256, comment, type, abort = false
+    form.hash = 'sha256'
+    let sha256, comment, type, size, finished = false
+
+    const finalize = (error, data) => {
+      if (finished) return
+      if (formFinished && fileFinished) {
+        finished = true
+        if (error)
+          return res.status(500).json({ code: error.code, message: error.message })
+        else 
+          return res.status(200).json(data)
+      }
+    }
+
+    const formError = (err, statusCode) => {
+      if(finished) return 
+      finished = true
+      return res.status(statusCode).json({ code: err.code, message: err.message })
+    }
+
+    const formFinshed = (data) => {
+      if(finished) return 
+      finshed = true
+      return res.status(200).json(data)
+    }
+
     form.on('field', (name, value) => {
-      if(name === 'comment') comment = value
-      if(name === 'type') type = value
-      if(name === 'size') size = value
-      if(name === 'sha256') sha256 = value
+      if (finished) return
+
+      if (name === 'comment') {
+        if (typeof value === 'string') comment = value
+      }
+
+      if (name === 'type') {
+        if (typeof value === 'string') type = value
+      }
+
+      if (name === 'size') {
+        if ('' + parseInt(value) === value) size = parseInt(value)
+      }
+
+      if (name === 'sha256') {
+        if (isSHA256(value)) sha256 = value 
+      }
     })
 
     form.on('fileBegin', (name, file) => {
-      console.log('fileBegin ' + name)
-      if(abort) return 
-      if(sha256 === undefined || !sha256.length) 
-        return abort = true && res.status(400).json(new Error('EINVAL'))
-      
+      if (finished) return
+
+      if (!Number.isInteger(size) || sha256 === undefined)
+        return finished = true && res.status(409).end()
+
       file.path = path.join(box.tmpDir, UUID.v4())
     })
 
     form.on('file', (name, file) => {
-      if(abort) return 
-      let fileHash = file.sha256
-      if(fileHash !== sha256){
-        return fs.unlink(file.path, err => {
-          res.status(500).json({
-            code: 'EAGAIN',
-            message: 'sha256 mismatch'
-          })
-        })
-      }
+      if (finished) return
+
+      if (!Number.isInteger(size) || size !== file.size) 
+        return finished = true && res.status(409).end()
+
+      if (file.hash !== sha256)
+        return fs.unlink(file.path, err => res.status(409).end())
 
       fs.rename(file.path, path.join(BoxData.repo.repoDir, sha256), err => {
         if(err) return res.status(500).json({ code: err.code, message: err.message})
@@ -238,14 +273,24 @@ router.post('/:boxUUID/twits', auth, boxAuth, (req, res, next) => {
     })
 
     form.on('error', err => {
-    if (abort) return
-    abort = true
-    return res.status(500).json({})  // TODO
-  })
+      if (finished) return
+      finished = true
+      return res.status(500).json({ code: err.code, message: err.message })
+    })
+    
+    form.on('aborted', () => {
+      if (finished) return
+      finished = true
+    })
+
+    form.on('end', () => {
+      formFinished = true
+      finalize()
+    })
 
   form.parse(req)
 
-  } else if(req.is('application/json')) {
+  } else if (req.is('application/json')) {
     // let type = req.body.type
     let global
     if(req.user) global = req.user.global
@@ -257,7 +302,7 @@ router.post('/:boxUUID/twits', auth, boxAuth, (req, res, next) => {
     .then(twit => res.status(200).json(twit))
     .catch(next)
   }else
-    next()
+    return res.status(415).end()
   
 })
 

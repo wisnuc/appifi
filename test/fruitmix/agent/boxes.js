@@ -299,16 +299,16 @@ describe(path.basename(__filename), () => {
     })
 
     it('POST /boxes/{uuid}/twits alice should upload a blob', done => {
-      let sha256 = ''
-      let filepath = path.join(process.cwd(), '')
+      let sha256 = '7803e8fa1b804d40d412bcd28737e3ae027768ecc559b51a284fbcadcd0e21be'
+
       request(app)
         .post(`/boxes/${boxUUID}/twits`)
         .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
         .field('comment', 'hello')
         .field('type', 'blob')
-        .field('size', 1)
-        .field('sha256', )
-        .attach('file', filepath)
+        .field('size', 2331588)
+        .field('sha256', sha256)
+        .attach('file', 'testpic/20141213.jpg')
         .end()
     })
 
