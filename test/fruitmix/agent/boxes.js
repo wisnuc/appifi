@@ -24,7 +24,7 @@ const {
   createUserAsync,
   retrieveTokenAsync,
   createPublicDriveAsync,
-  setUserGuidAsync,
+  setUserGlobalAsync,
   retrieveCloudTokenAsync,
   createBoxAsync,
   createBranchAsync
@@ -67,13 +67,13 @@ describe(path.basename(__filename), () => {
     })
   })
 
-  describe('Alice, with token and guid', () => {
+  describe('Alice, with token and global', () => {
 
     let token
     beforeEach(async () => {
       await resetAsync()
       await createUserAsync('alice')
-      await setUserGuidAsync('alice')
+      await setUserGlobalAsync('alice')
       token = await retrieveTokenAsync('alice')
     })
 
@@ -105,19 +105,19 @@ describe(path.basename(__filename), () => {
             .expect(200)
             .end((err, res) => {
               if (err) return done(err)
-              expect(res.body.guid).to.equal(IDS.alice.guid)
+              expect(res.body.global).to.equal(IDS.alice.global)
               done()
             })
         })
     })
   })
 
-  describe('Alice, with token, guid, and cloudToken', () => {
+  describe('Alice, with token, global, and cloudToken', () => {
     let token, cloudToken, boxUUID = 'a96241c5-bfe2-458f-90a0-46ccd1c2fa9a'
     beforeEach(async () => {
       await resetAsync()
       await createUserAsync('alice')
-      await setUserGuidAsync('alice')
+      await setUserGlobalAsync('alice')
       token = await retrieveTokenAsync('alice')
       cloudToken = await retrieveCloudTokenAsync('alice')
       sinon.stub(UUID, 'v4').returns(boxUUID)
@@ -148,7 +148,7 @@ describe(path.basename(__filename), () => {
           expect(res.body.doc).to.deep.equal({
             uuid: boxUUID,
             name: 'hello',
-            owner: IDS.alice.guid,
+            owner: IDS.alice.global,
             users: []
           }) 
           done()
@@ -163,18 +163,18 @@ describe(path.basename(__filename), () => {
     beforeEach(async () => {
       await resetAsync()
       await createUserAsync('alice')
-      await setUserGuidAsync('alice')
+      await setUserGlobalAsync('alice')
       aliceToken = await retrieveTokenAsync('alice')
       aliceCloudToken = await retrieveCloudTokenAsync('alice')
 
       await createUserAsync('bob', aliceToken, true)
-      await setUserGuidAsync('bob')
+      await setUserGlobalAsync('bob')
       bobToken = await retrieveTokenAsync('bob')
       bobCloudToken = await retrieveCloudTokenAsync('bob')
 
       sinon.stub(UUID, 'v4').returns(boxUUID)
 
-      let props = {name: 'hello', users: [IDS.bob.guid]}
+      let props = {name: 'hello', users: [IDS.bob.global]}
       box = await createBoxAsync(props, 'alice')
     })
 
@@ -207,7 +207,7 @@ describe(path.basename(__filename), () => {
     it("PATCH /boxes/{uuid} alice update the box successfully", done => {
       let props = [
                    {path: 'name', operation: 'update', value: 'world'},
-                   {path: 'users', operation: 'add', value: [IDS.charlie.guid]}
+                   {path: 'users', operation: 'add', value: [IDS.charlie.global]}
                   ]
       request(app)
         .patch(`/boxes/${boxUUID}`)
@@ -219,8 +219,8 @@ describe(path.basename(__filename), () => {
           expect(res.body.doc).to.deep.equal({
             uuid: boxUUID,
             name: 'world',
-            owner: IDS.alice.guid,
-            users: [IDS.bob.guid, IDS.charlie.guid]
+            owner: IDS.alice.global,
+            users: [IDS.bob.global, IDS.charlie.global]
           })
           done()
         })
@@ -264,12 +264,12 @@ describe(path.basename(__filename), () => {
     beforeEach(async () => {
       await resetAsync()
       await createUserAsync('alice')
-      await setUserGuidAsync('alice')
+      await setUserGlobalAsync('alice')
       aliceToken = await retrieveTokenAsync('alice')
       aliceCloudToken = await retrieveCloudTokenAsync('alice')
 
       await createUserAsync('bob', aliceToken, true)
-      await setUserGuidAsync('bob')
+      await setUserGlobalAsync('bob')
       bobToken = await retrieveTokenAsync('bob')
       bobCloudToken = await retrieveCloudTokenAsync('bob')
 
@@ -277,7 +277,7 @@ describe(path.basename(__filename), () => {
                             .onSecondCall().returns(uuid_1)
                             // .onThirdCall().returns(uuid_2)
 
-      let props = {name: 'hello', users: [IDS.bob.guid]}
+      let props = {name: 'hello', users: [IDS.bob.global]}
       box = await createBoxAsync(props, 'alice')
     })
 
@@ -292,10 +292,24 @@ describe(path.basename(__filename), () => {
         .end((err, res) => {
           if(err) return done(err)
           expect(res.body.uuid).to.equal(uuid_1)
-          expect(res.body.twitter).to.equal(IDS.alice.guid)
+          expect(res.body.twitter).to.equal(IDS.alice.global)
           expect(res.body.comment).to.equal('hello')
           done()
         })
+    })
+
+    it('POST /boxes/{uuid}/twits alice should upload a blob', done => {
+      let sha256 = ''
+      let filepath = path.join(process.cwd(), '')
+      request(app)
+        .post(`/boxes/${boxUUID}/twits`)
+        .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
+        .field('comment', 'hello')
+        .field('type', 'blob')
+        .field('size', 1)
+        .field('sha256', )
+        .attach('file', filepath)
+        .end()
     })
 
     it('POST /boxes/{uuid}/branches alice create a new branch successfully', done => {
@@ -365,14 +379,14 @@ describe(path.basename(__filename), () => {
     beforeEach(async () => {
       await resetAsync()
       await createUserAsync('alice')
-      await setUserGuidAsync('alice')
+      await setUserGlobalAsync('alice')
       aliceToken = await retrieveTokenAsync('alice')
       aliceCloudToken = await retrieveCloudTokenAsync('alice')
 
       sinon.stub(UUID, 'v4').onFirstCall().returns(boxUUID)
                             .onSecondCall().returns(uuid)
 
-      let props = {name: 'hello', users: [IDS.bob.guid]}
+      let props = {name: 'hello', users: [IDS.bob.global]}
       box = await createBoxAsync(props, 'alice')
       let props_1 = {name: 'testBranch', head: commit_1}
       branch = await createBranchAsync(props_1, boxUUID, 'alice')

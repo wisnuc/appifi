@@ -34,14 +34,14 @@ const auth = (req, res, next) => {
 
   if (split.length === 2) {
     req.guest = {
-      guid: cloud.guid
+      global: cloud.global
     }
     return next()
   }
 
   let local = jwt.decode(split[2], secret)
   let user = User.users.find(u => u.uuid === local.uuid)
-  if (!user || user.guid !== cloud.guid)
+  if (!user || user.global !== cloud.global)
     return res.status(401).end()
   req.user = User.stripUser(user)
   next()
@@ -52,11 +52,11 @@ const boxAuth = (req, res, next) => {
   let box = BoxData.map.get(boxUUID)
   if(!box) return res.status(404).end()
 
-  let guid
-  if(req.user) guid = req.user.guid
-  else guid = req.guest.guid
+  let global
+  if(req.user) global = req.user.global
+  else global = req.guest.global
 
-  if(box.doc.owner !== guid && !box.doc.users.includes(guid)) 
+  if(box.doc.owner !== global && !box.doc.users.includes(global)) 
     return res.status(403).end()
   
   req.box = box
@@ -66,13 +66,13 @@ const boxAuth = (req, res, next) => {
 router.get('/', auth, (req, res) => {
 
   // console.log('auth', req.user, req.guest)
-  let guid
-  if(req.user) guid = req.user.guid
-  else guid = req.guest.guid
+  let global
+  if(req.user) global = req.user.global
+  else global = req.guest.global
 
   let boxes = [...BoxData.map.values()].filter(box => 
-              box.doc.owner === guid ||
-              box.doc.users.includes(guid))
+              box.doc.owner === global ||
+              box.doc.users.includes(global))
   res.status(200).json(boxes)
 })
 
@@ -80,7 +80,7 @@ router.post('/', auth, (req, res, next) => {
 
   if (!req.user) return res.status(403).end()
 
-  let props = Object.assign({}, req.body, { owner: req.user.guid })
+  let props = Object.assign({}, req.body, { owner: req.user.global })
 
   BoxData.createBoxAsync(props)
     .then(box => res.status(200).json(box))
@@ -93,11 +93,11 @@ router.get('/:boxUUID', auth, (req, res) => {
   let box = BoxData.map.get(boxUUID)
   if(!box) return res.status(404).end()
 
-  let guid
-  if(req.user) guid = req.user.guid
-  else guid = req.guest.guid
+  let global
+  if(req.user) global = req.user.global
+  else global = req.guest.global
 
-  if(box.doc.owner !== guid && !box.doc.users.includes(guid)) return res.status(403).end()
+  if(box.doc.owner !== global && !box.doc.users.includes(global)) return res.status(403).end()
 
   res.status(200).json(box)
 })
@@ -112,7 +112,7 @@ router.patch('/:boxUUID', auth, (req, res, next) => {
 
   let box = BoxData.map.get(boxUUID)
   if(!box) return res.status(404).end()
-  if(box.doc.owner !== req.user.guid) return res.status(403).end()
+  if(box.doc.owner !== req.user.global) return res.status(403).end()
 
   BoxData.updateBoxAsync(req.body, box)
     .then(box => res.status(200).json(box))
@@ -126,7 +126,7 @@ router.delete('/:boxUUID', auth, (req, res, next) => {
 
   let box = BoxData.map.get(boxUUID)
   if(!box) return res.status(404).end()
-  if(box.doc.owner !== req.user.guid) return res.status(403).end()
+  if(box.doc.owner !== req.user.global) return res.status(403).end()
   BoxData.deleteBoxAsync(boxUUID)
     .then(() => res.status(200).end())
     .catch(next)
@@ -192,18 +192,66 @@ router.post('/:boxUUID/twits', auth, boxAuth, (req, res, next) => {
   let box = req.box
   if(req.is('multipart/form-data')){
     //UPLOAD TODO:
+    let form = new formidable.IncomingForm()
+    form.sha256 = 'sha256'
+    let sha256, comment, type, abort = false
+    form.on('field', (name, value) => {
+      if(name === 'comment') comment = value
+      if(name === 'type') type = value
+      if(name === 'size') size = value
+      if(name === 'sha256') sha256 = value
+    })
 
+    form.on('fileBegin', (name, file) => {
+      console.log('fileBegin ' + name)
+      if(abort) return 
+      if(sha256 === undefined || !sha256.length) 
+        return abort = true && res.status(400).json(new Error('EINVAL'))
+      
+      file.path = path.join(box.tmpDir, UUID.v4())
+    })
 
+    form.on('file', (name, file) => {
+      if(abort) return 
+      let fileHash = file.sha256
+      if(fileHash !== sha256){
+        return fs.unlink(file.path, err => {
+          res.status(500).json({
+            code: 'EAGAIN',
+            message: 'sha256 mismatch'
+          })
+        })
+      }
 
+      fs.rename(file.path, path.join(BoxData.repo.repoDir, sha256), err => {
+        if(err) return res.status(500).json({ code: err.code, message: err.message})
 
-  }else if(req.is('application/json')){
+        let global
+        if(req.user) global = req.user.global
+        else global = req.guest.global
+
+        let props = { comment, type: 'blob', sha256}
+        box.createTwitAsync(props)
+          .then(twit => res.status(200).json(twit))
+          .catch(next)
+      })
+    })
+
+    form.on('error', err => {
+    if (abort) return
+    abort = true
+    return res.status(500).json({})  // TODO
+  })
+
+  form.parse(req)
+
+  } else if(req.is('application/json')) {
     // let type = req.body.type
-    let guid
-    if(req.user) guid = req.user.guid
-    else guid = req.guest.guid
+    let global
+    if(req.user) global = req.user.global
+    else global = req.guest.global
 
-    let props = Object.assign({}, req.body, { guid })
-    console.log(props)
+    let props = Object.assign({}, req.body, { global })
 
     box.createTwitAsync(props)
     .then(twit => res.status(200).json(twit))
