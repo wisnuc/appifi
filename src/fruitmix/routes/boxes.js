@@ -195,7 +195,8 @@ router.post('/:boxUUID/twits', auth, boxAuth, (req, res, next) => {
     // UPLOAD
     let form = new formidable.IncomingForm()
     form.hash = 'sha256'
-    let sha256, comment, type, size, finished = false
+    let sha256, comment, type, size, error, data
+    let finished = false, formFinished = false, fileFinished = false
 
     const finalize = (error, data) => {
       if (finished) return
@@ -256,26 +257,33 @@ router.post('/:boxUUID/twits', auth, boxAuth, (req, res, next) => {
         return finished = true && res.status(409).end()
 
       if (file.hash !== sha256)
-        return fs.unlink(file.path, err => res.status(409).end())
+        return fs.unlink(file.path, () => res.status(409).end())
 
       fs.rename(file.path, path.join(BoxData.repo.repoDir, sha256), err => {
-        if(err) return res.status(500).json({ code: err.code, message: err.message})
+        if (err) return finished = true && res.status(500).json({ code: err.code, message: err.message})
 
         let global
-        if(req.user) global = req.user.global
+        if (req.user) global = req.user.global
         else global = req.guest.global
 
-        let props = { comment, type: 'blob', sha256}
+        let props = { comment, type: 'blob', sha256, global}
         box.createTwitAsync(props)
-          .then(twit => res.status(200).json(twit))
-          .catch(next)
+          .then(twit => {
+            data = twit
+            fileFinished = true
+            finalize()
+          })
+          .catch(err => {
+            error = err
+            fileFinished = true
+            finalize()
+          })
       })
     })
 
     form.on('error', err => {
       if (finished) return
-      finished = true
-      return res.status(500).json({ code: err.code, message: err.message })
+      return finished = true && res.status(500).json({ code: err.code, message: err.message })
     })
     
     form.on('aborted', () => {
