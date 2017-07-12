@@ -96,7 +96,7 @@ let stationFinishStart = (req, res, next) => {
 }
 
 
-router.use('/ticket', auth.jwt(), require('./route/tickets'))
+router.use('/tickets', auth.jwt(), require('./route/tickets'))
 
 router.get('/info', auth.jwt(), (req, res) => {
   return res.status(200).json({

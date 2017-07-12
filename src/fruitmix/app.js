@@ -29,7 +29,7 @@ app.use('/drives', drives)
 app.use('/boxes', boxes)
 app.use('/cloudToken', cloudToken)
 app.use('/uploads', uploads)
-app.use('/tickets', require('./station/station'))
+app.use('/station', require('./station/station'))
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
