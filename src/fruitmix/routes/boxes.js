@@ -3,6 +3,9 @@ const router = require('express').Router()
 const uuid = require('uuid')
 const jwt = require('jwt-simple')
 const formidable = require('formidable')
+const path = require('path')
+const UUID = require('uuid')
+const fs = require('fs')
 const secret = require('../config/passportJwt')
 
 const User = require('../models/user')
@@ -198,7 +201,7 @@ router.post('/:boxUUID/twits', auth, boxAuth, (req, res, next) => {
     let sha256, comment, type, size, error, data
     let finished = false, formFinished = false, fileFinished = false
 
-    const finalize = (error, data) => {
+    const finalize = () => {
       if (finished) return
       if (formFinished && fileFinished) {
         finished = true
@@ -259,9 +262,9 @@ router.post('/:boxUUID/twits', auth, boxAuth, (req, res, next) => {
       if (file.hash !== sha256)
         return fs.unlink(file.path, () => res.status(409).end())
 
-      fs.rename(file.path, path.join(BoxData.repo.repoDir, sha256), err => {
+      fs.rename(file.path, path.join(BoxData.repoDir, sha256), err => {
         if (err) return finished = true && res.status(500).json({ code: err.code, message: err.message})
-
+        
         let global
         if (req.user) global = req.user.global
         else global = req.guest.global

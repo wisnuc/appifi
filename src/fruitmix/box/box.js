@@ -76,30 +76,36 @@ class Box {
   }
 
   async createTwitAsync(props) {
-    let { type, comment } = props
-    let twit
+    let twit = {
+      uuid: UUID.v4(),
+      twitter: props.global,
+      comment: props.comment
+    }
 
-    if(type) {
-      // TODO:
-      switch (type) {
+    if (props.type) {
+      twit.type = props.type
+      switch (props.type) {
         case 'blob':
-          twit = {
-            uuid: UUID.v4(),
-            twitter: props.global,
-            comment: props.comment,
-            sha256: props.sha256,
-            ctime: new Date().getTime()
-          }
-      }
-
-    } else {
-      twit = {
-        uuid: UUID.v4(),
-        twitter: props.global,
-        comment: props.comment,
-        ctime: new Date().getTime()
+          twit.sha256 = props.sha256
+          break
+        case 'list':
+          twit.list = props.list
+          twit.jobID = props.jobID
+          break
+        case 'commit':
+          twit.id = props.hash
+          break
+        case 'tag':
+        case 'branch':
+        case 'job':
+          twit.id = props.id
+          break
+        default:
+          break
       }
     }
+
+    twit.ctime = new Date().getTime()
 
     await this.appendTwitsAsync(twit)
     return twit
@@ -292,21 +298,21 @@ class BoxData {
 
     this.dir = undefined
     this.tmpDir = undefined
-    this.repo = undefined
+    this.repoDir = undefined
     this.map = undefined
 
     broadcast.on('FruitmixStart', froot => {
-    
       let dir = path.join(froot, 'boxes')
       let tmpDir = path.join(froot, 'tmp') 
+      let repoDir = path.join(froot, 'repo')
 
-      this.init(dir, tmpDir)
+      this.init(dir, tmpDir, repoDir)
     })
 
     broadcast.on('FruitmixStop', () => this.deinit())
   }
 
-  init(dir, tmpDir, repo) {
+  init(dir, tmpDir, repoDir) {
 
     mkdirp(dir, err => {
 
@@ -319,7 +325,7 @@ class BoxData {
       this.initialized = true
       this.dir = dir
       this.tmpDir = tmpDir
-      this.repo = repo
+      this.repoDir = repoDir
       this.map = new Map()
 
       broadcast.emit('BoxInitDone')
@@ -331,7 +337,7 @@ class BoxData {
     this.initialized = false
     this.dir = undefined
     this.tmpDir = undefined
-    this.repo = undefined
+    this.repoDir = undefined
     this.map = undefined
 
     process.nextTick(() => broadcast.emit('BoxDeinitDone'))

@@ -33,6 +33,7 @@ const {
 const cwd = process.cwd()
 const tmptest = path.join(cwd, 'tmptest')
 const tmpDir = path.join(tmptest, 'tmp')
+const repoDir = path.join(tmptest, 'repo')
 
 /**
 Reset directories and reinit User module
@@ -45,6 +46,7 @@ const resetAsync = async() => {
 
   await rimrafAsync(tmptest) 
   await mkdirpAsync(tmpDir) 
+  await mkdirpAsync(repoDir)
  
   broadcast.emit('FruitmixStart', 'tmptest') 
 
@@ -257,7 +259,7 @@ describe(path.basename(__filename), () => {
     let aliceToken, aliceCloudToken, bobToken, bobCloudToken, box
     let boxUUID = 'a96241c5-bfe2-458f-90a0-46ccd1c2fa9a'
     let uuid_1 = 'ff5d42b9-4b8f-452d-a102-ebfde5cdf948'
-    // let uuid_2 = 'a474d150-a7d4-47f2-8338-3733fa4b8783'
+    let uuid_2 = 'a474d150-a7d4-47f2-8338-3733fa4b8783'
     let commit_1 = '486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7'
     let commit_2 = '2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824'
 
@@ -275,7 +277,7 @@ describe(path.basename(__filename), () => {
 
       sinon.stub(UUID, 'v4').onFirstCall().returns(boxUUID)
                             .onSecondCall().returns(uuid_1)
-                            // .onThirdCall().returns(uuid_2)
+                            .onThirdCall().returns(uuid_2)
 
       let props = {name: 'hello', users: [IDS.bob.global]}
       box = await createBoxAsync(props, 'alice')
@@ -290,7 +292,7 @@ describe(path.basename(__filename), () => {
         .send({comment: 'hello'})
         .expect(200)
         .end((err, res) => {
-          if(err) return done(err)
+          if (err) return done(err)
           expect(res.body.uuid).to.equal(uuid_1)
           expect(res.body.twitter).to.equal(IDS.alice.global)
           expect(res.body.comment).to.equal('hello')
@@ -309,7 +311,16 @@ describe(path.basename(__filename), () => {
         .field('size', 2331588)
         .field('sha256', sha256)
         .attach('file', 'testpic/20141213.jpg')
-        .end()
+        .expect(200)
+        .end((err, res) => {
+          if (err) return done(err)
+          expect(res.body.uuid).to.equal(uuid_2)
+          expect(res.body.twitter).to.equal(IDS.alice.global)
+          expect(res.body.comment).to.equal('hello')
+          expect(res.body.type).to.equal('blob')
+          expect(res.body.sha256).to.equal(sha256)
+          done()
+        })
     })
 
     it('POST /boxes/{uuid}/branches alice create a new branch successfully', done => {
