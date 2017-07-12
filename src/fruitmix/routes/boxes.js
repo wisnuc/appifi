@@ -192,7 +192,7 @@ router.delete('/:boxUUID/branches/:branchUUID', auth, boxAuth, (req, res, next) 
     .catch(next)
 })
 
-router.post('/:boxUUID/twits', auth, boxAuth, (req, res, next) => {
+router.post('/:boxUUID/twits', auth, boxAuth, (req, res) => {
   let box = req.box
   if (req.is('multipart/form-data')) {
     // UPLOAD
@@ -210,18 +210,6 @@ router.post('/:boxUUID/twits', auth, boxAuth, (req, res, next) => {
         else 
           return res.status(200).json(data)
       }
-    }
-
-    const formError = (err, statusCode) => {
-      if(finished) return 
-      finished = true
-      return res.status(statusCode).json({ code: err.code, message: err.message })
-    }
-
-    const formFinshed = (data) => {
-      if(finished) return 
-      finshed = true
-      return res.status(200).json(data)
     }
 
     form.on('field', (name, value) => {
@@ -311,10 +299,20 @@ router.post('/:boxUUID/twits', auth, boxAuth, (req, res, next) => {
 
     box.createTwitAsync(props)
     .then(twit => res.status(200).json(twit))
-    .catch(next)
+    .catch(err => res.status(500).josn({ code: err.code, message: err.message }))
   }else
     return res.status(415).end()
   
+})
+
+router.get('/:boxUUID/twits', auth, boxAuth, (req, res) => {
+  let box = req.box
+  let { limit, offset, getAll } = req.query
+  limit = limit || 5
+
+  box.getTwitsAsync(limit, offset, getAll)
+    .then(data => res.status(200).json(data))
+    .catch(err => res.status(500).json({ code: err.code, message: err.message }))
 })
 
 module.exports = router

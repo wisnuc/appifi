@@ -75,6 +75,13 @@ class Box {
     await fs.appendFileAsync(target, `\n${text}`)
   }
 
+  /**
+   * create a twit
+   * @param {Object} props 
+   * @param {string} props.global - user global id
+   * @param {string} props.comment - comment
+   * @param {number} props.ctime - create time
+   */
   async createTwitAsync(props) {
     let twit = {
       uuid: UUID.v4(),
@@ -111,6 +118,24 @@ class Box {
     return twit
   }
 
+
+  
+  // find、findAll(where: {limit:10,offset:0})
+  // create、createAll
+  // update()
+  // 
+  async getTwitsAsync(limit, offset) {
+    if (getAll) 
+  }
+
+  /**
+   * create a job
+   * @param {array} list - a list of file hash, length >= 2
+   */
+  async createJobAsync(list) {
+
+  }
+
   /**
    * create a branch
    * @param {Object} props 
@@ -140,19 +165,6 @@ class Box {
    * @param {function} callback 
    * @return {Object} branch content
    */
-  // retrieveBranch(uuid, callback) {
-  //   let srcpath = path.join(this.dir, 'branches', uuid)
-  //   fs.readFile(srcpath, (err,data) => {
-  //     if(err) return callback(err)
-  //     try{
-  //       callback(null, JSON.parse(data.toString()))
-  //     }
-  //     catch(e) {
-  //       callback(e)
-  //     }
-  //   })
-  // }
-
   retrieve(type, id, callback) {
     let srcpath = path.join(this.dir, type, id)
     fs.readFile(srcpath, (err,data) => {
@@ -182,23 +194,6 @@ class Box {
    * @param {function} callback 
    * @return {array} branches
    */
-  // retrieveAllBranches(callback) {
-  //   let target = path.join(this.dir, 'branches')
-  //   fs.readdir(target, (err, entries) => {
-  //     if(err) return callback(err)
-
-  //     let count = entries.length
-  //     if (!count) return callback(null, [])
-
-  //     let result = []
-  //     entries.forEach(entry => {
-  //       this.retrieveBranch(entry, (err, obj) => {
-  //         if (!err) result.push(obj)
-  //         if (!--count) callback(null, result)
-  //       })
-  //     })
-  //   })
-  // }
 
   retrieveAll(type, callback) {
     let target = path.join(this.dir, type)
@@ -344,17 +339,6 @@ class BoxData {
   }
 
 /**
-  async initAsync(boxesDir, tmpDir) {
-
-    this.dir = boxesDir
-    this.tmpDir = tmpDir
-    this.map = new Map()
-
-    await mkdirpAsync(this.dir)
-  }
-**/
-
-/**
  * Create a box
  * 
  * @param {Object} props - props
@@ -377,7 +361,7 @@ class BoxData {
       users: props.users
     }  
 
-    // FIXME refactor saveObject to avoid rename twice
+    // FIXME: refactor saveObject to avoid rename twice
     await saveObjectAsync(path.join(tmpDir, 'manifest'), this.tmpDir, doc)
     await fs.renameAsync(tmpDir, path.join(this.dir, doc.uuid))
     let box = new Box(path.join(this.dir, doc.uuid), this.tmpDir, doc)
@@ -388,7 +372,6 @@ class BoxData {
 
 /**
  * update a box (rename, add or delete users)
- * 
  * @param {array} props - properties to be updated
  * @param {object} box - contents before update
  * @return {object} newbox
@@ -416,10 +399,8 @@ class BoxData {
     }
 
     await saveObjectAsync(path.join(this.dir, box.doc.uuid, 'manifest'), this.tmpDir, newDoc)
-    
     box.doc = newDoc
     this.map.set(box.doc.uuid, box)
-
     return box
   }
 
