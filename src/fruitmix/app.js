@@ -13,9 +13,6 @@ const drives = require('./routes/drives')
 const boxes = require('./routes/boxes')
 const cloudToken = require('./routes/wxtoken')
 const uploads = require('./routes/uploads')
-const station = require('./station/station')
-
-console.log(station)
 
 let app = express()
 
@@ -32,7 +29,6 @@ app.use('/drives', drives)
 app.use('/boxes', boxes)
 app.use('/cloudToken', cloudToken)
 app.use('/uploads', uploads)
-app.use('/station', station)
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

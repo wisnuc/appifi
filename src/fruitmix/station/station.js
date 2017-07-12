@@ -97,8 +97,6 @@ let stationFinishStart = (req, res, next) => {
   return res.status(500).json()
 }
 
-console.log('start ticket')
-
 router.use('/tickets', auth.jwt(), tickets)
 
 router.get('/info', auth.jwt(), (req, res) => {

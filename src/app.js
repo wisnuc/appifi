@@ -24,6 +24,7 @@ const drives = require('./fruitmix/routes/drives')
 const boxes = require('./fruitmix/routes/boxes')
 const cloudToken = require('./fruitmix/routes/wxtoken')
 const uploads = require('./fruitmix/routes/uploads')
+const station = require('./fruitmix/station/station')
 
 /**
 This module is the entry point of the whole application.
@@ -48,6 +49,7 @@ app.use('/drives', drives)
 app.use('/boxes', boxes)
 app.use('/cloudToken', cloudToken)
 app.use('/uploads', uploads)
+app.use('/station', station)
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
