@@ -10,6 +10,7 @@ const { FILE, CONFIG } = require('./lib/const')
 const broadcast = require('../../common/broadcast')
 const Connect = require('./lib/connect')
 const auth = require('../middleware/auth')
+const tickets = require('./route/tickets')
 
 Promise.promisifyAll(fs)
 
@@ -96,7 +97,9 @@ let stationFinishStart = (req, res, next) => {
   return res.status(500).json()
 }
 
-router.use('/tickets', auth.jwt(), require('./route/tickets'))
+console.log('start ticket')
+
+router.use('/tickets', auth.jwt(), tickets)
 
 router.get('/info', auth.jwt(), (req, res) => {
   return res.status(200).json({
