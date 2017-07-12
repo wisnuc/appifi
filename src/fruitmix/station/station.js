@@ -4,6 +4,8 @@ const path = require('path')
 const ursa = require('ursa')
 const Promise = require('bluebird')
 const Router = require('express').Router
+const mkdirp = require('mkdirp')
+const rimraf = require('rimraf')
 
 const { registerAsync } = require('./lib/register')
 const { FILE, CONFIG } = require('./lib/const')
@@ -13,20 +15,24 @@ const auth = require('../middleware/auth')
 const tickets = require('./route/tickets')
 
 Promise.promisifyAll(fs)
+const mkdirpAsync = Promise.promisify(mkdirp)
+const rimrafAsync = Promise.promisify(rimraf)
 
 let sa, connect, fruitmixPath, pubKey, pvKey
 
-const initAsync = async () => {
-  let pbkPath = path.join(__dirname, 'data', FILE.PUBKEY)
-  let pvkPath = path.join(__dirname, 'data', FILE.PVKEY)
+const initAsync = async (froot) => {
+  let pbkPath = path.join(froot, 'station', FILE.PUBKEY)
+  let pvkPath = path.join(froot, 'station', FILE.PVKEY)
   let createKeysAsync = async () => {
     //remove keys 
     try{
+      await rimrafAsync(path.join(froot, 'station'))
       await fs.unlinkAsync(pbkPath)
       await fs.unlinkAsync(pvkPath)
     }catch(e){
 
     }
+    await mkdirpAsync(path.join(froot, 'station'))
 
     let modulusBit = 2048 
 
@@ -63,7 +69,7 @@ const initAsync = async () => {
 const startAsync = async (froot) => {
   await initAsync(froot) // init station for keys
   try{
-     sa = await registerAsync()
+     sa = await registerAsync(froot)
      //connect to cloud
      connect = new Connect(CONFIG.CLOUD_PATH, sa)
   }catch(e){
