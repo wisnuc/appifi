@@ -9,6 +9,7 @@ const { registerAsync } = require('./lib/register')
 const { FILE, CONFIG } = require('./lib/const')
 const broadcast = require('../../common/broadcast')
 const Connect = require('./lib/connect')
+const auth = require('../middleware/auth')
 
 Promise.promisifyAll(fs)
 
@@ -94,10 +95,6 @@ let stationFinishStart = (req, res, next) => {
   return res.status(500).json()
 }
 
-const auth = require('../middleware/auth')
-const authCloud = (req, res, next) => {
-
-}
 
 router.use('/ticket', auth.jwt(), require('./route/tickets'))
 
