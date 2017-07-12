@@ -87,6 +87,7 @@ broadcast.on('FruitmixStart', froot => {
 let router = Router()
 
 let stationFinishStart = (req, res, next) => {
+  console.log('station start')
   if(sa !== undefined && connect !== undefined && connect.isConnect){
     req.body.sa = sa
     req.body.connect = connect
@@ -94,7 +95,6 @@ let stationFinishStart = (req, res, next) => {
   }
   return res.status(500).json()
 }
-
 
 router.use('/tickets', auth.jwt(), require('./route/tickets'))
 
