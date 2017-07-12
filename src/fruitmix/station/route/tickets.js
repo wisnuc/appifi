@@ -23,9 +23,9 @@ router.get('/:ticketId', (req, res) => {
 })
 
 
-// 1, get ticket
-// 2, create user
-// 3, LA <--> WA
+//  1, get ticket
+//  2, create user
+//  3, LA <--> WA
 
 router.post('/wechat/:ticketId', (req, res) => {
   
