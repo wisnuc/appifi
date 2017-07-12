@@ -9,19 +9,19 @@ const IDS = {
   alice: {
     uuid:'9f93db43-02e6-4b26-8fae-7d6f51da12af',
     home: 'e2adb5d0-c3c7-4f2a-bd64-3320a1ed0dee',
-    guid: "ocMvos6NjeKLIBqg5Mr9QjxrP1FA"
+    global: "ocMvos6NjeKLIBqg5Mr9QjxrP1FA"
   },
 
   bob: {
     uuid: 'a278930c-261b-4a9c-a296-f99ed00ac089',
     home: 'b7566c69-91f5-4299-b4f4-194df92b01a9',
-    guid: "ocMvos6NjeKLIBqg5Mr9QjxrP1FB"
+    global: "ocMvos6NjeKLIBqg5Mr9QjxrP1FB"
   },
 
   charlie: {
     uuid: 'c12f1332-be48-488b-a3ae-d5f7636c42d6',
     home: '1da855c5-33a9-43b2-a93a-279c6c17ab58',
-    guid: "ocMvos6NjeKLIBqg5Mr9QjxrP1FC"
+    global: "ocMvos6NjeKLIBqg5Mr9QjxrP1FC"
   },
 
   david: {
@@ -132,14 +132,14 @@ const createPublicDriveAsync = async (props, token, uuid) => {
   }
 }
 
-const setUserGuidAsync = async username => {
+const setUserGlobalAsync = async username => {
 
   let token = await retrieveTokenAsync(username)
 
   return (await request(app)
     .patch(`/users/${IDS[username].uuid}`)
     .set('Authorization', 'JWT ' + token)
-    .send({ guid: IDS[username].guid })
+    .send({ global: IDS[username].global })
     .expect(200)).body
 }
 
@@ -190,7 +190,7 @@ module.exports = {
   createUserAsync,
   retrieveTokenAsync,
   createPublicDriveAsync,
-  setUserGuidAsync,
+  setUserGlobalAsync,
   retrieveCloudTokenAsync,
   createBoxAsync,
   createBranchAsync
