@@ -7,6 +7,7 @@ const mkdirp = require('mkdirp')
 const mkdirpAsync = Promise.promisify(mkdirp)
 const UUID = require('uuid')
 const deepEqual = require('deep-equal')
+const lineByLineReader = require('line-by-line')
 
 const broadcast = require('../../common/broadcast')
 const { saveObjectAsync } = require('../lib/utils')
@@ -46,6 +47,19 @@ const complement = (a, b) =>
               pull/push //
 */
 
+class Records {
+  constructor(filePath) {
+    this.count = 0
+    this.filePath = filePath
+  }
+
+  add(obj) {
+    let records = []
+    let lr = new lineByLineReader(this.filePath, {skipEmptyLines: true})
+    lr.on('line', line => records.push(line))
+    let last = records
+  }
+}
 
 /**
 
@@ -57,10 +71,11 @@ class Box {
    * @param {string} tmpDir - temporary directory path
    * @param {Object} doc - document of box
    */
-  constructor(dir, tmpDir, doc) {
+  constructor(dir, tmpDir, doc, records) {
     this.dir = dir
     this.tmpDir = tmpDir
     this.doc = doc
+    this.records = records
     // this.branchMap = new Map()
   }
 
@@ -124,8 +139,18 @@ class Box {
   // create、createAll
   // update()
   // 
-  async getTwitsAsync(limit, offset) {
-    if (getAll) 
+  async getTwitsAsync(props) {
+    let { first, last, count, segments } = props
+    let records = []
+    let filepath = path.join(this.dir, 'twits')
+    
+    let lineReader = readline.createInterface({
+      input: fs.createReadStream(filepath)
+    })
+
+    lineReader.on('line', line => {
+      if (line.length !== 0) records.push(line)
+    })
   }
 
   /**

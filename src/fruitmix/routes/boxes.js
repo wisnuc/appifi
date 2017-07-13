@@ -307,10 +307,10 @@ router.post('/:boxUUID/twits', auth, boxAuth, (req, res) => {
 
 router.get('/:boxUUID/twits', auth, boxAuth, (req, res) => {
   let box = req.box
-  let { limit, offset, getAll } = req.query
-  limit = limit || 5
+  let { first, last, count, segments } = req.query
+  let props = { first, last, count, segments }
 
-  box.getTwitsAsync(limit, offset, getAll)
+  box.getTwitsAsync(props)
     .then(data => res.status(200).json(data))
     .catch(err => res.status(500).json({ code: err.code, message: err.message }))
 })
