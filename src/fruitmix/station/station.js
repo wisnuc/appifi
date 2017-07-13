@@ -21,7 +21,6 @@ const rimrafAsync = Promise.promisify(rimraf)
 let sa, connect, fruitmixPath, pubKey, pvKey
 
 const initAsync = async (froot) => {
-  console.log('init')
   let pbkPath = path.join(froot, 'station', FILE.PUBKEY)
   let pvkPath = path.join(froot, 'station', FILE.PVKEY)
   let createKeysAsync = async () => {
@@ -33,6 +32,7 @@ const initAsync = async (froot) => {
     }catch(e){
 
     }
+
     await mkdirpAsync(path.join(froot, 'station'))
 
     let modulusBit = 2048 
@@ -55,7 +55,7 @@ const initAsync = async (froot) => {
       let pbStat = await fs.lstatAsync(pbkPath)
       let pvStat = await fs.lstatAsync(pvkPath)
       if(pbStat.isFile() && pvStat.isFile()){
-        pubKey
+        return  
       }
       return await createKeysAsync()
       
@@ -93,7 +93,7 @@ broadcast.on('FruitmixStart', froot => {
     })
 })
 
-// broadcast.emit('FruitmixStart', process.cwd())
+broadcast.emit('FruitmixStart', process.cwd())
 
 let router = Router()
 

@@ -13,6 +13,7 @@ let createTicket = (data, sa, callback) => {
     })
     .end((err, res) => {
       if(err || res.status !== 200) return callback(new Error('register error')) 
+      console.log(res.body)
       return callback(null, res.body)
     }) 
 }
