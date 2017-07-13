@@ -32,6 +32,7 @@ const initAsync = async (froot) => {
     }catch(e){
 
     }
+
     await mkdirpAsync(path.join(froot, 'station'))
 
     let modulusBit = 2048 
@@ -54,13 +55,13 @@ const initAsync = async (froot) => {
       let pbStat = await fs.lstatAsync(pbkPath)
       let pvStat = await fs.lstatAsync(pvkPath)
       if(pbStat.isFile() && pvStat.isFile()){
-        pubKey
+        return  
       }
       return await createKeysAsync()
       
     }catch(e){
       if(e.code === 'ENOENT')
-        return await this.createKeysAsync()
+        return await createKeysAsync()
       throw e
     }
 
@@ -70,8 +71,9 @@ const startAsync = async (froot) => {
   await initAsync(froot) // init station for keys
   try{
      sa = await registerAsync(froot)
+     console.log(sa)
      //connect to cloud
-     connect = new Connect(CONFIG.CLOUD_PATH, sa)
+     connect = new Connect(CONFIG.CLOUD_PATH, sa, froot)
   }catch(e){
     console.log(e)
   }
@@ -79,9 +81,9 @@ const startAsync = async (froot) => {
 
 
 broadcast.on('FruitmixStart', froot => {
-  if(err) return
   fruitmixPath = froot
-  startAsync
+  console.log(123)
+  startAsync(froot)
     .then(froot => {
 
     })
@@ -90,6 +92,8 @@ broadcast.on('FruitmixStart', froot => {
       console.log(e)
     })
 })
+
+// broadcast.emit('FruitmixStart', process.cwd())
 
 let router = Router()
 
@@ -103,7 +107,7 @@ let stationFinishStart = (req, res, next) => {
   return res.status(500).json()
 }
 
-router.use('/tickets', auth.jwt(), tickets)
+router.use('/tickets', auth.jwt(), stationFinishStart, tickets)
 
 router.get('/info', auth.jwt(), (req, res) => {
   return res.status(200).json({

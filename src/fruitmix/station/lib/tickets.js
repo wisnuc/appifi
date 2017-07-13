@@ -2,18 +2,22 @@ const request = require('superagent')
 
 const { FILE, CONFIG } = require('./const')
 
-let createTicket = (data, callback) => {
+let createTicket = (user, sa, type, callback) => {
   //TODO encrypt data
+  console.log(user)
   request
     .post(CONFIG.CLOUD_PATH + 'v1/tickets')
     .set('Content-Type', 'application/json')
     .send({
-       stationId: SA.id,
-       data
+       stationId: sa.id,
+       data: '123456',
+       creator: user.uuid,
+       type
     })
     .end((err, res) => {
-      if(err || res.status !== 200) return callback(new Error('register error')) 
-      return callback(null, res.body)
+      console.log(err, res.body)
+      if(err || res.status !== 200) return callback(new Error('register error'))
+      return callback(null, res.body.data)
     }) 
 }
 
