@@ -56,8 +56,24 @@ class Records {
   add(obj) {
     let records = []
     let lr = new lineByLineReader(this.filePath, {skipEmptyLines: true})
+
     lr.on('line', line => records.push(line))
-    let last = records
+
+    lr.on('end', () => {
+      if (!records.length) {
+        obj.id = 1
+        let text = Stringify(obj)
+        fs.createWriteStream(this.filePath).write(text)
+      } else {
+        let last = JSON.parse(records.pop())
+      }
+      
+    })
+    
+  }
+
+  get() {
+
   }
 }
 
@@ -389,7 +405,9 @@ class BoxData {
     // FIXME: refactor saveObject to avoid rename twice
     await saveObjectAsync(path.join(tmpDir, 'manifest'), this.tmpDir, doc)
     await fs.renameAsync(tmpDir, path.join(this.dir, doc.uuid))
-    let box = new Box(path.join(this.dir, doc.uuid), this.tmpDir, doc)
+    let dbPath = path.join(this.dir, doc.uuid, 'records')
+    let records = new Records(dbPath)
+    let box = new Box(path.join(this.dir, doc.uuid), this.tmpDir, records, doc)
 
     this.map.set(doc.uuid, box)
     return box
