@@ -93,7 +93,7 @@ broadcast.on('FruitmixStart', froot => {
     })
 })
 
-broadcast.emit('FruitmixStart', process.cwd())
+// broadcast.emit('FruitmixStart', process.cwd())
 
 let router = Router()
 
