@@ -9,7 +9,7 @@ let createTicket = (data, sa, callback) => {
     .set('Content-Type', 'application/json')
     .send({
        stationId: sa.id,
-       data
+       data: '123456'
     })
     .end((err, res) => {
       if(err || res.status !== 200) return callback(new Error('register error')) 
