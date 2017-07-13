@@ -38,7 +38,7 @@ class Connect {
   dispatch(eventType, data) {
     console.log('dispatch:', eventType, data)
     if(eventType === 'checkLogin'){
-      let secretKey = ursa.createPrivateKey(fs.readFileSync(path.join(froot, 'station', FILE.PVKEY)))
+      let secretKey = ursa.createPrivateKey(fs.readFileSync(path.join(this.froot, 'station', FILE.PVKEY)))
       let seed = secretKey.decrypt(data.encryptData, 'base64', 'utf8')
       this.send('login', { seed })
     }
