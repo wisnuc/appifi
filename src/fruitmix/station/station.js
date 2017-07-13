@@ -4,28 +4,35 @@ const path = require('path')
 const ursa = require('ursa')
 const Promise = require('bluebird')
 const Router = require('express').Router
+const mkdirp = require('mkdirp')
+const rimraf = require('rimraf')
 
 const { registerAsync } = require('./lib/register')
 const { FILE, CONFIG } = require('./lib/const')
 const broadcast = require('../../common/broadcast')
 const Connect = require('./lib/connect')
 const auth = require('../middleware/auth')
+const tickets = require('./route/tickets')
 
 Promise.promisifyAll(fs)
+const mkdirpAsync = Promise.promisify(mkdirp)
+const rimrafAsync = Promise.promisify(rimraf)
 
 let sa, connect, fruitmixPath, pubKey, pvKey
 
-const initAsync = async () => {
-  let pbkPath = path.join(__dirname, 'data', FILE.PUBKEY)
-  let pvkPath = path.join(__dirname, 'data', FILE.PVKEY)
+const initAsync = async (froot) => {
+  let pbkPath = path.join(froot, 'station', FILE.PUBKEY)
+  let pvkPath = path.join(froot, 'station', FILE.PVKEY)
   let createKeysAsync = async () => {
     //remove keys 
     try{
+      await rimrafAsync(path.join(froot, 'station'))
       await fs.unlinkAsync(pbkPath)
       await fs.unlinkAsync(pvkPath)
     }catch(e){
 
     }
+    await mkdirpAsync(path.join(froot, 'station'))
 
     let modulusBit = 2048 
 
@@ -62,7 +69,7 @@ const initAsync = async () => {
 const startAsync = async (froot) => {
   await initAsync(froot) // init station for keys
   try{
-     sa = await registerAsync()
+     sa = await registerAsync(froot)
      //connect to cloud
      connect = new Connect(CONFIG.CLOUD_PATH, sa)
   }catch(e){
@@ -87,6 +94,7 @@ broadcast.on('FruitmixStart', froot => {
 let router = Router()
 
 let stationFinishStart = (req, res, next) => {
+  console.log('station start')
   if(sa !== undefined && connect !== undefined && connect.isConnect){
     req.body.sa = sa
     req.body.connect = connect
@@ -95,8 +103,7 @@ let stationFinishStart = (req, res, next) => {
   return res.status(500).json()
 }
 
-
-router.use('/ticket', auth.jwt(), require('./route/tickets'))
+router.use('/tickets', auth.jwt(), tickets)
 
 router.get('/info', auth.jwt(), (req, res) => {
   return res.status(200).json({
