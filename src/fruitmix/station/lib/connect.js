@@ -8,10 +8,11 @@ const { FILE } = require('./const')
 
 class Connect { 
 
-  constructor(address, sa) {
+  constructor(address, sa, froot) {
     this.address = address
     this.connect(address)
     this.sa = sa
+    this.froot = froot
   }
 
   connect(address) {
@@ -37,7 +38,7 @@ class Connect {
   dispatch(eventType, data) {
     console.log('dispatch:', eventType, data)
     if(eventType === 'checkLogin'){
-      let secretKey = ursa.createPrivateKey(fs.readFileSync(path.join(process.cwd(), FILE.PVKEY)))
+      let secretKey = ursa.createPrivateKey(fs.readFileSync(path.join(froot, 'station', FILE.PVKEY)))
       let seed = secretKey.decrypt(data.encryptData, 'base64', 'utf8')
       this.send('login', { seed })
     }
