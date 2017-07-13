@@ -73,7 +73,7 @@ const startAsync = async (froot) => {
      sa = await registerAsync(froot)
      console.log(sa)
      //connect to cloud
-     connect = new Connect(CONFIG.CLOUD_PATH, sa)
+     connect = new Connect(CONFIG.CLOUD_PATH, sa, froot)
   }catch(e){
     console.log(e)
   }
