@@ -11,10 +11,10 @@ const { FILE, CONFIG } = require('./const')
 // Promise.promisifyAll(fs)
 
 let register = (froot, callback) => {
-  let SA_PATH = path.join(froot, 'station', FILE.SA)
-  fs.lstat(SA_PATH, (err, lstat) => {
+  let saPath = path.join(froot, 'station', FILE.SA)
+  fs.lstat(saPath, (err, lstat) => {
     if(err || !lstat.isFile()) return requestRegisterStation(froot, callback)
-    fs.readFile(SA_PATH, (err, data) => {
+    fs.readFile(saPath, (err, data) => {
       if(err) return callback(err)
       return callback(null, JSON.parse(data))
     })
@@ -38,7 +38,7 @@ let requestRegisterStation = (froot, callback) => {
       let ws = fs.createWriteStream(SA_PATH)
       ws.write(JSON.stringify(res.body.data, null, ' '))
       ws.close()
-      return callback(null, res.body)
+      return callback(null, res.body.data)
     }) 
 }
 

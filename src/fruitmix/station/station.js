@@ -21,6 +21,7 @@ const rimrafAsync = Promise.promisify(rimraf)
 let sa, connect, fruitmixPath, pubKey, pvKey
 
 const initAsync = async (froot) => {
+  console.log('init')
   let pbkPath = path.join(froot, 'station', FILE.PUBKEY)
   let pvkPath = path.join(froot, 'station', FILE.PVKEY)
   let createKeysAsync = async () => {
@@ -60,7 +61,7 @@ const initAsync = async (froot) => {
       
     }catch(e){
       if(e.code === 'ENOENT')
-        return await this.createKeysAsync()
+        return await createKeysAsync()
       throw e
     }
 
@@ -70,6 +71,7 @@ const startAsync = async (froot) => {
   await initAsync(froot) // init station for keys
   try{
      sa = await registerAsync(froot)
+     console.log(sa)
      //connect to cloud
      connect = new Connect(CONFIG.CLOUD_PATH, sa)
   }catch(e){
@@ -79,9 +81,9 @@ const startAsync = async (froot) => {
 
 
 broadcast.on('FruitmixStart', froot => {
-  if(err) return
   fruitmixPath = froot
-  startAsync
+  console.log(123)
+  startAsync(froot)
     .then(froot => {
 
     })
@@ -90,6 +92,8 @@ broadcast.on('FruitmixStart', froot => {
       console.log(e)
     })
 })
+
+// broadcast.emit('FruitmixStart', process.cwd())
 
 let router = Router()
 
