@@ -8,9 +8,8 @@ let router = Router()
 //create
 router.post('/', (req, res) => {
   let user = req.user
-  tickets.createTicket(user, req.body.sa, (err, resp) => {
-    console.log(err)
-    console.log(resp)
+  let type = req.body.type
+  tickets.createTicket(user, req.body.sa, type, (err, resp) => {
     if(err) return res.status(500).json(err)
     return res.status(200).json(resp)
   })
