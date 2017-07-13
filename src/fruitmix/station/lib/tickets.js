@@ -2,13 +2,13 @@ const request = require('superagent')
 
 const { FILE, CONFIG } = require('./const')
 
-let createTicket = (data, callback) => {
+let createTicket = (data, sa, callback) => {
   //TODO encrypt data
   request
     .post(CONFIG.CLOUD_PATH + 'v1/tickets')
     .set('Content-Type', 'application/json')
     .send({
-       stationId: SA.id,
+       stationId: sa.id,
        data
     })
     .end((err, res) => {
