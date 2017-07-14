@@ -47,12 +47,36 @@ const complement = (a, b) =>
               pull/push //
 */
 
+/**
+ * twits DB
+ */
 class Records {
+
+  /**
+   * 
+   * @param {string} filePath - twits DB path 
+   */
   constructor(filePath) {
-    this.count = 0
     this.filePath = filePath
   }
 
+  /**
+   * save data to twits DB
+   * @param {Object} obj - object to be stored to twits DB 
+   * @param {number} start - position to start writing data
+   * @private
+   */
+  save(obj, start) {
+    let text = Stringify(obj)
+    let writeSteam = fs.createWriteStream(this.filePath, { flags: 'r+', start: start })
+    writeSteam.write(`\n${text}`)
+    writeSteam.close()
+  }
+
+  /**
+   * add new data to twits to DB
+   * @param {Object} obj - object to be stored
+   */
   add(obj) {
     let records = []
     let lr = new lineByLineReader(this.filePath, {skipEmptyLines: true})
@@ -60,20 +84,83 @@ class Records {
     lr.on('line', line => records.push(line))
 
     lr.on('end', () => {
-      if (!records.length) {
-        obj.id = 1
-        let text = Stringify(obj)
-        fs.createWriteStream(this.filePath).write(text)
-      } else {
-        let last = JSON.parse(records.pop())
-      }
-      
-    })
-    
+      let size = fs.readFileSync(this.filePath).length
+      let last = records.pop()
+
+      try {
+        let lastObj = JSON.parse(last)
+        obj.index = lastObj.index + 1
+        this.save(obj, size)
+      } catch(e) {
+        if (e instanceof SyntaxError) {
+          let start
+          if (last) start = size - last.length - 1
+          else start = size - 1
+
+          if (start === -1) {
+            obj.index = 0
+            fs.truncate(this.filePath, err => {
+              if (err) throw err
+              let text = Stringify(obj)
+              let writeSteam = fs.createWriteStream(this.filePath)
+              writeSteam.write(text)
+              writeSteam.close()
+            })
+          } else {
+            let second = records.pop()
+            obj.index = JSON.parse(second).index + 1
+            fs.truncate(this.filePath, start, err => {
+              if (err) throw err
+              this.save(obj, start)
+            })
+          }
+        } else throw e
+      }     
+    }) 
   }
 
-  get() {
+  async addAsync(obj) {
+    return Promise.promisify(add).bind(this)(obj)
+  }
 
+  get(props) {
+    let { first, last, count, segments } = props
+    let records = []
+    let lr = new lineByLineReader(this.filePath, {skipEmptyLines: true})
+
+    // read all lines
+    lr.on('line', line => records.push(line))
+
+    // check the last line and repair twits DB if error exists
+    lr.on('end', () => {
+      let size = fs.readFileSync(this.filePath).length
+      let last = records.pop()
+      try {
+        JSON.parse(last)
+        records.push(last)
+      } catch(e) {
+        if (e instanceof SyntaxError) {
+          let start
+          if (last) start = size - last.length - 1
+          else start = size - 1
+
+          start = (start === -1) ? 0 : start
+          fs.truncate(this.filePath, start, err => {
+            if (err) throw err
+          })
+        }
+      }
+
+      if (!first && !last && !count && !segments) {
+        return records.map(r => JSON.parse(r))
+      } else if () {
+
+      }
+
+
+
+
+    })
   }
 }
 
@@ -131,7 +218,7 @@ class Box {
           twit.jobID = props.jobID
           break
         case 'commit':
-          twit.id = props.hash
+          twit.hash = props.hash
           break
         case 'tag':
         case 'branch':
@@ -145,7 +232,7 @@ class Box {
 
     twit.ctime = new Date().getTime()
 
-    await this.appendTwitsAsync(twit)
+    await this.records.addAsync(twit)
     return twit
   }
 
@@ -406,6 +493,7 @@ class BoxData {
     await saveObjectAsync(path.join(tmpDir, 'manifest'), this.tmpDir, doc)
     await fs.renameAsync(tmpDir, path.join(this.dir, doc.uuid))
     let dbPath = path.join(this.dir, doc.uuid, 'records')
+    await fs.writeFileAsync(dbPath,'')
     let records = new Records(dbPath)
     let box = new Box(path.join(this.dir, doc.uuid), this.tmpDir, records, doc)
 
