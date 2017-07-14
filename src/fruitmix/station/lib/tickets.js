@@ -76,6 +76,9 @@ let requestConfirmAsync = Promise.promisify(requestConfirm)
 let confirmTicketAsync = async (ticketId, guid, useruuid, state) => {
   if(!state)
     return await requestConfirmAsync(state, guid, ticketId)
+  let u = User.findUser(useruuid)
+  if(type === 2 && u.global)
+    throw new Error('user has already bind')
   let ticket = await getTicketAsync(ticketId)
   if(ticket.type === 1){//share register new local 
     let index = ticket.users.findIndex(u => u.guid === guid) 
