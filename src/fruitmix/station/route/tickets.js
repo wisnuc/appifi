@@ -42,6 +42,7 @@ router.post('/wechat/:ticketId', async (req, res) => {
     await Tickets.confirmTicketAsync(req.params.ticketId, guid, user.uuid, state)
     return res.status(200).json()
   }catch(e){
+    console.log(e)
     return res.status(500).json(e)
   }
 
