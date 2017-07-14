@@ -107,6 +107,13 @@ let stationFinishStart = (req, res, next) => {
   return res.status(500).json()
 }
 
+// let a = (req, res, next) => {
+//   req.user = {
+//     uuid: '123456'
+//   }
+//   next()
+// }
+
 router.use('/tickets', auth.jwt(), stationFinishStart, tickets)
 
 router.get('/info', auth.jwt(), (req, res) => {
@@ -114,7 +121,6 @@ router.get('/info', auth.jwt(), (req, res) => {
     "uuid": sa.id,
     "name": "station name",
     "pubkey": pubKeystation
-  
   })
 })
 
