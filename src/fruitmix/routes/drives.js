@@ -11,8 +11,9 @@ const broadcast = require('../../common/broadcast')
 
 const Drive = require('../models/drive')
 const Forest = require('../forest/forest')
-const { readXstatAsync } = require('../lib/xstat')
+const { readXstatAsync, forceXstatAsync } = require('../lib/xstat')
 const formdata = require('./formdata')
+const { upload, uploadAsync } = require('../lib/sidekick-client')
 
 const rimrafAsync = Promise.promisify(rimraf)
 const mkdirpAsync = Promise.promisify(mkdirp)
@@ -110,14 +111,15 @@ router.get('/:driveUUID/dirs/:dirUUID', auth.jwt(),
 /**
 031 * list a dir
 */
-router.get('/:driveUUID/dirs/:dirUUID/list', auth.jwt(), f(async(req, res) => {
-  let { driveUUID, dirUUID } = req.params
-  let dir = Forest.getDriveDir(driveUUID, dirUUID)
-  if (!dir) return res.status(404).end()
+router.get('/:driveUUID/dirs/:dirUUID/list', auth.jwt(), 
+  f(async(req, res) => {
+    let { driveUUID, dirUUID } = req.params
+    let dir = Forest.getDriveDir(driveUUID, dirUUID)
+    if (!dir) return res.status(404).end()
 
-  let xstats = await dir.readdirAsync()
-  res.status(200).json(xstats)
-}))
+    let xstats = await dir.readdirAsync()
+    res.status(200).json(xstats)
+  }))
 
 /**
 032    listnav a dir
@@ -215,7 +217,8 @@ router.post('/:driveUUID/dirs/:dirUUID/files', auth.jwt(),
     race condition detected if dir.read() and readXstat() called simultaneously on the same virgin file.
     so we equip src (temp) file before renaming
     **/
-    let xstat = await readXstatAsync(srcPath)
+    // let xstat = await readXstatAsync(srcPath)
+    let xstat = await forceXstatAsync(srcPath, { hash: sha256 })
 
     let name, dstPath
     for (let suffix = 0; ; suffix++) {
@@ -253,33 +256,96 @@ router.get('/:driveUUID/dirs/:dirUUID/files/:fileUUID', auth.jwt(), (req, res) =
 /**
 090 * patch a file (rename)
 */
-router.patch('/:driveUUID/dirs/:dirUUID/files/:fileUUID', auth.jwt(), (req, res) => {
-  let { driveUUID, dirUUID, fileUUID } = req.params
-  res.status(200).end()
-})
+router.patch('/:driveUUID/dirs/:dirUUID/files/:fileUUID', auth.jwt(), 
+  f(async (req, res) => {
+    let { driveUUID, dirUUID, fileUUID } = req.params
+    let { oldName, newName } = req.body
+
+    console.log('090 patch file name', driveUUID, dirUUID, fileUUID)
+    
+    let dir = Forest.getDriveDir(driveUUID, dirUUID)
+
+    let oldPath = path.join(dir.abspath(), oldName) 
+    let newPath = path.join(dir.abspath(), newName)
+
+    let xstat = await readXstatAsync(oldPath)
+    // confirm fileUUID TODO
+
+    await fs.renameAsync(oldPath, newPath)
+
+    dir.read()  
+    res.status(200).end()
+  }))
 
 /**
 100 * delete a file
 */
-router.delete('/:driveUUID/dirs/:dirUUID/files/:fileUUID', auth.jwt(), (req, res) => {
-  let { driveUUID, dirUUID, fileUUID } = req.params
-  res.status(200).end()
-})
+router.delete('/:driveUUID/dirs/:dirUUID/files/:fileUUID', auth.jwt(), 
+  f(async (req, res) => {
+    let { driveUUID, dirUUID, fileUUID } = req.params
+    let { name } = req.query
+
+    let dir = Forest.getDriveDir(driveUUID, dirUUID)
+    
+    let filePath = path.join(dir.abspath(), name) 
+    let xstat = await readXstatAsync(filePath)
+    // confirm fileUUID TODO
+
+    await rimrafAsync(filePath)
+
+    res.status(200).end()
+  }))
 
 /**
 110 * get file data (download)
 */
-router.get('/:driveUUID/dirs/:dirUUID/files/:fileUUID/data', auth.jwt(), (req, res) => {
-  let { driveUUID, dirUUID, fileUUID } = req.params
-  res.status(200).end()
-})
+router.get('/:driveUUID/dirs/:dirUUID/files/:fileUUID/data', auth.jwt(), 
+  f(async (req, res) => {
+    let { driveUUID, dirUUID, fileUUID } = req.params
+    let { name } = req.query
+
+    let dir = Forest.getDriveDir(driveUUID, dirUUID)
+
+    let filePath = path.join(dir.abspath(), name)
+    let xstat = await readXstatAsync(filePath)
+    // confirm fileUUID TODO
+
+    res.status(200).sendFile(filePath)
+  }))
 
 /**
-120 * put file data (upload /overwrite)
+120 * put file data (upload / overwrite)
 */
-router.put('/:driveUUID/dirs/:dirUUID/files/:fileUUID/data', auth.jwt(), (req, res) => {
-  let { driveUUID, dirUUID, fileUUID } = req.params
-  res.status(200).end()
-})
+router.put('/:driveUUID/dirs/:dirUUID/files/:fileUUID/data', auth.jwt(), 
+  f(async (req, res) => {
+    let { driveUUID, dirUUID, fileUUID } = req.params
+    let { name, size, sha256 } = req.query
+
+    let dir = Forest.getDriveDir(driveUUID, dirUUID)
+    let tmpPath = path.join(fruitmixPath, 'tmp', UUID.v4())
+    let filePath = path.join(dir.abspath(), name)
+    let oldXstat = await readXstatAsync(filePath)
+
+    let status = await new Promise((resolve, reject) => {
+      let query = {
+        path: tmpPath,
+        size: parseInt(size),
+        sha256
+      }
+
+      let ws = upload(query, (err, status) => err ? reject(err) : resolve(status))
+      req.pipe(ws)
+    })
+
+    if (status === 200) {
+      let newXstat = await forceXstatAsync(tmpPath, { uuid: oldXstat.uuid, hash: sha256 }) 
+      await fs.renameAsync(tmpPath, filePath)
+      dir.read()      
+      res.status(200).end()
+    }
+    else 
+      res.status(500).end()
+  }))
 
 module.exports = router
+

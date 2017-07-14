@@ -311,6 +311,7 @@ class UserList extends EventEmitter {
 
     let isFirstUser = this.users.length === 0 ? true : false
     let isAdmin = isFirstUser ? true : props.isAdmin === true ? true : false
+    let global = props.global ? props.global : null
     let newUser = {
 
       uuid: UUID.v4(),
@@ -322,7 +323,7 @@ class UserList extends EventEmitter {
       isFirstUser,
       isAdmin,
       avatar: null,
-      global: null
+      global
     } 
 
     let nextUsers = [...currUsers, newUser]

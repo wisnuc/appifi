@@ -302,7 +302,8 @@ describe(path.basename(__filename), () => {
         name: 'hello',
         mtime: stats.mtime.getTime(),
         size: stats.size,
-        magic: 0
+        magic: 0,
+        hash: FILES.hello.hash
       })
     })
   }) 
@@ -447,7 +448,18 @@ describe(path.basename(__filename), () => {
         .expect(200)
         .end((err, res) => {
           if (err) return done(err)
-          console.log(res.body)
+
+          let dirPath = path.join(forestDir, IDS.alice.home, 'hello', 'deadbeef')
+          let attr = JSON.parse(xattr.getSync(dirPath, 'user.fruitmix'))
+          let stat = fs.lstatSync(dirPath)
+
+          expect(res.body).to.deep.equal({
+            uuid: attr.uuid,
+            parent: hello.uuid,
+            name: 'deadbeef',
+            mtime: stat.mtime.getTime() 
+          })
+
           done()
         }) 
     })   
@@ -461,21 +473,130 @@ describe(path.basename(__filename), () => {
         .expect(200)
         .end((err, res) => {
           if (err) return done(err)
-          console.log(res.body)
+          console.log(res.body) // TODO
           done()
         })
     })
 
     // 070
-/**
     it("070 create new file in hello", done => {
 
       request(app)
-        .post
+        .post(`/drives/${IDS.alice.home}/dirs/${hello.uuid}/files`)
+        .set('Authorization', 'JWT ' + token)
+        .expect(200)
+        .field('size', FILES.alonzo.size)
+        .field('sha256', FILES.alonzo.hash)
+        .attach('file', FILES.alonzo.path)
+        .end((err, res) => {
+          if (err) return done(err)
+        
+          let filePath = path.join(forestDir, IDS.alice.home, 'hello', FILES.alonzo.name)
+          let attr = JSON.parse(xattr.getSync(filePath, 'user.fruitmix'))
+          let stat = fs.lstatSync(filePath)
+
+          expect(res.body).to.deep.equal({
+            uuid: attr.uuid,
+            name: FILES.alonzo.name,
+            mtime: stat.mtime.getTime(),
+            size: FILES.alonzo.size,
+            magic: 'JPEG',
+            hash: FILES.alonzo.hash
+          }) 
+
+          done()
+        })
     })
-**/
+
     // 080
+ 
+
     // 090
+    it("090 rename file /world to /world2", done => {
+
+      request(app)
+        .patch(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/files/${world.uuid}`)
+        .set('Authorization', 'JWT ' + token)
+        .send({
+          oldName: 'world',
+          newName: 'world2'
+        })
+        .expect(200)
+        .end((err, res) => {
+          if (err) return done(err)
+
+          let filePath = path.join(forestDir, IDS.alice.home, 'world2')
+          let attr = JSON.parse(xattr.getSync(filePath, 'user.fruitmix'))
+          let stat = fs.lstatSync(filePath)
+
+          console.log(filePath, attr, stat, res.body)
+          done()
+        })
+    })
+
+    // 100
+    it("100 delete file /world", done => {
+
+      request(app)
+        .delete(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/files/{world.uuid}`)
+        .query({ name: 'world' })
+        .set('Authorization', 'JWT ' + token)
+        .expect(200) 
+        .end((err, res) => {
+          if (err) return done(err)
+
+          let filePath = path.join(forestDir, IDS.alice.home, 'world')
+          fs.lstat(filePath, err => {
+            expect(err).to.have.property('code').that.equal('ENOENT')
+            done()
+          })
+        })
+    })
+
+    it("110 download file /world", done => {
+
+      let filePath = path.join(tmptest, UUID.v4())
+      let ws = fs.createWriteStream(filePath)
+
+      ws.on('close', () => {
+
+        let data = fs.readFileSync(filePath)
+        expect(data.toString()).to.equal('world\n')
+        done()
+      })
+
+      request(app)
+        .get(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/files/${world.uuid}/data`)
+        .query({ name: 'world' })
+        .set('Authorization', 'JWT ' + token)
+        .expect(200)
+        .pipe(ws)   
+    }) 
+
+    it("120 overwrite file /world with foo", done => 
+      fs.createReadStream(path.join('testdata', 'foo'))
+        .pipe(request(app) 
+          .put(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/files/${world.uuid}/data`)
+          .query({ name: 'world' })
+          .query({ size: FILES.foo.size })
+          .query({ sha256: FILES.foo.hash })
+          .set('Authorization', 'JWT ' + token)
+          .expect(200)
+          .expect(() => {
+
+            let filePath = path.join(forestDir, IDS.alice.home, 'world')   
+            expect(fs.readFileSync(filePath).toString()).to.equal('foo\n')
+            let stat = fs.lstatSync(filePath)
+            let attr = JSON.parse(xattr.getSync(filePath, 'user.fruitmix'))
+            let expected = {
+              uuid: world.uuid,
+              hash: FILES.foo.hash,
+              htime: stat.mtime.getTime(),
+              magic: 0
+            }
+            console.log(attr, expected)
+            done()
+          }))) 
   })
 })
 
