@@ -7,7 +7,9 @@ const { FILE, CONFIG } = require('./const')
 
 let createTicket = (user, sa, type, callback) => {
   //TODO encrypt data
-  console.log(user)
+  let u = User.findUser(user.uuid)
+  if(type === 2 && u.global)
+    return callback(new Error('user has already bind'))
   request
     .post(CONFIG.CLOUD_PATH + 'v1/tickets')
     .set('Content-Type', 'application/json')
