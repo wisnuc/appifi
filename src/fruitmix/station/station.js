@@ -113,7 +113,8 @@ router.get('/info', auth.jwt(), (req, res) => {
   return res.status(200).json({
     "uuid": sa.id,
     "name": "station name",
-    "pubkey": pubKey
+    "pubkey": pubKeystation
+  
   })
 })
 

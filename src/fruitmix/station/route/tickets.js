@@ -23,12 +23,19 @@ router.get('/:ticketId', (req, res) => {
   })
 })
 
+router.get('/', (req, res) => {
+  
+})
 
 //  1, get ticket
 //  2, create user
 //  3, LA <--> WA
 
 router.post('/wechat/:ticketId', (req, res) => {
-  
+  let guid = req.body.userid
+  let state = req.body.state
+
+
+
 })
 module.exports = router
