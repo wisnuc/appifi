@@ -24,7 +24,7 @@ const {
   createUserAsync,
   retrieveTokenAsync,
   createPublicDriveAsync,
-  setUserGuidAsync
+  setUserGlobalAsync
 } = require('./lib')
 
 const cwd = process.cwd()
@@ -90,7 +90,7 @@ describe(path.basename(__filename), () => {
           isFirstUser: true,
           isAdmin: true,
           avatar: null,
-          guid: null 
+          global: null 
         }))
 
   })
@@ -165,10 +165,10 @@ describe(path.basename(__filename), () => {
         }]))
 
     // TODO move to other place
-    it("PATCH /users/:userUUID alice set guid", async () =>
-      setUserGuidAsync('alice')
-        .should.eventually.have.deep.property('guid')
-        .that.equal(IDS.alice.guid))
+    it("PATCH /users/:userUUID alice set global", async () =>
+      setUserGlobalAsync('alice')
+        .should.eventually.have.deep.property('global')
+        .that.equal(IDS.alice.global))
   })
 
   describe('After alice created, create bob', () => {
@@ -202,7 +202,7 @@ describe(path.basename(__filename), () => {
           isFirstUser: false,
           isAdmin: true,  
           avatar: null,
-          guid: null
+          global: null
         })) 
   })
 

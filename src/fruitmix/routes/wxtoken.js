@@ -6,9 +6,9 @@ const auth = require('../middleware/auth')
 router.get('/', auth.jwt(), (req, res) => {
 
   let user = req.user
-  if (user.guid) {
+  if (user.global) {
     let token = {
-      guid: user.guid,
+      global: user.global,
       deadline: new Date().getTime() + 4 * 60 * 60 * 1000
     }
     res.status(200).json({ type: 'JWT', token: jwt.encode(token, secret) })
