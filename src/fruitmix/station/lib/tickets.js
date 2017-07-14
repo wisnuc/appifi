@@ -58,7 +58,7 @@ let getTickets = (creator, callback) => {
 let requestConfirm = (state, guid, ticketId, callback) => {
   // state binding or unbinding
   request
-    .post(CONFIG.CLOUD_PATH + 'v1/tickets/' + state ? 'binding' : 'unbinding')
+    .post(CONFIG.CLOUD_PATH + 'v1/wx/' + state ? 'binding' : 'unbinding')
     .set('Content-Type', 'application/json')
     .send({
       ticketId

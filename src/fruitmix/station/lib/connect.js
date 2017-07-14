@@ -54,12 +54,14 @@ class Connect {
   }
 
   disconnect() {
-    if(this.socket.connected) 
+    if(this.socket && this.socket.connected) 
       this.socket.disconnect()
   }
 
   isConnect() {
-    return this.socket.connected
+    if(this.socket && this.socket.connected)
+      return true
+    return false
   }
 }
 
