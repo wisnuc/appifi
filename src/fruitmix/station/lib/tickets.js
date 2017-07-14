@@ -77,9 +77,9 @@ let confirmTicketAsync = async (ticketId, guid, useruuid, state) => {
   if(!state)
     return await requestConfirmAsync(state, guid, ticketId)
   let u = User.findUser(useruuid)
-  if(type === 2 && u.global)
-    throw new Error('user has already bind')
   let ticket = await getTicketAsync(ticketId)
+  if(ticket.type === 2 && u.global)
+    throw new Error('user has already bind')  
   if(ticket.type === 1){//share register new local 
     let index = ticket.users.findIndex(u => u.guid === guid) 
     if (index === -1) throw new Error('user not found')
