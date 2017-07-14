@@ -58,6 +58,12 @@ const FILES = {
     hash: 'e258d248fda94c63753607f7c4494ee0fcbe92f1a76bfdac795c9d84101eb317'  
   },
 
+  foo: {
+    path: 'testdata/foo',
+    size: 4,
+    hash: 'b5bb9d8014a0f9b1d61e21e796d78dccdf1352f23cd32812f4850b878ae4944c'
+  },
+
   bar: {
     path: 'testdata/bar',
     size: 4,
@@ -65,6 +71,7 @@ const FILES = {
   },
 
   alonzo: {
+    name: 'alonzo_church.jpg',
     path: 'testdata/alonzo_church.jpg',
     size: 39499, 
     hash: '8e28737e8cdf679e65714fe2bdbe461c80b2158746f4346b06af75b42f212408'
