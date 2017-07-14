@@ -83,7 +83,7 @@ let confirmTicketAsync = async (ticketId, guid, useruuid, state) => {
   if(ticket.type === 1){//share register new local 
     let index = ticket.users.findIndex(u => u.guid === guid) 
     if (index === -1) throw new Error('user not found')
-    await requestConfirmAsync(state, guid)
+    await requestConfirmAsync(state, guid, ticketId)
     return await User.createUserAsync({ 
                         username: '',
                         password: '',
@@ -94,7 +94,7 @@ let confirmTicketAsync = async (ticketId, guid, useruuid, state) => {
                       })            
   }else if(ticket.type === 2){//binding
     if (ticket.userData.guid !== guid) throw new Error('user not found')
-    await requestConfirmAsync(state, guid)
+    await requestConfirmAsync(state, guid, ticketId)
     return await User.updateUserAsync(useruuid, {
       global: {
         id: guid,
