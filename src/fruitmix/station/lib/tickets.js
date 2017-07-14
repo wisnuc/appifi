@@ -64,7 +64,7 @@ let requestConfirm = (state, guid, ticketId, callback) => {
       ticketId
     })
     .end((err, res) => {
-      if(err || res.status !== 200) return callback(new Error('confirm error')) 
+      if(err || res.status !== 200) return console.log(err) && callback(new Error('confirm error')) 
       return callback(null, res.body.data)
     })
 }
@@ -93,8 +93,11 @@ let confirmTicketAsync = async (ticketId, guid, useruuid, state) => {
                         }
                       })            
   }else if(ticket.type === 2){//binding
+    console.log(2222222)
     if (ticket.userData.guid !== guid) throw new Error('user not found')
+    console.log('confirm start')
     await requestConfirmAsync(state, guid, ticketId)
+    console.log('confirm success')
     return await User.updateUserAsync(useruuid, {
       global: {
         id: guid,
