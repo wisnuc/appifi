@@ -153,13 +153,20 @@ class Records {
 
       if (!first && !last && !count && !segments) {
         return records.map(r => JSON.parse(r))
-      } else if () {
-
+      } else if (!first && !last && !segments && count) {
+        let result = records.silce(-count)
+        return result.map(r => JSON.parse(r))
+      } else if (first <= last && count && !segments) {
+        let tail = records.slice(first-count, first)
+        let head = records.slice(last+1)
+        let result = [...tail, ...head]
+        return result.map(r => JSON.parse(r))
+      } else if (!first && !last && !count && segments) {
+        segments = segments.split('|').map(i => i.split(':'))
+        let result = []
+        segments.forEach(s => result.push(...records.slice(Number(s[0]), Number(s[1])+1)))
+        return result.map(r => JSON.parse(r))
       }
-
-
-
-
     })
   }
 }
