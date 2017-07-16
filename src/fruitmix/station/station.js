@@ -71,7 +71,6 @@ const startAsync = async (froot) => {
   await initAsync(froot) // init station for keys
   try{
      sa = await registerAsync(froot)
-     console.log(sa)
      //connect to cloud
      connect = new Connect(CONFIG.CLOUD_PATH, sa, froot)
   }catch(e){
@@ -97,14 +96,14 @@ broadcast.on('FruitmixStart', froot => {
 
 let router = Router()
 
-let stationFinishStart = (req, res, next) => {
-  console.log('station start')
+const stationFinishStart = (req, res, next) => {
+  console.log('station started')
   if(sa !== undefined && connect !== undefined && connect.isConnect){
     req.body.sa = sa
     req.body.connect = connect
     return next()
   }
-  return res.status(500).json()
+  return res.status(500).json(new Error('station initialize error'))
 }
 
 // let a = (req, res, next) => {
@@ -114,6 +113,7 @@ let stationFinishStart = (req, res, next) => {
 //   next()
 // }
 
+// stationFinishStart,
 router.use('/tickets', auth.jwt(), stationFinishStart, tickets)
 
 router.get('/info', auth.jwt(), (req, res) => {
@@ -124,4 +124,4 @@ router.get('/info', auth.jwt(), (req, res) => {
   })
 })
 
-module.exports = router
+module.exports = { router, stationFinishStart }
