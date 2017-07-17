@@ -81,7 +81,6 @@ const startAsync = async (froot) => {
 
 broadcast.on('FruitmixStart', froot => {
   fruitmixPath = froot
-  console.log(123)
   startAsync(froot)
     .then(froot => {
 

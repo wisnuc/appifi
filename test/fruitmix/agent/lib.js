@@ -179,15 +179,33 @@ const createBoxAsync = async (props, username) => {
 const createBranchAsync = async (props, boxUUID, username) => {
   let token = await retrieveTokenAsync(username)
   let cloudToken = await retrieveCloudTokenAsync(username)
-  let commit = '486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7'
-  
+
   let res = await request(app)
     .post(`/boxes/${boxUUID}/branches`)
-    .send({ name: 'branch_1', head: commit })
+    .send(props)
     .set('Authorization', 'JWT ' + cloudToken + ' ' + token)
     .expect(200)
 
   return res.body
+}
+
+const forgeRecords = async (boxUUID, username) => {
+  let token = await retrieveTokenAsync(username)
+  let cloudToken = await retrieveCloudTokenAsync(username)
+
+  // UUID.v4 is modified by sinon
+  // it is only installed three returns
+  // UUID.v4 has been called once when create a box(boxUUID)
+  // so there are only two returns can be used
+  // in this loop, UUID.v4 is required
+  // but only the first two can get a result, this won't influence the data we need
+  for(let i = 0; i < 10; i++) {
+    let res = await request(app)
+      .post(`/boxes/${boxUUID}/twits`)
+      .set('Authorization', 'JWT ' + cloudToken + ' ' + token)
+      .send({comment: 'hello'})
+      .expect(200)
+  }
 }
 
 module.exports = {
@@ -200,6 +218,7 @@ module.exports = {
   setUserGlobalAsync,
   retrieveCloudTokenAsync,
   createBoxAsync,
-  createBranchAsync
+  createBranchAsync,
+  forgeRecords
 }
 

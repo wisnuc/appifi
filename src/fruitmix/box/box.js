@@ -77,7 +77,7 @@ class Records {
    * add new data to twits to DB
    * @param {Object} obj - object to be stored
    */
-  add(obj) {
+  add(obj, callback) {
     let records = []
     let lr = new lineByLineReader(this.filePath, {skipEmptyLines: true})
 
@@ -91,8 +91,9 @@ class Records {
         let lastObj = JSON.parse(last)
         obj.index = lastObj.index + 1
         this.save(obj, size)
-      } catch(e) {
-        if (e instanceof SyntaxError) {
+        return callback(null)
+      } catch(err) {
+        if (err instanceof SyntaxError) {
           let start
           if (last) start = size - last.length - 1
           else start = size - 1
@@ -100,74 +101,92 @@ class Records {
           if (start === -1) {
             obj.index = 0
             fs.truncate(this.filePath, err => {
-              if (err) throw err
+              if (err) return callback(err)
               let text = Stringify(obj)
               let writeSteam = fs.createWriteStream(this.filePath)
               writeSteam.write(text)
               writeSteam.close()
+              return callback(null)
             })
           } else {
             let second = records.pop()
             obj.index = JSON.parse(second).index + 1
             fs.truncate(this.filePath, start, err => {
-              if (err) throw err
+              if (err) return callback(err)
               this.save(obj, start)
+              return callback(null)
             })
           }
-        } else throw e
+        } else return callback(err)
       }     
     }) 
   }
 
   async addAsync(obj) {
-    return Promise.promisify(add).bind(this)(obj)
+    return Promise.promisify(this.add).bind(this)(obj)
   }
 
-  get(props) {
+  /**
+   * get twits
+   * @param {Object} props
+   * @param {number} props.first -optional
+   * @param {number} props.last - optional
+   * @param {number} props.count - optional
+   * @param {string} props.segments - optional
+   * @return {array} each item in array is an twit object
+   */
+  get(props, callback) {
     let { first, last, count, segments } = props
     let records = []
     let lr = new lineByLineReader(this.filePath, {skipEmptyLines: true})
 
     // read all lines
-    lr.on('line', line => records.push(line))
+    lr.on('line', line => {console.log(line),records.push(line)})
 
     // check the last line and repair twits DB if error exists
     lr.on('end', () => {
       let size = fs.readFileSync(this.filePath).length
-      let last = records.pop()
+      let end = records.pop()
+
       try {
-        JSON.parse(last)
-        records.push(last)
+        JSON.parse(end)
+        records.push(end)
       } catch(e) {
         if (e instanceof SyntaxError) {
           let start
-          if (last) start = size - last.length - 1
+          if (end) start = size - end.length - 1
           else start = size - 1
 
           start = (start === -1) ? 0 : start
           fs.truncate(this.filePath, start, err => {
-            if (err) throw err
+            if (err) return callback(err)
           })
-        }
+        } else return callback(e)
       }
 
       if (!first && !last && !count && !segments) {
-        return records.map(r => JSON.parse(r))
+        return callback(null, records.map(r => JSON.parse(r)))
       } else if (!first && !last && !segments && count) {
         let result = records.silce(-count)
-        return result.map(r => JSON.parse(r))
+        return callback(null, result.map(r => JSON.parse(r)))
       } else if (first <= last && count && !segments) {
         let tail = records.slice(first-count, first)
         let head = records.slice(last+1)
         let result = [...tail, ...head]
-        return result.map(r => JSON.parse(r))
+        return callback(null, result.map(r => JSON.parse(r)))
       } else if (!first && !last && !count && segments) {
         segments = segments.split('|').map(i => i.split(':'))
         let result = []
         segments.forEach(s => result.push(...records.slice(Number(s[0]), Number(s[1])+1)))
-        return result.map(r => JSON.parse(r))
-      }
+        return callback(null, result.map(r => JSON.parse(r)))
+      }else
+        return callback(new E.EINVAL())
     })
+  }
+
+  async getAsync(props) {
+    console.log('ddddddd')
+    return Promise.promisify(this.get).bind(this)(props)
   }
 }
 
@@ -250,17 +269,10 @@ class Box {
   // update()
   // 
   async getTwitsAsync(props) {
-    let { first, last, count, segments } = props
-    let records = []
-    let filepath = path.join(this.dir, 'twits')
-    
-    let lineReader = readline.createInterface({
-      input: fs.createReadStream(filepath)
-    })
-
-    lineReader.on('line', line => {
-      if (line.length !== 0) records.push(line)
-    })
+    console.log('============')
+    let result = await this.records.getAsync(props)
+    console.log(result)
+    return result
   }
 
   /**
@@ -502,7 +514,7 @@ class BoxData {
     let dbPath = path.join(this.dir, doc.uuid, 'records')
     await fs.writeFileAsync(dbPath,'')
     let records = new Records(dbPath)
-    let box = new Box(path.join(this.dir, doc.uuid), this.tmpDir, records, doc)
+    let box = new Box(path.join(this.dir, doc.uuid), this.tmpDir, doc, records)
 
     this.map.set(doc.uuid, box)
     return box

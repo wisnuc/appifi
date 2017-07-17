@@ -27,7 +27,8 @@ const {
   setUserGlobalAsync,
   retrieveCloudTokenAsync,
   createBoxAsync,
-  createBranchAsync
+  createBranchAsync,
+  forgeRecords
 } = require('./lib')
 
 const cwd = process.cwd()
@@ -278,7 +279,7 @@ describe(path.basename(__filename), () => {
       sinon.stub(UUID, 'v4').onFirstCall().returns(boxUUID)
                             .onSecondCall().returns(uuid_1)
                             .onThirdCall().returns(uuid_2)
-
+                          
       let props = {name: 'hello', users: [IDS.bob.global]}
       box = await createBoxAsync(props, 'alice')
     })
@@ -321,6 +322,22 @@ describe(path.basename(__filename), () => {
           expect(res.body.sha256).to.equal(sha256)
           done()
         })
+    })
+
+    it.only('GET /boxes/{uuid}/twits should get all records', (done) => {
+      forgeRecords(boxUUID, 'alice')
+        .then(() => {
+          request(app)
+            .get(`/boxes/${boxUUID}/twits`)
+            .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
+            .expect(200)
+            .end((err, res) => {
+              console.log(res.body)
+              expect(res.body.length).to.equal(10)
+              done()
+            })
+        })
+        .catch(done)
     })
 
     it('POST /boxes/{uuid}/branches alice create a new branch successfully', done => {

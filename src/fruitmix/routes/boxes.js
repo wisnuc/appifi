@@ -299,7 +299,7 @@ router.post('/:boxUUID/twits', auth, boxAuth, (req, res) => {
 
     box.createTwitAsync(props)
     .then(twit => res.status(200).json(twit))
-    .catch(err => res.status(500).josn({ code: err.code, message: err.message }))
+    .catch(err => res.status(500).json({ code: err.code, message: err.message }))
   }else
     return res.status(415).end()
   
