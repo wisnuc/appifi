@@ -1,5 +1,6 @@
 const request = require('superagent')
 const Promise = require('bluebird')
+const debug = require('debug')('station')
 
 const User = require('../../models/user') 
 
@@ -20,8 +21,7 @@ let createTicket = (user, sa, type, callback) => {
        type
     })
     .end((err, res) => {
-      console.log(err, res.body)
-      if(err || res.status !== 200) return callback(new Error('create ticket error'))
+      if(err || res.status !== 200) return debug(err) && callback(new Error('create ticket error'))
       return callback(null, res.body.data)
     }) 
 }
@@ -55,13 +55,13 @@ let getTickets = (creator, callback) => {
 let requestConfirm = (state, guid, ticketId, callback) => {
   // state binding or unbinding
   request
-    .post(CONFIG.CLOUD_PATH + 'v1/wx/' + state ? 'binding' : 'unbinding')
+    .post(CONFIG.CLOUD_PATH + 'v1/wx/' + (state ? 'binding' : 'unbinding'))
     .set('Content-Type', 'application/json')
     .send({
       ticketId
     })
     .end((err, res) => {
-      if(err || res.status !== 200) return console.log(err) && callback(new Error('confirm error')) 
+      if(err || res.status !== 200) return debug(err) && callback(new Error('confirm error')) 
       return callback(null, res.body.data)
     })
 }
@@ -73,9 +73,7 @@ let requestConfirmAsync = Promise.promisify(requestConfirm)
 let confirmTicketAsync = async (ticketId, guid, useruuid, state) => {
   if(!state)
     return await requestConfirmAsync(state, guid, ticketId)
-  console.log('111111111')
   let u = User.findUser(useruuid)
-  console.log('2222222')
   let ticket = await getTicketAsync(ticketId)
 
   if(ticket.type === 2 && u.global)
@@ -90,19 +88,17 @@ let confirmTicketAsync = async (ticketId, guid, useruuid, state) => {
                         password: '',
                         global:{
                           id: guid,
-                          wx: []
+                          wx: [ticket.userData.userInfo.unionid]
                         }
                       })            
   }else if(ticket.type === 2){//binding
-    console.log('type === 2')
     if (ticket.userData.guid !== guid) throw new Error('user not found')
-    console.log('confirm start')
     await requestConfirmAsync(state, guid, ticketId)
-    console.log('confirm success')
+    debug(ticket)
     return await User.updateUserAsync(useruuid, {
       global: {
         id: guid,
-        wx: [ticket.userData.unionId]
+        wx: [ticket.userData.userInfo.unionid]
       }
     })
   }
