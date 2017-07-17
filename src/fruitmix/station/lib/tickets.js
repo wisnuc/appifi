@@ -55,7 +55,7 @@ let getTickets = (creator, callback) => {
 let requestConfirm = (state, guid, ticketId, callback) => {
   // state binding or unbinding
   request
-    .post(CONFIG.CLOUD_PATH + 'v1/wx/' + state ? 'binding' : 'unbinding')
+    .post(CONFIG.CLOUD_PATH + 'v1/wx/' + (state ? 'binding' : 'unbinding'))
     .set('Content-Type', 'application/json')
     .send({
       ticketId
@@ -73,9 +73,7 @@ let requestConfirmAsync = Promise.promisify(requestConfirm)
 let confirmTicketAsync = async (ticketId, guid, useruuid, state) => {
   if(!state)
     return await requestConfirmAsync(state, guid, ticketId)
-  console.log('111111111')
   let u = User.findUser(useruuid)
-  console.log('2222222')
   let ticket = await getTicketAsync(ticketId)
 
   if(ticket.type === 2 && u.global)
@@ -94,15 +92,12 @@ let confirmTicketAsync = async (ticketId, guid, useruuid, state) => {
                         }
                       })            
   }else if(ticket.type === 2){//binding
-    console.log('type === 2')
     if (ticket.userData.guid !== guid) throw new Error('user not found')
-    console.log('confirm start')
     await requestConfirmAsync(state, guid, ticketId)
-    console.log('confirm success')
     return await User.updateUserAsync(useruuid, {
       global: {
         id: guid,
-        wx: [ticket.userData.unionId]
+        wx: [ticket.userData.unionid]
       }
     })
   }
