@@ -24,7 +24,7 @@ const drives = require('./fruitmix/routes/drives')
 const boxes = require('./fruitmix/routes/boxes')
 const cloudToken = require('./fruitmix/routes/wxtoken')
 const uploads = require('./fruitmix/routes/uploads')
-const station = require('./fruitmix/station/station')
+const station = require('./fruitmix/station')
 
 /**
 This module is the entry point of the whole application.
