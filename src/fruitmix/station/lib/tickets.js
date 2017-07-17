@@ -21,8 +21,7 @@ let createTicket = (user, sa, type, callback) => {
        type
     })
     .end((err, res) => {
-      debug(err, res.body)
-      if(err || res.status !== 200) return callback(new Error('create ticket error'))
+      if(err || res.status !== 200) return debug(err) && callback(new Error('create ticket error'))
       return callback(null, res.body.data)
     }) 
 }
