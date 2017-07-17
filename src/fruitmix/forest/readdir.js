@@ -33,7 +33,7 @@ class Idle {
     */
     this.dir = dir
 
-    debug('readdir enter idle')
+    debug(`${dir.name} enter idle`)
   }
 
   /** Implement `read` virtual method, see `Directory` for definition. */
@@ -77,7 +77,7 @@ class Pending {
     this.timer = -1
     this.read(delay)
 
-    debug('readdir enter pending')
+    debug(`${dir.name} enter pending`)
   }
 
   /** Implement `read` virtual method, see `Directory` for definition. */
@@ -150,7 +150,7 @@ class Working {
 
     this.start()
 
-    debug('readdir enter working')
+    debug(`${dir.name} enter working`)
   }
 
   /**
@@ -200,7 +200,9 @@ class Working {
       err.code = 'EINTERRUPTED'
     } 
 
-    debug('readdir working finished')
+    debug(`${this.dir.name} working finished`)
+
+try {
 
     // processing error or result
     if (err) {
@@ -238,7 +240,11 @@ class Working {
         handler.end(this.dir.uuid, this.dir.name)
     })
 
-    debug('readdir working next', this.pending, transient)
+} catch (e) {
+  console.log(e)
+}
+
+    debug(`${this.dir.name} working next`, this.pending, transient)
 
     if (Array.isArray(this.pending))
       this.dir.readdir = new Working(this.dir, this.pending)
@@ -357,7 +363,7 @@ class Working {
     else
       throw new Error('invalid handler')
 
-    console.log('readdir read, working', handler, this.pending)
+    // console.log('readdir read, working', handler, this.pending)
   }
 
   /** 

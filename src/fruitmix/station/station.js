@@ -71,7 +71,7 @@ const startAsync = async (froot) => {
   await initAsync(froot) // init station for keys
   try{
      sa = await registerAsync(froot)
-     console.log(sa)
+     //console.log(sa)
      //connect to cloud
      connect = new Connect(CONFIG.CLOUD_PATH, sa, froot)
   }catch(e){
@@ -82,7 +82,7 @@ const startAsync = async (froot) => {
 
 broadcast.on('FruitmixStart', froot => {
   fruitmixPath = froot
-  console.log(123)
+  // console.log(123)
   startAsync(froot)
     .then(froot => {
 

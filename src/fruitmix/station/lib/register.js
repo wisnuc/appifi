@@ -25,7 +25,7 @@ let registerAsync = Promise.promisify(register)
 
 let requestRegisterStation = (froot, callback) => {
   let publicKey = fs.readFileSync(path.join(froot, 'station', FILE.PUBKEY)).toString('utf8')
-  console.log(publicKey)
+  // console.log(publicKey)
   request
     .post(CONFIG.CLOUD_PATH + 'v1/stations')
     .set('Content-Type', 'application/json')

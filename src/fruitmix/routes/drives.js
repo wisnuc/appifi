@@ -1,10 +1,12 @@
 const Promise = require('bluebird')
 const path = require('path')
 const fs = Promise.promisifyAll(require('fs'))
+const EventEmitter = require('events')
 const rimraf = require('rimraf')
 const mkdirp = require('mkdirp')
 const UUID = require('uuid')
 const router = require('express').Router()
+const formidable = require('formidable')
 
 const auth = require('../middleware/auth')
 const broadcast = require('../../common/broadcast')
@@ -14,6 +16,10 @@ const Forest = require('../forest/forest')
 const { readXstatAsync, forceXstatAsync } = require('../lib/xstat')
 const formdata = require('./formdata')
 const { upload, uploadAsync } = require('../lib/sidekick-client')
+
+const stream = require('stream')
+
+const sanitize = require('sanitize-filename')
 
 const rimrafAsync = Promise.promisify(rimraf)
 const mkdirpAsync = Promise.promisify(mkdirp)
@@ -93,6 +99,8 @@ router.post('/:driveUUID/dirs', auth.jwt(), f(async (req, res) => {
 /**
 030   get a dir
 */
+
+/**
 router.get('/:driveUUID/dirs/:dirUUID', auth.jwt(),
   f(async(req, res) => {
     let { driveUUID, dirUUID } = req.params
@@ -107,6 +115,7 @@ router.get('/:driveUUID/dirs/:dirUUID', auth.jwt(),
       mtime: Math.abs(dir.mtime)
     })
   }))
+**/
 
 /**
 031 * list a dir
@@ -124,22 +133,198 @@ router.get('/:driveUUID/dirs/:dirUUID/list', auth.jwt(),
 /**
 032    listnav a dir
 */
-router.get('/:driveUUID/dirs/:dirUUID/listnav', auth.jwt(),
-  f(async(req, res) => {
-    let { driveUUID, dirUUID } = req.params
-    let dir = Forest.getDriveDir(driveUUID, dirUUID)
-    if (!dir) return res.status(404).end()
+router.get('/:driveUUID/dirs/:dirUUID', auth.jwt(), f(async(req, res) => {
 
-    let list = await dir.readdirAsync()
-    let nav = dir.nodepath().map(dir => ({
-      uuid: dir.uuid,
-      parent: dir.parent ? dir.parent.uuid : '',
-      name: dir.name,
-      mtime: Math.abs(dir.mtime)
-    }))
+  let { driveUUID, dirUUID } = req.params
+  let dir = Forest.getDriveDir(driveUUID, dirUUID)
+  if (!dir) return res.status(404).end()
 
-    res.status(200).json({ path: nav, entries: list })
+  let list = await dir.readdirAsync()
+  let nav = dir.nodepath().map(dir => ({
+    uuid: dir.uuid,
+    name: dir.name,
+    mtime: Math.abs(dir.mtime)
   }))
+
+  res.status(200).json({ 
+    path: nav, 
+    entries: list 
+  })
+
+}))
+
+router.get('/:driveUUID/dirs/:dirUUID/entries', auth.jwt(), f(async(req, res) => {
+
+  let { driveUUID, dirUUID } = req.params
+  let dir = Forest.getDriveDir(driveUUID, dirUUID)
+  if (!dir) return res.status(404).end()
+
+  let list = await dir.readdirAsync()
+  res.status(200).json(list)
+}))
+
+router.post('/:driveUUID/dirs/:dirUUID/entries', auth.jwt(), (req, res, next) => {
+
+  if (!req.is('multipart/form-data')) 
+    return res.status(415).json({ message: 'must be multipart/form-data' })
+
+  let { driveUUID, dirUUID } = req.params
+  let dir = Forest.getDriveDir(driveUUID, dirUUID)
+  if (!dir) return res.status(404).end()
+
+  let form = new formidable.IncomingForm() 
+
+  // error, for simplicity, abort error is not treated specifically
+  let error  
+
+  // 
+  let formEnded = false
+
+  //
+  let handlers = []
+
+  let finished = false
+  const finalize = err => {
+    if (finished) return
+
+    if (!error && err) {
+      error = err
+      handlers.forEach(h => h.abort())
+    }
+
+    if (error && handlers.length === 0 && count === 0) {
+      dir.read()
+      res.status(500).end()
+      finished = true
+      console.log('error finished')
+    } else if (!error && handlers.length === 0 && formEnded) {
+      dir.read()
+      res.status(200).end()
+      finished = true
+      console.log('success finished')
+    }
+  }
+
+  class PartHandler extends EventEmitter {
+
+    constructor(name, part, blocked, number) {
+
+      super()
+      this.name = name
+      this.part = part
+      this.blocked = blocked
+      this.number = number
+
+      this.chunks = []
+      this.size = 0
+      this.timer = null
+      this.aborted = false
+
+      if (part.body) {
+        this.partEnded = false
+
+        part.on('data', chunk => {
+          this.size += chunk.length
+        })
+
+        part.on('error', err => {
+          // TODO
+        })
+
+        part.on('end', () => {
+          console.log(`${number}: part end`)
+          this.partEnded = true 
+          this.run()
+        })
+      } else {
+        this.partEnded = true
+        this.run()
+      }
+
+      console.log(`${number}: created, ${name}, blocked: ${blocked}`)
+    }
+
+    run() {
+      if (this.partEnded && !this.blocked) {
+
+        if (this.part.body) {
+          console.log('run', this.number)
+          this.timer = setTimeout(() => {
+            // if aborted
+            this.emit('finish', this.aborted ? new Error('aborted') : null)
+          }, 100) 
+        } else {
+          let dirPath = path.join(dir.abspath(), this.name)
+          mkdirp(dirPath, err => this.emit('finish', err))
+        }
+      }
+    }
+
+    unblock() {
+
+      if (!this.blocked) throw new Error('unblocking an already unblocked handler')
+
+      this.blocked = false
+      this.run()
+    }
+
+    abort() {
+      if (this.timer) // deferred action
+        this.aborted = true
+      else 
+        process.nextTick(() => this.emit('finish', new Error('aborted')))
+    }
+  }
+
+  let number = -1
+  form.onPart = part => {
+
+    if (error) return
+
+    // increment part number
+    number++
+   
+    let name = sanitize(part.name) 
+    if (name !== part.name) {
+      let err = new Error('invalid name')
+      finalize(err)
+      return
+    }
+
+    if (part.filename) {
+      let body = JSON.parse(part.filename)
+      part.body = body 
+    } 
+
+    let blocked = !!handlers.find(h => h.name === name) 
+    let handler = new PartHandler(name, part, blocked, number)
+    handler.on('finish', err => {
+
+      if (err) form.pause()
+      
+      console.log(`${handler.number}: finished ${err && err.message}`)
+      console.log(handlers.map(h => ('' + h.number + ':' + h.name)))
+
+      // remove handler out of queue 
+      let index = handlers.indexOf(handler) 
+      handlers.splice(index, 1)
+
+      // run next if any
+      let next = handlers.slice(index).find(h => h.name === part.name)
+      if (next) next.unblock()
+
+      finalize(err)
+    })
+
+    handlers.push(handler)
+  }
+
+  // on error, request is paused automatically so it blocks further error and end
+  form.on('error', err => finalize(err))
+  form.on('aborted', () => finalize(new Error('aborted')))
+  form.on('end', () => (formEnded = true) && finalize())
+  form.parse(req)
+})
 
 /**
 040 * patch a directory (rename)

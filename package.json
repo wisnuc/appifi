@@ -44,6 +44,7 @@
     "filter-object": "^2.1.0",
     "fs-extra": "^3.0.1",
     "fs-xattr": "^0.1.14",
+    "ioctl": "^2.0.1",
     "json-loader": "^0.5.4",
     "jwt-simple": "^0.5.0",
     "mkdirp": "^0.5.1",

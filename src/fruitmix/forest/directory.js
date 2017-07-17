@@ -1,6 +1,7 @@
 const path = require('path')
 const Node = require('./node')
 const Readdir = require('./readdir')
+const Debug = require('debug')
 
 /**
 Directory represents a directory in the underlying file system.
@@ -73,7 +74,7 @@ class Directory extends Node {
     Array.from(this.children)
       .reduce((lost, child) => {
 
-        let xstat = map.find(child.uuid)
+        let xstat = map.get(child.uuid)
         if (xstat) {
           child.update(xstat, monitors) 
           map.delete(child.uuid)
