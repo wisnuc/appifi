@@ -1,5 +1,6 @@
 const fs = require('fs')
 const path = require('path')
+const debug = require('debug')('station')
 
 const client = require('socket.io-client')
 const ursa = require('ursa')
@@ -22,7 +23,7 @@ class Connect {
       transports: ['websocket']
     })
     this.socket.on('connect', (() => {
-      console.log('connent success')
+      debug('connent success')
       this.send('requestLogin',{ id: this.sa.id})
     }).bind(this))
     this.socket.on('event', ((data) => {
@@ -32,13 +33,13 @@ class Connect {
       this.dispatch(data.type, data.data)
     }).bind(this))
     this.socket.on('disconnect', () => {
-      console.log('connent disconnect')
+      debug('connent disconnect')
     })
-    this.socket.on('connect_error',console.error.bind(console, 'Connnect-Error: '))
+    this.socket.on('connect_error', console.error.bind(console, 'Connnect-Error: '))
   }
 
   dispatch(eventType, data) {
-    console.log('dispatch:', eventType, data)
+    debug('dispatch:', eventType, data)
     if(eventType === 'checkLogin'){
       let secretKey = ursa.createPrivateKey(fs.readFileSync(path.join(this.froot, 'station', FILE.PVKEY)))
       let seed = secretKey.decrypt(data.encryptData, 'base64', 'utf8')
@@ -46,12 +47,12 @@ class Connect {
     }
     if(eventType === 'login'){
       let success = data.success
-      console.log(success)
+      debug(success)
     }
   }
 
   send(eventType, data) {
-    console.log(eventType, data)
+    debug(eventType, data)
     this.socket.emit('message', { type: eventType, data})
   }
 
