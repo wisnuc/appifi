@@ -49,7 +49,7 @@ app.use('/drives', drives)
 app.use('/boxes', boxes)
 app.use('/cloudToken', cloudToken)
 app.use('/uploads', uploads)
-app.use('/station', station)
+app.use('/station', station.router)
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

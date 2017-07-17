@@ -26,8 +26,6 @@ let createTicket = (user, sa, type, callback) => {
     }) 
 }
 
-module.exports.createTicket = createTicket
-
 let getTicket = (ticketId, callback) => {
   request
     .get(CONFIG.CLOUD_PATH + 'v1/tickets/' + ticketId)
@@ -40,7 +38,6 @@ let getTicket = (ticketId, callback) => {
 
 let getTicketAsync = Promise.promisify(getTicket)
 
-module.exports.getTicket = getTicket
 
 let getTickets = (creator, callback) => {
   request
@@ -64,7 +61,7 @@ let requestConfirm = (state, guid, ticketId, callback) => {
       ticketId
     })
     .end((err, res) => {
-      if(err || res.status !== 200) return callback(new Error('confirm error')) 
+      if(err || res.status !== 200) return console.log(err) && callback(new Error('confirm error')) 
       return callback(null, res.body.data)
     })
 }
@@ -76,11 +73,15 @@ let requestConfirmAsync = Promise.promisify(requestConfirm)
 let confirmTicketAsync = async (ticketId, guid, useruuid, state) => {
   if(!state)
     return await requestConfirmAsync(state, guid, ticketId)
+  console.log('111111111')
   let u = User.findUser(useruuid)
-  if(type === 2 && u.global)
-    throw new Error('user has already bind')
+  console.log('2222222')
   let ticket = await getTicketAsync(ticketId)
+
+  if(ticket.type === 2 && u.global)
+    throw new Error('user has already bind')  
   if(ticket.type === 1){//share register new local 
+    
     let index = ticket.users.findIndex(u => u.guid === guid) 
     if (index === -1) throw new Error('user not found')
     await requestConfirmAsync(state, guid, ticketId)
@@ -93,8 +94,11 @@ let confirmTicketAsync = async (ticketId, guid, useruuid, state) => {
                         }
                       })            
   }else if(ticket.type === 2){//binding
+    console.log('type === 2')
     if (ticket.userData.guid !== guid) throw new Error('user not found')
+    console.log('confirm start')
     await requestConfirmAsync(state, guid, ticketId)
+    console.log('confirm success')
     return await User.updateUserAsync(useruuid, {
       global: {
         id: guid,
@@ -104,4 +108,10 @@ let confirmTicketAsync = async (ticketId, guid, useruuid, state) => {
   }
 }
 
-module.exports.confirmTicketAsync = confirmTicketAsync
+module.exports = {
+  createTicket,
+  getTicket,
+  getTicketAsync,
+  requestConfirmAsync,
+  confirmTicketAsync
+}
