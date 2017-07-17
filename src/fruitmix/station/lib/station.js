@@ -83,8 +83,9 @@ class Station {
     await this.initAsync() // init station for keys
     try{
       this.sa = await this.registerAsync()
+      broadcast.emit('StationStart', this)
       //connect to cloud
-      this.connect = new Connect(CONFIG.CLOUD_PATH, this.sa, this.froot)
+      this.connect = Connect
     }catch(e){
       console.log(e)
     }

@@ -4,15 +4,17 @@ const path = require('path')
 const client = require('socket.io-client')
 const ursa = require('ursa')
 
-const { FILE } = require('./const')
+const { FILE, CONFIG } = require('./const')
+const broadcast = require('../../../common/broadcast')
 
 class Connect { 
 
-  constructor(address, sa, froot) {
-    this.address = address
-    this.connect(address)
-    this.sa = sa
-    this.froot = froot
+  constructor() {
+    broadcast.on('StationStart', station => {
+      this.sa = station.sa
+      this.froot = station.froot
+      this.connect(CONFIG.CLOUD_PATH)
+    })
   }
 
   connect(address) {
@@ -65,4 +67,4 @@ class Connect {
   }
 }
 
-module.exports = Connect
+module.exports = new Connect()

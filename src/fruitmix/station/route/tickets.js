@@ -1,6 +1,8 @@
 const Router = require('express').Router
 
 const Tickets = require('../lib/tickets')
+const Asset = require('../../lib/assertion')
+const E = require('../../lib/error')
 
 let router = Router()
 
@@ -9,7 +11,9 @@ let router = Router()
 router.post('/', (req, res) => {
   let user = req.user
   let type = req.body.type
-  console.log(user, type)
+  // console.log(user, type)
+  if(typeof type !== 'number' || type < 0 || type > 2)
+    return res.status(400).json(E.EINVAL())
   Tickets.createTicket(user, req.body.sa, type, (err, resp) => {
     if(err) return console.log(err) && res.status(500).json(err)
     return res.status(200).json(resp)
@@ -37,7 +41,8 @@ router.post('/wechat/:ticketId', async (req, res) => {
   let guid = req.body.guid
   let state = req.body.state
   let user = req.user
-
+  if(!Asset.isUUID(guid) || typeof state !== 'boolean')
+    return res.status(400).json(E.EINVAL())
   try{
     let newuser = await Tickets.confirmTicketAsync(req.params.ticketId, guid, user.uuid, state)
     return res.status(200).json(newuser)
