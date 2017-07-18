@@ -29,6 +29,7 @@ class Station {
           debug(e)
         })
     })
+    broadcast.on('FruitmixStop', () => this.deinit())
   }
 
   async initAsync() {
@@ -92,6 +93,18 @@ class Station {
     }
   }
 
+  deinit() {
+    this.publicKey = null
+    this.privateKey = null
+    this.sa = null
+    this.connect = null
+    this.froot = null
+    this.pbkPath = null
+    this.pvkPath = null
+    broadcast.emit('StationStop', this)
+    debug('station deinit')
+  }
+
   register(callback) {
     let saPath = path.join(this.froot, 'station', FILE.SA)
     fs.lstat(saPath, (err, lstat) => {
@@ -134,6 +147,14 @@ class Station {
       return next()
     }
     return res.status(500).json(new Error('station initialize error'))
+  }
+
+  info(){
+    let info = Object.assign({}, this.sa)
+    info.connectState = this.connect.getState()
+    info.pbk = this.publicKey
+    info.connectError = this.connect.error
+    return info
   }
 }
 
