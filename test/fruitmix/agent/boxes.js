@@ -390,6 +390,21 @@ describe(path.basename(__filename), () => {
         .catch(done)
     })
 
+    it('DELETE /boxes/{uuid}/twits should delete a twit', done => {
+      request(app)
+        .delete(`/boxes/${boxUUID}/twits`)
+        .send({index: 2})
+        .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
+        .expect(200)
+        .end(err => {
+          if (err) return done(err)
+          let fpath = path.join(tmptest, 'boxes', boxUUID, 'blackList')
+          let result = fs.readFileSync(fpath).toString()
+          expect(result).to.equal('2')
+          done()
+        })
+    })
+
     it('POST /boxes/{uuid}/branches alice create a new branch successfully', done => {
       request(app)
         .post(`/boxes/${boxUUID}/branches`)

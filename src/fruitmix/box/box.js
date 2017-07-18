@@ -211,17 +211,16 @@ class Records {
     return Promise.promisify(this.get).bind(this)(props)
   }
 
-  delete(obj, callback) {
-    let index = obj.index
+  delete(index, callback) {
     let size = fs.readFileSync(this.blackList).length
     let writeStream = fs.createWriteStream(this.blackList, { flags: 'r+', start: size })
-    writeStream.write(` ${index}`)
+    size ? writeStream.write(` ${index}`) : writeStream.write(`${index}`)
     writeStream.close()
     return callback(null)
   }
 
-  async deleteAsync(obj) {
-    return Promise.promisify(this.delete).bind(this)(obj)
+  async deleteAsync(index) {
+    return Promise.promisify(this.delete).bind(this)(index)
   }
 }
 
@@ -297,14 +296,24 @@ class Box {
     return twit
   }
 
-
-  
-  // find、findAll(where: {limit:10,offset:0})
-  // create、createAll
-  // update()
-  // 
+  /**
+   * get oppointed twits
+   * @param {Object} props 
+   * @param {number} props.first - optional
+   * @param {number} props.last - optional
+   * @param {number} props.count - optional
+   * @param {string} props.segments - optional
+   */
   async getTwitsAsync(props) {
     return await this.records.getAsync(props)
+  }
+
+  /**
+   * delete a twit
+   * @param {number} index - the index of twit to be delete
+   */
+  async deleteTwitAsync(index) {
+    return await this.records.deleteAsync(index)
   }
 
   /**
