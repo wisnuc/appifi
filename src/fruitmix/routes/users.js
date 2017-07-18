@@ -1,7 +1,7 @@
 const Promise = require('bluebird')
 const router = require('express').Router()
 const auth = require('../middleware/auth')
-const uuid = require('uuid')
+const UUID = require('uuid')
 
 const User = require('../models/user')
 const Drive = require('../models/drive')
@@ -45,18 +45,22 @@ router.post('/', (req, res, next) => {
 
 router.get('/:uuid', auth.jwt(), (req, res) => {
   
+  let uuid = req.params.uuid
   let user = req.user
-  if (user.uuid === uuid) 
-    res.status(200).json(user)
-  else if (user.isAdmin) {
+
+  if (user.uuid === uuid) return res.status(200).json(user)
+
+  if (user.isAdmin) {
     let u = User.findUser(uuid) 
     if (u) 
       res.status(200).json(u)
     else
       res.status(404).end()
+
+    return
   }
-  else 
-    res.status(403).end() // TODO message? 
+
+  res.status(403).end() // TODO message? 
 })
 
 router.patch('/:userUUID', auth.jwt(), (req, res, next) => {
