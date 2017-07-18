@@ -75,7 +75,14 @@ const FILES = {
     path: 'testdata/alonzo_church.jpg',
     size: 39499, 
     hash: '8e28737e8cdf679e65714fe2bdbe461c80b2158746f4346b06af75b42f212408'
-  } 
+  },
+
+  empty: {
+    name: 'empty',
+    path: 'testdata/empty',
+    size: 0,
+    hash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'
+  }
 }
 
 const stubUserUUID = username => 

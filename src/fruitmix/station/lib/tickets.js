@@ -1,6 +1,5 @@
 const Promise = require('bluebird')
 const request = require('superagent')
-const Promise = require('bluebird')
 
 const User = require('../../models/user') 
 

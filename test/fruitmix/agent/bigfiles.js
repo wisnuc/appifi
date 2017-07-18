@@ -92,40 +92,9 @@ describe(path.basename(__filename), () => {
           done()
         })
     })
-
-    it('POST directory hello and world', done => {
-      
-      request(app)
-        .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
-        .set('Authorization', 'JWT ' + token)
-        .field('dir', 'hello')
-        .field('dir', 'world')
-        .expect(200)
-        .end((err, res) => {
-          if (err) return done(err)
-
-          request(app)
-            .get(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
-            .set('Authorization', 'JWT ' + token)
-            .expect(200)
-            .end((err, res) => {
-              if (err) return done(err)
-
-              let arr = res.body
-                .map(x => ({ type: x.type, name: x.name }))
-                .sort((a, b) => a.name.localeCompare(b.name))
-
-              expect(arr).to.deep.equal([
-                { type: 'directory', name: 'hello' },
-                { type: 'directory', name: 'world' }
-              ])
-
-              done()
-            })
-         })
-    })
 **/
 
+/**
     it('POST alonzo', function(done) {
 
       // this.timeout(0)
@@ -139,7 +108,6 @@ describe(path.basename(__filename), () => {
       request(app)
         .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
         .set('Authorization', 'JWT ' + token)
-/**
         .field('data', JSON.stringify({ op: 'mkdir', name: 'hello' }))
         .field('data', JSON.stringify({ op: 'rename', name: 'hello', newName: 'world' }))
         .attach('file', 'testdata/empty', JSON.stringify(desc1))
@@ -148,7 +116,6 @@ describe(path.basename(__filename), () => {
         .attach('file', 'testdata/empty', JSON.stringify(desc1))
         .attach('file', 'testdata/empty', JSON.stringify(desc1))
         .attach('file', 'testdata/empty', JSON.stringify(desc1))
-**/
         .attach('empty', 'testdata/empty', JSON.stringify(desc1))
         .attach('alonzo', 'testdata/alonzo_church.jpg', JSON.stringify(desc1))
         .expect(200)
@@ -160,13 +127,125 @@ describe(path.basename(__filename), () => {
           }, 500)
         })
     })
+**/
 
     it('POST mkdir hello', function(done) {
       
       request(app)
         .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
         .set('Authorization', 'JWT ' + token)
-        .field('hello', '')
+        .field('hello', JSON.stringify({ op: 'mkdir' }))
+        .field('hello', JSON.stringify({ op: 'mkdir' }))
+        .field('hello', JSON.stringify({ op: 'mkdir' }))
+        .field('hello', JSON.stringify({ op: 'mkdir' }))
+        .field('hello', JSON.stringify({ op: 'mkdir' }))
+        .field('hello', JSON.stringify({ op: 'mkdir' }))
+        .field('hello', JSON.stringify({ op: 'mkdir' }))
+        .field('hello', JSON.stringify({ op: 'mkdir' }))
+         .expect(200)
+        .end((err, res) => {
+          let dirPath = path.join(forestDir, IDS.alice.home, 'hello')
+          fs.lstat(dirPath, (err, stat) => {
+            if (err) return done(err)
+            expect(stat.isDirectory()).to.be.true
+            done()
+          })
+        })
+    })
+
+    it('POST mkdir hello and rename to world', function(done) {
+
+      request(app)
+        .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
+        .set('Authorization', 'JWT ' + token)
+        .field('hello', JSON.stringify({ op: 'mkdir' }))
+        .field('hello|world', JSON.stringify({ op: 'rename' }))
+         .expect(200)
+        .end((err, res) => {
+          let helloPath = path.join(forestDir, IDS.alice.home, 'hello')
+          let worldPath = path.join(forestDir, IDS.alice.home, 'world')
+          fs.lstat(helloPath, err => {
+            expect(err.code).to.equal('ENOENT')
+            expect(fs.lstatSync(worldPath).isDirectory()).to.be.true
+            done()
+          })
+        })
+    })
+
+    it('POST empty file', function(done) {
+
+      request(app)
+        .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
+        .set('Authorization', 'JWT ' + token)
+        .attach('empty', 'testdata/empty', JSON.stringify({ size: 0, sha256: FILES.empty.hash }))
+        .expect(200)
+        .end((err, res) => {
+          let filePath = path.join(forestDir, IDS.alice.home, 'empty')
+          let stat = fs.lstatSync(filePath)
+          let attr = JSON.parse(xattr.getSync(filePath, 'user.fruitmix'))
+          expect(stat.isFile()).to.be.true
+          expect(attr.hash).to.equal(FILES.empty.hash)
+          expect(attr.magic).to.equal(0)
+          done()
+        })
+
+    })
+
+    it('POST empty file and rename to zero', function(done) {
+
+      request(app)
+        .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
+        .set('Authorization', 'JWT ' + token)
+        .attach('empty', 'testdata/empty', JSON.stringify({ size: 0, sha256: FILES.empty.hash }))
+        .field('empty|zero', JSON.stringify({ op: 'rename' }))
+        .expect(200)
+        .end((err, res) => {
+
+          let emptyPath = path.join(forestDir, IDS.alice.home, 'empty')
+          let zeroPath = path.join(forestDir, IDS.alice.home, 'zero')
+
+          fs.lstat(emptyPath, err => {
+            expect(err.code).to.equal('ENOENT')
+
+            let stat = fs.lstatSync(zeroPath)
+            let attr = JSON.parse(xattr.getSync(zeroPath, 'user.fruitmix'))
+            expect(stat.isFile()).to.be.true
+            expect(attr.hash).to.equal(FILES.empty.hash)
+            expect(attr.magic).to.equal(0)
+            done()
+          })
+        })
+
+    })
+
+    it('POST alonzo file', function(done) {
+
+      request(app)
+        .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
+        .set('Authorization', 'JWT ' + token)
+        .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', JSON.stringify({
+          size: FILES.alonzo.size,
+          sha256: FILES.alonzo.hash
+        }))
+        .expect(200)
+        .end((err, res) => {
+          setTimeout(() => {
+            console.log(err || res.body)
+            done()
+          }, 500)
+        })
+    })
+
+    it('POST alonzo file and rename to church', function(done) {
+
+      request(app)
+        .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
+        .set('Authorization', 'JWT ' + token)
+        .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', JSON.stringify({
+          size: FILES.alonzo.size,
+          sha256: FILES.alonzo.hash
+        }))
+        .field('alonzo.jpg|church.jpg', JSON.stringify({ op: 'rename' }))
         .expect(200)
         .end((err, res) => {
           setTimeout(() => {
@@ -176,6 +255,7 @@ describe(path.basename(__filename), () => {
         })
     })
   })
+
 
 /** 
   describe("Alice w/ hello world foo bar", () => {

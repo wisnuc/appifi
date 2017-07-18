@@ -87,7 +87,7 @@ class Station {
       //connect to cloud
       this.connect = Connect
     }catch(e){
-      console.log(e)
+      // console.log(e)
     }
   }
 
