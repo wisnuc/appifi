@@ -1,4 +1,5 @@
 const Router = require('express').Router
+const debug = require('debug')('station')
 
 const Tickets = require('../lib/tickets')
 const Asset = require('../../lib/assertion')
@@ -13,9 +14,9 @@ router.post('/', (req, res) => {
   let type = req.body.type
   // console.log(user, type)
   if(typeof type !== 'number' || type < 0 || type > 2)
-    return res.status(400).json(E.EINVAL())
+    return res.status(400).json(new E.EINVAL())
   Tickets.createTicket(user, req.body.sa, type, (err, resp) => {
-    if(err) return console.log(err) && res.status(500).json(err)
+    if(err) return debug(err) && res.status(500).json(err)
     return res.status(200).json(resp)
   })
 })
@@ -23,7 +24,7 @@ router.post('/', (req, res) => {
 //confirm
 router.get('/:ticketId', (req, res) => {
   Tickets.getTicket(req.params.ticketId, (err, data) => {
-    if(err) return console.log(err) && res.status(500).json(err)
+    if(err) return debug(err) && res.status(500).json(err)
     return res.status(200).json(data.userData)
   })
 })
@@ -42,12 +43,12 @@ router.post('/wechat/:ticketId', async (req, res) => {
   let state = req.body.state
   let user = req.user
   if(!Asset.isUUID(guid) || typeof state !== 'boolean')
-    return res.status(400).json(E.EINVAL())
+    return res.status(400).json(new E.EINVAL())
   try{
     let newuser = await Tickets.confirmTicketAsync(req.params.ticketId, guid, user.uuid, state)
     return res.status(200).json(newuser)
   }catch(e){
-    console.log(e)
+    debug(e)
     return res.status(500).json(e)
   }
 

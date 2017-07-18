@@ -1,5 +1,5 @@
 const Promise = require('bluebird')
-const request = require('superagent')
+const debug = require('debug')('station')
 
 const User = require('../../models/user') 
 
@@ -20,8 +20,7 @@ let createTicket = (user, sa, type, callback) => {
        type
     })
     .end((err, res) => {
-      console.log(err, res.body)
-      if(err || res.status !== 200) return callback(new Error('create ticket error'))
+      if(err || res.status !== 200) return debug(err) && callback(new Error('create ticket error'))
       return callback(null, res.body.data)
     }) 
 }
@@ -61,7 +60,7 @@ let requestConfirm = (state, guid, ticketId, callback) => {
       ticketId
     })
     .end((err, res) => {
-      if(err || res.status !== 200) return console.log(err) && callback(new Error('confirm error')) 
+      if(err || res.status !== 200) return debug(err) && callback(new Error('confirm error')) 
       return callback(null, res.body.data)
     })
 }
@@ -88,16 +87,17 @@ let confirmTicketAsync = async (ticketId, guid, useruuid, state) => {
                         password: '',
                         global:{
                           id: guid,
-                          wx: []
+                          wx: [ticket.userData.userInfo.unionid]
                         }
                       })            
   }else if(ticket.type === 2){//binding
     if (ticket.userData.guid !== guid) throw new Error('user not found')
     await requestConfirmAsync(state, guid, ticketId)
+    debug(ticket)
     return await User.updateUserAsync(useruuid, {
       global: {
         id: guid,
-        wx: [ticket.userData.unionid]
+        wx: [ticket.userData.userInfo.unionid]
       }
     })
   }

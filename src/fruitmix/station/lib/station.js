@@ -7,6 +7,7 @@ const Router = require('express').Router
 const mkdirp = require('mkdirp')
 const rimraf = require('rimraf')
 const request = require('superagent')
+const debug = require('debug')('station')
 
 // const { registerAsync } = require('./register')
 const { FILE, CONFIG } = require('./const')
@@ -25,9 +26,10 @@ class Station {
         .then(() => {})
         .catch(e => {
           //TODO 
-          console.log(e)
+          debug(e)
         })
     })
+    broadcast.on('FruitmixStop', () => this.deinit())
   }
 
   async initAsync() {
@@ -87,8 +89,20 @@ class Station {
       //connect to cloud
       this.connect = Connect
     }catch(e){
-      // console.log(e)
+      debug(e)
     }
+  }
+
+  deinit() {
+    this.publicKey = null
+    this.privateKey = null
+    this.sa = null
+    this.connect = null
+    this.froot = null
+    this.pbkPath = null
+    this.pvkPath = null
+    broadcast.emit('StationStop', this)
+    debug('station deinit')
   }
 
   register(callback) {
@@ -97,7 +111,7 @@ class Station {
       if(err || !lstat.isFile()) return this.requestRegisterStation(callback)
       fs.readFile(saPath, (err, data) => {
         if(err) return callback(err)
-        console.log( JSON.parse(data))
+        debug( JSON.parse(data))
         return callback(null, JSON.parse(data))
       })
     })
@@ -126,13 +140,21 @@ class Station {
   }
 
   stationFinishStart(req, res, next) {
-    console.log('station started')
+    debug('station started')
     if(this.sa !== undefined && this.connect !== undefined && this.connect.isConnect){
       req.body.sa = this.sa
       req.body.connect = this.connect
       return next()
     }
     return res.status(500).json(new Error('station initialize error'))
+  }
+
+  info(){
+    let info = Object.assign({}, this.sa)
+    info.connectState = this.connect.getState()
+    info.pbk = this.publicKey
+    info.connectError = this.connect.error
+    return info
   }
 }
 
