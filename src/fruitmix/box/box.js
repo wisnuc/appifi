@@ -56,8 +56,9 @@ class Records {
    * 
    * @param {string} filePath - twits DB path 
    */
-  constructor(filePath) {
+  constructor(filePath, blackList) {
     this.filePath = filePath
+    this.blackList = blackList
   }
 
   /**
@@ -68,9 +69,9 @@ class Records {
    */
   save(obj, start) {
     let text = Stringify(obj)
-    let writeSteam = fs.createWriteStream(this.filePath, { flags: 'r+', start: start })
-    writeSteam.write(`\n${text}`)
-    writeSteam.close()
+    let writeStream = fs.createWriteStream(this.filePath, { flags: 'r+', start: start })
+    writeStream.write(`\n${text}`)
+    writeStream.close()
   }
 
   /**
@@ -103,9 +104,9 @@ class Records {
             fs.truncate(this.filePath, err => {
               if (err) return callback(err)
               let text = Stringify(obj)
-              let writeSteam = fs.createWriteStream(this.filePath)
-              writeSteam.write(text)
-              writeSteam.close()
+              let writeStream = fs.createWriteStream(this.filePath)
+              writeStream.write(text)
+              writeStream.close()
               return callback(null)
             })
           } else {
@@ -141,10 +142,16 @@ class Records {
     let lr = new lineByLineReader(this.filePath, {skipEmptyLines: true})
 
     // read all lines
-    lr.on('line', line => {console.log(line),records.push(line)})
+    lr.on('line', line => records.push(line))
 
     // check the last line and repair twits DB if error exists
     lr.on('end', () => {
+      // read blackList
+      let blackList = fs.readFileSync(this.blackList).toString()
+      blackList.length ? blackList = blackList.split(' ').map(i => parseInt(i))
+                       : blackList = []
+
+      // repair wrong content and filter contents in blackList
       let size = fs.readFileSync(this.filePath).length
       let end = records.pop()
 
@@ -165,28 +172,56 @@ class Records {
       }
 
       if (!first && !last && !count && !segments) {
-        return callback(null, records.map(r => JSON.parse(r)))
-      } else if (!first && !last && !segments && count) {
+        let result = records.map(r => JSON.parse(r))
+                            .filter(r => !blackList.includes(r.index))
+        return callback(null, result)
+      }
+      else if (!first && !last && count && !segments) {
         let result = records.silce(-count)
-        return callback(null, result.map(r => JSON.parse(r)))
-      } else if (first <= last && count && !segments) {
-        let tail = records.slice(first-count, first)
-        let head = records.slice(last+1)
+                            .map(r => JSON.parse(r))
+                            .filter(r => !blackList.includes(r.index))
+        return callback(null, result)
+      }
+      else if (first <= last && count && !segments) {
+        let tail = records.slice(first - count, first)
+        let head = records.slice(last + 1)
         let result = [...tail, ...head]
-        return callback(null, result.map(r => JSON.parse(r)))
-      } else if (!first && !last && !count && segments) {
+                    .map(r => JSON.parse(r))
+                    .filter(r => !blackList.includes(r.index))
+        return callback(null, result)
+      }
+      else if (!first && !last && !count && segments) {
         segments = segments.split('|').map(i => i.split(':'))
         let result = []
-        segments.forEach(s => result.push(...records.slice(Number(s[0]), Number(s[1])+1)))
-        return callback(null, result.map(r => JSON.parse(r)))
-      }else
+        segments.forEach(s => {
+          s[1] !== ''
+          ? result.push(...records.slice(Number(s[0]), Number(s[1]) + 1))
+          : result.push(...records.slice(Number(s[0])))
+        })
+
+        result = result.map(r => JSON.parse(r)).filter(r => !blackList.includes(r.index))
+        return callback(null, result)
+      }
+      else
         return callback(new E.EINVAL())
     })
   }
 
   async getAsync(props) {
-    console.log('ddddddd')
     return Promise.promisify(this.get).bind(this)(props)
+  }
+
+  delete(obj, callback) {
+    let index = obj.index
+    let size = fs.readFileSync(this.blackList).length
+    let writeStream = fs.createWriteStream(this.blackList, { flags: 'r+', start: size })
+    writeStream.write(` ${index}`)
+    writeStream.close()
+    return callback(null)
+  }
+
+  async deleteAsync(obj) {
+    return Promise.promisify(this.delete).bind(this)(obj)
   }
 }
 
@@ -269,10 +304,7 @@ class Box {
   // update()
   // 
   async getTwitsAsync(props) {
-    console.log('============')
-    let result = await this.records.getAsync(props)
-    console.log(result)
-    return result
+    return await this.records.getAsync(props)
   }
 
   /**
@@ -512,8 +544,10 @@ class BoxData {
     await saveObjectAsync(path.join(tmpDir, 'manifest'), this.tmpDir, doc)
     await fs.renameAsync(tmpDir, path.join(this.dir, doc.uuid))
     let dbPath = path.join(this.dir, doc.uuid, 'records')
-    await fs.writeFileAsync(dbPath,'')
-    let records = new Records(dbPath)
+    let blPath = path.join(this.dir, doc.uuid, 'blackList')
+    await fs.writeFileAsync(dbPath, '')
+    await fs.writeFileAsync(blPath, '')
+    let records = new Records(dbPath, blPath)
     let box = new Box(path.join(this.dir, doc.uuid), this.tmpDir, doc, records)
 
     this.map.set(doc.uuid, box)

@@ -2,6 +2,7 @@ const path = require('path')
 const request = require('supertest')
 const superagent = require('superagent')
 const Promise = require('bluebird')
+const fs = require('fs')
 const rimrafAsync = Promise.promisify(require('rimraf'))
 const mkdirpAsync = Promise.promisify(require('mkdirp'))
 const UUID = require('uuid')
@@ -49,7 +50,7 @@ const resetAsync = async() => {
   await mkdirpAsync(tmpDir) 
   await mkdirpAsync(repoDir)
  
-  broadcast.emit('FruitmixStart', 'tmptest') 
+  broadcast.emit('FruitmixStart', tmptest) 
 
   await broadcast.until('UserInitDone', 'BoxInitDone')
 }
@@ -324,7 +325,34 @@ describe(path.basename(__filename), () => {
         })
     })
 
-    it.only('GET /boxes/{uuid}/twits should get all records', (done) => {
+    it('POST /boxes/{uuid}/twits should cover the last record if it is incorrect', done => {
+      let text = '{"comment":"hello","ctime":1500343057045,"index":4,"twitter":"ocMvos6NjeKLIBqg5Mr9QjxrP1FA"'
+      let filepath = path.join(tmptest, 'boxes', boxUUID, 'records')
+      fs.writeFileSync(filepath, text)
+
+      request(app)
+        .post(`/boxes/${boxUUID}/twits`)
+        .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
+        .send({comment: 'hello'})
+        .expect(200)
+        .end((err, res) => {
+          if (err) return done(err)
+
+          request(app)
+            .get(`/boxes/${boxUUID}/twits`)
+            .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
+            .expect(200)
+            .end((err, res) => {
+              if (err) return done(err)
+              expect(res.body.length).to.equal(1)
+              expect(res.body[0].comment).to.equal('hello')
+              expect(res.body[0].index).to.equal(0)
+              done()
+            })
+        })
+    })
+
+    it('GET /boxes/{uuid}/twits should get all records', done => {
       forgeRecords(boxUUID, 'alice')
         .then(() => {
           request(app)
@@ -332,7 +360,29 @@ describe(path.basename(__filename), () => {
             .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
             .expect(200)
             .end((err, res) => {
-              console.log(res.body)
+              expect(res.body.length).to.equal(10)
+              done()
+            })
+        })
+        .catch(done)
+    })
+
+    it('GET /boxes/{uuid}/twits should repair twits DB if the last record is incorrect', done => {
+      forgeRecords(boxUUID, 'alice')
+        .then(() => {
+          let filepath = path.join(tmptest, 'boxes', boxUUID, 'records')
+          let size = fs.readFileSync(filepath).length
+          let text = '{"comment":"hello","ctime":1500343057045,"index":10,"twitter":"ocMvos6NjeKLIBqg5Mr9QjxrP1FA"'
+          
+          let writeStream = fs.createWriteStream(filepath, { flags: 'r+', start: size })
+          writeStream.write(`\n${text}`)
+          writeStream.close()
+
+          request(app)
+            .get(`/boxes/${boxUUID}/twits`)
+            .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
+            .expect(200)
+            .end((err, res) => {
               expect(res.body.length).to.equal(10)
               done()
             })
