@@ -3,6 +3,7 @@ const path = require('path')
 const fs = Promise.promisifyAll(require('fs'))
 const EventEmitter = require('events')
 const crypto = require('crypto')
+const ioctl = require('ioctl')
 
 const rimraf = require('rimraf')
 const mkdirp = require('mkdirp')
@@ -211,6 +212,25 @@ class MkdirHandler extends BaseHandler {
   } 
 }
 
+class RenameHandler extends BaseHandler {
+
+  constructor (part, blocked) {
+    super(part, blocked)
+    if (!this.blocked) this.run() 
+  }
+
+  run() {
+    let oldPath = path.join(this.part.dir.abspath(), this.part.fromName)
+    let newPath = path.join(this.part.dir.abspath(), this.part.toName)
+    fs.rename(oldPath, newPath, err => this.emit('finish', err)) 
+  }
+  
+  unblock() {
+    super.unblock()
+    this.run()
+  }
+}
+
 class NewFileHandler extends BaseHandler {
 
   constructor (part, blocked) {
@@ -263,22 +283,59 @@ class NewFileHandler extends BaseHandler {
   }
 }
 
-class RenameHandler extends BaseHandler {
+class AppendHandler extends BaseHandler {
 
   constructor (part, blocked) {
     super(part, blocked)
-    if (!this.blocked) this.run() 
+
+    this.size = 0
+    this.hash = crypto.createHash('sha256')
+
+    const request = 0x40049409
+    const src = fs.openSync('hello', 'r')
+    const dst = fs.openSync('world', 'w') 
+
+    this.ws = undefined
+    try {
+      let srcPath = path.join(this.part.dir.abspath(), this.part.fromName)
+      let srcFd = fs.openSync(srcPath, 'r')
+      let dstPath = path.join(fruitmixPath, 'tmp', UUID.v4())
+      let dstFd = fs.openSync(dstPath, 'w')
+      ioctl(dstFd, request, srcFd) 
+      fs.closeSync(srcFd)      
+      this.ws = fs.createWriteStream(dstPath, { fd: dstFd })
+    }
+    catch (e) {
+      console.log(e)
+      process.exit(1)
+    }
+
+    part.on('data', chunk => {
+      this.size += chunk.length
+      
+      if (this.ws) {
+        this.ws.write(chunk)
+      } else {
+        this.buffers.push(chunk)
+      }
+    }) 
+
+    part.on('end', () => {
+    })
+
   }
 
-  run() {
-    let oldPath = path.join(this.part.dir.abspath(), this.part.fromName)
-    let newPath = path.join(this.part.dir.abspath(), this.part.toName)
-    fs.rename(oldPath, newPath, err => this.emit('finish', err)) 
-  }
-  
+
   unblock() {
     super.unblock()
     this.run()
+  }
+
+  run() {
+    let srcPath = path.join(this.part.dir.abspath(), this.part.fromName)
+    let tmpPath = path.join(fruitmxPath, 'tmp', UUID.v4())
+    
+    count = 2
   }
 }
 
@@ -414,8 +471,12 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', auth.jwt(), (req, res, next) =>
       handler = new MkdirHandler(part, blocked)
     else if (part.opts.op === 'rename') 
       handler = new RenameHandler(part, blocked)
-    else
+    else if (part.opts.op === 'dup')
+      handler = new DupHandler(part, blocked)
+    else if (part.filename && !part.opts.append)
       handler = new NewFileHandler(part, blocked)
+    else if (part.filename && part.opts.append)
+      handler = new AppendHandler(part, blocked)
 
     handler.on('finish', err => {
       if (err) form.pause()
