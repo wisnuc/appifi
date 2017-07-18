@@ -1,5 +1,5 @@
 const Node = require('./node')
-
+const hash = require('../worker/hash')
 /**
 File is a in-memory file node maintaining (some) xstat props and related tasks.
 
@@ -38,6 +38,9 @@ class File extends Node {
       throw new Error('xstat hash must be string or undefined')
 
     super(ctx, parent, xstat)
+
+    this.uuid = xstat.uuid
+    this.name = xstat.name
 
     /**
     file magic string. For xstat, magic may be a number or a string. But for file object, only string is accepted.
@@ -83,14 +86,14 @@ class File extends Node {
   Index this file if it has hash
   */
   index() {
-    if (this.hash) this.ctx.indexFile(this)
+    if (this.hash) this.ctx.index(this)
   }
 
   /**
   Unindex this file before hash dropped, changed, or file object destroyed
   */
   unindex() {
-    if (this.hash) this.ctx.unindexFile(this)
+    if (this.hash) this.ctx.unindex(this)
   }
 
   /**

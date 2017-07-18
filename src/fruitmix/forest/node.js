@@ -113,6 +113,9 @@ class Node {
 //    if (!this.ctx.isRoot(q[0])) 
 //      throw new Error('abspath: node is not a descendant of drive root')
 
+//    console.log('====')
+//    console.log(this.ctx.dir, q)
+//    console.log('====')
     return path.join(this.ctx.dir, ...q.map(n => n.name))
   }
 }

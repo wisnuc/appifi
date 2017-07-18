@@ -12,71 +12,36 @@ app.post('/', (req, res) => {
 
   let form = new formidable.IncomingForm() 
 
+  let ended = false
+  let aborted = false
   let finished = false
 
-  let formfinished = false
-
-  let fileFinished = false
-  let body, error
-
-  let filePath
-  let size
-
-  const finalize = () => {
-    if (finished) return
-    if (formFinished && fileFinished) {
-      finished = true
-      if (error) 
-        res.status(500).end()
-      else
-        res.status(200).json(body)
-    }
-  }
-
+  // all field 
   form.on('field', (name, value) => {
     console.log('field', name, value)
     if (finished) return
 
-    if (name === 'size') {
-      size = parseInt(value)
-      // if ('' + size === value)
-    }
-  })
-
-  form.on('fileBegin', (name, file) => {
-    console.log('fileBegin', name, file)
-    if (finished) return
-
-    if (!Number.isInteger(size)) {
-      finished = true
-      res.status(409).end()
-      return
-    }
-   
-    filePath = path.join(cwd, 'tmptest', UUID.v4()) 
-    file.path = filePath
-  })
-
-  form.on('file', (name, file) => {
-    console.log('file', file)
-    if (finished) return
-
-    if (!Number.isInteger(size) || size !== file.size) {
-      finished = true
-      res.status(409).end()
-      return
-    }
-
-    // set body & error
-    setTimeout(() => {
+    mkdirp(dirPath, err => {
       if (finished) return
+      if (err) {
+        finished = true
+        return res.status(500).end() 
+      }
 
-      fileFinished = true
-      body = { hello: 'hello' }
-      finalize()
-    }, 10)
+      if (count === 0) {
+        finished = true
+        return res.status(200).end()
+      }
+    })
   })
 
+  form.onPart(part => {
+     
+  })
+
+  // when form error, req is paused according to formidable doc
+  // `A request that experiences an error is automatically paused`
+  // which means end won't be fired unless resumed?
   form.on('error', err => {
     console.log('error', err)
     if (finished) return 
@@ -92,8 +57,16 @@ app.post('/', (req, res) => {
 
   form.on('end', () => {
     console.log('end')
-    formFinished = true
-    finalize()
+    if (finished) return
+
+    ended = true
+    if (count === 0) {
+      finished = true
+      if (error)
+        res.status(err.status || 500).end()
+      else
+        res.status(200).end()
+    }
   })
 
   form.parse(req)

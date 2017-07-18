@@ -2,8 +2,6 @@ const Promise = require('bluebird')
 const path = require('path')
 const fs = Promise.promisifyAll(require('fs'))
 const EventEmitter = require('events')
-const crypto = require('crypto')
-
 const rimraf = require('rimraf')
 const mkdirp = require('mkdirp')
 const UUID = require('uuid')
@@ -15,7 +13,7 @@ const broadcast = require('../../common/broadcast')
 
 const Drive = require('../models/drive')
 const Forest = require('../forest/forest')
-const { readXstatAsync, forceXstat, forceXstatAsync } = require('../lib/xstat')
+const { readXstatAsync, forceXstatAsync } = require('../lib/xstat')
 const formdata = require('./formdata')
 const { upload, uploadAsync } = require('../lib/sidekick-client')
 
@@ -162,211 +160,8 @@ router.get('/:driveUUID/dirs/:dirUUID/entries', auth.jwt(), f(async(req, res) =>
   res.status(200).json(list)
 }))
 
-class BaseHandler extends EventEmitter {
-
-  constructor (part, blocked) {
-
-    console.log(`${part.number}: creating, ${part.fromName}, ${part.toName}, blocked: ${blocked}`)
-
-    super()
-    this.part = part
-    this.blocked = blocked
-    this.aborted = false
-
-  }
-
-  run() {
-  }
-
-  unblock() {
-    if (!this.blocked) throw new Error('unblocking unblocked handler')
-    console.log(`${this.part.number}: unblock`)
-    this.blocked = false     
-  }
-
-  abort() {
-    if (this.aborted) throw new Error('handler already aborted') 
-    this.aborted = true 
-  }
-}
-
-class MkdirHandler extends BaseHandler {
-
-  constructor (part, blocked) {
-    super(part, blocked)
-    if (!this.blocked) this.run()
-  }
-
-  run() {
-    let dirPath = path.join(this.part.dir.abspath(), this.part.toName)
-    mkdirp(dirPath, err => {
-      if (this.aborted) return this.emit('finish', new Error('aborted'))
-      this.emit('finish', err) 
-    })
-  }
-
-  unblock() {
-    super.unblock() 
-    this.run()
-  } 
-}
-
-class NewFileHandler extends BaseHandler {
-
-  constructor (part, blocked) {
-    super(part, blocked)
-
-    this.size = 0
-    this.hash = crypto.createHash('sha256')
-    this.ws = fs.createWriteStream(path.join(fruitmixPath, 'tmp', UUID.v4()))
-    this.fileEnded = false
-
-    part.on('data', chunk => {
-      this.size += chunk.length
-      this.hash.update(chunk)
-      this.ws.write(chunk)
-    })
-
-    part.on('error', err => {}) // TODO
-
-    part.on('end', () => {
-      this.ws.end(err => {
-        try {
-          if (err) throw err
-          if (this.size !== part.opts.size) throw new Error('size mismatch')
-          if (this.size !== this.ws.bytesWritten) throw new Error('bytesWritten mismatch')
-          if (this.hash.digest('hex') !== part.opts.sha256) throw new Error('sha256 mismatch')
-        } catch (e) {
-          rimraf(this.ws.path, () => {})
-          return this.emit('finish', e)
-        }
-
-        forceXstat(this.ws.path, { hash: part.opts.sha256 }, err => {
-          this.fileEnded = true
-          this.run()
-        })
-      })
-    })
-  }
-
-  run() {
-    if (this.fileEnded && !this.blocked) {
-      let oldPath = this.ws.path 
-      let newPath = path.join(this.part.dir.abspath(), this.part.toName)
-      fs.rename(oldPath, newPath, err => this.emit('finish', err))
-    }
-  }
-
-  unblock() {
-    super.unblock()
-    this.run()
-  }
-}
-
-class RenameHandler extends BaseHandler {
-
-  constructor (part, blocked) {
-    super(part, blocked)
-    if (!this.blocked) this.run() 
-  }
-
-  run() {
-    let oldPath = path.join(this.part.dir.abspath(), this.part.fromName)
-    let newPath = path.join(this.part.dir.abspath(), this.part.toName)
-    fs.rename(oldPath, newPath, err => this.emit('finish', err)) 
-  }
-  
-  unblock() {
-    super.unblock()
-    this.run()
-  }
-}
-
-class PartHandler extends EventEmitter {
-  constructor (part, blocked) {
-    super()
-    this.part = part
-    this.blocked = blocked
-
-    this.chunks = []
-    this.size = 0
-    this.aborted = false
-
-    if (part.filename) {
-
-      this.partEnded = false
-      this.hash = crypto.createHash('sha256')
-
-      if (part.opts.append) {
-        // TODO
-      } else {
-        this.ws = fs.createWriteStream(path.join(fruitmixPath, 'tmp', UUID.v4()))
-      }
-
-      part.on('data', chunk => {
-        this.size += chunk.length
-        this.hash.update(chunk)
-        this.ws.write(chunk)
-      })
-
-      part.on('error', err => {}) // TODO
-
-      part.on('end', () => {
-        console.log(`${part.number}: part end`)
-
-        this.ws.end(err => {
-          // check error
-          try {
-            if (err) throw err
-            if (this.size !== part.opts.size) throw new Error('size mismatch')
-            if (this.size !== this.ws.bytesWritten) throw new Error('bytesWritten mismatch')
-            if (this.hash.digest('hex') !== part.opts.sha256) throw new Error('sha256 mismatch')
-          } catch (e) {
-            rimraf(this.ws.path, () => {})
-            return this.emit('finish', e)
-          }
-
-          forceXstat(this.ws.path, { hash: part.opts.sha256 }, err => {
-            this.partEnded = true
-            this.run()
-          })
-        })
-      })
-    } else {
-      this.partEnded = true
-      this.run()
-    }
-
-    console.log(`${part.number}: created, ${part.name}, blocked: ${blocked}`)
-  }
-
-  run () {
-    if (this.partEnded && !this.blocked) {
-      if (this.part.filename) {
-        let oldPath = this.ws.path
-        let newPath = path.join(this.part.dir.abspath(), this.part.toName)
-        fs.rename(oldPath, newPath, err => this.emit('finish', err))
-      } else {
-        let dirPath = path.join(this.part.dir.abspath(), this.part.name)
-        mkdirp(dirPath, err => this.emit('finish', err))
-      }
-    }
-  }
-
-  unblock () {
-    if (!this.blocked) throw new Error('unblocking an already unblocked handler')
-    this.blocked = false
-    this.run()
-  }
-
-  abort () {
-    if (this.aborted) throw new Error('abort called more than once')
-    this.aborted = true 
-  }
-}
-
 router.post('/:driveUUID/dirs/:dirUUID/entries', auth.jwt(), (req, res, next) => {
-  if (!req.is('multipart/form-data')) return res.status(415).json({ message: 'must be multipart/form-data' }) 
+  if (!req.is('multipart/form-data')) { return res.status(415).json({ message: 'must be multipart/form-data' }) }
 
   let { driveUUID, dirUUID } = req.params
   let dir = Forest.getDriveDir(driveUUID, dirUUID)
@@ -406,17 +201,80 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', auth.jwt(), (req, res, next) =>
     }
   }
 
+  class PartHandler extends EventEmitter {
+    constructor (part, blocked) {
+      super()
+      this.part = part
+      this.blocked = blocked
+
+      this.chunks = []
+      this.size = 0
+      this.timer = null
+      this.aborted = false
+
+      if (part.filename) {
+        this.partEnded = false
+        this.filePath = path.join(dir.abspath(), this.part.name)
+        this.ws = fs.createWriteStream(this.filePath)
+
+        part.on('data', chunk => {
+          this.ws.write(chunk)
+          this.size += chunk.length
+        })
+
+        part.on('error', err => {
+          // TODO
+        })
+
+        part.on('end', () => {
+          console.log(`${number}: part end`)
+
+          this.ws.end()
+          this.partEnded = true
+          this.run()
+        })
+      } else {
+        this.partEnded = true
+        this.run()
+      }
+
+      console.log(`${number}: created, ${part.name}, blocked: ${blocked}`)
+    }
+
+    run () {
+      if (this.partEnded && !this.blocked) {
+        if (this.part.filename) {
+          console.log('run', this.part.number)
+          this.timer = setTimeout(() => {
+            // if aborted
+            this.emit('finish', this.aborted ? new Error('aborted') : null)
+          }, 100)
+        } else {
+          let dirPath = path.join(dir.abspath(), this.part.name)
+          mkdirp(dirPath, err => this.emit('finish', err))
+        }
+      }
+    }
+
+    unblock () {
+      if (!this.blocked) throw new Error('unblocking an already unblocked handler')
+
+      this.blocked = false
+      this.run()
+    }
+
+    abort () {
+      if (this.timer) { 
+        this.aborted = true 
+      } else { 
+        process.nextTick(() => this.emit('finish', new Error('aborted'))) 
+      }
+    }
+  }
+
   const handlePart = part => {
-    let blocked = !!handlers.find(h => h.part.toName === part.fromName)
-    let handler
-
-    if (part.opts.op === 'mkdir')
-      handler = new MkdirHandler(part, blocked)
-    else if (part.opts.op === 'rename') 
-      handler = new RenameHandler(part, blocked)
-    else
-      handler = new NewFileHandler(part, blocked)
-
+    let blocked = !!handlers.find(h => h.part.name === part.name)
+    let handler = new PartHandler(part, blocked)
     handler.on('finish', err => {
       if (err) form.pause()
 
@@ -428,7 +286,7 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', auth.jwt(), (req, res, next) =>
       handlers.splice(index, 1)
 
       // run next if any
-      let next = handlers.slice(index).find(h => h.part.fromName === part.toName)
+      let next = handlers.slice(index).find(h => h.part.name === part.name)
       if (next) next.unblock()
 
       finalize(err)
@@ -440,30 +298,14 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', auth.jwt(), (req, res, next) =>
   let number = 0
   form.onPart = part => {
     if (error) return
+
+    // increment part number
     part.number = number++
-    part.dir = dir
-    part.form = form
 
-    try {
-      // validate name and generate part.fromName and .toName
-      let split = part.name.split('|')
-      if (split.length === 0 || split.length > 2) throw new Error('invalid name')
-      if (!split.every(name => name === sanitize(name))) throw new Error('invalid name')
-      part.fromName = split.shift()
-      part.toName = split.shift() || part.fromName
-    } catch (e) {
-      return finalize(new Error('invalid name'))
-    }
-
+    if (part.name !== sanitize(part.name)) return finalize(new Error('invalid name'))
     if (part.filename) {
       try {
-        // validate part.filename and generate part.opts
-        let { size, sha256, append } = JSON.parse(part.filename)
-        if (!Number.isInteger(size)) throw new Error('size must be a integer')
-        if (size < 0 || size > 1024 * 1024 * 1024) throw new Error('size out of range')
-        // TODO 
-
-        part.opts = { size, sha256, append }
+        part.opts = JSON.parse(part.filename)
       } catch (e) {
         return finalize(e)
       }
@@ -473,16 +315,7 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', auth.jwt(), (req, res, next) =>
       part.on('data', data => buffers.push(data))
       part.on('end', () => {
         try {
-          // validate value and generate part.opts
-          let { op, overwrite } = JSON.parse(Buffer.concat(buffers))
-          if (op === 'mkdir') {
-            part.opts = { op }
-          } else if (op === 'rename' || op === 'dup') {
-            // TODO
-            part.opts = { op, overwrite }
-          } else {
-            throw new Error('unsupported operation')
-          }
+          part.opts = JSON.parse(Buffer.concat(buffers))
         } catch (e) {
           return finalize(e)
         }
