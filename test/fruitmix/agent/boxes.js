@@ -2,6 +2,7 @@ const path = require('path')
 const request = require('supertest')
 const superagent = require('superagent')
 const Promise = require('bluebird')
+const fs = require('fs')
 const rimrafAsync = Promise.promisify(require('rimraf'))
 const mkdirpAsync = Promise.promisify(require('mkdirp'))
 const UUID = require('uuid')
@@ -27,7 +28,8 @@ const {
   setUserGlobalAsync,
   retrieveCloudTokenAsync,
   createBoxAsync,
-  createBranchAsync
+  createBranchAsync,
+  forgeRecords
 } = require('./lib')
 
 const cwd = process.cwd()
@@ -48,7 +50,7 @@ const resetAsync = async() => {
   await mkdirpAsync(tmpDir) 
   await mkdirpAsync(repoDir)
  
-  broadcast.emit('FruitmixStart', 'tmptest') 
+  broadcast.emit('FruitmixStart', tmptest) 
 
   await broadcast.until('UserInitDone', 'BoxInitDone')
 }
@@ -278,7 +280,7 @@ describe(path.basename(__filename), () => {
       sinon.stub(UUID, 'v4').onFirstCall().returns(boxUUID)
                             .onSecondCall().returns(uuid_1)
                             .onThirdCall().returns(uuid_2)
-
+                          
       let props = {name: 'hello', users: [IDS.bob.global]}
       box = await createBoxAsync(props, 'alice')
     })
@@ -319,6 +321,113 @@ describe(path.basename(__filename), () => {
           expect(res.body.comment).to.equal('hello')
           expect(res.body.type).to.equal('blob')
           expect(res.body.sha256).to.equal(sha256)
+          done()
+        })
+    })
+
+    it('POST /boxes/{uuid}/twits should cover the last record if it is incorrect', done => {
+      let text = '{"comment":"hello","ctime":1500343057045,"index":4,"twitter":"ocMvos6NjeKLIBqg5Mr9QjxrP1FA"'
+      let filepath = path.join(tmptest, 'boxes', boxUUID, 'records')
+      fs.writeFileSync(filepath, text)
+
+      request(app)
+        .post(`/boxes/${boxUUID}/twits`)
+        .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
+        .send({comment: 'hello'})
+        .expect(200)
+        .end((err, res) => {
+          if (err) return done(err)
+
+          request(app)
+            .get(`/boxes/${boxUUID}/twits`)
+            .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
+            .expect(200)
+            .end((err, res) => {
+              if (err) return done(err)
+              expect(res.body.length).to.equal(1)
+              expect(res.body[0].comment).to.equal('hello')
+              expect(res.body[0].index).to.equal(0)
+              done()
+            })
+        })
+    })
+
+    it('GET /boxes/{uuid}/twits should get all records', done => {
+      forgeRecords(boxUUID, 'alice')
+        .then(() => {
+          request(app)
+            .get(`/boxes/${boxUUID}/twits`)
+            .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
+            .expect(200)
+            .end((err, res) => {
+              expect(res.body.length).to.equal(10)
+              done()
+            })
+        })
+        .catch(done)
+    })
+
+    it('GET /boxes/{uuid}/twits should repair twits DB if the last record is incorrect', done => {
+      forgeRecords(boxUUID, 'alice')
+        .then(() => {
+          let filepath = path.join(tmptest, 'boxes', boxUUID, 'records')
+          let size = fs.readFileSync(filepath).length
+          let text = '{"comment":"hello","ctime":1500343057045,"index":10,"twitter":"ocMvos6NjeKLIBqg5Mr9QjxrP1FA"'
+          
+          let writeStream = fs.createWriteStream(filepath, { flags: 'r+', start: size })
+          writeStream.write(`\n${text}`)
+          writeStream.close()
+
+          request(app)
+            .get(`/boxes/${boxUUID}/twits`)
+            .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
+            .expect(200)
+            .end((err, res) => {
+              expect(res.body.length).to.equal(10)
+              done()
+            })
+        })
+        .catch(done)
+    })
+
+    it('GET /boxes/{uuid}/twits twits in blackList should be removed', done => {
+      forgeRecords(boxUUID, 'alice')
+        .then(() => {
+          request(app)
+            .delete(`/boxes/${boxUUID}/twits`)
+            .send({index: 2})
+            .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
+            .expect(200)
+            .end(err => {
+              if (err) return done(err)
+
+              request(app)
+                .get(`/boxes/${boxUUID}/twits`)
+                .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
+                .expect(200)
+                .end((err, res) => {
+                  if (err) return done(err)
+                  let arr = res.body.map(r => r.index)
+                  expect(res.body.length).to.equal(9)
+                  expect(arr.includes(2)).to.be.false
+                  done()
+                })
+            })
+        })
+        .catch(done)
+    })
+
+    it('DELETE /boxes/{uuid}/twits should delete a twit', done => {
+      request(app)
+        .delete(`/boxes/${boxUUID}/twits`)
+        .send({index: 2})
+        .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
+        .expect(200)
+        .end(err => {
+          if (err) return done(err)
+          let fpath = path.join(tmptest, 'boxes', boxUUID, 'blackList')
+          let result = fs.readFileSync(fpath).toString()
+          expect(result).to.equal('2')
           done()
         })
     })
