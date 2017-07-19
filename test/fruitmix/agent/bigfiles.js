@@ -254,6 +254,30 @@ describe(path.basename(__filename), () => {
           }, 500)
         })
     })
+
+    it('POST alonzo file and append alonzo', function(done) {
+
+      request(app)
+        .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
+        .set('Authorization', 'JWT ' + token)
+        .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', JSON.stringify({
+          size: FILES.alonzo.size,
+          sha256: FILES.alonzo.hash,
+        }))
+        .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', JSON.stringify({
+          size: FILES.alonzo.size,
+          sha256: FILES.alonzo.hash,
+          append: FILES.alonzo.hash
+        }))
+        .expect(200)
+        .end((err, res) => {
+          setTimeout(() => {
+            console.log(err || res.body)
+            done()
+          }, 500)
+        })
+    })
+
   })
 
 
