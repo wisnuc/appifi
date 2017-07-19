@@ -148,7 +148,7 @@ class Records {
     lr.on('end', () => {
       // read blackList
       let blackList = fs.readFileSync(this.blackList).toString()
-      blackList.length ? blackList = blackList.split(' ').map(i => parseInt(i))
+      blackList.length ? blackList = [...new Set(blackList.split(' ').map(i => parseInt(i)))]
                        : blackList = []
 
       // repair wrong content and filter contents in blackList

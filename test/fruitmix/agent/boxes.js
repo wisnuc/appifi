@@ -390,6 +390,33 @@ describe(path.basename(__filename), () => {
         .catch(done)
     })
 
+    it('GET /boxes/{uuid}/twits twits in blackList should be removed', done => {
+      forgeRecords(boxUUID, 'alice')
+        .then(() => {
+          request(app)
+            .delete(`/boxes/${boxUUID}/twits`)
+            .send({index: 2})
+            .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
+            .expect(200)
+            .end(err => {
+              if (err) return done(err)
+
+              request(app)
+                .get(`/boxes/${boxUUID}/twits`)
+                .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
+                .expect(200)
+                .end((err, res) => {
+                  if (err) return done(err)
+                  let arr = res.body.map(r => r.index)
+                  expect(res.body.length).to.equal(9)
+                  expect(arr.includes(2)).to.be.false
+                  done()
+                })
+            })
+        })
+        .catch(done)
+    })
+
     it('DELETE /boxes/{uuid}/twits should delete a twit', done => {
       request(app)
         .delete(`/boxes/${boxUUID}/twits`)
