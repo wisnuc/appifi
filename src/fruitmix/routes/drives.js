@@ -16,7 +16,7 @@ const broadcast = require('../../common/broadcast')
 
 const Drive = require('../models/drive')
 const Forest = require('../forest/forest')
-const { readXstatAsync, forceXstat, forceXstatAsync } = require('../lib/xstat')
+const { readXstat, readXstatAsync, forceXstat, forceXstatAsync } = require('../lib/xstat')
 const formdata = require('./formdata')
 const { upload, uploadAsync } = require('../lib/sidekick-client')
 
@@ -27,6 +27,7 @@ const sanitize = require('sanitize-filename')
 const rimrafAsync = Promise.promisify(rimraf)
 const mkdirpAsync = Promise.promisify(mkdirp)
 
+const K = x => y => x
 const f = af => (req, res, next) => af(req, res).then(x => x, next)
 
 let fruitmixPath
@@ -283,60 +284,162 @@ class NewFileHandler extends BaseHandler {
   }
 }
 
-class AppendHandler extends BaseHandler {
+const combineHash = (a, b) => {
+
+  let a1 = typeof a === 'string'
+    ? Buffer.from(a, 'hex')
+    : a
+
+  console.log('a1 length', a1.length)
+
+  let b1 = typeof b === 'string'
+    ? Buffer.from(b, 'hex')
+    : b
+
+  console.log('b1 length', b1.length)
+
+  let hash = crypto.createHash('sha256')
+  hash.update(a1)
+  hash.update(b1)
+
+
+  let digest = hash.digest('hex')
+  console.log('combined digest', digest)
+  return digest
+}
+
+class Handler extends EventEmitter {
+
+  constructor () {
+    super()
+    this._untils = []
+    this.observe('error', null)
+  }
+
+  _until() {
+    this._untils = this.error
+      ? this._untils.reduce((arr, x) => K(arr)(x.reject()), [])
+      : this._untils.reduce((arr, x) => x.predicate() ? K(arr)(x.resolve()) : [...arr, x], [])
+  }
+
+  async untilAsync(predicate) {
+    return predicate() || new Promise((resolve, reject) => 
+      this._untils.push({ predicate, resolve, reject }))
+  }
+
+  observe(name, value) {
+    let _name = '_' + name
+    this[_name] = value
+    Object.defineProperty(this, name, {
+      get: function() { 
+        return this[_name] 
+      },
+      set: function(x) { 
+        this[_name] = x
+        this._until()
+      }
+    })
+  }
+
+  abort() {
+    this.error = new Error('aborted')
+  }
+}
+
+class AppendHandler extends Handler {
 
   constructor (part, blocked) {
-    super(part, blocked)
+    console.log(`${part.number}: creating, ${part.fromName}, ${part.toName}, blocked: ${blocked}`)
+    super()
 
-    this.size = 0
-    this.hash = crypto.createHash('sha256')
+    this.part = part
+    this.observe('blocked', blocked)
+    this.observe('written', false)
 
-    const request = 0x40049409
-    const src = fs.openSync('hello', 'r')
-    const dst = fs.openSync('world', 'w') 
+    const run = async () => {
 
-    this.ws = undefined
-    try {
-      let srcPath = path.join(this.part.dir.abspath(), this.part.fromName)
-      let srcFd = fs.openSync(srcPath, 'r')
-      let dstPath = path.join(fruitmixPath, 'tmp', UUID.v4())
-      let dstFd = fs.openSync(dstPath, 'w')
-      ioctl(dstFd, request, srcFd) 
-      fs.closeSync(srcFd)      
-      this.ws = fs.createWriteStream(dstPath, { fd: dstFd })
+      let partEnded = false
+      let buffers = []
+      let size = 0
+      let hash = crypto.createHash('sha256')
+      let ws
+
+      part.on('data', chunk => {
+        if (this.error) return
+
+        console.log(`${part.number}: part data`, chunk.length)
+
+        size += chunk.length
+        hash.update(chunk)
+        
+        if (this.ws) {
+          part.form.pause() 
+          ws.write(chunk, () => part.form.resume())
+        } else {
+          buffers.push(chunk)
+          part.form.pause()
+        }
+      }) 
+
+      part.on('error', err => this.error || (this.error = err))
+
+      part.on('end', () => {
+        if (this.error) return
+        partEnded = true
+        if (ws) ws.end()
+      })
+
+      await this.untilAsync(() => !this.blocked)
+
+      let srcPath = path.join(part.dir.abspath(), part.fromName)
+      let tmpPath = path.join(fruitmixPath, 'tmp', UUID.v4())
+      let dstPath = path.join(part.dir.abspath(), part.toName)
+
+      let xstat = await readXstatAsync(srcPath)
+      if (this.error) throw this.error
+
+      let [srcFd, tmpFd] = await Promise.all([fs.openAsync(srcPath, 'r'), fs.openAsync(tmpPath, 'w')])
+      if (this.error) throw this.error
+
+      ioctl(tmpFd, 0x40049409, srcFd)
+
+      await Promise.all([fs.closeAsync(tmpFd), fs.closeAsync(srcFd)])
+      if (this.error) throw this.error
+
+      let xstat2 = await readXstatAsync(srcPath)
+      if (this.error) throw this.error
+
+      ws = fs.createWriteStream(tmpPath, { flags: 'a' })
+      ws.on('error', err => (this.error = err))
+      ws.on('finish', () => (this.written = true))
+      buffers.forEach(buf => ws.write(buf))
+      buffers = null
+
+      if (partEnded) ws.end()
+      part.form.resume()
+
+      await this.untilAsync(() => this.written)              
+      if (this.error) throw this.error
+
+      await forceXstatAsync(tmpPath, {
+        uuid: xstat.uuid,
+        hash: combineHash(part.opts.append, hash.digest('hex'))
+      })
+      if (this.error) throw this.error
+
+      await fs.renameAsync(tmpPath, dstPath)
+      if (this.error) throw this.error
     }
-    catch (e) {
-      console.log(e)
-      process.exit(1)
-    }
 
-    part.on('data', chunk => {
-      this.size += chunk.length
-      
-      if (this.ws) {
-        this.ws.write(chunk)
-      } else {
-        this.buffers.push(chunk)
-      }
-    }) 
-
-    part.on('end', () => {
-    })
-
+    run()
+      .then(() => this.emit('finish', null))
+      .catch(e => this.emit('finish', e))
   }
-
 
   unblock() {
-    super.unblock()
-    this.run()
+    this.blocked = false
   }
 
-  run() {
-    let srcPath = path.join(this.part.dir.abspath(), this.part.fromName)
-    let tmpPath = path.join(fruitmxPath, 'tmp', UUID.v4())
-    
-    count = 2
-  }
 }
 
 class PartHandler extends EventEmitter {
