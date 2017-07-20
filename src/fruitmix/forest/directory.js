@@ -1,6 +1,8 @@
 const path = require('path')
 const Node = require('./node')
+const File = require('./file')
 const Readdir = require('./readdir')
+const Debug = require('debug')
 
 /**
 Directory represents a directory in the underlying file system.
@@ -19,7 +21,10 @@ class Directory extends Node {
   */ 
   constructor(ctx, parent, xstat, monitors) {
 
-    if (xstat.type !== 'directory') throw new Error('xstat is not a directory')
+    if (xstat.type !== 'directory') {
+      console.log(xstat)
+      throw new Error('xstat is not a directory')
+    }
     
     super(ctx, parent, xstat)
 
@@ -73,7 +78,7 @@ class Directory extends Node {
     Array.from(this.children)
       .reduce((lost, child) => {
 
-        let xstat = map.find(child.uuid)
+        let xstat = map.get(child.uuid)
         if (xstat) {
           child.update(xstat, monitors) 
           map.delete(child.uuid)
@@ -86,7 +91,12 @@ class Directory extends Node {
       .forEach(child => child.destroy())
 
     // new 
-    map.forEach(val => new Directory(this.ctx, this, val, monitors))
+    map.forEach(val => {
+      if (val.type === 'file')
+        new File(this.ctx, this, val)
+      else 
+        new Directory(this.ctx, this, val, monitors)
+    })
   }
 
   /**

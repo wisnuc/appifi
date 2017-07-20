@@ -1,4 +1,3 @@
-const request = require('superagent')
 const Promise = require('bluebird')
 const debug = require('debug')('station')
 
