@@ -7,7 +7,7 @@ const auth = require('../middleware/auth')
 const tickets = require('./route/tickets')
 const Station = require('./lib/station')
 
-broadcast.emit('FruitmixStart', path.join(process.cwd(), 'tmptest'))
+// broadcast.emit('FruitmixStart', path.join(process.cwd(), 'tmptest'))
 // let state = 'FruitmixStop'
 // setInterval(() => {
 //   state = (state === 'FruitmixStop'? 'FruitmixStart' : 'FruitmixStop')
