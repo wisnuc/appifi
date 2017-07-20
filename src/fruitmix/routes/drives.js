@@ -186,14 +186,37 @@ router.get('/:driveUUID/dirs/:dirUUID/entries', auth.jwt(), f(async(req, res) =>
   res.status(200).json(list)
 }))
 
+const ErrorAbort = new Error('aborted')
+
 /**
 This class guarantees the error xor finish is emitted exactly once
 */
 class Thread extends EventEmitter {
-  constructor () {
+  constructor (blocked, ...args) {
     super()
     this._untils = []
-    this.observe('error', null)
+    this.observe('children', [])
+    this.observe('error', null, {
+      set: function (x) {
+        if (this._error) return
+        this._error = x
+        this.children.forEach(child => child.error = ErrorAbort)
+        process.nextTick(() => this._until())
+      } 
+    })
+    this.observe('blocked', blocked)
+    this.run(...args)
+  }
+
+  addChild(child, onChildFinish) {
+    child.on('finish', err => {
+      let index = this.children.indexOf(child)
+      this.children = [...this.children.slice(0, index), ...this.children.slice(index + 1)]
+      if (err) this.error = err
+      onChildFinish(err)
+    })
+
+    this.children = [...this.children, child]
   }
 
   _until () {
@@ -203,20 +226,14 @@ class Thread extends EventEmitter {
   }
 
   async race (promise) {
-
     let finished = false
     const f = async () => {
-      try {
-        return await promise 
-      } finally {
-        if (!this.error) {
-          finished = true
-          this._until()
-        }
-      }
+      let x = await promise
+      finished = true
+      this._until()
     }
 
-    return (await Promise.all([f, this.until(() => finished)]))[0]
+    return (await Promise.race([f, this.until(() => finished)])).shift()
   }
 
   async settle (promise) {
@@ -225,135 +242,106 @@ class Thread extends EventEmitter {
     return x
   }
 
+  guard(f) {
+    return (...args) => {
+      if (this.error) return
+      try {
+        f(...args)
+      } catch(e) {
+        this.error = e
+      }
+    }
+  }
+
+  async guardAsync(af) {
+    
+  }
+
   async untilAsync (predicate) {
     return predicate() || new Promise((resolve, reject) => this._untils.push({ predicate, resolve, reject }))
   }
 
-  observe (name, value) {
+  observe (name, value, override) {
     let _name = '_' + name
     this[_name] = value
-    Object.defineProperty(this, name, {
+    Object.defineProperty(this, name, Object.assign({
       get: function () {
         return this[_name]
       },
       set: function (x) {
-        console.log('observe set', name, this[_name], x)
+
+        if (Array.isArray(x)) {
+          console.log('observe set', name, 'array length ' + x.length)
+        } else {
+          console.log('observe set', name, this[_name], Array.isArray(x) ? 'length ' + x.length : x)
+        }
         this[_name] = x
-        this._until()
+        process.nextTick(() => this._until())
       }
-    })
+    }, override))
   }
 
-  abort () {
-    this.error = new Error('aborted')
-  }
-}
-
-class MkdirHandler extends Thread {
-  constructor (part, blocked) {
-    super()
-
-    this.part = part
-    this.observe('blocked', blocked)
-
-    const run = async () => {
-
-      await this.untilAsync(() => !this.blocked)      
-
-      let dirPath = path.join(part.dir.abspath(), part.toName)
-      await this.settle(mkdirpAsync(dirPath)) 
-    }
-
-    run()
-      .then(() => this.emit('finish', null))
-      .catch(e => this.emit('finish', err))
-  }
-
-  unblock() {
-    this.blocked = false
-  } 
-}
-
-class RenameHandler extends Thread {
-  constructor (part, blocked) {
-    super()
-
-    this.part = part
-    this.observe('blocked', blocked)
-
-    const run = async () => {
-      
-      await this.untilAsync(() => !this.blocked)
-
-      let oldPath = path.join(part.dir.abspath(), part.fromName)
-      let newPath = path.join(part.dir.abspath(), part.toName)
-
-      await this.settle(fs.renameAsync(oldPath, newPath))
-    }
-
-    run()
+  run(...args) {
+    this.runAsync(...args)
       .then(() => this.emit('finish', null))
       .catch(e => this.emit('finish', e))
   }
-
-  unblock() {
-    this.blocked = false
-  }
 }
 
-class DupHandler extends Thread {
-  constructor (part, blocked) {
-    super()
+class FieldHandler extends Thread {
 
+  async runAsync (part) {
     this.part = part
-    this.observe('blocked', blocked)
+    this.observe('parsed', false)
 
-  }
-}
+    let buffers = []
 
-class DeleteHandler extends Thread {
-  constructor (part, blocked) {
-    super()
+    part.on('data', this.guard(chunk => buffers.push(chunk)))
 
-    this.part = part
-    this.observe('blocked', blocked)
+    part.on('end', this.guard(() => {
+      let { op, overwrite } = JSON.parse(Buffer.concat(buffers)) 
+      if (op === 'mkdir') {
+        part.opts = { op }
+      } else if (op === 'rename' || op === 'dup') {
+        part.opts = { op, overwrite }
+      } else {
+        // TODO
+      }
+
+      this.parsed = true
+    }))
+
+    await this.untilAsync(() => this.parsed && !this.blocked)
+    
+    if (part.opts.op === 'mkdir') {
+      let dirPath = path.join(part.dir.abspath(), part.toName)
+      await this.settle(mkdirpAsync(dirPath)) 
+    } else if (part.opts.op === 'rename') {
+      let oldPath = path.join(part.dir.abspath(), part.fromName)
+      let newPath = path.join(part.dir.abspath(), part.toName)
+      await this.settle(fs.renameAsync(oldPath, newPath))
+    } else {
+      // TODO
+    }
   }
 }
 
 class NewFileHandler extends Thread {
-  constructor (part, blocked) {
-    console.log(`${part.number}: creating, ${part.fromName}, ${part.toName}, blocked: ${blocked}`)
-    super()
 
+  async runAsync (part) {
     this.part = part
-    this.observe('blocked', blocked)
     this.observe('partEnded', false)
     this.observe('wsFinished', false)
 
-    this.run()
-      .then(() => this.emit('finish', null))
-      .catch(e => this.emit('finish', e))
-  }
-
-  async run () {
-    let part = this.part
     let tmpPath = path.join(fruitmixPath, 'tmp', UUID.v4())
     let size = 0
     let hash = crypto.createHash('sha256')
     let ws = fs.createWriteStream(tmpPath)
 
-    ws.on('error', err => {
-      if (this.error) return
-      this.error = err
-    })
+    ws.on('error', this.guard(err => this.error = err))
+    ws.on('finish', this.guard(() => this.wsFinished = true ))
 
-    ws.on('finish', () => {
-      if (this.error) return
-      this.wsFinished = true
-    })
-
-    part.on('data', chunk => {
-      if (this.error) return
+    part.on('data', this.guard(chunk => {
       size += chunk.length
       hash.update(chunk)
       part.form.pause()
@@ -365,17 +353,9 @@ class NewFileHandler extends Thread {
           part.form.resume() 
         }
       })
-    })
-
-    part.on('error', err => {
-      if (this.error) return
-      this.error = err
-    })
-
-    part.on('end', () => {
-      if (this.error) return
-      this.partEnded = true
-    })
+    }))
+    part.on('error', this.guard(err => this.error = err))
+    part.on('end', this.guard(() => this.partEnded = true))
 
     try {
       await this.untilAsync(() => this.partEnded)
@@ -397,153 +377,209 @@ class NewFileHandler extends Thread {
       throw e
     }
   }
-
-  unblock () {
-    this.blocked = false
-  }
 }
 
 class AppendHandler extends Thread {
-  constructor (part, blocked) {
-    console.log(`${part.number}: creating, ${part.fromName}, ${part.toName}, blocked: ${blocked}`)
-    super()
 
+  async runAsync (part) {
     this.part = part
-    this.observe('blocked', blocked)
     this.observe('wsFinished', false)
 
-    const run = async () => {
-      let partEnded = false
-      let buffers = []
-      let size = 0
-      let hash = crypto.createHash('sha256')
-      let ws
+    let partEnded = false
+    let buffers = []
+    let size = 0
+    let hash = crypto.createHash('sha256')
+    let ws
 
-      part.on('data', chunk => {
-        if (this.error) { return }
+    part.on('data', chunk => {
+      if (this.error) { return }
 
-        console.log(`${part.number}: part data`, chunk.length)
+      console.log(`${part.number}: part data`, chunk.length)
 
-        size += chunk.length
-        hash.update(chunk)
+      size += chunk.length
+      hash.update(chunk)
 
-        if (this.ws) {
-          part.form.pause()
-          ws.write(chunk, () => part.form.resume())
-        } else {
-          buffers.push(chunk)
-          part.form.pause()
-        }
-      })
+      if (this.ws) {
+        part.form.pause()
+        ws.write(chunk, () => part.form.resume())
+      } else {
+        buffers.push(chunk)
+        part.form.pause()
+      }
+    })
 
-      part.on('error', err => this.error || (this.error = err))
+    part.on('error', err => this.error || (this.error = err))
 
-      part.on('end', () => {
-        if (this.error) { return }
-        partEnded = true
-        if (ws) { ws.end() }
-      })
+    part.on('end', () => {
+      if (this.error) { return }
+      partEnded = true
+      if (ws) { ws.end() }
+    })
 
-      await this.untilAsync(() => !this.blocked)
+    await this.untilAsync(() => !this.blocked)
 
-      let srcPath = path.join(part.dir.abspath(), part.fromName)
-      let tmpPath = path.join(fruitmixPath, 'tmp', UUID.v4())
-      let dstPath = path.join(part.dir.abspath(), part.toName)
-      let xstat = await this.settle(readXstatAsync(srcPath))
+    let srcPath = path.join(part.dir.abspath(), part.fromName)
+    let tmpPath = path.join(fruitmixPath, 'tmp', UUID.v4())
+    let dstPath = path.join(part.dir.abspath(), part.toName)
+    let xstat = await this.settle(readXstatAsync(srcPath))
 
-      let [srcFd, tmpFd] = await this.settle(Promise.all([fs.openAsync(srcPath, 'r'), fs.openAsync(tmpPath, 'w')]))
+    let [srcFd, tmpFd] = await this.settle(Promise.all([fs.openAsync(srcPath, 'r'), fs.openAsync(tmpPath, 'w')]))
 
-      ioctl(tmpFd, 0x40049409, srcFd)
-      await this.settle(Promise.all([fs.closeAsync(tmpFd), fs.closeAsync(srcFd)]))
+    ioctl(tmpFd, 0x40049409, srcFd)
+    await this.settle(Promise.all([fs.closeAsync(tmpFd), fs.closeAsync(srcFd)]))
 
-      let xstat2 = await this.settle(readXstatAsync(srcPath))
+    let xstat2 = await this.settle(readXstatAsync(srcPath))
 
-      ws = fs.createWriteStream(tmpPath, { flags: 'a' })
-      ws.on('error', err => (this.error = err))
-      ws.on('finish', () => (this.wsFinished = true))
+    ws = fs.createWriteStream(tmpPath, { flags: 'a' })
+    ws.on('error', err => (this.error = err))
+    ws.on('finish', () => (this.wsFinished = true))
 
-      buffers.forEach(buf => ws.write(buf))
-      buffers = null
+    buffers.forEach(buf => ws.write(buf))
+    buffers = null
 
-      if (partEnded) { ws.end() }
-      part.form.resume()
+    if (partEnded) { ws.end() }
+    part.form.resume()
 
-      await this.untilAsync(() => this.wsFinished)
-      if (this.error) { throw this.error }
+    await this.untilAsync(() => this.wsFinished)
+    if (this.error) { throw this.error }
 
-      await this.settle(forceXstatAsync(tmpPath, {
-        uuid: xstat.uuid,
-        hash: combineHash(part.opts.append, hash.digest('hex'))
-      }))
+    await this.settle(forceXstatAsync(tmpPath, {
+      uuid: xstat.uuid,
+      hash: combineHash(part.opts.append, hash.digest('hex'))
+    }))
 
-      await this.settle(fs.renameAsync(tmpPath, dstPath))
-    }
-
-    run()
-      .then(() => this.emit('finish', null))
-      .catch(e => this.emit('finish', e))
-  }
-
-  unblock () {
-    this.blocked = false
+    await this.settle(fs.renameAsync(tmpPath, dstPath))
   }
 }
 
-class DirOperation {
+class DirOperation extends Thread {
 
-  constructor(dir, req, res) {
+  async runAsync(dir, req) {
+
+    this.observe('formEnded', false)
+
+    let number = 0
     let form = new formidable.IncomingForm()
 
-    // error, for simplicity, abort error is not treated specifically
+    form.onPart = this.guard(part => {
+
+      this.parse(part)
+
+      part.number = number++
+      part.form = form
+      part.dir = dir
+
+      let blocked = !!this.children.find(h => h.part.toName === part.fromName)
+      let child = !part.filename
+        ? new FieldHandler(blocked, part)
+        : part.opts.append
+          ? new AppendHandler(blocked, part) 
+          : new NewFileHandler(blocked, part)
+
+      this.addChild(child, err => {
+        if (err) {
+          form.pause()
+        } else {
+          let next = this.children.find(c => c.part.fromName === part.toName)
+          if (next) next.blocked = false
+        }
+      })
+    })
+
+    // on error, request is paused automatically so it blocks further error and end
+    form.on('error', err => this.error = err)
+    form.on('aborted', () => this.error = new Error('form aborted'))
+    form.on('end', this.guard(() => this.formEnded = true))
+    form.parse(req)
+
+    await this.untilAsync(() => this.children.length === 0 && (this.error || this.formEnded))
+
+    dir.read()
+
+    if (this.error) throw this.error
+  } 
+
+  parse(part) {
+    // validate name and generate part.fromName and .toName
+    let split = part.name.split('|')
+    if (split.length === 0 || split.length > 2) { throw new Error('invalid name') }
+    if (!split.every(name => name === sanitize(name))) { throw new Error('invalid name') }
+    part.fromName = split.shift()
+    part.toName = split.shift() || part.fromName
+
+    if (part.filename) {
+      // validate part.filename and generate part.opts
+      let { size, sha256, append } = JSON.parse(part.filename)
+      if (!Number.isInteger(size)) { throw new Error('size must be a integer') }
+      if (size < 0 || size > 1024 * 1024 * 1024) { throw new Error('size out of range') }
+      // TODO
+
+      part.opts = { size, sha256, append }
+    }
+  }
+}
+
+/**
+class DirOperation extends EventEmitter {
+
+  constructor(dir, req) {
+    super()
+
+    this.number = 0
+    this.form = new formidable.IncomingForm()
+    this.dir = dir
+ 
+    let form = this.form
     let error
-
-    //
     let formEnded = false
-
-    //
     let handlers = []
-
     let finished = false
 
     const finalize = err => {
       if (finished) return
-
       if (!this.error && err) {
         this.error = err
-        handlers.forEach(h => h.abort())
+        let errAbort = new Error('aborted')
+        handlers.forEach(h => h.error = errAbort)
       }
 
       if (this.error && handlers.length === 0) {
         dir.read()
-        res.status(500).end()
         finished = true
         console.log('error finished', this.error)
+        this.emit('finish', this.error)
       } else if (!error && handlers.length === 0 && formEnded) {
         dir.read()
-        res.status(200).end()
         finished = true
         console.log('success finished')
+        this.emit('finish', null)
       }
     }
 
-    const handlePart = part => {
+    form.onPart = part => {
+      if (this.error) return
+
+      try {
+        this.parse(part)
+      } catch (e) {
+        return finalize(e)
+      }
+
       let blocked = !!handlers.find(h => h.part.toName === part.fromName)
       let handler
 
-      if (part.opts.op === 'mkdir') {
-        handler = new MkdirHandler(part, blocked)
-      } else if (part.opts.op === 'rename') {
-        handler = new RenameHandler(part, blocked)
-      } else if (part.opts.op === 'dup') {
-        handler = new DupHandler(part, blocked)
-      } else if (part.filename && !part.opts.append) {
-        handler = new NewFileHandler(part, blocked)
-      } else if (part.filename && part.opts.append) {
-        handler = new AppendHandler(part, blocked)
+      if (!part.filename) {
+        handler = new FieldHandler(blocked, part)
+      } else {
+        if (part.opts.append) {
+          handler = new AppendHandler(blocked, part)
+        } else {
+          handler = new NewFileHandler(blocked, part)
+        } 
       }
 
       handler.on('finish', err => {
-        if (err) { form.pause() }
+        if (err) form.pause()
 
         console.log(`${handler.part.number}: finished ${err && err.message}`)
         console.log(handlers.map(h => ('' + h.part.number + ':' + h.part.name)))
@@ -554,66 +590,12 @@ class DirOperation {
 
         // run next if any
         let next = handlers.slice(index).find(h => h.part.fromName === part.toName)
-        if (next) { next.unblock() }
+        if (next) next.blocked = false
 
         finalize(err)
       })
 
-      handlers.push(handler)
-    }
-
-    let number = 0
-    form.onPart = part => {
-      if (this.error) return
-      part.number = number++
-      part.dir = dir
-      part.form = form
-
-      try {
-        // validate name and generate part.fromName and .toName
-        let split = part.name.split('|')
-        if (split.length === 0 || split.length > 2) { throw new Error('invalid name') }
-        if (!split.every(name => name === sanitize(name))) { throw new Error('invalid name') }
-        part.fromName = split.shift()
-        part.toName = split.shift() || part.fromName
-      } catch (e) {
-        return finalize(new Error('invalid name'))
-      }
-
-      if (part.filename) {
-        try {
-          // validate part.filename and generate part.opts
-          let { size, sha256, append } = JSON.parse(part.filename)
-          if (!Number.isInteger(size)) { throw new Error('size must be a integer') }
-          if (size < 0 || size > 1024 * 1024 * 1024) { throw new Error('size out of range') }
-          // TODO
-
-          part.opts = { size, sha256, append }
-        } catch (e) {
-          return finalize(e)
-        }
-        handlePart(part)
-      } else {
-        let buffers = []
-        part.on('data', data => buffers.push(data))
-        part.on('end', () => {
-          try {
-            // validate value and generate part.opts
-            let { op, overwrite } = JSON.parse(Buffer.concat(buffers))
-            if (op === 'mkdir') {
-              part.opts = { op }
-            } else if (op === 'rename' || op === 'dup') {
-              // TODO
-              part.opts = { op, overwrite }
-            } else {
-              throw new Error('unsupported operation')
-            }
-          } catch (e) {
-            return finalize(e)
-          }
-          handlePart(part)
-        })
-      }
+      handlers = [...handlers, handler]
     }
 
     // on error, request is paused automatically so it blocks further error and end
@@ -623,18 +605,31 @@ class DirOperation {
     form.parse(req)
   } 
 
-  async run () {
-  }
+  parse(part) {
+    // validate name and generate part.fromName and .toName
+    let split = part.name.split('|')
+    if (split.length === 0 || split.length > 2) { throw new Error('invalid name') }
+    if (!split.every(name => name === sanitize(name))) { throw new Error('invalid name') }
+    part.fromName = split.shift()
+    part.toName = split.shift() || part.fromName
 
-  get error() {
-    return this._error
-  }
+    if (part.filename) {
+      // validate part.filename and generate part.opts
+      let { size, sha256, append } = JSON.parse(part.filename)
+      if (!Number.isInteger(size)) { throw new Error('size must be a integer') }
+      if (size < 0 || size > 1024 * 1024 * 1024) { throw new Error('size out of range') }
+      // TODO
 
-  set error(x) {
-    this._error = x
-    this._until()
+      part.opts = { size, sha256, append }
+    }
+
+    part.number = this.number++
+    part.form = this.form
+    part.dir = this.dir
   }
 }
+
+**/
 
 router.post('/:driveUUID/dirs/:dirUUID/entries', auth.jwt(), (req, res, next) => {
   if (!req.is('multipart/form-data')) { 
@@ -645,7 +640,11 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', auth.jwt(), (req, res, next) =>
   let dir = Forest.getDriveDir(driveUUID, dirUUID)
   if (!dir) { return res.status(404).end() }
 
-  new DirOperation(dir, req, res)
+  let x = new DirOperation(false, dir, req)
+  x.on('finish', err => {
+    err ? res.status(500).end()
+      : res.status(200).end()
+  })
 })
 
 /**
