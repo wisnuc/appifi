@@ -9,8 +9,8 @@ const { FILE, CONFIG } = require('./const')
 let createTicket = (user, sa, type, callback) => {
   //TODO encrypt data
   let u = User.findUser(user.uuid)
-  if(type === 2 && u.global)
-    return callback(new Error('user has already bind'))
+  // if(type === 2 && u.global)
+  //   return callback(new Error('user has already bind'))
   request
     .post(CONFIG.CLOUD_PATH + 'v1/tickets')
     .set('Content-Type', 'application/json')
@@ -21,8 +21,11 @@ let createTicket = (user, sa, type, callback) => {
        type
     })
     .end((err, res) => {
-      if(err || res.status !== 200) return debug(err) && callback(new Error('create ticket error'))
-      return callback(null, res.body.data)
+      if(err || res.status !== 200){
+        debug(err)
+        return callback(new Error('create ticket error'))
+      } 
+      return  callback(null, res.body.data)
     }) 
 }
 
@@ -31,7 +34,10 @@ let getTicket = (ticketId, callback) => {
     .get(CONFIG.CLOUD_PATH + 'v1/tickets/' + ticketId)
     .set('Content-Type', 'application/json')
     .end((err, res) => {
-      if(err || res.status !== 200) return callback(new Error('get ticket error')) 
+      if(err || res.status !== 200){
+        debug(err)
+        return callback(new Error('get ticket error')) 
+      }
       return callback(null, res.body.data)
     })
 }
@@ -47,7 +53,10 @@ let getTickets = (creator, callback) => {
       creator
     })
     .end((err, res) => {
-      if(err || res.status !== 200) return callback(new Error('get tickets error')) 
+      if(err || res.status !== 200){
+        debug(err)
+        return callback(new Error('get tickets error')) 
+      } 
       return callback(null, res.body.data)
     })
 }
@@ -61,7 +70,10 @@ let requestConfirm = (state, guid, ticketId, callback) => {
       ticketId
     })
     .end((err, res) => {
-      if(err || res.status !== 200) return debug(err) && callback(new Error('confirm error')) 
+      if(err || res.status !== 200){
+        debug(err)
+        return callback(new Error('confirm error')) 
+      }
       return callback(null, res.body.data)
     })
 }
@@ -70,9 +82,9 @@ let requestConfirm = (state, guid, ticketId, callback) => {
 let requestConfirmAsync = Promise.promisify(requestConfirm)
 
 
-let confirmTicketAsync = async (ticketId, guid, useruuid, state) => {
+let confirmTicketAsync = async (ticketId, id, useruuid, state) => {
   if(!state)
-    return await requestConfirmAsync(state, guid, ticketId)
+    return await requestConfirmAsync(state, id, ticketId)
   let u = User.findUser(useruuid)
   let ticket = await getTicketAsync(ticketId)
 
@@ -80,25 +92,25 @@ let confirmTicketAsync = async (ticketId, guid, useruuid, state) => {
     throw new Error('user has already bind')  
   if(ticket.type === 1){//share register new local 
     
-    let index = ticket.users.findIndex(u => u.guid === guid) 
+    let index = ticket.users.findIndex(u => u.id === id) 
     if (index === -1) throw new Error('user not found')
-    await requestConfirmAsync(state, guid, ticketId)
+    await requestConfirmAsync(state, id, ticketId)
     return await User.createUserAsync({ 
                         username: '',
                         password: '',
                         global:{
-                          id: guid,
-                          wx: [ticket.userData.userInfo.unionid]
+                          id: id,
+                          wx: [ticket.userData.unionid]
                         }
                       })            
   }else if(ticket.type === 2){//binding
-    if (ticket.userData.guid !== guid) throw new Error('user not found')
-    await requestConfirmAsync(state, guid, ticketId)
+    if (ticket.userData.id !== id) throw new Error('user not found')
+    await requestConfirmAsync(state, id, ticketId)
     debug(ticket)
     return await User.updateUserAsync(useruuid, {
       global: {
-        id: guid,
-        wx: [ticket.userData.userInfo.unionid]
+        id: id,
+        wx: [ticket.userData.unionid]
       }
     })
   }

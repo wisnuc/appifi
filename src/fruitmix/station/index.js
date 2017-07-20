@@ -8,13 +8,13 @@ const tickets = require('./route/tickets')
 const Station = require('./lib/station')
 
 // broadcast.emit('FruitmixStart', path.join(process.cwd(), 'tmptest'))
-// setTimeout(() => {
-//   broadcast.emit('FruitmixStop', path.join(process.cwd(), 'tmptest'))
-// }, 2000)
+// let state = 'FruitmixStop'
+// setInterval(() => {
+//   state = (state === 'FruitmixStop'? 'FruitmixStart' : 'FruitmixStop')
+//   broadcast.emit(state, path.join(process.cwd(), 'tmptest'))
 
-// setTimeout(() => {
-//   broadcast.emit('FruitmixStart', path.join(process.cwd(), 'tmptest'))
 // }, 4000)
+
 
 let router = Router()
 
