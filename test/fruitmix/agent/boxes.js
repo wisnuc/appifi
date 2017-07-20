@@ -395,7 +395,7 @@ describe(path.basename(__filename), () => {
         .then(() => {
           request(app)
             .delete(`/boxes/${boxUUID}/twits`)
-            .send({index: 2})
+            .send({indexArr: [2]})
             .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
             .expect(200)
             .end(err => {
@@ -417,17 +417,17 @@ describe(path.basename(__filename), () => {
         .catch(done)
     })
 
-    it('DELETE /boxes/{uuid}/twits should delete a twit', done => {
+    it('DELETE /boxes/{uuid}/twits should delete appointed twits', done => {
       request(app)
         .delete(`/boxes/${boxUUID}/twits`)
-        .send({index: 2})
+        .send({indexArr: [2,4]})
         .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
         .expect(200)
         .end(err => {
           if (err) return done(err)
           let fpath = path.join(tmptest, 'boxes', boxUUID, 'blackList')
           let result = fs.readFileSync(fpath).toString()
-          expect(result).to.equal('2')
+          expect(result).to.equal('2,4')
           done()
         })
     })

@@ -42,9 +42,11 @@ const complement = (a, b) =>
   fruitmix/repo          // store blob 
           /boxes
             [uuid]/
-              manifest  // 
-              commits   // database
-              pull/push //
+              manifest      // 
+              records       // database
+              blackList     // 
+              [branches[]   // 
+              pull/push     //
 */
 
 /**
@@ -55,6 +57,7 @@ class Records {
   /**
    * 
    * @param {string} filePath - twits DB path 
+   * @param {string} blackList - filepath of blackList
    */
   constructor(filePath, blackList) {
     this.filePath = filePath
@@ -123,6 +126,10 @@ class Records {
     }) 
   }
 
+  /**
+   * async edition of add
+   * @param {Object} obj - object to be stored
+   */
   async addAsync(obj) {
     return Promise.promisify(this.add).bind(this)(obj)
   }
@@ -148,7 +155,7 @@ class Records {
     lr.on('end', () => {
       // read blackList
       let blackList = fs.readFileSync(this.blackList).toString()
-      blackList.length ? blackList = [...new Set(blackList.split(' ').map(i => parseInt(i)))]
+      blackList.length ? blackList = [...new Set(blackList.split(',').map(i => parseInt(i)))]
                        : blackList = []
 
       // repair wrong content and filter contents in blackList
@@ -207,20 +214,38 @@ class Records {
     })
   }
 
+  /**
+   * async edition of get
+   * @param {Object} props 
+   * @param {number} props.first -optional
+   * @param {number} props.last - optional
+   * @param {number} props.count - optional
+   * @param {string} props.segments - optional
+   * @return {array} each item in array is an twit object
+   */
   async getAsync(props) {
     return Promise.promisify(this.get).bind(this)(props)
   }
 
-  delete(index, callback) {
+  /**
+   * delete a twit
+   * @param {number} index - index of twit to be delete
+   */
+  delete(indexArr, callback) {
+    indexArr = [...new Set(indexArr)].toString()
     let size = fs.readFileSync(this.blackList).length
     let writeStream = fs.createWriteStream(this.blackList, { flags: 'r+', start: size })
-    size ? writeStream.write(` ${index}`) : writeStream.write(`${index}`)
+    size ? writeStream.write(`,${indexArr}`) : writeStream.write(`${indexArr}`)
     writeStream.close()
     return callback(null)
   }
 
-  async deleteAsync(index) {
-    return Promise.promisify(this.delete).bind(this)(index)
+  /**
+   * async detition of delete
+   * @param {number} index - index of twit to be delete
+   */
+  async deleteAsync(indexArr) {
+    return Promise.promisify(this.delete).bind(this)(indexArr)
   }
 }
 
@@ -312,8 +337,8 @@ class Box {
    * delete a twit
    * @param {number} index - the index of twit to be delete
    */
-  async deleteTwitAsync(index) {
-    return await this.records.deleteAsync(index)
+  async deleteTwitAsync(indexArr) {
+    return await this.records.deleteAsync(indexArr)
   }
 
   /**
