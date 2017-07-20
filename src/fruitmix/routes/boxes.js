@@ -317,9 +317,9 @@ router.get('/:boxUUID/twits', auth, boxAuth, (req, res) => {
 
 router.delete('/:boxUUID/twits', auth, boxAuth, (req, res) => {
   let box = req.box
-  let index = req.body.index
+  let indexArr = req.body.indexArr
 
-  box.deleteTwitAsync(index)
+  box.deleteTwitAsync(indexArr)
     .then(() => res.status(200).end())
     .catch(err => res.status(500).json({ code: err.code, message: err.message }))
 })

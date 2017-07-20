@@ -20,108 +20,120 @@ const rimrafAsync = Promise.promisify(rimraf)
 
 class Station {
   constructor(){
-    broadcast.on('FruitmixStart', froot => {
-      this.froot = froot
-      this.startAsync()
-        .then(() => {})
-        .catch(e => {
-          //TODO 
-          debug(e)
-        })
-    })
-    broadcast.on('FruitmixStop', () => this.deinit())
+    this.initialized = false
+    this.init()
   }
 
-  async initAsync() {
-    this.pbkPath = path.join(this.froot, 'station', FILE.PUBKEY)
-    this.pvkPath = path.join(this.froot, 'station', FILE.PVKEY)
+  async startAsync(froot) {
+    let pbkPath = path.join(froot, 'station', FILE.PUBKEY)
+    let pvkPath = path.join(froot, 'station', FILE.PVKEY)
     try{
         //TODO
-        let pbStat = await fs.lstatAsync(this.pbkPath)
-        let pvStat = await fs.lstatAsync(this.pvkPath)
+        let pbStat = await fs.lstatAsync(pbkPath)
+        let pvStat = await fs.lstatAsync(pvkPath)
         if(pbStat.isFile() && pvStat.isFile()){
-          this.publicKey = (await fs.readFileAsync(this.pbkPath)).toString('utf8')
-          this.privateKey = (await fs.readFileAsync(this.pvkPath)).toString('utf8')
+          this.publicKey = (await fs.readFileAsync(pbkPath)).toString('utf8')
+          this.privateKey = (await fs.readFileAsync(pvkPath)).toString('utf8')
+          this.pbkPath = pbkPath
+          this.pvkPath = pvkPath
           return  
         }
-        return await this.createKeysAsync()
+        return await this.createKeysAsync(froot)
         
       }catch(e){
         if(e.code === 'ENOENT')
-          return await this.createKeysAsync()
+          return await this.createKeysAsync(froot)
         throw e
       }
 
   }
 
-  async createKeysAsync() {
+  async createKeysAsync(froot) {
       //remove keys 
     try{
-      await rimrafAsync(path.join(this.froot, 'station'))
-      await fs.unlinkAsync(this.pbkPath)
-      await fs.unlinkAsync(this.pvkPath)
+      await rimrafAsync(path.join(froot, 'station'))
+      await mkdirpAsync(path.join(froot, 'station'))
+
+      let modulusBit = 2048 
+
+      let pbkPath = path.join(froot, 'station', FILE.PUBKEY)
+      let pvkPath = path.join(froot, 'station', FILE.PVKEY)
+
+      let key  = ursa.generatePrivateKey(modulusBit, 65537)
+
+      let privatePem = ursa.createPrivateKey(key.toPrivatePem()) //生成私钥
+      let privateKey = privatePem.toPrivatePem('utf8')
+      await fs.writeFileAsync(pvkPath, privateKey, 'utf8')
+
+
+      let publicPem = ursa.createPublicKey(key.toPublicPem())   //生成公钥
+      let publicKey = publicPem.toPublicPem('utf8')
+      await fs.writeFileAsync(pbkPath, publicKey, 'utf8')
+      this.publicKey = publicKey
+      this.privateKey = privateKey
+      this.pbkPath = pbkPath
+      this.pvkPath = pvkPath
+      return 
     }catch(e){
 
+      //TODO 
+      throw e
     }
-
-    await mkdirpAsync(path.join(this.froot, 'station'))
-
-    let modulusBit = 2048 
-
-    let key  = ursa.generatePrivateKey(modulusBit, 65537)
-
-    let privatePem = ursa.createPrivateKey(key.toPrivatePem()) //生成私钥
-    this.privateKey = privatePem.toPrivatePem('utf8')
-    await fs.writeFileAsync(this.pvkPath, this.privateKey, 'utf8')
-
-
-    let publicPem = ursa.createPublicKey(key.toPublicPem())   //生成公钥
-    this.publicKey = publicPem.toPublicPem('utf8')
-    await fs.writeFileAsync(this.pbkPath, this.publicKey, 'utf8')
-    return 
   }
   
-  async startAsync() {
-    await this.initAsync() // init station for keys
-    try{
-      this.sa = await this.registerAsync()
-      broadcast.emit('StationStart', this)
-      //connect to cloud
-      this.connect = Connect
-    }catch(e){
-      debug(e)
-    }
+  init() {
+    broadcast.on('FruitmixStart', async (froot) => {
+      await this.startAsync(froot) // init station for keys
+      try{
+        this.sa = await this.registerAsync(froot)
+        
+        //connect to cloud
+        this.froot = froot
+        this.connect = Connect
+        this.initialized = true
+        debug('station init')
+        broadcast.emit('StationStart', this)
+      }catch(e){
+        debug(e)
+      }
+    })
+
+    broadcast.on('FruitmixStop', () => this.deinit())
   }
 
   deinit() {
-    this.publicKey = null
-    this.privateKey = null
-    this.sa = null
-    this.connect = null
-    this.froot = null
-    this.pbkPath = null
-    this.pvkPath = null
-    broadcast.emit('StationStop', this)
+    this.publicKey = undefined
+    this.privateKey = undefined
+    this.sa = undefined
+    this.connect = undefined
+    this.froot = undefined
+    this.pbkPath = undefined
+    this.pvkPath = undefined
+    this.initialized = false
     debug('station deinit')
+    broadcast.emit('StationStop', this)
   }
 
-  register(callback) {
-    let saPath = path.join(this.froot, 'station', FILE.SA)
+  register(froot, callback) {
+    let saPath = path.join(froot, 'station', FILE.SA)
     fs.lstat(saPath, (err, lstat) => {
-      if(err || !lstat.isFile()) return this.requestRegisterStation(callback)
+      if(err || !lstat.isFile()) return this.requestRegisterStation(froot, callback)
       fs.readFile(saPath, (err, data) => {
-        if(err) return callback(err)
+        if(err){ 
+           debug(err)
+          return callback(err)
+        }
         debug( JSON.parse(data))
         return callback(null, JSON.parse(data))
       })
     })
   }
 
-  async registerAsync()　{
-    return Promise.promisify(this.register).bind(this)()
+  async registerAsync(froot)　{
+    return Promise.promisify(this.register).bind(this)(froot)
   }
 
-  requestRegisterStation(callback) {
+  requestRegisterStation(froot, callback) {
     // console.log(publicKey)
     request
       .post(CONFIG.CLOUD_PATH + 'v1/stations')
@@ -130,8 +142,11 @@ class Station {
         publicKey: this.publicKey
       })
       .end((err, res) => {
-        let SA_PATH = path.join(this.froot, 'station', FILE.SA)
-        if(err || res.status !== 200) return callback(new Error('register error')) 
+        let SA_PATH = path.join(froot, 'station', FILE.SA)
+        if(err || res.status !== 200){
+          debug(err)
+          return callback(new Error('register error')) 
+        }
         let ws = fs.createWriteStream(SA_PATH)
         ws.write(JSON.stringify(res.body.data, null, ' '))
         ws.close()

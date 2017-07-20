@@ -21,6 +21,7 @@ Object.freeze(CONNECT_STATE)
 class Connect { 
 
   constructor() {
+    this.initialized = false
     this.state = CONNECT_STATE.DISCED
     broadcast.on('StationStart', station => {
       this.sa = station.sa
@@ -45,11 +46,15 @@ class Connect {
     this.froot = null
     this.state = CONNECT_STATE.DISCED
     this.sa = null
+    this.socket = null
     this.privateKey = null
+    this.initialized = false
     debug('connect deinit')
   }
 
   _connect(address) {
+    console.log(this.state)
+    // console.log(this.socket)
     if(this.socket && this.socket.connected) throw new　Error('Connent is connected now')
     if(this.socket && this.socket.disconnected){
       this._changeState(CONNECT_STATE.CONNING)
@@ -59,10 +64,12 @@ class Connect {
     this.socket = client(address,{
       transports: ['websocket']
     })
+    this._changeState(CONNECT_STATE.CONNING)
     this.socket.on('connect', (() => {
       this._changeState(CONNECT_STATE.CONNING)
       debug('connent success')
-      this.send('requestLogin',{ id: this.sa.id})
+      if(this.socket)
+        this.send('requestLogin',{ id: this.sa.id})
     }).bind(this))
     this.socket.on('event', ((data) => {
       this.dispatch(data.type, data)
@@ -81,6 +88,8 @@ class Connect {
     this.socket.on('connect_error', err => {
       this._changeState(CONNECT_STATE.DISCED, err)
     })
+    this.initialized = true
+    debug('connect init')
   }
 
   dispatch(eventType, data) {
@@ -90,11 +99,11 @@ class Connect {
       let seed
       try{
         seed = secretKey.decrypt(data.encryptData, 'base64', 'utf8')
+        this.send('login', { seed })
       }catch(e){
         //TODO
         debug(e)
       }
-      this.send('login', { seed })
     }
     if(eventType === 'login'){
       let success = data.success
