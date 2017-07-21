@@ -42,10 +42,11 @@ const complement = (a, b) =>
   fruitmix/repo          // store blob 
           /boxes
             [uuid]/
-              manifest      // 
+              manifest      // box doc
               records       // database
               blackList     // 
-              [branches[]   // 
+              [branches]    // 
+              [commits]     //
               pull/push     //
 */
 
@@ -55,8 +56,7 @@ const complement = (a, b) =>
 class Records {
 
   /**
-   * 
-   * @param {string} filePath - twits DB path 
+   * @param {string} filePath - twitsDB path 
    * @param {string} blackList - filepath of blackList
    */
   constructor(filePath, blackList) {
@@ -78,7 +78,8 @@ class Records {
   }
 
   /**
-   * add new data to twits to DB
+   * add new data to twits DB
+   * before adding, check the last record, if incorrect, delete it
    * @param {Object} obj - object to be stored
    */
   add(obj, callback) {
@@ -141,7 +142,7 @@ class Records {
    * @param {number} props.last - optional
    * @param {number} props.count - optional
    * @param {string} props.segments - optional
-   * @return {array} each item in array is an twit object
+   * @return {array} a collection of twit objects
    */
   get(props, callback) {
     let { first, last, count, segments } = props
@@ -228,8 +229,9 @@ class Records {
   }
 
   /**
-   * delete a twit
-   * @param {number} index - index of twit to be delete
+   * delete twits
+   * it's not delete the content in twitsDB, but add the index into blackList
+   * @param {array} indexArr - index array of twits to be deleted
    */
   delete(indexArr, callback) {
     indexArr = [...new Set(indexArr)].toString()
@@ -242,7 +244,7 @@ class Records {
 
   /**
    * async detition of delete
-   * @param {number} index - index of twit to be delete
+   * @param {array} indexArr - index array of twits to be deleted
    */
   async deleteAsync(indexArr) {
     return Promise.promisify(this.delete).bind(this)(indexArr)
@@ -258,6 +260,7 @@ class Box {
    * @param {string} dir - root path of box
    * @param {string} tmpDir - temporary directory path
    * @param {Object} doc - document of box
+   * @param {Object} records - twitsDB
    */
   constructor(dir, tmpDir, doc, records) {
     this.dir = dir
@@ -268,22 +271,14 @@ class Box {
   }
 
   /**
-   * append twits
-   * @param {Object} obj - content to be stored
-   * @private
-   */
-  async appendTwitsAsync (obj) {
-    let text = Stringify(obj)
-    let target = path.join(this.dir, 'twits')
-    await fs.appendFileAsync(target, `\n${text}`)
-  }
-
-  /**
    * create a twit
    * @param {Object} props 
    * @param {string} props.global - user global id
    * @param {string} props.comment - comment
-   * @param {number} props.ctime - create time
+   * @param {string} props.type - twit type, optional
+   * @param {string} props.id - sha256 for blob, commit, uuid for list, tag, branch, job. coexist with type.
+   * @param {array} props.list - an array of sha256, exist only when type is list.
+   * @return {Object} twit object
    */
   async createTwitAsync(props) {
     let twit = {
@@ -294,25 +289,27 @@ class Box {
 
     if (props.type) {
       twit.type = props.type
-      switch (props.type) {
-        case 'blob':
-          twit.sha256 = props.sha256
-          break
-        case 'list':
-          twit.list = props.list
-          twit.jobID = props.jobID
-          break
-        case 'commit':
-          twit.hash = props.hash
-          break
-        case 'tag':
-        case 'branch':
-        case 'job':
-          twit.id = props.id
-          break
-        default:
-          break
-      }
+      twit.id = props.id
+      if (props.type === 'list') twit.list = props.list
+      // switch (props.type) {
+      //   case 'blob':
+      //     twit.sha256 = props.sha256
+      //     break
+      //   case 'list':
+      //     twit.list = props.list
+      //     twit.jobID = props.jobID
+      //     break
+      //   case 'commit':
+      //     twit.hash = props.hash
+      //     break
+      //   case 'tag':
+      //   case 'branch':
+      //   case 'job':
+      //     twit.id = props.id
+      //     break
+      //   default:
+      //     break
+      // }
     }
 
     twit.ctime = new Date().getTime()
@@ -328,14 +325,15 @@ class Box {
    * @param {number} props.last - optional
    * @param {number} props.count - optional
    * @param {string} props.segments - optional
+   * @return {array} a collection of twit objects
    */
   async getTwitsAsync(props) {
     return await this.records.getAsync(props)
   }
 
   /**
-   * delete a twit
-   * @param {number} index - the index of twit to be delete
+   * delete twits
+   * @param {array} indexArr - index array of twits to be deleted
    */
   async deleteTwitAsync(indexArr) {
     return await this.records.deleteAsync(indexArr)
@@ -354,7 +352,7 @@ class Box {
    * @param {Object} props 
    * @param {string} props.name - branch name
    * @param {string} props.head - SHA256, a commit ref
-   * @return {Object} branch
+   * @return {Object} branch object
    */
   async createBranchAsync(props) {
     let branch = {
@@ -376,7 +374,7 @@ class Box {
    * @param {string} type - branches or commits
    * @param {string} id - branch uuid or commit hash
    * @param {function} callback 
-   * @return {Object} branch content
+   * @return {Object} branch or commit object
    */
   retrieve(type, id, callback) {
     let srcpath = path.join(this.dir, type, id)
@@ -395,7 +393,7 @@ class Box {
    * async edition of retrieveBranch
    * @param {string} type - branches or commits
    * @param {string} id - branch uuid or commit hash
-   * @return {Object} branch content
+   * @return {Object} branch or commit object
    */
   async retrieveAsync(type, id) {
     return Promise.promisify(this.retrieve).bind(this)(type, id)
@@ -405,7 +403,7 @@ class Box {
    * retrieve all
    * @param {string} type - branches or commits
    * @param {function} callback 
-   * @return {array} branches
+   * @return {array} collection of branches or commits
    */
 
   retrieveAll(type, callback) {
@@ -427,8 +425,9 @@ class Box {
   }
 
   /**
-   * async edition of retrieveAllBranches
-   * @return {array} branches
+   * async edition of retrieveAll
+   * @param {string} type - branches or commits
+   * @return {array} collection of branches or commits
    */
   async retrieveAllAsync(type) {
     return Promise.promisify(this.retrieveAll).bind(this)(type)
@@ -462,6 +461,10 @@ class Box {
     return updated
   }
 
+  /**
+   * delete a branch
+   * @param {string} branchUUID - branch uuid
+   */
   async deleteBranchAsync(branchUUID) {
     let target = path.join(this.dir, 'branches', branchUUID)
     await rimrafAsync(target)
@@ -475,18 +478,29 @@ class Box {
    * @param {array} props.parent - parent commit
    * @param {string} props.user - user unionId
    * @param {string} props.comment - comment for the commit
-   * @return {string} hash
+   * @return {string} sha256 of commit object
    */
   async createCommitAsync(props) {
     let commit = {
       tree: props.tree,
       parent: props.parent,
       user: props.user,
-      ctime: new Date().getTime(),
-      comment: props.comment
+      ctime: new Date().getTime()
+      // comment: props.comment
     }
 
-    return await this.storeObjectAsync(commit)
+    let targetDir = path.join(this.dir, 'commits')
+    await mkdirpAsync(targetDir)
+
+    let text = Stringify(commit)
+    let hash = crypto.createHash('sha256')
+    hash.update(text)
+    let sha256 = hash.digest().toString('hex')
+
+    let targerPath = path.join(targetDir, sha256)
+    await saveObjectAsync(targetPath, this.tmpDir, commit)
+
+    return sha256
   }
 
   
@@ -553,11 +567,10 @@ class BoxData {
 
 /**
  * Create a box
- * 
  * @param {Object} props - props
  * @param {string} props.name - non-empty string, no conflict with existing box name
- * @param {string} props.owner - box owner, unionId
- * @param {array} props.users - empty or unionId array
+ * @param {string} props.owner - box owner, global id
+ * @param {array} props.users - empty or global id array
  * @return {Object} box 
  */
   async createBoxAsync(props) {
@@ -624,7 +637,6 @@ class BoxData {
 
 /**
  * delete a box
- * 
  * @param {string} boxUUID - uuid of box to be deleted
  */
   async deleteBoxAsync(boxUUID) {
