@@ -1,6 +1,17 @@
-const request = require('./request')
+const request = require('./request').requestHelperAsync
 
-request('GET', 'http://www.jackyang.cn/blobs', null, { 'Content-Type': 'application/json'}, (err, res) => {
-  if(err) return console.log(err)
-  console.log(res.body)
-})
+let blob = {
+  name: 'CJackYang',
+  badge: 1,
+  content: 'Hello JackYang',
+  isloved: true,
+  readCount: 1,
+  type: 'String'
+}
+
+request('POST', 'http://www.jackyang.cn/blobs', { params: blob }, { 'Content-Type': 'application/json'})
+  .then(res => {
+    console.log(res.body)
+    console.log(res.status)
+  })
+  .catch(console.error.bind(console))
