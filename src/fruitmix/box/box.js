@@ -6,6 +6,7 @@ const rimrafAsync = Promise.promisify(require('rimraf'))
 const mkdirp = require('mkdirp')
 const mkdirpAsync = Promise.promisify(mkdirp)
 const UUID = require('uuid')
+const crypto = require('crypto')
 const deepEqual = require('deep-equal')
 const lineByLineReader = require('line-by-line')
 
@@ -502,11 +503,6 @@ class Box {
 
     return sha256
   }
-
-  
-
-  
-
 }
 
 /**
