@@ -208,7 +208,7 @@ const forgeRecords = async (boxUUID, username) => {
   // but only the first two can get a result, this won't influence the data we need
   for(let i = 0; i < 10; i++) {
     let res = await request(app)
-      .post(`/boxes/${boxUUID}/twits`)
+      .post(`/boxes/${boxUUID}/tweets`)
       .set('Authorization', 'JWT ' + cloudToken + ' ' + token)
       .send({comment: 'hello'})
       .expect(200)

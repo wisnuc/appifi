@@ -53,7 +53,7 @@ class Connect {
   }
 
   _connect(address) {
-    console.log(this.state)
+    // console.log(this.state)
     // console.log(this.socket)
     if(this.socket && this.socket.connected) throw new　Error('Connent is connected now')
     if(this.socket && this.socket.disconnected){
