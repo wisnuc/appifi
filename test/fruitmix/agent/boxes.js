@@ -287,26 +287,26 @@ describe(path.basename(__filename), () => {
 
     afterEach(() => UUID.v4.restore())
 
-    it('POST /boxes/{uuid}/twits alice should add a twit into twitsDB', done => {
+    it('POST /boxes/{uuid}/tweets alice should add a tweet into tweetsDB', done => {
       request(app)
-        .post(`/boxes/${boxUUID}/twits`)
+        .post(`/boxes/${boxUUID}/tweets`)
         .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
         .send({comment: 'hello'})
         .expect(200)
         .end((err, res) => {
           if (err) return done(err)
           expect(res.body.uuid).to.equal(uuid_1)
-          expect(res.body.twitter).to.equal(IDS.alice.global)
+          expect(res.body.tweeter).to.equal(IDS.alice.global)
           expect(res.body.comment).to.equal('hello')
           done()
         })
     })
 
-    it('POST /boxes/{uuid}/twits alice should upload a blob', done => {
+    it('POST /boxes/{uuid}/tweets alice should upload a blob', done => {
       let sha256 = '7803e8fa1b804d40d412bcd28737e3ae027768ecc559b51a284fbcadcd0e21be'
 
       request(app)
-        .post(`/boxes/${boxUUID}/twits`)
+        .post(`/boxes/${boxUUID}/tweets`)
         .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
         .field('comment', 'hello')
         .field('type', 'blob')
@@ -317,7 +317,7 @@ describe(path.basename(__filename), () => {
         .end((err, res) => {
           if (err) return done(err)
           expect(res.body.uuid).to.equal(uuid_2)
-          expect(res.body.twitter).to.equal(IDS.alice.global)
+          expect(res.body.tweeter).to.equal(IDS.alice.global)
           expect(res.body.comment).to.equal('hello')
           expect(res.body.type).to.equal('blob')
           expect(res.body.id).to.equal(sha256)
@@ -325,13 +325,13 @@ describe(path.basename(__filename), () => {
         })
     })
 
-    it('POST /boxes/{uuid}/twits should cover the last record if it is incorrect', done => {
-      let text = '{"comment":"hello","ctime":1500343057045,"index":4,"twitter":"ocMvos6NjeKLIBqg5Mr9QjxrP1FA"'
+    it('POST /boxes/{uuid}/tweets should cover the last record if it is incorrect', done => {
+      let text = '{"comment":"hello","ctime":1500343057045,"index":4,"tweeter":"ocMvos6NjeKLIBqg5Mr9QjxrP1FA"'
       let filepath = path.join(tmptest, 'boxes', boxUUID, 'records')
       fs.writeFileSync(filepath, text)
 
       request(app)
-        .post(`/boxes/${boxUUID}/twits`)
+        .post(`/boxes/${boxUUID}/tweets`)
         .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
         .send({comment: 'hello'})
         .expect(200)
@@ -339,7 +339,7 @@ describe(path.basename(__filename), () => {
           if (err) return done(err)
 
           request(app)
-            .get(`/boxes/${boxUUID}/twits`)
+            .get(`/boxes/${boxUUID}/tweets`)
             .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
             .expect(200)
             .end((err, res) => {
@@ -352,11 +352,11 @@ describe(path.basename(__filename), () => {
         })
     })
 
-    it('GET /boxes/{uuid}/twits should get all records', done => {
+    it('GET /boxes/{uuid}/tweets should get all records', done => {
       forgeRecords(boxUUID, 'alice')
         .then(() => {
           request(app)
-            .get(`/boxes/${boxUUID}/twits`)
+            .get(`/boxes/${boxUUID}/tweets`)
             .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
             .expect(200)
             .end((err, res) => {
@@ -367,19 +367,19 @@ describe(path.basename(__filename), () => {
         .catch(done)
     })
 
-    it('GET /boxes/{uuid}/twits should repair twits DB if the last record is incorrect', done => {
+    it('GET /boxes/{uuid}/tweets should repair tweets DB if the last record is incorrect', done => {
       forgeRecords(boxUUID, 'alice')
         .then(() => {
           let filepath = path.join(tmptest, 'boxes', boxUUID, 'records')
           let size = fs.readFileSync(filepath).length
-          let text = '{"comment":"hello","ctime":1500343057045,"index":10,"twitter":"ocMvos6NjeKLIBqg5Mr9QjxrP1FA"'
+          let text = '{"comment":"hello","ctime":1500343057045,"index":10,"tweeter":"ocMvos6NjeKLIBqg5Mr9QjxrP1FA"'
           
           let writeStream = fs.createWriteStream(filepath, { flags: 'r+', start: size })
           writeStream.write(`\n${text}`)
           writeStream.close()
 
           request(app)
-            .get(`/boxes/${boxUUID}/twits`)
+            .get(`/boxes/${boxUUID}/tweets`)
             .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
             .expect(200)
             .end((err, res) => {
@@ -390,11 +390,11 @@ describe(path.basename(__filename), () => {
         .catch(done)
     })
 
-    it('GET /boxes/{uuid}/twits twits in blackList should be removed', done => {
+    it('GET /boxes/{uuid}/tweets tweets in blackList should be removed', done => {
       forgeRecords(boxUUID, 'alice')
         .then(() => {
           request(app)
-            .delete(`/boxes/${boxUUID}/twits`)
+            .delete(`/boxes/${boxUUID}/tweets`)
             .send({indexArr: [2]})
             .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
             .expect(200)
@@ -402,7 +402,7 @@ describe(path.basename(__filename), () => {
               if (err) return done(err)
 
               request(app)
-                .get(`/boxes/${boxUUID}/twits`)
+                .get(`/boxes/${boxUUID}/tweets`)
                 .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
                 .expect(200)
                 .end((err, res) => {
@@ -417,9 +417,9 @@ describe(path.basename(__filename), () => {
         .catch(done)
     })
 
-    it('DELETE /boxes/{uuid}/twits should delete appointed twits', done => {
+    it('DELETE /boxes/{uuid}/tweets should delete appointed tweets', done => {
       request(app)
-        .delete(`/boxes/${boxUUID}/twits`)
+        .delete(`/boxes/${boxUUID}/tweets`)
         .send({indexArr: [2,4]})
         .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
         .expect(200)

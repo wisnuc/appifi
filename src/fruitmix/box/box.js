@@ -52,12 +52,12 @@ const complement = (a, b) =>
 */
 
 /**
- * twits DB
+ * tweets DB
  */
 class Records {
 
   /**
-   * @param {string} filePath - twitsDB path 
+   * @param {string} filePath - tweetsDB path 
    * @param {string} blackList - filepath of blackList
    */
   constructor(filePath, blackList) {
@@ -66,8 +66,8 @@ class Records {
   }
 
   /**
-   * save data to twits DB
-   * @param {Object} obj - object to be stored to twits DB 
+   * save data to tweets DB
+   * @param {Object} obj - object to be stored to tweets DB 
    * @param {number} start - position to start writing data
    * @private
    */
@@ -79,7 +79,7 @@ class Records {
   }
 
   /**
-   * add new data to twits DB
+   * add new data to tweets DB
    * before adding, check the last record, if incorrect, delete it
    * @param {Object} obj - object to be stored
    */
@@ -137,13 +137,13 @@ class Records {
   }
 
   /**
-   * get twits
+   * get tweets
    * @param {Object} props
    * @param {number} props.first -optional
    * @param {number} props.last - optional
    * @param {number} props.count - optional
    * @param {string} props.segments - optional
-   * @return {array} a collection of twit objects
+   * @return {array} a collection of tweet objects
    */
   get(props, callback) {
     let { first, last, count, segments } = props
@@ -153,7 +153,7 @@ class Records {
     // read all lines
     lr.on('line', line => records.push(line))
 
-    // check the last line and repair twits DB if error exists
+    // check the last line and repair tweets DB if error exists
     lr.on('end', () => {
       // read blackList
       let blackList = fs.readFileSync(this.blackList).toString()
@@ -223,16 +223,16 @@ class Records {
    * @param {number} props.last - optional
    * @param {number} props.count - optional
    * @param {string} props.segments - optional
-   * @return {array} each item in array is an twit object
+   * @return {array} each item in array is an tweet object
    */
   async getAsync(props) {
     return Promise.promisify(this.get).bind(this)(props)
   }
 
   /**
-   * delete twits
-   * it's not delete the content in twitsDB, but add the index into blackList
-   * @param {array} indexArr - index array of twits to be deleted
+   * delete tweets
+   * it's not delete the content in tweetsDB, but add the index into blackList
+   * @param {array} indexArr - index array of tweets to be deleted
    */
   delete(indexArr, callback) {
     indexArr = [...new Set(indexArr)].toString()
@@ -245,7 +245,7 @@ class Records {
 
   /**
    * async detition of delete
-   * @param {array} indexArr - index array of twits to be deleted
+   * @param {array} indexArr - index array of tweets to be deleted
    */
   async deleteAsync(indexArr) {
     return Promise.promisify(this.delete).bind(this)(indexArr)
@@ -261,7 +261,7 @@ class Box {
    * @param {string} dir - root path of box
    * @param {string} tmpDir - temporary directory path
    * @param {Object} doc - document of box
-   * @param {Object} records - twitsDB
+   * @param {Object} records - tweetsDB
    */
   constructor(dir, tmpDir, doc, records) {
     this.dir = dir
@@ -272,71 +272,71 @@ class Box {
   }
 
   /**
-   * create a twit
+   * create a tweet
    * @param {Object} props 
    * @param {string} props.global - user global id
    * @param {string} props.comment - comment
-   * @param {string} props.type - twit type, optional
+   * @param {string} props.type - tweet type, optional
    * @param {string} props.id - sha256 for blob, commit, uuid for list, tag, branch, job. coexist with type.
    * @param {array} props.list - an array of sha256, exist only when type is list.
-   * @return {Object} twit object
+   * @return {Object} tweet object
    */
-  async createTwitAsync(props) {
-    let twit = {
+  async createTweetAsync(props) {
+    let tweet = {
       uuid: UUID.v4(),
-      twitter: props.global,
+      tweeter: props.global,
       comment: props.comment
     }
 
     if (props.type) {
-      twit.type = props.type
-      twit.id = props.id
-      if (props.type === 'list') twit.list = props.list
+      tweet.type = props.type
+      tweet.id = props.id
+      if (props.type === 'list') tweet.list = props.list
       // switch (props.type) {
       //   case 'blob':
-      //     twit.sha256 = props.sha256
+      //     tweet.sha256 = props.sha256
       //     break
       //   case 'list':
-      //     twit.list = props.list
-      //     twit.jobID = props.jobID
+      //     tweet.list = props.list
+      //     tweet.jobID = props.jobID
       //     break
       //   case 'commit':
-      //     twit.hash = props.hash
+      //     tweet.hash = props.hash
       //     break
       //   case 'tag':
       //   case 'branch':
       //   case 'job':
-      //     twit.id = props.id
+      //     tweet.id = props.id
       //     break
       //   default:
       //     break
       // }
     }
 
-    twit.ctime = new Date().getTime()
+    tweet.ctime = new Date().getTime()
 
-    await this.records.addAsync(twit)
-    return twit
+    await this.records.addAsync(tweet)
+    return tweet
   }
 
   /**
-   * get oppointed twits
+   * get oppointed tweets
    * @param {Object} props 
    * @param {number} props.first - optional
    * @param {number} props.last - optional
    * @param {number} props.count - optional
    * @param {string} props.segments - optional
-   * @return {array} a collection of twit objects
+   * @return {array} a collection of tweet objects
    */
-  async getTwitsAsync(props) {
+  async getTweetsAsync(props) {
     return await this.records.getAsync(props)
   }
 
   /**
-   * delete twits
-   * @param {array} indexArr - index array of twits to be deleted
+   * delete tweets
+   * @param {array} indexArr - index array of tweets to be deleted
    */
-  async deleteTwitAsync(indexArr) {
+  async deleteTweetAsync(indexArr) {
     return await this.records.deleteAsync(indexArr)
   }
 
