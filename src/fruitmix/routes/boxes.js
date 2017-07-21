@@ -257,7 +257,7 @@ router.post('/:boxUUID/twits', auth, boxAuth, (req, res) => {
         if (req.user) global = req.user.global
         else global = req.guest.global
 
-        let props = { comment, type: 'blob', sha256, global}
+        let props = { comment, type: 'blob', id: sha256, global}
         box.createTwitAsync(props)
           .then(twit => {
             data = twit

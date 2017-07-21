@@ -320,7 +320,7 @@ describe(path.basename(__filename), () => {
           expect(res.body.twitter).to.equal(IDS.alice.global)
           expect(res.body.comment).to.equal('hello')
           expect(res.body.type).to.equal('blob')
-          expect(res.body.sha256).to.equal(sha256)
+          expect(res.body.id).to.equal(sha256)
           done()
         })
     })
