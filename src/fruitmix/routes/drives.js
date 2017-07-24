@@ -195,6 +195,7 @@ class Thread extends EventEmitter {
   constructor (blocked, ...args) {
     super()
     this._untils = []
+
     this.observe('children', [])
     this.observe('error', null, {
       set: function (x) {
@@ -253,12 +254,9 @@ class Thread extends EventEmitter {
     }
   }
 
-  async guardAsync(af) {
-    
-  }
-
   async untilAsync (predicate) {
-    return predicate() || new Promise((resolve, reject) => this._untils.push({ predicate, resolve, reject }))
+    if (predicate()) return
+    return new Promise((resolve, reject) => this._untils.push({ predicate, resolve, reject }))
   }
 
   observe (name, value, override) {
@@ -269,7 +267,6 @@ class Thread extends EventEmitter {
         return this[_name]
       },
       set: function (x) {
-
         if (Array.isArray(x)) {
           console.log('observe set', name, 'array length ' + x.length)
         } else {
@@ -291,13 +288,13 @@ class Thread extends EventEmitter {
 class FieldHandler extends Thread {
 
   async runAsync (part) {
+
     this.part = part
     this.observe('parsed', false)
 
     let buffers = []
 
     part.on('data', this.guard(chunk => buffers.push(chunk)))
-
     part.on('end', this.guard(() => {
       let { op, overwrite } = JSON.parse(Buffer.concat(buffers)) 
       if (op === 'mkdir') {
