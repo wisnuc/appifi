@@ -172,7 +172,7 @@ describe(path.basename(__filename), () => {
         })
     })
 
-    it('POST empty file', function(done) {
+    it('POST empty file only', function(done) {
 
       request(app)
         .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
