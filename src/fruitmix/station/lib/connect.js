@@ -101,12 +101,13 @@ class Connect {
         seed = secretKey.decrypt(data.encryptData, 'base64', 'utf8')
         this.send('login', { seed })
       }catch(e){
-        //TODO
+        //TODO:
         debug(e)
       }
     }
     if(eventType === 'login'){
       let success = data.success
+      //TODO: token
       if(success)
         this._changeState(CONNECT_STATE.CONNED)
       else

@@ -8,6 +8,7 @@ const mkdirp = require('mkdirp')
 const rimraf = require('rimraf')
 const request = require('superagent')
 const debug = require('debug')('station')
+const Tickets = require('./tickets')
 
 // const { registerAsync } = require('./register')
 const { FILE, CONFIG } = require('./const')
@@ -39,7 +40,7 @@ class Station {
           return  
         }
         return await this.createKeysAsync(froot)
-        
+      
       }catch(e){
         if(e.code === 'ENOENT')
           return await this.createKeysAsync(froot)
@@ -90,6 +91,8 @@ class Station {
         //connect to cloud
         this.froot = froot
         this.connect = Connect
+        Tickets.init(this.sa)
+        this.tickets = Tickets
         this.initialized = true
         debug('station init')
         broadcast.emit('StationStart', this)
@@ -110,6 +113,8 @@ class Station {
     this.pbkPath = undefined
     this.pvkPath = undefined
     this.initialized = false
+    this.tickets.deinit()
+    this.tickets = undefined
     debug('station deinit')
     broadcast.emit('StationStop', this)
   }
