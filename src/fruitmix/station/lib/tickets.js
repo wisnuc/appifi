@@ -1,10 +1,60 @@
 const Promise = require('bluebird')
 const debug = require('debug')('station')
 const request = require('superagent')
+const requestAsync = require('./request').requestHelperAsync
 
 const User = require('../../models/user') 
 
 const { FILE, CONFIG } = require('./const')
+
+const TYPES = ['invite', 'bind', 'share']
+Object.freeze(TYPES)
+
+class Ticket {
+  constructor() {
+    this.sa = undefined
+    this.initialized = false
+  }
+
+  init(sa) {
+    this.sa = sa
+    this.initialized = true
+  }
+
+  deinit() {
+    this.sa = undefined
+    this.initialized = false
+  }
+
+  async createTicketAsync(userId, type) {
+    if(!this.initialized) throw new Error('Ticket module not initialized!')
+    if(!sa) throw new Error('station sa not found')
+    let u = User.findUser(userId)
+    if(!u) throw new Error('user not found')
+    if(TYPES.indexOf(type) === -1) throw new Error('ticket type error')
+    if(type !== 'bind' && (u.global=== undefined || u.global.id === undefined)) throw new Error('user not bind wechat')
+    let creator = type === 'bind' ? u.uuid : u.global.id
+    let stationId = this.sa.id
+    let data = '123456'
+    let params = { stationId, data, creator, type }
+    let url = CONFIG.CLOUD_PATH + 'v1/tickets'
+    let opts = { 'Content-Type': 'application/json'}
+    try{
+      let res = await requestAsync('POST', url, { params }, opts)
+      if(res.status === 200)
+        return res.body.data
+      debug(res.body)
+      throw new Error(res.body.message)
+    }catch(e){
+      debug(e)
+      throw new Error('create ticket error')
+    }
+  }
+
+  async getTicket(ticketId) {
+
+  }
+}
 
 let createTicket = (user, sa, type, callback) => {
   //TODO encrypt data

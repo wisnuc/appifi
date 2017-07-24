@@ -9,11 +9,17 @@ let router = Router()
 
 //TODO authentication
 //create
+// type(string) enum [invite, bind, share]
+
+const TYPES = ['invite', 'bind', 'share']
+Object.freeze(TYPES)
+
 router.post('/', (req, res) => {
   let user = req.user
   let type = req.body.type
   // console.log(user, type)
-  if(typeof type !== 'number' || type < 0 || type > 2)
+
+  if(typeof type !== 'string' || TYPES.indexOf(type) === -1)
     return res.status(400).json(new E.EINVAL())
   Tickets.createTicket(user, req.body.sa, type, (err, resp) => {
     if(err) return debug(err) && res.status(500).json(err)

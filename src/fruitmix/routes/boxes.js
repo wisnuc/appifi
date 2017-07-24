@@ -192,7 +192,7 @@ router.delete('/:boxUUID/branches/:branchUUID', auth, boxAuth, (req, res, next) 
     .catch(next)
 })
 
-router.post('/:boxUUID/twits', auth, boxAuth, (req, res) => {
+router.post('/:boxUUID/tweets', auth, boxAuth, (req, res) => {
   let box = req.box
   if (req.is('multipart/form-data')) {
     // UPLOAD
@@ -257,10 +257,10 @@ router.post('/:boxUUID/twits', auth, boxAuth, (req, res) => {
         if (req.user) global = req.user.global
         else global = req.guest.global
 
-        let props = { comment, type: 'blob', sha256, global}
-        box.createTwitAsync(props)
-          .then(twit => {
-            data = twit
+        let props = { comment, type: 'blob', id: sha256, global}
+        box.createTweetAsync(props)
+          .then(tweet => {
+            data = tweet
             fileFinished = true
             finalize()
           })
@@ -288,7 +288,7 @@ router.post('/:boxUUID/twits', auth, boxAuth, (req, res) => {
     })
 
   form.parse(req)
-
+  
   } else if (req.is('application/json')) {
     // let type = req.body.type
     let global
@@ -297,29 +297,28 @@ router.post('/:boxUUID/twits', auth, boxAuth, (req, res) => {
 
     let props = Object.assign({}, req.body, { global })
 
-    box.createTwitAsync(props)
-    .then(twit => res.status(200).json(twit))
+    box.createTweetAsync(props)
+    .then(tweet => res.status(200).json(tweet))
     .catch(err => res.status(500).json({ code: err.code, message: err.message }))
   }else
     return res.status(415).end()
-  
 })
 
-router.get('/:boxUUID/twits', auth, boxAuth, (req, res) => {
+router.get('/:boxUUID/tweets', auth, boxAuth, (req, res) => {
   let box = req.box
   let { first, last, count, segments } = req.query
   let props = { first, last, count, segments }
 
-  box.getTwitsAsync(props)
+  box.getTweetsAsync(props)
     .then(data => res.status(200).json(data))
     .catch(err => res.status(500).json({ code: err.code, message: err.message }))
 })
 
-router.delete('/:boxUUID/twits', auth, boxAuth, (req, res) => {
+router.delete('/:boxUUID/tweets', auth, boxAuth, (req, res) => {
   let box = req.box
   let indexArr = req.body.indexArr
 
-  box.deleteTwitAsync(indexArr)
+  box.deleteTweetAsync(indexArr)
     .then(() => res.status(200).end())
     .catch(err => res.status(500).json({ code: err.code, message: err.message }))
 })

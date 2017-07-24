@@ -1,8 +1,9 @@
 const fs = require('fs')
 
 const request = require('superagent')
+const Promise = require('bluebird')
 
-module.exports.request = (type, url, params, opts, callback) => {
+let requestHelper =  (type, url, { params, query }, opts, callback) => {
   let req
   if(typeof type !== 'string' || !type.length || typeof url !== 'string' || !url.length)
     return callback(new Error('args error'))
@@ -31,6 +32,8 @@ module.exports.request = (type, url, params, opts, callback) => {
 
   if(params)
     req.send(params)
+  if(query)
+    req.query(query)
 
   if(opts)
     for(let i in opts){
@@ -39,6 +42,10 @@ module.exports.request = (type, url, params, opts, callback) => {
     }
   req.end(callback)
 }
+
+module.exports.requestHelper = requestHelper
+
+module.exports.requestHelperAsync = Promise.promisify(requestHelper)
 
 module.exports.download = (url, params, fpath, opts, callback) => {
   let req = request.get(url)
