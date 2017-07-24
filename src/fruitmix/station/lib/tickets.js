@@ -32,8 +32,10 @@ class Ticket {
     let u = User.findUser(userId)
     if(!u) throw new Error('user not found')
     if(TYPES.indexOf(type) === -1) throw new Error('ticket type error')
-    if(type !== 'bind' && (!u.global || u.global.id === undefined)) throw new Error('user not bind wechat')
-    let creator = type === 'bind' ? u.uuid : u.global.id
+      //TODO:
+    // if(type !== 'bind' && (!u.global || u.global.id === undefined)) throw new Error('user not bind wechat')
+    // let creator = type === 'bind' ? u.uuid : u.global.id
+    let creator = u.uuid
     let stationId = this.sa.id
     let data = '123456'
     let params = { stationId, data, creator, type }
@@ -70,9 +72,12 @@ class Ticket {
   async getTicketsAsync(userId) {
     if(!this.initialized) throw new Error('Ticket module not initialized')
     let u = User.findUser(userId)
-    if(!u.global || !u.global.id) throw new Error('user has not bind wechat account')
+    //TODO:
+    // if(!u.global || !u.global.id) throw new Error('user has not bind wechat account')
     let url = CONFIG.CLOUD_PATH + 'v1/tickets/'
-    let creator = u.global.id
+    //TODO:
+    // let creator = u.global.id
+    let creator = u.uuid
     let query = { creator }
     let opts = { 'Content-Type': 'application/json'}
     try {
