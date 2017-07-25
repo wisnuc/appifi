@@ -56,13 +56,6 @@ router.get('/', (req, res) => {
       debug(e)
       return res.status(500).json(e.message)
     })
-  // try{
-  //   let newuser = await Tickets.confirmTicketAsync(req.params.ticketId, guid, user.uuid, state)
-  //   return res.status(200).json(newuser)
-  // }catch(e){
-  //   debug(e)
-  //   return res.status(500).json(e)
-  // }
 })
 
 //  1, get ticket

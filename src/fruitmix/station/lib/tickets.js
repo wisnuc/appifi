@@ -16,18 +16,21 @@ class Ticket {
     this.initialized = false
   }
 
-  init(sa) {
+  init(sa, conn) {
     this.sa = sa
+    this.conncet = conn 
     this.initialized = true
   }
 
   deinit() {
     this.sa = undefined
+    this.connect = undefined
     this.initialized = false
   }
 
   async createTicketAsync(userId, type) {
     if(!this.initialized) throw new Error('Ticket module not initialized!')
+    if(!this.conncet || !this.conncet.isConnected()) throw new Error('station connect error')
     if(!this.sa) throw new Error('station sa not found')
     let u = User.findUser(userId)
     if(!u) throw new Error('user not found')
@@ -37,10 +40,11 @@ class Ticket {
     // let creator = type === 'bind' ? u.uuid : u.global.id
     let creator = u.uuid
     let stationId = this.sa.id
+    let token = this.conncet.token
     let data = '123456'
     let params = { stationId, data, creator, type }
     let url = CONFIG.CLOUD_PATH + 'v1/tickets'
-    let opts = { 'Content-Type': 'application/json'}
+    let opts = { 'Content-Type': 'application/json', 'Authorization': token}
     try{
       let res = await requestAsync('POST', url, { params }, opts)
       if(res.status === 200)
@@ -55,8 +59,10 @@ class Ticket {
 
   async getTicketAsync(ticketId) {
     if(!this.initialized) throw new Error('Ticket module not initialized')
+    if(!this.conncet || !this.conncet.isConnected()) throw new Error('station connect error')
     let url = CONFIG.CLOUD_PATH + 'v1/tickets/' + ticketId
-    let opts = { 'Content-Type': 'application/json'}
+    let token = this.conncet.token
+    let opts = { 'Content-Type': 'application/json', 'Authorization': token}
     try {
       let res = await requestAsync('GET', url, {}, opts)
       if(res.status === 200)
@@ -71,6 +77,7 @@ class Ticket {
 
   async getTicketsAsync(userId) {
     if(!this.initialized) throw new Error('Ticket module not initialized')
+    if(!this.conncet || !this.conncet.isConnected()) throw new Error('station connect error')
     let u = User.findUser(userId)
     //TODO: remove check
     // if(!u.global || !u.global.id) throw new Error('user has not bind wechat account')
@@ -78,8 +85,9 @@ class Ticket {
     //TODO: use localId tmp
     // let creator = u.global.id
     let creator = u.uuid
+    let token = this.conncet.token
     let query = { creator }
-    let opts = { 'Content-Type': 'application/json'}
+    let opts = { 'Content-Type': 'application/json', 'Authorization': token}
     try {
       let res = await requestAsync('GET', url, { query }, opts)
       if(res.status === 200)
@@ -94,8 +102,10 @@ class Ticket {
 
   async discardTicketAsync(ticketId) {
     if(!this.initialized) throw new Error('Ticket module not initialized')
+    if(!this.conncet || !this.conncet.isConnected()) throw new Error('station connect error')
     let url = CONFIG.CLOUD_PATH + 'v1/tickets/' + ticketId
-    let opts = { 'Content-Type': 'application/json'}
+    let token = this.conncet.token
+    let opts = { 'Content-Type': 'application/json', 'Authorization': token}
     let params = { status: 1 } // TODO change ticket status
     try {
       let res = await requestAsync('PATCH', url, { params }, opts)
@@ -110,6 +120,7 @@ class Ticket {
   }
 
   async consumeTicket(userId, id, ticketId, state) {
+    if(!this.conncet || !this.conncet.isConnected()) throw new Error('station connect error')
     if(!this.initialized) throw new Error('Ticket module not initialized')
     if(!state) return await this.discardTicketAsync(ticketId)
     let u = User.findUser(userId)

@@ -87,15 +87,17 @@ class Station {
       await this.startAsync(froot) // init station for keys
       try{
         this.sa = await this.registerAsync(froot)
-        
-        //connect to cloud
         this.froot = froot
-        this.connect = Connect
-        Tickets.init(this.sa)
-        this.tickets = Tickets
-        this.initialized = true
-        debug('station init')
-        broadcast.emit('StationStart', this)
+        broadcast.emit('StationRegisterFinish', this)
+        broadcast.on('Connect_Connected', conn => {
+            //connect to cloud
+          this.connect = Connect
+          Tickets.init(this.sa, conn)
+          this.tickets = Tickets
+          this.initialized = true
+          debug('station init')
+          broadcast.emit('StationStart', this)
+        })
       }catch(e){
         debug(e)
       }
@@ -162,7 +164,7 @@ class Station {
 
   stationFinishStart(req, res, next) {
     debug('station started')
-    if(this.sa !== undefined && this.connect !== undefined && this.connect.isConnect){
+    if(this.sa !== undefined && this.connect !== undefined && this.connect.isConnected()){
       req.body.sa = this.sa
       req.body.connect = this.connect
       return next()
