@@ -105,6 +105,7 @@ class Station {
   }
 
   deinit() {
+    if(!this.initialized) return 
     this.publicKey = undefined
     this.privateKey = undefined
     this.sa = undefined
