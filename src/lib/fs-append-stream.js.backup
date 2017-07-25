@@ -1,4 +1,3 @@
-const Promise = require('bluebird')
 const path = require('path')
 const fs = require('fs')
 const child = require('child_process')
@@ -6,9 +5,8 @@ const stream = require('stream')
 const mkdirp = require('mkdirp')
 const rimraf = require('rimraf')
 
-const modulePath = path.join('/tmp', '646af000-8406-4c7a-bfb9-7e83b8a20418')
-
-const moduleSource = `
+const source = `
+// begin embedded code
 
 const fs = require('fs')
 const crypto = require('crypto')
@@ -22,7 +20,7 @@ let stopped = false
 let readFinished = false
 let debug = false
 
-// start: Object: { filePath, [debug] }
+// start: Object: { filePath, offset }
 // number: new bytes written, that is, safe to read
 // string: any string will terminate
 process.on('message', message => {
@@ -31,15 +29,12 @@ process.on('message', message => {
     if (debug) console.log('-> ', message)
     filePath = message.filePath
     fd = fs.openSync(filePath, 'a+') 
-    offset = fs.fstatSync(fd).size
-    // signal ready
-    process.send('ready')
+    // offset = fs.fstatSync(fd).size
+    offset = message.offset || 0
   } else if (typeof message === 'number') {
     length += message
   } else if (typeof message === 'string') {
     stopped = true
-  } else {
-    process.exit(1)
   }
 })
 
@@ -66,7 +61,7 @@ const readLoop = () => {
       totalRead += bytesRead
       buffers.push(buffer.slice(0, bytesRead))
     } else {
-      // console.log('bytes read zero')
+      console.log('bytes read zero')
     }
     setImmediate(readLoop)
   })
@@ -75,8 +70,10 @@ const readLoop = () => {
 const hashLoop = () => {
   if (buffers.length === 0) {
     if (readFinished) {
-      // signal result and finish
-      process.send({ bytesRead: totalRead, digest: hash.digest('hex') })
+      process.send({
+        bytesRead: totalRead, 
+        digest: hash.digest('hex')
+      })
       return process.exit(0)
     } 
   } else {
@@ -89,11 +86,21 @@ const hashLoop = () => {
 
 readLoop()
 hashLoop()
+
+// end embedded code
 `
 
-fs.writeFileSync(modulePath, moduleSource)
+const Promise = require('bluebird')
+const dirPath = path.join('/tmp', '646af000-8406-4c7a-bfb9-7e83b8a20418')
+const modulePath = path.join(dirPath, 'tailhash.js')
+
+rimraf.sync(dirPath)
+mkdirp.sync(dirPath)
+fs.writeFileSync(modulePath, source)
 
 const K = x => y => x
+
+// const 
 
 // child -> parent message
 // number -> how many 
@@ -107,7 +114,7 @@ const Mixin = base => class extends base {
     this._untils = []
   }
 
-  async until (predicate, ignore) {
+  async untilAsync (predicate, ignore) {
     if (predicate()) return
     return new Promise((resolve, reject) => this._untils.push({ 
       predicate, 
@@ -116,17 +123,9 @@ const Mixin = base => class extends base {
     }))
   }
 
-  async untilAnyway (predicate) {
-    if (predicate()) return
-    return new Promise((resolve, reject) => this._untils.push({
-      predicate,
-      resolve
-    }))
-  }
-
   _until () {
     this._untils = this._untils.reduce((arr, x) => (this.error && x.reject) 
-      ? K(arr)(x.reject(this.error))
+      ? K(arr)(x.reject())
       : x.predicate() 
         ? K(arr)(x.resolve()) 
         : [...arr, x], [])
@@ -149,49 +148,46 @@ const Mixin = base => class extends base {
   }
 }
 
-class AppendStream extends Mixin(stream.Writable) {
+class TailHash extends Mixin(stream.Writable) {
 
-  constructor(filePath) {
+  constructor(ws, offset) {
     super({ highWaterMark: 1024 * 1024 })
 
     this.observe('error', null)
-    this.run(filePath)
-      .then(() => {
-        console.log('run succeeded.')
-      })
-      .catch(e => {
-        console.log('run error')
-        this.error = e
-      })
-      .then(() => {
-        this.finalized = true
-        console.log('finalized')
-      })
+    this.runAsync(ws, offset)
+      .then(() => {})
+      .catch(e => this.error = e)
+      .then(() => this.finalized = true)
   }
 
-  async run (filePath) {
+  async runAsync(ws, offset) {
 
-    this.observe('tailReady')
-    this.observe('ws')
-    this.observe('wsFinished')
-    this.observe('tailExited')
-    this.observe('finalizing')
-    this.observe('finalized')
-  
+    this.observe('wsFinished', false)
+    this.observe('tailExited', false)
+    this.observe('finalizing', false)
+    this.observe('finalized', false)
+   
     this.bytesWritten = 0
     this.bytesRead = 0
+    this.pendingRead = 0
+
+    this.ws = ws
+    this.ws.on('error', err => this.error = err)
+    this.ws.on('finish', () => this.wsFinished = true)
 
     this.tail = child.fork(modulePath)
     this.tail.on('message', message => {
       if (typeof message === 'object') {
+        this.pendingRead = 0
         if (message.bytesRead === this.bytesWritten) {
           this.digest = message.digest
         } else {
           this.error = new Error('bytes written and read mismatch')
         }
       }
-      else if (message === 'ready') {
-        this.tailReady = true
+      else if (typeof message === 'number') {
+        console.log('pending read', message)
+        this.pendingRead = message
       }
       else {
         this.error = new Error('invalid message from child process')
@@ -199,41 +195,26 @@ class AppendStream extends Mixin(stream.Writable) {
     })
     this.tail.on('error', err => this.error = err)
     this.tail.on('exit', () => this.tailExited = true)
-    this.tail.send({ filePath })
-
-    await this.until(() => this.tailReady)
-
-    this.ws = fs.createWriteStream(filePath, { flags: 'a'}) 
-    this.ws.on('error', err => this.error = err)
-    this.ws.on('finish', () => this.wsFinished = true)
+    this.tail.send({ filePath: ws.path, offset, debug: true })
 
     try {
-      await this.until(() => this.finalizing)
+      await this.untilAsync(() => this.finalizing)
       this.ws.end()
-      await this.until(() => this.wsFinished)
+      await this.untilAsync(() => this.wsFinished)
       this.tail.send('final')
-      await this.until(() => this.tailExited)
+      await this.untilAsync(() => this.tailExited)
     } catch (e) {
-
-      console.log('error caught', e, this.error)
-
-      try {
-        this.error = e
-        this.ws.end()
-        this.tail.kill()
-      } catch (e) {
-        console.log('failed again', e)
-      }
-
-      await this.untilAnyway(() => this.wsFinished && this.tailExited)
+      this.error = e
+      this.ws.end()
+      this.fork.kill()
+      await this.untilAsync(() => this.wsFinished && this.tailExited, true)
     }
   }
 
   _write(chunk, encoding, callback) {
     if (this.error) return callback(this.error)
-    // TODO debug
-    if (!this.ws) console.log('_write, waiting for write stream')
-    this.until(() => !!this.ws)
+
+    this.untilAsync(() => !!this.ws)
       .then(() => this.ws.write(chunk, encoding, () => {
         this.bytesWritten += chunk.length
         this.tail.send(chunk.length)
@@ -264,23 +245,49 @@ class AppendStream extends Mixin(stream.Writable) {
 
   _final(callback) {
     this.finalizing = true
-    
-    if (!this.finalized) console.log('_final, waiting for finalized')
-    this.until(() => this.finalized)
+    this.untilAsync(() => this.finalized)
       .then(() => callback(this.error))
   }
 }
 
-/**
+const createAppendStream = (filePath, callback) => {
+
+  fs.lstat(filePath, (err, stat) => {
+
+    let offset
+    if (err) {
+      if (err.code !== 'ENOENT') return callback(err)
+      offset = 0
+    } else {
+      if (!stat.isFile()) return callback(new Error('not a file'))
+      offset = stat.size
+    }
+
+    // making sure file exists when tail process begins
+    fs.open(filePath, 'a', (err, fd) => {
+      if (err) return err
+
+      let ws = fs.createWriteStream(filePath, { fd })
+      let append = new TailHash(ws, offset)
+      callback(null, append)
+    })
+  })
+}
+
 mkdirp.sync('tmptest')
 
-let as = new TailHash('tmptest/output')
-as.on('finish', () => console.log('[as finish]', as.digest, as.bytesWritten))
+createAppendStream('tmptest/output', (err, as) => {
 
-fs.createReadStream('testdata/ubuntu.iso').pipe(as)
-**/
+  if (err) {
+    console.log(err)
+    return
+  }
 
-module.exports = AppendStream
+  as.on('finish', () => console.log('[as finish]', as.digest, as.bytesWritten))
+  fs.createReadStream('testdata/ubuntu.iso').pipe(as) 
+})
+
+
 
 
 

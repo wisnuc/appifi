@@ -129,49 +129,6 @@ describe(path.basename(__filename), () => {
     })
 **/
 
-    it('POST mkdir hello', function(done) {
-      
-      request(app)
-        .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
-        .set('Authorization', 'JWT ' + token)
-        .field('hello', JSON.stringify({ op: 'mkdir' }))
-        .field('hello', JSON.stringify({ op: 'mkdir' }))
-        .field('hello', JSON.stringify({ op: 'mkdir' }))
-        .field('hello', JSON.stringify({ op: 'mkdir' }))
-        .field('hello', JSON.stringify({ op: 'mkdir' }))
-        .field('hello', JSON.stringify({ op: 'mkdir' }))
-        .field('hello', JSON.stringify({ op: 'mkdir' }))
-        .field('hello', JSON.stringify({ op: 'mkdir' }))
-         .expect(200)
-        .end((err, res) => {
-          let dirPath = path.join(forestDir, IDS.alice.home, 'hello')
-          fs.lstat(dirPath, (err, stat) => {
-            if (err) return done(err)
-            expect(stat.isDirectory()).to.be.true
-            done()
-          })
-        })
-    })
-
-    it('POST mkdir hello and rename to world', function(done) {
-
-      request(app)
-        .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
-        .set('Authorization', 'JWT ' + token)
-        .field('hello', JSON.stringify({ op: 'mkdir' }))
-        .field('hello|world', JSON.stringify({ op: 'rename' }))
-         .expect(200)
-        .end((err, res) => {
-          let helloPath = path.join(forestDir, IDS.alice.home, 'hello')
-          let worldPath = path.join(forestDir, IDS.alice.home, 'world')
-          fs.lstat(helloPath, err => {
-            expect(err.code).to.equal('ENOENT')
-            expect(fs.lstatSync(worldPath).isDirectory()).to.be.true
-            done()
-          })
-        })
-    })
-
     it('POST empty file only', function(done) {
 
       request(app)

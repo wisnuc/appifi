@@ -15,6 +15,7 @@ const ioctl = require('ioctl')
 
 const debug = require('debug')('writedir')
 
+const AppendStream = require('../../lib/fs-append-stream')
 const { readXstat, readXstatAsync, forceXstat, forceXstatAsync } = require('../lib/xstat')
 const broadcast = require('../../common/broadcast')
 
@@ -55,9 +56,10 @@ const combineHash = (a, b) => {
 This class guarantees the error xor finish is emitted exactly once
 */
 class Thread extends EventEmitter {
+
   constructor (blocked, ...args) {
     super()
-    this._untils = []
+    this._untilListeners = []
     this.observe('children', [])
 
     this.observe('error', null, {
@@ -84,11 +86,15 @@ class Thread extends EventEmitter {
   }
 
   _until () {
-    this._untils = this.error
-      ? this._untils.reduce((arr, x) => K(arr)(x.reject()), [])
-      : this._untils.reduce((arr, x) => x.predicate() ? K(arr)(x.resolve()) : [...arr, x], [])
+    this._untilListeners = this._untilListeners
+      .reduce((arr, x) => (this.error && x.reject)
+        ? K(arr)(x.reject())
+        : x.predicate()
+          ? K(arr)(x.resolve())
+          : [...arr, x], [])
   }
 
+  // useless
   async race (promise) {
     let finished = false
     const f = async () => {
@@ -96,10 +102,10 @@ class Thread extends EventEmitter {
       finished = true
       this._until()
     }
-
     return (await Promise.race([f, this.until(() => finished)])).shift()
   }
 
+  // don't know
   async settle (promise) {
     let x = await promise 
     if (this.error) throw this.error
@@ -117,9 +123,15 @@ class Thread extends EventEmitter {
     }
   }
 
-  async untilAsync (predicate) {
+  async until (predicate) {
+    if (this.error) throw this.error
     if (predicate()) return
-    return new Promise((resolve, reject) => this._untils.push({ predicate, resolve, reject }))
+    return new Promise((resolve, reject) => this._untilListeners.push({ predicate, resolve, reject }))
+  }
+
+  async untilAnyway (predicate) {
+    if (predicate()) return
+    return new Promise(resolve => this._untilListeners.push({ predicate, resolve }))
   }
 
   observe (name, value, override) {
@@ -151,6 +163,9 @@ class Thread extends EventEmitter {
   }
 }
 
+class PartHandler extends Thread {
+}
+
 class FieldHandler extends Thread {
 
   async runAsync (part) {
@@ -167,31 +182,33 @@ class FieldHandler extends Thread {
         part.opts = { op }
       } else if (op === 'rename' || op === 'dup') {
         part.opts = { op, overwrite }
+      } else if (op === 'remove') {
+        part.opts = { op }
       } else {
-        // TODO
+        this.error = new Error('Unrecognized op code')
+        return 
       }
 
       this.parsed = true
     }))
 
-    await this.untilAsync(() => this.parsed && !this.blocked)
-    
+    await this.until(() => this.parsed && !this.blocked)
+
+    let fromPath = path.join(part.dir.abspath(), part.fromName)
+    let toPath = path.join(part.dir.abspath(), part.toName)
+
     if (part.opts.op === 'mkdir') {
-      let dirPath = path.join(part.dir.abspath(), part.toName)
-      await this.settle(mkdirpAsync(dirPath)) 
+      await this.settle(mkdirpAsync(toPath)) 
     } else if (part.opts.op === 'rename') {
-      let oldPath = path.join(part.dir.abspath(), part.fromName)
-      let newPath = path.join(part.dir.abspath(), part.toName)
-      await this.settle(fs.renameAsync(oldPath, newPath))
+      // TODO support overwrite ???
+      await this.settle(fs.renameAsync(fromPath, toPath))
     } else if (part.opts.op === 'dup') {
-      let oldPath = path.join(part.dir.abspath(), part.fromName)  
-      let newPath = path.join(part.dir.abspath(), part.toName)
-      await this.settle(fs.renameAsync(oldPath, newPath))
+      // TODO support overwrite ???
+      await this.settle(fs.renameAsync(fromPath, toPath))
     } else if (part.opts.op === 'remove') {
-      let entryPath = path.join(part.dir.abspath(), part.fromName)
-      await this.settle(rimrafAsync(entryPath))
+      await this.settle(rimrafAsync(fromPath))
     } else {
-      // TODO
+      throw new Error('Internal Error')
     }
   }
 }
@@ -206,7 +223,9 @@ class NewFileHandler extends Thread {
     this.observe('partEnded', false)
     this.observe('wsFinished', false)
 
+    // tmp file
     let tmpPath = path.join(fruitmixPath, 'tmp', UUID.v4())
+
     let size = 0
     let hash = crypto.createHash('sha256')
     let ws = fs.createWriteStream(tmpPath)
@@ -234,17 +253,17 @@ class NewFileHandler extends Thread {
 
       debug('new file handler starts')
 
-      await this.untilAsync(() => this.partEnded)
+      await this.until(() => this.partEnded)
 
       ws.end()
-      await this.untilAsync(() => this.wsFinished)
+      await this.until(() => this.wsFinished)
 
       if (size !== part.opts.size) throw new Error('size mismatch')
       if (size !== ws.bytesWritten) throw new Error('bytesWritten mismatch')
       if (hash.digest('hex') !== part.opts.sha256) throw new Error('sha256 mismatch')
 
       await this.settle(forceXstatAsync(tmpPath, { hash: part.opts.sha256 }))
-      await this.untilAsync(() => !this.blocked)
+      await this.until(() => !this.blocked)
 
       let dstPath = path.join(part.dir.abspath(), part.toName)
       await this.settle(fs.renameAsync(tmpPath, dstPath))
@@ -277,7 +296,7 @@ class AppendHandler extends Thread {
       size += chunk.length
       hash.update(chunk)
 
-      if (this.ws) {
+      if (ws) {
         part.form.pause()
         ws.write(chunk, () => part.form.resume())
       } else {
@@ -287,14 +306,13 @@ class AppendHandler extends Thread {
     })
 
     part.on('error', err => this.error || (this.error = err))
-
     part.on('end', () => {
-      if (this.error) { return }
+      if (this.error) return
       partEnded = true
-      if (ws) { ws.end() }
+      if (ws) ws.end()
     })
 
-    await this.untilAsync(() => !this.blocked)
+    await this.until(() => !this.blocked)
 
     let srcPath = path.join(part.dir.abspath(), part.fromName)
     let tmpPath = path.join(fruitmixPath, 'tmp', UUID.v4())
@@ -318,7 +336,7 @@ class AppendHandler extends Thread {
     if (partEnded) { ws.end() }
     part.form.resume()
 
-    await this.untilAsync(() => this.wsFinished)
+    await this.until(() => this.wsFinished)
     if (this.error) { throw this.error }
 
     await this.settle(forceXstatAsync(tmpPath, {
@@ -332,6 +350,7 @@ class AppendHandler extends Thread {
 
 class Writedir extends Thread {
 
+  // this function works in finally logic
   async runAsync(dir, req) {
 
     this.observe('formEnded', false)
@@ -370,7 +389,7 @@ class Writedir extends Thread {
     form.on('end', this.guard(() => this.formEnded = true))
     form.parse(req)
 
-    await this.untilAsync(() => this.children.length === 0 && (this.error || this.formEnded))
+    await this.until(() => this.children.length === 0 && (this.error || this.formEnded))
 
     dir.read()
 
@@ -388,8 +407,8 @@ class Writedir extends Thread {
     if (part.filename) {
       // validate part.filename and generate part.opts
       let { size, sha256, append } = JSON.parse(part.filename)
-      if (!Number.isInteger(size)) { throw new Error('size must be a integer') }
-      if (size < 0 || size > 1024 * 1024 * 1024) { throw new Error('size out of range') }
+      if (!Number.isInteger(size)) throw new Error('size must be a integer')
+      if (size < 0 || size > 1024 * 1024 * 1024) throw new Error('size out of range')
       // TODO
 
       part.opts = { size, sha256, append }

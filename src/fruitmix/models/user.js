@@ -89,9 +89,10 @@ const userEntryMProps = [
   'lastChangeTime',
   'isFirstUser',
   'isAdmin',
-  'avatar',
-  'global'
+  'avatar', // null
+  'global'  // { id, wx: [ <unionId> ] }
 ]
+
 
 /**
 User includes all props in UserEntry except from password related ones. It is used by other parts of fruitmix.

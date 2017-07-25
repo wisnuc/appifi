@@ -37,6 +37,49 @@ process.on('message', message => {
 
 fs.writeFileSync(childModulePath, childSource)
 
+const Mixin = base => class extends base {
+
+  constructor(...args) {
+    super(...args)
+    this._untils = []
+  }
+
+  async untilAsync (predicate, ignore) {
+    if (predicate()) return
+    return new Promise((resolve, reject) => this._untils.push({ 
+      predicate, 
+      resolve, 
+      reject: ignore ? null : reject
+    }))
+  }
+
+  _until () {
+    this._untils = this._untils.reduce((arr, x) => (this.error && x.reject) 
+      ? K(arr)(x.reject())
+      : x.predicate() 
+        ? K(arr)(x.resolve()) 
+        : [...arr, x], [])
+  }
+
+  observe (name, value) {
+    let _name = '_' + name
+    this[_name] = value
+    Object.defineProperty(this, name, {
+      get: function () {
+        return this[_name]
+      },
+      set: function (x) { 
+        if (this[_name]) return // TODO
+        console.log('observe set', name, x)
+        this[_name] = x
+        process.nextTick(() => this._until())
+      }
+    })
+  }
+}
+
+// class HashWorker extends Mixin(
+
 const chop = number => {
 
   let arr = []
