@@ -48,6 +48,7 @@ class Connect {
     this.sa = null
     this.socket = null
     this.privateKey = null
+    this.token = null
     this.initialized = false
     debug('connect deinit')
   }
@@ -82,7 +83,6 @@ class Connect {
       debug('connent disconnect', data)
     })
     this.socket.on('error', err => {
-      console.log(err);
       debug(err)
     })
     this.socket.on('connect_error', err => {
@@ -108,9 +108,10 @@ class Connect {
     if(eventType === 'login'){
       let success = data.success
       //TODO: token
-      if(success)
+      if(success){
+        this.token = data.token
         this._changeState(CONNECT_STATE.CONNED)
-      else
+      }else
         this.disconnect()
       debug(success)
     }

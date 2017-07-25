@@ -75,7 +75,7 @@ router.post('/wechat/:ticketId', (req, res) => {
   let user = req.user
   if(!Asset.isUUID(guid) || typeof state !== 'boolean')
     return res.status(400).json(new E.EINVAL())
-  Tickets.bindUser(user.uuid, guid, req.params.ticketId, state)
+  Tickets.consumeTicket(user.uuid, guid, req.params.ticketId, state)
     .then(data => {
       return res.status(200).json(data)
     })

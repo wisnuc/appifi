@@ -32,7 +32,7 @@ class Ticket {
     let u = User.findUser(userId)
     if(!u) throw new Error('user not found')
     if(TYPES.indexOf(type) === -1) throw new Error('ticket type error')
-      //TODO:
+      //TODO: remove check
     // if(type !== 'bind' && (!u.global || u.global.id === undefined)) throw new Error('user not bind wechat')
     // let creator = type === 'bind' ? u.uuid : u.global.id
     let creator = u.uuid
@@ -72,10 +72,10 @@ class Ticket {
   async getTicketsAsync(userId) {
     if(!this.initialized) throw new Error('Ticket module not initialized')
     let u = User.findUser(userId)
-    //TODO:
+    //TODO: remove check
     // if(!u.global || !u.global.id) throw new Error('user has not bind wechat account')
     let url = CONFIG.CLOUD_PATH + 'v1/tickets/'
-    //TODO:
+    //TODO: use localId tmp
     // let creator = u.global.id
     let creator = u.uuid
     let query = { creator }
@@ -109,7 +109,7 @@ class Ticket {
     }
   }
 
-  async bindUser(userId, id, ticketId, state) {
+  async consumeTicket(userId, id, ticketId, state) {
     if(!this.initialized) throw new Error('Ticket module not initialized')
     if(!state) return await this.discardTicketAsync(ticketId)
     let u = User.findUser(userId)
