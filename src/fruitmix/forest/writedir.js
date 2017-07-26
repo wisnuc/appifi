@@ -20,6 +20,7 @@ const { readXstat, readXstatAsync, forceXstat, forceXstatAsync } = require('../l
 const broadcast = require('../../common/broadcast')
 
 const ErrorAbort = new Error('aborted')
+const EMPTY_SHA256_HEX = crypto.createHash('sha256').digest('hex')
 
 const K = x => y => x
 
@@ -209,6 +210,29 @@ class FieldHandler extends PartHandler {
   }
 }
 
+class NewEmptyFileHandler extends PartHandler {
+
+  async runAsync () {
+    this.observe('partEnded')
+
+    this.part.on('error', this.guard(err => this.error = err))
+    this.part.on('end', this.guard(() => this.partEnded = true))
+
+    let tmpPath = path.join(fruitmixPath, 'tmp', UUID.v4())
+    try {
+      let fd = await this.settle(fs.openAsync(tmpPath, 'w')) 
+      await this.settle(fs.closeAsync(fd))
+      await this.settle(forceXstatAsync(tmpPath, { hash: EMPTY_SHA256_HEX }))
+      await this.until(() => this.ready && this.partEnded) 
+      let dstPath = path.join(this.part.dir.abspath(), this.part.toName)
+      await this.settle(fs.renameAsync(tmpPath, dstPath))
+    } catch (e) {
+      this.error = e
+      rimraf(tmpPath, () => {})
+    }
+  }
+}
+
 /**
 There are two finally logics there:
 1. as should be guaranteed to end, this translates into 
@@ -216,30 +240,25 @@ There are two finally logics there:
   + wait until asFinished anyway
 2. 
 */
-class NewFileHandler extends PartHandler {
+class NewNonEmptyFileHandler extends PartHandler {
 
   async runAsync () {
 
     this.observe('partEnded', false)
     this.observe('asFinished', false)
 
-    // tmp file
     let tmpPath = path.join(fruitmixPath, 'tmp', UUID.v4())
-
     this.part.on('error', this.guard(err => this.error = err))
     this.part.on('end', this.guard(() => this.partEnded = true))
 
     if (this.part.opts.size === 0) {
-
       let fd = await this.settle(fs.openAsync(tmpPath, 'w'))
       await this.settle(fs.closeAsync(fd)) 
       await this.until(() => this.partEnded)
-
     } else {
-
       let size = 0
-
       let as = createAppendStream(tmpPath)
+
       try {
         as.on('error', this.guard(err => this.error = err))
         as.on('finish', this.guard(() => this.asFinished = true ))
@@ -391,7 +410,9 @@ class Writedir extends threadify(EventEmitter) {
         ? new FieldHandler(part, ready)
         : part.opts.append
           ? new AppendHandler(part, ready) 
-          : new NewFileHandler(part, ready)
+          : part.opts.size === 0 
+            ? new NewEmptyFileHandler(part, ready)
+            : new NewNonEmptyFileHandler(part, ready)
 
       child.on('error', err => this.error = err)
       child.on('finish', () => {
