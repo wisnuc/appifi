@@ -133,8 +133,11 @@ const threadify = base => class extends base {
 
 class PartHandler extends threadify(EventEmitter) {
 
-  constructor (ready, ...args) {
+  constructor (part, ready) {
     super()
+
+    this.part = part
+    this.observe('ready', ready)
     this.observe('error', null, function (x) {
       if (this._error) return
       debug('set error', x)
@@ -143,12 +146,7 @@ class PartHandler extends threadify(EventEmitter) {
       process.nextTick(() => this.updateListeners())
     })
 
-    this.observe('ready', ready, function (x) { 
-      this._ready = x
-      process.nextTick(() => this.updateListeners())
-    })
-
-    this.run(...args)
+    this.run()
   }
 
   run(...args) {
@@ -167,22 +165,21 @@ class PartHandler extends threadify(EventEmitter) {
 
 class FieldHandler extends PartHandler {
 
-  async runAsync (part) {
+  async runAsync () {
 
-    this.part = part
     this.observe('parsed', false)
 
     let buffers = []
 
-    part.on('data', this.guard(chunk => buffers.push(chunk)))
-    part.on('end', this.guard(() => {
+    this.part.on('data', this.guard(chunk => buffers.push(chunk)))
+    this.part.on('end', this.guard(() => {
       let { op, overwrite } = JSON.parse(Buffer.concat(buffers)) 
       if (op === 'mkdir') {
-        part.opts = { op }
+        this.part.opts = { op }
       } else if (op === 'rename' || op === 'dup') {
-        part.opts = { op, overwrite }
+        this.part.opts = { op, overwrite }
       } else if (op === 'remove') {
-        part.opts = { op }
+        this.part.opts = { op }
       } else {
         this.error = new Error('Unrecognized op code')
         return 
@@ -193,18 +190,18 @@ class FieldHandler extends PartHandler {
 
     await this.until(() => this.parsed && this.ready)
 
-    let fromPath = path.join(part.dir.abspath(), part.fromName)
-    let toPath = path.join(part.dir.abspath(), part.toName)
+    let fromPath = path.join(this.part.dir.abspath(), this.part.fromName)
+    let toPath = path.join(this.part.dir.abspath(), this.part.toName)
 
-    if (part.opts.op === 'mkdir') {
+    if (this.part.opts.op === 'mkdir') {
       await this.settle(mkdirpAsync(toPath)) 
-    } else if (part.opts.op === 'rename') {
+    } else if (this.part.opts.op === 'rename') {
       // TODO support overwrite ???
       await this.settle(fs.renameAsync(fromPath, toPath))
-    } else if (part.opts.op === 'dup') {
+    } else if (this.part.opts.op === 'dup') {
       // TODO support overwrite ???
       await this.settle(fs.renameAsync(fromPath, toPath))
-    } else if (part.opts.op === 'remove') {
+    } else if (this.part.opts.op === 'remove') {
       await this.settle(rimrafAsync(fromPath))
     } else {
       throw new Error('Internal Error')
@@ -221,19 +218,18 @@ There are two finally logics there:
 */
 class NewFileHandler extends PartHandler {
 
-  async runAsync (part) {
+  async runAsync () {
 
-    this.part = part
     this.observe('partEnded', false)
     this.observe('asFinished', false)
 
     // tmp file
     let tmpPath = path.join(fruitmixPath, 'tmp', UUID.v4())
 
-    part.on('error', this.guard(err => this.error = err))
-    part.on('end', this.guard(() => this.partEnded = true))
+    this.part.on('error', this.guard(err => this.error = err))
+    this.part.on('end', this.guard(() => this.partEnded = true))
 
-    if (part.opts.size === 0) {
+    if (this.part.opts.size === 0) {
 
       let fd = await this.settle(fs.openAsync(tmpPath, 'w'))
       await this.settle(fs.closeAsync(fd)) 
@@ -247,10 +243,10 @@ class NewFileHandler extends PartHandler {
       try {
         as.on('error', this.guard(err => this.error = err))
         as.on('finish', this.guard(() => this.asFinished = true ))
-        part.on('data', this.guard(chunk => {
+        this.part.on('data', this.guard(chunk => {
           size += chunk.length
-          part.form.pause()
-          as.write(chunk, this.guard(() => part.form.resume()))
+          this.part.form.pause()
+          as.write(chunk, this.guard(() => this.part.form.resume()))
         }))
 
         await this.until(() => this.partEnded)
@@ -262,23 +258,23 @@ class NewFileHandler extends PartHandler {
         await this.until(() => this.asFinished)
       }
 
-      if (size !== part.opts.size) throw new Error('size mismatch')
+      if (size !== this.part.opts.size) throw new Error('size mismatch')
       if (size !== as.bytesWritten) throw new Error('bytesWritten mismatch')
-      if (as.digest !== part.opts.sha256) throw new Error('sha256 mismatch') 
+      if (as.digest !== this.part.opts.sha256) throw new Error('sha256 mismatch') 
     }
 
-    await this.settle(forceXstatAsync(tmpPath, { hash: part.opts.sha256 }))
+    await this.settle(forceXstatAsync(tmpPath, { hash: this.part.opts.sha256 }))
     await this.until(() => this.ready)
 
-    let dstPath = path.join(part.dir.abspath(), part.toName)
+    let dstPath = path.join(this.part.dir.abspath(), this.part.toName)
     await this.settle(fs.renameAsync(tmpPath, dstPath))
   }
 }
 
 class AppendHandler extends PartHandler {
 
-  async runAsync (part) {
-    this.part = part
+  async runAsync () {
+
     this.observe('as')
     this.observe('asFinished')
     this.observe('partEnded')
@@ -290,25 +286,25 @@ class AppendHandler extends PartHandler {
     let buffers = []
     let size = 0
 
-    part.on('data', this.guard(chunk => {
+    this.part.on('data', this.guard(chunk => {
       size += chunk.length
       if (this.as) {
-        part.form.pause()
-        this.as.write(chunk, () => part.form.resume())
+        this.part.form.pause()
+        this.as.write(chunk, () => this.part.form.resume())
       } else {
         buffers.push(chunk)
-        part.form.pause()
+        this.part.form.pause()
       }
     }))
 
-    part.on('error', this.guard(err => this.error = err))
-    part.on('end', this.guard(() => this.partEnded = true))
+    this.part.on('error', this.guard(err => this.error = err))
+    this.part.on('end', this.guard(() => this.partEnded = true))
 
     await this.until(() => this.ready)
 
-    let srcPath = path.join(part.dir.abspath(), part.fromName)
+    let srcPath = path.join(this.part.dir.abspath(), this.part.fromName)
     let tmpPath = path.join(fruitmixPath, 'tmp', UUID.v4())
-    let dstPath = path.join(part.dir.abspath(), part.toName)
+    let dstPath = path.join(this.part.dir.abspath(), this.part.toName)
 
     let xstat = await this.settle(readXstatAsync(srcPath))
     let [srcFd, tmpFd] = await this.settle(Promise.all([
@@ -327,14 +323,14 @@ class AppendHandler extends PartHandler {
     buffers.forEach(buf => this.as.write(buf))
     buffers = null
 
-    part.form.resume()
+    this.part.form.resume()
     await this.until(() => this.partEnded)
     this.as.end()
 
     await this.until(() => this.asFinished)
     await this.settle(forceXstatAsync(tmpPath, {
       uuid: xstat.uuid,
-      hash: combineHash(part.opts.append, this.as.digest)
+      hash: combineHash(this.part.opts.append, this.as.digest)
     }))
 
     await this.settle(fs.renameAsync(tmpPath, dstPath))
@@ -390,11 +386,12 @@ class Writedir extends threadify(EventEmitter) {
       part.dir = dir
 
       let ready = !this.children.find(h => h.part.toName === part.fromName)
+
       let child = !part.filename
-        ? new FieldHandler(ready, part)
+        ? new FieldHandler(part, ready)
         : part.opts.append
-         ? new AppendHandler(ready, part) 
-          : new NewFileHandler(ready, part)
+          ? new AppendHandler(part, ready) 
+          : new NewFileHandler(part, ready)
 
       child.on('error', err => this.error = err)
       child.on('finish', () => {
