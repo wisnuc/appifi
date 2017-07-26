@@ -133,7 +133,7 @@ const threadify = base => class extends base {
 
 class PartHandler extends threadify(EventEmitter) {
 
-  constructor (blocked, ...args) {
+  constructor (ready, ...args) {
     super()
     this.observe('error', null, function (x) {
       if (this._error) return
@@ -143,8 +143,8 @@ class PartHandler extends threadify(EventEmitter) {
       process.nextTick(() => this.updateListeners())
     })
 
-    this.observe('blocked', blocked, function (x) { 
-      this._blocked = x
+    this.observe('ready', ready, function (x) { 
+      this._ready = x
       process.nextTick(() => this.updateListeners())
     })
 
@@ -191,7 +191,7 @@ class FieldHandler extends PartHandler {
       this.parsed = true
     }))
 
-    await this.until(() => this.parsed && !this.blocked)
+    await this.until(() => this.parsed && this.ready)
 
     let fromPath = path.join(part.dir.abspath(), part.fromName)
     let toPath = path.join(part.dir.abspath(), part.toName)
@@ -212,9 +212,17 @@ class FieldHandler extends PartHandler {
   }
 }
 
+/**
+There are two finally logics there:
+1. as should be guaranteed to end, this translates into 
+  + as.end() must be called
+  + wait until asFinished anyway
+2. 
+*/
 class NewFileHandler extends PartHandler {
 
   async runAsync (part) {
+
     this.part = part
     this.observe('partEnded', false)
     this.observe('asFinished', false)
@@ -222,23 +230,23 @@ class NewFileHandler extends PartHandler {
     // tmp file
     let tmpPath = path.join(fruitmixPath, 'tmp', UUID.v4())
 
-    try {
-      part.on('error', this.guard(err => this.error = err))
-      part.on('end', this.guard(() => this.partEnded = true))
+    part.on('error', this.guard(err => this.error = err))
+    part.on('end', this.guard(() => this.partEnded = true))
 
-      if (part.opts.size === 0) {
+    if (part.opts.size === 0) {
 
-        let fd = await this.settle(fs.openAsync(tmpPath, 'w'))
-        await this.settle(fs.closeAsync(fd)) 
-        await this.until(() => this.partEnded)
+      let fd = await this.settle(fs.openAsync(tmpPath, 'w'))
+      await this.settle(fs.closeAsync(fd)) 
+      await this.until(() => this.partEnded)
 
-      } else {
+    } else {
 
-        let size = 0
-        let as = createAppendStream(tmpPath)
+      let size = 0
+
+      let as = createAppendStream(tmpPath)
+      try {
         as.on('error', this.guard(err => this.error = err))
         as.on('finish', this.guard(() => this.asFinished = true ))
-
         part.on('data', this.guard(chunk => {
           size += chunk.length
           part.form.pause()
@@ -246,25 +254,24 @@ class NewFileHandler extends PartHandler {
         }))
 
         await this.until(() => this.partEnded)
+      } catch (e) {
+        this.error = e 
+        throw e
+      } finally {
         as.end()
         await this.until(() => this.asFinished)
-
-        if (size !== part.opts.size) throw new Error('size mismatch')
-        if (size !== as.bytesWritten) throw new Error('bytesWritten mismatch')
-        if (as.digest !== part.opts.sha256) throw new Error('sha256 mismatch') 
       }
 
-      await this.settle(forceXstatAsync(tmpPath, { hash: part.opts.sha256 }))
-      await this.until(() => !this.blocked)
-
-      let dstPath = path.join(part.dir.abspath(), part.toName)
-      await this.settle(fs.renameAsync(tmpPath, dstPath))
-
-    } catch (e) {
-      await rimrafAsync(tmpPath)
-      console.log(e)
-      throw e
+      if (size !== part.opts.size) throw new Error('size mismatch')
+      if (size !== as.bytesWritten) throw new Error('bytesWritten mismatch')
+      if (as.digest !== part.opts.sha256) throw new Error('sha256 mismatch') 
     }
+
+    await this.settle(forceXstatAsync(tmpPath, { hash: part.opts.sha256 }))
+    await this.until(() => this.ready)
+
+    let dstPath = path.join(part.dir.abspath(), part.toName)
+    await this.settle(fs.renameAsync(tmpPath, dstPath))
   }
 }
 
@@ -297,7 +304,7 @@ class AppendHandler extends PartHandler {
     part.on('error', this.guard(err => this.error = err))
     part.on('end', this.guard(() => this.partEnded = true))
 
-    await this.until(() => !this.blocked)
+    await this.until(() => this.ready)
 
     let srcPath = path.join(part.dir.abspath(), part.fromName)
     let tmpPath = path.join(fruitmixPath, 'tmp', UUID.v4())
@@ -377,24 +384,24 @@ class Writedir extends threadify(EventEmitter) {
     form.onPart = this.guard(part => {
 
       this.parse(part)
+
       part.number = number++
       part.form = form
       part.dir = dir
 
-      let blocked = !!this.children.find(h => h.part.toName === part.fromName)
+      let ready = !this.children.find(h => h.part.toName === part.fromName)
       let child = !part.filename
-        ? new FieldHandler(blocked, part)
+        ? new FieldHandler(ready, part)
         : part.opts.append
-          ? new AppendHandler(blocked, part) 
-          : new NewFileHandler(blocked, part)
+         ? new AppendHandler(ready, part) 
+          : new NewFileHandler(ready, part)
 
       child.on('error', err => this.error = err)
       child.on('finish', () => {
         let index = this.children.indexOf(child)
         this.children = [...this.children.slice(0, index), ...this.children.slice(index + 1)]
-
         let next = this.children.find(c => c.part.fromName === part.toName)
-        if (next) next.blocked = false
+        if (next) next.ready = true
       })
 
       this.children = [...this.children, child]
