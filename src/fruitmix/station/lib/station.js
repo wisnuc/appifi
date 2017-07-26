@@ -8,6 +8,7 @@ const mkdirp = require('mkdirp')
 const rimraf = require('rimraf')
 const request = require('superagent')
 const debug = require('debug')('station')
+const Tickets = require('./tickets')
 
 // const { registerAsync } = require('./register')
 const { FILE, CONFIG } = require('./const')
@@ -39,7 +40,7 @@ class Station {
           return  
         }
         return await this.createKeysAsync(froot)
-        
+      
       }catch(e){
         if(e.code === 'ENOENT')
           return await this.createKeysAsync(froot)
@@ -86,13 +87,17 @@ class Station {
       await this.startAsync(froot) // init station for keys
       try{
         this.sa = await this.registerAsync(froot)
-        
-        //connect to cloud
         this.froot = froot
-        this.connect = Connect
-        this.initialized = true
-        debug('station init')
-        broadcast.emit('StationStart', this)
+        broadcast.emit('StationRegisterFinish', this)
+        broadcast.on('Connect_Connected', conn => {
+            //connect to cloud
+          this.connect = Connect
+          Tickets.init(this.sa, conn)
+          this.tickets = Tickets
+          this.initialized = true
+          debug('station init')
+          broadcast.emit('StationStart', this)
+        })
       }catch(e){
         debug(e)
       }
@@ -102,6 +107,7 @@ class Station {
   }
 
   deinit() {
+    if(!this.initialized) return 
     this.publicKey = undefined
     this.privateKey = undefined
     this.sa = undefined
@@ -110,6 +116,8 @@ class Station {
     this.pbkPath = undefined
     this.pvkPath = undefined
     this.initialized = false
+    this.tickets.deinit()
+    this.tickets = undefined
     debug('station deinit')
     broadcast.emit('StationStop', this)
   }
@@ -156,7 +164,7 @@ class Station {
 
   stationFinishStart(req, res, next) {
     debug('station started')
-    if(this.sa !== undefined && this.connect !== undefined && this.connect.isConnect){
+    if(this.sa !== undefined && this.connect !== undefined && this.connect.isConnected()){
       req.body.sa = this.sa
       req.body.connect = this.connect
       return next()

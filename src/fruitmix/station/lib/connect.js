@@ -23,7 +23,7 @@ class Connect {
   constructor() {
     this.initialized = false
     this.state = CONNECT_STATE.DISCED
-    broadcast.on('StationStart', station => {
+    broadcast.on('StationRegisterFinish', station => {
       this.sa = station.sa
       this.froot = station.froot
       this.privateKey = station.privateKey
@@ -33,11 +33,17 @@ class Connect {
   }
 
   _changeState(state, error) {
-    if(state === CONNECT_STATE.DIS && error)
+    if(state === CONNECT_STATE.DISCED && error)
       this.error = error
     else
       this.error = null
     this.state = state
+
+    if(state === CONNECT_STATE.DISCED){
+      broadcast.emit('Connect_Disconnect', this)
+    }
+    if(state === CONNECT_STATE.CONNED)
+      broadcast.emit('Connect_Connected', this)
   }
 
   deinit(){
@@ -48,8 +54,14 @@ class Connect {
     this.sa = null
     this.socket = null
     this.privateKey = null
+    this.token = null
     this.initialized = false
     debug('connect deinit')
+  }
+
+  _setToken(token) {
+    this.token = token
+    this.initialized = true
   }
 
   _connect(address) {
@@ -82,13 +94,11 @@ class Connect {
       debug('connent disconnect', data)
     })
     this.socket.on('error', err => {
-      console.log(err);
       debug(err)
     })
     this.socket.on('connect_error', err => {
       this._changeState(CONNECT_STATE.DISCED, err)
     })
-    this.initialized = true
     debug('connect init')
   }
 
@@ -101,15 +111,17 @@ class Connect {
         seed = secretKey.decrypt(data.encryptData, 'base64', 'utf8')
         this.send('login', { seed })
       }catch(e){
-        //TODO
+        //TODO:
         debug(e)
       }
     }
     if(eventType === 'login'){
       let success = data.success
-      if(success)
+      //TODO: token
+      if(success){
+        this._setToken(data.token)
         this._changeState(CONNECT_STATE.CONNED)
-      else
+      }else
         this.disconnect()
       debug(success)
     }
@@ -139,8 +151,8 @@ class Connect {
     return this.state
   }
 
-  isConnect() {
-    if(this.socket && this.socket.connected)
+  isConnected() {
+    if(this.state === CONNECT_STATE.CONNED)
       return true
     return false
   }

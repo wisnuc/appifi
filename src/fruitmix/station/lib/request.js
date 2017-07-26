@@ -25,6 +25,10 @@ let requestHelper =  (type, url, { params, query }, opts, callback) => {
     case 'put':
       req = request.put(url)
       break
+    case 'PATCH':
+    case 'patch':
+      req = request.patch(url)
+      break
     default:
       break
   }

@@ -21,43 +21,61 @@ router.post('/', (req, res) => {
 
   if(typeof type !== 'string' || TYPES.indexOf(type) === -1)
     return res.status(400).json(new E.EINVAL())
-  Tickets.createTicket(user, req.body.sa, type, (err, resp) => {
-    if(err) return debug(err) && res.status(500).json(err)
-    return res.status(200).json(resp)
-  })
+  Tickets.createTicketAsync(user.uuid, type)
+    .then(data => {
+      return res.status(200).json(data)
+    })
+    .catch(err => {
+      debug(err)
+      return res.status(500).json(err.message)
+    })
 })
 
 //confirm
 router.get('/:ticketId', (req, res) => {
-  Tickets.getTicket(req.params.ticketId, (err, data) => {
-    if(err) return debug(err) && res.status(500).json(err)
-    return res.status(200).json(data.userData)
-  })
+  Tickets.getTicketAsync(req.params.ticketId)
+    .then(data => {
+      debug(data)
+      if(data.users)
+        return res.status(200).json(data.users)
+      return res.status(200).json([])
+    })
+    .catch(e => {
+      debug(e)
+      return res.status(500).json(e.message)
+    })
 })
 
 //get all tickets 
 router.get('/', (req, res) => {
-
+  Tickets.getTicketsAsync(req.user.uuid)
+    .then(data => {
+      return res.status(200).json(data)
+    })
+    .catch(e => {
+      debug(e)
+      return res.status(500).json(e.message)
+    })
 })
 
 //  1, get ticket
 //  2, create user
 //  3, LA <--> WA
 
-router.post('/wechat/:ticketId', async (req, res) => {
+router.post('/wechat/:ticketId', (req, res) => {
   let guid = req.body.guid
   let state = req.body.state
   let user = req.user
   if(!Asset.isUUID(guid) || typeof state !== 'boolean')
     return res.status(400).json(new E.EINVAL())
-  try{
-    let newuser = await Tickets.confirmTicketAsync(req.params.ticketId, guid, user.uuid, state)
-    return res.status(200).json(newuser)
-  }catch(e){
-    debug(e)
-    return res.status(500).json(e)
-  }
-
+  Tickets.consumeTicket(user.uuid, guid, req.params.ticketId, state)
+    .then(data => {
+      return res.status(200).json(data)
+    })
+    .catch(e => {
+      debug(e)
+      return res.status(500).json(e.message)
+    })
 })
 
 module.exports = router
