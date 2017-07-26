@@ -114,7 +114,7 @@ class Ticket {
       debug(res.body)
       throw new Error(res.body.message)
     } catch (error) {
-      debug(e)
+      debug(error)
       throw new Error('discard ticket error')
     }
   }
@@ -132,13 +132,17 @@ class Ticket {
     await this.discardTicketAsync(ticketId)
 
     debug(ticket)
-    let unionid = ticket[index].unionid
+    let user = ticket.users[index]
+    let unionid = user.unionid
     if(!unionid) throw new Error('wechat unionid not found')
     switch(ticket.type) {
       case 'invite':{
+        let username = user.nickName
+        // TODO: use pvKey decode password
+        let password = user.password
         return await User.createUserAsync({ 
-                          username: '',
-                          password: '',
+                          username,
+                          password,
                           global:{
                             id,
                             wx: [unionid]

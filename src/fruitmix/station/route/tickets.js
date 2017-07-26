@@ -54,6 +54,7 @@ router.get('/', (req, res) => {
     })
     .catch(e => {
       debug(e)
+      console.log(e)
       return res.status(500).json(e.message)
     })
 })
