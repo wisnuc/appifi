@@ -113,7 +113,7 @@ const threadify = base => class extends base {
   }
 
   // don't know
-  async settle (promise) {
+  async throwable (promise) {
     let x = await promise 
     if (this.error) throw this.error
     return x
@@ -195,15 +195,15 @@ class FieldHandler extends PartHandler {
     let toPath = path.join(this.part.dir.abspath(), this.part.toName)
 
     if (this.part.opts.op === 'mkdir') {
-      await this.settle(mkdirpAsync(toPath)) 
+      await this.throwable(mkdirpAsync(toPath)) 
     } else if (this.part.opts.op === 'rename') {
       // TODO support overwrite ???
-      await this.settle(fs.renameAsync(fromPath, toPath))
+      await this.throwable(fs.renameAsync(fromPath, toPath))
     } else if (this.part.opts.op === 'dup') {
       // TODO support overwrite ???
-      await this.settle(fs.renameAsync(fromPath, toPath))
+      await this.throwable(fs.renameAsync(fromPath, toPath))
     } else if (this.part.opts.op === 'remove') {
-      await this.settle(rimrafAsync(fromPath))
+      await this.throwable(rimrafAsync(fromPath))
     } else {
       throw new Error('Internal Error')
     }
@@ -220,12 +220,12 @@ class NewEmptyFileHandler extends PartHandler {
 
     let tmpPath = path.join(fruitmixPath, 'tmp', UUID.v4())
     try {
-      let fd = await this.settle(fs.openAsync(tmpPath, 'w')) 
-      await this.settle(fs.closeAsync(fd))
-      await this.settle(forceXstatAsync(tmpPath, { hash: EMPTY_SHA256_HEX }))
+      let fd = await this.throwable(fs.openAsync(tmpPath, 'w')) 
+      await this.throwable(fs.closeAsync(fd))
+      await this.throwable(forceXstatAsync(tmpPath, { hash: EMPTY_SHA256_HEX }))
       await this.until(() => this.ready && this.partEnded) 
       let dstPath = path.join(this.part.dir.abspath(), this.part.toName)
-      await this.settle(fs.renameAsync(tmpPath, dstPath))
+      await this.throwable(fs.renameAsync(tmpPath, dstPath))
     } catch (e) {
       this.error = e
       rimraf(tmpPath, () => {})
@@ -244,49 +244,44 @@ class NewNonEmptyFileHandler extends PartHandler {
 
   async runAsync () {
 
-    this.observe('partEnded', false)
-    this.observe('asFinished', false)
+    this.observe('partEnded')
+    this.observe('as')
+    this.observe('asFinished')
 
-    let tmpPath = path.join(fruitmixPath, 'tmp', UUID.v4())
+    this.part.on('data', this.guard(chunk => {
+      this.part.form.pause()
+      as.write(chunk, this.guard(() => {
+        size += chunk.length
+        this.part.form.resume()
+      }))
+    }))
     this.part.on('error', this.guard(err => this.error = err))
     this.part.on('end', this.guard(() => this.partEnded = true))
 
-    if (this.part.opts.size === 0) {
-      let fd = await this.settle(fs.openAsync(tmpPath, 'w'))
-      await this.settle(fs.closeAsync(fd)) 
+    let tmpPath = path.join(fruitmixPath, 'tmp', UUID.v4())
+    let size = 0
+    let as = createAppendStream(tmpPath)
+    try {
+      as.on('error', this.guard(err => this.error = err))
+      as.on('finish', this.guard(() => this.asFinished = true ))
       await this.until(() => this.partEnded)
-    } else {
-      let size = 0
-      let as = createAppendStream(tmpPath)
-
-      try {
-        as.on('error', this.guard(err => this.error = err))
-        as.on('finish', this.guard(() => this.asFinished = true ))
-        this.part.on('data', this.guard(chunk => {
-          size += chunk.length
-          this.part.form.pause()
-          as.write(chunk, this.guard(() => this.part.form.resume()))
-        }))
-
-        await this.until(() => this.partEnded)
-      } catch (e) {
-        this.error = e 
-        throw e
-      } finally {
-        as.end()
-        await this.until(() => this.asFinished)
-      }
-
-      if (size !== this.part.opts.size) throw new Error('size mismatch')
-      if (size !== as.bytesWritten) throw new Error('bytesWritten mismatch')
-      if (as.digest !== this.part.opts.sha256) throw new Error('sha256 mismatch') 
+    } catch (e) {
+      this.error = e 
+      throw e
+    } finally {
+      as.end()
+      await this.until(() => this.asFinished)
     }
 
-    await this.settle(forceXstatAsync(tmpPath, { hash: this.part.opts.sha256 }))
+    if (size !== this.part.opts.size) throw new Error('size mismatch')
+    if (size !== as.bytesWritten) throw new Error('bytesWritten mismatch')
+    if (as.digest !== this.part.opts.sha256) throw new Error('sha256 mismatch') 
+
+    await this.throwable(forceXstatAsync(tmpPath, { hash: this.part.opts.sha256 }))
     await this.until(() => this.ready)
 
     let dstPath = path.join(this.part.dir.abspath(), this.part.toName)
-    await this.settle(fs.renameAsync(tmpPath, dstPath))
+    await this.throwable(fs.renameAsync(tmpPath, dstPath))
   }
 }
 
@@ -325,15 +320,15 @@ class AppendHandler extends PartHandler {
     let tmpPath = path.join(fruitmixPath, 'tmp', UUID.v4())
     let dstPath = path.join(this.part.dir.abspath(), this.part.toName)
 
-    let xstat = await this.settle(readXstatAsync(srcPath))
-    let [srcFd, tmpFd] = await this.settle(Promise.all([
+    let xstat = await this.throwable(readXstatAsync(srcPath))
+    let [srcFd, tmpFd] = await this.throwable(Promise.all([
       fs.openAsync(srcPath, 'r'), 
       fs.openAsync(tmpPath, 'w')
     ]))
     ioctl(tmpFd, 0x40049409, srcFd)
-    await this.settle(Promise.all([fs.closeAsync(tmpFd), fs.closeAsync(srcFd)]))
+    await this.throwable(Promise.all([fs.closeAsync(tmpFd), fs.closeAsync(srcFd)]))
 
-    let xstat2 = await this.settle(readXstatAsync(srcPath))
+    let xstat2 = await this.throwable(readXstatAsync(srcPath))
 
     this.as = createAppendStream(tmpPath) 
     this.as.on('error', err => this.error = err)
@@ -347,12 +342,12 @@ class AppendHandler extends PartHandler {
     this.as.end()
 
     await this.until(() => this.asFinished)
-    await this.settle(forceXstatAsync(tmpPath, {
+    await this.throwable(forceXstatAsync(tmpPath, {
       uuid: xstat.uuid,
       hash: combineHash(this.part.opts.append, this.as.digest)
     }))
 
-    await this.settle(fs.renameAsync(tmpPath, dstPath))
+    await this.throwable(fs.renameAsync(tmpPath, dstPath))
   }
 }
 
