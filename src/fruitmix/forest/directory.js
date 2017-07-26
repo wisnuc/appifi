@@ -147,7 +147,7 @@ class Directory extends Node {
   }
 
   write(req, callback) {
-    let writer = new Writedir(false, this, req)
+    let writer = new Writedir(this, req)
     writer.on('finish', () => callback(writer.error))
   }
 }

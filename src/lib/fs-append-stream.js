@@ -5,6 +5,7 @@ const child = require('child_process')
 const stream = require('stream')
 const mkdirp = require('mkdirp')
 const rimraf = require('rimraf')
+const debug = require('debug')('appendstream')
 
 const modulePath = path.join('/tmp', '646af000-8406-4c7a-bfb9-7e83b8a20418')
 
@@ -141,7 +142,7 @@ const Mixin = base => class extends base {
       },
       set: function (x) { 
         if (this[_name]) return // TODO
-        console.log('observe set', name, x)
+        debug('observe set', name, x)
         this[_name] = x
         process.nextTick(() => this._until())
       }
@@ -157,15 +158,15 @@ class AppendStream extends Mixin(stream.Writable) {
     this.observe('error', null)
     this.run(filePath)
       .then(() => {
-        console.log('run succeeded.')
+        debug('run succeeded.')
       })
       .catch(e => {
-        console.log('run error')
+        debug('run error')
         this.error = e
       })
       .then(() => {
         this.finalized = true
-        console.log('finalized')
+        debug('finalized')
       })
   }
 
@@ -179,7 +180,6 @@ class AppendStream extends Mixin(stream.Writable) {
     this.observe('finalized')
   
     this.bytesWritten = 0
-    this.bytesRead = 0
 
     this.tail = child.fork(modulePath)
     this.tail.on('message', message => {
@@ -280,7 +280,9 @@ as.on('finish', () => console.log('[as finish]', as.digest, as.bytesWritten))
 fs.createReadStream('testdata/ubuntu.iso').pipe(as)
 **/
 
-module.exports = AppendStream
+// module.exports = AppendStream
+module.exports = filePath => new AppendStream(filePath)
+
 
 
 
