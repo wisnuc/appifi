@@ -3,6 +3,7 @@ const path = require('path')
 const fs = Promise.promisifyAll(require('fs'))
 const EventEmitter = require('events')
 const crypto = require('crypto')
+const stream = require('stream')
 
 const mkdirp = require('mkdirp')
 const mkdirpAsync = Promise.promisify(mkdirp)
@@ -16,10 +17,11 @@ const ioctl = require('ioctl')
 const debug = require('debug')('writedir')
 
 const createAppendStream = require('../../lib/fs-append-stream')
-const { readXstat, readXstatAsync, forceXstat, forceXstatAsync } = require('../lib/xstat')
+const { readXstatAsync, forceXstatAsync } = require('../lib/xstat')
 const broadcast = require('../../common/broadcast')
 
 const ErrorAbort = new Error('aborted')
+const EMPTY_SHA256_HEX = crypto.createHash('sha256').digest('hex')
 
 const K = x => y => x
 
@@ -52,8 +54,7 @@ const combineHash = (a, b) => {
 }
 
 const threadify = base => class extends base {
-
-  constructor(...args) {
+  constructor (...args) {
     super(...args)
     this._thrListeners = []
   }
@@ -63,7 +64,6 @@ const threadify = base => class extends base {
   set is optional
   **/
   observe (name, value, set) {
-
     let _name = '_' + name
     this[_name] = value
     Object.defineProperty(this, name, {
@@ -72,7 +72,12 @@ const threadify = base => class extends base {
       },
       set: set || function (x) {
         if (this[_name]) return
-        debug('observe set', name, x)
+        debug('observe set', name,
+          x instanceof stream
+            ? 'stream'
+            : Array.isArray(x)
+              ? 'array length ' + x.length
+              : x)
         this[_name] = x
         process.nextTick(() => this.updateListeners())
       }
@@ -81,13 +86,13 @@ const threadify = base => class extends base {
 
   async until (predicate) {
     if (predicate()) return
-    return new Promise((resolve, reject) => 
+    return new Promise((resolve, reject) =>
       this._thrListeners.push({ predicate, resolve, reject }))
   }
 
   async untilAnyway (predicate) {
     if (predicate()) return
-    return new Promise((resolve, reject) => 
+    return new Promise((resolve, reject) =>
       this._thrListeners.push({ predicate, resolve }))
   }
 
@@ -100,41 +105,31 @@ const threadify = base => class extends base {
           : [...arr, x], [])
   }
 
-  // useless
-  async race (promise) {
-    let finished = false
-    const f = async () => {
-      let x = await promise
-      finished = true
-      this._until()
-    }
-    return (await Promise.race([f, this.until(() => finished)])).shift()
-  }
-
   // don't know
-  async settle (promise) {
-    let x = await promise 
+  async throwable (promise) {
+    let x = await promise
     if (this.error) throw this.error
     return x
   }
 
-  guard(f) {
+  guard (f) {
     return (...args) => {
       if (this.error) return
       try {
         f(...args)
-      } catch(e) {
+      } catch (e) {
         this.error = e
       }
     }
   }
-
 }
 
 class PartHandler extends threadify(EventEmitter) {
-
-  constructor (blocked, ...args) {
+  constructor (part, ready) {
     super()
+
+    this.part = part
+    this.observe('ready', ready)
     this.observe('error', null, function (x) {
       if (this._error) return
       debug('set error', x)
@@ -143,15 +138,10 @@ class PartHandler extends threadify(EventEmitter) {
       process.nextTick(() => this.updateListeners())
     })
 
-    this.observe('blocked', blocked, function (x) { 
-      this._blocked = x
-      process.nextTick(() => this.updateListeners())
-    })
-
-    this.run(...args)
+    this.run()
   }
 
-  run(...args) {
+  run (...args) {
     this.runAsync(...args)
       .then(() => {})
       .catch(e => {
@@ -163,193 +153,195 @@ class PartHandler extends threadify(EventEmitter) {
         this.emit('finish')
       })
   }
+
+  // when success
+  async streamPart (tmpPath) {
+    try {
+      this.as = createAppendStream(tmpPath)
+      this.as.on('error', this.guard(err => (this.error = err)))
+      this.as.on('finish', this.guard(() => (this.asFinished = true)))
+      this.buffers.forEach(buf => this.as.write(buf))
+      this.buffers = null
+      this.part.form.resume()
+      await this.until(() => this.partEnded)
+    } catch (e) {
+      this.error = e
+      throw e
+    } finally {
+      this.as.end()
+      await this.until(() => this.asFinished)
+    }
+  }
+
+  definePartStream () {
+    this.observe('as')
+    this.observe('asFinished')
+    this.observe('partEnded')
+    this.buffers = []
+    this.bytesWritten = 0
+    this.part.on('data', this.guard(chunk => {
+      this.part.form.pause()
+      if (this.as) {
+        this.as.write(chunk, this.guard(err => {
+          if (err) {
+            this.error = err
+          } else {
+            this.bytesWritten += chunk.length
+            this.part.form.resume()
+          }
+        }))
+      } else {
+        this.buffers.push(chunk)
+      }
+    }))
+    this.part.on('error', this.guard(err => (this.error = err)))
+    this.part.on('end', this.guard(() => (this.partEnded = true)))
+  }
 }
 
 class FieldHandler extends PartHandler {
-
-  async runAsync (part) {
-
-    this.part = part
+  async runAsync () {
     this.observe('parsed', false)
 
     let buffers = []
 
-    part.on('data', this.guard(chunk => buffers.push(chunk)))
-    part.on('end', this.guard(() => {
-      let { op, overwrite } = JSON.parse(Buffer.concat(buffers)) 
+    this.part.on('data', this.guard(chunk => buffers.push(chunk)))
+    this.part.on('end', this.guard(() => {
+      let { op, overwrite } = JSON.parse(Buffer.concat(buffers))
       if (op === 'mkdir') {
-        part.opts = { op }
+        this.part.opts = { op }
       } else if (op === 'rename' || op === 'dup') {
-        part.opts = { op, overwrite }
+        this.part.opts = { op, overwrite }
       } else if (op === 'remove') {
-        part.opts = { op }
+        this.part.opts = { op }
       } else {
         this.error = new Error('Unrecognized op code')
-        return 
+        return
       }
 
       this.parsed = true
     }))
 
-    await this.until(() => this.parsed && !this.blocked)
+    await this.until(() => this.parsed && this.ready)
 
-    let fromPath = path.join(part.dir.abspath(), part.fromName)
-    let toPath = path.join(part.dir.abspath(), part.toName)
+    let fromPath = path.join(this.part.dir.abspath(), this.part.fromName)
+    let toPath = path.join(this.part.dir.abspath(), this.part.toName)
 
-    if (part.opts.op === 'mkdir') {
-      await this.settle(mkdirpAsync(toPath)) 
-    } else if (part.opts.op === 'rename') {
+    if (this.part.opts.op === 'mkdir') {
+      await this.throwable(mkdirpAsync(toPath))
+    } else if (this.part.opts.op === 'rename') {
       // TODO support overwrite ???
-      await this.settle(fs.renameAsync(fromPath, toPath))
-    } else if (part.opts.op === 'dup') {
+      await this.throwable(fs.renameAsync(fromPath, toPath))
+    } else if (this.part.opts.op === 'dup') {
       // TODO support overwrite ???
-      await this.settle(fs.renameAsync(fromPath, toPath))
-    } else if (part.opts.op === 'remove') {
-      await this.settle(rimrafAsync(fromPath))
+      await this.throwable(fs.renameAsync(fromPath, toPath))
+    } else if (this.part.opts.op === 'remove') {
+      await this.throwable(rimrafAsync(fromPath))
     } else {
       throw new Error('Internal Error')
     }
   }
 }
 
-class NewFileHandler extends PartHandler {
-
-  async runAsync (part) {
-    this.part = part
-    this.observe('partEnded', false)
-    this.observe('asFinished', false)
-
-    // tmp file
+class NewEmptyFileHandler extends PartHandler {
+  async runAsync () {
+    this.observe('partEnded')
+    this.part.on('error', this.guard(err => (this.error = err)))
+    this.part.on('end', this.guard(() => (this.partEnded = true)))
     let tmpPath = path.join(fruitmixPath, 'tmp', UUID.v4())
-
     try {
-      part.on('error', this.guard(err => this.error = err))
-      part.on('end', this.guard(() => this.partEnded = true))
-
-      if (part.opts.size === 0) {
-
-        let fd = await this.settle(fs.openAsync(tmpPath, 'w'))
-        await this.settle(fs.closeAsync(fd)) 
-        await this.until(() => this.partEnded)
-
-      } else {
-
-        let size = 0
-        let as = createAppendStream(tmpPath)
-        as.on('error', this.guard(err => this.error = err))
-        as.on('finish', this.guard(() => this.asFinished = true ))
-
-        part.on('data', this.guard(chunk => {
-          size += chunk.length
-          part.form.pause()
-          as.write(chunk, this.guard(() => part.form.resume()))
-        }))
-
-        await this.until(() => this.partEnded)
-        as.end()
-        await this.until(() => this.asFinished)
-
-        if (size !== part.opts.size) throw new Error('size mismatch')
-        if (size !== as.bytesWritten) throw new Error('bytesWritten mismatch')
-        if (as.digest !== part.opts.sha256) throw new Error('sha256 mismatch') 
-      }
-
-      await this.settle(forceXstatAsync(tmpPath, { hash: part.opts.sha256 }))
-      await this.until(() => !this.blocked)
-
-      let dstPath = path.join(part.dir.abspath(), part.toName)
-      await this.settle(fs.renameAsync(tmpPath, dstPath))
-
+      let fd = await this.throwable(fs.openAsync(tmpPath, 'w'))
+      await this.throwable(fs.closeAsync(fd))
+      await this.throwable(forceXstatAsync(tmpPath, { hash: EMPTY_SHA256_HEX }))
+      await this.until(() => this.ready && this.partEnded)
+      let dstPath = path.join(this.part.dir.abspath(), this.part.toName)
+      await this.throwable(fs.renameAsync(tmpPath, dstPath))
     } catch (e) {
-      await rimrafAsync(tmpPath)
-      console.log(e)
-      throw e
+      this.error = e
+      rimraf(tmpPath, () => {})
+    }
+  }
+}
+
+/**
+There are two finally logics there:
+1. as should be guaranteed to end, this translates into
+  + as.end() must be called
+  + wait until asFinished anyway
+2.
+*/
+class NewNonEmptyFileHandler extends PartHandler {
+  async runAsync () {
+    this.definePartStream()
+
+    let tmpPath = path.join(fruitmixPath, 'tmp', UUID.v4())
+    let dstPath = path.join(this.part.dir.abspath(), this.part.toName)
+    try {
+      await this.streamPart(tmpPath)
+
+      if (this.bytesWritten !== this.part.opts.size) throw new Error('size mismatch')
+      if (this.bytesWritten !== this.as.bytesWritten) throw new Error('bytesWritten mismatch')
+      if (this.as.digest !== this.part.opts.sha256) throw new Error('sha256 mismatch')
+      await this.throwable(forceXstatAsync(tmpPath, { hash: this.part.opts.sha256 }))
+      await this.until(() => this.ready)
+      await this.throwable(fs.renameAsync(tmpPath, dstPath))
+    } finally {
+      rimraf(tmpPath, () => {})
     }
   }
 }
 
 class AppendHandler extends PartHandler {
+  async runAsync () {
+    this.definePartStream()
 
-  async runAsync (part) {
-    this.part = part
-    this.observe('as')
-    this.observe('asFinished')
-    this.observe('partEnded')
+    await this.until(() => this.ready)
 
-    /**
-    buffer is required because, unlike node writable stream, there is no callback in
-    part.on('data'), which means, we have no way to delay incoming data or end.
-    **/
-    let buffers = []
-    let size = 0
-
-    part.on('data', this.guard(chunk => {
-      size += chunk.length
-      if (this.as) {
-        part.form.pause()
-        this.as.write(chunk, () => part.form.resume())
-      } else {
-        buffers.push(chunk)
-        part.form.pause()
-      }
-    }))
-
-    part.on('error', this.guard(err => this.error = err))
-    part.on('end', this.guard(() => this.partEnded = true))
-
-    await this.until(() => !this.blocked)
-
-    let srcPath = path.join(part.dir.abspath(), part.fromName)
+    let srcPath = path.join(this.part.dir.abspath(), this.part.fromName)
+    let dstPath = path.join(this.part.dir.abspath(), this.part.toName)
     let tmpPath = path.join(fruitmixPath, 'tmp', UUID.v4())
-    let dstPath = path.join(part.dir.abspath(), part.toName)
+    try {
+      let xstat = await this.throwable(readXstatAsync(srcPath))
+      let [srcFd, tmpFd] = await this.throwable(Promise.all([
+        fs.openAsync(srcPath, 'r'),
+        fs.openAsync(tmpPath, 'w')
+      ]))
+      ioctl(tmpFd, 0x40049409, srcFd)
+      await this.throwable(Promise.all([fs.closeAsync(tmpFd), fs.closeAsync(srcFd)]))
 
-    let xstat = await this.settle(readXstatAsync(srcPath))
-    let [srcFd, tmpFd] = await this.settle(Promise.all([
-      fs.openAsync(srcPath, 'r'), 
-      fs.openAsync(tmpPath, 'w')
-    ]))
-    ioctl(tmpFd, 0x40049409, srcFd)
-    await this.settle(Promise.all([fs.closeAsync(tmpFd), fs.closeAsync(srcFd)]))
+      // check xstat
+      let xstat2 = await this.throwable(readXstatAsync(srcPath))
+      if (xstat2.uuid !== xstat.uuid || xstat2.mtime !== xstat.mtime) throw new Error('race')
 
-    let xstat2 = await this.settle(readXstatAsync(srcPath))
+      await this.streamPart(tmpPath)
 
-    this.as = createAppendStream(tmpPath) 
-    this.as.on('error', err => this.error = err)
-    this.as.on('finish', () => this.asFinished = true)
+      await this.throwable(forceXstatAsync(tmpPath, {
+        uuid: xstat.uuid,
+        hash: combineHash(this.part.opts.append, this.as.digest)
+      }))
 
-    buffers.forEach(buf => this.as.write(buf))
-    buffers = null
-
-    part.form.resume()
-    await this.until(() => this.partEnded)
-    this.as.end()
-
-    await this.until(() => this.asFinished)
-    await this.settle(forceXstatAsync(tmpPath, {
-      uuid: xstat.uuid,
-      hash: combineHash(part.opts.append, this.as.digest)
-    }))
-
-    await this.settle(fs.renameAsync(tmpPath, dstPath))
+      await this.throwable(fs.renameAsync(tmpPath, dstPath))
+    } finally {
+      rimraf(tmpPath, () => {})
+    }
   }
 }
 
 class Writedir extends threadify(EventEmitter) {
-
   constructor (dir, req) {
     super()
 
-    // children 
+    // children
     this.observe('children', [], function (x) {
       this._children = x
       process.nextTick(() => this.updateListeners())
     })
 
-    // 
+    //
     this.observe('error', null, function (x) {
       if (this._error) return
       this._error = x
-      this.children.forEach(child => child.error = ErrorAbort)
+      this.children.forEach(child => (child.error = ErrorAbort))
       process.nextTick(() => this.updateListeners())
     })
 
@@ -361,7 +353,6 @@ class Writedir extends threadify(EventEmitter) {
       })
       .then(() => {
         debug(`${this.constructor.name} run success`)
-        dir.read()
         this.emit('finish')
       })
   }
@@ -370,51 +361,59 @@ class Writedir extends threadify(EventEmitter) {
   async run (dir, req) {
 
     this.observe('formEnded', false)
-
     let number = 0
     let form = new formidable.IncomingForm()
 
     form.onPart = this.guard(part => {
+      try {
+        this.parse(part)
+      } catch (e) {
+        this.error = e
+        return
+      }
 
-      this.parse(part)
+      // decorate part
       part.number = number++
       part.form = form
       part.dir = dir
 
-      let blocked = !!this.children.find(h => h.part.toName === part.fromName)
+      // create handler
+      let ready = !this.children.find(h => h.part.toName === part.fromName)
       let child = !part.filename
-        ? new FieldHandler(blocked, part)
+        ? new FieldHandler(part, ready)
         : part.opts.append
-          ? new AppendHandler(blocked, part) 
-          : new NewFileHandler(blocked, part)
+          ? new AppendHandler(part, ready)
+          : part.opts.size === 0
+            ? new NewEmptyFileHandler(part, ready)
+            : new NewNonEmptyFileHandler(part, ready)
 
-      child.on('error', err => this.error = err)
+      // hook event handler
+      child.on('error', err => (this.error = err))
       child.on('finish', () => {
         let index = this.children.indexOf(child)
         this.children = [...this.children.slice(0, index), ...this.children.slice(index + 1)]
-
         let next = this.children.find(c => c.part.fromName === part.toName)
-        if (next) next.blocked = false
+        if (next) next.ready = true
       })
 
+      // push into children
       this.children = [...this.children, child]
     })
 
     // on error, request is paused automatically so it blocks further error and end
-    form.on('error', this.guard(err => this.error = err))
-    form.on('aborted', this.guard(() => this.error = new Error('form aborted'))) // EABORT?
-    form.on('end', this.guard(() => this.formEnded = true))
+    form.on('error', this.guard(err => (this.error = err)))
+    form.on('aborted', this.guard(() => (this.error = new Error('form aborted'))))
+    form.on('end', this.guard(() => (this.formEnded = true)))
     form.parse(req)
 
-    await this.until(() => this.children.length === 0 && (this.error || this.formEnded))
-    dir.read()
-  } 
+    await this.untilAnyway(() => this.children.length === 0 && (this.error || this.formEnded))
+  }
 
   /**
-  
-  @throws 
+
+  @throws
   */
-  parse(part) {
+  parse (part) {
     // validate name and generate part.fromName and .toName
     let split = part.name.split('|')
     if (split.length === 0 || split.length > 2) throw new Error('invalid name')
@@ -433,10 +432,8 @@ class Writedir extends threadify(EventEmitter) {
     }
   }
 
-  abort() {
+  abort () {
   }
 }
 
 module.exports = Writedir
-
-
