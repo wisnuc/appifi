@@ -311,7 +311,7 @@ class AppendHandler extends PartHandler {
 
       // check xstat
       let xstat2 = await this.throwable(readXstatAsync(srcPath))
-      if (xstat2.uuid !== xstat.uuid || xstat2.mtime.getTime() !== xstat.mtime.getTime()) throw new Error('race')
+      if (xstat2.uuid !== xstat.uuid || xstat2.mtime !== xstat.mtime) throw new Error('race')
 
       await this.streamPart(tmpPath)
 
