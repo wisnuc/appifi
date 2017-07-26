@@ -149,7 +149,8 @@ class DriveList extends EventEmitter {
       uuid: UUID.v4(), 
       type: 'private', 
       owner, 
-      tag 
+      tag,
+      label: 'label' // FIXME 
     }
 
     let nextDrives = [...this.drives, drive]
