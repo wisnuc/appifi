@@ -29,7 +29,7 @@ class Station {
     let pbkPath = path.join(froot, 'station', FILE.PUBKEY)
     let pvkPath = path.join(froot, 'station', FILE.PVKEY)
     try{
-        //TODO
+        //TODO:
         let pbStat = await fs.lstatAsync(pbkPath)
         let pvStat = await fs.lstatAsync(pvkPath)
         if(pbStat.isFile() && pvStat.isFile()){
@@ -95,7 +95,6 @@ class Station {
           Tickets.init(this.sa, conn)
           this.tickets = Tickets
           this.initialized = true
-          debug('station init')
           broadcast.emit('StationStart', this)
         })
       }catch(e){
@@ -163,13 +162,13 @@ class Station {
   }
 
   stationFinishStart(req, res, next) {
-    debug('station started')
     if(this.sa !== undefined && this.connect !== undefined && this.connect.isConnected()){
       req.body.sa = this.sa
       req.body.connect = this.connect
       return next()
     }
-    return res.status(500).json(new Error('station initialize error'))
+    debug('Station initialized error')
+    return res.status(500).json('station initialize error')
   }
 
   info(){

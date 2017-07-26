@@ -114,7 +114,7 @@ class Ticket {
       debug(res.body)
       throw new Error(res.body.message)
     } catch (error) {
-      debug(e)
+      debug(error)
       throw new Error('discard ticket error')
     }
   }
@@ -125,6 +125,7 @@ class Ticket {
     if(!state) return await this.discardTicketAsync(ticketId)
     let u = User.findUser(userId)
     let ticket = await this.getTicketAsync(ticketId)
+    if(!ticket) throw new Error('no such ticket')
     if(ticket.type === 'bind' && u.global) throw new Error('user has already bind')
     let index = ticket.users.findIndex(u => u.userId === id) 
     if (index === -1) throw new Error('wechat user not found')
@@ -132,13 +133,17 @@ class Ticket {
     await this.discardTicketAsync(ticketId)
 
     debug(ticket)
-    let unionid = ticket[index].unionid
+    let user = ticket.users[index]
+    let unionid = user.unionId
     if(!unionid) throw new Error('wechat unionid not found')
     switch(ticket.type) {
       case 'invite':{
+        let username = user.nickName
+        // TODO: use pvKey decode password
+        let password = user.password
         return await User.createUserAsync({ 
-                          username: '',
-                          password: '',
+                          username,
+                          password,
                           global:{
                             id,
                             wx: [unionid]
