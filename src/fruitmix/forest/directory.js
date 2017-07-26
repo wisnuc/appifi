@@ -148,7 +148,10 @@ class Directory extends Node {
 
   write(req, callback) {
     let writer = new Writedir(this, req)
-    writer.on('finish', () => callback(writer.error))
+    writer.on('finish', () => {
+      this.read()
+      callback(writer.error)
+    })
   }
 }
 
