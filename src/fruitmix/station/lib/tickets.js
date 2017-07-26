@@ -134,7 +134,7 @@ class Ticket {
 
     debug(ticket)
     let user = ticket.users[index]
-    let unionid = user.unionid
+    let unionid = user.unionId
     if(!unionid) throw new Error('wechat unionid not found')
     switch(ticket.type) {
       case 'invite':{
