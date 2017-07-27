@@ -88,7 +88,17 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', auth.jwt(), (req, res, next) =>
   let dir = Forest.getDriveDir(driveUUID, dirUUID)
   if (!dir) { return res.status(404).end() }
 
-  dir.write(req, err => err ? res.status(500).end() : res.status(200).end())
+  dir.write(req, err => {
+    if (err) {
+      res.status(500).json({
+        code: err.code,
+        message: err.message,
+        where: err.where
+      })
+    } else {
+      res.status(200).end()
+    }
+  })
 })
 
 /**

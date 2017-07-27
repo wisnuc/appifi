@@ -149,10 +149,33 @@ describe(path.basename(__filename), () => {
     })
 
     // mkdir hello
-    it("POST .../entries, mkdir hello should success", done => 
+    it("POST .../entries, mkdir single hello should success", done => 
       request(app)
         .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
         .set('Authorization', 'JWT ' + token)
+        .field('hello', JSON.stringify({ op: 'mkdir' }))
+        .expect(200)
+        .end((err, res) => {
+          let dirPath = path.join(forestDir, IDS.alice.home, 'hello')
+          fs.lstat(dirPath, (err, stat) => {
+            if (err) return done(err)
+            expect(stat.isDirectory()).to.be.true
+            done()
+          })
+        }))
+
+    // mkdir hello
+    it("POST .../entries, mkdir multiple hello should success", done => 
+      request(app)
+        .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
+        .set('Authorization', 'JWT ' + token)
+        .field('hello', JSON.stringify({ op: 'mkdir' }))
+        .field('hello', JSON.stringify({ op: 'mkdir' }))
+        .field('hello', JSON.stringify({ op: 'mkdir' }))
+        .field('hello', JSON.stringify({ op: 'mkdir' }))
+        .field('hello', JSON.stringify({ op: 'mkdir' }))
+        .field('hello', JSON.stringify({ op: 'mkdir' }))
+        .field('hello', JSON.stringify({ op: 'mkdir' }))
         .field('hello', JSON.stringify({ op: 'mkdir' }))
         .expect(200)
         .end((err, res) => {
@@ -206,6 +229,34 @@ describe(path.basename(__filename), () => {
         .attach('empty', 'testdata/empty', JSON.stringify({ size: 0, sha256: FILES.empty.hash }))
         .expect(200)
         .end((err, res) => {
+          let filePath = path.join(forestDir, IDS.alice.home, 'empty')
+          let stat = fs.lstatSync(filePath)
+          let attr = JSON.parse(xattr.getSync(filePath, 'user.fruitmix'))
+          expect(stat.isFile()).to.be.true
+          expect(attr.hash).to.equal(FILES.empty.hash)
+          expect(attr.magic).to.equal(0)
+
+          request(app)
+            .get(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}`)
+            .set('Authorization', 'JWT ' + token)
+            .expect(200)
+            .end((err, res) => {
+              if (err) return done(err)
+              // console.log(res.body)
+              done()
+            })
+        }))  
+
+    // upload empty file and mkdir name conflict 
+    it("POST .../entries, upload empty file and mkdir empty should fail", done =>
+      request(app)
+        .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
+        .set('Authorization', 'JWT ' + token)
+        .attach('empty', 'testdata/empty', JSON.stringify({ size: 0, sha256: FILES.empty.hash }))
+        .field('empty', JSON.stringify({ op: 'mkdir' }))
+        .expect(500)
+        .end((err, res) => {
+
           let filePath = path.join(forestDir, IDS.alice.home, 'empty')
           let stat = fs.lstatSync(filePath)
           let attr = JSON.parse(xattr.getSync(filePath, 'user.fruitmix'))

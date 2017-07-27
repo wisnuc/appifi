@@ -105,7 +105,6 @@ const threadify = base => class extends base {
           : [...arr, x], [])
   }
 
-  // don't know
   async throwable (promise) {
     let x = await promise
     if (this.error) throw this.error
@@ -127,12 +126,21 @@ const threadify = base => class extends base {
 class PartHandler extends threadify(EventEmitter) {
   constructor (part, ready) {
     super()
-
     this.part = part
     this.observe('ready', ready)
     this.observe('error', null, function (x) {
       if (this._error) return
-      debug('set error', x)
+
+      x.where = {
+        handler: this.constructor.name,
+        number: part.number,
+        name: part.name,
+        filename: part.filename,
+        value: part.value
+      }
+
+      debug(`${this.constructor.name} set error`, x)
+
       this._error = x
       this.emit('error', x)
       process.nextTick(() => this.updateListeners())
@@ -145,11 +153,11 @@ class PartHandler extends threadify(EventEmitter) {
     this.runAsync(...args)
       .then(() => {})
       .catch(e => {
-        if (this.error !== e) debug('final error', e)
+        if (this.error !== e) debug(`${this.constructor.name} final error`, e.message)
         this.error = e
       })
       .then(() => {
-        debug(`${this.constructor.name} finally`)
+        debug(`${this.constructor.name} finally ${this.error ? 'error' : 'success'}`)
         this.emit('finish')
       })
   }
@@ -207,7 +215,8 @@ class FieldHandler extends PartHandler {
 
     this.part.on('data', this.guard(chunk => buffers.push(chunk)))
     this.part.on('end', this.guard(() => {
-      let { op, overwrite } = JSON.parse(Buffer.concat(buffers))
+      this.part.value = Buffer.concat(buffers).toString()
+      let { op, overwrite } = JSON.parse(this.part.value)
       if (op === 'mkdir') {
         this.part.opts = { op }
       } else if (op === 'rename' || op === 'dup') {
@@ -340,6 +349,9 @@ class Writedir extends threadify(EventEmitter) {
     //
     this.observe('error', null, function (x) {
       if (this._error) return
+
+      debug('Writedir set error', x)
+
       this._error = x
       this.children.forEach(child => (child.error = ErrorAbort))
       process.nextTick(() => this.updateListeners())
@@ -348,11 +360,11 @@ class Writedir extends threadify(EventEmitter) {
     this.run(dir, req)
       .then(() => {})
       .catch(e => {
-        if (this.error !== e) debug('final error', e)
+        if (this.error !== e) debug(`${this.constructor.name} final error`, e)
         this.error = e
       })
       .then(() => {
-        debug(`${this.constructor.name} run success`)
+        debug(`${this.constructor.name} finally ${this.error ? 'error' : 'success'}`)
         this.emit('finish')
       })
   }
@@ -388,8 +400,12 @@ class Writedir extends threadify(EventEmitter) {
             : new NewNonEmptyFileHandler(part, ready)
 
       // hook event handler
-      child.on('error', err => (this.error = err))
+      child.on('error', err => {
+        debug(`child ${child.part.number} error event`)
+        this.error = err
+      })
       child.on('finish', () => {
+        debug(`child ${child.part.number} finish event`)
         let index = this.children.indexOf(child)
         this.children = [...this.children.slice(0, index), ...this.children.slice(index + 1)]
         let next = this.children.find(c => c.part.fromName === part.toName)
@@ -410,7 +426,6 @@ class Writedir extends threadify(EventEmitter) {
   }
 
   /**
-
   @throws
   */
   parse (part) {
