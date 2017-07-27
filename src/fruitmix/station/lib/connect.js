@@ -18,11 +18,31 @@ const CONNECT_STATE = {
 
 Object.freeze(CONNECT_STATE)
 
+class Socket{
+  constructor() {
+    this.socket = undefined
+    this.state = CONNECT_STATE.DISCED
+    this.address = undefined
+  }
+
+  getSocket() {
+    if(this.state === CONNECT_STATE.CONNED)
+      return this.socket
+
+  }
+
+  connect(address, saId) {
+    
+  }
+
+}
+
 class Connect { 
 
   constructor() {
     this.initialized = false
     this.state = CONNECT_STATE.DISCED
+    this.socket = undefined
     broadcast.on('StationRegisterFinish', station => {
       this.sa = station.sa
       this.froot = station.froot
