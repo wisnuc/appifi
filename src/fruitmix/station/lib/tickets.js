@@ -158,29 +158,33 @@ class Ticket {
         await this.changeUserTypeAsync(id, ticketId, state)
         //discard this ticket 
         await this.discardTicketAsync(ticketId)
-        let username = user.nickName
+        if(state){
+          let username = user.nickName
         // TODO: use pvKey decode password
-        let password = user.password ? user.password : '123456'
-        return await User.createUserAsync({ 
-                          username,
-                          password,
-                          global:{
-                            id,
-                            wx: [unionid]
-                          }
-                        })
+          let password = user.password ? user.password : '123456'
+          return await User.createUserAsync({ 
+                            username,
+                            password,
+                            global:{
+                              id,
+                              wx: [unionid]
+                            }
+                          })
+        }
       }
         break
       case 'bind':{
         await this.changeUserTypeAsync(id, ticketId, state)
         //discard this ticket 
         await this.discardTicketAsync(ticketId)
-        return await User.updateUserAsync(useruuid, {
-          global: {
-            id,
-            wx: [unionid]
-          }
-        })
+        if(state){
+          return await User.updateUserAsync(useruuid, {
+            global: {
+              id,
+              wx: [unionid]
+            }
+          })
+        }
       }
         break
       default:
