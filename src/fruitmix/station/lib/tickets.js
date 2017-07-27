@@ -140,7 +140,7 @@ class Ticket {
       case 'invite':{
         let username = user.nickName
         // TODO: use pvKey decode password
-        let password = user.password
+        let password = user.password ? user.password : '123456'
         return await User.createUserAsync({ 
                           username,
                           password,
