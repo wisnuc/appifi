@@ -134,7 +134,7 @@ class Ticket {
       throw new Error(res.body.message)
     } catch (error) {
       debug(error)
-      throw new Error('discard ticket error')
+      throw new Error('change ticket->user type error')
     }
   }
 
