@@ -55,6 +55,7 @@ release/
 graph.svg
 
 # 
+test-files/
 fruitfiles/
 tmptest/
 coverage/
