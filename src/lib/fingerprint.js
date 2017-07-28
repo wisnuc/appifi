@@ -23,14 +23,13 @@ const crypto = require('crypto')
 
 process.on('message', message => {
 
-  console.log('-> ', message)
-
   let hash = crypto.createHash('sha256')
   hash.on('error', () => process.exit(1))
   hash.on('readable', () => {
     process.send(hash.read().toString('hex'))
-    process.exit()
+    process.exit(0)
   })
+
   let rs = fs.createReadStream(message.filePath, { start: message.start, end: message.end })
   rs.on('error', () => process.exit(1))
   rs.pipe(hash)
@@ -39,7 +38,6 @@ process.on('message', message => {
 `
 
 fs.writeFileSync(childModulePath, childSource)
-
 
 const chop = number => {
   let arr = []

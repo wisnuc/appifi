@@ -4,6 +4,8 @@ const ioctl = require('ioctl')
 // asm/ioctl.h
 // linux/btrfs.h 
 
+// #define BTRFS_IOC_CLONE        _IOW(BTRFS_IOCTL_MAGIC, 9, int)
+
 // type BTRFS_IOCTL_MAGIC 0x94
 // number BTRFS_IOC_CLONE   0x09
 // dir 0x40 for write 
