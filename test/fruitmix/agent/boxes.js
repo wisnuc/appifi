@@ -17,7 +17,7 @@ const { saveObjectAsync } = require('src/fruitmix/lib/utils')
 const broadcast = require('src/common/broadcast')
 
 const User = require('src/fruitmix/models/user')
-const BoxData = require('src/fruitmix/box/box')
+const boxData = require('src/fruitmix/box/box')
 
 const {
   IDS,
@@ -149,19 +149,17 @@ describe(path.basename(__filename), () => {
         .expect(200)
         .end((err, res) => {
           if (err) return done(err)
-          expect(res.body.doc).to.deep.equal({
-            uuid: boxUUID,
-            name: 'hello',
-            owner: IDS.alice.global,
-            users: []
-          }) 
+          expect(res.body.uuid).to.deep.equal(boxUUID)
+          expect(res.body.name).to.deep.equal('hello')
+          expect(res.body.owner).to.deep.equal(IDS.alice.global)
+          expect(res.body.users).to.deep.equal([])
           done()
         })
     })
   })
 
   describe('Alice create box, Bob in users list', () => {
-    let aliceToken, aliceCloudToken, bobToken, bobCloudToken, box
+    let aliceToken, aliceCloudToken, bobToken, bobCloudToken, doc
     let boxUUID = 'a96241c5-bfe2-458f-90a0-46ccd1c2fa9a'
 
     beforeEach(async () => {
@@ -179,7 +177,7 @@ describe(path.basename(__filename), () => {
       sinon.stub(UUID, 'v4').returns(boxUUID)
 
       let props = {name: 'hello', users: [IDS.bob.global]}
-      box = await createBoxAsync(props, 'alice')
+      doc = await createBoxAsync(props, 'alice')
     })
 
     afterEach(() => UUID.v4.restore())
@@ -191,7 +189,7 @@ describe(path.basename(__filename), () => {
         .expect(200)
         .end((err, res) => {
           if (err) return done(err)
-          expect(res.body).to.deep.equal([box])
+          expect(res.body).to.deep.equal([doc])
           done()
         })
     })
@@ -203,16 +201,20 @@ describe(path.basename(__filename), () => {
         .expect(200)
         .end((err, res) => {
           if(err) return done(err)
-          expect(res.body).to.deep.equal(box)
+          expect(res.body).to.deep.equal(doc)
           done()
         })
     })
 
     it("PATCH /boxes/{uuid} alice update the box successfully", done => {
-      let props = [
-                   {path: 'name', operation: 'update', value: 'world'},
-                   {path: 'users', operation: 'add', value: [IDS.charlie.global]}
-                  ]
+      let props = {
+        name: 'world',
+        users: {op: 'add', value: [IDS.charlie.global]}
+      }
+      // [
+      //              {path: 'name', operation: 'update', value: 'world'},
+      //              {path: 'users', operation: 'add', value: [IDS.charlie.global]}
+      //             ]
       request(app)
         .patch(`/boxes/${boxUUID}`)
         .send(props)
@@ -220,18 +222,16 @@ describe(path.basename(__filename), () => {
         .expect(200)
         .end((err, res) => {
           if(err) return done(err)
-          expect(res.body.doc).to.deep.equal({
-            uuid: boxUUID,
-            name: 'world',
-            owner: IDS.alice.global,
-            users: [IDS.bob.global, IDS.charlie.global]
-          })
+          expect(res.body.uuid).to.deep.equal(boxUUID)
+          expect(res.body.name).to.deep.equal('world')
+          expect(res.body.owner).to.deep.equal(IDS.alice.global)
+          expect(res.body.users).to.deep.equal([IDS.bob.global, IDS.charlie.global])
           done()
         })
     })
 
     it("PATCH /boxes/{uuid} bob could not update the box created by alice", done => {
-      let props = [{path: 'name', operation: 'update', value: 'world'}]
+      let props = {name: 'world'} //[{path: 'name', operation: 'update', value: 'world'}]
       request(app)
         .patch(`/boxes/${boxUUID}`)
         .send(props)

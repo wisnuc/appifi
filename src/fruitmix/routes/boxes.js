@@ -9,7 +9,7 @@ const fs = require('fs')
 const secret = require('../config/passportJwt')
 
 const User = require('../models/user')
-const BoxData = require('../box/box')
+const boxData = require('../box/box')
 const { isSHA256 } = require('../lib/assertion')
 
 /**
@@ -53,7 +53,7 @@ const auth = (req, res, next) => {
 
 const boxAuth = (req, res, next) => {
   let boxUUID = req.params.boxUUID
-  let box = BoxData.map.get(boxUUID)
+  let box = boxData.getBox(boxUUID)
   if(!box) return res.status(404).end()
 
   let global
@@ -74,10 +74,8 @@ router.get('/', auth, (req, res) => {
   if(req.user) global = req.user.global
   else global = req.guest.global
 
-  let boxes = [...BoxData.map.values()].filter(box => 
-              box.doc.owner === global ||
-              box.doc.users.includes(global))
-  res.status(200).json(boxes)
+  let docList = boxData.getAllBoxes(global)
+  res.status(200).json(docList)
 })
 
 router.post('/', auth, (req, res, next) => {
@@ -86,24 +84,25 @@ router.post('/', auth, (req, res, next) => {
 
   let props = Object.assign({}, req.body, { owner: req.user.global })
 
-  BoxData.createBoxAsync(props)
-    .then(box => res.status(200).json(box))
+  boxData.createBoxAsync(props)
+    .then(doc => res.status(200).json(doc))
     .catch(next)
 })
 
 router.get('/:boxUUID', auth, (req, res) => {
   let boxUUID = req.params.boxUUID
 
-  let box = BoxData.map.get(boxUUID)
+  let box = boxData.getBox(boxUUID)
   if(!box) return res.status(404).end()
 
   let global
   if(req.user) global = req.user.global
   else global = req.guest.global
 
-  if(box.doc.owner !== global && !box.doc.users.includes(global)) return res.status(403).end()
+  let doc = box.doc
+  if (doc.owner !== global && !doc.users.includes(global)) return res.status(403).end()
 
-  res.status(200).json(box)
+  res.status(200).json(doc)
 })
 
 // FIXME: permission: who can patch the box ?
@@ -114,12 +113,12 @@ router.patch('/:boxUUID', auth, (req, res, next) => {
 
   let boxUUID = req.params.boxUUID
 
-  let box = BoxData.map.get(boxUUID)
+  let box = boxData.getBox(boxUUID)
   if(!box) return res.status(404).end()
   if(box.doc.owner !== req.user.global) return res.status(403).end()
 
-  BoxData.updateBoxAsync(req.body, box)
-    .then(box => res.status(200).json(box))
+  boxData.updateBoxAsync(req.body, box)
+    .then(newDoc => res.status(200).json(newDoc))
     .catch(next)
 })
 
@@ -128,10 +127,10 @@ router.delete('/:boxUUID', auth, (req, res, next) => {
 
   let boxUUID = req.params.boxUUID
 
-  let box = BoxData.map.get(boxUUID)
+  let box = boxData.getBox(boxUUID)
   if(!box) return res.status(404).end()
   if(box.doc.owner !== req.user.global) return res.status(403).end()
-  BoxData.deleteBoxAsync(boxUUID)
+  boxData.deleteBoxAsync(boxUUID)
     .then(() => res.status(200).end())
     .catch(next)
 })
@@ -250,7 +249,7 @@ router.post('/:boxUUID/tweets', auth, boxAuth, (req, res) => {
       if (file.hash !== sha256)
         return fs.unlink(file.path, () => res.status(409).end())
 
-      fs.rename(file.path, path.join(BoxData.repoDir, sha256), err => {
+      fs.rename(file.path, path.join(boxData.repoDir, sha256), err => {
         if (err) return finished = true && res.status(500).json({ code: err.code, message: err.message})
         
         let global
@@ -288,7 +287,7 @@ router.post('/:boxUUID/tweets', auth, boxAuth, (req, res) => {
     })
 
   form.parse(req)
-  
+
   } else if (req.is('application/json')) {
     // let type = req.body.type
     let global
@@ -321,6 +320,12 @@ router.delete('/:boxUUID/tweets', auth, boxAuth, (req, res) => {
   box.deleteTweetAsync(indexArr)
     .then(() => res.status(200).end())
     .catch(err => res.status(500).json({ code: err.code, message: err.message }))
+})
+
+router.post('/:boxUUID/commits', auth, boxAuth, (req, res) => {
+  let box = req.box
+  let branchUUID = req.body.branch
+  
 })
 
 module.exports = router
