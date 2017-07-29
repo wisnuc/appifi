@@ -56,6 +56,7 @@ const combineHash = bufs => bufs.length === 1
   : combineHash([crypto.createHash('sha256').update(bufs[0]).update(bufs[1]).digest(), ...bufs.slice(2)])
 
 
+// child.kill() is idempotent, so we have a easier way to implement finally logic
 const fingerprintAsync = async filePath => {
 
   let workers = []

@@ -60,10 +60,7 @@ app.use(function(req, res, next) {
 
 // error handlers
 app.use(function(err, req, res, next) {
-
-  if (err && process.env.NODE_ENV === 'test')
-    console.log(err)
-
+  if (err && process.env.NODE_ENV === 'test') console.log(err)
   res.status(err.status || 500).json({
     code: err.code,
     message: err.message

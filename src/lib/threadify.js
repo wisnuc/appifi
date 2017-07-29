@@ -10,10 +10,6 @@ const threadify = base => class extends base {
     this._thrListeners = []
   }
 
-  /**
-  value is optional
-  set is optional
-  **/
   observe (name, value, set) {
     let _name = '_' + name
     this[_name] = value
@@ -30,6 +26,28 @@ const threadify = base => class extends base {
               ? 'array length ' + x.length
               : x)
         this[_name] = x
+        process.nextTick(() => this.updateListeners())
+      }
+    })
+  }
+
+  defineSetOnce (name, action) {
+    let _name = '_' + name
+    this[_name] = undefined
+    Object.defineProperty(this, name, {
+      get: function () {
+        return this[_name]
+      },
+      set: function (x) {
+        if (this[_name]) return
+        debug('observable set', name,
+          x instanceof stream
+            ? 'stream'
+            : Array.isArray(x)
+              ? 'array length ' + x.length
+              : x)
+        this[_name] = x
+        if (action) action()
         process.nextTick(() => this.updateListeners())
       }
     })

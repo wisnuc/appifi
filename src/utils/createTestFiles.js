@@ -58,8 +58,10 @@ const createTestFilesAsync = async () => {
   await btrfsConcatAsync(join('five-giga'), join('one-giga'))
 }
 
-createTestFilesAsync()
-  .then(() => {})
-  .catch(e => console.log(e))
+const createTestFiles = callback =>
+  createTestFilesAsync()
+    .then(() => callback())
+    .catch(e => callback(e))
 
+module.exports = { createTestFiles, createTestFilesAsync }
 
