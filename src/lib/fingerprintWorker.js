@@ -38,21 +38,9 @@ process.on('message', message => {
 
 fs.writeFileSync(childModulePath, childSource)
 
-/**
-const chop = number => {
-  let arr = []
-  for (; number > SIZE_1G; number -= SIZE_1G) {
-    let start = arr.length === 0 ? 0 : arr[arr.length - 1].end
-    arr.push({ start, end: start + SIZE_1G })
-  }
-
-  let start = arr.length === 0 ? 0 : arr[arr.length - 1].end
-  arr.push({ start, end: start + number})
-
-  return arr
-}
-**/
-
+//
+// !!! fs.read start and end are both INCLUSIVE !!!
+//
 const chop = number => {
 
   let arr = []
@@ -83,17 +71,12 @@ class FingerprintWorker extends threadify(EventEmitter) {
 
   constructor(filePath) {
     super()
-    this.observe('data', null)
-    this.observe('error', null, function (x) {
-      if (this._error) return
-      this._error = x
+
+    this.define('workers', [])
+    this.defineSetOnce('data', () => this.emit('data', this.data))
+    this.defineSetOnce('error', () => {
       this.workers.forEach(worker => worker.kill())
       this.emit('error', this.error)
-    })
-
-    this.observe('workers', [], function (x) {
-      this._workers = x
-      process.nextTick(() => this.updateListeners())
     })
 
     this.run(filePath)

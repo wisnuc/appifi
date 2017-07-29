@@ -49,6 +49,7 @@ describe(path.basename(__filename), () => {
       await createTestFilesAsync()
     })
 
+/**
     it('calc fingerprints for all files', async function () {
 
       this.timeout(0)
@@ -71,7 +72,7 @@ describe(path.basename(__filename), () => {
 
       expect(fp1).to.deep.equal(fp2)
     })
-
+**/
 /**
     it('compare fingerprint for one-giga', async function () {
       this.timeout(0)
@@ -88,6 +89,7 @@ describe(path.basename(__filename), () => {
 
       expect(fp).to.equal(fpSimple)
     })
+**/
 
     it('compare fingerprint for one-giga-plus-x', async function () {
       this.timeout(0)
@@ -105,7 +107,6 @@ describe(path.basename(__filename), () => {
       expect(fp).to.equal(fpSimple)
     })
 
-**/
 
   }) 
 })

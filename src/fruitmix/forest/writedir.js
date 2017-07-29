@@ -58,30 +58,22 @@ class PartHandler extends threadify(EventEmitter) {
   constructor (part, ready) {
     super()
     this.part = part
-    this.observe('ready', ready)
-    this.observe('error', null, function (x) {
-      if (this._error) return
 
-      x.where = {
+    this.defineSetOnce('ready')
+    if (ready) this.ready = ready
+
+    this.defineSetOnce('error', () => {
+      this.error.where = {
         handler: this.constructor.name,
         number: part.number,
         name: part.name,
         filename: part.filename,
         value: part.value
       }
-
-      debug(`${this.constructor.name} set error`, x)
-
-      this._error = x
-      this.emit('error', x)
-      process.nextTick(() => this.updateListeners())
+      this.emit('error', this.error)
     })
 
     this.run()
-  }
-
-  run (...args) {
-    this.runAsync(...args)
       .then(() => {})
       .catch(e => {
         if (this.error !== e) debug(`${this.constructor.name} final error`, e.message)
@@ -113,9 +105,9 @@ class PartHandler extends threadify(EventEmitter) {
   }
 
   definePartStream () {
-    this.observe('as')
-    this.observe('asFinished')
-    this.observe('partEnded')
+    this.defineSetOnce('as')
+    this.defineSetOnce('asFinished')
+    this.defineSetOnce('partEnded')
     this.buffers = []
     this.bytesWritten = 0
     this.part.on('data', this.guard(chunk => {
@@ -139,8 +131,8 @@ class PartHandler extends threadify(EventEmitter) {
 }
 
 class FieldHandler extends PartHandler {
-  async runAsync () {
-    this.observe('parsed', false)
+  async run () {
+    this.defineSetOnce('parsed')
 
     let buffers = []
 
@@ -184,8 +176,8 @@ class FieldHandler extends PartHandler {
 }
 
 class NewEmptyFileHandler extends PartHandler {
-  async runAsync () {
-    this.observe('partEnded')
+  async run () {
+    this.defineSetOnce('partEnded')
     this.part.on('error', this.guard(err => (this.error = err)))
     this.part.on('end', this.guard(() => (this.partEnded = true)))
     let tmpPath = path.join(fruitmixPath, 'tmp', UUID.v4())
@@ -211,7 +203,7 @@ There are two finally logics there:
 2.
 */
 class NewNonEmptyFileHandler extends PartHandler {
-  async runAsync () {
+  async run () {
     this.definePartStream()
 
     let tmpPath = path.join(fruitmixPath, 'tmp', UUID.v4())
@@ -232,7 +224,7 @@ class NewNonEmptyFileHandler extends PartHandler {
 }
 
 class AppendHandler extends PartHandler {
-  async runAsync () {
+  async run () {
     this.definePartStream()
 
     await this.until(() => this.ready)
@@ -271,39 +263,13 @@ class Writedir extends threadify(EventEmitter) {
   constructor (dir, req) {
     super()
 
-    // children
-    this.observe('children', [], function (x) {
-      this._children = x
-      process.nextTick(() => this.updateListeners())
+    this.define('children', [])
+    this.defineSetOnce('error', () => {
+      let e = new Error('aborted')
+      this.children.forEach(child => (child.error = e))
     })
+    this.defineSetOnce('formEnded')
 
-    //
-    this.observe('error', null, function (x) {
-      if (this._error) return
-
-      debug('Writedir set error', x)
-
-      this._error = x
-      this.children.forEach(child => (child.error = ErrorAbort))
-      process.nextTick(() => this.updateListeners())
-    })
-
-    this.run(dir, req)
-      .then(() => {})
-      .catch(e => {
-        if (this.error !== e) debug(`${this.constructor.name} final error`, e)
-        this.error = e
-      })
-      .then(() => {
-        debug(`${this.constructor.name} finally ${this.error ? 'error' : 'success'}`)
-        this.emit('finish')
-      })
-  }
-
-  // this function works in finally logic
-  async run (dir, req) {
-
-    this.observe('formEnded', false)
     let number = 0
     let form = new formidable.IncomingForm()
 
@@ -353,7 +319,8 @@ class Writedir extends threadify(EventEmitter) {
     form.on('end', this.guard(() => (this.formEnded = true)))
     form.parse(req)
 
-    await this.untilAnyway(() => this.children.length === 0 && (this.error || this.formEnded))
+    this.untilAnyway(() => this.children.length === 0 && (this.error || this.formEnded))
+      .then(() => this.emit('finish'))
   }
 
   /**
@@ -379,6 +346,7 @@ class Writedir extends threadify(EventEmitter) {
   }
 
   abort () {
+    this.error = new Error('aborted')
   }
 }
 
