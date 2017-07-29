@@ -3,7 +3,6 @@ const path = require('path')
 const fs = Promise.promisifyAll(require('fs'))
 const EventEmitter = require('events')
 const crypto = require('crypto')
-const stream = require('stream')
 
 const mkdirp = require('mkdirp')
 const mkdirpAsync = Promise.promisify(mkdirp)
@@ -21,13 +20,9 @@ const createAppendStream = require('../../lib/fs-append-stream')
 const { readXstatAsync, forceXstatAsync } = require('../lib/xstat')
 const broadcast = require('../../common/broadcast')
 
-const ErrorAbort = new Error('aborted')
 const EMPTY_SHA256_HEX = crypto.createHash('sha256').digest('hex')
 
-const K = x => y => x
-
 let fruitmixPath
-
 broadcast.on('FruitmixStart', froot => (fruitmixPath = froot))
 broadcast.on('FruitmixStop', () => (fruitmixPath = undefined))
 
