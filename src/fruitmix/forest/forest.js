@@ -260,7 +260,6 @@ class Forest extends EventEmitter {
   }
 
   // what is a fix?
-
   reportPathError(abspath, code) {
 
     // not a frutimix drive path FIXME check slash

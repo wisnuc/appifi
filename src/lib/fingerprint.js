@@ -5,11 +5,9 @@ const child = require('child_process')
 const EventEmitter = require('events')
 const crypto = require('crypto')
 
-const debug = require('debug')('fingerprint')
-
-// constant
-const SIZE_1G = 1024 * 1024 * 1024
-const ZERO_HASH = crypto.createHash('sha256').digest('hex') 
+const threadify = require('./threadify')
+const chop = require('./chop')
+const combineHash = require('./combineHash')
 
 // path for child module
 const childModulePath = path.join('/', 'tmp', '6e6beb12-0552-4e5d-9696-db3fcd8e32d6')
@@ -39,85 +37,89 @@ process.on('message', message => {
 
 fs.writeFileSync(childModulePath, childSource)
 
-const chop = number => {
-  let arr = []
-  for (; number > SIZE_1G; number -= SIZE_1G) {
-    let start = arr.length === 0 ? 0 : arr[arr.length - 1].end
-    arr.push({ start, end: start + SIZE_1G })
+class Worker extends threadify(EventEmitter) {
+  constructor (filePath) {
+    super()
+
+    this.define('workers', [])
+    this.defineSetOnce('data', () => this.emit('data', this.data))
+    this.defineSetOnce('error', () => {
+      this.workers.forEach(worker => worker.kill())
+      this.emit('error', this.error)
+    })
+
+    this.run(filePath)
+      .then(data => data && (this.data = data))
+      .catch(e => (this.error = e))
+
+    this.untilAnyway(() => this.workers.length === 0 && (this.error || this.data))
+      .then(() => this.emit('finish'))
   }
 
-  let start = arr.length === 0 ? 0 : arr[arr.length - 1].end
-  arr.push({ start, end: start + number})
-  return arr
-}
-
-const combineHash = bufs => bufs.length === 1 
-  ? bufs[0] 
-  : combineHash([crypto.createHash('sha256').update(bufs[0]).update(bufs[1]).digest(), ...bufs.slice(2)])
-
-
-// child.kill() is idempotent, so we have a easier way to implement finally logic
-const fingerprintAsync = async filePath => {
-
-  let workers = []
-
-  try {
+  async run (filePath) {
     let stat1 = await fs.lstatAsync(filePath)
     if (!stat1.isFile()) throw new Error('not a file')
-    if (stat1.size === 0) return ZERO_HASH
-
-    let segments = chop(stat1.size) 
-
-    // bluebird promise.map has concurrency option
-    let buffers = await Promise.map(segments, async segment => new Promise((resolve, reject) => {
-
-      let error
-      const setError = err => {
-        if (error) return
-        error = err
-        reject(err)
+    if (stat1.size === 0) {
+      return {
+        fingerprint: crypto.createHash('sha256').digest('hex'),
+        timestamp: stat1.mtime.getTime()
       }
+    }
 
-      let digest
+    let segments = chop(stat1.size)
+
+    // for debug
+    this.segments = segments
+
+    let buffers = await Promise.map(segments, async segment => new Promise((resolve, reject) => {
+      let finished = false
       let worker = child.fork(childModulePath)
-      worker.on('message', message => digest = message)
-      worker.on('error', err => setError(err))
+      worker.on('message', message => {
+        if (finished) return
+        finished = true
+        resolve(message)
+      })
+      worker.on('error', err => {
+        if (finished) return
+        finished = true
+        reject(err)
+      })
       worker.on('exit', (code, signal) => {
-        if (error) return
-        if (code || signal || !digest) {
-          setError(new Error('error exit code or being killed'))
+        // remove out of worker queue
+        let index = this.workers.findIndex(w => w === worker)
+        this.workers = [...this.workers.slice(0, index), ...this.workers.slice(index + 1)]
+
+        if (finished) return
+        finished = true
+
+        if (code || signal) {
+          reject(new Error(`error exit, code ${code}, signal ${signal}`))
         } else {
-          resolve(Buffer.from(digest, 'hex')) 
+          reject(new Error('unexpected, exit 0 but unresolved'))
         }
       })
-      worker.send({ filePath, start: segment.start, end: segment.end })
-      workers.push(worker)
 
-    }), { concurrency: 4 })
+      // start
+      worker.send({ filePath, start: segment.start, end: segment.end })
+      // enqueue
+      this.workers.push(worker)
+    }, { concurrentcy: 3 }).bind(this))
+
+    // for debug
+    this.digests = buffers.map(buf => buf.toString('hex'))
 
     let stat2 = await fs.lstatAsync(filePath)
     if (stat2.mtime.getTime() !== stat1.mtime.getTime()) throw new Error('timestamp mismatch')
 
-    return combineHash(buffers).toString('hex')
+    return {
+      fingerprint: combineHash(buffers.map(str => Buffer.from(str, 'hex'))).toString('hex'),
+      timestamp: stat1.mtime.getTime()
+    }
+  }
 
-  } finally {
-    workers.forEach(worker => worker.kill())
+  abort () {
+    this.error = new Error('aborted')
   }
 }
 
-const fingerprint = (filePath, callback) => 
-  fingerprintAsync(filePath)
-    .then(digest => callback(null, digest))
-    .catch(e => callback(e))
-
-module.exports = fingerprint
-
-if (process.argv.includes('--standalone')) {
-  fingerprint('testdata/ubuntu.iso', (err, digest) => {
-    console.log(err || digest)
-  })
-}
-
-
-
-
+module.exports = filePath => new Worker(filePath)
