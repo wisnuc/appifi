@@ -2,16 +2,16 @@ const path = require('path')
 const fs = require('fs')
 const child = require('child_process')
 
-const Worker from './worker'
-import E from '../lib/error'
+const Worker = require('./worker')
+const E = require('./error')
 
-import { readXstat } from './xstat'
+const readXstat = require('./xstat').readXstat
 
 // always 8 fields, trailing with size in bytes
 // !!! don't double quote the string
 const identifyFormatString = '%m|%w|%h|%[EXIF:Orientation]|%[EXIF:DateTime]|%[EXIF:Make]|%[EXIF:Model]|%b'
 
-export const validateExifDateTime = str => {
+const validateExifDateTime = str => {
 
   // "2016:09:19 10:07:05" 
   if (str.length !== 19)
@@ -22,7 +22,7 @@ export const validateExifDateTime = str => {
   return !isNaN(Date.parse(dtstr))
 }
 
-export const parseIdentifyOutput = data => {
+const parseIdentifyOutput = data => {
 
   let split = data.toString().split('|').map(str => str.trim())
   if (split.length !== 8) return
@@ -79,7 +79,7 @@ export const parseIdentifyOutput = data => {
 
 class Identify extends Worker {
 
-  constructor(fpath, uuid, hash) {
+  constructor(fpath, hash, uuid) {
     super()
     this.fpath = fpath
     this.uuid = uuid
@@ -106,19 +106,5 @@ class Identify extends Worker {
   }
 }
 
-class Identifier extends threadify(EventEmitter) {
-
-  run () {
-    let xstat = await readXstatAsync(this.fpath)
-    if (xstat.type !== 'file') throw new Error()  
-    if (xstat.uuid !== this.uuid) throw new Error()
-    if (xstat.hash !== this.hash) throw new Error()
-
-    let stdout = await child.exec(`identify`)
-    // parse
-    // check timestamp or xstat again
-  }
-}
-
-module.exports = (fpath, uuid, hash) => new Identify(fpath, uuid, hash)
+module.exports = (fpath, hash, uuid) => new Identify(fpath, hash, uuid)
 
