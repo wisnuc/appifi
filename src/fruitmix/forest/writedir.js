@@ -50,6 +50,7 @@ const combineHash = (a, b) => {
 }
 
 class PartHandler extends threadify(EventEmitter) {
+
   constructor (part, ready) {
     super()
     this.part = part
@@ -123,9 +124,11 @@ class PartHandler extends threadify(EventEmitter) {
     this.part.on('error', this.guard(err => (this.error = err)))
     this.part.on('end', this.guard(() => (this.partEnded = true)))
   }
+
 }
 
 class FieldHandler extends PartHandler {
+
   async run () {
     this.defineSetOnce('parsed')
 
@@ -168,9 +171,11 @@ class FieldHandler extends PartHandler {
       throw new Error('Internal Error')
     }
   }
+
 }
 
 class NewEmptyFileHandler extends PartHandler {
+
   async run () {
     this.defineSetOnce('partEnded')
     this.part.on('error', this.guard(err => (this.error = err)))
@@ -188,6 +193,7 @@ class NewEmptyFileHandler extends PartHandler {
       rimraf(tmpPath, () => {})
     }
   }
+
 }
 
 /**
@@ -198,6 +204,7 @@ There are two finally logics there:
 2.
 */
 class NewNonEmptyFileHandler extends PartHandler {
+
   async run () {
     this.definePartStream()
 
@@ -216,9 +223,11 @@ class NewNonEmptyFileHandler extends PartHandler {
       rimraf(tmpPath, () => {})
     }
   }
+
 }
 
 class AppendHandler extends PartHandler {
+
   async run () {
     this.definePartStream()
 
@@ -252,9 +261,11 @@ class AppendHandler extends PartHandler {
       rimraf(tmpPath, () => {})
     }
   }
+
 }
 
 class Writedir extends threadify(EventEmitter) {
+
   constructor (dir, req) {
     super()
 
@@ -318,9 +329,6 @@ class Writedir extends threadify(EventEmitter) {
       .then(() => this.emit('finish'))
   }
 
-  /**
-  @throws
-  */
   parse (part) {
     // validate name and generate part.fromName and .toName
     let split = part.name.split('|')
@@ -343,6 +351,7 @@ class Writedir extends threadify(EventEmitter) {
   abort () {
     this.error = new Error('aborted')
   }
+
 }
 
 module.exports = Writedir

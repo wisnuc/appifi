@@ -12,7 +12,6 @@ const combineHash = require('./combineHash')
 // path for child module
 const childModulePath = path.join('/', 'tmp', '6e6beb12-0552-4e5d-9696-db3fcd8e32d6')
 
-// Here doc for child source
 const childSource = `
 
 const path = require('path')
@@ -38,6 +37,7 @@ process.on('message', message => {
 fs.writeFileSync(childModulePath, childSource)
 
 class Worker extends threadify(EventEmitter) {
+
   constructor (filePath) {
     super()
 
@@ -120,6 +120,7 @@ class Worker extends threadify(EventEmitter) {
   abort () {
     this.error = new Error('aborted')
   }
+
 }
 
 module.exports = filePath => new Worker(filePath)

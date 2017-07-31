@@ -1,7 +1,8 @@
-import path from 'path'
-import fs from 'fs'
-import child from 'child_process'
-import Worker from '../lib/worker'
+const path = require('path')
+const fs = require('fs')
+const child = require('child_process')
+
+const Worker from './worker'
 import E from '../lib/error'
 
 import { readXstat } from './xstat'
@@ -105,5 +106,19 @@ class Identify extends Worker {
   }
 }
 
-export default (fpath, uuid, hash) => new Identify(fpath, uuid, hash)
+class Identifier extends threadify(EventEmitter) {
+
+  run () {
+    let xstat = await readXstatAsync(this.fpath)
+    if (xstat.type !== 'file') throw new Error()  
+    if (xstat.uuid !== this.uuid) throw new Error()
+    if (xstat.hash !== this.hash) throw new Error()
+
+    let stdout = await child.exec(`identify`)
+    // parse
+    // check timestamp or xstat again
+  }
+}
+
+module.exports = (fpath, uuid, hash) => new Identify(fpath, uuid, hash)
 

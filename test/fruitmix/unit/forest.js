@@ -12,7 +12,7 @@ const should = chai.should()
 const Forest = require('src/fruitmix/forest/forest')
 const Monitor = require('src/fruitmix/forest/monitor')
 
-const { readXstatAsync, forceDriveXstatAsync } = require('src/fruitmix/file/xstat')
+const { readXstatAsync, forceDriveXstatAsync } = require('src/fruitmix/lib/xstat')
 
 const cwd = process.cwd()
 const rootPath = path.join(cwd, 'tmptest')
