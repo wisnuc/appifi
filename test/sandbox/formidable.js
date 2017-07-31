@@ -3,9 +3,8 @@ const path = require('path')
 const fs = Promise.promisifyAll(require('fs'))
 const rimrafAsync = Promise.promisify(require('rimraf'))
 const mkdirpAsync = Promise.promisify(require('mkdirp'))
-const chai = require('chai')
-const chaiAsPromised = require('chai-as-promised')
-chai.use(chaiAsPromised)
+
+const chai = require('chai').use(require('chai-as-promised'))
 const expect = chai.expect
 const should = chai.should()
 

@@ -1,6 +1,7 @@
+const Promise = require('bluebird')
 const path = require('path')
 
-const fileType = require('src/fruitmix/lib/filetype')
+const fileType = require('src/lib/filetype')
 
 const UUID = require('uuid')
 const sinon = require('sinon')
@@ -13,7 +14,7 @@ const should = chai.should()
 describe(path.basename(__filename), () => {
 
   it('should report jpg file as jpg and image/jpeg', done => {
-    let fpath = path.join(process.cwd(), 'fruitfiles', '20141213.jpg')
+    let fpath = path.join(process.cwd(), 'testdata', 'vpai001.jpg')
     fileType(fpath, (err, type) => {
       if (err) return done(err)
       expect(type).to.deep.equal({ ext: 'jpg', mime: 'image/jpeg' })
@@ -21,8 +22,8 @@ describe(path.basename(__filename), () => {
     })
   })
 
-  it('should report 2-byte file as null', done => {
-    let fpath = path.join(process.cwd(), 'fruitfiles', 'a')
+  it('should report hello as null', done => {
+    let fpath = path.join(process.cwd(), 'testdata', 'hello')
     fileType(fpath, (err, type) => {
       if (err) return done(err)
       expect(type).to.be.null
@@ -31,7 +32,7 @@ describe(path.basename(__filename), () => {
   })
 
   it('should report empty file as null', done => {
-    let fpath = path.join(process.cwd(), 'fruitfiles', 'empty')
+    let fpath = path.join(process.cwd(), 'testdata', 'empty')
     fileType(fpath, (err, type) => {
       if (err) return done(err)
       expect(type).to.be.null
@@ -40,7 +41,7 @@ describe(path.basename(__filename), () => {
   })
 
   it('should return EISDIR error for folder', done => {
-    let fpath = path.join(process.cwd(), 'fruitfiles', 'folder')
+    let fpath = path.join(process.cwd(), 'testdata')
     fileType(fpath, (err, type) => {
       expect(err).to.be.an.error
       expect(err.code).to.equal('EISDIR')
@@ -49,7 +50,7 @@ describe(path.basename(__filename), () => {
   })
 
   it('should return ENOENT error for non-existent file', done => {
-    let fpath = path.join(process.cwd(), 'fruitfiles', UUID.v4())
+    let fpath = path.join(process.cwd(), 'testdata', UUID.v4())
     fileType(fpath, (err, type) => {
       expect(err).to.be.an.error
       expect(err.code).to.equal('ENOENT')
