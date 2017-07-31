@@ -17,13 +17,12 @@ const net = require('./system/net')
 const timedate = require('./system/timedate')
 const boot = require('./system/boot')
 const storage = require('./routes/storage')
-const auth = require('./fruitmix/middleware/auth')
-const token = require('./fruitmix/routes/token')
-const users = require('./fruitmix/routes/users')
-const drives = require('./fruitmix/routes/drives')
-const boxes = require('./fruitmix/routes/boxes')
-const cloudToken = require('./fruitmix/routes/wxtoken')
-const uploads = require('./fruitmix/routes/uploads')
+const auth = require('./middleware/auth')
+const token = require('./routes/token')
+const users = require('./routes/users')
+const drives = require('./routes/drives')
+const boxes = require('./routes/boxes')
+const cloudToken = require('./routes/wxtoken')
 const station = require('./fruitmix/station')
 
 /**
@@ -48,7 +47,7 @@ app.use('/users', users)
 app.use('/drives', drives)
 app.use('/boxes', boxes)
 app.use('/cloudToken', cloudToken)
-app.use('/uploads', uploads)
+// app.use('/uploads', uploads)
 app.use('/station', station)
 
 // catch 404 and forward to error handler
@@ -60,10 +59,7 @@ app.use(function(req, res, next) {
 
 // error handlers
 app.use(function(err, req, res, next) {
-
-  if (err && process.env.NODE_ENV === 'test')
-    console.log(err)
-
+  if (err && process.env.NODE_ENV === 'test') console.log(err)
   res.status(err.status || 500).json({
     code: err.code,
     message: err.message

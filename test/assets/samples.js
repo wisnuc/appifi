@@ -1,4 +1,4 @@
-const samples = [
+module.exports = [
   {
     name: 'gg_gps.jpg',
     type: 'JPEG',
@@ -17,6 +17,4 @@ const samples = [
     }
   }
 ]
-
-export default samples
 

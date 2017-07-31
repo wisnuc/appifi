@@ -3,7 +3,7 @@ const E = {}
 /** This is ES6 version 
 babel does not properly implement instanceof, though node without babel works
 now using ES5 as workaround
-
+*/
 const EClass = (code, message) => {
   return class extends Error {
     constructor(m = message) {
@@ -12,8 +12,8 @@ const EClass = (code, message) => {
     }
   }
 }
-**/
 
+/*
 // This is ES5 version
 const EClass = (code, message) => {
 
@@ -26,6 +26,7 @@ const EClass = (code, message) => {
 
   return f
 }
+*/
 
 const define = (code, message) => (E[code] = EClass(code, message))
 

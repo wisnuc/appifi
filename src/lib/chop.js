@@ -1,18 +1,26 @@
-const SIZE_1G = 1024
+const SIZE_1G = 1024 * 1024 * 1024
 
-const chop = number => {
+//
+// !!! fs.read start and end are both INCLUSIVE !!!
+//
+module.exports = number => {
+  if (!Number.isInteger(number) || number <= 0) throw new Error('number must be a positive integer')
 
   let arr = []
-  for (; number > SIZE_1G; number -= SIZE_1G) {
-    let start = arr.length === 0 ? 0 : arr[arr.length - 1].end
-    arr.push({ start, end: start + SIZE_1G })
+  while (number > SIZE_1G) {
+    arr.push({
+      start: arr.length * SIZE_1G,
+      end: (arr.length + 1) * SIZE_1G - 1
+    })
+    number -= SIZE_1G
   }
 
-  let start = arr.length === 0 ? 0 : arr[arr.length - 1].end
-  arr.push({ start, end: start + number})
+  if (number !== 0) {
+    arr.push({
+      start: arr.length * SIZE_1G,
+      end: arr.length * SIZE_1G + number - 1
+    })
+  }
 
   return arr
 }
-
-module.exports = chop
-

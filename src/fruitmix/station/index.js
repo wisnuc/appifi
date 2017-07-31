@@ -3,7 +3,7 @@ const path = require('path')
 const Router = require('express').Router
 
 const broadcast = require('../../common/broadcast')
-const auth = require('../middleware/auth')
+const auth = require('../../middleware/auth')
 const tickets = require('./route/tickets')
 const Station = require('./lib/station')
 

@@ -1,11 +1,10 @@
-const Promise = require('bluebird')
 const path = require('path')
 const fs = require('fs')
 const child = require('child_process')
 const stream = require('stream')
-const mkdirp = require('mkdirp')
-const rimraf = require('rimraf')
 const debug = require('debug')('appendstream')
+
+const threadify = require('./threadify')
 
 const modulePath = path.join('/tmp', '646af000-8406-4c7a-bfb9-7e83b8a20418')
 
@@ -94,91 +93,21 @@ hashLoop()
 
 fs.writeFileSync(modulePath, moduleSource)
 
-const K = x => y => x
-
 // child -> parent message
-// number -> how many 
+// number -> how many
 
-// this class extends writable stream, so it does NOT fire error or finish directly
-
-const Mixin = base => class extends base {
-
-  constructor(...args) {
-    super(...args)
-    this._untils = []
-  }
-
-  async until (predicate, ignore) {
-    if (predicate()) return
-    return new Promise((resolve, reject) => this._untils.push({ 
-      predicate, 
-      resolve, 
-      reject: ignore ? null : reject
-    }))
-  }
-
-  async untilAnyway (predicate) {
-    if (predicate()) return
-    return new Promise((resolve, reject) => this._untils.push({
-      predicate,
-      resolve
-    }))
-  }
-
-  _until () {
-    this._untils = this._untils.reduce((arr, x) => (this.error && x.reject) 
-      ? K(arr)(x.reject(this.error))
-      : x.predicate() 
-        ? K(arr)(x.resolve()) 
-        : [...arr, x], [])
-  }
-
-  observe (name, value) {
-    let _name = '_' + name
-    this[_name] = value
-    Object.defineProperty(this, name, {
-      get: function () {
-        return this[_name]
-      },
-      set: function (x) { 
-        if (this[_name]) return // TODO
-        debug('observe set', name, x)
-        this[_name] = x
-        process.nextTick(() => this._until())
-      }
-    })
-  }
-}
-
-class AppendStream extends Mixin(stream.Writable) {
-
-  constructor(filePath) {
+class AppendStream extends threadify(stream.Writable) {
+  constructor (filePath) {
     super({ highWaterMark: 1024 * 1024 })
 
-    this.observe('error', null)
-    this.run(filePath)
-      .then(() => {
-        debug('run succeeded.')
-      })
-      .catch(e => {
-        debug('run error')
-        this.error = e
-      })
-      .then(() => {
-        this.finalized = true
-        debug('finalized')
-      })
-  }
+    this.defineSetOnce('error')
+    this.defineSetOnce('tailReady')
+    this.defineSetOnce('ws')
+    this.defineSetOnce('wsFinished')
+    this.defineSetOnce('tailExited')
+    this.defineSetOnce('finalizing')
+    this.defineSetOnce('finalized')
 
-  async run (filePath) {
-
-    this.observe('tailReady')
-    this.observe('ws')
-    this.observe('wsFinished')
-    this.observe('tailExited')
-    this.observe('finalizing')
-    this.observe('finalized')
-  
     this.bytesWritten = 0
 
     this.tail = child.fork(modulePath)
@@ -189,58 +118,54 @@ class AppendStream extends Mixin(stream.Writable) {
         } else {
           this.error = new Error('bytes written and read mismatch')
         }
-      }
-      else if (message === 'ready') {
+      } else if (message === 'ready') {
         this.tailReady = true
-      }
-      else {
+      } else {
         this.error = new Error('invalid message from child process')
       }
     })
-    this.tail.on('error', err => this.error = err)
-    this.tail.on('exit', () => this.tailExited = true)
+    this.tail.on('error', err => (this.error = err))
+    this.tail.on('exit', () => (this.tailExited = true))
     this.tail.send({ filePath })
 
-    await this.until(() => this.tailReady)
-
-    this.ws = fs.createWriteStream(filePath, { flags: 'a'}) 
-    this.ws.on('error', err => this.error = err)
-    this.ws.on('finish', () => this.wsFinished = true)
-
-    try {
-      await this.until(() => this.finalizing)
-      this.ws.end()
-      await this.until(() => this.wsFinished)
-      this.tail.send('final')
-      await this.until(() => this.tailExited)
-    } catch (e) {
-
-      console.log('error caught', e, this.error)
-
-      try {
+    this.run(filePath)
+      .then(() => {})
+      .catch(e => {
         this.error = e
-        this.ws.end()
         this.tail.kill()
-      } catch (e) {
-        console.log('failed again', e)
-      }
+        if (this.ws) this.ws.end()
+      })
 
-      await this.untilAnyway(() => this.wsFinished && this.tailExited)
-    }
+    this.untilAnyway(() => this.wsFinished && this.tailExited)
+      .then(() => this.emit('finish'))
   }
 
-  _write(chunk, encoding, callback) {
+  async run (filePath) {
+    await this.until(() => this.tailReady)
+    this.ws = fs.createWriteStream(filePath, { flags: 'a' })
+    this.ws.on('error', err => (this.error = err))
+    this.ws.on('finish', () => (this.wsFinished = true))
+
+    await this.until(() => this.finalizing)
+    this.ws.end()
+
+    await this.until(() => this.wsFinished)
+    this.tail.send('final')
+
+    await this.until(() => this.tailExited) // to catch all possible errors
+  }
+
+  _write (chunk, encoding, callback) {
     if (this.error) return callback(this.error)
-    // TODO debug
-    if (!this.ws) console.log('_write, waiting for write stream')
+    if (!this.ws) debug('_write, waiting for write stream')
     this.until(() => !!this.ws)
       .then(() => this.ws.write(chunk, encoding, () => {
         this.bytesWritten += chunk.length
         this.tail.send(chunk.length)
         callback()
       }))
-      .catch(e => callback(e)) 
-  } 
+      .catch(e => callback(e))
+  }
 
 /**
   _writev(chunks, callback) {
@@ -254,7 +179,7 @@ class AppendStream extends Mixin(stream.Writable) {
           this.bytesWritten += totalLength
           this.tail.send(totalLength)
           callback()
-        }) 
+        })
       } else {
         this.ws.write(chunk, encoding)
       }
@@ -262,10 +187,9 @@ class AppendStream extends Mixin(stream.Writable) {
   }
 **/
 
-  _final(callback) {
+  _final (callback) {
     this.finalizing = true
-    
-    if (!this.finalized) console.log('_final, waiting for finalized')
+    if (!this.finalized) debug('_final, waiting for finalized')
     this.until(() => this.finalized)
       .then(() => callback(this.error))
   }
@@ -282,11 +206,3 @@ fs.createReadStream('testdata/ubuntu.iso').pipe(as)
 
 // module.exports = AppendStream
 module.exports = filePath => new AppendStream(filePath)
-
-
-
-
-
-
-
-

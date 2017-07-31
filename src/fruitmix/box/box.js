@@ -1,5 +1,6 @@
 const Promise = require('bluebird')
 const path = require('path')
+const EventEmitter = require('events')
 const Stringify = require('canonical-json')
 const fs = Promise.promisifyAll(require('fs'))
 const rimrafAsync = Promise.promisify(require('rimraf'))
@@ -508,9 +509,10 @@ class Box {
 /**
  * 
  */
-class BoxData {
+class BoxData extends EventEmitter{
 
   constructor() {
+    super()
 
     this.initialized = false
 
@@ -561,6 +563,28 @@ class BoxData {
     process.nextTick(() => broadcast.emit('BoxDeinitDone'))
   }
 
+  /**
+   * get all boxes user can view
+   * @param {string} global - user ID
+   * @return {array} a list of box doc
+   */
+  getAllBoxes(global) {
+    let boxes = [...this.map.values()].filter(box => 
+                box.doc.owner === global ||
+                box.doc.users.includes(global))
+
+    return boxes.map(box => box.doc)
+  }
+
+  /**
+   * get a box
+   * @param {string} boxUUID - box uuid
+   * @return {Object} box object
+   */
+  getBox(boxUUID) {
+    return this.map.get(boxUUID)
+  }
+
 /**
  * Create a box
  * @param {Object} props - props
@@ -576,59 +600,83 @@ class BoxData {
     // move to boxes dir
 
     let tmpDir = await fs.mkdtempAsync(path.join(this.tmpDir, 'tmp'))
+    let time = new Date().getTime()
     let doc = {
       uuid: UUID.v4(),
       name: props.name,
       owner: props.owner,
-      users: props.users
+      users: props.users,
+      ctime: time,
+      mtime: time
     }  
 
     // FIXME: refactor saveObject to avoid rename twice
     await saveObjectAsync(path.join(tmpDir, 'manifest'), this.tmpDir, doc)
-    await fs.renameAsync(tmpDir, path.join(this.dir, doc.uuid))
-    let dbPath = path.join(this.dir, doc.uuid, 'records')
-    let blPath = path.join(this.dir, doc.uuid, 'blackList')
+    let dbPath = path.join(tmpDir, 'records')
+    let blPath = path.join(tmpDir, 'blackList')
     await fs.writeFileAsync(dbPath, '')
     await fs.writeFileAsync(blPath, '')
+    await fs.renameAsync(tmpDir, path.join(this.dir, doc.uuid))
+    
+    dbPath = path.join(this.dir, doc.uuid, 'records'),
+    blPath = path.join(this.dir, doc.uuid, 'blackList')
     let records = new Records(dbPath, blPath)
     let box = new Box(path.join(this.dir, doc.uuid), this.tmpDir, doc, records)
 
     this.map.set(doc.uuid, box)
-    return box
+    return doc
   }
 
 /**
  * update a box (rename, add or delete users)
- * @param {array} props - properties to be updated
- * @param {object} box - contents before update
- * @return {object} newbox
+ * @param {Object} props - properties to be updated
+ * @param {Object} box - contents before update
+ * @return {Object} newdoc
  */
   async updateBoxAsync(props, box) {
     let op
     let { name, users } = box.doc
 
-    op = props.find(op => (op.path === 'name' && op.operation === 'update'))
-    if(op) name = op.value
+    if (props.name) name = props.name
+    if (props.users) {
+      let op = props.users.op
+      switch (op) {
+        case 'add': 
+          users = addArray(users, props.users.value)
+          break
+        case 'delete':
+          users = complement(users, props.users.value)
+          break
+        default:
+          break
+      }
+    }
 
-    op = props.find(op => (op.path === 'users' && op.operation === 'add'))
-    if(op) users = addArray(users, op.value)
+    // op = props.find(op => (op.path === 'name' && op.operation === 'update'))
+    // if(op) name = op.value
 
-    op = props.find(op => (op.path === 'users' && op.operation === 'delete'))
-    if(op) users = complement(users, op.value)
+    // op = props.find(op => (op.path === 'users' && op.operation === 'add'))
+    // if(op) users = addArray(users, op.value)
 
-    if(name === box.doc.name && users === box.doc.users) return box
-
+    // op = props.find(op => (op.path === 'users' && op.operation === 'delete'))
+    // if(op) users = complement(users, op.value)
     let newDoc = {
       uuid: box.doc.uuid,
       name,
       owner: box.doc.owner,
-      users
+      users,
+      ctime: box.doc.ctime
     }
+
+    if (name === box.doc.name && users === box.doc.users) {
+      if (!props.mtime) return box.doc
+      else newDoc.mtime = props.mtime
+    } else newDoc.mtime = new Date().getTime()
 
     await saveObjectAsync(path.join(this.dir, box.doc.uuid, 'manifest'), this.tmpDir, newDoc)
     box.doc = newDoc
     this.map.set(box.doc.uuid, box)
-    return box
+    return newDoc
   }
 
 /**
