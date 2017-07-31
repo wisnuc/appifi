@@ -1,7 +1,7 @@
 const Promise = require('bluebird')
 const path = require('path')
 
-const fileType = require('src/lib/filetype')
+const fileType = require('src/lib/file-type')
 
 const UUID = require('uuid')
 const sinon = require('sinon')

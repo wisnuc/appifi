@@ -25,7 +25,7 @@ const xattr = Promise.promisifyAll(require('fs-xattr'))
 const UUID = require('uuid')
 const validator = require('validator')
 
-const filetype = require('./filetype')
+const filetype = require('./file-type')
 
 const E = require('./error')
 
