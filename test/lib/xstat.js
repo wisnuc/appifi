@@ -1,8 +1,8 @@
 const Promise = require('bluebird')
 const path = require('path')
-const fs = Promise.promisifyAll(require('fs'))
+const fs = Promise.promisifyAll(require('fs-extra'))
 const UUID = require('uuid')
-const xattr = Promise.promisifyAll(require('xattr'))
+const xattr = Promise.promisifyAll(require('fs-xattr'))
 const validator = require('validator')
 
 const rimraf = require('rimraf')
@@ -10,25 +10,18 @@ const rimrafAsync = Promise.promisify(rimraf)
 const mkdirp = require('mkdirp')
 const mkdirpAsync = Promise.promisify(mkdirp)
 
-import E from '../../../src/fruitmix/lib/error'
-
-import S from '../../assets/samples'
-import { cp, cpAsync } from '../../utils'
-
-import { 
-  readTimeStamp,
-  readXstat,
-  readXstatAsync,
-  forceDriveXstatAsync,
-} from '../../../src/fruitmix/file/xstat'
-
-
-import chai from 'chai'
-import chaiAsPromised from 'chai-as-promised'
-import sinon from 'sinon'
-chai.use(chaiAsPromised)
+const chai = require('chai').use(require('chai-as-promised'))
 const expect = chai.expect
 const should = chai.should()
+
+const sinon = require('sinon')
+
+const E = require('src/lib/error')
+const S = require('test/assets/samples') // TODO
+
+const { 
+  readXstat, readXstatAsync, updateFileHash, updateFileHashAsync, forceXstat, forceXstatAsync
+} = require('src/lib/xstat')
 
 const uuidArr = [
 	'c3256d90-f789-47c6-8228-9878f2b106f6',
@@ -45,25 +38,6 @@ const uuidArr = [
 const cwd = process.cwd()
 const tmptest = 'tmptest'
 const tmpdir = path.join(cwd, tmptest)
-
-describe(path.basename(__filename) + ' readTimeStamp', () => {
-
-	describe('readTimeStamp', () => {
-
-    before(async () => {
-      await rimrafAsync(tmptest) 
-      await mkdirpAsync(tmptest)
-    })
-
-		it('should read timestamp', done => 
-      fs.stat(tmpdir, (err, stats) => 
-        readTimeStamp(tmpdir, (err, mtime) => {
-          if (err) return done(err)
-          expect(mtime).to.equal(stats.mtime.getTime()) 
-          done()
-        })))
-	})
-})
 
 describe(path.basename(__filename) + ' readXstat', () => {
 
@@ -126,12 +100,14 @@ describe(path.basename(__filename) + ' readXstat', () => {
       })
     })
 
+/**
     it('should throw ENOTDIRFILE for /dev/null, async bluebird asCallback', done => {
       readXstatAsync('/dev/null').asCallback((err, xstat) => {
         expect(err).to.be.an.instanceof(E.ENOTDIRFILE)
         done()
       })
     })
+**/
 
     it('should throw ENOTDIRFILE for /dev/null, async chai-as-promise', () => {
       // this assertion comes from chai as promised.
@@ -170,7 +146,7 @@ describe(path.basename(__filename) + ' readXstat file', () => {
   beforeEach(async () => {
     await rimrafAsync(tmptest)
     await mkdirpAsync(tmptest)
-    await cpAsync(path.join(cwd, 'test', 'assets', S[0].name), fpath)
+    await fs.copy(path.join(cwd, 'test', 'assets', S[0].name), fpath)
     sinon.stub(UUID, 'v4').returns(uuidArr[0])
   })
 
@@ -259,7 +235,7 @@ describe(path.basename(__filename) + ' readXstat file', () => {
   })
 })
 
-describe(path.basename(__filename) + ' forceDriveXstat', () => {
+describe(path.basename(__filename) + ' forceXstat', () => {
 
   let pre
 
@@ -279,7 +255,7 @@ describe(path.basename(__filename) + ' forceDriveXstat', () => {
   afterEach(() => UUID.v4.restore())
 
   it('should force xstat of clean dirctory', async () => {
-    let xstat = await forceDriveXstatAsync(tmpdir, uuidArr[2])
+    let xstat = await forceXstatAsync(tmpdir, { uuid: uuidArr[2] })
     expect(xstat).to.deep.equal(pre)
   })
 
@@ -292,7 +268,7 @@ describe(path.basename(__filename) + ' forceDriveXstat', () => {
     // xstat = await readXstatAsync(tmpdir)
     // expect(xstat.uuid).to.equal(uuidArr[0])
 
-    xstat = await forceDriveXstatAsync(tmpdir, uuidArr[2])
+    xstat = await forceXstatAsync(tmpdir, { uuid: uuidArr[2] })
     expect(xstat).to.deep.equal(pre)
   })
 })
