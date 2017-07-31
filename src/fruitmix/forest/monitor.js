@@ -23,7 +23,7 @@ class Monitor extends EventEmitter {
   
   end(dirUUID, name) {
     this.set.delete(dirUUID)
-    debug.log(`monitor - ${dirUUID}, current: ${this.set.size}, total: ${this.count}, ${name}`)
+    debug(`monitor - ${dirUUID}, current: ${this.set.size}, total: ${this.count}, ${name}`)
     if (this.set.size === 0) this.emit('done')
   }
 }

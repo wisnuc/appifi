@@ -27,8 +27,6 @@ for directory: (driveUUID, dirUUID) -> abspath
 for regular file: (driveUUID, dirUUID, fileUUID, filename) -> abspath
 ```
 
-
-
 There are three types message from external components notifying a possible file system change, or a file path retrieved from forest does not work.
 
 First, for samba, it simply notifies a directory is changed. The directory is provided as an absolute path.
@@ -130,10 +128,6 @@ class Forest extends EventEmitter {
     return dir  
   }
 
-  getDirectoryByUUID(uuid) {
- 
-  }
-
   /**
   index a file by file hash
   */
@@ -158,8 +152,7 @@ class Forest extends EventEmitter {
   */
   init(dir) {
 
-    if (this.initialized) 
-      throw new Error('forest already initialized')
+    if (this.initialized) throw new Error('forest already initialized')
 
     this.initialized = true
     this.dir = dir
@@ -170,6 +163,9 @@ class Forest extends EventEmitter {
     process.nextTick(() => broadcast.emit('ForestInitDone'))
   }
 
+  /**
+  Deinitialize, destroy everything
+  */
   deinit() {
 
     this.initialized = false

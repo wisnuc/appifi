@@ -36,7 +36,7 @@ describe(path.basename(__filename), () => {
       await mkdirpAsync(drivesDir)
       await mkdirpAsync(path.join(drivesDir, drive1.uuid, 'hello', 'world', 'foo', 'bar'))
       mtime = (await fs.lstatAsync(path.join(drivesDir, drive1.uuid))).mtime.getTime()
-      await Forest.initAsync(drivesDir, tmpDir)
+      await Forest.init(drivesDir, tmpDir)
     })
 
     it('read', async () => {
@@ -44,10 +44,10 @@ describe(path.basename(__filename), () => {
       let monitor = new Monitor()
       await Forest.createDriveAsync(drive1, [monitor])
       await monitor.done
-
-      r = Forest.getDirs(drive1.uuid)
-  
+      r = Forest.getDriveDirs(drive1.uuid)
       console.log(r)
     })
+
+    
   })
 })
