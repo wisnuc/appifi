@@ -4,9 +4,9 @@ const fs = Promise.promisifyAll(require('fs'))
 const EventEmitter = require('events')
 const UUID = require('uuid')
 const deepFreeze = require('deep-freeze')
-const { saveObjectAsync } = require('../lib/utils')
+const { saveObjectAsync } = require('../fruitmix/lib/utils')
 
-const broadcast = require('../../common/broadcast')
+const broadcast = require('../common/broadcast')
 
 // const Forest = require('../forest/forest')
 

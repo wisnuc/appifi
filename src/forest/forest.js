@@ -15,7 +15,7 @@ const Directory = require('./directory')
 
 const { readXstatAsync, forceXstatAsync } = require('../lib/xstat')
 
-const broadcast = require('../../common/broadcast')
+const broadcast = require('../common/broadcast')
 
 /**
 Forest is a collection of file system cache for each `Drive` defined in Fruitmix.

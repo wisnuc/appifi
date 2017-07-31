@@ -1,5 +1,5 @@
 const Node = require('./node')
-const hash = require('../worker/hash')
+const hash = require('../lib/hash')
 
 /**
 File is a in-memory file node maintaining (some) xstat props and related tasks.

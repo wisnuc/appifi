@@ -15,10 +15,10 @@ const ioctl = require('ioctl')
 
 const debug = require('debug')('writedir')
 
-const threadify = require('../../lib/threadify')
-const createAppendStream = require('../../lib/fs-append-stream')
+const threadify = require('../lib/threadify')
+const createAppendStream = require('../lib/fs-append-stream')
 const { readXstatAsync, forceXstatAsync } = require('../lib/xstat')
-const broadcast = require('../../common/broadcast')
+const broadcast = require('../common/broadcast')
 
 const EMPTY_SHA256_HEX = crypto.createHash('sha256').digest('hex')
 

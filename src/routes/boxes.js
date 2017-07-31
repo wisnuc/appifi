@@ -9,7 +9,7 @@ const fs = require('fs')
 const secret = require('../config/passportJwt')
 
 const User = require('../models/user')
-const boxData = require('../box/box')
+const boxData = require('../fruitmix/box/box')
 const { isSHA256 } = require('../lib/assertion')
 
 /**

@@ -3,7 +3,7 @@ const debug = require('debug')('station')
 const request = require('superagent')
 const requestAsync = require('./request').requestHelperAsync
 
-const User = require('../../models/user') 
+const User = require('../../../models/user') 
 
 const { FILE, CONFIG } = require('./const')
 

@@ -7,10 +7,10 @@ const UUID = require('uuid')
 const deepFreeze = require('deep-freeze')
 const E = require('../lib/error')
 
-const broadcast = require('../../common/broadcast')
+const broadcast = require('../common/broadcast')
 
 const { isUUID, isNonNullObject, isNonEmptyString } = require('../lib/assertion')
-const { saveObjectAsync, passwordEncrypt, unixPasswordEncrypt, md4Encrypt } = require('../lib/utils')
+const { saveObjectAsync, passwordEncrypt, unixPasswordEncrypt, md4Encrypt } = require('../fruitmix/lib/utils')
 
 /**
 User module exports a UserList Singleton.
