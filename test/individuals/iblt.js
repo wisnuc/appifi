@@ -1,14 +1,12 @@
-import path from 'path'
+const path = require('path')
+const UUID = require('uuid')
+const UINT32 = require('cuint').UINT32
+const XXH = require('xxhashjs')
+const xxhash = require('xxhash')
 
-import { expect } from 'chai'
+const expect = require('chai').expect
 
-import UUID from 'node-uuid'
-import { UINT32 } from 'cuint'
-import XXH from 'xxhashjs'
-
-import xxhash from 'xxhash'
-
-import {
+const {
   createIBF,
   hashToDistinctIndices,
   IBFInsert,
@@ -17,7 +15,7 @@ import {
   IBFSubtract,
   IBFDecode,
   isZero 
-} from 'src/fruitmix/algo/iblt'
+} = require('src/lib/iblt')
 
 
 let uuid0 = "fbc29e8b-b47c-4afd-927a-51322f369eb2"

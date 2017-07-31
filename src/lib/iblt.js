@@ -1,8 +1,7 @@
-import xxhash from 'xxhash'
-
+const xxhash = require('xxhash')
 const hashpad = Buffer.alloc(4)
 
-export const createIBF = (exponent, length, k, seed) => {
+const createIBF = (exponent, length, k, seed) => {
 
   let n = Math.pow(2, exponent)
   let B = []
@@ -18,7 +17,7 @@ export const createIBF = (exponent, length, k, seed) => {
   return { n, length, k, seed, B }
 }
 
-export const hashToDistinctIndices = (id, k, n, seed) => {
+const hashToDistinctIndices = (id, k, n, seed) => {
 
   let indices = []
   let s = seed, idx
@@ -30,7 +29,7 @@ export const hashToDistinctIndices = (id, k, n, seed) => {
   return indices
 }
 
-export const IBFUnion = (ibf, id, insert) => {
+const IBFUnion = (ibf, id, insert) => {
 
   let m, { n, length, k, seed, B } = ibf 
 
@@ -50,13 +49,13 @@ export const IBFUnion = (ibf, id, insert) => {
   })
 }
 
-export const IBFInsert = (ibf, id) => IBFUnion(ibf, id, true)
-export const IBFRemove = (ibf, id) => IBFUnion(ibf, id, false)
+const IBFInsert = (ibf, id) => IBFUnion(ibf, id, true)
 
-export const IBFEncode = (ibf, ids) => 
-  ids.forEach(id => IBFInsert(ibf, id))
+const IBFRemove = (ibf, id) => IBFUnion(ibf, id, false)
 
-export const IBFSubtract = (ibf1, ibf2) => {
+const IBFEncode = (ibf, ids) => ids.forEach(id => IBFInsert(ibf, id))
+
+const IBFSubtract = (ibf1, ibf2) => {
 
   let ibf = createIBF(Math.log2(ibf1.n), ibf1.length, ibf1.k, ibf1.seed)
   
@@ -90,7 +89,7 @@ const isPure = (u, seed) => {
   return false
 }
 
-export const isZero = (ibf) => {
+const isZero = (ibf) => {
 
   let i, m, { n, length, B } = ibf
   for (i = 0; i < n; i++) {
@@ -104,7 +103,7 @@ export const isZero = (ibf) => {
   return true
 }
 
-export const IBFDecode = (ibf) => {
+const IBFDecode = (ibf) => {
 
   let { n, length, k, seed, B } = ibf
   let pureList = []
@@ -153,6 +152,18 @@ export const IBFDecode = (ibf) => {
   }
   
   return isZero(ibf) 
+}
+
+module.exports = {
+  createIBF,
+  hashToDistinctIndices,
+  IBFUnion,
+  IBFInsert,
+  IBFRemove,
+  IBFEncode,
+  IBFDecode,
+  IBFSubtract,
+  isZero
 }
 
 
