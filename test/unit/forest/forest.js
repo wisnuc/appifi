@@ -9,10 +9,10 @@ chai.use(chaiAsPromised)
 const expect = chai.expect
 const should = chai.should()
 
-const Forest = require('src/fruitmix/forest/forest')
-const Monitor = require('src/fruitmix/forest/monitor')
+const Forest = require('src/forest/forest')
+const Monitor = require('src/forest/monitor')
 
-const { readXstatAsync, forceDriveXstatAsync } = require('src/fruitmix/lib/xstat')
+const { readXstatAsync, forceDriveXstatAsync } = require('src/lib/xstat')
 
 const cwd = process.cwd()
 const rootPath = path.join(cwd, 'tmptest')
