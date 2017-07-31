@@ -234,6 +234,11 @@ class Forest extends EventEmitter {
     return path.join(dirPath, name)
   }
 
+  getFilesByFingerprint(drives, fingerprint) {
+
+    // Array.from(this.roots)
+  }
+
   /**
   Walk down
  
