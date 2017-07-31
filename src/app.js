@@ -23,7 +23,7 @@ const users = require('./routes/users')
 const drives = require('./routes/drives')
 const boxes = require('./routes/boxes')
 const cloudToken = require('./routes/wxtoken')
-const station = require('./fruitmix/station')
+const station = require('./station')
 
 /**
 This module is the entry point of the whole application.
