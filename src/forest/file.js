@@ -1,5 +1,9 @@
+const debug = require('debug')('file')
+
 const Node = require('./node')
+const createMetaWorker = require('../lib/metadata')
 const hash = require('../lib/hash')
+const metamap = require('../lib/metamap')
 
 /**
 File is a in-memory file node maintaining (some) xstat props and related tasks.
@@ -30,13 +34,10 @@ In our good old C pattern, only `hashed` and `hashless` are used as explicit sta
 */
 class File extends Node {
 
-  constructor(ctx, parent, xstat) {
-    
-    if (typeof xstat.magic !== 'string') 
-      throw new Error('file must have magic string')  
+  constructor (ctx, parent, xstat) {
+    if (typeof xstat.magic !== 'string') { throw new Error('file must have magic string') }
 
-    if (xstat.hash !== undefined && typeof xstat.hash !== 'string')
-      throw new Error('xstat hash must be string or undefined')
+    if (xstat.hash !== undefined && typeof xstat.hash !== 'string') { throw new Error('xstat hash must be string or undefined') }
 
     super(ctx, parent, xstat)
 
@@ -70,14 +71,13 @@ class File extends Node {
     this.hashFail = 0
 
     this.index()
-    this.startWorker() 
-  } 
+    this.startWorker()
+  }
 
   /**
   Destroys this file node
   */
-  destroy() {
-
+  destroy () {
     this.stopWorker()
     this.unindex(this)
     super.destroy()
@@ -86,42 +86,58 @@ class File extends Node {
   /**
   Index this file if it has hash
   */
-  index() {
+  index () {
     if (this.hash) this.ctx.index(this)
   }
 
   /**
   Unindex this file before hash dropped, changed, or file object destroyed
   */
-  unindex() {
+  unindex () {
     if (this.hash) this.ctx.unindex(this)
   }
 
   /**
   Start hash worker
   */
-  startWorker() {
+  startWorker () {
 
-    if (!this.hash && !this.paused && this.hashFail < 5) {
-
+    if (this.worker) return
+    if (!this.hash) {
+      debug('start fingerprint worker')
       this.worker = hash(this.abspath(), this.uuid)
-
       this.worker.on('error', err => {
+        debug('fingerprint worker error', err)
+
         this.worker = null
         if (err.code === 'ENOTDIR' || err.code === 'ENOENT') {
           this.dir.fileMissing(err.code)
-        }
-        else if (err.code === 'EABORT') {
-        }
-        else {
+        } else if (err.code === 'EABORT') {
+        } else {
           this.startWorker() // retry
         }
       })
 
       this.worker.on('finish', xstat => {
+        debug('fingerprint worker finish', xstat)
+
         this.worker = null
         this.update(xstat)
       })
+      this.worker.start()
+    } else if (!metamap.has(this.hash)) {
+      debug('start meta worker') 
+      this.worker = createMetaWorker(this.abspath(), this.hash, this.uuid)
+      this.worker.on('error', err => {
+        debug('meta worker error', err)
+      })
+    
+      this.worker.on('finish', metadata => {
+        debug('meta worker finish', metadata)
+
+        metamap.set(this.hash, metadata) 
+      })
+
       this.worker.start()
     }
   }
@@ -129,8 +145,11 @@ class File extends Node {
   /**
   Stop hash worker
   */
-  stopWorker() {
-    if (this.worker) this.worker.abort()
+  stopWorker () {
+    if (this.worker) {
+      this.worker.abort()
+      this.worker = null
+    }
   }
 
   /**
@@ -138,22 +157,20 @@ class File extends Node {
 
   Only name and hash can be changed.
   */
-  update(xstat) {
-
-    if (xstat.uuid !== this.uuid) 
-      throw new Error('xstat.uuid mismatch')
+  update (xstat) {
+    if (xstat.uuid !== this.uuid) throw new Error('xstat.uuid mismatch')
 
     // suicide
-    if (xstat.magic !== 'string') this.destroy()
-   
-    if (this.name === xstat.name && this.hash === xstat.hash) 
-      return 
-
-    if (this.name !== xstat.name) {
-      this.stopWorker()
-      this.name = xstat.name
-      this.startWorker()
+    if (typeof xstat.magic !== 'string') {
+      debug('file node suicide')
+      this.destroy()
     }
+
+    if (this.name === xstat.name && this.hash === xstat.hash) return
+
+    this.stopWorker()
+
+    if (this.name !== xstat.name) this.name = xstat.name
 
     if (this.hash !== xstat.hash) {
       this.unindex()
@@ -161,10 +178,9 @@ class File extends Node {
       this.index()
     }
 
-    // reset hashFail
-    if (this.hash === undefined) this.hashFail = 0
+    this.startWorker()
   }
+
 }
 
 module.exports = File
-

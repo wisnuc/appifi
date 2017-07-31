@@ -1,6 +1,6 @@
 const Promise = require('bluebird')
 const path = require('path')
-const fs = Promise.promisifyAll(require('fs'))
+const fs = Promise.promisifyAll(require('fs-extra'))
 const rimrafAsync = Promise.promisify(require('rimraf'))
 const mkdirpAsync = Promise.promisify(require('mkdirp'))
 const chai = require('chai')
@@ -9,6 +9,7 @@ chai.use(chaiAsPromised)
 const expect = chai.expect
 const should = chai.should()
 
+const metamap = require('src/lib/metamap')
 const Forest = require('src/forest/forest')
 const Monitor = require('src/forest/monitor')
 
@@ -30,7 +31,7 @@ describe(path.basename(__filename), () => {
 
     let mtime
 
-    beforeEach(async () => {
+    before(async () => {
       await rimrafAsync(rootPath)
       await mkdirpAsync(tmpDir)
       await mkdirpAsync(drivesDir)
@@ -39,8 +40,11 @@ describe(path.basename(__filename), () => {
       await Forest.init(drivesDir, tmpDir)
     })
 
-    it('read', async () => {
+    after(() => {
+      Forest.deinit()
+    })
 
+    it('read', async () => {
       let monitor = new Monitor()
       await Forest.createDriveAsync(drive1, [monitor])
       await monitor.done
@@ -49,5 +53,32 @@ describe(path.basename(__filename), () => {
     })
 
     
+  })
+
+  describe('single JPEG file vpai001.jpg', () => {
+  
+    beforeEach(async () => {
+      await rimrafAsync(rootPath)
+      await mkdirpAsync(tmpDir)
+
+      await mkdirpAsync(path.join(drivesDir, drive1.uuid))
+      await fs.copy(path.join(cwd, 'testdata', 'vpai001.jpg'), path.join(drivesDir, drive1.uuid, 'vpai001.jpg'))
+      await Forest.init(drivesDir, tmpDir)
+    })
+
+    afterEach(async () => {
+      Forest.deinit()
+    })
+
+    it('read', async () => {
+      let monitor = new Monitor()
+      await Forest.createDriveAsync(drive1, [monitor])
+      await monitor.done
+
+      await Promise.delay(500)
+      console.log(Forest)
+      console.log(metamap)
+      return
+    })
   })
 })
