@@ -1,6 +1,6 @@
 const Promise = require('bluebird')
 const path = require('path')
-const EventEmitter = require('events')
+// const EventEmitter = require('events')
 const Stringify = require('canonical-json')
 const fs = Promise.promisifyAll(require('fs'))
 const rimrafAsync = Promise.promisify(require('rimraf'))
@@ -14,6 +14,7 @@ const lineByLineReader = require('line-by-line')
 const broadcast = require('../../common/broadcast')
 const { saveObjectAsync } = require('../lib/utils')
 const E = require('../lib/error')
+const blobStore = require('./blobStore')
 
 /**
  * @module Box
@@ -283,6 +284,11 @@ class Box {
    * @return {Object} tweet object
    */
   async createTweetAsync(props) {
+    let path = props.path
+    if(path) {
+      await blobStore.storeAsync(path, props.id)
+    }
+    
     let tweet = {
       uuid: UUID.v4(),
       tweeter: props.global,
@@ -293,31 +299,14 @@ class Box {
       tweet.type = props.type
       tweet.id = props.id
       if (props.type === 'list') tweet.list = props.list
-      // switch (props.type) {
-      //   case 'blob':
-      //     tweet.sha256 = props.sha256
-      //     break
-      //   case 'list':
-      //     tweet.list = props.list
-      //     tweet.jobID = props.jobID
-      //     break
-      //   case 'commit':
-      //     tweet.hash = props.hash
-      //     break
-      //   case 'tag':
-      //   case 'branch':
-      //   case 'job':
-      //     tweet.id = props.id
-      //     break
-      //   default:
-      //     break
-      // }
     }
 
     tweet.ctime = new Date().getTime()
 
     await this.records.addAsync(tweet)
-    return tweet
+    let stat = await fs.statAsync(this.records.filePath)
+    let mtime = stat.mtime.getTime()
+    return {tweet, mtime}
   }
 
   /**
@@ -509,30 +498,29 @@ class Box {
 /**
  * 
  */
-class BoxData extends EventEmitter{
+class BoxData {
 
   constructor() {
-    super()
 
     this.initialized = false
 
     this.dir = undefined
     this.tmpDir = undefined
-    this.repoDir = undefined
+    // this.repoDir = undefined
     this.map = undefined
 
     broadcast.on('FruitmixStart', froot => {
       let dir = path.join(froot, 'boxes')
       let tmpDir = path.join(froot, 'tmp') 
-      let repoDir = path.join(froot, 'repo')
+      // let repoDir = path.join(froot, 'repo')
 
-      this.init(dir, tmpDir, repoDir)
+      this.init(dir, tmpDir)
     })
 
     broadcast.on('FruitmixStop', () => this.deinit())
   }
 
-  init(dir, tmpDir, repoDir) {
+  init(dir, tmpDir) {
 
     mkdirp(dir, err => {
 
@@ -545,7 +533,7 @@ class BoxData extends EventEmitter{
       this.initialized = true
       this.dir = dir
       this.tmpDir = tmpDir
-      this.repoDir = repoDir
+      // this.repoDir = repoDir
       this.map = new Map()
 
       broadcast.emit('BoxInitDone')
@@ -557,7 +545,7 @@ class BoxData extends EventEmitter{
     this.initialized = false
     this.dir = undefined
     this.tmpDir = undefined
-    this.repoDir = undefined
+    // this.repoDir = undefined
     this.map = undefined
 
     process.nextTick(() => broadcast.emit('BoxDeinitDone'))
@@ -624,6 +612,7 @@ class BoxData extends EventEmitter{
     let box = new Box(path.join(this.dir, doc.uuid), this.tmpDir, doc, records)
 
     this.map.set(doc.uuid, box)
+    broadcast.emit('boxCreated', doc)
     return doc
   }
 
@@ -633,9 +622,11 @@ class BoxData extends EventEmitter{
  * @param {Object} box - contents before update
  * @return {Object} newdoc
  */
-  async updateBoxAsync(props, box) {
+  async updateBoxAsync(props, boxUUID) {
     let op
-    let { name, users } = box.doc
+    let box = this.getBox(boxUUID)
+    let oldDoc = box.doc
+    let { name, users } = oldDoc
 
     if (props.name) name = props.name
     if (props.users) {
@@ -652,30 +643,25 @@ class BoxData extends EventEmitter{
       }
     }
 
-    // op = props.find(op => (op.path === 'name' && op.operation === 'update'))
-    // if(op) name = op.value
-
-    // op = props.find(op => (op.path === 'users' && op.operation === 'add'))
-    // if(op) users = addArray(users, op.value)
-
-    // op = props.find(op => (op.path === 'users' && op.operation === 'delete'))
-    // if(op) users = complement(users, op.value)
     let newDoc = {
-      uuid: box.doc.uuid,
+      uuid: oldDoc.uuid,
       name,
-      owner: box.doc.owner,
+      owner: oldDoc.owner,
       users,
-      ctime: box.doc.ctime
+      ctime: oldDoc.ctime
     }
 
-    if (name === box.doc.name && users === box.doc.users) {
-      if (!props.mtime) return box.doc
+    if (name === oldDoc.name && users === oldDoc.users) {
+      if (!props.mtime) {
+        return oldDoc
+      }
       else newDoc.mtime = props.mtime
     } else newDoc.mtime = new Date().getTime()
 
-    await saveObjectAsync(path.join(this.dir, box.doc.uuid, 'manifest'), this.tmpDir, newDoc)
+    broadcast.emit('boxUpdating', oldDoc, newDoc)
+    await saveObjectAsync(path.join(this.dir, oldDoc.uuid, 'manifest'), this.tmpDir, newDoc)
     box.doc = newDoc
-    this.map.set(box.doc.uuid, box)
+    broadcast.emit('boxUpdated', oldDoc, newDoc)
     return newDoc
   }
 
@@ -684,8 +670,10 @@ class BoxData extends EventEmitter{
  * @param {string} boxUUID - uuid of box to be deleted
  */
   async deleteBoxAsync(boxUUID) {
+    broadcast.emit('boxDeleting', boxUUID)
     await rimrafAsync(path.join(this.dir, boxUUID))
     this.map.delete(boxUUID)
+    broadcast.emit('boxDeleted', boxUUID)
     return
   }
 }

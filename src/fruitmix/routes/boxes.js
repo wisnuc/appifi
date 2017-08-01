@@ -6,6 +6,7 @@ const formidable = require('formidable')
 const path = require('path')
 const UUID = require('uuid')
 const fs = require('fs')
+const rimraf = require('rimraf')
 const secret = require('../config/passportJwt')
 
 const User = require('../models/user')
@@ -117,7 +118,7 @@ router.patch('/:boxUUID', auth, (req, res, next) => {
   if(!box) return res.status(404).end()
   if(box.doc.owner !== req.user.global) return res.status(403).end()
 
-  boxData.updateBoxAsync(req.body, box)
+  boxData.updateBoxAsync(req.body, boxUUID)
     .then(newDoc => res.status(200).json(newDoc))
     .catch(next)
 })
@@ -246,29 +247,38 @@ router.post('/:boxUUID/tweets', auth, boxAuth, (req, res) => {
       if (!Number.isInteger(size) || size !== file.size) 
         return finished = true && res.status(409).end()
 
-      if (file.hash !== sha256)
-        return fs.unlink(file.path, () => res.status(409).end())
+      if (file.hash !== sha256) {
+        // return fs.unlink(file.path, () => res.status(409).end())
+        return rimraf(file.path, err => {
+          if (err) return finished = true && res.status(500).json({ code: err.code, message: err.message})
+          return finished = true && res.status(409).end()
+        })
+      }
 
-      fs.rename(file.path, path.join(boxData.repoDir, sha256), err => {
-        if (err) return finished = true && res.status(500).json({ code: err.code, message: err.message})
-        
-        let global
-        if (req.user) global = req.user.global
-        else global = req.guest.global
+      let global
+      if (req.user) global = req.user.global
+      else global = req.guest.global
 
-        let props = { comment, type: 'blob', id: sha256, global}
-        box.createTweetAsync(props)
-          .then(tweet => {
-            data = tweet
-            fileFinished = true
-            finalize()
-          })
-          .catch(err => {
-            error = err
-            fileFinished = true
-            finalize()
-          })
-      })
+      let props = { comment, type: 'blob', id: sha256, global, path: file.path}
+      box.createTweetAsync(props)
+        .then(result => {
+          boxData.updateBoxAsync({mtime: result.mtime}, box.doc.uuid)
+            .then(newDoc => {
+              data = result.tweet
+              fileFinished = true
+              finalize()
+            })
+            .catch(err => {
+              error = err
+              fileFinished = true
+              finalize()
+            }) 
+        })
+        .catch(err => {
+          error = err
+          fileFinished = true
+          finalize()
+        }) 
     })
 
     form.on('error', err => {
@@ -286,7 +296,7 @@ router.post('/:boxUUID/tweets', auth, boxAuth, (req, res) => {
       finalize()
     })
 
-  form.parse(req)
+    form.parse(req)
 
   } else if (req.is('application/json')) {
     // let type = req.body.type
@@ -297,7 +307,11 @@ router.post('/:boxUUID/tweets', auth, boxAuth, (req, res) => {
     let props = Object.assign({}, req.body, { global })
 
     box.createTweetAsync(props)
-    .then(tweet => res.status(200).json(tweet))
+    .then(result => {
+      boxData.updateBoxAsync({mtime: result.mtime}, box.doc.uuid)
+        .then(newDoc => res.status(200).json(result.tweet))
+        .catch(err => res.status(500).json({ code: err.code, message: err.message }))
+    })
     .catch(err => res.status(500).json({ code: err.code, message: err.message }))
   }else
     return res.status(415).end()
