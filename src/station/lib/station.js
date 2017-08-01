@@ -93,6 +93,7 @@ class Station {
             //connect to cloud
           this.connect = Connect
           Tickets.init(this.sa, conn)
+          this.token = conn.token
           this.tickets = Tickets
           this.initialized = true
           broadcast.emit('StationStart', this)
@@ -177,6 +178,19 @@ class Station {
     info.pbk = this.publicKey
     info.connectError = this.connect.error
     return info
+  }
+
+  getUserInfo(guid, callback) {
+    if(this.sa !== undefined && this.connect !== undefined && this.connect.isConnected())
+      return callback(new　Error('station not init'))
+    let url = 
+    request
+      .get(CONFIG.CLOUD_PATH + 'v1/users/' + guid)
+      .set('Authorization', this.token)
+      .end((err, res) => {
+        if(err) return callback(err)
+        return callback(res.body.data)
+      })
   }
 }
 
