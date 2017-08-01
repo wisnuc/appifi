@@ -3,7 +3,7 @@ const path = require('path')
 const Promise = require('bluebird')
 const fs = require('fs')
 const child = require('child_process')
-const broadcast = require('../../common/broadcast')
+const broadcast = require('../common/broadcast')
 
 class BlobStore {
   constructor() {
