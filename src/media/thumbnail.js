@@ -5,8 +5,20 @@ const child = require('child')
 const crypto = require('crypto')
 const UUID = require('uuid')
 
+const threadify = require('../lib/threadify')
 
-import UUID from 'node-uuid'
+/**
+Thumbnail is a component.
+
+It uses `<fruitmix root>/thumbnail` as the cache directory.
+
+query string: width, height, modifier, autoOrient
+
+file name: digest (now fingerprint) + optionHash 
+
+@module thumbnail
+*/
+
 import models from '../models/models'
 import paths from './paths'
 
@@ -17,19 +29,11 @@ const EINVAL = ERROR('EINVAL', 'invalid argument')
 const EINTR = ERROR('EINTR', 'operation interrupted')
 const ENOENT = ERROR('ENOENT', 'entry not found')
 
-// a simple version to avoid canonical json, for easy debug
-const stringify = (object) =>
-  JSON.stringify(Object.keys(object)
-    .sort().reduce((obj, key) => {
-      obj[key] = object[key]
-      return obj
-    }, {}))
+// courtesy https://stackoverflow.com/questions/5467129/sort-javascript-object-by-key for letting me know the comma operator
+const sortObject = o => Object.keys(o).sort().reduce((r, k) => (r[k] = o[k], r), {})
 
 // hash stringified option object
-const optionHash = (opts) =>
-  crypto.createHash('sha256')
-    .update(stringify(opts))
-    .digest('hex')
+const genKey = (digest, opts) => digest + crypto.createHash('sha256').update(JSON.stringify(sortObject(opts))).digest('hex')
 
 // generate geometry string for convert
 const geometry = (width, height, modifier) => {
@@ -50,7 +54,7 @@ const geometry = (width, height, modifier) => {
 }
 
 // parse query to opts
-const parseQuery = (query) => {
+const parseQuery = query => {
   let { width, height, modifier, autoOrient } = query
 
   if (width !== undefined) {
@@ -110,11 +114,26 @@ const convert = (src, tmp, dst, opts, callback) => {
 }
 
 
-class Converter extends EventEmitter {
+class Converter extends threadify(EventEmitter) {
 
   constructor() {
     
   }
+
+  run () {
+       
+  }
+}
+
+class Thumbnail {
+
+  constructor() {
+    this.limit = 1
+    this.jobs = []
+  }
+
+  request (digest, query, callback) {
+  } 
 }
 
 const createThumbnailer = () => {
@@ -179,7 +198,7 @@ const createThumbnailer = () => {
     let opts = parseQuery(query)
     if (opts instanceof Error) { return process.nextTick(callback, opts) }
 
-    let key = digest + optionHash(opts)
+    let key = genKey(digest, opts)
     let thumbpath = path.join(paths.get('thumbnail'), key)
 
     // find the thumbnail file first
