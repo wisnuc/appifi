@@ -22,6 +22,14 @@ const rimrafAsync = Promise.promisify(rimraf)
 class Station {
   constructor(){
     this.initialized = false
+    this.pbkPath = undefined
+    this.pvkPath = undefined
+    this.publicKey = undefined
+    this.privateKey = undefined
+    this.sa = undefined
+    this.token = undefined
+    this.connect = undefined
+    this.froot = undefined
     this.init()
   }
 
@@ -30,22 +38,22 @@ class Station {
     let pvkPath = path.join(froot, 'station', FILE.PVKEY)
     try{
         //TODO:
-        let pbStat = await fs.lstatAsync(pbkPath)
-        let pvStat = await fs.lstatAsync(pvkPath)
-        if(pbStat.isFile() && pvStat.isFile()){
-          this.publicKey = (await fs.readFileAsync(pbkPath)).toString('utf8')
-          this.privateKey = (await fs.readFileAsync(pvkPath)).toString('utf8')
-          this.pbkPath = pbkPath
-          this.pvkPath = pvkPath
-          return  
-        }
-        return await this.createKeysAsync(froot)
-      
-      }catch(e){
-        if(e.code === 'ENOENT')
-          return await this.createKeysAsync(froot)
-        throw e
+      let pbStat = await fs.lstatAsync(pbkPath)
+      let pvStat = await fs.lstatAsync(pvkPath)
+      if(pbStat.isFile() && pvStat.isFile()){
+        this.publicKey = (await fs.readFileAsync(pbkPath)).toString('utf8')
+        this.privateKey = (await fs.readFileAsync(pvkPath)).toString('utf8')
+        this.pbkPath = pbkPath
+        this.pvkPath = pvkPath
+        return  
       }
+      return await this.createKeysAsync(froot)
+      
+    }catch(e){
+      if(e.code === 'ENOENT')
+        return await this.createKeysAsync(froot)
+      throw e
+    }
 
   }
 
