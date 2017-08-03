@@ -182,8 +182,9 @@ Probe btrfs volume usages
 @param {mount[]} mounts
 */
 const probeUsages = async (mounts) => {
-  const filtered = mounts.filter(mnt => mnt.fs_type === 'btrfs' &&
-    mnt.mountpoint.startsWith('/run/wisnuc/volumes/') && !mnt.mountpoint.endsWith('/graph/btrfs'))
+  const filtered = mounts.filter(mnt => mnt.fs_type === 'btrfs' 
+    && (mnt.mountpoint.startsWith('/run/wisnuc/volumes/') || mnt.mountpoint.startsWith('/media/'))
+    && !mnt.mountpoint.endsWith('/graph/btrfs'))
   return Promise.all(filtered.map(mnt => probeUsageAsync(mnt.mountpoint)))
 }
 
