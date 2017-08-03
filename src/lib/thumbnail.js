@@ -5,7 +5,6 @@ const child = require('child_process')
 const EventEmitter = require('events')
 const crypto = require('crypto')
 
-
 const UUID = require('uuid')
 const mkdirp = require('mkdirp')
 

@@ -29,7 +29,7 @@ const {
   retrieveTokenAsync,
   createPublicDriveAsync,
   setUserUnionIdAsync
-} = require('test/fruitmix/agent/lib')
+} = require('test/agent/lib')
 
 
 const cwd = process.cwd()
@@ -80,13 +80,17 @@ describe(path.basename(__filename), () => {
     let token
 
     const vpai001Metadata = {
-      format: 'JPEG',
-      width: 4624,
-      height: 2608,
-      exifOrientation: 1,
-      exifDateTime: '2017:06:17 17:31:18',
-      exifMake: 'Sony',
-      exifModel: 'G3116',
+      m: 'JPEG',
+      w: 4624,
+      h: 2608,
+      orient: 1,
+      datetime: '2017:06:17 17:31:18',
+      make: 'Sony',
+      model: 'G3116',
+      lat: '31/1, 10/1, 506721/10000',
+      latr: 'N',
+      long: '121/1, 36/1, 27960/10000',
+      longr: 'E',
       size: 4192863
     }
 
@@ -110,13 +114,7 @@ describe(path.basename(__filename), () => {
           .set('Authorization', 'JWT ' + token)
           .attach('vpai001.jpg', 'testdata/vpai001.jpg', JSON.stringify({ size, sha256 }))
           .expect(200)
-          .end((err, res) => {
-            if (err) {
-              reject(err)
-            } else {
-              resolve((console.log(res.body), ''))
-            }
-          }) 
+          .end((err, res) => err ? reject(err) : resolve())
       })
 
       // this delay is required for generating metadata
