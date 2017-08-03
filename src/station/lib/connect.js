@@ -30,6 +30,7 @@ class Connect {
     this.sa = undefined
     this.froot = undefined
     this.init()
+    this.handler = undefined
   }
 
   init() {
@@ -38,6 +39,7 @@ class Connect {
       this.froot = station.froot
       this.privateKey = station.privateKey
       this._connect(CONFIG.CLOUD_PATH)
+      this.handler = new Map()
     })
     broadcast.on('StationStop', () => this.deinit())
   }
@@ -66,6 +68,8 @@ class Connect {
     this.privateKey = null
     this.token = null
     this.initialized = false
+    this.handler.clear()
+    this.handler = undefined
     debug('connect deinit')
   }
 
@@ -163,6 +167,10 @@ class Connect {
     if(this.state === CONNECT_STATE.CONNED)
       return true
     return false
+  }
+
+  register(name, callback) {
+    this.handler.set(name, callback)
   }
 }
 

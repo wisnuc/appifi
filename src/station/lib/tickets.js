@@ -97,7 +97,7 @@ class Ticket {
     }
   }
 
-  async discardTicketAsync(ticketId) {
+  async _discardTicketAsync(ticketId) {
     if(!this.initialized) throw new Error('Ticket module not initialized')
     let url = CONFIG.CLOUD_PATH + 'v1/tickets/' + ticketId
     let token = this.conncet.token
@@ -115,7 +115,7 @@ class Ticket {
     }
   }
 
-  async changeUserTypeAsync(guid, ticketId, state) {
+  async _changeUserTypeAsync(guid, ticketId, state) {
     if(!this.initialized) throw new Error('Ticket module not initialized')
     let url = CONFIG.CLOUD_PATH + 'v1/tickets/' + ticketId + '/users/' + guid
     let token = this.conncet.token
@@ -149,9 +149,9 @@ class Ticket {
     switch(ticket.type) {
       case 'invite':{
         //TODO: confirm userList 
-        await this.changeUserTypeAsync(id, ticketId, state)
+        await this._changeUserTypeAsync(id, ticketId, state)
         //discard this ticket 
-        await this.discardTicketAsync(ticketId)
+        await this._discardTicketAsync(ticketId)
         if(state){
           let username = user.nickName
         // TODO: use pvKey decode password
@@ -168,9 +168,9 @@ class Ticket {
       }
         break
       case 'bind':{
-        await this.changeUserTypeAsync(id, ticketId, state)
+        await this._changeUserTypeAsync(id, ticketId, state)
         //discard this ticket 
-        await this.discardTicketAsync(ticketId)
+        await this._discardTicketAsync(ticketId)
         if(state){
           return await User.updateUserAsync(useruuid, {
             global: {

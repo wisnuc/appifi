@@ -13,11 +13,11 @@ const expect = chai.expect
 const should = chai.should()
 
 const app = require('src/app')
-const { saveObjectAsync } = require('src/fruitmix/lib/utils')
+const { saveObjectAsync } = require('src/lib/utils')
 const broadcast = require('src/common/broadcast')
 
-const User = require('src/fruitmix/models/user')
-const boxData = require('src/fruitmix/box/box')
+const User = require('src/models/user')
+const boxData = require('src/box/box')
 
 const {
   IDS,
@@ -258,7 +258,7 @@ describe(path.basename(__filename), () => {
   })
 
   describe('after box is created', () => {
-    let aliceToken, aliceCloudToken, bobToken, bobCloudToken, box
+    let aliceToken, aliceCloudToken, bobToken, bobCloudToken, doc
     let boxUUID = 'a96241c5-bfe2-458f-90a0-46ccd1c2fa9a'
     let uuid_1 = 'ff5d42b9-4b8f-452d-a102-ebfde5cdf948'
     let uuid_2 = 'a474d150-a7d4-47f2-8338-3733fa4b8783'
@@ -282,7 +282,7 @@ describe(path.basename(__filename), () => {
                             .onThirdCall().returns(uuid_2)
                           
       let props = {name: 'hello', users: [IDS.bob.global]}
-      box = await createBoxAsync(props, 'alice')
+      doc = await createBoxAsync(props, 'alice')
     })
 
     afterEach(() => UUID.v4.restore())
@@ -490,7 +490,7 @@ describe(path.basename(__filename), () => {
   })
 
   describe('after branch is created', () => {
-    let aliceToken, aliceCloudToken, box, branch
+    let aliceToken, aliceCloudToken, doc, branch
     let boxUUID = 'a96241c5-bfe2-458f-90a0-46ccd1c2fa9a'
     let uuid = 'ff5d42b9-4b8f-452d-a102-ebfde5cdf948'
     let commit_1 = '486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7'
@@ -507,7 +507,7 @@ describe(path.basename(__filename), () => {
                             .onSecondCall().returns(uuid)
 
       let props = {name: 'hello', users: [IDS.bob.global]}
-      box = await createBoxAsync(props, 'alice')
+      doc = await createBoxAsync(props, 'alice')
       let props_1 = {name: 'testBranch', head: commit_1}
       branch = await createBranchAsync(props_1, boxUUID, 'alice')
     })
