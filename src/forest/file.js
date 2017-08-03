@@ -3,7 +3,8 @@ const debug = require('debug')('file')
 const Node = require('./node')
 const createMetaWorker = require('../lib/metadata')
 const hash = require('../lib/hash')
-const metamap = require('../lib/metamap')
+
+const Media = require('../media/media')
 
 /**
 File is a in-memory file node maintaining (some) xstat props and related tasks.
@@ -125,7 +126,7 @@ class File extends Node {
         this.update(xstat)
       })
       this.worker.start()
-    } else if (!metamap.has(this.hash)) {
+    } else if (!Media.has(this.hash)) {
       debug('start meta worker') 
       this.worker = createMetaWorker(this.abspath(), this.hash, this.uuid)
       this.worker.on('error', err => {
@@ -135,7 +136,7 @@ class File extends Node {
       this.worker.on('finish', metadata => {
         debug('meta worker finish', metadata)
 
-        metamap.set(this.hash, metadata) 
+        Media.set(this.hash, metadata) 
       })
 
       this.worker.start()

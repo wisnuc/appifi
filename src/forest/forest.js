@@ -234,9 +234,19 @@ class Forest extends EventEmitter {
     return path.join(dirPath, name)
   }
 
-  getFilesByFingerprint(drives, fingerprint) {
+  // TODO filter by drives
+  getFingerprints(drives) {
+    return Array.from(this.hashMap).map(kv => kv[0])
+  }
 
-    // Array.from(this.roots)
+  // TODO filter by drives
+  getFilesByFingerprint(fingerprint, drives) {
+    let fileSet = this.hashMap.get(fingerprint)
+    if (!fileSet) return []
+
+    let arr = []
+    fileSet.forEach(f => arr.push(f.abspath()))
+    return arr
   }
 
   /**
