@@ -572,22 +572,6 @@ class BoxData {
     return this.map.get(boxUUID)
   }
 
-  getWxToken(global) {
-    let isIncluded = [...this.map.values()].includes(box => {
-      box.doc.owner === global || box.doc.users.includes(global)
-    })
-
-    if (isIncluded) {
-      let token = {
-        global,
-        deadline: new Date().getTime() + 4 * 60 * 60 * 1000
-      }
-      return { type: 'JWT', token: jwt.encode(token, secret) }
-    } else {
-      throw new Error('not included')
-    }
-  }
-
 /**
  * Create a box
  * @param {Object} props - props

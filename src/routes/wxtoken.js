@@ -2,9 +2,32 @@ const router = require('express').Router()
 const jwt = require('jwt-simple')
 const secret = require('../config/passportJwt')
 const auth = require('../middleware/auth')
+const boxData = require('../box/box')
+const User = require('../models/user')
 
-router.get('/', auth.jwt(), (req, res) => {
 
+const userInfo = (req, res, next) => {
+  let global = req.query.global
+  let text = req.get('Authorization')
+
+  if (text) {
+    let split = text.split(' ')
+    let local = jwt.decode(split[1], secret)
+    let user = User.users.find(u => u.uuid === local.uuid)
+    if (!user || user.global !== global)
+      return res.status(401).end()
+    req.user = User.stripUser(user)
+    next()
+  } else {
+    let exist = [...boxData.map.values()].find(box => (box.doc.users.includes(global)
+                || box.doc.owner === global))
+    if (!exist) return res.status(401).end()
+    req.user = { global }
+    next()
+  }
+}
+
+router.get('/', userInfo, (req, res) => {
   let user = req.user
   if (user.global) {
     let token = {
