@@ -17,7 +17,7 @@ const { saveObjectAsync } = require('src/lib/utils')
 const broadcast = require('src/common/broadcast')
 
 const User = require('src/models/user')
-const boxData = require('src/box/box')
+const boxData = require('src/box/boxData')
 
 const {
   IDS,

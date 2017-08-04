@@ -2,7 +2,7 @@ const router = require('express').Router()
 const jwt = require('jwt-simple')
 const secret = require('../config/passportJwt')
 const auth = require('../middleware/auth')
-const boxData = require('../box/box')
+const boxData = require('../box/boxData')
 const User = require('../models/user')
 
 
