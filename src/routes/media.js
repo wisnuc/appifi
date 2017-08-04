@@ -22,15 +22,14 @@ broadcast.on('FruitmixStart', froot => {
 
 broadcast.on('FruitmixStop', () => thumbnail && thumbnail.abort())
 
-
 // return meta data of all I can view
 router.get('/', auth.jwt(), (req, res) => {
   const user = req.user
-  const fingerprints = Forest.getFingerprints() 
+  const fingerprints = Forest.getFingerprints()
   const metadata = fingerprints.reduce((acc, fingerprint) => {
     let meta = Media.get(fingerprint)
-    if (meta) acc.push(meta)
-    return acc 
+    if (meta) acc.push(Object.assign({ hash: fingerprint }, meta))
+    return acc
   }, [])
   res.status(200).json(metadata)
 })
@@ -67,14 +66,14 @@ router.get('/:fingerprint', auth.jwt(), (req, res, next) => {
                 next(err)
               } else {
                 res.status(200).sendFile(thumb)
-              } 
+              }
             })
           }
         })
         .catch(next)
     } else {
       res.status(400).end()
-    } 
+    }
   }
 })
 
@@ -91,4 +90,3 @@ router.get('/:fingerprint', auth.jwt(), (req, res, next) => {
 **/
 
 module.exports = router
-
