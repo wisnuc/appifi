@@ -1,7 +1,7 @@
 const fs = require('fs')
 const crypto = require('crypto')
 
-module.exports = (filePath, callback) => {
+const fingerprintSimple = (filePath, callback) => {
 
   console.log(`====== calculating fingerprint for ${filePath} ======`)
 
@@ -61,3 +61,14 @@ module.exports = (filePath, callback) => {
   Loop()
 }
 
+module.exports = fingerprintSimple
+
+if (process.argv.includes('--standalone')) {
+  let index = process.argv.indexOf('--path')
+  if (index !== -1 && index < process.argv.length - 1) {
+
+    fingerprintSimple(process.argv[index + 1], (err, fingerprint) => {
+      console.log(err || fingerprint)
+    })
+  }
+}
