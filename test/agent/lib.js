@@ -157,22 +157,33 @@ const setUserGlobalAsync = async username => {
     .expect(200)).body
 }
 
-const retrieveCloudTokenAsync = async username => {
+
+// only useful for local user
+const laCloudTokenAsync = async username => {
 
   let token = await retrieveTokenAsync(username)
 
   let res = await request(app)
     .get('/cloudToken')
+    .query({ global: IDS[username].global})
     .set('Authorization', 'JWT ' + token)
     .expect(200)
 
   return res.body.token
 }
 
+const waCloudTokenAsync = async (username) => {
+  let res = await request(app)
+    .get('/cloudToken')
+    .query({ global: IDS[username].global})
+    .expect(200)
+  return res.body.token
+}
+
 const createBoxAsync = async (props, username) => {
 
   let token = await retrieveTokenAsync(username)
-  let cloudToken = await retrieveCloudTokenAsync(username)
+  let cloudToken = await laCloudTokenAsync(username)
 
   let res = await request(app)
     .post('/boxes')
@@ -185,7 +196,7 @@ const createBoxAsync = async (props, username) => {
 
 const createBranchAsync = async (props, boxUUID, username) => {
   let token = await retrieveTokenAsync(username)
-  let cloudToken = await retrieveCloudTokenAsync(username)
+  let cloudToken = await waCloudTokenAsync(username)
 
   let res = await request(app)
     .post(`/boxes/${boxUUID}/branches`)
@@ -198,7 +209,7 @@ const createBranchAsync = async (props, boxUUID, username) => {
 
 const forgeRecords = async (boxUUID, username) => {
   let token = await retrieveTokenAsync(username)
-  let cloudToken = await retrieveCloudTokenAsync(username)
+  let cloudToken = await laCloudTokenAsync(username)
 
   // UUID.v4 is modified by sinon
   // it is only installed three returns
@@ -223,7 +234,8 @@ module.exports = {
   retrieveTokenAsync,
   createPublicDriveAsync,
   setUserGlobalAsync,
-  retrieveCloudTokenAsync,
+  laCloudTokenAsync,
+  waCloudTokenAsync,
   createBoxAsync,
   createBranchAsync,
   forgeRecords
