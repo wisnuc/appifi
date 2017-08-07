@@ -1,1 +1,1 @@
-module.exports = new map()
+module.exports = new Map()

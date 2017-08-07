@@ -1,40 +1,80 @@
-import { Router } from 'express'
+const Promise = require('bluebird')
+const fs = Promise.promisifyAll(require('fs'))
 
-import auth from '../middleware/auth'
-import models from '../models/models'
+const router = require('express').Router()
+const auth = require('../middleware/auth')
 
-const router = Router()
+const broadcast = require('../common/broadcast')
+
+const User = require('../models/user')
+const Drive = require('../models/drive')
+const Forest = require('../forest/forest')
+
+const Media = require('../media/media')
+
+const Thumbnail = require('../lib/thumbnail')
+
+let thumbnail = null
+
+broadcast.on('FruitmixStart', froot => {
+  thumbnail = new Thumbnail(froot, 4)
+})
+
+broadcast.on('FruitmixStop', () => thumbnail && thumbnail.abort())
 
 // return meta data of all I can view
 router.get('/', auth.jwt(), (req, res) => {
-  try { 
-    const filer = models.getModel('filer')
-    const media = models.getModel('media')
-    const user = req.user
-
-    // metamap
-    let mediaMetaMap = filer.initMediaMap(user.uuid)
-    media.fillMediaMetaMap(mediaMetaMap, user.uuid, filer)
-    res.status(200).json(Array.from(mediaMetaMap.values()))
-  }
-  catch (e) {
-    console.log(e)
-    res.status(500).end()
-  }
+  const user = req.user
+  const fingerprints = Forest.getFingerprints()
+  const metadata = fingerprints.reduce((acc, fingerprint) => {
+    let meta = Media.get(fingerprint)
+    if (meta) acc.push(Object.assign({ hash: fingerprint }, meta))
+    return acc
+  }, [])
+  res.status(200).json(metadata)
 })
 
-router.get('/:digest/download', auth.jwt(), (req, res) => {
-
-  const filer = models.getModel('filer')
+router.get('/:fingerprint', auth.jwt(), (req, res, next) => {
   const user = req.user
-  const digest = req.params.digest
+  const fingerprint = req.params.fingerprint
+  const query = req.query
 
-  let filepath = filer.readMedia(user.uuid, digest) 
-
-  if (!filepath) 
-    return res.status(404).json({}) 
-
-  res.status(200).sendFile(filepath)
+  if (query.alt === undefined || query.alt === 'metadata') {
+    let metadata = Media.get(fingerprint)
+    if (metadata) {
+      res.status(200).json(metadata)
+    } else {
+      res.status(404).end()
+    }
+  } else if (query.alt === 'data') {
+    let files = Forest.getFilesByFingerprint(fingerprint)
+    if (files.length) {
+      res.status(200).sendFile(files[0])
+    } else {
+      res.status(404).end()
+    }
+  } else if (query.alt === 'thumbnail') {
+    let files = Forest.getFilesByFingerprint(fingerprint)
+    if (files.length) {
+      thumbnail.requestAsync(fingerprint, query, files)
+        .then(thumb => {
+          if (typeof thumb === 'string') {
+            res.status(200).sendFile(thumb)
+          } else { // TODO
+            thumb.on('finish', (err, thumb) => {
+              if (err) {
+                next(err)
+              } else {
+                res.status(200).sendFile(thumb)
+              }
+            })
+          }
+        })
+        .catch(next)
+    } else {
+      res.status(400).end()
+    }
+  }
 })
 
 /**
@@ -44,30 +84,9 @@ router.get('/:digest/download', auth.jwt(), (req, res) => {
   height: 'integer'
   modifier: 'caret',      // optional
   autoOrient: 'true',     // optional
-  instant: 'true'         // optional
 
   width and height, provide at least one
   modifier effectvie only if both width and height provided
 **/
-  
-router.get('/:digest/thumbnail', (req, res) => {
 
-  const user = req.user
-  const digest = req.params.digest
-  const query = req.query
-
-  const thumbnailer = models.getModel('thumbnailer')
-  thumbnailer.request(digest, query, (err, ret) => {
-
-    if (err) return res.status(500).json(err)
-
-    if (typeof ret === 'object') {
-      res.status(202).json(ret)
-    }
-    else {
-      res.status(200).sendFile(ret)
-    }
-  })
-})
-
-export default router
+module.exports = router

@@ -17,7 +17,7 @@ const { saveObjectAsync } = require('src/lib/utils')
 const broadcast = require('src/common/broadcast')
 
 const User = require('src/models/user')
-const boxData = require('src/box/box')
+const boxData = require('src/box/boxData')
 
 const {
   IDS,
@@ -26,7 +26,8 @@ const {
   retrieveTokenAsync,
   createPublicDriveAsync,
   setUserGlobalAsync,
-  retrieveCloudTokenAsync,
+  laCloudTokenAsync,
+  waCloudTokenAsync,
   createBoxAsync,
   createBranchAsync,
   forgeRecords
@@ -84,6 +85,7 @@ describe(path.basename(__filename), () => {
     it("GET /cloudToken", done => {
       request(app)
         .get('/cloudToken')
+        .query({global: IDS.alice.global})
         .set('Authorization', 'JWT ' + token)
         .expect(200)
         .end((err, res) => {
@@ -96,6 +98,7 @@ describe(path.basename(__filename), () => {
     it("POST /cloudToken/decode", done => {
       request(app)
         .get('/cloudToken')
+        .query({ global: IDS.alice.global })
         .set('Authorization', 'JWT ' + token)
         .expect(200)
         .end((err, res) => {
@@ -123,7 +126,7 @@ describe(path.basename(__filename), () => {
       await createUserAsync('alice')
       await setUserGlobalAsync('alice')
       token = await retrieveTokenAsync('alice')
-      cloudToken = await retrieveCloudTokenAsync('alice')
+      cloudToken = await laCloudTokenAsync('alice')
       sinon.stub(UUID, 'v4').returns(boxUUID)
     })
 
@@ -167,20 +170,28 @@ describe(path.basename(__filename), () => {
       await createUserAsync('alice')
       await setUserGlobalAsync('alice')
       aliceToken = await retrieveTokenAsync('alice')
-      aliceCloudToken = await retrieveCloudTokenAsync('alice')
-
-      await createUserAsync('bob', aliceToken, true)
-      await setUserGlobalAsync('bob')
-      bobToken = await retrieveTokenAsync('bob')
-      bobCloudToken = await retrieveCloudTokenAsync('bob')
+      aliceCloudToken = await laCloudTokenAsync('alice')
 
       sinon.stub(UUID, 'v4').returns(boxUUID)
-
       let props = {name: 'hello', users: [IDS.bob.global]}
       doc = await createBoxAsync(props, 'alice')
+
+      bobCloudToken = await waCloudTokenAsync('bob')
     })
 
     afterEach(() => UUID.v4.restore())
+
+    it("GET /cloudToken get bob cloudToken", done => {
+      request(app)
+        .get('/cloudToken')
+        .query({ global: IDS.bob.global})
+        .expect(200)
+        .end((err, res) => {
+          if (err) return done(err)
+          expect(res.body.token).to.be.an('string')
+          done()
+        })
+    })
 
     it("GET /boxes bob should get box", done => {
       request(app)
@@ -211,10 +222,7 @@ describe(path.basename(__filename), () => {
         name: 'world',
         users: {op: 'add', value: [IDS.charlie.global]}
       }
-      // [
-      //              {path: 'name', operation: 'update', value: 'world'},
-      //              {path: 'users', operation: 'add', value: [IDS.charlie.global]}
-      //             ]
+
       request(app)
         .patch(`/boxes/${boxUUID}`)
         .send(props)
@@ -235,7 +243,7 @@ describe(path.basename(__filename), () => {
       request(app)
         .patch(`/boxes/${boxUUID}`)
         .send(props)
-        .set('Authorization', 'JWT ' + bobCloudToken + ' ' + bobToken)
+        .set('Authorization', 'JWT ' + bobCloudToken) //+ ' ' + bobToken)
         .expect(403)
         .end(done)
     })
@@ -251,7 +259,7 @@ describe(path.basename(__filename), () => {
     it('DELETE /boxes/{uuid} bob can not delete box', done => {
       request(app)
         .delete(`/boxes/${boxUUID}`)
-        .set('Authorization', 'JWT ' + bobCloudToken + ' ' + bobToken)
+        .set('Authorization', 'JWT ' + bobCloudToken)// + ' ' + bobToken)
         .expect(403)
         .end(done)
     })
@@ -270,12 +278,7 @@ describe(path.basename(__filename), () => {
       await createUserAsync('alice')
       await setUserGlobalAsync('alice')
       aliceToken = await retrieveTokenAsync('alice')
-      aliceCloudToken = await retrieveCloudTokenAsync('alice')
-
-      await createUserAsync('bob', aliceToken, true)
-      await setUserGlobalAsync('bob')
-      bobToken = await retrieveTokenAsync('bob')
-      bobCloudToken = await retrieveCloudTokenAsync('bob')
+      aliceCloudToken = await laCloudTokenAsync('alice')
 
       sinon.stub(UUID, 'v4').onFirstCall().returns(boxUUID)
                             .onSecondCall().returns(uuid_1)
@@ -283,6 +286,7 @@ describe(path.basename(__filename), () => {
                           
       let props = {name: 'hello', users: [IDS.bob.global]}
       doc = await createBoxAsync(props, 'alice')
+      bobCloudToken = await waCloudTokenAsync('bob')
     })
 
     afterEach(() => UUID.v4.restore())
@@ -453,7 +457,7 @@ describe(path.basename(__filename), () => {
       request(app)
         .post(`/boxes/${boxUUID}/branches`)
         .send({ name: 'branch_2', head: commit_2 })
-        .set('Authorization', 'JWT ' + bobCloudToken + ' ' + bobToken)
+        .set('Authorization', 'JWT ' + bobCloudToken)
         .expect(200)
         .end((err, res) => {
           if(err) return done(err)
@@ -501,7 +505,7 @@ describe(path.basename(__filename), () => {
       await createUserAsync('alice')
       await setUserGlobalAsync('alice')
       aliceToken = await retrieveTokenAsync('alice')
-      aliceCloudToken = await retrieveCloudTokenAsync('alice')
+      aliceCloudToken = await laCloudTokenAsync('alice')
 
       sinon.stub(UUID, 'v4').onFirstCall().returns(boxUUID)
                             .onSecondCall().returns(uuid)

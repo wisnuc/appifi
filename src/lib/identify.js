@@ -9,7 +9,51 @@ const readXstat = require('./xstat').readXstat
 
 // always 8 fields, trailing with size in bytes
 // !!! don't double quote the string
-const identifyFormatString = '%m|%w|%h|%[EXIF:Orientation]|%[EXIF:DateTime]|%[EXIF:Make]|%[EXIF:Model]|%b'
+// const identifyFormatString = '%m|%w|%h|%[EXIF:Orientation]|%[EXIF:DateTime]|%[EXIF:Make]|%[EXIF:Model]|%b'
+/**
+exif:GPSLatitude=31/1, 14/1, 206277/10000
+exif:GPSLatitudeRef=N
+exif:GPSLongitude=121/1, 34/1, 65881/10000
+exif:GPSLongitudeRef=E
+**/
+
+const identifyFormatString= [
+  '%m',                           // m
+  '%w',                           // w
+  '%h',                           // h
+  '%[EXIF:Orientation]',          // orient
+  '%[EXIF:DateTime]',             // datetime
+  '%[EXIF:Make]',                 // make
+  '%[EXIF:Model]',                // model
+  '%[EXIF:GPSLatitude]',          // lat
+  '%[EXIF:GPSLatitudeRef]',       // latr
+  '%[EXIF:GPSLongitude]',         // long
+  '%[EXIF:GPSLongitudeRef]',      // longr
+  '%b'                            // size
+].join('|')
+
+const DEF = [
+  ['m'],
+  ['w', true],
+  ['h', true],
+  ['orient', true],
+  ['datetime'],
+  ['make'],
+  ['model'],
+  ['lat'],
+  ['latr'],
+  ['long'],
+  ['longr'],
+  ['size', true]
+]
+
+const parseIdentifyOutput = data => data
+  .toString()
+  .split('|')
+  .map(str => str.trim())
+  .reduce((o, c, i) => c.length 
+    ? Object.assign(o, { [DEF[i][0]]: DEF[i][1] ? parseInt(c) : c }) 
+    : o, {})
 
 const validateExifDateTime = str => {
 
@@ -22,6 +66,7 @@ const validateExifDateTime = str => {
   return !isNaN(Date.parse(dtstr))
 }
 
+/**
 const parseIdentifyOutput = data => {
 
   let split = data.toString().split('|').map(str => str.trim())
@@ -76,6 +121,7 @@ const parseIdentifyOutput = data => {
 
   return obj 
 }
+**/
 
 class Identify extends Worker {
 

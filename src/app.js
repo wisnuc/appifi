@@ -22,9 +22,10 @@ const token = require('./routes/token')
 const users = require('./routes/users')
 const drives = require('./routes/drives')
 const boxes = require('./routes/boxes')
+const media = require('./routes/media')
+
 const cloudToken = require('./routes/wxtoken')
 const station = require('./station')
-
 /**
 This module is the entry point of the whole application.
 
@@ -43,13 +44,14 @@ app.use('/control/net/interfaces', net)
 app.use('/control/timedate', timedate)
 if (barcelona.isBarcelona) app.use('/control/fan', barcelona.router)
 app.use('/token', token)
+app.use('/station', station)
+app.use('/cloudToken', cloudToken)
 app.use('/users', users)
 app.use('/drives', drives)
 app.use('/boxes', boxes)
-app.use('/cloudToken', cloudToken)
-// app.use('/uploads', uploads)
-app.use('/station', station)
+app.use('/media', media)
 
+// app.use('/uploads', uploads)
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
   var err = new Error('Not Found')
