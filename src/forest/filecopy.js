@@ -66,8 +66,9 @@ process.on('message', message => {
 
   ws.on('error', err => process.exit(1))
   ws.on('close', () => {
-    process.send(fingerprint.toString('hex'))
-    process.exit(0)
+    process.send(fingerprint.toString('hex'), () => {
+      process.exit(0)
+    })
   })
 })
 `
