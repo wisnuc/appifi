@@ -1,8 +1,11 @@
+const EventEmitter = require('events')
+const debug = require('debug')('transform')
+
 class Transform extends EventEmitter {
 
   constructor (options) {
     super()
-    this.concurrency = 1 
+    this.concurrency = 1
 
     Object.assign(this, options)
 
@@ -11,85 +14,60 @@ class Transform extends EventEmitter {
     this.finished = []
     this.failed = []
 
-    this.prev = []
-    this.next = null
-  } 
+    this.ins = []
+    this.outs = []
+  }
 
   push (x) {
     this.pending.push(x)
     this.schedule()
   }
 
-  pull() {
+  pull () {
     let xs = this.finished
-    this.finished = [] 
+    this.finished = []
     this.schedule()
     return xs
   }
 
   isBlocked () {
-    return !!this.failed.length                       // blocked on fail
-      || !!this.finished.length                       // blocked on output buffer (lazy)
-      || (this.next ? this.next.isBlocked() : false)  // blocked on next (chained blocking)
-  }
-
-  isRunning () {
-    return !this.isStopped()
+    return !!this.failed.length ||              // blocked by failed
+      !!this.finished.length ||                 // blocked by output buffer (lazy)
+      this.outs.some(t => t.isBlocked())        // blocked by outputs transform
   }
 
   isStopped () {
-    return !this.working.length                       // no working
-      && (this.next ? this.next.isStopped() : true)   // traverse
-  }
-
-  isSelfStopped () {
-    return !this.working.length                       // for debug
+    return !this.working.length && this.outs.every(t => t.isStopped())
   }
 
   root () {
-    return this.prev.length === 0
-      ? this
-      : this.prev[0].root()
-  }
-
-  tail () {
-    return this.next === null
-      ? this
-      : this.next.tail()
+    return this.ins.length === 0 ? this : this.ins[0].root()
   }
 
   pipe (next) {
-    let tail = this.tail()
-    tail.next = next
-    next.prev = tail
-    return this
+    this.outs.push(next)
+    next.ins.push(this)
+    return next
   }
 
-  print() {
-    console.log(this.name, 
-      this.pending, 
-      this.working, 
-      this.finished, 
-      this.failed, 
-      this.prev && this.prev.name,
-      this.next && this.next.name,
-      this.isStopped(),
-      this.isSelfStopped()
-    )
-    if (this.next) this.next.print()
+  print () {
+    debug(this.name,
+      this.pending.map(x => x.name),
+      this.working.map(x => x.name),
+      this.finished.map(x => x.name),
+      this.failed.map(x => x.name),
+      this.isStopped())
+    this.outs.forEach(t => t.print())
   }
 
   schedule () {
     // stop working if blocked
-    if (this.isBlocked()) return 
+    if (this.isBlocked()) return
 
-    // pull prev
-    if (this.prev) {
-      this.pending = [...this.pending, ...this.prev.pull()]
-    }
+    this.pending = this.ins.reduce((acc, t) => [...acc, ...t.pull()], this.pending)
 
     while (this.working.length < this.concurrency && this.pending.length) {
-      let x = this.pending.shift() 
+      let x = this.pending.shift()
       this.working.push(x)
       this.transform(x, (err, y) => {
         this.working.splice(this.working.indexOf(x), 1)
@@ -97,11 +75,11 @@ class Transform extends EventEmitter {
           x.error = err
           this.failed.push(x)
         } else {
-          if (this.next) {
-            this.next.push(y)
+          if (this.outs.length) {
+            this.outs.forEach(t => t.push(y))
           } else {
             if (this.root().listenerCount('data')) {
-              this.head().emit('data', y)
+              this.root().emit('data', y)
             } else {
               this.finished.push(y)
             }
@@ -109,9 +87,11 @@ class Transform extends EventEmitter {
         }
 
         this.schedule()
-        this.head().emit('step', this.name, x.name)
+        this.root().emit('step', this.name, x.name)
       })
     }
   }
+
 }
 
+module.exports = Transform
