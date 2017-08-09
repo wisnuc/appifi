@@ -15,8 +15,45 @@ const CONNECT_STATE = {
   CONNED: 'CONNECTED',
   CONNING: 'CONNECT_ING'
 }
-
 Object.freeze(CONNECT_STATE)
+
+
+function getSocket(address, saId, privateKey, callback) {
+  let socket = client(address,{
+      transports: ['websocket']
+  })
+  let finished = false
+  let token, state = 'disconnect'
+  socket.on('connect',() => {
+    state = 'connecting'
+    socket.emit('message', { type: 'requestLogin', data:{ id: saId } })
+  })
+  socket.on('message', (data) => {
+    if(data.type === 'checkLogin'){
+      let secretKey = ursa.createPrivateKey(privateKey)
+      let seed  = secretKey.decrypt(data.data.encryptData, 'base64', 'utf8')
+      socket.emit('message',{ type: 'login', data: { seed }})
+    }
+    if(data.type === 'login'){
+      let success = data.data.success
+      if(success){
+        state = 'connected'
+        token = data.data.token
+      }else
+        this.disconnect()
+      debug(success)
+    }
+  })
+  socket.on('disconnect', data => {
+    state = 'disconnected'
+  })
+  socket.on('error', err => {
+    debug('socket_error', err)
+  })
+  socket.on('connect_error', err => {
+    state = 'disconnected'
+  })
+}
 
 class Connect { 
 
@@ -29,8 +66,8 @@ class Connect {
     this.privateKey = undefined
     this.sa = undefined
     this.froot = undefined
-    this.init()
     this.handler = undefined
+    this.init()
   }
 
   init() {
@@ -107,7 +144,7 @@ class Connect {
       debug('connent disconnect', data)
     })
     this.socket.on('error', err => {
-      debug(err)
+      debug('socket_error', err)
     })
     this.socket.on('connect_error', err => {
       this._changeState(CONNECT_STATE.DISCED, err)
@@ -127,7 +164,7 @@ class Connect {
         debug(e)
       }
     }
-    if(eventType === 'login'){
+    else if(eventType === 'login'){
       let success = data.success
       //TODO: token
       if(success){
@@ -136,7 +173,10 @@ class Connect {
       }else
         this.disconnect()
       debug(success)
-    }
+    }else if(this.handler.has(eventType))
+      this.handler(eventType)(data)
+    else
+      debug('NOT FOUND EVENT HANDLER')
   }
 
   send(eventType, data) {

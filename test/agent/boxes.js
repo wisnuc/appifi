@@ -270,6 +270,7 @@ describe(path.basename(__filename), () => {
     let boxUUID = 'a96241c5-bfe2-458f-90a0-46ccd1c2fa9a'
     let uuid_1 = 'ff5d42b9-4b8f-452d-a102-ebfde5cdf948'
     let uuid_2 = 'a474d150-a7d4-47f2-8338-3733fa4b8783'
+    let uuid_3 = '30ee1474-571c-42c1-be1e-0f714d0d4968'
     let commit_1 = '486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7'
     let commit_2 = '2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824'
 
@@ -280,9 +281,10 @@ describe(path.basename(__filename), () => {
       aliceToken = await retrieveTokenAsync('alice')
       aliceCloudToken = await laCloudTokenAsync('alice')
 
-      sinon.stub(UUID, 'v4').onFirstCall().returns(boxUUID)
-                            .onSecondCall().returns(uuid_1)
-                            .onThirdCall().returns(uuid_2)
+      sinon.stub(UUID, 'v4').onCall(0).returns(boxUUID)
+                            .onCall(1).returns(uuid_1)
+                            .onCall(2).returns(uuid_2)
+                            .onCall(3).returns(uuid_3)
                           
       let props = {name: 'hello', users: [IDS.bob.global]}
       doc = await createBoxAsync(props, 'alice')
@@ -308,14 +310,16 @@ describe(path.basename(__filename), () => {
 
     it('POST /boxes/{uuid}/tweets alice should upload a blob', done => {
       let sha256 = '7803e8fa1b804d40d412bcd28737e3ae027768ecc559b51a284fbcadcd0e21be'
-
+      let obj = {
+        comment: 'hello',
+        type: 'blob',
+        size: 2331588,
+        sha256
+      }
       request(app)
         .post(`/boxes/${boxUUID}/tweets`)
         .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
-        .field('comment', 'hello')
-        .field('type', 'blob')
-        .field('size', 2331588)
-        .field('sha256', sha256)
+        .field('blob', JSON.stringify(obj))
         .attach('file', 'testpic/20141213.jpg')
         .expect(200)
         .end((err, res) => {
@@ -325,6 +329,33 @@ describe(path.basename(__filename), () => {
           expect(res.body.comment).to.equal('hello')
           expect(res.body.type).to.equal('blob')
           expect(res.body.id).to.equal(sha256)
+          done()
+        })
+    })
+
+    it('POST /boxes/{uuid}/tweets alice should upload a list', done => {
+      let sha256_1 = '7803e8fa1b804d40d412bcd28737e3ae027768ecc559b51a284fbcadcd0e21be'
+      let sha256_2 = '21cb9c64331d69f6134ed25820f46def3791f4439d2536b270b2f57f726718c7'
+      let obj = {
+        comment: 'hello',
+        type: 'list',
+        list: [{size: 2331588, sha256: sha256_1, filename: 'pic1', id: uuid_2},
+               {size: 5366855, sha256: sha256_2, filename: 'pic2', id: uuid_3}]
+      }
+      request(app)
+        .post(`/boxes/${boxUUID}/tweets`)
+        .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
+        .field('list', JSON.stringify(obj))
+        .attach('pic1', 'testpic/20141213.jpg', JSON.stringify({id: uuid_2}))
+        .attach('pic2', 'testpic/20160719.jpg', JSON.stringify({id: uuid_3}))
+        .expect(200)
+        .end((err, res) => {
+          if (err) return done(err)
+          // consume uuid.v4: create box, upload two file(tpm path, twice)
+          expect(res.body.uuid).to.equal(uuid_3)
+          expect(res.body.tweeter).to.equal(IDS.alice.global)
+          expect(res.body.comment).to.equal('hello')
+          expect(res.body.type).to.equal('list')
           done()
         })
     })
