@@ -37,13 +37,17 @@ class Box {
    * @param {string} props.comment - comment
    * @param {string} props.type - tweet type, optional
    * @param {string} props.id - sha256 for blob, commit, uuid for list, tag, branch, job. coexist with type.
-   * @param {array} props.list - an array of sha256, exist only when type is list.
+   * @param {array} props.list - an array of {sha256, filename}, exist only when type is list.
+   * @param {array} props.path - array of {sha256, filepath}, tmp path, optional
    * @return {Object} tweet object
    */
   async createTweetAsync(props) {
     let path = props.path
     if(path) {
-      await blobStore.storeAsync(path, props.id)
+      while (path.length) {
+        let obj = path.pop()
+        await blobStore.storeAsync(obj.filepath, obj.sha256)
+      }    
     }
     
     let tweet = {
@@ -54,8 +58,8 @@ class Box {
 
     if (props.type) {
       tweet.type = props.type
-      tweet.id = props.id
       if (props.type === 'list') tweet.list = props.list
+      else tweet.id = props.id
     }
 
     tweet.ctime = new Date().getTime()

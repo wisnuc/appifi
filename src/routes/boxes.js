@@ -7,6 +7,7 @@ const path = require('path')
 const UUID = require('uuid')
 const fs = require('fs')
 const rimraf = require('rimraf')
+const rimrafAsync = Promise.promisify(rimraf)
 const secret = require('../config/passportJwt')
 
 const User = require('../models/user')
@@ -198,7 +199,8 @@ router.post('/:boxUUID/tweets', auth, boxAuth, (req, res) => {
     // UPLOAD
     let form = new formidable.IncomingForm()
     form.hash = 'sha256'
-    let sha256, comment, type, size, error, data
+    let sha256, comment, type, size, error, data, arr
+    let urls = []
     let finished = false, formFinished = false, fileFinished = false
 
     const finalize = () => {
@@ -212,31 +214,74 @@ router.post('/:boxUUID/tweets', auth, boxAuth, (req, res) => {
       }
     }
 
+    const check = (size, sha256, file) => {
+      if (!Number.isInteger(size) || size !== file.size) 
+        return finished = true && res.status(409).end()
+
+      if (file.hash !== sha256) {
+        return rimraf(file.path, err => {
+          if (err) return finished = true && res.status(500).json({ code: err.code, message: err.message})
+          return finished = true && res.status(409).end()
+        })
+      }
+    }
+
     form.on('field', (name, value) => {
       if (finished) return
 
-      if (name === 'comment') {
-        if (typeof value === 'string') comment = value
-      }
+      if (name === 'blob' || name === 'list') {
+        obj = JSON.parse(value)
 
-      if (name === 'type') {
-        if (typeof value === 'string') type = value
-      }
+        if (typeof obj.comment === 'string') comment = obj.comment
+        if (obj.type) type = obj.type
 
-      if (name === 'size') {
-        if ('' + parseInt(value) === value) size = parseInt(value)
-      }
+        if (type === 'blob') {
+          if (Number.isInteger(obj.size)) size = obj.size
+          if (isSHA256(obj.sha256)) sha256 = obj.sha256
+        }
 
-      if (name === 'sha256') {
-        if (isSHA256(value)) sha256 = value 
+        if (type === 'list') arr = obj.list
+          // {
+          //   size,
+          //   sha256,
+          //   filename, (optional, for file)
+          //   id (uuid, identifier)
+          // }
       }
+      
+
+      // if (name = 'blob') {
+      //   obj = JSON.parse(value)
+      //   if (typeof obj.comment === 'string') comment = obj.comment
+      //   if (obj.type === 'blob') type = 'blob'
+      //   if (Number.isInteger(obj.size)) size = obj.size
+      //   if (isSHA256(obj.sha256)) sha256 = obj.sha256
+      // }
+
+      // ========================================================
+
+      // if (name === 'comment') {
+      //   if (typeof value === 'string') comment = value
+      // }
+
+      // if (name === 'type') {
+      //   if (typeof value === 'string') type = value
+      // }
+
+      // if (name === 'size') {
+      //   if ('' + parseInt(value) === value) size = parseInt(value)
+      // }
+
+      // if (name === 'sha256') {
+      //   if (isSHA256(value)) sha256 = value 
+      // }
     })
 
     form.on('fileBegin', (name, file) => {
       if (finished) return
 
-      if (!Number.isInteger(size) || sha256 === undefined)
-        return finished = true && res.status(409).end()
+      // if (!Number.isInteger(size) || sha256 === undefined)
+      //   return finished = true && res.status(409).end()
 
       file.path = path.join(box.tmpDir, UUID.v4())
     })
@@ -244,41 +289,55 @@ router.post('/:boxUUID/tweets', auth, boxAuth, (req, res) => {
     form.on('file', (name, file) => {
       if (finished) return
 
-      if (!Number.isInteger(size) || size !== file.size) 
-        return finished = true && res.status(409).end()
-
-      if (file.hash !== sha256) {
-        // return fs.unlink(file.path, () => res.status(409).end())
-        return rimraf(file.path, err => {
-          if (err) return finished = true && res.status(500).json({ code: err.code, message: err.message})
-          return finished = true && res.status(409).end()
-        })
+      if (type === 'blob') {
+        check(size, sha256, file)
+        urls.push({sha256, filepath: file.path})
       }
 
-      let global
-      if (req.user) global = req.user.global
-      else global = req.guest.global
+      if (type === 'list') {
+        let id = JSON.parse(file.name).id
+        let index = arr.findIndex(i => i.id === id)
 
-      let props = { comment, type: 'blob', id: sha256, global, path: file.path}
-      box.createTweetAsync(props)
-        .then(result => {
-          boxData.updateBoxAsync({mtime: result.mtime}, box.doc.uuid)
-            .then(newDoc => {
-              data = result.tweet
-              fileFinished = true
-              finalize()
-            })
-            .catch(err => {
-              error = err
-              fileFinished = true
-              finalize()
-            }) 
-        })
-        .catch(err => {
-          error = err
-          fileFinished = true
-          finalize()
-        }) 
+        if (index !== -1) {
+          check(arr[index].size, arr[index].sha256, file)          
+          urls.push({sha256: file.hash, filepath: file.path})
+          arr[index].finish = true
+        } else {
+          rimraf(file.path, () => {})
+        }
+      }
+
+      if (type === 'blob' || arr.every(i => i.finish)) {
+        let global, props
+        if (req.user) global = req.user.global
+        else global = req.guest.global
+
+        if(type === 'blob') props = { comment, type, id: sha256, global, path: urls}
+        else {
+          let list = obj.list.map(i => { return {sha256: i.sha256, filename: i.filename} })
+          props = {comment, type, list, global, path: urls}
+        }
+
+        box.createTweetAsync(props)
+          .then(result => {
+            boxData.updateBoxAsync({mtime: result.mtime}, box.doc.uuid)
+              .then(newDoc => {
+                data = result.tweet
+                fileFinished = true
+                finalize()
+              })
+              .catch(err => {
+                error = err
+                fileFinished = true
+                finalize()
+              }) 
+          })
+          .catch(err => {
+            error = err
+            fileFinished = true
+            finalize()
+          }) 
+      }
     })
 
     form.on('error', err => {
