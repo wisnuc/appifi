@@ -149,10 +149,12 @@ class StoreFiles {
       console.log('response')
       if(res.status !== 200){ 
         ws.close()
+        res.destroy()
         return error(res.error)        
       }
       else if(res.get('Content-Length') !== totalSize){ // totalsize error
         ws.close()
+        res.destroy()
         return error(new Error('totalsize mismatch'))
       }
       else{ // run 
@@ -161,10 +163,31 @@ class StoreFiles {
           if((chunk + this.currentSize - 1) >= this.currentEndpoint){
             res.pause()
             let needL = chunk.length - (this.currentEndpoint - this.currentSize + 1)
-            let w = chunk.slice(0, w)
-            hashMaker.write(w)
-            let digest = hashMaker.digest('hex')
             
+            // write last chunk
+            hashMaker.write(chunk.slice(0, needL))
+            let digest = hashMaker.digest('hex')
+            ws.close() // close write stream 
+            
+            // check hash
+            if(digest !== this.currentEndpointhashArr[this.currentIndex])
+              return error(`${ this.currentIndex } hash mismatch`)
+            
+            //  create new instance
+            fpath = path.join(this.tmp, uuid.v4())
+            
+            this.currentIndex ++
+            this.currentEndpoint += this.sizeArr[this.currentIndex]
+
+            hashMaker = new HashTransform()
+            ws = fs.createWriteStream(fpath)
+            hashMaker.pipe(ws)
+            hashMaker.write(chunk.slice(needL, chunk.length))
+            this.currentSize += chunk.length
+
+            //resume
+            res.resume()
+              
             //TODO: do something
             // 1 write chunk
             // 2 check file
@@ -173,9 +196,17 @@ class StoreFiles {
             // 5 end
             
           }else{
-            hashMaker.write(data) //update
-            this.currentSize += chunklength
+            hashMaker.write(data) // update
+            this.currentSize += chunk.length
           }
+        })
+
+        res.on('end', () => {
+
+        })
+
+        res.on('error', err => {
+
         })
       }
     })
