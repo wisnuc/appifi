@@ -279,11 +279,23 @@ router.post('/:boxUUID/tweets', auth, boxAuth, (req, res) => {
 
     form.on('fileBegin', (name, file) => {
       if (finished) return
+      if (type === 'list') {
+        let id = JSON.parse(file.name).id
+        let item = arr.find(i => i.id === id)
+        let digest
+        if (item) digest = item.sha256
 
-      // if (!Number.isInteger(size) || sha256 === undefined)
-      //   return finished = true && res.status(409).end()
+        // name the file with its sha256 if exist, otherwise name with uuid
+        if (digest) file.path = path.join(box.tmpDir, digest)
+        else file.path = path.join(box.tmpDir, UUID.v4())
+      }
+      
+      if (type === 'blob') {
+        if (!Number.isInteger(size) || sha256 === undefined)
+        return finished = true && res.status(409).end()
 
-      file.path = path.join(box.tmpDir, UUID.v4())
+        file.path = path.join(box.tmpDir, sha256)
+      }     
     })
 
     form.on('file', (name, file) => {

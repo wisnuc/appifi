@@ -2,7 +2,8 @@ const Promise = require('bluebird')
 const path = require('path')
 const Stringify = require('canonical-json')
 const fs = Promise.promisifyAll(require('fs'))
-const rimrafAsync = Promise.promisify(require('rimraf'))
+const rimraf = require('rimraf')
+const rimrafAsync = Promise.promisify(rimraf)
 const mkdirpAsync = Promise.promisify(require('mkdirp'))
 const UUID = require('uuid')
 const crypto = require('crypto')
@@ -42,12 +43,25 @@ class Box {
    * @return {Object} tweet object
    */
   async createTweetAsync(props) {
-    let path = props.path
-    if(path) {
-      while (path.length) {
-        let obj = path.pop()
-        await blobStore.storeAsync(obj.filepath, obj.sha256)
-      }    
+    let path = props.path  // path contains all files uploaded
+    // filter out the files which are already in repo
+    let urls
+    if (path) {
+      urls = path.filter(p => {
+        let target = blobStore.retrieve(p.sha256)
+        try {
+          let stats = fs.lstatSync(target)
+          // remove the file in tmpdir which is already in repo
+          rimraf(p.filepath, () => {})
+          return
+        } catch (e) {
+          if (e.code !== 'ENOENT') throw e
+          return true
+        }
+      })
+
+      let src = urls.map(i => i.filepath)
+      await blobStore.storeAsync(src)
     }
     
     let tweet = {

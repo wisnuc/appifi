@@ -11,6 +11,7 @@ chai.use(require('chai-as-promised'))
 const sinon = require('sinon')
 const expect = chai.expect
 const should = chai.should()
+const child = require('child_process')
 
 const app = require('src/app')
 const { saveObjectAsync } = require('src/lib/utils')
@@ -324,7 +325,7 @@ describe(path.basename(__filename), () => {
         .expect(200)
         .end((err, res) => {
           if (err) return done(err)
-          expect(res.body.uuid).to.equal(uuid_2)
+          expect(res.body.uuid).to.equal(uuid_1)
           expect(res.body.tweeter).to.equal(IDS.alice.global)
           expect(res.body.comment).to.equal('hello')
           expect(res.body.type).to.equal('blob')
@@ -333,7 +334,7 @@ describe(path.basename(__filename), () => {
         })
     })
 
-    it('POST /boxes/{uuid}/tweets alice should upload a list', done => {
+    it('POST /boxes/{uuid}/tweets should upload a list', done => {     
       let sha256_1 = '7803e8fa1b804d40d412bcd28737e3ae027768ecc559b51a284fbcadcd0e21be'
       let sha256_2 = '21cb9c64331d69f6134ed25820f46def3791f4439d2536b270b2f57f726718c7'
       let obj = {
@@ -352,7 +353,7 @@ describe(path.basename(__filename), () => {
         .end((err, res) => {
           if (err) return done(err)
           // consume uuid.v4: create box, upload two file(tpm path, twice)
-          expect(res.body.uuid).to.equal(uuid_3)
+          expect(res.body.uuid).to.equal(uuid_1)
           expect(res.body.tweeter).to.equal(IDS.alice.global)
           expect(res.body.comment).to.equal('hello')
           expect(res.body.type).to.equal('list')
