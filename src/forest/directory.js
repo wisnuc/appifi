@@ -153,6 +153,10 @@ class Directory extends Node {
       callback(writer.error)
     })
   }
+
+  mkdirpAsync(name, callback) {
+    path.join 
+  }
 }
 
 module.exports = Directory

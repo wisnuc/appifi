@@ -25,7 +25,9 @@ describe(path.basename(__filename), () => {
       await mkdirpAsync(dstDir)
     })
 
-    it('should do nothing', done => {
+    it('should do nothing', function (done) {
+
+      this.timeout(0)
 
       const files = fs.readdirSync(srcDir).filter(x => x !== '.git')
       const getDirPath = () => dstDir
