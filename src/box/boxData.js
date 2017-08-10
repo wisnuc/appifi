@@ -42,16 +42,29 @@ const complement = (a, b) =>
   a.reduce((acc, c) => 
     b.includes(c) ? acc : [...acc, c], [])
 
+/**
+ * 
+ * @param {string} dir - path to boxes module
+ * @param {string} tmpDir - path to tmpDir
+ * @param {Object} doc - descriptor of box to be created
+ * @return {Object} box
+ */
+const createBox = (dir, tmpDir, doc) => {
+  let dbPath = path.join(dir, doc.uuid, 'records')
+  let blPath = path.join(dir, doc.uuid, 'blackList')
+  let records = new Records(dbPath, blPath)
+  return new Box(path.join(dir, doc.uuid), tmpDir, doc, records)
+}
+
 /*
   fruitmix/repo          // store blob 
           /boxes
             [uuid]/
               manifest      // box doc
               records       // database
-              blackList     // 
-              [branches]    // 
-              [commits]     //
-              pull/push     //
+              blackList     // indexes of tweets deleted
+              [branches]/   //
+                branchUUID  // information of the branch                      
 */
 
 /**
@@ -65,13 +78,11 @@ class BoxData {
 
     this.dir = undefined
     this.tmpDir = undefined
-    // this.repoDir = undefined
     this.map = undefined
 
     broadcast.on('FruitmixStart', froot => {
       let dir = path.join(froot, 'boxes')
       let tmpDir = path.join(froot, 'tmp') 
-      // let repoDir = path.join(froot, 'repo')
 
       this.init(dir, tmpDir)
     })
@@ -92,7 +103,6 @@ class BoxData {
       this.initialized = true
       this.dir = dir
       this.tmpDir = tmpDir
-      // this.repoDir = repoDir
       this.map = new Map()
 
       broadcast.emit('BoxInitDone')
@@ -108,6 +118,21 @@ class BoxData {
     this.map = undefined
 
     process.nextTick(() => broadcast.emit('BoxDeinitDone'))
+  }
+
+  load() {
+    fs.readdir(this.dir, (err, entries) => {
+      entries.forEach(ent => {
+        let target = path.join(this.dir, ent)
+        fs.readFile(target, (err, data) => {
+          let doc = JSON.parse(data.toString())
+          let box = createBox(this.dir, this.tmpDir, doc)
+
+          this.map.set(doc.uuid, box)
+          broadcast.emit('boxCreated', doc)
+        })
+      })
+    })
   }
 
   /**
@@ -165,10 +190,7 @@ class BoxData {
     await fs.writeFileAsync(blPath, '')
     await fs.renameAsync(tmpDir, path.join(this.dir, doc.uuid))
     
-    dbPath = path.join(this.dir, doc.uuid, 'records'),
-    blPath = path.join(this.dir, doc.uuid, 'blackList')
-    let records = new Records(dbPath, blPath)
-    let box = new Box(path.join(this.dir, doc.uuid), this.tmpDir, doc, records)
+    let box = createBox(this.dir, this.tmpDir, doc)
 
     this.map.set(doc.uuid, box)
     broadcast.emit('boxCreated', doc)
