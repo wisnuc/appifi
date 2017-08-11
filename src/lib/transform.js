@@ -4,18 +4,28 @@ const debug = require('debug')('transform')
 class Transform extends EventEmitter {
 
   constructor (options) {
-    super()
-    this.concurrency = 1
+    if (Array.isArray(options)) {
+      return options.reduce((pipe, opts) => pipe
+        ? pipe.pipe(new Transform(opts)) 
+        : new Transform(opts), null).root()
+    } else {
+      super()
 
-    Object.assign(this, options)
+      this.concurrency = 1
+      Object.assign(this, options)
+      this.pending = []
+      this.working = []
+      this.finished = []
+      this.failed = []
 
-    this.pending = []
-    this.working = []
-    this.finished = []
-    this.failed = []
+      this.ins = []
+      this.outs = []
+    }
+  }
 
-    this.ins = []
-    this.outs = []
+  unshift (x) {
+    this.pending.unshift(x)
+    this.schedule()
   }
 
   push (x) {
@@ -44,9 +54,8 @@ class Transform extends EventEmitter {
   isFinished () {
     return !this.pending.length &&
       !this.working.length &&
-      !this.failed.length &&
       !this.finished.length &&
-      this.outs.every(t => t.isFinished())
+      !this.failed.length
   }
 
   root () {
@@ -78,26 +87,58 @@ class Transform extends EventEmitter {
     while (this.working.length < this.concurrency && this.pending.length) {
       let x = this.pending.shift()
       this.working.push(x)
-      this.transform(x, (err, y) => {
-        this.working.splice(this.working.indexOf(x), 1)
-        if (err) {
-          x.error = err
-          this.failed.push(x)
-        } else {
-          if (this.outs.length) {
-            this.outs.forEach(t => t.push(y))
+
+      if (this.transform) {
+        this.transform(x, (err, y) => {
+          this.working.splice(this.working.indexOf(x), 1)
+          if (err) {
+            x.error = err
+            this.failed.push(x)
           } else {
-            if (this.root().listenerCount('data')) {
-              this.root().emit('data', y)
+            if (this.outs.length) {
+              this.outs.forEach(t => t.push(y))
             } else {
-              this.finished.push(y)
+              if (this.root().listenerCount('data')) {
+                this.root().emit('data', y)
+              } else {
+                this.finished.push(y)
+              }
             }
           }
-        }
 
-        this.schedule()
-        this.root().emit('step', this.name, x.name)
-      })
+          this.schedule()
+          this.root().emit('step', this.name, x.name)
+        })
+      } else if (this.spawn) {
+        let t = new Transform(this.spawn)
+
+        t.on('data', data => {
+          if (this.outs.length) {
+            this.outs.forEach(t => t.push(data))
+          } else if (this.root().listenerCount('data')) {
+            this.root().emit('data', data)
+          } else {
+            this.finished.push(data)
+          }
+        })
+
+        t.on('step', () => {
+          if (t.isStopped()) {
+            this.working.splice(this.working.indexOf(x), 1)  
+            if (t.isFinished()) {
+              // drop 
+            } else {
+              this.failed.push(x)
+            }
+            this.schedule()
+          }
+          this.emit('step')
+        })
+
+        t.push(x)
+        x.transform = t
+      }
+
     }
   }
 
