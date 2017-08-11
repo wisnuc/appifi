@@ -9,6 +9,39 @@ const Transform = require('../lib/transform')
 const { forceXstat } = require('../lib/xstat')
 const fileCopy = require('./filecopy')
 
+// Synk is a synchornous sink to drain all output
+class Synk {
+
+  constructor(options) {
+    this.blocked = false
+
+    Object.assign(this, options)
+
+    this.finished = []
+    this.ins = []
+  }
+
+  push(x) {
+     
+  }
+
+  isBlocked () {
+    return this.blocked 
+  }
+
+  isStopped() {
+    return true
+  }
+
+  isFinished () {
+    return true
+  }
+
+  root () {
+    this.ins.length === 0 ? this : this.ins[0].root()
+  }
+} 
+
 class DirCopy extends EventEmitter {
 
   constructor (src, tmp, files, getDirPath) {

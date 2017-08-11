@@ -30,6 +30,7 @@ class Transform extends EventEmitter {
     return xs
   }
 
+  // for inputs, isBlocked means I won't process new jobs.
   isBlocked () {
     return !!this.failed.length ||              // blocked by failed
       !!this.finished.length ||                 // blocked by output buffer (lazy)
@@ -38,6 +39,14 @@ class Transform extends EventEmitter {
 
   isStopped () {
     return !this.working.length && this.outs.every(t => t.isStopped())
+  }
+
+  isFinished () {
+    return !this.pending.length &&
+      !this.working.length &&
+      !this.failed.length &&
+      !this.finished.length &&
+      this.outs.every(t => t.isFinished())
   }
 
   root () {
