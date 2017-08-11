@@ -27,10 +27,9 @@ describe(path.basename(__filename), () => {
       await mkdirpAsync(dst)
     })
 
-    it('should do nothing', done => {
-
-      let di = new DirImport({ src, tmp, dst, files: ['vpai001.jpg'] })
-     
+    it('should do nothing', function (done) {
+      this.timeout(0)
+      let di = new DirImport({ src, tmp, dst, files: ['vpai001.jpg', 'foobar'] })
       di.on('stopped', data => {
         done()
       }) 

@@ -11,7 +11,7 @@ class Transform extends EventEmitter {
     } else {
       super()
 
-      this.concurrency = 1
+      this.concurrency = 1024
       Object.assign(this, options)
       this.pending = []
       this.working = []
@@ -51,6 +51,10 @@ class Transform extends EventEmitter {
     return !this.working.length && this.outs.every(t => t.isStopped())
   }
 
+  isSelfStopped () {
+    return !this.working.length
+  }
+
   isFinished () {
     return !this.pending.length &&
       !this.working.length &&
@@ -70,16 +74,16 @@ class Transform extends EventEmitter {
 
   print () {
     debug(this.name,
-      this.pending.map(x => x.name),
-      this.working.map(x => x.name),
-      this.finished.map(x => x.name),
-      this.failed.map(x => x.name),
+      this.pending.map(x => x.name || x),
+      this.working.map(x => x.name || x),
+      this.finished.map(x => x.name || x),
+      this.failed.map(x => x.name || x),
       this.isStopped())
     this.outs.forEach(t => t.print())
   }
 
   schedule () {
-    // stop working if blocked
+
     if (this.isBlocked()) return
 
     this.pending = this.ins.reduce((acc, t) => [...acc, ...t.pull()], this.pending)
@@ -123,6 +127,7 @@ class Transform extends EventEmitter {
         })
 
         t.on('step', () => {
+          t.print()
           if (t.isStopped()) {
             this.working.splice(this.working.indexOf(x), 1)  
             if (t.isFinished()) {
@@ -132,7 +137,7 @@ class Transform extends EventEmitter {
             }
             this.schedule()
           }
-          this.emit('step')
+          this.root().emit('step')
         })
 
         t.push(x)
