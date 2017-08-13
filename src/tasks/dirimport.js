@@ -1,6 +1,5 @@
-const Promise = require('bluebird')
 const path = require('path')
-const fs = Promise.promisifyAll(require('fs'))
+const fs = require('fs')
 const EventEmitter = require('events')
 const rimraf = require('rimraf')
 const mkdirp = require('mkdirp')
@@ -22,51 +21,51 @@ class DirImport extends EventEmitter {
     let dirwalk = new Transform({
       spawn: {
         name: 'dirwalk',
-        transform: function (y, callback) {
-          fs.readdir(path.join(src, y.path), (err, entries) => {
+        transform: function (x, callback) {
+          fs.readdir(path.join(src, x.path), (err, entries) => {
             if (err || entries.length === 0) {
               if (err) {
                 callback(err)
               } else {
-                callback(null, { path: y.path, files: [] })
+                callback(null, { path: x.path, files: [] })
               }
             } else {
               let count = entries.length
               let files = []
               entries.forEach(entry => {
-                fs.lstat(path.join(src, y.path, entry), (err, stat) => {
+                fs.lstat(path.join(src, x.path, entry), (err, stat) => {
                   if (err) {
                     // TODO
                   } else {
                     if (stat.isDirectory()) {
-                      this.unshift({ path: path.join(y.path, entry) })
+                      this.unshift({ path: path.join(x.path, entry) })
                     } else if (stat.isFile()) {
                       files.push(entry)
                     } else {
-                      // TODO 
+                      // TODO
                     }
-                  } 
+                  }
 
-                  if (!--count) callback(null, { path: y.path, files })
-                }) 
+                  if (!--count) callback(null, { path: x.path, files })
+                })
               })
             }
           })
-        } 
+        }
       }
     })
-    
+
     // x untouched
     let mkTmpDir = new Transform({
       name: 'mktmpdir',
-      transform: (x, callback) => 
+      transform: (x, callback) =>
         mkdirp(path.join(tmp, x.path), err => err ? callback(err) : callback(null, x))
-    }) 
-   
-    // x untouched 
+    })
+
+    // x untouched
     let mkDstDir = new Transform({
       name: 'mkdstdir',
-      transform: (x, callback) => 
+      transform: (x, callback) =>
         mkdirp(path.join(dst, x.path), err => err ? callback(err) : callback(null, x))
     })
 
@@ -74,7 +73,7 @@ class DirImport extends EventEmitter {
     let dircopy = new Transform({
       name: 'dircopy',
       concurrency: 2,
-      push: function(x) { 
+      push: function (x) {
         // remove empty dir
         if (!x.files.length) return
         this.pending.push(x)
@@ -87,13 +86,13 @@ class DirImport extends EventEmitter {
           push: function (x) {
             // split dir to files
             x.files.forEach(name => {
-              this.pending.push({ 
+              this.pending.push({
                 name,
                 src: path.join(src, x.path, name),
                 tmp: path.join(tmp, x.path, name),
                 dst: path.join(dst, x.path, name)
               })
-            })  
+            })
             this.schedule()
           },
           transform: (x, callback) =>
@@ -122,7 +121,7 @@ class DirImport extends EventEmitter {
           name: 'remove',
           transform: (x, cb) => rimraf(x.tmp, () => cb(null, x))
         }
-      ] 
+      ]
     })
 
     dirwalk.pipe(mkTmpDir).pipe(mkDstDir).pipe(dircopy)
@@ -156,10 +155,8 @@ class DirImport extends EventEmitter {
         this.emit('stopped')
       }
     })
-
-  } 
+  }
 
 }
 
 module.exports = DirImport
-
