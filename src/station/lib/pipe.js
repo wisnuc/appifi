@@ -228,17 +228,20 @@ class Pipe {
     this.froot = undefined
     this.tmp = undefined
     this.token = undefined
+    this.initialized = false
     this.init()
   }
 
   init() {
-    broadcast.on('FruitmixStart', froot => {
-      this.froot = froot
-      this.tmp = path.join(froot, 'tmp')
-    })
     broadcast.on('Connect_Connected', () => {
       Connect.register('pipe', this.handle.bind(this))
       this.token = Connect.token
+      this.initialized = true
+    })
+    // deinit
+    broadcast.on('Connect_Disconnect', () => {
+      this.token = undefined
+      this.initialized = false
     })
   }
 
