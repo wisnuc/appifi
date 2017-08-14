@@ -5,8 +5,8 @@ const superagent = require('superagent')
 const rimrafAsync = Promise.promisify(require('rimraf'))
 const mkdirpAsync = Promise.promisify(require('mkdirp'))
 const UUID = require('uuid')
-const chai = require('chai')
-chai.use(require('chai-as-promised'))
+
+const chai = require('chai').use(require('chai-as-promised'))
 const sinon = require('sinon')
 const expect = chai.expect
 const should = chai.should()
@@ -15,8 +15,8 @@ const app = require('src/app')
 const { saveObjectAsync } = require('src/fruitmix/lib/utils')
 const broadcast = require('src/common/broadcast')
 
-const User = require('src/fruitmix/models/user')
-const Drive = require('src/fruitmix/models/drive')
+const User = require('src/models/user')
+const Drive = require('src/models/drive')
 
 const {
   IDS,
