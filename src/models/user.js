@@ -127,7 +127,7 @@ const validateUserEntry = u => {
 /**
 UserList manages users.
 
-Internally, opportunistic locc is used to avoid race for transactional file operation.
+Internally, opportunistic lock is used to avoid race for transactional file operation.
 */
 class UserList extends EventEmitter {
 

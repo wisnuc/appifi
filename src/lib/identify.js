@@ -141,7 +141,8 @@ class Identify extends Worker {
       if (xstat.uuid !== this.uuid) return this.error(new E.EINSTANCE())
       if (xstat.hash !== this.hash) return this.error(new E.ECONTENT()) 
       
-      child.exec(`identify -format '${identifyFormatString}' ${this.fpath}`, (err, stdout) => {
+      // !!! quote file path
+      child.exec(`identify -format '${identifyFormatString}' '${this.fpath}'`, (err, stdout) => {
         if (this.finished) return
         if (err) return this.error(err)
         return (this.data = parseIdentifyOutput(stdout)) 
