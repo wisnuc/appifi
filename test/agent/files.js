@@ -18,9 +18,7 @@ const app = require('src/app')
 const { saveObjectAsync } = require('src/fruitmix/lib/utils')
 const broadcast = require('src/common/broadcast')
 
-const User = require('src/fruitmix/models/user')
-const Drive = require('src/fruitmix/models/drive')
-const Forest = require('src/fruitmix/forest/forest')
+const getFruit = require('src/fruitmix')
 
 const {
   IDS,
@@ -51,12 +49,12 @@ const forestDir = path.join(tmptest, 'drives')
 const resetAsync = async () => {
 
   broadcast.emit('FruitmixStop')
-
-  await broadcast.until('UserDeinitDone', 'DriveDeinitDone')
+  
+  await Promise.delay(500)
   await rimrafAsync(tmptest)
   await mkdirpAsync(tmpDir)
   broadcast.emit('FruitmixStart', tmptest) 
-  await broadcast.until('UserInitDone', 'DriveInitDone')
+  await broadcast.until('FruitmixStarted')
 }
 
 describe(path.basename(__filename), () => {
@@ -242,7 +240,6 @@ describe(path.basename(__filename), () => {
             .expect(200)
             .end((err, res) => {
               if (err) return done(err)
-              // console.log(res.body)
               done()
             })
         }))  
@@ -270,7 +267,6 @@ describe(path.basename(__filename), () => {
             .expect(200)
             .end((err, res) => {
               if (err) return done(err)
-              // console.log(res.body)
               done()
             })
         }))  
@@ -303,7 +299,6 @@ describe(path.basename(__filename), () => {
               .expect(200)
               .end((err, res) => {
                 if (err) return done(err)
-                // console.log(res.body)
                 done()
               })
             // done()
@@ -327,7 +322,6 @@ describe(path.basename(__filename), () => {
             .expect(200)
             .end((err, res) => {
               if (err) return done(err)
-              console.log(res.body)
               done()
             })
         }))
@@ -350,7 +344,6 @@ describe(path.basename(__filename), () => {
             .expect(200)
             .end((err, res) => {
               if (err) return done(err)
-              console.log(res.body)
               done()
             })
         }))
@@ -377,7 +370,6 @@ describe(path.basename(__filename), () => {
             .expect(200)
             .end((err, res) => {
               if (err) return done(err)
-              console.log(res.body)
               done()
             })
 

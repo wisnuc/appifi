@@ -2,46 +2,44 @@ const Promise = require('bluebird')
 const router = require('express').Router()
 const auth = require('../middleware/auth')
 const UUID = require('uuid')
+const getFruit = require('../fruitmix')
 
-const User = require('../models/user')
-const Drive = require('../models/drive')
+const EUnavail = Object.assign(new Error('fruitmix unavailable'), { status: 503 })
+const fruitless = (req, res, next) => getFruit() ? next() : next(EUnavail)
 
-router.get('/', (req, res, next) => {
+router.get('/', 
+  fruitless, 
 
-  if (req.get('Authorization')) return next()   
+  // for display users 
+  (req, res, next) => {
+    let fruit = getFruit()
+    if (req.get('Authorization')) return next()   
+    res.status(200).json(fruit.displayUsers())
+  }, 
+  auth.jwt(), 
+  // for authorized users
+  (req, res) => {
+    let fruit = getFruitmix()
+    // TODO
+  })
 
-  res.status(200).json(User.users.map(u => ({
-    uuid: u.uuid,
-    username: u.username,
-    avatar: u.avatar
-  })))
 
-}, auth.jwt(), (req, res) => {
-
-})
-
-const createUserWithDrivesAsync = async props => {
-
-  let user = await User.createUserAsync(props)
-  let drive = await Drive.createPrivateDriveAsync(user.uuid, 'home')
-  return user
-}
-
-router.post('/', (req, res, next) => {
-
-  if (User.users.length)
-    return next()
-
-  createUserWithDrivesAsync(req.body)
-    .then(user => res.status(200).json(user))
-    .catch(next)
-
-}, auth.jwt(), (req, res, next) => {
-
-  createUserWithDrivesAsync(req.body)
-    .then(user => res.status(200).json(user))
-    .catch(next)
-})
+router.post('/', 
+  fruitless, 
+  (req, res, next) => {
+    let fruit = getFruit()
+    if (fruit.hasUsers()) return next()
+    fruit.createUserAsync(req.body) 
+      .then(user => res.status(200).json(user))
+      .catch(next)
+  }, 
+  auth.jwt(), 
+  (req, res, next) => {
+    let fruit = getFruit()
+    fruit.createUserAsync(req.body) 
+      .then(user => res.status(200).json(user))
+      .catch(next)
+  })
 
 router.get('/:uuid', auth.jwt(), (req, res) => {
   
@@ -63,15 +61,11 @@ router.get('/:uuid', auth.jwt(), (req, res) => {
   res.status(403).end() // TODO message? 
 })
 
-router.patch('/:userUUID', auth.jwt(), (req, res, next) => {
-
+router.patch('/:userUUID', fruitless, auth.jwt(), (req, res, next) => {
+  let fruit = getFruit()
   let { userUUID } = req.params
-
-  if (!User.users.find(u => u.uuid === userUUID))
-    return res.status(404).end()
-
-  User.updateUserAsync(userUUID, req.body)
-    .then(user => res.status(200).json(user))  
+  fruit.updateUserAsync(req.user, userUUID, req.body)
+    .then(user => res.status(200).json(user))
     .catch(next)
 })
 

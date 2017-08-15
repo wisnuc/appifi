@@ -4,7 +4,7 @@ const BasicStrategy = require('passport-http').BasicStrategy
 const JwtStrategy = require('passport-jwt').Strategy
 const ExtractJwt = require('passport-jwt').ExtractJwt
 const secret = require('../config/passportJwt')
-const User = require('../models/user')
+const getFruit = require('../fruitmix')
 
 /*
 passport.use(new BasicStrategy((userUUID, password, done) => {
@@ -19,14 +19,26 @@ passport.use(new BasicStrategy((userUUID, password, done) => {
 }))
 */
 
-passport.use(new BasicStrategy(User.verifyPassword.bind(User)))
+let EFruitUnavail = new Error('fruitmix unavailable')
+
+// passport.use(new BasicStrategy(Fruit.verifyUserPassword.bind(Fruit)))
+
+passport.use(new BasicStrategy((userUUID, password, done) => {
+  let fruit = getFruit()
+  if (!fruit) return done(EFruitUnavail) 
+  fruit.verifyUserPassword(userUUID, password, done)
+}))
 
 passport.use(new JwtStrategy({
     secretOrKey: secret,
     jwtFromRequest: ExtractJwt.fromAuthHeader()
   }, 
   (jwt_payload, done) => {
-    let user = User.findUser(jwt_payload.uuid)    
+
+    let fruit = getFruit()
+    if (!fruit) return done(EFruitUnavail, false)
+
+    let user = fruit.findUserByUUID(jwt_payload.uuid)    
     user ? done(null, user) : done(null, false)
 }))
 
