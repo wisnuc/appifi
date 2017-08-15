@@ -279,23 +279,23 @@ router.post('/:boxUUID/tweets', auth, boxAuth, (req, res) => {
 
     form.on('fileBegin', (name, file) => {
       if (finished) return
-      if (type === 'list') {
-        let id = JSON.parse(file.name).id
-        let item = arr.find(i => i.id === id)
-        let digest
-        if (item) digest = item.sha256
+      // if (type === 'list') {
+      //   let id = JSON.parse(file.name).id
+      //   let item = arr.find(i => i.id === id)
+      //   let digest
+      //   if (item) digest = item.sha256
 
-        // name the file with its sha256 if exist, otherwise name with uuid
-        if (digest) file.path = path.join(box.tmpDir, digest)
-        else file.path = path.join(box.tmpDir, UUID.v4())
-      }
+      //   // name the file with its sha256 if exist, otherwise name with uuid
+      //   if (digest) file.path = path.join(box.tmpDir, digest)
+      //   else file.path = path.join(box.tmpDir, UUID.v4())
+      // }
       
-      if (type === 'blob') {
-        if (!Number.isInteger(size) || sha256 === undefined)
-        return finished = true && res.status(409).end()
+      // if (type === 'blob') {
+      //   if (!Number.isInteger(size) || sha256 === undefined)
+      //   return finished = true && res.status(409).end()
 
-        file.path = path.join(box.tmpDir, sha256)
-      }     
+        file.path = path.join(box.tmpDir, UUID.v4())
+      // }     
     })
 
     form.on('file', (name, file) => {
@@ -402,7 +402,7 @@ router.delete('/:boxUUID/tweets', auth, boxAuth, (req, res) => {
   let box = req.box
   let indexArr = req.body.indexArr
 
-  box.deleteTweetAsync(indexArr)
+  box.deleteTweetsAsync(indexArr)
     .then(() => res.status(200).end())
     .catch(err => res.status(500).json({ code: err.code, message: err.message }))
 })

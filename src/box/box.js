@@ -60,7 +60,10 @@ class Box {
         }
       })
 
-      let src = urls.map(i => i.filepath)
+      let src = urls1.map(i => {
+        let dirname = path.dirname(i.filepath)
+        return path.join(dirname, i.sha256)
+      })
       await blobStore.storeAsync(src)
     }
     
@@ -101,7 +104,7 @@ class Box {
    * delete tweets
    * @param {array} indexArr - index array of tweets to be deleted
    */
-  async deleteTweetAsync(indexArr) {
+  async deleteTweetsAsync(indexArr) {
     return await this.records.deleteAsync(indexArr)
   }
 
