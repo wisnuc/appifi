@@ -13,7 +13,9 @@ const Tickets = require('./tickets')
 // const { registerAsync } = require('./register')
 const { FILE, CONFIG } = require('./const')
 const broadcast = require('../../common/broadcast')
+const pipe = require('./pipe')
 const Connect = require('./connect')
+
 
 Promise.promisifyAll(fs)
 const mkdirpAsync = Promise.promisify(mkdirp)
@@ -194,7 +196,6 @@ class Station {
     let info = Object.assign({}, this.sa)
     info.connectState = this.connect.getState()
     info.pbk = this.publicKey
-    info.connectError = this.connect.error
     return info
   }
 
