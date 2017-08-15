@@ -13,7 +13,9 @@ const Tickets = require('./tickets')
 // const { registerAsync } = require('./register')
 const { FILE, CONFIG } = require('./const')
 const broadcast = require('../../common/broadcast')
+const pipe = require('./pipe')
 const Connect = require('./connect')
+
 
 Promise.promisifyAll(fs)
 const mkdirpAsync = Promise.promisify(mkdirp)
@@ -98,12 +100,13 @@ class Station {
         this.froot = froot
         broadcast.emit('StationRegisterFinish', this)
         broadcast.on('Connect_Connected', conn => {
-            //connect to cloud
+          //connect to cloud
           this.connect = Connect
           Tickets.init(this.sa, conn)
           this.token = conn.token
           this.tickets = Tickets
           this.initialized = true
+          
           broadcast.emit('StationStart', this)
         })
       }catch(e){
@@ -111,7 +114,16 @@ class Station {
       }
     })
 
-    broadcast.on('FruitmixStop', () => this.deinit())
+    // deinit
+    broadcast.on('FruitmixStop', this.deinit.bind(this))
+    broadcast.on('Connect_Disconnect', () => {
+      this.connect = undefined
+      this.token = undefined
+      Tickets.deinit()
+      this.tickets = undefined
+      this.initialized = false
+      broadcast.emit('StationStop', this)
+    })
   }
 
   deinit() {
@@ -184,7 +196,6 @@ class Station {
     let info = Object.assign({}, this.sa)
     info.connectState = this.connect.getState()
     info.pbk = this.publicKey
-    info.connectError = this.connect.error
     return info
   }
 

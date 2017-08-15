@@ -2,14 +2,16 @@ const EventEmitter = require('events').EventEmitter
 const crypto = require('crypto')
 const stream = require('stream')
 const fs = require('fs')
+const path = require('path')
 
 const request = require('superagent')
 const uuid = require('uuid')
+const debug = require('debug')('station')
+const Promise = require('bluebird')
 
 const requestAsync = require('./request').requestHelperAsync
-const Connect = require('./connect')
 const broadcast = require('../../common/broadcast')
-const boxData = require('../box/boxData')
+const boxData = require('../../box/boxData')
 const Config = require('./const').CONFIG
 
 const Transform = stream.Transform
@@ -22,7 +24,7 @@ class HashTransform extends Transform {
   }
 
   _transform(buf, enc, next) {
-    length += buf.length
+    this.length += buf.length
     this.hashStream.update(buf, enc)
     this.push(buf)
     next()
@@ -33,7 +35,7 @@ class HashTransform extends Transform {
   }
 }
 
-class StoreSingleFile extends EventEmitter {
+class StoreSingleFile {
   constructor(tmp, token, size, hash, jobId) {
     this.tmp = tmp
     this.size = size
@@ -42,25 +44,32 @@ class StoreSingleFile extends EventEmitter {
     this.jobId = jobId
   }
 
-  run() {
-    
+  async runAsync(url) {
+    return await this.storeFileAsync(url)
   }
 
-  storeFile(callback) {
+  async storeFileAsync(url)  {
+    return Promise.promisify(this.storeFile).bind(this)(url)
+  }
+
+  storeFile(url, callback) {
     let transform = new HashTransform()
     //TODO: define url
-    let url = ''
     let fpath = path.join(this.tmp, uuid.v4())
     let finished = false
 
+    debug('start store')
+
     let error = (err) => {
-      console.log(err)
+      debug(err)
       if (finished) return
       finished = true
+      debug('coming error')
       return callback(err)
     }
     let finish = (fpath) => {
       if (finished) return
+      debug('store finish')
       finished = true
       //TODO: check size sha256
       callback(null, fpath)
@@ -74,18 +83,19 @@ class StoreSingleFile extends EventEmitter {
 
     let req = request.get(url).set({ 'Authorization': this.token })
     let ws = fs.createWriteStream(fpath)
-    
+    debug('store req created')
     req.on('response', res => {
-      console.log('response')
+      debug('response', fpath)
       if(res.status !== 200){
+        debug('response error')
         error(res.error)
         ws.close()
       }
     })
-    req.on('error', error)
+    req.on('error', err => error(err))
     req.on('abort', () => error(new Error('EABORT')))
     ws.on('finish', () => finish(fpath))
-    ws.on('error', error())
+    ws.on('error', err => error(err))
 
     req.pipe(transform).pipe(ws)
   }
@@ -110,16 +120,16 @@ class StoreFiles {
 
   storeFiles(callback) {
     //TODO: define url
+    let url = ''
     let totalSize = 0
     this.sizeArr.forEach(s => totalSize += s)
     this.currentEndpoint = this.sizeArr[0] - 1 // 当前文件结束点
-    let url = ''
     let finished = false
     let fpathArr = []
     let hashMaker = new HashTransform()
     let fpath = path.join(this.tmp, uuid.v4())
-    let currentWriteable = fs.createWriteStream(fpath)
-    hashMaker.pipe(currentWriteable) // pipe
+    let ws = fs.createWriteStream(fpath)
+    hashMaker.pipe(ws) // pipe
 
     let error = (err) => {
       console.log(err)
@@ -127,11 +137,11 @@ class StoreFiles {
       finished = true
       return callback(err)
     }
-    let finish = (fpath) => {
+    let finish = (fpaths) => {
       if (finished) return
       finished = true
       //TODO: check size sha256
-      callback(null, fpath)
+      callback(null, fpaths)
     }
 
     let abort = () => {
@@ -143,7 +153,7 @@ class StoreFiles {
     let req = request.get(url).set({ 'Authorization': this.token })
     req.on('error', error)
     req.on('abort', () => error(new Error('EABORT')))
-    ws.on('finish', () => finish(fpath))
+    ws.on('finish', () => finish(fpathArr))
     ws.on('error', error())
     req.on('response', res => {
       console.log('response')
@@ -173,6 +183,11 @@ class StoreFiles {
             if(digest !== this.currentEndpointhashArr[this.currentIndex])
               return error(`${ this.currentIndex } hash mismatch`)
             
+            // save fpath
+            fpathArr.push(fpath)
+            if(fpathArr.length === this.sizeArr.length) 
+              return finish(fpathArr)
+
             //  create new instance
             fpath = path.join(this.tmp, uuid.v4())
             
@@ -220,32 +235,53 @@ class StoreFiles {
 
 class Pipe {
   constructor() {
-    this.froot = undefined
     this.tmp = undefined
+    this.connect = undefined
+    this.initialized = false
     this.init()
   }
 
   init() {
-    broadcast.on('FruitmixStart', froot => {
-      this.froot = froot
-      this.tmp = path.join(froot, 'tmp')
+    broadcast.on('Connect_Connected', connect => {
+      connect.register('pipe', this.handle.bind(this))
+      this.connect = connect
+      this.tmp = path.join(connect.froot, 'tmp')
+      this.initialized = true      
     })
-    broadcast.on('Connect_Connected', () => {
-      Connect.register('pipe', this.handle.bind(this))
+    // deinit
+    broadcast.on('Connect_Disconnect', () => {
+      this.connect = undefined
+      this.tmp = undefined
+      this.initialized = false
     })
   }
 
   handle(data) {
-    switch (data.type) {
+    let manifest = JSON.parse(data.manifest)
+    switch (manifest.type) {
       case 'createTextTweet':
         break
       case 'createBlobTweet':
         break
       case 'createListTweet':
         break
+      case 'test':{
+        this.test(data)
+          .then(res => {})
+          .catch(e => debug('test_error: ', e))
+      }
+        break
       default:
         break
     }
+  }
+
+  async test(data) {
+    debug(data)
+    let url = Config.CLOUD_PATH + 'v1/stations/' + this.connect.sa.id + '/response/' + data.jobId 
+    let store = new StoreSingleFile(this.tmp, this.connect.token, 10000, 'xxxx', data.jobId)
+    let fpath = await store.runAsync(url)
+    await this.successResponseAsync(1, data.jobId, { type: 'finish', message: 'fuck you'})
   }
 
   async createTextTweetAsync({ boxUUID, guid, comment }) {
@@ -256,22 +292,22 @@ class Pipe {
 
   }
 
-  async errorResponseAsync(error) {
-    let url = Config.CLOUD_PATH + '/station'
+  async errorResponseAsync(ip, jobId, error) {
+    let url = Config.CLOUD_PATH + 'v1/stations/' + this.connect.sa.id + '/response/' + jobId 
     let params = { code: error.code, message: error.message }
     await requestAsync('POST', url, { params }, {})
   }
 
-  async successResponseAsync(data) {
-    let url = Config.CLOUD_PATH + '/station'
+  async successResponseAsync(ip, jobId, data) {
+    let url = Config.CLOUD_PATH + 'v1/stations/' + this.connect.sa.id + '/pipe/' + jobId +'/response'
     let params = data
     await requestAsync('POST', url, { params }, {})
   }
 
-  async createBlobTweetAsync({ boxUUID, guid, comment, type, size, sha256 }) {
+  async createBlobTweetAsync({ boxUUID, guid, comment, type, size, sha256, jobId }) {
     // { comment, type: 'blob', id: sha256, global, path: file.path}
     //get blob
-
+    let storeFile = new StoreSingleFile(this.tmp, this.token, size, sha256, jobId)
   }
 
 

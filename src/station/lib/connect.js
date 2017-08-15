@@ -4,6 +4,7 @@ const debug = require('debug')('station')
 
 const client = require('socket.io-client')
 const ursa = require('ursa')
+const Promise = require('bluebird')
 
 const { FILE, CONFIG } = require('./const')
 const broadcast = require('../../common/broadcast')
@@ -22,13 +23,29 @@ function getSocket(address, saId, privateKey, callback) {
   let socket = client(address,{
       transports: ['websocket']
   })
+  
   let finished = false
-  let token, state = 'disconnect'
+  let state = 'disconnect'
+
+  let finish = (token) => {
+    if(finished) return
+    socket.removeAllListeners()
+    return callback(null, socket)
+  }
+
+  let error = (err) => {
+    if(finished) return
+    socket.close()
+    socket = null
+    return callback(err)
+  }
+
   socket.on('connect',() => {
     state = 'connecting'
     socket.emit('message', { type: 'requestLogin', data:{ id: saId } })
   })
   socket.on('message', (data) => {
+    debug(data)
     if(data.type === 'checkLogin'){
       let secretKey = ursa.createPrivateKey(privateKey)
       let seed  = secretKey.decrypt(data.data.encryptData, 'base64', 'utf8')
@@ -38,22 +55,32 @@ function getSocket(address, saId, privateKey, callback) {
       let success = data.data.success
       if(success){
         state = 'connected'
-        token = data.data.token
-      }else
-        this.disconnect()
+        socket.token = data.data.token
+        return finish()
+      }else{
+        socket.disconnect()
+        return error(new Error('login error'))
+      }
       debug(success)
     }
   })
   socket.on('disconnect', data => {
     state = 'disconnected'
+    return error(new Error('disconnect'))
   })
   socket.on('error', err => {
+    state = 'disconnected'
     debug('socket_error', err)
+    return error(err)
   })
   socket.on('connect_error', err => {
     state = 'disconnected'
+    debug('connect_error', err)
+    return error(err)
   })
 }
+
+let getSocketAsync = Promise.promisify(getSocket)
 
 class Connect { 
 
@@ -75,24 +102,35 @@ class Connect {
       this.sa = station.sa
       this.froot = station.froot
       this.privateKey = station.privateKey
-      this._connect(CONFIG.CLOUD_PATH)
       this.handler = new Map()
+      this.startConnectAsync(CONFIG.CLOUD_PATH)
+        .then(() => {})
+        .catch(e => { debug(e) })
     })
-    broadcast.on('StationStop', () => this.deinit())
+    broadcast.on('StationStop', () => {if(this.initialized) this.deinit()})
   }
 
   _changeState(state, error) {
-    if(state === CONNECT_STATE.DISCED && error)
-      this.error = error
-    else
-      this.error = null
+    if(state === CONNECT_STATE.DISCED && error) this.error = error
+    else this.error = null
+    
+    debug(1)
     this.state = state
-
+    debug(2)
     if(state === CONNECT_STATE.DISCED){
-      broadcast.emit('Connect_Disconnect', this)
+      if(this.socket) this.socket.close()
+      if(this.initialized){
+        this.socket = undefined
+        this.deinit()
+        broadcast.emit('Connect_Disconnect', this)
+      }
     }
-    if(state === CONNECT_STATE.CONNED)
+    debug(3)
+    debug(state)
+    if(state === CONNECT_STATE.CONNED){
+      debug(4)
       broadcast.emit('Connect_Connected', this)
+    }
   }
 
   deinit(){
@@ -110,73 +148,45 @@ class Connect {
     debug('connect deinit')
   }
 
-  _setToken(token) {
-    this.token = token
-    this.initialized = true
-  }
-
-  _connect(address) {
-    // console.log(this.state)
-    // console.log(this.socket)
+  async startConnectAsync(address) {
     if(this.socket && this.socket.connected) throw new　Error('Connent is connected now')
-    if(this.socket && this.socket.disconnected){
-      this._changeState(CONNECT_STATE.CONNING)
-      return this.socket.connect()
+    if(this.socket) socket.close()
+    this.socket = undefined
+    this._changeState(CONNECT_STATE.CONNING)
+    try{
+      this.socket = await getSocketAsync(address, this.sa.id, this.privateKey)
+      this._changeState(CONNECT_STATE.CONNED)
+      this.token = this.socket.token
+      this.initialized = true
+      debug('connect success')
+      this.socket.on('event', ((data) => {
+        this.dispatch(data.type, data)
+      }).bind(this))
+      this.socket.on('message', ((data) => {
+        this.dispatch(data.type, data.data)
+      }).bind(this))
+      this.socket.on('disconnect', data => {
+        this._changeState(CONNECT_STATE.DISCED)
+        debug('connent disconnect', data)
+      })
+      this.socket.on('error', err => {
+        debug('socket_error', err)
+        this._changeState(CONNECT_STATE.DISCED, err)
+      })
+      this.socket.on('connect_error', err => {
+        this._changeState(CONNECT_STATE.DISCED, err)
+      })
+    }catch(e){
+      debug(e)
+      this._changeState(CONNECT_STATE.DISCED, e)
     }
-      
-    this.socket = client(address,{
-      transports: ['websocket']
-    })
-    this.socket.on('connect', (() => {
-      this._changeState(CONNECT_STATE.CONNING)
-      debug('connent success')
-      if(this.socket)
-        this.send('requestLogin',{ id: this.sa.id})
-    }).bind(this))
-    this.socket.on('event', ((data) => {
-      this.dispatch(data.type, data)
-    }).bind(this))
-    this.socket.on('message', ((data) => {
-      this.dispatch(data.type, data.data)
-    }).bind(this))
-    this.socket.on('disconnect', data => {
-      this._changeState(CONNECT_STATE.DISCED)
-      debug('connent disconnect', data)
-    })
-    this.socket.on('error', err => {
-      debug('socket_error', err)
-    })
-    this.socket.on('connect_error', err => {
-      this._changeState(CONNECT_STATE.DISCED, err)
-    })
   }
 
   dispatch(eventType, data) {
-    debug('dispatch:', eventType, data)
-    if(eventType === 'checkLogin'){
-      let secretKey = ursa.createPrivateKey(this.privateKey)
-      let seed
-      try{
-        seed = secretKey.decrypt(data.encryptData, 'base64', 'utf8')
-        this.send('login', { seed })
-      }catch(e){
-        //TODO:
-        debug(e)
-      }
-    }
-    else if(eventType === 'login'){
-      let success = data.success
-      //TODO: token
-      if(success){
-        this._setToken(data.token)
-        this._changeState(CONNECT_STATE.CONNED)
-      }else
-        this.disconnect()
-      debug(success)
-    }else if(this.handler.has(eventType))
-      this.handler(eventType)(data)
+    if(this.handler.has(eventType))
+      this.handler.get(eventType)(data)
     else
-      debug('NOT FOUND EVENT HANDLER')
+      debug('NOT FOUND EVENT HANDLER', eventType, data)
   }
 
   send(eventType, data) {
@@ -189,6 +199,7 @@ class Connect {
       if(this.socket && this.socket.connected) {
         this._changeState(CONNECT_STATE.DISCING)
         this.socket.disconnect()
+        this.socket.close()
         this.socket = null
       } 
     }
@@ -196,7 +207,7 @@ class Connect {
 
   connect() {
     if(this.state === CONNECT_STATE.DISCED)
-      this._connect(CONFIG.CLOUD_PATH)
+      this.startConnectAsync(CONFIG.CLOUD_PATH).then(() => {})
   }
 
   getState(){
@@ -204,9 +215,7 @@ class Connect {
   }
 
   isConnected() {
-    if(this.state === CONNECT_STATE.CONNED)
-      return true
-    return false
+    return this.state === CONNECT_STATE.CONNED ? true : false
   }
 
   register(name, callback) {
