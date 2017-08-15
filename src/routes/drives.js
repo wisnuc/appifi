@@ -1,64 +1,58 @@
 const Promise = require('bluebird')
 const path = require('path')
-
 const router = require('express').Router()
-
 const auth = require('../middleware/auth')
-// const broadcast = require('../../common/broadcast')
 
-const Drive = require('../models/drive')
-const Forest = require('../forest/forest')
-// const { readXstatAsync } = require('../lib/xstat')
+const getFruit = require('../fruitmix')
+const Writedir = require('../tasks/writedir')
 
 const f = af => (req, res, next) => af(req, res).then(x => x, next)
 
-/**
-let fruitmixPath
-broadcast.on('FruitmixStart', froot => (fruitmixPath = froot))
-broadcast.on('FruitmixStop', () => (fruitmixPath = undefined))
-**/
+const EFruitUnavail = Object.assign(new Error('fruitmix unavailable'), { status: 503 })
+const fruitless = (req, res, next) => getFruit() ? next() : next(EFruitUnavail) 
 
 /**
 Get a fruitmix drive
 */
-router.get('/', auth.jwt(), (req, res) => {
-  let drives = Drive.drives.filter(drv => {
-    if (drv.type === 'private' && drv.owner === req.user.uuid) { return true }
-    if (drv.type === 'public') {
-      if (drv.writelist.includes(req.user.uuid) ||
-        drv.readlist.includes(req.user.uuid)) { return true }
-    }
-    return false
-  })
-
-  res.status(200).json(drives)
+router.get('/', fruitless, auth.jwt(), (req, res) => {
+  let fruit = getFruit()
+  res.status(200).json(fruit.getDrives(req.user))
 })
 
 /**
 Create a fruitmix drive
 */
-router.post('/', auth.jwt(), (req, res) => {
-  let props = req.body
-  Drive.createPublicDriveAsync(props)
+router.post('/', fruitless, auth.jwt(), (req, res, next) => 
+  getFruit().createPublicDriveAsync(req.user, req.body)
     .then(drive => res.status(200).json(drive))
-    .catch(e => res.status(500).json({ code: e.code, message: e.message }))
-})
+    .catch(next))
 
 /**
 010 GET dirs
 */
-router.get('/:driveUUID/dirs', auth.jwt(), (req, res) => {
+router.get('/:driveUUID/dirs', fruitless, auth.jwt(), (req, res, next) => {
+
+/**
   let { driveUUID } = req.params
-
   if (!Forest.roots.has(driveUUID)) { return res.status(404).end() }
-
   res.status(200).json(Forest.getDriveDirs(driveUUID))
+**/
+
+  try {
+    let dirs = getFruit().getDriveDirs(req.user, req.params.driveUUID)
+
+    res.status(200).json(dirs)
+  } catch (e) {
+    next(e)
+  }
 })
 
 /**
 020 GET single dir
 */
-router.get('/:driveUUID/dirs/:dirUUID', auth.jwt(), f(async(req, res) => {
+router.get('/:driveUUID/dirs/:dirUUID', fruitless, auth.jwt(), f(async(req, res) => {
+
+/**
   let { driveUUID, dirUUID } = req.params
   let dir = Forest.getDriveDir(driveUUID, dirUUID)
   if (!dir) { return res.status(404).end() }
@@ -69,21 +63,30 @@ router.get('/:driveUUID/dirs/:dirUUID', auth.jwt(), f(async(req, res) => {
     name: dir.name,
     mtime: Math.abs(dir.mtime)
   }))
+**/
 
+    let r = await getFruit().getDriveDirAsync(req.user, req.params.driveUUID, req.params.dirUUID)
+
+    // console.log('-------------------', r)
+
+    res.status(200).json(r)
+/**
   res.status(200).json({
     path: nav,
     entries: list
   })
+**/
 }))
 
 /**
 030 POST dir entries
 */
-router.post('/:driveUUID/dirs/:dirUUID/entries', auth.jwt(), (req, res, next) => {
+router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, res, next) => {
   if (!req.is('multipart/form-data')) {
     return res.status(415).json({ message: 'must be multipart/form-data' })
   }
 
+/**
   let { driveUUID, dirUUID } = req.params
   let dir = Forest.getDriveDir(driveUUID, dirUUID)
   if (!dir) { return res.status(404).end() }
@@ -98,6 +101,15 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', auth.jwt(), (req, res, next) =>
     } else {
       res.status(200).end()
     }
+  })
+**/
+
+  let writer = new Writedir(req)
+  writer.on('finish', () => {
+    if (writer.error) 
+      next(writer.error)
+    else
+      res.status(200).end()
   })
 })
 
@@ -116,6 +128,8 @@ router.get('/:driveUUID/dirs/:dirUUID/entries/:entryUUID', auth.jwt(), f(async (
 
   res.status(200).sendFile(filePath)
 }))
+
+
 
 module.exports = router
 

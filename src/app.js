@@ -10,6 +10,9 @@ const settings = require('./system/settings')
 
 const app = express()
 
+let { NODE_ENV, NODE_PATH } = process.env
+const isAutoTesting = NODE_ENV === 'test' && NODE_PATH !== undefined
+
 const config = require('./system/config')
 const barcelona = require('./system/barcelona')
 const system = require('./system/system')
@@ -61,15 +64,12 @@ app.use(function(req, res, next) {
 
 // error handlers
 app.use(function(err, req, res, next) {
-  if (err && process.env.NODE_ENV === 'test') console.log(err)
+  if (err && process.env.NODE_ENV === 'test' && !NODE_PATH) console.log(err)
   res.status(err.status || 500).json({
     code: err.code,
     message: err.message
   })
 })
-
-let { NODE_ENV, NODE_PATH } = process.env
-const isAutoTesting = NODE_ENV === 'test' && NODE_PATH !== undefined
 
 if (NODE_PATH) app.nolog = true
 

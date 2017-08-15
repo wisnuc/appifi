@@ -38,16 +38,14 @@ const resetAsync = async () => {
 
   broadcast.emit('FruitmixStop')
 
-  await broadcast.until('UserDeinitDone', 'DriveDeinitDone')
+  await Promise.delay(100)
 
   await rimrafAsync(tmptest)
   await mkdirpAsync(tmpDir)
 
   broadcast.emit('FruitmixStart', tmptest) 
-
-  await broadcast.until('UserInitDone', 'DriveInitDone')
+  await broadcast.until('FruitmixStarted')
 }
-
 
 describe(path.basename(__filename), () => {
 
@@ -150,7 +148,7 @@ describe(path.basename(__filename), () => {
         .expect(200)
         .end(done)
     })
-
+/**
     it("GET /drives should return alice's home drive", async() => 
       request(app)
         .get('/drives')
@@ -163,6 +161,7 @@ describe(path.basename(__filename), () => {
           owner: IDS.alice.uuid,
           tag: 'home'
         }]))
+**/
 
     // TODO move to other place
     it("PATCH /users/:userUUID alice set global", async () =>
@@ -218,7 +217,7 @@ describe(path.basename(__filename), () => {
     })
 
     it ("GET /drives should returns ONLY bob home with bob's token", async () => {
-      request(app)
+      return request(app)
         .get('/drives')      
         .set('Authorization', 'JWT ' + bobToken)
         .expect(200)
@@ -232,7 +231,7 @@ describe(path.basename(__filename), () => {
     })
 
     it ("GET /drives should returns ONLY alice home with alice's token", async () => {
-      request(app)
+      return request(app)
         .get('/drives')      
         .set('Authorization', 'JWT ' + aliceToken)
         .expect(200)
@@ -334,6 +333,7 @@ describe(path.basename(__filename), () => {
         ]))
 
   })
+
 })
 
 
