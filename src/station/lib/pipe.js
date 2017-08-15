@@ -110,16 +110,16 @@ class StoreFiles {
 
   storeFiles(callback) {
     //TODO: define url
+    let url = ''
     let totalSize = 0
     this.sizeArr.forEach(s => totalSize += s)
     this.currentEndpoint = this.sizeArr[0] - 1 // 当前文件结束点
-    let url = ''
     let finished = false
     let fpathArr = []
     let hashMaker = new HashTransform()
     let fpath = path.join(this.tmp, uuid.v4())
-    let currentWriteable = fs.createWriteStream(fpath)
-    hashMaker.pipe(currentWriteable) // pipe
+    let ws = fs.createWriteStream(fpath)
+    hashMaker.pipe(ws) // pipe
 
     let error = (err) => {
       console.log(err)
@@ -127,11 +127,11 @@ class StoreFiles {
       finished = true
       return callback(err)
     }
-    let finish = (fpath) => {
+    let finish = (fpaths) => {
       if (finished) return
       finished = true
       //TODO: check size sha256
-      callback(null, fpath)
+      callback(null, fpaths)
     }
 
     let abort = () => {
@@ -143,7 +143,7 @@ class StoreFiles {
     let req = request.get(url).set({ 'Authorization': this.token })
     req.on('error', error)
     req.on('abort', () => error(new Error('EABORT')))
-    ws.on('finish', () => finish(fpath))
+    ws.on('finish', () => finish(fpathArr))
     ws.on('error', error())
     req.on('response', res => {
       console.log('response')
@@ -173,6 +173,11 @@ class StoreFiles {
             if(digest !== this.currentEndpointhashArr[this.currentIndex])
               return error(`${ this.currentIndex } hash mismatch`)
             
+            // save fpath
+            fpathArr.push(fpath)
+            if(fpathArr.length === this.sizeArr.length) 
+              return finish(fpathArr)
+
             //  create new instance
             fpath = path.join(this.tmp, uuid.v4())
             
@@ -222,16 +227,21 @@ class Pipe {
   constructor() {
     this.froot = undefined
     this.tmp = undefined
+    this.token = undefined
+    this.initialized = false
     this.init()
   }
 
   init() {
-    broadcast.on('FruitmixStart', froot => {
-      this.froot = froot
-      this.tmp = path.join(froot, 'tmp')
-    })
     broadcast.on('Connect_Connected', () => {
       Connect.register('pipe', this.handle.bind(this))
+      this.token = Connect.token
+      this.initialized = true
+    })
+    // deinit
+    broadcast.on('Connect_Disconnect', () => {
+      this.token = undefined
+      this.initialized = false
     })
   }
 
@@ -268,10 +278,10 @@ class Pipe {
     await requestAsync('POST', url, { params }, {})
   }
 
-  async createBlobTweetAsync({ boxUUID, guid, comment, type, size, sha256 }) {
+  async createBlobTweetAsync({ boxUUID, guid, comment, type, size, sha256, jobId }) {
     // { comment, type: 'blob', id: sha256, global, path: file.path}
     //get blob
-
+    let storeFile = new StoreSingleFile(this.tmp, this.token, size, sha256, jobId)
   }
 
 
