@@ -140,19 +140,31 @@ describe(path.basename(__filename), () => {
         .set('Authorization', 'JWT ' + token)
         .send({ 
           type: 'copy',
-          src: IDS.alice.home,
-          dst: dir2UUID,
+          src: {
+            drive: IDS.alice.home,
+            dir: IDS.alice.home
+          },
+          dst: {
+            drive: IDS.alice.home,
+            dir: dir2UUID,
+          },
           entries: [ homeAlonzoUUID ]
         })
         .expect(200)
         .end((err, res) => {
-          delete res.body.uuid
-          expect(res.body).to.deep.equal({
+
+          let { uuid, user, type, src, dst, entries } = res.body
+          expect({ user, type, src, dst }).to.deep.equal({
             user: IDS.alice.uuid,
             type: 'copy',
-            src: IDS.alice.home,
-            dst: dir2UUID,
-            entries: [ homeAlonzoUUID ]
+            src: {
+              drive: IDS.alice.home,
+              dir: IDS.alice.home,
+            },
+            dst: {
+              drive: IDS.alice.home,
+              dir: dir2UUID
+            },
           })
           done()
         })
@@ -168,32 +180,100 @@ describe(path.basename(__filename), () => {
         .set('Authorization', 'JWT ' + token)
         .send({ 
           type: 'copy',
-          src: IDS.alice.home,
-          dst: dir2UUID,
+          src: {
+            drive: IDS.alice.home,
+            dir: IDS.alice.home
+          },
+          dst: {
+            drive: IDS.alice.home,
+            dir: dir2UUID,
+          },
           entries: [ homeAlonzoUUID ]
         })
         .expect(200)
         .end((err, res) => {
 
-          setTimeout(() => {
-            request(app)
-              .get(`/tasks`)
-              .set('Authorization', 'JWT ' + token)
-              .expect(200)
-              .end((err, res) => {
-                res.body.forEach(t => { delete t.uuid })
-                expect(res.body).to.deep.equal([{
-                  user: IDS.alice.uuid,
-                  type: 'copy',
-                  src: IDS.alice.home,
-                  dst: dir2UUID,
-                  entries: [ homeAlonzoUUID ]
-                }])
+          request(app)
+            .get(`/tasks`)
+            .set('Authorization', 'JWT ' + token)
+            .expect(200)
+            .end((err, res) => {
+              if (err) return done(err)
 
-                done()
+              expect(res.body).to.be.an('array')
+              expect(res.body.length).to.equal(1)
+
+              let { uuid, user, type, src, dst, entries } = res.body[0]
+              expect({ user, type, src, dst }).to.deep.equal({
+                user: IDS.alice.uuid,
+                type: 'copy',
+                src: {
+                  drive: IDS.alice.home,
+                  dir: IDS.alice.home,
+                },
+                dst: {
+                  drive: IDS.alice.home,
+                  dir: dir2UUID
+                },
               })
+
+              done()
+            })
               
-          }, 1000)
+        })
+    })
+
+    it("create task, copy home alonzo to dir2, wait and get tasks", function (done) {
+      this.timeout(5000)
+
+      let { alonzo, bar, empty, foo, hello, vpai001, world } = FILES
+      let homeAlonzoUUID = home.entries.find(x => x.name === alonzo.name).uuid
+      request(app)
+        .post(`/tasks`)
+        .set('Authorization', 'JWT ' + token)
+        .send({ 
+          type: 'copy',
+          src: {
+            drive: IDS.alice.home,
+            dir: IDS.alice.home
+          },
+          dst: {
+            drive: IDS.alice.home,
+            dir: dir2UUID,
+          },
+          entries: [ homeAlonzoUUID, dir1UUID ]
+        })
+        .expect(200)
+        .end((err, res) => {
+
+          setTimeout(() => request(app)
+            .get(`/tasks`)
+            .set('Authorization', 'JWT ' + token)
+            .expect(200)
+            .end((err, res) => {
+              if (err) return done(err)
+
+              expect(res.body).to.be.an('array')
+              expect(res.body.length).to.equal(1)
+
+              let { uuid, user, type, src, dst, entries } = res.body[0]
+              expect({ user, type, src, dst }).to.deep.equal({
+                user: IDS.alice.uuid,
+                type: 'copy',
+                src: {
+                  drive: IDS.alice.home,
+                  dir: IDS.alice.home,
+                },
+                dst: {
+                  drive: IDS.alice.home,
+                  dir: dir2UUID
+                },
+              })
+
+              done()
+
+            }), 2000)
+              
         })
     })
   })

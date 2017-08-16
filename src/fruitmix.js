@@ -133,6 +133,30 @@ class Fruitmix extends EventEmitter {
       .map(t => t.view())
   }
 
+  async createTaskAsync (user, props) {
+    if (typeof props !== 'object' || props === null)
+      throw new Error('invalid')
+
+    let src, dst, task
+    switch(props.type) {
+    case 'copy':
+      src = await this.getDriveDirAsync(user, props.src.drive, props.src.dir) 
+      dst = await this.getDriveDirAsync(user, props.dst.drive, props.dst.dir)
+      let entries = props.entries.map(uuid => {
+        let xstat = src.entries.find(x => x.uuid === uuid)
+        if (!xstat) throw new Error('entry not found')
+        return xstat
+      })
+
+      task = new CopyTask(this, user, Object.assign({}, props, { entries }))
+      this.tasks.push(task)
+      return task.view()
+
+    default:
+      throw new Error('invalid task type')
+    } 
+  }
+
   createTask (user, props, callback) {
     if (typeof props !== 'object' || props === null) {
       return process.nextTick(() => callback(new Error('invalid')))
@@ -142,14 +166,25 @@ class Fruitmix extends EventEmitter {
 
     switch(props.type) {
     case 'copy':
-      task = new CopyTask(user, props)
-      this.tasks.push(task)
+      this.getDriveDirAsync(user, props.src.drive, props.src.dir)
+        .then(src => {
+          this.getDriveDirAsync(user, props.dst.drive, props.dst.dir)
+            .then(dst => {
+              console.log(dst)
+            })
+            .catch(callback)
+        })
+        .catch(callback)
+
+      // this.getDriveDir
+      // task = new CopyTask(this, user, props)
+      // this.tasks.push(task)
       break
     default:
       return process.nextTick(() => callback(new Error('invalid')))
     }
 
-    process.nextTick(() => callback(null, task.view()))
+    // process.nextTick(() => callback(null, task.view()))
   }
 }
 
