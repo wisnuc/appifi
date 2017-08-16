@@ -8,6 +8,9 @@ const mkdirpAsync = Promise.promisify(mkdirp)
 const rimraf = require('rimraf')
 const rimrafAsync = Promise.promisify(rimraf)
 const log = require('winston')
+const UUID = require('uuid')
+const deepFreeze = require('deep-freeze')
+const { saveObjectAsync } = require('../fruitmix/lib/utils')
 
 const Node = require('./node')
 const File = require('./file')
@@ -15,7 +18,6 @@ const Directory = require('./directory')
 
 const { readXstatAsync, forceXstatAsync } = require('../lib/xstat')
 
-const broadcast = require('../common/broadcast')
 
 /**
 Forest is a collection of file system cache for each `Drive` defined in Fruitmix.
@@ -50,39 +52,111 @@ In either case, a `read` on the `Directory` object is enough.
 */
 class Forest extends EventEmitter {
 
-  constructor() {
-
+  constructor(froot) {
     super()
 
-    this.initialized = false
+    // TODO validate
+
+    deepFreeze(this.drives)
+    this.lock = false
 
     /**
     Absolute path of Fruitmix drive directory 
     */
-    this.dir = undefined
+    this.dir = path.join(froot, 'drives')
 
     /**
     The collection of drive cache. Using Map for better performance 
     */ 
-    this.roots = undefined
+    this.roots = new Map()
 
     /**
     Indexing all directories by uuid
     */
-    this.uuidMap = undefined
+    this.uuidMap = new Map()
 
     /**
     Indexing all media files by file hash
     */
-    this.hashMap = undefined
+    this.hashMap = new Map()
 
-    broadcast.on('FruitmixStart', froot => this.init(path.join(froot, 'drives')))
-    broadcast.on('FruitmixStop', () => this.deinit())
+    this.filePath = path.join(froot, 'drives.json')
+    this.tmpDir = path.join(froot, 'tmp')
 
-    broadcast.on('DriveCreated', drive => 
-      this.createDriveAsync(drive)
-        .then(x => x, err => console.log(err)))
+    try {
+      this.drives = JSON.parse(fs.readFileSync(this.filePath))
+    } catch (e) {
+      if (e.code !== 'ENOENT') throw e
+      this.drives = []
+    }
+
+    this.drives.forEach(drive => this.createDriveAsync(drive).then(x => x))
   }
+
+  async commitDrivesAsync(currDrives, nextDrives) {
+  
+    if (currDrives !== this.drives) throw E.ECOMMITFAIL()
+    if (this.lock === true) throw E.ECOMMITFAIL() 
+
+    this.lock = true
+    try {
+      await saveObjectAsync(this.filePath, this.tmpDir, nextDrives)
+      this.drives = nextDrives
+      deepFreeze(this.drives)
+    }
+    finally {
+      this.lock = false
+    }
+  }
+
+  async createPrivateDriveAsync(owner, tag) {
+
+    let drive = { 
+      uuid: UUID.v4(), 
+      type: 'private', 
+      owner, 
+      tag,
+      // label: '' // FIXME
+    }
+
+    let nextDrives = [...this.drives, drive]
+    await this.commitDrivesAsync(this.drives, nextDrives)
+    this.drives = nextDrives
+    deepFreeze(this.drives)
+
+    // broadcast.emit('DriveCreated', drive)    
+    await this.createDriveAsync(drive)
+    return drive
+  }
+
+  async createPublicDriveAsync(props) {
+
+    let drive = {
+      uuid: UUID.v4(),
+      type: 'public',
+      writelist: props.writelist || [],
+      readlist: props.readlist || [], 
+      label: props.label || ''
+    }
+
+    let nextDrives = [...this.drives, drive]
+    await this.commitDrivesAsync(this.drives, nextDrives)
+    this.drives = nextDrives
+    deepFreeze(this.drives)
+
+    await this.createDriveAsync(drive)
+    return drive 
+  } 
+
+  async updatePublicDrive(driveUUID, props) {
+    
+    let drive = this.drives.find(drv => drv.uuid === driveUUID)
+    if (!drive) throw new Error('not found')
+    if (drive.type === 'private') throw new E.EFORBIDDEN()
+    // something  
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
 
   isRoot(dir) {
     return this.roots.get(dir.uuid) === dir
@@ -144,38 +218,6 @@ class Forest extends EventEmitter {
   unindex(file) {
     this.hashMap.get(file.hash).delete(file)
   }
-
-  /**
-  Initialize 
-
-  @param {string} drivesDir
-  */
-  init(dir) {
-
-    if (this.initialized) throw new Error('forest already initialized')
-
-    this.initialized = true
-    this.dir = dir
-    this.roots = new Map()
-    this.uuidMap = new Map()
-    this.hashMap = new Map()
-
-    process.nextTick(() => broadcast.emit('ForestInitDone'))
-  }
-
-  /**
-  Deinitialize, destroy everything
-  */
-  deinit() {
-
-    this.initialized = false
-    this.dir = undefined
-    this.roots = undefined
-    this.uuidMap = undefined
-    this.hashMap = undefined
-  }
-
-  
 
   /**
   Create the file system cache for given `Drive` 
@@ -317,5 +359,5 @@ class Forest extends EventEmitter {
   }
 }
 
-module.exports = new Forest()
+module.exports = Forest
 

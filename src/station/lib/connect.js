@@ -113,9 +113,10 @@ class Connect {
   _changeState(state, error) {
     if(state === CONNECT_STATE.DISCED && error) this.error = error
     else this.error = null
-
+    
+    debug(1)
     this.state = state
-
+    debug(2)
     if(state === CONNECT_STATE.DISCED){
       if(this.socket) this.socket.close()
       if(this.initialized){
@@ -124,12 +125,15 @@ class Connect {
         broadcast.emit('Connect_Disconnect', this)
       }
     }
-    if(state === CONNECT_STATE.CONNED)
+    debug(3)
+    debug(state)
+    if(state === CONNECT_STATE.CONNED){
+      debug(4)
       broadcast.emit('Connect_Connected', this)
+    }
   }
 
   deinit(){
-    debug('ddddddddddddddddddddd')
     this.disconnect()
     this.error = null
     this.froot = null
@@ -151,6 +155,7 @@ class Connect {
     this._changeState(CONNECT_STATE.CONNING)
     try{
       this.socket = await getSocketAsync(address, this.sa.id, this.privateKey)
+      this._changeState(CONNECT_STATE.CONNED)
       this.token = this.socket.token
       this.initialized = true
       debug('connect success')
@@ -172,15 +177,16 @@ class Connect {
         this._changeState(CONNECT_STATE.DISCED, err)
       })
     }catch(e){
+      debug(e)
       this._changeState(CONNECT_STATE.DISCED, e)
     }
   }
 
   dispatch(eventType, data) {
     if(this.handler.has(eventType))
-      this.handler(eventType)(data)
+      this.handler.get(eventType)(data)
     else
-      debug('NOT FOUND EVENT HANDLER')
+      debug('NOT FOUND EVENT HANDLER', eventType, data)
   }
 
   send(eventType, data) {

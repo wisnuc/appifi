@@ -1,5 +1,5 @@
-const path = require('path')
 const Promise = require('bluebird')
+const path = require('path')
 const fs = Promise.promisifyAll(require('fs'))
 const EventEmitter = require('events')
 const bcrypt = require('bcrypt')
@@ -132,37 +132,28 @@ Internally, opportunistic lock is used to avoid race for transactional file oper
 class UserList extends EventEmitter {
 
   /**
-  Construct an uninitialized UserList. 
   */
   constructor(froot) {
 
     super()
 
-    this.initialized = false
+    this.filePath = path.join(froot, 'users.json')
+    this.tmpDir = path.join(froot, 'tmp')
 
-    this.fpath = undefined
+    try {
+      this.users = JSON.parse(fs.readFileSync(this.filePath))
+    } catch (e) {
+      if (e.code !== 'ENOENT') throw e
+      this.users = []
+    }
 
-    this.tmpDir = undefined
+    // TODO validate
+    deepFreeze(this.users)
 
     /**
     @member {boolean} lock - internal file operation lock
     */
     this.lock = false
-
-    /**
-    @member 
-    */
-    this.users = []
-    deepFreeze(this.users)
-
-    broadcast.on('FruitmixStart', froot => {
-
-      let filePath = path.join(froot, 'users.json') 
-      let tmpDir = path.join(froot, 'tmp')
-      this.init(filePath, tmpDir)
-    })
-
-    broadcast.on('FruitmixStop', () => this.deinit())
   }
 
   /**
@@ -198,63 +189,6 @@ class UserList extends EventEmitter {
     })
   }
 
-  /** 
-  Load users from file. If file does not exist, set users to [].
-
-  @param {string} fpath - absolute path of user json file
-  @param {string} tmpDir - temp file directory
-  @todo do integrity check
-  **/
-  init(fpath, tmpDir) {
-
-    if (this.initialized) 
-      throw new Error('user module already initialized')
-
-    fs.readFile(fpath, (err, data) => {
-
-      if (err) {
-
-        if (err.code === 'ENOENT') {
-          this.users = []
-        }
-        else {
-          console.log(err) // TODO
-          broadcast.emit('UserInitDone', err)
-          return
-        }
-      } 
-      else {
-
-        try {
-          this.users = JSON.parse(data)
-        }
-        catch (err) {
-          console.log(err)
-          broadcast.emit('UserInitDone', err)
-          return
-        }
-      }
-
-      deepFreeze(this.users) 
-      this.fpath = fpath
-      this.tmpDir = tmpDir
-
-      this.initialized = true
-      broadcast.emit('UserInitDone')
-    })
-  }
-
-  deinit() {
-    
-    this.initialized = false 
-
-    this.fpath = undefined
-    this.tmpDir = undefined
-    this.users = []
-
-    process.nextTick(() => broadcast.emit('UserDeinitDone'))
-  }
-
   /**
   Save users to file. This operation use opportunistic lock.
 
@@ -274,7 +208,7 @@ class UserList extends EventEmitter {
     try {
 
       // save to file
-      await saveObjectAsync(this.fpath, this.tmpDir, nextUsers)
+      await saveObjectAsync(this.filePath, this.tmpDir, nextUsers)
 
       // update in-memory object
       this.users = nextUsers
@@ -389,5 +323,5 @@ class UserList extends EventEmitter {
   }
 }
 
-module.exports = new UserList()
+module.exports = UserList
 
