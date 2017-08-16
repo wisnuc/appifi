@@ -325,7 +325,7 @@ describe(path.basename(__filename), () => {
         .expect(200)
         .end((err, res) => {
           if (err) return done(err)
-          expect(res.body.uuid).to.equal(uuid_1)
+          expect(res.body.uuid).to.equal(uuid_2)
           expect(res.body.tweeter).to.equal(IDS.alice.global)
           expect(res.body.comment).to.equal('hello')
           expect(res.body.type).to.equal('blob')
@@ -353,7 +353,7 @@ describe(path.basename(__filename), () => {
         .end((err, res) => {
           if (err) return done(err)
           // consume uuid.v4: create box, upload two file(tpm path, twice)
-          expect(res.body.uuid).to.equal(uuid_1)
+          expect(res.body.uuid).to.equal(uuid_3)
           expect(res.body.tweeter).to.equal(IDS.alice.global)
           expect(res.body.comment).to.equal('hello')
           expect(res.body.type).to.equal('list')

@@ -43,16 +43,16 @@ class Box {
    * @return {Object} tweet object
    */
   async createTweetAsync(props) {
-    let path = props.path  // path contains all files uploaded
+    let src = props.src  // src contains all files uploaded
     // filter out the files which are already in repo
     let urls
-    if (path) {
-      urls = path.filter(p => {
-        let target = blobStore.retrieve(p.sha256)
+    if (src) {
+      urls = src.filter(s => {
+        let target = blobStore.retrieve(s.sha256)
         try {
           let stats = fs.lstatSync(target)
           // remove the file in tmpdir which is already in repo
-          rimraf(p.filepath, () => {})
+          rimraf(s.filepath, () => {})
           return
         } catch (e) {
           if (e.code !== 'ENOENT') throw e
@@ -60,11 +60,13 @@ class Box {
         }
       })
 
-      let src = urls1.map(i => {
-        let dirname = path.dirname(i.filepath)
-        return path.join(dirname, i.sha256)
+      urls = urls.map(u => {
+        let dirname = path.dirname(u.filepath)
+        let newpath = path.join(dirname, u.sha256)
+        fs.renameSync(u.filepath, newpath)
+        return newpath
       })
-      await blobStore.storeAsync(src)
+      await blobStore.storeAsync(urls)
     }
     
     let tweet = {

@@ -324,10 +324,10 @@ router.post('/:boxUUID/tweets', auth, boxAuth, (req, res) => {
         if (req.user) global = req.user.global
         else global = req.guest.global
 
-        if(type === 'blob') props = { comment, type, id: sha256, global, path: urls}
+        if(type === 'blob') props = { comment, type, id: sha256, global, src: urls}
         else {
           let list = obj.list.map(i => { return {sha256: i.sha256, filename: i.filename} })
-          props = {comment, type, list, global, path: urls}
+          props = {comment, type, list, global, src: urls}
         }
 
         box.createTweetAsync(props)
