@@ -19,7 +19,7 @@ router.get('/',
   auth.jwt(), 
   // for authorized users
   (req, res) => {
-    let fruit = getFruitmix()
+    let fruit = getFruit()
     // TODO
   })
 

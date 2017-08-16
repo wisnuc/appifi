@@ -101,7 +101,6 @@ class Fruitmix extends EventEmitter {
   async getDriveDirAsync (user, driveUUID, dirUUID) {
     let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
     if (!dir) throw Object.assign(new Error('drive or dir not found'), { status: 404 })
-
     return {
       path: dir.nodepath().map(dir => ({
         uuid: dir.uuid,
@@ -122,7 +121,6 @@ class Fruitmix extends EventEmitter {
     return path.join(this.fruitmixPath, 'tmp')
   }
 
-  // postDriveDir (user, req)
 }
 
 const broadcast = require('./common/broadcast')

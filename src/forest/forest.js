@@ -55,16 +55,6 @@ class Forest extends EventEmitter {
   constructor(froot) {
     super()
 
-    this.filePath = path.join(froot, 'drives.json')
-    this.tmpDir = path.join(froot, 'tmp')
-
-    try {
-      this.drives = JSON.parse(fs.readFileSync(this.filePath))
-    } catch (e) {
-      if (e.code !== 'ENOENT') throw e
-      this.drives = []
-    }
-
     // TODO validate
 
     deepFreeze(this.drives)
@@ -89,6 +79,18 @@ class Forest extends EventEmitter {
     Indexing all media files by file hash
     */
     this.hashMap = new Map()
+
+    this.filePath = path.join(froot, 'drives.json')
+    this.tmpDir = path.join(froot, 'tmp')
+
+    try {
+      this.drives = JSON.parse(fs.readFileSync(this.filePath))
+    } catch (e) {
+      if (e.code !== 'ENOENT') throw e
+      this.drives = []
+    }
+
+    this.drives.forEach(drive => this.createDriveAsync(drive).then(x => x))
   }
 
   async commitDrivesAsync(currDrives, nextDrives) {
