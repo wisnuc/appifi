@@ -8,14 +8,13 @@ const mkdirp = require('mkdirp')
 const rimraf = require('rimraf')
 const request = require('superagent')
 const debug = require('debug')('station')
-const Tickets = require('./tickets')
 
 // const { registerAsync } = require('./register')
 const { FILE, CONFIG } = require('./const')
 const broadcast = require('../../common/broadcast')
-const pipe = require('./pipe')
-const Connect = require('./connect')
-
+const Pipe = require('./pipe')
+const { Connect, CONNECT_STATE } = require('./connect')
+const Tickets = require('./tickets').Tickets
 
 Promise.promisifyAll(fs)
 const mkdirpAsync = Promise.promisify(mkdirp)
@@ -23,16 +22,63 @@ const rimrafAsync = Promise.promisify(rimraf)
 
 class Station {
   constructor(){
-    this.initialized = false
+    this.froot = undefined
     this.pbkPath = undefined
     this.pvkPath = undefined
     this.publicKey = undefined
     this.privateKey = undefined
     this.sa = undefined
-    this.token = undefined
     this.connect = undefined
-    this.froot = undefined
+    this.pipe = undefined
+    this.initialized = false
     this.init()
+  }                                                  
+  
+  init() {
+    broadcast.on('FruitmixStart', async (froot) => {
+      this.froot = froot
+      await this.startAsync(froot) // init station for keys
+      try{
+        debug('station start building')
+        // await this.registerAsync(froot)
+        this.sa = {
+          id: '123456'
+        }
+        //connect to cloud
+        this.connect = new Connect(this) 
+        this.connect.on('ConnectStateChange', state => {
+          debug('state change :', state)
+          this.initialized = (state === CONNECT_STATE.CONNED) ? true : false
+        })
+        this.tickets = new Tickets(this.sa.id, this.connect)
+        this.pipe = new Pipe(path.join(froot, 'tmp'), this.connect)
+        this.initialized = true
+
+        await this.connect.initAsync() // connect to cloud and get token
+        broadcast.emit('StationStart', this)
+      }catch(e){
+        debug('Station start error!',e)
+      }
+    })
+    // deinit
+    broadcast.on('FruitmixStop', this.deinit.bind(this))
+  }
+
+  deinit() {
+    this.publicKey = undefined
+    this.privateKey = undefined
+    this.sa = undefined
+    this.froot = undefined
+    this.pbkPath = undefined
+    this.pvkPath = undefined
+    if(this.initialized)
+      this.connect.deinit()
+    this.connect = undefined
+    this.tickets = undefined
+    this.pipe = undefined
+    this.initialized = false
+    debug('station deinit')
+    broadcast.emit('StationStop', this)
   }
 
   async startAsync(froot) {
@@ -56,7 +102,6 @@ class Station {
         return await this.createKeysAsync(froot)
       throw e
     }
-
   }
 
   async createKeysAsync(froot) {
@@ -87,59 +132,9 @@ class Station {
       return 
     }catch(e){
 
-      //TODO 
+      //TODO:  
       throw e
     }
-  }
-  
-  init() {
-    broadcast.on('FruitmixStart', async (froot) => {
-      await this.startAsync(froot) // init station for keys
-      try{
-        this.sa = await this.registerAsync(froot)
-        this.froot = froot
-        broadcast.emit('StationRegisterFinish', this)
-        broadcast.on('Connect_Connected', conn => {
-          //connect to cloud
-          this.connect = Connect
-          Tickets.init(this.sa, conn)
-          this.token = conn.token
-          this.tickets = Tickets
-          this.initialized = true
-          
-          broadcast.emit('StationStart', this)
-        })
-      }catch(e){
-        debug(e)
-      }
-    })
-
-    // deinit
-    broadcast.on('FruitmixStop', this.deinit.bind(this))
-    broadcast.on('Connect_Disconnect', () => {
-      this.connect = undefined
-      this.token = undefined
-      Tickets.deinit()
-      this.tickets = undefined
-      this.initialized = false
-      broadcast.emit('StationStop', this)
-    })
-  }
-
-  deinit() {
-    if(!this.initialized) return 
-    this.publicKey = undefined
-    this.privateKey = undefined
-    this.sa = undefined
-    this.connect = undefined
-    this.froot = undefined
-    this.pbkPath = undefined
-    this.pvkPath = undefined
-    this.initialized = false
-    this.tickets.deinit()
-    this.tickets = undefined
-    debug('station deinit')
-    broadcast.emit('StationStop', this)
   }
 
   register(froot, callback) {
@@ -183,9 +178,10 @@ class Station {
   }
 
   stationFinishStart(req, res, next) {
-    if(this.sa !== undefined && this.connect !== undefined && this.connect.isConnected()){
+    if(this.initialized !== undefined && this.connect.isConnected()){
       req.body.sa = this.sa
-      req.body.connect = this.connect
+      req.body.Connect = this.connect
+      req.Tickets = tickets
       return next()
     }
     debug('Station initialized error')
@@ -197,19 +193,6 @@ class Station {
     info.connectState = this.connect.getState()
     info.pbk = this.publicKey
     return info
-  }
-
-  getUserInfo(guid, callback) {
-    if(this.sa !== undefined && this.connect !== undefined && this.connect.isConnected())
-      return callback(new　Error('station not init'))
-    let url = 
-    request
-      .get(CONFIG.CLOUD_PATH + 'v1/users/' + guid)
-      .set('Authorization', this.token)
-      .end((err, res) => {
-        if(err) return callback(err)
-        return callback(res.body.data)
-      })
   }
 }
 

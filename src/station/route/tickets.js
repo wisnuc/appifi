@@ -1,27 +1,20 @@
 const Router = require('express').Router
 const debug = require('debug')('station')
 
-const Tickets = require('../lib/tickets')
+const TICKET_TYPES = require('../lib/tickets').TICKET_TYPES
 const Asset = require('../../lib/assertion')
 const E = require('../../lib/error')
 
 let router = Router()
-
-//TODO authentication
-//create
-// type(string) enum [invite, bind, share]
-
-const TYPES = ['invite', 'bind', 'share']
-Object.freeze(TYPES)
 
 router.post('/', (req, res, next) => {
   let user = req.user
   let type = req.body.type
   // console.log(user, type)
 
-  if(typeof type !== 'string' || TYPES.indexOf(type) === -1)
+  if(typeof type !== 'string' || TICKET_TYPES.indexOf(type) === -1)
     return res.status(400).json(new E.EINVAL())
-  Tickets.createTicketAsync(user.uuid, type)
+  req.Tickets.createTicketAsync(user.uuid, type)
     .then(data => {
       return res.status(200).json(data)
     })
@@ -30,7 +23,7 @@ router.post('/', (req, res, next) => {
 
 //confirm
 router.get('/:ticketId', (req, res, next) => {
-  Tickets.getTicketAsync(req.params.ticketId)
+  req.Tickets.getTicketAsync(req.params.ticketId)
     .then(data => {
       debug(data)
       if(data.users)
@@ -42,7 +35,7 @@ router.get('/:ticketId', (req, res, next) => {
 
 //get all tickets 
 router.get('/', (req, res, next) => {
-  Tickets.getTicketsAsync(req.user.uuid)
+  req.Tickets.getTicketsAsync(req.user.uuid)
     .then(data => {
       return res.status(200).json(data)
     })
@@ -59,7 +52,7 @@ router.post('/wechat/:ticketId', (req, res, next) => {
   let user = req.user
   if(!Asset.isUUID(guid) || typeof state !== 'boolean')
     return res.status(400).json(new E.EINVAL())
-  Tickets.consumeTicket(user.uuid, guid, req.params.ticketId, state)
+  req.Tickets.consumeTicket(user.uuid, guid, req.params.ticketId, state)
     .then(data => {
       return res.status(200).json(data)
     })
