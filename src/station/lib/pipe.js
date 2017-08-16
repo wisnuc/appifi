@@ -234,26 +234,10 @@ class StoreFiles {
 
 
 class Pipe {
-  constructor() {
+  constructor(tmp, connect) {
     this.tmp = undefined
-    this.connect = undefined
-    this.initialized = false
-    this.init()
-  }
-
-  init() {
-    broadcast.on('Connect_Connected', connect => {
-      connect.register('pipe', this.handle.bind(this))
-      this.connect = connect
-      this.tmp = path.join(connect.froot, 'tmp')
-      this.initialized = true      
-    })
-    // deinit
-    broadcast.on('Connect_Disconnect', () => {
-      this.connect = undefined
-      this.tmp = undefined
-      this.initialized = false
-    })
+    this.connect = connect
+    this.connect.register('pipe', this.handle.bind(this))
   }
 
   handle(data) {
@@ -278,7 +262,7 @@ class Pipe {
 
   async test(data) {
     debug(data)
-    let url = Config.CLOUD_PATH + 'v1/stations/' + this.connect.sa.id + '/response/' + data.jobId 
+    let url = Config.CLOUD_PATH + 'v1/stations/' + this.connect.saId + '/response/' + data.jobId 
     let store = new StoreSingleFile(this.tmp, this.connect.token, 10000, 'xxxx', data.jobId)
     let fpath = await store.runAsync(url)
     await this.successResponseAsync(1, data.jobId, { type: 'finish', message: 'fuck you'})
@@ -289,17 +273,16 @@ class Pipe {
     let props = { comment, global: guid }
     let result = await box.createTweetAsync(props)
     let newDoc = await boxData.updateBoxAsync({ mtime: result.mtime }, box.doc.uuid)
-
   }
 
   async errorResponseAsync(ip, jobId, error) {
-    let url = Config.CLOUD_PATH + 'v1/stations/' + this.connect.sa.id + '/response/' + jobId 
+    let url = Config.CLOUD_PATH + 'v1/stations/' + this.connect.saId + '/response/' + jobId 
     let params = { code: error.code, message: error.message }
     await requestAsync('POST', url, { params }, {})
   }
 
   async successResponseAsync(ip, jobId, data) {
-    let url = Config.CLOUD_PATH + 'v1/stations/' + this.connect.sa.id + '/pipe/' + jobId +'/response'
+    let url = Config.CLOUD_PATH + 'v1/stations/' + this.connect.saId + '/pipe/' + jobId +'/response'
     let params = data
     await requestAsync('POST', url, { params }, {})
   }
@@ -322,4 +305,4 @@ class Pipe {
 
 }
 
-module.exports = new Pipe()
+module.exports = Pipe
