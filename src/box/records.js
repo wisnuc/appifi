@@ -157,7 +157,7 @@ class Records {
         segments = segments.split('|').map(i => i.split(':'))
         let result = []
         segments.forEach(s => {
-          s[1] !== ''
+          s.length === 2
           ? result.push(...records.slice(Number(s[0]), Number(s[1]) + 1))
           : result.push(...records.slice(Number(s[0])))
         })
