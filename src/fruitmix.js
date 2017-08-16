@@ -6,6 +6,8 @@ const EventEmitter = require('events')
 const UserList = require('./user/user')
 const DriveList = require('./forest/forest')
 
+const CopyTask = require('./tasks/dircopy')
+
 /**
 Fruitmix is the facade of internal modules, including user, drive, forest, and box.
 
@@ -27,6 +29,8 @@ class Fruitmix extends EventEmitter {
     this.fruitmixPath = froot
     this.userList = new UserList(froot)
     this.driveList = new DriveList(froot)
+
+    this.tasks = []
   }
 
   /**
@@ -121,6 +125,32 @@ class Fruitmix extends EventEmitter {
     return path.join(this.fruitmixPath, 'tmp')
   }
 
+  ///////////// task api ///////////////////////////////////////////////////////
+
+  getTasks (user) {
+    return this.tasks
+      .filter(t => t.user.uuid === user.uuid)
+      .map(t => t.view())
+  }
+
+  createTask (user, props, callback) {
+    if (typeof props !== 'object' || props === null) {
+      return process.nextTick(() => callback(new Error('invalid')))
+    }
+
+    let task
+
+    switch(props.type) {
+    case 'copy':
+      task = new CopyTask(user, props)
+      this.tasks.push(task)
+      break
+    default:
+      return process.nextTick(() => callback(new Error('invalid')))
+    }
+
+    process.nextTick(() => callback(null, task.view()))
+  }
 }
 
 const broadcast = require('./common/broadcast')

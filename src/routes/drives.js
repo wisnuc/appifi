@@ -51,67 +51,37 @@ router.get('/:driveUUID/dirs', fruitless, auth.jwt(), (req, res, next) => {
 020 GET single dir
 */
 router.get('/:driveUUID/dirs/:dirUUID', fruitless, auth.jwt(), f(async(req, res) => {
-
-/**
+  let user = req.user
   let { driveUUID, dirUUID } = req.params
-  let dir = Forest.getDriveDir(driveUUID, dirUUID)
-  if (!dir) { return res.status(404).end() }
-
-  let list = await dir.readdirAsync()
-  let nav = dir.nodepath().map(dir => ({
-    uuid: dir.uuid,
-    name: dir.name,
-    mtime: Math.abs(dir.mtime)
-  }))
-**/
-
-    let r = await getFruit().getDriveDirAsync(req.user, req.params.driveUUID, req.params.dirUUID)
-
-    // console.log('-------------------', r)
-
-    res.status(200).json(r)
-/**
-  res.status(200).json({
-    path: nav,
-    entries: list
-  })
-**/
+  let r = await getFruit().getDriveDirAsync(user, driveUUID, dirUUID)
+  res.status(200).json(r)
 }))
 
 /**
 030 POST dir entries
 */
-router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, res, next) => {
-  if (!req.is('multipart/form-data')) {
-    return res.status(415).json({ message: 'must be multipart/form-data' })
-  }
-
-/**
-  let { driveUUID, dirUUID } = req.params
-  let dir = Forest.getDriveDir(driveUUID, dirUUID)
-  if (!dir) { return res.status(404).end() }
-
-  dir.write(req, err => {
-    if (err) {
-      res.status(500).json({
-        code: err.code,
-        message: err.message,
-        where: err.where
-      })
-    } else {
-      res.status(200).end()
+router.post('/:driveUUID/dirs/:dirUUID/entries', 
+  fruitless, 
+  auth.jwt(), 
+  (req, res, next) => {
+    if (!req.is('multipart/form-data')) {
+      return res.status(415).json({ message: 'must be multipart/form-data' })
     }
-  })
-**/
-
-  let writer = new Writedir(req)
-  writer.on('finish', () => {
-    if (writer.error) 
-      next(writer.error)
-    else
-      res.status(200).end()
-  })
-})
+    let writer = new Writedir(req)
+    writer.on('finish', () => {
+      if (writer.error) {
+        next(writer.error)
+      } else {
+        next()
+      }
+    })
+  },
+  f(async (req, res) => {
+    let user = req.user
+    let { driveUUID, dirUUID } = req.params
+    let r = await getFruit().getDriveDirAsync(user, driveUUID, dirUUID)
+    res.status(200).json(r)
+  }))
 
 /**
 040 GET a single entry (download a file)
