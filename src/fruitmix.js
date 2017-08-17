@@ -460,35 +460,6 @@ class Fruitmix extends EventEmitter {
     } 
   }
 
-  createTask (user, props, callback) {
-    if (typeof props !== 'object' || props === null) {
-      return process.nextTick(() => callback(new Error('invalid')))
-    }
-
-    let task
-
-    switch(props.type) {
-    case 'copy':
-      this.getDriveDirAsync(user, props.src.drive, props.src.dir)
-        .then(src => {
-          this.getDriveDirAsync(user, props.dst.drive, props.dst.dir)
-            .then(dst => {
-              console.log(dst)
-            })
-            .catch(callback)
-        })
-        .catch(callback)
-
-      // this.getDriveDir
-      // task = new CopyTask(this, user, props)
-      // this.tasks.push(task)
-      break
-    default:
-      return process.nextTick(() => callback(new Error('invalid')))
-    }
-
-    // process.nextTick(() => callback(null, task.view()))
-  }
 }
 
 const broadcast = require('./common/broadcast')

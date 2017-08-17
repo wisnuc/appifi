@@ -23,7 +23,6 @@ router.get('/',
     // TODO
   })
 
-
 router.post('/', 
   fruitless, 
   (req, res, next) => {

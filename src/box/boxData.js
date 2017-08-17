@@ -78,7 +78,7 @@ class BoxData {
     this.tmpDir = path.join(froot, 'tmp')
     this.map = new Map()
 
-    mkdir(this.dir, err => {
+    mkdirp(this.dir, err => {
       if (err) {
         console.log(err)
         broadcast.emit('BoxInitDone', err)
