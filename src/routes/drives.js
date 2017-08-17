@@ -60,9 +60,7 @@ router.get('/:driveUUID/dirs/:dirUUID', fruitless, auth.jwt(), f(async(req, res)
 /**
 030 POST dir entries
 */
-router.post('/:driveUUID/dirs/:dirUUID/entries', 
-  fruitless, 
-  auth.jwt(), 
+router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), 
   (req, res, next) => {
     if (!req.is('multipart/form-data')) {
       return res.status(415).json({ message: 'must be multipart/form-data' })
@@ -86,18 +84,22 @@ router.post('/:driveUUID/dirs/:dirUUID/entries',
 /**
 040 GET a single entry (download a file)
 */
-router.get('/:driveUUID/dirs/:dirUUID/entries/:entryUUID', auth.jwt(), f(async (req, res) => {
-  let { driveUUID, dirUUID } = req.params
-  let { name } = req.query
+router.get('/:driveUUID/dirs/:dirUUID/entries/:entryUUID', fruitless, auth.jwt(), 
+  f(async (req, res) => {
+    let user = req.uesr
+    let { driveUUID, dirUUID } = req.params
+    let { name } = req.query
 
-  let dir = Forest.getDriveDir(driveUUID, dirUUID)
+    // let dir = Forest.getDriveDir(driveUUID, dirUUID)
+    let dirPath = getFruit().getDriveDirPath(user, driveUUID, dirUUID)
+    let filePath = path.join(dirPath, name)
 
-  let filePath = path.join(dir.abspath(), name)
-  // let xstat = await readXstatAsync(filePath)
-  // confirm fileUUID TODO
+    // let xstat = await readXstatAsync(filePath)
+    // confirm fileUUID TODO
+    // move to fruitmix TODO
 
-  res.status(200).sendFile(filePath)
-}))
+    res.status(200).sendFile(filePath)
+  }))
 
 
 

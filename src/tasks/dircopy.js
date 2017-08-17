@@ -7,10 +7,9 @@ const mkdirp = require('mkdirp')
 const mkdirpAsync = Promise.promisify(mkdirp)
 const UUID = require('uuid')
 
-const { forceXstat, forceXstatAsync } = require('../lib/xstat')
+const { forceXstatAsync } = require('../lib/xstat')
 const Transform = require('../lib/transform')
 const { btrfsCloneAsync } = require('../utils/btrfs')
-const fileCopy = require('../forest/filecopy')
 
 const fileDupAsync = async (src, tmp, dst, xstat) => {
   await btrfsCloneAsync(tmp, src)
@@ -30,17 +29,11 @@ const fileDupAsync = async (src, tmp, dst, xstat) => {
   }
 }
 
-/**
-  1. user
-  2. srcDriveUUID
-  3. srcDirUUID
-  4. dstDriveUUID
-  5. dstDirUUID
-*/
 class CopyTask extends EventEmitter {
 
   constructor (ctx, user, props) {
     super()
+
     this.ctx = ctx
     this.uuid = UUID.v4()
     this.user = user
@@ -50,11 +43,15 @@ class CopyTask extends EventEmitter {
     this.dst = props.dst
     this.entries = props.entries
 
+    let srcdrv = props.src.drive
+    let dstdrv = props.dst.drive
+
     // generate dir uuid
     let mkdirs = new Transform({
       name: 'mkdirs',
+
       /**
-      x {
+      x { src, dst, dirs },
         src: { drive, dir },
         dst: { drive, dir },
         dirs
@@ -62,17 +59,17 @@ class CopyTask extends EventEmitter {
       **/
       transform: (x, callback) => {
         ;(async () => {
-          let dst = ctx.getDriveDirPath(user, x.dst.drive, x.dst.dir)
+          let dst = ctx.getDriveDirPath(user, dstdrv, x.dst.dir)
           await Promise.map(x.dirs, dir => mkdirpAsync(path.join(dst, dir.name)))
 
-          let { entries } = await ctx.getDriveDirAsync(user, x.dst.drive, x.dst.dir)
+          let { entries } = await ctx.getDriveDirAsync(user, dstdrv, x.dst.dir)
           let dirs = entries.filter(file => file.type === 'directory')
 
           // TODO assert 
           let arr = x.dirs.map(dir => ({
             name: dir.name,
-            src: { drive: x.src.drive, dir: dir.uuid },
-            dst: { drive: x.dst.drive, dir: dirs.find(d => d.name === dir.name).uuid }
+            src: { drive: srcdrv, dir: dir.uuid },
+            dst: { drive: dstdrv, dir: dirs.find(d => d.name === dir.name).uuid }
           }))
           return arr
         })()
@@ -109,7 +106,7 @@ class CopyTask extends EventEmitter {
       }
       */
       transform: function (x, callback) {
-        ctx.getDriveDirAsync(user, x.src.drive, x.src.dir)
+        ctx.getDriveDirAsync(user, srcdrv, x.src.dir)
           .then(({ entries }) => {
             let dirs = entries.filter(x => x.type === 'directory')
             let files = entries.filter(x => x.type === 'file')
@@ -131,8 +128,8 @@ class CopyTask extends EventEmitter {
       }
       **/ 
       push (x) {
-        let src = ctx.getDriveDirPath(user, x.src.drive, x.src.dir)
-        let dst = ctx.getDriveDirPath(user, x.dst.drive, x.dst.dir) 
+        let src = ctx.getDriveDirPath(user, srcdrv, x.src.dir)
+        let dst = ctx.getDriveDirPath(user, dstdrv, x.dst.dir) 
         x.files.forEach(file => {
           this.pending.push({
             name: file.name,
@@ -171,18 +168,19 @@ class CopyTask extends EventEmitter {
       dst: props.dst,
       dirs: this.entries.filter(entry => entry.type === 'directory')
     }) 
-  }
 
-  view() {
-    return {
-      uuid: this.uuid,
-      user: this.user.uuid,
-      type: 'copy',
-      src: this.src,
-      dst: this.dst,
-      entries: this.entries
+    this.view = function() {
+      return {
+        uuid: this.uuid,
+        user: this.user.uuid,
+        type: 'copy',
+        src: this.src,
+        dst: this.dst,
+        entries: this.entries
+      }
     }
   }
+
 }
 
 module.exports = CopyTask

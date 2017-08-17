@@ -121,6 +121,11 @@ class Fruitmix extends EventEmitter {
     return dir.abspath()
   }
 
+  // async or sync ??? TODO
+  getDriveFilePath (user, driveUUID, dirUUID, fileUUID, name) {
+    
+  }
+
   getTmpDir () {
     return path.join(this.fruitmixPath, 'tmp')
   }
