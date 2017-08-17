@@ -249,12 +249,15 @@ class Pipe {
         break
       case 'createListTweet':
         break
-      case 'test':{
+      case 'test': {
         this.test(data)
           .then(res => {})
           .catch(e => debug('test_error: ', e))
       }
         break
+      case 'test2': {
+
+      }
       default:
         break
     }
@@ -266,6 +269,33 @@ class Pipe {
     let store = new StoreSingleFile(this.tmp, this.connect.token, 10000, 'xxxx', data.jobId)
     let fpath = await store.runAsync(url)
     await this.successResponseAsync(1, data.jobId, { type: 'finish', message: 'fuck you'})
+  }
+
+  test2(data, callback) {
+    debug(data)
+    let finished = false
+    let url = Config.CLOUD_PATH + 'v1/stations/' + this.connect.saId + '/response/' + data.jobId 
+    let rs = fs.createReadStream(path.join(this.connect.froot, '/tmp/123.jpg'))
+    let req = request.post(url).set({ 'Authorization': this.connect.token })
+    req.on('response', res => {
+      debug('response', fpath)
+      if(res.status !== 200){
+        debug('response error')
+        callback(res.error)
+        rs.close()
+      }
+    })
+    req.on('error', err => {
+      if(finished) return
+      finished = true
+      error(err)
+    })
+    rs.on('end', () =>{ 
+      if(finished) return
+      finished = true
+      callback(null)
+    })
+    req.pipe(rs)
   }
 
   async createTextTweetAsync({ boxUUID, guid, comment }) {
