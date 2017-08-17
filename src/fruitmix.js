@@ -6,7 +6,7 @@ const EventEmitter = require('events')
 const UserList = require('./user/user')
 const DriveList = require('./forest/forest')
 
-const CopyTask = require('./tasks/dircopy')
+const CopyTask = require('./tasks/fruitcopy')
 
 /**
 Fruitmix is the facade of internal modules, including user, drive, forest, and box.
