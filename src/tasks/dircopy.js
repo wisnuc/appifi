@@ -11,6 +11,17 @@ const { forceXstatAsync } = require('../lib/xstat')
 const Transform = require('../lib/transform')
 const { btrfsCloneAsync } = require('../utils/btrfs')
 
+// arrow version
+// const f = af => (x, callback) => af(x).then(y => callback(null, y)).catch(callback)
+
+const f = function (af) {
+  return function (x, callback) {
+    af(x)
+      .then(y => callback(null, y))
+      .catch(callback)
+  }
+}
+
 const fileDupAsync = async (src, tmp, dst, xstat) => {
   await btrfsCloneAsync(tmp, src)
   try {
@@ -36,100 +47,58 @@ class CopyTask extends EventEmitter {
 
     this.ctx = ctx
     this.uuid = UUID.v4()
-    this.user = user
-    this.userUUID = user.uuid
 
-    this.src = props.src
-    this.dst = props.dst
-    this.entries = props.entries
+    // required by fruitmix
+    this.user = user
 
     let srcdrv = props.src.drive
     let dstdrv = props.dst.drive
 
-    // generate dir uuid
+    // x { src, dst, dirs } -> dirwalk [ { src, dst } ]
     let mkdirs = new Transform({
       name: 'mkdirs',
+      transform: f(async function (x) {
+        let dst = ctx.getDriveDirPath(user, dstdrv, x.dst)
+        await Promise.map(x.dirs, dir => mkdirpAsync(path.join(dst, dir.name)))
 
-      /**
-      x { src, dst, dirs },
-        src: { drive, dir },
-        dst: { drive, dir },
-        dirs
-      }
-      **/
-      transform: (x, callback) => {
-        ;(async () => {
-          let dst = ctx.getDriveDirPath(user, dstdrv, x.dst.dir)
-          await Promise.map(x.dirs, dir => mkdirpAsync(path.join(dst, dir.name)))
+        let { entries } = await ctx.getDriveDirAsync(user, dstdrv, x.dst)
+        let dirs = entries.filter(file => file.type === 'directory')
 
-          let { entries } = await ctx.getDriveDirAsync(user, dstdrv, x.dst.dir)
-          let dirs = entries.filter(file => file.type === 'directory')
-
-          // TODO assert 
-          let arr = x.dirs.map(dir => ({
-            name: dir.name,
-            src: { drive: srcdrv, dir: dir.uuid },
-            dst: { drive: dstdrv, dir: dirs.find(d => d.name === dir.name).uuid }
-          }))
-          return arr
-        })()
-          .then(x => callback(null, x))
-          .catch(e => console.log(e) || callback(e))
-      }
+        // TODO assert 
+        return x.dirs.map(dir => ({
+          name: dir.name,
+          src: dir.uuid,
+          dst: dirs.find(d => d.name === dir.name).uuid
+        }))
+      })
     })
 
-    // dirwalk consumes a 
+    // x { src, dst } 
+    // -> mkdirs { src, dst, dirs }
+    // -> dup { src, dst, files }
     let dirwalk = new Transform({
       name: 'dirwalk',
       push(x) {
         this.pending = [...this.pending, ...x]
         this.schedule()
       },
-
-      /**
-      This function is the equivalent of readdir and lstat that operating on
-      a fruitmix file system
-
-      x {
-        src: { drive, dir },
-        dst: { drive, dir }
-      }
-      y1 {
-        src: { drive, dir },
-        dst: { drive, dir },
-        dirs
-      },
-      y2 {
-        src: { drive, dir }
-        dst: { drive, dir } 
-        files
-      }
-      */
-      transform: function (x, callback) {
-        ctx.getDriveDirAsync(user, srcdrv, x.src.dir)
-          .then(({ entries }) => {
-            let dirs = entries.filter(x => x.type === 'directory')
-            let files = entries.filter(x => x.type === 'file')
-            if (dirs.length) mkdirs.push({ src: x.src, dst: x.dst, dirs })
-            callback(null, { src: x.src, dst: x.dst, files })
-          })
-          .catch(callback)
-      }
+      transform: f(async function(x) {
+        let { entries } = await ctx.getDriveDirAsync(user, srcdrv, x.src)
+        let dirs = entries.filter(x => x.type === 'directory')
+        let files = entries.filter(x => x.type === 'file')
+        if (dirs.length) mkdirs.push({ src: x.src, dst: x.dst, dirs })
+        return { src: x.src, dst: x.dst, files }
+      })
     })
 
     let dup = new Transform({
       name: 'dup',
 
-      /**
-      x {
-        src: { drive, dir },  // uuid
-        dst: { drive, dir },  // uuid
-        files: []             // xstat
-      }
-      **/ 
+      /** x { src, dst, files } **/
       push (x) {
-        let src = ctx.getDriveDirPath(user, srcdrv, x.src.dir)
-        let dst = ctx.getDriveDirPath(user, dstdrv, x.dst.dir) 
+        if (!x.files.length) return
+        let src = ctx.getDriveDirPath(user, srcdrv, x.src)
+        let dst = ctx.getDriveDirPath(user, dstdrv, x.dst) 
         x.files.forEach(file => {
           this.pending.push({
             name: file.name,
@@ -158,25 +127,25 @@ class CopyTask extends EventEmitter {
     })
 
     dup.push({
-      src: props.src,
-      dst: props.dst,
-      files: this.entries.filter(entry => entry.type === 'file')
+      src: props.src.dir,
+      dst: props.dst.dir,
+      files: props.entries.filter(entry => entry.type === 'file')
     })
    
     mkdirs.push({
-      src: props.src,
-      dst: props.dst,
-      dirs: this.entries.filter(entry => entry.type === 'directory')
+      src: props.src.dir,
+      dst: props.dst.dir,
+      dirs: props.entries.filter(entry => entry.type === 'directory')
     }) 
 
-    this.view = function() {
+    this.view = function () {
       return {
         uuid: this.uuid,
-        user: this.user.uuid,
+        user: user.uuid,
         type: 'copy',
-        src: this.src,
-        dst: this.dst,
-        entries: this.entries
+        src: props.src,
+        dst: props.dst,
+        entries: props.entries
       }
     }
   }
