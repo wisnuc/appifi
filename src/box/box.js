@@ -39,7 +39,7 @@ class Box {
    * @param {string} props.type - tweet type, optional
    * @param {string} props.id - sha256 for blob, commit, uuid for list, tag, branch, job. coexist with type.
    * @param {array} props.list - an array of {sha256, filename}, exist only when type is list.
-   * @param {array} props.path - array of {sha256, filepath}, tmp path, optional
+   * @param {array} props.src - array of {sha256, filepath}, tmp path, optional
    * @return {Object} tweet object
    */
   async createTweetAsync(props) {

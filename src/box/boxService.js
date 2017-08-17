@@ -7,7 +7,7 @@ const rimraf = require('rimraf')
 const rimrafAsync = Promise.promisify(rimraf)
 
 const User = require('../models/user')
-const boxData = require('../box/boxData')
+const boxData = require('./box/boxData')
 
 const { isUUID, validateProps } = require('../common/assertion')
 const E = require('../lib/error')
@@ -172,10 +172,10 @@ class BoxService {
    * @param {string} branchUUID 
    * @param {Object} props 
    * @param {string} props.name - new name of branch
-   * @param {string} props.name - sha256, new commit hash
+   * @param {string} props.head - sha256, new commit hash
    * @return {Object} new description of branch
    */
-  updateBranch(user, boxUUID, branchUUID, props) {
+  async updateBranchAsync(user, boxUUID, branchUUID, props) {
     if (!isUUID(boxUUID)) throw new E.EINVAL()
     if (!isUUID(branchUUID)) throw new E.EINVAL()
     let box = this.boxData.getBox(boxUUID)
@@ -219,7 +219,7 @@ class BoxService {
    * @param {number} props.count - optional, number of records user want to get
    * @param {string} props.segments - optional, segments of records user want to get
    */
-  getTweets(user, boxUUID, props) {
+  async getTweetsAsync(user, boxUUID, props) {
     if (!isUUID(boxUUID)) throw new E.EINVAL()
     let box = this.boxData.getBox(boxUUID)
     if (!box) throw new E.ENOENT()
@@ -242,7 +242,7 @@ class BoxService {
    * @param {string} props.id - sha256 or uuid, for blob, branch, commit, job, tag
    * @param {array} props.list - [{sha256, filename}], only for list
    * @param {string} props.global - user global ID
-   * @param {array} props.path - {sha256, filepath}, for blob and list
+   * @param {array} props.src - {sha256, filepath}, for blob and list
    * @return {Object} tweet object
    */
   async createTweetAsync(user, boxUUID, props) {

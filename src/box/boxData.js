@@ -72,53 +72,67 @@ const createBox = (dir, tmpDir, doc) => {
  */
 class BoxData {
 
-  constructor() {
+  constructor(froot) {
 
-    this.initialized = false
+    this.dir = path.join(froot, 'boxes')
+    this.tmpDir = path.join(froot, 'tmp')
+    this.map = new Map()
 
-    this.dir = undefined
-    this.tmpDir = undefined
-    this.map = undefined
-
-    broadcast.on('FruitmixStart', froot => {
-      let dir = path.join(froot, 'boxes')
-      let tmpDir = path.join(froot, 'tmp') 
-
-      this.init(dir, tmpDir)
-    })
-
-    broadcast.on('FruitmixStop', () => this.deinit())
-  }
-
-  init(dir, tmpDir) {
-
-    mkdirp(dir, err => {
-
+    mkdir(this.dir, err => {
       if (err) {
-        console.log(err) 
+        console.log(err)
         broadcast.emit('BoxInitDone', err)
         return
       }
 
-      this.initialized = true
-      this.dir = dir
-      this.tmpDir = tmpDir
-      this.map = new Map()
-
       broadcast.emit('BoxInitDone')
     })
+
+    // this.initialized = false
+
+    // this.dir = undefined
+    // this.tmpDir = undefined
+    // this.map = undefined
+
+    // broadcast.on('FruitmixStart', froot => {
+    //   let dir = path.join(froot, 'boxes')
+    //   let tmpDir = path.join(froot, 'tmp') 
+
+    //   this.init(dir, tmpDir)
+    // })
+
+    // broadcast.on('FruitmixStop', () => this.deinit())
   }
 
-  deinit() {
+  // init(dir, tmpDir) {
 
-    this.initialized = false
-    this.dir = undefined
-    this.tmpDir = undefined
-    // this.repoDir = undefined
-    this.map = undefined
+  //   mkdirp(dir, err => {
 
-    process.nextTick(() => broadcast.emit('BoxDeinitDone'))
-  }
+  //     if (err) {
+  //       console.log(err) 
+  //       broadcast.emit('BoxInitDone', err)
+  //       return
+  //     }
+
+  //     this.initialized = true
+  //     this.dir = dir
+  //     this.tmpDir = tmpDir
+  //     this.map = new Map()
+
+  //     broadcast.emit('BoxInitDone')
+  //   })
+  // }
+
+  // deinit() {
+
+  //   this.initialized = false
+  //   this.dir = undefined
+  //   this.tmpDir = undefined
+  //   // this.repoDir = undefined
+  //   this.map = undefined
+
+  //   process.nextTick(() => broadcast.emit('BoxDeinitDone'))
+  // }
 
   load() {
     fs.readdir(this.dir, (err, entries) => {
@@ -259,4 +273,4 @@ class BoxData {
   }
 }
 
-module.exports = new BoxData()
+module.exports = BoxData
