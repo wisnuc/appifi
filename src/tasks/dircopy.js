@@ -53,13 +53,17 @@ class CopyTask extends EventEmitter {
 
     let srcdrv = props.src.drive
     let dstdrv = props.dst.drive
+    let srcStats = { dirs: 0, files: 0, size: 0 }
+    let dstStats = { dirs: 0, files: 0, size: 0 }
 
     // x { src, dst, dirs } -> dirwalk [ { src, dst } ]
     let mkdirs = new Transform({
       name: 'mkdirs',
       transform: f(async function (x) {
-        let dst = ctx.getDriveDirPath(user, dstdrv, x.dst)
-        await Promise.map(x.dirs, dir => mkdirpAsync(path.join(dst, dir.name)))
+        let dstDirPath = ctx.getDriveDirPath(user, dstdrv, x.dst)
+        await Promise.map(x.dirs, dir => mkdirpAsync(path.join(dstDirPath, dir.name)))
+
+        dstStats.dirs += x.dirs.length
 
         let { entries } = await ctx.getDriveDirAsync(user, dstdrv, x.dst)
         let dirs = entries.filter(file => file.type === 'directory')
@@ -86,6 +90,12 @@ class CopyTask extends EventEmitter {
         let { entries } = await ctx.getDriveDirAsync(user, srcdrv, x.src)
         let dirs = entries.filter(x => x.type === 'directory')
         let files = entries.filter(x => x.type === 'file')
+
+        // generating new dirs and files
+        srcStats.dirs += dirs.length
+        srcStats.files += files.length
+        srcStats.size += files.reduce((sum, file) => sum + file.size, 0)  
+
         if (dirs.length) mkdirs.push({ src: x.src, dst: x.dst, dirs })
         return { src: x.src, dst: x.dst, files }
       })
@@ -110,42 +120,53 @@ class CopyTask extends EventEmitter {
         }) 
         this.schedule()
       },
-      transform: (x, callback) => 
+      transform: (x, callback) => {
         fileDupAsync(x.src, x.tmp, x.dst, x.xstat)
-          .then(() => callback())
-          .catch(callback)
+          .then(() => {
+            dstStats.files += 1
+            dstStats.size += x.xstat.size
+            callback()
+          })
+          .catch(e => {
+            console.log(e) 
+            callback(e)
+          })
+      }
     }) 
 
     mkdirs.pipe(dirwalk).pipe(dup)
     mkdirs.on('data', data => {})
     mkdirs.on('step', () => {
-      console.log('step ---------------------------------- ')
-      mkdirs.print()
+      // console.log('step ---------------------------------- ')
+      // mkdirs.print()
       if (mkdirs.isStopped()) {
         this.emit('stopped')
+        // console.log('stats', srcStats, dstStats)
       }
     })
 
-    dup.push({
-      src: props.src.dir,
-      dst: props.dst.dir,
-      files: props.entries.filter(entry => entry.type === 'file')
-    })
-   
-    mkdirs.push({
-      src: props.src.dir,
-      dst: props.dst.dir,
-      dirs: props.entries.filter(entry => entry.type === 'directory')
-    }) 
+    let files = props.entries.filter(entry => entry.type === 'file')
+    dup.push({ src: props.src.dir, dst: props.dst.dir, files })
+    srcStats.files += files.length
+    srcStats.size += files.reduce((sum, file) => sum + file.size, 0)
+    
+  
+    let dirs = props.entries.filter(entry => entry.type === 'directory')
+    mkdirs.push({ src: props.src.dir, dst: props.dst.dir, dirs })
+    srcStats.dirs += dirs.length
 
     this.view = function () {
       return {
         uuid: this.uuid,
-        user: user.uuid,
         type: 'copy',
         src: props.src,
         dst: props.dst,
-        entries: props.entries
+        entries: props.entries,
+        
+        srcStats,
+        dstStats,
+
+        isStopped: mkdirs.isStopped()
       }
     }
   }

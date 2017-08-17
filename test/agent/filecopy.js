@@ -153,9 +153,10 @@ describe(path.basename(__filename), () => {
         .expect(200)
         .end((err, res) => {
 
-          let { uuid, user, type, src, dst, entries } = res.body
-          expect({ user, type, src, dst }).to.deep.equal({
-            user: IDS.alice.uuid,
+          console.log(res.body)
+
+          let { uuid, type, src, dst, entries } = res.body
+          expect({ type, src, dst }).to.deep.equal({
             type: 'copy',
             src: {
               drive: IDS.alice.home,
@@ -203,9 +204,10 @@ describe(path.basename(__filename), () => {
               expect(res.body).to.be.an('array')
               expect(res.body.length).to.equal(1)
 
-              let { uuid, user, type, src, dst, entries } = res.body[0]
-              expect({ user, type, src, dst }).to.deep.equal({
-                user: IDS.alice.uuid,
+              console.log(res.body[0])
+
+              let { uuid, type, src, dst, entries } = res.body[0]
+              expect({ type, src, dst }).to.deep.equal({
                 type: 'copy',
                 src: {
                   drive: IDS.alice.home,
@@ -256,9 +258,10 @@ describe(path.basename(__filename), () => {
               expect(res.body).to.be.an('array')
               expect(res.body.length).to.equal(1)
 
+              console.log(res.body[0])
+
               let { uuid, user, type, src, dst, entries } = res.body[0]
-              expect({ user, type, src, dst }).to.deep.equal({
-                user: IDS.alice.uuid,
+              expect({ type, src, dst }).to.deep.equal({
                 type: 'copy',
                 src: {
                   drive: IDS.alice.home,
