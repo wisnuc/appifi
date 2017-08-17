@@ -386,17 +386,36 @@ class Fruitmix extends EventEmitter {
     if (box.doc.owner !== global && !box.doc.users.includes(global))
       throw Object.assign(new Error('no permission'), { status: 403 })
     
-    validateProps(props, ['uuid', 'tweeter', 'comment', 'ctime'], ['type', 'id', 'list'])
+    validateProps(props, ['global', 'comment'], ['type', 'id', 'list', 'src'])
     assert(isUUID(props.uuid), 'invalid uuid')
     assert(typeof props.comment === 'string', 'comment should be a string')
-    assert(Number.isInteger(props.ctime), 'ctime should be an integer')
     if (props.type) assert(typeof props.type === 'string', 'type should be a string')
     if (props.id) assert(isSHA256(props.id) || isUUID(props.id), 'id should be sha256 or uuid')
     if (props.list) assert(Array.isArray(props.list), 'list should be an array')
+    if (props.src) assert(Array.isArray(props.src), 'src should be an array')
 
     let result =  await box.createTweetAsync(props)
     await this.boxData.updateBoxAsync({mtime: result.mtime}, boxUUID)
     return result.tweet
+  }
+
+  /**
+   * delete tweets
+   * add tweetsID into blacklist
+   * @param {Object} user 
+   * @param {string} boxUUID 
+   * @param {array} tweetsID - list of tweets ID to be deleted
+   */
+  async deleteTweetsAsync(user, boxUUID, tweetsID) {
+    if (!isUUID(boxUUID)) throw Object.assign(new Error('invalid boxUUID'), { status: 400 })
+    let box = this.boxData.getBox(boxUUID)
+    if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
+
+    let global = user.global
+    if (box.doc.owner !== global && !box.doc.users.includes(global))
+      throw Object.assign(new Error('no permission'), { status: 403 })
+
+    return await box.deleteTweetsAsync(tweetsID)
   }
 
 }   
