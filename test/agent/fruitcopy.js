@@ -248,6 +248,8 @@ describe(path.basename(__filename), () => {
         .expect(200)
         .end((err, res) => {
 
+          console.log(res.body)
+
           setTimeout(() => request(app)
             .get(`/tasks`)
             .set('Authorization', 'JWT ' + token)
