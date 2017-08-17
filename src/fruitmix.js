@@ -9,6 +9,8 @@ const BoxData = require('./box/boxData')
 
 const { assert, isUUID, isSHA256, validateProps } = require('./common/assertion')
 
+const CopyTask = require('./tasks/fruitcopy')
+
 /**
 Fruitmix is the facade of internal modules, including user, drive, forest, and box.
 
@@ -31,6 +33,7 @@ class Fruitmix extends EventEmitter {
     this.userList = new UserList(froot)
     this.driveList = new DriveList(froot)
     this.boxData = new BoxData(froot)
+    this.tasks = []
   }
 
   /**
@@ -121,9 +124,16 @@ class Fruitmix extends EventEmitter {
     return dir.abspath()
   }
 
+  // async or sync ??? TODO
+  getDriveFilePath (user, driveUUID, dirUUID, fileUUID, name) {
+    
+  }
+
   getTmpDir () {
     return path.join(this.fruitmixPath, 'tmp')
   }
+
+   /////////////////box api ///////////////////////
 
   /**
    * get all box descriptions user can access
@@ -416,9 +426,70 @@ class Fruitmix extends EventEmitter {
       throw Object.assign(new Error('no permission'), { status: 403 })
 
     return await box.deleteTweetsAsync(tweetsID)
+  }  
+
+  ///////////// task api ///////////////////////////////////////////////////////
+
+  getTasks (user) {
+    return this.tasks
+      .filter(t => t.user.uuid === user.uuid)
+      .map(t => t.view())
   }
 
-}   
+  async createTaskAsync (user, props) {
+    if (typeof props !== 'object' || props === null)
+      throw new Error('invalid')
+
+    let src, dst, task
+    switch(props.type) {
+    case 'copy':
+      src = await this.getDriveDirAsync(user, props.src.drive, props.src.dir) 
+      dst = await this.getDriveDirAsync(user, props.dst.drive, props.dst.dir)
+      let entries = props.entries.map(uuid => {
+        let xstat = src.entries.find(x => x.uuid === uuid)
+        if (!xstat) throw new Error('entry not found')
+        return xstat
+      })
+
+      task = new CopyTask(this, user, Object.assign({}, props, { entries }))
+      this.tasks.push(task)
+      return task.view()
+
+    default:
+      throw new Error('invalid task type')
+    } 
+  }
+
+  createTask (user, props, callback) {
+    if (typeof props !== 'object' || props === null) {
+      return process.nextTick(() => callback(new Error('invalid')))
+    }
+
+    let task
+
+    switch(props.type) {
+    case 'copy':
+      this.getDriveDirAsync(user, props.src.drive, props.src.dir)
+        .then(src => {
+          this.getDriveDirAsync(user, props.dst.drive, props.dst.dir)
+            .then(dst => {
+              console.log(dst)
+            })
+            .catch(callback)
+        })
+        .catch(callback)
+
+      // this.getDriveDir
+      // task = new CopyTask(this, user, props)
+      // this.tasks.push(task)
+      break
+    default:
+      return process.nextTick(() => callback(new Error('invalid')))
+    }
+
+    // process.nextTick(() => callback(null, task.view()))
+  }
+}
 
 const broadcast = require('./common/broadcast')
 

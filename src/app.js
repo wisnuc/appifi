@@ -26,7 +26,7 @@ const users = require('./routes/users')
 const drives = require('./routes/drives')
 const boxes = require('./routes/boxes')
 const media = require('./routes/media')
-
+const tasks = require('./routes/tasks')
 const cloudToken = require('./routes/wxtoken')
 const station = require('./station')
 /**
@@ -53,6 +53,7 @@ app.use('/users', users)
 app.use('/drives', drives)
 app.use('/boxes', boxes)
 app.use('/media', media)
+app.use('/tasks', tasks)
 
 // app.use('/uploads', uploads)
 // catch 404 and forward to error handler

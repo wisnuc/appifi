@@ -55,11 +55,6 @@ class Forest extends EventEmitter {
   constructor(froot) {
     super()
 
-    // TODO validate
-
-    deepFreeze(this.drives)
-    this.lock = false
-
     /**
     Absolute path of Fruitmix drive directory 
     */
@@ -89,6 +84,11 @@ class Forest extends EventEmitter {
       if (e.code !== 'ENOENT') throw e
       this.drives = []
     }
+
+    // TODO validate
+
+    deepFreeze(this.drives)
+    this.lock = false
 
     this.drives.forEach(drive => this.createDriveAsync(drive).then(x => x))
   }

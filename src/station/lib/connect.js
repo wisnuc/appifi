@@ -1,6 +1,7 @@
 const fs = require('fs')
 const path = require('path')
 const debug = require('debug')('station')
+const EventEmitter = require('events')
 
 const client = require('socket.io-client')
 const ursa = require('ursa')
@@ -70,75 +71,43 @@ function getSocket(address, saId, privateKey, callback) {
   })
   socket.on('error', err => {
     state = 'disconnected'
-    debug('socket_error', err)
+    debug('socket_error', err.message)
     return error(err)
   })
   socket.on('connect_error', err => {
     state = 'disconnected'
-    debug('connect_error', err)
+    debug('connect_error', err.message)
     return error(err)
   })
 }
 
 let getSocketAsync = Promise.promisify(getSocket)
 
-class Connect { 
+class Connect extends EventEmitter{ 
 
-  constructor() {
-    this.initialized = false
+  constructor(station) {
+    super()
     this.state = CONNECT_STATE.DISCED
+    this.privateKey = station.privateKey
+    this.saId = station.sa.id
+    this.froot = station.froot
+    this.handler = new Map()
     this.socket = undefined
     this.error = undefined
     this.token = undefined
-    this.privateKey = undefined
-    this.sa = undefined
-    this.froot = undefined
-    this.handler = undefined
-    this.init()
+    this.initialized = false
   }
 
-  init() {
-    broadcast.on('StationRegisterFinish', station => {
-      this.sa = station.sa
-      this.froot = station.froot
-      this.privateKey = station.privateKey
-      this.handler = new Map()
-      this.startConnectAsync(CONFIG.CLOUD_PATH)
-        .then(() => {})
-        .catch(e => { debug(e) })
-    })
-    broadcast.on('StationStop', () => {if(this.initialized) this.deinit()})
+  async initAsync() {
+    return this.startConnectAsync(CONFIG.CLOUD_PATH)
   }
-
-  _changeState(state, error) {
-    if(state === CONNECT_STATE.DISCED && error) this.error = error
-    else this.error = null
-    
-    debug(1)
-    this.state = state
-    debug(2)
-    if(state === CONNECT_STATE.DISCED){
-      if(this.socket) this.socket.close()
-      if(this.initialized){
-        this.socket = undefined
-        this.deinit()
-        broadcast.emit('Connect_Disconnect', this)
-      }
-    }
-    debug(3)
-    debug(state)
-    if(state === CONNECT_STATE.CONNED){
-      debug(4)
-      broadcast.emit('Connect_Connected', this)
-    }
-  }
-
+  
   deinit(){
     this.disconnect()
     this.error = null
     this.froot = null
     this.state = CONNECT_STATE.DISCED
-    this.sa = null
+    this.saId = null
     this.socket = null
     this.privateKey = null
     this.token = null
@@ -148,16 +117,23 @@ class Connect {
     debug('connect deinit')
   }
 
+
+  _changeState(state, error) {
+    if(state === CONNECT_STATE.DISCED && error) this.error = error
+    else this.error = null
+
+    this.state = state
+    this.emit('ConnectStateChange', state)
+  }
+
   async startConnectAsync(address) {
-    if(this.socket && this.socket.connected) throw new　Error('Connent is connected now')
-    if(this.socket) socket.close()
+    if(this.socket) socket.close() // reconnect 
     this.socket = undefined
     this._changeState(CONNECT_STATE.CONNING)
     try{
-      this.socket = await getSocketAsync(address, this.sa.id, this.privateKey)
+      this.socket = await getSocketAsync(address, this.saId, this.privateKey)
       this._changeState(CONNECT_STATE.CONNED)
       this.token = this.socket.token
-      this.initialized = true
       debug('connect success')
       this.socket.on('event', ((data) => {
         this.dispatch(data.type, data)
@@ -170,12 +146,14 @@ class Connect {
         debug('connent disconnect', data)
       })
       this.socket.on('error', err => {
-        debug('socket_error', err)
+        debug('socket_error', err.message)
         this._changeState(CONNECT_STATE.DISCED, err)
       })
       this.socket.on('connect_error', err => {
-        this._changeState(CONNECT_STATE.DISCED, err)
+        this._changeState(CONNECT_STATE.DISCED, err.message)
       })
+      this.initialized = true
+      return this.token
     }catch(e){
       debug(e)
       this._changeState(CONNECT_STATE.DISCED, e)
@@ -196,18 +174,15 @@ class Connect {
 
   disconnect() {
     if(this.state !== CONNECT_STATE.DISCED){
-      if(this.socket && this.socket.connected) {
-        this._changeState(CONNECT_STATE.DISCING)
         this.socket.disconnect()
         this.socket.close()
         this.socket = null
-      } 
+        this._changeState(CONNECT_STATE.DISCING)
     }
   }
 
-  connect() {
-    if(this.state === CONNECT_STATE.DISCED)
-      this.startConnectAsync(CONFIG.CLOUD_PATH).then(() => {})
+  connect() { // reconnect
+    this.startConnectAsync(CONFIG.CLOUD_PATH).then(() => {})
   }
 
   getState(){
@@ -223,4 +198,5 @@ class Connect {
   }
 }
 
-module.exports = new Connect()
+module.exports.Connect = Connect
+module.exports.CONNECT_STATE = CONNECT_STATE

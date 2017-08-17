@@ -46,30 +46,6 @@ const IDS = {
 
 const FILES = {
 
-  hello: {
-    path: 'testdata/hello',
-    size: 6,
-    hash: '5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03'
-  },
-
-  world: {
-    path: 'testdata/world', 
-    size: 6,
-    hash: 'e258d248fda94c63753607f7c4494ee0fcbe92f1a76bfdac795c9d84101eb317'  
-  },
-
-  foo: {
-    path: 'testdata/foo',
-    size: 4,
-    hash: 'b5bb9d8014a0f9b1d61e21e796d78dccdf1352f23cd32812f4850b878ae4944c'
-  },
-
-  bar: {
-    path: 'testdata/bar',
-    size: 4,
-    hash: '7d865e959b2466918c9863afca942d0fb89d7c9ac0c99bafc3749504ded97730' 
-  },
-
   alonzo: {
     name: 'alonzo_church.jpg',
     path: 'testdata/alonzo_church.jpg',
@@ -77,12 +53,47 @@ const FILES = {
     hash: '8e28737e8cdf679e65714fe2bdbe461c80b2158746f4346b06af75b42f212408'
   },
 
+  bar: {
+    name: 'bar',
+    path: 'testdata/bar',
+    size: 4,
+    hash: '7d865e959b2466918c9863afca942d0fb89d7c9ac0c99bafc3749504ded97730' 
+  },
+
   empty: {
     name: 'empty',
     path: 'testdata/empty',
     size: 0,
     hash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'
-  }
+  },
+
+  foo: {
+    name: 'foo',
+    path: 'testdata/foo',
+    size: 4,
+    hash: 'b5bb9d8014a0f9b1d61e21e796d78dccdf1352f23cd32812f4850b878ae4944c'
+  },
+
+  hello: {
+    name: 'hello',
+    path: 'testdata/hello',
+    size: 6,
+    hash: '5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03'
+  },
+
+  vpai001: {
+    name: 'vpai001',
+    path: 'testdata/vpai001.jpg',
+    size: 4192863,
+    hash: '529e471a71866e439d8892179e4a702cf8529ff32771fcf4654cfdcea68c11fb', 
+  },
+
+  world: {
+    name: 'world',
+    path: 'testdata/world', 
+    size: 6,
+    hash: 'e258d248fda94c63753607f7c4494ee0fcbe92f1a76bfdac795c9d84101eb317'  
+  },
 }
 
 const stubUserUUID = username => 

@@ -18,6 +18,26 @@ const btrfsCloneAsync = async (dst, src) => {
   }
 }
 
+// btrfs clone, callback version
+const btrfsClone = (dst, src, callback) => 
+  fs.open(src, 'r', (err, srcFd) => err 
+    ? callback(err) 
+    : fs.open(dst, 'w', (err, dstFd) => {
+        let error
+        if (err) {
+          error = err
+        } else {
+          try {
+            ioctl(dstFd, 0x40049409, srcFd)      
+          } catch (e) {
+            error = e 
+          }
+          fs.close(dstFd, () => {})
+        }
+        fs.close(srcFd, () => {})
+        callback(err)
+      }))
+
 // clone a file from src to dst, and append data, data must be buffer
 const btrfsCloneAndAppendAsync = async (dst, src, data) => {
 
@@ -104,6 +124,7 @@ const btrfsConcatAsync = async (dst, src) => {
 }
 
 module.exports = {
+  btrfsClone,
   btrfsCloneAsync,
   btrfsCloneAndAppendAsync,
   btrfsCloneAndTruncateAsync,
