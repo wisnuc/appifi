@@ -77,7 +77,7 @@ class Fruitmix extends EventEmitter {
   }
 
   async updateUserAsync(user, userUUID, body) {
-    return this.userList.updateUserAsync(userUUID, body) 
+    return await this.userList.updateUserAsync(userUUID, body) 
   }
 
   getDrives (user) {
@@ -133,7 +133,7 @@ class Fruitmix extends EventEmitter {
     return path.join(this.fruitmixPath, 'tmp')
   }
 
-   /////////////////box api ///////////////////////
+   ///////////////// box api ///////////////////////
 
   /**
    * get all box descriptions user can access
@@ -173,7 +173,7 @@ class Fruitmix extends EventEmitter {
    * @return {Object} box description (doc)
    */
   async createBoxAsync(user, props) {
-    let u = this.userList.users.find(u => u.uuid === user.uuid)
+    let u = this.findUserByUUID(user.uuid)
     if (!u || user.global !== u.global) 
       throw Object.assign(new Error('no permission'), { status: 403 })
     validateProps(props, ['name', 'users'])
@@ -198,7 +198,7 @@ class Fruitmix extends EventEmitter {
    * @return {Object} new description of box
    */
   async updateBoxAsync(user, boxUUID, props) {
-    let u = this.User.users.find(u => u.uuid === user.uuid)
+    let u = this.findUserByUUID(user.uuid)
     if (!u || user.global !== u.global) 
       throw Object.assign(new Error('no permission'), { status: 403 })
 
@@ -226,7 +226,7 @@ class Fruitmix extends EventEmitter {
    * @param {string} boxUUID 
    */
   async deleteBoxAsync(user, boxUUID) {
-    let u = this.User.users.find(u => u.uuid === user.uuid)
+    let u = this.findUserByUUID(user.uuid)
     if (!u || user.global !== u.global) 
       throw Object.assign(new Error('no permission'), { status: 403 })
 
@@ -396,9 +396,12 @@ class Fruitmix extends EventEmitter {
     if (box.doc.owner !== global && !box.doc.users.includes(global))
       throw Object.assign(new Error('no permission'), { status: 403 })
     
+    props.global = global
+    
     validateProps(props, ['global', 'comment'], ['type', 'id', 'list', 'src'])
-    assert(isUUID(props.uuid), 'invalid uuid')
+    // assert(isUUID(props.uuid), 'invalid uuid')
     assert(typeof props.comment === 'string', 'comment should be a string')
+    // FIXME: assert(global)
     if (props.type) assert(typeof props.type === 'string', 'type should be a string')
     if (props.id) assert(isSHA256(props.id) || isUUID(props.id), 'id should be sha256 or uuid')
     if (props.list) assert(Array.isArray(props.list), 'list should be an array')
