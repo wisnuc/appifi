@@ -1,3 +1,5 @@
+
+/**
 const router = require('express').Router()
 
 const token = require('./routes/token')
@@ -15,3 +17,4 @@ router.use('/wxtoken', wxtoken)
 router.use('/uploads', uploads)
 
 module.exports = router
+**/

@@ -38,6 +38,8 @@ node_modules/
 # swp
 *.swp
 
+package-lock.json
+
 # bundle file
 public/bundle.js
 
@@ -53,6 +55,7 @@ release/
 graph.svg
 
 # 
+test-files/
 fruitfiles/
 tmptest/
 coverage/

@@ -370,6 +370,46 @@ const updateFileHash = (target, uuid, hash, htime, callback) =>
     .then(xstat => callback(null, xstat))
     .catch(e => callback(e))
 
+/**
+Forcefully set xattr with given uuid and/or hash. 
+
+This function should only be used for:
+1. drive dir
+2. temp file
+
+Tests:
++ test1
++ test2
+
+@param {string} target - absolute path
+@param {string} uuid - target uuid
+@param {string} hash - file hash (optional)
+@returns {object} - xstat object
+*/
+const forceXstatAsync = async (target, { uuid, hash }) => {
+
+  if (uuid && !isUUID(uuid)) throw new E.EINVAL()
+  if (hash && !isSHA256(hash)) throw new E.EINVAL() 
+
+  let stats = await fs.lstatAsync(target)
+
+  // IS THIS NECESSARY? TODO
+  if (!stats.isFile() && hash) throw new Error('forceXstatAsync: not a file')
+
+  let attr = { uuid: uuid || UUID.v4() }
+  if (hash) Object.assign(attr, { hash, htime: stats.mtime.getTime() })
+
+  attr = await updateXattrAsync(target, attr, stats.isFile())
+  let xstat = createXstat(target, stats, attr)
+  return xstat
+}
+
+const forceXstat = (target, opts, callback) => {
+
+  forceXstatAsync(target, opts)
+    .then(xstat => callback(null, xstat))
+    .catch(e => callback(e))
+}
 
 module.exports = { 
 
@@ -379,39 +419,8 @@ module.exports = {
   updateFileHash,
   updateFileHashAsync,
 
-  /**
-  Forcefully set xattr with given uuid and/or hash. 
-
-  This function should only be used for:
-  1. drive dir
-  2. temp file
-
-  Tests:
-  + test1
-  + test2
-
-  @param {string} target - absolute path
-  @param {string} uuid - target uuid
-  @param {string} hash - file hash (optional)
-  @returns {object} - xstat object
-  */
-  forceXstatAsync: async (target, { uuid, hash }) => {
-
-    if (uuid && !isUUID(uuid)) throw new E.EINVAL()
-    if (hash && !isSHA256(hash)) throw new E.EINVAL() 
-
-    let stats = await fs.lstatAsync(target)
-
-    // IS THIS NECESSARY? TODO
-    if (!stats.isFile() && hash) throw new Error('forceXstatAsync: not a file')
-
-    let attr = { uuid: uuid || UUID.v4() }
-    if (hash) Object.assign(attr, { hash, htime: stats.mtime.getTime() })
-
-    attr = await updateXattrAsync(target, attr, stats.isFile())
-    let xstat = createXstat(target, stats, attr)
-    return xstat
-  },
+  forceXstat,
+  forceXstatAsync
 }
 
 

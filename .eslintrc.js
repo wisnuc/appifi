@@ -1,6 +1,10 @@
 module.exports = {
   "rules": {
-    "quote-props": [2, "as-needed"]
+    "padded-blocks": ["error", { 
+      "blocks": "never",
+      "classes": "always",
+      "switches": "never"
+    }]
   },
   "extends": "standard",
   "plugins": [

@@ -49,6 +49,5 @@ define('EPARSE', 'parse error')
 define('ENODENOTFOUND', 'node not found')     // be different from ENOENT, which is easily confused with fs error, TODO not sure if this is the right design
 define('ENODEDETACHED', 'node is detached')   // 
 
-
 module.exports = Object.freeze(E)
 

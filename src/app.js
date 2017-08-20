@@ -10,6 +10,9 @@ const settings = require('./system/settings')
 
 const app = express()
 
+let { NODE_ENV, NODE_PATH } = process.env
+const isAutoTesting = NODE_ENV === 'test' && NODE_PATH !== undefined
+
 const config = require('./system/config')
 const barcelona = require('./system/barcelona')
 const system = require('./system/system')
@@ -17,15 +20,15 @@ const net = require('./system/net')
 const timedate = require('./system/timedate')
 const boot = require('./system/boot')
 const storage = require('./routes/storage')
-const auth = require('./fruitmix/middleware/auth')
-const token = require('./fruitmix/routes/token')
-const users = require('./fruitmix/routes/users')
-const drives = require('./fruitmix/routes/drives')
-const boxes = require('./fruitmix/routes/boxes')
-const cloudToken = require('./fruitmix/routes/wxtoken')
-const uploads = require('./fruitmix/routes/uploads')
-const station = require('./fruitmix/station')
-
+const auth = require('./middleware/auth')
+const token = require('./routes/token')
+const users = require('./routes/users')
+const drives = require('./routes/drives')
+const boxes = require('./routes/boxes')
+const media = require('./routes/media')
+const tasks = require('./routes/tasks')
+const cloudToken = require('./routes/wxtoken')
+const station = require('./station')
 /**
 This module is the entry point of the whole application.
 
@@ -44,13 +47,15 @@ app.use('/control/net/interfaces', net)
 app.use('/control/timedate', timedate)
 if (barcelona.isBarcelona) app.use('/control/fan', barcelona.router)
 app.use('/token', token)
+app.use('/station', station)
+app.use('/cloudToken', cloudToken)
 app.use('/users', users)
 app.use('/drives', drives)
 app.use('/boxes', boxes)
-app.use('/cloudToken', cloudToken)
-app.use('/uploads', uploads)
-app.use('/station', station)
+app.use('/media', media)
+app.use('/tasks', tasks)
 
+// app.use('/uploads', uploads)
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
   var err = new Error('Not Found')
@@ -60,18 +65,12 @@ app.use(function(req, res, next) {
 
 // error handlers
 app.use(function(err, req, res, next) {
-
-  if (err && process.env.NODE_ENV === 'test')
-    console.log(err)
-
+  if (err && process.env.NODE_ENV === 'test' && !NODE_PATH) console.log(err)
   res.status(err.status || 500).json({
     code: err.code,
     message: err.message
   })
 })
-
-let { NODE_ENV, NODE_PATH } = process.env
-const isAutoTesting = NODE_ENV === 'test' && NODE_PATH !== undefined
 
 if (NODE_PATH) app.nolog = true
 
