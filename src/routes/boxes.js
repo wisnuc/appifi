@@ -325,7 +325,7 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res) => {
     form.parse(req)
 
   } else if (req.is('application/json')) {
-    getFruit().createTweetAsync(req.user, boxUUID, props)
+    getFruit().createTweetAsync(req.user, boxUUID, req.body)
       .then(tweet => res.status(200).json(tweet))
       .catch(next)
   } else

@@ -82,8 +82,8 @@ class Box {
     }
 
     tweet.ctime = new Date().getTime()
-
     await this.records.addAsync(tweet)
+
     let stat = await fs.statAsync(this.records.filePath)
     let mtime = stat.mtime.getTime()
     return {tweet, mtime}
