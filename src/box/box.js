@@ -68,7 +68,7 @@ class Box {
       })
       await blobStore.storeAsync(urls)
     }
-    
+
     let tweet = {
       uuid: UUID.v4(),
       tweeter: props.global,
@@ -86,7 +86,7 @@ class Box {
 
     let stat = await fs.statAsync(this.records.filePath)
     let mtime = stat.mtime.getTime()
-    return {tweet, mtime}
+    return { tweet, mtime }
   }
 
   /**
@@ -149,12 +149,12 @@ class Box {
    */
   retrieve(type, id, callback) {
     let srcpath = path.join(this.dir, type, id)
-    fs.readFile(srcpath, (err,data) => {
-      if(err) return callback(err)
-      try{
+    fs.readFile(srcpath, (err, data) => {
+      if (err) return callback(err)
+      try {
         callback(null, JSON.parse(data.toString()))
       }
-      catch(e) {
+      catch (e) {
         callback(e)
       }
     })
@@ -180,7 +180,7 @@ class Box {
   retrieveAll(type, callback) {
     let target = path.join(this.dir, type)
     fs.readdir(target, (err, entries) => {
-      if(err) return callback(err)
+      if (err) return callback(err)
 
       let count = entries.length
       if (!count) return callback(null, [])
@@ -215,10 +215,10 @@ class Box {
     let target = path.join(this.dir, 'branches', branchUUID)
     let branch = await this.retrieveAsync('branches', branchUUID)
 
-    let {name, head} = props
-    if(head) {
+    let { name, head } = props
+    if (head) {
       let obj = await this.retrieveAsync('commits', head)
-      if(obj.parent !== branch.head) throw new E.ECONTENT()
+      if (obj.parent !== branch.head) throw new E.ECONTENT()
     }
 
     let updated = {
@@ -227,7 +227,7 @@ class Box {
       head: head || branch.head
     }
 
-    if(updated === branch) return branch    
+    if (updated === branch) return branch
     await saveObjectAsync(target, this.tmpDir, updated)
     return updated
   }
@@ -242,15 +242,15 @@ class Box {
     return
   }
 
-    /**
-   * create a commit
-   * @param {Object} props 
-   * @param {string} props.tree - hash string
-   * @param {array} props.parent - parent commit
-   * @param {string} props.user - user unionId
-   * @param {string} props.comment - comment for the commit
-   * @return {string} sha256 of commit object
-   */
+  /**
+ * create a commit
+ * @param {Object} props 
+ * @param {string} props.tree - hash string
+ * @param {array} props.parent - parent commit
+ * @param {string} props.user - user unionId
+ * @param {string} props.comment - comment for the commit
+ * @return {string} sha256 of commit object
+ */
   async createCommitAsync(props) {
     let commit = {
       tree: props.tree,

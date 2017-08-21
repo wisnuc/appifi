@@ -66,6 +66,10 @@ app.use(function(req, res, next) {
 // error handlers
 app.use(function(err, req, res, next) {
   if (err && process.env.NODE_ENV === 'test' && !NODE_PATH) console.log(err)
+
+  // FIXME: logger error 
+  // console.error('error', err)
+
   res.status(err.status || 500).json({
     code: err.code,
     message: err.message
