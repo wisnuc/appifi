@@ -89,8 +89,9 @@ const userEntryMProps = [
   'lastChangeTime',
   'isFirstUser',
   'isAdmin',
-  'avatar', // null
-  'global'  // { id, wx: [ <unionId> ] }
+  'disabled',
+  'avatar',     // null
+  'global'      // { id, wx: [ <unionId> ] }
 ]
 
 

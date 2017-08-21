@@ -54,6 +54,16 @@ class Fruitmix extends EventEmitter {
     }))
   }
 
+  getUsers () {
+    return this.userList.users.map(u => ({
+      uuid: u.uuid,
+      username: u.username,
+      isFirstUser: u.isFirstUser,
+      isAdmin: u.isAdmin,
+      avatar: u.avatar, 
+    }))
+  }
+
   /**
   */
   async createUserAsync (props) {
