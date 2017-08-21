@@ -87,7 +87,7 @@ class Records {
    * @param {Object} obj - object to be stored
    */
   async addAsync(obj) {
-    return Promise.promisify(this.add).bind(this)(obj)
+    return await Promise.promisify(this.add).bind(this)(obj)
   }
 
   /**

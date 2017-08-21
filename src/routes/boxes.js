@@ -10,9 +10,13 @@ const rimraf = require('rimraf')
 const rimrafAsync = Promise.promisify(rimraf)
 const secret = require('../config/passportJwt')
 
-const User = require('../models/user')
-const boxData = require('../box/boxData')
+// const User = require('../models/user')
+// const boxData = require('../box/boxData')
 const { isSHA256 } = require('../lib/assertion')
+const getFruit = require('../fruitmix')
+
+const EUnavail = Object.assign(new Error('fruitmix unavailable'), { status: 503 })
+const fruitless = (req, res, next) => getFruit() ? next() : next(EUnavail)
 
 /**
 This auth requires client providing:
@@ -21,6 +25,7 @@ This auth requires client providing:
 
 returns 401 if failed
 */
+// user contains local user and wechat guest
 const auth = (req, res, next) => {
 
   let text = req.get('Authorization')
@@ -39,162 +44,123 @@ const auth = (req, res, next) => {
   }
 
   if (split.length === 2) {
-    req.guest = {
+    req.user = {
       global: cloud.global
     }
     return next()
   }
 
   let local = jwt.decode(split[2], secret)
-  let user = User.users.find(u => u.uuid === local.uuid)
+  let user = getFruit().findUserByUUID(local.uuid)
   if (!user || user.global !== cloud.global)
     return res.status(401).end()
-  req.user = User.stripUser(user)
+  req.user = user
   next()
 }
 
-const boxAuth = (req, res, next) => {
-  let boxUUID = req.params.boxUUID
-  let box = boxData.getBox(boxUUID)
-  if(!box) return res.status(404).end()
+// const boxAuth = (req, res, next) => {
+//   let boxUUID = req.params.boxUUID
+//   let box = this.boxData.getBox(boxUUID)
+//   if(!box) return res.status(404).end()
 
-  let global
-  if(req.user) global = req.user.global
-  else global = req.guest.global
+//   let global = req.user.global
+//   if(req.user) global = req.user.global
+//   else global = req.guest.global
 
-  if(box.doc.owner !== global && !box.doc.users.includes(global)) 
-    return res.status(403).end()
+//   if(box.doc.owner !== global && !box.doc.users.includes(global)) 
+//     return res.status(403).end()
   
-  req.box = box
-  next()
-}
+//   req.box = box
+//   next()
+// }
 
-router.get('/', auth, (req, res) => {
-
-  // console.log('auth', req.user, req.guest)
-  let global
-  if(req.user) global = req.user.global
-  else global = req.guest.global
-
-  let docList = boxData.getAllBoxes(global)
-  res.status(200).json(docList)
+router.get('/', fruitless, auth, (req, res, next) => {
+  try {
+    let docList = getFruit().getAllBoxes(req.user)
+    res.status(200).json(docList)
+  } catch(e) {
+    next(e)
+  } 
 })
 
-router.post('/', auth, (req, res, next) => {
-
-  if (!req.user) return res.status(403).end()
-
-  let props = Object.assign({}, req.body, { owner: req.user.global })
-
-  boxData.createBoxAsync(props)
+router.post('/', fruitless, auth, (req, res, next) => {
+  getFruit().createBoxAsync(req.user, req.body)
     .then(doc => res.status(200).json(doc))
     .catch(next)
 })
 
-router.get('/:boxUUID', auth, (req, res) => {
+router.get('/:boxUUID', fruitless, auth, (req, res, next) => {
   let boxUUID = req.params.boxUUID
-
-  let box = boxData.getBox(boxUUID)
-  if(!box) return res.status(404).end()
-
-  let global
-  if(req.user) global = req.user.global
-  else global = req.guest.global
-
-  let doc = box.doc
-  if (doc.owner !== global && !doc.users.includes(global)) return res.status(403).end()
-
-  res.status(200).json(doc)
+  try {
+    let doc = getFruit().getBox(req.user, boxUUID)
+    res.status(200).json(doc)
+  } catch(e) {
+    next(e)
+  }
 })
 
 // FIXME: permission: who can patch the box ?
 // here only box owner is allowed
-router.patch('/:boxUUID', auth, (req, res, next) => {
-
-  if(!req.user) return res.status(403).end()
-
+router.patch('/:boxUUID', fruitless, auth, (req, res, next) => {
   let boxUUID = req.params.boxUUID
-
-  let box = boxData.getBox(boxUUID)
-  if(!box) return res.status(404).end()
-  if(box.doc.owner !== req.user.global) return res.status(403).end()
-
-  boxData.updateBoxAsync(req.body, boxUUID)
+  getFruit().updateBoxAsync(req.user, boxUUID, req.body)
     .then(newDoc => res.status(200).json(newDoc))
     .catch(next)
 })
 
-router.delete('/:boxUUID', auth, (req, res, next) => {
-  if(!req.user) return res.status(403).end()
-
+router.delete('/:boxUUID', fruitless, auth, (req, res, next) => {
   let boxUUID = req.params.boxUUID
-
-  let box = boxData.getBox(boxUUID)
-  if(!box) return res.status(404).end()
-  if(box.doc.owner !== req.user.global) return res.status(403).end()
-  boxData.deleteBoxAsync(boxUUID)
+  getFruit().deleteBoxAsync(req.user, boxUUID)
     .then(() => res.status(200).end())
     .catch(next)
 })
 
-router.get('/:boxUUID/branches', auth, boxAuth, (req, res) => {
-  let box = req.box
-  
-  box.retrieveAllAsync('branches')
+router.get('/:boxUUID/branches', fruitless, auth, (req, res, next) => {
+  let boxUUID = req.params.boxUUID
+  getFruit().getAllBranchesAsync(req.user, boxUUID)
     .then(branches => res.status(200).json(branches))
-    .catch(err => {
-      if(err.code === 'ENOENT') 
-        return res.status(404).end()
-      else return res.status(500).end()
-    })
+    .catch(next)
 })
 
-router.post('/:boxUUID/branches', auth, boxAuth, (req, res, next) => {
-  let box = req.box
+router.post('/:boxUUID/branches', fruitless, auth, (req, res, next) => {
+  let boxUUID = req.params.boxUUID
 
-  box.createBranchAsync(req.body)
+  getFruit().createBranchAsync(req.user, boxUUID, req.body)
     .then(branch => res.status(200).json(branch))
     .catch(next)
 })
 
-router.get('/:boxUUID/branches/:branchUUID', auth, boxAuth, (req, res) => {
+router.get('/:boxUUID/branches/:branchUUID', fruitless, auth, (req, res) => {
+  let boxUUID = req.params.boxUUID
   let branchUUID = req.params.branchUUID
-  let box = req.box
   
-  box.retrieveAsync('branches', branchUUID)
+  getFruit().getBranchAsync(req.user, boxUUID, branchUUID)
     .then(branch => res.status(200).json(branch))
-    .catch(err => {
-      if(err.code === 'ENOENT') 
-        return res.status(404).end()
-      else return res.status(500).end()
-    })
+    .catch(next)
 })
 
-router.patch('/:boxUUID/branches/:branchUUID', auth, boxAuth, (req, res) => {
+router.patch('/:boxUUID/branches/:branchUUID', fruitless, auth, (req, res, next) => {
+  let boxUUID = req.params.boxUUID
   let branchUUID = req.params.branchUUID
-  let box = req.box
 
-  box.updateBranchAsync(branchUUID, req.body)
+  getFruit().updateBranchAsync(req.user, boxUUID, branchUUID, req.body)
     .then(updated => res.status(200).json(updated))
-    .catch(e => {
-      if(e.code === 'ENOENT') return res.status(404).end()
-      else if(e.code === 'ECONTENT') return res.status(400).end()
-      else return res.status(500).end()
-    })
+    .catch(next)
 })
 
 // FIXME: who can delete branch ?
-router.delete('/:boxUUID/branches/:branchUUID', auth, boxAuth, (req, res, next) => {
+router.delete('/:boxUUID/branches/:branchUUID', fruitless, auth, (req, res, next) => {
+  let boxUUID = req.params.boxUUID
   let branchUUID = req.params.branchUUID
-  let box = req.box
   
-  box.deleteBranchAsync(branchUUID)
+  getFruit().deleteBranchAsync(req.user, boxUUID, branchUUID)
     .then(() => res.status(200).end())
     .catch(next)
 })
 
-router.post('/:boxUUID/tweets', auth, boxAuth, (req, res) => {
-  let box = req.box
+router.post('/:boxUUID/tweets', fruitless, auth, (req, res) => {
+  let boxUUID = req.params.boxUUID
+
   if (req.is('multipart/form-data')) {
     // UPLOAD
     let form = new formidable.IncomingForm()
@@ -293,8 +259,8 @@ router.post('/:boxUUID/tweets', auth, boxAuth, (req, res) => {
       // if (type === 'blob') {
       //   if (!Number.isInteger(size) || sha256 === undefined)
       //   return finished = true && res.status(409).end()
-
-        file.path = path.join(box.tmpDir, UUID.v4())
+      let tmpdir = getFruit().getTmpDir()
+      file.path = path.join(tmpdir, UUID.v4())
       // }     
     })
 
@@ -320,29 +286,18 @@ router.post('/:boxUUID/tweets', auth, boxAuth, (req, res) => {
       }
 
       if (type === 'blob' || arr.every(i => i.finish)) {
-        let global, props
-        if (req.user) global = req.user.global
-        else global = req.guest.global
-
-        if(type === 'blob') props = { comment, type, id: sha256, global, src: urls}
+        let props
+        if(type === 'blob') props = { comment, type, id: sha256, src: urls}
         else {
           let list = obj.list.map(i => { return {sha256: i.sha256, filename: i.filename} })
-          props = {comment, type, list, global, src: urls}
+          props = {comment, type, list, src: urls}
         }
 
-        box.createTweetAsync(props)
+        getFruit().createTweetAsync(req.user, boxUUID, props)
           .then(result => {
-            boxData.updateBoxAsync({mtime: result.mtime}, box.doc.uuid)
-              .then(newDoc => {
-                data = result.tweet
-                fileFinished = true
-                finalize()
-              })
-              .catch(err => {
-                error = err
-                fileFinished = true
-                finalize()
-              }) 
+            data = result
+            fileFinished = true
+            finalize()
           })
           .catch(err => {
             error = err
@@ -370,47 +325,30 @@ router.post('/:boxUUID/tweets', auth, boxAuth, (req, res) => {
     form.parse(req)
 
   } else if (req.is('application/json')) {
-    // let type = req.body.type
-    let global
-    if(req.user) global = req.user.global
-    else global = req.guest.global
-
-    let props = Object.assign({}, req.body, { global })
-
-    box.createTweetAsync(props)
-    .then(result => {
-      boxData.updateBoxAsync({mtime: result.mtime}, box.doc.uuid)
-        .then(newDoc => res.status(200).json(result.tweet))
-        .catch(err => res.status(500).json({ code: err.code, message: err.message }))
-    })
-    .catch(err => res.status(500).json({ code: err.code, message: err.message }))
-  }else
+    getFruit().createTweetAsync(req.user, boxUUID, req.body)
+      .then(tweet => res.status(200).json(tweet))
+      .catch(next)
+  } else
     return res.status(415).end()
 })
 
-router.get('/:boxUUID/tweets', auth, boxAuth, (req, res) => {
-  let box = req.box
+router.get('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
+  let boxUUID = req.params.boxUUID
   let { first, last, count, segments } = req.query
   let props = { first, last, count, segments }
 
-  box.getTweetsAsync(props)
+  getFruit().getTweetsAsync(req.user, boxUUID, props)
     .then(data => res.status(200).json(data))
-    .catch(err => res.status(500).json({ code: err.code, message: err.message }))
+    .catch(next)
 })
 
-router.delete('/:boxUUID/tweets', auth, boxAuth, (req, res) => {
-  let box = req.box
+router.delete('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
+  let boxUUID = req.params.boxUUID
   let indexArr = req.body.indexArr
 
-  box.deleteTweetsAsync(indexArr)
+  getFruit().deleteTweetsAsync(req.user, boxUUID, indexArr)
     .then(() => res.status(200).end())
-    .catch(err => res.status(500).json({ code: err.code, message: err.message }))
-})
-
-router.post('/:boxUUID/commits', auth, boxAuth, (req, res) => {
-  let box = req.box
-  let branchUUID = req.body.branch
-  
+    .catch(next)
 })
 
 module.exports = router

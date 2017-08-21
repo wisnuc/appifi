@@ -16,9 +16,10 @@ const child = require('child_process')
 const app = require('src/app')
 const { saveObjectAsync } = require('src/lib/utils')
 const broadcast = require('src/common/broadcast')
+// const getFruit = require('src/fruitmix')
 
-const User = require('src/models/user')
-const boxData = require('src/box/boxData')
+// const User = require('src/models/user')
+// const boxData = require('src/box/boxData')
 
 const {
   IDS,
@@ -46,7 +47,7 @@ const resetAsync = async() => {
 
   broadcast.emit('FruitmixStop')
 
-  await broadcast.until('UserDeinitDone', 'BoxDeinitDone')
+  // await broadcast.until('UserDeinitDone', 'BoxDeinitDone')
 
   await rimrafAsync(tmptest) 
   await mkdirpAsync(tmpDir) 
@@ -54,7 +55,7 @@ const resetAsync = async() => {
  
   broadcast.emit('FruitmixStart', tmptest) 
 
-  await broadcast.until('UserInitDone', 'BoxInitDone')
+  await broadcast.until('FruitmixStarted')
 }
 
 describe(path.basename(__filename), () => {
