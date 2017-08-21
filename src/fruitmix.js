@@ -3,6 +3,10 @@ const path = require('path')
 const fs = Promise.promisifyAll(require('fs'))
 const EventEmitter = require('events')
 
+const rimraf = require('rimraf')
+const mkdirp = require('mkdirp')
+const mkdirpAsync = Promise.promisify(mkdirp)
+
 const UserList = require('./user/user')
 const DriveList = require('./forest/forest')
 const BoxData = require('./box/boxData')
@@ -86,8 +90,134 @@ class Fruitmix extends EventEmitter {
     return this.userList.findUser(userUUID)
   }
 
+ 
+  /**
+  isFirstUser never allowed to change.
+  possibly allowed props: username, isAdmin, global
+
+  If user is super user, userUUID is itself
+    allowed: username, global
+  If user is super user, userUUID is not itself
+    allowed: isAdmin, 
+  */ 
   async updateUserAsync(user, userUUID, body) {
+
+    if (body.hasOwnProperty('uuid'))
+      throw Object.assign(new Error('uuid is not allowed to change'), { status: 403 })
+
+    if (body.hasOwnProperty('isFirstUser'))
+      throw Object.assign(new Error('isFirstUser is not allowed to change'), { status: 403 })
+
+    if (body.hasOwnProperty('avatar'))
+      throw Object.assign(new Error('avatar is not allowed to change'), { status: 403 })
+
+    if (body.hasOwnProperty('global')) {
+      if (typeof body.global !== 'object') 
+        throw Object.assign(new Error('invalid global property'), { status: 400 })
+    }
+
+    if (user.isFirstUser) {
+      if (user.uuid === userUUID) {
+        if (body.hasOwnProperty('isAdmin')) {
+          throw Object.assign(new Error('isAdmin is not allowed to change for super user'), {
+            status: 403
+          })
+        } 
+      } else {
+      }
+    }
+
     return await this.userList.updateUserAsync(userUUID, body) 
+  }
+
+  async updateUserPasswordAsync(user, body) {
+
+    if (typeof body.password !== 'string') {
+      throw Object.assign(new Error('bad format'), { status: 400 })
+    }
+
+    await this.userList.updatePasswordAsync(user.uuid, body.password) 
+  }
+
+  async getMediaBlacklistAsync(user) {
+
+    let dirPath = path.join(this.fruitmixPath, 'users', user.uuid)
+    await mkdirpAsync(dirPath)
+    try {
+      let filePath = path.join(this.fruitmixPath, 'users', user.uuid, 'media-blacklist.json')
+      let list = JSON.parse(await fs.readFileAsync(filePath))
+      return list
+    } catch (e) {
+      if (e.code === 'ENOENT' || e instanceof SyntaxError) return []
+      throw e
+    }
+  } 
+
+  async setMediaBlacklistAsync(user, props) {
+
+    // TODO must all be sha256 value
+
+    if (!Array.isArray(props) || !props.every(x => isSHA256(x)))
+      throw Object.assign(new Error('invalid parameters'),
+        { status: 400 })
+
+    let dirPath = path.join(this.fruitmixPath, 'users', user.uuid)
+    await mkdirpAsync(dirPath)
+    let filePath = path.join(this.fruitmixPath, 'users', user.uuid, 'media-blacklist.json')
+    await fs.writeFileAsync(filePath, JSON.stringify(props)) 
+  }
+
+  async addMediaBlacklistAsync(user, props) {
+
+    if (!Array.isArray(props) || !props.every(x => isSHA256(x)))
+      throw Object.assign(new Error('invalid parameters'),
+        { status: 400 })
+
+    let dirPath = path.join(this.fruitmixPath, 'users', user.uuid)
+    await mkdirpAsync(dirPath)
+
+    let filePath, list
+    try {
+      filePath = path.join(this.fruitmixPath, 'users', user.uuid, 'media-blacklist.json')
+      list = JSON.parse(await fs.readFileAsync(filePath))
+    } catch (e) {
+      if (e.code === 'ENOENT' || e instanceof SyntaxError) {
+        list = []
+      } else {
+        throw e
+      }
+    }  
+
+    let merged = Array.from(new Set([...list, ...props])) 
+    await fs.writeFileAsync(filePath, JSON.stringify(merged))
+    return merged
+  }
+
+  async subtractMediaBlacklistAsync(user, props) {
+
+    if (!Array.isArray(props) || !props.every(x => isSHA256(x)))
+      throw Object.assign(new Error('invalid parameters'),
+        { status: 400 })
+
+    let dirPath = path.join(this.fruitmixPath, 'users', user.uuid)
+    await mkdirpAsync(dirPath)
+
+    let filePath, list
+    try {
+      filePath = path.join(this.fruitmixPath, 'users', user.uuid, 'media-blacklist.json')
+      list = JSON.parse(await fs.readFileAsync(filePath))
+    } catch (e) {
+      if (e.code === 'ENOENT' || e instanceof SyntaxError) {
+        list = []
+      } else {
+        throw e
+      }
+    }  
+
+    let set = new Set(props)
+    let subtracted = list.filter(x => !set.has(x))
+    await fs.writeFileAsync(filePath, JSON.stringify(subtracted))
+    return subtracted
   }
 
   getDrives (user) {

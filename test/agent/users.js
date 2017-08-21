@@ -285,13 +285,14 @@ describe(path.basename(__filename), () => {
           done()
         }))
 
-    it('Patch A User, change name to hello should succeed', done => {
+    it('Patch A User, change username to hello should succeed', done => {
       request(app)
         .patch(`/users/${IDS.alice.uuid}`)
         .set('Authorization', 'JWT ' + token)
         .send({ username: 'hello' })
         .expect(200)
         .end((err, res) => {
+
           expect(res.body).to.deep.equal({
             uuid: IDS.alice.uuid,
             username: 'hello',
@@ -300,6 +301,8 @@ describe(path.basename(__filename), () => {
             avatar: null,
             global: null
           })
+
+          done()
         })
     })
 
@@ -330,28 +333,27 @@ describe(path.basename(__filename), () => {
         .end((err, res) => done(err))
     })
 
-    it('Patch A User, change global to hello should fail with 403', done => {
+    it('Patch A User, change global to hello should fail with 400', done => {
       request(app)
         .patch(`/users/${IDS.alice.uuid}`)
         .set('Authorization', 'JWT ' + token)
         .send({ global: 'hello' })
-        .expect(403)
+        .expect(400)
         .end((err, res) => done(err))
     })
 
-    it('Update User Password, change password to hello should fail with token auth', done => {
+    it('Update User Password, change password to hello should fail with token auth', done => 
       request(app)
         .put(`/users/${IDS.alice.uuid}/password`)
         .set('Authorizatoin', 'JWT ' + token)
         .send({ password: 'hello' })
         .expect(401)
-        .end((err, res) => done(err))
-    })
+        .end((err, res) => done(err)))
 
     it('Update User Password, change password to hello should succeed with basic auth', done => {
       request(app)
         .put(`/users/${IDS.alice.uuid}/password`)
-        .auth(IDS.alice.uuid, 'hello')
+        .auth(IDS.alice.uuid, 'alice')
         .send({ password: 'hello' })
         .expect(200)
         .end((err, res) => done(err))
@@ -369,70 +371,153 @@ describe(path.basename(__filename), () => {
     }) 
 
     it('Set Media Blacklist', done => {
+
+      let fp1 = '6692ec11ce9d667312b73415b42bcece5e53885ab5b2fe0404aec2c8a210ed88'
+      let fp2 = '9571ade89e5fc763a8847ede28b15f209f2e1f35168d283dae18992d0a645dc4'
+      let fp3 = 'e73ecccb8ea2f0b5e366145ee22c8d7852981d3493bef8c5dbf2aeb24d78c585' 
+
       request(app)
         .put(`/users/${IDS.alice.uuid}/media-blacklist`)
         .set('Authorization', 'JWT ' + token)
+        .send([fp1, fp2])
         .expect(200)
         .end((err, res) => {
-          expect(res.body).to.deep.equal([])
-          done()
+          if (err) return done(err)
+
+          request(app)
+            .get(`/users/${IDS.alice.uuid}/media-blacklist`)
+            .set('Authorization', 'JWT ' + token)
+            .expect(200)
+            .end((err, res) => {
+              expect(res.body).to.deep.equal([fp1, fp2])
+              done()
+            })
         })
     })
 
-    it('Add Items Into Media Blacklist', done => {
+    it('Add Media Blacklist', done => {
+
+      let fp1 = '6692ec11ce9d667312b73415b42bcece5e53885ab5b2fe0404aec2c8a210ed88'
+      let fp2 = '9571ade89e5fc763a8847ede28b15f209f2e1f35168d283dae18992d0a645dc4'
+      let fp3 = 'e73ecccb8ea2f0b5e366145ee22c8d7852981d3493bef8c5dbf2aeb24d78c585' 
+
       request(app)
-        .post(`/users/${IDS.alice.uuid}/media-blacklist`)
+        .put(`/users/${IDS.alice.uuid}/media-blacklist`)
         .set('Authorization', 'JWT ' + token)
+        .send([fp1, fp2])
         .expect(200)
         .end((err, res) => {
-          expect(res.body).to.deep.equal([])
-          done()
+          if (err) return done(err)
+
+          request(app)
+            .post(`/users/${IDS.alice.uuid}/media-blacklist`)
+            .set('Authorization', 'JWT ' + token)
+            .send([fp2, fp3])
+            .expect(200)
+            .end((err, res) => {
+              expect(res.body).to.deep.equal([fp1, fp2, fp3])
+              done()
+            })
         })
     })
 
-    it('Remove Items Out Of Media Blacklist', done => {
+    it('Subtract Media Blacklist', done => {
+
+      let fp1 = '6692ec11ce9d667312b73415b42bcece5e53885ab5b2fe0404aec2c8a210ed88'
+      let fp2 = '9571ade89e5fc763a8847ede28b15f209f2e1f35168d283dae18992d0a645dc4'
+      let fp3 = 'e73ecccb8ea2f0b5e366145ee22c8d7852981d3493bef8c5dbf2aeb24d78c585' 
+
       request(app)
-        .delete(`/users/${IDS.alice.uuid}/media-blacklist`)
+        .put(`/users/${IDS.alice.uuid}/media-blacklist`)
         .set('Authorization', 'JWT ' + token)
+        .send([fp1, fp2, fp3])
         .expect(200)
         .end((err, res) => {
-          expect(res.body).to.deep.equal([])
-          done()
+          if (err) return done(err)
+
+          request(app)
+            .delete(`/users/${IDS.alice.uuid}/media-blacklist`)
+            .set('Authorization', 'JWT ' + token)
+            .send([fp1, fp3])
+            .expect(200)
+            .end((err, res) => {
+              expect(res.body).to.deep.equal([fp2])
+              done()
+            })
         })
     })
 
     it('Get Drive List', done => {
-      done()
+      request(app)
+        .get('/drives')      
+        .set('Authorization', 'JWT ' + token)
+        .expect(200)
+        .end((err, res) => {
+          if (err) return done(err)
+
+          expect(res.body).to.deep.equal([{ 
+            uuid: IDS.alice.home,
+            type: 'private',
+            owner: IDS.alice.uuid,
+            tag: 'home'
+          }])
+          done()
+        })
     })
 
     it('Create New Public Drive', done => {
-      done()
+
+      sinon.stub(UUID, 'v4').returns(IDS.publicDrive1.uuid)      
+
+      request(app)
+        .post('/drives')
+        .send({ writelist: [IDS.alice.uuid], label: 'foobar' })
+        .set('Authorization', 'JWT ' + token)
+        .expect(200)
+        .end((err, res) => {
+
+          UUID.v4.restore()
+
+          if (err) return done(err)
+
+          expect(res.body).to.deep.equal({
+            uuid: IDS.publicDrive1.uuid,
+            type: 'public',
+            writelist: [IDS.alice.uuid],
+            readlist: [],
+            label: 'foobar'
+          })
+
+          done()
+        })
     })
 
     it('Get A Drive, home', done => {
-      done()
+      done(new Error('not implemented'))
     })
 
     it('Get A Public Drive', done => {
-      done()
+      done(new Error('not implemented'))
     })
 
     it('Patch A Private', done => {
-      done()
+      done(new Error('not implemented'))
     })
 
     it('Patch A Public Drive, change label', done => {
-      done()
+      done(new Error('not implemented'))
     }) 
 
     it('Patch A Public Drive, change user', done => {
-      done()
+      done(new Error('not implemented'))
     }) 
 
     it('Delete Private Drive, should fail', done => {
+      done(new Error('not implemented'))
     })
 
     it('Delete Public Drive, should success', done => {
+      done(new Error('not implemented'))
     })
   }) 
 
