@@ -7,9 +7,8 @@ const getFruit = require('../fruitmix')
 const EUnavail = Object.assign(new Error('fruitmix unavailable'), { status: 503 })
 const fruitless = (req, res, next) => getFruit() ? next() : next(EUnavail)
 
-router.get('/', 
-  fruitless, 
-
+// User List, GET
+router.get('/', fruitless, 
   // for display users 
   (req, res, next) => {
     let fruit = getFruit()
@@ -20,11 +19,15 @@ router.get('/',
   // for authorized users
   (req, res) => {
     let fruit = getFruit()
-    // TODO
+    if (req.user.isAdmin) {
+      res.status(200).json(fruit.getUsers())
+    } else {
+      res.status(200).json(fruit.displayUsers())
+    }
   })
 
-router.post('/', 
-  fruitless, 
+// User List, POST
+router.post('/', fruitless, 
   (req, res, next) => {
     let fruit = getFruit()
     if (fruit.hasUsers()) return next()
@@ -40,6 +43,7 @@ router.post('/',
       .catch(next)
   })
 
+// get single user 
 router.get('/:uuid', auth.jwt(), (req, res) => {
   
   let uuid = req.params.uuid
@@ -60,6 +64,7 @@ router.get('/:uuid', auth.jwt(), (req, res) => {
   res.status(403).end() // TODO message? 
 })
 
+// update name, isAdmin, disabled 
 router.patch('/:userUUID', fruitless, auth.jwt(), (req, res, next) => {
   let fruit = getFruit()
   let { userUUID } = req.params
@@ -68,8 +73,20 @@ router.patch('/:userUUID', fruitless, auth.jwt(), (req, res, next) => {
     .catch(next)
 })
 
+// update password
 router.post('/:uuid/password', auth.jwt(), (req, res) => {
+  let fruit = getFruit()
+})
 
+router.get('/:userUUID/media/blacklist', auth.jwt(), (req, res) => {
+  let fruit = getFruit()
+})
+
+router.post('/:userUUID/media/blacklist', auth.jwt(), (req, res) => {
+  
+})
+
+router.delete('/:userUUID/media/blacklist', auth.jwt(), (req, res) => {
 })
 
 /**
