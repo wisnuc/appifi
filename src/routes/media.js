@@ -14,6 +14,8 @@ const Media = require('../media/media')
 
 const Thumbnail = require('../lib/thumbnail')
 
+const getFruit = require('../fruitmix')
+
 let thumbnail = null
 
 broadcast.on('FruitmixStart', froot => {
@@ -24,13 +26,15 @@ broadcast.on('FruitmixStop', () => thumbnail && thumbnail.abort())
 
 // return meta data of all I can view
 router.get('/', auth.jwt(), (req, res) => {
+
   const user = req.user
-  const fingerprints = Forest.getFingerprints()
+  const fingerprints = getFruit().getFingerprints(user)
   const metadata = fingerprints.reduce((acc, fingerprint) => {
     let meta = Media.get(fingerprint)
     if (meta) acc.push(Object.assign({ hash: fingerprint }, meta))
     return acc
   }, [])
+
   res.status(200).json(metadata)
 })
 
@@ -47,14 +51,15 @@ router.get('/:fingerprint', auth.jwt(), (req, res, next) => {
       res.status(404).end()
     }
   } else if (query.alt === 'data') {
-    let files = Forest.getFilesByFingerprint(fingerprint)
+    let files = getFruit().getFilesByFingerprint(user, fingerprint)
+
     if (files.length) {
       res.status(200).sendFile(files[0])
     } else {
       res.status(404).end()
     }
   } else if (query.alt === 'thumbnail') {
-    let files = Forest.getFilesByFingerprint(fingerprint)
+    let files = getFruit().getFilesByFingerprint(user, fingerprint)
     if (files.length) {
       thumbnail.requestAsync(fingerprint, query, files)
         .then(thumb => {

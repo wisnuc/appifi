@@ -441,6 +441,16 @@ class Fruitmix extends EventEmitter {
     return await box.deleteTweetsAsync(tweetsID)
   }  
 
+  ///////////// media api //////////////
+
+  getFingerprints (user, ...args) {
+    return this.driveList.getFingerprints(...args)
+  }
+
+  getFilesByFingerprint (user, fingerprint) {
+    return this.driveList.getFilesByFingerprint(fingerprint)
+  }
+
   ///////////// task api ///////////////////////////////////////////////////////
 
   getTasks (user) {
