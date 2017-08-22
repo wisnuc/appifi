@@ -148,12 +148,22 @@ class Forest extends EventEmitter {
     return drive 
   } 
 
-  async updatePublicDrive(driveUUID, props) {
-    
-    let drive = this.drives.find(drv => drv.uuid === driveUUID)
-    if (!drive) throw new Error('not found')
-    if (drive.type === 'private') throw new E.EFORBIDDEN()
-    // something  
+  async updatePublicDriveAsync (driveUUID, props) {
+
+    let currDrives = this.drives
+
+    let index = this.drives.findIndex(drv => drv.uuid === driveUUID)
+    if (index === -1) throw new Error('drive not found') // TODO
+
+    let nextDrive = Object.assign({}, this.drives[index], props)
+    let nextDrives = [
+      ...currDrives.slice(0, index),
+      nextDrive,
+      ...currDrives.slice(index + 1)
+    ]
+
+    await this.commitDrivesAsync(currDrives, nextDrives)
+    return nextDrive
   }
 
   //////////////////////////////////////////////////////////////////////////////

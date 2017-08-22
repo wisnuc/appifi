@@ -37,12 +37,9 @@ Reset directories and reinit User module
 const resetAsync = async () => {
 
   broadcast.emit('FruitmixStop')
-
   await Promise.delay(100)
-
   await rimrafAsync(tmptest)
   await mkdirpAsync(tmpDir)
-
   broadcast.emit('FruitmixStart', tmptest) 
   await broadcast.until('FruitmixStarted')
 }
@@ -148,6 +145,7 @@ describe(path.basename(__filename), () => {
         .expect(200)
         .end(done)
     })
+
 /**
     it("GET /drives should return alice's home drive", async() => 
       request(app)
@@ -285,6 +283,15 @@ describe(path.basename(__filename), () => {
           done()
         }))
 
+    it('Patch A User, with unexpected prop should fail with 400', done => {
+      request(app)
+        .patch(`/users/${IDS.alice.uuid}`)
+        .set('Authorization', 'JWT ' + token)
+        .send({ hello: 'world' })
+        .expect(400)
+        .end((err, res) => done(err))
+    }) 
+
     it('Patch A User, change username to hello should succeed', done => {
       request(app)
         .patch(`/users/${IDS.alice.uuid}`)
@@ -305,6 +312,24 @@ describe(path.basename(__filename), () => {
           done()
         })
     })
+
+    it('Patch A User, change uuid should fail with 403', done => {
+      request(app)
+        .patch(`/users/${IDS.alice.uuid}`)
+        .set('Authorization', 'JWT ' + token)
+        .send({ uuid: 'ba9d0f37-3b1e-486e-a84c-b5627e58a612' })
+        .expect(403)
+        .end((err, res) => done(err))
+    }) 
+
+    it('Patch A User, change password should fail with 403', done => {
+      request(app)
+        .patch(`/users/${IDS.alice.uuid}`)
+        .set('Authorization', 'JWT ' + token)
+        .send({ password: 'world' })
+        .expect(403)
+        .end((err, res) => done(err))
+    }) 
 
     it('Patch A User, change isFirstUser to false should fail with 403', done => {
       request(app)
@@ -357,6 +382,33 @@ describe(path.basename(__filename), () => {
         .send({ password: 'hello' })
         .expect(200)
         .end((err, res) => done(err))
+    })
+
+    it('Update User Password, change password to hello and verify should succeed', done => {
+      request(app)
+        .put(`/users/${IDS.alice.uuid}/password`)
+        .auth(IDS.alice.uuid, 'alice')
+        .send({ password: 'hello' })
+        .expect(200)
+        .end((err, res) => {
+          if (err) return done(err)
+
+          request(app)
+            .get('/token')
+            .auth(IDS.alice.uuid, 'hello')
+            .expect(200)
+            .end((err, res) => {
+              if (err) return done(err)
+
+              let newToken = res.body.token
+
+              request(app)
+                .get('/token/verify')
+                .set('Authorization', 'JWT ' + newToken)
+                .expect(200)
+                .end(done)
+            })
+        })
     })
 
     it('Get Media Blacklist', done => {
@@ -447,14 +499,13 @@ describe(path.basename(__filename), () => {
         })
     })
 
-    it('Get Drive List', done => {
+    it('Get Drive List', done => 
       request(app)
         .get('/drives')      
         .set('Authorization', 'JWT ' + token)
         .expect(200)
         .end((err, res) => {
           if (err) return done(err)
-
           expect(res.body).to.deep.equal([{ 
             uuid: IDS.alice.home,
             type: 'private',
@@ -462,13 +513,10 @@ describe(path.basename(__filename), () => {
             tag: 'home'
           }])
           done()
-        })
-    })
+        }))
 
     it('Create New Public Drive', done => {
-
       sinon.stub(UUID, 'v4').returns(IDS.publicDrive1.uuid)      
-
       request(app)
         .post('/drives')
         .send({ writelist: [IDS.alice.uuid], label: 'foobar' })
@@ -479,7 +527,6 @@ describe(path.basename(__filename), () => {
           UUID.v4.restore()
 
           if (err) return done(err)
-
           expect(res.body).to.deep.equal({
             uuid: IDS.publicDrive1.uuid,
             type: 'public',
@@ -492,24 +539,277 @@ describe(path.basename(__filename), () => {
         })
     })
 
-    it('Get A Drive, home', done => {
-      done(new Error('not implemented'))
-    })
+    it('Get A Drive, home', done => 
+      request(app)
+        .get(`/drives/${IDS.alice.home}`)
+        .set('Authorization', 'JWT ' + token)
+        .expect(200)
+        .end((err, res) => {
+          if (err) return done(err)
+          expect(res.body).to.deep.equal({
+            uuid: IDS.alice.home,
+            type: 'private',
+            owner: IDS.alice.uuid,
+            tag: 'home'
+          })
+          done()
+        }))
 
     it('Get A Public Drive', done => {
-      done(new Error('not implemented'))
+      sinon.stub(UUID, 'v4').returns(IDS.publicDrive1.uuid)      
+      request(app)
+        .post('/drives')
+        .send({ writelist: [IDS.alice.uuid], label: 'foobar' })
+        .set('Authorization', 'JWT ' + token)
+        .expect(200)
+        .end((err, res) => {
+          UUID.v4.restore()
+          if (err) return done(err)
+
+          request(app)
+            .get(`/drives/${IDS.publicDrive1.uuid}`)
+            .set('Authorization', 'JWT ' + token)
+            .expect(200)
+            .end((err, res) => {
+              if (err) return done(err)
+              expect(res.body).to.deep.equal({
+                uuid: IDS.publicDrive1.uuid,
+                type: 'public',
+                writelist: [IDS.alice.uuid],
+                readlist: [],
+                label: 'foobar'
+              })
+
+              done()
+            })
+        })
     })
 
-    it('Patch A Private', done => {
-      done(new Error('not implemented'))
+    it('Patch A Private Drive should fail with 403', done =>
+      request(app)
+        .patch(`/drives/${IDS.alice.home}`)
+        .set('Authorization', 'JWT ' + token)
+        .expect(403)
+        .end(done))
+
+    it('Patch A Public Drive, with invalid prop should fail with 400', done => {
+
+      sinon.stub(UUID, 'v4').returns(IDS.publicDrive1.uuid)      
+      request(app)
+        .post('/drives')
+        .send({ writelist: [IDS.alice.uuid], label: 'foobar' })
+        .set('Authorization', 'JWT ' + token)
+        .expect(200)
+        .end((err, res) => {
+          UUID.v4.restore()
+          if (err) return done(err)
+
+          request(app)
+            .patch(`/drives/${IDS.publicDrive1.uuid}`)
+            .set('Authorization', 'JWT ' + token)
+            .send({ hello: 'world' })
+            .expect(400)
+            .end(done)
+        })
     })
 
-    it('Patch A Public Drive, change label', done => {
-      done(new Error('not implemented'))
+    it('Patch A Public Drive, change uuid should fail with 403', done => {
+      sinon.stub(UUID, 'v4').returns(IDS.publicDrive1.uuid)      
+      request(app)
+        .post('/drives')
+        .send({ writelist: [IDS.alice.uuid], label: 'foobar' })
+        .set('Authorization', 'JWT ' + token)
+        .expect(200)
+        .end((err, res) => {
+          UUID.v4.restore()
+          if (err) return done(err)
+
+          request(app)
+            .patch(`/drives/${IDS.publicDrive1.uuid}`)
+            .set('Authorization', 'JWT ' + token)
+            .send({ uuid: '9c7d2912-307f-4bad-a1eb-87e60345f551' })
+            .expect(403)
+            .end(done)
+        })
     }) 
 
-    it('Patch A Public Drive, change user', done => {
-      done(new Error('not implemented'))
+    it('Patch A Public Drive, change type should fail with 403', done => {
+      sinon.stub(UUID, 'v4').returns(IDS.publicDrive1.uuid)      
+      request(app)
+        .post('/drives')
+        .send({ writelist: [IDS.alice.uuid], label: 'foobar' })
+        .set('Authorization', 'JWT ' + token)
+        .expect(200)
+        .end((err, res) => {
+          UUID.v4.restore()
+          if (err) return done(err)
+
+          request(app)
+            .patch(`/drives/${IDS.publicDrive1.uuid}`)
+            .set('Authorization', 'JWT ' + token)
+            .send({ type: 'private' })
+            .expect(403)
+            .end(done)
+        })
+    }) 
+
+    it('Patch A Public Drive, change readlist should fail with 403', done => {
+      sinon.stub(UUID, 'v4').returns(IDS.publicDrive1.uuid)      
+      request(app)
+        .post('/drives')
+        .send({ writelist: [IDS.alice.uuid], label: 'foobar' })
+        .set('Authorization', 'JWT ' + token)
+        .expect(200)
+        .end((err, res) => {
+          UUID.v4.restore()
+          if (err) return done(err)
+
+          request(app)
+            .patch(`/drives/${IDS.publicDrive1.uuid}`)
+            .set('Authorization', 'JWT ' + token)
+            .send({ readlist: [] })
+            .expect(403)
+            .end(done)
+        })
+    }) 
+
+    it('Patch A Public Drive, change label should succeed', done => {
+      sinon.stub(UUID, 'v4').returns(IDS.publicDrive1.uuid)      
+      request(app)
+        .post('/drives')
+        .send({ writelist: [IDS.alice.uuid], label: 'foobar' })
+        .set('Authorization', 'JWT ' + token)
+        .expect(200)
+        .end((err, res) => {
+          UUID.v4.restore()
+          if (err) return done(err)
+
+          request(app)
+            .patch(`/drives/${IDS.publicDrive1.uuid}`)
+            .set('Authorization', 'JWT ' + token)
+            .send({ label: 'whatever' })
+            .expect(200)
+            .end((err, res) => {
+              if (err) return done(err)
+              expect(res.body).to.deep.equal({
+                uuid: IDS.publicDrive1.uuid,
+                type: 'public',
+                writelist: [IDS.alice.uuid],
+                readlist: [],
+                label: 'whatever'
+              })
+              done()
+            })
+        })
+    }) 
+
+    it('Patch A Public Drive, change writelist to non-array value should fail with 400', done => {
+      sinon.stub(UUID, 'v4').returns(IDS.publicDrive1.uuid)      
+      request(app)
+        .post('/drives')
+        .send({ writelist: [IDS.alice.uuid], label: 'foobar' })
+        .set('Authorization', 'JWT ' + token)
+        .expect(200)
+        .end((err, res) => {
+          UUID.v4.restore()
+          if (err) return done(err)
+
+          request(app)
+            .patch(`/drives/${IDS.publicDrive1.uuid}`)
+            .set('Authorization', 'JWT ' + token)
+            .send({ writelist: 'whatever' })
+            .expect(400)
+            .end(done)
+        })
+    }) 
+
+    it('Patch A Public Drive, change writelist to invalid user array should fail with 400', done => {
+      sinon.stub(UUID, 'v4').returns(IDS.publicDrive1.uuid)      
+      request(app)
+        .post('/drives')
+        .send({ writelist: [IDS.alice.uuid], label: 'foobar' })
+        .set('Authorization', 'JWT ' + token)
+        .expect(200)
+        .end((err, res) => {
+          UUID.v4.restore()
+          if (err) return done(err)
+
+          request(app)
+            .patch(`/drives/${IDS.publicDrive1.uuid}`)
+            .set('Authorization', 'JWT ' + token)
+            .send({ writelist: ['39c70142-04cb-49de-b8e0-ab50810e19cb'] })
+            .expect(400)
+            .end(done)
+        })
+    }) 
+
+    it('Patch A Public Drive, change writelist to [] should succeed', done => {
+      sinon.stub(UUID, 'v4').returns(IDS.publicDrive1.uuid)      
+      request(app)
+        .post('/drives')
+        .send({ writelist: [IDS.alice.uuid], label: 'foobar' })
+        .set('Authorization', 'JWT ' + token)
+        .expect(200)
+        .end((err, res) => {
+          UUID.v4.restore()
+          if (err) return done(err)
+
+          request(app)
+            .patch(`/drives/${IDS.publicDrive1.uuid}`)
+            .set('Authorization', 'JWT ' + token)
+            .send({ writelist: [] })
+            .expect(200)
+            .end((err, res) => {
+              if (err) return done(err) 
+              expect(res.body).to.deep.equal({
+                uuid: IDS.publicDrive1.uuid,
+                type: 'public',
+                writelist: [],
+                readlist: [],
+                label: 'foobar'
+              })
+              done()
+            })
+        })
+    }) 
+
+    it('Patch A Public Drive, change writelist to [] and change back should succeed', done => {
+      sinon.stub(UUID, 'v4').returns(IDS.publicDrive1.uuid)      
+      request(app)
+        .post('/drives')
+        .send({ writelist: [IDS.alice.uuid], label: 'foobar' })
+        .set('Authorization', 'JWT ' + token)
+        .expect(200)
+        .end((err, res) => {
+          UUID.v4.restore()
+          if (err) return done(err)
+
+          request(app)
+            .patch(`/drives/${IDS.publicDrive1.uuid}`)
+            .set('Authorization', 'JWT ' + token)
+            .send({ writelist: [] })
+            .expect(200)
+            .end((err, res) => {
+              if (err) return done(err) 
+
+              request(app)
+                .patch(`/drives/${IDS.publicDrive1.uuid}`)
+                .set('Authorization', 'JWT ' + token)
+                .send({ writelist: [IDS.alice.uuid] })
+                .expect(200)
+                .end((err, res) => {
+                  if (err) return done(err) 
+                  expect(res.body).to.deep.equal({
+                    uuid: IDS.publicDrive1.uuid,
+                    type: 'public',
+                    writelist: [IDS.alice.uuid],
+                    readlist: [],
+                    label: 'foobar'
+                  })
+                  done()
+                })
+            })
+        })
     }) 
 
     it('Delete Private Drive, should fail', done => {
