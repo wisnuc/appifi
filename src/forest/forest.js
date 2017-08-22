@@ -10,7 +10,7 @@ const rimrafAsync = Promise.promisify(rimraf)
 const log = require('winston')
 const UUID = require('uuid')
 const deepFreeze = require('deep-freeze')
-const { saveObjectAsync } = require('../fruitmix/lib/utils')
+const { saveObjectAsync } = require('../lib/utils')
 
 const Node = require('./node')
 const File = require('./file')

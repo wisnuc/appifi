@@ -15,7 +15,7 @@ const should = chai.should()
 const debug = require('debug')('divider')
 
 const app = require('src/app')
-const { saveObjectAsync } = require('src/fruitmix/lib/utils')
+const { saveObjectAsync } = require('src/lib/utils')
 const broadcast = require('src/common/broadcast')
 
 const getFruit = require('src/fruitmix')

@@ -12,11 +12,8 @@ const expect = chai.expect
 const should = chai.should()
 
 const app = require('src/app')
-const { saveObjectAsync } = require('src/fruitmix/lib/utils')
+const { saveObjectAsync } = require('src/lib/utils')
 const broadcast = require('src/common/broadcast')
-
-const User = require('src/models/user')
-const Drive = require('src/models/drive')
 
 const {
   IDS,
@@ -37,7 +34,6 @@ Reset directories and reinit User module
 const resetAsync = async () => {
 
   broadcast.emit('FruitmixStop')
-  await Promise.delay(100)
   await rimrafAsync(tmptest)
   await mkdirpAsync(tmpDir)
   broadcast.emit('FruitmixStart', tmptest) 
