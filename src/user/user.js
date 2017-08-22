@@ -10,7 +10,7 @@ const E = require('../lib/error')
 const broadcast = require('../common/broadcast')
 
 const { isUUID, isNonNullObject, isNonEmptyString } = require('../lib/assertion')
-const { saveObjectAsync, passwordEncrypt, unixPasswordEncrypt, md4Encrypt } = require('../fruitmix/lib/utils')
+const { saveObjectAsync, passwordEncrypt, unixPasswordEncrypt, md4Encrypt } = require('../lib/utils')
 
 /**
 User module exports a UserList Singleton.
@@ -89,8 +89,9 @@ const userEntryMProps = [
   'lastChangeTime',
   'isFirstUser',
   'isAdmin',
-  'avatar', // null
-  'global'  // { id, wx: [ <unionId> ] }
+  'disabled',
+  'avatar',     // null
+  'global'      // { id, wx: [ <unionId> ] }
 ]
 
 
@@ -274,14 +275,13 @@ class UserList extends EventEmitter {
   @param {boolean} [props.isAdmin] - set user's isAdmin. Operator must be first user to have this prop.
   **/
   async updateUserAsync (uuid, props) {
-    
+
     let currUsers = this.users
 
-    let { global } = props
     let index = this.users.findIndex(u => u.uuid === uuid) 
     if (index === -1) throw new Error('user not found')
 
-    let nextUser = Object.assign({}, this.users[index], { global })
+    let nextUser = Object.assign({}, this.users[index], props)
     let nextUsers = [
       ...currUsers.slice(0, index),
       nextUser,
@@ -294,7 +294,26 @@ class UserList extends EventEmitter {
 
   /**
   */
-  async updatePassword(user, props) {
+  async updatePasswordAsync(userUUID, password) {
+
+    let currUsers = this.users
+    let index = this.users.findIndex(u => u.uuid === userUUID)
+    if (index === -1) throw new Error('user not found')
+
+    let nextUser = Object.assign({}, this.users[index], {
+      password: passwordEncrypt(password, 10),
+      unixPassword: unixPasswordEncrypt(password),
+      smbPassword: md4Encrypt(password),
+      lastChangeTime: new Date().getTime(),
+    })
+
+    let nextUsers = [
+      ...currUsers.slice(0, index),
+      nextUser,
+      ...currUsers.slice(index + 1)
+    ] 
+
+    await this.commitUsersAsync(currUsers, nextUsers)
   } 
 
   /**

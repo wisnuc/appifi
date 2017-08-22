@@ -93,7 +93,7 @@ describe(path.basename(__filename), () => {
 
   })
 
-  describe('After alice created, retrieve token', () => {
+  describe('Alice only, retrieve token', () => {
 
     beforeEach(async () => {
       await resetAsync()  
@@ -117,7 +117,7 @@ describe(path.basename(__filename), () => {
     })
   })
 
-  describe('After alice created', () => {
+  describe('Alice only, verify token', () => {
 
     let token
     beforeEach(async () => {
@@ -164,48 +164,364 @@ describe(path.basename(__filename), () => {
 **/
 
     // TODO move to other place
-    it("PATCH /users/:userUUID alice set global", async () =>
+    it("TODO PATCH /users/:userUUID alice set global TODO", async () =>
       setUserGlobalAsync('alice')
         .should.eventually.have.deep.property('global')
         .that.equal(IDS.alice.global))
   })
 
-  describe('After alice created, create bob', () => {
+  describe('Alice only', () => {
 
     let token
     beforeEach(async () => {
       await resetAsync()
       await createUserAsync('alice')
       token = await retrieveTokenAsync('alice')
-      stubUserUUID('bob')
     })
 
-    afterEach(() => UUID.v4.restore())
+    it('Get User List without token should return display users', done => {
+      request(app)
+        .get('/users')
+        .expect(200)
+        .end((err, res) => {
+          expect(res.body).to.deep.equal([{
+            uuid: IDS.alice.uuid,
+            username: 'alice',
+            avatar: null
+          }])
+          done()
+        })
+    })
 
-    it ('POST /users should NOT create bob without token', async() => 
+    it('Get User List with token should return full users', done => {
+      request(app)
+        .get('/users')
+        .set('Authorization', 'JWT ' + token)
+        .expect(200)
+        .end((err, res) => {
+          expect(res.body).to.deep.equal([{
+            uuid: IDS.alice.uuid,
+            username: 'alice',
+            isFirstUser: true,
+            isAdmin: true,
+            avatar: null
+          }])
+          done()
+        })
+    }) 
+
+    it('Create New User (bob), without token should fail 401', async () =>
       request(app)
         .post('/users')
         .send({ username: 'bob', password: 'bob', isAdmin: true })
         .expect(401))
 
-    it ('POST /users should create bob', async() => 
+    it('Create New User (bob), with token should succeed', done => {
+      stubUserUUID('bob') 
+
       request(app)
         .post('/users')
+        .set('Authorization', 'JWT ' + token)
         .send({ username: 'bob', password: 'bob', isAdmin: true })
+        .expect(200)
+        .end((err, res) => {
+          expect(res.body).to.deep.equal({
+            uuid: IDS.bob.uuid,
+            username: 'bob',
+            isFirstUser: false,
+            isAdmin: true,
+            avatar: null,
+            global: null
+          })
+
+          UUID.v4.restore()
+          done()
+        })
+    })
+
+    it('Create New User david without token should fail 401', async () => 
+      request(app)
+        .post('/users')
+        .send({ username: 'david', password: 'david', isAdmin: false })
+        .expect(401))
+
+    it('Create New User bob with token should succeed', done => {
+      stubUserUUID('david') 
+
+      request(app)
+        .post('/users')
+        .set('Authorization', 'JWT ' + token)
+        .send({ username: 'david', password: 'david', isAdmin: false })
+        .expect(200)
+        .end((err, res) => {
+          expect(res.body).to.deep.equal({
+            uuid: IDS.david.uuid,
+            username: 'david',
+            isFirstUser: false,
+            isAdmin: false,
+            avatar: null,
+            global: null
+          })
+
+          UUID.v4.restore()
+          done()
+        })
+    })
+
+    it('Get A User', done => 
+      request(app)
+        .get(`/users/${IDS.alice.uuid}`)
         .set('Authorization', 'JWT ' + token)
         .expect(200)
-        .should.eventually.have.deep.property('body')
-        .that.deep.equal({
-          uuid: IDS.bob.uuid,
-          username: 'bob',
-          isFirstUser: false,
-          isAdmin: true,  
-          avatar: null,
-          global: null
-        })) 
-  })
+        .end((err, res) => {
+          expect(res.body).to.deep.equal({
+            uuid: IDS.alice.uuid,
+            username: 'alice',
+            isFirstUser: true,
+            isAdmin: true,
+            avatar: null,
+            global: null
+          })
+          done()
+        }))
 
-  describe('After alice created bob', () => {
+    it('Patch A User, change username to hello should succeed', done => {
+      request(app)
+        .patch(`/users/${IDS.alice.uuid}`)
+        .set('Authorization', 'JWT ' + token)
+        .send({ username: 'hello' })
+        .expect(200)
+        .end((err, res) => {
+
+          expect(res.body).to.deep.equal({
+            uuid: IDS.alice.uuid,
+            username: 'hello',
+            isFirstUser: true,
+            isAdmin: true,
+            avatar: null,
+            global: null
+          })
+
+          done()
+        })
+    })
+
+    it('Patch A User, change isFirstUser to false should fail with 403', done => {
+      request(app)
+        .patch(`/users/${IDS.alice.uuid}`)
+        .set('Authorization', 'JWT ' + token)
+        .send({ isFirstUser: false })
+        .expect(403)
+        .end((err, res) => done(err))
+    })
+
+    it('Patch A User, change isAdmin to false should fail with 403', done => {
+      request(app)
+        .patch(`/users/${IDS.alice.uuid}`)
+        .set('Authorization', 'JWT ' + token)
+        .send({ isAdmin: false })
+        .expect(403)
+        .end((err, res) => done(err))
+    })
+
+    it('Patch A User, change avatar to hello should fail with 403', done => {
+      request(app)
+        .patch(`/users/${IDS.alice.uuid}`)
+        .set('Authorization', 'JWT ' + token)
+        .send({ avatar: 'hello' })
+        .expect(403)
+        .end((err, res) => done(err))
+    })
+
+    it('Patch A User, change global to hello should fail with 400', done => {
+      request(app)
+        .patch(`/users/${IDS.alice.uuid}`)
+        .set('Authorization', 'JWT ' + token)
+        .send({ global: 'hello' })
+        .expect(400)
+        .end((err, res) => done(err))
+    })
+
+    it('Update User Password, change password to hello should fail with token auth', done => 
+      request(app)
+        .put(`/users/${IDS.alice.uuid}/password`)
+        .set('Authorizatoin', 'JWT ' + token)
+        .send({ password: 'hello' })
+        .expect(401)
+        .end((err, res) => done(err)))
+
+    it('Update User Password, change password to hello should succeed with basic auth', done => {
+      request(app)
+        .put(`/users/${IDS.alice.uuid}/password`)
+        .auth(IDS.alice.uuid, 'alice')
+        .send({ password: 'hello' })
+        .expect(200)
+        .end((err, res) => done(err))
+    })
+
+    it('Get Media Blacklist', done => {
+      request(app)
+        .get(`/users/${IDS.alice.uuid}/media-blacklist`)
+        .set('Authorization', 'JWT ' + token)
+        .expect(200)
+        .end((err, res) => {
+          expect(res.body).to.deep.equal([])
+          done()
+        })
+    }) 
+
+    it('Set Media Blacklist', done => {
+
+      let fp1 = '6692ec11ce9d667312b73415b42bcece5e53885ab5b2fe0404aec2c8a210ed88'
+      let fp2 = '9571ade89e5fc763a8847ede28b15f209f2e1f35168d283dae18992d0a645dc4'
+      let fp3 = 'e73ecccb8ea2f0b5e366145ee22c8d7852981d3493bef8c5dbf2aeb24d78c585' 
+
+      request(app)
+        .put(`/users/${IDS.alice.uuid}/media-blacklist`)
+        .set('Authorization', 'JWT ' + token)
+        .send([fp1, fp2])
+        .expect(200)
+        .end((err, res) => {
+          if (err) return done(err)
+
+          request(app)
+            .get(`/users/${IDS.alice.uuid}/media-blacklist`)
+            .set('Authorization', 'JWT ' + token)
+            .expect(200)
+            .end((err, res) => {
+              expect(res.body).to.deep.equal([fp1, fp2])
+              done()
+            })
+        })
+    })
+
+    it('Add Media Blacklist', done => {
+
+      let fp1 = '6692ec11ce9d667312b73415b42bcece5e53885ab5b2fe0404aec2c8a210ed88'
+      let fp2 = '9571ade89e5fc763a8847ede28b15f209f2e1f35168d283dae18992d0a645dc4'
+      let fp3 = 'e73ecccb8ea2f0b5e366145ee22c8d7852981d3493bef8c5dbf2aeb24d78c585' 
+
+      request(app)
+        .put(`/users/${IDS.alice.uuid}/media-blacklist`)
+        .set('Authorization', 'JWT ' + token)
+        .send([fp1, fp2])
+        .expect(200)
+        .end((err, res) => {
+          if (err) return done(err)
+
+          request(app)
+            .post(`/users/${IDS.alice.uuid}/media-blacklist`)
+            .set('Authorization', 'JWT ' + token)
+            .send([fp2, fp3])
+            .expect(200)
+            .end((err, res) => {
+              expect(res.body).to.deep.equal([fp1, fp2, fp3])
+              done()
+            })
+        })
+    })
+
+    it('Subtract Media Blacklist', done => {
+
+      let fp1 = '6692ec11ce9d667312b73415b42bcece5e53885ab5b2fe0404aec2c8a210ed88'
+      let fp2 = '9571ade89e5fc763a8847ede28b15f209f2e1f35168d283dae18992d0a645dc4'
+      let fp3 = 'e73ecccb8ea2f0b5e366145ee22c8d7852981d3493bef8c5dbf2aeb24d78c585' 
+
+      request(app)
+        .put(`/users/${IDS.alice.uuid}/media-blacklist`)
+        .set('Authorization', 'JWT ' + token)
+        .send([fp1, fp2, fp3])
+        .expect(200)
+        .end((err, res) => {
+          if (err) return done(err)
+
+          request(app)
+            .delete(`/users/${IDS.alice.uuid}/media-blacklist`)
+            .set('Authorization', 'JWT ' + token)
+            .send([fp1, fp3])
+            .expect(200)
+            .end((err, res) => {
+              expect(res.body).to.deep.equal([fp2])
+              done()
+            })
+        })
+    })
+
+    it('Get Drive List', done => {
+      request(app)
+        .get('/drives')      
+        .set('Authorization', 'JWT ' + token)
+        .expect(200)
+        .end((err, res) => {
+          if (err) return done(err)
+
+          expect(res.body).to.deep.equal([{ 
+            uuid: IDS.alice.home,
+            type: 'private',
+            owner: IDS.alice.uuid,
+            tag: 'home'
+          }])
+          done()
+        })
+    })
+
+    it('Create New Public Drive', done => {
+
+      sinon.stub(UUID, 'v4').returns(IDS.publicDrive1.uuid)      
+
+      request(app)
+        .post('/drives')
+        .send({ writelist: [IDS.alice.uuid], label: 'foobar' })
+        .set('Authorization', 'JWT ' + token)
+        .expect(200)
+        .end((err, res) => {
+
+          UUID.v4.restore()
+
+          if (err) return done(err)
+
+          expect(res.body).to.deep.equal({
+            uuid: IDS.publicDrive1.uuid,
+            type: 'public',
+            writelist: [IDS.alice.uuid],
+            readlist: [],
+            label: 'foobar'
+          })
+
+          done()
+        })
+    })
+
+    it('Get A Drive, home', done => {
+      done(new Error('not implemented'))
+    })
+
+    it('Get A Public Drive', done => {
+      done(new Error('not implemented'))
+    })
+
+    it('Patch A Private', done => {
+      done(new Error('not implemented'))
+    })
+
+    it('Patch A Public Drive, change label', done => {
+      done(new Error('not implemented'))
+    }) 
+
+    it('Patch A Public Drive, change user', done => {
+      done(new Error('not implemented'))
+    }) 
+
+    it('Delete Private Drive, should fail', done => {
+      done(new Error('not implemented'))
+    })
+
+    it('Delete Public Drive, should success', done => {
+      done(new Error('not implemented'))
+    })
+  }) 
+
+  describe('WILD, After alice created bob TODO', () => {
 
     let aliceToken, bobToken
     beforeEach(async () => {
@@ -243,11 +559,9 @@ describe(path.basename(__filename), () => {
           tag: 'home'
         }])
     })
-
-
   })
 
-  describe('After alice created bob, alice creates public drive 1', () => {
+  describe('WILD, After alice created bob, TODO, alice creates public drive 1', () => {
 
     let aliceToken, bobToken
 
@@ -279,7 +593,7 @@ describe(path.basename(__filename), () => {
         }))
   })
 
-  describe('After alice created bob and public drive 1', () => {
+  describe('WILD, After alice created bob and public drive 1', () => {
 
     let aliceToken, bobToken
 

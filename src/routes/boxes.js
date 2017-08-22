@@ -130,13 +130,16 @@ router.post('/:boxUUID/branches', fruitless, auth, (req, res, next) => {
     .catch(next)
 })
 
-router.get('/:boxUUID/branches/:branchUUID', fruitless, auth, (req, res) => {
+router.get('/:boxUUID/branches/:branchUUID', fruitless, auth, (req, res, next) => {
   let boxUUID = req.params.boxUUID
   let branchUUID = req.params.branchUUID
   
   getFruit().getBranchAsync(req.user, boxUUID, branchUUID)
     .then(branch => res.status(200).json(branch))
-    .catch(next)
+    .catch(err => {
+      if (err.code === 'ENOENT') res.status(404).end()
+      else next(err)
+    })
 })
 
 router.patch('/:boxUUID/branches/:branchUUID', fruitless, auth, (req, res, next) => {
@@ -145,7 +148,10 @@ router.patch('/:boxUUID/branches/:branchUUID', fruitless, auth, (req, res, next)
 
   getFruit().updateBranchAsync(req.user, boxUUID, branchUUID, req.body)
     .then(updated => res.status(200).json(updated))
-    .catch(next)
+    .catch(err => {
+      if (err.code === 'ENOENT') res.status(404).end()
+      else next(err)
+    })
 })
 
 // FIXME: who can delete branch ?
@@ -158,7 +164,7 @@ router.delete('/:boxUUID/branches/:branchUUID', fruitless, auth, (req, res, next
     .catch(next)
 })
 
-router.post('/:boxUUID/tweets', fruitless, auth, (req, res) => {
+router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
   let boxUUID = req.params.boxUUID
 
   if (req.is('multipart/form-data')) {

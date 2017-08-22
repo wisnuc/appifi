@@ -283,6 +283,7 @@ class Forest extends EventEmitter {
 
   // TODO filter by drives
   getFilesByFingerprint(fingerprint, drives) {
+
     let fileSet = this.hashMap.get(fingerprint)
     if (!fileSet) return []
 

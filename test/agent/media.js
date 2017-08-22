@@ -79,7 +79,9 @@ describe(path.basename(__filename), () => {
 
     let token
 
+    const vpai001Fingerprint = '529e471a71866e439d8892179e4a702cf8529ff32771fcf4654cfdcea68c11fb'
     const vpai001Metadata = {
+      hash: vpai001Fingerprint,
       m: 'JPEG',
       w: 4624,
       h: 2608,
@@ -93,8 +95,6 @@ describe(path.basename(__filename), () => {
       longr: 'E',
       size: 4192863
     }
-
-    const vpai001Fingerprint = '529e471a71866e439d8892179e4a702cf8529ff32771fcf4654cfdcea68c11fb'
 
     beforeEach(async () => {
       await resetAsync()
@@ -119,9 +119,6 @@ describe(path.basename(__filename), () => {
 
       // this delay is required for generating metadata
       await Promise.delay(500)
-
-      // console.log(Forest)
-      // console.log(Media)
     })
 
     it("all i can view", done => request(app)
@@ -140,7 +137,9 @@ describe(path.basename(__filename), () => {
       .expect(200)
       .end((err, res) => {
         if (err) return done(err)
-        expect(res.body).to.deep.equal(vpai001Metadata)
+        let obj = Object.assign({}, vpai001Metadata)
+        delete obj.hash
+        expect(res.body).to.deep.equal(obj)
         done()
       }))
 
@@ -150,7 +149,6 @@ describe(path.basename(__filename), () => {
 
       ws.on('close', () => {
         expect(ws.bytesWritten).to.equal(vpai001Metadata.size)
-
         let data = fs.readFileSync(downloadPath)
         let sha256 = crypto.createHash('sha256').update(data).digest('hex')
         expect(sha256).to.equal(vpai001Fingerprint)
