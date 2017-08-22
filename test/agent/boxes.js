@@ -82,7 +82,7 @@ describe(path.basename(__filename), () => {
       await createUserAsync('alice')
       await setUserGlobalAsync('alice')
       token = await retrieveTokenAsync('alice')
-  })
+    })
 
     it("GET /cloudToken", done => {
       request(app)
@@ -100,7 +100,7 @@ describe(path.basename(__filename), () => {
     it("POST /cloudToken/decode", done => {
       request(app)
         .get('/cloudToken')
-        .query({ global: IDS.alice.global })
+        .query({ guid: IDS.alice.global.id })
         .set('Authorization', 'JWT ' + token)
         .expect(200)
         .end((err, res) => {
@@ -114,7 +114,7 @@ describe(path.basename(__filename), () => {
             .expect(200)
             .end((err, res) => {
               if (err) return done(err)
-              expect(res.body.global).to.equal(IDS.alice.global)
+              expect(res.body.global.id).to.equal(IDS.alice.global.id)
               done()
             })
         })
@@ -177,7 +177,6 @@ describe(path.basename(__filename), () => {
       sinon.stub(UUID, 'v4').returns(boxUUID)
       let props = {name: 'hello', users: [IDS.bob.global]}
       doc = await createBoxAsync(props, 'alice')
-
       bobCloudToken = await waCloudTokenAsync('bob')
     })
 
@@ -186,7 +185,7 @@ describe(path.basename(__filename), () => {
     it("GET /cloudToken get bob cloudToken", done => {
       request(app)
         .get('/cloudToken')
-        .query({ global: IDS.bob.global})
+        .query({ guid: IDS.bob.global.id})
         .expect(200)
         .end((err, res) => {
           if (err) return done(err)

@@ -176,7 +176,7 @@ const laCloudTokenAsync = async username => {
 
   let res = await request(app)
     .get('/cloudToken')
-    .query({ global: IDS[username].global})
+    .query({ guid: IDS[username].global.id})
     .set('Authorization', 'JWT ' + token)
     .expect(200)
 
@@ -186,7 +186,7 @@ const laCloudTokenAsync = async username => {
 const waCloudTokenAsync = async (username) => {
   let res = await request(app)
     .get('/cloudToken')
-    .query({ global: IDS[username].global})
+    .query({ guid: IDS[username].global.id})
     .expect(200)
   return res.body.token
 }
