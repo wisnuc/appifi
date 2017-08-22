@@ -55,7 +55,7 @@ class Station {
         this.initialized = true
 
         await this.connect.initAsync() // connect to cloud and get token
-        broadcast.emit('StationStart', this)
+        broadcast.emit('StationStartDone', this)
       }catch(e){
         debug('Station start error!',e)
       }
@@ -78,7 +78,7 @@ class Station {
     this.pipe = undefined
     this.initialized = false
     debug('station deinit')
-    broadcast.emit('StationStop', this)
+    broadcast.emit('StationStopDone', this)
   }
 
   async startAsync(froot) {
