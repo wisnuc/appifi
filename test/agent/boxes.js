@@ -82,12 +82,12 @@ describe(path.basename(__filename), () => {
       await createUserAsync('alice')
       await setUserGlobalAsync('alice')
       token = await retrieveTokenAsync('alice')
-    })
+  })
 
     it("GET /cloudToken", done => {
       request(app)
         .get('/cloudToken')
-        .query({global: IDS.alice.global})
+        .query({guid: IDS.alice.global.id})
         .set('Authorization', 'JWT ' + token)
         .expect(200)
         .end((err, res) => {
