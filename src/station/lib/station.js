@@ -20,6 +20,8 @@ Promise.promisifyAll(fs)
 const mkdirpAsync = Promise.promisify(mkdirp)
 const rimrafAsync = Promise.promisify(rimraf)
 
+const f = af => (req, res, next) => af(req, res).then(x => x, next)
+
 class Station {
   constructor(){
     this.froot = undefined
@@ -35,7 +37,7 @@ class Station {
   }                                                  
   
   init() {
-    broadcast.on('FruitmixStart', async (froot) => {
+    broadcast.on('StationStart', f(async (froot) => {
       this.froot = froot
       await this.startAsync(froot) // init station for keys
       try{
@@ -57,9 +59,9 @@ class Station {
       }catch(e){
         debug('Station start error!',e)
       }
-    })
+    }))
     // deinit
-    broadcast.on('FruitmixStop', this.deinit.bind(this))
+    broadcast.on('StationStop', this.deinit.bind(this))
   }
 
   deinit() {
