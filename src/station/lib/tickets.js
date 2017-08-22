@@ -3,7 +3,7 @@ const debug = require('debug')('station')
 const request = require('superagent')
 const requestAsync = require('./request').requestHelperAsync
 
-const User = require('../../models/user') 
+const getFruit = require('../../fruitmix') 
 
 const { FILE, CONFIG } = require('./const')
 
@@ -12,7 +12,7 @@ Object.freeze(TICKET_TYPES)
 
 class Tickets {
   constructor(saId, connect) {
-    this.saId = undefined
+    this.saId = saId
     this.connect = connect
   }
 
@@ -81,7 +81,7 @@ class Tickets {
     }
   }
 
-  async _discardTicketAsync(ticketId) {
+  async updateTicketAsync(ticketId) {
     let url = CONFIG.CLOUD_PATH + 'v1/tickets/' + ticketId
     let token = this.connect.token
     let opts = { 'Content-Type': 'application/json', 'Authorization': token}
@@ -98,7 +98,7 @@ class Tickets {
     }
   }
 
-  async _changeUserTypeAsync(guid, ticketId, state) {
+  async updateUserTypeAsync(guid, ticketId, state) {
     let url = CONFIG.CLOUD_PATH + 'v1/tickets/' + ticketId + '/users/' + guid
     let token = this.connect.token
     let opts = { 'Content-Type': 'application/json', 'Authorization': token}
@@ -124,20 +124,21 @@ class Tickets {
     let index = ticket.users.findIndex(u => u.userId === id) 
     if (index === -1) throw new Error('wechat user not found')
     debug(ticket)
+    let fruit = getFruit()
     let user = ticket.users[index]
     let unionid = user.unionId
     if(!unionid) throw new Error('wechat unionid not found')
     switch(ticket.type) {
       case 'invite':{
         //TODO: confirm userList 
-        await this._changeUserTypeAsync(id, ticketId, state)
+        await this.updateUserTypeAsync(id, ticketId, state)
         //discard this ticket 
-        await this._discardTicketAsync(ticketId)
+        await this.updateTicketAsync(ticketId)
         if(state){
           let username = user.nickName
         // TODO: use pvKey decode password
           let password = user.password ? user.password : '123456'
-          return await User.createUserAsync({ 
+          return await fruit.createUserAsync({ 
                             username,
                             password,
                             global:{
@@ -149,11 +150,11 @@ class Tickets {
       }
         break
       case 'bind':{
-        await this._changeUserTypeAsync(id, ticketId, state)
+        await this.updateUserTypeAsync(id, ticketId, state)
         //discard this ticket 
-        await this._discardTicketAsync(ticketId)
+        await this.updateTicketAsync(ticketId)
         if(state){
-          return await User.updateUserAsync(useruuid, {
+          return await fruit.updateUserAsync(useruuid, {
             global: {
               id,
               wx: [unionid]

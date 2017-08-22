@@ -83,6 +83,37 @@ function getSocket(address, saId, privateKey, callback) {
 
 let getSocketAsync = Promise.promisify(getSocket)
 
+
+/*
+
+In current design, each STORE or FETCH operation send socket message only once, 
+when the communication session is initiated from client.  
+So there is no need to classify message type further.
+This should NOT be changed in future.
+
+Direction: from cloud to station.
+
+
+cloud is responsible for method validation.
+
+{
+  type: 'pipe',   // socket communication multiplexing
+  
+  sessionId:      // client-cloud-station pipe session id (uuid)
+  user: {         // valid user data format
+
+  },
+  method: 'GET', 'POST', 'PUT', 'DELETE', 'PATCH',
+  resource: 'path string', // req.params
+  body: {         // req.body, req.query
+  
+  },
+
+  serverAddr:     // valid ip address, whitelist
+}
+*/
+
+
 class Connect extends EventEmitter{ 
 
   constructor(station) {
@@ -139,7 +170,7 @@ class Connect extends EventEmitter{
         this.dispatch(data.type, data)
       }).bind(this))
       this.socket.on('message', ((data) => {
-        this.dispatch(data.type, data.data)
+        this.dispatch(data.type, data)
       }).bind(this))
       this.socket.on('disconnect', data => {
         this._changeState(CONNECT_STATE.DISCED)
@@ -150,6 +181,7 @@ class Connect extends EventEmitter{
         this._changeState(CONNECT_STATE.DISCED, err)
       })
       this.socket.on('connect_error', err => {
+        debug('connect_error', err)
         this._changeState(CONNECT_STATE.DISCED, err.message)
       })
       this.initialized = true

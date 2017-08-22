@@ -12,6 +12,7 @@ const Promise = require('bluebird')
 const requestAsync = require('./request').requestHelperAsync
 const broadcast = require('../../common/broadcast')
 const boxData = require('../../box/boxData')
+const getFruit = require('../../fruitmix')
 const Config = require('./const').CONFIG
 
 const Transform = stream.Transform
@@ -238,30 +239,75 @@ class Pipe {
     this.tmp = undefined
     this.connect = connect
     this.connect.register('pipe', this.handle.bind(this))
+    this.handlers = new Map()
   }
 
-  handle(data) {
-    let manifest = JSON.parse(data.manifest)
-    switch (manifest.type) {
-      case 'createTextTweet':
-        break
-      case 'createBlobTweet':
-        break
-      case 'createListTweet':
-        break
-      case 'test': {
-        this.test(data)
-          .then(res => {})
-          .catch(e => debug('test_error: ', e))
-      }
-        break
-      case 'test2': {
+/* data:  {
+    type: 'pipe',   // socket communication multiplexing
+    
+    sessionId:      // client-cloud-station pipe session id (uuid)
+    user: {         // valid user data format
+    userId: 'xxx',
+      nickName: 'xxx',
+      avator: 'xxx', 
+    },
+    method: 'GET', 'POST', 'PUT', 'DELETE', 'PATCH',
+    resource: 'path string', // req.params must base64 encode
+    body: {         // req.body, req.query
+    
+    },
+  
+    serverAddr:     // valid ip address, whitelist
+  }*/
 
-      }
+  handle(data) {
+    // decode data.resource 
+    let resource = new Buffer(data.resource, 'base64')
+    let method = data.method
+
+    let messageType = this.decodeType(resource, method)
+
+    if(!messageType) return debug('can not find equal messageType')
+    
+    if(this.handlers.has(messageType))
+      this.handlers.get(messageType)(data)
+    else
+      debug('NOT FOUND EVENT HANDLER', messageType, data)
+  }
+
+  decodeType(resource, method) {
+    let paths = resource.split('/').filter(p => p.length)
+    if(!paths.length) return undefined
+    let r1 = paths.shift()
+    switch(r1) {
+      case 'drives':
+        return  paths.length === 0 ? (method === 'GET' ? 'GetDrives' : (method === 'POST' ? 'CreateDrive' : undefined))
+                  : paths.length === 1 ? (method === 'GET' ? 'GetDrive' : (method === 'POST' ? 'UpdateDrive' : (method === 'DELETE' ? 'DeleteDrive' : undefined)))
+                    : paths.length === 2 && method === 'GET' ? 'GetDirectories'
+                      : paths.length === 3 && method === 'GET' ? 'GetDirectory'
+                        : paths.length === 4 && method === 'POST' ? 'WriteDir'
+                          : paths.length === 5 && method === 'GET' ? 'DownloadFile' : undefined
+        break
+      case 'media':
+        break
+      case  'boxes':
+        break
       default:
         break
     }
   }
+
+  async getDrives(data) {
+    let cloudAddr = data.serverAddr
+    let sessionId = data.sessionId
+    let user = data.user
+    let fruit = getFruit()
+    if(!fruit) return await this.errorResponseAsync(cloudAddr, sessionId, new Error('fruitmix not start'))
+    let drives = fruit.getDrives(user)
+    return await this.successResponseAsync(cloudAddr, sessionId, drives)
+  }
+
+  
 
   async test(data) {
     debug(data)
@@ -305,14 +351,14 @@ class Pipe {
     let newDoc = await boxData.updateBoxAsync({ mtime: result.mtime }, box.doc.uuid)
   }
 
-  async errorResponseAsync(ip, jobId, error) {
-    let url = Config.CLOUD_PATH + 'v1/stations/' + this.connect.saId + '/response/' + jobId 
+  async errorResponseAsync(cloudAddr, sessionId, error) {
+    let url = cloudAddr + 'v1/stations/' + this.connect.saId + '/response/' + sessionId 
     let params = { code: error.code, message: error.message }
     await requestAsync('POST', url, { params }, {})
   }
 
-  async successResponseAsync(ip, jobId, data) {
-    let url = Config.CLOUD_PATH + 'v1/stations/' + this.connect.saId + '/pipe/' + jobId +'/response'
+  async successResponseAsync(cloudAddr, sessionId, data) {
+    let url = cloudAddr + 'v1/stations/' + this.connect.saId + '/pipe/' + sessionId +'/response'
     let params = data
     await requestAsync('POST', url, { params }, {})
   }
@@ -333,6 +379,9 @@ class Pipe {
     }
   }
 
+  register() {
+    
+  }
 }
 
 module.exports = Pipe

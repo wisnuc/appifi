@@ -26,9 +26,7 @@ router.get('/:ticketId', (req, res, next) => {
   req.Tickets.getTicketAsync(req.params.ticketId)
     .then(data => {
       debug(data)
-      if(data.users)
-        return res.status(200).json(data.users)
-      return res.status(200).json([])
+      return res.status(200).json(data)
     })
     .catch(next)
 })

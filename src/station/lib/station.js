@@ -41,9 +41,7 @@ class Station {
       try{
         debug('station start building')
         // await this.registerAsync(froot)
-        this.sa = {
-          id: '123456'
-        }
+        this.sa = await this.registerAsync(froot)
         //connect to cloud
         this.connect = new Connect(this) 
         this.connect.on('ConnectStateChange', state => {
@@ -181,7 +179,7 @@ class Station {
     if(this.initialized !== undefined && this.connect.isConnected()){
       req.body.sa = this.sa
       req.body.Connect = this.connect
-      req.Tickets = tickets
+      req.Tickets = this.tickets
       return next()
     }
     debug('Station initialized error')
