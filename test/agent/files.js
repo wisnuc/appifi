@@ -326,6 +326,49 @@ describe(path.basename(__filename), () => {
             })
         }))
 
+    it("POST .../entries, upload alonzo file twice", done => 
+      request(app)
+        .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
+        .set('Authorization', 'JWT ' + token)
+        .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', JSON.stringify({
+          size: FILES.alonzo.size,
+          sha256: FILES.alonzo.hash
+        }))
+        .expect(200)
+        .end((err, res) => {
+
+          request(app)
+            .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
+            .set('Authorization', 'JWT ' + token)
+            .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', JSON.stringify({
+              size: FILES.alonzo.size,
+              sha256: FILES.alonzo.hash
+            }))
+            .expect(200)
+            .end((err, res) => {
+
+              request(app)
+                .get(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}`)
+                .set('Authorization', 'JWT ' + token)
+                .expect(200)
+                .end((err, res) => {
+                  if (err) return done(err)
+                  done()
+                })
+            })
+
+/**
+          request(app)
+            .get(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}`)
+            .set('Authorization', 'JWT ' + token)
+            .expect(200)
+            .end((err, res) => {
+              if (err) return done(err)
+              done()
+            })
+**/
+        }))
+
     it('POST .../entries, upload alonzo file and rename to church', done => 
       request(app)
         .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)

@@ -136,6 +136,7 @@ class File extends Node {
       this.worker.on('finish', metadata => {
         debug('meta worker finish', metadata)
 
+        this.worker = null
         Media.set(this.hash, metadata) 
       })
 

@@ -90,32 +90,48 @@ class Fruitmix extends EventEmitter {
     return this.userList.findUser(userUUID)
   }
 
- 
   /**
   isFirstUser never allowed to change.
   possibly allowed props: username, isAdmin, global
+
+  {
+    uuid:         // not allowed to change
+    username:     // allowed
+    password:     // allowed
+    isFirstUser:  // not allowed to change
+    isAdmin:      // allowed
+    avatar:       // not allowed to change
+    global:       // allowed
+  }
 
   If user is super user, userUUID is itself
     allowed: username, global
   If user is super user, userUUID is not itself
     allowed: isAdmin, 
   */ 
+
+
   async updateUserAsync(user, userUUID, body) {
 
-    if (body.hasOwnProperty('uuid'))
-      throw Object.assign(new Error('uuid is not allowed to change'), { status: 403 })
+    let recognized = [
+      'uuid', 'username', 'password', 'isFirstUser', 'isAdmin', 'avatar', 'global'
+    ]
 
-    if (body.hasOwnProperty('isFirstUser'))
-      throw Object.assign(new Error('isFirstUser is not allowed to change'), { status: 403 })
+    let disallowed = [
+      'uuid', 'password', 'isFirstUser', 'avatar'
+    ]
 
-    if (body.hasOwnProperty('avatar'))
-      throw Object.assign(new Error('avatar is not allowed to change'), { status: 403 })
+    Object.getOwnPropertyNames(body).forEach(name => {
+      if (!recognized.includes(name)) {
+        throw Object.assign(new Error(`unrecognized prop name ${name}`), { status: 400 })
+      }
+    })
 
-    if (body.hasOwnProperty('global')) {
-      if (typeof body.global !== 'object') 
-        throw Object.assign(new Error('invalid global property'), { status: 400 })
-    }
-
+    Object.getOwnPropertyNames(body).forEach(name => {
+      if (disallowed.includes(name))
+        throw Object.assign(new Error(`${name} is not allowed to change`), { status: 403 })
+    })
+     
     if (user.isFirstUser) {
       if (user.uuid === userUUID) {
         if (body.hasOwnProperty('isAdmin')) {

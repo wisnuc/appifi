@@ -333,12 +333,12 @@ describe(path.basename(__filename), () => {
         .end((err, res) => done(err))
     })
 
-    it('Patch A User, change global to hello should fail with 400', done => {
+    it('Patch A User, change global to hello should fail with 403', done => {
       request(app)
         .patch(`/users/${IDS.alice.uuid}`)
         .set('Authorization', 'JWT ' + token)
         .send({ global: 'hello' })
-        .expect(400)
+        .expect(403)
         .end((err, res) => done(err))
     })
 
