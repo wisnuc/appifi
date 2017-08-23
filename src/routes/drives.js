@@ -14,10 +14,8 @@ const fruitless = (req, res, next) => getFruit() ? next() : next(EFruitUnavail)
 /**
 Get a fruitmix drive
 */
-router.get('/', fruitless, auth.jwt(), (req, res) => {
-  let fruit = getFruit()
-  res.status(200).json(fruit.getDrives(req.user))
-})
+router.get('/', fruitless, auth.jwt(), (req, res) => 
+  res.status(200).json(getFruit().getDrives(req.user)))
 
 /**
 Create a fruitmix drive
@@ -26,6 +24,30 @@ router.post('/', fruitless, auth.jwt(), (req, res, next) =>
   getFruit().createPublicDriveAsync(req.user, req.body)
     .then(drive => res.status(200).json(drive))
     .catch(next))
+
+/**
+Get single drive
+*/
+router.get('/:driveUUID', fruitless, auth.jwt(), (req, res, next) => 
+  res.status(200).json(getFruit().getDrive(req.user, req.params.driveUUID)))
+
+/**
+Patch a drive, only public drive is allowed
+*/
+router.patch('/:driveUUID', fruitless, auth.jwt(), (req, res, next) => {
+  let user = req.user
+  let driveUUID = req.params.driveUUID
+  getFruit().updatePublicDriveAsync(user, driveUUID, req.body)
+    .then(drive => res.status(200).json(drive))
+    .catch(next)
+})
+
+/**
+Delete a public drive
+*/
+router.delete('/:driveUUID', fruitless, auth.jwt(), (req, res, next) => {
+  res.status(403).json({ message: 'not implemented yet' })
+})
 
 /**
 010 GET dirs
@@ -53,7 +75,8 @@ router.get('/:driveUUID/dirs', fruitless, auth.jwt(), (req, res, next) => {
 router.get('/:driveUUID/dirs/:dirUUID', fruitless, auth.jwt(), f(async(req, res) => {
   let user = req.user
   let { driveUUID, dirUUID } = req.params
-  let r = await getFruit().getDriveDirAsync(user, driveUUID, dirUUID)
+  let metadata = req.query.metadata === 'true' ? true : false
+  let r = await getFruit().getDriveDirAsync(user, driveUUID, dirUUID, metadata)
   res.status(200).json(r)
 }))
 

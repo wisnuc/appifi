@@ -10,7 +10,7 @@ const rimrafAsync = Promise.promisify(rimraf)
 const log = require('winston')
 const UUID = require('uuid')
 const deepFreeze = require('deep-freeze')
-const { saveObjectAsync } = require('../fruitmix/lib/utils')
+const { saveObjectAsync } = require('../lib/utils')
 
 const Node = require('./node')
 const File = require('./file')
@@ -148,12 +148,22 @@ class Forest extends EventEmitter {
     return drive 
   } 
 
-  async updatePublicDrive(driveUUID, props) {
-    
-    let drive = this.drives.find(drv => drv.uuid === driveUUID)
-    if (!drive) throw new Error('not found')
-    if (drive.type === 'private') throw new E.EFORBIDDEN()
-    // something  
+  async updatePublicDriveAsync (driveUUID, props) {
+
+    let currDrives = this.drives
+
+    let index = this.drives.findIndex(drv => drv.uuid === driveUUID)
+    if (index === -1) throw new Error('drive not found') // TODO
+
+    let nextDrive = Object.assign({}, this.drives[index], props)
+    let nextDrives = [
+      ...currDrives.slice(0, index),
+      nextDrive,
+      ...currDrives.slice(index + 1)
+    ]
+
+    await this.commitDrivesAsync(currDrives, nextDrives)
+    return nextDrive
   }
 
   //////////////////////////////////////////////////////////////////////////////

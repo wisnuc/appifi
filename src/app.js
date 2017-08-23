@@ -10,9 +10,6 @@ const settings = require('./system/settings')
 
 const app = express()
 
-let { NODE_ENV, NODE_PATH } = process.env
-const isAutoTesting = NODE_ENV === 'test' && NODE_PATH !== undefined
-
 const config = require('./system/config')
 const barcelona = require('./system/barcelona')
 const system = require('./system/system')
@@ -55,6 +52,9 @@ app.use('/boxes', boxes)
 app.use('/media', media)
 app.use('/tasks', tasks)
 
+let { NODE_ENV, NODE_PATH, LOGE } = process.env
+const isAutoTesting = NODE_ENV === 'test' && NODE_PATH !== undefined
+
 // app.use('/uploads', uploads)
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
@@ -65,21 +65,28 @@ app.use(function(req, res, next) {
 
 // error handlers
 app.use(function(err, req, res, next) {
-  if (err && process.env.NODE_ENV === 'test' && !NODE_PATH) console.log(err)
+  // if (err && process.env.NODE_ENV === 'test' && !NODE_PATH) console.log(err)
 
-  // FIXME: logger error 
-  // console.error('error', err)
+  if (err) {
+    // FIXME: logger error 
+    // console.error('error', err)
+
+    if (isAutoTesting && !LOGE) {
+    } else {
+      console.log('::', err)
+    }
+  }
 
   res.status(err.status || 500).json({
     code: err.code,
-    message: err.message
+    message: err.message,
+    where: err.where
   })
 })
 
 if (NODE_PATH) app.nolog = true
 
 if (!isAutoTesting) {
-
   app.listen(3000, err => {
 
     if (err) {

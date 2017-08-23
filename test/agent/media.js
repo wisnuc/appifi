@@ -37,17 +37,11 @@ const tmptest = path.join(cwd, 'tmptest')
 const tmpDir = path.join(tmptest, 'tmp')
 
 const resetAsync = async () => {
-
   broadcast.emit('FruitmixStop')
-
-  await broadcast.until('UserDeinitDone', 'DriveDeinitDone')
-
   await rimrafAsync(tmptest)
   await mkdirpAsync(tmpDir)
-
   broadcast.emit('FruitmixStart', tmptest) 
-
-  await broadcast.until('UserInitDone', 'DriveInitDone')
+  await broadcast.until('FruitmixStarted')
 }
 
 describe(path.basename(__filename), () => {

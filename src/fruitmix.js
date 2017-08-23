@@ -10,6 +10,7 @@ const mkdirpAsync = Promise.promisify(mkdirp)
 const UserList = require('./user/user')
 const DriveList = require('./forest/forest')
 const BoxData = require('./box/boxData')
+const MediaMap = require('./media/media')
 
 const { assert, isUUID, isSHA256, validateProps } = require('./common/assertion')
 
@@ -90,10 +91,19 @@ class Fruitmix extends EventEmitter {
     return this.userList.findUser(userUUID)
   }
 
- 
   /**
   isFirstUser never allowed to change.
   possibly allowed props: username, isAdmin, global
+
+  {
+    uuid:         // not allowed to change
+    username:     // allowed
+    password:     // allowed
+    isFirstUser:  // not allowed to change
+    isAdmin:      // allowed
+    avatar:       // not allowed to change
+    global:       // allowed
+  }
 
   If user is super user, userUUID is itself
     allowed: username, global
@@ -102,20 +112,25 @@ class Fruitmix extends EventEmitter {
   */ 
   async updateUserAsync(user, userUUID, body) {
 
-    if (body.hasOwnProperty('uuid'))
-      throw Object.assign(new Error('uuid is not allowed to change'), { status: 403 })
+    let recognized = [
+      'uuid', 'username', 'password', 'isFirstUser', 'isAdmin', 'avatar', 'global' 
+    ] 
 
-    if (body.hasOwnProperty('isFirstUser'))
-      throw Object.assign(new Error('isFirstUser is not allowed to change'), { status: 403 })
+    Object.getOwnPropertyNames(body).forEach(name => {
+      if (!recognized.includes(name)) {
+        throw Object.assign(new Error(`unrecognized prop name ${name}`), { status: 400 })
+      }
+    })
 
-    if (body.hasOwnProperty('avatar'))
-      throw Object.assign(new Error('avatar is not allowed to change'), { status: 403 })
+    let disallowed = [
+      'uuid', 'password', 'isFirstUser', 'avatar'
+    ]
 
-    if (body.hasOwnProperty('global')) {
-      if (typeof body.global !== 'object') 
-        throw Object.assign(new Error('invalid global property'), { status: 400 })
-    }
-
+    Object.getOwnPropertyNames(body).forEach(name => {
+      if (disallowed.includes(name))
+        throw Object.assign(new Error(`${name} is not allowed to change`), { status: 403 })
+    })
+     
     if (user.isFirstUser) {
       if (user.uuid === userUUID) {
         if (body.hasOwnProperty('isAdmin')) {
@@ -221,7 +236,6 @@ class Fruitmix extends EventEmitter {
   }
 
   getDrives (user) {
-
     let drives = this.driveList.drives.filter(drv => {
       if (drv.type === 'private' && drv.owner === user.uuid) return true
       if (drv.type === 'public' && 
@@ -238,24 +252,108 @@ class Fruitmix extends EventEmitter {
     return this.driveList.createPublicDriveAsync(props)
   }
 
-  getDriveDirs (user, driveUUID) {
-    if (!this.driveList.roots.has(driveUUID)) 
-      throw Object.assign(new Error('drive not found'), { status: 404 })
+  getDrive (user, driveUUID) {
+    let drive = this.driveList.drives.find(drv => drv.uuid === driveUUID)
+    if (!drive) {
+      throw Object.assign(new Error(`drive ${driveUUID} not found`), { status: 404 })
+    }
 
+    switch (drive.type) {
+    case 'private':
+      if (drive.owner !== user.uuid) {
+        throw Object.assign(new Error(`user is not drive owner`), { status: 403 })  
+      }
+      break
+
+    case 'public':
+      if (!drive.writelist.includes(user.uuid) && !drive.readlist.includes(user.uuid)) {
+        throw Object.assign(new Error(`user is not in drive user list`), { status: 403 })
+      }
+      break
+
+    default:
+      throw new Error('invalid drive type')
+      break
+    }
+
+    return drive 
+  }
+
+  /**
+    uuid, type, writelist, readlist, label 
+  */
+  async updatePublicDriveAsync(user, driveUUID, props) {
+
+    if (!user.isAdmin) {
+      throw Object.assign(new Error(`requires admin priviledge`), { status: 403 })
+    }
+
+    let drive = this.driveList.drives.find(drv => drv.uuid === driveUUID)
+    if (!drive) {
+      throw Object.assign(new Error(`drive ${driveUUID} not found`), { status: 404 })
+    }
+
+    if (drive.type === 'private') {
+      throw Object.assign(new Error(`private drive is not allowed to update`), { status: 403 })
+    }
+
+    let recognized = ['uuid', 'type', 'writelist', 'readlist', 'label']
+    Object.getOwnPropertyNames(props).forEach(name => {
+      if (!recognized.includes(name)) {
+        throw Object.assign(new Error(`unrecognized prop name ${name}`), { status: 400 })
+      }
+    }) 
+
+    let disallowed = ['uuid', 'type', 'readlist'] 
+    Object.getOwnPropertyNames(props).forEach(name => {
+      if (disallowed.includes(name)) {
+        throw Object.assign(new Error(`${name} is not allowed to update`), { status: 403 })
+      }
+    })
+
+    if (props.writelist) {
+      let wl = props.writelist
+      if (!Array.isArray(wl)) {
+        throw Object.assign(new Error(`writelist must be an uuid array`), { status: 400 })
+      }
+
+      if (!wl.every(uuid => !!this.userList.users.find(u => u.uuid === uuid))) {
+        throw Object.assign(new Error(`not all user uuid found`), { status: 400 })
+      }
+
+      props.writelist = Array.from(new Set(props.writelist)).sort()
+    }
+
+    return this.driveList.updatePublicDriveAsync(driveUUID, props)
+  }
+
+  getDriveDirs (user, driveUUID) {
+    if (!this.driveList.roots.has(driveUUID)) {
+      throw Object.assign(new Error('drive not found'), { status: 404 })
+    }
     return this.driveList.getDriveDirs(driveUUID)
   }
 
-  async getDriveDirAsync (user, driveUUID, dirUUID) {
+  async getDriveDirAsync (user, driveUUID, dirUUID, metadata) {
     let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
     if (!dir) throw Object.assign(new Error('drive or dir not found'), { status: 404 })
-    return {
-      path: dir.nodepath().map(dir => ({
+
+    let path = dir.nodepath().map(dir => ({
         uuid: dir.uuid,
         name: dir.name,
         mtime: Math.abs(dir.mtime)
-      })),
-      entries: await dir.readdirAsync()
+      }))
+
+    let entries = await dir.readdirAsync()
+    if (metadata) {
+      entries.forEach(entry => {
+        if (entry.type === 'file' && entry.magic === 'JPEG' && entry.hash) {
+          entry.metadata = MediaMap.get(entry.hash) 
+        }
+      })
     }
+
+    return { path, entries }
   }
 
   getDriveDirPath (user, driveUUID, dirUUID) {

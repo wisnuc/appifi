@@ -216,8 +216,7 @@ class UserList extends EventEmitter {
 
       // enforce immutability
       deepFreeze(this.users)
-    }
-    finally {
+    } finally {
 
       // put lock
       this.lock = false
