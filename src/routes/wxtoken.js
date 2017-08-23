@@ -18,8 +18,8 @@ const userInfo = (req, res, next) => {
     req.user = user
     next()
   } else {
-    let exist = [...getFruit().boxData.map.values()].find(box => (box.doc.users.find(u => u.id === guid)
-                    || box.doc.owner.id === guid))
+    let exist = [...getFruit().boxData.map.values()].find(box => (box.doc.users.includes(guid)
+                    || box.doc.owner === guid))
     if (!exist) return res.status(401).end()
     req.user = { global: {id: guid} }
     next()

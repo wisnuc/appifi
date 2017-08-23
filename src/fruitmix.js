@@ -281,8 +281,8 @@ class Fruitmix extends EventEmitter {
    * @return {array} a docList of boxes user can view
    */
   getAllBoxes(user) {
-    let global = user.global
-    return this.boxData.getAllBoxes(global)
+    let guid = user.global.id
+    return this.boxData.getAllBoxes(guid)
   }
 
   // return a box doc
@@ -296,9 +296,9 @@ class Fruitmix extends EventEmitter {
     let box = this.boxData.getBox(boxUUID)
     if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
 
-    let global = user.global
+    let guid = user.global.id
     let doc = box.doc
-    if (doc.owner !== global && !doc.users.includes(global)) 
+    if (doc.owner !== guid && !doc.users.includes(guid)) 
       throw Object.assign(new Error('no permission'), { status: 403 })
     return doc
   }
@@ -314,14 +314,14 @@ class Fruitmix extends EventEmitter {
    */
   async createBoxAsync(user, props) {
     let u = this.findUserByUUID(user.uuid)
-    if (!u || user.global !== u.global) 
+    if (!u || user.global.id !== u.global.id) 
       throw Object.assign(new Error('no permission'), { status: 403 })
     validateProps(props, ['name', 'users'])
     assert(typeof props.name === 'string', 'name should be a string')
     assert(Array.isArray(props.users), 'users should be an array')
     // FIXME: check user global ID in props.users ?
     
-    props.owner = user.global
+    props.owner = user.global.id
     return await this.boxData.createBoxAsync(props)
   }
 
@@ -339,14 +339,14 @@ class Fruitmix extends EventEmitter {
    */
   async updateBoxAsync(user, boxUUID, props) {
     let u = this.findUserByUUID(user.uuid)
-    if (!u || user.global !== u.global) 
+    if (!u || user.global.id !== u.global.id) 
       throw Object.assign(new Error('no permission'), { status: 403 })
 
     if (!isUUID(boxUUID)) throw Object.assign(new Error('invalid boxUUID'), { status: 400 })
     let box = this.boxData.getBox(boxUUID)
     if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
 
-    if (box.doc.owner !== user.global) 
+    if (box.doc.owner !== user.global.id) 
       throw Object.assign(new Error('no permission'), { status: 403 })
 
     validateProps(props, [], ['name', 'users', 'mtime'])
@@ -367,14 +367,14 @@ class Fruitmix extends EventEmitter {
    */
   async deleteBoxAsync(user, boxUUID) {
     let u = this.findUserByUUID(user.uuid)
-    if (!u || user.global !== u.global) 
+    if (!u || user.global.id !== u.global.id) 
       throw Object.assign(new Error('no permission'), { status: 403 })
 
     if (!isUUID(boxUUID)) throw Object.assign(new Error('invalid boxUUID'), { status: 400 })
     let box = this.boxData.getBox(boxUUID)
     if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
 
-    if (box.doc.owner !== user.global) 
+    if (box.doc.owner !== user.global.id) 
       throw Object.assign(new Error('no permission'), { status: 403 })
     return await this.boxData.deleteBoxAsync(boxUUID)
   }
@@ -390,8 +390,8 @@ class Fruitmix extends EventEmitter {
     let box = this.boxData.getBox(boxUUID)
     if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
 
-    let global = user.global
-    if (box.doc.owner !== global && !box.doc.users.includes(global))
+    let guid = user.global.id
+    if (box.doc.owner !== guid && !box.doc.users.includes(guid))
       throw Object.assign(new Error('no permission'), { status: 403 })
     
     return await box.retrieveAllAsync('branches')
@@ -410,8 +410,8 @@ class Fruitmix extends EventEmitter {
     let box = this.boxData.getBox(boxUUID)
     if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
 
-    let global = user.global
-    if (box.doc.owner !== global && !box.doc.users.includes(global))
+    let guid = user.global.id
+    if (box.doc.owner !== guid && !box.doc.users.includes(guid))
       throw Object.assign(new Error('no permission'), { status: 403 })
 
     return await box.retrieveAsync('branches', branchUUID)
@@ -421,7 +421,7 @@ class Fruitmix extends EventEmitter {
   /**
    * create a new branch
    * @param {Object} user 
-   * @param {string} boxUUID 
+   * @param {string} boxUUID
    * @param {Object} props 
    * @param {string} props.name - branch name
    * @param {string} props.head - sha256, a commit hash
@@ -432,8 +432,8 @@ class Fruitmix extends EventEmitter {
     let box = this.boxData.getBox(boxUUID)
     if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
 
-    let global = user.global
-    if (box.doc.owner !== global && !box.doc.users.includes(global))
+    let guid = user.global.id
+    if (box.doc.owner !== guid && !box.doc.users.includes(guid))
       throw Object.assign(new Error('no permission'), { status: 403 })
 
     validateProps(props, ['name', 'head'])
@@ -460,8 +460,8 @@ class Fruitmix extends EventEmitter {
     let box = this.boxData.getBox(boxUUID)
     if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
 
-    let global = user.global
-    if (box.doc.owner !== global && !box.doc.users.includes(global))
+    let guid = user.global.id
+    if (box.doc.owner !== guid && !box.doc.users.includes(guid))
       throw Object.assign(new Error('no permission'), { status: 403 })
     
     validateProps(props, [], ['name', 'head'])
@@ -477,8 +477,8 @@ class Fruitmix extends EventEmitter {
     let box = this.boxData.getBox(boxUUID)
     if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
 
-    let global = user.global
-    if (box.doc.owner !== global && !box.doc.users.includes(global))
+    let guid = user.global.id
+    if (box.doc.owner !== guid && !box.doc.users.includes(guid))
       throw Object.assign(new Error('no permission'), { status: 403 })
 
     return await box.deleteBranchAsync(branchUUID)
@@ -501,8 +501,8 @@ class Fruitmix extends EventEmitter {
     let box = this.boxData.getBox(boxUUID)
     if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
 
-    let global = user.global
-    if (box.doc.owner !== global && !box.doc.users.includes(global))
+    let guid = user.global.id
+    if (box.doc.owner !== guid && !box.doc.users.includes(guid))
       throw Object.assign(new Error('no permission'), { status: 403 })
 
     validateProps(props, [], ['first', 'last', 'count', 'segments'])
@@ -523,7 +523,7 @@ class Fruitmix extends EventEmitter {
    * @param {string} props.type - blob, list, branch, commit, job, tag
    * @param {string} props.id - sha256 or uuid, for blob, branch, commit, job, tag
    * @param {array} props.list - [{sha256, filename}], only for list
-   * @param {string} props.global - user global ID
+   * @param {Object} props.global - user global object
    * @param {array} props.path - {sha256, filepath}, for blob and list
    * @return {Object} tweet object
    */
@@ -533,15 +533,14 @@ class Fruitmix extends EventEmitter {
     if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
 
     let global = user.global
-    if (box.doc.owner !== global && !box.doc.users.includes(global))
+    if (box.doc.owner !== global.id && !box.doc.users.includes(global.id))
       throw Object.assign(new Error('no permission'), { status: 403 })
     
     props.global = global
     
     validateProps(props, ['global', 'comment'], ['type', 'id', 'list', 'src'])
-    // assert(isUUID(props.uuid), 'invalid uuid')
     assert(typeof props.comment === 'string', 'comment should be a string')
-    // FIXME: assert(global)
+    assert(typeof props.global === 'object', 'global should be an object')
     if (props.type) assert(typeof props.type === 'string', 'type should be a string')
     if (props.id) assert(isSHA256(props.id) || isUUID(props.id), 'id should be sha256 or uuid')
     if (props.list) assert(Array.isArray(props.list), 'list should be an array')
@@ -564,8 +563,8 @@ class Fruitmix extends EventEmitter {
     let box = this.boxData.getBox(boxUUID)
     if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
 
-    let global = user.global
-    if (box.doc.owner !== global && !box.doc.users.includes(global))
+    let guid = user.global.id
+    if (box.doc.owner !== guid && !box.doc.users.includes(guid))
       throw Object.assign(new Error('no permission'), { status: 403 })
 
     return await box.deleteTweetsAsync(tweetsID)

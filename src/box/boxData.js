@@ -154,11 +154,11 @@ class BoxData {
    * @param {string} global - user ID
    * @return {array} a list of box doc
    */
-  getAllBoxes(global) {
+  getAllBoxes(guid) {
     let boxes = [...this.map.values()].filter(box => 
-                box.doc.owner === global ||
-                box.doc.users.includes(global))
-
+                box.doc.owner === guid ||
+                box.doc.users.includes(guid))
+                
     return boxes.map(box => box.doc)
   }
 
