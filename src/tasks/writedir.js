@@ -16,6 +16,7 @@ const ioctl = require('ioctl')
 const debug = require('debug')('writedir')
 
 const threadify = require('../lib/threadify')
+const { isSHA256, isUUID } = require('../lib/assertion')
 const createAppendStream = require('../lib/fs-append-stream')
 const { readXstatAsync, forceXstatAsync } = require('../lib/xstat')
 
@@ -194,10 +195,29 @@ class NewEmptyFileHandler extends PartHandler {
       await this.throwable(fs.closeAsync(fd))
       await this.throwable(forceXstatAsync(tmpPath, { hash: EMPTY_SHA256_HEX }))
       await this.until(() => this.ready && this.partEnded)
+
       let dirPath = getFruit().getDriveDirPath(user, driveUUID, dirUUID) 
       let dstPath = path.join(dirPath, this.part.toName)
-      await this.throwable(fs.renameAsync(tmpPath, dstPath))
+
+      if (this.part.opts.overwrite) {
+        let xstat
+        try {
+          xstat = await this.throwable(readXstatAsync(dstPath))
+          if (xstat.uuid !== this.part.opts.overwrite) {
+            let err = new Error('overwrite uuid mismatch')
+            err.status = 403
+            throw err
+          }
+          await this.throwable(fs.renameAsync(tmpPath, dstPath))
+        } catch (e) {
+          if (e.code === 'ENOENT') e.status = 403
+          throw e
+        }
+      } else {
+        await this.throwable(fs.linkAsync(tmpPath, dstPath))
+      }
     } catch (e) {
+      if (e.code === 'EEXIST') e.status = 403
       this.error = e
       rimraf(tmpPath, () => {})
     }
@@ -205,13 +225,6 @@ class NewEmptyFileHandler extends PartHandler {
 
 }
 
-/**
-There are two finally logics there:
-1. as should be guaranteed to end, this translates into
-  + as.end() must be called
-  + wait until asFinished anyway
-2.
-*/
 class NewNonEmptyFileHandler extends PartHandler {
 
   async run ({ user, driveUUID, dirUUID }) {
@@ -220,15 +233,48 @@ class NewNonEmptyFileHandler extends PartHandler {
     let tmpPath = path.join(getFruit().getTmpDir(), UUID.v4())
     let dirPath = getFruit().getDriveDirPath(user, driveUUID, dirUUID)
     let dstPath = path.join(dirPath, this.part.toName)
+
     try {
+      // this must be started immediately FIXME so we dont check here as workaround
       await this.streamPart(tmpPath)
 
-      if (this.bytesWritten !== this.part.opts.size) throw new Error('size mismatch')
+      if (this.bytesWritten !== this.part.opts.size) {
+        debug(`size mismatch, ${this.bytesWritten}, ${this.part.opts.size}`)
+        let err = new Error('size mismatch')
+        err.status = 400
+        throw err
+      }
+
       if (this.bytesWritten !== this.as.bytesWritten) throw new Error('bytesWritten mismatch')
-      if (this.as.digest !== this.part.opts.sha256) throw new Error('sha256 mismatch')
+      if (this.as.digest !== this.part.opts.sha256) {
+        let err = new Error('sha256 mismatch')
+        err.status = 400
+        throw err
+      }
+
       await this.throwable(forceXstatAsync(tmpPath, { hash: this.part.opts.sha256 }))
       await this.until(() => this.ready)
-      await this.throwable(fs.renameAsync(tmpPath, dstPath))
+
+      if (this.part.opts.overwrite) {
+        let xstat
+        try {
+          xstat = await this.throwable(readXstatAsync(dstPath))
+          if (xstat.uuid !== this.part.opts.overwrite) {
+            let err = new Error('overwrite uuid mismatch')
+            err.status = 403
+            throw err
+          }
+          await this.throwable(fs.renameAsync(tmpPath, dstPath))
+        } catch (e) {
+          if (e.code === 'ENOENT') e.status = 403
+          throw e
+        }
+      } else {
+        await this.throwable(fs.linkAsync(tmpPath, dstPath))
+      }
+    } catch (e) {
+      if (e.code === 'EEXIST') e.status = 403
+      throw e
     } finally {
       rimraf(tmpPath, () => {})
     }
@@ -358,12 +404,39 @@ class Writedir extends threadify(EventEmitter) {
 
     if (part.filename) {
       // validate part.filename and generate part.opts
-      let { size, sha256, append } = JSON.parse(part.filename)
-      if (!Number.isInteger(size)) throw new Error('size must be a integer')
-      if (size < 0 || size > 1024 * 1024 * 1024) throw new Error('size out of range')
-      // TODO
+      let { size, sha256, append, overwrite } = JSON.parse(part.filename)
 
-      part.opts = { size, sha256, append }
+      if (!Number.isInteger(size)) {
+        let err = new Error('size must be a integer')
+        err.status = 400
+        throw err
+      }
+
+      if (size < 0 || size > 1024 * 1024 * 1024) {
+        let err = new Error('size out of range')
+        err.status = 400
+        throw err
+      }
+
+      if (!isSHA256(sha256)) {
+        if (size === 0) {
+          sha256 = EMPTY_SHA256_HEX 
+        } else {
+          let err = new Error('invalid sha256')
+          err.status = 400
+          throw err
+        }
+      }
+
+      if (overwrite !== undefined) {
+        if (!isUUID(overwrite)) {
+          let err = new Error('overwrite is not a valid uuid string')
+          err.status = 400
+          throw err
+        }
+      }
+
+      part.opts = { size, sha256, append, overwrite }
     }
   }
 
