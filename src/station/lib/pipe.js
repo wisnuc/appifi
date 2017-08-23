@@ -13,9 +13,18 @@ const requestAsync = require('./request').requestHelperAsync
 const broadcast = require('../../common/broadcast')
 const boxData = require('../../box/boxData')
 const getFruit = require('../../fruitmix')
+const { isUUID } = require('../../common/assertion')
 const Config = require('./const').CONFIG
 
 const Transform = stream.Transform
+
+let asCallback = (fn) => {
+  return (props, callback) => {
+    fn(props)
+      .then(data => callback(null, data))
+      .catch(e => callback(e))
+  }
+}
 
 class HashTransform extends Transform {
   constructor() {
@@ -247,7 +256,7 @@ class Pipe {
     
     sessionId:      // client-cloud-station pipe session id (uuid)
     user: {         // valid user data format
-    userId: 'xxx',
+      userId: 'xxx',
       nickName: 'xxx',
       avator: 'xxx', 
     },
@@ -297,31 +306,109 @@ class Pipe {
     }
   }
 
-  async getDrives(data) {
+  // fetch
+  async getDrivesAsync(data) {
     let cloudAddr = data.serverAddr
     let sessionId = data.sessionId
-    let user = data.user
+    let user = data.user //FIXME:
     let fruit = getFruit()
     if(!fruit) return await this.errorResponseAsync(cloudAddr, sessionId, new Error('fruitmix not start'))
     let drives = fruit.getDrives(user)
     return await this.successResponseAsync(cloudAddr, sessionId, drives)
   }
 
+  // store
+  async createDriveAsync(data) {
+    let cloudAddr = data.serverAddr
+    let sessionId = data.sessionId
+    let user = data.user  //FIXME:
+    let props = data.body
+    let fruit = getFruit()
+    if(!fruit) return await this.errorResponseAsync(cloudAddr, sessionId, new Error('fruitmix not start'))
+    let drives = fruit.createPublicDriveAsync(user, props)
+    return await this.successResponseAsync(cloudAddr, sessionId, drives)
+  }
   
-
-  async test(data) {
-    debug(data)
-    let url = Config.CLOUD_PATH + 'v1/stations/' + this.connect.saId + '/response/' + data.jobId 
-    let store = new StoreSingleFile(this.tmp, this.connect.token, 10000, 'xxxx', data.jobId)
-    let fpath = await store.runAsync(url)
-    await this.successResponseAsync(1, data.jobId, { type: 'finish', message: 'fuck you'})
+  //fetch
+  async getDriveAsync(data) {
+    
   }
 
-  test2(data, callback) {
-    debug(data)
+  
+  async updateDriveAsync(data) {
+
+  }
+
+  async deleteDriveAsync(data) {
+
+  }
+
+  //fetch
+  async getDirectoriesAsync(data) {
+    let cloudAddr = data.serverAddr
+    let sessionId = data.sessionId
+    let resource = data.resource
+    let user = data.user  //FIXME:
+    let props = data.body
+    let fruit = getFruit()
+    if(!fruit) return await this.errorResponseAsync(cloudAddr, sessionId, new Error('fruitmix not start'))
+    
+    let paths = resource.split('/').filter(p => p.length)
+    if(paths.length !== 3 || paths[2] !== 'dirs' || !isUUID(paths[1])) return await this.errorResponseAsync(cloudAddr, sessionId, new Error('resource error'))
+    let driveUUID = paths[1]
+
+    let dirs = fruit.getDriveDirs(user, driveUUID)
+    return await this.successResponseAsync(cloudAddr, sessionId, dirs)
+  }
+
+  async getDirectoryAsync(data) {
+    let cloudAddr = data.serverAddr
+    let sessionId = data.sessionId
+    let resource = data.resource
+    let user = data.user  //FIXME:
+    let props = data.body
+    let fruit = getFruit()
+    if(!fruit) return await this.errorResponseAsync(cloudAddr, sessionId, new Error('fruitmix not start'))
+    
+    let paths = resource.split('/').filter(p => p.length)
+    if(paths.length !== 4 || paths[2] !== 'dirs' || !isUUID(paths[1] || !isUUID(paths[3]))) return await this.errorResponseAsync(cloudAddr, sessionId, new Error('resource error'))
+    let driveUUID = paths[1]
+    let dirUUID = path[3]
+
+    let dirs = await fruit.getDriveDirAsync(user, driveUUID, dirUUID)
+    return await this.successResponseAsync(cloudAddr, sessionId, dirs)
+  }
+
+  async writeDirAsync(data) {
+
+  }
+
+  //fetch
+  async downloadFileAsync(data) {
+    let cloudAddr = data.serverAddr
+    let sessionId = data.sessionId
+    let resource = data.resource
+    let user = data.user  //FIXME:
+    let props = data.body
+    let fruit = getFruit()
+    if(!fruit) return await this.errorResponseAsync(cloudAddr, sessionId, new Error('fruitmix not start'))
+    
+    let paths = resource.split('/').filter(p => p.length)
+    if(paths.length !== 6 || paths[2] !== 'dirs' || paths[4] !== 'entries' || !isUUID(paths[1]) || !isUUID(paths[3]) || !isUUID(paths[5])) return await this.errorResponseAsync(cloudAddr, sessionId, new Error('resource error'))
+    let driveUUID = paths[1]
+    let dirUUID = paths[3]
+    let entryUUID = paths[5]
+    let name = props.name
+    
+    let dirPath = getFruit().getDriveDirPath(user, driveUUID, dirUUID)
+    let filePath = path.join(dirPath, name)
+    return await fetchFileResponseAsync(filePath, cloudAddr, sessionId)
+  }
+
+  fetchFileResponse(fpath, cloudAddr, sessionId, callback) {
     let finished = false
-    let url = Config.CLOUD_PATH + 'v1/stations/' + this.connect.saId + '/response/' + data.jobId 
-    let rs = fs.createReadStream(path.join(this.connect.froot, '/tmp/123.jpg'))
+    let url = cloudAddr+ 'v1/stations/' + this.connect.saId + '/response/' + sessionId
+    let rs = fs.createReadStream(fpath)
     let req = request.post(url).set({ 'Authorization': this.connect.token })
     req.on('response', res => {
       debug('response', fpath)
@@ -343,6 +430,45 @@ class Pipe {
     })
     req.pipe(rs)
   }
+
+  async fetchFileResponseAsync(fpath, cloudAddr, sessionId) {
+    return Promise.promisify(this.fetchFileResponse).bind(this)(fpath, cloudAddr, sessionId)
+  }
+  
+  // async test(data) {
+  //   debug(data)
+  //   let url = Config.CLOUD_PATH + 'v1/stations/' + this.connect.saId + '/response/' + data.jobId 
+  //   let store = new StoreSingleFile(this.tmp, this.connect.token, 10000, 'xxxx', data.jobId)
+  //   let fpath = await store.runAsync(url)
+  //   await this.successResponseAsync(1, data.jobId, { type: 'finish', message: 'just test'})
+  // }
+
+  // test2(data, callback) {
+  //   debug(data)
+  //   let finished = false
+  //   let url = Config.CLOUD_PATH + 'v1/stations/' + this.connect.saId + '/response/' + data.jobId 
+  //   let rs = fs.createReadStream(path.join(this.connect.froot, '/tmp/123.jpg'))
+  //   let req = request.post(url).set({ 'Authorization': this.connect.token })
+  //   req.on('response', res => {
+  //     debug('response', fpath)
+  //     if(res.status !== 200){
+  //       debug('response error')
+  //       callback(res.error)
+  //       rs.close()
+  //     }
+  //   })
+  //   req.on('error', err => {
+  //     if(finished) return
+  //     finished = true
+  //     error(err)
+  //   })
+  //   rs.on('end', () =>{ 
+  //     if(finished) return
+  //     finished = true
+  //     callback(null)
+  //   })
+  //   req.pipe(rs)
+  // }
 
   async createTextTweetAsync({ boxUUID, guid, comment }) {
     let box = boxData.getBox(boxUUID)
@@ -380,7 +506,16 @@ class Pipe {
   }
 
   register() {
-    
+    //drives
+    this.handlers.set('GetDrives', asCallback(this.getDrivesAsync).bind(this))
+    this.handlers.set('CreateDrive', asCallback(this.createDriveAsync).bind(this))
+    this.handlers.set('GetDrive', asCallback(this.getDriveAsync).bind(this))
+    this.handlers.set('UpdateDrive',asCallback(this.updateDriveAsync).bind(this))
+    this.handlers.set('DeleteDrive',asCallback(this.deleteDriveAsync).bind(this))
+    this.handlers.set('GetDirectories',asCallback(this.getDirectoriesAsync).bind(this))
+    this.handlers.set('GetDirectory',asCallback(this.getDirectoryAsync).bind(this))
+    this.handlers.set('WriteDir',asCallback(this.writeDirAsync).bind(this))
+    this.handlers.set('DownloadFile',asCallback(this.downloadFileAsync).bind(this))
   }
 }
 

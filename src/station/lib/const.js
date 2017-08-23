@@ -3,7 +3,7 @@ const DeepFreeze = require('deep-freeze')
 let FILE = {
     PUBKEY: 'pb.pub',
     PVKEY: 'pv.pem',
-    SA: 'sa.json'
+    SA: 'station.json'
 }
 
 let CONFIG = {}
