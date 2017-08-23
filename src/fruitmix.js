@@ -10,6 +10,7 @@ const mkdirpAsync = Promise.promisify(mkdirp)
 const UserList = require('./user/user')
 const DriveList = require('./forest/forest')
 const BoxData = require('./box/boxData')
+const MediaMap = require('./media/media')
 
 const { assert, isUUID, isSHA256, validateProps } = require('./common/assertion')
 
@@ -109,8 +110,6 @@ class Fruitmix extends EventEmitter {
   If user is super user, userUUID is not itself
     allowed: isAdmin, 
   */ 
-
-
   async updateUserAsync(user, userUUID, body) {
 
     let recognized = [
@@ -335,17 +334,26 @@ class Fruitmix extends EventEmitter {
     return this.driveList.getDriveDirs(driveUUID)
   }
 
-  async getDriveDirAsync (user, driveUUID, dirUUID) {
+  async getDriveDirAsync (user, driveUUID, dirUUID, metadata) {
     let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
     if (!dir) throw Object.assign(new Error('drive or dir not found'), { status: 404 })
-    return {
-      path: dir.nodepath().map(dir => ({
+
+    let path = dir.nodepath().map(dir => ({
         uuid: dir.uuid,
         name: dir.name,
         mtime: Math.abs(dir.mtime)
-      })),
-      entries: await dir.readdirAsync()
+      }))
+
+    let entries = await dir.readdirAsync()
+    if (metadata) {
+      entries.forEach(entry => {
+        if (entry.type === 'file' && entry.magic === 'JPEG' && entry.hash) {
+          entry.metadata = MediaMap.get(entry.hash) 
+        }
+      })
     }
+
+    return { path, entries }
   }
 
   getDriveDirPath (user, driveUUID, dirUUID) {

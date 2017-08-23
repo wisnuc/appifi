@@ -44,7 +44,7 @@ tmptest
 const cwd = process.cwd()
 const tmptest = path.join(cwd, 'tmptest')
 const tmpDir = path.join(tmptest, 'tmp')
-const forestDir = path.join(tmptest, 'drives')
+const DrivesDir = path.join(tmptest, 'drives')
 
 const resetAsync = async () => {
 
@@ -59,22 +59,16 @@ const resetAsync = async () => {
 
 describe(path.basename(__filename), () => {
 
-  /**
-  Scenario 01
-
-  **/
   describe("Alice w/ empty home", () => {
 
     let token, stat
-  
     beforeEach(async () => {
       debug('------ I am a beautiful divider ------')
-
       await Promise.delay(50)
       await resetAsync()
       await createUserAsync('alice')
       token = await retrieveTokenAsync('alice')
-      stat = await fs.lstatAsync(path.join(forestDir, IDS.alice.home))
+      stat = await fs.lstatAsync(path.join(DrivesDir, IDS.alice.home))
     }) 
 
     // Get directories in alice home drive
@@ -122,15 +116,92 @@ describe(path.basename(__filename), () => {
         })
     })
 
-    // mkdir hello
-    it("POST .../entries, mkdir single hello should success", done => 
+    it("try a media file 01", done => {
+      request(app)
+        .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
+        .set('Authorization', 'JWT ' + token)
+        .attach('hello', 'testdata/alonzo_church.jpg', JSON.stringify({
+          size: FILES.alonzo.size,
+          sha256: FILES.alonzo.hash
+        }))
+        .expect(200)
+        .end((err, res) => {
+
+          setTimeout(() => 
+            request(app)
+              .get(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}?metadata=true`)
+              .set('Authorization', 'JWT ' + token)
+              .expect(200)
+              .end((err, res) => {
+
+                // console.log(res.body.entries[0])
+
+                expect(res.body.entries[0].metadata).to.deep.equal({
+                  m: 'JPEG', 
+                  w: 235, 
+                  h: 314, 
+                  size: 39499
+                })
+                done()
+              }), 1000)
+          
+        })
+    })
+
+    it("try a media file 02", done => {
+      request(app)
+        .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries?metadata=false`)
+        .set('Authorization', 'JWT ' + token)
+        .attach('hello', 'testdata/alonzo_church.jpg', JSON.stringify({
+          size: FILES.alonzo.size,
+          sha256: FILES.alonzo.hash
+        }))
+        .expect(200)
+        .end((err, res) => {
+
+          setTimeout(() => 
+            request(app)
+              .get(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}`)
+              .set('Authorization', 'JWT ' + token)
+              .expect(200)
+              .end((err, res) => {
+
+                // console.log(res.body.entries[0])
+
+                expect(res.body.entries[0].metadata).to.be.undefined
+                done()
+              }), 1000)
+          
+        })
+    })
+
+  })
+
+  /**
+  + target name does not exist.
+  + target name exists. target is directory.
+  - target name exists. target is file.
+  */
+  describe("Alice w/ empty home, writedir - mkdir", () => {
+
+    let token, stat
+    beforeEach(async () => {
+      debug('------ I am a beautiful divider ------')
+      await Promise.delay(50)
+      await resetAsync()
+      await createUserAsync('alice')
+      token = await retrieveTokenAsync('alice')
+      stat = await fs.lstatAsync(path.join(DrivesDir, IDS.alice.home))
+    }) 
+
+    it("should succeed when target does not exist", done => 
       request(app)
         .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
         .set('Authorization', 'JWT ' + token)
         .field('hello', JSON.stringify({ op: 'mkdir' }))
         .expect(200)
         .end((err, res) => {
-          let dirPath = path.join(forestDir, IDS.alice.home, 'hello')
+          let dirPath = path.join(DrivesDir, IDS.alice.home, 'hello')
           fs.lstat(dirPath, (err, stat) => {
             if (err) return done(err)
             expect(stat.isDirectory()).to.be.true
@@ -138,17 +209,15 @@ describe(path.basename(__filename), () => {
           })
         }))
 
-    // mkdir hello
-    it("POST .../entries, mkdir multiple hello should success", done => 
+    it("should succeed when target is an existing directory", done => 
       request(app)
         .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
         .set('Authorization', 'JWT ' + token)
         .field('hello', JSON.stringify({ op: 'mkdir' }))
         .field('hello', JSON.stringify({ op: 'mkdir' }))
-        .field('hello', JSON.stringify({ op: 'mkdir' }))
         .expect(200)
         .end((err, res) => {
-          let dirPath = path.join(forestDir, IDS.alice.home, 'hello')
+          let dirPath = path.join(DrivesDir, IDS.alice.home, 'hello')
           fs.lstat(dirPath, (err, stat) => {
             if (err) return done(err)
             expect(stat.isDirectory()).to.be.true
@@ -156,6 +225,40 @@ describe(path.basename(__filename), () => {
           })
         }))
 
+    it("should fail when target is an existing file", done => 
+
+      request(app)
+        .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
+        .set('Authorization', 'JWT ' + token)
+        .attach('hello', 'testdata/alonzo_church.jpg', JSON.stringify({
+          size: FILES.alonzo.size,
+          sha256: FILES.alonzo.hash
+        }))
+        .field('hello', JSON.stringify({ op: 'mkdir' }))
+        .expect(403)
+        .end((err, res) => {
+
+          expect(res.body.code).to.equal('EEXIST')
+          expect(res.body.where).to.be.an('object')
+          done()
+
+        }))
+
+  })
+
+  describe("Alice w/ empty home, writedir", () => {
+
+    let token, stat
+    beforeEach(async () => {
+      debug('------ I am a beautiful divider ------')
+      await Promise.delay(50)
+      await resetAsync()
+      await createUserAsync('alice')
+      token = await retrieveTokenAsync('alice')
+      stat = await fs.lstatAsync(path.join(DrivesDir, IDS.alice.home))
+    }) 
+
+ 
     // mkdir hello and rename to world
     it("POST .../entries, mkdir hello and rename to world should success", done => 
       request(app)
@@ -165,8 +268,8 @@ describe(path.basename(__filename), () => {
         .field('hello|world', JSON.stringify({ op: 'rename' }))
         .expect(200)
         .end((err, res) => {
-          let helloPath = path.join(forestDir, IDS.alice.home, 'hello')
-          let worldPath = path.join(forestDir, IDS.alice.home, 'world')
+          let helloPath = path.join(DrivesDir, IDS.alice.home, 'hello')
+          let worldPath = path.join(DrivesDir, IDS.alice.home, 'world')
           fs.lstat(helloPath, err => {
             expect(err.code).to.equal('ENOENT')
             expect(fs.lstatSync(worldPath).isDirectory()).to.be.true
@@ -183,7 +286,7 @@ describe(path.basename(__filename), () => {
         .field('hello', JSON.stringify({ op: 'remove' }))
         .expect(200)
         .end((err, res) => {
-          let helloPath = path.join(forestDir, IDS.alice.home, 'hello')
+          let helloPath = path.join(DrivesDir, IDS.alice.home, 'hello')
           fs.lstat(helloPath, err => {
             expect(err.code).to.equal('ENOENT')
             done()
@@ -198,7 +301,7 @@ describe(path.basename(__filename), () => {
         .attach('empty', 'testdata/empty', JSON.stringify({ size: 0, sha256: FILES.empty.hash }))
         .expect(200)
         .end((err, res) => {
-          let filePath = path.join(forestDir, IDS.alice.home, 'empty')
+          let filePath = path.join(DrivesDir, IDS.alice.home, 'empty')
           let stat = fs.lstatSync(filePath)
           let attr = JSON.parse(xattr.getSync(filePath, 'user.fruitmix'))
           expect(stat.isFile()).to.be.true
@@ -225,7 +328,7 @@ describe(path.basename(__filename), () => {
         .expect(500)
         .end((err, res) => {
 
-          let filePath = path.join(forestDir, IDS.alice.home, 'empty')
+          let filePath = path.join(DrivesDir, IDS.alice.home, 'empty')
           let stat = fs.lstatSync(filePath)
           let attr = JSON.parse(xattr.getSync(filePath, 'user.fruitmix'))
           expect(stat.isFile()).to.be.true
@@ -252,8 +355,8 @@ describe(path.basename(__filename), () => {
         .expect(200)
         .end((err, res) => {
 
-          let emptyPath = path.join(forestDir, IDS.alice.home, 'empty')
-          let zeroPath = path.join(forestDir, IDS.alice.home, 'zero')
+          let emptyPath = path.join(DrivesDir, IDS.alice.home, 'empty')
+          let zeroPath = path.join(DrivesDir, IDS.alice.home, 'zero')
 
           fs.lstat(emptyPath, err => {
             expect(err.code).to.equal('ENOENT')

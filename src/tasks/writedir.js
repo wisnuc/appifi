@@ -156,7 +156,17 @@ class FieldHandler extends PartHandler {
     let toPath = path.join(dirPath, this.part.toName)
 
     if (this.part.opts.op === 'mkdir') {
-      await this.throwable(mkdirpAsync(toPath))
+
+      try {
+        await mkdirpAsync(toPath)   
+      } catch (e) {
+        if (e.code === 'EEXIST') {
+          e.status = 403
+        }
+        throw e
+      }
+      if (this.error) throw this.error
+
     } else if (this.part.opts.op === 'rename') {
       // TODO support overwrite ???
       await this.throwable(fs.renameAsync(fromPath, toPath))
