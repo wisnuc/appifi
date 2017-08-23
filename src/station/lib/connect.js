@@ -172,6 +172,7 @@ class Connect extends EventEmitter{
       this.socket.on('message', ((data) => {
         this.dispatch(data.type, data)
       }).bind(this))
+      //TODO: reconnect
       this.socket.on('disconnect', data => {
         this._changeState(CONNECT_STATE.DISCED)
         debug('connent disconnect', data)

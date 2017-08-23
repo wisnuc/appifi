@@ -87,7 +87,7 @@ describe(path.basename(__filename), () => {
     it("GET /cloudToken", done => {
       request(app)
         .get('/cloudToken')
-        .query({global: IDS.alice.global})
+        .query({guid: IDS.alice.global.id})
         .set('Authorization', 'JWT ' + token)
         .expect(200)
         .end((err, res) => {
@@ -100,7 +100,7 @@ describe(path.basename(__filename), () => {
     it("POST /cloudToken/decode", done => {
       request(app)
         .get('/cloudToken')
-        .query({ global: IDS.alice.global })
+        .query({ guid: IDS.alice.global.id })
         .set('Authorization', 'JWT ' + token)
         .expect(200)
         .end((err, res) => {
@@ -114,7 +114,7 @@ describe(path.basename(__filename), () => {
             .expect(200)
             .end((err, res) => {
               if (err) return done(err)
-              expect(res.body.global).to.equal(IDS.alice.global)
+              expect(res.body.global.id).to.equal(IDS.alice.global.id)
               done()
             })
         })
@@ -156,7 +156,7 @@ describe(path.basename(__filename), () => {
           if (err) return done(err)
           expect(res.body.uuid).to.deep.equal(boxUUID)
           expect(res.body.name).to.deep.equal('hello')
-          expect(res.body.owner).to.deep.equal(IDS.alice.global)
+          expect(res.body.owner).to.deep.equal(IDS.alice.global.id)
           expect(res.body.users).to.deep.equal([])
           done()
         })
@@ -175,9 +175,8 @@ describe(path.basename(__filename), () => {
       aliceCloudToken = await laCloudTokenAsync('alice')
 
       sinon.stub(UUID, 'v4').returns(boxUUID)
-      let props = {name: 'hello', users: [IDS.bob.global]}
+      let props = {name: 'hello', users: [IDS.bob.global.id]}
       doc = await createBoxAsync(props, 'alice')
-
       bobCloudToken = await waCloudTokenAsync('bob')
     })
 
@@ -186,7 +185,7 @@ describe(path.basename(__filename), () => {
     it("GET /cloudToken get bob cloudToken", done => {
       request(app)
         .get('/cloudToken')
-        .query({ global: IDS.bob.global})
+        .query({ guid: IDS.bob.global.id})
         .expect(200)
         .end((err, res) => {
           if (err) return done(err)
@@ -222,7 +221,7 @@ describe(path.basename(__filename), () => {
     it("PATCH /boxes/{uuid} alice update the box successfully", done => {
       let props = {
         name: 'world',
-        users: {op: 'add', value: [IDS.charlie.global]}
+        users: {op: 'add', value: [IDS.charlie.global.id]}
       }
 
       request(app)
@@ -234,8 +233,8 @@ describe(path.basename(__filename), () => {
           if(err) return done(err)
           expect(res.body.uuid).to.deep.equal(boxUUID)
           expect(res.body.name).to.deep.equal('world')
-          expect(res.body.owner).to.deep.equal(IDS.alice.global)
-          expect(res.body.users).to.deep.equal([IDS.bob.global, IDS.charlie.global])
+          expect(res.body.owner).to.deep.equal(IDS.alice.global.id)
+          expect(res.body.users).to.deep.equal([IDS.bob.global.id, IDS.charlie.global.id])
           done()
         })
     })
@@ -288,7 +287,7 @@ describe(path.basename(__filename), () => {
                             .onCall(2).returns(uuid_2)
                             .onCall(3).returns(uuid_3)
                           
-      let props = {name: 'hello', users: [IDS.bob.global]}
+      let props = {name: 'hello', users: [IDS.bob.global.id]}
       doc = await createBoxAsync(props, 'alice')
       bobCloudToken = await waCloudTokenAsync('bob')
     })
@@ -304,7 +303,7 @@ describe(path.basename(__filename), () => {
         .end((err, res) => {
           if (err) return done(err)
           expect(res.body.uuid).to.equal(uuid_1)
-          expect(res.body.tweeter).to.equal(IDS.alice.global)
+          expect(res.body.tweeter.id).to.equal(IDS.alice.global.id)
           expect(res.body.comment).to.equal('hello')
           done()
         })
@@ -327,7 +326,7 @@ describe(path.basename(__filename), () => {
         .end((err, res) => {
           if (err) return done(err)
           expect(res.body.uuid).to.equal(uuid_2)
-          expect(res.body.tweeter).to.equal(IDS.alice.global)
+          expect(res.body.tweeter.id).to.equal(IDS.alice.global.id)
           expect(res.body.comment).to.equal('hello')
           expect(res.body.type).to.equal('blob')
           expect(res.body.id).to.equal(sha256)
@@ -355,7 +354,7 @@ describe(path.basename(__filename), () => {
           if (err) return done(err)
           // consume uuid.v4: create box, upload two file(tpm path, twice)
           expect(res.body.uuid).to.equal(uuid_3)
-          expect(res.body.tweeter).to.equal(IDS.alice.global)
+          expect(res.body.tweeter.id).to.equal(IDS.alice.global.id)
           expect(res.body.comment).to.equal('hello')
           expect(res.body.type).to.equal('list')
           done()

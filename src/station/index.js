@@ -8,12 +8,13 @@ const tickets = require('./route/tickets')
 const Station = require('./lib/station')
 
 // broadcast.emit('FruitmixStart', path.join(process.cwd(), 'tmptest'))
-// let state = 'FruitmixStop'
-// setInterval(() => {
-//   state = (state === 'FruitmixStop'? 'FruitmixStart' : 'FruitmixStop')
-//   broadcast.emit(state, path.join(process.cwd(), 'tmptest'))
+// broadcast.emit('StationStart', path.join(process.cwd(), 'tmptest'))
 
-// }, 4000)
+// if (process.env.NODE_ENV === 'test') {
+//   let filePath = process.env.NODE_PATH
+  // broadcast.emit('FruitmixStart', path.join(process.cwd(), 'tmptest'))
+  // broadcast.emit('StationStart', path.join(process.cwd(), 'tmptest'))
+// }
 
 
 let router = Router()

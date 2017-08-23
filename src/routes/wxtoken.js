@@ -2,51 +2,29 @@ const router = require('express').Router()
 const jwt = require('jwt-simple')
 const secret = require('../config/passportJwt')
 const auth = require('../middleware/auth')
-// const boxData = require('../box/boxData')
-// const User = require('../models/user')
 const getFruit = require('../fruitmix')
 
 const userInfo = (req, res, next) => {
-  let global = req.query.global
+  let guid = req.query.guid
   let text = req.get('Authorization')
 
   if (text) {
     let split = text.split(' ')
     let local = jwt.decode(split[1], secret)
     let user = getFruit().findUserByUUID(local.uuid)
-    if (!user || user.global !== global)
+
+    if (!user || user.global.id !== guid)
       return res.status(401).end()
     req.user = user
     next()
   } else {
-    let exist = [...getFruit().boxData.map.values()].find(box => (box.doc.users.includes(global)
-                || box.doc.owner === global))
+    let exist = [...getFruit().boxData.map.values()].find(box => (box.doc.users.includes(guid)
+                    || box.doc.owner === guid))
     if (!exist) return res.status(401).end()
-    req.user = { global }
+    req.user = { global: {id: guid} }
     next()
   }
 }
-
-// const userInfo = (req, res, next) => {
-//   let global = req.query.global
-//   let text = req.get('Authorization')
-
-//   if (text) {
-//     let split = text.split(' ')
-//     let local = jwt.decode(split[1], secret)
-//     let user = User.users.find(u => u.uuid === local.uuid)
-//     if (!user || user.global !== global)
-//       return res.status(401).end()
-//     req.user = User.stripUser(user)
-//     next()
-//   } else {
-//     let exist = [...boxData.map.values()].find(box => (box.doc.users.includes(global)
-//                 || box.doc.owner === global))
-//     if (!exist) return res.status(401).end()
-//     req.user = { global }
-//     next()
-//   }
-// }
 
 router.get('/', userInfo, (req, res) => {
   let user = req.user

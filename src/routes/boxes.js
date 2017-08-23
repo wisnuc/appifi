@@ -33,6 +33,7 @@ const auth = (req, res, next) => {
     return res.status(401).end()
 
   let split = text.split(' ')
+  // console.log(split)
 
   if (split.length < 2 || split.length > 3 || split[0] !== 'JWT')
     return res.status(401).end()
@@ -42,7 +43,6 @@ const auth = (req, res, next) => {
     console.log('overdue')
     return res.status(401).end()
   }
-
   if (split.length === 2) {
     req.user = {
       global: cloud.global
@@ -52,7 +52,7 @@ const auth = (req, res, next) => {
 
   let local = jwt.decode(split[2], secret)
   let user = getFruit().findUserByUUID(local.uuid)
-  if (!user || user.global !== cloud.global)
+  if (!user || user.global.id !== cloud.global.id)
     return res.status(401).end()
   req.user = user
   next()
