@@ -77,30 +77,6 @@ describe(path.basename(__filename), () => {
       stat = await fs.lstatAsync(path.join(forestDir, IDS.alice.home))
     }) 
 
-/**
-    // Get all drives
-    it("GET /drives should return [alice home drive]", done => {
-
-      // array of drive object
-      let expected = [{
-        uuid: IDS.alice.home,
-        type: 'private',
-        owner: IDS.alice.uuid,
-        tag: 'home'
-      }]
-
-      request(app)
-        .get('/drives')
-        .set('Authorization', 'JWT ' + token)
-        .expect(200)
-        .end((err, res) => {
-          if (err) return done(err)
-          expect(res.body).to.deep.equal(expected)
-          done()
-        })
-    })
-**/
-
     // Get directories in alice home drive
     it("GET /drives/:home/dirs should return [alice.home]", done => {
 
@@ -167,11 +143,6 @@ describe(path.basename(__filename), () => {
       request(app)
         .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
         .set('Authorization', 'JWT ' + token)
-        .field('hello', JSON.stringify({ op: 'mkdir' }))
-        .field('hello', JSON.stringify({ op: 'mkdir' }))
-        .field('hello', JSON.stringify({ op: 'mkdir' }))
-        .field('hello', JSON.stringify({ op: 'mkdir' }))
-        .field('hello', JSON.stringify({ op: 'mkdir' }))
         .field('hello', JSON.stringify({ op: 'mkdir' }))
         .field('hello', JSON.stringify({ op: 'mkdir' }))
         .field('hello', JSON.stringify({ op: 'mkdir' }))
