@@ -21,7 +21,10 @@ const createTestFilesAsync = async () => {
   await fs.closeAsync(await fs.openAsync(join('zero'), 'w'))
 
   // create one-byte file
-  await fs.writeFileAsync(join('one-byte'), '1')
+  // await fs.writeFileAsync(join('one-byte-1'), '1')
+
+  // create one-byte-x file
+  await fs.writeFileAsync(join('one-byte-x'), 'x')
 
   // create half-giga
   await createBigFileAsync(join('half-giga'), 1024 * 1024 * 1024 / 2, '')

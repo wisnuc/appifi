@@ -113,6 +113,9 @@ class AppendStream extends threadify(stream.Writable) {
     this.tail = child.fork(modulePath)
     this.tail.on('message', message => {
       if (typeof message === 'object') {
+
+        debug('child object message', message)
+
         if (message.bytesRead === this.bytesWritten) {
           this.digest = message.digest
         } else {

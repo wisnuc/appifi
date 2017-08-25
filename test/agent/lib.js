@@ -94,6 +94,77 @@ const FILES = {
     size: 6,
     hash: 'e258d248fda94c63753607f7c4494ee0fcbe92f1a76bfdac795c9d84101eb317'  
   },
+
+  fiveGiga: {
+    name: 'five-giga',
+    path: 'test-files/five-giga',
+    size: 5 * 1024 * 1024 * 1024,
+    hash: '757deb7202aa7b81656922322320241fc9cc6d8b5bb7ff60bdb823c72e7ca2fd'
+  },
+
+  halfGiga: {
+    name: 'half-giga',
+    path: 'test-files/half-giga',
+    size: 512 * 1024 * 1024,
+    hash: '767c649bbc1535e53afe18d1d9e21828d36262eac19d60cc3035636e9bc3cdbb'
+  },
+
+  oneAndAHalfGiga: {
+    name: 'one-and-a-half-giga',
+    path: 'test-files/one-and-a-half-giga',
+    size: 1024 * 1024 * (1024 + 512),
+    hash: 'd723ceb8be2c0f65b3ba359218553187f409f0bbb2ffd6a8f03464aa7dba46f5'
+  },
+
+  oneByteX: {
+    name: 'one-byte-x',
+    path: 'test-files/one-byte-x',
+    size: 1,
+    hash: '2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881',
+  },
+
+  oneGiga: {
+    name: 'one-giga',
+    path: 'test-files/one-giga',
+    size: 1024 * 1024 * 1024,
+    hash: 'a728498b7d120ea93ff32f548df489e7e9feeefd5dab7124c12ee3e49ff84a91' 
+  },
+
+  oneGigaMinus1: {
+    name: 'one-giga-minus-1',
+    path: 'test-files/one-giga-minus-1',
+    size: 1024 * 1024 * 1024 - 1,
+    hash: 'dfbe42ebd0867f5dc8dc602f035237e88984c93a4e0a7ad7f92f462e326fa6f2'  
+  },
+
+  oneGigaPlusX: {
+    name: 'one-giga-plus-x',
+    path: 'test-files/one-giga-plus-x',
+    size: 1024 * 1024 * 1024 + 1,
+    hash: '9813e8dea92f5d5d2c422aa5191c29694531f012c13229fa65c90bb5538b0c6b'
+  },
+
+  twoGiga: {
+    name: 'two-giga',
+    path: 'test-files/two-giga',
+    size: 1024 * 1024 * 1024 * 2,
+    hash: 'cf2981f9b932019aaa35122cbecd5cdd66421673d3a640ea2c34601d6c9d3a12'
+  },
+
+  twoGigaMinus1: {
+    name: 'two-giga-minus-1',
+    path: 'test-files/two-giga-minus-1',
+    size: 1024 * 1024 * 1024 * 2 - 1,
+    hash: '881e4980ed2d54067f5c534513b43f408040a615731c9eb76c06ff4945a3e3ae'
+  },
+  
+  twoGigaPlusX: {
+    name: 'two-giga-plus-x',
+    path: 'test-files/two-giga-plus-x',
+    size: 1024 * 1024 * 1024 * 2 + 1,
+    hash: '38a664204a7253ef6f6b66bd8162170115d1661cde6a265c4d81c583ac675203'
+  },
+
 }
 
 const stubUserUUID = username => 

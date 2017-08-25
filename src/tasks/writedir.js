@@ -295,8 +295,47 @@ class AppendHandler extends PartHandler {
     let dstPath = path.join(dirPath, this.part.toName)
     let tmpPath = path.join(fruit.getTmpDir(), UUID.v4())
 
+    let xstat
     try {
-      let xstat = await this.throwable(readXstatAsync(srcPath))
+      xstat = await readXstatAsync(srcPath)
+    } catch (e) {
+      if (e.code === 'ENOENT') {
+        let err = new Error('append target does not exist') 
+        err.code = e.code
+        err.status = 403
+        throw err
+      } 
+      throw e
+    }
+
+    if (this.error) throw this.error
+    if (xstat.type !== 'file') {
+      let err = new Error('append target is not file')
+      err.status = 403
+      throw err
+    }
+
+    let SIZE1G = 1024 * 1024 * 1024 
+
+    if ((xstat.size % SIZE1G) !== 0) {
+      let err = new Error('append target size is not multiple giga')
+      err.status = 403
+      throw err
+    }
+
+    if (!xstat.hash) {
+      let err = new Error('append target fingerprint not available')
+      err.status = 403
+      throw err
+    }
+
+    if (xstat.hash !== this.part.opts.append) {
+      let err = new Error('append target fingerprint does not match')
+      err.status = 403
+      throw err
+    }
+
+    try {
       let [srcFd, tmpFd] = await this.throwable(Promise.all([
         fs.openAsync(srcPath, 'r'),
         fs.openAsync(tmpPath, 'w')
@@ -312,10 +351,15 @@ class AppendHandler extends PartHandler {
 
       await this.throwable(forceXstatAsync(tmpPath, {
         uuid: xstat.uuid,
-        hash: combineHash(this.part.opts.append, this.as.digest)
+        hash: xstat.size === 0 
+          ? this.as.digest 
+          : combineHash(this.part.opts.append, this.as.digest)
       }))
 
       await this.throwable(fs.renameAsync(tmpPath, dstPath))
+    } catch(e) {
+      debug(e)   
+      throw e
     } finally {
       rimraf(tmpPath, () => {})
     }
@@ -412,7 +456,7 @@ class Writedir extends threadify(EventEmitter) {
         throw err
       }
 
-      if (size < 0 || size > 1024 * 1024 * 1024) {
+      if (size > 1024 * 1024 * 1024 || size < (append ? 1 : 0)) {
         let err = new Error('size out of range')
         err.status = 400
         throw err
@@ -431,6 +475,14 @@ class Writedir extends threadify(EventEmitter) {
       if (overwrite !== undefined) {
         if (!isUUID(overwrite)) {
           let err = new Error('overwrite is not a valid uuid string')
+          err.status = 400
+          throw err
+        }
+      }
+
+      if (append !== undefined) {
+        if (!isSHA256(append)) {
+          let err = new Error('append is not a valid fingerprint string')
           err.status = 400
           throw err
         }
