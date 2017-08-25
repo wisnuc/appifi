@@ -9,6 +9,13 @@ const uuid = require('uuid')
 const debug = require('debug')('station')
 const Promise = require('bluebird')
 
+const mkdirp = require('mkdirp')
+const mkdirpAsync = Promise.promisify(mkdirp)
+const rimraf = require('rimraf')
+const rimrafAsync = Promise.promisify(rimraf)
+const sanitize = require('sanitize-filename')
+const ioctl = require('ioctl')
+
 const requestAsync = require('./request').requestHelperAsync
 const broadcast = require('../../common/broadcast')
 const boxData = require('../../box/boxData')
@@ -18,7 +25,7 @@ const Thumbnail = require('../../lib/thumbnail')
 const getFruit = require('../../fruitmix')
 
 const { isUUID } = require('../../common/assertion')
-const Config = require('./const').CONFIG
+// const Config = require('./const').CONFIG
 
 const Transform = stream.Transform
 
@@ -286,8 +293,12 @@ class Pipe {
       debug('NOT FOUND EVENT HANDLER', messageType, data)
   }
 
-  decodeType(resource, method) {
+  decodeType(data) {
+    let resource = data.resource
+    let method = data.method
     let paths = resource.split('/').filter(p => p.length)
+    data.paths = [...paths]
+
     if(!paths.length) return undefined
     let r1 = paths.shift()
     switch(r1) {
@@ -316,61 +327,47 @@ class Pipe {
    */
   // fetch
   async getDrivesAsync(data) {
-    let cloudAddr = data.serverAddr
-    let sessionId = data.sessionId
-    let user = data.user //FIXME:
+    let { serverAddr, sessionId, user } = data
     let fruit = getFruit()
-    if(!fruit) return await this.errorResponseAsync(cloudAddr, sessionId, new Error('fruitmix not start'))
+    if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
     let drives = fruit.getDrives(user)
-    return await this.successResponseAsync(cloudAddr, sessionId, drives)
+    return await this.successResponseAsync(serverAddr, sessionId, drives)
   }
 
   // store
   async createDriveAsync(data) {
-    let cloudAddr = data.serverAddr
-    let sessionId = data.sessionId
-    let user = data.user  //FIXME:
-    let props = data.body
+    let { serverAddr, sessionId, user, body} = data
+
     let fruit = getFruit()
-    if(!fruit) return await this.errorResponseAsync(cloudAddr, sessionId, new Error('fruitmix not start'))
-    let drives = fruit.createPublicDriveAsync(user, props)
-    return await this.successResponseAsync(cloudAddr, sessionId, drives)
+    if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    let drives = fruit.createPublicDriveAsync(user, body)
+    return await this.successResponseAsync(serverAddr, sessionId, drives)
   }
   
   //fetch
   async getDriveAsync(data) {
-    let cloudAddr = data.serverAddr
-    let sessionId = data.sessionId
-    let resource = data.resource
-    let user = data.user  //FIXME:
-    let props = data.body
+    let { serverAddr, sessionId, user, paths } = data
     let fruit = getFruit()
-    if(!fruit) return await this.errorResponseAsync(cloudAddr, sessionId, new Error('fruitmix not start'))
-    
-    let paths = resource.split('/').filter(p => p.length)
-    if(paths.length !== 2 || !isUUID(paths[1])) return await this.errorResponseAsync(cloudAddr, sessionId, new Error('resource error'))
+
+    if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    if(paths.length !== 2 || !isUUID(paths[1])) return await this.errorResponseAsync(serverAddr, sessionId, new Error('resource error'))
     let driveUUID = paths[1]
 
     let drive = fruit.getDrive(user, driveUUID)
-    return await this.successResponseAsync(cloudAddr, sessionId, drive)
+    return await this.successResponseAsync(serverAddr, sessionId, drive)
   }
 
   
   async updateDriveAsync(data) {
-    let cloudAddr = data.serverAddr
-    let sessionId = data.sessionId
-    let resource = data.resource
-    let user = data.user  //FIXME:
-    let props = data.body
+    let { serverAddr, sessionId, user, body, paths } = data
     let fruit = getFruit()
-    if(!fruit) return await this.errorResponseAsync(cloudAddr, sessionId, new Error('fruitmix not start'))
-    
-    let paths = resource.split('/').filter(p => p.length)
-    if(paths.length !== 2 || !isUUID(paths[1])) return await this.errorResponseAsync(cloudAddr, sessionId, new Error('resource error'))
+
+    if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    if(paths.length !== 2 || !isUUID(paths[1])) return await this.errorResponseAsync(serverAddr, sessionId, new Error('resource error'))
     let driveUUID = paths[1]
     
-    let drive = await fruit.updatePublicDriveAsync(user, driveUUID, props)
-    return await this.successResponseAsync(cloudAddr, sessionId, drive)
+    let drive = await fruit.updatePublicDriveAsync(user, driveUUID, body)
+    return await this.successResponseAsync(serverAddr, sessionId, drive)
   }
 
   async deleteDriveAsync(data) {
@@ -379,77 +376,150 @@ class Pipe {
 
   //fetch
   async getDirectoriesAsync(data) {
-    let cloudAddr = data.serverAddr
-    let sessionId = data.sessionId
-    let resource = data.resource
-    let user = data.user  //FIXME:
-    let props = data.body
+    let { serverAddr, sessionId, user, paths } = data
     let fruit = getFruit()
-    if(!fruit) return await this.errorResponseAsync(cloudAddr, sessionId, new Error('fruitmix not start'))
-    
-    let paths = resource.split('/').filter(p => p.length)
-    if(paths.length !== 3 || paths[2] !== 'dirs' || !isUUID(paths[1])) return await this.errorResponseAsync(cloudAddr, sessionId, new Error('resource error'))
-    let driveUUID = paths[1]
 
+    if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+
+    if(paths.length !== 3 || paths[2] !== 'dirs' || !isUUID(paths[1])) return await this.errorResponseAsync(serverAddr, sessionId, new Error('resource error'))
+    
+    let driveUUID = paths[1]
     let dirs = fruit.getDriveDirs(user, driveUUID)
-    return await this.successResponseAsync(cloudAddr, sessionId, dirs)
+
+    return await this.successResponseAsync(serverAddr, sessionId, dirs)
   }
 
   async getDirectoryAsync(data) {
-    let cloudAddr = data.serverAddr
-    let sessionId = data.sessionId
-    let resource = data.resource
-    let user = data.user  //FIXME:
-    let props = data.body
+    let { serverAddr, sessionId, user, body, paths } = data
     let fruit = getFruit()
-    if(!fruit) return await this.errorResponseAsync(cloudAddr, sessionId, new Error('fruitmix not start'))
+
+    if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    if(paths.length !== 4 || paths[2] !== 'dirs' || !isUUID(paths[1] || !isUUID(paths[3]))) return await this.errorResponseAsync(serverAddr, sessionId, new Error('resource error'))
     
-    let paths = resource.split('/').filter(p => p.length)
-    if(paths.length !== 4 || paths[2] !== 'dirs' || !isUUID(paths[1] || !isUUID(paths[3]))) return await this.errorResponseAsync(cloudAddr, sessionId, new Error('resource error'))
     let driveUUID = paths[1]
     let dirUUID = path[3]
-
-    let dirs = await fruit.getDriveDirAsync(user, driveUUID, dirUUID)
-    return await this.successResponseAsync(cloudAddr, sessionId, dirs)
+    let metadata = body.metadata === 'true' ? true : false
+    let dirs = await fruit.getDriveDirAsync(user, driveUUID, dirUUID, metadata)
+    return await this.successResponseAsync(serverAddr, sessionId, dirs)
   }
 
+  /**
+   * 
+   * @param {object} data 
+   * 
+   * {
+   *  version: 1,
+   *  name: fromPath|toPath, or 'name'
+   *  op: enum STRING ['mkdir', 'rename', 'dup', 'remove', 'newfile']
+   *  overwrite: optional(UUID)
+   *  size: 0 <= size <= 1G, INTEGER
+   *  sha256:  (neglected when size === 0),
+   * }
+   */
   async writeDirAsync(data) {
+    let { serverAddr, sessionId, user, body, paths } = data
+    let fruit = getFruit()
+    
+    if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    if(paths.length !== 5 || paths[2] !== 'dirs' || !isUUID(paths[1] || !isUUID(paths[3] || paths[4] !== 'entries'))) 
+      return await this.errorResponseAsync(serverAddr, sessionId, new Error('resource error'))
+    
+    let driveUUID = paths[1]
+    let dirUUID = path[3]
+    let ops = ['mkdir', 'rename', 'dup', 'remove', 'newfile']
+    if(ops.findIndex(body.op) === -1)
+      return await this.errorResponseAsync(serverAddr, sessionId, new Error('op error'))
+
+    let da = Object.assign({}, body)
+    da.driveUUID = driveUUID
+    da.dirUUID = dirUUID
+
+    let split = da.name.split('|')
+    if (split.length === 0 || split.length > 2)
+       throw new Error('invalid name')
+    if (!split.every(name => name === sanitize(name)))
+       throw new Error('invalid name')
+    da.fromName = split.shift()
+    da.toName = split.shift() || da.fromName
+
+    switch (da.op) {
+      case 'mkdir':
+        break
+      case 'rename':
+        break
+      case 'dup':
+        break
+      case 'remove':
+        break
+      case 'newfile':
+        break
+      default:
+        break
+    }
 
   }
 
+  /********************************************************************************************/
+  
+  /**
+   * {
+   *  version: 1,
+   *  name: fromName|toName, or 'name'
+   *  op: enum STRING ['mkdir', 'rename', 'dup', 'remove', 'newfile']
+   *  overwrite: optional(UUID)
+   *  size: 0 <= size <= 1G, INTEGER
+   *  sha256:  (neglected when size === 0),
+   *  dirUUID,
+   *  driveUUID,
+   *  fromName,
+   *  toName
+   * }
+   */
+
+  async mkdirAsync(data) {
+
+  }
+
+  async renameAsync(data) {
+
+  }
+
+  async dupAsync(data) {
+
+  }
+
+  async removeAsync(data) {
+
+  }
+
+  async newFileAsync(data) {
+
+  }
+
+  /*******************************************************************************************/
   //fetch
   async downloadFileAsync(data) {
-    let cloudAddr = data.serverAddr
-    let sessionId = data.sessionId
-    let resource = data.resource
-    let user = data.user  //FIXME:
-    let props = data.body
+    let { serverAddr, sessionId, user, body, paths } = data
     let fruit = getFruit()
-    if(!fruit) return await this.errorResponseAsync(cloudAddr, sessionId, new Error('fruitmix not start'))
-    
-    let paths = resource.split('/').filter(p => p.length)
-    if(paths.length !== 6 || paths[2] !== 'dirs' || paths[4] !== 'entries' || !isUUID(paths[1]) || !isUUID(paths[3]) || !isUUID(paths[5])) return await this.errorResponseAsync(cloudAddr, sessionId, new Error('resource error'))
+    if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    if(paths.length !== 6 || paths[2] !== 'dirs' || paths[4] !== 'entries' || !isUUID(paths[1]) || !isUUID(paths[3]) || !isUUID(paths[5])) return await this.errorResponseAsync(serverAddr, sessionId, new Error('resource error'))
     let driveUUID = paths[1]
     let dirUUID = paths[3]
     let entryUUID = paths[5]
-    let name = props.name
+    let name = body.name
     
     let dirPath = fruit.getDriveDirPath(user, driveUUID, dirUUID)
     let filePath = path.join(dirPath, name)
-    return await fetchFileResponseAsync(filePath, cloudAddr, sessionId)
+    return await fetchFileResponseAsync(filePath, serverAddr, sessionId)
   }
 
   /****
    * Media Api
    */
   async getMetadatasAsync(data) {
-    let cloudAddr = data.serverAddr
-    let sessionId = data.sessionId
-    let resource = data.resource
-    let user = data.user  //FIXME:
-    let props = data.body
+    let { serverAddr, sessionId, user, body } = data
     let fruit = getFruit()
-    if(!fruit) return await this.errorResponseAsync(cloudAddr, sessionId, new Error('fruitmix not start'))
+    if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
 
     const fingerprints = fruit.getFingerprints(user)
     const metadata = fingerprints.reduce((acc, fingerprint) => {
@@ -457,38 +527,34 @@ class Pipe {
       if (meta) acc.push(Object.assign({ hash: fingerprint }, meta))
       return acc
     }, [])
-    return await this.successResponseAsync(cloudAddr, sessionId, metadata)
+    return await this.successResponseAsync(serverAddr, sessionId, metadata)
   }
 
   //fetch
   async getMetadataAsync(data) {
-    let cloudAddr = data.serverAddr
-    let sessionId = data.sessionId
-    let resource = data.resource
-    let user = data.user  //FIXME:
-    let props = data.body
+    let { serverAddr, sessionId, user, body, paths } = data
     let fruit = getFruit()
-    if(!fruit) return await this.errorResponseAsync(cloudAddr, sessionId, new Error('fruitmix not start'))
-    let paths = resource.split('/').filter(p => p.length)
+    if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
 
     const fingerprint = paths[1]
-    if (props.alt === undefined || props.alt === 'metadata') {
+
+    if (body.alt === undefined || body.alt === 'metadata') {
       let metadata = Media.get(fingerprint)
       if (metadata) {
-        return await this.successResponseAsync(cloudAddr, sessionId, metadata)
+        return await this.successResponseAsync(serverAddr, sessionId, metadata)
       } else {
-        return await this.errorResponseAsync(cloudAddr, sessionId, new Error('metadata not found'))
+        return await this.errorResponseAsync(serverAddr, sessionId, new Error('metadata not found'))
       }
     }
-    else if (props.alt === 'data') {
+    else if (body.alt === 'data') {
       let files = fruit.getFilesByFingerprint(user, fingerprint)
       if (files.length) {
-        return await fetchFileResponseAsync(files[0], cloudAddr, sessionId)
+        return await fetchFileResponseAsync(files[0], serverAddr, sessionId)
       } else {
-        return await this.errorResponseAsync(cloudAddr, sessionId, new Error('media not found'))
+        return await this.errorResponseAsync(serverAddr, sessionId, new Error('media not found'))
       }
     }
-    else if (props.alt === 'thumbnail') {
+    else if (body.alt === 'thumbnail') {
 
     }
     

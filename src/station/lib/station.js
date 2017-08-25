@@ -178,7 +178,7 @@ class Station {
   }
 
   stationFinishStart(req, res, next) {
-    if(this.initialized !== undefined && this.connect.isConnected()){
+    if(this.initialized && this.connect.isConnected()){
       req.body.sa = this.sa
       req.body.Connect = this.connect
       req.Tickets = this.tickets
