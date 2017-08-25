@@ -12,7 +12,11 @@ const Promise = require('bluebird')
 const requestAsync = require('./request').requestHelperAsync
 const broadcast = require('../../common/broadcast')
 const boxData = require('../../box/boxData')
+
+const Media = require('../../media/media')
+const Thumbnail = require('../../lib/thumbnail')
 const getFruit = require('../../fruitmix')
+
 const { isUUID } = require('../../common/assertion')
 const Config = require('./const').CONFIG
 
@@ -242,15 +246,6 @@ class StoreFiles {
 }
 
 
-
-class Pipe {
-  constructor(tmp, connect) {
-    this.tmp = undefined
-    this.connect = connect
-    this.connect.register('pipe', this.handle.bind(this))
-    this.handlers = new Map()
-  }
-
 /* data:  {
     type: 'pipe',   // socket communication multiplexing
     
@@ -268,6 +263,13 @@ class Pipe {
   
     serverAddr:     // valid ip address, whitelist
   }*/
+class Pipe {
+  constructor(tmp, connect) {
+    this.tmp = undefined
+    this.connect = connect
+    this.connect.register('pipe', this.handle.bind(this))
+    this.handlers = new Map()
+  }
 
   handle(data) {
     // decode data.resource 
@@ -291,13 +293,16 @@ class Pipe {
     switch(r1) {
       case 'drives':
         return  paths.length === 0 ? (method === 'GET' ? 'GetDrives' : (method === 'POST' ? 'CreateDrive' : undefined))
-                  : paths.length === 1 ? (method === 'GET' ? 'GetDrive' : (method === 'POST' ? 'UpdateDrive' : (method === 'DELETE' ? 'DeleteDrive' : undefined)))
+                  : paths.length === 1 ? (method === 'GET' ? 'GetDrive' : (method === 'PATCH' ? 'UpdateDrive' : (method === 'DELETE' ? 'DeleteDrive' : undefined)))
                     : paths.length === 2 && method === 'GET' ? 'GetDirectories'
                       : paths.length === 3 && method === 'GET' ? 'GetDirectory'
                         : paths.length === 4 && method === 'POST' ? 'WriteDir'
                           : paths.length === 5 && method === 'GET' ? 'DownloadFile' : undefined
         break
       case 'media':
+        return paths.length === 0 && method === 'GET' ? 'GetMetadatas'
+                  : paths.length === 1 && method === 'GET' ? 'GetMetadata'
+                  : undefined
         break
       case  'boxes':
         break
@@ -306,6 +311,9 @@ class Pipe {
     }
   }
 
+  /**
+   * Drives Api
+   */
   // fetch
   async getDrivesAsync(data) {
     let cloudAddr = data.serverAddr
@@ -331,16 +339,42 @@ class Pipe {
   
   //fetch
   async getDriveAsync(data) {
+    let cloudAddr = data.serverAddr
+    let sessionId = data.sessionId
+    let resource = data.resource
+    let user = data.user  //FIXME:
+    let props = data.body
+    let fruit = getFruit()
+    if(!fruit) return await this.errorResponseAsync(cloudAddr, sessionId, new Error('fruitmix not start'))
     
+    let paths = resource.split('/').filter(p => p.length)
+    if(paths.length !== 2 || !isUUID(paths[1])) return await this.errorResponseAsync(cloudAddr, sessionId, new Error('resource error'))
+    let driveUUID = paths[1]
+
+    let drive = fruit.getDrive(user, driveUUID)
+    return await this.successResponseAsync(cloudAddr, sessionId, drive)
   }
 
   
   async updateDriveAsync(data) {
-
+    let cloudAddr = data.serverAddr
+    let sessionId = data.sessionId
+    let resource = data.resource
+    let user = data.user  //FIXME:
+    let props = data.body
+    let fruit = getFruit()
+    if(!fruit) return await this.errorResponseAsync(cloudAddr, sessionId, new Error('fruitmix not start'))
+    
+    let paths = resource.split('/').filter(p => p.length)
+    if(paths.length !== 2 || !isUUID(paths[1])) return await this.errorResponseAsync(cloudAddr, sessionId, new Error('resource error'))
+    let driveUUID = paths[1]
+    
+    let drive = await fruit.updatePublicDriveAsync(user, driveUUID, props)
+    return await this.successResponseAsync(cloudAddr, sessionId, drive)
   }
 
   async deleteDriveAsync(data) {
-
+    // not implemented yet
   }
 
   //fetch
@@ -400,10 +434,73 @@ class Pipe {
     let entryUUID = paths[5]
     let name = props.name
     
-    let dirPath = getFruit().getDriveDirPath(user, driveUUID, dirUUID)
+    let dirPath = fruit.getDriveDirPath(user, driveUUID, dirUUID)
     let filePath = path.join(dirPath, name)
     return await fetchFileResponseAsync(filePath, cloudAddr, sessionId)
   }
+
+  /****
+   * Media Api
+   */
+  async getMetadatasAsync(data) {
+    let cloudAddr = data.serverAddr
+    let sessionId = data.sessionId
+    let resource = data.resource
+    let user = data.user  //FIXME:
+    let props = data.body
+    let fruit = getFruit()
+    if(!fruit) return await this.errorResponseAsync(cloudAddr, sessionId, new Error('fruitmix not start'))
+
+    const fingerprints = fruit.getFingerprints(user)
+    const metadata = fingerprints.reduce((acc, fingerprint) => {
+      let meta = Media.get(fingerprint)
+      if (meta) acc.push(Object.assign({ hash: fingerprint }, meta))
+      return acc
+    }, [])
+    return await this.successResponseAsync(cloudAddr, sessionId, metadata)
+  }
+
+  //fetch
+  async getMetadataAsync(data) {
+    let cloudAddr = data.serverAddr
+    let sessionId = data.sessionId
+    let resource = data.resource
+    let user = data.user  //FIXME:
+    let props = data.body
+    let fruit = getFruit()
+    if(!fruit) return await this.errorResponseAsync(cloudAddr, sessionId, new Error('fruitmix not start'))
+    let paths = resource.split('/').filter(p => p.length)
+
+    const fingerprint = paths[1]
+    if (props.alt === undefined || props.alt === 'metadata') {
+      let metadata = Media.get(fingerprint)
+      if (metadata) {
+        return await this.successResponseAsync(cloudAddr, sessionId, metadata)
+      } else {
+        return await this.errorResponseAsync(cloudAddr, sessionId, new Error('metadata not found'))
+      }
+    }
+    else if (props.alt === 'data') {
+      let files = fruit.getFilesByFingerprint(user, fingerprint)
+      if (files.length) {
+        return await fetchFileResponseAsync(files[0], cloudAddr, sessionId)
+      } else {
+        return await this.errorResponseAsync(cloudAddr, sessionId, new Error('media not found'))
+      }
+    }
+    else if (props.alt === 'thumbnail') {
+
+    }
+    
+  }
+  
+  getMediaThumbnail(fingerprint, query, files, callback) {
+
+  }
+  
+  /*********************************
+   * 
+   */
 
   fetchFileResponse(fpath, cloudAddr, sessionId, callback) {
     let finished = false
@@ -443,33 +540,6 @@ class Pipe {
   //   await this.successResponseAsync(1, data.jobId, { type: 'finish', message: 'just test'})
   // }
 
-  // test2(data, callback) {
-  //   debug(data)
-  //   let finished = false
-  //   let url = Config.CLOUD_PATH + 'v1/stations/' + this.connect.saId + '/response/' + data.jobId 
-  //   let rs = fs.createReadStream(path.join(this.connect.froot, '/tmp/123.jpg'))
-  //   let req = request.post(url).set({ 'Authorization': this.connect.token })
-  //   req.on('response', res => {
-  //     debug('response', fpath)
-  //     if(res.status !== 200){
-  //       debug('response error')
-  //       callback(res.error)
-  //       rs.close()
-  //     }
-  //   })
-  //   req.on('error', err => {
-  //     if(finished) return
-  //     finished = true
-  //     error(err)
-  //   })
-  //   rs.on('end', () =>{ 
-  //     if(finished) return
-  //     finished = true
-  //     callback(null)
-  //   })
-  //   req.pipe(rs)
-  // }
-
   async createTextTweetAsync({ boxUUID, guid, comment }) {
     let box = boxData.getBox(boxUUID)
     let props = { comment, global: guid }
@@ -493,16 +563,6 @@ class Pipe {
     // { comment, type: 'blob', id: sha256, global, path: file.path}
     //get blob
     let storeFile = new StoreSingleFile(this.tmp, this.token, size, sha256, jobId)
-  }
-
-
-  fetchFiles(sizeArr, hashArr, callback) 　{
-    if (sizeArr.length === 1) {
-      let size = sizeArr[0]
-
-    } else {
-
-    }
   }
 
   register() {
