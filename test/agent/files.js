@@ -63,7 +63,7 @@ describe(path.basename(__filename), () => {
     }) 
 
     // Get directories in alice home drive
-    it("GET /drives/:home/dirs should return [alice.home]", done => {
+    it("GET dirs should return [alice.home]", done => {
 
       // array of (mapped) dir object
       let expected = [{
@@ -85,7 +85,7 @@ describe(path.basename(__filename), () => {
     }) 
 
     // Get a single directory
-    it("GET /drives/:home/dirs/:home should return { path: [alice.home], entries: [] }", done => {
+    it("GET dirs/:home should return { path: [alice.home], entries: [] }", done => {
 
       let root = {
         uuid: IDS.alice.home,
@@ -171,11 +171,11 @@ describe(path.basename(__filename), () => {
   /**
   test mkdir
 
-  + target name does not exist.
-  + target name exists. target is directory.
-  - target name exists. target is file.
+  + 200 if hello does not exist.
+  + 200 if hello is a directory.
+  - 403 if hello is a file.
   */
-  describe("Alice w/ empty home, writedir - mkdir", () => {
+  describe("test mkdir", () => {
 
     let token, stat
     beforeEach(async () => {
@@ -187,10 +187,27 @@ describe(path.basename(__filename), () => {
       stat = await fs.lstatAsync(path.join(DrivesDir, IDS.alice.home))
     }) 
 
-    it("should succeed when target does not exist", done => 
+    it("200 if hello does not exist", done => 
       request(app)
         .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
         .set('Authorization', 'JWT ' + token)
+        .field('hello', JSON.stringify({ op: 'mkdir' }))
+        .expect(200)
+        .end((err, res) => {
+          if (err) return done(err)
+          let { type, name } = res.body.entries[0]
+          expect({ type, name }).to.deep.equal({
+            type: 'directory',
+            name: 'hello'
+          })
+          done()
+        }))
+
+    it("200 if hello is a directory", done => 
+      request(app)
+        .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
+        .set('Authorization', 'JWT ' + token)
+        .field('hello', JSON.stringify({ op: 'mkdir' }))
         .field('hello', JSON.stringify({ op: 'mkdir' }))
         .expect(200)
         .end((err, res) => {
@@ -202,52 +219,175 @@ describe(path.basename(__filename), () => {
           })
         }))
 
-    it("should succeed when target is an existing directory", done => 
+    it("403 if hello is a file", done => 
       request(app)
         .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
         .set('Authorization', 'JWT ' + token)
-        .field('hello', JSON.stringify({ op: 'mkdir' }))
-        .field('hello', JSON.stringify({ op: 'mkdir' }))
-        .expect(200)
-        .end((err, res) => {
-          let dirPath = path.join(DrivesDir, IDS.alice.home, 'hello')
-          fs.lstat(dirPath, (err, stat) => {
-            if (err) return done(err)
-            expect(stat.isDirectory()).to.be.true
-            done()
-          })
-        }))
-
-    it("should fail when target is an existing file", done => 
-      request(app)
-        .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
-        .set('Authorization', 'JWT ' + token)
-        .attach('hello', 'testdata/alonzo_church.jpg', JSON.stringify({
-          size: FILES.alonzo.size,
-          sha256: FILES.alonzo.hash
+        .attach('hello', 'testdata/hello', JSON.stringify({
+          size: FILES.hello.size,
+          sha256: FILES.hello.hash
         }))
         .field('hello', JSON.stringify({ op: 'mkdir' }))
         .expect(403)
         .end((err, res) => {
           expect(res.body.code).to.equal('EEXIST')
-          expect(res.body.where).to.be.an('object')
           done()
         }))
 
   })
 
   /**
-  */
-  describe("test rename", () => {
 
-  })
+  - 400 if uuid is not provided
+  - 400 if uuid is invalid
+  + 200 if hello does not exist
 
-  /**
+  - 403 if hello file uuid mismatch 
+  + 200 if hello file does exist
+  - 403 if hello directory uuid mismatch
+  + 200 if hello directory does exist
+
   */
   describe("test remove", () => {
+
+    let token, stat
+    beforeEach(async () => {
+      debug('------ I am a beautiful divider ------')
+      await Promise.delay(50)
+      await resetAsync()
+      await createUserAsync('alice')
+      token = await retrieveTokenAsync('alice')
+      stat = await fs.lstatAsync(path.join(DrivesDir, IDS.alice.home))
+    }) 
+ 
+    it("400 if uuid is not provided", done => 
+      request(app)
+        .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
+        .set('Authorization', 'JWT ' + token)
+        .field('hello', JSON.stringify({ op: 'remove' }))
+        .expect(400)
+        .end(done))
+    
+    it("400 if uuid is invalid", done =>
+      request(app)
+        .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
+        .set('Authorization', 'JWT ' + token)
+        .field('hello', JSON.stringify({ op: 'remove', uuid: 'hello' }))
+        .expect(400)
+        .end(done)) 
+
+    it("200 if hello does not exist", done => 
+      request(app)
+        .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
+        .set('Authorization', 'JWT ' + token)
+        .field('hello', JSON.stringify({ 
+          op: 'remove', 
+          uuid: '49e00ba7-8eb5-4fec-9b19-dd0f0e02caa5' 
+        }))
+        .expect(200)
+        .end((err, res) => {
+          if (err) return done(err)
+          expect(res.body.entries).to.deep.equal([])
+          done()
+        }))
+
+    it("403 if hello file uuid mismatch", done => 
+      request(app)
+        .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
+        .set('Authorization', 'JWT ' + token)
+        .attach('hello', 'testdata/hello', JSON.stringify({
+          size: FILES.hello.size,
+          sha256: FILES.hello.hash
+        }))
+        .expect(200)
+        .end((err, res) => {
+          if (err) return done(err)
+          let helloUUID = res.body.entries[0].uuid
+          request(app)   
+            .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
+            .set('Authorization', 'JWT ' + token)
+            .field('hello', JSON.stringify({
+              op: 'remove',
+              uuid: '18291fc7-787e-45d3-a1c6-30d130445c4f'
+            }))
+            .expect(403)
+            .end(done)
+        }))
+
+    it("200 if hello file does exist", done => 
+      request(app)
+        .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
+        .set('Authorization', 'JWT ' + token)
+        .attach('hello', 'testdata/hello', JSON.stringify({
+          size: FILES.hello.size,
+          sha256: FILES.hello.hash
+        }))
+        .expect(200)
+        .end((err, res) => {
+          if (err) return done(err)
+          let helloUUID = res.body.entries[0].uuid
+          request(app)   
+            .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
+            .set('Authorization', 'JWT ' + token)
+            .field('hello', JSON.stringify({
+              op: 'remove',
+              uuid: helloUUID
+            }))
+            .expect(200)
+            .end((err, res) => {
+              if (err) return done(err)
+              expect(res.body.entries).to.deep.equal([])
+              done()
+            })
+        }))
+
+    it("403 if hello directory uuid mismatch", done => 
+      request(app)
+        .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
+        .set('Authorization', 'JWT ' + token)
+        .field('hello', JSON.stringify({ op: 'mkdir' }))
+        .expect(200)
+        .end((err, res) => {
+          if (err) return done(err)
+          let helloUUID = res.body.entries[0].uuid
+          request(app)   
+            .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
+            .set('Authorization', 'JWT ' + token)
+            .field('hello', JSON.stringify({
+              op: 'remove',
+              uuid: '18291fc7-787e-45d3-a1c6-30d130445c4f'
+            }))
+            .expect(403)
+            .end(done)
+        }))
+
+    it("200 if hello directory does exist", done => 
+      request(app)
+        .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
+        .set('Authorization', 'JWT ' + token)
+        .field('hello', JSON.stringify({ op: 'mkdir' }))
+        .expect(200)
+        .end((err, res) => {
+          if (err) return done(err)
+          let helloUUID = res.body.entries[0].uuid
+          request(app)   
+            .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
+            .set('Authorization', 'JWT ' + token)
+            .field('hello', JSON.stringify({
+              op: 'remove',
+              uuid: helloUUID
+            }))
+            .expect(200)
+            .end((err, res) => {
+              if (err) return done(err)
+              expect(res.body.entries).to.deep.equal([])
+              done()
+            })
+        }))
+
   })
 
-  describe("Alice w/ empty home, writedir", () => {
+  describe("ad hoc", () => {
 
     let token, stat
     beforeEach(async () => {
@@ -260,7 +400,7 @@ describe(path.basename(__filename), () => {
     }) 
  
     // mkdir hello and rename to world
-    it("POST .../entries, mkdir hello and rename to world should success", done => 
+    it("mkdir hello and rename to world should success", done => 
       request(app)
         .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
         .set('Authorization', 'JWT ' + token)
@@ -268,85 +408,30 @@ describe(path.basename(__filename), () => {
         .field('hello|world', JSON.stringify({ op: 'rename' }))
         .expect(200)
         .end((err, res) => {
-          let helloPath = path.join(DrivesDir, IDS.alice.home, 'hello')
-          let worldPath = path.join(DrivesDir, IDS.alice.home, 'world')
-          fs.lstat(helloPath, err => {
-            expect(err.code).to.equal('ENOENT')
-            expect(fs.lstatSync(worldPath).isDirectory()).to.be.true
-            done()
+          if (err) return done(err)
+          let { type, name } = res.body.entries[0]
+          expect({ type, name }).to.deep.equal({
+            type: 'directory',
+            name: 'world',
           })
+          done()
         }))
 
-    // mkdir hello and remove
-    it("POST .../entries, mkdir hello and remove should success", done => 
-      request(app)
-        .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
-        .set('Authorization', 'JWT ' + token)
-        .field('hello', JSON.stringify({ op: 'mkdir' }))
-        .field('hello', JSON.stringify({ op: 'remove' }))
-        .expect(200)
-        .end((err, res) => {
-          let helloPath = path.join(DrivesDir, IDS.alice.home, 'hello')
-          fs.lstat(helloPath, err => {
-            expect(err.code).to.equal('ENOENT')
-            done()
-          })
-        }))
-
-    // upload empty file
-    it("POST .../entries, upload empty file only", done =>
-      request(app)
-        .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
-        .set('Authorization', 'JWT ' + token)
-        .attach('empty', 'testdata/empty', JSON.stringify({ size: 0, sha256: FILES.empty.hash }))
-        .expect(200)
-        .end((err, res) => {
-          let filePath = path.join(DrivesDir, IDS.alice.home, 'empty')
-          let stat = fs.lstatSync(filePath)
-          let attr = JSON.parse(xattr.getSync(filePath, 'user.fruitmix'))
-          expect(stat.isFile()).to.be.true
-          expect(attr.hash).to.equal(FILES.empty.hash)
-          expect(attr.magic).to.equal(0)
-
-          request(app)
-            .get(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}`)
-            .set('Authorization', 'JWT ' + token)
-            .expect(200)
-            .end((err, res) => {
-              if (err) return done(err)
-              done()
-            })
-        }))  
-
-    // upload empty file and mkdir name conflict 
-    it("POST .../entries, upload empty file and mkdir empty should fail", done =>
+    // name conflict 
+    it("upload empty file then mkdir empty should fail", done =>
       request(app)
         .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
         .set('Authorization', 'JWT ' + token)
         .attach('empty', 'testdata/empty', JSON.stringify({ size: 0, sha256: FILES.empty.hash }))
         .field('empty', JSON.stringify({ op: 'mkdir' }))
-        .expect(500)
-        .end((err, res) => {
-
-          let filePath = path.join(DrivesDir, IDS.alice.home, 'empty')
-          let stat = fs.lstatSync(filePath)
-          let attr = JSON.parse(xattr.getSync(filePath, 'user.fruitmix'))
-          expect(stat.isFile()).to.be.true
-          expect(attr.hash).to.equal(FILES.empty.hash)
-          expect(attr.magic).to.equal(0)
-
-          request(app)
-            .get(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}`)
-            .set('Authorization', 'JWT ' + token)
-            .expect(200)
-            .end((err, res) => {
-              if (err) return done(err)
-              done()
-            })
-        }))  
+        .expect(403)
+        .end((err, res)=> {
+          expect(res.body.code).to.equal('EEXIST')
+          done()
+        }))
 
     // upload empty file and rename
-    it("POST .../entries, upload empty file and rename to zero", done => 
+    it("upload empty file and rename to zero", done => 
       request(app)
         .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
         .set('Authorization', 'JWT ' + token)
@@ -354,32 +439,20 @@ describe(path.basename(__filename), () => {
         .field('empty|zero', JSON.stringify({ op: 'rename' }))
         .expect(200)
         .end((err, res) => {
+          if (err) return done(err)
 
-          let emptyPath = path.join(DrivesDir, IDS.alice.home, 'empty')
-          let zeroPath = path.join(DrivesDir, IDS.alice.home, 'zero')
-
-          fs.lstat(emptyPath, err => {
-            expect(err.code).to.equal('ENOENT')
-
-            let stat = fs.lstatSync(zeroPath)
-            let attr = JSON.parse(xattr.getSync(zeroPath, 'user.fruitmix'))
-            expect(stat.isFile()).to.be.true
-            expect(attr.hash).to.equal(FILES.empty.hash)
-            expect(attr.magic).to.equal(0)
-
-            request(app)
-              .get(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}`)
-              .set('Authorization', 'JWT ' + token)
-              .expect(200)
-              .end((err, res) => {
-                if (err) return done(err)
-                done()
-              })
-            // done()
+          let { type, name, size, magic, hash } = res.body.entries[0]
+          expect({ type, name, size, magic, hash }).to.deep.equal({
+            type: 'file',
+            name: 'zero',
+            size: FILES.empty.size,
+            magic: 0,
+            hash: FILES.empty.hash
           })
+          done()
         }))
 
-    it("POST .../entries, upload alonzo file only", done => 
+    it("upload alonzo file only", done => 
       request(app)
         .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
         .set('Authorization', 'JWT ' + token)
@@ -389,7 +462,7 @@ describe(path.basename(__filename), () => {
         }))
         .expect(200)
         .end((err, res) => {
-
+          if (err) return done(err)
           request(app)
             .get(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}`)
             .set('Authorization', 'JWT ' + token)
@@ -400,50 +473,7 @@ describe(path.basename(__filename), () => {
             })
         }))
 
-    it("POST .../entries, upload alonzo file twice", done => 
-      request(app)
-        .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
-        .set('Authorization', 'JWT ' + token)
-        .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', JSON.stringify({
-          size: FILES.alonzo.size,
-          sha256: FILES.alonzo.hash
-        }))
-        .expect(200)
-        .end((err, res) => {
-
-          request(app)
-            .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
-            .set('Authorization', 'JWT ' + token)
-            .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', JSON.stringify({
-              size: FILES.alonzo.size,
-              sha256: FILES.alonzo.hash
-            }))
-            .expect(200)
-            .end((err, res) => {
-
-              request(app)
-                .get(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}`)
-                .set('Authorization', 'JWT ' + token)
-                .expect(200)
-                .end((err, res) => {
-                  if (err) return done(err)
-                  done()
-                })
-            })
-
-/**
-          request(app)
-            .get(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}`)
-            .set('Authorization', 'JWT ' + token)
-            .expect(200)
-            .end((err, res) => {
-              if (err) return done(err)
-              done()
-            })
-**/
-        }))
-
-    it('POST .../entries, upload alonzo file and rename to church', done => 
+    it('upload alonzo and rename to church', done => 
       request(app)
         .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
         .set('Authorization', 'JWT ' + token)
@@ -454,42 +484,26 @@ describe(path.basename(__filename), () => {
         .field('alonzo.jpg|church.jpg', JSON.stringify({ op: 'rename' }))
         .expect(200)
         .end((err, res) => {
-
+          if (err) return done(err)
           request(app)
             .get(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}`)
             .set('Authorization', 'JWT ' + token)
             .expect(200)
             .end((err, res) => {
               if (err) return done(err)
+
+              expect(res.body.entries.length).to.equal(1)
+              let { type, name, size, magic, hash } = res.body.entries[0]
+
+              expect({ type, name, size, magic, hash }).to.deep.equal({
+                type: 'file',
+                name: 'church.jpg',
+                size: FILES.alonzo.size,
+                magic: 'JPEG',
+                hash: FILES.alonzo.hash
+              })
               done()
             })
-        }))
-
-    it('POST .../entries, upload alonzo file and append alonzo', done =>
-      request(app)
-        .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
-        .set('Authorization', 'JWT ' + token)
-        .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', JSON.stringify({
-          size: FILES.alonzo.size,
-          sha256: FILES.alonzo.hash,
-        }))
-        .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', JSON.stringify({
-          size: FILES.alonzo.size,
-          sha256: FILES.alonzo.hash,
-          append: FILES.alonzo.hash
-        }))
-        .expect(200)
-        .end((err, res) => {
-
-          request(app)
-            .get(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}`)
-            .set('Authorization', 'JWT ' + token)
-            .expect(200)
-            .end((err, res) => {
-              if (err) return done(err)
-              done()
-            })
-
         }))
 
   })

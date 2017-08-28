@@ -152,7 +152,7 @@ class FieldHandler extends PartHandler {
     this.part.on('data', this.guard(chunk => buffers.push(chunk)))
     this.part.on('end', this.guard(() => {
       this.part.value = Buffer.concat(buffers).toString()
-      let { op, overwrite } = JSON.parse(this.part.value)
+      let { op, overwrite, uuid } = JSON.parse(this.part.value)
 
       if (overwrite !== undefined) {
         if (!isUUID(overwrite)) {
@@ -166,20 +166,32 @@ class FieldHandler extends PartHandler {
         this.part.opts = { op }
       } else if (op === 'dup') {
         if (this.part.fromName === this.part.toName) {
-          let err = new Error('dup requries two different file name')
+          let err = new Error('dup requires two different file name')
           err.status = 400
           throw err
         }
         this.part.opts = { op, overwrite }
       } else if (op === 'rename') {
         if (this.part.fromName === this.part.toName) {
-          let err = new Error('dup requries two different file name')
+          let err = new Error('dup requires two different file name')
           err.status = 400
           throw err
         }
         this.part.opts = { op, overwrite }
       } else if (op === 'remove') {
-        this.part.opts = { op }
+        if (uuid === undefined) {
+          let err = new Error('uuid required for remove operation')
+          err.status = 400
+          throw err
+        }
+
+        if (!isUUID(uuid)) {
+          let err = new Error('invalid uuid')
+          err.status = 400
+          throw err
+        }
+
+        this.part.opts = { op, uuid }
       } else {
         this.error = new Error('Unrecognized op code')
         return
@@ -399,6 +411,20 @@ class FieldHandler extends PartHandler {
 
       // await this.throwable(fs.renameAsync(fromPath, toPath))
     } else if (this.part.opts.op === 'remove') {
+
+      let xstat
+      try {
+        xstat = await readXstatAsync(fromPath)
+        if (xstat.uuid !== this.part.opts.uuid) {
+          let err = new Error('uuid mismatch')
+          err.code = 'EINSTANCE'
+          err.status = 403
+          throw err
+        } 
+      } catch (e) {
+        if (e.code !== 'ENOENT') throw e
+      }
+
       await this.throwable(rimrafAsync(fromPath))
     } else {
       throw new Error('Internal Error')
@@ -697,9 +723,6 @@ class Writedir extends threadify(EventEmitter) {
       }
 
       if (overwrite !== undefined) {
-
-        console.log('overwrite', overwrite)
-
         if (!isUUID(overwrite)) {
           let err = new Error('overwrite is not a valid uuid string')
           err.status = 400
