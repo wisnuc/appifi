@@ -64,12 +64,37 @@ const resetAsync = async () => {
 describe(path.basename(__filename), () => {
 
   /**
- 
+  test append
+
+  uuid is not required for client dont have it when immediately append onto newly created file in the same request.
+
+  name // must be regular file
+  {
+    size: 0 < size <= 1GB
+    sha256: segment sha256 hash
+    append: existing_fingerprint
+  }
+
+  - 400 size not provided
+  - 400 size is hello
+  - 400 size is -1
+  - 400 size is 99.99
+  - 400 size is 1G + 1
+  - 400 sha256 not provided
+  - 400 sha256 is hello 
+  - 400 append is hello
+
+  - 403 if name does not exist
+  - 403 if name is directory
+  - 403 if name is empty file
+  - 403 if name is alonzo (not 1GB file)
+
   - 400 append empty to one-giga 
   + 200 append alonzo to one-giga
   - 400 append one-giga-plus-one
 
-  
+  ... 
+
   */
   describe("test append", () => {
 
@@ -107,7 +132,8 @@ describe(path.basename(__filename), () => {
       alonzo, bar, empty, foo, hello, vpai001,  
       world, fiveGiga, halfGiga, oneAndAHalfGiga, 
       oneByteX, oneGiga, oneGigaMinus1, oneGigaPlusX,
-      twoGiga, twoGigaMinus1, twoGigaPlusX
+      twoGiga, twoGigaMinus1, twoGigaPlusX, twoAndAHalfGiga,
+      threeGiga, threeGigaMinus1, threeGigaPlusX, threeAndAHalfGiga
     } = FILES  
 
     before(async function () {
@@ -133,6 +159,143 @@ describe(path.basename(__filename), () => {
       token = await retrieveTokenAsync('alice')
       stat = await fs.lstatAsync(path.join(DrivesDir, IDS.alice.home))
     }) 
+
+    it("should 400 if size not provided", done => REQ()
+      .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', J({
+        sha256: FILES.alonzo.hash,
+        append: FILES.hello.hash
+      }))
+      .expect(400)
+      .end(done))
+
+    it("should 400 if size is 'hello'", done => REQ()
+      .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', J({
+        size: 'hello',
+        sha256: FILES.alonzo.hash,
+        append: FILES.hello.hash
+      }))
+      .expect(400)
+      .end(done))
+
+    it("should 400 if size is 99.99", done => REQ()
+      .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', J({
+        size: 99.99,
+        sha256: FILES.alonzo.hash,
+        append: FILES.hello.hash
+      }))
+      .expect(400)
+      .end(done))
+
+    it("should 400 if size is -1", done => REQ()
+      .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', J({
+        size: -1,
+        sha256: FILES.alonzo.hash,
+        append: FILES.hello.hash
+      }))
+      .expect(400)
+      .end(done))
+
+    it("should 400 if size is 0", done => REQ()
+      .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', J({
+        size: 0,
+        sha256: FILES.empty.hash,
+        append: FILES.hello.hash
+      }))
+      .expect(400)
+      .end(done))
+
+    it("should 400 if size is 1G + 1", done => REQ()
+      .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', J({
+        size: 1024 * 1024 * 1024 + 1,
+        sha256: FILES.alonzo.hash,
+        append: FILES.hello.hash
+      }))
+      .expect(400)
+      .end(done))
+
+    it("should 400 if sha256 is not provided", done => REQ()
+      .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', J({
+        size: FILES.alonzo.size,
+        append: FILES.hello.hash
+      }))
+      .expect(400)
+      .end(done))
+
+    it("should 400 if sha256 is 'hello'", done => REQ()
+      .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', J({
+        size: FILES.alonzo.size,
+        sha256: 'hello',
+        append: FILES.hello.hash
+      }))
+      .expect(400)
+      .end(done))
+
+    it("should 400 if append is 'hello'", done => REQ()
+      .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', J({
+        size: FILES.alonzo.size,
+        sha256: FILES.alonzo.hash,
+        append: 'hello'
+      }))
+      .expect(400)
+      .end(done))   
+
+    it("should 403 if name does not exist", done => REQ()
+      .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', J({
+        size: FILES.alonzo.size,
+        sha256: FILES.alonzo.hash,
+        append: FILES.hello.hash
+      }))
+      .expect(403)
+      .end(done)) 
+
+    it("should 403 if name is directory", done => REQ()
+      .field('alonzo.jpg', J({ op: 'mkdir' }))
+      .expect(200)
+      .end((err, res) => {
+        if (err) return done(err)
+        REQ()
+          .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', J({
+            size: FILES.alonzo.size,
+            sha256: FILES.alonzo.hash,
+            append: FILES.hello.hash
+          }))
+          .expect(403)
+          .end(done) 
+      }))
+
+    it("should 403 if name is empty file", done => REQ()
+      .attach('empty', 'testdata/empty', J({ size: 0 }))
+      .expect(200)
+      .end((err, res) => {
+        if (err) return done(err)
+        REQ()
+          .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', J({
+            size: FILES.alonzo.size,
+            sha256: FILES.alonzo.hash,
+            append: FILES.empty.hash
+          }))
+          .expect(403)
+          .end(done)
+      }))
+
+    it("should 403 if name is alonzo", done => REQ()
+      .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', J({ 
+        size: FILES.alonzo.size,
+        sha256: FILES.alonzo.hash
+      }))
+      .expect(200)
+      .end((err, res) => {
+        if (err) return done(err)
+        REQ()
+          .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', J({
+            size: FILES.alonzo.size,
+            sha256: FILES.alonzo.hash,
+            append: FILES.empty.hash
+          }))
+          .expect(403)
+          .end(done)
+      }))
+
 
     it("400 append empty to empty", function (done) {
       NewFile('empty', empty, null, 200, (err, res) => {
@@ -230,6 +393,36 @@ describe(path.basename(__filename), () => {
           })
         })
       })
+    })
+
+    it("200 append half-giga to two-giga", function (done) {
+      this.timeout(0)
+      NewFile('two-giga', oneGiga, null, 200, (err, res) => {
+        if (err) return done(err)
+        Append('two-giga', oneGiga, oneGiga.hash, 200, (err, res) => {
+          if (err) return done(err)
+          Append('two-giga', halfGiga, twoGiga.hash, 200, (err, res) => {
+            if (err) return done(err)
+            expect(nsh(res.body.entries[0])).to.deep.equal(nsh(twoAndAHalfGiga, { name: 'two-giga' }))
+            done()
+          })
+        })
+      }) 
+    })
+
+    it("200 append one-giga-minus-1 to two-giga", function (done) {
+      this.timeout(0)
+      NewFile('target', oneGiga, null, 200, (err, res) => {
+        if (err) return done(err)
+        Append('target', oneGiga, oneGiga.hash, 200, (err, res) => {
+          if (err) return done(err)
+          Append('target', oneGigaMinus1, twoGiga.hash, 200, (err, res) => {
+            if (err) return done(err)
+            expect(nsh(res.body.entries[0])).to.deep.equal(nsh(threeGigaMinus1, { name: 'target' }))
+            done()
+          })
+        })
+      }) 
     })
 
   }) 

@@ -45,15 +45,33 @@ const createTestFilesAsync = async () => {
   await btrfsCloneAsync(join('one-and-a-half-giga'), join('one-giga'))
   await btrfsConcatAsync(join('one-and-a-half-giga'), join('half-giga'))
 
-  // 2 giga
+  // two giga
   await btrfsCloneAsync(join('two-giga'), join('one-giga'))
   await btrfsConcatAsync(join('two-giga'), join('one-giga'))
  
-  // 2 giga plus x 
+  // two giga plus x 
   await btrfsCloneAndAppendAsync(join('two-giga-plus-x'), join('two-giga'), Buffer.from('x'))
 
-  // 2 giga minus 1
+  // two giga minus 1
   await btrfsCloneAndTruncateAsync(join('two-giga-minus-1'), join('two-giga'), 1)
+
+  // two and a half
+  await btrfsCloneAsync(join('two-and-a-half-giga'), join('two-giga'))
+  await btrfsConcatAsync(join('two-and-a-half-giga'), join('half-giga'))
+
+  // three giga
+  await btrfsCloneAsync(join('three-giga'), join('two-giga'))
+  await btrfsConcatAsync(join('three-giga'), join('one-giga'))
+
+  // three giga plus x
+  await btrfsCloneAndAppendAsync(join('three-giga-plus-x'), join('three-giga'), Buffer.from('x'))
+
+  // three giga minus 1
+  await btrfsCloneAndTruncateAsync(join('three-giga-minus-1'), join('three-giga'), 1)
+
+  // three and a half
+  await btrfsCloneAsync(join('three-and-a-half-giga'), join('three-giga'))
+  await btrfsConcatAsync(join('three-and-a-half-giga'), join('half-giga'))
 
   // 5 giga
   await btrfsCloneAsync(join('five-giga'), join('two-giga')) 

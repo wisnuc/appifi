@@ -20,6 +20,23 @@ const { isSHA256, isUUID } = require('../lib/assertion')
 const createAppendStream = require('../lib/fs-append-stream')
 const { readXstatAsync, forceXstatAsync } = require('../lib/xstat')
 
+// clone a file from src to dst
+// !!! this function has REVERSED arg order
+const btrfsCloneAsync = async (src, dst) => {
+
+  let srcFd = await fs.openAsync(src, 'r')
+  try {
+    let dstFd = await fs.openAsync(dst, 'w')
+    try {
+      ioctl(dstFd, 0x40049409, srcFd)      
+    } finally {
+      await fs.closeAsync(dstFd)
+    }
+  } finally {
+    await fs.closeAsync(srcFd)
+  }
+}
+
 const EFruitmixUnavail = Object.assign(new Error('fruitmix unavailable'), { status: 503 })
 const _getFruit = require('../fruitmix')
 const getFruit = target => {
@@ -136,9 +153,30 @@ class FieldHandler extends PartHandler {
     this.part.on('end', this.guard(() => {
       this.part.value = Buffer.concat(buffers).toString()
       let { op, overwrite } = JSON.parse(this.part.value)
+
+      if (overwrite !== undefined) {
+        if (!isUUID(overwrite)) {
+          let err = new Error('overwrite is not a valid uuid')
+          err.status = 400
+          throw err
+        }
+      }
+
       if (op === 'mkdir') {
         this.part.opts = { op }
-      } else if (op === 'rename' || op === 'dup') {
+      } else if (op === 'dup') {
+        if (this.part.fromName === this.part.toName) {
+          let err = new Error('dup requries two different file name')
+          err.status = 400
+          throw err
+        }
+        this.part.opts = { op, overwrite }
+      } else if (op === 'rename') {
+        if (this.part.fromName === this.part.toName) {
+          let err = new Error('dup requries two different file name')
+          err.status = 400
+          throw err
+        }
         this.part.opts = { op, overwrite }
       } else if (op === 'remove') {
         this.part.opts = { op }
@@ -155,6 +193,7 @@ class FieldHandler extends PartHandler {
     let dirPath = getFruit().getDriveDirPath(user, driveUUID, dirUUID)
     let fromPath = path.join(dirPath, this.part.fromName)
     let toPath = path.join(dirPath, this.part.toName)
+    let tmpPath = path.join(getFruit().getTmpDir(), UUID.v4())
 
     if (this.part.opts.op === 'mkdir') {
 
@@ -169,11 +208,196 @@ class FieldHandler extends PartHandler {
       if (this.error) throw this.error
 
     } else if (this.part.opts.op === 'rename') {
-      // TODO support overwrite ???
-      await this.throwable(fs.renameAsync(fromPath, toPath))
+
+      if (this.part.opts.overwrite) {
+
+        let srcXstat, dstXstat
+        try {
+          srcXstat = await readXstatAsync(fromPath) 
+          if (srcXstat.type === 'directory') {
+            let err = new Error(`${this.part.fromName} is a directory`)
+            err.code = 'EISDIR'
+            err.status = 403
+            throw err
+          }
+        } catch (e) {
+          if (e.code === 'ENOENT') {
+            let err = new Error(`${this.part.fromName} does not exist`)
+            err.code = 'ENOENT'
+            err.status = 403
+            throw err
+          } else {
+            throw e
+          }
+        }
+
+        try {
+          dstXstat = await readXstatAsync(toPath) 
+          if (dstXstat.type === 'directory') {
+            let err = new Error(`${this.part.toName} is a directory`)
+            err.code = 'EISDIR'
+            err.status = 403
+            throw err
+          }
+
+          if (dstXstat.uuid !== this.part.opts.overwrite) {
+            let err = new Error(`${this.part.toName} uuid mismatch`)
+            err.code = 'EMISMATCH'
+            err.status = 403
+            throw err
+          }
+        } catch (e) {
+          if (e.code === 'ENOENT') {
+            let err = new Error(`${this.part.toName} does not exist`)
+            err.code = 'ENOENT'
+            err.status = 403
+            throw err
+          } else {
+            throw e
+          }
+        }
+
+        // this is tricky !!!
+        try {
+          // clone src to tmp
+          await btrfsCloneAsync(fromPath, tmpPath)
+          let srcXstat2 = await readXstatAsync(fromPath)
+          if (srcXstat2.mtime !== srcXstat.mtime) {
+            let err = new Error(`race`)
+            err.code = 'ERACE'
+            err.status = 403
+            throw err
+          }
+
+          // stamp xstat
+          await forceXstatAsync(tmpPath, { 
+            uuid: dstXstat.uuid, 
+            hash: srcXstat.hash
+          })
+
+          // overwrite
+          await fs.renameAsync(tmpPath, toPath)
+          // remove src
+          await rimrafAsync(fromPath)
+        } finally {
+          try {
+            await rimrafAsync(tmpPath)
+          } catch (e) {}
+        }
+        
+      } else {
+
+        let srcStat, dstStat
+        try {
+          srcStat = await fs.lstatAsync(fromPath)
+          // TODO
+        } catch (e) {
+          if (e.code === 'ENOENT') e.status = 403
+          throw e
+        }
+
+        // this is best effort, not safe
+        try {
+          let dstStat = await fs.lstatAsync(toPath)
+          let err = new Error('target exists')
+          err.code = 'EEXIST'
+          err.status = 403
+          throw err
+        } catch (e) {
+          if (e.code !== 'ENOENT') throw e
+        }
+
+        try {
+          await fs.renameAsync(fromPath, toPath)
+        } catch (e) {
+          // when from does not exist
+          if (e.code === 'ENOENT') e.status = 403
+          // when from is file, to is dir
+          if (e.code === 'EISDIR') e.status = 403
+          // when from is dir, to is file
+          if (e.code === 'ENOTDIR') e.status = 403
+          // when from is dir, to is non-empty dir
+          if (e.code === 'ENOTEMPTY') e.status = 403
+          throw e
+        }
+      }
     } else if (this.part.opts.op === 'dup') {
-      // TODO support overwrite ???
-      await this.throwable(fs.renameAsync(fromPath, toPath))
+
+      let xstat1, xstat2
+      try {
+        xstat1 = await readXstatAsync(fromPath)
+        await btrfsCloneAsync(fromPath, tmpPath)
+        xstat2 = await readXstatAsync(fromPath)
+
+        if (xstat1.mtime !== xstat2.mtime) {
+          try { await rimrafAsync(tmpPath) } catch (e) {}
+
+          let err = new Error('race detected in operation') // TODO remove tmp file
+          err.code = 'ERACE'
+          throw err
+        }
+      
+      } catch (e) {
+        // btrfs clone throw this error
+        if (e.code === 'EISDIR') e.status = 403
+        if (e.code === 'ENOENT') e.status = 403
+        throw e
+      }
+
+      if (this.part.opts.overwrite) {
+
+        let xstat
+        try {
+          xstat = await readXstatAsync(toPath)
+        } catch (e) {
+          if (e.code === 'ENOENT') e.status = 403
+          throw e
+        }
+
+        if (xstat.type !== 'file') {
+          let err = new Error('target is not a regular file')
+          err.code = 'ENOTFILE'
+          err.status = 403
+          throw err
+        }
+
+        if (xstat.uuid !== this.part.opts.overwrite) {
+          let err = new Error('overwrite uuid does not match')
+          err.status = 403
+          throw err
+        }
+       
+        let opts = xstat1.hash
+          ? { uuid: xstat.uuid, hash: xstat1.hash } 
+          : { uuid: xstat.uuid }
+
+        try {
+          await forceXstatAsync(tmpPath, opts)
+          await fs.renameAsync(tmpPath, toPath)
+        } catch (e) {
+          if (e.code === 'EISDIR') e.status = 403
+          throw e
+        } finally {
+          try { await rimrafAsync(tmpPath) } catch (e) {}
+        }
+      } else {
+        if (xstat1.hash) {
+          await forceXstatAsync(tmpPath, { hash: xstat1.hash })
+        } else {
+          await readXstatAsync(tmpPath)
+        }
+
+        try {
+          await fs.linkAsync(tmpPath, toPath)
+        } catch (e) {
+          if (e.code === 'EEXIST') e.status = 403 
+          throw e
+        } finally {
+          try { await rimrafAsync(tmpPath) } catch (e) {}
+        }
+      }
+
+      // await this.throwable(fs.renameAsync(fromPath, toPath))
     } else if (this.part.opts.op === 'remove') {
       await this.throwable(rimrafAsync(fromPath))
     } else {
@@ -473,6 +697,9 @@ class Writedir extends threadify(EventEmitter) {
       }
 
       if (overwrite !== undefined) {
+
+        console.log('overwrite', overwrite)
+
         if (!isUUID(overwrite)) {
           let err = new Error('overwrite is not a valid uuid string')
           err.status = 400
