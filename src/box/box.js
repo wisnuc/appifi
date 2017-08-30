@@ -21,13 +21,13 @@ class Box {
    * @param {string} dir - root path of box
    * @param {string} tmpDir - temporary directory path
    * @param {Object} doc - document of box
-   * @param {Object} records - tweetsDB
+   * @param {Object} DB - tweetsDB
    */
-  constructor(dir, tmpDir, doc, records) {
+  constructor(dir, tmpDir, doc, DB) {
     this.dir = dir
     this.tmpDir = tmpDir
     this.doc = doc
-    this.records = records
+    this.DB = DB
     // this.branchMap = new Map()
   }
 
@@ -82,9 +82,9 @@ class Box {
     }
 
     tweet.ctime = new Date().getTime()
-    await this.records.addAsync(tweet)
+    await this.DB.addAsync(tweet)
 
-    let stat = await fs.statAsync(this.records.filePath)
+    let stat = await fs.statAsync(this.DB.filePath)
     let mtime = stat.mtime.getTime()
     return { tweet, mtime }
   }
@@ -99,7 +99,7 @@ class Box {
    * @return {array} a collection of tweet objects
    */
   async getTweetsAsync(props) {
-    return await this.records.getAsync(props)
+    return await this.DB.getAsync(props)
   }
 
   /**
@@ -107,7 +107,7 @@ class Box {
    * @param {array} indexArr - index array of tweets to be deleted
    */
   async deleteTweetsAsync(indexArr) {
-    return await this.records.deleteAsync(indexArr)
+    return await this.DB.deleteAsync(indexArr)
   }
 
   /**

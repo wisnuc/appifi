@@ -220,54 +220,12 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
           //   id (uuid, identifier)
           // }
       }
-      
-
-      // if (name = 'blob') {
-      //   obj = JSON.parse(value)
-      //   if (typeof obj.comment === 'string') comment = obj.comment
-      //   if (obj.type === 'blob') type = 'blob'
-      //   if (Number.isInteger(obj.size)) size = obj.size
-      //   if (isSHA256(obj.sha256)) sha256 = obj.sha256
-      // }
-
-      // ========================================================
-
-      // if (name === 'comment') {
-      //   if (typeof value === 'string') comment = value
-      // }
-
-      // if (name === 'type') {
-      //   if (typeof value === 'string') type = value
-      // }
-
-      // if (name === 'size') {
-      //   if ('' + parseInt(value) === value) size = parseInt(value)
-      // }
-
-      // if (name === 'sha256') {
-      //   if (isSHA256(value)) sha256 = value 
-      // }
     })
 
     form.on('fileBegin', (name, file) => {
       if (finished) return
-      // if (type === 'list') {
-      //   let id = JSON.parse(file.name).id
-      //   let item = arr.find(i => i.id === id)
-      //   let digest
-      //   if (item) digest = item.sha256
-
-      //   // name the file with its sha256 if exist, otherwise name with uuid
-      //   if (digest) file.path = path.join(box.tmpDir, digest)
-      //   else file.path = path.join(box.tmpDir, UUID.v4())
-      // }
-      
-      // if (type === 'blob') {
-      //   if (!Number.isInteger(size) || sha256 === undefined)
-      //   return finished = true && res.status(409).end()
       let tmpdir = getFruit().getTmpDir()
       file.path = path.join(tmpdir, UUID.v4())
-      // }     
     })
 
     form.on('file', (name, file) => {
@@ -342,7 +300,7 @@ router.get('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
   let boxUUID = req.params.boxUUID
   let { first, last, count, segments } = req.query
   let props = { first, last, count, segments }
-
+  
   getFruit().getTweetsAsync(req.user, boxUUID, props)
     .then(data => res.status(200).json(data))
     .catch(next)

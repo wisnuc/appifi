@@ -14,7 +14,7 @@ const broadcast = require('../common/broadcast')
 const { saveObjectAsync } = require('../lib/utils')
 const E = require('../lib/error')
 const blobStore = require('./blobStore')
-const Records = require('./records')
+const RecordsDB = require('./recordsDB')
 const Box = require('./box')
 
 /**
@@ -50,18 +50,19 @@ const complement = (a, b) =>
  * @return {Object} box
  */
 const createBox = (dir, tmpDir, doc) => {
-  let dbPath = path.join(dir, doc.uuid, 'records')
+  let dbPath = path.join(dir, doc.uuid, 'recordsDB')
   let blPath = path.join(dir, doc.uuid, 'blackList')
-  let records = new Records(dbPath, blPath)
-  return new Box(path.join(dir, doc.uuid), tmpDir, doc, records)
+  let DB = new RecordsDB(dbPath, blPath)
+
+  return new Box(path.join(dir, doc.uuid), tmpDir, doc, DB)
 }
 
 /*
-  fruitmix/repo          // store blob 
+  fruitmix/blobs          // store blob 
           /boxes
             [uuid]/
               manifest      // box doc
-              records       // database
+              recordsDB     // database
               blackList     // indexes of tweets deleted
               [branches]/   //
                 branchUUID  // information of the branch                      
@@ -71,11 +72,10 @@ const createBox = (dir, tmpDir, doc) => {
  * 
  */
 class BoxData {
-
-  constructor(froot) {
-
+  constructor(froot, fruitmix) {
     this.dir = path.join(froot, 'boxes')
-    this.tmpDir = path.join(froot, 'tmp')
+    this.fruitmix = fruitmix
+    // this.tmpDir = this.fruitmix.getTmpDir()
     this.map = new Map()
 
     mkdirp(this.dir, err => {
@@ -87,52 +87,7 @@ class BoxData {
 
       broadcast.emit('BoxInitDone')
     })
-
-    // this.initialized = false
-
-    // this.dir = undefined
-    // this.tmpDir = undefined
-    // this.map = undefined
-
-    // broadcast.on('FruitmixStart', froot => {
-    //   let dir = path.join(froot, 'boxes')
-    //   let tmpDir = path.join(froot, 'tmp') 
-
-    //   this.init(dir, tmpDir)
-    // })
-
-    // broadcast.on('FruitmixStop', () => this.deinit())
   }
-
-  // init(dir, tmpDir) {
-
-  //   mkdirp(dir, err => {
-
-  //     if (err) {
-  //       console.log(err) 
-  //       broadcast.emit('BoxInitDone', err)
-  //       return
-  //     }
-
-  //     this.initialized = true
-  //     this.dir = dir
-  //     this.tmpDir = tmpDir
-  //     this.map = new Map()
-
-  //     broadcast.emit('BoxInitDone')
-  //   })
-  // }
-
-  // deinit() {
-
-  //   this.initialized = false
-  //   this.dir = undefined
-  //   this.tmpDir = undefined
-  //   // this.repoDir = undefined
-  //   this.map = undefined
-
-  //   process.nextTick(() => broadcast.emit('BoxDeinitDone'))
-  // }
 
   load() {
     fs.readdir(this.dir, (err, entries) => {
@@ -140,7 +95,7 @@ class BoxData {
         let target = path.join(this.dir, ent)
         fs.readFile(target, (err, data) => {
           let doc = JSON.parse(data.toString())
-          let box = createBox(this.dir, this.tmpDir, doc)
+          let box = createBox(this.dir, this.fruitmix.getTmpDir(), doc)
 
           this.map.set(doc.uuid, box)
           broadcast.emit('boxCreated', doc)
@@ -185,7 +140,7 @@ class BoxData {
     // save manifest to temp dir
     // move to boxes dir
 
-    let tmpDir = await fs.mkdtempAsync(path.join(this.tmpDir, 'tmp'))
+    let tmp = await fs.mkdtempAsync(path.join(this.fruitmix.getTmpDir(), 'tmp'))
     let time = new Date().getTime()
     let doc = {
       uuid: UUID.v4(),
@@ -194,17 +149,17 @@ class BoxData {
       users: props.users,
       ctime: time,
       mtime: time
-    }  
+    }
 
     // FIXME: refactor saveObject to avoid rename twice
-    await saveObjectAsync(path.join(tmpDir, 'manifest'), this.tmpDir, doc)
-    let dbPath = path.join(tmpDir, 'records')
-    let blPath = path.join(tmpDir, 'blackList')
+    await saveObjectAsync(path.join(tmp, 'manifest'), this.fruitmix.getTmpDir(), doc)
+    let dbPath = path.join(tmp, 'recordsDB')
+    let blPath = path.join(tmp, 'blackList')
     await fs.writeFileAsync(dbPath, '')
     await fs.writeFileAsync(blPath, '')
-    await fs.renameAsync(tmpDir, path.join(this.dir, doc.uuid))
-    
-    let box = createBox(this.dir, this.tmpDir, doc)
+    await fs.renameAsync(tmp, path.join(this.dir, doc.uuid))
+
+    let box = createBox(this.dir, this.fruitmix.getTmpDir(), doc)
 
     this.map.set(doc.uuid, box)
     broadcast.emit('boxCreated', doc)
@@ -254,7 +209,7 @@ class BoxData {
     } else newDoc.mtime = new Date().getTime()
 
     broadcast.emit('boxUpdating', oldDoc, newDoc)
-    await saveObjectAsync(path.join(this.dir, oldDoc.uuid, 'manifest'), this.tmpDir, newDoc)
+    await saveObjectAsync(path.join(this.dir, oldDoc.uuid, 'manifest'), this.fruitmix.getTmpDir(), newDoc)
     box.doc = newDoc
     broadcast.emit('boxUpdated', oldDoc, newDoc)
     return newDoc

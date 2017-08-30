@@ -23,6 +23,7 @@ const broadcast = require('src/common/broadcast')
 
 const {
   IDS,
+  FILES,
   stubUserUUID,
   createUserAsync,
   retrieveTokenAsync,
@@ -310,18 +311,17 @@ describe(path.basename(__filename), () => {
     })
 
     it('POST /boxes/{uuid}/tweets alice should upload a blob', done => {
-      let sha256 = '7803e8fa1b804d40d412bcd28737e3ae027768ecc559b51a284fbcadcd0e21be'
       let obj = {
         comment: 'hello',
         type: 'blob',
-        size: 2331588,
-        sha256
+        size: FILES.alonzo.size,
+        sha256: FILES.alonzo.hash
       }
       request(app)
         .post(`/boxes/${boxUUID}/tweets`)
         .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
         .field('blob', JSON.stringify(obj))
-        .attach('file', 'testpic/20141213.jpg')
+        .attach('alonzo.jpg', 'testdata/alonzo_church.jpg')
         .expect(200)
         .end((err, res) => {
           if (err) return done(err)
@@ -329,30 +329,30 @@ describe(path.basename(__filename), () => {
           expect(res.body.tweeter.id).to.equal(IDS.alice.global.id)
           expect(res.body.comment).to.equal('hello')
           expect(res.body.type).to.equal('blob')
-          expect(res.body.id).to.equal(sha256)
+          expect(res.body.id).to.equal(FILES.alonzo.hash)
           done()
         })
     })
 
     it('POST /boxes/{uuid}/tweets should upload a list', done => {     
-      let sha256_1 = '7803e8fa1b804d40d412bcd28737e3ae027768ecc559b51a284fbcadcd0e21be'
-      let sha256_2 = '21cb9c64331d69f6134ed25820f46def3791f4439d2536b270b2f57f726718c7'
+      // let sha256_1 = '7803e8fa1b804d40d412bcd28737e3ae027768ecc559b51a284fbcadcd0e21be'
+      // let sha256_2 = '21cb9c64331d69f6134ed25820f46def3791f4439d2536b270b2f57f726718c7'
       let obj = {
         comment: 'hello',
         type: 'list',
-        list: [{size: 2331588, sha256: sha256_1, filename: 'pic1', id: uuid_2},
-               {size: 5366855, sha256: sha256_2, filename: 'pic2', id: uuid_3}]
+        list: [{size: FILES.alonzo.size, sha256: FILES.alonzo.hash, filename: FILES.alonzo.name, id: uuid_2},
+               {size: FILES.vpai001.size, sha256: FILES.vpai001.hash, filename: FILES.vpai001.name, id: uuid_3}]
       }
       request(app)
         .post(`/boxes/${boxUUID}/tweets`)
         .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
         .field('list', JSON.stringify(obj))
-        .attach('pic1', 'testpic/20141213.jpg', JSON.stringify({id: uuid_2}))
-        .attach('pic2', 'testpic/20160719.jpg', JSON.stringify({id: uuid_3}))
+        .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', JSON.stringify({id: uuid_2}))
+        .attach('vpai001', 'testdata/vpai001.jpg', JSON.stringify({id: uuid_3}))
         .expect(200)
         .end((err, res) => {
           if (err) return done(err)
-          // consume uuid.v4: create box, upload two file(tpm path, twice)
+          // consume uuid.v4: create box, upload two file(tmp path, twice)
           expect(res.body.uuid).to.equal(uuid_3)
           expect(res.body.tweeter.id).to.equal(IDS.alice.global.id)
           expect(res.body.comment).to.equal('hello')
@@ -406,7 +406,7 @@ describe(path.basename(__filename), () => {
     it('GET /boxes/{uuid}/tweets should repair tweets DB if the last record is incorrect', done => {
       forgeRecords(boxUUID, 'alice')
         .then(() => {
-          let filepath = path.join(tmptest, 'boxes', boxUUID, 'records')
+          let filepath = path.join(tmptest, 'boxes', boxUUID, 'recordsDB')
           let size = fs.readFileSync(filepath).length
           let text = '{"comment":"hello","ctime":1500343057045,"index":10,"tweeter":"ocMvos6NjeKLIBqg5Mr9QjxrP1FA"'
           

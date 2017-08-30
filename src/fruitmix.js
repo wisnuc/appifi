@@ -37,7 +37,7 @@ class Fruitmix extends EventEmitter {
     this.fruitmixPath = froot
     this.userList = new UserList(froot)
     this.driveList = new DriveList(froot)
-    this.boxData = new BoxData(froot)
+    this.boxData = new BoxData(froot, this)
     this.tasks = []
   }
 
