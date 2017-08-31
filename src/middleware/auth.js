@@ -31,7 +31,7 @@ passport.use(new BasicStrategy((userUUID, password, done) => {
 
 passport.use(new JwtStrategy({
     secretOrKey: secret,
-    jwtFromRequest: ExtractJwt.fromAuthHeader()
+    jwtFromRequest: ExtractJwt.fromAuthHeaderWithScheme('jwt')
   }, 
   (jwt_payload, done) => {
 
