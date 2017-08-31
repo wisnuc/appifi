@@ -20,7 +20,7 @@ const CONNECT_STATE = {
 Object.freeze(CONNECT_STATE)
 
 
-function getSocket(address, saId, privateKey, callback) {
+function createSocket(address, saId, privateKey, callback) {
   let socket = client(address,{
       transports: ['websocket']
   })
@@ -81,7 +81,7 @@ function getSocket(address, saId, privateKey, callback) {
   })
 }
 
-let getSocketAsync = Promise.promisify(getSocket)
+let createSocketAsync = Promise.promisify(createSocket)
 
 
 /*
@@ -162,7 +162,7 @@ class Connect extends EventEmitter{
     this.socket = undefined
     this._changeState(CONNECT_STATE.CONNING)
     try{
-      this.socket = await getSocketAsync(address, this.saId, this.privateKey)
+      this.socket = await createSocketAsync(address, this.saId, this.privateKey)
       this._changeState(CONNECT_STATE.CONNED)
       this.token = this.socket.token
       debug('connect success')

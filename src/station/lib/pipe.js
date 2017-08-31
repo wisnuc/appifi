@@ -201,7 +201,7 @@ class StoreFiles {
             ws.close() // close write stream 
             
             // check hash
-            if(digest !== this.currentEndpointhashArr[this.currentIndex])
+            if(digest !== this.currentEndpoint[this.currentIndex])
               return error(`${ this.currentIndex } hash mismatch`)
             
             // save fpath
@@ -316,8 +316,10 @@ class Pipe {
                   : undefined
         break
       case  'boxes':
+        return undefined
         break
       default:
+        return undefined
         break
     }
   }
@@ -357,7 +359,7 @@ class Pipe {
     return await this.successResponseAsync(serverAddr, sessionId, drive)
   }
 
-  
+
   async updateDriveAsync(data) {
     let { serverAddr, sessionId, user, body, paths } = data
     let fruit = getFruit()
@@ -575,7 +577,7 @@ class Pipe {
     let req = request.post(url).set({ 'Authorization': this.connect.token })
     req.on('response', res => {
       debug('response', fpath)
-      if(res.status !== 200){
+      if　(res.status !== 200)　{
         debug('response error')
         callback(res.error)
         rs.close()
@@ -620,9 +622,9 @@ class Pipe {
   }
 
   async successResponseAsync(cloudAddr, sessionId, data) {
-    let url = cloudAddr + 'v1/stations/' + this.connect.saId + '/pipe/' + sessionId +'/response'
+    let url = cloudAddr + 'v1/stations/' + this.connect.saId + '/response/' + sessionId 
     let params = data
-    await requestAsync('POST', url, { params }, {})
+    await requestAsync('PATCH', url, { params }, {})
   }
 
   async createBlobTweetAsync({ boxUUID, guid, comment, type, size, sha256, jobId }) {
