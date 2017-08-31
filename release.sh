@@ -23,10 +23,9 @@ rm -rf appifi/.git
 mv appifi-release/.git appifi/.git
 rm -rf appifi-release
 mv appifi appifi-release
-
 cd appifi-release
 
-npm install
+npm i --production
 
 rm -rf build
 mv src build
@@ -55,8 +54,6 @@ rm -rf serveJsdoc.js
 rm -rf static.js
 rm -rf test
 rm -rf webpack.config.js
-
-npm prune --production
 
 git add *
 git add .[!.]*
