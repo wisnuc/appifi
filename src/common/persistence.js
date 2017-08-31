@@ -3,7 +3,7 @@ const path = require('path')
 const fs = require('fs')
 
 const mkdirpAsync = Promise.promisify(require('mkdirp'))
-const UUID = require('node-uuid')
+const UUID = require('uuid')
 
 // state: IDLE, PENDING, WIP
 //
