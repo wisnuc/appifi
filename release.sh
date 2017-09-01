@@ -30,21 +30,18 @@ npm i --production
 rm -rf build
 mv src build
 
+rm -rf .gitignore
 rm -rf .eslintignore
 rm -rf .eslintrc.js
 rm -rf README.md
 rm -rf assets.js
 rm -rf backpack.config.js
 rm -rf backpack.js
-# build
 rm -rf docs
 rm -rf graph.sh
 rm -rf jsdoc.conf.json
 rm -rf markdown
 rm -rf misc
-# node_modules
-# package-lock.json
-# package.json
 rm -rf patch
 rm -rf prepare.sh
 rm -rf release.sh
