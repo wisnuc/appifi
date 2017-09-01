@@ -14,6 +14,6 @@ module.exports = async () => {
     }
   })
 
-  let filtered = all.filter(m => (m.device.startsWith('/dev/sd') || m.device.startsWith('/dev/mmc')))
+  let filtered = all.filter(m => (m.device.startsWith('/dev/sd') || m.device.startsWith('/dev/mmc') || m.device.startsWith('/dev/vd')))
   return filtered
 }

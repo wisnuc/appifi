@@ -9,4 +9,5 @@ Probe blocks
 module.exports = async () => udevInfoAsync((
   await child.execAsync('find /sys/class/block -type l'))
     .toString().split('\n').map(l => l.trim()).filter(l => l.length)
-    .filter(l => l.startsWith('/sys/class/block/sd')))
+    .filter(l => l.startsWith('/sys/class/block/vd') || l.startsWith('/sys/class/block/sd')))
+

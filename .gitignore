@@ -38,7 +38,7 @@ node_modules/
 # swp
 *.swp
 
-package-lock.json
+# package-lock.json
 
 # bundle file
 public/bundle.js
