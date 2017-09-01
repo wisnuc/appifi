@@ -72,10 +72,9 @@ const createBox = (dir, tmpDir, doc) => {
  * 
  */
 class BoxData {
-  constructor(froot, fruitmix) {
-    this.dir = path.join(froot, 'boxes')
-    this.fruitmix = fruitmix
-    // this.tmpDir = this.fruitmix.getTmpDir()
+  constructor(ctx) {
+    this.ctx = ctx
+    this.dir = path.join(this.ctx.fruitmixPath, 'boxes')
     this.map = new Map()
 
     mkdirp(this.dir, err => {
@@ -95,7 +94,7 @@ class BoxData {
         let target = path.join(this.dir, ent)
         fs.readFile(target, (err, data) => {
           let doc = JSON.parse(data.toString())
-          let box = createBox(this.dir, this.fruitmix.getTmpDir(), doc)
+          let box = createBox(this.dir, this.ctx.getTmpDir(), doc)
 
           this.map.set(doc.uuid, box)
           broadcast.emit('boxCreated', doc)
@@ -140,7 +139,7 @@ class BoxData {
     // save manifest to temp dir
     // move to boxes dir
 
-    let tmp = await fs.mkdtempAsync(path.join(this.fruitmix.getTmpDir(), 'tmp'))
+    let tmp = await fs.mkdtempAsync(path.join(this.ctx.getTmpDir(), 'tmp'))
     let time = new Date().getTime()
     let doc = {
       uuid: UUID.v4(),
@@ -152,14 +151,14 @@ class BoxData {
     }
 
     // FIXME: refactor saveObject to avoid rename twice
-    await saveObjectAsync(path.join(tmp, 'manifest'), this.fruitmix.getTmpDir(), doc)
+    await saveObjectAsync(path.join(tmp, 'manifest'), this.ctx.getTmpDir(), doc)
     let dbPath = path.join(tmp, 'recordsDB')
     let blPath = path.join(tmp, 'blackList')
     await fs.writeFileAsync(dbPath, '')
     await fs.writeFileAsync(blPath, '')
     await fs.renameAsync(tmp, path.join(this.dir, doc.uuid))
 
-    let box = createBox(this.dir, this.fruitmix.getTmpDir(), doc)
+    let box = createBox(this.dir, this.ctx.getTmpDir(), doc)
 
     this.map.set(doc.uuid, box)
     broadcast.emit('boxCreated', doc)
@@ -209,7 +208,7 @@ class BoxData {
     } else newDoc.mtime = new Date().getTime()
 
     broadcast.emit('boxUpdating', oldDoc, newDoc)
-    await saveObjectAsync(path.join(this.dir, oldDoc.uuid, 'manifest'), this.fruitmix.getTmpDir(), newDoc)
+    await saveObjectAsync(path.join(this.dir, oldDoc.uuid, 'manifest'), this.ctx.getTmpDir(), newDoc)
     box.doc = newDoc
     broadcast.emit('boxUpdated', oldDoc, newDoc)
     return newDoc

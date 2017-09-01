@@ -37,7 +37,7 @@ class Fruitmix extends EventEmitter {
     this.fruitmixPath = froot
     this.userList = new UserList(froot)
     this.driveList = new DriveList(froot)
-    this.boxData = new BoxData(froot, this)
+    this.boxData = new BoxData(this)
     this.tasks = []
   }
 
@@ -676,6 +676,10 @@ class Fruitmix extends EventEmitter {
 
   getFilesByFingerprint (user, fingerprint) {
     return this.driveList.getFilesByFingerprint(fingerprint)
+  }
+
+  reportMedia(fingerprint, metadata) {
+    MediaMap.set(fingerprint, metadata)
   }
 
   ///////////// task api ///////////////////////////////////////////////////////
