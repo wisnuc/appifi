@@ -57,8 +57,6 @@ class BlobStore {
       if (stderr) return callback(stderr)
 
       child.exec(`mv ${srcStr} -t ${dst}`, (err, stdout, stderr) => {
-        console.log(srcStr)
-        console.log(path.basename(src[0]))
         if (err) return callback(err)
         if (stderr) return callback(stderr)
         let hashArr = src.map(s => path.basename(s))

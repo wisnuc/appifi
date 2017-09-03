@@ -9,8 +9,8 @@ const UUID = require('uuid')
 const crypto = require('crypto')
 
 const { saveObjectAsync } = require('../lib/utils')
-const E = require('../lib/error')
-const blobStore = require('./blobStore')
+// const E = require('../lib/error')
+// const blobStore = require('./blobStore')
 
 /**
   box
@@ -18,14 +18,14 @@ const blobStore = require('./blobStore')
 class Box {
 
   /**
+   * @param {Object} ctx - context
    * @param {string} dir - root path of box
-   * @param {string} tmpDir - temporary directory path
    * @param {Object} doc - document of box
    * @param {Object} DB - tweetsDB
    */
-  constructor(dir, tmpDir, doc, DB) {
+  constructor(ctx, dir, doc, DB) {
+    this.ctx = ctx
     this.dir = dir
-    this.tmpDir = tmpDir
     this.doc = doc
     this.DB = DB
     // this.branchMap = new Map()
@@ -48,7 +48,7 @@ class Box {
     let urls
     if (src) {
       urls = src.filter(s => {
-        let target = blobStore.retrieve(s.sha256)
+        let target = this.ctx.blobs.retrieve(s.sha256)
         try {
           let stats = fs.lstatSync(target)
           // remove the file in tmpdir which is already in repo
@@ -66,7 +66,7 @@ class Box {
         fs.renameSync(u.filepath, newpath)
         return newpath
       })
-      await blobStore.storeAsync(urls)
+      await this.ctx.blobs.storeAsync(urls)
     }
 
     let tweet = {
@@ -135,7 +135,7 @@ class Box {
     let targetDir = path.join(this.dir, 'branches')
     await mkdirpAsync(targetDir)
     let targetPath = path.join(targetDir, branch.uuid)
-    await saveObjectAsync(targetPath, this.tmpDir, branch)
+    await saveObjectAsync(targetPath, this.ctx.getTmpDir(), branch)
     // this.branchMap.set(branch.uuid, branch)
     return branch
   }
@@ -228,7 +228,7 @@ class Box {
     }
 
     if (updated === branch) return branch
-    await saveObjectAsync(target, this.tmpDir, updated)
+    await saveObjectAsync(target, this.ctx.getTmpDir(), updated)
     return updated
   }
 
@@ -269,7 +269,7 @@ class Box {
     let sha256 = hash.digest().toString('hex')
 
     let targerPath = path.join(targetDir, sha256)
-    await saveObjectAsync(targetPath, this.tmpDir, commit)
+    await saveObjectAsync(targetPath, this.ctx.getTmpDir, commit)
 
     return sha256
   }

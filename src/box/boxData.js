@@ -12,8 +12,8 @@ const lineByLineReader = require('line-by-line')
 
 const broadcast = require('../common/broadcast')
 const { saveObjectAsync } = require('../lib/utils')
-const E = require('../lib/error')
-const blobStore = require('./blobStore')
+// const E = require('../lib/error')
+// const blobStore = require('./blobStore')
 const RecordsDB = require('./recordsDB')
 const Box = require('./box')
 
@@ -49,12 +49,12 @@ const complement = (a, b) =>
  * @param {Object} doc - descriptor of box to be created
  * @return {Object} box
  */
-const createBox = (dir, tmpDir, doc) => {
+const createBox = (ctx, dir, doc) => {
   let dbPath = path.join(dir, doc.uuid, 'recordsDB')
   let blPath = path.join(dir, doc.uuid, 'blackList')
   let DB = new RecordsDB(dbPath, blPath)
 
-  return new Box(path.join(dir, doc.uuid), tmpDir, doc, DB)
+  return new Box(ctx, path.join(dir, doc.uuid), doc, DB)
 }
 
 /*
@@ -158,7 +158,7 @@ class BoxData {
     await fs.writeFileAsync(blPath, '')
     await fs.renameAsync(tmp, path.join(this.dir, doc.uuid))
 
-    let box = createBox(this.dir, this.ctx.getTmpDir(), doc)
+    let box = createBox(this.ctx, this.dir, doc)
 
     this.map.set(doc.uuid, box)
     broadcast.emit('boxCreated', doc)

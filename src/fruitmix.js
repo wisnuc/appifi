@@ -9,6 +9,7 @@ const mkdirpAsync = Promise.promisify(mkdirp)
 
 const UserList = require('./user/user')
 const DriveList = require('./forest/forest')
+const BlobStore = require('./box/blobStore')
 const BoxData = require('./box/boxData')
 const MediaMap = require('./media/media')
 
@@ -37,7 +38,11 @@ class Fruitmix extends EventEmitter {
     this.fruitmixPath = froot
     this.userList = new UserList(froot)
     this.driveList = new DriveList(froot)
-    this.boxData = new BoxData(this)
+    this.blobs = new BlobStore(this)
+    this.blobs.loadAsync()
+    .then(() => {
+      this.boxData = new BoxData(this)
+    })
     this.tasks = []
   }
 
@@ -643,8 +648,9 @@ class Fruitmix extends EventEmitter {
     if (props.id) assert(isSHA256(props.id) || isUUID(props.id), 'id should be sha256 or uuid')
     if (props.list) assert(Array.isArray(props.list), 'list should be an array')
     if (props.src) assert(Array.isArray(props.src), 'src should be an array')
-    
+
     let result =  await box.createTweetAsync(props)
+
     await this.boxData.updateBoxAsync({mtime: result.mtime}, boxUUID)
     return result.tweet
   }
