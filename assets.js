@@ -1,11 +1,8 @@
-var path = require('path')
-var fs = require('fs')
-var mkdirp = require('mkdirp')
+const path = require('path')
+const fs = require('fs')
+const mkdirp = require('mkdirp')
 
-let xxhashBase64, xxhash, xattrBase64, xattr, bundlejs, indexHtml, robotoCSS, styleCSS, 
-  robotoThinBase64, robotoThin, robotoLightBase64, robotoLight,
-  robotoRegularBase64, robotoRegular, robotoMediumBase64, robotoMedium,
-  robotoBoldBase64, robotoBold, robotoBlackBase64, robotoBlack, faviconBase64, favicon
+let xxhashBase64, xxhash, xattrBase64, xattr
 
 if (global.WEBPACK) {
   xxhashBase64 = require('raw-loader!./assets/xxhash.node.base64')
@@ -42,4 +39,4 @@ if (xattrBase64) {
 
 console.log('assets loaded')
 
-setTimeout(() => require('./src/app'), 1000)
+require('./src/app')
