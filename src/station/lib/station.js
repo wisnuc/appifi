@@ -159,7 +159,7 @@ class Station {
   requestRegisterStation(froot, callback) {
     // console.log(publicKey)
     request
-      .post(CONFIG.CLOUD_PATH + 'v1/stations')
+      .post(CONFIG.CLOUD_PATH + 's/v1/stations')
       .set('Content-Type', 'application/json')
       .send({
         publicKey: this.publicKey
