@@ -44,7 +44,7 @@ class Box {
    */
   async createTweetAsync(props) {
     let src = props.src  // src contains all files uploaded
-    // filter out the files which are already in repo
+    // filter out the files which are already in blobs
     let urls
     if (src) {
       urls = src.filter(s => {

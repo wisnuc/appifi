@@ -44,8 +44,8 @@ const complement = (a, b) =>
 
 /**
  * 
+ * @param {Object} ctx - context
  * @param {string} dir - path to boxes module
- * @param {string} tmpDir - path to tmpDir
  * @param {Object} doc - descriptor of box to be created
  * @return {Object} box
  */
@@ -94,7 +94,7 @@ class BoxData {
         let target = path.join(this.dir, ent)
         fs.readFile(target, (err, data) => {
           let doc = JSON.parse(data.toString())
-          let box = createBox(this.dir, this.ctx.getTmpDir(), doc)
+          let box = createBox(this.ctx, this.dir, doc)
 
           this.map.set(doc.uuid, box)
           broadcast.emit('boxCreated', doc)

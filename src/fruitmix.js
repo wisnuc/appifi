@@ -40,9 +40,8 @@ class Fruitmix extends EventEmitter {
     this.driveList = new DriveList(froot)
     this.blobs = new BlobStore(this)
     this.blobs.loadAsync()
-    .then(() => {
-      this.boxData = new BoxData(this)
-    })
+      .then(() => this.boxData = new BoxData(this))
+      .catch(err => console.log('err',err))
     this.tasks = []
   }
 

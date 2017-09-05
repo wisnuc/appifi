@@ -16,10 +16,6 @@ const child = require('child_process')
 const app = require('src/app')
 const { saveObjectAsync } = require('src/lib/utils')
 const broadcast = require('src/common/broadcast')
-// const getFruit = require('src/fruitmix')
-
-// const User = require('src/models/user')
-// const boxData = require('src/box/boxData')
 
 const {
   IDS,
@@ -39,7 +35,6 @@ const {
 const cwd = process.cwd()
 const tmptest = path.join(cwd, 'tmptest')
 const tmpDir = path.join(tmptest, 'tmp')
-const repoDir = path.join(tmptest, 'repo')
 
 /**
 Reset directories and reinit User module
@@ -48,11 +43,8 @@ const resetAsync = async() => {
 
   broadcast.emit('FruitmixStop')
 
-  // await broadcast.until('UserDeinitDone', 'BoxDeinitDone')
-
   await rimrafAsync(tmptest) 
   await mkdirpAsync(tmpDir) 
-  await mkdirpAsync(repoDir)
  
   broadcast.emit('FruitmixStart', tmptest) 
 
@@ -273,6 +265,8 @@ describe(path.basename(__filename), () => {
     let uuid_1 = 'ff5d42b9-4b8f-452d-a102-ebfde5cdf948'
     let uuid_2 = 'a474d150-a7d4-47f2-8338-3733fa4b8783'
     let uuid_3 = '30ee1474-571c-42c1-be1e-0f714d0d4968'
+    let uuid_4 = 'ef374915-9be4-452e-827e-67808f7ba8b9'
+    let uuid_5 = '060da4bd-7a6e-445a-8cdd-1c9c99c90f4d'
     let commit_1 = '486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7'
     let commit_2 = '2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824'
 
@@ -287,6 +281,8 @@ describe(path.basename(__filename), () => {
                             .onCall(1).returns(uuid_1)
                             .onCall(2).returns(uuid_2)
                             .onCall(3).returns(uuid_3)
+                            .onCall(4).returns(uuid_4)
+                            .onCall(5).returns(uuid_5)
                           
       let props = {name: 'hello', users: [IDS.bob.global.id]}
       doc = await createBoxAsync(props, 'alice')
@@ -325,7 +321,7 @@ describe(path.basename(__filename), () => {
         .expect(200)
         .end((err, res) => {
           if (err) return done(err)
-          expect(res.body.uuid).to.equal(uuid_2)
+          expect(res.body.uuid).to.equal(uuid_3)
           expect(res.body.tweeter.id).to.equal(IDS.alice.global.id)
           expect(res.body.comment).to.equal('hello')
           expect(res.body.type).to.equal('blob')
@@ -335,8 +331,6 @@ describe(path.basename(__filename), () => {
     })
 
     it('POST /boxes/{uuid}/tweets should upload a list', done => {     
-      // let sha256_1 = '7803e8fa1b804d40d412bcd28737e3ae027768ecc559b51a284fbcadcd0e21be'
-      // let sha256_2 = '21cb9c64331d69f6134ed25820f46def3791f4439d2536b270b2f57f726718c7'
       let obj = {
         comment: 'hello',
         type: 'list',
@@ -352,8 +346,8 @@ describe(path.basename(__filename), () => {
         .expect(200)
         .end((err, res) => {
           if (err) return done(err)
-          // consume uuid.v4: create box, upload two file(tmp path, twice)
-          expect(res.body.uuid).to.equal(uuid_3)
+          // consume uuid.v4: create box, upload two file(tmp path, twice), readXstat twice
+          expect(res.body.uuid).to.equal(uuid_5)
           expect(res.body.tweeter.id).to.equal(IDS.alice.global.id)
           expect(res.body.comment).to.equal('hello')
           expect(res.body.type).to.equal('list')
