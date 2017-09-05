@@ -29,7 +29,7 @@ class Tickets {
     let token = this.connect.token
     let data = '123456'
     let params = { stationId, data, creator, type }
-    let url = CONFIG.CLOUD_PATH + 'v1/tickets'
+    let url = CONFIG.CLOUD_PATH + 's/v1/tickets'
     let opts = { 'Content-Type': 'application/json', 'Authorization': token }
     try {
       let res = await requestAsync('POST', url, { params }, opts)
@@ -44,7 +44,7 @@ class Tickets {
   }
 
   async getTicketAsync(ticketId) {
-    let url = CONFIG.CLOUD_PATH + 'v1/tickets/' + ticketId
+    let url = CONFIG.CLOUD_PATH + 's/v1/tickets/' + ticketId
     let token = this.connect.token
     let opts = { 'Content-Type': 'application/json', 'Authorization': token }
     try {
@@ -64,7 +64,7 @@ class Tickets {
     let u = fruit.findUserByUUID(userId)
     //TODO: remove check
     // if(!u.global || !u.global.id) throw new Error('user has not bind wechat account')
-    let url = CONFIG.CLOUD_PATH + 'v1/tickets/'
+    let url = CONFIG.CLOUD_PATH + 's/v1/tickets/'
     //TODO: use localId tmp
     // let creator = u.global.id
     let creator = u.uuid
@@ -84,7 +84,7 @@ class Tickets {
   }
 
   async updateTicketAsync(ticketId) {
-    let url = CONFIG.CLOUD_PATH + 'v1/tickets/' + ticketId
+    let url = CONFIG.CLOUD_PATH + 's/v1/tickets/' + ticketId
     let token = this.connect.token
     let opts = { 'Content-Type': 'application/json', 'Authorization': token }
     let params = { status: 1 } // TODO change ticket status
@@ -101,7 +101,7 @@ class Tickets {
   }
 
   async updateUserTypeAsync(guid, ticketId, state) {
-    let url = CONFIG.CLOUD_PATH + 'v1/tickets/' + ticketId + '/users/' + guid
+    let url = CONFIG.CLOUD_PATH + 's/v1/tickets/' + ticketId + '/users/' + guid
     let token = this.connect.token
     let opts = { 'Content-Type': 'application/json', 'Authorization': token }
     let params = { type: (state ? 'resolve' : 'reject') } // TODO change ticket status
