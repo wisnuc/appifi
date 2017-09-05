@@ -91,6 +91,10 @@ class Fruitmix extends EventEmitter {
     return this.userList.findUser(userUUID)
   }
 
+  findUserByGuid(guid) {
+    let user = this.userList.users.find(u => u.global && u.global.guid === guid)
+    return user
+  }
   /**
   isFirstUser never allowed to change.
   possibly allowed props: username, isAdmin, global
