@@ -154,6 +154,16 @@ class Fruitmix extends EventEmitter {
     await this.userList.updatePasswordAsync(user.uuid, body.password) 
   }
 
+  async updateUserGlobalAsync(user, userUUID, body) {
+    
+    if (typeof body.global !== 'object' || typeof body.global.id !== 'string' || typeof body.global.wx !== 'array' || !body.global.wx.length) {
+      throw Object.assign(new Error('bad format'), { status: 400 })
+    }
+
+    let props = Object.assign({}, { global: body.global })
+    return await this.userList.updateUserAsync(userUUID, props)
+  }
+
   async getMediaBlacklistAsync(user) {
 
     let dirPath = path.join(this.fruitmixPath, 'users', user.uuid)
