@@ -79,31 +79,34 @@ describe(path.basename(__filename), () => {
     stat = await fs.lstatAsync(path.join(DrivesDir, IDS.alice.home))
   }) 
 
-  it("400 if hello (identical names)", done => 
+  it("400 if hello (identical names)", done => {
     request(app)
       .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
       .set('Authorization', 'JWT ' + token)
       .field('hello', JSON.stringify({ op: 'dup' }))
       .expect(400)
-      .end(done))
+      .end(done)
+  })
 
-  it("400 if hello|hello (identical names)", done => 
+  it("400 if hello|hello (identical names)", done => {
     request(app)
       .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
       .set('Authorization', 'JWT ' + token)
       .field('hello', JSON.stringify({ op: 'dup' }))
       .expect(400)
-      .end(done))
+      .end(done)
+  })
 
-  it("403 if hello does not exist (no overwrite)", done => 
+  it("403 if hello does not exist (no overwrite)", done => {
     request(app)
       .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
       .set('Authorization', 'JWT ' + token)
       .field('hello|world', JSON.stringify({ op: 'dup' }))
       .expect(403)
-      .end(done))
+      .end(done)
+  })
 
-  it("403 if hello is a directory (no overwrite)", done => 
+  it("403 if hello is a directory (no overwrite)", done => {
     request(app)
       .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
       .set('Authorization', 'JWT ' + token)
@@ -118,9 +121,10 @@ describe(path.basename(__filename), () => {
           .field('hello|world', JSON.stringify({ op: 'dup' }))
           .expect(403)
           .end(done)
-      }))
+      })
+  })
 
-  it("403 if world is a directory (no overwrite)", done => 
+  it("403 if world is a directory (no overwrite)", done => {
     request(app)
       .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
       .set('Authorization', 'JWT ' + token)
@@ -139,9 +143,10 @@ describe(path.basename(__filename), () => {
           .field('hello|world', JSON.stringify({ op: 'dup' }))
           .expect(403)
           .end(done)
-      }))
+      })
+  })
 
-  it("403 if world is a file (no overwrite)", done => 
+  it("403 if world is a file (no overwrite)", done => {
     request(app)
       .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
       .set('Authorization', 'JWT ' + token)
@@ -163,9 +168,10 @@ describe(path.basename(__filename), () => {
           .field('hello|world', JSON.stringify({ op: 'dup' }))
           .expect(403)
           .end(done)
-      }))
+      })
+  })
 
-  it("200 dup hello to world (no overwrite)", done => 
+  it("200 dup hello to world (no overwrite)", done => {
     request(app)
       .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
       .set('Authorization', 'JWT ' + token)
@@ -211,9 +217,10 @@ describe(path.basename(__filename), () => {
 
             done()
           })
-      }))
+      })
+  })
 
-  it("403 if world does not exist (overwrite)", done => 
+  it("403 if world does not exist (overwrite)", done => {
     request(app)
       .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
       .set('Authorization', 'JWT ' + token)
@@ -233,9 +240,10 @@ describe(path.basename(__filename), () => {
           }))
           .expect(403)
           .end(done)
-      }))
+      })
+  })
 
-  it("403 if world is a directory (overwrite)", done => 
+  it("403 if world is a directory (overwrite)", done => {
     request(app)
       .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
       .set('Authorization', 'JWT ' + token)
@@ -259,10 +267,10 @@ describe(path.basename(__filename), () => {
           }))
           .expect(403)
           .end(done)
-      }))
+      })
+  })
 
-
-  it("403 if world uuid mismatch (overwrite)", done => 
+  it("403 if world uuid mismatch (overwrite)", done => {
     request(app)
       .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
       .set('Authorization', 'JWT ' + token)
@@ -286,9 +294,10 @@ describe(path.basename(__filename), () => {
           }))
           .expect(403)
           .end(done)
-      }))
+      })
+  })
 
-  it("200 if dup hello to world (overwrite)", done => 
+  it("200 if dup hello to world (overwrite)", done => {
     request(app)
       .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
       .set('Authorization', 'JWT ' + token)
@@ -342,7 +351,8 @@ describe(path.basename(__filename), () => {
             ])
             done()
           })
-      }))
+      })
+  })
 
 
 

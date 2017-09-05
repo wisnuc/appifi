@@ -187,7 +187,7 @@ describe(path.basename(__filename), () => {
       stat = await fs.lstatAsync(path.join(DrivesDir, IDS.alice.home))
     }) 
 
-    it("200 if hello does not exist", done => 
+    it("200 if hello does not exist", done => {
       request(app)
         .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
         .set('Authorization', 'JWT ' + token)
@@ -201,9 +201,10 @@ describe(path.basename(__filename), () => {
             name: 'hello'
           })
           done()
-        }))
+        })
+    })
 
-    it("200 if hello is a directory", done => 
+    it("200 if hello is a directory", done => {
       request(app)
         .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
         .set('Authorization', 'JWT ' + token)
@@ -217,9 +218,10 @@ describe(path.basename(__filename), () => {
             expect(stat.isDirectory()).to.be.true
             done()
           })
-        }))
+        })
+    })
 
-    it("403 if hello is a file", done => 
+    it("403 if hello is a file", done => {
       request(app)
         .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
         .set('Authorization', 'JWT ' + token)
@@ -232,7 +234,8 @@ describe(path.basename(__filename), () => {
         .end((err, res) => {
           expect(res.body.code).to.equal('EEXIST')
           done()
-        }))
+        })
+    })
 
   })
 
@@ -260,23 +263,25 @@ describe(path.basename(__filename), () => {
       stat = await fs.lstatAsync(path.join(DrivesDir, IDS.alice.home))
     }) 
  
-    it("400 if uuid is not provided", done => 
+    it("400 if uuid is not provided", done => {
       request(app)
         .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
         .set('Authorization', 'JWT ' + token)
         .field('hello', JSON.stringify({ op: 'remove' }))
         .expect(400)
-        .end(done))
+        .end(done)
+    })
     
-    it("400 if uuid is invalid", done =>
+    it("400 if uuid is invalid", done => {
       request(app)
         .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
         .set('Authorization', 'JWT ' + token)
         .field('hello', JSON.stringify({ op: 'remove', uuid: 'hello' }))
         .expect(400)
-        .end(done)) 
+        .end(done)
+    }) 
 
-    it("200 if hello does not exist", done => 
+    it("200 if hello does not exist", done => {
       request(app)
         .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
         .set('Authorization', 'JWT ' + token)
@@ -289,9 +294,10 @@ describe(path.basename(__filename), () => {
           if (err) return done(err)
           expect(res.body.entries).to.deep.equal([])
           done()
-        }))
+        })
+    })
 
-    it("403 if hello file uuid mismatch", done => 
+    it("403 if hello file uuid mismatch", done => {
       request(app)
         .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
         .set('Authorization', 'JWT ' + token)
@@ -312,9 +318,10 @@ describe(path.basename(__filename), () => {
             }))
             .expect(403)
             .end(done)
-        }))
+        })
+    })
 
-    it("200 if hello file does exist", done => 
+    it("200 if hello file does exist", done => {
       request(app)
         .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
         .set('Authorization', 'JWT ' + token)
@@ -339,9 +346,10 @@ describe(path.basename(__filename), () => {
               expect(res.body.entries).to.deep.equal([])
               done()
             })
-        }))
+        })
+    })
 
-    it("403 if hello directory uuid mismatch", done => 
+    it("403 if hello directory uuid mismatch", done => {
       request(app)
         .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
         .set('Authorization', 'JWT ' + token)
@@ -359,9 +367,10 @@ describe(path.basename(__filename), () => {
             }))
             .expect(403)
             .end(done)
-        }))
+        })
+    })
 
-    it("200 if hello directory does exist", done => 
+    it("200 if hello directory does exist", done => {
       request(app)
         .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
         .set('Authorization', 'JWT ' + token)
@@ -383,7 +392,8 @@ describe(path.basename(__filename), () => {
               expect(res.body.entries).to.deep.equal([])
               done()
             })
-        }))
+        })
+    })
 
   })
 
@@ -400,7 +410,7 @@ describe(path.basename(__filename), () => {
     }) 
  
     // mkdir hello and rename to world
-    it("mkdir hello and rename to world should success", done => 
+    it("mkdir hello and rename to world should success", done => {
       request(app)
         .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
         .set('Authorization', 'JWT ' + token)
@@ -415,10 +425,11 @@ describe(path.basename(__filename), () => {
             name: 'world',
           })
           done()
-        }))
+        })
+    })
 
     // name conflict 
-    it("upload empty file then mkdir empty should fail", done =>
+    it("upload empty file then mkdir empty should fail", done => {
       request(app)
         .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
         .set('Authorization', 'JWT ' + token)
@@ -428,10 +439,11 @@ describe(path.basename(__filename), () => {
         .end((err, res)=> {
           expect(res.body.code).to.equal('EEXIST')
           done()
-        }))
+        })
+    })
 
     // upload empty file and rename
-    it("upload empty file and rename to zero", done => 
+    it("upload empty file and rename to zero", done => {
       request(app)
         .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
         .set('Authorization', 'JWT ' + token)
@@ -450,9 +462,10 @@ describe(path.basename(__filename), () => {
             hash: FILES.empty.hash
           })
           done()
-        }))
+        })
+    })
 
-    it("upload alonzo file only", done => 
+    it("upload alonzo file only", done => {
       request(app)
         .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
         .set('Authorization', 'JWT ' + token)
@@ -471,9 +484,10 @@ describe(path.basename(__filename), () => {
               if (err) return done(err)
               done()
             })
-        }))
+        })
+    })
 
-    it('upload alonzo and rename to church', done => 
+    it('upload alonzo and rename to church', done => {
       request(app)
         .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
         .set('Authorization', 'JWT ' + token)
@@ -504,7 +518,8 @@ describe(path.basename(__filename), () => {
               })
               done()
             })
-        }))
+        })
+    })
 
   })
 

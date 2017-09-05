@@ -39,7 +39,11 @@ const genKey = (fingerprint, opts) => fingerprint + crypto.createHash('sha256').
 const geometry = (width, height, modifier) => {
   let str
 
-  if (!height) { str = `${width.toString()}` } else if (!width) { str = `x${height.toString()}` } else {
+  if (!height) { 
+    str = `${width.toString()}` 
+  } else if (!width) { 
+    str = `x${height.toString()}` 
+  } else {
     str = `${width.toString()}x${height.toString()}`
 
     switch (modifier) {
