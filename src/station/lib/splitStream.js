@@ -38,6 +38,7 @@ class SplitStream extends threadify(Writable) {
     appendStream.on('finish', () => {
       this.finishedCount ++
       console.log(appendStream.digest)
+      this.filePaths.push(this.appendStream.splitFilePath)
     })
     return appendStream
   }
@@ -55,10 +56,9 @@ class SplitStream extends threadify(Writable) {
         //update && end current stream
         this.bytesWritten += needL
         this.appendStream.end(() => {
-          this.filePaths.push(this.appendStream.splitFilePath)
-          
-          if(this.bytesWritten === this.totalSize && chunk.length === needL)
+          if(this.bytesWritten === this.totalSize && chunk.length === needL){ 1
             return callback()
+          }
           else if(this.bytesWritten === this.totalSize && chunk.length > needL)
             return callback(new Error('size mismatch'))
           else if(this.bytesWritten < this.totalSize){

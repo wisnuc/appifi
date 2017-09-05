@@ -67,16 +67,16 @@ function createSocket(address, saId, privateKey, callback) {
   })
   socket.on('disconnect', data => {
     state = 'disconnected'
-    return error(new Error('disconnect'))
+    return error(new Error('createSocket:disconnect'))
   })
   socket.on('error', err => {
     state = 'disconnected'
-    debug('socket_error', err.message)
+    debug('createSocket:socket_error', err.message)
     return error(err)
   })
   socket.on('connect_error', err => {
     state = 'disconnected'
-    debug('connect_error', err.message)
+    debug('createSocket:connect_error', err.message)
     return error(err)
   })
 }
@@ -127,6 +127,8 @@ class Connect extends EventEmitter{
     this.error = undefined
     this.token = undefined
     this.initialized = false
+    this.reconnectCounter = 0
+    this.reconnectTimer = undefined
   }
 
   async initAsync() {
@@ -158,11 +160,22 @@ class Connect extends EventEmitter{
   }
 
   async startConnectAsync(address) {
-    if(this.socket) socket.close() // reconnect 
+    if(this.socket) {
+      this.socket.disconnect()
+      this.socket.close()
+    }
     this.socket = undefined
-    this._changeState(CONNECT_STATE.CONNING)
+    this._changeState(CONNECT_STATE.CONNING) 
     try{
       this.socket = await createSocketAsync(address, this.saId, this.privateKey)
+      //reset
+      this.reconnectCounter = 0
+      let error = false
+      let errorHandle = e => {
+        if(error) return 
+        error = true
+        process.nextTick(() => this.connectErrorHandler(address, e))
+      }
       this._changeState(CONNECT_STATE.CONNED)
       this.token = this.socket.token
       debug('connect success')
@@ -172,25 +185,26 @@ class Connect extends EventEmitter{
       this.socket.on('message', ((data) => {
         this.dispatch(data.type, data)
       }).bind(this))
-      //TODO: reconnect
-      this.socket.on('disconnect', data => {
-        this._changeState(CONNECT_STATE.DISCED)
-        debug('connent disconnect', data)
-      })
-      this.socket.on('error', err => {
-        debug('socket_error', err.message)
-        this._changeState(CONNECT_STATE.DISCED, err)
-      })
-      this.socket.on('connect_error', err => {
-        debug('connect_error', err)
-        this._changeState(CONNECT_STATE.DISCED, err.message)
-      })
+      this.socket.on('disconnect', errorHandle)
+      this.socket.on('error', errorHandle)
+      this.socket.on('connect_error', errorHandle)
       this.initialized = true
       return this.token
-    }catch(e){
-      debug(e)
-      this._changeState(CONNECT_STATE.DISCED, e)
     }
+    catch(e){ this.connectErrorHandler(e) }
+  }
+
+  connectErrorHandler(address, err) {
+    debug(address, err)
+    this._changeState(CONNECT_STATE.DISCED, err)
+    this.reconnect(address)
+  }
+
+  reconnect(address) {
+    clearTimeout(this.reconnectTimer)
+    let time = Math.pow(2, this.reconnectCounter) * 1000
+    this.reconnectTimer = setTimeout(() => this.connect.bind(this)(address), time)
+    this.reconnectCounter ++
   }
 
   dispatch(eventType, data) {
@@ -215,7 +229,9 @@ class Connect extends EventEmitter{
   }
 
   connect() { // reconnect
-    this.startConnectAsync(CONFIG.CLOUD_PATH).then(() => {})
+    this.startConnectAsync(CONFIG.CLOUD_PATH)
+      .then(() => {})
+      .catch(e => debug)
   }
 
   getState(){

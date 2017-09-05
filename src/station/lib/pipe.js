@@ -267,7 +267,7 @@ class StoreFiles {
     body: {         // req.body, req.query
     
     },
-  
+
     serverAddr:     // valid ip address, whitelist
   }*/
 class Pipe {
@@ -276,28 +276,54 @@ class Pipe {
     this.connect = connect
     this.connect.register('pipe', this.handle.bind(this))
     this.handlers = new Map()
+    this.register()
   }
 
   handle(data) {
     // decode data.resource 
-    let resource = new Buffer(data.resource, 'base64')
-    let method = data.method
+    debug(data)
+    // let resource = new Buffer(data.resource, 'base64')
+    // let method = data.method
 
-    let messageType = this.decodeType(resource, method)
+    //TODO: args check
+
+
+    // /**
+     
+    data.user = {
+      "uuid": "1506606d-19a1-475e-91be-f25bd89a4f02",
+      "username": "Alice",
+      "password": "$2a$10$PPsDiRN.7KQxR199FCj7YedBWa371jJ2TIQHk/3KmlWVQguIemhFu",
+      "unixPassword": "$6$VE0TD3Cd$oJ8nGqCJUOtS0oUkWvmbvhQYq/s6XnT8J5FUHe3wNprGlHcgZWINRRIKn3Nr6mx3dFyFU36QhmiWQhImf3SVU1",
+      "smbPassword": "32ED87BDB5FDC5E9CBA88547376818D4",
+      "lastChangeTime": 1503901461435,
+      "isFirstUser": true,
+      "isAdmin": true,
+      "avatar": null,
+      "global": null
+    }
+
+
+    //  */
+
+    let messageType = this.decodeType(data)
 
     if(!messageType) return debug('can not find equal messageType')
     
     if(this.handlers.has(messageType))
       this.handlers.get(messageType)(data)
+        .then(() => {debug('ssssssssssssssssssssssssssssssssss')})
+        .catch(e => console.log('1111111111', e))
     else
       debug('NOT FOUND EVENT HANDLER', messageType, data)
   }
 
   decodeType(data) {
-    let resource = data.resource
+    let resource = new Buffer(data.resource, 'base64').toString('utf8')
     let method = data.method
     let paths = resource.split('/').filter(p => p.length)
     data.paths = [...paths]
+    debug('.....................',paths)
 
     if(!paths.length) return undefined
     let r1 = paths.shift()
@@ -333,17 +359,18 @@ class Pipe {
     let fruit = getFruit()
     if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
     let drives = fruit.getDrives(user)
-    return await this.successResponseAsync(serverAddr, sessionId, drives)
+    return await this.successResponseJsonAsync(serverAddr, sessionId, drives)
   }
 
   // store
   async createDriveAsync(data) {
     let { serverAddr, sessionId, user, body} = data
-
     let fruit = getFruit()
     if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
-    let drives = fruit.createPublicDriveAsync(user, body)
-    return await this.successResponseAsync(serverAddr, sessionId, drives)
+    debug(111222)
+    let drives = await fruit.createPublicDriveAsync(user, body)
+    debug(222333)
+    return await this.successResponseJsonAsync(serverAddr, sessionId, drives)
   }
   
   //fetch
@@ -356,7 +383,7 @@ class Pipe {
     let driveUUID = paths[1]
 
     let drive = fruit.getDrive(user, driveUUID)
-    return await this.successResponseAsync(serverAddr, sessionId, drive)
+    return await this.successResponseJsonAsync(serverAddr, sessionId, drive)
   }
 
 
@@ -369,7 +396,7 @@ class Pipe {
     let driveUUID = paths[1]
     
     let drive = await fruit.updatePublicDriveAsync(user, driveUUID, body)
-    return await this.successResponseAsync(serverAddr, sessionId, drive)
+    return await this.successResponseJsonAsync(serverAddr, sessionId, drive)
   }
 
   async deleteDriveAsync(data) {
@@ -388,7 +415,7 @@ class Pipe {
     let driveUUID = paths[1]
     let dirs = fruit.getDriveDirs(user, driveUUID)
 
-    return await this.successResponseAsync(serverAddr, sessionId, dirs)
+    return await this.successResponseJsonAsync(serverAddr, sessionId, dirs)
   }
 
   async getDirectoryAsync(data) {
@@ -402,7 +429,7 @@ class Pipe {
     let dirUUID = path[3]
     let metadata = body.metadata === 'true' ? true : false
     let dirs = await fruit.getDriveDirAsync(user, driveUUID, dirUUID, metadata)
-    return await this.successResponseAsync(serverAddr, sessionId, dirs)
+    return await this.successResponseJsonAsync(serverAddr, sessionId, dirs)
   }
 
   /**
@@ -512,7 +539,7 @@ class Pipe {
     
     let dirPath = fruit.getDriveDirPath(user, driveUUID, dirUUID)
     let filePath = path.join(dirPath, name)
-    return await fetchFileResponseAsync(filePath, serverAddr, sessionId)
+    return await this.fetchFileResponseAsync(filePath, serverAddr, sessionId)
   }
 
   /****
@@ -572,28 +599,38 @@ class Pipe {
 
   fetchFileResponse(fpath, cloudAddr, sessionId, callback) {
     let finished = false
-    let url = cloudAddr+ 'v1/stations/' + this.connect.saId + '/response/' + sessionId
+    let url = cloudAddr+ '/s/v1/stations/' + this.connect.saId + '/response/' + sessionId
     let rs = fs.createReadStream(fpath)
     let req = request.post(url).set({ 'Authorization': this.connect.token })
+
+    let finish = () => {
+      if(finished) return
+      finished = true
+      return callback()
+    }
+
+    let error = err => {
+      if(finished) return
+      finished = true
+      return callback(err)
+    }
+
     req.on('response', res => {
-      debug('response', fpath)
+      debug('response', res.status, fpath)
       if　(res.status !== 200)　{
         debug('response error')
-        callback(res.error)
-        rs.close()
+        error(res.error)
       }
+      else 
+        finish()
     })
     req.on('error', err => {
-      if(finished) return
-      finished = true
+      error(err)
+    }) 
+    rs.on('error', err =>{
       error(err)
     })
-    rs.on('end', () =>{ 
-      if(finished) return
-      finished = true
-      callback(null)
-    })
-    req.pipe(rs)
+    rs.pipe(req)
   }
 
   async fetchFileResponseAsync(fpath, cloudAddr, sessionId) {
@@ -615,16 +652,26 @@ class Pipe {
     let newDoc = await boxData.updateBoxAsync({ mtime: result.mtime }, box.doc.uuid)
   }
 
-  async errorResponseAsync(cloudAddr, sessionId, error) {
-    let url = cloudAddr + 'v1/stations/' + this.connect.saId + '/response/' + sessionId 
-    let params = { code: error.code, message: error.message }
+  async errorResponseAsync(cloudAddr, sessionId, err) {
+    let url = cloudAddr + '/s/v1/stations/' + this.connect.saId + '/response/' + sessionId +'/json'
+    let error = { code: err.code, message: err.message }
+    let params = { error }
+    debug(params)
     await requestAsync('POST', url, { params }, {})
   }
 
-  async successResponseAsync(cloudAddr, sessionId, data) {
-    let url = cloudAddr + 'v1/stations/' + this.connect.saId + '/response/' + sessionId 
+  async successResponseFileAsync(cloudAddr, sessionId, fpath) {
+    let url = cloudAddr + '/s/v1/stations/' + this.connect.saId + '/response/' + sessionId + '/pipe'
     let params = data
-    await requestAsync('PATCH', url, { params }, {})
+    debug(params)
+    await this.fetchFileResponseAsync(fpath, cloudAddr, sessionId)
+  }
+
+  async successResponseJsonAsync(cloudAddr, sessionId, data) {
+    let url = cloudAddr + '/s/v1/stations/' + this.connect.saId + '/response/' + sessionId + '/json'
+    let params = data
+    debug('aaaaaaa',params)
+    await requestAsync('POST', url, { params }, {})
   }
 
   async createBlobTweetAsync({ boxUUID, guid, comment, type, size, sha256, jobId }) {
@@ -635,15 +682,15 @@ class Pipe {
 
   register() {
     //drives
-    this.handlers.set('GetDrives', asCallback(this.getDrivesAsync).bind(this))
-    this.handlers.set('CreateDrive', asCallback(this.createDriveAsync).bind(this))
-    this.handlers.set('GetDrive', asCallback(this.getDriveAsync).bind(this))
-    this.handlers.set('UpdateDrive',asCallback(this.updateDriveAsync).bind(this))
-    this.handlers.set('DeleteDrive',asCallback(this.deleteDriveAsync).bind(this))
-    this.handlers.set('GetDirectories',asCallback(this.getDirectoriesAsync).bind(this))
-    this.handlers.set('GetDirectory',asCallback(this.getDirectoryAsync).bind(this))
-    this.handlers.set('WriteDir',asCallback(this.writeDirAsync).bind(this))
-    this.handlers.set('DownloadFile',asCallback(this.downloadFileAsync).bind(this))
+    this.handlers.set('GetDrives', this.getDrivesAsync.bind(this))
+    this.handlers.set('CreateDrive', this.createDriveAsync.bind(this))
+    this.handlers.set('GetDrive', this.getDriveAsync.bind(this))
+    this.handlers.set('UpdateDrive', this.updateDriveAsync.bind(this))
+    this.handlers.set('DeleteDrive', this.deleteDriveAsync.bind(this))
+    this.handlers.set('GetDirectories', this.getDirectoriesAsync.bind(this))
+    this.handlers.set('GetDirectory', this.getDirectoryAsync.bind(this))
+    this.handlers.set('WriteDir', this.writeDirAsync.bind(this))
+    this.handlers.set('DownloadFile', this.downloadFileAsync.bind(this))
   }
 }
 
