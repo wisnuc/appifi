@@ -21,10 +21,13 @@ class Tickets {
     let u = fruit.findUserByUUID(userId)
     if (!u) throw new Error('user not found')
     if (TICKET_TYPES.indexOf(type) === -1) throw new Error('ticket type error')
-    //TODO: remove check
-    // if(type !== 'bind' && (!u.global || u.global.id === undefined)) throw new Error('user not bind wechat')
-    // let creator = type === 'bind' ? u.uuid : u.global.id
-    let creator = u.uuid
+    
+    
+    if(type !== 'bind' && (!u.global || u.global.id === undefined)) throw new Error('user not bind wechat')
+    let creator = type === 'bind' ? u.uuid : u.global.id
+
+    // FIXME: creator maybe guid if not bind
+    // let creator = u.uuid
     let stationId = this.saId
     let token = this.connect.token
     let data = '123456'
@@ -87,7 +90,7 @@ class Tickets {
     let url = CONFIG.CLOUD_PATH + 's/v1/tickets/' + ticketId
     let token = this.connect.token
     let opts = { 'Content-Type': 'application/json', 'Authorization': token }
-    let params = { status: 1 } // TODO change ticket status
+    let params = { status: 1 } // TODO: change ticket status
     try {
       let res = await requestAsync('PATCH', url, { params }, opts)
       if (res.status === 200)
@@ -104,7 +107,7 @@ class Tickets {
     let url = CONFIG.CLOUD_PATH + 's/v1/tickets/' + ticketId + '/users/' + guid
     let token = this.connect.token
     let opts = { 'Content-Type': 'application/json', 'Authorization': token }
-    let params = { type: (state ? 'resolve' : 'reject') } // TODO change ticket status
+    let params = { type: (state ? 'resolved' : 'rejected') } // TODO change ticket status
     try {
       let res = await requestAsync('PATCH', url, { params }, opts)
       if (res.status === 200)
@@ -135,7 +138,7 @@ class Tickets {
         //TODO: confirm userList 
         await this.updateUserTypeAsync(id, ticketId, state)
         //discard this ticket 
-        await this.updateTicketAsync(ticketId)
+        // await this.updateTicketAsync(ticketId)
         if (state) {
           let username = user.nickName
           // TODO: use pvKey decode password
@@ -154,7 +157,7 @@ class Tickets {
       case 'bind': {
         await this.updateUserTypeAsync(id, ticketId, state)
         //discard this ticket 
-        await this.updateTicketAsync(ticketId)
+        // await this.updateTicketAsync(ticketId)
         if (state) {
           return await fruit.updateUserGlobalAsync(useruuid, {
             global: {
