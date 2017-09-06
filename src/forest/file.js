@@ -4,8 +4,6 @@ const Node = require('./node')
 const createMetaWorker = require('../lib/metadata')
 const hash = require('../lib/hash')
 
-const Media = require('../media/media')
-
 /**
 File is a in-memory file node maintaining (some) xstat props and related tasks.
 

@@ -10,7 +10,6 @@ const mkdirpAsync = Promise.promisify(mkdirp)
 const UserList = require('./user/user')
 const DriveList = require('./forest/forest')
 const BoxData = require('./box/boxData')
-const MediaMap = require('./media/media')
 const Thumbnail = require('./lib/thumbnail2')
 
 const { assert, isUUID, isSHA256, validateProps } = require('./common/assertion')
@@ -374,7 +373,7 @@ class Fruitmix extends EventEmitter {
     if (metadata) {
       entries.forEach(entry => {
         if (entry.type === 'file' && entry.magic === 'JPEG' && entry.hash) {
-          entry.metadata = MediaMap.get(entry.hash) 
+          entry.metadata = this.mediaMap.get(entry.hash) 
         }
       })
     }
