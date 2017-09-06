@@ -124,7 +124,7 @@ class Tickets {
     let ticket = await this.getTicketAsync(ticketId)
     if (!ticket) throw new Error('no such ticket')
     if (ticket.type === 'bind' && u.global) throw new Error('user has already bind')
-    let index = ticket.users.findIndex(u => u.userId === id)
+    let index = ticket.users.findIndex(u => u.id === id)
     if (index === -1) throw new Error('wechat user not found')
     debug(ticket)
     let user = ticket.users[index]

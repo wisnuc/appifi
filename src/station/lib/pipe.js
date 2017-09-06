@@ -300,21 +300,18 @@ class Pipe {
     debug(data)
     //TODO: args check
      
-    data.user = {
-      "uuid": "1506606d-19a1-475e-91be-f25bd89a4f02",
-      "username": "Alice",
-      "password": "$2a$10$PPsDiRN.7KQxR199FCj7YedBWa371jJ2TIQHk/3KmlWVQguIemhFu",
-      "unixPassword": "$6$VE0TD3Cd$oJ8nGqCJUOtS0oUkWvmbvhQYq/s6XnT8J5FUHe3wNprGlHcgZWINRRIKn3Nr6mx3dFyFU36QhmiWQhImf3SVU1",
-      "smbPassword": "32ED87BDB5FDC5E9CBA88547376818D4",
-      "lastChangeTime": 1503901461435,
-      "isFirstUser": true,
-      "isAdmin": true,
-      "avatar": null,
-      "global": null
-    }
-
-
-    //  */
+    // data.user = {
+    //   "uuid": "1506606d-19a1-475e-91be-f25bd89a4f02",
+    //   "username": "Alice",
+    //   "password": "$2a$10$PPsDiRN.7KQxR199FCj7YedBWa371jJ2TIQHk/3KmlWVQguIemhFu",
+    //   "unixPassword": "$6$VE0TD3Cd$oJ8nGqCJUOtS0oUkWvmbvhQYq/s6XnT8J5FUHe3wNprGlHcgZWINRRIKn3Nr6mx3dFyFU36QhmiWQhImf3SVU1",
+    //   "smbPassword": "32ED87BDB5FDC5E9CBA88547376818D4",
+    //   "lastChangeTime": 1503901461435,
+    //   "isFirstUser": true,
+    //   "isAdmin": true,
+    //   "avatar": null,
+    //   "global": null
+    // }
 
     let messageType = this.decodeType(data)
 
@@ -322,8 +319,10 @@ class Pipe {
     
     if(this.handlers.has(messageType))
       this.handlers.get(messageType)(data)
-        .then(() => {debug('ssssssssssssssssssssssssssssssssss')})
-        .catch(e => console.log('1111111111', e))
+        .then(() => {debug('success for request')})
+        .catch(e => {
+          
+        })
     else
       debug('NOT FOUND EVENT HANDLER', messageType, data)
   }
@@ -335,6 +334,7 @@ class Pipe {
    * return type - this.handlers`s key 
    */
   decodeType(data) {
+    if(!data.resource || !data.method) return 
     let resource = new Buffer(data.resource, 'base64').toString('utf8')
     let method = data.method
     let paths = resource.split('/').filter(p => p.length)
