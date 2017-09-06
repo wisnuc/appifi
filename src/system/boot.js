@@ -198,6 +198,7 @@ const boot = () => {
     }
     broadcast.emit('FileSystemUpdate', error, current)
     if (current) broadcast.emit('FruitmixStart', path.join(v.mountpoint, 'wisnuc', 'fruitmix'))
+    if (current) broadcast.emit('StationStart', path.join(v.mountpoint, 'wisnuc', 'fruitmix'))
   }
   state = 'started'
 }
@@ -243,6 +244,7 @@ router.patch('/', (req, res, next) => {
         if (mode === 'maintenance') broadcast.emit('BootModeUpdate', null, 'normal')
         broadcast.emit('FileSystemUpdate', null, current)
         broadcast.emit('FruitmixStart', froot)
+        broadcase.emit('StationStart', froot)
         process.nextTick(() => res.status(200).json({ mode, last, state, current, error }))
       })
     })

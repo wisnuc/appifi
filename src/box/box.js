@@ -24,11 +24,11 @@ class Box {
    * @param {Object} DB - tweetsDB
    */
   constructor(ctx, dir, doc, DB) {
+    // this.ctx is boxData, this.ctx.ctx is fruitmix
     this.ctx = ctx
     this.dir = dir
     this.doc = doc
     this.DB = DB
-    // this.branchMap = new Map()
   }
 
   /**
@@ -48,7 +48,7 @@ class Box {
     let urls
     if (src) {
       urls = src.filter(s => {
-        let target = this.ctx.blobs.retrieve(s.sha256)
+        let target = this.ctx.ctx.blobs.retrieve(s.sha256)
         try {
           let stats = fs.lstatSync(target)
           // remove the file in tmpdir which is already in repo
@@ -66,7 +66,7 @@ class Box {
         fs.renameSync(u.filepath, newpath)
         return newpath
       })
-      await this.ctx.blobs.storeAsync(urls)
+      await this.ctx.ctx.blobs.storeAsync(urls)
     }
 
     let tweet = {
@@ -135,7 +135,7 @@ class Box {
     let targetDir = path.join(this.dir, 'branches')
     await mkdirpAsync(targetDir)
     let targetPath = path.join(targetDir, branch.uuid)
-    await saveObjectAsync(targetPath, this.ctx.getTmpDir(), branch)
+    await saveObjectAsync(targetPath, this.ctx.ctx.getTmpDir(), branch)
     // this.branchMap.set(branch.uuid, branch)
     return branch
   }
@@ -228,7 +228,7 @@ class Box {
     }
 
     if (updated === branch) return branch
-    await saveObjectAsync(target, this.ctx.getTmpDir(), updated)
+    await saveObjectAsync(target, this.ctx.ctx.getTmpDir(), updated)
     return updated
   }
 
@@ -269,7 +269,7 @@ class Box {
     let sha256 = hash.digest().toString('hex')
 
     let targerPath = path.join(targetDir, sha256)
-    await saveObjectAsync(targetPath, this.ctx.getTmpDir, commit)
+    await saveObjectAsync(targetPath, this.ctx.ctx.getTmpDir(), commit)
 
     return sha256
   }

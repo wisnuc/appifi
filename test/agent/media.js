@@ -115,27 +115,31 @@ describe(path.basename(__filename), () => {
       await Promise.delay(500)
     })
 
-    it("all i can view", done => request(app)
-      .get('/media')
-      .set('Authorization', 'JWT ' + token)
-      .expect(200)
-      .end((err, res) => {
-        if (err) return done(err)
-        expect(res.body).to.deep.equal([vpai001Metadata])
-        done()
-      }))
+    it("all i can view", done => {
+      request(app)
+        .get('/media')
+        .set('Authorization', 'JWT ' + token)
+        .expect(200)
+        .end((err, res) => {
+          if (err) return done(err)
+          expect(res.body).to.deep.equal([vpai001Metadata])
+          done()
+        })
+    })
 
-    it("vpai001 metadata, no query", done => request(app)
-      .get(`/media/${vpai001Fingerprint}`)
-      .set('Authorization', 'JWT ' + token)
-      .expect(200)
-      .end((err, res) => {
-        if (err) return done(err)
-        let obj = Object.assign({}, vpai001Metadata)
-        delete obj.hash
-        expect(res.body).to.deep.equal(obj)
-        done()
-      }))
+    it("vpai001 metadata, no query", done => {
+      request(app)
+        .get(`/media/${vpai001Fingerprint}`)
+        .set('Authorization', 'JWT ' + token)
+        .expect(200)
+        .end((err, res) => {
+          if (err) return done(err)
+          let obj = Object.assign({}, vpai001Metadata)
+          delete obj.hash
+          expect(res.body).to.deep.equal(obj)
+          done()
+        })
+    })
 
     it("vpai001 data", done => {
       let downloadPath = path.join(tmptest, 'downloaded')

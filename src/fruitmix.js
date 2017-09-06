@@ -12,6 +12,7 @@ const DriveList = require('./forest/forest')
 const BlobStore = require('./box/blobStore')
 const BoxData = require('./box/boxData')
 const MediaMap = require('./media/media')
+const Thumbnail = require('./lib/thumbnail2')
 
 const { assert, isUUID, isSHA256, validateProps } = require('./common/assertion')
 
@@ -35,9 +36,15 @@ class Fruitmix extends EventEmitter {
   */
   constructor (froot) {
     super()
+
+    let thumbDir = path.join(froot, 'thumbnail')
+    let tmpDir = path.join(froot, 'tmp')
+
     this.fruitmixPath = froot
+    this.mediaMap = new Map()
+    this.thumbnail = new Thumbnail(thumbDir, tmpDir)
     this.userList = new UserList(froot)
-    this.driveList = new DriveList(froot)
+    this.driveList = new DriveList(this, froot)
     this.blobs = new BlobStore(this)
     this.blobs.loadAsync()
       .then(() => this.boxData = new BoxData(this))
@@ -156,6 +163,16 @@ class Fruitmix extends EventEmitter {
     }
 
     await this.userList.updatePasswordAsync(user.uuid, body.password) 
+  }
+
+  async updateUserGlobalAsync(user, userUUID, body) {
+    
+    if (typeof body.global !== 'object' || typeof body.global.id !== 'string' || typeof body.global.wx !== 'array' || !body.global.wx.length) {
+      throw Object.assign(new Error('bad format'), { status: 400 })
+    }
+
+    let props = Object.assign({}, { global: body.global })
+    return await this.userList.updateUserAsync(userUUID, props)
   }
 
   async getMediaBlacklistAsync(user) {
@@ -675,6 +692,12 @@ class Fruitmix extends EventEmitter {
 
   ///////////// media api //////////////
 
+  // NEW API
+  getMetadata (user, fingerprint) {
+    // TODO
+    return this.mediaMap.get(fingerprint)
+  }
+
   getFingerprints (user, ...args) {
     return this.driveList.getFingerprints(...args)
   }
@@ -684,7 +707,54 @@ class Fruitmix extends EventEmitter {
   }
 
   reportMedia(fingerprint, metadata) {
-    MediaMap.set(fingerprint, metadata)
+    this.mediaMap.set(fingerprint, metadata)
+  }
+  
+  // return a file path, or a function, the function can be called again and returns a 
+  // cancel function
+  async getThumbnailAsync(user, fingerprint, query) {
+    let files = this.getFilesByFingerprint(user, fingerprint)    
+    if (files.length) {
+      let props = this.thumbnail.genProps(fingerprint, query) 
+      try {
+        await fs.lstatAsync(props.path)
+        return props.path
+      } catch (e) {
+        if (e.code !== 'ENOENT') throw e
+      }
+
+      let listener = () => {
+      }
+
+      this.thumbnail.convert(thumbProps, files[0], listener)
+      
+
+      let thumb = this.thumbnail.requestAsync(fingerprint, query, files)
+      if (typeof thumb === 'string') {
+        res.status(200).sendFile(thumb)
+      } else {
+        thumb.on('finish', (err, thumb) => {
+          if (err) {
+          
+          }
+
+        })
+      }
+    }
+  }
+
+  getThumbnail(user, fingerprint, query, callback) {
+    
+    let files = this.getFilesByFingerprint(user, fingerprint)
+    if (files.length === 0)
+      return 
+
+    let props = this.thumbnail.genProps(fingerprint, query) 
+    fs.lstat(props.path, (err, stat) => {
+      if (!err) return callback(null, props.path)
+      if (err.code !== 'ENOENT') return callback(err)
+      callback(null, cb => this.thumbnail.convert(props, files[0], cb))
+    })
   }
 
   ///////////// task api ///////////////////////////////////////////////////////

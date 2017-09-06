@@ -94,7 +94,7 @@ class BoxData {
         let target = path.join(this.dir, ent)
         fs.readFile(target, (err, data) => {
           let doc = JSON.parse(data.toString())
-          let box = createBox(this.ctx, this.dir, doc)
+          let box = createBox(this, this.dir, doc)
 
           this.map.set(doc.uuid, box)
           broadcast.emit('boxCreated', doc)
@@ -158,7 +158,7 @@ class BoxData {
     await fs.writeFileAsync(blPath, '')
     await fs.renameAsync(tmp, path.join(this.dir, doc.uuid))
 
-    let box = createBox(this.ctx, this.dir, doc)
+    let box = createBox(this, this.dir, doc)
 
     this.map.set(doc.uuid, box)
     broadcast.emit('boxCreated', doc)
