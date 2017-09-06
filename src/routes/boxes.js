@@ -58,22 +58,6 @@ const auth = (req, res, next) => {
   next()
 }
 
-// const boxAuth = (req, res, next) => {
-//   let boxUUID = req.params.boxUUID
-//   let box = this.boxData.getBox(boxUUID)
-//   if(!box) return res.status(404).end()
-
-//   let global = req.user.global
-//   if(req.user) global = req.user.global
-//   else global = req.guest.global
-
-//   if(box.doc.owner !== global && !box.doc.users.includes(global)) 
-//     return res.status(403).end()
-  
-//   req.box = box
-//   next()
-// }
-
 router.get('/', fruitless, auth, (req, res, next) => {
   try {
     let docList = getFruit().getAllBoxes(req.user)
@@ -171,7 +155,7 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
     // UPLOAD
     let form = new formidable.IncomingForm()
     form.hash = 'sha256'
-    let sha256, comment, type, size, error, data, arr
+    let sha256, comment, type, size, error, data, arr, obj
     let urls = []
     let finished = false, formFinished = false, fileFinished = false
 
@@ -230,7 +214,6 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
 
     form.on('file', (name, file) => {
       if (finished) return
-
       if (type === 'blob') {
         check(size, sha256, file)
         urls.push({sha256, filepath: file.path})
@@ -313,6 +296,59 @@ router.delete('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
   getFruit().deleteTweetsAsync(req.user, boxUUID, indexArr)
     .then(() => res.status(200).end())
     .catch(next)
+})
+
+router.get('/commits/:commitHash', fruitless, auth, (req, res, next) => {
+  let commitHash = req.params.commitHash
+
+})
+
+router.post('/:boxUUID/commits', fruitless, auth, (req, res, next) => {
+  let boxUUID = req.params.boxUUID
+  let obj
+
+  let form = new formidable.IncomingForm()
+  form.hash = 'sha256'
+  let finished = false
+
+  form.on('field', (name, value) => {
+    if (finished) return
+    if (name === 'commit') {
+      /*
+        obj: {
+          root: xxxxxx,       // hash string of a tree obj
+          parent: xxxxxx,     // commit ID
+          branch: xxxxxx,     // branch ID
+          uploadSet:[]        // file should upload
+        }
+      */
+      obj = JSON.parse(value)
+    }
+  })
+
+  form.on('fileBegin', (name, file) => {
+    if (finished) return
+    let tmpdir = getFruit.getTmpDir()
+    filepath = path.join(tmpdir, file.name)
+  })
+
+  form.on('file', (name, file) => {
+
+  })
+
+  form.on('error', err => {
+
+  })
+
+  form.on('aborted', () => {
+
+  })
+
+  form.on('end', () => {
+
+  })
+
+  form.parse(req)
 })
 
 module.exports = router
