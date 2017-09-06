@@ -825,8 +825,8 @@ class Pipe {
     this.handlers.set('GetUser', this.getUserAsync.bind(this))
     this.handlers.set('UpdateUserInfo', this.updateUserInfoAsync.bind(this))
     this.handlers.set('UpdateUserPasswd', this.updateUserPasswdAsync.bind(this))
-    this.handlers.set('GetMediaBlackList', this.getMediaBlacklistAsync.bind(this))
-    this.handlers.set('SetMediaBlackList', this.setMediaBlacklistAsync.bind(this))
+    this.handlers.set('GetMediaBlackList', this.getUserMediaBlackListAsync.bind(this))
+    this.handlers.set('SetMediaBlackList', this.setUserMediaBlackListAsync.bind(this))
     this.handlers.set('AddMediaBlackList', this.addUserMediaBlackListAsync.bind(this))
     this.handlers.set('SubtractUserMediaBlackList', this.subtractUserMediaBlackListAsync.bind(this))
   }
