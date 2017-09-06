@@ -201,8 +201,10 @@ class Connect extends EventEmitter{
   }
 
   reconnect(address) {
+    debug('Socket Reconnect: ' + this.reconnectCounter)
     clearTimeout(this.reconnectTimer)
     let time = Math.pow(2, this.reconnectCounter) * 1000
+    if(this.reconnectCounter >= 50) this.reconnectCounter = 0
     this.reconnectTimer = setTimeout(() => this.connect.bind(this)(address), time)
     this.reconnectCounter ++
   }

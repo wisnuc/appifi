@@ -98,6 +98,10 @@ class Fruitmix extends EventEmitter {
     return this.userList.findUser(userUUID)
   }
 
+  findUserByGuid(guid) {
+    let user = this.userList.users.find(u => u.global && u.global.guid === guid)
+    return user
+  }
   /**
   isFirstUser never allowed to change.
   possibly allowed props: username, isAdmin, global
@@ -162,11 +166,16 @@ class Fruitmix extends EventEmitter {
   }
 
   async updateUserGlobalAsync(user, userUUID, body) {
-    
-    if (typeof body.global !== 'object' || typeof body.global.id !== 'string' || typeof body.global.wx !== 'array' || !body.global.wx.length) {
-      throw Object.assign(new Error('bad format'), { status: 400 })
-    }
 
+    if (!body.global || typeof body.global !== 'object') 
+      throw Object.assign(new Error('global format error'), { status: 400 })
+    
+    if(!body.global.id || typeof body.global.id !== 'string')
+      throw Object.assign(new Error('global.id format error'), { status: 400 })
+
+    if(!body.global.wx || !(body.global.wx instanceof Array) || !body.global.wx.length)
+      throw Object.assign(new Error('global.wx format error'), { status: 400 })
+    
     let props = Object.assign({}, { global: body.global })
     return await this.userList.updateUserAsync(userUUID, props)
   }

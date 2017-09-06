@@ -270,6 +270,13 @@ class StoreFiles {
 
     serverAddr:     // valid ip address, whitelist
   }*/
+
+
+
+/**
+ * service for connect message 'pipe'
+ * 
+ */
 class Pipe {
   constructor(tmp, connect) {
     this.tmp = undefined
@@ -278,33 +285,33 @@ class Pipe {
     this.handlers = new Map()
     this.register()
   }
-
+  
+  /**
+   * @param {object} data -- from socket
+   * 
+   * {
+   *    resource,
+   *    method,
+   *    user,
+   *    others...
+   * }
+   */
   handle(data) {
-    // decode data.resource 
     debug(data)
-    // let resource = new Buffer(data.resource, 'base64')
-    // let method = data.method
-
     //TODO: args check
-
-
-    // /**
      
-    data.user = {
-      "uuid": "1506606d-19a1-475e-91be-f25bd89a4f02",
-      "username": "Alice",
-      "password": "$2a$10$PPsDiRN.7KQxR199FCj7YedBWa371jJ2TIQHk/3KmlWVQguIemhFu",
-      "unixPassword": "$6$VE0TD3Cd$oJ8nGqCJUOtS0oUkWvmbvhQYq/s6XnT8J5FUHe3wNprGlHcgZWINRRIKn3Nr6mx3dFyFU36QhmiWQhImf3SVU1",
-      "smbPassword": "32ED87BDB5FDC5E9CBA88547376818D4",
-      "lastChangeTime": 1503901461435,
-      "isFirstUser": true,
-      "isAdmin": true,
-      "avatar": null,
-      "global": null
-    }
-
-
-    //  */
+    // data.user = {
+    //   "uuid": "1506606d-19a1-475e-91be-f25bd89a4f02",
+    //   "username": "Alice",
+    //   "password": "$2a$10$PPsDiRN.7KQxR199FCj7YedBWa371jJ2TIQHk/3KmlWVQguIemhFu",
+    //   "unixPassword": "$6$VE0TD3Cd$oJ8nGqCJUOtS0oUkWvmbvhQYq/s6XnT8J5FUHe3wNprGlHcgZWINRRIKn3Nr6mx3dFyFU36QhmiWQhImf3SVU1",
+    //   "smbPassword": "32ED87BDB5FDC5E9CBA88547376818D4",
+    //   "lastChangeTime": 1503901461435,
+    //   "isFirstUser": true,
+    //   "isAdmin": true,
+    //   "avatar": null,
+    //   "global": null
+    // }
 
     let messageType = this.decodeType(data)
 
@@ -312,13 +319,22 @@ class Pipe {
     
     if(this.handlers.has(messageType))
       this.handlers.get(messageType)(data)
-        .then(() => {debug('ssssssssssssssssssssssssssssssssss')})
-        .catch(e => console.log('1111111111', e))
+        .then(() => {debug('success for request')})
+        .catch(e => {
+          
+        })
     else
       debug('NOT FOUND EVENT HANDLER', messageType, data)
   }
 
+  /**
+   * 
+   * @param {object} data
+   * 
+   * return type - this.handlers`s key 
+   */
   decodeType(data) {
+    if(!data.resource || !data.method) return 
     let resource = new Buffer(data.resource, 'base64').toString('utf8')
     let method = data.method
     let paths = resource.split('/').filter(p => p.length)
@@ -341,8 +357,12 @@ class Pipe {
                   : paths.length === 1 && method === 'GET' ? 'GetMetadata'
                   : undefined
         break
-      case  'boxes':
-        return undefined
+      case  'users':
+        return paths.length === 0 ? (method === 'GET' ? 'GetUsers' : (method === 'POST' ? 'CreateUser' : undefined))
+                  : paths.length === 1 ? (method === 'GET' ? 'GetUser' : (method === 'PATCH' ? 'UpdateUserInfo' : undefined))
+                    : paths.length === 2 ? (method === 'GET' ? (paths[1] === 'password'? 'UpdateUserPasswd': (paths[1] === 'media-blacklist' ? 'GetMediaBlackList' : undefined))
+                      : (method === 'PUT' ? 'SetMediaBlackList' : (method === 'POST' ? 'AddMediaBlackList' : (method === 'DELETE' ? 'SubtractUserMediaBlackList' : undefined))))
+                        : undefined
         break
       default:
         return undefined
@@ -350,10 +370,8 @@ class Pipe {
     }
   }
 
-  /**
-   * Drives Api
-   */
-  // fetch
+  /***********************************Dirves**************************/
+  //get drives
   async getDrivesAsync(data) {
     let { serverAddr, sessionId, user } = data
     let fruit = getFruit()
@@ -362,7 +380,7 @@ class Pipe {
     return await this.successResponseJsonAsync(serverAddr, sessionId, drives)
   }
 
-  // store
+  //create drive
   async createDriveAsync(data) {
     let { serverAddr, sessionId, user, body} = data
     let fruit = getFruit()
@@ -373,7 +391,7 @@ class Pipe {
     return await this.successResponseJsonAsync(serverAddr, sessionId, drives)
   }
   
-  //fetch
+  //get drive
   async getDriveAsync(data) {
     let { serverAddr, sessionId, user, paths } = data
     let fruit = getFruit()
@@ -525,8 +543,6 @@ class Pipe {
 
   }
 
-  /*******************************************************************************************/
-  //fetch
   async downloadFileAsync(data) {
     let { serverAddr, sessionId, user, body, paths } = data
     let fruit = getFruit()
@@ -542,9 +558,8 @@ class Pipe {
     return await this.fetchFileResponseAsync(filePath, serverAddr, sessionId)
   }
 
-  /****
-   * Media Api
-   */
+  /****************************************Media Api**************************************/
+   
   async getMetadatasAsync(data) {
     let { serverAddr, sessionId, user, body } = data
     let fruit = getFruit()
@@ -556,7 +571,7 @@ class Pipe {
       if (meta) acc.push(Object.assign({ hash: fingerprint }, meta))
       return acc
     }, [])
-    return await this.successResponseAsync(serverAddr, sessionId, metadata)
+    return await this.successResponseJsonAsync(serverAddr, sessionId, metadata)
   }
 
   //fetch
@@ -570,7 +585,7 @@ class Pipe {
     if (body.alt === undefined || body.alt === 'metadata') {
       let metadata = Media.get(fingerprint)
       if (metadata) {
-        return await this.successResponseAsync(serverAddr, sessionId, metadata)
+        return await this.successResponseJsonAsync(serverAddr, sessionId, metadata)
       } else {
         return await this.errorResponseAsync(serverAddr, sessionId, new Error('metadata not found'))
       }
@@ -578,7 +593,7 @@ class Pipe {
     else if (body.alt === 'data') {
       let files = fruit.getFilesByFingerprint(user, fingerprint)
       if (files.length) {
-        return await fetchFileResponseAsync(files[0], serverAddr, sessionId)
+        return await this.fetchFileResponseAsync(files[0], serverAddr, sessionId)
       } else {
         return await this.errorResponseAsync(serverAddr, sessionId, new Error('media not found'))
       }
@@ -590,13 +605,133 @@ class Pipe {
   }
   
   getMediaThumbnail(fingerprint, query, files, callback) {
+    //getMediaThumbnail
+  }
 
+  /*************************************** User *********************************************/
+
+  // get user list
+  async getUsersAsync(data) {
+    let { serverAddr, sessionId, user } = data
+    let fruit = getFruit()
+    if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    let userList = user.isAdmin ? fruit.getUsers() : fruit.displayUsers()
+    return await this.successResponseJsonAsync(serverAddr, sessionId, userList)
   }
   
-  /*********************************
-   * 
-   */
+  // not first user
+  // create new user
+  async createUserAsync(data) {
+    let { serverAddr, sessionId, user, body } = data
+    let fruit = getFruit()
+    if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    let newUser = await fruit.createUserAsync(body)
+    return await this.successResponseJsonAsync(serverAddr, sessionId, newUser)
+  }
 
+  /**
+   * get single user info
+   * @param { Object } data 
+   */
+  async getUserAsync(data) {
+    let { serverAddr, sessionId, user, body, paths } = data
+    let fruit = getFruit()
+    if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    
+    let err = {}, userUUID = paths[1]
+    if(user.uuid === userUUID || user.isAdmin) {
+      let u = fruit.findUserByUUID(userUUID)
+      if(u) return await this.successResponseJsonAsync(serverAddr, sessionId, u)
+      err = new Error('user not find')
+      err.code = 404
+      return await this.errorResponseAsync(serverAddr, sessionId, err)
+    }
+    err.message = 'auth error'
+    err.code = 403
+    return await this.errorResponseAsync(serverAddr, sessionId, err)
+  }
+
+  // update name, isAdmin, disabled 
+  async updateUserInfoAsync(data) {
+    let { serverAddr, sessionId, user, body, paths } = data
+    let fruit = getFruit()
+    if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    
+    let u, err, userUUID = paths[1]
+    try {
+      u = await fruit.updateUserAsync(user, userUUID, body)
+      return await this.successResponseJsonAsync(serverAddr, sessionId, u)
+    }
+    catch(e) {
+      err.message = e.message
+      err.code = 400
+      return await this.errorResponseAsync(serverAddr, sessionId, err)
+    }
+  }
+
+  async updateUserPasswdAsync(data) {
+    let { serverAddr, sessionId, user, body, paths } = data
+    let fruit = getFruit()
+    if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    
+    let userUUID = paths[1]
+    try{
+      await fruit.updateUserPasswordAsync(user, userUUID)
+      return await this.successResponseJsonAsync(serverAddr, sessionId, {})
+    } catch(e) {
+      e.code = 400
+      return await this.errorResponseAsync(serverAddr, sessionId, e)
+    }
+  }
+
+  async getUserMediaBlackListAsync(data) {
+    let { serverAddr, sessionId, user, body, paths } = data
+    let fruit = getFruit()
+    if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    
+    let userUUID = paths[1]
+    let list = await fruit.getMediaBlacklistAsync(user)
+    return await this.successResponseJsonAsync(serverAddr, sessionId, list)
+  }
+
+  async setUserMediaBlackListAsync(data) {
+    let { serverAddr, sessionId, user, body, paths } = data
+    let fruit = getFruit()
+    if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    
+    let userUUID = paths[1]
+    let list = await fruit.setMediaBlacklistAsync(user, body)
+    return await this.successResponseJsonAsync(serverAddr, sessionId, list)
+  }
+
+  async addUserMediaBlackListAsync(data) {
+    let { serverAddr, sessionId, user, body, paths } = data
+    let fruit = getFruit()
+    if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    
+    let userUUID = paths[1]
+    let list = await fruit.addMediaBlacklistAsync(user, body)
+    return await this.successResponseJsonAsync(serverAddr, sessionId, list)
+  }
+
+  async subtractUserMediaBlackListAsync(data) {
+    let { serverAddr, sessionId, user, body, paths } = data
+    let fruit = getFruit()
+    if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    
+    let userUUID = paths[1]
+    let list = await fruit.subtractMediaBlacklistAsync(user, body)
+    return await this.successResponseJsonAsync(serverAddr, sessionId, list)
+  }
+
+  //fetch file -- client download --> post file to cloud
+  /**
+   * 
+   * @param {*} fpath -local file path
+   * @param {*} cloudAddr 
+   * @param {*} sessionId -cloud session id
+   * @param {*} callback 
+   */
   fetchFileResponse(fpath, cloudAddr, sessionId, callback) {
     let finished = false
     let url = cloudAddr+ '/s/v1/stations/' + this.connect.saId + '/response/' + sessionId
@@ -636,14 +771,7 @@ class Pipe {
   async fetchFileResponseAsync(fpath, cloudAddr, sessionId) {
     return Promise.promisify(this.fetchFileResponse).bind(this)(fpath, cloudAddr, sessionId)
   }
-  
-  // async test(data) {
-  //   debug(data)
-  //   let url = Config.CLOUD_PATH + 'v1/stations/' + this.connect.saId + '/response/' + data.jobId 
-  //   let store = new StoreSingleFile(this.tmp, this.connect.token, 10000, 'xxxx', data.jobId)
-  //   let fpath = await store.runAsync(url)
-  //   await this.successResponseAsync(1, data.jobId, { type: 'finish', message: 'just test'})
-  // }
+
 
   async createTextTweetAsync({ boxUUID, guid, comment }) {
     let box = boxData.getBox(boxUUID)
@@ -691,6 +819,16 @@ class Pipe {
     this.handlers.set('GetDirectory', this.getDirectoryAsync.bind(this))
     this.handlers.set('WriteDir', this.writeDirAsync.bind(this))
     this.handlers.set('DownloadFile', this.downloadFileAsync.bind(this))
+    //users
+    this.handlers.set('GetUsers', this.getUsersAsync.bind(this))
+    this.handlers.set('CreateUser', this.createUserAsync.bind(this))
+    this.handlers.set('GetUser', this.getUserAsync.bind(this))
+    this.handlers.set('UpdateUserInfo', this.updateUserInfoAsync.bind(this))
+    this.handlers.set('UpdateUserPasswd', this.updateUserPasswdAsync.bind(this))
+    this.handlers.set('GetMediaBlackList', this.getUserMediaBlackListAsync.bind(this))
+    this.handlers.set('SetMediaBlackList', this.setUserMediaBlackListAsync.bind(this))
+    this.handlers.set('AddMediaBlackList', this.addUserMediaBlackListAsync.bind(this))
+    this.handlers.set('SubtractUserMediaBlackList', this.subtractUserMediaBlackListAsync.bind(this))
   }
 }
 
