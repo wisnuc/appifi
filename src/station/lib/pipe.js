@@ -358,8 +358,11 @@ class Pipe {
                   : undefined
         break
       case  'users':
-        return paths.length === 0 ? (method === 'GET' ? 'GetUsers' : (method === 'POST' ? 'createUser' : undefined))
-                  : undefined
+        return paths.length === 0 ? (method === 'GET' ? 'GetUsers' : (method === 'POST' ? 'CreateUser' : undefined))
+                  : paths.length === 1 ? (method === 'GET' ? 'GetUser' : (method === 'PATCH' ? 'UpdateUserInfo' : undefined))
+                    : paths.length === 2 ? (method === 'GET' ? (paths[1] === 'password'? 'UpdateUserPasswd': (paths[1] === 'media-blacklist' ? 'GetMediaBlackList' : undefined))
+                      : (method === 'PUT' ? 'SetMediaBlackList' : (method === 'POST' ? 'AddMediaBlackList' : (method === 'DELETE' ? 'SubtractUserMediaBlackList' : undefined))))
+                        : undefined
         break
       default:
         return undefined
@@ -711,7 +714,7 @@ class Pipe {
     return await this.successResponseJsonAsync(serverAddr, sessionId, list)
   }
 
-  async deleteUserMediaBlackListAsync(data) {
+  async subtractUserMediaBlackListAsync(data) {
     let { serverAddr, sessionId, user, body, paths } = data
     let fruit = getFruit()
     if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
@@ -816,6 +819,16 @@ class Pipe {
     this.handlers.set('GetDirectory', this.getDirectoryAsync.bind(this))
     this.handlers.set('WriteDir', this.writeDirAsync.bind(this))
     this.handlers.set('DownloadFile', this.downloadFileAsync.bind(this))
+    //users
+    this.handlers.set('GetUsers', this.getUsersAsync.bind(this))
+    this.handlers.set('CreateUser', this.createUserAsync.bind(this))
+    this.handlers.set('GetUser', this.getUserAsync.bind(this))
+    this.handlers.set('UpdateUserInfo', this.updateUserInfoAsync.bind(this))
+    this.handlers.set('UpdateUserPasswd', this.updateUserPasswdAsync.bind(this))
+    this.handlers.set('GetMediaBlackList', this.getMediaBlacklistAsync.bind(this))
+    this.handlers.set('SetMediaBlackList', this.setMediaBlacklistAsync.bind(this))
+    this.handlers.set('AddMediaBlackList', this.addUserMediaBlackListAsync.bind(this))
+    this.handlers.set('SubtractUserMediaBlackList', this.subtractUserMediaBlackListAsync.bind(this))
   }
 }
 
