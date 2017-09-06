@@ -52,8 +52,13 @@ In either case, a `read` on the `Directory` object is enough.
 */
 class Forest extends EventEmitter {
 
-  constructor(froot) {
+  constructor(ctx, froot) {
     super()
+
+    /**
+    fruitmix
+    */
+    this.ctx = ctx
 
     /**
     Absolute path of Fruitmix drive directory 
