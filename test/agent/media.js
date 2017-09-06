@@ -188,6 +188,33 @@ describe(path.basename(__filename), () => {
         .pipe(ws)
     })
 
+    // failing test for #397
+    it("vpai001 thumbnail width 160, twice", done => {
+      let downloadPath = path.join(tmptest, 'downloaded')
+      let ws = fs.createWriteStream(path.join(tmptest, 'downloaded'))
+      ws.on('close', () => {
+        expect(sizeOf(downloadPath)).to.deep.equal({ width: 160, height: 90, type: 'jpg' })
+
+        ws = fs.createWriteStream(path.join(tmptest, 'downloaded'))
+        ws.on('close', () => {
+          expect(sizeOf(downloadPath)).to.deep.equal({ width: 160, height: 90, type: 'jpg' })
+          done()
+        })
+
+        request(app)
+          .get(`/media/${vpai001Fingerprint}?alt=thumbnail&width=160`)
+          .set('Authorization', 'JWT ' + token)
+          .expect(200)
+          .pipe(ws)
+
+      })
+      request(app)
+        .get(`/media/${vpai001Fingerprint}?alt=thumbnail&width=160`)
+        .set('Authorization', 'JWT ' + token)
+        .expect(200)
+        .pipe(ws)
+    })
+
     it("vpai001 thumbnail height 160", done => {
       let downloadPath = path.join(tmptest, 'downloaded')
       let ws = fs.createWriteStream(path.join(tmptest, 'downloaded'))

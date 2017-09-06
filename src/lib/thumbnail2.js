@@ -166,6 +166,7 @@ class Thumbnail extends EventEmitter {
 
         if (err) {
           x.cbs.forEach(cb => cb(err))
+          x.cbs = []
         } else {
           // to renaming
           this.renaming.push(x)
@@ -174,8 +175,9 @@ class Thumbnail extends EventEmitter {
             // from renaming
             this.renaming.splice(this.renaming.indexOf(x), 1) 
             x.cbs.forEach(cb => err ? cb(err) : cb(null, x.path))    
-            // no schedule
+            x.cbs = []
 
+            // no schedule
             this.emit('step', 'rename', x)
           }) 
         }
@@ -193,7 +195,6 @@ class Thumbnail extends EventEmitter {
 
   // this is a sync function
   genProps (fingerprint, query) {
-
     if (!isSHA256(fingerprint)) throw new Error('invalid fingerprint')
     if (!isNonNullObject(query)) throw new Error('invalid query')
     let opts = parseQuery(query) 
@@ -230,17 +231,6 @@ class Thumbnail extends EventEmitter {
     }
   }
 
-  // cancel converting operation
-  // it only lower priority.
-  cancel (props, cb) {
-    let job = [...this.pending, ...this.converting, ...this.renaming]
-      .find(j => j.key === props.key)
-
-    if (job) {
-      let index = job.cbs.indexOf(cb)
-      if (index) job.cbs.splice(index, 1)
-    }
-  } 
 }
 
 module.exports = Thumbnail
