@@ -159,7 +159,7 @@ class Tickets {
         //discard this ticket 
         // await this.updateTicketAsync(ticketId)
         if (state) {
-          return await fruit.updateUserGlobalAsync(userId, {
+          return await fruit.updateUserGlobalAsync(userId, userId, {
             global: {
               id,
               wx: [unionid]

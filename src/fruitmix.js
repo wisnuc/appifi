@@ -166,8 +166,7 @@ class Fruitmix extends EventEmitter {
   }
 
   async updateUserGlobalAsync(user, userUUID, body) {
-    
-    if (typeof body.global !== 'object' || typeof body.global.id !== 'string' || typeof body.global.wx !== 'array' || !body.global.wx.length) {
+    if (!body.global || typeof body.global !== 'object' || typeof body.global.id !== 'string' || typeof body.global.wx !== 'array' || !body.global.wx.length) {
       throw Object.assign(new Error('bad format'), { status: 400 })
     }
 
