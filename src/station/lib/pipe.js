@@ -292,7 +292,12 @@ class Pipe {
    * {
    *    resource,
    *    method,
-   *    user,
+   *    user:{
+   *      id,
+   *      nickName,
+   *      unionId,
+   *      avatarUrl
+   *    },
    *    others...
    * }
    */
@@ -312,10 +317,32 @@ class Pipe {
     //   "avatar": null,
     //   "global": null
     // }
+    
+    if(!data.serverAddr || !data.sessionId) return debug('Invaild pipe request')
 
+    let fruit = getFruit()
+    if(!fruit) return  this.errorResponseAsync(data.serverAddr, data.sessionId, Object.assign(new Error('fruitmix not start'), { code: 500 }))
+                              .then(() => {}).catch(debug)
+    
+    if(!data.resource || !data.method) {
+      debug('resource or method error')
+      return this.errorResponseAsync(data.serverAddr, data.sessionId, Object.assign(new Error('resource or method not found'), { code: 400 }))
+                    .then(() => {}).catch(debug)
+    }
+
+    let localUser = fruit.findUserByGUID(user.id)
+    if(!localUser) 
+      return this.errorResponseAsync(data.serverAddr, data.sessionId, Object.assign(new Error('user not found'), { code: 400 }))
+                    .then(() => {}).catch(debug)
+
+    data.user = Object.assign({}, data.user, localUser)
+    
     let messageType = this.decodeType(data)
-
-    if(!messageType) return debug('can not find equal messageType')
+    if(!messageType){
+      debug('resource error')
+      return this.errorResponseAsync(data.serverAddr, data.sessionId, Object.assign(new Error('resource error'), { code: 400 }))
+                    .then(() => {}).catch(debug)
+    } 
     
     if(this.handlers.has(messageType))
       this.handlers.get(messageType)(data)
@@ -334,7 +361,6 @@ class Pipe {
    * return type - this.handlers`s key 
    */
   decodeType(data) {
-    if(!data.resource || !data.method) return 
     let resource = new Buffer(data.resource, 'base64').toString('utf8')
     let method = data.method
     let paths = resource.split('/').filter(p => p.length)
