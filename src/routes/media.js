@@ -19,6 +19,19 @@ router.get('/', auth.jwt(), (req, res) => {
   res.status(200).json(metadata)
 })
 
+
+/**
+  use query string, possible options:
+
+  width: 'integer',
+  height: 'integer'
+  modifier: 'caret',      // optional
+  autoOrient: 'true',     // optional
+
+  width and height, provide at least one
+  modifier effectvie only if both width and height provided
+**/
+
 router.get('/:fingerprint', auth.jwt(), (req, res, next) => {
   const user = req.user
   const fingerprint = req.params.fingerprint
@@ -43,52 +56,20 @@ router.get('/:fingerprint', auth.jwt(), (req, res, next) => {
 
     getFruit().getThumbnail(user, fingerprint, query, (err, thumb) => {
       if (err) return next(err)
-      if (typeof result === 'string') {
+      if (typeof thumb === 'string') {
         res.status(200).sendFile(thumb)
-      } else {
+      } else if (typeof thumb === 'function') {
         let cancel = thumb((err, th) => {
           if (err) return next(err)
           res.status(200).sendFile(th)
         })
 
         // TODO cancel
+      } else {
+        next(new Error(`unexpected thumb type ${typeof thumb}`))
       }
     })
-/**
-    let files = getFruit().getFilesByFingerprint(user, fingerprint)
-    if (files.length) {
-      thumbnail.requestAsync(fingerprint, query, files)
-        .then(thumb => {
-          if (typeof thumb === 'string') {
-            res.status(200).sendFile(thumb)
-          } else { // TODO
-            thumb.on('finish', (err, thumb) => {
-              if (err) {
-                next(err)
-              } else {
-                res.status(200).sendFile(thumb)
-              }
-            })
-          }
-        })
-        .catch(next)
-    } else {
-      res.status(400).end()
-    }
-**/
   }
 })
-
-/**
-  use query string, possible options:
-
-  width: 'integer',
-  height: 'integer'
-  modifier: 'caret',      // optional
-  autoOrient: 'true',     // optional
-
-  width and height, provide at least one
-  modifier effectvie only if both width and height provided
-**/
 
 module.exports = router

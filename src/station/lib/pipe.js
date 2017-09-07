@@ -20,7 +20,7 @@ const requestAsync = require('./request').requestHelperAsync
 const broadcast = require('../../common/broadcast')
 const boxData = require('../../box/boxData')
 
-const Media = require('../../media/media')
+// const Media = require('../../media/media')
 const Thumbnail = require('../../lib/thumbnail')
 const getFruit = require('../../fruitmix')
 
@@ -593,7 +593,8 @@ class Pipe {
 
     const fingerprints = fruit.getFingerprints(user)
     const metadata = fingerprints.reduce((acc, fingerprint) => {
-      let meta = Media.get(fingerprint)
+      // let meta = Media.get(fingerprint)
+      let meta = getFruit().getMetadata(null, fingerprint)
       if (meta) acc.push(Object.assign({ hash: fingerprint }, meta))
       return acc
     }, [])
@@ -609,7 +610,8 @@ class Pipe {
     const fingerprint = paths[1]
 
     if (body.alt === undefined || body.alt === 'metadata') {
-      let metadata = Media.get(fingerprint)
+      // let metadata = Media.get(fingerprint)
+      let metadata = getFruit().getMetadata(null, fingerprint)
       if (metadata) {
         return await this.successResponseJsonAsync(serverAddr, sessionId, metadata)
       } else {
