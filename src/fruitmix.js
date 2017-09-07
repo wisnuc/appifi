@@ -11,7 +11,6 @@ const UserList = require('./user/user')
 const DriveList = require('./forest/forest')
 const BlobStore = require('./box/blobStore')
 const BoxData = require('./box/boxData')
-const MediaMap = require('./media/media')
 const Thumbnail = require('./lib/thumbnail2')
 
 const { assert, isUUID, isSHA256, validateProps } = require('./common/assertion')
@@ -102,6 +101,10 @@ class Fruitmix extends EventEmitter {
     return this.userList.findUser(userUUID)
   }
 
+  findUserByGuid(guid) {
+    let user = this.userList.users.find(u => u.global && u.global.guid === guid)
+    return user
+  }
   /**
   isFirstUser never allowed to change.
   possibly allowed props: username, isAdmin, global
@@ -166,11 +169,16 @@ class Fruitmix extends EventEmitter {
   }
 
   async updateUserGlobalAsync(user, userUUID, body) {
-    
-    if (typeof body.global !== 'object' || typeof body.global.id !== 'string' || typeof body.global.wx !== 'array' || !body.global.wx.length) {
-      throw Object.assign(new Error('bad format'), { status: 400 })
-    }
 
+    if (!body.global || typeof body.global !== 'object') 
+      throw Object.assign(new Error('global format error'), { status: 400 })
+    
+    if(!body.global.id || typeof body.global.id !== 'string')
+      throw Object.assign(new Error('global.id format error'), { status: 400 })
+
+    if(!body.global.wx || !(body.global.wx instanceof Array) || !body.global.wx.length)
+      throw Object.assign(new Error('global.wx format error'), { status: 400 })
+    
     let props = Object.assign({}, { global: body.global })
     return await this.userList.updateUserAsync(userUUID, props)
   }
@@ -369,7 +377,7 @@ class Fruitmix extends EventEmitter {
     if (metadata) {
       entries.forEach(entry => {
         if (entry.type === 'file' && entry.magic === 'JPEG' && entry.hash) {
-          entry.metadata = MediaMap.get(entry.hash) 
+          entry.metadata = this.mediaMap.get(entry.hash) 
         }
       })
     }

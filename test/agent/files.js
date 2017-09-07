@@ -107,7 +107,8 @@ describe(path.basename(__filename), () => {
         })
     })
 
-    it("try a media file 01", done => {
+    // this test fails in #398
+    it("metadata should be provided for media file when metadata=true", done => {
       request(app)
         .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
         .set('Authorization', 'JWT ' + token)
@@ -125,8 +126,6 @@ describe(path.basename(__filename), () => {
               .expect(200)
               .end((err, res) => {
 
-                // console.log(res.body.entries[0])
-
                 expect(res.body.entries[0].metadata).to.deep.equal({
                   m: 'JPEG', 
                   w: 235, 
@@ -139,7 +138,7 @@ describe(path.basename(__filename), () => {
         })
     })
 
-    it("try a media file 02", done => {
+    it("metadata should not be provided for media file when metadata=false", done => {
       request(app)
         .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries?metadata=false`)
         .set('Authorization', 'JWT ' + token)
