@@ -303,20 +303,6 @@ class Pipe {
    */
   handle(data) {
     debug(data)
-    //TODO: args check
-     
-    // data.user = {
-    //   "uuid": "1506606d-19a1-475e-91be-f25bd89a4f02",
-    //   "username": "Alice",
-    //   "password": "$2a$10$PPsDiRN.7KQxR199FCj7YedBWa371jJ2TIQHk/3KmlWVQguIemhFu",
-    //   "unixPassword": "$6$VE0TD3Cd$oJ8nGqCJUOtS0oUkWvmbvhQYq/s6XnT8J5FUHe3wNprGlHcgZWINRRIKn3Nr6mx3dFyFU36QhmiWQhImf3SVU1",
-    //   "smbPassword": "32ED87BDB5FDC5E9CBA88547376818D4",
-    //   "lastChangeTime": 1503901461435,
-    //   "isFirstUser": true,
-    //   "isAdmin": true,
-    //   "avatar": null,
-    //   "global": null
-    // }
     
     if(!data.serverAddr || !data.sessionId) return debug('Invaild pipe request')
 
@@ -330,7 +316,8 @@ class Pipe {
                     .then(() => {}).catch(debug)
     }
 
-    let localUser = fruit.findUserByGUID(user.id)
+    let localUser = fruit.findUserByGUID(data.user.id)
+    
     if(!localUser) 
       return this.errorResponseAsync(data.serverAddr, data.sessionId, Object.assign(new Error('user not found'), { code: 400 }))
                     .then(() => {}).catch(debug)

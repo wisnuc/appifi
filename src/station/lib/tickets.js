@@ -65,14 +65,13 @@ class Tickets {
   async getTicketsAsync(userId) {
     let fruit = getFruit()
     let u = fruit.findUserByUUID(userId)
-    //TODO: remove check
-    // if(!u.global || !u.global.id) throw new Error('user has not bind wechat account')
+    if(!u.global || !u.global.id) throw new Error('user has not bind wechat account')
     let url = CONFIG.CLOUD_PATH + 's/v1/tickets/'
-    //TODO: use localId tmp
-    // let creator = u.global.id
-    let creator = u.uuid
+
+    let creator = u.global.id
     let token = this.connect.token
     let query = { creator }
+    
     let opts = { 'Content-Type': 'application/json', 'Authorization': token }
     try {
       let res = await requestAsync('GET', url, { query }, opts)
