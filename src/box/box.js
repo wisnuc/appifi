@@ -9,7 +9,7 @@ const UUID = require('uuid')
 const crypto = require('crypto')
 
 const { saveObjectAsync } = require('../lib/utils')
-// const E = require('../lib/error')
+const E = require('../lib/error')
 // const blobStore = require('./blobStore')
 
 /**
@@ -142,13 +142,12 @@ class Box {
 
   /**
    * retrieve a branch or commit
-   * @param {string} type - branches or commits
-   * @param {string} id - branch uuid or commit hash
+   * @param {string} branchID - branch uuid
    * @param {function} callback 
    * @return {Object} branch or commit object
    */
-  retrieve(type, id, callback) {
-    let srcpath = path.join(this.dir, type, id)
+  retrieveBranch(branchID, callback) {
+    let srcpath = path.join(this.dir, 'branches', branchID)
     fs.readFile(srcpath, (err, data) => {
       if (err) return callback(err)
       try {
@@ -162,12 +161,11 @@ class Box {
 
   /**
    * async edition of retrieveBranch
-   * @param {string} type - branches or commits
-   * @param {string} id - branch uuid or commit hash
+   * @param {string} branchID - branch uuid
    * @return {Object} branch or commit object
    */
-  async retrieveAsync(type, id) {
-    return Promise.promisify(this.retrieve).bind(this)(type, id)
+  async retrieveBranchAsync(branchID) {
+    return Promise.promisify(this.retrieveBranch).bind(this)(branchID)
   }
 
   /**
@@ -177,8 +175,8 @@ class Box {
    * @return {array} collection of branches or commits
    */
 
-  retrieveAll(type, callback) {
-    let target = path.join(this.dir, type)
+  retrieveAllBranches(callback) {
+    let target = path.join(this.dir, 'branches')
     fs.readdir(target, (err, entries) => {
       if (err) return callback(err)
 
@@ -187,7 +185,7 @@ class Box {
 
       let result = []
       entries.forEach(entry => {
-        this.retrieve(type, entry, (err, obj) => {
+        this.retrieveBranch(entry, (err, obj) => {
           if (!err) result.push(obj)
           if (!--count) callback(null, result)
         })
@@ -197,11 +195,10 @@ class Box {
 
   /**
    * async edition of retrieveAll
-   * @param {string} type - branches or commits
    * @return {array} collection of branches or commits
    */
-  async retrieveAllAsync(type) {
-    return Promise.promisify(this.retrieveAll).bind(this)(type)
+  async retrieveAllBranchesAsync() {
+    return Promise.promisify(this.retrieveAllBranches).bind(this)()
   }
 
   /**
@@ -213,12 +210,12 @@ class Box {
    */
   async updateBranchAsync(branchUUID, props) {
     let target = path.join(this.dir, 'branches', branchUUID)
-    let branch = await this.retrieveAsync('branches', branchUUID)
+    let branch = await this.retrieveBranchAsync(branchUUID)
 
     let { name, head } = props
     if (head) {
-      let obj = await this.retrieveAsync('commits', head)
-      if (obj.parent !== branch.head) throw new E.ECONTENT()
+      let obj = await this.ctx.ctx.docStore.retrieveAsync(head)
+      if (obj.parent !== branch.head) throw new E.EHEAD()
     }
 
     let updated = {
@@ -245,17 +242,30 @@ class Box {
   /**
  * create a commit
  * @param {Object} props 
- * @param {string} props.tree - hash string
- * @param {array} props.parent - parent commit
- * @param {string} props.user - user unionId
- * @param {string} props.comment - comment for the commit
+ * @param {string} props.root - hash string, root tree object
+ * @param {string} props.committer - user global ID
+ * @param {string} props.parent - parent commit
+ * @param {string} props.branch - branch ID, commit on this branch
+ * @param {array} props.toUpload - hash string array, the hash of file to upload
+ * @param {array} props.uploaded - hash string array, the hash of file uploaded
  * @return {string} sha256 of commit object
  */
   async createCommitAsync(props) {
+    if (props.branch && props.parent) {
+      let branch = await this.retrieveBranchAsync(props.branch)
+      if (branch.head !== props.parent) throw new E.EHEAD()
+    }
+    if (props.toUpload && props.uploaded) {
+      if (props.toUpload.length !== props.uploaded.length)
+        throw Object.assign(new Error('uploaded mismatch with toUpload'),{ status: 400 })
+      
+    }
+
+
     let commit = {
       tree: props.tree,
       parent: props.parent,
-      user: props.user,
+      committer: props.committer,
       ctime: new Date().getTime()
       // comment: props.comment
     }

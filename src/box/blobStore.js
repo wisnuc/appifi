@@ -20,7 +20,7 @@ class BlobStore {
     this.dir = path.join(this.ctx.fruitmixPath, 'blobs')
 
     // if dir path not exist, create it
-    if(!fs.existsSync(this.dir)){
+    if (!fs.existsSync(this.dir)) {
       try{
         fs.mkdirSync(this.dir)
         broadcast.emit('BlobsInitDone')
@@ -96,7 +96,7 @@ class BlobStore {
           child.exec(`chmod 444 ${files}`, (err, stdout, stderr) => {
             if (err) return callback(err)
             if (stderr) return callback(stderr)
-            callback(stdout)
+            callback(null, stdout)
           })
         })
         .catch(e => callback(e))
