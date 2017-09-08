@@ -20,8 +20,6 @@ const requestAsync = require('./request').requestHelperAsync
 const broadcast = require('../../common/broadcast')
 const boxData = require('../../box/boxData')
 
-// const Media = require('../../media/media')
-const Thumbnail = require('../../lib/thumbnail')
 const getFruit = require('../../fruitmix')
 
 const { isUUID } = require('../../common/assertion')
@@ -581,7 +579,7 @@ class Pipe {
     const fingerprints = fruit.getFingerprints(user)
     const metadata = fingerprints.reduce((acc, fingerprint) => {
       // let meta = Media.get(fingerprint)
-      let meta = getFruit().getMetadata(null, fingerprint)
+      let meta = fruit.getMetadata(null, fingerprint)
       if (meta) acc.push(Object.assign({ hash: fingerprint }, meta))
       return acc
     }, [])
@@ -597,8 +595,8 @@ class Pipe {
     const fingerprint = paths[1]
 
     if (body.alt === undefined || body.alt === 'metadata') {
-      // let metadata = Media.get(fingerprint)
-      let metadata = getFruit().getMetadata(null, fingerprint)
+
+      let metadata = fruit.getMetadata(null, fingerprint)
       if (metadata) {
         return await this.successResponseJsonAsync(serverAddr, sessionId, metadata)
       } else {
@@ -619,8 +617,23 @@ class Pipe {
     
   }
   
-  getMediaThumbnail(fingerprint, query, files, callback) {
+  getMediaThumbnail(user, fingerprint, query, callback) {
     //getMediaThumbnail
+    let fruit = getFruit()
+    if(!fruit) return this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+                              .then(() => {}).catch(debug)
+
+    // fruit.getThumbnail(user, fingerprint, query, (err, thumb) => {
+      // if (err) return next(err)
+      // if (typeof thumb === 'string') {
+      //   res.status(200).sendFile(thumb)
+      // } else if (typeof thumb === 'function') {
+      //   let cancel = thumb((err, th) => {
+      //     if (err) return next(err)
+      //     res.status(200).sendFile(th)
+      //   })
+      // }
+    // }
   }
 
   /*************************************** User *********************************************/
