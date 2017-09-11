@@ -10,8 +10,11 @@ const crypto = require('crypto')
 
 const { saveObjectAsync } = require('../lib/utils')
 const E = require('../lib/error')
-// const blobStore = require('./blobStore')
+const { complementArray } = require('../lib/assertion')
 
+const getContent = (hash, func) => {
+  let result = await func(hash)
+}
 /**
   box
 */
@@ -239,6 +242,42 @@ class Box {
     return
   }
 
+  /*
+  tree
+  [
+    ['blob', 'a,js', 'xxxxxx'],     // [type, name, hash]
+  ]
+   */
+  async getListAsync(rootTreeHash, branchID) {
+    let branch = await this.retrieveBranchAsync(branchID)
+    let _this = this
+    let arr = []
+
+    let findRootTree = async head => {
+      let commit = await _this.ctx.ctx.docStore.retrieveAsync(head)
+      if (commit.tree === rootTreeHash) return true
+      else {
+        if (commit.parent) findRootTree(commit.parent)
+        else throw new Error('given rootTree object is not exist in this branch')
+      }
+    }
+
+    let rootExist = await findRootTree(branch.head)
+
+    let func = async h => {
+      let result = await _this.ctx.ctx.retrieveAsync(h)
+      result.forEach(r => {
+        if (r[0] === 'blob') arr.push(r[2])
+        else if (r[0] === 'tree') {
+          arr.push(r[2])
+          await func(r[2])
+        } else throw Object.assign(new Error('invalid object type'), { status: 500 })
+      })
+    }
+
+    await func(hash)
+    return arr
+  }
   /**
  * create a commit
  * @param {Object} props 
@@ -255,19 +294,22 @@ class Box {
       let branch = await this.retrieveBranchAsync(props.branch)
       if (branch.head !== props.parent) throw new E.EHEAD()
     }
+
     if (props.toUpload && props.uploaded) {
-      if (props.toUpload.length !== props.uploaded.length)
-        throw Object.assign(new Error('uploaded mismatch with toUpload'),{ status: 400 })
-      
+      if (complementArray(props.toUpload, props.uploaded).length !== 0) 
+        throw Object.assign(new Error('something required is not uploaded'), { status: 400 })
+      if (complementArray(props.uploaded, props.toUpload).length !== 0) 
+        throw Object.assign(new Error('something unnecessary is uploaded'), { status: 400 })
     }
 
+    
+    
 
     let commit = {
       tree: props.tree,
       parent: props.parent,
       committer: props.committer,
       ctime: new Date().getTime()
-      // comment: props.comment
     }
 
     let targetDir = path.join(this.dir, 'commits')

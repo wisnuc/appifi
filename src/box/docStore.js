@@ -7,25 +7,6 @@ const Promise = require('bluebird')
 const child = require('child_process')
 const broadcast = require('../common/broadcast')
 
-const writeFileToDisk = (fpath, data, callback) => {
-
-  let error, os = fs.createWriteStream(fpath)
-
-  os.on('error', err => {
-    error = err
-    callback(err)
-  })
-
-  os.on('close', () => {
-    if (!error) callback(null)
-  })
-
-  os.write(data)
-  os.end()
-}
-
-// import paths from './paths'
-
 class DocStore {
 
   // the factory must assure the tmp folder exists !
@@ -69,6 +50,17 @@ class DocStore {
         callback(e)
       }
     })
+  }
+
+  hasDoc (hash) {
+    let src = path.join(this.dir, hash)
+    try {
+      let stat = fs.lstatSync(src)
+      return true
+    } catch(e) {
+      if (e.code === 'ENOENT') return false
+      else throw e
+    }   
   }
 
   async retrieveAsync(hash) {
