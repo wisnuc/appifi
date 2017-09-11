@@ -570,7 +570,8 @@ class Pipe {
   }
 
   /****************************************Media Api**************************************/
-   
+  
+  // return metadata list
   async getMetadatasAsync(data) {
     let { serverAddr, sessionId, user, body } = data
     let fruit = getFruit()
@@ -586,7 +587,12 @@ class Pipe {
     return await this.successResponseJsonAsync(serverAddr, sessionId, metadata)
   }
 
-  //fetch
+  /**
+   * body.alt
+   * if alt === metadata  return metadata
+   * if alt === data return file
+   * if alt === thumbnail return thumbnail
+   */
   async getMetadataAsync(data) {
     let { serverAddr, sessionId, user, body, paths } = data
     let fruit = getFruit()
@@ -612,7 +618,14 @@ class Pipe {
       }
     }
     else if (body.alt === 'thumbnail') {
-
+      let thumb = await this.getMediaThumbnailAsync(user, fingerprint, body)
+      if(thumb){
+        return await this.fetchFileResponseAsync(thumb, serverAddr, sessionId)
+      } else {
+        return await this.errorResponseAsync(serverAddr, sessionId, new Error('thumbnail not found'))
+      }
+    }else{
+      return await this.errorResponseAsync(serverAddr, sessionId, new Error('operation not found'))
     }
     
   }
@@ -620,20 +633,24 @@ class Pipe {
   getMediaThumbnail(user, fingerprint, query, callback) {
     //getMediaThumbnail
     let fruit = getFruit()
-    if(!fruit) return this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
-                              .then(() => {}).catch(debug)
+    if(!fruit) return callback(new Error('fruitmix not start'))
 
-    // fruit.getThumbnail(user, fingerprint, query, (err, thumb) => {
-      // if (err) return next(err)
-      // if (typeof thumb === 'string') {
-      //   res.status(200).sendFile(thumb)
-      // } else if (typeof thumb === 'function') {
-      //   let cancel = thumb((err, th) => {
-      //     if (err) return next(err)
-      //     res.status(200).sendFile(th)
-      //   })
-      // }
-    // }
+
+    fruit.getThumbnail(user, fingerprint, query, (err, thumb) => {
+      if (err) return callback(err)
+      if (typeof thumb === 'string') {
+        return callback(null, thumb)
+      } else if (typeof thumb === 'function') {
+        let cancel = thumb((err, th) => {
+          if (err) return callback(err)
+          return callback(th)
+        })
+      }
+    })
+  }
+
+  async getMediaThumbnailAsync(user, fingerprint, query) {
+    return Promise.promisify(this.getMediaThumbnail).bind(this)(user, fingerprint, query)
   }
 
   /*************************************** User *********************************************/
@@ -857,6 +874,9 @@ class Pipe {
     this.handlers.set('SetMediaBlackList', this.setUserMediaBlackListAsync.bind(this))
     this.handlers.set('AddMediaBlackList', this.addUserMediaBlackListAsync.bind(this))
     this.handlers.set('SubtractUserMediaBlackList', this.subtractUserMediaBlackListAsync.bind(this))
+    //media
+    this.handlers.set('GetMetadatas', this.getMetadatasAsync.bind(this))
+    this.handlers.set('GetMetadata', this.getMetadataAsync.bind(this))
   }
 }
 
