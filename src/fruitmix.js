@@ -98,7 +98,7 @@ class Fruitmix extends EventEmitter {
   }
 
   findUserByGUID(guid) {
-    let user = this.userList.users.find(u => u.global && u.global.guid === guid)
+    let user = this.userList.users.find(u => u.global && u.global.id === guid)
     return user
   }
   /**
