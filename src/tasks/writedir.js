@@ -146,7 +146,6 @@ class FieldHandler extends PartHandler {
 
   async run ({ user, driveUUID, dirUUID}) {
     this.defineSetOnce('parsed')
-
     let buffers = []
 
     this.part.on('data', this.guard(chunk => buffers.push(chunk)))
@@ -161,10 +160,6 @@ class FieldHandler extends PartHandler {
           err.status = 400
           throw err
         }
-      }
-
-      if(parents !== undefined) {
-        parents = parents === 'true' ? true : false
       }
 
       if (op === 'mkdir') {
@@ -214,7 +209,7 @@ class FieldHandler extends PartHandler {
 
     if (this.part.opts.op === 'mkdir') {
       try {
-        if(this.parents) await mkdirpAsync(toPath)   
+        if(this.part.opts.parents) await mkdirpAsync(toPath)   
         else await fs.mkdirAsync(toPath)
       } catch (e) {
         if (e.code === 'EEXIST') {
