@@ -74,6 +74,7 @@ class Fruitmix extends EventEmitter {
       isFirstUser: u.isFirstUser,
       isAdmin: u.isAdmin,
       avatar: u.avatar, 
+      global: u.global
     }))
   }
 

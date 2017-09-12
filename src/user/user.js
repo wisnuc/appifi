@@ -91,6 +91,7 @@ const userEntryMProps = [
   'lastChangeTime',
   'isFirstUser',
   'isAdmin',
+  'disabled',
   'avatar',     // null
   'global'      // { id, wx: [ <unionId> ] }
 ]
@@ -139,7 +140,8 @@ const userGlobalProps = ['id', 'wx']
 
 // FIXME: old user's disabled undefined
 const validateUserEntry = u => {
-  assert(validateProps(u, userEntryMProps, ['disabled']), 'invalid object props')
+  if(u.disabled === undefined) u.disabled = false // add disabled property
+  assert(validateProps(u, userEntryMProps), 'invalid object props')
   assert(isUUID(u.uuid), 'invalid user uuid')
   assert(isNonEmptyString(u.username), 'username must be non-empty string')
   assert(isNonEmptyString(u.password), 'password must be non-empty string')

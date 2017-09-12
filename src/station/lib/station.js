@@ -170,6 +170,7 @@ class Station {
           debug(err)
           return callback(new Error('register error')) 
         }
+        res.body.data.label = 'stationName'
         let ws = fs.createWriteStream(SA_PATH)
         ws.write(JSON.stringify(res.body.data, null, ' '))
         ws.close()
