@@ -16,6 +16,8 @@ const { assert, isUUID, isSHA256, validateProps } = require('./common/assertion'
 
 const CopyTask = require('./tasks/fruitcopy')
 
+const { readXstat } = require('./lib/xstat')
+
 /**
 Fruitmix is the facade of internal modules, including user, drive, forest, and box.
 
@@ -789,6 +791,29 @@ class Fruitmix extends EventEmitter {
     } 
   }
 
+  ////////////////////////////
+  
+  mkdirp (user, driveUUID, dirUUID, name, callback) {
+    // TODO permission check
+    let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
+    if (!dir) {
+      let err = new Error('drive or dir not found')
+      err.status = 404
+      return process.nextTick(() => callback(err))
+    }
+
+    let dst = path.join(dir.abspath(), name)
+    mkdirp(dst, err => {
+      if (err) return callback(err)
+      readXstat(dst, (err, xstat) => {
+        if (err) return callback(err)
+
+        console.log(xstat)
+
+        callback(null, xstat)
+      })
+    })
+  }
 }
 
 const broadcast = require('./common/broadcast')
