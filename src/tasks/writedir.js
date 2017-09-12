@@ -152,7 +152,8 @@ class FieldHandler extends PartHandler {
     this.part.on('data', this.guard(chunk => buffers.push(chunk)))
     this.part.on('end', this.guard(() => {
       this.part.value = Buffer.concat(buffers).toString()
-      let { op, overwrite, uuid } = JSON.parse(this.part.value)
+      // add parents for mkdirp
+      let { op, overwrite, uuid, parents } = JSON.parse(this.part.value)
 
       if (overwrite !== undefined) {
         if (!isUUID(overwrite)) {
@@ -162,8 +163,12 @@ class FieldHandler extends PartHandler {
         }
       }
 
+      if(parents !== undefined) {
+        parents = parents === 'true' ? true : false
+      }
+
       if (op === 'mkdir') {
-        this.part.opts = { op }
+        this.part.opts = { op, parents }
       } else if (op === 'dup') {
         if (this.part.fromName === this.part.toName) {
           let err = new Error('dup requires two different file name')
@@ -208,9 +213,9 @@ class FieldHandler extends PartHandler {
     let tmpPath = path.join(getFruit().getTmpDir(), UUID.v4())
 
     if (this.part.opts.op === 'mkdir') {
-
       try {
-        await mkdirpAsync(toPath)   
+        if(this.parents) await mkdirpAsync(toPath)   
+        else await fs.mkdirAsync(toPath)
       } catch (e) {
         if (e.code === 'EEXIST') {
           e.status = 403
