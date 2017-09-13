@@ -11,6 +11,7 @@ const UserList = require('./user/user')
 const DriveList = require('./forest/forest')
 const BoxData = require('./box/boxData')
 const Thumbnail = require('./lib/thumbnail2')
+const File = require('./forest/file')
 
 const { assert, isUUID, isSHA256, validateProps } = require('./common/assertion')
 
@@ -695,6 +696,48 @@ class Fruitmix extends EventEmitter {
   }  
 
   ///////////// media api //////////////
+  userCanRead(user, dirUUID) {
+    //TODO: return false??
+    if(!this.driveList.uuidMap.has(dirUUID))
+      throw new Error('drive not found')
+    let drive = this.driveList.uuidMap.get(dirUUID)
+    let rootDrive = drive.root()
+    let userDrives = this.getDrives(user)
+    if(userDrives.findIndex(d => d.uuid === rootDrive.uuid) !== -1) return true
+    return false
+  }
+
+  userCanWrite(user, dirUUID) {
+    if(!this.driveList.uuidMap.has(dirUUID))
+      throw new Error('drive not found')
+    let drive = this.driveList.uuidMap.get(dirUUID)
+    let rootDrive = drive.root()
+
+    let userDrives = this.driveList.drives.filter(drv => {
+      if (drv.type === 'private' && drv.owner === user.uuid) return true
+      if (drv.type === 'public' && (drv.writelist.includes(user.uuid))) return true
+      return false
+    })
+
+    if(userDrives.findIndex(d => d.uuid === rootDrive.uuid) !== -1) return true
+    return false
+  }
+
+  getMetaList(user) {
+    let drives = this.getDrives(user)
+    let m = new Set()
+    drives.forEach(drive => {
+      let root = this.driveList.roots.get(drive.uuid)
+      if(!root) return
+      root.preVisit(node => {
+        if(node instanceof File && this.mediaMap.has(node.hash))
+          m.add(Object.assign({}, this.mediaMap.get(node.hash), { hash: node.hash}))
+      })     
+    })
+    let metas = []
+    m.forEach(f => metas.push(f))
+    return metas
+  }
 
   // NEW API
   getMetadata (user, fingerprint) {
