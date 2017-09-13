@@ -73,7 +73,8 @@ class Fruitmix extends EventEmitter {
       isFirstUser: u.isFirstUser,
       isAdmin: u.isAdmin,
       avatar: u.avatar, 
-      global: u.global
+      global: u.global,
+      disabled: u.disabled
     }))
   }
 
@@ -125,7 +126,7 @@ class Fruitmix extends EventEmitter {
   async updateUserAsync(user, userUUID, body) {
 
     let recognized = [
-      'uuid', 'username', 'password', 'isFirstUser', 'isAdmin', 'avatar', 'global' 
+      'uuid', 'username', 'password', 'isFirstUser', 'isAdmin', 'avatar', 'global', 'disabled' 
     ] 
 
     Object.getOwnPropertyNames(body).forEach(name => {
@@ -147,6 +148,11 @@ class Fruitmix extends EventEmitter {
       if (user.uuid === userUUID) {
         if (body.hasOwnProperty('isAdmin')) {
           throw Object.assign(new Error('isAdmin is not allowed to change for super user'), {
+            status: 403
+          })
+        }
+        if (body.hasOwnProperty('disabled')) {
+          throw Object.assign(new Error('disabled is not allowed to change for super user'), {
             status: 403
           })
         } 
