@@ -9,7 +9,7 @@ const E = require('../lib/error')
 
 const broadcast = require('../common/broadcast')
 
-const { isUUID, isNonNullObject, isNonEmptyString } = require('../lib/assertion')
+const { isUUID, isNonNullObject, isNonEmptyString, isSHA256 } = require('../lib/assertion')
 const { saveObjectAsync, passwordEncrypt, unixPasswordEncrypt, md4Encrypt } = require('../lib/utils')
 
 /**
@@ -80,6 +80,8 @@ All props defined below are mandatory. If there is no value assigned, it should 
 
 @prop {object} global - global
 */
+// TODO: disabled
+
 const userEntryMProps = [
   'uuid', 
   'username', 
@@ -93,6 +95,29 @@ const userEntryMProps = [
   'avatar',     // null
   'global'      // { id, wx: [ <unionId> ] }
 ]
+
+
+const assert = (predicate, message) => {
+  if (!predicate)
+    throw new Error(message);
+}
+
+const unique = arr => new Set(arr).size === arr.length
+
+const isUniqueUUIDArray = arr => unique(arr)
+  && (arr.every(i => isUUID(i)) || arr.length === 0)
+
+const arrayEqual = (arr1, arr2) => arr1.length === arr2.length
+  && arr1.every((item, index) => item === arr2[index])
+
+const complement = (a, b) => 
+  a.reduce((acc, c) => b.includes(c) 
+    ? acc 
+    : [...acc, c], [])
+
+const validateProps = (obj, mandatory, optional = []) => 
+  complement(Object.keys(obj), [...mandatory, ...optional]).length === 0 &&
+  complement(mandatory, Object.keys(obj)).length === 0
 
 
 /**
@@ -110,9 +135,37 @@ Besides the following props, password is a prop when user serviced as restful re
 @prop {(null|string)} avatar - FIXED now.
 @prop {object} global - W by station
 */
+
+const userGlobalProps = ['id', 'wx']
+
+// FIXME: old user's disabled undefined
 const validateUserEntry = u => {
+  if(u.disabled === undefined) u.disabled = false // add disabled property
+  assert(validateProps(u, userEntryMProps), 'invalid object props')
+  assert(isUUID(u.uuid), 'invalid user uuid')
+  assert(isNonEmptyString(u.username), 'username must be non-empty string')
+  assert(isNonEmptyString(u.password), 'password must be non-empty string')
+  assert(isNonEmptyString(u.unixPassword), 'password must be non-empty string')
+  assert(isNonEmptyString(u.smbPassword), 'password must be non-empty string')
+  assert(typeof u.isFirstUser === 'boolean', 'isFirstUser must be boolean')
+  assert(typeof u.isAdmin === 'boolean', 'isAdmin must be boolean')
+  assert(typeof u.disabled === 'boolean' || typeof u.disabled === 'undefined', 'disabled must be boolean')
+  assert(Number.isInteger(u.lastChangeTime), 'lastChangeTime must be integer')
+  assert(u.avatar === null ? true : isSHA256(u.avatar), 'avatar must be null or sha256')
+  assert(u.global === null ? true : validateProps(u.global, userGlobalProps), 'global must be null or { id, wx: [ <unionId> ] }')
+  return true
+}
 
+const validateUsers = users => {
+  if(!users.length) return
 
+  assert(users.every(u => validateUserEntry(u)), 'invalid user')
+
+  assert(isUniqueUUIDArray(users.map(u => u.uuid)))
+  
+  assert(users.filter(u => u.isFirstUser === true).length === 1, 'single first user')
+
+  assert(users.find(u => u.isFirstUser).isAdmin === true, 'first user must be admin')
 }
 
 /**
@@ -147,6 +200,8 @@ class UserList extends EventEmitter {
       if (e.code !== 'ENOENT') throw e
       this.users = []
     }
+
+    validateUsers(this.users)
 
     // TODO validate
     deepFreeze(this.users)
@@ -203,6 +258,9 @@ class UserList extends EventEmitter {
 
     // check atomic operation lock
     if (this.lock === true) throw E.ECOMMITFAIL()
+    
+    //validate
+    validateUsers(nextUsers)
 
     // get lock
     this.lock = true
@@ -258,6 +316,7 @@ class UserList extends EventEmitter {
       isFirstUser,
       isAdmin,
       avatar: null,
+      disabled: false,
       global
     } 
 

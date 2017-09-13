@@ -154,25 +154,26 @@ class Thumbnail extends EventEmitter {
     this.pending.sort((a, b) => b.cbs.length - a.cbs.length)
 
     while (this.converting.length < this.concurrency && this.pending.length) {
-      // from pending to converting
+      // pending -> converting
       let x = this.pending.shift()    
       this.converting.push(x)
 
       x.tmp = path.join(this.tmpDir, UUID.v4())
 
       spawn('convert', genArgs(x.file, x.tmp, x.opts), err => {
-        // from converting
+        // converting -> 
         this.converting.splice(this.converting.indexOf(x), 1)
 
         if (err) {
+          // -> 0
           x.cbs.forEach(cb => cb(err))
           x.cbs = []
         } else {
-          // to renaming
+          // -> renaming
           this.renaming.push(x)
           
           fs.rename(x.tmp, x.path, err => {
-            // from renaming
+            // renaming -> 0
             this.renaming.splice(this.renaming.indexOf(x), 1) 
             x.cbs.forEach(cb => err ? cb(err) : cb(null, x.path))    
             x.cbs = []
