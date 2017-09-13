@@ -722,7 +722,9 @@ class Fruitmix extends EventEmitter {
     if ((props.toUpload && !props.uploaded) || (!props.toUpload && props.uploaded))
       throw Object.assign(new Error('toUpload and uploaded should both exist or non-exist'), { status: 400 })
     
-    return await box.createCommitAsync(props)
+    let commit = await box.createCommitAsync(props)
+    await this.boxData.updateBoxAsync({mtime: new Date().getTime()}, boxUUID)
+    return commit
   }
 
   ///////////// media api //////////////

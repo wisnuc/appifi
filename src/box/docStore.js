@@ -52,17 +52,6 @@ class DocStore {
     })
   }
 
-  hasDoc (hash) {
-    let src = path.join(this.dir, hash)
-    try {
-      let stat = fs.lstatSync(src)
-      return true
-    } catch(e) {
-      if (e.code === 'ENOENT') return false
-      else throw e
-    }   
-  }
-
   async retrieveAsync(hash) {
     return Promise.promisify(this.retrieve).bind(this)(hash)
   }

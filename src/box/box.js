@@ -10,11 +10,8 @@ const crypto = require('crypto')
 
 const { saveObjectAsync } = require('../lib/utils')
 const E = require('../lib/error')
-const { complementArray } = require('../lib/assertion')
+const { isSHA256, complementArray } = require('../lib/assertion')
 
-const getContent = (hash, func) => {
-  let result = await func(hash)
-}
 /**
   box
 */
@@ -248,36 +245,53 @@ class Box {
     ['blob', 'a,js', 'xxxxxx'],     // [type, name, hash]
   ]
    */
-  async getListAsync(rootTreeHash, branchID) {
-    let branch = await this.retrieveBranchAsync(branchID)
-    let _this = this
-    let arr = []
+  // commit and tree are stored in docStore
 
+  async rootExistInBox(rootTreeHash) {
+    let branches = await this.retrieveAllBranchesAsync()
+    let exist, _this = this
+
+    // head is a commit hash
     let findRootTree = async head => {
+      // retrieve commit object
+      // compare rootTreeHash with commit.tree
+      // if not equal, find again with its parent
       let commit = await _this.ctx.ctx.docStore.retrieveAsync(head)
       if (commit.tree === rootTreeHash) return true
       else {
-        if (commit.parent) findRootTree(commit.parent)
-        else throw new Error('given rootTree object is not exist in this branch')
+        if (commit.parent) return await findRootTree(commit.parent)
       }
     }
 
-    let rootExist = await findRootTree(branch.head)
+    for (let i = 0; i < branches.length; i++) {
+      exist = await findRootTree(branches[i].head)
+      if (exist) return
+    }
 
-    let func = async h => {
-      let result = await _this.ctx.ctx.retrieveAsync(h)
-      result.forEach(r => {
-        if (r[0] === 'blob') arr.push(r[2])
-        else if (r[0] === 'tree') {
-          arr.push(r[2])
-          await func(r[2])
-        } else throw Object.assign(new Error('invalid object type'), { status: 500 })
+    return exist
+  }
+
+  async getRootListAsync(rootTreeHash) {
+    let hashSet = new Set()
+    let _this = this
+    // get contents in a tree object
+    let getContent = async hash => {
+      hashSet.add(hash)
+      let obj = await _this.ctx.ctx.docStore.retrieveAsync(hash)
+      obj.forEach(async o => {
+        if (o[0] === 'blob') hashSet.add(o[2])
+        else if (o[0] === 'tree') await getContent(o[2])
+        else throw Object.assign(new Error('invalid object type'), { status: 500 })
       })
     }
 
-    await func(hash)
-    return arr
+    let exist = await this.rootExistInBox(rootTreeHash)
+    if (!exist) throw Object.assign(new Error('given rootTree object is not exist in the box'), { status: 403})
+
+    await getContent(rootTreeHash)
+    return [...hashSet]
   }
+
   /**
  * create a commit
  * @param {Object} props 
@@ -290,11 +304,15 @@ class Box {
  * @return {string} sha256 of commit object
  */
   async createCommitAsync(props) {
+    // consistent match
     if (props.branch && props.parent) {
       let branch = await this.retrieveBranchAsync(props.branch)
       if (branch.head !== props.parent) throw new E.EHEAD()
     }
-
+    // if branch exist, parent must exist
+    if(props.branch && !props.parent)
+      throw Object.assign(new Error('parent must exist if branch exist'), { status: 400 })
+    // toUpload should equal to uploaded
     if (props.toUpload && props.uploaded) {
       if (complementArray(props.toUpload, props.uploaded).length !== 0) 
         throw Object.assign(new Error('something required is not uploaded'), { status: 400 })
@@ -302,26 +320,88 @@ class Box {
         throw Object.assign(new Error('something unnecessary is uploaded'), { status: 400 })
     }
 
-    
-    
+    let universe = [], tree = [], blob = []
+    if (props.parent) {
+      let commit = await this.ctx.ctx.docStore.retrieveAsync(props.parent)
+      universe = await this.getRootListAsync(commit.tree)
+    }
+    // no intersectionn (universe and uploaded)
+    if (complementArray(universe, props.uploaded) !== universe)
+      throw Object.assign(new Error('some file already exist uploaded again'), { status: 500 })
 
+    // children first - a tree object is valid, children valid first
+    let validation = (root) => {
+      if (universe.includes(root)) return
+      else if (props.uploaded.includes(root)) {
+        let fpath = path.join(this.ctx.ctx.getTmpDir(), root)
+        let data = fs.readFileSync(fpath)
+
+        // get tree object
+        try {
+          data = JSON.parse(data.toString())
+        } catch(e) {
+          if (e instanceof SyntaxError)
+            throw Object.assign(new Error('invalid tree object format'), { status: 500 })
+          else throw e
+        }
+        
+        data.forEach(item => {
+          // validate format of content in tree object
+          if (item[0] !== 'blob' && item[0] !== 'tree')
+            throw Object.assign(new Error('invalid object type'), { status: 500 })
+          if (typeof item[1] === 'string')
+            throw Object.assign(new Error('name should be string'), { status: 500 })
+          if (!isSHA256(item[2]))
+            throw Object.assign(new Error('invalid hash'), { status: 500 })
+
+          if (item[0] === 'blob') {
+            if (universe.includes(item[0])) return
+            else if (props.uploaded.includes(item[0])) blob.push(item[2])
+            // no less
+            else throw Object.assign(new Error('reference not found'), { status: 403 })
+          }
+          // for tree object, loop validation
+          if (item[0] === 'tree') validation(item[2])
+        })
+
+        tree.push(root)
+      }
+      // no less
+      else throw Object.assign(new Error('reference not found'), { status: 403 })
+    }
+
+    // validate format and value of root tree
+    validation(props.root)
+    // no more
+    if (complementArray(props.uploaded, [...tree, ...blob]).length !== 0)
+      throw Object.assign(new Error('unnecessary file is uploaded'), { status: 500 })
+
+    // store trees and blobs
+    blobpaths = blob.map(i => path.join(this.ctx.ctx.getTmpDir(), i))
+    treepaths = tree.map(i => path.join(this.ctx.ctx.getTmpDir(), i))
+    await this.ctx.ctx.blobs.storeAsync(blobpaths)
+    await this.ctx.ctx.docStore.storeAsync(treepaths)
+
+    // create commit object
     let commit = {
-      tree: props.tree,
-      parent: props.parent,
+      tree: props.root,
       committer: props.committer,
       ctime: new Date().getTime()
     }
+    props.parent ? commit.parent = null : commit.parent = props.parent
 
-    let targetDir = path.join(this.dir, 'commits')
-    await mkdirpAsync(targetDir)
-
+    // store commit object
     let text = Stringify(commit)
     let hash = crypto.createHash('sha256')
     hash.update(text)
     let sha256 = hash.digest().toString('hex')
 
-    let targerPath = path.join(targetDir, sha256)
+    let targerPath = path.join(this.ctx.ctx.docStore.dir, sha256)
     await saveObjectAsync(targetPath, this.ctx.ctx.getTmpDir(), commit)
+
+    // update branch
+    props.branch ? await this.updateBranchAsync(props.branch, {head: sha256})
+                 : await this.createBranchAsync({name:'', head: sha256})
 
     return sha256
   }
