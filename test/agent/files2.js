@@ -186,7 +186,7 @@ describe(path.basename(__filename), () => {
       stat = await fs.lstatAsync(path.join(DrivesDir, IDS.alice.home))
     }) 
 
-    it("200 if hello does not exist", done => {
+    it("200 if hello does not exist mkdir", done => {
       request(app)
         .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
         .set('Authorization', 'JWT ' + token)

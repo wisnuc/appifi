@@ -864,4 +864,108 @@ class Writedir extends threadify(EventEmitter) {
 }
 **/
 
+/**
+const (req, res, next) => {
+
+  const user = req.user
+  const { driveUUID, dirUUID } = req.params
+
+  const regex = /^multipart\/.+?(?:; boundary=(?:(?:"(.+)")|(?:([^\s]+))))$/i
+  const m = regex.exec(req.headers['content-type'])
+
+  // raw parts (header not fired) 
+  // x { part }
+  const parts = []
+  const parsers = []
+  const streams = []
+  const ops = []
+
+  const results = []
+
+  let count = 0
+  const handlePart = part => {
+    let x = { number: count++, part }
+    parts.push(x)
+    part.on('error', handleFirstError)
+    part.on('header', header => {
+      let props
+      try {
+        props = parseHeader(header))
+      } catch (e) {
+        handleFirstError(e)
+        return
+      }
+
+      // remove out of parts TODO assert
+      parts = []
+
+      Object.assign(x, props)
+      if (x.filename) {
+        // push into streamers
+        let y = new FileStreamer(x)
+        streamers.push(y) 
+        y.on('error', handleFirstError)
+        y.on('data', data => {
+          // remove out of streamers
+          let index = streamers.indexOf(y)
+          streamers.splice(index, 1)
+          
+          // TODO 
+        })
+      } else {
+        // push into parsers
+        parsers.push(x)
+        x.buffers = []
+
+        // error handler already hooked
+        part.on('data', data => x.buffers.push(data))
+        part.on('end', () => {
+          // parse 
+          // handleFirstError if error
+          // remove out of parsers
+          let index = parsers.indexOf(x)
+          parsers.splice(index, 1)
+
+          // push into ops, or do ops
+           
+        })
+      }
+
+    }) 
+  }
+ 
+
+  let dicer = new Dicer({ boundary: m[1] || m[2] })
+  dicer.on('part', part => {
+    
+    part.on('header', header => {
+      // out of raw parts
+      parts.shift()
+    
+      try {
+        let x = parseHeader(header) 
+        x.part = part
+
+        if (x.filename) {
+                 
+        } else {
+          x.buffer = []
+          part.on('error', sweep)
+          part.on('data', data => x.buffer.push(data))
+          part.on('end', () => {
+            parse
+          })
+        }
+
+        jobs.push(x)
+      } catch (e) {
+      }
+             
+    })
+    part.on('error', () => {})
+    rawParts.push(part)
+  })
+}
+**/
+
 module.exports = Writedir

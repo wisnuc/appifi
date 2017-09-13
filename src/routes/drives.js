@@ -1,12 +1,15 @@
 const Promise = require('bluebird')
 const path = require('path')
+const fs = require('fs')
 const stream = require('stream')
 const router = require('express').Router()
 const auth = require('../middleware/auth')
 const sanitize = require('sanitize-filename')
+const UUID = require('uuid')
 const { isSHA256, isUUID } = require('../lib/assertion')
 const Dicer = require('dicer')
 const getFruit = require('../fruitmix')
+const HashStream = require('../lib/hash-stream')
 const Writedir = require('../tasks/writedir2')
 
 const f = af => (req, res, next) => af(req, res).then(x => x, next)
@@ -162,6 +165,8 @@ const parseHeader = header => {
 /**
 both dicer and part emit error
 **/
+
+/**
 router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, res, next) => {
 
   const user = req.user
@@ -189,6 +194,13 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
       try {
         let props = parseHeader(header)
         writedir.push(part, props)
+
+        if (props.filename) {
+            
+        } else {
+          
+        }
+
       } catch (e) {
         if (e) {
           part.removeAllListeners()
@@ -214,14 +226,233 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
 
   req.pipe(dicer)
 })
-  
+**/
+
+router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, res, next) => {
+
+  const user = req.user
+  const { driveUUID, dirUUID } = req.params
+
+  const regex = /^multipart\/.+?(?:; boundary=(?:(?:"(.+)")|(?:([^\s]+))))$/i
+  const m = regex.exec(req.headers['content-type'])
+
+  /**
+
+  parts (new) -> parser (field) -> parsers_ ------------------------> ops
+
+        (new) -> fopen -> pipe -> streamers -> streamers_ ----------> ops
+              \                                            
+              (fork) -> _dryrun -> dryrun -> dryrun_ (join)
+  **/
+  const parts = []
+  const parsers = []
+  const parsers_ = []
+
+  const fopen = []
+  const pipe = []
+  const streamers = []
+  const streamers_ = []
+
+  const _dryrun = []
+  const dryrun = []
+  const dryrun_ = []
+
+  const ops = []
+
+  const results = []
+
+  // for debug
+  const print = x => {
+    console.log(`---- ${x} ----`) 
+    console.log('parts, parsers_', parts, parsers, parsers_)
+    console.log('fopen, streamers_', fopen, streamers, streamers_)
+    console.log('_dryrun_', _dryrun, dryrun, dryrun_)
+    console.log('ops, results', ops, results)
+  }
+
+  const success = (number, data) => {
+    results[number] = { data }
+    res.status(200).json(results) 
+  }
+
+  const destroyed = false
+  const destroy = () => {
+  }
+
+  const error = (number, err) => {
+    if (!destroyed) {
+      destroy()
+    }
+ 
+  }
+
+  const blocked = number => {
+    let running = results
+      .slice(0, number)
+      .filter(x => !x.hasOwnProperty('data') && !x.hasOwnProperty('error'))
+
+    return !!running.find(x => x.toName === results[number].fromName)
+  }
+
+  const execute = x => {
+    if (x.opts) { // file
+      if (x.opts.append) {
+
+      } else {
+
+      }
+    } else { // field
+    }
+  }
+
+  // parsers_ -> ops
+  // _dryrun -> dryrun
+  // dryrun_ && streamers_ -> ops 
+  const schedule = () => {
+
+    while (true) {
+      let index = _dryrun.findIndex(n => !blocked(n))
+      if (index === -1) break
+
+      let num = _dryrun.splice(index, 1).pop()
+      dryrun.push(num)
+    
+      setTimeout(() => {
+        dryrun.splice(dryrun.indexOf(num), 1)
+        dryrun_.push(num)
+      })
+    }
+
+    while (true) {
+      let x = streamers_.find(x => !blocked(x.number) && dryrun_.includes(x.number)) 
+      if (!x) break
+
+      streamers_.splice(streamers_.indexOf(x), 1)
+      dryrun_.splice(dryrun_.indexOf(x.number), 1)
+
+      execute(x)
+    }
+  }
+
+  const handleFirstError = err => console.log('first error', err)
+
+  let dicer = new Dicer({ boundary: m[1] || m[2] })
+
+  let count = 0
+  dicer.on('part', part => {
+    print('on part') 
+    results.push({})
+
+    let x = { number: count++, part }
+    parts.push(x)
+    part.on('error', handleFirstError)
+    part.on('header', header => {
+      print('on header')
+
+      let props
+      try {
+        props = parseHeader(header)
+      } catch (e) {
+        handleFirstError(e)
+        return
+      }
+      
+      Object.assign(results[x.number], {
+        fromName: props.fromName,
+        toName: props.toName
+      })
+
+      // remove out of parts
+      parts.splice(parts.indexOf(x), 1)
+
+      Object.assign(x, props)
+      if (x.filename) {
+        fopen.push(x) 
+        x.tmp = path.join(getFruit().getTmpDir(), UUID.v4())
+        fs.open(x.tmp, 'a+', (err, fd) => {
+          print('on open')
+
+          if (err) {
+            error(x.number, err)
+          } else {
+            fopen.splice(fopen.indexOf(x), 1) 
+            streamers.push(x)
+
+            x.ws = fs.createWriteStream(null, { fd })
+            x.hs = new HashStream(fd)
+
+            x.ws.on('error', err => error(x.number, err)) 
+            x.ws.on('finish', () => {
+              x.hs.end(x.ws.bytesWritten)
+              delete x.ws
+            })
+
+            x.hs.on('error', err => error(x.number, err))
+            x.hs.on('data', data => {
+              print('on stream end')
+              
+              streamers.splice(streamers.indexOf(x), 1)
+              delete x.part              
+              delete x.ws
+              delete x.hs
+              x.digest = data
+              
+              streamers_.push(x)
+
+              print('before schedule')
+              schedule()
+              print('after schedule')
+            })
+
+            x.part.pipe(x.ws)
+          }
+        })
+        
+        _dryrun.push(x.number)
+        schedule()
+
+      } else {
+        // push into parsers
+        parsers.push(x)
+        x.buffers = []
+
+        // error handler already hooked
+        part.on('data', data => x.buffers.push(data))
+        part.on('end', () => {
+
+          try {
+            Object.assign(x, JSON.parse(Buffer.concat(x.buffers)))
+          } catch (e) {
+            handlFirstError(e)  
+            return
+          }
+
+          delete x.buffers
+          delete x.part
+          parsers.splice(parsers.indexOf(x), 1)
+
+          // push into ops, or do ops
+          ops.push(x)           
+          getFruit().mkdirp(user, driveUUID, dirUUID, x.toName, (err, xstat) => {
+            success(x.number, xstat)
+          })
+        })
+      }
+
+    }) 
+  })
+
+  req.pipe(dicer)
+})
+
+ 
 
 /**
 040 GET a single entry (download a file)
 */
 router.get('/:driveUUID/dirs/:dirUUID/entries/:entryUUID', fruitless, auth.jwt(), 
   f(async (req, res) => {
-    let user = req.uesr
+    let user = req.user
     let { driveUUID, dirUUID } = req.params
     let { name } = req.query
 
