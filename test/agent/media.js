@@ -247,7 +247,7 @@ describe(path.basename(__filename), () => {
 
   })
 
-  describe("alice, bob permision test", () => {
+  describe("alice, bob permission test", () => {
 
     let token
 
@@ -475,7 +475,7 @@ describe(path.basename(__filename), () => {
             done()
           })
       })
-      
+
       it("Media get data should return file for bob", done => {
         let downloadPath = path.join(tmptest, 'downloaded')
         let ws = fs.createWriteStream(downloadPath)
