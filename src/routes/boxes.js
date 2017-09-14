@@ -161,7 +161,7 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
 
     const finalize = () => {
       if (finished) return
-      if (formFinished && fileFinished) {
+      if (formFinished) {
         finished = true
         if (error)
           return res.status(500).json({ code: error.code, message: error.message })
@@ -220,8 +220,9 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
       }
 
       if (type === 'list') {
-        let id = JSON.parse(file.name).id
-        let index = arr.findIndex(i => i.id === id)
+        // let id = JSON.parse(file.name).id
+        // let index = arr.findIndex(i => i.id === id)
+        let index = arr.findIndex(i => i.sha256 === file.hash)
 
         if (index !== -1) {
           check(arr[index].size, arr[index].sha256, file)          
@@ -231,6 +232,23 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
           rimraf(file.path, () => {})
         }
       }
+    })
+
+    form.on('error', err => {
+      if (finished) return
+      return finished = true && res.status(500).json({ code: err.code, message: err.message })
+    })
+    
+    form.on('aborted', () => {
+      if (finished) return
+      return finished = true && res.status(500).json({
+        code: 'EABORTED',
+        message: 'aborted'
+      })
+    })
+
+    form.on('end', () => {
+      formFinished = true
 
       if (type === 'blob' || arr.every(i => i.finish)) {
         let props
@@ -243,30 +261,18 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
         getFruit().createTweetAsync(req.user, boxUUID, props)
           .then(result => {
             data = result
-            fileFinished = true
             finalize()
           })
           .catch(err => {
             error = err
-            fileFinished = true
             finalize()
           }) 
+      } else {
+        return finished = true && res.status(404).json({ 
+          code: 'EFILE',
+          message: 'necessary file not uploaded'
+        })
       }
-    })
-
-    form.on('error', err => {
-      if (finished) return
-      return finished = true && res.status(500).json({ code: err.code, message: err.message })
-    })
-    
-    form.on('aborted', () => {
-      if (finished) return
-      finished = true
-    })
-
-    form.on('end', () => {
-      formFinished = true
-      finalize()
     })
 
     form.parse(req)
@@ -357,7 +363,7 @@ router.post('/:boxUUID/commits', fruitless, auth, (req, res, next) => {
     form.on('aborted', () => {
       if (finished) return
       let err = new Error('aborted')
-      finished = true && res.status(500).json(err)
+      return finished = true && res.status(500).json(err)
     })
 
     form.on('end', () => {

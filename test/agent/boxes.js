@@ -354,15 +354,15 @@ describe(path.basename(__filename), () => {
       let obj = {
         comment: 'hello',
         type: 'list',
-        list: [{size: FILES.alonzo.size, sha256: FILES.alonzo.hash, filename: FILES.alonzo.name, id: uuid_2},
-               {size: FILES.vpai001.size, sha256: FILES.vpai001.hash, filename: FILES.vpai001.name, id: uuid_3}]
+        list: [{size: FILES.alonzo.size, sha256: FILES.alonzo.hash, filename: FILES.alonzo.name},
+               {size: FILES.vpai001.size, sha256: FILES.vpai001.hash, filename: FILES.vpai001.name}]
       }
       request(app)
         .post(`/boxes/${boxUUID}/tweets`)
         .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
         .field('list', JSON.stringify(obj))
-        .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', JSON.stringify({id: uuid_2}))
-        .attach('vpai001', 'testdata/vpai001.jpg', JSON.stringify({id: uuid_3}))
+        .attach('alonzo.jpg', 'testdata/alonzo_church.jpg')
+        .attach('vpai001', 'testdata/vpai001.jpg')
         .expect(200)
         .end((err, res) => {
           if (err) return done(err)
@@ -373,6 +373,22 @@ describe(path.basename(__filename), () => {
           expect(res.body.type).to.equal('list')
           done()
         })
+    })
+
+    it('POST /boxes/{uuid}/tweets should return 404 if file in list not uploaded', done => {     
+      let obj = {
+        comment: 'hello',
+        type: 'list',
+        list: [{size: FILES.alonzo.size, sha256: FILES.alonzo.hash, filename: FILES.alonzo.name},
+               {size: FILES.vpai001.size, sha256: FILES.vpai001.hash, filename: FILES.vpai001.name}]
+      }
+      request(app)
+        .post(`/boxes/${boxUUID}/tweets`)
+        .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
+        .field('list', JSON.stringify(obj))
+        .attach('vpai001', 'testdata/vpai001.jpg')
+        .expect(404)
+        .end(done)
     })
 
     it('POST /boxes/{uuid}/tweets should cover the last record if it is incorrect', done => {
