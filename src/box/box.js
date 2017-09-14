@@ -246,7 +246,11 @@ class Box {
   ]
    */
   // commit and tree are stored in docStore
-
+  /**
+   * estimate whether a root is exist in a box
+   * @param {string} rootTreeHash - root tree object hash
+   * @return {boolean}
+   */
   async rootExistInBox(rootTreeHash) {
     let branches = await this.retrieveAllBranchesAsync()
     let exist, _this = this
@@ -271,6 +275,11 @@ class Box {
     return exist
   }
 
+  /**
+   * list a tree object
+   * @param {string} rootTreeHash - root tree object hash
+   * @return {array} a hash set of all trees and blobs in root(include itself)
+   */
   async getRootListAsync(rootTreeHash) {
     let hashSet = new Set()
     let _this = this
@@ -295,12 +304,12 @@ class Box {
   /**
  * create a commit
  * @param {Object} props 
- * @param {string} props.root - hash string, root tree object
- * @param {string} props.committer - user global ID
- * @param {string} props.parent - parent commit
- * @param {string} props.branch - branch ID, commit on this branch
- * @param {array} props.toUpload - hash string array, the hash of file to upload
- * @param {array} props.uploaded - hash string array, the hash of file uploaded
+ * @param {string} props.root - required, hash string, root tree object
+ * @param {string} props.committer - required, user global ID
+ * @param {string} props.parent - optional, parent commit
+ * @param {string} props.branch - optional, branch ID, commit on this branch
+ * @param {array} props.toUpload - optional, hash string array, the hash of file to upload
+ * @param {array} props.uploaded - optional, hash string array, the hash of file uploaded
  * @return {string} sha256 of commit object
  */
   async createCommitAsync(props) {
