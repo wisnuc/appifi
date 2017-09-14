@@ -88,6 +88,7 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(),
     if (!req.is('multipart/form-data')) {
       return res.status(415).json({ message: 'must be multipart/form-data' })
     }
+    if(!getFruit().userCanWrite(user, req.params.driveUUID)) throw Object.assign(new Error('Permission Denied'), { status: 401})
     let writer = new Writedir(req)
     writer.on('finish', () => {
       if (writer.error) {

@@ -361,13 +361,12 @@ class Fruitmix extends EventEmitter {
   }
 
   getDriveDirs (user, driveUUID) {
-    if (!this.driveList.roots.has(driveUUID)) {
-      throw Object.assign(new Error('drive not found'), { status: 404 })
-    }
+    if(!this.userCanRead(user, driveUUID)) throw Object.assign(new Error('Permission Denied'), { status: 401})
     return this.driveList.getDriveDirs(driveUUID)
   }
 
   async getDriveDirAsync (user, driveUUID, dirUUID, metadata) {
+    if(!this.userCanRead(user, driveUUID)) throw Object.assign(new Error('Permission Denied'), { status: 401})
     let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
     if (!dir) throw Object.assign(new Error('drive or dir not found'), { status: 404 })
 
@@ -390,6 +389,7 @@ class Fruitmix extends EventEmitter {
   }
 
   getDriveDirPath (user, driveUUID, dirUUID) {
+    if(!this.userCanRead(user, driveUUID)) throw Object.assign(new Error('Permission Denied'), { status: 401})
     let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
     if (!dir) throw 404 // FIXME
     return dir.abspath()
@@ -705,7 +705,7 @@ class Fruitmix extends EventEmitter {
   userCanRead(user, dirUUID) {
     //TODO: return false??
     if(!this.driveList.uuidMap.has(dirUUID))
-      throw new Error('drive not found')
+      throw Object.assign(new Error('drive not found'), { status: 404 })
     let drive = this.driveList.uuidMap.get(dirUUID)
     let rootDrive = drive.root()
     let userDrives = this.getDrives(user)
@@ -715,7 +715,7 @@ class Fruitmix extends EventEmitter {
 
   userCanWrite(user, dirUUID) {
     if(!this.driveList.uuidMap.has(dirUUID))
-      throw new Error('drive not found')
+      throw Object.assign(new Error('drive not found'), { status: 404 })
     let drive = this.driveList.uuidMap.get(dirUUID)
     let rootDrive = drive.root()
 
