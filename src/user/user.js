@@ -99,7 +99,7 @@ const userEntryMProps = [
 
 const assert = (predicate, message) => {
   if (!predicate)
-    throw Object.assign({}, new Error(message), { status: 403 });
+    throw Object.assign(new Error(message), { status: 403 });
 }
 
 const unique = arr => new Set(arr).size === arr.length

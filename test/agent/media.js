@@ -246,4 +246,254 @@ describe(path.basename(__filename), () => {
     })
 
   })
+
+  describe("alice, bob permision test", () => {
+
+    let token
+
+    image1Size = 190264
+    let image1 =  { 
+      m: 'JPEG',
+      w: 1200,
+      h: 800,
+      size: 190,
+      hash: 'ec73573659424a860569e60e0f5ff97b23c7bfb329f53329f6a49b8d1712baae'
+    }
+    image2Size = 201090
+    let image2 = {
+      m: 'JPEG',
+      w: 1200,
+      h: 800,
+      size: 201,
+      hash: '2c4dfc6c9108dc1e0b79112e00a9431e4cdd1282813a4df9b4ec77d4fb5e08db'
+    }
+    image3Size = 21834
+    let image3 =  { 
+      m: 'JPEG',
+      w: 1200,
+      h: 800,
+      size: 21,
+      hash: '88f5217cac2322e810990547708f17c3c8af4ea013b8b4cadbf1822333b8e5bd'
+    }
+
+    beforeEach(async () => {
+      await resetAsync()
+      await createUserAsync('alice') 
+      aliceToken = await retrieveTokenAsync('alice')
+      // await create
+      await createUserAsync('bob', aliceToken, true)
+      bobToken = await retrieveTokenAsync('bob')
+
+      await new Promise((resolve, reject) => {
+
+        // for 1.jpg
+        let size = image1Size
+        let sha256 = image1.hash
+
+        let url = `/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`
+        request(app)
+          .post(url)
+          .set('Authorization', 'JWT ' + aliceToken)
+          .attach('1.jpg', 'testdata/1.jpg', JSON.stringify({ size, sha256 }))
+          .expect(200)
+          .end((err, res) => err ? reject(err) : resolve())
+      })
+
+      // this delay is required for generating metadata
+      await Promise.delay(500)
+    })
+
+    it("Media List should return [] for bob", done => {
+      request(app)
+        .get(`/media`)
+        .set('Authorization', 'JWT ' + bobToken)
+        .expect(200)
+        .end((err, res) => {
+          if (err) return done(err)
+          expect(res.body).to.deep.equal([])
+          done()
+        })
+    })
+
+    it("Media List should return [{image1}] for alice", done => {
+      request(app)
+        .get(`/media`)
+        .set('Authorization', 'JWT ' + aliceToken)
+        .expect(200)
+        .end((err, res) => {
+          if (err) return done(err)
+          expect(res.body).to.deep.equal([image1])
+          done()
+        })
+    })
+
+    it("Media List should return [{image1}] for alice, and return [{image2}] for bob", done => {
+      let url = `/drives/${IDS.bob.home}/dirs/${IDS.bob.home}/entries`
+      request(app)
+        .post(url)
+        .set('Authorization', 'JWT ' + bobToken)
+        .attach('2.jpg', 'testdata/2.jpg', JSON.stringify({ size:image2Size, sha256:image2.hash }))
+        .expect(200)
+        .end((err, res) => {
+          if(err) return done(err)
+           setTimeout(function() {
+            request(app)
+            .get(`/media`)
+            .set('Authorization', 'JWT ' + aliceToken)
+            .expect(200)
+            .end((err, res) => {
+              if (err) return done(err)
+              expect(res.body).to.deep.equal([image1])
+
+              request(app)
+              .get(`/media`)
+              .set('Authorization', 'JWT ' + bobToken)
+              .expect(200)
+              .end((err, res) => {
+                if (err) return done(err)
+                expect(res.body).to.deep.equal([image2])
+                done()
+              })
+            })
+           }, 500);
+        })
+    })
+
+    it("Media get metadata should return 401 for bob", done => {
+      request(app)
+        .get(`/media/${ image1.hash }`)
+        .set('Authorization', 'JWT ' + bobToken)
+        .expect(401)
+        .end((err, res) => {
+          if (err) return done(err)
+          done()
+        })
+    })
+
+    it("Media get metadata should return [image1] for bob", done => {
+      let url = `/drives/${IDS.bob.home}/dirs/${IDS.bob.home}/entries`
+      request(app)
+        .post(url)
+        .set('Authorization', 'JWT ' + bobToken)
+        .attach('1.jpg', 'testdata/1.jpg', JSON.stringify({ size:image1Size, sha256:image1.hash }))
+        .expect(200)
+        .end((err, res) => {
+          if(err) return done(err)
+          setTimeout(() => {
+            request(app)
+            .get(`/media/${ image1.hash }`)
+            .set('Authorization', 'JWT ' + bobToken)
+            .expect(200)
+            .end((err, res) => {
+              if (err) return done(err)
+              expect(res.body).to.deep.equal(image1)
+              done()
+            })
+          }, 500)
+        })
+    })
+
+    describe("test for public drive", () => {
+      beforeEach(async () => {
+        let props = {
+          writelist: [IDS.bob.uuid],
+          label: 'hello'
+        }
+        await createPublicDriveAsync(props, aliceToken, IDS.publicDrive1.uuid)
+
+        await new Promise((resolve, reject) => {
+
+          // for 2.jpg
+          let size = image2Size
+          let sha256 = image2.hash
+
+          let url = `/drives/${IDS.publicDrive1.uuid}/dirs/${IDS.publicDrive1.uuid}/entries`
+          request(app)
+            .post(url)
+            .set('Authorization', 'JWT ' + aliceToken)
+            .attach('2.jpg', 'testdata/2.jpg', JSON.stringify({ size, sha256 }))
+            .expect(200)
+            .end((err, res) => err ? reject(err) : resolve())
+        })
+
+        // this delay is required for generating metadata
+        await Promise.delay(500)
+      })
+
+      it("Media List should return [{image2}] for bob", done => {
+        request(app)
+          .get(`/media`)
+          .set('Authorization', 'JWT ' + bobToken)
+          .expect(200)
+          .end((err, res) => {
+            if (err) return done(err)
+            expect(res.body).to.deep.equal([image2])
+            done()
+          })
+      })
+      
+      it("Media List should return [{image1}] for alice", done => {
+        request(app)
+          .get(`/media`)
+          .set('Authorization', 'JWT ' + aliceToken)
+          .expect(200)
+          .end((err, res) => {
+            if (err) return done(err)
+            expect(res.body).to.deep.equal([image1])
+            done()
+          })
+      })
+
+      it("Media get metadata should return 401 for alice", done => {
+        request(app)
+          .get(`/media/${ image2.hash }`)
+          .set('Authorization', 'JWT ' + aliceToken)
+          .expect(401)
+          .end((err, res) => {
+            if (err) return done(err)
+            done()
+          })
+      })
+
+      it("Media get thumbnail should return 401 for alice", done => {
+        request(app)
+          .get(`/media/${ image2.hash }?alt=thumbnail&height=160`)
+          .set('Authorization', 'JWT ' + aliceToken)
+          .expect(401)
+          .end((err, res) => {
+            if (err) return done(err)
+            done()
+          })
+      })
+      it("Media get data should return 401 for alice", done => {
+        request(app)
+          .get(`/media/${ image2.hash }?alt=data`)
+          .set('Authorization', 'JWT ' + aliceToken)
+          .expect(401)
+          .end((err, res) => {
+            if (err) return done(err)
+            done()
+          })
+      })
+      
+      it("Media get data should return file for bob", done => {
+        let downloadPath = path.join(tmptest, 'downloaded')
+        let ws = fs.createWriteStream(downloadPath)
+  
+        ws.on('close', () => {
+          expect(ws.bytesWritten).to.equal(image2Size)
+          let data = fs.readFileSync(downloadPath)
+          let sha256 = crypto.createHash('sha256').update(data).digest('hex')
+          expect(sha256).to.equal(image2.hash)
+          done()
+        })
+
+        request(app)
+          .get(`/media/${ image2.hash }?alt=data`)
+          .set('Authorization', 'JWT ' + bobToken)
+          .expect(200)
+          .pipe(ws)
+      })
+    })
+  })
 })

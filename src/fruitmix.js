@@ -729,33 +729,45 @@ class Fruitmix extends EventEmitter {
     return false
   }
 
+  userCanReadMedia(user, fingerprint) {
+    if(!this.driveList.hashMap.has(fingerprint))
+      throw Object.assign(new Error('media not found'), { status: 404 })
+    let medias = Array.from(this.driveList.hashMap.get(fingerprint))
+    let userDrives = this.getDrives(user).map( d => d.uuid)
+    if(medias.find(media => userDrives.indexOf(media.root().uuid) !== -1))
+      return true
+    return false
+  }
+
   getMetaList(user) {
     let drives = this.getDrives(user)
     let m = new Set()
     drives.forEach(drive => {
       let root = this.driveList.roots.get(drive.uuid)
-      if(!root) return
+      // TODO: ???
+      if(!root) return []
       root.preVisit(node => {
         if(node instanceof File && this.mediaMap.has(node.hash))
           m.add(Object.assign({}, this.mediaMap.get(node.hash), { hash: node.hash}))
       })     
     })
-    let metas = []
-    m.forEach(f => metas.push(f))
-    return metas
+    return Array.from(m)
   }
 
   // NEW API
   getMetadata (user, fingerprint) {
-    // TODO
-    return this.mediaMap.get(fingerprint)
+    if(!this.userCanReadMedia(user, fingerprint))
+       throw Object.assign(new Error('permission denied'), { status: 401 })
+    return Object.assign({}, this.mediaMap.get(fingerprint), { hash: fingerprint})
   }
 
   getFingerprints (user, ...args) {
+    //TODO: drive?
     return this.driveList.getFingerprints(...args)
   }
 
   getFilesByFingerprint (user, fingerprint) {
+    if(!this.userCanReadMedia(user, fingerprint)) throw Object.assign(new Error('permission denied'), { status: 401 })
     return this.driveList.getFilesByFingerprint(fingerprint)
   }
 
@@ -794,6 +806,7 @@ class Fruitmix extends EventEmitter {
   }
 
   getThumbnail(user, fingerprint, query, callback) {
+    if(!this.userCanReadMedia(user, fingerprint)) throw Object.assign(new Error('permission denied'), { status: 401 })
     
     let files = this.getFilesByFingerprint(user, fingerprint)
     if (files.length === 0)

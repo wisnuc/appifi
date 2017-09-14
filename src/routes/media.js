@@ -9,12 +9,8 @@ const getFruit = require('../fruitmix')
 router.get('/', auth.jwt(), (req, res) => {
 
   const user = req.user
-  const fingerprints = getFruit().getFingerprints(user)
-  const metadata = fingerprints.reduce((acc, fingerprint) => {
-    let meta = getFruit().getMetadata(user, fingerprint)
-    if (meta) acc.push(Object.assign({ hash: fingerprint }, meta))
-    return acc
-  }, [])
+  // const fingerprints = getFruit().getFingerprints(user)
+  const metadata = getFruit().getMetaList(user)
 
   res.status(200).json(metadata)
 })
@@ -53,7 +49,7 @@ router.get('/:fingerprint', auth.jwt(), (req, res, next) => {
       res.status(404).end()
     }
   } else if (query.alt === 'thumbnail') {
-
+    
     getFruit().getThumbnail(user, fingerprint, query, (err, thumb) => {
       if (err) return next(err)
       if (typeof thumb === 'string') {
