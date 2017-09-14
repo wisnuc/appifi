@@ -282,7 +282,7 @@ class Fruitmix extends EventEmitter {
   }
 
   async createPublicDriveAsync(user, props) {
-    //TODO: only admin??
+    
     if (!user) throw Object.assign(new Error('Invaild user'), { status: 400 })
     if (!user.isAdmin)
       throw Object.assign(new Error(`requires admin priviledge`), { status: 403 })
@@ -708,6 +708,12 @@ class Fruitmix extends EventEmitter {
   }  
 
   ///////////// media api //////////////
+  /**
+   * 1 own drives
+   * 2 public drive (writelist or readlist)
+   * @param {*} user 
+   * @param {*} dirUUID 
+   */
   userCanRead(user, dirUUID) {
     if(!user || !dirUUID || !dirUUID.length) throw Object.assign(new Error('Invalid parameters'), { status: 400 })
     if(!this.driveList.uuidMap.has(dirUUID))
@@ -719,6 +725,9 @@ class Fruitmix extends EventEmitter {
     return false
   }
 
+  // write maybe upload, (remove??)
+  // 1 own drives
+  // 2 public drive && (writelist or (readlist&& admin))
   userCanWrite(user, dirUUID) {
     if(!user || !dirUUID || !dirUUID.length) throw Object.assign(new Error('Invalid parameters'), { status: 400 })
     if(!this.driveList.uuidMap.has(dirUUID))
@@ -728,7 +737,8 @@ class Fruitmix extends EventEmitter {
 
     let userDrives = this.driveList.drives.filter(drv => {
       if (drv.type === 'private' && drv.owner === user.uuid) return true
-      if (drv.type === 'public' && (drv.writelist.includes(user.uuid))) return true
+      if (drv.type === 'public' && ((drv.writelist.includes(user.uuid)) || 
+        (drv.readlist.includes(user.uuid) && user.isAdmin))) return true
       return false
     })
 

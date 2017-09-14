@@ -50,9 +50,6 @@ const resetAsync = async () => {
 
 
 describe(path.basename(__filename), () => {
-
-  describe("Alice empty home", () => {
-
     let aliceToken, bobToken, stat
     image1Size = 190264
     let image1 = {
@@ -79,6 +76,7 @@ describe(path.basename(__filename), () => {
       hash: '88f5217cac2322e810990547708f17c3c8af4ea013b8b4cadbf1822333b8e5bd'
     }
 
+  describe("Alice empty home", () => {
     beforeEach(async () => {
       debug('------ I am a beautiful divider ------')
       await Promise.delay(50)
@@ -234,9 +232,50 @@ describe(path.basename(__filename), () => {
           .end((err, res) => err ? done(err) : done())
       })
     })
-
-
   })
 
+  describe("public drive permission",()=>{
+    beforeEach(async () => {
+      debug('------ I am a beautiful divider ------')
+      await Promise.delay(50)
+      await resetAsync()
+      await createUserAsync('alice')
+      aliceToken = await retrieveTokenAsync('alice')
+      // await create
+      await createUserAsync('bob', aliceToken, false)
+      bobToken = await retrieveTokenAsync('bob')
 
+      let props = {
+          readlist: [IDS.alice.uuid, IDS.bob.uuid],
+          label: 'hello'
+        }
+      await createPublicDriveAsync(props, aliceToken, IDS.publicDrive1.uuid)
+    })
+
+    it("Alice upload to public drive should return success", done => {
+      let size = image2Size
+      let sha256 = image2.hash
+
+      let url = `/drives/${IDS.publicDrive1.uuid}/dirs/${IDS.publicDrive1.uuid}/entries`
+      request(app)
+        .post(url)
+        .set('Authorization', 'JWT ' + aliceToken)
+        .attach('2.jpg', 'testdata/2.jpg', JSON.stringify({ size, sha256 }))
+        .expect(200)
+        .end((err, res) => err ? done(err) : done())
+    })
+    
+    it("bob upload to public drive should return 401", done => {
+      let size = image2Size
+      let sha256 = image2.hash
+
+      let url = `/drives/${IDS.publicDrive1.uuid}/dirs/${IDS.publicDrive1.uuid}/entries`
+      request(app)
+        .post(url)
+        .set('Authorization', 'JWT ' + bobToken)
+        .attach('2.jpg', 'testdata/2.jpg', JSON.stringify({ size, sha256 }))
+        .expect(401)
+        .end((err, res) => err ? done(err) : done())
+    })
+  })
 })  
