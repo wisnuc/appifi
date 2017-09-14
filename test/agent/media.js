@@ -249,7 +249,7 @@ describe(path.basename(__filename), () => {
 
   describe("alice, bob permission test", () => {
 
-    let token
+    let aliceToken, bobToken
 
     image1Size = 190264
     let image1 =  { 
@@ -410,7 +410,7 @@ describe(path.basename(__filename), () => {
           let url = `/drives/${IDS.publicDrive1.uuid}/dirs/${IDS.publicDrive1.uuid}/entries`
           request(app)
             .post(url)
-            .set('Authorization', 'JWT ' + aliceToken)
+            .set('Authorization', 'JWT ' + bobToken)
             .attach('2.jpg', 'testdata/2.jpg', JSON.stringify({ size, sha256 }))
             .expect(200)
             .end((err, res) => err ? reject(err) : resolve())
