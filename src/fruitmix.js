@@ -282,6 +282,11 @@ class Fruitmix extends EventEmitter {
   }
 
   async createPublicDriveAsync(user, props) {
+    //TODO: only admin??
+    if (!user) throw Object.assign(new Error('Invaild user'), { status: 400 })
+    if (!user.isAdmin)
+      throw Object.assign(new Error(`requires admin priviledge`), { status: 403 })
+    
     return this.driveList.createPublicDriveAsync(props)
   }
 
@@ -390,6 +395,7 @@ class Fruitmix extends EventEmitter {
 
   getDriveDirPath (user, driveUUID, dirUUID) {
     if(!this.userCanRead(user, driveUUID)) throw Object.assign(new Error('Permission Denied'), { status: 401})
+
     let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
     if (!dir) throw 404 // FIXME
     return dir.abspath()
@@ -703,7 +709,7 @@ class Fruitmix extends EventEmitter {
 
   ///////////// media api //////////////
   userCanRead(user, dirUUID) {
-    //TODO: return false??
+    if(!user || !dirUUID || !dirUUID.length) throw Object.assign(new Error('Invalid parameters'), { status: 400 })
     if(!this.driveList.uuidMap.has(dirUUID))
       throw Object.assign(new Error('drive not found'), { status: 404 })
     let drive = this.driveList.uuidMap.get(dirUUID)
@@ -714,6 +720,7 @@ class Fruitmix extends EventEmitter {
   }
 
   userCanWrite(user, dirUUID) {
+    if(!user || !dirUUID || !dirUUID.length) throw Object.assign(new Error('Invalid parameters'), { status: 400 })
     if(!this.driveList.uuidMap.has(dirUUID))
       throw Object.assign(new Error('drive not found'), { status: 404 })
     let drive = this.driveList.uuidMap.get(dirUUID)
@@ -730,6 +737,7 @@ class Fruitmix extends EventEmitter {
   }
 
   userCanReadMedia(user, fingerprint) {
+    if(!user || !fingerprint || !fingerprint.length) throw Object.assign(new Error('Invalid parameters'), { status: 400 })
     if(!this.driveList.hashMap.has(fingerprint))
       throw Object.assign(new Error('media not found'), { status: 404 })
     let medias = Array.from(this.driveList.hashMap.get(fingerprint))
@@ -740,6 +748,7 @@ class Fruitmix extends EventEmitter {
   }
 
   getMetaList(user) {
+    if(!user) throw Object.assign(new Error('Invaild user'), { status: 400 })
     let drives = this.getDrives(user)
     let m = new Set()
     drives.forEach(drive => {
