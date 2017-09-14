@@ -466,7 +466,8 @@ describe(path.basename(__filename), () => {
         })
     })
 
-    it("upload alonzo file only", done => {
+    it("upload alonzo file only", function (done) {
+      this.timeout(5000)
       request(app)
         .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
         .set('Authorization', 'JWT ' + token)

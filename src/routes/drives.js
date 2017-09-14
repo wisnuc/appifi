@@ -9,7 +9,7 @@ const UUID = require('uuid')
 const { isSHA256, isUUID } = require('../lib/assertion')
 const Dicer = require('dicer')
 const getFruit = require('../fruitmix')
-const HashStream = require('../lib/hash-stream')
+const TailHash = require('../lib/hash-stream')
 const Writedir = require('../tasks/writedir2')
 
 const f = af => (req, res, next) => af(req, res).then(x => x, next)
@@ -156,10 +156,11 @@ const parseHeader = header => {
       throw new Error('append is not a valid fingerprint string')
 
     opts = { size, sha256, append, overwrite }
-  }
 
-  let h = { name, fromName, toName, filename, opts }
-  return h 
+    return { type: 'file', fromName, toName, opts }
+  } else {
+    return { type: 'field', fromName, toName }
+  }
 }
 
 /**
@@ -232,220 +233,355 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
 
   const user = req.user
   const { driveUUID, dirUUID } = req.params
-
-  const regex = /^multipart\/.+?(?:; boundary=(?:(?:"(.+)")|(?:([^\s]+))))$/i
-  const m = regex.exec(req.headers['content-type'])
+  let dicer
 
   /**
 
-  parts (new) -> parser (field) -> parsers_ ------------------------> ops
+  parts (new) -> [ parser | parsers_ ) -> execute
 
-        (new) -> fopen -> pipe -> streamers -> streamers_ ----------> ops
-              \                                            
-              (fork) -> _dryrun -> dryrun -> dryrun_ (join)
+        (new) -> | -> [ fopen | pipes | hashers | hashers_ ) -> |
+                 |                                              | -> execute
+                 | -----> ( _dryrun | dryrun | dryrun_ ) -----> |
   **/
+
+  // x { number, part }
   const parts = []
+
+  /**
+  **/
   const parsers = []
+
+  /**
+  **/
   const parsers_ = []
 
+  // x { number, ..., part, tmp }
   const fopen = []
-  const pipe = []
-  const streamers = []
-  const streamers_ = []
+
+  /**
+  x { number, ..., part, tmp, fd, ws, hs }
+  **/
+  const pipes = []
+
+  /**
+  x { number, ..., tmp, bytesWritten, hs }
+  */
+  const hashers = []
+
+  /**
+  x { number, ..., tmp, bytesWritten, digest }
+  **/
+  const hashers_ = []
 
   const _dryrun = []
   const dryrun = []
   const dryrun_ = []
 
-  const ops = []
+  /**
+  file { number, ..., tmp, bytesWritten, digest }
+  field { number, ..., ??? }
+  **/
+  const executions = []
 
-  const results = []
+  const r = []
 
   // for debug
   const print = x => {
-    console.log(`---- ${x} ----`) 
-    console.log('parts, parsers_', parts, parsers, parsers_)
-    console.log('fopen, streamers_', fopen, streamers, streamers_)
-    console.log('_dryrun_', _dryrun, dryrun, dryrun_)
-    console.log('ops, results', ops, results)
+    console.log(x) 
+    console.log('  parts', parts.map(p => p.number))
+    console.log('  parsers_', parsers, parsers_)
+    console.log('  fopen', fopen.map(x => x.tmp))
+    console.log('  pipes', pipes.map(x => x.number))
+    console.log('  hashers_', hashers.map(x => x.number), hashers_.map(x => x.number))
+    console.log('  _dryrun_', _dryrun, dryrun, dryrun_)
+    console.log('  executions', executions.map(x => x.number))
+    console.log('  r', r)
   }
 
-  const success = (number, data) => {
-    results[number] = { data }
-    res.status(200).json(results) 
-  }
-
-  const destroyed = false
-  const destroy = () => {
-  }
-
-  const error = (number, err) => {
-    if (!destroyed) {
-      destroy()
+  const guard = (message, f) => {
+    return (...args) => {
+      print(`--------------------- ${message} >>>> begin`)
+      f(...args)
+      print(`--------------------- ${message} <<<< end`)
     }
- 
+  }
+
+  const pluck = (arr, x) => {
+    let index = arr.indexOf(x)
+    arr.splice(index, 1)
+  }
+
+  const error = (y, err) => {
+
+    r[y.number].error = err
+
+    parts.forEach(x => {
+      x.part.removeAllListeners('error')
+      x.part.on('error', () => {})
+      x.part.removeAllListeners('header')
+
+      if (x.number !== y.number) r[x.number].error = new Error('destroyed')
+    })
+    parts.splice(0, -1)
+
+    fopen.forEach(x => {
+      x.part.removeAllListeners('error')
+      x.part.on('error', () => {})
+
+      if (x.number !== y.number) r[x.number].error = new Error('destroyed')
+    }) 
+
+    fopen.splice(0, -1)
+
+    pipes.forEach(x => {
+      x.part.removeAllListeners('error')
+      x.part.on('error', () => {})
+      x.ws.removeAllListeners('error')
+      x.ws.on('error', () => {})
+      x.ws.removeAllListeners('finish')
+      x.hs.removeAllListeners('error')
+      x.hs.on('error', () => {})
+      x.hs.removeAllListeners('data')
+      x.part.unpipe()
+      x.ws.destroy()
+      x.hs.destroy()
+      rimraf(x.tmp, () => {})
+
+      if (x.number !== y.number) r[x.number].error = new Error('destroyed')
+    })
+    pipes.splice(0, -1)
+
+    hashers.forEach(x => {
+      x.hs.removeAllListners('error')  
+      x.hs.on('error', () => {})
+      x.hs.removeAllListners('data')
+      x.hs.destroy()
+      rimraf(x.tmp, () => {})
+
+      if (x.number !== y.number) r[x.number].error = new Error('destroyed')
+    }) 
+    hashers.splice(0, -1)
+
+    hashers_.forEach(x => {
+      rimraf(x.tmp, () => {})
+      if (x.number !== y.number) r[x.number].error = new Error('destroyed')
+    })
+    hashers_.splice(0, -1)
+
+    _dryrun.splice(0, -1)
+    dryrun.splice(0, -1)
+    dryrun_.splice(0, -1)
+
+    if (dicer) {
+      dicer.removeAllListeners('part')
+      req.unpipe(dicer)
+      dicer.end()
+      dicer = null
+    }
+
+    if (r.every(x => x.hasOwnProperty('data') || x.hasOwnProperty('error')))
+      res.status(200).json(r)
+  }
+
+  const success = (x, data) => {
+    r[x.number] = { data }
+    if (r.every(x => x.hasOwnProperty('data') || x.hasOwnProperty('error'))) {
+      res.status(200).json(r) 
+    } else {
+      schedule()
+    }
   }
 
   const blocked = number => {
-    let running = results
+    let running = r
       .slice(0, number)
       .filter(x => !x.hasOwnProperty('data') && !x.hasOwnProperty('error'))
 
-    return !!running.find(x => x.toName === results[number].fromName)
+    return !!running.find(x => x.toName === r[number].fromName)
   }
-
-  const execute = x => {
-    if (x.opts) { // file
-      if (x.opts.append) {
-
-      } else {
-
-      }
-    } else { // field
-    }
-  }
-
-  // parsers_ -> ops
-  // _dryrun -> dryrun
-  // dryrun_ && streamers_ -> ops 
-  const schedule = () => {
-
-    while (true) {
-      let index = _dryrun.findIndex(n => !blocked(n))
-      if (index === -1) break
-
-      let num = _dryrun.splice(index, 1).pop()
-      dryrun.push(num)
-    
-      setTimeout(() => {
-        dryrun.splice(dryrun.indexOf(num), 1)
-        dryrun_.push(num)
-      })
-    }
-
-    while (true) {
-      let x = streamers_.find(x => !blocked(x.number) && dryrun_.includes(x.number)) 
-      if (!x) break
-
-      streamers_.splice(streamers_.indexOf(x), 1)
-      dryrun_.splice(dryrun_.indexOf(x.number), 1)
-
-      execute(x)
-    }
-  }
-
-  const handleFirstError = err => console.log('first error', err)
-
-  let dicer = new Dicer({ boundary: m[1] || m[2] })
 
   let count = 0
-  dicer.on('part', part => {
-    print('on part') 
-    results.push({})
-
-    let x = { number: count++, part }
-    parts.push(x)
-    part.on('error', handleFirstError)
-    part.on('header', header => {
-      print('on header')
-
+  const startPart = part => { 
+    part.on('error', err => error(x.number, err))
+    part.on('header', guard('on header', header => {
       let props
       try {
         props = parseHeader(header)
       } catch (e) {
-        handleFirstError(e)
-        return
+        return error(x.number, e)
       }
-      
-      Object.assign(results[x.number], {
-        fromName: props.fromName,
-        toName: props.toName
-      })
 
-      // remove out of parts
-      parts.splice(parts.indexOf(x), 1)
-
+      pluck(parts, x)
+      Object.assign(r[x.number], { fromName: props.fromName, toName: props.toName })
       Object.assign(x, props)
-      if (x.filename) {
-        fopen.push(x) 
-        x.tmp = path.join(getFruit().getTmpDir(), UUID.v4())
-        fs.open(x.tmp, 'a+', (err, fd) => {
-          print('on open')
-
-          if (err) {
-            error(x.number, err)
-          } else {
-            fopen.splice(fopen.indexOf(x), 1) 
-            streamers.push(x)
-
-            x.ws = fs.createWriteStream(null, { fd })
-            x.hs = new HashStream(fd)
-
-            x.ws.on('error', err => error(x.number, err)) 
-            x.ws.on('finish', () => {
-              x.hs.end(x.ws.bytesWritten)
-              delete x.ws
-            })
-
-            x.hs.on('error', err => error(x.number, err))
-            x.hs.on('data', data => {
-              print('on stream end')
-              
-              streamers.splice(streamers.indexOf(x), 1)
-              delete x.part              
-              delete x.ws
-              delete x.hs
-              x.digest = data
-              
-              streamers_.push(x)
-
-              print('before schedule')
-              schedule()
-              print('after schedule')
-            })
-
-            x.part.pipe(x.ws)
-          }
-        })
-        
-        _dryrun.push(x.number)
-        schedule()
-
+      if (x.opts) {
+        startFile(x)
       } else {
-        // push into parsers
-        parsers.push(x)
-        x.buffers = []
+        startField(x)
+      }
+    }))
 
-        // error handler already hooked
-        part.on('data', data => x.buffers.push(data))
-        part.on('end', () => {
+    let x = { number: count++, part }
+    parts.push(x)
+    r.push({})
+  }
 
-          try {
-            Object.assign(x, JSON.parse(Buffer.concat(x.buffers)))
-          } catch (e) {
-            handlFirstError(e)  
-            return
-          }
+  const startField = x => {
+    // push into parsers
+    parsers.push(x)
+    x.buffers = []
 
-          delete x.buffers
-          delete x.part
-          parsers.splice(parsers.indexOf(x), 1)
+    // error handler already hooked
+    x.part.on('data', data => x.buffers.push(data))
+    x.part.on('end', () => {
 
-          // push into ops, or do ops
-          ops.push(x)           
-          getFruit().mkdirp(user, driveUUID, dirUUID, x.toName, (err, xstat) => {
-            success(x.number, xstat)
-          })
-        })
+      try {
+        Object.assign(x, JSON.parse(Buffer.concat(x.buffers)))
+      } catch (e) {
+        return error(x, e)
       }
 
-    }) 
-  })
+      delete x.buffers
+      delete x.part
+      pluck(parsers, x)
 
+      // push into executions, or do executions
+      executions.push(x)           
+      getFruit().mkdirp(user, driveUUID, dirUUID, x.toName, (err, xstat) => {
+        success(x, xstat)
+      })
+    })
+  }
+
+  const startFile = x => {
+    fopen.push(x) 
+    x.tmp = path.join(getFruit().getTmpDir(), UUID.v4())
+    fs.open(x.tmp, 'a+', guard('on open', (err, fd) => {
+      if (err) {
+        error(x.number, err)
+      } else {
+        pluck(fopen, x) 
+        x.fd = fd
+        startPipe(x)
+      }
+    }))
+    
+    let y = { number: x.number }
+    _dryrun.push(y)
+    try {
+      schedule()
+    } catch (e) {
+      console.log(e)
+    }
+  }
+
+  const startPipe = x => {
+    x.ws = fs.createWriteStream(null, { fd: x.fd })
+    x.ws.on('error', err => error(x.number, err)) 
+    x.ws.on('finish', guard('on pipe finish', () => {
+      x.bytesWritten = x.ws.bytesWritten
+      delete x.fd
+      delete x.part 
+      delete x.ws
+
+      if (x.bytesWritten !== x.opts.size) {
+        x.hs.removeListener('error', error) 
+        x.hs.on('error', () => {})
+        x.hs.destroy()
+
+        let err = new Error('size mismatch')
+        err.status = 403
+        error(x.number, err)
+      } else {
+        pipes.splice(pipes.indexOf(x), 1)
+        waitHash(x)
+      }
+    }))
+
+    x.hs = new TailHash(x.fd)
+    x.hs.on('error', err => error(x.number, err))
+    x.part.pipe(x.ws)
+
+    pipes.push(x)
+  }
+
+  const waitHash = x => {
+    hashers.push(x)
+    x.hs.end(x.bytesWritten)
+    x.hs.on('data', guard('on hash finish', data => {
+      hashers.splice(hashers.indexOf(x), 1)
+      if (data !== x.opts.sha256) {
+        let err = new Error('size mismatch')
+        err.status = 403
+        error(x.number, err)
+      } else {
+        x.digest = data
+        hashers_.push(x)
+        schedule()
+      }
+    }))
+  }
+
+  const execute = x => {
+    executions.push(x)
+    if (x.opts) { // file
+      if (x.opts.append) {
+          
+      } else {
+        getFruit().createNewFile(user, driveUUID, dirUUID, x.toName, x.tmp, x.digest, x.opts.overwrite, 
+          guard('on new file return', (err, xstat) => {
+            executions.splice(executions.indexOf(x), 1)
+            if (err) {
+              error(x, err)
+            } else {
+              success(x, xstat)
+            } 
+          }))
+      }
+    } else { // field
+      
+    }
+  }
+
+  // parsers_ -> executions
+  // _dryrun -> dryrun
+  // dryrun_ && hashers_ -> executions 
+  const schedule = () => {
+
+    while (true) {
+      let y = _dryrun.find(y => !blocked(y.number))
+      if (!y) break
+
+      pluck(_dryrun, y)
+      dryrun.push(y)
+   
+      // FIXME 
+      setTimeout(() => {
+        pluck(dryrun, y)
+        delete y.timer
+        dryrun_.push(y)
+        schedule()
+      }, 500)
+    }
+
+    // hashers_ && dryrun_ join
+    while (true) {
+      let x = hashers_.find(x => !blocked(x.number) && !!dryrun_.find(y => y.number === x.number)) 
+      if (!x) break
+      hashers_.splice(hashers_.indexOf(x), 1)
+      let y = dryrun_.find(y => y.number === x.number)
+      dryrun_.splice(dryrun_.indexOf(y), 1)
+      execute(x)
+    }
+  }
+
+  const regex = /^multipart\/.+?(?:; boundary=(?:(?:"(.+)")|(?:([^\s]+))))$/i
+  const m = regex.exec(req.headers['content-type'])
+
+  dicer = new Dicer({ boundary: m[1] || m[2] })
+  dicer.on('part', guard('on part', startPart))
   req.pipe(dicer)
 })
-
- 
 
 /**
 040 GET a single entry (download a file)
@@ -466,8 +602,6 @@ router.get('/:driveUUID/dirs/:dirUUID/entries/:entryUUID', fruitless, auth.jwt()
 
     res.status(200).sendFile(filePath)
   }))
-
-
 
 module.exports = router
 

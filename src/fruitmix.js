@@ -16,7 +16,7 @@ const { assert, isUUID, isSHA256, validateProps } = require('./common/assertion'
 
 const CopyTask = require('./tasks/fruitcopy')
 
-const { readXstat } = require('./lib/xstat')
+const { readXstat, forceXstat } = require('./lib/xstat')
 
 /**
 Fruitmix is the facade of internal modules, including user, drive, forest, and box.
@@ -814,6 +814,47 @@ class Fruitmix extends EventEmitter {
         callback(null, xstat)
       })
     })
+  }
+
+  createNewFile(user, driveUUID, dirUUID, name, tmp, hash, overwrite, callback) {
+
+    let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
+    if (!dir) {
+      let err = new Error('drive or dir not found')
+      err.status = 404
+      return process.nextTick(() => callback(err))
+    }
+
+    let dst = path.join(dir.abspath(), name)
+    if (overwrite) {
+      readXstat(dst, (err, xstat) => {
+        if (err) return callback(err)
+        if (xstat.uuid !== overwrite) {
+          let err = new Error('overwrite (uuid) mismatch') 
+          err.status = 403
+          return callback(err)
+        }
+
+        forceXstat(tmp, { uuid: xstat.uuid, hash }, (err, xstat) => {
+          if (err) return callback(err) 
+          fs.rename(tmp, dst, err => {
+            if (err) return callback(err)
+            return callback(null, xstat)
+          }) 
+        })
+      })
+    } else {
+      forceXstat(tmp, { hash }, (err, xstat) => {
+        if (err) return callback(err)
+        fs.link(tmp, dst, err => {
+          if (err) {
+            callback(err)
+          } else {
+            callback(null, xstat)
+          }
+        })
+      })
+    }
   }
 }
 
