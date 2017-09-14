@@ -310,77 +310,82 @@ class Box {
       if (branch.head !== props.parent) throw new E.EHEAD()
     }
     // if branch exist, parent must exist
-    if(props.branch && !props.parent)
+    if (props.branch && !props.parent)
       throw Object.assign(new Error('parent must exist if branch exist'), { status: 400 })
-    // toUpload should equal to uploaded
-    if (props.toUpload && props.uploaded) {
+    
+    let exist = await this.rootExistInBox(props.root)
+    if (!exist) {
+      // toUpload should equal to uploaded
+      if (!props.toUpload && !props.uploaded)
+        throw Object.assign(new Error('toUpload and uploaded must exist'), { status: 400 })
       if (complementArray(props.toUpload, props.uploaded).length !== 0) 
         throw Object.assign(new Error('something required is not uploaded'), { status: 400 })
       if (complementArray(props.uploaded, props.toUpload).length !== 0) 
         throw Object.assign(new Error('something unnecessary is uploaded'), { status: 400 })
-    }
 
-    let universe = [], tree = [], blob = []
-    if (props.parent) {
-      let commit = await this.ctx.ctx.docStore.retrieveAsync(props.parent)
-      universe = await this.getRootListAsync(commit.tree)
-    }
-    // no intersectionn (universe and uploaded)
-    if (complementArray(universe, props.uploaded) !== universe)
-      throw Object.assign(new Error('some file already exist uploaded again'), { status: 500 })
-
-    // children first - a tree object is valid, children valid first
-    let validation = (root) => {
-      if (universe.includes(root)) return
-      else if (props.uploaded.includes(root)) {
-        let fpath = path.join(this.ctx.ctx.getTmpDir(), root)
-        let data = fs.readFileSync(fpath)
-
-        // get tree object
-        try {
-          data = JSON.parse(data.toString())
-        } catch(e) {
-          if (e instanceof SyntaxError)
-            throw Object.assign(new Error('invalid tree object format'), { status: 500 })
-          else throw e
-        }
-        
-        data.forEach(item => {
-          // validate format of content in tree object
-          if (item[0] !== 'blob' && item[0] !== 'tree')
-            throw Object.assign(new Error('invalid object type'), { status: 500 })
-          if (typeof item[1] === 'string')
-            throw Object.assign(new Error('name should be string'), { status: 500 })
-          if (!isSHA256(item[2]))
-            throw Object.assign(new Error('invalid hash'), { status: 500 })
-
-          if (item[0] === 'blob') {
-            if (universe.includes(item[0])) return
-            else if (props.uploaded.includes(item[0])) blob.push(item[2])
-            // no less
-            else throw Object.assign(new Error('reference not found'), { status: 403 })
-          }
-          // for tree object, loop validation
-          if (item[0] === 'tree') validation(item[2])
-        })
-
-        tree.push(root)
+      let universe = [], tree = [], blob = []
+      if (props.parent) {
+        let commit = await this.ctx.ctx.docStore.retrieveAsync(props.parent)
+        universe = await this.getRootListAsync(commit.tree)
       }
-      // no less
-      else throw Object.assign(new Error('reference not found'), { status: 403 })
+      // no intersectionn (universe and uploaded)
+      if (complementArray(universe, props.uploaded) !== universe)
+        throw Object.assign(new Error('some file already exist uploaded again'), { status: 500 })
+
+      // children first - a tree object is valid, children valid first
+      let validation = (root) => {
+        if (universe.includes(root)) return
+        else if (props.uploaded.includes(root)) {
+          let fpath = path.join(this.ctx.ctx.getTmpDir(), root)
+          let data = fs.readFileSync(fpath)
+
+          // get tree object
+          try {
+            data = JSON.parse(data.toString())
+          } catch(e) {
+            if (e instanceof SyntaxError)
+              throw Object.assign(new Error('invalid tree object format'), { status: 500 })
+            else throw e
+          }
+          
+          data.forEach(item => {
+            // validate format of content in tree object
+            if (item[0] !== 'blob' && item[0] !== 'tree')
+              throw Object.assign(new Error('invalid object type'), { status: 500 })
+            if (typeof item[1] === 'string')
+              throw Object.assign(new Error('name should be string'), { status: 500 })
+            if (!isSHA256(item[2]))
+              throw Object.assign(new Error('invalid hash'), { status: 500 })
+
+            if (item[0] === 'blob') {
+              if (universe.includes(item[0])) return
+              else if (props.uploaded.includes(item[0])) blob.push(item[2])
+              // no less
+              else throw Object.assign(new Error('reference not found'), { status: 403 })
+            }
+            // for tree object, loop validation
+            if (item[0] === 'tree') validation(item[2])
+          })
+
+          tree.push(root)
+        }
+        // no less
+        else throw Object.assign(new Error('reference not found'), { status: 403 })
+      }
+
+      // validate format and value of root tree
+      validation(props.root)
+      // no more
+      if (complementArray(props.uploaded, [...tree, ...blob]).length !== 0)
+        throw Object.assign(new Error('unnecessary file is uploaded'), { status: 500 })
+
+      // store trees and blobs
+      blobpaths = blob.map(i => path.join(this.ctx.ctx.getTmpDir(), i))
+      treepaths = tree.map(i => path.join(this.ctx.ctx.getTmpDir(), i))
+      await this.ctx.ctx.blobs.storeAsync(blobpaths)
+      await this.ctx.ctx.docStore.storeAsync(treepaths)
     }
-
-    // validate format and value of root tree
-    validation(props.root)
-    // no more
-    if (complementArray(props.uploaded, [...tree, ...blob]).length !== 0)
-      throw Object.assign(new Error('unnecessary file is uploaded'), { status: 500 })
-
-    // store trees and blobs
-    blobpaths = blob.map(i => path.join(this.ctx.ctx.getTmpDir(), i))
-    treepaths = tree.map(i => path.join(this.ctx.ctx.getTmpDir(), i))
-    await this.ctx.ctx.blobs.storeAsync(blobpaths)
-    await this.ctx.ctx.docStore.storeAsync(treepaths)
+   
 
     // create commit object
     let commit = {

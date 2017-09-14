@@ -305,75 +305,79 @@ router.get('/commits/:commitHash', fruitless, auth, (req, res, next) => {
 
 router.post('/:boxUUID/commits', fruitless, auth, (req, res, next) => {
   let boxUUID = req.params.boxUUID
-  let error, obj, uploaded = []
 
-  let form = new formidable.IncomingForm()
-  // form.hash = 'sha256'
-  let finished = false, formFinished = false
+  if (req.is('multipart/form-data')) {
+    let error, obj, uploaded = []
+    let form = new formidable.IncomingForm()
+    // form.hash = 'sha256'
+    let finished = false, formFinished = false
 
-  const finalize = () => {
-    if (finished) return
-    if (formFinished) {
-      finished = true
-      if (error)
-        return res.status(500).json({ code: error.code, message: error.message})
-      else
-        return res.status(200).json(data)
+    const finalize = () => {
+      if (finished) return
+      if (formFinished) {
+        finished = true
+        if (error)
+          return res.status(500).json({ code: error.code, message: error.message})
+        else
+          return res.status(200).json(data)
+      }
     }
+
+    form.on('field', (name, value) => {
+      if (finished) return
+      if (name === 'commit') {
+        /*
+          obj: {
+            root: xxxxxx,       // hash string of a tree obj
+            parent: xxxxxx,     // commit ID
+            branch: xxxxxx,     // branch ID
+            toUpload:[]        // file should upload
+          }
+        */
+        obj = JSON.parse(value)
+      }
+    })
+
+    form.on('fileBegin', (name, file) => {
+      if (finished) return
+      let tmpdir = getFruit().getTmpDir()
+      file.path = path.join(tmpdir, file.name) // file.name should be hash string 
+    })
+
+    form.on('file', (name, file) => {
+      if (finished) return
+      uploaded.push(file.name)
+    })
+
+    form.on('error', err => {
+      if (finished) return
+      return finished = true && res.status(500).json({ code: err.code, message: err.message})
+    })
+
+    form.on('aborted', () => {
+      if (finished) return
+      let err = new Error('aborted')
+      finished = true && res.status(500).json(err)
+    })
+
+    form.on('end', () => {
+      formFinished = true
+      obj.uploaded = uploaded
+      getFruit().createCommitAsync(req.user, boxUUID, obj)
+        .then(result => {
+          data = result
+          finalize()
+        })
+        .catch(err => {
+          error = err
+          finalize()
+        })
+    })
+
+    form.parse(req)
+  } else if (req.is('application/json')) {
+    getFruit().createCommitAsync(req.user, boxUUID, req.body)
   }
-
-  form.on('field', (name, value) => {
-    if (finished) return
-    if (name === 'commit') {
-      /*
-        obj: {
-          root: xxxxxx,       // hash string of a tree obj
-          parent: xxxxxx,     // commit ID
-          branch: xxxxxx,     // branch ID
-          toUpload:[]        // file should upload
-        }
-      */
-      obj = JSON.parse(value)
-    }
-  })
-
-  form.on('fileBegin', (name, file) => {
-    if (finished) return
-    let tmpdir = getFruit().getTmpDir()
-    file.path = path.join(tmpdir, file.name) // file.name should be hash string 
-  })
-
-  form.on('file', (name, file) => {
-    if (finished) return
-    uploaded.push(file.name)
-  })
-
-  form.on('error', err => {
-    if (finished) return
-    return finished = true && res.status(500).json({ code: err.code, message: err.message})
-  })
-
-  form.on('aborted', () => {
-    if (finished) return
-    let err = new Error('aborted')
-    finished = true && res.status(500).json(err)
-  })
-
-  form.on('end', () => {
-    formFinished = true
-    obj.uploaded = uploaded
-    getFruit().createCommitAsync(req.user, boxUUID, obj)
-      .then(result => {
-        data = result
-        finalize()
-      })
-      .catch(err => {
-        error = err
-        finalize()
-      })
-  })
-
-  form.parse(req)
 })
 
 module.exports = router
