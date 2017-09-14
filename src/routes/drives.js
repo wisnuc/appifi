@@ -96,6 +96,9 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(),
     if (!req.is('multipart/form-data')) {
       return res.status(415).json({ message: 'must be multipart/form-data' })
     }
+    
+    if(!getFruit().userCanWrite(req.user, req.params.driveUUID)) throw Object.assign(new Error('Permission Denied'), { status: 401})
+    
     let writer = new Writedir(req)
     writer.on('finish', () => {
       if (writer.error) {
@@ -587,11 +590,10 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
 040 GET a single entry (download a file)
 */
 router.get('/:driveUUID/dirs/:dirUUID/entries/:entryUUID', fruitless, auth.jwt(), 
-  f(async (req, res) => {
+  (req, res) => {
     let user = req.user
     let { driveUUID, dirUUID } = req.params
     let { name } = req.query
-
     // let dir = Forest.getDriveDir(driveUUID, dirUUID)
     let dirPath = getFruit().getDriveDirPath(user, driveUUID, dirUUID)
     let filePath = path.join(dirPath, name)
@@ -601,7 +603,7 @@ router.get('/:driveUUID/dirs/:dirUUID/entries/:entryUUID', fruitless, auth.jwt()
     // move to fruitmix TODO
 
     res.status(200).sendFile(filePath)
-  }))
+  })
 
 module.exports = router
 

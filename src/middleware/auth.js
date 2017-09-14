@@ -39,7 +39,7 @@ passport.use(new JwtStrategy({
     if (!fruit) return done(EFruitUnavail, false)
 
     let user = fruit.findUserByUUID(jwt_payload.uuid)    
-    user ? done(null, user) : done(null, false)
+    user ? (user.disabled ? done(null, false) : done(null, user)) : done(null, false)
 }))
 
 module.exports = {
