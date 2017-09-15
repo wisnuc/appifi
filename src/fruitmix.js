@@ -205,44 +205,10 @@ class Fruitmix extends EventEmitter {
     if(Object.getOwnPropertyNames(body).includes('password'))
       throw Object.assign(new Error(`password is not allowed to change`), { status: 403 })
     return await this.userList.updateUserAsync(userUUID, body) 
-    // let recognized = [
-    //   'uuid', 'username', 'password', 'isFirstUser', 'isAdmin', 'avatar', 'global', 'disabled' 
-    // ] 
-
-    // Object.getOwnPropertyNames(body).forEach(name => {
-    //   if (!recognized.includes(name)) {
-    //     throw Object.assign(new Error(`unrecognized prop name ${name}`), { status: 400 })
-    //   }
-    // })
-
-    // let disallowed = [
-    //   'uuid', 'password', 'isFirstUser', 'avatar'
-    // ]
-
-    // Object.getOwnPropertyNames(body).forEach(name => {
-    //   if (disallowed.includes(name))
-    //     throw Object.assign(new Error(`${name} is not allowed to change`), { status: 403 })
-    // })
-     
-    // if (user.isFirstUser) {
-    //   if (user.uuid === userUUID) {
-    //     if (body.hasOwnProperty('isAdmin')) {
-    //       throw Object.assign(new Error('isAdmin is not allowed to change for super user'), {
-    //         status: 403
-    //       })
-    //     }
-    //     if (body.hasOwnProperty('disabled')) {
-    //       throw Object.assign(new Error('disabled is not allowed to change for super user'), {
-    //         status: 403
-    //       })
-    //     } 
-    //   } else {
-    //   }
-    // }
-    
   }
 
-  async updateUserPasswordAsync(user, body) {
+  async updateUserPasswordAsync(user, userUUID, body) {
+    if(!user || user.uuid !== userUUID) throw Object.assign(new Error('user or uuid error'), { status: 400 })
 
     if (typeof body.password !== 'string') {
       throw Object.assign(new Error('bad format'), { status: 400 })
