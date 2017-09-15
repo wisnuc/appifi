@@ -350,8 +350,7 @@ class Pipe {
     let method = data.method
     let paths = resource.split('/').filter(p => p.length)
     data.paths = [...paths]
-    debug('.....................',paths)
-
+    
     if(!paths.length) return undefined
     let r1 = paths.shift()
     switch(r1) {
@@ -577,13 +576,15 @@ class Pipe {
     let fruit = getFruit()
     if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
 
-    const fingerprints = fruit.getFingerprints(user)
-    const metadata = fingerprints.reduce((acc, fingerprint) => {
-      // let meta = Media.get(fingerprint)
-      let meta = fruit.getMetadata(null, fingerprint)
-      if (meta) acc.push(Object.assign({ hash: fingerprint }, meta))
-      return acc
-    }, [])
+    // const fingerprints = fruit.getFingerprints(user)
+    // const metadata = fingerprints.reduce((acc, fingerprint) => {
+    //   // let meta = Media.get(fingerprint)
+    //   let meta = fruit.getMetadata(null, fingerprint)
+    //   if (meta) acc.push(Object.assign({ hash: fingerprint }, meta))
+    //   return acc
+    // }, [])
+    let metadata = fruit.getMetaList(user)
+    debug('getMetaList success', metadata)
     return await this.successResponseJsonAsync(serverAddr, sessionId, metadata)
   }
 
@@ -845,6 +846,7 @@ class Pipe {
     let params = data
     debug('aaaaaaa',params)
     await requestAsync('POST', url, { params }, { 'Authorization': this.connect.token })
+    debug('request success')
   }
 
   async createBlobTweetAsync({ boxUUID, guid, comment, type, size, sha256, jobId }) {
