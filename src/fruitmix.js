@@ -13,6 +13,7 @@ const DocStore = require('./box/docStore')
 const BlobStore = require('./box/blobStore')
 const BoxData = require('./box/boxData')
 const Thumbnail = require('./lib/thumbnail2')
+const File = require('./forest/file')
 
 const { assert, isUUID, isSHA256, validateProps } = require('./common/assertion')
 
@@ -78,7 +79,8 @@ class Fruitmix extends EventEmitter {
       isFirstUser: u.isFirstUser,
       isAdmin: u.isAdmin,
       avatar: u.avatar, 
-      global: u.global
+      global: u.global,
+      disabled: u.disabled
     }))
   }
 
@@ -130,7 +132,7 @@ class Fruitmix extends EventEmitter {
   async updateUserAsync(user, userUUID, body) {
 
     let recognized = [
-      'uuid', 'username', 'password', 'isFirstUser', 'isAdmin', 'avatar', 'global' 
+      'uuid', 'username', 'password', 'isFirstUser', 'isAdmin', 'avatar', 'global', 'disabled' 
     ] 
 
     Object.getOwnPropertyNames(body).forEach(name => {
@@ -152,6 +154,11 @@ class Fruitmix extends EventEmitter {
       if (user.uuid === userUUID) {
         if (body.hasOwnProperty('isAdmin')) {
           throw Object.assign(new Error('isAdmin is not allowed to change for super user'), {
+            status: 403
+          })
+        }
+        if (body.hasOwnProperty('disabled')) {
+          throw Object.assign(new Error('disabled is not allowed to change for super user'), {
             status: 403
           })
         } 
@@ -281,6 +288,11 @@ class Fruitmix extends EventEmitter {
   }
 
   async createPublicDriveAsync(user, props) {
+    
+    if (!user) throw Object.assign(new Error('Invaild user'), { status: 400 })
+    if (!user.isAdmin)
+      throw Object.assign(new Error(`requires admin priviledge`), { status: 403 })
+    
     return this.driveList.createPublicDriveAsync(props)
   }
 
@@ -360,13 +372,12 @@ class Fruitmix extends EventEmitter {
   }
 
   getDriveDirs (user, driveUUID) {
-    if (!this.driveList.roots.has(driveUUID)) {
-      throw Object.assign(new Error('drive not found'), { status: 404 })
-    }
+    if(!this.userCanRead(user, driveUUID)) throw Object.assign(new Error('Permission Denied'), { status: 401})
     return this.driveList.getDriveDirs(driveUUID)
   }
 
   async getDriveDirAsync (user, driveUUID, dirUUID, metadata) {
+    if(!this.userCanRead(user, driveUUID)) throw Object.assign(new Error('Permission Denied'), { status: 401})
     let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
     if (!dir) throw Object.assign(new Error('drive or dir not found'), { status: 404 })
 
@@ -389,6 +400,8 @@ class Fruitmix extends EventEmitter {
   }
 
   getDriveDirPath (user, driveUUID, dirUUID) {
+    if(!this.userCanRead(user, driveUUID)) throw Object.assign(new Error('Permission Denied'), { status: 401})
+
     let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
     if (!dir) throw 404 // FIXME
     return dir.abspath()
@@ -729,18 +742,85 @@ class Fruitmix extends EventEmitter {
   }
 
   ///////////// media api //////////////
+  /**
+   * 1 own drives
+   * 2 public drive (writelist or readlist)
+   * @param {*} user 
+   * @param {*} dirUUID 
+   */
+  userCanRead(user, dirUUID) {
+    if(!user || !dirUUID || !dirUUID.length) throw Object.assign(new Error('Invalid parameters'), { status: 400 })
+    if(!this.driveList.uuidMap.has(dirUUID))
+      throw Object.assign(new Error('drive not found'), { status: 404 })
+    let drive = this.driveList.uuidMap.get(dirUUID)
+    let rootDrive = drive.root()
+    let userDrives = this.getDrives(user)
+    if(userDrives.findIndex(d => d.uuid === rootDrive.uuid) !== -1) return true
+    return false
+  }
+
+  // write maybe upload, (remove??)
+  // 1 own drives
+  // 2 public drive && (writelist or (readlist&& admin))
+  userCanWrite(user, dirUUID) {
+    if(!user || !dirUUID || !dirUUID.length) throw Object.assign(new Error('Invalid parameters'), { status: 400 })
+    if(!this.driveList.uuidMap.has(dirUUID))
+      throw Object.assign(new Error('drive not found'), { status: 404 })
+    let drive = this.driveList.uuidMap.get(dirUUID)
+    let rootDrive = drive.root()
+
+    let userDrives = this.driveList.drives.filter(drv => {
+      if (drv.type === 'private' && drv.owner === user.uuid) return true
+      if (drv.type === 'public' && ((drv.writelist.includes(user.uuid)) || 
+        (drv.readlist.includes(user.uuid) && user.isAdmin))) return true
+      return false
+    })
+
+    if(userDrives.findIndex(d => d.uuid === rootDrive.uuid) !== -1) return true
+    return false
+  }
+
+  userCanReadMedia(user, fingerprint) {
+    if(!user || !fingerprint || !fingerprint.length) throw Object.assign(new Error('Invalid parameters'), { status: 400 })
+    if(!this.driveList.hashMap.has(fingerprint))
+      throw Object.assign(new Error('media not found'), { status: 404 })
+    let medias = Array.from(this.driveList.hashMap.get(fingerprint))
+    let userDrives = this.getDrives(user).map( d => d.uuid)
+    if(medias.find(media => userDrives.indexOf(media.root().uuid) !== -1))
+      return true
+    return false
+  }
+
+  getMetaList(user) {
+    if(!user) throw Object.assign(new Error('Invaild user'), { status: 400 })
+    let drives = this.getDrives(user)
+    let m = new Set()
+    drives.forEach(drive => {
+      let root = this.driveList.roots.get(drive.uuid)
+      // TODO: ???
+      if(!root) return []
+      root.preVisit(node => {
+        if(node instanceof File && this.mediaMap.has(node.hash))
+          m.add(Object.assign({}, this.mediaMap.get(node.hash), { hash: node.hash}))
+      })     
+    })
+    return Array.from(m)
+  }
 
   // NEW API
   getMetadata (user, fingerprint) {
-    // TODO
-    return this.mediaMap.get(fingerprint)
+    if(!this.userCanReadMedia(user, fingerprint))
+       throw Object.assign(new Error('permission denied'), { status: 401 })
+    return Object.assign({}, this.mediaMap.get(fingerprint), { hash: fingerprint})
   }
 
   getFingerprints (user, ...args) {
+    //TODO: drive?
     return this.driveList.getFingerprints(...args)
   }
 
   getFilesByFingerprint (user, fingerprint) {
+    if(!this.userCanReadMedia(user, fingerprint)) throw Object.assign(new Error('permission denied'), { status: 401 })
     return this.driveList.getFilesByFingerprint(fingerprint)
   }
 
@@ -782,6 +862,7 @@ class Fruitmix extends EventEmitter {
   }
 
   getThumbnail(user, fingerprint, query, callback) {
+    if(!this.userCanReadMedia(user, fingerprint)) throw Object.assign(new Error('permission denied'), { status: 401 })
     
     let files = this.getFilesByFingerprint(user, fingerprint)
     if (files.length === 0)

@@ -10,13 +10,6 @@ const Station = require('./lib/station')
 // broadcast.emit('FruitmixStart', path.join(process.cwd(), 'tmptest'))
 // broadcast.emit('StationStart', path.join(process.cwd(), 'tmptest'))
 
-// if (process.env.NODE_ENV === 'test') {
-//   let filePath = process.env.NODE_PATH
-  // broadcast.emit('FruitmixStart', path.join(process.cwd(), 'tmptest'))
-  // broadcast.emit('StationStart', path.join(process.cwd(), 'tmptest'))
-// }
-
-
 let router = Router()
 
 // stationFinishStart,

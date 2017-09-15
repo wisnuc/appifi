@@ -244,7 +244,7 @@ router.patch('/', (req, res, next) => {
         if (mode === 'maintenance') broadcast.emit('BootModeUpdate', null, 'normal')
         broadcast.emit('FileSystemUpdate', null, current)
         broadcast.emit('FruitmixStart', froot)
-        broadcase.emit('StationStart', froot)
+        broadcast.emit('StationStart', froot)
         process.nextTick(() => res.status(200).json({ mode, last, state, current, error }))
       })
     })

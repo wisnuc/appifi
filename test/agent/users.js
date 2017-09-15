@@ -81,7 +81,8 @@ describe(path.basename(__filename), () => {
           isFirstUser: true,
           isAdmin: true,
           avatar: null,
-          global: null 
+          global: null,
+          disabled: false 
         }))
 
   })
@@ -198,7 +199,9 @@ describe(path.basename(__filename), () => {
             username: 'alice',
             isFirstUser: true,
             isAdmin: true,
-            avatar: null
+            avatar: null,
+            global: null,
+            disabled: false
           }])
           done()
         })
@@ -225,6 +228,7 @@ describe(path.basename(__filename), () => {
             isFirstUser: false,
             isAdmin: true,
             avatar: null,
+            disabled: false,
             global: null
           })
 
@@ -254,7 +258,8 @@ describe(path.basename(__filename), () => {
             isFirstUser: false,
             isAdmin: false,
             avatar: null,
-            global: null
+            global: null,
+            disabled: false
           })
 
           UUID.v4.restore()
@@ -262,7 +267,7 @@ describe(path.basename(__filename), () => {
         })
     })
 
-    it('Get A User', done => 
+    it('Get A User', done => {
       request(app)
         .get(`/users/${IDS.alice.uuid}`)
         .set('Authorization', 'JWT ' + token)
@@ -274,10 +279,22 @@ describe(path.basename(__filename), () => {
             isFirstUser: true,
             isAdmin: true,
             avatar: null,
-            global: null
+            global: null,
+            disabled: false
           })
           done()
-        }))
+        })
+    })
+
+
+    it('Patch A User, change disabled to false should fail with 403', done => {
+      request(app)
+        .patch(`/users/${IDS.alice.uuid}`)
+        .set('Authorization', 'JWT ' + token)
+        .send({ disabled: true })
+        .expect(403)
+        .end((err, res) => done(err))
+    })
 
     it('Patch A User, with unexpected prop should fail with 400', done => {
       request(app)
@@ -302,7 +319,8 @@ describe(path.basename(__filename), () => {
             isFirstUser: true,
             isAdmin: true,
             avatar: null,
-            global: null
+            global: null,
+            disabled: false
           })
 
           done()
@@ -363,13 +381,14 @@ describe(path.basename(__filename), () => {
         .end((err, res) => done(err))
     })
 
-    it('Update User Password, change password to hello should fail with token auth', done => 
+    it('Update User Password, change password to hello should fail with token auth', done => { 
       request(app)
         .put(`/users/${IDS.alice.uuid}/password`)
         .set('Authorizatoin', 'JWT ' + token)
         .send({ password: 'hello' })
         .expect(401)
-        .end((err, res) => done(err)))
+        .end((err, res) => done(err))
+    })
 
     it('Update User Password, change password to hello should succeed with basic auth', done => {
       request(app)
@@ -495,7 +514,7 @@ describe(path.basename(__filename), () => {
         })
     })
 
-    it('Get Drive List', done => 
+    it('Get Drive List', done => {
       request(app)
         .get('/drives')      
         .set('Authorization', 'JWT ' + token)
@@ -509,7 +528,8 @@ describe(path.basename(__filename), () => {
             tag: 'home'
           }])
           done()
-        }))
+        })
+    })
 
     it('Create New Public Drive', done => {
       sinon.stub(UUID, 'v4').returns(IDS.publicDrive1.uuid)      
@@ -535,7 +555,7 @@ describe(path.basename(__filename), () => {
         })
     })
 
-    it('Get A Drive, home', done => 
+    it('Get A Drive, home', done => {
       request(app)
         .get(`/drives/${IDS.alice.home}`)
         .set('Authorization', 'JWT ' + token)
@@ -549,7 +569,8 @@ describe(path.basename(__filename), () => {
             tag: 'home'
           })
           done()
-        }))
+        })
+    })
 
     it('Get A Public Drive', done => {
       sinon.stub(UUID, 'v4').returns(IDS.publicDrive1.uuid)      
@@ -581,12 +602,13 @@ describe(path.basename(__filename), () => {
         })
     })
 
-    it('Patch A Private Drive should fail with 403', done =>
+    it('Patch A Private Drive should fail with 403', done => {
       request(app)
         .patch(`/drives/${IDS.alice.home}`)
         .set('Authorization', 'JWT ' + token)
         .expect(403)
-        .end(done))
+        .end(done)
+    })
 
     it('Patch A Public Drive, with invalid prop should fail with 400', done => {
 
@@ -944,6 +966,89 @@ describe(path.basename(__filename), () => {
 
   })
 
+  describe('After alice created bob , Test disabled', () => {
+    
+    let aliceToken, bobToken
+    beforeEach(async () => {
+      await resetAsync()
+      await createUserAsync('alice') 
+      aliceToken = await retrieveTokenAsync('alice')
+      await createUserAsync('bob', aliceToken, true)
+      bobToken = await retrieveTokenAsync('bob')
+    })
+
+    it('Patch Alice(superuser), change disabled to true should fail with 403', done => {
+      request(app)
+        .patch(`/users/${IDS.alice.uuid}`)
+        .set('Authorization', 'JWT ' + aliceToken)
+        .send({ disabled: true })
+        .expect(403)
+        .end((err, res) => done(err))
+    })
+
+    it('Patch Alice(superuser), change Bob(admin) disabled to true should success', done => {
+      request(app)
+        .patch(`/users/${IDS.bob.uuid}`)
+        .set('Authorization', 'JWT ' + aliceToken)
+        .send({ disabled: true })
+        .expect(200)
+        .end((err, res) => {
+          expect(res.body).to.deep.equal({
+            avatar: null,
+            username: 'bob',
+            uuid: IDS.bob.uuid,
+            isAdmin: true,
+            isFirstUser: false,
+            global: null,
+            disabled: true
+          })
+          done()
+        })
+    })
+
+    it('Patch Alice, change Bob disabled(true) to false should success', done => {
+      request(app)
+        .patch(`/users/${IDS.bob.uuid}`)
+        .set('Authorization', 'JWT ' + aliceToken)
+        .send({ disabled: true })
+        .expect(200)
+        .end((err, res) => {
+          //twice
+          request(app)
+          .patch(`/users/${IDS.bob.uuid}`)
+          .set('Authorization', 'JWT ' + aliceToken)
+          .send({ disabled: false })
+          .expect(200)
+          .end((err, res) => {
+            expect(res.body).to.deep.equal({
+              avatar: null,
+              username: 'bob',
+              uuid: IDS.bob.uuid,
+              isAdmin: true,
+              isFirstUser: false,
+              global: null,
+              disabled: false
+            })
+            done()
+          })
+        })
+    })
+
+    it('get 401 after alice change bob disabled to true', done => {
+      request(app)
+        .patch(`/users/${IDS.bob.uuid}`)
+        .set('Authorization', 'JWT ' + aliceToken)
+        .send({ disabled: true })
+        .expect(200)
+        .end((err, res) => {
+          //twice
+          request(app)
+          .get(`/users`)
+          .set('Authorization', 'JWT ' + bobToken)
+          .send({ disabled: false })
+          .expect(401)
+          .end((err, res) => done(err))
+        })
+    })
+  })
 })
-
-

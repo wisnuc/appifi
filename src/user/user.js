@@ -99,7 +99,7 @@ const userEntryMProps = [
 
 const assert = (predicate, message) => {
   if (!predicate)
-    throw new Error(message);
+    throw Object.assign(new Error(message), { status: 403 });
 }
 
 const unique = arr => new Set(arr).size === arr.length
@@ -225,6 +225,7 @@ class UserList extends EventEmitter {
       isFirstUser: user.isFirstUser,
       isAdmin: user.isAdmin,
       avatar: user.avatar,
+      disabled: user.disabled,
       global: user.global
     }
   }
