@@ -420,6 +420,30 @@ describe(path.basename(__filename), () => {
         await Promise.delay(500)
       })
 
+      it("fix media bug to delete duplicate images", done => {
+        let size = image2Size
+        let sha256 = image2.hash
+  
+        let url = `/drives/${IDS.bob.home}/dirs/${IDS.bob.home}/entries`
+        request(app)
+          .post(url)
+          .set('Authorization', 'JWT ' + bobToken)
+          .attach('2.jpg', 'testdata/2.jpg', JSON.stringify({ size, sha256 }))
+          .expect(200)
+          .end((err, res) => {
+            if(err) return done(err)
+              request(app)
+                .get(`/media`)
+                .set('Authorization', 'JWT ' + bobToken)
+                .expect(200)
+                .end((err, res) => {
+                  if (err) return done(err)
+                  expect(res.body).to.deep.equal([image2])
+                  done()
+                })
+          })
+      })
+
       it("Media List should return [{image2}] for bob", done => {
         request(app)
           .get(`/media`)

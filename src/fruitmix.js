@@ -78,9 +78,47 @@ class Fruitmix extends EventEmitter {
     }))
   }
 
+  userCanUpdate(user, userUUID, props) {
+    let u = findUserByUUID(userUUID) //is operated
+    if(!user || !userUUID) throw Object.assign(new Error('user not found'), { status: 404 })
+    if(props === undefined || (Array.isArray(props) && props.length === 0)) return true
+    //'uuid', 'isFirstUser' can not be change
+    let recognized = [
+      'username', 'password', 'isAdmin', 'avatar', 'global', 'disabled' 
+    ]
+
+    Object.getOwnPropertyNames(props).forEach(name => {
+      if (!recognized.includes(name)) {
+        throw Object.assign(new Error(`unrecognized prop name ${name}`), { status: 400 })
+      }
+    })
+
+    let disallowed
+
+    if(user.uuid === userUUID){
+      disallowed = [ 'isAdmin', 'disabled' ]
+    }else {
+      if (user.isFirstUser) return true
+      else if (user.isAdmin) {
+        if(u.isAdmin) return false // admin and isFirstUser
+        disallowed = ['isAdmin']
+      }
+      else return false // common user
+    }
+
+    Object.getOwnPropertyNames(props).forEach(name => {
+      if (disallowed.includes(name)) {
+        throw Object.assign(new Error(`unrecognized prop name ${name}`), { status: 400 })
+      }
+    })
+    return true
+  }
+
   /**
   */
   async createUserAsync (props) {
+    // if(!user && this.hasUsers()) throw Object.assign(new Error('user not found'), { status: 400 })
+    // let recognized = !user || user.isFirstUser ? '' : ''
     let user = await this.userList.createUserAsync(props)
     let drive = await this.driveList.createPrivateDriveAsync(user.uuid, 'home') 
     return user
@@ -760,17 +798,16 @@ class Fruitmix extends EventEmitter {
   getMetaList(user) {
     if(!user) throw Object.assign(new Error('Invaild user'), { status: 400 })
     let drives = this.getDrives(user)
-    let m = new Set()
+    let m = new Map()
     drives.forEach(drive => {
       let root = this.driveList.roots.get(drive.uuid)
-      // TODO: ???
       if(!root) return []
       root.preVisit(node => {
         if(node instanceof File && this.mediaMap.has(node.hash))
-          m.add(Object.assign({}, this.mediaMap.get(node.hash), { hash: node.hash}))
+          m.set(node.hash ,Object.assign({}, this.mediaMap.get(node.hash), { hash: node.hash}))
       })     
     })
-    return Array.from(m)
+    return Array.from(m.values())
   }
 
   // NEW API
