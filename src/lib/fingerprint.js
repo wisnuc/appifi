@@ -22,9 +22,7 @@ process.on('message', message => {
   let hash = crypto.createHash('sha256')
   hash.on('error', () => process.exit(1))
   hash.on('readable', () => {
-    
-    let result = hash.read().toString('hex')
-    process.send(result, () => process.exit(0))
+    process.send(hash.read().toString('hex'), () => process.exit(0))
   })
 
   let rs = fs.createReadStream(message.filePath, { start: message.start, end: message.end })
