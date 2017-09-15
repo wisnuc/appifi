@@ -31,14 +31,14 @@ router.post('/', fruitless,
   (req, res, next) => {
     let fruit = getFruit()
     if (fruit.hasUsers()) return next()
-    fruit.createUserAsync(req.body) 
+    fruit.createUserAsync(null, req.body) 
       .then(user => res.status(200).json(user))
       .catch(next)
   }, 
   auth.jwt(), 
   (req, res, next) => {
     let fruit = getFruit()
-    fruit.createUserAsync(req.body) 
+    fruit.createUserAsync(req.user, req.body) 
       .then(user => res.status(200).json(user))
       .catch(next)
   })

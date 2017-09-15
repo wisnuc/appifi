@@ -327,12 +327,12 @@ describe(path.basename(__filename), () => {
         })
     })
 
-    it('Patch A User, change uuid should fail with 403', done => {
+    it('Patch A User, change uuid should fail with 400', done => {
       request(app)
         .patch(`/users/${IDS.alice.uuid}`)
         .set('Authorization', 'JWT ' + token)
         .send({ uuid: 'ba9d0f37-3b1e-486e-a84c-b5627e58a612' })
-        .expect(403)
+        .expect(400)
         .end((err, res) => done(err))
     }) 
 
@@ -345,12 +345,12 @@ describe(path.basename(__filename), () => {
         .end((err, res) => done(err))
     }) 
 
-    it('Patch A User, change isFirstUser to false should fail with 403', done => {
+    it('Patch A User, change isFirstUser to false should fail with 400', done => {
       request(app)
         .patch(`/users/${IDS.alice.uuid}`)
         .set('Authorization', 'JWT ' + token)
         .send({ isFirstUser: false })
-        .expect(403)
+        .expect(400)
         .end((err, res) => done(err))
     })
 
@@ -363,12 +363,12 @@ describe(path.basename(__filename), () => {
         .end((err, res) => done(err))
     })
 
-    it('Patch A User, change avatar to hello should fail with 403', done => {
+    it('Patch A User, change avatar to hello should fail with 400', done => {
       request(app)
         .patch(`/users/${IDS.alice.uuid}`)
         .set('Authorization', 'JWT ' + token)
         .send({ avatar: 'hello' })
-        .expect(403)
+        .expect(400)
         .end((err, res) => done(err))
     })
 

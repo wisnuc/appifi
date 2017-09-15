@@ -78,13 +78,35 @@ class Fruitmix extends EventEmitter {
     }))
   }
 
+
+  /**
+  {
+    uuid:         // not allowed to change
+    username:     // allowed
+    password:     // allowed
+    isFirstUser:  // not allowed to change
+    isAdmin:      // allowed
+    avatar:       // not allowed to change
+    global:       // allowed
+    disabled:     // allowed
+  }
+
+  If  userUUID is itself (superuser, admin, common user)
+    allowed: username, global, password, 
+  If user is super user, userUUID is not itself
+    allowed: isAdmin, username, password, global, disabled
+  if user is admin 
+    allowed: username, password, global, disabled
+  if user is common user
+    only can change itself
+  */ 
   userCanUpdate(user, userUUID, props) {
-    let u = findUserByUUID(userUUID) //is operated
+    let u = this.findUserByUUID(userUUID) //is operated
     if(!user || !userUUID) throw Object.assign(new Error('user not found'), { status: 404 })
     if(props === undefined || (Array.isArray(props) && props.length === 0)) return true
-    //'uuid', 'isFirstUser' can not be change
+    //'uuid', 'isFirstUser', 'avatar' can not be change
     let recognized = [
-      'username', 'password', 'isAdmin', 'avatar', 'global', 'disabled' 
+      'username', 'password', 'isAdmin', 'global', 'disabled' 
     ]
 
     Object.getOwnPropertyNames(props).forEach(name => {
@@ -108,20 +130,36 @@ class Fruitmix extends EventEmitter {
 
     Object.getOwnPropertyNames(props).forEach(name => {
       if (disallowed.includes(name)) {
-        throw Object.assign(new Error(`unrecognized prop name ${name}`), { status: 400 })
+        throw Object.assign(new Error(`unrecognized prop name ${name}`), { status: 403 })
       }
     })
     return true
   }
 
   /**
+   * if no user: create first user 
+   * if first user : recognized -> ['isAdmin', 'username', 'password',  'global', 'disabled']
+   * if admin : recognized -> [ 'username', 'password', 'global', 'disabled']
+   * if common user return 403
   */
-  async createUserAsync (props) {
-    // if(!user && this.hasUsers()) throw Object.assign(new Error('user not found'), { status: 400 })
-    // let recognized = !user || user.isFirstUser ? '' : ''
-    let user = await this.userList.createUserAsync(props)
-    let drive = await this.driveList.createPrivateDriveAsync(user.uuid, 'home') 
-    return user
+  async createUserAsync (user, props) {
+    if(!user && this.hasUsers()) throw Object.assign(new Error('user not found'), { status: 400 })
+    if(user && !user.isAdmin) throw Object.assign(new Error('permission denied'), { status: 403 })
+    let recognized = [ 'username', 'password', 'global', 'disabled']
+    if(!user || user.isFirstUser) {
+      recognized.push('isAdmin') // super user
+      let index = recognized.indexOf('disabled')
+      recognized = [...recognized.slice(0, index), ...recognized.slice(index + 1)]
+    }
+    Object.getOwnPropertyNames(props).forEach(name => {
+      if (!recognized.includes(name)) {
+        throw Object.assign(new Error(`unrecognized prop name ${name}`), { status: 400 })
+      }
+    })
+
+    let u = await this.userList.createUserAsync(props)
+    let drive = await this.driveList.createPrivateDriveAsync(u.uuid, 'home') 
+    return u
   }
 
   /**
@@ -162,43 +200,46 @@ class Fruitmix extends EventEmitter {
     allowed: isAdmin, 
   */ 
   async updateUserAsync(user, userUUID, body) {
-
-    let recognized = [
-      'uuid', 'username', 'password', 'isFirstUser', 'isAdmin', 'avatar', 'global', 'disabled' 
-    ] 
-
-    Object.getOwnPropertyNames(body).forEach(name => {
-      if (!recognized.includes(name)) {
-        throw Object.assign(new Error(`unrecognized prop name ${name}`), { status: 400 })
-      }
-    })
-
-    let disallowed = [
-      'uuid', 'password', 'isFirstUser', 'avatar'
-    ]
-
-    Object.getOwnPropertyNames(body).forEach(name => {
-      if (disallowed.includes(name))
-        throw Object.assign(new Error(`${name} is not allowed to change`), { status: 403 })
-    })
-     
-    if (user.isFirstUser) {
-      if (user.uuid === userUUID) {
-        if (body.hasOwnProperty('isAdmin')) {
-          throw Object.assign(new Error('isAdmin is not allowed to change for super user'), {
-            status: 403
-          })
-        }
-        if (body.hasOwnProperty('disabled')) {
-          throw Object.assign(new Error('disabled is not allowed to change for super user'), {
-            status: 403
-          })
-        } 
-      } else {
-      }
-    }
-
+    if(!this.userCanUpdate(user, userUUID, body))
+      throw Object.assign(new Error(`unrecognized prop name `), { status: 400 })
+    if(Object.getOwnPropertyNames(body).includes('password'))
+      throw Object.assign(new Error(`password is not allowed to change`), { status: 403 })
     return await this.userList.updateUserAsync(userUUID, body) 
+    // let recognized = [
+    //   'uuid', 'username', 'password', 'isFirstUser', 'isAdmin', 'avatar', 'global', 'disabled' 
+    // ] 
+
+    // Object.getOwnPropertyNames(body).forEach(name => {
+    //   if (!recognized.includes(name)) {
+    //     throw Object.assign(new Error(`unrecognized prop name ${name}`), { status: 400 })
+    //   }
+    // })
+
+    // let disallowed = [
+    //   'uuid', 'password', 'isFirstUser', 'avatar'
+    // ]
+
+    // Object.getOwnPropertyNames(body).forEach(name => {
+    //   if (disallowed.includes(name))
+    //     throw Object.assign(new Error(`${name} is not allowed to change`), { status: 403 })
+    // })
+     
+    // if (user.isFirstUser) {
+    //   if (user.uuid === userUUID) {
+    //     if (body.hasOwnProperty('isAdmin')) {
+    //       throw Object.assign(new Error('isAdmin is not allowed to change for super user'), {
+    //         status: 403
+    //       })
+    //     }
+    //     if (body.hasOwnProperty('disabled')) {
+    //       throw Object.assign(new Error('disabled is not allowed to change for super user'), {
+    //         status: 403
+    //       })
+    //     } 
+    //   } else {
+    //   }
+    // }
+    
   }
 
   async updateUserPasswordAsync(user, body) {
