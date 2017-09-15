@@ -347,7 +347,7 @@ const forgeRecords = async (boxUUID, username) => {
 }
 
 const createTreeObject = (dir) => {
-
+  
 }
 
 module.exports = {
