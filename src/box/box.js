@@ -246,6 +246,30 @@ class Box {
   ]
    */
   // commit and tree are stored in docStore
+
+   /**
+   * estimate whether a root is exist in a box
+   * @param {string} commitHash - commit hash
+   * @return {boolean}
+   */
+  async commitExistInBox(commitHash) {
+    let branches = await this.retrieveAllBranchesAsync()
+    let exist, _this = this
+
+    let findCommit = async head => {
+      if (commitHash === head) return true
+      let commit = await _this.ctx.ctx.docStore.retrieveAsync(head)
+      if (commit.parent) return await findCommit(commit.parent)
+    }
+
+    for (let i = 0; i < branches.length; i++) {
+      exist = await findCommit(branches[i].head)
+      if (exist) return
+    }
+
+    return exist
+  }
+
   /**
    * estimate whether a root is exist in a box
    * @param {string} rootTreeHash - root tree object hash
@@ -299,6 +323,17 @@ class Box {
 
     await getContent(rootTreeHash)
     return [...hashSet]
+  }
+
+  /**
+   * get a commit object
+   * @param {string} commitHash 
+   * @return {Object} commit Object
+   */
+  async getCommitAsync(commitHash) {
+    let exist = await this.commitExistInBox(commitHash)
+    if (!exist) throw Object.assign(new Error('commit not exist in this box'), { status: 404 })
+    else return await this.ctx.ctx.docStore.retrieveAsync(commitHash)
   }
 
   /**

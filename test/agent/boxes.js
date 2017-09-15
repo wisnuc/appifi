@@ -291,25 +291,25 @@ describe(path.basename(__filename), () => {
 
     afterEach(() => UUID.v4.restore())
 
-    it.only('POST /boxes/{uuid}/commits, should create a commit', done => {
-      let obj = {
-        root: 'aaa',       // hash string of a tree obj
-        parent: 'bbb',     // commit ID
-        branch: 'ccc',     // branch ID
-        uploadSet:['ddd']
-      }
-      request(app)
-        .post(`/boxes/${boxUUID}/commits`)
-        .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
-        .field('commit',JSON.stringify(obj))
-        .attach('alonzo.jpg', 'testdata/alonzo_church.jpg')
-        .attach('vpai001', 'testdata/vpai001.jpg')
-        .expect(200)
-        .end((err, res) => {
-          if (err) return done(err)
-          done()
-        })
-    })
+    // it.only('POST /boxes/{uuid}/commits, should create a commit', done => {
+    //   let obj = {
+    //     root: 'aaa',       // hash string of a tree obj
+    //     parent: 'bbb',     // commit ID
+    //     branch: 'ccc',     // branch ID
+    //     uploadSet:['ddd']
+    //   }
+    //   request(app)
+    //     .post(`/boxes/${boxUUID}/commits`)
+    //     .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
+    //     .field('commit',JSON.stringify(obj))
+    //     .attach('alonzo.jpg', 'testdata/alonzo_church.jpg')
+    //     .attach('vpai001', 'testdata/vpai001.jpg')
+    //     .expect(200)
+    //     .end((err, res) => {
+    //       if (err) return done(err)
+    //       done()
+    //     })
+    // })
 
     it('POST /boxes/{uuid}/tweets alice should add a tweet into tweetsDB', done => {
       request(app)

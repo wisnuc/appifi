@@ -714,6 +714,30 @@ class Fruitmix extends EventEmitter {
     return await box.deleteTweetsAsync(tweetsID)
   }
 
+  async getRootListAsync(user, boxUUID, rootTreeHash) {
+    if (!isUUID(boxUUID)) throw Object.assign(new Error('invalid boxUUID'), { status: 400 })
+    let box = this.boxData.getBox(boxUUID)
+    if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
+
+    let guid = user.global.id
+    if (box.doc.owner !== guid && !box.doc.users.includes(guid))
+      throw Object.assign(new Error('no permission'), { status: 403 })
+
+    return await box.getRootListAsync(rootTreeHash)
+  }
+
+  async getCommitAsync(user, boxUUID, commitHash) {
+    if (!isUUID(boxUUID)) throw Object.assign(new Error('invalid boxUUID'), { status: 400 })
+    let box = this.boxData.getBox(boxUUID)
+    if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
+
+    let guid = user.global.id
+    if (box.doc.owner !== guid && !box.doc.users.includes(guid))
+      throw Object.assign(new Error('no permission'), { status: 403 })
+
+    return await box.getCommitAsync(commitHash)
+  }
+
   async createCommitAsync(user, boxUUID, props) {
     if (!isUUID(boxUUID)) throw Object.assign(new Error('invalid boxUUID'), { status: 400 })
     let box = this.boxData.getBox(boxUUID)
