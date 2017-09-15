@@ -830,7 +830,7 @@ class Pipe {
     let error = { code: err.code, message: err.message }
     let params = { error }
     debug(params)
-    await requestAsync('POST', url, { params }, {})
+    await requestAsync('POST', url, { params }, { 'Authorization': this.connect.token })
   }
 
   async successResponseFileAsync(cloudAddr, sessionId, fpath) {
@@ -844,7 +844,7 @@ class Pipe {
     let url = cloudAddr + '/s/v1/stations/' + this.connect.saId + '/response/' + sessionId + '/json'
     let params = data
     debug('aaaaaaa',params)
-    await requestAsync('POST', url, { params }, {})
+    await requestAsync('POST', url, { params }, { 'Authorization': this.connect.token })
   }
 
   async createBlobTweetAsync({ boxUUID, guid, comment, type, size, sha256, jobId }) {
