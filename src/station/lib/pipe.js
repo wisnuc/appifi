@@ -328,12 +328,12 @@ class Pipe {
       return this.errorResponseAsync(data.serverAddr, data.sessionId, Object.assign(new Error('resource error'), { code: 400 }))
                     .then(() => {}).catch(debug)
     } 
-    
+    debug('pipe messageType:', messageType)
     if(this.handlers.has(messageType))
       this.handlers.get(messageType)(data)
         .then(() => {debug('success for request')})
         .catch(e => {
-          
+          debug('pipe catch exception:', e)
         })
     else
       debug('NOT FOUND EVENT HANDLER', messageType, data)
@@ -395,9 +395,7 @@ class Pipe {
     let { serverAddr, sessionId, user, body} = data
     let fruit = getFruit()
     if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
-    debug(111222)
     let drives = await fruit.createPublicDriveAsync(user, body)
-    debug(222333)
     return await this.successResponseJsonAsync(serverAddr, sessionId, drives)
   }
   
@@ -454,7 +452,7 @@ class Pipe {
     if(paths.length !== 4 || paths[2] !== 'dirs' || !isUUID(paths[1] || !isUUID(paths[3]))) return await this.errorResponseAsync(serverAddr, sessionId, new Error('resource error'))
     
     let driveUUID = paths[1]
-    let dirUUID = path[3]
+    let dirUUID = paths[3]
     let metadata = body.metadata === 'true' ? true : false
     let dirs = await fruit.getDriveDirAsync(user, driveUUID, dirUUID, metadata)
     return await this.successResponseJsonAsync(serverAddr, sessionId, dirs)
@@ -830,7 +828,7 @@ class Pipe {
     let url = cloudAddr + '/s/v1/stations/' + this.connect.saId + '/response/' + sessionId +'/json'
     let error = { code: err.code, message: err.message }
     let params = { error }
-    debug(params)
+    debug('pipe handle error', params)
     await requestAsync('POST', url, { params }, { 'Authorization': this.connect.token })
   }
 

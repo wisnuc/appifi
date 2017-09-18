@@ -374,5 +374,51 @@ describe(path.basename(__filename), () => {
         .end((err, res) => done(err))
     })
 
+    describe("Alice super user, bob and david admin, charlie and emma common user", () => {
+      let davidToken, emmaToken
+      beforeEach(async () => {
+        await createUserAsync('david', aliceToken, true)
+        davidToken = await retrieveTokenAsync('david')
+        // bob create
+        await createUserAsync('emma', bobToken, false)
+        emmaToken = await retrieveTokenAsync('emma')
+      })
+
+      it("bob change david username should failed 400", done => {
+        request(app)
+          .patch(`/users/${IDS.david.uuid}`)
+          .set('Authorization', 'JWT ' + bobToken)
+          .send({ username: 'DDDDDD' })
+          .expect(400)
+          .end((err, res) => done(err))
+      })
+
+      it("bob change david disabled should failed 400", done => {
+        request(app)
+          .patch(`/users/${IDS.david.uuid}`)
+          .set('Authorization', 'JWT ' + bobToken)
+          .send({ disabled: true })
+          .expect(400)
+          .end((err, res) => done(err))
+      })
+
+      it("charlie change emma disabled should failed 400", done => {
+        request(app)
+          .patch(`/users/${IDS.emma.uuid}`)
+          .set('Authorization', 'JWT ' + charlieToken)
+          .send({ disabled: true })
+          .expect(400)
+          .end((err, res) => done(err))
+      })
+
+      it("charlie change itself disabled should failed 403", done => {
+        request(app)
+          .patch(`/users/${IDS.charlie.uuid}`)
+          .set('Authorization', 'JWT ' + charlieToken)
+          .send({ disabled: true })
+          .expect(403)
+          .end((err, res) => done(err))
+      })
+    })
   })
 })
