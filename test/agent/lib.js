@@ -1,6 +1,8 @@
 const sinon = require('sinon')
 const UUID = require('uuid')
 const request = require('supertest')
+const Promise = require('bluebird')
+const mkdirpAsync = Promise.promisify(require('mkdirp'))
 
 const app = require('src/app')
 
@@ -346,8 +348,12 @@ const forgeRecords = async (boxUUID, username) => {
   }
 }
 
-const createTreeObject = (dir) => {
-  
+const createTreeObject = async dir => {
+  console.log(process.cwd())
+  let tmpDir = path.join(process.cwd(), 'tmp')
+  await mkdirpAsync(tmpDir)
+
+  let stat = await fs.lstatAsync(dir)
 }
 
 module.exports = {

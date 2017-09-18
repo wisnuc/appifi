@@ -10,8 +10,7 @@ const rimraf = require('rimraf')
 const rimrafAsync = Promise.promisify(rimraf)
 const secret = require('../config/passportJwt')
 
-// const User = require('../models/user')
-// const boxData = require('../box/boxData')
+const fingerprintSimpleAsync = Promise.promisify(require('../utils/fingerprintSimple'))
 const { isSHA256 } = require('../lib/assertion')
 const getFruit = require('../fruitmix')
 
@@ -214,6 +213,9 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
 
     form.on('file', (name, file) => {
       if (finished) return
+
+      // file.hash = await fingerprintSimpleAsync(file.path)
+
       if (type === 'blob') {
         check(size, sha256, file)
         urls.push({sha256, filepath: file.path})
