@@ -136,6 +136,56 @@ class Fruitmix extends EventEmitter {
     return true
   }
 
+    /**
+   * 1 own drives
+   * 2 public drive (writelist or readlist)
+   * @param {*} user 
+   * @param {*} dirUUID 
+   */
+  userCanRead(user, dirUUID) {
+    if(!user || !dirUUID || !dirUUID.length) throw Object.assign(new Error('Invalid parameters'), { status: 400 })
+    if(!this.driveList.uuidMap.has(dirUUID))
+      throw Object.assign(new Error('drive not found'), { status: 404 })
+    let drive = this.driveList.uuidMap.get(dirUUID)
+    let rootDrive = drive.root()
+    let userDrives = this.getDrives(user)
+    if(userDrives.findIndex(d => d.uuid === rootDrive.uuid) !== -1) return true
+    return false
+  }
+
+  // write maybe upload, (remove??)
+  // 1 own drives
+  // 2 public drive && (writelist or (readlist&& admin))
+  userCanWrite(user, dirUUID) {
+    if(!user || !dirUUID || !dirUUID.length) throw Object.assign(new Error('Invalid parameters'), { status: 400 })
+    if(!this.driveList.uuidMap.has(dirUUID))
+      throw Object.assign(new Error('drive not found'), { status: 404 })
+    let drive = this.driveList.uuidMap.get(dirUUID)
+    let rootDrive = drive.root()
+
+    let userDrives = this.driveList.drives.filter(drv => {
+      if (drv.type === 'private' && drv.owner === user.uuid) return true
+      if (drv.type === 'public' && ((drv.writelist.includes(user.uuid)) || 
+        (drv.readlist.includes(user.uuid) && user.isAdmin))) return true
+      return false
+    })
+
+    if(userDrives.findIndex(d => d.uuid === rootDrive.uuid) !== -1) return true
+    return false
+  }
+
+  userCanReadMedia(user, fingerprint) {
+    if(!user || !fingerprint || !fingerprint.length) throw Object.assign(new Error('Invalid parameters'), { status: 400 })
+    if(!this.driveList.hashMap.has(fingerprint))
+      throw Object.assign(new Error('media not found'), { status: 404 })
+    let medias = Array.from(this.driveList.hashMap.get(fingerprint))
+    let userDrives = this.getDrives(user).map( d => d.uuid)
+    if(medias.find(media => userDrives.indexOf(media.root().uuid) !== -1))
+      return true
+    return false
+  }
+
+
   /**
    * if no user: create first user 
    * if first user : recognized -> ['isAdmin', 'username', 'password',  'global', 'disabled']
@@ -336,29 +386,12 @@ class Fruitmix extends EventEmitter {
   }
 
   getDrive (user, driveUUID) {
+    if(!this.userCanRead(user, driveUUID)) throw Object.assign(new Error('permission denied'), { status: 403 })
+      
     let drive = this.driveList.drives.find(drv => drv.uuid === driveUUID)
-    if (!drive) {
+    if (!drive)
       throw Object.assign(new Error(`drive ${driveUUID} not found`), { status: 404 })
-    }
-
-    switch (drive.type) {
-    case 'private':
-      if (drive.owner !== user.uuid) {
-        throw Object.assign(new Error(`user is not drive owner`), { status: 403 })  
-      }
-      break
-
-    case 'public':
-      if (!drive.writelist.includes(user.uuid) && !drive.readlist.includes(user.uuid)) {
-        throw Object.assign(new Error(`user is not in drive user list`), { status: 403 })
-      }
-      break
-
-    default:
-      throw new Error('invalid drive type')
-      break
-    }
-
+    
     return drive 
   }
 
@@ -753,54 +786,6 @@ class Fruitmix extends EventEmitter {
   }  
 
   ///////////// media api //////////////
-  /**
-   * 1 own drives
-   * 2 public drive (writelist or readlist)
-   * @param {*} user 
-   * @param {*} dirUUID 
-   */
-  userCanRead(user, dirUUID) {
-    if(!user || !dirUUID || !dirUUID.length) throw Object.assign(new Error('Invalid parameters'), { status: 400 })
-    if(!this.driveList.uuidMap.has(dirUUID))
-      throw Object.assign(new Error('drive not found'), { status: 404 })
-    let drive = this.driveList.uuidMap.get(dirUUID)
-    let rootDrive = drive.root()
-    let userDrives = this.getDrives(user)
-    if(userDrives.findIndex(d => d.uuid === rootDrive.uuid) !== -1) return true
-    return false
-  }
-
-  // write maybe upload, (remove??)
-  // 1 own drives
-  // 2 public drive && (writelist or (readlist&& admin))
-  userCanWrite(user, dirUUID) {
-    if(!user || !dirUUID || !dirUUID.length) throw Object.assign(new Error('Invalid parameters'), { status: 400 })
-    if(!this.driveList.uuidMap.has(dirUUID))
-      throw Object.assign(new Error('drive not found'), { status: 404 })
-    let drive = this.driveList.uuidMap.get(dirUUID)
-    let rootDrive = drive.root()
-
-    let userDrives = this.driveList.drives.filter(drv => {
-      if (drv.type === 'private' && drv.owner === user.uuid) return true
-      if (drv.type === 'public' && ((drv.writelist.includes(user.uuid)) || 
-        (drv.readlist.includes(user.uuid) && user.isAdmin))) return true
-      return false
-    })
-
-    if(userDrives.findIndex(d => d.uuid === rootDrive.uuid) !== -1) return true
-    return false
-  }
-
-  userCanReadMedia(user, fingerprint) {
-    if(!user || !fingerprint || !fingerprint.length) throw Object.assign(new Error('Invalid parameters'), { status: 400 })
-    if(!this.driveList.hashMap.has(fingerprint))
-      throw Object.assign(new Error('media not found'), { status: 404 })
-    let medias = Array.from(this.driveList.hashMap.get(fingerprint))
-    let userDrives = this.getDrives(user).map( d => d.uuid)
-    if(medias.find(media => userDrives.indexOf(media.root().uuid) !== -1))
-      return true
-    return false
-  }
 
   getMetaList(user) {
     if(!user) throw Object.assign(new Error('Invaild user'), { status: 400 })
