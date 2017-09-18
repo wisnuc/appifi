@@ -334,6 +334,8 @@ class Pipe {
         .then(() => {debug('success for request')})
         .catch(e => {
           debug('pipe catch exception:', e)
+          return this.errorResponseAsync(data.serverAddr, data.sessionId, Object.assign(e, { code: 400 }))
+                    .then(() => {}).catch(debug)
         })
     else
       debug('NOT FOUND EVENT HANDLER', messageType, data)
@@ -669,7 +671,7 @@ class Pipe {
     let { serverAddr, sessionId, user, body } = data
     let fruit = getFruit()
     if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
-    let newUser = await fruit.createUserAsync(body)
+    let newUser = await fruit.createUserAsync(user, body)
     return await this.successResponseJsonAsync(serverAddr, sessionId, newUser)
   }
 
@@ -701,16 +703,9 @@ class Pipe {
     let fruit = getFruit()
     if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
     
-    let u, err, userUUID = paths[1]
-    try {
-      u = await fruit.updateUserAsync(user, userUUID, body)
-      return await this.successResponseJsonAsync(serverAddr, sessionId, u)
-    }
-    catch(e) {
-      err.message = e.message
-      err.code = 400
-      return await this.errorResponseAsync(serverAddr, sessionId, err)
-    }
+    let u, userUUID = paths[1]
+    u = await fruit.updateUserAsync(user, userUUID, body)
+    return await this.successResponseJsonAsync(serverAddr, sessionId, u)
   }
 
   async updateUserPasswdAsync(data) {
@@ -719,13 +714,10 @@ class Pipe {
     if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
     
     let userUUID = paths[1]
-    try{
-      await fruit.updateUserPasswordAsync(user, userUUID)
-      return await this.successResponseJsonAsync(serverAddr, sessionId, {})
-    } catch(e) {
-      e.code = 400
-      return await this.errorResponseAsync(serverAddr, sessionId, e)
-    }
+    if(user.uuid !== userUUID) throw new Error('user uuid mismatch')
+
+    await fruit.updateUserPasswordAsync(user, userUUID)
+    return await this.successResponseJsonAsync(serverAddr, sessionId, {})
   }
 
   async getUserMediaBlackListAsync(data) {
@@ -734,6 +726,7 @@ class Pipe {
     if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
     
     let userUUID = paths[1]
+    if(user.uuid !== userUUID) throw new Error('user uuid mismatch')
     let list = await fruit.getMediaBlacklistAsync(user)
     return await this.successResponseJsonAsync(serverAddr, sessionId, list)
   }
@@ -754,6 +747,8 @@ class Pipe {
     if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
     
     let userUUID = paths[1]
+    if(user.uuid !== userUUID) throw new Error('user uuid mismatch')
+
     let list = await fruit.addMediaBlacklistAsync(user, body)
     return await this.successResponseJsonAsync(serverAddr, sessionId, list)
   }
@@ -761,9 +756,11 @@ class Pipe {
   async subtractUserMediaBlackListAsync(data) {
     let { serverAddr, sessionId, user, body, paths } = data
     let fruit = getFruit()
-    if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    if(!fruit) throw new Error('fruitmix not start')
     
     let userUUID = paths[1]
+    if(user.uuid !== userUUID) throw new Error('user uuid mismatch')
+
     let list = await fruit.subtractMediaBlacklistAsync(user, body)
     return await this.successResponseJsonAsync(serverAddr, sessionId, list)
   }
