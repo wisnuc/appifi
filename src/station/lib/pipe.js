@@ -3,6 +3,7 @@ const crypto = require('crypto')
 const stream = require('stream')
 const fs = require('fs')
 const path = require('path')
+const http = require('http')
 
 const request = require('superagent')
 const uuid = require('uuid')
@@ -221,8 +222,6 @@ class StoreFiles {
 
             //resume
             res.resume()
-              
-            //TODO: do something
             // 1 write chunk
             // 2 check file
             // 3 new HashMaker new Writeable new endpoint new fpath new index
@@ -777,36 +776,60 @@ class Pipe {
     let finished = false
     let url = cloudAddr+ '/s/v1/stations/' + this.connect.saId + '/response/' + sessionId
     let rs = fs.createReadStream(fpath)
-    let req = request.post(url).set({ 'Authorization': this.connect.token })
-
-    let finish = () => {
-      if(finished) return
-      finished = true
-      return callback()
-    }
-
-    let error = err => {
-      if(finished) return
-      finished = true
-      return callback(err)
-    }
-
-    req.on('response', res => {
-      debug('response', res.status, fpath)
-      if　(res.status !== 200)　{
-        debug('response error')
-        error(res.error)
+    let addr = cloudAddr.split(':')
+    let options = {
+      hostname: addr[0],
+      path:'/s/v1/stations/' + this.connect.saId + '/response/' + sessionId,
+      method: 'POST',
+      headers: {
+        'Authorization': this.connect.token
       }
-      else 
-        finish()
+    }
+    if(addr.length === 2) options.port = 4000
+
+    let req = http.request(options, res => {
+      res.setEncoding('utf8')
+      res.on('data', chunk => {
+        console.log('BODY:', chunk)
+      })
     })
-    req.on('error', err => {
-      error(err)
-    }) 
-    rs.on('error', err =>{
-      error(err)
+
+    req.on('error', function (e) {  
+      console.log('problem with request: ' + e.message);  
     })
+
     rs.pipe(req)
+    // let req = request.post(url).set({ 'Authorization': this.connect.token}).buffer(false)
+
+    // let finish = () => {
+    //   if(finished) return
+    //   finished = true
+    //   debug('fetch file finish')
+    //   return callback()
+    // }
+
+    // let error = err => {
+    //   if(finished) return
+    //   finished = true
+    //   return callback(err)
+    // }
+
+    // req.on('response', res => {
+    //   debug('response', res.status, fpath)
+    //   if　(res.status !== 200)　{
+    //     debug('response error')
+    //     error(res.error)
+    //   }
+    //   else 
+    //     finish()
+    // })
+    // req.on('error', err => {
+    //   error(err)
+    // }) 
+    // rs.on('error', err =>{
+    //   error(err)
+    // })
+    // rs.pipe(req)
   }
 
   async fetchFileResponseAsync(fpath, cloudAddr, sessionId) {
