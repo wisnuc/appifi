@@ -146,22 +146,59 @@ const tailHash = (fd, callback) => {
 const createPipeHash = (rs, fpath, callback) => {
 
   let destroyed = false
+  let fd, ws, child
 
-  rs.on('error', () => {
-  })
+  const destroy = () => {
+    rs.removeListener('error', onError)
+    rs.on('error', () => {})
 
-  fs.open(fpath, (err, fd) => {
+    if (fd !== undefined) {
+      rs.unpipe()
+
+      ws.removeListener('error', onError)
+      ws.removeListener('finish', onFinish)
+      ws.on('error', () => {})
+      ws.destroy()
+
+      child.removeListener('error', onError)
+      child.removeListener('message', childOnMessage)
+      child.removeListener('exit', childOnExit)
+      child.on('error', () => {})
+      child.kill()
+    } 
+
+    destroyed = true
+  }
+
+  const onError = err => {
+    destroy()
+    callback(err)
+  }
+    
+  const rsOnError = err => destroy(err)
+  const wsOnError = err => destroy(err)
+  const childOnError = err => destroy(err)
+
+  const wsOnFinish = () => {
+  }
+
+  rs.on('error', rsOnError)
+
+  fs.open(fpath, (err, _fd) => {
     if (destroyed) {
-      fs.close(fd, () => {})
+      fs.close(_fd, () => {})
       return
     } 
+
+    
 
     if (err) return callback(err) 
     
     let ws = fs.createWriteStream(null, { fd })
     ws.on('error', err => {})
     ws.on('finish', () => {
-      
+      bytesWritten: ws.bytesWritten
+      child,      
     })
    
     let child = spawn 
@@ -174,7 +211,12 @@ const createPipeHash = (rs, fpath, callback) => {
 
   // destroy
   return () => {
-    
+    if (destroyed) return 
+    if (!fd) {
+      
+    } else {
+
+    }
   }
 }
 
