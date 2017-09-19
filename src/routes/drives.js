@@ -160,9 +160,9 @@ const parseHeader = header => {
 
     opts = { size, sha256, append, overwrite }
 
-    return { type: 'file', fromName, toName, opts }
+    return { type: 'file', name, fromName, toName, opts }
   } else {
-    return { type: 'field', fromName, toName }
+    return { type: 'field', name, fromName, toName }
   }
 }
 
@@ -242,12 +242,19 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
 
   parts (new) -> [ parser | parsers_ ) -> execute
 
-        (new) -> | -> [ fopen | pipes | hashers | hashers_ ) -> |
-                 |                                              | -> execute
-                 | -----> ( _dryrun | dryrun | dryrun_ ) -----> |
+        (new) -> | -> [ fopen ] -> | -> [ pipe ] -> | 
+                 |                 |                v
+                 |                 | -> [ hash ] ------> [ drain | drain_ ) --> | --> execute
+                 |                                                              |
+                 | ----> ( _dryrun | dryrun | dryrun_ ) ----------------------> |
   **/
 
-  // x { number, part }
+  // noticing there is an inter-process communication when pipe ends.
+  // it is also a decision point.
+
+  // enter: x { number, part }
+  // do: part on ['error', 'header']
+  // exit: x { number, part } 
   const parts = []
 
   /**
@@ -258,13 +265,17 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
   **/
   const parsers_ = []
 
-  // x { number, ..., part, tmp }
+  // x { number, type: 'file', fromName, toName, opts {}, part, tmp }
   const fopen = []
 
   /**
   x { number, ..., part, tmp, fd, ws, hs }
   **/
   const pipes = []
+
+  const hash = []
+  const drain = []
+  const drain_ = []
 
   /**
   x { number, ..., tmp, bytesWritten, hs }
@@ -330,7 +341,6 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
     fopen.forEach(x => {
       x.part.removeAllListeners('error')
       x.part.on('error', () => {})
-
       if (x.number !== y.number) r[x.number].error = new Error('destroyed')
     }) 
 
@@ -349,7 +359,6 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
       x.ws.destroy()
       x.hs.destroy()
       rimraf(x.tmp, () => {})
-
       if (x.number !== y.number) r[x.number].error = new Error('destroyed')
     })
     pipes.splice(0, -1)
@@ -360,7 +369,6 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
       x.hs.removeAllListners('data')
       x.hs.destroy()
       rimraf(x.tmp, () => {})
-
       if (x.number !== y.number) r[x.number].error = new Error('destroyed')
     }) 
     hashers.splice(0, -1)
@@ -382,8 +390,9 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
       dicer = null
     }
 
-    if (r.every(x => x.hasOwnProperty('data') || x.hasOwnProperty('error')))
+    if (r.every(x => x.hasOwnProperty('data') || x.hasOwnProperty('error'))) {
       res.status(200).json(r)
+    }
   }
 
   const success = (x, data) => {
@@ -404,32 +413,61 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
   }
 
   let count = 0
-  const startPart = part => { 
-    part.on('error', err => error(x.number, err))
-    part.on('header', guard('on header', header => {
+  const onPart = part => { 
+    let x = { number: count++, part }
+    parts.push(x)
+
+    part.once('error', err => {
+      pluck(parts, x)            
+      x.part.on('error', () => {})
+
+      error(x.number, err)
+    })
+
+    part.once('header', guard('on header', header => {
+      pluck(parts, x)
+
       let props
       try {
         props = parseHeader(header)
       } catch (e) {
-        return error(x.number, e)
+        error(x.number, e)
+        return
       }
 
-      pluck(parts, x)
       Object.assign(r[x.number], { fromName: props.fromName, toName: props.toName })
       Object.assign(x, props)
       if (x.opts) {
-        startFile(x)
+        onFile(x)
       } else {
-        startField(x)
+        onField(x)
       }
     }))
-
-    let x = { number: count++, part }
-    parts.push(x)
-    r.push({})
   }
 
-  const startField = x => {
+  const onFile = x => {
+    fopen.push(x) 
+    x.tmp = path.join(getFruit().getTmpDir(), UUID.v4())
+    fs.open(x.tmp, 'a+', guard('on open', (err, fd) => {
+      if (err) {
+        error(x.number, err)
+      } else {
+        pluck(fopen, x) 
+        x.fd = fd
+        startPipe(x)
+      }
+    }))
+    
+    let y = { number: x.number }
+    _dryrun.push(y)
+    try {
+      schedule()
+    } catch (e) {
+      console.log(e)
+    }
+  }
+
+  const onField = x => {
     // push into parsers
     parsers.push(x)
     x.buffers = []
@@ -454,28 +492,6 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
         success(x, xstat)
       })
     })
-  }
-
-  const startFile = x => {
-    fopen.push(x) 
-    x.tmp = path.join(getFruit().getTmpDir(), UUID.v4())
-    fs.open(x.tmp, 'a+', guard('on open', (err, fd) => {
-      if (err) {
-        error(x.number, err)
-      } else {
-        pluck(fopen, x) 
-        x.fd = fd
-        startPipe(x)
-      }
-    }))
-    
-    let y = { number: x.number }
-    _dryrun.push(y)
-    try {
-      schedule()
-    } catch (e) {
-      console.log(e)
-    }
   }
 
   const startPipe = x => {
@@ -582,7 +598,7 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
   const m = regex.exec(req.headers['content-type'])
 
   dicer = new Dicer({ boundary: m[1] || m[2] })
-  dicer.on('part', guard('on part', startPart))
+  dicer.on('part', guard('on part', onPart))
   req.pipe(dicer)
 })
 
