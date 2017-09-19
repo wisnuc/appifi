@@ -6,6 +6,7 @@ const EventEmitter = require('events')
 const rimraf = require('rimraf')
 const mkdirp = require('mkdirp')
 const mkdirpAsync = Promise.promisify(mkdirp)
+const rimrafAsync = Promise.promisify(rimraf)
 const uuid = require('uuid')
 
 const UserList = require('./user/user')
@@ -48,7 +49,9 @@ class Fruitmix extends EventEmitter {
     this.boxData = new BoxData(froot)
     this.tasks = []
     this.storeTimer = setInterval(() => {
-      this.storeMediaMap()
+      this.storeMediaMapAsync()
+        .then(() => {})
+        .catch(e => {})
     }, 1000*60*60)
   }
 
@@ -72,7 +75,7 @@ class Fruitmix extends EventEmitter {
     return mediaMap
   }
 
-  storeMediaMap () {
+  async storeMediaMapAsync () {
     let tmp = path.join(this.fruitmixPath, 'tmp', uuid.v4())
     let fpath = path.join(this.fruitmixPath, 'metadataDB.json')
     let metadata = Array.from(this.mediaMap).map(x => {
@@ -84,9 +87,9 @@ class Fruitmix extends EventEmitter {
       }
     })
     try{
-      fs.writeFileSync(tmp, metadata.join('\n'))
-      rimraf.sync(fpath)
-      fs.renameSync(tmp, fpath)
+      await fs.writeFileAsync(tmp, metadata.join('\n'))
+      await rimrafAsync(fpath)
+      await fs.renameAsync(tmp, fpath)
     }catch(e){
       debug(e)
       throw e
