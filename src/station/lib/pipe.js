@@ -3,6 +3,7 @@ const crypto = require('crypto')
 const stream = require('stream')
 const fs = require('fs')
 const path = require('path')
+const http = require('http')
 
 const request = require('superagent')
 const uuid = require('uuid')
@@ -221,8 +222,6 @@ class StoreFiles {
 
             //resume
             res.resume()
-              
-            //TODO: do something
             // 1 write chunk
             // 2 check file
             // 3 new HashMaker new Writeable new endpoint new fpath new index
@@ -328,12 +327,14 @@ class Pipe {
       return this.errorResponseAsync(data.serverAddr, data.sessionId, Object.assign(new Error('resource error'), { code: 400 }))
                     .then(() => {}).catch(debug)
     } 
-    
+    debug('pipe messageType:', messageType)
     if(this.handlers.has(messageType))
       this.handlers.get(messageType)(data)
         .then(() => {debug('success for request')})
         .catch(e => {
-          
+          debug('pipe catch exception:', e)
+          return this.errorResponseAsync(data.serverAddr, data.sessionId, Object.assign(e, { code: 400 }))
+                    .then(() => {}).catch(debug)
         })
     else
       debug('NOT FOUND EVENT HANDLER', messageType, data)
@@ -350,8 +351,7 @@ class Pipe {
     let method = data.method
     let paths = resource.split('/').filter(p => p.length)
     data.paths = [...paths]
-    debug('.....................',paths)
-
+    
     if(!paths.length) return undefined
     let r1 = paths.shift()
     switch(r1) {
@@ -396,9 +396,7 @@ class Pipe {
     let { serverAddr, sessionId, user, body} = data
     let fruit = getFruit()
     if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
-    debug(111222)
     let drives = await fruit.createPublicDriveAsync(user, body)
-    debug(222333)
     return await this.successResponseJsonAsync(serverAddr, sessionId, drives)
   }
   
@@ -455,7 +453,7 @@ class Pipe {
     if(paths.length !== 4 || paths[2] !== 'dirs' || !isUUID(paths[1] || !isUUID(paths[3]))) return await this.errorResponseAsync(serverAddr, sessionId, new Error('resource error'))
     
     let driveUUID = paths[1]
-    let dirUUID = path[3]
+    let dirUUID = paths[3]
     let metadata = body.metadata === 'true' ? true : false
     let dirs = await fruit.getDriveDirAsync(user, driveUUID, dirUUID, metadata)
     return await this.successResponseJsonAsync(serverAddr, sessionId, dirs)
@@ -577,13 +575,15 @@ class Pipe {
     let fruit = getFruit()
     if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
 
-    const fingerprints = fruit.getFingerprints(user)
-    const metadata = fingerprints.reduce((acc, fingerprint) => {
-      // let meta = Media.get(fingerprint)
-      let meta = fruit.getMetadata(null, fingerprint)
-      if (meta) acc.push(Object.assign({ hash: fingerprint }, meta))
-      return acc
-    }, [])
+    // const fingerprints = fruit.getFingerprints(user)
+    // const metadata = fingerprints.reduce((acc, fingerprint) => {
+    //   // let meta = Media.get(fingerprint)
+    //   let meta = fruit.getMetadata(null, fingerprint)
+    //   if (meta) acc.push(Object.assign({ hash: fingerprint }, meta))
+    //   return acc
+    // }, [])
+    let metadata = fruit.getMetaList(user)
+    debug('getMetaList success', metadata)
     return await this.successResponseJsonAsync(serverAddr, sessionId, metadata)
   }
 
@@ -670,7 +670,7 @@ class Pipe {
     let { serverAddr, sessionId, user, body } = data
     let fruit = getFruit()
     if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
-    let newUser = await fruit.createUserAsync(body)
+    let newUser = await fruit.createUserAsync(user, body)
     return await this.successResponseJsonAsync(serverAddr, sessionId, newUser)
   }
 
@@ -702,16 +702,9 @@ class Pipe {
     let fruit = getFruit()
     if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
     
-    let u, err, userUUID = paths[1]
-    try {
-      u = await fruit.updateUserAsync(user, userUUID, body)
-      return await this.successResponseJsonAsync(serverAddr, sessionId, u)
-    }
-    catch(e) {
-      err.message = e.message
-      err.code = 400
-      return await this.errorResponseAsync(serverAddr, sessionId, err)
-    }
+    let u, userUUID = paths[1]
+    u = await fruit.updateUserAsync(user, userUUID, body)
+    return await this.successResponseJsonAsync(serverAddr, sessionId, u)
   }
 
   async updateUserPasswdAsync(data) {
@@ -720,13 +713,10 @@ class Pipe {
     if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
     
     let userUUID = paths[1]
-    try{
-      await fruit.updateUserPasswordAsync(user, userUUID)
-      return await this.successResponseJsonAsync(serverAddr, sessionId, {})
-    } catch(e) {
-      e.code = 400
-      return await this.errorResponseAsync(serverAddr, sessionId, e)
-    }
+    if(user.uuid !== userUUID) throw new Error('user uuid mismatch')
+
+    await fruit.updateUserPasswordAsync(user, userUUID)
+    return await this.successResponseJsonAsync(serverAddr, sessionId, {})
   }
 
   async getUserMediaBlackListAsync(data) {
@@ -735,6 +725,7 @@ class Pipe {
     if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
     
     let userUUID = paths[1]
+    if(user.uuid !== userUUID) throw new Error('user uuid mismatch')
     let list = await fruit.getMediaBlacklistAsync(user)
     return await this.successResponseJsonAsync(serverAddr, sessionId, list)
   }
@@ -755,6 +746,8 @@ class Pipe {
     if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
     
     let userUUID = paths[1]
+    if(user.uuid !== userUUID) throw new Error('user uuid mismatch')
+
     let list = await fruit.addMediaBlacklistAsync(user, body)
     return await this.successResponseJsonAsync(serverAddr, sessionId, list)
   }
@@ -762,9 +755,11 @@ class Pipe {
   async subtractUserMediaBlackListAsync(data) {
     let { serverAddr, sessionId, user, body, paths } = data
     let fruit = getFruit()
-    if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    if(!fruit) throw new Error('fruitmix not start')
     
     let userUUID = paths[1]
+    if(user.uuid !== userUUID) throw new Error('user uuid mismatch')
+
     let list = await fruit.subtractMediaBlacklistAsync(user, body)
     return await this.successResponseJsonAsync(serverAddr, sessionId, list)
   }
@@ -781,36 +776,60 @@ class Pipe {
     let finished = false
     let url = cloudAddr+ '/s/v1/stations/' + this.connect.saId + '/response/' + sessionId
     let rs = fs.createReadStream(fpath)
-    let req = request.post(url).set({ 'Authorization': this.connect.token })
-
-    let finish = () => {
-      if(finished) return
-      finished = true
-      return callback()
-    }
-
-    let error = err => {
-      if(finished) return
-      finished = true
-      return callback(err)
-    }
-
-    req.on('response', res => {
-      debug('response', res.status, fpath)
-      if　(res.status !== 200)　{
-        debug('response error')
-        error(res.error)
+    let addr = cloudAddr.split(':')
+    let options = {
+      hostname: addr[0],
+      path:'/s/v1/stations/' + this.connect.saId + '/response/' + sessionId,
+      method: 'POST',
+      headers: {
+        'Authorization': this.connect.token
       }
-      else 
-        finish()
+    }
+    if(addr.length === 2) options.port = 4000
+
+    let req = http.request(options, res => {
+      res.setEncoding('utf8')
+      res.on('data', chunk => {
+        console.log('BODY:', chunk)
+      })
     })
-    req.on('error', err => {
-      error(err)
-    }) 
-    rs.on('error', err =>{
-      error(err)
+
+    req.on('error', function (e) {  
+      console.log('problem with request: ' + e.message);  
     })
+
     rs.pipe(req)
+    // let req = request.post(url).set({ 'Authorization': this.connect.token}).buffer(false)
+
+    // let finish = () => {
+    //   if(finished) return
+    //   finished = true
+    //   debug('fetch file finish')
+    //   return callback()
+    // }
+
+    // let error = err => {
+    //   if(finished) return
+    //   finished = true
+    //   return callback(err)
+    // }
+
+    // req.on('response', res => {
+    //   debug('response', res.status, fpath)
+    //   if　(res.status !== 200)　{
+    //     debug('response error')
+    //     error(res.error)
+    //   }
+    //   else 
+    //     finish()
+    // })
+    // req.on('error', err => {
+    //   error(err)
+    // }) 
+    // rs.on('error', err =>{
+    //   error(err)
+    // })
+    // rs.pipe(req)
   }
 
   async fetchFileResponseAsync(fpath, cloudAddr, sessionId) {
@@ -829,7 +848,7 @@ class Pipe {
     let url = cloudAddr + '/s/v1/stations/' + this.connect.saId + '/response/' + sessionId +'/json'
     let error = { code: err.code, message: err.message }
     let params = { error }
-    debug(params)
+    debug('pipe handle error', params)
     await requestAsync('POST', url, { params }, { 'Authorization': this.connect.token })
   }
 
@@ -845,6 +864,7 @@ class Pipe {
     let params = data
     debug('aaaaaaa',params)
     await requestAsync('POST', url, { params }, { 'Authorization': this.connect.token })
+    debug('request success')
   }
 
   async createBlobTweetAsync({ boxUUID, guid, comment, type, size, sha256, jobId }) {

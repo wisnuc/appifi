@@ -76,8 +76,8 @@ const hashLoop = () => {
   if (buffers.length === 0) {
     if (readFinished) {
       // signal result and finish
-      process.send({ bytesRead: totalRead, digest: hash.digest('hex') })
-      return process.exit(0)
+      process.send({ bytesRead: totalRead, digest: hash.digest('hex') }, () => process.exit(0))
+      // return process.exit(0)
     } 
   } else {
     if (debug) console.log(buffers.reduce((sum, buf) => sum + buf.length, 0))

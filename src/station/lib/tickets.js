@@ -142,7 +142,7 @@ class Tickets {
           let username = user.nickName
           // TODO: use pvKey decode password
           let password = user.password ? user.password : '123456'
-          return await fruit.createUserAsync({
+          return await fruit.createUserAsync(u, {
             username,
             password,
             global: {
@@ -158,7 +158,7 @@ class Tickets {
         //discard this ticket 
         // await this.updateTicketAsync(ticketId)
         if (state) {
-          return await fruit.updateUserGlobalAsync(userId, userId, {
+          return await fruit.updateUserGlobalAsync(u, userId, {
             global: {
               id,
               wx: [unionid]

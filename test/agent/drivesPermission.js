@@ -126,7 +126,29 @@ describe(path.basename(__filename), () => {
         })
     })
 
-    it("Alice get Bob dirs should return 401", done => {
+    it("bob get Alice drive should return 403", done => {
+      request(app)
+        .get(`/drives/${IDS.alice.home}`)
+        .set('Authorization', 'JWT ' + bobToken)
+        .expect(403)
+        .end((err, res) => {
+          if (err) return done(err)
+          done()
+        })
+    })
+    
+    it("bob get itself drive should return 200", done => {
+      request(app)
+        .get(`/drives/${IDS.bob.home}`)
+        .set('Authorization', 'JWT ' + bobToken)
+        .expect(200)
+        .end((err, res) => {
+          if (err) return done(err)
+          done()
+        })
+    })
+
+    it("Bob get Alice dirs should return 401", done => {
       request(app)
         .get(`/drives/${IDS.alice.home}/dirs`)
         .set('Authorization', 'JWT ' + bobToken)
