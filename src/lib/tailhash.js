@@ -9,14 +9,12 @@ const fs = require('fs')
 const hash = require('crypto').createHash('sha256')
 
 let totalRead = 0, written = -1
-
 process.on('message', message => written = message)
-
 const Loop = () => fs.createReadStream(null, { 
       fd: 4, 
       autoClose: false, 
       start: totalRead, 
-      highWaterMark: 16 * 1024 * 1024 
+      highWaterMark: 16 * 1024 * 1024  // important for performance
     })
     .on('data', data => (hash.update(data), totalRead += data.length))
     .on('end', () => written === totalRead 
@@ -26,199 +24,87 @@ const Loop = () => fs.createReadStream(null, {
 Loop()
 `
 
-/**
+// state 1: opening fd -> state 2: rs | ws && hashing
+const pipeHash = (rs, fpath, callback) => {
 
-States:
-
-    -----------------------------------------------
-    ^                                             |(1)
-    |                                       (2)   v
-  started -- (error, destroy) --> destroying -> exited <----
-    |                                             ^      (4)|
-    |                                          (3)|         |
-  (end)                                           |         |
-    |                                             |         |
-    v                                             |         |
-  ended   -- (error, destroy) --> destroying ------         |
-    |                                                       |
-    ---------------------------------------------------------
-
-  started:
-    exited = false
-    ended = false
-    destroyed = false (no differnece between destroyed and errored)
-    
-  started -> destroyed
-    exited = false 
-    ended = falsed
-    destroyed = true
-
-  started -> ended
-    exited = false
-    ended = true
-    destroyed = false
-
-  started -> ended -> destroyed
-    exited = false
-    ended = true
-    destroyed = true
-
-  exited (exited = true)
-    1. ended = false, destroyed = false 
-    2. ended = false, destroyed = true
-    3. ended = true, destroyed = true
-    4. ended = true, destroyed = false
-      (1) digest, success
-      (2) no digest, fail
-
-
-From view point of external component, two destroying states can be combined.
-There is no difference between ended or not ended states.
-
-**/
-class TailHash extends EventEmitter {
-
-  constructor (fd) {
-    super()
-    this.exited = false
-    this.ended = false
-    this.destroyed = false
-
-    const opts = {
-      stdio: ['ignore', 'inherit', 'ignore', 'ipc', fd]  
-    }
-
-    this.spawn = child.spawn('node', ['-e', script], opts)
-
-    // effective only when normal
-    this.spawn.on('error', err => {
-      if (!exited && !destroyed) {
-        spawn.removeAllListeners
-      }  
-    })
-
-    this.spawn.on('message', message => {
-    })
-
-    this.spawn.on('finish', () => {
-    })
-  }
-
-  destroy () {
-    if (this.destroyed === true) {
-      console.log('WARNING: tailhash is destroyed more than once')
-      return
-    }
-
-    this.destroyed = true
-    
-  }
-}
-
-const tailHash = (fd, callback) => {
-  
-  const opts = {
-    stdio: ['ignore', 'inherit', 'ignore', 'ipc', fd]  
-  }
-
-  const spawn = child.spawn('node', ['-e', script], opts)
-  spawn.on('error', err => {
-    spawn.removeAllListeners()
-    spawn.kill()  
-    spawn = null
-    this.emit('error', err)
-  })
-
-  spawn.on('exit', (code, signal) => {
-    spawn.removeAllListeners()
-    spawn = null
-    if (code) {
-    } else if (
-  })
-
-  spawn.on('message', digest => {
-  })
-
-  end(bytesWritten) {
-  }
-}
-
-const createPipeHash = (rs, fpath, callback) => {
-
+  let finished = false
   let destroyed = false
-  let fd, ws, child
+  let fd, ws, hash
 
+  const error = err => (destroy(), callback(err))
   const destroy = () => {
-    rs.removeListener('error', onError)
+    if (destroyed || finished) return
+
+    rs.removeListener('error', error)
     rs.on('error', () => {})
 
     if (fd !== undefined) {
       rs.unpipe()
-
-      ws.removeListener('error', onError)
-      ws.removeListener('finish', onFinish)
+      ws.removeAllListeners()
       ws.on('error', () => {})
       ws.destroy()
-
-      child.removeListener('error', onError)
-      child.removeListener('message', childOnMessage)
-      child.removeListener('exit', childOnExit)
-      child.on('error', () => {})
-      child.kill()
+      hash.removeAllListeners()
+      hash.on('error', () => {})
+      hash.kill()
     } 
 
     destroyed = true
   }
 
-  const onError = err => {
-    destroy()
-    callback(err)
-  }
+  rs.on('error', error)
+  fs.open(fpath, 'a+', (err, _fd) => {
+    if (destroyed) return fs.close(_fd, () => {})
+    if (err) return error(err)
     
-  const rsOnError = err => destroy(err)
-  const wsOnError = err => destroy(err)
-  const childOnError = err => destroy(err)
-
-  const wsOnFinish = () => {
-  }
-
-  rs.on('error', rsOnError)
-
-  fs.open(fpath, (err, _fd) => {
-    if (destroyed) {
-      fs.close(_fd, () => {})
-      return
-    } 
-
-    
-
-    if (err) return callback(err) 
-    
-    let ws = fs.createWriteStream(null, { fd })
-    ws.on('error', err => {})
+    fd = _fd
+    ws = fs.createWriteStream(null, { fd })
+    ws.on('error', error)
     ws.on('finish', () => {
-      bytesWritten: ws.bytesWritten
-      child,      
+      finished = true
+      hash.removeAllListeners()
+      callback(null, { bytesWritten: ws.bytesWritten, hash })
     })
+
+    const opts = { stdio: ['ignore', 'inherit', 'ignore', 'ipc', fd]  }
+    const hash = child.spawn('node', ['-e', script], opts)
+    hash.on('error', error)
+    hash.on('message', () => 
+      error(new Error(`unexpected message from child`)))
+    hash.on('exit', (code, signal) => 
+      error(new Error(`unexpected exit with code ${code} and signal ${signal}`)))
    
-    let child = spawn 
-
-    child.on('error', () => {})
-    child.on('exit', () => {})
-
-    
+    rs.pipe(ws)    
   })
 
-  // destroy
-  return () => {
-    if (destroyed) return 
-    if (!fd) {
-      
-    } else {
-
-    }
-  }
+  return destroy
 }
 
+const drainHash = (hash, bytesWritten, callback) => {
+  let finished = false
+  let destroyed = false
 
-module.exports = fd => child.spawn('node', ['-
+  const error = err => (destroy(), callback(err))
+  const destroy = () => {
+    if (destroyed || finished) return
+    hash.removeAllListeners()
+    hash.on('error', () => {})
+    hash.kill()
+  }
+
+  hash.on('error', error)
+  hash.on('message', digest => {
+    finished = true
+    hash.removeAllListeners()
+    hash.on('error', () => {})
+    callback(null, digest)
+  })
+  hash.on('exit', (code, signal) => 
+    error(new Error(`unexpected exit with code ${code} and signal ${signal}`)))
+  hash.send(bytesWritten) 
+
+  return destroy
+}
+
+module.exports = { pipeHash, drainHash }
+
+

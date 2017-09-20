@@ -9,6 +9,7 @@ const UUID = require('uuid')
 const { isSHA256, isUUID } = require('../lib/assertion')
 const Dicer = require('dicer')
 const getFruit = require('../fruitmix')
+const { pipeHash, drainHash } = require('../lib/tailhash')
 const TailHash = require('../lib/hash-stream')
 const Writedir = require('../tasks/writedir2')
 
@@ -166,87 +167,17 @@ const parseHeader = header => {
   }
 }
 
-/**
-both dicer and part emit error
-**/
-
-/**
 router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, res, next) => {
 
-  const user = req.user
-  const { driveUUID, dirUUID } = req.params
-
-  const regex = /^multipart\/.+?(?:; boundary=(?:(?:"(.+)")|(?:([^\s]+))))$/i
-  const m = regex.exec(req.headers['content-type'])
-
-  let writedir = new Writedir({ user, driveUUID, dirUUID })
-  let dicer = new Dicer({ boundary: m[1] || m[2] }) 
-
-  writedir.once('error', err => {
-    if (!dicer) return
-    req.unpipe()
-    dicer.removeAllListeners('error')
-    dicer.end()
-  })
-
-  writedir.on('finish', () => {
-    res.status(200).json(writedir.queue)
-  })
-
-  dicer.on('part', part => {
-    part.on('header', header => {
-      try {
-        let props = parseHeader(header)
-        writedir.push(part, props)
-
-        if (props.filename) {
-            
-        } else {
-          
-        }
-
-      } catch (e) {
-        if (e) {
-          part.removeAllListeners()
-          dicer.removeAllListeners()
-          req.unpipe()
-          next(e)
-        } 
-      }
-
-    })
-  })
-
-  dicer.once('error', err => {
-    writedir.removeAllListeners('error') 
-    req.unpipe()
-    dicer.end()
-  }) 
-
-  dicer.on('finish', () => {
-    writedir.end()
-    dicer = null
-  })
-
-  req.pipe(dicer)
-})
-**/
-
-router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, res, next) => {
-
+  const EDestroyed = new Error('destroyed')
   const user = req.user
   const { driveUUID, dirUUID } = req.params
   let dicer
 
   /**
-
   parts (new) -> [ parser | parsers_ ) -> execute
-
-        (new) -> | -> [ fopen ] -> | -> [ pipe ] -> | 
-                 |                 |                v
-                 |                 | -> [ hash ] ------> [ drain | drain_ ) --> | --> execute
-                 |                                                              |
-                 | ----> ( _dryrun | dryrun | dryrun_ ) ----------------------> |
+        (new) -> | -> [  pipes  | drains | drains_ ) -> | -> execute
+                 | -> ( _dryrun | dryrun | dryrun_ ) -> |
   **/
 
   // noticing there is an inter-process communication when pipe ends.
@@ -260,32 +191,14 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
   /**
   **/
   const parsers = []
-
-  /**
-  **/
   const parsers_ = []
-
-  // x { number, type: 'file', fromName, toName, opts {}, part, tmp }
-  const fopen = []
 
   /**
   x { number, ..., part, tmp, fd, ws, hs }
   **/
   const pipes = []
-
-  const hash = []
-  const drain = []
-  const drain_ = []
-
-  /**
-  x { number, ..., tmp, bytesWritten, hs }
-  */
-  const hashers = []
-
-  /**
-  x { number, ..., tmp, bytesWritten, digest }
-  **/
-  const hashers_ = []
+  const drains = []
+  const drains_ = []
 
   const _dryrun = []
   const dryrun = []
@@ -304,8 +217,7 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
     console.log(x) 
     console.log('  parts', parts.map(p => p.number))
     console.log('  parsers_', parsers, parsers_)
-    console.log('  fopen', fopen.map(x => x.tmp))
-    console.log('  pipes', pipes.map(x => x.number))
+    console.log('  pipes, drains_', pipes.map(x => x.number))
     console.log('  hashers_', hashers.map(x => x.number), hashers_.map(x => x.number))
     console.log('  _dryrun_', _dryrun, dryrun, dryrun_)
     console.log('  executions', executions.map(x => x.number))
@@ -330,10 +242,8 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
     r[y.number].error = err
 
     parts.forEach(x => {
-      x.part.removeAllListeners('error')
+      x.part.removeAllListeners()
       x.part.on('error', () => {})
-      x.part.removeAllListeners('header')
-
       if (x.number !== y.number) r[x.number].error = new Error('destroyed')
     })
     parts.splice(0, -1)
@@ -416,7 +326,6 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
   const onPart = part => { 
     let x = { number: count++, part }
     parts.push(x)
-
     part.once('error', err => {
       pluck(parts, x)            
       x.part.on('error', () => {})
@@ -446,20 +355,33 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
   }
 
   const onFile = x => {
-    fopen.push(x) 
+    pipes.push(x) 
     x.tmp = path.join(getFruit().getTmpDir(), UUID.v4())
-    fs.open(x.tmp, 'a+', guard('on open', (err, fd) => {
-      if (err) {
-        error(x.number, err)
-      } else {
-        pluck(fopen, x) 
-        x.fd = fd
-        startPipe(x)
+    x.destroyPipe = pipeHash(x.part, x.tmp, (err, { hash, bytesWritten }) => {
+      delete x.part
+      delete x.destroyPipe
+      pipes.splice(pipes.indexOf(x), 1) 
+
+      if (err) return error(x.number, err) 
+      if (bytesWritten !== x.opts.size) {
+        hash.on('error', () => {})
+        hash.kill()
+        return error(x.number, new Error('size mismatch'))   
       }
-    }))
-    
-    let y = { number: x.number }
-    _dryrun.push(y)
+
+      drains.push(x) 
+      x.destroyDrain = drainHash(hash, bytesWritten, (err, digest) => {
+        delete x.destroyDrain
+        drains.splice(drains.indexOf(x), 1)
+
+        if (err) return error(x.number, err)
+        if (digest !== x.opts.sha256) return error(x.number, new Error('hash mismatch'))
+        drains_.push(x)
+        schedule()
+      })
+    })
+
+    _dryrun.push({ number: x.number })
     try {
       schedule()
     } catch (e) {
@@ -494,53 +416,6 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
     })
   }
 
-  const startPipe = x => {
-    x.ws = fs.createWriteStream(null, { fd: x.fd })
-    x.ws.on('error', err => error(x.number, err)) 
-    x.ws.on('finish', guard('on pipe finish', () => {
-      x.bytesWritten = x.ws.bytesWritten
-      delete x.fd
-      delete x.part 
-      delete x.ws
-
-      if (x.bytesWritten !== x.opts.size) {
-        x.hs.removeListener('error', error) 
-        x.hs.on('error', () => {})
-        x.hs.destroy()
-
-        let err = new Error('size mismatch')
-        err.status = 403
-        error(x.number, err)
-      } else {
-        pipes.splice(pipes.indexOf(x), 1)
-        waitHash(x)
-      }
-    }))
-
-    x.hs = new TailHash(x.fd)
-    x.hs.on('error', err => error(x.number, err))
-    x.part.pipe(x.ws)
-
-    pipes.push(x)
-  }
-
-  const waitHash = x => {
-    hashers.push(x)
-    x.hs.end(x.bytesWritten)
-    x.hs.on('data', guard('on hash finish', data => {
-      hashers.splice(hashers.indexOf(x), 1)
-      if (data !== x.opts.sha256) {
-        let err = new Error('size mismatch')
-        err.status = 403
-        error(x.number, err)
-      } else {
-        x.digest = data
-        hashers_.push(x)
-        schedule()
-      }
-    }))
-  }
-
   const execute = x => {
     executions.push(x)
     if (x.opts) { // file
@@ -567,6 +442,7 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
   // dryrun_ && hashers_ -> executions 
   const schedule = () => {
 
+    // schedule dryrun
     while (true) {
       let y = _dryrun.find(y => !blocked(y.number))
       if (!y) break
@@ -582,6 +458,7 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
         schedule()
       }, 500)
     }
+    // schedule parser_
 
     // hashers_ && dryrun_ join
     while (true) {
