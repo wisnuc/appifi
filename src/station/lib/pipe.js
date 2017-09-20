@@ -387,7 +387,7 @@ class Pipe {
     let { serverAddr, sessionId, user } = data
     let fruit = getFruit()
     if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
-    let drives = fruit.getDrives(user)
+    let drives = fruit.getUserCanReadDrives(user)
     return await this.successResponseJsonAsync(serverAddr, sessionId, drives)
   }
 

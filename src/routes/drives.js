@@ -15,7 +15,7 @@ const fruitless = (req, res, next) => getFruit() ? next() : next(EFruitUnavail)
 Get a fruitmix drive
 */
 router.get('/', fruitless, auth.jwt(), (req, res) => 
-  res.status(200).json(getFruit().getDrives(req.user)))
+  res.status(200).json(getFruit().getUserCanReadDrives(req.user)))
 
 /**
 Create a fruitmix drive

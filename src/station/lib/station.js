@@ -33,7 +33,7 @@ class Station {
     this.connect = undefined
     this.pipe = undefined
     this.initialized = false
-    // this.init() do not init
+    this.init()
   }                                                  
   
   init() {
