@@ -71,12 +71,12 @@ function createSocket(address, saId, privateKey, callback) {
   })
   socket.on('error', err => {
     state = 'disconnected'
-    debug('createSocket:socket_error', err.message)
+    debug('createSocket:socket_error', err)
     return error(err)
   })
   socket.on('connect_error', err => {
     state = 'disconnected'
-    debug('createSocket:connect_error', err.message)
+    debug('createSocket:connect_error', err)
     return error(err)
   })
 }
