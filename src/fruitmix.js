@@ -425,7 +425,7 @@ class Fruitmix extends EventEmitter {
     return drives
   }
 
-  getUserCanReadDrives (user) {
+  getDriveList (user) {
     let drives = this.driveList.drives.filter(drv => {
       if (drv.type === 'private' && drv.owner === user.uuid) return true
       if (drv.type === 'public' && 
