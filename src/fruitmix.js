@@ -956,13 +956,15 @@ class Fruitmix extends EventEmitter {
     } else {
       forceXstat(tmp, { hash }, (err, xstat) => {
         if (err) return callback(err)
-        fs.link(tmp, dst, err => {
-          if (err) {
-            callback(err)
-          } else {
-            callback(null, xstat)
-          }
-        })
+        // dirty
+        Object.assign(xstat, { name })
+        if (xstat.magic === 'JPEG') {
+
+                      
+        } else {
+          fs.link(tmp, dst, err => 
+            err ? callback(err) : callback(null, xstat)) 
+        }
       })
     }
   }

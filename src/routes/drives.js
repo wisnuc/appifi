@@ -180,28 +180,29 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
                  | -> ( _dryrun | dryrun | dryrun_ ) -> |
   **/
 
-  // noticing there is an inter-process communication when pipe ends.
-  // it is also a decision point.
-
   // enter: x { number, part }
   // do: part on ['error', 'header']
   // exit: x { number, part } 
   const parts = []
 
-  /**
-  **/
+  // x { number, type, name, fromName, toName, part, buffers  }
   const parsers = []
+  // x { number, type, name, fromName, toName, ...props } 
   const parsers_ = []
 
-  /**
-  x { number, ..., part, tmp, fd, ws, hs }
-  **/
+  // file
+  // x { number, type, name, fromName, toName, opts, part, tmp, destroyPipe }
   const pipes = []
+  // x { number, type, name, fromName, toName, opts, part, tmp, destroyDrain }
   const drains = []
+  // x { number, type, name, fromName, toName, opts, tmp, digest }
   const drains_ = []
 
+  // x { number }
   const _dryrun = []
+  // x { number }
   const dryrun = []
+  // x { number }
   const dryrun_ = []
 
   /**
@@ -211,146 +212,150 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
   const executions = []
 
   const r = []
+  const num = arr => arr.map(x => x.number)
 
   // for debug
   const print = x => {
     console.log(x) 
-    console.log('  parts', parts.map(p => p.number))
-    console.log('  parsers_', parsers, parsers_)
-    console.log('  pipes, drains_', pipes.map(x => x.number))
-    console.log('  hashers_', hashers.map(x => x.number), hashers_.map(x => x.number))
+    console.log('  parts', num(parts))
+    console.log('  parsers_', num(parsers), num(parsers_))
+    console.log('  pipes, drains_', num(pipes), num(drains), num(drains_))
     console.log('  _dryrun_', _dryrun, dryrun, dryrun_)
-    console.log('  executions', executions.map(x => x.number))
-    console.log('  r', r)
+    console.log('  executions', num(executions))
+    console.log('  r', num(r))
   }
 
-  const guard = (message, f) => {
-    return (...args) => {
-      print(`--------------------- ${message} >>>> begin`)
+  const guard = (message, f) => ((...args) => {
+    print(`--------------------- ${message} >>>> begin`)
+    try {
       f(...args)
-      print(`--------------------- ${message} <<<< end`)
+    } catch (e) {
+      console.log(e)
     }
-  }
+    print(`--------------------- ${message} <<<< end`)
+  })
 
   const pluck = (arr, x) => {
     let index = arr.indexOf(x)
     arr.splice(index, 1)
   }
 
+  const isFinished = x => x.hasOwnProperty('data') || x.hasOwnProperty('error') 
+  const predecessorErrored = x => !!r
+    .slice(0, x.number)
+    .find(y => y.toName === x.fromName && y.err)
+
+  const setError = (number, error) => r[number].error = r[number].error || error
+
   const error = (y, err) => {
 
-    r[y.number].error = err
+    setError(y.number, err)
 
+    // clear parts
     parts.forEach(x => {
       x.part.removeAllListeners()
       x.part.on('error', () => {})
-      if (x.number !== y.number) r[x.number].error = new Error('destroyed')
+      setError(x.number, EDestroyed)
     })
     parts.splice(0, -1)
 
-    fopen.forEach(x => {
-      x.part.removeAllListeners('error')
-      x.part.on('error', () => {})
-      if (x.number !== y.number) r[x.number].error = new Error('destroyed')
-    }) 
-
-    fopen.splice(0, -1)
-
+    // clear pipes
     pipes.forEach(x => {
-      x.part.removeAllListeners('error')
-      x.part.on('error', () => {})
-      x.ws.removeAllListeners('error')
-      x.ws.on('error', () => {})
-      x.ws.removeAllListeners('finish')
-      x.hs.removeAllListeners('error')
-      x.hs.on('error', () => {})
-      x.hs.removeAllListeners('data')
-      x.part.unpipe()
-      x.ws.destroy()
-      x.hs.destroy()
+      piping.push(x.number)
+      x.destroyPipe()
       rimraf(x.tmp, () => {})
-      if (x.number !== y.number) r[x.number].error = new Error('destroyed')
+      setError(x.number, EDestroyed)
     })
     pipes.splice(0, -1)
 
-    hashers.forEach(x => {
-      x.hs.removeAllListners('error')  
-      x.hs.on('error', () => {})
-      x.hs.removeAllListners('data')
-      x.hs.destroy()
-      rimraf(x.tmp, () => {})
-      if (x.number !== y.number) r[x.number].error = new Error('destroyed')
-    }) 
-    hashers.splice(0, -1)
+    // for drains and drains_, the remaining job must NOT have errored predecessor
+    while (true) {
+      let index = drains.find(predecessorErrored)
+      if (index !== -1) {
+        let x = drains[index]
+        x.destroyDrain()
+        drains.splice(index, 1)
+        setError(x.number, EDestroyed)
+      } else {
+        index = drains_.find(predecessorErrored)
+        if (index !== -1) {
+          let x = drains_[index]
+          drains_.splice(index, 1)
+          setError(x.number, EDestroyed)
+        } else {
+          break
+        }
+      }
+    }
 
-    hashers_.forEach(x => {
-      rimraf(x.tmp, () => {})
-      if (x.number !== y.number) r[x.number].error = new Error('destroyed')
-    })
-    hashers_.splice(0, -1)
-
-    _dryrun.splice(0, -1)
-    dryrun.splice(0, -1)
-    dryrun_.splice(0, -1)
+    // clear (orphan) dryrun
+    const remaining = [...drain, ...drains].map(x => x.number)
+    let i
+    while (i = _dryrun.find(x => remaining.includes(x.number)), i !== -1) _dryrun.splice(i, 1) 
+    while (i = dryrun.find(x => remaining.includes(x.number)), i !== -1) dryrun.splice(i, 1) 
+    while (i = dryrun.find(x => remaining.includes(x.number)), i !== -1) dryrun_.splice(i, 1)
 
     if (dicer) {
-      dicer.removeAllListeners('part')
+      dicer.removeAllListeners()
+      dicer.on('error', () => {})
       req.unpipe(dicer)
       dicer.end()
       dicer = null
     }
 
-    if (r.every(x => x.hasOwnProperty('data') || x.hasOwnProperty('error'))) {
+    if (r.every(isFinished)) {
       res.status(200).json(r)
+    } else {
+      // if there is no concurrency control, then no need to schedule
+      // for no job would be started when something errored
     }
   }
 
   const success = (x, data) => {
-    r[x.number] = { data }
-    if (r.every(x => x.hasOwnProperty('data') || x.hasOwnProperty('error'))) {
-      res.status(200).json(r) 
-    } else {
-      schedule()
+    Object.assign(r[x.number], { data })
+    if (r.every(isFinished)) {
+      console.log(r)
+      return res.status(200).json(r) 
     }
+    schedule()
   }
 
-  const blocked = number => {
-    let running = r
-      .slice(0, number)
-      .filter(x => !x.hasOwnProperty('data') && !x.hasOwnProperty('error'))
-
-    return !!running.find(x => x.toName === r[number].fromName)
-  }
+  const blocked = number => !!r
+    .slice(0, number)
+    .filter(x => !x.hasOwnProperty('data') && !x.hasOwnProperty('error'))
+    .find(x => x.toName === r[number].fromName)
 
   let count = 0
   const onPart = part => { 
     let x = { number: count++, part }
     parts.push(x)
-    part.once('error', err => {
-      pluck(parts, x)            
+    part.on('error', err => {
+      parts.splice(parts.indexOf(x), 1)
+      x.part.removeAllListeners()
       x.part.on('error', () => {})
-
       error(x.number, err)
     })
 
-    part.once('header', guard('on header', header => {
-      pluck(parts, x)
+    part.on('header', guard('on header', header => {
+      parts.splice(parts.indexOf(x), 1)
+      x.part.removeAllListeners()
 
       let props
       try {
         props = parseHeader(header)
       } catch (e) {
+        x.part.on('error', () => {})
         error(x.number, e)
         return
       }
 
-      Object.assign(r[x.number], { fromName: props.fromName, toName: props.toName })
       Object.assign(x, props)
-      if (x.opts) {
-        onFile(x)
-      } else {
-        onField(x)
+      r[x.number] = { 
+        number: x.number,
+        fromName: props.fromName, 
+        toName: props.toName 
       }
+      x.opts ?  onFile(x) : onField(x)
     }))
   }
 
@@ -390,34 +395,29 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
   }
 
   const onField = x => {
-    // push into parsers
     parsers.push(x)
     x.buffers = []
-
-    // error handler already hooked
     x.part.on('data', data => x.buffers.push(data))
-    x.part.on('end', () => {
-
+    x.part.on('end', guard('on part end', () => {
+      parsers.splice(parsers.indexOf(x), 1)
+      delete x.part
       try {
         Object.assign(x, JSON.parse(Buffer.concat(x.buffers)))
+        delete x.buffers
       } catch (e) {
-        return error(x, e)
+        return error(x.number, e)
       }
 
-      delete x.buffers
-      delete x.part
-      pluck(parsers, x)
-
       // push into executions, or do executions
-      executions.push(x)           
-      getFruit().mkdirp(user, driveUUID, dirUUID, x.toName, (err, xstat) => {
-        success(x, xstat)
-      })
-    })
+      parsers_.push(x)
+      schedule()
+      // execute(x)
+    }))
   }
 
   const execute = x => {
     executions.push(x)
+
     if (x.opts) { // file
       if (x.opts.append) {
           
@@ -433,38 +433,39 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
           }))
       }
     } else { // field
-      
+      getFruit().mkdirp(user, driveUUID, dirUUID, x.toName, (err, xstat) => {
+        success(x, xstat)
+      })
     }
   }
 
-  // parsers_ -> executions
-  // _dryrun -> dryrun
-  // dryrun_ && hashers_ -> executions 
   const schedule = () => {
-
-    // schedule dryrun
+    // dryrun
     while (true) {
       let y = _dryrun.find(y => !blocked(y.number))
       if (!y) break
-
-      pluck(_dryrun, y)
+      _dryrun.splice(_dryrun.indexOf(y), 1)
       dryrun.push(y)
-   
-      // FIXME 
       setTimeout(() => {
         pluck(dryrun, y)
-        delete y.timer
         dryrun_.push(y)
         schedule()
-      }, 500)
+      }, 50)
     }
-    // schedule parser_
 
-    // hashers_ && dryrun_ join
+    // parser_
     while (true) {
-      let x = hashers_.find(x => !blocked(x.number) && !!dryrun_.find(y => y.number === x.number)) 
+      let x = parsers_.find(x => !blocked(x.number))
       if (!x) break
-      hashers_.splice(hashers_.indexOf(x), 1)
+      parsers_.splice(parsers_.indexOf(x), 1)
+      execute(x)
+    }
+
+    // drains_ && dryrun_ join
+    while (true) {
+      let x = drains_.find(x => !blocked(x.number) && !!dryrun_.find(y => y.number === x.number)) 
+      if (!x) break
+      drains_.splice(drains_.indexOf(x), 1)
       let y = dryrun_.find(y => y.number === x.number)
       dryrun_.splice(dryrun_.indexOf(y), 1)
       execute(x)

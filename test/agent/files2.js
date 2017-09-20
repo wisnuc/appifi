@@ -62,6 +62,7 @@ describe(path.basename(__filename), () => {
       stat = await fs.lstatAsync(path.join(DrivesDir, IDS.alice.home))
     }) 
 
+/**
     // Get directories in alice home drive
     it("GET dirs should return [alice.home]", done => {
 
@@ -106,6 +107,7 @@ describe(path.basename(__filename), () => {
           done()
         })
     })
+**/
 
     // this test fails in #398
     it("metadata should be provided for media file when metadata=true", done => {
@@ -119,12 +121,16 @@ describe(path.basename(__filename), () => {
         .expect(200)
         .end((err, res) => {
 
+          console.log(res.body)
+
           setTimeout(() => 
             request(app)
               .get(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}?metadata=true`)
               .set('Authorization', 'JWT ' + token)
               .expect(200)
               .end((err, res) => {
+
+                console.log(res.body)
 
                 expect(res.body.entries[0].metadata).to.deep.equal({
                   m: 'JPEG', 
@@ -137,7 +143,7 @@ describe(path.basename(__filename), () => {
           
         })
     })
-
+/**
     it("metadata should not be provided for media file when metadata=false", done => {
       request(app)
         .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries?metadata=false`)
@@ -164,6 +170,7 @@ describe(path.basename(__filename), () => {
           
         })
     })
+**/
 
   })
 
@@ -174,6 +181,8 @@ describe(path.basename(__filename), () => {
   + 200 if hello is a directory.
   - 403 if hello is a file.
   */
+
+/**
   describe("test mkdir", () => {
 
     let token, stat
@@ -238,7 +247,9 @@ describe(path.basename(__filename), () => {
         })
     })
 
-  })
+  }) // end of test mkdir
+
+**/
 
   /**
 
@@ -252,6 +263,7 @@ describe(path.basename(__filename), () => {
   + 200 if hello directory does exist
 
   */
+/**
   describe("test remove", () => {
 
     let token, stat
@@ -397,7 +409,9 @@ describe(path.basename(__filename), () => {
     })
 
   })
+**/
 
+/**
   describe("ad hoc", () => {
 
     let token, stat
@@ -523,7 +537,8 @@ describe(path.basename(__filename), () => {
         })
     })
 
-  })
+  }) // end of ad hoc
+**/
 
 
 })
