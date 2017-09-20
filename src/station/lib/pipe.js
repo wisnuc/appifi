@@ -387,7 +387,7 @@ class Pipe {
     let { serverAddr, sessionId, user } = data
     let fruit = getFruit()
     if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
-    let drives = fruit.getDrives(user)
+    let drives = fruit.getDriveList(user)
     return await this.successResponseJsonAsync(serverAddr, sessionId, drives)
   }
 
@@ -785,7 +785,7 @@ class Pipe {
         'Authorization': this.connect.token
       }
     }
-    if(addr.length === 2) options.port = 4000
+    if(addr.length === 2) options.port = addr[1]
 
     let req = http.request(options, res => {
       res.setEncoding('utf8')

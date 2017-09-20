@@ -300,4 +300,127 @@ describe(path.basename(__filename), () => {
         .end((err, res) => err ? done(err) : done())
     })
   })
+
+  describe("Admin should get all publice drives", () => {
+    let emmaToken
+    beforeEach(async () => {
+      await resetAsync()
+      await createUserAsync('alice')
+      aliceToken = await retrieveTokenAsync('alice')
+      // await create
+      await createUserAsync('bob', aliceToken, true)
+      bobToken = await retrieveTokenAsync('bob')
+
+      await createUserAsync('emma', aliceToken, false)
+      emmaToken = await retrieveTokenAsync('emma')
+
+      let props1 = {
+        readlist: [IDS.bob.uuid],
+        label: 'hello1'
+      }
+      let props2 = {
+        readlist: [IDS.alice.uuid],
+        label: 'hello2'
+      }
+      await createPublicDriveAsync(props1, aliceToken, IDS.publicDrive1.uuid)
+      await createPublicDriveAsync(props2, bobToken, IDS.publicDrive2.uuid)
+    })
+
+    it("alice can get all public drives", done => {
+      let expected = [ 
+        { uuid: IDS.alice.home,
+          type: 'private',
+          owner: IDS.alice.uuid,
+          tag: 'home' },
+        { uuid: IDS.publicDrive1.uuid,
+          type: 'public',
+          writelist: [],
+          readlist: [ IDS.bob.uuid ],
+          label: 'hello1' },
+        { uuid: IDS.publicDrive2.uuid,
+          type: 'public',
+          writelist: [],
+          readlist: [ IDS.alice.uuid ],
+          label: 'hello2' } ]
+
+      request(app)
+        .get(`/drives`)
+        .set('Authorization', 'JWT ' + aliceToken)
+        .expect(200)
+        .end((err, res) => {
+          if (err) return done(err)
+          expect(res.body).to.deep.equal(expected)
+          done()
+        })
+    })
+
+    it("bob can get all public drives", done => {
+      let expected = [ 
+        { uuid: IDS.bob.home,
+          type: 'private',
+          owner: IDS.bob.uuid,
+          tag: 'home' },
+        { uuid: IDS.publicDrive1.uuid,
+          type: 'public',
+          writelist: [],
+          readlist: [ IDS.bob.uuid ],
+          label: 'hello1' },
+        { uuid: IDS.publicDrive2.uuid,
+          type: 'public',
+          writelist: [],
+          readlist: [ IDS.alice.uuid ],
+          label: 'hello2' } ]
+
+      request(app)
+        .get(`/drives`)
+        .set('Authorization', 'JWT ' + bobToken)
+        .expect(200)
+        .end((err, res) => {
+          if (err) return done(err)
+          expect(res.body).to.deep.equal(expected)
+          done()
+        })
+    })
+
+    it("emma should get itself drive", done => {
+      let expected = [ 
+        { uuid: IDS.emma.home,
+          type: 'private',
+          owner: IDS.emma.uuid,
+          tag: 'home' }]
+
+      request(app)
+        .get(`/drives`)
+        .set('Authorization', 'JWT ' + emmaToken)
+        .expect(200)
+        .end((err, res) => {
+          if (err) return done(err)
+          expect(res.body).to.deep.equal(expected)
+          done()
+        })
+    })
+
+    it("Alice get publicDrive1 dirs should get 401", done => {
+      request(app)
+        .get(`/drives/${IDS.publicDrive1.uuid}/dirs`)
+        .set('Authorization', 'JWT ' + aliceToken)
+        .expect(401)
+        .end((err, res) => {
+          if (err) return done(err)
+          done()
+        })
+    })
+
+    it("Bob get publicDrive1 dirs should 200", done => {
+      request(app)
+        .get(`/drives/${IDS.publicDrive1.uuid}/dirs/${IDS.publicDrive1.uuid}`)
+        .set('Authorization', 'JWT ' + bobToken)
+        .expect(200)
+        .end((err, res) => {
+          if (err) return done(err)
+          expect(res.body.entries).to.deep.equal([])
+          done()
+        })
+    })
+  })
 })  

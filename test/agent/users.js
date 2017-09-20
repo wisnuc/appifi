@@ -182,7 +182,8 @@ describe(path.basename(__filename), () => {
           expect(res.body).to.deep.equal([{
             uuid: IDS.alice.uuid,
             username: 'alice',
-            avatar: null
+            avatar: null,
+            disabled: false
           }])
           done()
         })
@@ -929,7 +930,7 @@ describe(path.basename(__filename), () => {
       await createPublicDriveAsync(props, aliceToken, IDS.publicDrive1.uuid)
     })
 
-    it("GET /drives alice should NOT get publicDrive1", async () => 
+    it("GET /drives alice should get publicDrive1, alice is admin", async () => 
       request(app)
         .get('/drives')
         .set('Authorization', 'JWT ' + aliceToken) 
@@ -940,7 +941,16 @@ describe(path.basename(__filename), () => {
           type: 'private',
           owner: IDS.alice.uuid,
           tag: 'home'
-        }]))
+        },{
+            label: "hello",
+            readlist: [],
+            type: "public",
+            uuid: IDS.publicDrive1.uuid,
+            writelist: [
+                IDS.bob.uuid
+            ]
+          }
+      ]))
 
     it("GET /drives bob should get both home and publicDrive1", async () => 
       request(app)

@@ -6,6 +6,8 @@ const EventEmitter = require('events')
 const rimraf = require('rimraf')
 const mkdirp = require('mkdirp')
 const mkdirpAsync = Promise.promisify(mkdirp)
+const rimrafAsync = Promise.promisify(rimraf)
+const uuid = require('uuid')
 
 const UserList = require('./user/user')
 const DriveList = require('./forest/forest')
@@ -42,12 +44,58 @@ class Fruitmix extends EventEmitter {
     let tmpDir = path.join(froot, 'tmp')
 
     this.fruitmixPath = froot
-    this.mediaMap = new Map()
+    this.mediaMap = this.loadMediaMap(path.join(froot, 'metadataDB.json'))
     this.thumbnail = new Thumbnail(thumbDir, tmpDir)
     this.userList = new UserList(froot)
     this.driveList = new DriveList(this, froot)
     this.boxData = new BoxData(froot)
     this.tasks = []
+    this.storeTimer = setInterval(() => {
+      this.storeMediaMapAsync()
+        .then(() => {})
+        .catch(e => {})
+    }, 1000*60*60)
+  }
+
+  loadMediaMap (fpath) {
+    let medias, data
+    try{
+      medias = fs.readFileSync(fpath,{ encoding: 'utf8'}).split('\n').filter(x => !!x.length)
+    } catch(e) {
+      rimraf.sync(fpath) // remove
+      medias = []
+    }
+    let mediaMap = new Map()
+    medias.forEach(x => {
+      try {
+        data = JSON.parse(x)
+        if(data.length === 2) {
+          mediaMap.set(data[0], data[1])
+        }
+      }catch(e) { } //TODO:
+    })
+    return mediaMap
+  }
+
+  async storeMediaMapAsync () {
+    let tmp = path.join(this.fruitmixPath, 'tmp', uuid.v4())
+    let fpath = path.join(this.fruitmixPath, 'metadataDB.json')
+    let metadata = Array.from(this.mediaMap).map(x => {
+      try{
+        return JSON.stringify(x)
+      }catch(e){
+        debug(e)
+        return
+      }
+    })
+    try{
+      await fs.writeFileAsync(tmp, metadata.join('\n'))
+      await rimrafAsync(fpath)
+      await fs.renameAsync(tmp, fpath)
+    }catch(e){
+      debug(e)
+      throw e
+    }
   }
 
   /**
@@ -64,7 +112,8 @@ class Fruitmix extends EventEmitter {
     return this.userList.users.map(u => ({
       uuid: u.uuid,
       username: u.username,
-      avatar: u.avatar
+      avatar: u.avatar,
+      disabled: u.disabled
     }))
   }
 
@@ -370,6 +419,19 @@ class Fruitmix extends EventEmitter {
       if (drv.type === 'private' && drv.owner === user.uuid) return true
       if (drv.type === 'public' && 
         (drv.writelist.includes(user.uuid) || drv.readlist.includes(user.uuid))) {
+        return true
+      }
+      return false
+    })
+
+    return drives
+  }
+
+  getDriveList (user) {
+    let drives = this.driveList.drives.filter(drv => {
+      if (drv.type === 'private' && drv.owner === user.uuid) return true
+      if (drv.type === 'public' && 
+        (drv.writelist.includes(user.uuid) || drv.readlist.includes(user.uuid) || user.isAdmin)) {
         return true
       }
       return false
