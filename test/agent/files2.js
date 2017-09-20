@@ -31,7 +31,6 @@ const {
   setUserUnionIdAsync
 } = require('./lib')
 
-
 const cwd = process.cwd()
 const tmptest = path.join(cwd, 'tmptest')
 const tmpDir = path.join(tmptest, 'tmp')
@@ -110,7 +109,9 @@ describe(path.basename(__filename), () => {
 **/
 
     // this test fails in #398
-    it("metadata should be provided for media file when metadata=true", done => {
+    it("metadata should be provided for media file when metadata=true", function (done) {
+      this.timeout(5000)
+
       request(app)
         .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
         .set('Authorization', 'JWT ' + token)
@@ -120,18 +121,12 @@ describe(path.basename(__filename), () => {
         }))
         .expect(200)
         .end((err, res) => {
-
-          console.log(res.body)
-
           setTimeout(() => 
             request(app)
               .get(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}?metadata=true`)
               .set('Authorization', 'JWT ' + token)
               .expect(200)
               .end((err, res) => {
-
-                console.log(res.body)
-
                 expect(res.body.entries[0].metadata).to.deep.equal({
                   m: 'JPEG', 
                   w: 235, 
@@ -139,12 +134,13 @@ describe(path.basename(__filename), () => {
                   size: 39499
                 })
                 done()
-              }), 1000)
+              }), 500)
           
         })
     })
-/**
-    it("metadata should not be provided for media file when metadata=false", done => {
+
+    it("metadata should not be provided for media file when metadata=false", function (done) {
+      this.timeout(5000)
       request(app)
         .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries?metadata=false`)
         .set('Authorization', 'JWT ' + token)
@@ -166,11 +162,10 @@ describe(path.basename(__filename), () => {
 
                 expect(res.body.entries[0].metadata).to.be.undefined
                 done()
-              }), 1000)
+              }), 500)
           
         })
     })
-**/
 
   })
 
@@ -181,75 +176,6 @@ describe(path.basename(__filename), () => {
   + 200 if hello is a directory.
   - 403 if hello is a file.
   */
-
-/**
-  describe("test mkdir", () => {
-
-    let token, stat
-    beforeEach(async () => {
-      debug('------ I am a beautiful divider ------')
-      await Promise.delay(50)
-      await resetAsync()
-      await createUserAsync('alice')
-      token = await retrieveTokenAsync('alice')
-      stat = await fs.lstatAsync(path.join(DrivesDir, IDS.alice.home))
-    }) 
-
-    it("200 if hello does not exist mkdir", done => {
-      request(app)
-        .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
-        .set('Authorization', 'JWT ' + token)
-        .field('hello', JSON.stringify({ op: 'mkdir' }))
-        .expect(200)
-        .end((err, res) => {
-          if (err) return done(err)
-
-          let data = res.body[0].data
-
-          expect(data.name).to.equal('hello')
-          expect(data.type).to.equal('directory')
-          expect(data.hasOwnProperty('uuid')).to.be.true
-          expect(Number.isInteger(data.mtime)).to.be.true
-          done()
-        })
-    })
-
-    it("200 if hello is a directory", done => {
-      request(app)
-        .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
-        .set('Authorization', 'JWT ' + token)
-        .field('hello', JSON.stringify({ op: 'mkdir' }))
-        .field('hello', JSON.stringify({ op: 'mkdir' }))
-        .expect(200)
-        .end((err, res) => {
-          let dirPath = path.join(DrivesDir, IDS.alice.home, 'hello')
-          fs.lstat(dirPath, (err, stat) => {
-            if (err) return done(err)
-            expect(stat.isDirectory()).to.be.true
-            done()
-          })
-        })
-    })
-
-    it("403 if hello is a file", done => {
-      request(app)
-        .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
-        .set('Authorization', 'JWT ' + token)
-        .attach('hello', 'testdata/hello', JSON.stringify({
-          size: FILES.hello.size,
-          sha256: FILES.hello.hash
-        }))
-        .field('hello', JSON.stringify({ op: 'mkdir' }))
-        .expect(403)
-        .end((err, res) => {
-          expect(res.body.code).to.equal('EEXIST')
-          done()
-        })
-    })
-
-  }) // end of test mkdir
-
-**/
 
   /**
 

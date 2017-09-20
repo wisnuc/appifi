@@ -14,6 +14,7 @@ const DriveList = require('./forest/forest')
 const BoxData = require('./box/boxData')
 const Thumbnail = require('./lib/thumbnail2')
 const File = require('./forest/file')
+const Identifier = require('./lib/identifier')
 
 const { assert, isUUID, isSHA256, validateProps } = require('./common/assertion')
 
@@ -1020,13 +1021,22 @@ class Fruitmix extends EventEmitter {
         if (err) return callback(err)
         // dirty
         Object.assign(xstat, { name })
-        if (xstat.magic === 'JPEG') {
-
-                      
-        } else {
-          fs.link(tmp, dst, err => 
-            err ? callback(err) : callback(null, xstat)) 
-        }
+        fs.link(tmp, dst, err => {
+          if (err) {
+            callback(err)
+          } else {
+            callback(null, xstat)
+            if (xstat.magic === 'JPEG') {
+              if (!this.mediaMap.has(xstat.hash)) {
+                Identifier.identify(dst, xstat.hash, xstat.uuid, (err, metadata) => {
+                  // TODO
+                  if (err) return
+                  this.mediaMap.set(xstat.hash, metadata)
+                })
+              }
+            }
+          }
+        })
       })
     }
   }

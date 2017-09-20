@@ -169,7 +169,10 @@ const parseHeader = header => {
 
 router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, res, next) => {
 
-  const EDestroyed = new Error('destroyed')
+  const EDestroyed = Object.assign(new Error('destroyed'), { 
+    code: 'EDESTROYED',
+    status: 403
+  })
   const user = req.user
   const { driveUUID, dirUUID } = req.params
   let dicer
@@ -225,6 +228,21 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
     console.log('  r', num(r))
   }
 
+  const assertNoDup = () => {
+    const all = [
+      ...num(parts),
+      ...num(parsers),
+      ...num(parsers_),
+      ...num(pipes),
+      ...num(drains),
+      ...num(drains_),
+      ...num(executions)
+    ]
+
+    let set = new Set(all)
+    if (set.size !== all.length) throw new Error('duplicate found')
+  }
+
   const guard = (message, f) => ((...args) => {
     print(`--------------------- ${message} >>>> begin`)
     try {
@@ -241,13 +259,26 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
   }
 
   const isFinished = x => x.hasOwnProperty('data') || x.hasOwnProperty('error') 
+  const response = () => r.map(x => {
+    if (x.hasOwnProperty('data')) {
+      return { data: x.data }
+    } else {
+      let { status, errno, code, syscall, path, dest, message } = x.error
+      return { error: { status, message, code, errno, syscall, path, dest } }
+    } 
+  })
+
   const predecessorErrored = x => !!r
     .slice(0, x.number)
-    .find(y => y.toName === x.fromName && y.err)
+    .find(y => y.toName === x.fromName && y.error)
 
   const setError = (number, error) => r[number].error = r[number].error || error
 
   const error = (y, err) => {
+
+    console.log('======== error begin ========')
+    console.log('error', y.number, err)
+    print()
 
     setError(y.number, err)
 
@@ -261,39 +292,52 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
 
     // clear pipes
     pipes.forEach(x => {
-      piping.push(x.number)
       x.destroyPipe()
       rimraf(x.tmp, () => {})
       setError(x.number, EDestroyed)
     })
     pipes.splice(0, -1)
 
+    parsers.forEach(x => {
+      x.part.removeAllListeners()
+      x.part.on('error', () => {})
+      setError(x.number, EDestroyed)
+    })
+    parsers.splice(0, -1)
+
     // for drains and drains_, the remaining job must NOT have errored predecessor
     while (true) {
-      let index = drains.find(predecessorErrored)
+      let index = drains.findIndex(predecessorErrored)
       if (index !== -1) {
         let x = drains[index]
         x.destroyDrain()
         drains.splice(index, 1)
         setError(x.number, EDestroyed)
       } else {
-        index = drains_.find(predecessorErrored)
+        index = drains_.findIndex(predecessorErrored)
         if (index !== -1) {
           let x = drains_[index]
           drains_.splice(index, 1)
           setError(x.number, EDestroyed)
         } else {
-          break
+          index = parsers_.findIndex(predecessorErrored) 
+          if (index !== -1) {
+            let x = parsers_[index]
+            parsers_.splice(index, 1)
+            setError(x.number, EDestroyed)
+          } else {
+            break
+          }
         }
       }
     }
 
     // clear (orphan) dryrun
-    const remaining = [...drain, ...drains].map(x => x.number)
+    const remaining = [...drains, ...drains_].map(x => x.number)
     let i
-    while (i = _dryrun.find(x => remaining.includes(x.number)), i !== -1) _dryrun.splice(i, 1) 
-    while (i = dryrun.find(x => remaining.includes(x.number)), i !== -1) dryrun.splice(i, 1) 
-    while (i = dryrun.find(x => remaining.includes(x.number)), i !== -1) dryrun_.splice(i, 1)
+    while (i = _dryrun.findIndex(x => remaining.includes(x.number)), i !== -1) _dryrun.splice(i, 1) 
+    while (i = dryrun.findIndex(x => remaining.includes(x.number)), i !== -1) dryrun.splice(i, 1) 
+    while (i = dryrun_.findIndex(x => remaining.includes(x.number)), i !== -1) dryrun_.splice(i, 1)
 
     if (dicer) {
       dicer.removeAllListeners()
@@ -304,18 +348,21 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
     }
 
     if (r.every(isFinished)) {
-      res.status(200).json(r)
+      res.status(200).json(response())
     } else {
       // if there is no concurrency control, then no need to schedule
       // for no job would be started when something errored
     }
+
+    console.log('======== error end ========')
+    print()
   }
 
   const success = (x, data) => {
     Object.assign(r[x.number], { data })
     if (r.every(isFinished)) {
       console.log(r)
-      return res.status(200).json(r) 
+      return res.status(200).json(response()) 
     }
     schedule()
   }
@@ -381,6 +428,8 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
 
         if (err) return error(x.number, err)
         if (digest !== x.opts.sha256) return error(x.number, new Error('hash mismatch'))
+  
+        x.digest = digest
         drains_.push(x)
         schedule()
       })
@@ -411,7 +460,6 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
       // push into executions, or do executions
       parsers_.push(x)
       schedule()
-      // execute(x)
     }))
   }
 
@@ -434,7 +482,12 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
       }
     } else { // field
       getFruit().mkdirp(user, driveUUID, dirUUID, x.toName, (err, xstat) => {
-        success(x, xstat)
+        executions.splice(executions.indexOf(x), 1)
+        if (err) {
+          error(x, err)
+        } else {
+          success(x, xstat)
+        }
       })
     }
   }
@@ -477,6 +530,7 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
 
   dicer = new Dicer({ boundary: m[1] || m[2] })
   dicer.on('part', guard('on part', onPart))
+  // FIXME on end
   req.pipe(dicer)
 })
 

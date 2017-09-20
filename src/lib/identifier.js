@@ -100,10 +100,10 @@ class Identify extends Worker {
 class Identifier {
 
   constructor() {
-    this.rx = []
     this._exec = []
     this.exec = []
-    this.exec_ = []
+    this.xstat = []
+    this.lstat = []
     this.concurrency = 16
   }
 
@@ -111,41 +111,61 @@ class Identifier {
     while (this._exec.length && this.exec.length < this.concurrency) {
       let x = this._exec.shift()
       this.exec.push(x)
-      x.child = child.exec(`identify -format '${identifyFormatString}' '${x.fpath}'`, (err, stdout) => {
+      x.child = child.exec(`identify -format '${identifyFormatString}' '${x.path}'`, (err, stdout) => {
+
         let index = this.exec.indexOf(x) 
         if (index === -1) return
         this.exec.splice(index, 1)
-        err ? x.callback(err) : x.callback(null, parseIdentifyOutput(stdout))
+        if (err) {
+          x.callback(err)
+        } else {
+          x.metadata = parseIdentifyOutput(stdout)
+          if (x.hash) {
+            this.xstat.push(x) 
+            readXstat(x.path, (err, xstat) => {
+              let index = this.xstat.indexOf(x)
+              if (index === -1) return
+              this.xstat.splice(index, 1)
+              if (xstat.uuid !== x.uuid) return callback(new Error('uuid mismatch'))
+              if (xstat.hash !== x.hash) return callback(new Error('hash mismatch'))
+              x.callback(null, Object.assign(x.metadata, { size: xstat.size }))
+              this.schedule()
+            })
+          } else {
+            this.lstat.push(x)
+            fs.lstat(x.path, (err, stat) => {
+              let index = this.lstat.indexOf(x)
+              if (index === -1) return
+              this.lstat.splice(index, 1)
+              x.callback(null, Object.assign(x.metadata, { size: stat.size }))
+              this.schedule()
+            })
+          }
+        }
+        this.schedule()
       }) 
     }
   }
 
   identify(fpath, hash, uuid, callback) {
+
     let x
-    if (typeof x.hash === 'string') {
-      x = { fpath, hash, uuid, callback }
-      this.rx.push(x)
-      readXstat(x.fpath, (err, xstat) => {
-        let index = this.rx.indexOf(x)
-        if (index === -1) return
-        this.rx.splice(index, 1)
-        if (err) return x.callback(err)
-        if (xstat.type !== 'file') return x.callback(new Error('not a file'))
-        if (xstat.uuid !== x.uuid) return x.callback(new Error('uuid mismatch'))
-        if (xstat.hash !== x.hash) return x.callback(new Error('hash mismatch'))
-        this._exec.push(x)
-        this.schedule()
-      })
+    if (typeof hash === 'string') {
+      x = { path: fpath, hash, uuid, callback }  
     } else {
-      x = { fpath, callback: hash }
-      this._exec.push(x)
-      this.schedule()
-    } 
+      x = { path: fpath, callback }
+    }
+    this._exec.push(x)
+    this.schedule()
+
+    const pluck = arr => arr.splice(arr.indexOf(x), 1)
 
     return () => {
-      this.rx.splice(this.rx.indexOf(x), 1)      
-      this._exec.splice(this._exec.indexOf(x), 1)
-      this.exec.splice(this.exec.indexOf(x), 1)
+      pluck(this._exec)
+      pluck(this.exec)
+      pluck(this.xstat)
+      pluck(this.lstat)
+      this.schedule()
     }
   }
 }
