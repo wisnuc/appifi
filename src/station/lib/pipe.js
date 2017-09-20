@@ -785,7 +785,7 @@ class Pipe {
         'Authorization': this.connect.token
       }
     }
-    if(addr.length === 2) options.port = 4000
+    if(addr.length === 2) options.port = addr[1]
 
     let req = http.request(options, res => {
       res.setEncoding('utf8')
