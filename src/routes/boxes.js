@@ -306,9 +306,22 @@ router.delete('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
     .catch(next)
 })
 
-router.get('/commits/:commitHash', fruitless, auth, (req, res, next) => {
+router.get('/:boxUUID/commits/:commitHash', fruitless, auth, (req, res, next) => {
+  let boxUUID = req.params.boxUUID
   let commitHash = req.params.commitHash
 
+  getFruit().getCommitAsync(req.user, boxUUID, commitHash)
+    .then(data => res.status(200).json(data))
+    .catch(next)
+})
+
+router.get('/:boxUUID/rootTreeHash', fruitless, auth, (req, res, next) => {
+  let boxUUID = req.params.boxUUID
+  let rootTreeHash = req.params.rootTreeHash
+
+  getFruit().getRootListAsync(req.user, boxUUID, rootTreeHash)
+    .then(data => res.status(200).json(data))
+    .catch(next)
 })
 
 router.post('/:boxUUID/commits', fruitless, auth, (req, res, next) => {

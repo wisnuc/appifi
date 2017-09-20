@@ -29,7 +29,8 @@ const {
   waCloudTokenAsync,
   createBoxAsync,
   createBranchAsync,
-  forgeRecords
+  forgeRecords,
+  createTreeObjectAsync
 } = require('./lib')
 
 const cwd = process.cwd()
@@ -291,25 +292,39 @@ describe(path.basename(__filename), () => {
 
     afterEach(() => UUID.v4.restore())
 
-    // it.only('POST /boxes/{uuid}/commits, should create a commit', done => {
-    //   let obj = {
-    //     root: 'aaa',       // hash string of a tree obj
-    //     parent: 'bbb',     // commit ID
-    //     branch: 'ccc',     // branch ID
-    //     uploadSet:['ddd']
-    //   }
-    //   request(app)
-    //     .post(`/boxes/${boxUUID}/commits`)
-    //     .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
-    //     .field('commit',JSON.stringify(obj))
-    //     .attach('alonzo.jpg', 'testdata/alonzo_church.jpg')
-    //     .attach('vpai001', 'testdata/vpai001.jpg')
-    //     .expect(200)
-    //     .end((err, res) => {
-    //       if (err) return done(err)
-    //       done()
-    //     })
-    // })
+    it.only('POST /boxes/{uuid}/commits, should create a commit with no parent', async done => {
+      let testDir = 'testdata'
+      let result = await createTreeObjectAsync(testDir)
+      let toUpload = [...result.hashArr.keys()]
+      let tmp = path.join(process.cwd(), 'tmp')
+      let entries = await fs.readdirSync(tmp)
+      // move all files toUpload into tmp dir,
+      // and rename with its hash
+      console.log(toUpload)
+      toUpload.forEach(i => {
+        if (!entries.includes(i)) {
+          let src = result.hashArr.get(i).path[0]
+          let dst = path.join(tmp, i)
+          child.execSync(`cp -r --reflink=auto --preserve=all '${src}' '${dst}'`)
+        }
+      })
+
+      let obj = {
+        root: result.root,       // hash string of a tree obj
+        toUpload:[...result.hashArr.keys()]
+      }
+      request(app)
+        .post(`/boxes/${boxUUID}/commits`)
+        .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
+        .field('commit',JSON.stringify(obj))
+        .attach('tmp', 'tmp')
+        // .attach('vpai001', 'testdata/vpai001.jpg')
+        .expect(200)
+        .end((err, res) => {
+          if (err) return done(err)
+          done()
+        })
+    })
 
     it('POST /boxes/{uuid}/tweets alice should add a tweet into tweetsDB', done => {
       request(app)

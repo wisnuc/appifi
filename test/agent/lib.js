@@ -340,9 +340,14 @@ const forgeRecords = async (boxUUID, username) => {
 
   // UUID.v4 is modified by sinon
   // it is only installed three returns
-  // U.expect(200)
-  }
-}.set('Authorization', 'JWT ' + cloudToken + ' ' + token)
+  // UUID.v4 has been called once when create a box(boxUUID)
+  // so there are only two returns can be used
+  // in this loop, UUID.v4 is required
+  // but only the first two can get a result, this won't influence the data we need
+  for(let i = 0; i < 10; i++) {
+    let res = await request(app)
+      .post(`/boxes/${boxUUID}/tweets`)
+      .set('Authorization', 'JWT ' + cloudToken + ' ' + token)
       .send({comment: 'hello'})
       .expect(200)
   }
@@ -351,7 +356,7 @@ const forgeRecords = async (boxUUID, username) => {
 // calculate tree object of a directory, return root and hashArr map
 // hashArr contain tree object hash and blob hash
 const createTreeObjectAsync = async dir => {
-  console.log(process.cwd())
+  // console.log(process.cwd())
   let tmpDir = path.join(process.cwd(), 'tmp')
   let hashArr = new Map()
   // {fingerprint:xxxx, path:[]}
@@ -383,8 +388,7 @@ const createTreeObjectAsync = async dir => {
 
           return ['tree', entry, fingerprint]
         }
-          
-            
+         
         if (stat.isFile()) {
           let fingerprint = await fingerprintSimpleAsync(entryPath)
 
