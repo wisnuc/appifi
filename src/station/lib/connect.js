@@ -120,7 +120,7 @@ class Connect extends EventEmitter{
     super()
     this.state = CONNECT_STATE.DISCED
     this.privateKey = station.privateKey
-    this.saId = station.sa.id
+    this.saId = station.station.id
     this.froot = station.froot
     this.handler = new Map()
     this.socket = undefined

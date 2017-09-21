@@ -11,4 +11,12 @@ router.get('/info', (req, res) => {
   return res.status(200).json(Station.info())
 })
 
+router.patch('/info', (req, res, next) => {
+  let { name } = req.body 
+  if(!name) return next(Object.assign(new Error('patch station name error!'), { status: 400 }))
+  Station.updateInfoAsync({ name })
+    .then(station => res.status(200).json(station))
+    .catch(next)
+})
+
 module.exports = router
