@@ -51,6 +51,10 @@ const IDS = {
 
   publicDrive1: {
     uuid: '01f7bcfd-8576-4dc5-b72f-65ad2acd82b2',
+  },
+
+  publicDrive2: {
+    uuid: '01f7bcfd-8576-4dc5-b72f-65ad2acd82b3',
   }
 }
 

@@ -8,8 +8,9 @@ let FILE = {
 
 let CONFIG = {}
 if(process.env.NODE_ENV === 'test')
-    CONFIG.CLOUD_PATH =  'http://10.10.9.59:4000/'
-else{}
+    CONFIG.CLOUD_PATH = 'http://10.10.9.59:4000/'
+else
+    CONFIG.CLOUD_PATH = 'http://www.siyouqun.org/'
 Object.freeze(FILE)
 Object.freeze(CONFIG)
 

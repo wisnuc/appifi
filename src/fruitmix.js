@@ -116,7 +116,8 @@ class Fruitmix extends EventEmitter {
     return this.userList.users.map(u => ({
       uuid: u.uuid,
       username: u.username,
-      avatar: u.avatar
+      avatar: u.avatar,
+      disabled: u.disabled
     }))
   }
 
@@ -422,6 +423,19 @@ class Fruitmix extends EventEmitter {
       if (drv.type === 'private' && drv.owner === user.uuid) return true
       if (drv.type === 'public' && 
         (drv.writelist.includes(user.uuid) || drv.readlist.includes(user.uuid))) {
+        return true
+      }
+      return false
+    })
+
+    return drives
+  }
+
+  getDriveList (user) {
+    let drives = this.driveList.drives.filter(drv => {
+      if (drv.type === 'private' && drv.owner === user.uuid) return true
+      if (drv.type === 'public' && 
+        (drv.writelist.includes(user.uuid) || drv.readlist.includes(user.uuid) || user.isAdmin)) {
         return true
       }
       return false
