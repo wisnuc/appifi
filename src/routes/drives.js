@@ -173,8 +173,11 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
     code: 'EDESTROYED',
     status: 403
   })
+
   const user = req.user
   const { driveUUID, dirUUID } = req.params
+
+  // set dicer to null to indicate all parts have been generated. 
   let dicer
 
   /**
@@ -244,13 +247,13 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
   }
 
   const guard = (message, f) => ((...args) => {
-    print(`--------------------- ${message} >>>> begin`)
+    // print(`--------------------- ${message} >>>> begin`)
     try {
       f(...args)
     } catch (e) {
       console.log(e)
     }
-    print(`--------------------- ${message} <<<< end`)
+    // print(`--------------------- ${message} <<<< end`)
   })
 
   const pluck = (arr, x) => {
@@ -259,12 +262,29 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
   }
 
   const isFinished = x => x.hasOwnProperty('data') || x.hasOwnProperty('error') 
+  const settled = () => dicer === null && r.every(isFinished) 
+
+  const statusCode = () => {
+    let xs = r.filter(x => x.hasOwnProperty('error'))
+    if (xs.length === 0) return 200   
+    if (xs.find(x => x.error.status === 400)) return 400
+    return 403
+  }
+
   const response = () => r.map(x => {
     if (x.hasOwnProperty('data')) {
-      return { data: x.data }
+      return { 
+        number: x.number,
+        name: x.name,
+        data: x.data 
+      }
     } else {
       let { status, errno, code, syscall, path, dest, message } = x.error
-      return { error: { status, message, code, errno, syscall, path, dest } }
+      return { 
+        number: x.number,
+        name: x.name,
+        error: { status, message, code, errno, syscall, path, dest } 
+      }
     } 
   })
 
@@ -347,24 +367,23 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
       dicer = null
     }
 
-    if (r.every(isFinished)) {
-      res.status(200).json(response())
+    if (settled()) {
+      res.status(statusCode()).json(response())
     } else {
       // if there is no concurrency control, then no need to schedule
       // for no job would be started when something errored
     }
 
-    console.log('======== error end ========')
-    print()
+    print('====== error end ======')
   }
 
   const success = (x, data) => {
     Object.assign(r[x.number], { data })
-    if (r.every(isFinished)) {
-      console.log(r)
-      return res.status(200).json(response()) 
+    if (settled()) {
+      res.status(statusCode()).json(response()) 
+    } else {
+      schedule()
     }
-    schedule()
   }
 
   const blocked = number => !!r
@@ -399,6 +418,7 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
       Object.assign(x, props)
       r[x.number] = { 
         number: x.number,
+        name: props.name,
         fromName: props.fromName, 
         toName: props.toName 
       }
@@ -530,7 +550,12 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
 
   dicer = new Dicer({ boundary: m[1] || m[2] })
   dicer.on('part', guard('on part', onPart))
-  // FIXME on end
+  dicer.on('finish', () => {
+    // FIXME dicer finished twice, observed in test ba4bf055 (mkdir)
+    console.log('dicer finished ====================================================== ')
+    dicer = null
+  })
+
   req.pipe(dicer)
 })
 
