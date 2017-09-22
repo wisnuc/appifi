@@ -333,8 +333,15 @@ class Pipe {
         .then(() => {debug('success for request')})
         .catch(e => {
           debug('pipe catch exception:', e)
-          return this.errorResponseAsync(data.serverAddr, data.sessionId, Object.assign(e, { code: 400 }))
-                    .then(() => {}).catch(debug)
+          debug('pipe error messageType:', messageType)
+          debug('pipe error subType: ', data.subType)
+          if(['GetMediaThumbnail', 'GetMediaFile'].includes(data.subType))
+            return this.errorFetchResponseAsync(data.serverAddr, data.sessionId, Object.assign(e, { code: 400 }))
+                      .then(() => {}).catch(debug)
+          else
+            return this.errorResponseAsync(data.serverAddr, data.sessionId, Object.assign(e, { code: 400 }))
+                      .then(() => {}).catch(debug)
+          
         })
     else
       debug('NOT FOUND EVENT HANDLER', messageType, data)
@@ -601,7 +608,7 @@ class Pipe {
     const fingerprint = paths[1]
 
     if (body.alt === undefined || body.alt === 'metadata') {
-
+      data.subType = 'GetMediaMetadata'
       let metadata = fruit.getMetadata(null, fingerprint)
       if (metadata) {
         return await this.successResponseJsonAsync(serverAddr, sessionId, metadata)
@@ -610,19 +617,21 @@ class Pipe {
       }
     }
     else if (body.alt === 'data') {
+      data.subType = 'GetMediaFile'
       let files = fruit.getFilesByFingerprint(user, fingerprint)
       if (files.length) {
         return await this.fetchFileResponseAsync(files[0], serverAddr, sessionId)
       } else {
-        return await this.errorResponseAsync(serverAddr, sessionId, new Error('media not found'))
+        return await this.errorFetchResponseAsync(serverAddr, sessionId, new Error('media not found'))
       }
     }
     else if (body.alt === 'thumbnail') {
+      data.subType = 'GetMediaThumbnail'
       let thumb = await this.getMediaThumbnailAsync(user, fingerprint, body)
       if(thumb){
         return await this.fetchFileResponseAsync(thumb, serverAddr, sessionId)
       } else {
-        return await this.errorResponseAsync(serverAddr, sessionId, new Error('thumbnail not found'))
+        return await this.errorFetchResponseAsync(serverAddr, sessionId, new Error('thumbnail not found'))
       }
     }else{
       return await this.errorResponseAsync(serverAddr, sessionId, new Error('operation not found'))
@@ -790,13 +799,14 @@ class Pipe {
 
     let req = http.request(options, res => {
       res.setEncoding('utf8')
-      res.on('data', chunk => {
-        console.log('BODY:', chunk)
+      res.on('error', error => {
+        debug('fetch res error: ', e)
       })
     })
 
     req.on('error', function (e) {  
-      console.log('problem with request: ' + e.message);  
+      debug('fetch problem with request: ' + e)
+      debug('fetch error file: ' + fpath)
     })
 
     rs.pipe(req)
@@ -845,9 +855,17 @@ class Pipe {
     let newDoc = await boxData.updateBoxAsync({ mtime: result.mtime }, box.doc.uuid)
   }
 
+  async errorFetchResponseAsync(cloudAddr, sessionId, err) {
+    let url = cloudAddr + '/s/v1/stations/' + this.connect.saId + '/response/' + sessionId +'/pipe/fetch'
+    let error = { code: 400, message: err.message }
+    let params = { error }
+    debug('pipe handle error', params)
+    await requestAsync('POST', url, { params }, { 'Authorization': this.connect.token })
+  }
+
   async errorResponseAsync(cloudAddr, sessionId, err) {
     let url = cloudAddr + '/s/v1/stations/' + this.connect.saId + '/response/' + sessionId +'/json'
-    let error = { code: err.code, message: err.message }
+    let error = { code: 400, message: err.message }
     let params = { error }
     debug('pipe handle error', params)
     await requestAsync('POST', url, { params }, { 'Authorization': this.connect.token })
