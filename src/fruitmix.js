@@ -34,7 +34,6 @@ Fruitmix is also responsible for initialize all internal modules and paths.
 */
 class Fruitmix extends EventEmitter {
 
-
   /**
   @params {string} froot - fruitmix root path, should be an normalized absolute path
   */
@@ -981,11 +980,29 @@ class Fruitmix extends EventEmitter {
       if (err) return callback(err)
       readXstat(dst, (err, xstat) => {
         if (err) return callback(err)
-
-        console.log(xstat)
-
         callback(null, xstat)
       })
+    })
+  }
+
+  rimraf (user, driveUUID, dirUUID, name, uuid, callback) {
+    // TODO permission check
+    let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
+    if (!dir) {
+      let err = new Error('drive or dir not found')
+      err.status = 404
+      return process.nextTick(() => callback(err))
+    }
+
+    let dst = path.join(dir.abspath(), name)
+    readXstat(dst, (err, xstat) => {
+      // ENOENT treated as success
+      if (err && err.code === 'ENOENT') return callback(null)
+      if (err) return callback(err)
+      if (xstat.uuid !== uuid) 
+        return callback(Object.assign(new Error('uuid mismatch'), { status: 403 }))
+
+      rimraf(dst, err => callback(err))
     })
   }
 

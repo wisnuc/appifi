@@ -12,7 +12,8 @@ const sinon = require('sinon')
 const expect = chai.expect
 const should = chai.should()
 
-const debug = require('debug')('divider')
+const debug = require('debug')('test-newfile')
+const divide = require('debug')('divider')
 
 const app = require('src/app')
 const { saveObjectAsync } = require('src/lib/utils')
@@ -125,75 +126,99 @@ describe(path.basename(__filename), () => {
       stat = await fs.lstatAsync(path.join(DrivesDir, IDS.alice.home))
     }) 
 
-    it('should fail 400 if size not provided', done => {
+    it('should fail 400 if size not provided, cfd1934f', done => {
       REQ()
-        .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', J({ 
-          sha256: FILES.alonzo.hash 
-        }))
+        .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', J({ sha256: FILES.alonzo.hash }))
         .expect(400)
-        .end(done)
+        .end((err, res) => {
+          if (err) return done(err)
+
+          debug(res.body)
+
+          done()
+        })
     })
 
-    it('should fail 400 if size is string', done => {
+    it('should fail 400 if size is string, d7bfbbdf', done => {
       REQ()
         .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', J({ 
           size: 'hello',
           sha256: FILES.alonzo.hash 
         }))
         .expect(400)
-        .end(done)
+        .end((err, res) => {
+          if (err) return done(err)
+          debug(res.body)
+          done()
+        })
     })
 
-    it('should fail 400 if size is -1', done => {
+    it('should fail 400 if size is -1, 5c81ce79', done => {
       REQ()
         .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', J({ 
-          size: 1024 * 1024 * 1024 + 1,
+          size: -1,
           sha256: FILES.alonzo.hash 
         }))
         .expect(400)
-        .end(done)
+        .end((err, res) => {
+          if (err) return done(err)
+          debug(res.body)
+          done()
+        })
     })
 
-    it('should fail 400 if size is 99.99', done => {
+    it('should fail 400 if size is 99.99, f1d9467d', done => {
       REQ()
         .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', J({ 
           size: 99.99,
           sha256: FILES.alonzo.hash 
         }))
         .expect(400)
-        .end(done)
+        .end((err, res) => {
+          if (err) return done(err)
+          debug(res.body)
+          done()
+        })
     })
 
-    it('should fail 400 if size is 1G + 1', done => {
+    it('should fail 400 if size is 1G + 1, cc1b82f7', done => {
       REQ()
         .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', J({ 
           size: 1024 * 1024 * 1024 + 1,
           sha256: FILES.alonzo.hash 
         }))
         .expect(400)
-        .end(done)
+        .end((err, res) => {
+          if (err) return done(err)
+          debug(res.body)
+          done()
+        })
     })
 
-    it('should fail 400 if sha256 is not provided', done => {
+    it('should fail 400 if sha256 is not provided, 1a29713c', done => {
       REQ()
         .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', J({ 
           size: FILES.alonzo.size,
         }))
         .expect(400)
-        .end(done)
+        .end((err, res) => {
+          if (err) return done(err)
+          debug(res.body)
+          done()
+        })
     })
 
-    it("should fail 400 if sha256 is 'hello'", done => {
+    it("should fail 400 if sha256 is 'hello', ecbd247a", done => {
       REQ()
         .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', J({ 
           size: FILES.alonzo.size,
           sha256: 'hello'
         }))
         .expect(400)
-        .end(done)
+        .end((err, res) => err ? done(err) : (debug(res.body), done()))
     })
 
-    it("should succeed for empty file", done => {
+    it("should succeed for empty file, fc376f5c", done => {
       REQ()
         .attach('empty', 'testdata/empty', J({
           size: FILES.empty.size,
@@ -201,6 +226,9 @@ describe(path.basename(__filename), () => {
         }))
         .expect(200)
         .end((err, res) => {
+          // if (err) return done(err)
+  
+          console.log(err, res.body)
 
           let filePath = path.join(DrivesDir, IDS.alice.home, 'empty')
           let stat = fs.lstatSync(filePath)

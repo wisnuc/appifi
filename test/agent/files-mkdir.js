@@ -12,7 +12,8 @@ const sinon = require('sinon')
 const expect = chai.expect
 const should = chai.should()
 
-const debug = require('debug')('divider')
+const debug = require('debug')('test-mkdir')
+const divide = require('debug')('divider')
 
 const app = require('src/app')
 const { saveObjectAsync } = require('src/lib/utils')
@@ -51,7 +52,7 @@ describe(path.basename(__filename), () => {
 
   let token, stat
   beforeEach(async () => {
-    debug('------ I am a beautiful divider ------')
+    divide('------ I am a beautiful divider ------')
     await Promise.delay(50)
     await resetAsync()
     await createUserAsync('alice')
@@ -67,6 +68,8 @@ describe(path.basename(__filename), () => {
       .expect(200)
       .end((err, res) => {
         if (err) return done(err)
+
+        debug(res.body)
 
         expect(res.body.length).to.equal(1)
         let x = res.body[0]
@@ -95,9 +98,7 @@ describe(path.basename(__filename), () => {
       .expect(200)
       .end((err, res) => {
 
-        console.log('========')
-        console.log(res.body)
-        console.log('========')
+        debug(res.body)
 
         expect(res.body.length).to.equal(2)
         let x = res.body[0]
@@ -133,6 +134,8 @@ describe(path.basename(__filename), () => {
       .end((err, res) => {
         if (err) return done(err)
 
+        debug(res.body)
+
         request(app)
           .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
           .set('Authorization', 'JWT ' + token)
@@ -141,9 +144,7 @@ describe(path.basename(__filename), () => {
           .end((err, res) => {
             if (err) return done(err)
 
-            console.log('========')
-            console.log(res.body)
-            console.log('========')
+            debug(res.body)
 
             expect(res.body.length).to.equal(1)
             let x = res.body[0]
@@ -176,8 +177,10 @@ describe(path.basename(__filename), () => {
       .expect(403)
       .end((err, res) => {
         if (err) return done(err)
-        let x 
 
+        debug(res.body)
+
+        let x 
         expect(res.body.length).to.equal(2)
         x = res.body[0]
         expect(x.number).to.equal(0)
@@ -212,6 +215,8 @@ describe(path.basename(__filename), () => {
       .end((err, res) => {
         if (err) return done(err)
 
+        debug(res.body)
+
         request(app)
           .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
           .set('Authorization', 'JWT ' + token)
@@ -219,6 +224,8 @@ describe(path.basename(__filename), () => {
           .expect(403)
           .end((err, res) => {
             if (err) return done(err)
+
+            debug(res.body)
 
             expect(res.body.length).to.equal(1)
             let x = res.body[0]
@@ -240,6 +247,8 @@ describe(path.basename(__filename), () => {
       .end((err, res) => {
         if (err) return done(err)
 
+        debug(res.body)
+
         request(app)
           .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
           .set('Authorization', 'JWT ' + token)
@@ -248,6 +257,9 @@ describe(path.basename(__filename), () => {
           .expect(403)
           .end((err, res) => {
             if (err) return done(err)
+
+            debug(res.body)
+
             expect(res.body.length).to.equal(2)
             expect(res.body[0].error.code).to.equal('EEXIST')
             expect(res.body[1].error.code).to.equal('EDESTROYED') 
@@ -269,6 +281,9 @@ describe(path.basename(__filename), () => {
       .expect(200)
       .end((err, res) => {
         if (err) return done(err)
+
+        debug(res.body)
+
         let r = request(app)
           .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
           .set('Authorization', 'JWT ' + token)
@@ -277,6 +292,9 @@ describe(path.basename(__filename), () => {
 
         r.expect(403).end((err, res) => {
           if (err) return done(err)
+        
+          debug(res.body)
+
           expect(res.body.length).to.equal(64)
           expect(res.body[0].error.code).to.equal('EEXIST')
           for (let i = 1; i < 64; i++) expect(res.body[1].error.code).to.equal('EDESTROYED') 
