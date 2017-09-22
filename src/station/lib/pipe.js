@@ -643,7 +643,7 @@ class Pipe {
     //getMediaThumbnail
     let fruit = getFruit()
     if(!fruit) return callback(new Error('fruitmix not start'))
-
+    debug('fruit thumbnail user: ', user)
 
     fruit.getThumbnail(user, fingerprint, query, (err, thumb) => {
       if (err) return callback(err)
