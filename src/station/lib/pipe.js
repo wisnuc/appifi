@@ -660,7 +660,8 @@ class Pipe {
     let { serverAddr, sessionId, user } = data
     let fruit = getFruit()
     if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
-    let userList = user.isAdmin ? fruit.getUsers() : fruit.displayUsers()
+    // let userList = user.isAdmin ? fruit.getUsers() : fruit.displayUsers()
+    let userList = fruit.getUsers() 
     return await this.successResponseJsonAsync(serverAddr, sessionId, userList)
   }
   

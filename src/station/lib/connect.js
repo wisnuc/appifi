@@ -176,8 +176,8 @@ class Connect extends EventEmitter{
         error = true
         process.nextTick(() => this.connectErrorHandler(address, e))
       }
-      this._changeState(CONNECT_STATE.CONNED)
       this.token = this.socket.token
+      this._changeState(CONNECT_STATE.CONNED)
       debug('connect success')
       this.socket.on('event', ((data) => {
         this.dispatch(data.type, data)

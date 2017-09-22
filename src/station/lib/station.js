@@ -1,5 +1,6 @@
 const fs = require('fs')
 const path = require('path')
+const os = require('os')
 
 const ursa = require('ursa')
 const Promise = require('bluebird')
@@ -11,6 +12,7 @@ const debug = require('debug')('station')
 const deepFreeze = require('deep-freeze')
 const E = require('../../lib/error')
 
+const requestAsync = require('./request').requestHelperAsync
 const { saveObjectAsync } = require('../../lib/utils')
 const { FILE, CONFIG } = require('./const')
 const broadcast = require('../../common/broadcast')
@@ -53,6 +55,12 @@ class Station {
         this.connect.on('ConnectStateChange', state => {
           debug('state change :', state)
           this.initialized = (state === CONNECT_STATE.CONNED) ? true : false
+          //TODO: reconnect need update userIds??
+          if (this.initialized) {
+            this.updateCloudUsersAsync()
+              .then(() => {debug('station update success')})
+              .catch(e => debug(e))
+          }
         })
         this.tickets = new Tickets(this.station.id, this.connect)
         this.pipe = new Pipe(path.join(froot, 'tmp'), this.connect)
@@ -187,20 +195,39 @@ class Station {
     let fruit = getFruit()
     if(!fruit) throw new Error('fruitmix not start')
     let userIds = fruit.userList.users.filter(u=> !!u.global).map(u => u.global.id)
-    this.updateCloudStationAsync({ userIds }) // TODO: add LANIP
+    let LANIP = this.getLANIP()
+    await this.updateCloudStationAsync({ userIds, LANIP, name: this.station.name })
+  }
+
+  getLANIP() {
+    let ipAddresses = os.networkInterfaces()
+    let addrs = []
+    Object.keys(ipAddresses).forEach(key => {
+      addrs = [...addrs, ...ipAddresses[key]]
+    })
+    return addrs.find(add => {
+              if(!add.internal && add.family === 'IPv4') return true
+              return false
+            }).address
   }
 
   async updateCloudInfoAsync() {
-    // let props = { name: '', LANIP:'', userIds:''}
+    let LANIP = this.getLANIP()
+    let props = { 
+      name: this.station.name, 
+      LANIP
+    }
+    await this.updateCloudStationAsync(props)
   }
 
   async updateCloudStationAsync(props) {
     if(this.initialized && this.connect.isConnected()){
       let url = CONFIG.CLOUD_PATH + 's/v1/stations/' + this.station.id
       let token = this.connect.token
-      let opts = { 'Content-Type': 'application/json', 'Authorization': token }
+      let opts = { 'Authorization': this.connect.token }
       let params = props // TODO change ticket status
       try {
+        debug('发起update station info ')
         let res = await requestAsync('PATCH', url, { params }, opts)
         if (res.status === 200)
           return res.body.data
@@ -208,7 +235,7 @@ class Station {
         throw new Error(res.body.message)
       } catch (error) {
         debug(error)
-        throw new Error('change ticket->user type error')
+        throw new Error('station update error')
       }
     }
     return
