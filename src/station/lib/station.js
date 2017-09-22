@@ -1,5 +1,6 @@
 const fs = require('fs')
 const path = require('path')
+const os = require('os')
 
 const ursa = require('ursa')
 const Promise = require('bluebird')
@@ -8,13 +9,17 @@ const mkdirp = require('mkdirp')
 const rimraf = require('rimraf')
 const request = require('superagent')
 const debug = require('debug')('station')
+const deepFreeze = require('deep-freeze')
+const E = require('../../lib/error')
 
-// const { registerAsync } = require('./register')
+const requestAsync = require('./request').requestHelperAsync
+const { saveObjectAsync } = require('../../lib/utils')
 const { FILE, CONFIG } = require('./const')
 const broadcast = require('../../common/broadcast')
 const Pipe = require('./pipe')
 const { Connect, CONNECT_STATE } = require('./connect')
 const Tickets = require('./tickets').Tickets
+const getFruit = require('../../fruitmix')
 
 Promise.promisifyAll(fs)
 const mkdirpAsync = Promise.promisify(mkdirp)
@@ -29,10 +34,11 @@ class Station {
     this.pvkPath = undefined
     this.publicKey = undefined
     this.privateKey = undefined
-    this.sa = undefined
+    this.station = undefined
     this.connect = undefined
     this.pipe = undefined
     this.initialized = false
+    this.lock = false
     this.init()
   }                                                  
   
@@ -43,14 +49,20 @@ class Station {
       try{
         debug('station start building')
         // await this.registerAsync(froot)
-        this.sa = await this.registerAsync(froot)
+        this.station = await this.registerAsync(froot)
         //connect to cloud
         this.connect = new Connect(this) 
         this.connect.on('ConnectStateChange', state => {
           debug('state change :', state)
           this.initialized = (state === CONNECT_STATE.CONNED) ? true : false
+          //TODO: reconnect need update userIds??
+          if (this.initialized) {
+            this.updateCloudUsersAsync()
+              .then(() => {debug('station update success')})
+              .catch(e => debug(e))
+          }
         })
-        this.tickets = new Tickets(this.sa.id, this.connect)
+        this.tickets = new Tickets(this.station.id, this.connect)
         this.pipe = new Pipe(path.join(froot, 'tmp'), this.connect)
         this.initialized = true
 
@@ -67,7 +79,7 @@ class Station {
   deinit() {
     this.publicKey = undefined
     this.privateKey = undefined
-    this.sa = undefined
+    this.station = undefined
     this.froot = undefined
     this.pbkPath = undefined
     this.pvkPath = undefined
@@ -77,6 +89,7 @@ class Station {
     this.tickets = undefined
     this.pipe = undefined
     this.initialized = false
+    this.lock = false
     debug('station deinit')
     broadcast.emit('StationStopDone', this)
   }
@@ -170,7 +183,7 @@ class Station {
           debug(err)
           return callback(new Error('register error')) 
         }
-        res.body.data.label = 'stationName'
+        res.body.data.name = 'HomeStation'
         let ws = fs.createWriteStream(SA_PATH)
         ws.write(JSON.stringify(res.body.data, null, ' '))
         ws.close()
@@ -178,9 +191,59 @@ class Station {
       }) 
   }
 
+  async updateCloudUsersAsync() {
+    let fruit = getFruit()
+    if(!fruit) throw new Error('fruitmix not start')
+    let userIds = fruit.userList.users.filter(u=> !!u.global).map(u => u.global.id)
+    let LANIP = this.getLANIP()
+    await this.updateCloudStationAsync({ userIds, LANIP, name: this.station.name })
+  }
+
+  getLANIP() {
+    let ipAddresses = os.networkInterfaces()
+    let addrs = []
+    Object.keys(ipAddresses).forEach(key => {
+      addrs = [...addrs, ...ipAddresses[key]]
+    })
+    return addrs.find(add => {
+              if(!add.internal && add.family === 'IPv4') return true
+              return false
+            }).address
+  }
+
+  async updateCloudInfoAsync() {
+    let LANIP = this.getLANIP()
+    let props = { 
+      name: this.station.name, 
+      LANIP
+    }
+    await this.updateCloudStationAsync(props)
+  }
+
+  async updateCloudStationAsync(props) {
+    if(this.initialized && this.connect.isConnected()){
+      let url = CONFIG.CLOUD_PATH + 's/v1/stations/' + this.station.id
+      let token = this.connect.token
+      let opts = { 'Authorization': this.connect.token }
+      let params = props // TODO change ticket status
+      try {
+        debug('发起update station info ')
+        let res = await requestAsync('PATCH', url, { params }, opts)
+        if (res.status === 200)
+          return res.body.data
+        debug(res.body)
+        throw new Error(res.body.message)
+      } catch (error) {
+        debug(error)
+        throw new Error('station update error')
+      }
+    }
+    return
+  }
+
   stationFinishStart(req, res, next) {
     if(this.initialized && this.connect.isConnected()){
-      req.body.sa = this.sa
+      req.body.station = this.station
       req.body.Connect = this.connect
       req.Tickets = this.tickets
       return next()
@@ -189,11 +252,42 @@ class Station {
     return res.status(500).json('station initialize error')
   }
 
-  info(){
-    let info = Object.assign({}, this.sa)
+  info (){
+    let info = Object.assign({}, this.station)
     info.connectState = this.connect.getState()
     info.pbk = this.publicKey
     return info
+  }
+
+  async updateInfoAsync (props) {
+    if(!this.station) throw Object.assign(new Error('station not registe'), { status: 500 })
+    let name = props.name
+    let current = this.station
+    let nextStation = {
+      id: current.id,
+      name: name
+    }
+    await this.saveToDiskAsync(current, nextStation)
+    return this.info()
+  }
+
+  async saveToDiskAsync(currentStation, nextStation) {
+    // referential equality check
+    if (currentStation !== this.station) throw E.ECOMMITFAIL()
+
+    if (this.lock === true) throw E.ECOMMITFAIL()
+
+    this.lock = true
+    try {
+
+      await saveObjectAsync(path.join(this.froot, 'station', FILE.SA), (this.froot, 'tmp'), nextStation)
+
+      this.station = nextStation
+
+      deepFreeze(this.station)
+    } finally {
+      this.lock = false
+    }
   }
 }
 

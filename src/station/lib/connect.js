@@ -120,7 +120,7 @@ class Connect extends EventEmitter{
     super()
     this.state = CONNECT_STATE.DISCED
     this.privateKey = station.privateKey
-    this.saId = station.sa.id
+    this.saId = station.station.id
     this.froot = station.froot
     this.handler = new Map()
     this.socket = undefined
@@ -176,8 +176,8 @@ class Connect extends EventEmitter{
         error = true
         process.nextTick(() => this.connectErrorHandler(address, e))
       }
-      this._changeState(CONNECT_STATE.CONNED)
       this.token = this.socket.token
+      this._changeState(CONNECT_STATE.CONNED)
       debug('connect success')
       this.socket.on('event', ((data) => {
         this.dispatch(data.type, data)
