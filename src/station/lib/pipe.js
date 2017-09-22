@@ -858,7 +858,7 @@ class Pipe {
   async errorFetchResponseAsync(cloudAddr, sessionId, err) {
     let url = cloudAddr + '/s/v1/stations/' + this.connect.saId + '/response/' + sessionId +'/pipe/fetch'
     let error = { code: 400, message: err.message }
-    let params = { error }
+    let params = error 
     debug('pipe handle error', params)
     await requestAsync('POST', url, { params }, { 'Authorization': this.connect.token })
   }
