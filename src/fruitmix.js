@@ -2,12 +2,13 @@ const Promise = require('bluebird')
 const path = require('path')
 const fs = Promise.promisifyAll(require('fs'))
 const EventEmitter = require('events')
+const crypto = require('crypto')
 
 const rimraf = require('rimraf')
 const mkdirp = require('mkdirp')
 const mkdirpAsync = Promise.promisify(mkdirp)
 const rimrafAsync = Promise.promisify(rimraf)
-const uuid = require('uuid')
+const UUID = require('uuid')
 
 const UserList = require('./user/user')
 const DriveList = require('./forest/forest')
@@ -15,12 +16,31 @@ const BoxData = require('./box/boxData')
 const Thumbnail = require('./lib/thumbnail2')
 const File = require('./forest/file')
 const Identifier = require('./lib/identifier')
+const { btrfsClone } = require('./lib/btrfs')
 
 const { assert, isUUID, isSHA256, validateProps } = require('./common/assertion')
 
 const CopyTask = require('./tasks/fruitcopy')
 
 const { readXstat, forceXstat } = require('./lib/xstat')
+
+const combineHash = (a, b) => {
+  let a1 = typeof a === 'string'
+    ? Buffer.from(a, 'hex')
+    : a
+
+
+  let b1 = typeof b === 'string'
+    ? Buffer.from(b, 'hex')
+    : b
+
+  let hash = crypto.createHash('sha256')
+  hash.update(Buffer.concat([a1, b1]))
+
+  let digest = hash.digest('hex')
+  return digest
+}
+
 
 /**
 Fruitmix is the facade of internal modules, including user, drive, forest, and box.
@@ -78,7 +98,7 @@ class Fruitmix extends EventEmitter {
   }
 
   async storeMediaMapAsync () {
-    let tmp = path.join(this.fruitmixPath, 'tmp', uuid.v4())
+    let tmp = path.join(this.fruitmixPath, 'tmp', UUID.v4())
     let fpath = path.join(this.fruitmixPath, 'metadataDB.json')
     let metadata = Array.from(this.mediaMap).map(x => {
       try{
@@ -1007,7 +1027,6 @@ class Fruitmix extends EventEmitter {
   }
 
   createNewFile(user, driveUUID, dirUUID, name, tmp, hash, overwrite, callback) {
-
     let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
     if (!dir) {
       let err = new Error('drive or dir not found')
@@ -1027,6 +1046,8 @@ class Fruitmix extends EventEmitter {
 
         forceXstat(tmp, { uuid: xstat.uuid, hash }, (err, xstat) => {
           if (err) return callback(err) 
+          // dirty
+          Object.assign(xstat, { name })
           fs.rename(tmp, dst, err => {
             if (err) return callback(err)
             return callback(null, xstat)
@@ -1056,6 +1077,62 @@ class Fruitmix extends EventEmitter {
         })
       })
     }
+  }
+
+  /**
+  data { path, size, sha256 }
+  **/
+  appendFile(user, driveUUID, dirUUID, name, hash, data, callback) {
+
+    let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
+    if (!dir) {
+      let err = new Error('drive or dir not found')
+      err.status = 404
+      return process.nextTick(() => callback(err))
+    }
+
+    let dst = path.join(dir.abspath(), name)
+    readXstat(dst, (err, xstat) => {
+      if (err) return callback(err)
+      if (xstat.type !== 'file') 
+        return callback(Object.assign(new Error('not a file'), { code: 'EISDIR' }))
+      if (xstat.hash !== hash) 
+        return callback(new Error(`append (target) hash mismatch, actual: ${xstat.hash}`))
+      if (xstat.size % (1024 * 1024 * 1024) !== 0) 
+        return callback(new Error('target size must be multiple of 1G'))
+
+      let tmp = path.join(this.getTmpDir(), UUID.v4())
+      btrfsClone(tmp, [dst, data.path], err => {
+
+        console.log(tmp)
+        console.log(dst)
+        console.log(data.path)
+
+        if (err) return callback(err)
+        fs.lstat(dst, (err, stat) => {
+          if (err) return callback(err)
+          if (stat.mtime.getTime() !== xstat.mtime) {
+            let err = new Error('race detected')
+            err.code = 'ERACE'
+            return callback(err)
+          }
+
+          let fingerprint = xstat.size === 0 
+            ? data.sha256
+            : combineHash(xstat.hash, data.sha256)
+
+          forceXstat(tmp, { uuid: xstat.uuid, hash: fingerprint }, (err, xstat2) => {
+            if (err) return callback(err)
+            // dirty
+            xstat2.name = name
+            fs.rename(tmp, dst, err => {
+              if (err) return callback(err)
+              callback(null, xstat2)               
+            }) 
+          })
+        })
+      })
+    }) 
   }
 }
 

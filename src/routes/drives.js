@@ -2,6 +2,7 @@ const Promise = require('bluebird')
 const path = require('path')
 const fs = require('fs')
 const stream = require('stream')
+const crypto = require('crypto')
 const router = require('express').Router()
 const auth = require('../middleware/auth')
 const sanitize = require('sanitize-filename')
@@ -21,6 +22,8 @@ const f = af => (req, res, next) => af(req, res).then(x => x, next)
 
 const EFruitUnavail = Object.assign(new Error('fruitmix unavailable'), { status: 503 })
 const fruitless = (req, res, next) => getFruit() ? next() : next(EFruitUnavail) 
+
+const EMPTY_SHA256_HEX = crypto.createHash('sha256').digest('hex')
 
 /**
 Get a fruitmix drive
@@ -141,31 +144,7 @@ const parseHeader = header => {
 
     // validate part.filename and generate part.opts
     let { size, sha256, append, overwrite } = JSON.parse(filename)
-
-/**
-    if (!Number.isInteger(size)) 
-      throw new Error('size must be a integer')
-
-    if (size > 1024 * 1024 * 1024 || size < (append ? 1 : 0)) 
-      throw new Error('size out of range')
-
-    if (!isSHA256(sha256)) {
-      if (size === 0) {
-        sha256 = EMPTY_SHA256_HEX 
-      } else {
-        throw new Error('invalid sha256')
-      }
-    }
-
-    if (overwrite !== undefined && !isUUID(overwrite)) 
-      throw new Error('overwrite is not a valid uuid string')
-
-    if (append !== undefined && !isSHA256(append))
-      throw new Error('append is not a valid fingerprint string')
-**/
-
     let op = append ? 'append' : 'newfile' 
-
     return { type: 'file', op, name, fromName, toName, size, sha256, append, overwrite }
   } else {
     return { type: 'field', name, fromName, toName }
@@ -466,25 +445,20 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
       if (x.size > 1024 * 1024 * 1024)
         throw new Error('size must be less than or equal to 1G')
 
-      console.log('======')
-      console.log('x', x)
-      console.log('======')
-
       if (x.op === 'append') {
         if (x.size < 1) 
-          throw new Error('size must equal to or be greater than 1 in append mode')
+          throw new Error(`data size must be a positive integer, got ${x.size}`)
       } else {
         if (x.size < 0) 
-          throw new Error('size must be positive integer')
+          throw new Error(`data size must be a non-negative integer, got ${x.size}`)
       }
 
       if (x.size === 0) {
-        if (!x.hasOwnProperty('sha256')) {
-          x.sha256 = EMPTY_SHA256_HEX
-        }
+        // forcefully do this, even if wrong value provided
+        x.sha256 = EMPTY_SHA256_HEX
+      } else {
+        if (!isSHA256(x.sha256)) throw new Error('invalid sha256')
       }
-
-      if (!isSHA256(x.sha256)) throw new Error('invalid sha256')
     } catch (e) {
       e.status = 400
       return error(x, e)
@@ -501,7 +475,9 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
       if (bytesWritten !== x.size) {
         hash.on('error', () => {})
         hash.kill()
-        return error(x.number, new Error('size mismatch'))   
+        let e = new Error(`size mismatch, actual: ${bytesWritten}`)
+        e.status = 400
+        return error(x, e)
       }
 
       drains.push(x) 
@@ -509,8 +485,12 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
         delete x.destroyDrain
         drains.splice(drains.indexOf(x), 1)
 
-        if (err) return error(x.number, err)
-        if (digest !== x.sha256) return error(x.number, new Error('hash mismatch'))
+        if (err) return error(x, err)
+        if (digest !== x.sha256) {
+          let e = new Error(`sha256 mismatch, actual: ${digest}`)
+          e.status = 400
+          return error(x, e)
+        }
   
         x.digest = digest
         drains_.push(x)
@@ -588,7 +568,23 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
 
     if (x.type === 'file') { // file
       if (x.append) {
-          
+        let tmp = {
+          path: x.tmp,
+          size: x.size,
+          sha256: x.sha256
+        }
+
+        console.log('append ===============================')
+        console.log(x)
+        console.log('append ===============================')
+
+        getFruit().appendFile(user, driveUUID, dirUUID, x.toName, x.append, tmp, (err, xstat) => {
+          if (err) {
+            error(x, err)
+          } else {
+            success(x, xstat)
+          }
+        })
       } else {
         getFruit().createNewFile(user, driveUUID, dirUUID, x.toName, x.tmp, x.digest, x.overwrite, 
           guard('on new file return', (err, xstat) => {

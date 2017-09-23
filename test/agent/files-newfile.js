@@ -226,9 +226,9 @@ describe(path.basename(__filename), () => {
         }))
         .expect(200)
         .end((err, res) => {
-          // if (err) return done(err)
+          if (err) return done(err)
   
-          console.log(err, res.body)
+          debug(res.body)
 
           let filePath = path.join(DrivesDir, IDS.alice.home, 'empty')
           let stat = fs.lstatSync(filePath)
@@ -240,11 +240,14 @@ describe(path.basename(__filename), () => {
         })
     })
 
-    it("should succeed for empty file without sha256", done => {
+    it("should succeed for empty file without sha256, 2963f826", done => {
       REQ()
         .attach('empty', 'testdata/empty', J({ size: FILES.empty.size }))
         .expect(200)
         .end((err, res) => {
+          if (err) return done(err)
+          
+          debug(res.body)
 
           let filePath = path.join(DrivesDir, IDS.alice.home, 'empty')
           let stat = fs.lstatSync(filePath)
@@ -256,7 +259,7 @@ describe(path.basename(__filename), () => {
         })
     })
 
-    it("should succeed for empty file with wrong sha256", done => {
+    it("should succeed for empty file with wrong sha256, 5e77fb92", done => {
       REQ()
         .attach('empty', 'testdata/empty', J({
           size: FILES.empty.size,
@@ -264,6 +267,15 @@ describe(path.basename(__filename), () => {
         }))
         .expect(200)
         .end((err, res) => {
+          if (err) return done(err)
+
+          debug(res.body)
+
+          expect(res.body.length).to.equal(1)
+          expect(res.body[0].data).to.include({
+            type: 'file', name: 'empty', size: 0,
+            magic: 0, hash: FILES.empty.hash
+          }).to.have.keys('uuid','mtime')
 
           let filePath = path.join(DrivesDir, IDS.alice.home, 'empty')
           let stat = fs.lstatSync(filePath)
@@ -275,53 +287,88 @@ describe(path.basename(__filename), () => {
         })
     })
 
-    it("should succeed for non-empty file", done => {
+    it("should succeed for non-empty file, 69eb0d4c", done => {
       REQ()
         .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', J({
           size: FILES.alonzo.size,
           sha256: FILES.alonzo.hash
         }))
         .expect(200) 
-        .end(done)
+        .end((err, res) => {
+          if (err) return done(err)
+
+          debug(res.body)
+
+          expect(res.body.length).to.equal(1)
+          expect(res.body[0].data).to.include({
+            type: 'file', 
+            name: 'alonzo.jpg', 
+            size: FILES.alonzo.size,
+            magic: 'JPEG', 
+            hash: FILES.alonzo.hash
+          }).to.have.keys('uuid','mtime')
+
+          done() 
+        })
     })
 
-    it("should fail 400 for non-empty file with wrong size (-)", done => {
+    it("should fail 400 for non-empty file with wrong size (-), eaadf9c3", function (done) { 
+      this.timeout(5000)
       REQ()
         .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', J({
           size: FILES.alonzo.size - 100,
           sha256: FILES.alonzo.hash
         }))
         .expect(400) 
-        .end(done)
+        .end((err, res) => {
+          if (err) return done(err)
+          debug(res.body)
+          done()
+        })
     })
 
-    it("should fail 400 for non-empty file with wrong size (+)", done => {
+    it("should fail 400 for non-empty file with wrong size (+), 51de1466", done => {
       REQ()
         .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', J({
           size: FILES.alonzo.size + 100,
           sha256: FILES.alonzo.hash
         }))
         .expect(400) 
-        .end(done)
+        .end((err, res) => {
+          if (err) return done(err)
+          debug(res.body)
+          done()
+        })
     })
 
-    it("should fail 403 for empty file with existing file", function (done) {
+    it("should fail 403 for empty file with existing file, fc7a9048", function (done) {
       REQ()
         .attach('empty', 'testdata/empty', J({
           size: FILES.empty.size,
           sha256: FILES.empty.hash
         }))
         .expect(200)
-        .end((err, res) => err ? done(err) : REQ()
-          .attach('empty', 'testdata/empty', J({
-            size: FILES.empty.size,
-            sha256: FILES.empty.hash 
-          }))
-          .expect(403)
-          .end(done)) // TODO
+        .end((err, res) => {
+          if (err) return done(err)
+          debug(res.body)
+
+          REQ()
+            .attach('empty', 'testdata/empty', J({
+              size: FILES.empty.size,
+              sha256: FILES.empty.hash 
+            }))
+            .expect(403)
+            .end((err, res) => {
+              if (err) return done(err)
+              debug(res.body)
+              expect(res.body.length).to.equal(1)
+              expect(res.body[0].error.code).to.equal('EEXIST')
+              done()
+            })
+        })
     })
 
-    it("should fail 403 for non-empty file with existing file", function (done) { 
+    it("should fail 403 for non-empty file with existing file, d2d7c442", function (done) { 
       this.timeout(10000)
       REQ()
         .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', J({
@@ -329,16 +376,26 @@ describe(path.basename(__filename), () => {
           sha256: FILES.alonzo.hash
         }))
         .expect(200)
-        .end((err, res) => err ? done(err) : REQ()
-          .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', J({
-            size: FILES.alonzo.size,
-            sha256: FILES.alonzo.hash 
-          }))
-          .expect(403)
-          .end(done)) // TODO
+        .end((err, res) => {
+          if (err) return done(err)
+          debug(res.body)
+          REQ()
+            .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', J({
+              size: FILES.alonzo.size,
+              sha256: FILES.alonzo.hash 
+            }))
+            .expect(403)
+            .end((err, res) => {
+              if (err) return done(err)
+              debug(res.body)
+              expect(res.body.length).to.equal(1)
+              expect(res.body[0].error.code).to.equal('EEXIST')
+              done()
+            }) 
+        })
     })
 
-    it("should fail 400 for invalid overwrite 'hello'", done => {
+    it("should fail 400 for invalid overwrite 'hello', 5b4969cd", done => {
       REQ()
         .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', J({
           size: FILES.alonzo.size,
@@ -346,10 +403,14 @@ describe(path.basename(__filename), () => {
           overwrite: 'hello'
         }))
         .expect(400) 
-        .end(done)
+        .end((err, res) => {
+          if (err) return done(err)
+          debug(res.body)
+          done()
+        })
     })
 
-    it("should fail 403 if name does not exist", done => {
+    it("should fail 403 if name does not exist, 6cc4d556", done => {
       REQ()
         .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', J({
           size: FILES.alonzo.size,
@@ -358,8 +419,9 @@ describe(path.basename(__filename), () => {
         .expect(200)
         .end((err, res) => {
           if (err) return done(err)
+          debug(res.body)
           
-          let uuid = res.body.entries[0].uuid
+          let uuid = res.body[0].data.uuid
           REQ()
             .attach('alonzo2.jpg', 'testdata/alonzo_church.jpg', J({
               size: FILES.alonzo.size,
@@ -367,28 +429,43 @@ describe(path.basename(__filename), () => {
               overwrite: uuid   
             }))
             .expect(403)
-            .end(done)
+            .end((err, res) => {
+              if (err) return done(err)
+              debug(res.body)
+              expect(res.body.length).to.equal(1)
+              expect(res.body[0].error.code).to.equal('ENOENT')
+              done()
+            })
         })
     })
 
-    it("should fail 403 if name is a directory", done => {
+    // In this case, fs.link returns EEXIST rather than EISDIR
+    it("should fail 403 if name is a directory, 53fba0fc", done => {
       REQ()
         .field('alonzo.jpg', J({ op: 'mkdir' }))
         .expect(200)
         .end((err, res) => {
           if (err) return done(err)
-          let uuid = res.body.entries[0].uuid
+          debug(res.body)
+          let uuid = res.body[0].data.uuid
           REQ()
             .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', J({
               size: FILES.alonzo.size,
               sha256: FILES.alonzo.hash,
             }))
             .expect(403)
-            .end(done)
+            .end((err, res) => {
+              if (err) return done(err)
+              debug(res.body)
+              expect(res.body.length).to.equal(1)
+              expect(res.body[0].error.code).to.equal('EEXIST')
+              expect(res.body[0].error.syscall).to.equal('link')
+              done()
+            })
         })
     })
 
-    it("should fail 403 if name has different uuid than overwrite", done => {
+    it("403 if name has different uuid than overwrite, a1a2d6f4", done => {
       REQ()
         .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', J({
           size: FILES.alonzo.size,
@@ -397,8 +474,9 @@ describe(path.basename(__filename), () => {
         .expect(200)
         .end((err, res) => {
           if (err) return done(err)
-          
-          let uuid = res.body.entries[0].uuid
+          debug(res.body) 
+
+          let uuid = res.body[0].data.uuid          
           REQ()
             .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', J({
               size: FILES.alonzo.size,
@@ -406,11 +484,15 @@ describe(path.basename(__filename), () => {
               overwrite: '2faf6bba-ca2d-413d-89bb-e8cac1797008' 
             }))
             .expect(403)
-            .end(done)
+            .end((err, res) => {
+              if (err) return done(err)
+              debug(res.body)
+              done()
+            })
         })
     })
 
-    it("should overwrite empty file with empty file", function (done) {
+    it("200 overwrite empty file with empty file, 31c074dd", function (done) {
       this.timeout(10000)
       REQ()
         .attach('empty', 'testdata/empty', J({
@@ -420,8 +502,9 @@ describe(path.basename(__filename), () => {
         .expect(200) 
         .end((err, res) => {
           if (err) return done(err)
-          let uuid = res.body.entries[0].uuid
+          debug(res.body)
 
+          let uuid = res.body[0].data.uuid
           REQ()
             .attach('empty', 'testdata/empty', J({
               size: FILES.empty.size,
@@ -429,11 +512,28 @@ describe(path.basename(__filename), () => {
               overwrite: uuid
             }))
             .expect(200)
-            .end(done)
+            .end((err, res) => {
+              if (err) return done(err)
+              debug(res.body)
+
+              expect(res.body.length).to.equal(1)
+              expect(res.body[0].data)
+                .to.include({
+                  type: 'file',
+                  name: 'empty',
+                  size: 0,
+                  magic: 0,
+                  hash: FILES.empty.hash
+                })
+                .to.have.keys('uuid', 'mtime')
+
+              // TODO assert disk file
+              done()
+            })
         })
     })
 
-    it("should overwrite empty file with non-empty file", function (done) {
+    it("200 overwrite empty file with non-empty file, 0be6da77", function (done) {
       this.timeout(10000)
       REQ()
         .attach('empty', 'testdata/empty', J({
@@ -443,8 +543,9 @@ describe(path.basename(__filename), () => {
         .expect(200) 
         .end((err, res) => {
           if (err) return done(err)
+          debug(res.body)
 
-          let uuid = res.body.entries[0].uuid
+          let uuid = res.body[0].data.uuid
           REQ()
             .attach('empty', 'testdata/alonzo_church.jpg', J({
               size: FILES.alonzo.size,
@@ -452,11 +553,28 @@ describe(path.basename(__filename), () => {
               overwrite: uuid
             }))
             .expect(200)
-            .end(done)
+            .end((err, res) => {
+              if (err) return done(err)
+              debug(res.body)
+
+              expect(res.body.length).to.equal(1)
+              expect(res.body[0].data)
+                .to.include({
+                  type: 'file',
+                  name: 'empty',
+                  size: FILES.alonzo.size,
+                  magic: 'JPEG',
+                  hash: FILES.alonzo.hash 
+                })
+                .to.have.keys('uuid', 'mtime')
+
+              // TODO assert disk file
+              done()
+            })
         })
     })
 
-    it("should fail 400 overwriting empty file with non-empty file, wrong size", function (done) {
+    it("400 overwriting empty file with non-empty file, wrong size, 8df18d3c", function (done) {
       this.timeout(10000)
       REQ()
         .attach('empty', 'testdata/empty', J({
@@ -466,8 +584,9 @@ describe(path.basename(__filename), () => {
         .expect(200) 
         .end((err, res) => {
           if (err) return done(err)
+          debug(res.body)
 
-          let uuid = res.body.entries[0].uuid
+          let uuid = res.body[0].data.uuid
           REQ()
             .attach('empty', 'testdata/alonzo_church.jpg', J({
               size: FILES.alonzo.size + 100,
@@ -475,11 +594,15 @@ describe(path.basename(__filename), () => {
               overwrite: uuid
             }))
             .expect(400)
-            .end(done)
+            .end((err, res) => {
+              if (err) return done(err)
+              debug(res.body)
+              done()
+            })
         })
     })
 
-    it("should fail 400 overwriting empty file with non-empty file, wrong hash", function (done) {
+    it("should fail 400 overwriting empty file with non-empty file, wrong hash, 291ecbcc", function (done) {
       this.timeout(10000)
       REQ()
         .attach('empty', 'testdata/empty', J({
@@ -489,8 +612,9 @@ describe(path.basename(__filename), () => {
         .expect(200) 
         .end((err, res) => {
           if (err) return done(err)
+          debug(res.body)
 
-          let uuid = res.body.entries[0].uuid
+          let uuid = res.body[0].data.uuid
           REQ()
             .attach('empty', 'testdata/alonzo_church.jpg', J({
               size: FILES.alonzo.size,
@@ -498,11 +622,16 @@ describe(path.basename(__filename), () => {
               overwrite: uuid
             }))
             .expect(400)
-            .end(done)
+            .end((err, res) => {
+              if (err) return done(err)
+              debug(res.body)
+              // TODO could we assert actual hash ???
+              done()
+            })
         })
     })
 
-    it("should overwrite non-empty file with empty file", function (done) {
+    it("should overwrite non-empty file with empty file, 4b75dd6f", function (done) {
       this.timeout(10000)
       REQ()
         .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', J({
@@ -512,8 +641,9 @@ describe(path.basename(__filename), () => {
         .expect(200) 
         .end((err, res) => {
           if (err) return done(err)
+          debug(res.body)
 
-          let uuid = res.body.entries[0].uuid
+          let uuid = res.body[0].data.uuid
           REQ()
             .attach('alonzo.jpg', 'testdata/empty', J({
               size: FILES.empty.size,
@@ -521,11 +651,25 @@ describe(path.basename(__filename), () => {
               overwrite: uuid
             }))
             .expect(200)
-            .end(done)
+            .end((err, res) => {
+              if (err) return done(err)
+              debug(res.body)
+              expect(res.body.length).to.equal(1)
+              expect(res.body[0].data)
+                .to.include({
+                  type: 'file',
+                  name: 'alonzo.jpg',
+                  size: FILES.empty.size,
+                  magic: 0,
+                  hash: FILES.empty.hash
+                })
+                .to.have.keys('uuid', 'mtime')
+              done()
+            })
         })
     })
 
-    it("should overwrite non-empty file with non-empty file", function (done) {
+    it("should overwrite non-empty file with non-empty file, 46a6c051", function (done) {
       this.timeout(10000)
       REQ()
         .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', J({
@@ -535,8 +679,9 @@ describe(path.basename(__filename), () => {
         .expect(200) 
         .end((err, res) => {
           if (err) return done(err)
+          debug(res.body)
 
-          let uuid = res.body.entries[0].uuid
+          let uuid = res.body[0].data.uuid
           REQ()
             .attach('alonzo.jpg', 'testdata/hello', J({
               size: FILES.hello.size,
@@ -544,11 +689,24 @@ describe(path.basename(__filename), () => {
               overwrite: uuid
             }))
             .expect(200)
-            .end(done)
+            .end((err, res) => {
+              if (err) return done(err)
+              debug(res.body)
+              expect(res.body[0].data)
+                .to.include({
+                  type: 'file',
+                  name: 'alonzo.jpg',
+                  size: FILES.hello.size,
+                  magic: 0,
+                  hash: FILES.hello.hash
+                })
+                .to.have.keys('uuid', 'mtime')
+              done()
+            })
         })
     })
 
-    it("should fail 400 when overwriting non-empty file with non-empty file, wrong size", function (done) {
+    it("400 when overwriting non-empty file with non-empty file, wrong size, a95aca5f", function (done) {
       this.timeout(10000)
       REQ()
         .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', J({
@@ -558,8 +716,9 @@ describe(path.basename(__filename), () => {
         .expect(200) 
         .end((err, res) => {
           if (err) return done(err)
+          debug(res.body)
 
-          let uuid = res.body.entries[0].uuid
+          let uuid = res.body[0].data.uuid
           REQ()
             .attach('alonzo.jpg', 'testdata/hello', J({
               size: FILES.hello.size + 100,
@@ -567,11 +726,15 @@ describe(path.basename(__filename), () => {
               overwrite: uuid
             }))
             .expect(400)
-            .end(done)
+            .end((err, res) => {
+              if (err) return done(err)
+              debug(res.body)
+              done()
+            })
         })
     })
 
-    it("should fail 400 when overwriting non-empty file with non-empty file, wrong hash", function (done) {
+    it("400 when overwriting non-empty file with non-empty file, wrong hash, ac442b42", function (done) {
       this.timeout(10000)
       REQ()
         .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', J({
@@ -581,8 +744,9 @@ describe(path.basename(__filename), () => {
         .expect(200) 
         .end((err, res) => {
           if (err) return done(err)
+          debug(res.body)
 
-          let uuid = res.body.entries[0].uuid
+          let uuid = res.body[0].data.uuid
           REQ()
             .attach('alonzo.jpg', 'testdata/hello', J({
               size: FILES.hello.size,
@@ -590,7 +754,11 @@ describe(path.basename(__filename), () => {
               overwrite: uuid
             }))
             .expect(400)
-            .end(done)
+            .end((err, res) => {
+              if (err) return done(err)
+              debug(res.body)
+              done()
+            })
         })
     })
   
