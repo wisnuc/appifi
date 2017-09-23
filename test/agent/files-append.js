@@ -364,30 +364,6 @@ describe(path.basename(__filename), () => {
         })
     })
 
-    // target size cannot be 0
-    it("403 if target is an empty file, 8ed2c7f0", done => {
-      REQ()
-        .attach('empty', 'testdata/empty', J({ size: 0 }))
-        .expect(200)
-        .end((err, res) => {
-          if (err) return done(err)
-          debug(res.body)
-
-          REQ()
-            .attach('empty', 'testdata/alonzo_church.jpg', J({
-              size: FILES.alonzo.size,
-              sha256: FILES.alonzo.hash,
-              append: FILES.empty.hash
-            }))
-            .expect(403)
-            .end((err, res) => {
-              if (err) return done(err)              
-              debug(res.body)
-              done()
-            })
-        })
-    })
-
     // target size must be multiple of 1G
     it("403 if append alonzo to alonzo, 80b85342", done => {
       REQ()
@@ -414,6 +390,17 @@ describe(path.basename(__filename), () => {
             })
         })
     })
+
+    // data block oversize
+    it("400 append one-giga-plus-x to one-giga, 0c0232d7", function (done) {
+      this.timeout(0)
+      NewFile2('one-giga', oneGiga, null, 200, done, res => {
+        Append2('one-giga', oneGigaPlusX, oneGiga.hash, 400, done, res => {
+          done()
+        })
+      })
+    })
+
 
     /** append to empty is allowed, append empty to anything is disallowed **/
 
@@ -459,120 +446,80 @@ describe(path.basename(__filename), () => {
           Append2('two-giga', empty, empty.hash, 400, done)))
     })
 
-    it("200 append x to empty, 32bec068", function (done) {
-      NewFile2('empty', empty, null, 200, done, res => {
-        Append2('empty', oneByteX, oneByteX.hash, 200, done, res => {
-          expect(res.body[0].data)
-            .to.include({
-              type: 'file',
-              name: 'empty',
-              size: 1,
-              magic: 0,
-              hash: oneByteX.hash
-            })
-            .to.have.keys('uuid', 'mtime')
-          done()
-        })
-      })
-    })
+    /** -------------------------------------------------------------- **/
 
-    it("200 append x to one-giga, fa085355", function (done) {
-      this.timeout(0)
-      NewFile2('one-giga', oneGiga, null, 200, done, res =>
-        Append2('one-giga', oneByteX, oneGiga.hash, 200, done, res => {
-/**
-          expect(nsh(res.body.entries[0]))
-            .to.deep.equal(nsh(oneGigaPlusX, { name: 'one-giga' })) 
-**/
-          expect(res.body[0].data)
-            .include({
+    Object.keys(FILES)
+      .filter(x => FILES[x].size > 0 && FILES[x].size <= (1024 * 1024 * 1024))
+      .forEach(x => 
+        it(`batch append to empty, ${x}`, function(done) {
+          this.timeout(0)
+          NewFile2('empty', empty, null, 200, done, res => {
+            Append2('empty', FILES[x], empty.hash, 200, done, res => {
+              expect(res.body[0].data)
+                .to.include({
+                  type: 'file',
+                  name: 'empty',
+                  size: FILES[x].size,
+                  hash: FILES[x].hash
+                })
+                .to.have.keys('uuid', 'mtime', 'magic')
+              done()
             })
-            .to.have.keys()
-          done()
+          })
         }))
-    })
 
-    it("200 append half-giga to one-giga", function (done) {
-      this.timeout(0)
-      NewFile('one-giga', oneGiga, null, 200, (err, res) => err ? done(err)
-        : Append('one-giga', halfGiga, oneGiga.hash, 200, (err, res) => {
-            if (err) return done(err)
-            expect(nsh(res.body.entries[0]))
-              .to.deep.equal(nsh(oneAndAHalfGiga, { name: 'one-giga' })) 
-            done()
-          }))
-    })
+    /** -------------------------------------------------------------- **/
 
-    it("200 append one-giga-minus-1 to one-giga", function (done) {
-      this.timeout(0)
-      NewFile('one-giga', oneGiga, null, 200, (err, res) => err ? done(err)
-        : Append('one-giga', oneGigaMinus1, oneGiga.hash, 200, (err, res) => {
-            if (err) return done(err)
-            expect(nsh(res.body.entries[0]))
-              .to.deep.equal(nsh(twoGigaMinus1, { name: 'one-giga' })) 
-            done()
-          }))
-    })
+    let xs = ['oneByteX', 'halfGiga', 'oneGigaMinus1', 'oneGiga']
+    xs.forEach(x => {
+      it(`batch append to oneGiga, ${x}`, function(done) {
+        this.timeout(0)
+        NewFile2('oneGiga', FILES.oneGiga, null, 200, done, res => {
+          Append2('oneGiga', FILES[x], FILES.oneGiga.hash, 200, done, res => {
 
-    it("200 append one-giga to one-giga", function (done) {
-      this.timeout(0)
-      NewFile('one-giga', oneGiga, null, 200, (err, res) => err ? done(err)
-        : Append('one-giga', oneGiga, oneGiga.hash, 200, (err, res) => {
-            if (err) return done(err)
-            expect(nsh(res.body.entries[0])).to.deep.equal(nsh(twoGiga, { name: 'one-giga' })) 
-            done()
-          }))
-    })
+            let size = FILES[x].size + (1024 * 1024 * 1024) 
+            let y = Object.keys(FILES).find(x => FILES[x].size === size)
+            if (!y) return done(new Error(`no preset file has a size of ${size}`))
 
-    it("400 append one-giga-plus-x to one-giga", function (done) {
-      this.timeout(0)
-      NewFile('one-giga', oneGiga, null, 200, (err, res) => err ? done(err)
-        : Append('one-giga', oneGigaPlusX, oneGiga.hash, 400, done()))
-    })
-
-    it("200 append x to two-giga", function (done) {
-      this.timeout(0)
-      NewFile('two-giga', oneGiga, null, 200, (err, res) => {
-        if (err) return done(err)
-        Append('two-giga', oneGiga, oneGiga.hash, 200, (err, res) => { 
-          if (err) return done(err)
-          Append('two-giga', oneByteX, twoGiga.hash, 200, (err, res) => {
-            if (err) return done(err)
-            expect(nsh(res.body.entries[0])).to.deep.equal(nsh(twoGigaPlusX, { name: 'two-giga' }))
+            expect(res.body[0].data)
+              .to.include({
+                type: 'file',
+                name: 'oneGiga',
+                size,
+                hash: FILES[y].hash
+              })
+              .to.have.keys('uuid', 'mtime', 'magic')
             done()
           })
         })
       })
     })
 
-    it("200 append half-giga to two-giga", function (done) {
-      this.timeout(0)
-      NewFile('two-giga', oneGiga, null, 200, (err, res) => {
-        if (err) return done(err)
-        Append('two-giga', oneGiga, oneGiga.hash, 200, (err, res) => {
-          if (err) return done(err)
-          Append('two-giga', halfGiga, twoGiga.hash, 200, (err, res) => {
-            if (err) return done(err)
-            expect(nsh(res.body.entries[0])).to.deep.equal(nsh(twoAndAHalfGiga, { name: 'two-giga' }))
-            done()
-          })
-        })
-      }) 
-    })
+    /** ----------------------------------------------------------- **/
 
-    it("200 append one-giga-minus-1 to two-giga", function (done) {
-      this.timeout(0)
-      NewFile('target', oneGiga, null, 200, (err, res) => {
-        if (err) return done(err)
-        Append('target', oneGiga, oneGiga.hash, 200, (err, res) => {
-          if (err) return done(err)
-          Append('target', oneGigaMinus1, twoGiga.hash, 200, (err, res) => {
-            if (err) return done(err)
-            expect(nsh(res.body.entries[0])).to.deep.equal(nsh(threeGigaMinus1, { name: 'target' }))
-            done()
+    xs = ['oneByteX', 'halfGiga', 'oneGigaMinus1', 'oneGiga']
+    xs.forEach(x => {
+      it(`batch append to twoGiga, ${x}`, function(done) {
+        this.timeout(0)
+        NewFile2('twoGiga', oneGiga, null, 200, done, res => {
+          Append2('twoGiga', oneGiga, oneGiga.hash, 200, done, res => {
+            Append2('twoGiga', FILES[x], twoGiga.hash, 200, done, res => {
+              let size = FILES[x].size + (1024 * 1024 * 1024) * 2
+              let y = Object.keys(FILES).find(x => FILES[x].size === size)
+              if (!y) return done(new Error(`no preset file has a size of ${size}`))
+              expect(res.body[0].data)
+                .to.include({
+                  type: 'file',
+                  name: 'twoGiga',
+                  size,
+                  hash: FILES[y].hash
+                })
+                .to.have.keys('uuid', 'mtime', 'magic')
+              done()
+            })
           })
         })
-      }) 
+      })
     })
 
   }) 

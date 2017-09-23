@@ -27,6 +27,8 @@ describe(path.basename(__filename), () => {
     await mkdirpAsync(tmptest)
   })
 
+/**
+
   it('clone alonzo', done => {
     let target = path.join(tmptest, UUID.v4())
     btrfsClone(target, [FILES.alonzo.path], err => {
@@ -72,7 +74,23 @@ describe(path.basename(__filename), () => {
       })
     })
   }) 
+**/
 
+  // clone single
+  Object.keys(FILES).forEach(x => it(`clone ${x}`, function(done) {
+    this.timeout(0)
+    let target = path.join(tmptest, UUID.v4()) 
+    btrfsClone(target, [FILES[x].path], err => {
+      if (err) return done(err)
+      fingerprint(target, (err, hash) => {
+        if (err) return done(err)
+        expect(hash).to.equal(FILES[x].hash)
+        done()
+      })
+    })
+  }))
+
+  // clone two
   let xs = [
     ['empty', 'empty', 'empty'],
     ['empty', 'oneByteX', 'oneByteX'],

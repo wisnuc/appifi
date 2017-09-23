@@ -1103,12 +1103,8 @@ class Fruitmix extends EventEmitter {
 
       let tmp = path.join(this.getTmpDir(), UUID.v4())
       btrfsClone(tmp, [dst, data.path], err => {
-
-        console.log(tmp)
-        console.log(dst)
-        console.log(data.path)
-
         if (err) return callback(err)
+
         fs.lstat(dst, (err, stat) => {
           if (err) return callback(err)
           if (stat.mtime.getTime() !== xstat.mtime) {

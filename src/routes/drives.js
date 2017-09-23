@@ -565,19 +565,9 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
 
   const execute = x => {
     executions.push(x)
-
     if (x.type === 'file') { // file
       if (x.append) {
-        let tmp = {
-          path: x.tmp,
-          size: x.size,
-          sha256: x.sha256
-        }
-
-        console.log('append ===============================')
-        console.log(x)
-        console.log('append ===============================')
-
+        let tmp = { path: x.tmp, size: x.size, sha256: x.sha256 }
         getFruit().appendFile(user, driveUUID, dirUUID, x.toName, x.append, tmp, (err, xstat) => {
           if (err) {
             error(x, err)
@@ -617,6 +607,12 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
               success(x, null)
             }
           })
+          break
+        case 'rename':
+          break
+        case 'dup':
+          break
+        default: 
           break
       }
     }
