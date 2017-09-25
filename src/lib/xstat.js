@@ -391,6 +391,8 @@ const forceXstatAsync = async (target, { uuid, hash }) => {
   if (uuid && !isUUID(uuid)) throw new E.EINVAL()
   if (hash && !isSHA256(hash)) throw new E.EINVAL() 
 
+  if (!uuid && !hash) return readXstatAsync(target)
+
   let stats = await fs.lstatAsync(target)
 
   // IS THIS NECESSARY? TODO
