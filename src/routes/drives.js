@@ -624,7 +624,7 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
             if (err) {
               error(x, err)
             } else {
-              success(x, null)
+              success(x, xstat)
             }
           })
           break

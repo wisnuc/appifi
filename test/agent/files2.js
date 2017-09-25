@@ -12,7 +12,7 @@ const sinon = require('sinon')
 const expect = chai.expect
 const should = chai.should()
 
-const debug = require('debug')('divider')
+const debug = require('debug')('test-files')
 
 const app = require('src/app')
 const { saveObjectAsync } = require('src/lib/utils')
@@ -189,17 +189,18 @@ describe(path.basename(__filename), () => {
         .expect(200)
         .end((err, res) => {
           if (err) return done(err)
-          let { type, name } = res.body.entries[0]
-          expect({ type, name }).to.deep.equal({
-            type: 'directory',
-            name: 'world',
-          })
+          debug(res.body)
+
+          let hello = res.body[0].data
+          let world = res.body[1].data
+          expect(hello.uuid).to.equal(world.uuid)
+          expect(world.type).to.equal('directory')
           done()
         })
     })
 
     // name conflict 
-    it("upload empty file then mkdir empty should fail", done => {
+    it("upload empty file then mkdir empty should fail, 64383a7a", done => {
       request(app)
         .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
         .set('Authorization', 'JWT ' + token)
@@ -207,13 +208,24 @@ describe(path.basename(__filename), () => {
         .field('empty', JSON.stringify({ op: 'mkdir' }))
         .expect(403)
         .end((err, res)=> {
-          expect(res.body.code).to.equal('EEXIST')
+          if (err) return done(err)
+          debug(res.body)
+          // empty file
+          expect(res.body[0].data).to.include({
+            type: 'file',
+            name: 'empty',
+            size: 0,
+            magic: 0,
+            hash: FILES.empty.hash
+          }).to.have.keys('uuid')
+          // mkdir
+          expect(res.body[1].error.code).to.equal('EEXIST')
           done()
         })
     })
 
     // upload empty file and rename
-    it("upload empty file and rename to zero", done => {
+    it("upload empty file and rename to zero, 1542c194", done => {
       request(app)
         .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
         .set('Authorization', 'JWT ' + token)
@@ -222,20 +234,29 @@ describe(path.basename(__filename), () => {
         .expect(200)
         .end((err, res) => {
           if (err) return done(err)
+          debug(res.body)
 
-          let { type, name, size, magic, hash } = res.body.entries[0]
-          expect({ type, name, size, magic, hash }).to.deep.equal({
+          expect(res.body[0].data).to.include({
             type: 'file',
-            name: 'zero',
-            size: FILES.empty.size,
+            name: 'empty',
+            size: 0,
             magic: 0,
             hash: FILES.empty.hash
           })
+
+          expect(res.body[1].data).to.include({
+            type: 'file',
+            name: 'zero',
+            size: 0,
+            magic: 0,
+            hash: FILES.empty.hash
+          })
+
           done()
         })
     })
 
-    it("upload alonzo file only", function (done) {
+    it("upload alonzo file only, c57a0973", function (done) {
       this.timeout(5000)
       request(app)
         .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
@@ -247,18 +268,31 @@ describe(path.basename(__filename), () => {
         .expect(200)
         .end((err, res) => {
           if (err) return done(err)
+          debug(res.body) 
+
           request(app)
             .get(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}`)
             .set('Authorization', 'JWT ' + token)
             .expect(200)
             .end((err, res) => {
               if (err) return done(err)
+              debug(res.body)
+
+              expect(res.body.entries.length).to.equal(1)
+              expect(res.body.entries[0]).to.include({
+                type: 'file',
+                name: 'alonzo.jpg',
+                size: FILES.alonzo.size,
+                magic: 'JPEG',
+                hash: FILES.alonzo.hash
+              }).to.have.keys('mtime')
+
               done()
             })
         })
     })
 
-    it('upload alonzo and rename to church', done => {
+    it('upload alonzo and rename to church, 553de6b2', done => {
       request(app)
         .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
         .set('Authorization', 'JWT ' + token)
@@ -270,23 +304,25 @@ describe(path.basename(__filename), () => {
         .expect(200)
         .end((err, res) => {
           if (err) return done(err)
+          debug(res.body)
+
           request(app)
             .get(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}`)
             .set('Authorization', 'JWT ' + token)
             .expect(200)
             .end((err, res) => {
               if (err) return done(err)
+              debug(res.body)
 
               expect(res.body.entries.length).to.equal(1)
-              let { type, name, size, magic, hash } = res.body.entries[0]
-
-              expect({ type, name, size, magic, hash }).to.deep.equal({
+              expect(res.body.entries[0]).to.include({
                 type: 'file',
                 name: 'church.jpg',
                 size: FILES.alonzo.size,
                 magic: 'JPEG',
                 hash: FILES.alonzo.hash
-              })
+              }).to.have.keys('mtime')
+
               done()
             })
         })

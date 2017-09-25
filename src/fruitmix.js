@@ -1210,6 +1210,75 @@ class Fruitmix extends EventEmitter {
       })      
     }
   }
+
+  dup(user, driveUUID, dirUUID, fromName, toName, overwrite, callback) {
+ 
+    let dir = this.driveList.getDriveDir(driveUUID, dirUUID) 
+    if (!dir) {
+      let err = new Error('drive or dir not found')
+      err.status = 404
+      return process.nextTick(() => callback(err))
+    }
+
+    let fromPath = path.join(dir.abspath(), fromName)
+    let toPath = path.join(dir.abspath(), toName)
+    let tmpPath = path.join(this.getTmpDir(), UUID.v4())
+
+    readXstat(fromPath, (err, srcXstat) => {
+      if (err) return callback(err)
+      if (srcXstat.type !== 'file') {
+        let e = new Error(`${fromName} is not a file`)
+        return callback(e)
+      }
+
+      btrfsClone(tmpPath, fromPath, err => {
+        if (err) return callback(err)
+        readXstat(fromPath, (err, xstat) => {
+          if (err) return callback(err)
+          if (xstat.uuid !== srcXstat.uuid || xstat.mtime !== srcXstat.mtime) {
+            let e = new Error(`race condition detected, try again`)
+            return callback(e)
+          }
+         
+          if (overwrite) {
+            readXstat(toPath, (err, dstXstat) => {
+              if (err) return callback(err)
+              if (dstXstat.type !== 'file') {
+                let e = new Error(`${toName} is not a file`)
+                return callback(e)
+              }
+
+              if (dstXstat.uuid !== overwrite) {
+                let e = new Error(`uuid mismatch, actual: ${dstXstat.uuid}`)
+                return callback(e)
+              }
+
+              let props = { uuid: dstXstat.uuid }
+              if (srcXstat.hash) props.hash = srcXstat.hash
+        
+              forceXstat(tmpPath, props, err => {
+                if (err) return callback(err)
+                fs.rename(tmpPath, toPath, err => {
+                  rimraf(tmpPath, () => {})
+                  if (err) return callback(err)
+                  readXstat(toPath, callback) 
+                })
+              })
+            })
+          } else {
+            forceXstat(tmpPath, { hash: srcXstat.hash }, (err, xstat) => {
+              if (err) return callback(err)
+              fs.link(tmpPath, toPath, err => {
+                rimraf(tmpPath, () => {})
+                if (err) return callback(err)
+                readXstat(toPath, callback)
+              })
+            })
+          }
+        })
+      })
+    })
+  }
 }
 
 const broadcast = require('./common/broadcast')
