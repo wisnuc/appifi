@@ -12,7 +12,7 @@ const sinon = require('sinon')
 const expect = chai.expect
 const should = chai.should()
 
-const debug = require('debug')('divider')
+const debug = require('debug')('test-dup')
 
 const app = require('src/app')
 const { saveObjectAsync } = require('src/lib/utils')
@@ -79,34 +79,47 @@ describe(path.basename(__filename), () => {
     stat = await fs.lstatAsync(path.join(DrivesDir, IDS.alice.home))
   }) 
 
-  it("400 if hello (identical names)", done => {
+  it("400 if hello (identical names), 4d73acb4", done => {
     request(app)
       .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
       .set('Authorization', 'JWT ' + token)
       .field('hello', JSON.stringify({ op: 'dup' }))
       .expect(400)
-      .end(done)
+      .end((err, res) => {
+        if (err) return done(err)
+        debug(res.body)
+        done()
+      })
   })
 
-  it("400 if hello|hello (identical names)", done => {
+  it("400 if hello|hello (identical names), 62dcdbe8", done => {
     request(app)
       .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
       .set('Authorization', 'JWT ' + token)
       .field('hello', JSON.stringify({ op: 'dup' }))
       .expect(400)
-      .end(done)
+      .end((err, res) => {
+        if (err) return done(err)
+        debug(res.body)
+        done()
+      })
   })
 
-  it("403 if hello does not exist (no overwrite)", done => {
+  it("403 if hello does not exist (no overwrite), f88a0575", done => {
     request(app)
       .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
       .set('Authorization', 'JWT ' + token)
       .field('hello|world', JSON.stringify({ op: 'dup' }))
       .expect(403)
-      .end(done)
+      .end((err, res) => {
+        if (err) return done(err)
+        debug(res.body)
+        expect(res.body[0].error.code).to.equal('ENOENT')
+        done()
+      })
   })
 
-  it("403 if hello is a directory (no overwrite)", done => {
+  it("403 if hello is a directory (no overwrite), 1fb2037c", done => {
     request(app)
       .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
       .set('Authorization', 'JWT ' + token)
@@ -114,136 +127,22 @@ describe(path.basename(__filename), () => {
       .expect(200)
       .end((err, res) => {
         if (err) return done(err)
+        debug(res.body)
         
         request(app)
           .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
           .set('Authorization', 'JWT ' + token)
           .field('hello|world', JSON.stringify({ op: 'dup' }))
           .expect(403)
-          .end(done)
-      })
-  })
-
-  it("403 if world is a directory (no overwrite)", done => {
-    request(app)
-      .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
-      .set('Authorization', 'JWT ' + token)
-      .attach('hello', 'testdata/hello', JSON.stringify({
-        size: FILES.hello.size,
-        sha256: FILES.hello.hash
-      }))
-      .field('world', JSON.stringify({ op: 'mkdir' }))
-      .expect(200)
-      .end((err, res) => {
-        if (err) return done(err)
-        
-        request(app)
-          .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
-          .set('Authorization', 'JWT ' + token)
-          .field('hello|world', JSON.stringify({ op: 'dup' }))
-          .expect(403)
-          .end(done)
-      })
-  })
-
-  it("403 if world is a file (no overwrite)", done => {
-    request(app)
-      .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
-      .set('Authorization', 'JWT ' + token)
-      .attach('hello', 'testdata/hello', JSON.stringify({
-        size: FILES.hello.size,
-        sha256: FILES.hello.hash
-      }))
-      .attach('world', 'testdata/world', JSON.stringify({
-        size: FILES.world.size,
-        sha256: FILES.world.hash
-      }))
-      .expect(200)
-      .end((err, res) => {
-        if (err) return done(err)
-        
-        request(app)
-          .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
-          .set('Authorization', 'JWT ' + token)
-          .field('hello|world', JSON.stringify({ op: 'dup' }))
-          .expect(403)
-          .end(done)
-      })
-  })
-
-  it("200 dup hello to world (no overwrite)", done => {
-    request(app)
-      .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
-      .set('Authorization', 'JWT ' + token)
-      .attach('hello', 'testdata/hello', JSON.stringify({
-        size: FILES.hello.size,
-        sha256: FILES.hello.hash
-      }))
-      .expect(200)
-      .end((err, res) => {
-        if (err) return done(err)
-        request(app)
-          .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
-          .set('Authorization', 'JWT ' + token)
-          .field('hello|world', JSON.stringify({ op: 'dup' }))
-          .expect(200)
           .end((err, res) => {
             if (err) return done(err)
-
-            let entries = res.body.entries.map(entry => ({
-              type: entry.type,
-              name: entry.name,
-              size: entry.size,
-              magic: entry.magic,
-              hash: entry.hash
-            })).sort((a, b) => a.name.localeCompare(b.name))
-
-            expect(entries).to.deep.equal([
-              {
-                type: 'file',
-                name: 'hello',
-                size: FILES.hello.size,
-                magic: 0,
-                hash: FILES.hello.hash 
-              },
-              {
-                type: 'file',
-                name: 'world',
-                size: FILES.hello.size,
-                magic: 0,
-                hash: FILES.hello.hash 
-              }
-            ])
-
+            debug(res.body)
             done()
           })
       })
   })
 
-  it("403 if world does not exist (overwrite)", done => {
-    request(app)
-      .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
-      .set('Authorization', 'JWT ' + token)
-      .attach('hello', 'testdata/hello', JSON.stringify({
-        size: FILES.hello.size,
-        sha256: FILES.hello.hash
-      }))
-      .expect(200)
-      .end((err, res) => {
-        if (err) return done(err)
-        request(app)
-          .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
-          .set('Authorization', 'JWT ' + token)
-          .field('hello|world', JSON.stringify({ 
-            op: 'dup', 
-            overwrite: 'b5fe21b2-8297-4475-b9db-c9c5d1a24754'
-          }))
-          .expect(403)
-          .end(done)
-      })
-  })
-
-  it("403 if world is a directory (overwrite)", done => {
+  it("403 if world is a directory (no overwrite), d0eba276", done => {
     request(app)
       .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
       .set('Authorization', 'JWT ' + token)
@@ -255,22 +154,24 @@ describe(path.basename(__filename), () => {
       .expect(200)
       .end((err, res) => {
         if (err) return done(err)
-
-        let worldUUID = res.body.entries.find(entry => entry.name === 'world').uuid
+        debug(res.body) 
 
         request(app)
           .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
           .set('Authorization', 'JWT ' + token)
-          .field('hello|world', JSON.stringify({ 
-            op: 'dup', 
-            overwrite: worldUUID
-          }))
+          .field('hello|world', JSON.stringify({ op: 'dup' }))
           .expect(403)
-          .end(done)
+          .end((err, res) => {
+            if (err) return done(err)
+            debug(res.body)
+            // the underlying syscall is link, which returns EEXIST instead of EISDIR
+            expect(res.body[0].error.code).to.equal('EEXIST')
+            done()
+          })
       })
   })
 
-  it("403 if world uuid mismatch (overwrite)", done => {
+  it("403 if world is a file (no overwrite), 1c825f62", done => {
     request(app)
       .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
       .set('Authorization', 'JWT ' + token)
@@ -285,6 +186,78 @@ describe(path.basename(__filename), () => {
       .expect(200)
       .end((err, res) => {
         if (err) return done(err)
+        debug(res.body)
+        
+        request(app)
+          .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
+          .set('Authorization', 'JWT ' + token)
+          .field('hello|world', JSON.stringify({ op: 'dup' }))
+          .expect(403)
+          .end((err, res) => {
+            if (err) return done(err)
+            debug(res.body)
+            // the underlying syscall is link, which returns EEXIST instead of EISDIR
+            expect(res.body[0].error.code).to.equal('EEXIST')
+            done()
+          })
+      })
+  })
+
+  it("200 dup hello to world (no overwrite), 24a8a457", done => {
+    request(app)
+      .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
+      .set('Authorization', 'JWT ' + token)
+      .attach('hello', 'testdata/hello', JSON.stringify({
+        size: FILES.hello.size,
+        sha256: FILES.hello.hash
+      }))
+      .expect(200)
+      .end((err, res) => {
+        if (err) return done(err)
+        debug(res.body)
+
+        let helloUUID = res.body[0].data.uuid
+        request(app)
+          .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
+          .set('Authorization', 'JWT ' + token)
+          .field('hello|world', JSON.stringify({ op: 'dup' }))
+          .expect(200)
+          .end((err, res) => {
+            if (err) return done(err)
+            debug(res.body)
+
+            expect(res.body[0].data)
+              .to.include({
+                type: 'file',
+                name: 'world',
+                size: FILES.hello.size,
+                magic: 0,
+                hash: FILES.hello.hash 
+              })
+              .to.have.keys('uuid', 'mtime')
+
+            // should have new (different) uuid
+            expect(res.body[0].data.uuid).to.not.equal(helloUUID)
+
+            // TODO assert disk files
+            done()
+          })
+      })
+  })
+
+  it("403 if world does not exist (overwrite), 0978974b", done => {
+    request(app)
+      .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
+      .set('Authorization', 'JWT ' + token)
+      .attach('hello', 'testdata/hello', JSON.stringify({
+        size: FILES.hello.size,
+        sha256: FILES.hello.hash
+      }))
+      .expect(200)
+      .end((err, res) => {
+        if (err) return done(err)
+        debug(res.body)
+
         request(app)
           .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
           .set('Authorization', 'JWT ' + token)
@@ -293,11 +266,48 @@ describe(path.basename(__filename), () => {
             overwrite: 'b5fe21b2-8297-4475-b9db-c9c5d1a24754'
           }))
           .expect(403)
-          .end(done)
+          .end((err, res) => {
+            if (err) return done(err)
+            debug(res.body)
+            expect(res.body[0].error.code).to.equal('ENOENT')
+            done()
+          })
       })
   })
 
-  it("200 if dup hello to world (overwrite)", done => {
+  it("403 if world is a directory (overwrite), a08391dc", done => {
+    request(app)
+      .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
+      .set('Authorization', 'JWT ' + token)
+      .attach('hello', 'testdata/hello', JSON.stringify({
+        size: FILES.hello.size,
+        sha256: FILES.hello.hash
+      }))
+      .field('world', JSON.stringify({ op: 'mkdir' }))
+      .expect(200)
+      .end((err, res) => {
+        if (err) return done(err)
+        debug(res.body)
+
+        let worldUUID = res.body[0].data.uuid
+        request(app)
+          .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
+          .set('Authorization', 'JWT ' + token)
+          .field('hello|world', JSON.stringify({ 
+            op: 'dup', 
+            overwrite: worldUUID
+          }))
+          .expect(403)
+          .end((err, res) => {
+            if (err) return done(err)
+            debug(res.body)
+            // TODO anything to assert?
+            done()
+          })
+      })
+  })
+
+  it("403 if world uuid mismatch (overwrite), 305c609e", done => {
     request(app)
       .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
       .set('Authorization', 'JWT ' + token)
@@ -312,8 +322,43 @@ describe(path.basename(__filename), () => {
       .expect(200)
       .end((err, res) => {
         if (err) return done(err)
+        debug(res.body)
 
-        let worldUUID = res.body.entries.find(entry => entry.name === 'world').uuid
+        request(app)
+          .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
+          .set('Authorization', 'JWT ' + token)
+          .field('hello|world', JSON.stringify({ 
+            op: 'dup', 
+            overwrite: 'b5fe21b2-8297-4475-b9db-c9c5d1a24754'
+          }))
+          .expect(403)
+          .end((err, res) => {
+            if (err) return done(err)
+            debug(res.body)
+            done() 
+          })
+      })
+  })
+
+  it("200 if dup hello to world (overwrite), 1ec83ad5", done => {
+    request(app)
+      .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
+      .set('Authorization', 'JWT ' + token)
+      .attach('hello', 'testdata/hello', JSON.stringify({
+        size: FILES.hello.size,
+        sha256: FILES.hello.hash
+      }))
+      .attach('world', 'testdata/world', JSON.stringify({
+        size: FILES.world.size,
+        sha256: FILES.world.hash
+      }))
+      .expect(200)
+      .end((err, res) => {
+        if (err) return done(err)
+        debug(res.body)
+
+        // let worldUUID = res.body.entries.find(entry => entry.name === 'world').uuid
+        let worldUUID = res.body[1].data.uuid
 
         request(app)
           .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
@@ -325,30 +370,17 @@ describe(path.basename(__filename), () => {
           .expect(200)
           .end((err, res) => {
             if (err) return done(err)
-            let entries = res.body.entries.map(entry => ({
-              type: entry.type,
-              name: entry.name,
-              size: entry.size,
-              magic: entry.magic,
-              hash: entry.hash
-            })).sort((a, b) => a.name.localeCompare(b.name))
+            debug(res.body)
 
-            expect(entries).to.deep.equal([
-              {
-                type: 'file',
-                name: 'hello',
-                size: FILES.hello.size,
-                magic: 0,
-                hash: FILES.hello.hash 
-              },
-              {
-                type: 'file',
-                name: 'world',
-                size: FILES.hello.size,
-                magic: 0,
-                hash: FILES.hello.hash 
-              }
-            ])
+            expect(res.body[0].data).to.include({
+              uuid: worldUUID,
+              type: 'file',
+              name: 'world',
+              size: FILES.hello.size,
+              magic: 0,
+              hash: FILES.hello.hash
+            }).to.have.keys('mtime')
+
             done()
           })
       })

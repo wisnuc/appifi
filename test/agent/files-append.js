@@ -12,7 +12,7 @@ const sinon = require('sinon')
 const expect = chai.expect
 const should = chai.should()
 
-const debug = require('debug')('divider')
+const debug = require('debug')('test-append')
 
 const app = require('src/app')
 const { saveObjectAsync } = require('src/lib/utils')
@@ -112,6 +112,19 @@ describe(path.basename(__filename), () => {
       .expect(code)
       .end(callback)
 
+    const NewFile2 = (name, file, overwrite, code, done, cb) => REQ()
+      .attach(name, file.path, JSON.stringify({
+        size: file.size,
+        sha256: file.hash,
+        overwrite: overwrite || undefined
+      }))
+      .expect(code)
+      .end((err, res) => {
+        if (err) return done(err)
+        debug(res.body)
+        cb(res)
+      })
+
     const Append = (name, file, append, code, callback) => REQ()
       .attach(name, file.path, JSON.stringify({
         size: file.size,
@@ -120,6 +133,23 @@ describe(path.basename(__filename), () => {
       }))
       .expect(code)
       .end(callback)
+
+    const Append2 = (name, file, append, code, done, cb) => REQ()
+      .attach(name, file.path, JSON.stringify({
+        size: file.size,
+        sha256: file.hash,
+        append
+      }))
+      .expect(code)
+      .end((err, res) => {
+        if (err) return done(err)
+        debug(res.body)
+        if (cb) {
+          cb(res)
+        } else {
+          done()
+        }
+      })
 
     const filterMerge = (obj, names, merge) => 
       Object.assign(names.reduce((o, n) => (o[n] = obj[n], o), {}), merge)
@@ -160,17 +190,21 @@ describe(path.basename(__filename), () => {
       stat = await fs.lstatAsync(path.join(DrivesDir, IDS.alice.home))
     }) 
 
-    it("400 if size not provided", done => {
+    it("400 if size not provided, 77d258d1", done => {
       REQ()
         .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', J({
           sha256: FILES.alonzo.hash,
           append: FILES.hello.hash
         }))
         .expect(400)
-        .end(done)
+        .end((err, res) => {
+          if (err) return done(err)
+          debug(res.body)
+          done()
+        })
     })
 
-    it("400 if size is 'hello'", done => {
+    it("400 if size is 'hello', a869f8da", done => {
       REQ()
         .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', J({
           size: 'hello',
@@ -178,10 +212,14 @@ describe(path.basename(__filename), () => {
           append: FILES.hello.hash
         }))
         .expect(400)
-        .end(done)
+        .end((err, res) => {
+          if (err) return done(err)
+          debug(res.body)
+          done()
+        })
     })
 
-    it("should 400 if size is 99.99", done => {
+    it("400 if size is 99.99, 009d7a68", done => {
       REQ()
         .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', J({
           size: 99.99,
@@ -189,10 +227,14 @@ describe(path.basename(__filename), () => {
           append: FILES.hello.hash
         }))
         .expect(400)
-        .end(done)
+        .end((err, res) => {
+          if (err) return done(err)
+          debug(res.body)
+          done()
+        })
     })
 
-    it("should 400 if size is -1", done => {
+    it("400 if size is -1, a4b26ba7", done => {
       REQ()
         .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', J({
           size: -1,
@@ -200,10 +242,14 @@ describe(path.basename(__filename), () => {
           append: FILES.hello.hash
         }))
         .expect(400)
-        .end(done)
+        .end((err, res) => {
+          if (err) return done(err)
+          debug(res.body)
+          done()
+        })
     })
 
-    it("should 400 if size is 0", done => {
+    it("400 if size is 0, 970b74a6", done => {
       REQ()
         .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', J({
           size: 0,
@@ -211,10 +257,14 @@ describe(path.basename(__filename), () => {
           append: FILES.hello.hash
         }))
         .expect(400)
-        .end(done)
+        .end((err, res) => {
+          if (err) return done(err)
+          debug(res.body)
+          done()
+        })
     })
 
-    it("should 400 if size is 1G + 1", done => {
+    it("400 if size is 1G + 1, 408c6181", done => {
       REQ()
         .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', J({
           size: 1024 * 1024 * 1024 + 1,
@@ -222,20 +272,28 @@ describe(path.basename(__filename), () => {
           append: FILES.hello.hash
         }))
         .expect(400)
-        .end(done)
+        .end((err, res) => {
+          if (err) return done(err)
+          debug(res.body)
+          done()
+        })
     })
 
-    it("should 400 if sha256 is not provided", done => {
+    it("400 if sha256 is not provided, a5c130be", done => {
       REQ()
         .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', J({
           size: FILES.alonzo.size,
           append: FILES.hello.hash
         }))
         .expect(400)
-        .end(done)
+        .end((err, res) => {
+          if (err) return done(err)
+          debug(res.body)
+          done()
+        })
     })
 
-    it("should 400 if sha256 is 'hello'", done => {
+    it("400 if sha256 is 'hello', a75e2a9a", done => {
       REQ()
         .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', J({
           size: FILES.alonzo.size,
@@ -243,10 +301,14 @@ describe(path.basename(__filename), () => {
           append: FILES.hello.hash
         }))
         .expect(400)
-        .end(done)
+        .end((err, res) => {
+          if (err) return done(err)
+          debug(res.body)
+          done()
+        })
     })
 
-    it("should 400 if append is 'hello'", done => {
+    it("400 if append is 'hello', 4fbfa3f9", done => {
       REQ()
         .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', J({
           size: FILES.alonzo.size,
@@ -254,10 +316,14 @@ describe(path.basename(__filename), () => {
           append: 'hello'
         }))
         .expect(400)
-        .end(done)
+        .end((err, res) => {
+          if (err) return done(err)
+          debug(res.body)
+          done()
+        })
     })   
 
-    it("should 403 if name does not exist", done => {
+    it("403 if name does not exist, 415af27e", done => {
       REQ()
         .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', J({
           size: FILES.alonzo.size,
@@ -265,10 +331,16 @@ describe(path.basename(__filename), () => {
           append: FILES.hello.hash
         }))
         .expect(403)
-        .end(done)
+        .end((err, res) => {
+          if (err) return done(err)
+          debug(res.body)
+          expect(res.body.length).to.equal(1)
+          expect(res.body[0].error.code).to.equal('ENOENT')
+          done()
+        })
     }) 
 
-    it("should 403 if name is directory", done => {
+    it("403 if name is directory, 66bb6713", done => {
       REQ()
         .field('alonzo.jpg', J({ op: 'mkdir' }))
         .expect(200)
@@ -281,28 +353,19 @@ describe(path.basename(__filename), () => {
               append: FILES.hello.hash
             }))
             .expect(403)
-            .end(done) 
+            .end((err, res) => {
+              if (err) return done(err)
+              debug(res.body)
+              expect(res.body.length).to.equal(1)
+              // this error code is faked, hence no syscall assertion
+              expect(res.body[0].error.code).to.equal('EISDIR')
+              done()
+            }) 
         })
     })
 
-    it("should 403 if name is empty file", done => {
-      REQ()
-        .attach('empty', 'testdata/empty', J({ size: 0 }))
-        .expect(200)
-        .end((err, res) => {
-          if (err) return done(err)
-          REQ()
-            .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', J({
-              size: FILES.alonzo.size,
-              sha256: FILES.alonzo.hash,
-              append: FILES.empty.hash
-            }))
-            .expect(403)
-            .end(done)
-        })
-    })
-
-    it("should 403 if name is alonzo", done => {
+    // target size must be multiple of 1G
+    it("403 if append alonzo to alonzo, 80b85342", done => {
       REQ()
         .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', J({ 
           size: FILES.alonzo.size,
@@ -311,143 +374,152 @@ describe(path.basename(__filename), () => {
         .expect(200)
         .end((err, res) => {
           if (err) return done(err)
+          debug(res.body)
+
           REQ()
             .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', J({
               size: FILES.alonzo.size,
               sha256: FILES.alonzo.hash,
-              append: FILES.empty.hash
+              append: FILES.alonzo.hash
             }))
             .expect(403)
-            .end(done)
+            .end((err, res) => {
+              if (err) return done(err)
+              debug(res.body)
+              done()
+            })
         })
     })
 
-    it("400 append empty to empty", function (done) {
-      NewFile('empty', empty, null, 200, (err, res) => {
-        if (err) return done(err)
-        expect(nsh(res.body.entries[0])).to.deep.equal(nsh(empty))
-        Append('empty', empty, empty.hash, 400, done)
-      })
-    })
-
-    // allowed to append onto empty file
-    it("400 append x to empty", function (done) {
-      NewFile('empty', empty, null, 200, (err, res) => {
-        if (err) return done(err)
-        expect(nsh(res.body.entries[0])).to.deep.equal(nsh(empty))
-        Append('empty', oneByteX, empty.hash, 200, (err, res) => {
-          if (err) return done(err)
-          expect(nsh(res.body.entries[0])).to.deep.equal(nsh(oneByteX, { name: 'empty' }))
+    // data block oversize
+    it("400 append one-giga-plus-x to one-giga, 0c0232d7", function (done) {
+      this.timeout(0)
+      NewFile2('one-giga', oneGiga, null, 200, done, res => {
+        Append2('one-giga', oneGigaPlusX, oneGiga.hash, 400, done, res => {
           done()
         })
       })
     })
 
-    it("400 append empty to one-giga", function (done) {
-      this.timeout(0)
-      NewFile('one-giga', oneGiga, null, 200, (err, res) => err ? done(err)
-        : Append('one-giga', empty, oneGiga.hash, 400, done))
-    })
 
-    it("200 append x to one-giga", function (done) {
-      this.timeout(0)
-      NewFile('one-giga', oneGiga, null, 200, (err, res) => err ? done(err)
-        : Append('one-giga', oneByteX, oneGiga.hash, 200, (err, res) => {
-            if (err) return done(err)
-            expect(nsh(res.body.entries[0]))
-              .to.deep.equal(nsh(oneGigaPlusX, { name: 'one-giga' })) 
-            done()
-          }))
-    })
+    /** append to empty is allowed, append empty to anything is disallowed **/
 
-    it("200 append half-giga to one-giga", function (done) {
-      this.timeout(0)
-      NewFile('one-giga', oneGiga, null, 200, (err, res) => err ? done(err)
-        : Append('one-giga', halfGiga, oneGiga.hash, 200, (err, res) => {
-            if (err) return done(err)
-            expect(nsh(res.body.entries[0]))
-              .to.deep.equal(nsh(oneAndAHalfGiga, { name: 'one-giga' })) 
-            done()
-          }))
-    })
-
-    it("200 append one-giga-minus-1 to one-giga", function (done) {
-      this.timeout(0)
-      NewFile('one-giga', oneGiga, null, 200, (err, res) => err ? done(err)
-        : Append('one-giga', oneGigaMinus1, oneGiga.hash, 200, (err, res) => {
-            if (err) return done(err)
-            expect(nsh(res.body.entries[0]))
-              .to.deep.equal(nsh(twoGigaMinus1, { name: 'one-giga' })) 
-            done()
-          }))
-    })
-
-    it("200 append one-giga to one-giga", function (done) {
-      this.timeout(0)
-      NewFile('one-giga', oneGiga, null, 200, (err, res) => err ? done(err)
-        : Append('one-giga', oneGiga, oneGiga.hash, 200, (err, res) => {
-            if (err) return done(err)
-            expect(nsh(res.body.entries[0])).to.deep.equal(nsh(twoGiga, { name: 'one-giga' })) 
-            done()
-          }))
-    })
-
-    it("400 append one-giga-plus-x to one-giga", function (done) {
-      this.timeout(0)
-      NewFile('one-giga', oneGiga, null, 200, (err, res) => err ? done(err)
-        : Append('one-giga', oneGigaPlusX, oneGiga.hash, 400, done()))
-    })
-
-    it("400 append empty to two-giga", function (done) {
-      this.timeout(0)
-      NewFile('two-giga', oneGiga, null, 200, (err, res) => err ? done(err)
-        : Append('two-giga', oneGiga, oneGiga.hash, 200, (err, res) => err ? done(err)
-        : Append('two-giga', empty, twoGiga.hash, 400, done)))
-    })
-
-    it("200 append x to two-giga", function (done) {
-      this.timeout(0)
-      NewFile('two-giga', oneGiga, null, 200, (err, res) => {
+    it("400 append empty to empty, 818066c4", function (done) {
+      NewFile('empty', empty, null, 200, (err, res) => {
         if (err) return done(err)
-        Append('two-giga', oneGiga, oneGiga.hash, 200, (err, res) => { 
+        debug(res.body)
+
+        Append('empty', empty, empty.hash, 400, (err, res) => {
           if (err) return done(err)
-          Append('two-giga', oneByteX, twoGiga.hash, 200, (err, res) => {
-            if (err) return done(err)
-            expect(nsh(res.body.entries[0])).to.deep.equal(nsh(twoGigaPlusX, { name: 'two-giga' }))
+          debug(res.body)
+          done()
+        })
+      })
+    })
+
+    it("400 append empty to alonzo, 89b12a0c", function (done) {
+      NewFile('alonzo', alonzo, null, 200, (err, res) => {
+        if (err) return done(err)
+        debug(res.body)
+        
+        Append('empty', empty, empty.hash, 400, (err, res) => {
+          if (err) return done(err)
+          debug(res.body)
+          done()
+        })
+      })
+    })
+
+    it("400 append empty to one-giga, debe6ba8", function (done) {
+      this.timeout(0)
+      NewFile2('one-giga', oneGiga, null, 200, done, res => 
+        Append2('empty', empty, empty.hash, 400, done, res => {
+          expect(res.body[0].error.status).to.equal(400)
+          done()
+        }))
+    }) 
+
+    it("400 append empty to two-giga, 8730cc93", function (done) {
+      this.timeout(0)
+      NewFile2('two-giga', oneGiga, null, 200, done, res =>
+        Append2('two-giga', oneGiga, oneGiga.hash, 200, done, res => 
+          Append2('two-giga', empty, empty.hash, 400, done)))
+    })
+
+    /** -------------------------------------------------------------- **/
+
+    Object.keys(FILES)
+      .filter(x => FILES[x].size > 0 && FILES[x].size <= (1024 * 1024 * 1024))
+      .forEach(x => 
+        it(`batch append to empty, ${x}`, function(done) {
+          this.timeout(0)
+          NewFile2('empty', empty, null, 200, done, res => {
+            Append2('empty', FILES[x], empty.hash, 200, done, res => {
+              expect(res.body[0].data)
+                .to.include({
+                  type: 'file',
+                  name: 'empty',
+                  size: FILES[x].size,
+                  hash: FILES[x].hash
+                })
+                .to.have.keys('uuid', 'mtime', 'magic')
+              done()
+            })
+          })
+        }))
+
+    /** -------------------------------------------------------------- **/
+
+    let xs = ['oneByteX', 'halfGiga', 'oneGigaMinus1', 'oneGiga']
+    xs.forEach(x => {
+      it(`batch append to oneGiga, ${x}`, function(done) {
+        this.timeout(0)
+        NewFile2('oneGiga', FILES.oneGiga, null, 200, done, res => {
+          Append2('oneGiga', FILES[x], FILES.oneGiga.hash, 200, done, res => {
+
+            let size = FILES[x].size + (1024 * 1024 * 1024) 
+            let y = Object.keys(FILES).find(x => FILES[x].size === size)
+            if (!y) return done(new Error(`no preset file has a size of ${size}`))
+
+            expect(res.body[0].data)
+              .to.include({
+                type: 'file',
+                name: 'oneGiga',
+                size,
+                hash: FILES[y].hash
+              })
+              .to.have.keys('uuid', 'mtime', 'magic')
             done()
           })
         })
       })
     })
 
-    it("200 append half-giga to two-giga", function (done) {
-      this.timeout(0)
-      NewFile('two-giga', oneGiga, null, 200, (err, res) => {
-        if (err) return done(err)
-        Append('two-giga', oneGiga, oneGiga.hash, 200, (err, res) => {
-          if (err) return done(err)
-          Append('two-giga', halfGiga, twoGiga.hash, 200, (err, res) => {
-            if (err) return done(err)
-            expect(nsh(res.body.entries[0])).to.deep.equal(nsh(twoAndAHalfGiga, { name: 'two-giga' }))
-            done()
-          })
-        })
-      }) 
-    })
+    /** ----------------------------------------------------------- **/
 
-    it("200 append one-giga-minus-1 to two-giga", function (done) {
-      this.timeout(0)
-      NewFile('target', oneGiga, null, 200, (err, res) => {
-        if (err) return done(err)
-        Append('target', oneGiga, oneGiga.hash, 200, (err, res) => {
-          if (err) return done(err)
-          Append('target', oneGigaMinus1, twoGiga.hash, 200, (err, res) => {
-            if (err) return done(err)
-            expect(nsh(res.body.entries[0])).to.deep.equal(nsh(threeGigaMinus1, { name: 'target' }))
-            done()
+    xs = ['oneByteX', 'halfGiga', 'oneGigaMinus1', 'oneGiga']
+    xs.forEach(x => {
+      it(`batch append to twoGiga, ${x}`, function(done) {
+        this.timeout(0)
+        NewFile2('twoGiga', oneGiga, null, 200, done, res => {
+          Append2('twoGiga', oneGiga, oneGiga.hash, 200, done, res => {
+            Append2('twoGiga', FILES[x], twoGiga.hash, 200, done, res => {
+              let size = FILES[x].size + (1024 * 1024 * 1024) * 2
+              let y = Object.keys(FILES).find(x => FILES[x].size === size)
+              if (!y) return done(new Error(`no preset file has a size of ${size}`))
+              expect(res.body[0].data)
+                .to.include({
+                  type: 'file',
+                  name: 'twoGiga',
+                  size,
+                  hash: FILES[y].hash
+                })
+                .to.have.keys('uuid', 'mtime', 'magic')
+              done()
+            })
           })
         })
-      }) 
+      })
     })
 
   }) 
