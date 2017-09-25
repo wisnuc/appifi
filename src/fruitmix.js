@@ -16,7 +16,7 @@ const BoxData = require('./box/boxData')
 const Thumbnail = require('./lib/thumbnail2')
 const File = require('./forest/file')
 const Identifier = require('./lib/identifier')
-const { btrfsClone } = require('./lib/btrfs')
+const { btrfsConcat, btrfsClone } = require('./lib/btrfs')
 
 const { assert, isUUID, isSHA256, validateProps } = require('./common/assertion')
 
@@ -1102,7 +1102,7 @@ class Fruitmix extends EventEmitter {
         return callback(new Error('target size must be multiple of 1G'))
 
       let tmp = path.join(this.getTmpDir(), UUID.v4())
-      btrfsClone(tmp, [dst, data.path], err => {
+      btrfsConcat(tmp, [dst, data.path], err => {
         if (err) return callback(err)
 
         fs.lstat(dst, (err, stat) => {
@@ -1129,6 +1129,86 @@ class Fruitmix extends EventEmitter {
         })
       })
     }) 
+  }
+
+  rename(user, driveUUID, dirUUID, fromName, toName, overwrite, callback) {
+    let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
+    if (!dir) {
+      let err = new Error('drive or dir not found')
+      err.status = 404
+      return process.nextTick(() => callback(err))
+    }
+
+    let fromPath = path.join(dir.abspath(), fromName)
+    let toPath = path.join(dir.abspath(), toName)
+    let tmpPath = path.join(this.getTmpDir(), UUID.v4())
+
+    if (overwrite) {
+      // if overwrite is provided, the uuid must be reserved
+      readXstat(fromPath, (err, srcXstat) => {
+        if (err) return callback(err)
+        if (srcXstat.type !== 'file') {
+          let e = new Error(`${fromName} is not a file`)
+          return callback(e)
+        }
+
+        readXstat(toPath, (err, dstXstat) => {
+          if (err) return callback(err)
+          if (dstXstat.type !== 'file') {
+            let e = new Error(`${toName} is not a file`)
+            return callback(e)
+          }          
+
+          if (dstXstat.uuid !== overwrite) {
+            let e = new Error(`overwrite uuid mismatch, actual: ${dstXstat.uuid}`)
+            return callback(e)
+          }
+
+          // 1. clone fromPath to tmpPath
+          // 2. check xstat
+          // 3. stamp tmpPath
+          // 4. rename
+          // 5. remove src
+          btrfsClone(tmpPath, fromPath, err => {
+            if (err) return callback(err)
+            readXstat(fromPath, (err, xstat) => {
+              if (err) {
+                rimraf(tmpPath, () => {})
+                return callback(err)
+              }
+
+              forceXstat(tmpPath, { uuid: dstXstat.uuid, hash: srcXstat.hash }, err => {
+                if (err) {
+                  rimraf(tmpPath, () => {})
+                  return callback(err)
+                }
+
+                fs.rename(tmpPath, toPath, err => {
+                  rimraf(tmpPath, () => {})
+                  if (err) return callback(err) 
+                  rimraf(fromPath, err => {
+                    if (err) return callback(err)
+                    readXstat(toPath, callback)
+                  })
+                })
+              })              
+            }) 
+          }) 
+        })
+      })
+    } else {
+      // we cannot use fs.link because it may leave two files with the SAME uuid.
+      fs.lstat(toPath, (err, stat) => {
+        if (err) {
+          if (err.code !== 'ENOENT') return callback(err)
+          fs.rename(fromPath, toPath, err => err ? callback(err) : readXstat(toPath, callback))
+        } else {
+          let e = new Error('file or directory exists')
+          e.code = 'EEXIST'
+          callback(e)
+        }
+      })      
+    }
   }
 }
 

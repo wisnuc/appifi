@@ -26,7 +26,7 @@ const BTRFS_IOC_CLONE_RANGE = 0x4020940D
 // src_offset: always 0
 // src_length: always 0
 // dst_offset: increment from 0
-const btrfsClone = (target, files, callback) => {
+const btrfsConcat = (target, files, callback) => {
   fs.open(target, 'w', (err, wfd) => {
     if (err) return callback(err)
 
@@ -90,7 +90,29 @@ const btrfsClone = (target, files, callback) => {
   })
 }
 
-module.exports = { btrfsClone }
+// btrfs clone, callback version
+const btrfsClone = (target, src, callback) => 
+  fs.open(src, 'r', (err, srcFd) => {
+    if (err) return callback(err)
+    fs.open(target, 'w', (err, dstFd) => {
+      if (err) {
+        fs.close(dstFd, () => {})
+        callback(err)
+      } else {
+        try {
+          ioctl(dstFd, 0x40049409, srcFd)      
+          callback(null)
+        } catch (e) {
+          callback(e)
+        } finally {
+          fs.close(srcFd, () => {})
+          fs.close(dstFd, () => {})
+        }
+      }
+    })
+  })
+
+module.exports = { btrfsConcat, btrfsClone }
 
 
 

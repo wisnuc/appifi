@@ -12,7 +12,7 @@ const sinon = require('sinon')
 const expect = chai.expect
 const should = chai.should()
 
-const debug = require('debug')('divider')
+const debug = require('debug')('test-rename')
 
 const app = require('src/app')
 const { saveObjectAsync } = require('src/lib/utils')
@@ -82,34 +82,46 @@ describe(path.basename(__filename), () => {
     stat = await fs.lstatAsync(path.join(DrivesDir, IDS.alice.home))
   }) 
 
-  it("400 if hello (identical names)", done => {
+  it("400 if hello (identical names), afcf3104", done => {
     request(app) 
       .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
       .set('Authorization', 'JWT ' + token)
       .field('hello', JSON.stringify({ op: 'rename' }))
       .expect(400)
-      .end(done)
+      .end((err, res) => {
+        if (err) return done(err)
+        debug(res.body) 
+        done()
+      })
   })
 
-  it("400 if hello|hello (identical names)", done => {
+  it("400 if hello|hello (identical names), e6db8c8a", done => {
     request(app)
       .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
       .set('Authorization', 'JWT ' + token)
       .field('hello|hello', JSON.stringify({ op: 'rename' }))
       .expect(400)
-      .end(done)
+      .end((err, res) => {
+        if (err) return done(err)
+        debug(res.body)
+        done()
+      })
   })
 
-  it("403 if hello does not exist (no overwrite)", done => {
+  it("403 if hello (fromName) does not exist (no overwrite), 4a5cbbcc", done => {
     request(app)
       .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
       .set('Authorization', 'JWT ' + token)
       .field('hello|world', JSON.stringify({ op: 'rename' }))
       .expect(403)
-      .end(done)
+      .end((err, res) => {
+        if (err) return done(err) 
+        debug(res.body)
+        done()
+      })
   })
 
-  it("403 if hello is file, world is directory (no overwrite)", done => {
+  it("403 if hello (fromName) is file, world is directory (no overwrite), a05e0e5b", done => {
     request(app)
       .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
       .set('Authorization', 'JWT ' + token)
@@ -121,17 +133,21 @@ describe(path.basename(__filename), () => {
       .expect(200)
       .end((err, res) => {
         if (err) return done(err)
-
+        debug(res.body)
         request(app)
           .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
           .set('Authorization', 'JWT ' + token)
           .field('hello|world', JSON.stringify({ op: 'rename' })) 
           .expect(403)
-          .end(done)
+          .end((err, res) => {
+            if (err) return done(err)
+            debug(res.body)
+            done()
+          })
       })
   })
 
-  it("403 if hello is file, world is file (no overwrite)", done => {
+  it("403 if hello (fromName) is file, world is file (no overwrite), 0575d2e5", done => {
     request(app)
       .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
       .set('Authorization', 'JWT ' + token)
@@ -146,17 +162,22 @@ describe(path.basename(__filename), () => {
       .expect(200)
       .end((err, res) => {
         if (err) return done(err)
+        debug(res.body)
 
         request(app)
           .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
           .set('Authorization', 'JWT ' + token)
           .field('hello|world', JSON.stringify({ op: 'rename' })) 
           .expect(403)
-          .end(done)
+          .end((err, res) => {
+            if (err) return done(err)
+            debug(res.body)
+            done()
+          })
       })
   })
 
-  it("403 if hello is directory, world is file (no overwrite)", done => {
+  it("403 if hello is directory, world is file (no overwrite), 6b64e5ba", done => {
     request(app)
       .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
       .set('Authorization', 'JWT ' + token)
@@ -168,17 +189,22 @@ describe(path.basename(__filename), () => {
       .expect(200)
       .end((err, res) => {
         if (err) return done(err)
+        debug(res.body)
 
         request(app)
           .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
           .set('Authorization', 'JWT ' + token)
           .field('hello|world', JSON.stringify({ op: 'rename' })) 
           .expect(403)
-          .end(done)
+          .end((err, res) => {
+            if (err) return done(err)
+            debug(res.body)
+            done()
+          })
       })
   })
 
-  it("403 if hello is directory, world is empty directory (no overwrite)", done => {
+  it("403 if hello is directory, world is empty directory (no overwrite), 986c75d6", done => {
     request(app)
       .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
       .set('Authorization', 'JWT ' + token)
@@ -187,17 +213,22 @@ describe(path.basename(__filename), () => {
       .expect(200)
       .end((err, res) => {
         if (err) return done(err)
+        debug(res.body)
 
         request(app)
           .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
           .set('Authorization', 'JWT ' + token)
           .field('hello|world', JSON.stringify({ op: 'rename' })) 
           .expect(403)
-          .end(done)
+          .end((err, res) => {
+            if (err) return done(err)
+            debug(res.body)
+            done()
+          })
       })
   })
 
-  it("403 if hello is directory, world is non-empty directory (no overwrite)", done => {
+  it("403 if hello is directory, world is non-empty directory (no overwrite), 6cce5848", done => {
     request(app)
       .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
       .set('Authorization', 'JWT ' + token)
@@ -206,9 +237,9 @@ describe(path.basename(__filename), () => {
       .expect(200)
       .end((err, res) => {
         if (err) return done(err)
+        debug(res.body)
 
-        let worldUUID = res.body.entries.find(entry => entry.name === 'world').uuid
-
+        let worldUUID = res.body.find(entry => entry.name === 'world').uuid
         request(app)
           .post(`/drives/${IDS.alice.home}/dirs/${worldUUID}/entries`)
           .set('Authorization', 'JWT ' + token)
@@ -220,12 +251,18 @@ describe(path.basename(__filename), () => {
               .set('Authorization', 'JWT ' + token)
               .field('hello|world', JSON.stringify({ op: 'rename' })) 
               .expect(403)
-              .end(done)
+              .end((err, res) => {
+                if (err) return done(err)
+                debug(res.body)
+                expect(res.body[0].error.code).to.equal('EEXIST')
+                done()
+              })
           })
       })
   })
 
-  it("200 rename hello to world, file", done => {
+  // rename does not change mtime, changing parent's mtime
+  it("200 rename hello to world, file, 02e1cd61", done => {
     request(app)
       .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
       .set('Authorization', 'JWT ' + token)
@@ -236,6 +273,9 @@ describe(path.basename(__filename), () => {
       .expect(200)
       .end((err, res) => {
         if (err) return done(err)
+        debug(res.body)
+
+        let hello = res.body[0].data
         request(app)
           .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
           .set('Authorization', 'JWT ' + token)
@@ -243,20 +283,14 @@ describe(path.basename(__filename), () => {
           .expect(200)
           .end((err, res) => {
             if (err) return done(err)
-            let { type, name, size, magic, hash } = res.body.entries[0]
-            expect({ type, name, size, magic, hash }).to.deep.equal({
-              type: 'file',
-              name: 'world',
-              size: FILES.hello.size,
-              magic: 0,
-              hash: FILES.hello.hash
-            })
+            debug(res.body)
+            expect(res.body[0].data).to.deep.equal(Object.assign(hello, { name: 'world' }))
             done()
           })
       })
   })
 
-  it("200 rename hello to world, directory", done => {
+  it("200 rename hello to world, directory, f14098d9", done => {
     request(app)
       .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
       .set('Authorization', 'JWT ' + token)
@@ -264,6 +298,9 @@ describe(path.basename(__filename), () => {
       .expect(200)
       .end((err, res) => {
         if (err) return done(err)
+        debug(res.body)
+        let hello = res.body[0].data
+
         request(app)
           .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
           .set('Authorization', 'JWT ' + token)
@@ -271,17 +308,15 @@ describe(path.basename(__filename), () => {
           .expect(200)
           .end((err, res) => {
             if (err) return done(err)
-            let { type, name } = res.body.entries[0]
-            expect({ type, name }).to.deep.equal({
-              type: 'directory',
-              name: 'world'
-            })
+            debug(res.body)
+            expect(res.body[0].data).to.deep.equal(Object.assign(hello, { name: 'world' }))
             done()
           })
        })
   })
 
-  it("403 if hello does not exist (overwrite)", done => {
+
+  it("403 if hello does not exist (overwrite), 2186800f", done => {
     request(app)
       .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
       .set('Authorization', 'JWT ' + token)
@@ -290,10 +325,14 @@ describe(path.basename(__filename), () => {
         overwrite: 'b50048a7-b2d8-4345-8111-33c980bbfc06' 
       }))
       .expect(403)
-      .end(done)
+      .end((err, res) => {
+        if (err) return done(err)
+        debug(res.body)
+        done()
+      })
   })
 
-  it("403 if hello is directory (overwrite)", done => {
+  it("403 if hello is directory (overwrite), f6f9a649", done => {
     request(app)
       .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
       .set('Authorization', 'JWT ' + token)
@@ -302,9 +341,9 @@ describe(path.basename(__filename), () => {
       .expect(200)
       .end((err, res) => {
         if (err) return done(err)
+        debug(res.body)
 
-        let worldUUID = res.body.entries.find(entry => entry.name === 'world').uuid
-
+        let worldUUID = res.body[1].data.uuid
         request(app)
           .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
           .set('Authorization', 'JWT ' + token)
@@ -313,11 +352,15 @@ describe(path.basename(__filename), () => {
             overwrite: worldUUID
           }))
           .expect(403)
-          .end(done)
+          .end((err, res) => {
+            if (err) return done(err)
+            debug(res.body)
+            done()
+          })
       })
   })
 
-  it("403 if world does not exist (overwrite)", done => {
+  it("403 if world does not exist (overwrite), b375497d", done => {
     request(app)
       .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
       .set('Authorization', 'JWT ' + token)
@@ -328,6 +371,7 @@ describe(path.basename(__filename), () => {
       .expect(200)
       .end((err, res) => {
         if (err) return done(err)
+        debug(res.body)
 
         request(app)
           .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
@@ -337,11 +381,15 @@ describe(path.basename(__filename), () => {
             overwrite: '58be9bc2-3622-4045-83c9-c8cdb73b842b'
           }))
           .expect(403)
-          .end(done)
+          .end((err, res) => {
+            if (err) return done(err)
+            debug(res.body)
+            done()
+          })
       })
   })
 
-  it("403 if world is directory (overwrite)", done => {
+  it("403 if world is directory (overwrite), 2c13545d", done => {
     request(app)
       .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
       .set('Authorization', 'JWT ' + token)
@@ -353,8 +401,9 @@ describe(path.basename(__filename), () => {
       .expect(200)
       .end((err, res) => {
         if (err) return done(err)
+        debug(res.body)
 
-        let worldUUID = res.body.entries.find(entry => entry.name === 'world').uuid
+        let worldUUID = res.body[1].data.uuid
         request(app)
           .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
           .set('Authorization', 'JWT ' + token)
@@ -363,11 +412,15 @@ describe(path.basename(__filename), () => {
             overwrite: worldUUID
           }))
           .expect(403)
-          .end(done)
+          .end((err, res) => {
+            if (err) return done(err)
+            debug(res.body)
+            done(err)
+          })
       })
   })
 
-  it("403 if world is file but uuid mismatch (overwrite)", done => {
+  it("403 if world is file but uuid mismatch (overwrite), 6d7743e1", done => {
     request(app)
       .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
       .set('Authorization', 'JWT ' + token)
@@ -382,6 +435,7 @@ describe(path.basename(__filename), () => {
       .expect(200)
       .end((err, res) => {
         if (err) return done(err)
+        debug(res.body)
 
         request(app)
           .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
@@ -391,11 +445,15 @@ describe(path.basename(__filename), () => {
             overwrite: 'e48f145b-e46b-44cf-8023-603f376e357f'
           }))
           .expect(403)
-          .end(done)
+          .end((err, res) => {
+            if (err) return done(err)
+            debug(res.body)
+            done()
+          })
       })
   })
 
-  it("200 rename hello to world (overwrite)", done => {
+  it("200 rename hello to world (overwrite), 22796908", done => {
     request(app)
       .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
       .set('Authorization', 'JWT ' + token)
@@ -410,9 +468,10 @@ describe(path.basename(__filename), () => {
       .expect(200)
       .end((err, res) => {
         if (err) return done(err)
+        debug(res.body)
 
-        let worldUUID = res.body.entries.find(entry => entry.name === 'world').uuid
-
+        let helloUUID = res.body[0].data.uuid
+        let worldUUID = res.body[1].data.uuid
         request(app)
           .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
           .set('Authorization', 'JWT ' + token)
@@ -423,7 +482,17 @@ describe(path.basename(__filename), () => {
           .expect(200)
           .end((err, res) => {
             if (err) return done(err)
-            expect(res.body.entries.length).to.equal(1)
+            debug(res.body)
+
+            expect(res.body[0].data).to.include({
+              uuid: worldUUID, 
+              type: 'file',
+              name: 'world',
+              size: FILES.hello.size,
+              magic: 0,
+              hash: FILES.hello.hash
+            })
+/**
             let { type, name, size, magic, hash } = res.body.entries[0]
             expect({ type, name, size, magic, hash }).to.deep.equal({
               type: 'file',
@@ -432,7 +501,12 @@ describe(path.basename(__filename), () => {
               magic: 0,
               hash: FILES.hello.hash
             })
-            done()
+**/
+
+            fs.stat(path.join(DrivesDir, IDS.alice.home, 'hello'), err => {
+              expect(err.code).to.equal('ENOENT')
+              done()
+            })
           })
       })
   })

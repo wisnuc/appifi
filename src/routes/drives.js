@@ -532,15 +532,15 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
 
           case 'dup':
             if (x.fromName === x.toName)
-              throw new Error('dup requires two distinct file name')
+              throw new Error('dup requires two distinct names')
             if (x.hasOwnProperty('overwrite') && !isUUID(x.overwrite))
               throw new Error('overwrite must be valid uuid if provided')
             break
 
           case 'rename':
             if (x.fromName === x.toName)
-              throw new Error('rename requires two distinct name')
-            if (x.hasOwnProperty('overwrite') && isUUID(x.overwrite))
+              throw new Error('rename requires two distinct names')
+            if (x.hasOwnProperty('overwrite') && !isUUID(x.overwrite))
               throw new Error('overwrite must be valid uuid if provided')
             break
 
@@ -609,8 +609,24 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
           })
           break
         case 'rename':
+          getFruit().rename(user, driveUUID, dirUUID, x.fromName, x.toName, x.overwrite, (err, xstat) => {
+            executions.splice(executions.indexOf(x), 1)
+            if (err) {
+              error(x, err)
+            } else {
+              success(x, xstat)
+            }
+          })
           break
         case 'dup':
+          getFruit().dup(user, driveUUID, dirUUID, x.fromName, x.toName, x.overwrite, (err, xstat) => {
+            executions.splice(executions.indexOf(x), 1)
+            if (err) {
+              error(x, err)
+            } else {
+              success(x, null)
+            }
+          })
           break
         default: 
           break
