@@ -986,13 +986,20 @@ class Fruitmix extends EventEmitter {
 
   ////////////////////////////
   
-  mkdirp (user, driveUUID, dirUUID, name, callback) {
+  mkdirp (user, driveUUID, dirUUID, name, cb) {
+    let callback = (err, data) => {
+      if(err) return cb(err)
+      if(data){
+        cb(null, data) 
+        dir.read()
+      }
+    }
     // TODO permission check
     let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
     if (!dir) {
       let err = new Error('drive or dir not found')
       err.status = 404
-      return process.nextTick(() => callback(err))
+      return process.nextTick(() => cb(err))
     }
 
     let dst = path.join(dir.abspath(), name)
@@ -1005,13 +1012,20 @@ class Fruitmix extends EventEmitter {
     })
   }
 
-  rimraf (user, driveUUID, dirUUID, name, uuid, callback) {
+  rimraf (user, driveUUID, dirUUID, name, uuid, cb) {
+    let callback = (err, data) => {
+      if(err) return cb(err)
+      if(data){
+        cb(null, data) 
+        dir.read()
+      }
+    }
     // TODO permission check
     let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
     if (!dir) {
       let err = new Error('drive or dir not found')
       err.status = 404
-      return process.nextTick(() => callback(err))
+      return process.nextTick(() => cb(err))
     }
 
     let dst = path.join(dir.abspath(), name)
@@ -1026,12 +1040,20 @@ class Fruitmix extends EventEmitter {
     })
   }
 
-  createNewFile(user, driveUUID, dirUUID, name, tmp, hash, overwrite, callback) {
+  createNewFile(user, driveUUID, dirUUID, name, tmp, hash, overwrite, cb) {
+    let callback = (err, data) => {
+      if(err) return cb(err)
+      if(data){
+        cb(null, data)
+        dir.read()
+      }
+    }
+
     let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
     if (!dir) {
       let err = new Error('drive or dir not found')
       err.status = 404
-      return process.nextTick(() => callback(err))
+      return process.nextTick(() => cb(err))
     }
 
     let dst = path.join(dir.abspath(), name)
@@ -1082,13 +1104,21 @@ class Fruitmix extends EventEmitter {
   /**
   data { path, size, sha256 }
   **/
-  appendFile(user, driveUUID, dirUUID, name, hash, data, callback) {
+  appendFile(user, driveUUID, dirUUID, name, hash, data, cb) {
+
+    let callback = (err, data) => {
+      if(err) return cb(err)
+      if(data){
+        cb(null, data)
+        dir.read()
+      }
+    }
 
     let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
     if (!dir) {
       let err = new Error('drive or dir not found')
       err.status = 404
-      return process.nextTick(() => callback(err))
+      return process.nextTick(() => cb(err))
     }
 
     let dst = path.join(dir.abspath(), name)
@@ -1131,12 +1161,20 @@ class Fruitmix extends EventEmitter {
     }) 
   }
 
-  rename(user, driveUUID, dirUUID, fromName, toName, overwrite, callback) {
+  rename(user, driveUUID, dirUUID, fromName, toName, overwrite, cb) {
+    let callback = (err, data) => {
+      if(err) return cb(err)
+      if(data){
+        cb(null, data)        
+        dir.read()
+      }
+    }
+
     let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
     if (!dir) {
       let err = new Error('drive or dir not found')
       err.status = 404
-      return process.nextTick(() => callback(err))
+      return process.nextTick(() => cb(err))
     }
 
     let fromPath = path.join(dir.abspath(), fromName)
@@ -1211,13 +1249,20 @@ class Fruitmix extends EventEmitter {
     }
   }
 
-  dup(user, driveUUID, dirUUID, fromName, toName, overwrite, callback) {
- 
+  dup(user, driveUUID, dirUUID, fromName, toName, overwrite, cb) {
+    let callback = (err, data) => {
+      if(err) return cb(err)
+      if(data){
+        cb(null, data) 
+        dir.read()
+      }
+    }
+
     let dir = this.driveList.getDriveDir(driveUUID, dirUUID) 
     if (!dir) {
       let err = new Error('drive or dir not found')
       err.status = 404
-      return process.nextTick(() => callback(err))
+      return process.nextTick(() => cb(err))
     }
 
     let fromPath = path.join(dir.abspath(), fromName)
