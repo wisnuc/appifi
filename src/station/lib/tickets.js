@@ -132,7 +132,7 @@ class Tickets {
     if(fruit.getUsers().find(u => !!u.global && u.global.id === id)) throw new Error('this wechat has already bind another user')
     let user = ticket.users[index]
     let unionid = user.unionId
-    if (!unionid) throw new Error('wechat unionid not found')
+    if (!unionid) throw Object.assign(new Error('wechat unionid not found'), { status: 401 })
     switch (ticket.type) {
       case 'invite': {
         //TODO: confirm userList 

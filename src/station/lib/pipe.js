@@ -319,7 +319,7 @@ class Pipe {
                     .then(() => {}).catch(debug)
 
     data.user = Object.assign({}, data.user, localUser)
-    debug('fruit pipe user: ', data.user)
+    // debug('fruit pipe user: ', data.user)
     let messageType = this.decodeType(data)
     if(!messageType){
       debug('resource error')
@@ -490,7 +490,7 @@ class Pipe {
       return await this.errorResponseAsync(serverAddr, sessionId, new Error('resource error'))
     
     let driveUUID = paths[1]
-    let dirUUID = path[3]
+    let dirUUID = paths[3]
     let ops = ['mkdir', 'rename', 'dup', 'remove', 'newfile', 'appendfile']
     if(!ops.includes(body.op))
       return await this.errorResponseAsync(serverAddr, sessionId, new Error('op error'))
@@ -586,7 +586,7 @@ class Pipe {
     if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
     let asyncRemove = Promise.promisify(fruit.rimraf).bind(fruit)
     await asyncRemove(user, body.driveUUID, body.dirUUID, body.toName, body.uuid)
-    debug('removeAsync success', xstat)
+    debug('removeAsync success')
     return await this.successResponseJsonAsync(serverAddr, sessionId, {})
   }
 
