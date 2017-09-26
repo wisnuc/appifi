@@ -11,7 +11,8 @@ const chai = require('chai').use(require('chai-as-promised'))
 const expect = chai.expect
 const should = chai.should()
 
-const fingerprint = require('src/lib/fingerprintSync')
+const fingerprint = require('src/lib/fingerprint2')
+
 const { FILES } = require('test/agent/lib')
 
 const cwd = process.cwd()

@@ -2,7 +2,6 @@ const path = require('path')
 const Node = require('./node')
 const File = require('./file')
 const Readdir = require('./readdir')
-const Writedir = require('./writedir')
 const Debug = require('debug')
 
 /**
@@ -146,17 +145,6 @@ class Directory extends Node {
       this.read((err, xstats) => err ? reject(err) : resolve(xstats)))
   }
 
-  write(req, callback) {
-    let writer = new Writedir(this, req)
-    writer.on('finish', () => {
-      this.read()
-      callback(writer.error)
-    })
-  }
-
-  mkdirpAsync(name, callback) {
-    path.join 
-  }
 }
 
 module.exports = Directory
