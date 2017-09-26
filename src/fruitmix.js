@@ -1106,10 +1106,10 @@ class Fruitmix extends EventEmitter {
   **/
   appendFile(user, driveUUID, dirUUID, name, hash, data, cb) {
 
-    let callback = (err, data) => {
+    let callback = (err, d) => {
       if(err) return cb(err)
-      if(data){
-        cb(null, data)
+      if(d){
+        cb(null, d)
         dir.read()
       }
     }

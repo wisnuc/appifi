@@ -55,43 +55,42 @@ class HashTransform extends Transform {
   }
 }
 
-class StoreSingleFile {
-  constructor(tmp, token, size, hash, jobId) {
+class StoreFile {
+  constructor(tmp, size, sha256) {
     this.tmp = tmp
     this.size = size
-    this.hash = hash
-    this.token = token
-    this.jobId = jobId
+    this.sha256 = sha256
   }
 
-  async runAsync(url) {
-    return await this.storeFileAsync(url)
+  async storeFileAsync(cloudAddr,sessionId, saId, token)  {
+    return Promise.promisify(this.storeFile).bind(this)(cloudAddr,sessionId, saId)
   }
 
-  async storeFileAsync(url)  {
-    return Promise.promisify(this.storeFile).bind(this)(url)
-  }
-
-  storeFile(url, callback) {
+  storeFile(cloudAddr,sessionId, saId, token, callback) {
     let transform = new HashTransform()
-    //TODO: define url
+    let url = cloudAddr + '/s/v1/stations/' + saId + '/response/' + sessionId
     let fpath = path.join(this.tmp, uuid.v4())
     let finished = false
-
     debug('start store')
 
     let error = (err) => {
       debug(err)
       if (finished) return
       finished = true
-      debug('coming error')
+      debug('store file coming error')
       return callback(err)
     }
     let finish = (fpath) => {
       if (finished) return
-      debug('store finish')
+      debug('store file checking')
+      let bytesWritten = ws.bytesWritten
+      let sha256 = transform.getHash()
+      if(bytesWritten !== this.size)
+        return error(new Error('size mismatch: ', fpath, bytesWritten, this.size))
+      if(sha256 !== this.sha256)
+        return error(new Error('sha256 mismatch: ', fpath, sha256, this.sha256))
+      debug('store file bytesWritten')
       finished = true
-      //TODO: check size sha256
       callback(null, fpath)
     }
 
@@ -101,15 +100,15 @@ class StoreSingleFile {
       callback(new Error('EABORT'))
     }
 
-    let req = request.get(url).set({ 'Authorization': this.token })
+    let req = request.get(url).set({ 'Authorization': token })
     let ws = fs.createWriteStream(fpath)
     debug('store req created')
     req.on('response', res => {
       debug('response', fpath)
       if(res.status !== 200){
-        debug('response error')
+        debug('response error', fpath)
         error(res.error)
-        ws.close()
+        ws.end()
       }
     })
     req.on('error', err => error(err))
@@ -276,7 +275,7 @@ class StoreFiles {
  */
 class Pipe {
   constructor(tmp, connect) {
-    this.tmp = undefined
+    this.tmp = path.join(connect.froot, 'tmp')
     this.connect = connect
     this.connect.register('pipe', this.handle.bind(this))
     this.handlers = new Map()
@@ -320,7 +319,7 @@ class Pipe {
                     .then(() => {}).catch(debug)
 
     data.user = Object.assign({}, data.user, localUser)
-    debug('fruit pipe user: ', user)
+    debug('fruit pipe user: ', data.user)
     let messageType = this.decodeType(data)
     if(!messageType){
       debug('resource error')
@@ -337,6 +336,9 @@ class Pipe {
           debug('pipe error subType: ', data.subType)
           if(['GetMediaThumbnail', 'GetMediaFile'].includes(data.subType))
             return this.errorFetchResponseAsync(data.serverAddr, data.sessionId, Object.assign(e, { code: 400 }))
+                      .then(() => {}).catch(debug)
+          else if(['WriteDirNewFile', 'WriteDirAppendFile'].includes(data.subType))
+            return this.errorStoreResponseAsync(data.serverAddr, data.sessionId, Object.assign(e, { code: 400 }))
                       .then(() => {}).catch(debug)
           else
             return this.errorResponseAsync(data.serverAddr, data.sessionId, Object.assign(e, { code: 400 }))
@@ -489,34 +491,43 @@ class Pipe {
     
     let driveUUID = paths[1]
     let dirUUID = path[3]
-    let ops = ['mkdir', 'rename', 'dup', 'remove', 'newfile']
-    if(ops.findIndex(body.op) === -1)
+    let ops = ['mkdir', 'rename', 'dup', 'remove', 'newfile', 'appendfile']
+    if(!ops.includes(body.op))
       return await this.errorResponseAsync(serverAddr, sessionId, new Error('op error'))
 
     let da = Object.assign({}, body)
     da.driveUUID = driveUUID
     da.dirUUID = dirUUID
-
-    let split = da.name.split('|')
-    if (split.length === 0 || split.length > 2)
-       throw new Error('invalid name')
-    if (!split.every(name => name === sanitize(name)))
-       throw new Error('invalid name')
-    da.fromName = split.shift()
-    da.toName = split.shift() || da.fromName
+    data.body = da
+    // let split = da.name.split('|')
+    // if (split.length === 0 || split.length > 2)
+    //    throw new Error('invalid name')
+    // if (!split.every(name => name === sanitize(name)))
+    //    throw new Error('invalid name')
+    // da.fromName = split.shift()
+    // da.toName = split.shift() || da.fromName
 
     switch (da.op) {
       case 'mkdir':
+        return await this.mkdirpAsync(data)
         break
       case 'rename':
+        return await this.renameAsync(data)
         break
       case 'dup':
+        return await this.dupAsync(data)
         break
       case 'remove':
+        return await this.removeAsync(data)
         break
       case 'newfile':
+        return await this.newFileAsync(data)
+        break
+      case 'appendfile':
+        return await this.appendFileAsync(data)
         break
       default:
+        debug('unhandle writedir event')
         break
     }
 
@@ -539,24 +550,74 @@ class Pipe {
    * }
    */
 
-  async mkdirAsync(data) {
-
+  async mkdirpAsync(data) {
+    let { serverAddr, sessionId, user, body, paths } = data
+    let fruit = getFruit()
+    if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    let asyncMkdir = Promise.promisify(fruit.mkdirp).bind(fruit)
+    let xstat = await asyncMkdir(user, body.driveUUID, body.dirUUID, body.toName)
+    debug('mkdirp success', xstat)
+    return await this.successResponseJsonAsync(serverAddr, sessionId, xstat)
   }
 
   async renameAsync(data) {
-
+    let { serverAddr, sessionId, user, body, paths } = data
+    let fruit = getFruit()
+    if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    let asyncRename = Promise.promisify(fruit.rename).bind(fruit)
+    let xstat = await asyncRename(user, body.driveUUID, body.dirUUID, body.fromName, body.toName, body.overwrite)
+    debug('renameAsync success', xstat)
+    return await this.successResponseJsonAsync(serverAddr, sessionId, xstat)
   }
 
   async dupAsync(data) {
-
+    let { serverAddr, sessionId, user, body, paths } = data
+    let fruit = getFruit()
+    if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    let asyncDup = Promise.promisify(fruit.dup).bind(fruit)
+    let xstat = await asyncDup(user, body.driveUUID, body.dirUUID, body.fromName, body.toName, body.overwrite)
+    debug('dupAsync success', xstat)
+    return await this.successResponseJsonAsync(serverAddr, sessionId, xstat)
   }
 
   async removeAsync(data) {
-
+    let { serverAddr, sessionId, user, body, paths } = data
+    let fruit = getFruit()
+    if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    let asyncRemove = Promise.promisify(fruit.rimraf).bind(fruit)
+    await asyncRemove(user, body.driveUUID, body.dirUUID, body.toName, body.uuid)
+    debug('removeAsync success', xstat)
+    return await this.successResponseJsonAsync(serverAddr, sessionId, {})
   }
 
   async newFileAsync(data) {
+    let { serverAddr, sessionId, user, body, paths } = data
+    let fruit = getFruit()
+    if(!fruit) return await this.errorStoreResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    data.subType = 'WriteDirNewFile'
+    let store = new StoreFile(this.tmp, body.size, body.sha256)
+    let fpath = await store.storeFileAsync(serverAddr, sessionId, this.connect.saId, this.connect.token)
+    let asyncNewFile = Promise.promisify(fruit.createNewFile).bind(fruit)
+    let xstat = await asyncNewFile(user, body.driveUUID, body.dirUUID, body.toName, fpath, body.sha256, body.overwrite)
+    debug('newFileAsync success', xstat)
+    await successStoreResponseAsync(serverAddr, sessionId, xstat)
+  }
 
+  async appendFileAsync(data) {
+    let { serverAddr, sessionId, user, body, paths } = data
+    let fruit = getFruit()
+    if(!fruit) return await this.errorStoreResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    data.subType = 'WriteDirAppendFile'
+    let store = new StoreFile(this.tmp, body.size, body.sha256)
+    let fpath = await store.storeFileAsync(serverAddr, sessionId, this.connect.saId, this.connect.token)
+    let asyncAppendFile = Promise.promisify(fruit.appendFile).bind(fruit)
+
+
+    let tmp = { path: fpath, size: body.size, sha256: body.sha256 }
+    let xstat = await asyncAppendFile(user, body.driveUUID, body.dirUUID, body.toName, body.append, tmp)
+
+    debug('appendFileAsync success', xstat)
+    await successStoreResponseAsync(serverAddr, sessionId, xstat)
   }
 
   async downloadFileAsync(data) {
@@ -567,8 +628,7 @@ class Pipe {
     let driveUUID = paths[1]
     let dirUUID = paths[3]
     let entryUUID = paths[5]
-    let name = body.name
-    
+    let name = body.nam
     let dirPath = fruit.getDriveDirPath(user, driveUUID, dirUUID)
     let filePath = path.join(dirPath, name)
     return await this.fetchFileResponseAsync(filePath, serverAddr, sessionId)
@@ -581,14 +641,6 @@ class Pipe {
     let { serverAddr, sessionId, user, body } = data
     let fruit = getFruit()
     if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
-
-    // const fingerprints = fruit.getFingerprints(user)
-    // const metadata = fingerprints.reduce((acc, fingerprint) => {
-    //   // let meta = Media.get(fingerprint)
-    //   let meta = fruit.getMetadata(null, fingerprint)
-    //   if (meta) acc.push(Object.assign({ hash: fingerprint }, meta))
-    //   return acc
-    // }, [])
     let metadata = fruit.getMetaList(user)
     debug('getMetaList success', metadata)
     return await this.successResponseJsonAsync(serverAddr, sessionId, metadata)
@@ -802,43 +854,12 @@ class Pipe {
       })
     })
 
-    req.on('error', function (e) {  
+    req.on('error', e => {  
       debug('fetch problem with request: ' + e)
       debug('fetch error file: ' + fpath)
     })
 
     rs.pipe(req)
-    // let req = request.post(url).set({ 'Authorization': this.connect.token}).buffer(false)
-
-    // let finish = () => {
-    //   if(finished) return
-    //   finished = true
-    //   debug('fetch file finish')
-    //   return callback()
-    // }
-
-    // let error = err => {
-    //   if(finished) return
-    //   finished = true
-    //   return callback(err)
-    // }
-
-    // req.on('response', res => {
-    //   debug('response', res.status, fpath)
-    //   if　(res.status !== 200)　{
-    //     debug('response error')
-    //     error(res.error)
-    //   }
-    //   else 
-    //     finish()
-    // })
-    // req.on('error', err => {
-    //   error(err)
-    // }) 
-    // rs.on('error', err =>{
-    //   error(err)
-    // })
-    // rs.pipe(req)
   }
 
   async fetchFileResponseAsync(fpath, cloudAddr, sessionId) {
@@ -869,12 +890,28 @@ class Pipe {
     await requestAsync('POST', url, { params }, { 'Authorization': this.connect.token })
   }
 
-  async successResponseFileAsync(cloudAddr, sessionId, fpath) {
-    let url = cloudAddr + '/s/v1/stations/' + this.connect.saId + '/response/' + sessionId + '/pipe'
-    let params = data
-    debug(params)
-    await this.fetchFileResponseAsync(fpath, cloudAddr, sessionId)
+  async errorStoreResponseAsync(cloudAddr, sessionId, err) {
+    let url = cloudAddr + '/s/v1/stations/' + this.connect.saId + '/response/' + sessionId +'/pipe/store'
+    let error = { code: 400, message: err.message }
+    let params = { error }
+    debug('pipe handle error', params)
+    await requestAsync('POST', url, { params }, { 'Authorization': this.connect.token })
   }
+
+  async successStoreResponseAsync(cloudAddr, sessionId, data) {
+    let url = cloudAddr + '/s/v1/stations/' + this.connect.saId + '/response/' + sessionId + '/pipe/store'
+    let params = { data }
+    debug(params)
+    await requestAsync('POST', url, { params }, { 'Authorization': this.connect.token })
+    debug('request success')
+  }
+
+  // async successResponseFileAsync(cloudAddr, sessionId, fpath) {
+  //   let url = cloudAddr + '/s/v1/stations/' + this.connect.saId + '/response/' + sessionId + '/pipe'
+  //   let params = data
+  //   debug(params)
+  //   await this.fetchFileResponseAsync(fpath, cloudAddr, sessionId)
+  // }
 
   async successResponseJsonAsync(cloudAddr, sessionId, data) {
     let url = cloudAddr + '/s/v1/stations/' + this.connect.saId + '/response/' + sessionId + '/json'
@@ -887,7 +924,7 @@ class Pipe {
   async createBlobTweetAsync({ boxUUID, guid, comment, type, size, sha256, jobId }) {
     // { comment, type: 'blob', id: sha256, global, path: file.path}
     //get blob
-    let storeFile = new StoreSingleFile(this.tmp, this.token, size, sha256, jobId)
+    // let storeFile = new StoreFile(this.tmp, this.token, size, sha256, jobId)
   }
 
   register() {
