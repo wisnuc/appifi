@@ -964,12 +964,12 @@ class Fruitmix extends EventEmitter {
     if (typeof props !== 'object' || props === null)
       throw new Error('invalid')
 
-    let src, dst, task
+    let src, dst, task, entries
     switch(props.type) {
     case 'copy':
       src = await this.getDriveDirAsync(user, props.src.drive, props.src.dir) 
       dst = await this.getDriveDirAsync(user, props.dst.drive, props.dst.dir)
-      let entries = props.entries.map(uuid => {
+      entries = props.entries.map(uuid => {
         let xstat = src.entries.find(x => x.uuid === uuid)
         if (!xstat) throw new Error('entry not found')
         return xstat
@@ -978,6 +978,17 @@ class Fruitmix extends EventEmitter {
       task = new CopyTask(this, user, Object.assign({}, props, { entries }))
       this.tasks.push(task)
       return task.view()
+
+    case 'move':
+      src = await this.getDriveDirAsync(user, props.src.drive, props.src.dir) 
+      dst = await this.getDriveDirAsync(user, props.src.drive, props.dst.dir)
+      entries = props.entries.map(uuid => {
+        let xstat = src.entries.find(x => x.uuid === uuid)
+        if (!xstat) throw new Error('entry not found')
+        return xstat
+      })
+
+      return 
 
     default:
       throw new Error('invalid task type')

@@ -4,7 +4,7 @@ const fs = Promise.promisifyAll(require('fs'))
 const request = require('supertest')
 const rimrafAsync = Promise.promisify(require('rimraf'))
 const mkdirpAsync = Promise.promisify(require('mkdirp'))
-const debug = require('debug')('divider')
+const debug = require('debug')('fruitcopy')
 
 const chai = require('chai').use(require('chai-as-promised'))
 const expect = chai.expect
@@ -76,7 +76,16 @@ const uploadTestFiles = (token, driveUUID, dirUUID, dirs, callback) => {
     }))
 
   dirs.forEach(name => r.field(name, JSON.stringify({ op: 'mkdir' })))
-  r.expect(200).end(callback)
+
+  r.expect(200).end((err, res) => {
+    if (err) return callback(err) 
+
+    request(app)
+      .get(`/drives/${driveUUID}/dirs/${dirUUID}`)
+      .set('Authorization', 'JWT ' + token)
+      .expect(200)
+      .end(callback)
+  })
 }
 
 describe(path.basename(__filename), () => {
@@ -85,9 +94,37 @@ describe(path.basename(__filename), () => {
 
     let { alonzo, bar, empty, foo, hello, vpai001, world } = FILES
     let dir1UUID, dir2UUID, dir3UUID, dir4UUID
-    let homeEntries, dir1Entries, dir3Entries  
-    
+    let homeEntries, dir1Entries, dir3Entries 
     let token
+
+/**
+└── e2adb5d0-c3c7-4f2a-bd64-3320a1ed0dee
+    ├── alonzo_church.jpg
+    ├── bar
+    ├── dir1
+    │   ├── alonzo_church.jpg
+    │   ├── bar
+    │   ├── dir3
+    │   │   ├── alonzo_church.jpg
+    │   │   ├── bar
+    │   │   ├── empty
+    │   │   ├── foo
+    │   │   ├── hello
+    │   │   ├── vpai001
+    │   │   └── world
+    │   ├── dir4
+    │   ├── empty
+    │   ├── foo
+    │   ├── hello
+    │   ├── vpai001
+    │   └── world
+    ├── dir2
+    ├── empty
+    ├── foo
+    ├── hello
+    ├── vpai001
+    └── world
+**/
     beforeEach(async function () {
       this.timeout(0)
       await resetAsync()
@@ -99,27 +136,21 @@ describe(path.basename(__filename), () => {
           if (err) {
             reject(err)
           } else {
-
             home = res.body
-
             dir1UUID = res.body.entries.find(x => x.name === 'dir1').uuid
             dir2UUID = res.body.entries.find(x => x.name === 'dir2').uuid
             uploadTestFiles(token, IDS.alice.home, dir1UUID, ['dir3', 'dir4'], (err, res) => {
               if (err) {
                 reject(err)
               } else {
-              
                 dir1 = res.body
-      
                 dir3UUID = res.body.entries.find(x => x.name === 'dir3').uuid
                 dir4UUID = res.body.entries.find(x => x.name === 'dir4').uuid
                 uploadTestFiles(token, IDS.alice.home, dir3UUID, [], (err, res) => {
                   if (err) {
                     reject(err)
                   } else {
-
                     dir3 = res.body
-
                     resolve()
                   }
                 }) 
@@ -128,9 +159,9 @@ describe(path.basename(__filename), () => {
           }
         })
       })
-
-      // console.log(homeEntries, dir1Entries, dir3Entries)
     })
+
+    it("do nothing (for checking file system), 7e3d2b84", done => done()) 
 
     it("create task, copy home alonzo to dir2", done => {
       let { alonzo, bar, empty, foo, hello, vpai001, world } = FILES
@@ -152,8 +183,6 @@ describe(path.basename(__filename), () => {
         })
         .expect(200)
         .end((err, res) => {
-
-          console.log(res.body)
 
           let { uuid, type, src, dst, entries } = res.body
           expect({ type, src, dst }).to.deep.equal({
