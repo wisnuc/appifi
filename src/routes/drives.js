@@ -3,6 +3,8 @@ const path = require('path')
 const fs = require('fs')
 const stream = require('stream')
 const crypto = require('crypto')
+const rimraf = require('rimraf')
+const mkdirp = require('mkdirp')
 const router = require('express').Router()
 const auth = require('../middleware/auth')
 const sanitize = require('sanitize-filename')
@@ -12,10 +14,8 @@ const Dicer = require('dicer')
 const getFruit = require('../fruitmix')
 const { pipeHash, drainHash } = require('../lib/tailhash')
 const TailHash = require('../lib/hash-stream')
-const Writedir = require('../tasks/writedir2')
 
 const Debug = require('debug')
-
 const debug = Debug('writedir')
 
 const f = af => (req, res, next) => af(req, res).then(x => x, next)
@@ -97,32 +97,6 @@ router.get('/:driveUUID/dirs/:dirUUID', fruitless, auth.jwt(), f(async(req, res)
 /**
 030 POST dir entries
 */
-
-/**
-router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), 
-  (req, res, next) => {
-    if (!req.is('multipart/form-data')) {
-      return res.status(415).json({ message: 'must be multipart/form-data' })
-    }
-    
-    if(!getFruit().userCanWrite(req.user, req.params.driveUUID)) throw Object.assign(new Error('Permission Denied'), { status: 401})
-    
-    let writer = new Writedir(req)
-    writer.on('finish', () => {
-      if (writer.error) {
-        next(writer.error)
-      } else {
-        next()
-      }
-    })
-  },
-  f(async (req, res) => {
-    let user = req.user
-    let { driveUUID, dirUUID } = req.params
-    let r = await getFruit().getDriveDirAsync(user, driveUUID, dirUUID)
-    res.status(200).json(r)
-  }))
-**/
 const parseHeader = header => {
 
   let name, filename, fromName, toName
@@ -166,8 +140,8 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
 
   /**
   parts (new) -> [ parser | parsers_ ) -> execute
-        (new) -> | -> [  pipes  | drains | drains_ ) -> | -> execute
-                 | -> ( _dryrun | dryrun | dryrun_ ) -> |
+        (new) -> | -> ( _pipes  |  pipes  | drains  |  drains_ ) -> | -> execute
+                 | -> ( _dryrun | dryrun  | dryrun_ ) -> |
   **/
 
   // enter: x { number, part }
@@ -189,11 +163,11 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
   const drains_ = []
 
   // x { number }
-  const _dryrun = []
+  let _dryrun = []
   // x { number }
-  const dryrun = []
+  let dryrun = []
   // x { number }
-  const dryrun_ = []
+  let dryrun_ = []
 
   /**
   file { number, ..., tmp, bytesWritten, digest }
@@ -210,7 +184,9 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
     debug('  parts', num(parts))
     debug('  parsers_', num(parsers), num(parsers_))
     debug('  pipes, drains_', num(pipes), num(drains), num(drains_))
-    debug('  _dryrun_', _dryrun, dryrun, dryrun_)
+    debug('  _dryrun', _dryrun)
+    debug('  dryrun', dryrun)
+    debug('  dryrun_', dryrun_)
     debug('  executions', num(executions))
     debug('  r', num(r))
   }
@@ -304,22 +280,22 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
       x.part.on('error', () => {})
       x.error = x.error || EDestroyed
     })
-    parts.splice(0, -1)
+    parts.splice(0)
 
     // clear pipes
     pipes.forEach(x => {
       x.destroyPipe()
       rimraf(x.tmp, () => {})
-      x.errror = x.error || EDestroyed
+      x.error = x.error || EDestroyed
     })
-    pipes.splice(0, -1)
+    pipes.splice(0) 
 
     parsers.forEach(x => {
       x.part.removeAllListeners()
       x.part.on('error', () => {})
       x.error = x.error || EDestroyed
     })
-    parsers.splice(0, -1)
+    parsers.splice(0)
 
     // for drains and drains_, the remaining job must NOT have errored predecessor
     while (true) {
@@ -350,13 +326,9 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
 
     // clear (orphan) dryrun
     const remaining = [...drains, ...drains_].map(x => x.number)
-    let i
-    while (i = _dryrun.findIndex(x => remaining.includes(x.number)), i !== -1) 
-      _dryrun.splice(i, 1) 
-    while (i = dryrun.findIndex(x => remaining.includes(x.number)), i !== -1) 
-      dryrun.splice(i, 1) 
-    while (i = dryrun_.findIndex(x => remaining.includes(x.number)), i !== -1) 
-      dryrun_.splice(i, 1)
+    _dryrun = _dryrun.filter(y => remaining.includes(y.number))
+    dryrun = dryrun.filter(y => remaining.includes(y.number))
+    dryrun_ = dryrun_.filter(y => remaining.includes(y.number))
 
     if (dicer) {
       dicer.removeAllListeners()
@@ -471,7 +443,7 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
       delete x.destroyPipe
       pipes.splice(pipes.indexOf(x), 1) 
 
-      if (err) return error(x.number, err) 
+      if (err) return error(x, err) 
       if (bytesWritten !== x.size) {
         hash.on('error', () => {})
         hash.kill()
@@ -642,10 +614,10 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
       _dryrun.splice(_dryrun.indexOf(y), 1)
       dryrun.push(y)
       setTimeout(() => {
-        pluck(dryrun, y)
+        dryrun.splice(dryrun.indexOf(y), 1)
         dryrun_.push(y)
         schedule()
-      }, 50)
+      }, 0)
     }
 
     // parser_

@@ -18,7 +18,7 @@ const Loop = () => fs.createReadStream(null, {
     })
     .on('data', data => (hash.update(data), totalRead += data.length))
     .on('end', () => written === totalRead 
-      ? process.send(hash.digest('hex'), () => process.exit())
+      ? process.send(hash.digest('hex'), () => setTimeout(() => process.exit(), 5000))
       : setImmediate(Loop))
 
 Loop()
@@ -66,7 +66,7 @@ const pipeHash = (rs, fpath, callback) => {
     })
 
     const opts = { stdio: ['ignore', 'inherit', 'ignore', 'ipc', fd]  }
-    const hash = child.spawn('node', ['-e', script], opts)
+    hash = child.spawn('node', ['-e', script], opts)
     hash.on('error', error)
     hash.on('message', () => 
       error(new Error(`unexpected message from child`)))
@@ -89,6 +89,7 @@ const drainHash = (hash, bytesWritten, callback) => {
     hash.removeAllListeners()
     hash.on('error', () => {})
     hash.kill()
+    destroyed = true
   }
 
   hash.on('error', error)
@@ -98,8 +99,10 @@ const drainHash = (hash, bytesWritten, callback) => {
     hash.on('error', () => {})
     callback(null, digest)
   })
-  hash.on('exit', (code, signal) => 
-    error(new Error(`unexpected exit with code ${code} and signal ${signal}`)))
+  hash.on('exit', (code, signal) => {
+    error(new Error(`unexpected exit with code ${code} and signal ${signal}`))
+  })
+
   hash.send(bytesWritten) 
 
   return destroy
