@@ -100,7 +100,9 @@ router.get('/:driveUUID/dirs/:dirUUID', fruitless, auth.jwt(), f(async(req, res)
 const parseHeader = header => {
 
   let name, filename, fromName, toName
-  let x = header['content-disposition'][0].split('; ')
+  // let x = header['content-disposition'][0].split('; ')
+  let x = Buffer.from(header['content-disposition'][0], 'binary').toString('utf8').split('; ')
+
   if (x[0] !== 'form-data') throw new Error('not form-data')
   if (!x[1].startsWith('name="') || !x[1].endsWith('"')) throw new Error('invalid name')
   name = x[1].slice(6, -1) 
