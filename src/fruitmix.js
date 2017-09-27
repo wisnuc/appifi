@@ -993,7 +993,7 @@ class Fruitmix extends EventEmitter {
   mkdirp (user, driveUUID, dirUUID, name, cb) {
     let callback = (err, data) => {
       if(err) return cb(err)
-      if(data){
+      else{
         cb(null, data) 
         dir.read()
       }
@@ -1019,7 +1019,7 @@ class Fruitmix extends EventEmitter {
   rimraf (user, driveUUID, dirUUID, name, uuid, cb) {
     let callback = (err, data) => {
       if(err) return cb(err)
-      if(data){
+      else{
         cb(null, data) 
         dir.read()
       }
@@ -1047,7 +1047,7 @@ class Fruitmix extends EventEmitter {
   createNewFile(user, driveUUID, dirUUID, name, tmp, hash, overwrite, cb) {
     let callback = (err, data) => {
       if(err) return cb(err)
-      if(data){
+      else{
         cb(null, data)
         dir.read()
       }
@@ -1110,10 +1110,10 @@ class Fruitmix extends EventEmitter {
   **/
   appendFile(user, driveUUID, dirUUID, name, hash, data, cb) {
 
-    let callback = (err, data) => {
+    let callback = (err, d) => {
       if(err) return cb(err)
-      if(data){
-        cb(null, data)
+      else{
+        cb(null, d)
         dir.read()
       }
     }
@@ -1168,7 +1168,7 @@ class Fruitmix extends EventEmitter {
   rename(user, driveUUID, dirUUID, fromName, toName, overwrite, cb) {
     let callback = (err, data) => {
       if(err) return cb(err)
-      if(data){
+      else{
         cb(null, data)        
         dir.read()
       }
@@ -1256,7 +1256,7 @@ class Fruitmix extends EventEmitter {
   dup(user, driveUUID, dirUUID, fromName, toName, overwrite, cb) {
     let callback = (err, data) => {
       if(err) return cb(err)
-      if(data){
+      else{
         cb(null, data) 
         dir.read()
       }
