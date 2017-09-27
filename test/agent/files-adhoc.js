@@ -199,6 +199,26 @@ describe(path.basename(__filename), () => {
         })
     })
 
+    it("mkdir with chinese name, 92f28276", done => {
+      request(app)
+        .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
+        .set('Authorization', 'JWT ' + token)
+        .field('中文名', JSON.stringify({ op: 'mkdir' }))
+        .expect(200)
+        .end((err, res) => {
+          if (err) return done(err)
+          debug(res.body)
+          expect(res.body[0].data.name).to.equal('中文名')
+
+          let filePath = path.join(DrivesDir, IDS.alice.home, '中文名')
+          fs.stat(filePath, (err, stat) => {
+            if (err) return done(err)
+            expect(stat.isDirectory()).to.be.true
+            done()
+          })
+        })
+    })
+
     // name conflict 
     it("upload empty file then mkdir empty should fail, 64383a7a", done => {
       request(app)

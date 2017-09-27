@@ -184,11 +184,14 @@ const boot = () => {
         error = null
       }
     } else { // either last not found or last not bootable
-      if (volumes.length === 1 &&
-        volumes[0].isMounted &&
-        !volumes[0].isMissing &&
-        Array.isArray(volumes[0].users)) {
-        v = volumes[0]
+
+      let vols = volumes.filter(x => x.mountpoint !== '/')
+
+      if (vols.length === 1 &&
+        vols[0].isMounted &&
+        !vols[0].isMissing &&
+        Array.isArray(vols[0].users)) {
+        v = vols[0]
         current = v.fileSystemUUID
         error = null
       } else {

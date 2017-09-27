@@ -1,8 +1,8 @@
-let dgram = require('dgram')
-let SmbAudit = require('./sambaAudit')
-let DEFAULT_PORT = require('./config').DEFAULT_PORT
+const dgram = require('dgram')
+const SmbAudit = require('./sambaAudit')
+const DEFAULT_PORT = require('./config').DEFAULT_PORT
 
-import Debug from 'debug'
+const Debug = require('debug')
 const UDP_SERVER = Debug('SAMBA:UDP_SERVER')
 
 const createUdpServer = (callback) => {
