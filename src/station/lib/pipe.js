@@ -63,7 +63,7 @@ class StoreFile {
   }
 
   async storeFileAsync(cloudAddr,sessionId, saId, token)  {
-    return Promise.promisify(this.storeFile).bind(this)(cloudAddr,sessionId, saId)
+    return Promise.promisify(this.storeFile).bind(this)(cloudAddr,sessionId, saId, token)
   }
 
   storeFile(cloudAddr,sessionId, saId, token, callback) {
@@ -118,137 +118,7 @@ class StoreFile {
 
     req.pipe(transform).pipe(ws)
   }
-
 }
-
-class StoreFiles {
-  constructor(tmp, token, sizeArr, hashArr, jobId) {
-    this.tmp = tmp
-    this.sizeArr = sizeArr
-    this.hashArr = hashArr
-    this.token = token
-    this.jobId = jobId
-    this.currentIndex = 0 //当前文件数
-    this.currentEndpoint = 0 //当前文件结束位置
-    let currentSize = 0
-  }
-
-  run() {
-    
-  }
-
-  storeFiles(callback) {
-    //TODO: define url
-    let url = ''
-    let totalSize = 0
-    this.sizeArr.forEach(s => totalSize += s)
-    this.currentEndpoint = this.sizeArr[0] - 1 // 当前文件结束点
-    let finished = false
-    let fpathArr = []
-    let hashMaker = new HashTransform()
-    let fpath = path.join(this.tmp, uuid.v4())
-    let ws = fs.createWriteStream(fpath)
-    hashMaker.pipe(ws) // pipe
-
-    let error = (err) => {
-      console.log(err)
-      if (finished) return
-      finished = true
-      return callback(err)
-    }
-    let finish = (fpaths) => {
-      if (finished) return
-      finished = true
-      //TODO: check size sha256
-      callback(null, fpaths)
-    }
-
-    let abort = () => {
-      if (finished) return
-      finished = true
-      callback(new Error('EABORT'))
-    }
-
-    let req = request.get(url).set({ 'Authorization': this.token })
-    req.on('error', error)
-    req.on('abort', () => error(new Error('EABORT')))
-    ws.on('finish', () => finish(fpathArr))
-    ws.on('error', error())
-    req.on('response', res => {
-      console.log('response')
-      if(res.status !== 200){ 
-        ws.close()
-        res.destroy()
-        return error(res.error)        
-      }
-      else if(res.get('Content-Length') !== totalSize){ // totalsize error
-        ws.close()
-        res.destroy()
-        return error(new Error('totalsize mismatch'))
-      }
-      else{ // run 
-        res.on('data', data => {
-          let chunk = Buffer.from(data)
-          if((chunk + this.currentSize - 1) >= this.currentEndpoint){
-            res.pause()
-            let needL = chunk.length - (this.currentEndpoint - this.currentSize + 1)
-            
-            // write last chunk
-            hashMaker.write(chunk.slice(0, needL))
-            let digest = hashMaker.digest('hex')
-            ws.close() // close write stream 
-            
-            // check hash
-            if(digest !== this.currentEndpoint[this.currentIndex])
-              return error(`${ this.currentIndex } hash mismatch`)
-            
-            // save fpath
-            fpathArr.push(fpath)
-            if(fpathArr.length === this.sizeArr.length) 
-              return finish(fpathArr)
-
-            //  create new instance
-            fpath = path.join(this.tmp, uuid.v4())
-            
-            this.currentIndex ++
-            this.currentEndpoint += this.sizeArr[this.currentIndex]
-
-            hashMaker = new HashTransform()
-            ws = fs.createWriteStream(fpath)
-            hashMaker.pipe(ws)
-            hashMaker.write(chunk.slice(needL, chunk.length))
-            this.currentSize += chunk.length
-
-            //resume
-            res.resume()
-            // 1 write chunk
-            // 2 check file
-            // 3 new HashMaker new Writeable new endpoint new fpath new index
-            // 4 resume res
-            // 5 end
-            
-          }else{
-            hashMaker.write(data) // update
-            this.currentSize += chunk.length
-          }
-        })
-
-        res.on('end', () => {
-
-        })
-
-        res.on('error', err => {
-
-        })
-      }
-    })
-    
-    req.end()    
-  }
-
-}
-
-
 /* data:  {
     type: 'pipe',   // socket communication multiplexing
     
@@ -628,7 +498,7 @@ class Pipe {
     let driveUUID = paths[1]
     let dirUUID = paths[3]
     let entryUUID = paths[5]
-    let name = body.nam
+    let name = body.name
     let dirPath = fruit.getDriveDirPath(user, driveUUID, dirUUID)
     let filePath = path.join(dirPath, name)
     return await this.fetchFileResponseAsync(filePath, serverAddr, sessionId)
