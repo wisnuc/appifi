@@ -648,7 +648,7 @@ class Pipe {
     let userUUID = paths[1]
     if(user.uuid !== userUUID) throw new Error('user uuid mismatch')
 
-    await fruit.updateUserPasswordAsync(user, userUUID)
+    await fruit.updateUserPasswordAsync(user, userUUID, body)
     return await this.successResponseJsonAsync(serverAddr, sessionId, {})
   }
 
