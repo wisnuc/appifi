@@ -101,7 +101,8 @@ const parseHeader = header => {
 
   let name, filename, fromName, toName
   // let x = header['content-disposition'][0].split('; ')
-  let x = Buffer.from(header['content-disposition'][0], 'binary').toString('utf8').split('; ')
+  let x = Buffer.from(header['content-disposition'][0], 'binary').toString('utf8').replace(/%22/g, "'").split('; ')
+  //fix %22
 
   if (x[0] !== 'form-data') throw new Error('not form-data')
   if (!x[1].startsWith('name="') || !x[1].endsWith('"')) throw new Error('invalid name')
