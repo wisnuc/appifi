@@ -72,6 +72,18 @@ class Station {
         debug('Station start error!',e)
       }
     }))
+
+    // UserList Changed Notify
+
+    broadcast.on('UserListChanged', async () => {
+      if (this.initialized) {
+        debug('Station Handler UserListChanged Notify')
+        this.updateCloudUsersAsync()
+          .then(() => {debug('station update userlist success')})
+          .catch(e => debug(e))
+      }
+    })
+
     // deinit
     broadcast.on('StationStop', this.deinit.bind(this))
   }
