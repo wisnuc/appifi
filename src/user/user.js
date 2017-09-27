@@ -276,7 +276,8 @@ class UserList extends EventEmitter {
       // enforce immutability
       deepFreeze(this.users)
     } finally {
-
+      // notify
+      broadcast.emit('UserListChanged', null)
       // put lock
       this.lock = false
     }

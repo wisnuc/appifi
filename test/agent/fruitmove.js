@@ -4,7 +4,7 @@ const fs = Promise.promisifyAll(require('fs'))
 const request = require('supertest')
 const rimrafAsync = Promise.promisify(require('rimraf'))
 const mkdirpAsync = Promise.promisify(require('mkdirp'))
-const debug = require('debug')('fruitcopy')
+const debug = require('debug')('fruitmove')
 
 const chai = require('chai').use(require('chai-as-promised'))
 const expect = chai.expect
@@ -13,6 +13,7 @@ const should = chai.should()
 const broadcast = require('src/common/broadcast')
 const app = require('src/app')
 const getFruit = require('src/fruitmix')
+const fingerprint = require('src/lib/fingerprintSync')
 
 const {
   IDS,
@@ -90,8 +91,7 @@ const uploadTestFiles = (token, driveUUID, dirUUID, dirs, callback) => {
 
 describe(path.basename(__filename), () => {
 
-  describe("Alice copy this to that", () => {
-
+  describe("Alice move this to that", () => {
     let { alonzo, bar, empty, foo, hello, vpai001, world } = FILES
     let dir1UUID, dir2UUID, dir3UUID, dir4UUID
     let homeEntries, dir1Entries, dir3Entries 
@@ -163,154 +163,101 @@ describe(path.basename(__filename), () => {
 
     it("do nothing (for checking file system), 7e3d2b84", done => done()) 
 
-    it("create task, copy home alonzo to dir2", done => {
-      let { alonzo, bar, empty, foo, hello, vpai001, world } = FILES
+    it("move alonzo in root into dir2, 2a47f5ac", function (done) {
+      this.timeout(0)
       let homeAlonzoUUID = home.entries.find(x => x.name === alonzo.name).uuid
-      request(app)
+      request(app) 
         .post(`/tasks`)
         .set('Authorization', 'JWT ' + token)
-        .send({ 
-          type: 'copy',
+        .send({
+          type: 'move',
           src: {
             drive: IDS.alice.home,
             dir: IDS.alice.home
           },
           dst: {
             drive: IDS.alice.home,
-            dir: dir2UUID,
+            dir: dir2UUID
           },
-          entries: [ homeAlonzoUUID ]
+          entries: [
+            homeAlonzoUUID
+          ] 
         })
         .expect(200)
         .end((err, res) => {
+          debug(res.body)
+          let taskId = res.body.uuid
+          let polling = setInterval(() => {
+            request(app)
+              .get(`/tasks/${taskId}`)
+              .set('Authorization', 'JWT ' + token)
+              .expect(200)
+              .end((err, res) => {
+                if (err) {
+                  clearInterval(polling)
+                  return done(err)
+                } 
+                debug(res.body)
 
-          let { uuid, type, src, dst, entries } = res.body
-          expect({ type, src, dst }).to.deep.equal({
-            type: 'copy',
-            src: {
-              drive: IDS.alice.home,
-              dir: IDS.alice.home,
-            },
-            dst: {
-              drive: IDS.alice.home,
-              dir: dir2UUID
-            },
-          })
-          done()
-        })
-    })
+                if (res.body.isStopped) {
+                  clearInterval(polling)
 
-    it("create task, copy home alonzo to dir2, get tasks", function (done) {
-      this.timeout(5000)
-
-      let { alonzo, bar, empty, foo, hello, vpai001, world } = FILES
-      let homeAlonzoUUID = home.entries.find(x => x.name === alonzo.name).uuid
-      request(app)
-        .post(`/tasks`)
-        .set('Authorization', 'JWT ' + token)
-        .send({ 
-          type: 'copy',
-          src: {
-            drive: IDS.alice.home,
-            dir: IDS.alice.home
-          },
-          dst: {
-            drive: IDS.alice.home,
-            dir: dir2UUID,
-          },
-          entries: [ homeAlonzoUUID ]
-        })
-        .expect(200)
-        .end((err, res) => {
-
-          request(app)
-            .get(`/tasks`)
-            .set('Authorization', 'JWT ' + token)
-            .expect(200)
-            .end((err, res) => {
-              if (err) return done(err)
-
-              expect(res.body).to.be.an('array')
-              expect(res.body.length).to.equal(1)
-
-              console.log(res.body[0])
-
-              let { uuid, type, src, dst, entries } = res.body[0]
-              expect({ type, src, dst }).to.deep.equal({
-                type: 'copy',
-                src: {
-                  drive: IDS.alice.home,
-                  dir: IDS.alice.home,
-                },
-                dst: {
-                  drive: IDS.alice.home,
-                  dir: dir2UUID
-                },
+                  let dstPath = path.join(driveDir, IDS.alice.home, 'dir2', FILES.alonzo.name)
+                  fingerprint(dstPath, (err, hash) => {
+                    if (err) return done(err)
+                    expect(hash).to.equal(FILES.alonzo.hash)
+                    done()
+                  })                   
+                }
               })
-
-              done()
-            })
-              
+          }, 1000)
         })
-    })
+    }) 
 
-    it("create task, copy home alonzo to dir2, wait and get tasks", function (done) {
-      this.timeout(5000)
-
-      let { alonzo, bar, empty, foo, hello, vpai001, world } = FILES
-      let homeAlonzoUUID = home.entries.find(x => x.name === alonzo.name).uuid
-      request(app)
+    it("move dir1 into dir2, 3b7307ba", function (done) {
+      this.timeout(0)
+      request(app) 
         .post(`/tasks`)
         .set('Authorization', 'JWT ' + token)
-        .send({ 
-          type: 'copy',
+        .send({
+          type: 'move',
           src: {
             drive: IDS.alice.home,
-            dir: IDS.alice.home
+            dir: IDS.alice.home,
           },
           dst: {
             drive: IDS.alice.home,
-            dir: dir2UUID,
+            dir: dir2UUID
           },
-          entries: [ homeAlonzoUUID, dir1UUID ]
+          entries: [
+            dir1UUID
+          ]
         })
         .expect(200)
         .end((err, res) => {
-
-          console.log(res.body)
-
-          setTimeout(() => request(app)
-            .get(`/tasks`)
-            .set('Authorization', 'JWT ' + token)
-            .expect(200)
-            .end((err, res) => {
-              if (err) return done(err)
-
-              expect(res.body).to.be.an('array')
-              expect(res.body.length).to.equal(1)
-
-              console.log(res.body[0])
-
-              let { uuid, user, type, src, dst, entries } = res.body[0]
-              expect({ type, src, dst }).to.deep.equal({
-                type: 'copy',
-                src: {
-                  drive: IDS.alice.home,
-                  dir: IDS.alice.home,
-                },
-                dst: {
-                  drive: IDS.alice.home,
-                  dir: dir2UUID
-                },
+          if (err) return done(err)  
+          debug(res.body) 
+          let taskId = res.body.uuid
+          let polling = setInterval(() => {
+            request(app)
+              .get(`/tasks/${taskId}`)
+              .set('Authorization', 'JWT ' + token)
+              .expect(200)
+              .end((err, res) => {
+                if (err) {
+                  clearInterval(polling)
+                  return done(err)
+                } 
+                debug(res.body)
+                if (res.body.isStopped) {
+                  clearInterval(polling)
+                  done()
+                } 
               })
-
-              done()
-
-            }), 2000)
-              
+          }, 1000)
         })
     })
-  })
+
+  }) 
 })
-
 

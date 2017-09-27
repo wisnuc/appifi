@@ -50,6 +50,7 @@ class CopyTask extends EventEmitter {
 
     // required by fruitmix
     this.user = user
+    this.type = props.type
 
     let srcdrv = props.src.drive
     let dstdrv = props.dst.drive
@@ -158,14 +159,12 @@ class CopyTask extends EventEmitter {
     this.view = function () {
       return {
         uuid: this.uuid,
-        type: 'copy',
+        type: this.type,
         src: props.src,
         dst: props.dst,
         entries: props.entries,
-        
         srcStats,
         dstStats,
-
         isStopped: mkdirs.isStopped()
       }
     }

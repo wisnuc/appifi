@@ -23,6 +23,7 @@ const { btrfsConcat, btrfsClone } = require('./lib/btrfs')
 const { assert, isUUID, isSHA256, validateProps } = require('./common/assertion')
 
 const CopyTask = require('./tasks/fruitcopy')
+const MoveTask = require('./tasks/fruitmove')
 
 const { readXstat, forceXstat } = require('./lib/xstat')
 
@@ -1022,27 +1023,30 @@ class Fruitmix extends EventEmitter {
   }
 
   async createTaskAsync (user, props) {
-    if (typeof props !== 'object' || props === null)
-      throw new Error('invalid')
+    if (typeof props !== 'object' || props === null) {
+      throw Object.assign(new Error('invalid'), { status: 400 })
+    }
 
-    let src, dst, task
-    switch(props.type) {
-    case 'copy':
+    let src, dst, task, entries
+    if (props.type === 'copy' || props.type === 'move') {
       src = await this.getDriveDirAsync(user, props.src.drive, props.src.dir) 
       dst = await this.getDriveDirAsync(user, props.dst.drive, props.dst.dir)
-      let entries = props.entries.map(uuid => {
+      entries = props.entries.map(uuid => {
         let xstat = src.entries.find(x => x.uuid === uuid)
         if (!xstat) throw new Error('entry not found')
         return xstat
       })
 
-      task = new CopyTask(this, user, Object.assign({}, props, { entries }))
+      if (props.type === 'copy') {
+        task = new CopyTask(this, user, Object.assign({}, props, { entries }))
+      } else {
+        task = new MoveTask(this, user, Object.assign({}, props, { entries }))
+      }
       this.tasks.push(task)
       return task.view()
+    }
 
-    default:
-      throw new Error('invalid task type')
-    } 
+    throw new Error('invalid task type')
   }
 
   ////////////////////////////
@@ -1050,7 +1054,7 @@ class Fruitmix extends EventEmitter {
   mkdirp (user, driveUUID, dirUUID, name, cb) {
     let callback = (err, data) => {
       if(err) return cb(err)
-      if(data){
+      else{
         cb(null, data) 
         dir.read()
       }
@@ -1076,7 +1080,7 @@ class Fruitmix extends EventEmitter {
   rimraf (user, driveUUID, dirUUID, name, uuid, cb) {
     let callback = (err, data) => {
       if(err) return cb(err)
-      if(data){
+      else{
         cb(null, data) 
         dir.read()
       }
@@ -1104,7 +1108,7 @@ class Fruitmix extends EventEmitter {
   createNewFile(user, driveUUID, dirUUID, name, tmp, hash, overwrite, cb) {
     let callback = (err, data) => {
       if(err) return cb(err)
-      if(data){
+      else{
         cb(null, data)
         dir.read()
       }
@@ -1167,10 +1171,10 @@ class Fruitmix extends EventEmitter {
   **/
   appendFile(user, driveUUID, dirUUID, name, hash, data, cb) {
 
-    let callback = (err, data) => {
+    let callback = (err, d) => {
       if(err) return cb(err)
-      if(data){
-        cb(null, data)
+      else{
+        cb(null, d)
         dir.read()
       }
     }
@@ -1225,7 +1229,7 @@ class Fruitmix extends EventEmitter {
   rename(user, driveUUID, dirUUID, fromName, toName, overwrite, cb) {
     let callback = (err, data) => {
       if(err) return cb(err)
-      if(data){
+      else{
         cb(null, data)        
         dir.read()
       }
@@ -1313,7 +1317,7 @@ class Fruitmix extends EventEmitter {
   dup(user, driveUUID, dirUUID, fromName, toName, overwrite, cb) {
     let callback = (err, data) => {
       if(err) return cb(err)
-      if(data){
+      else{
         cb(null, data) 
         dir.read()
       }
@@ -1381,6 +1385,74 @@ class Fruitmix extends EventEmitter {
               })
             })
           }
+        })
+      })
+    })
+  }
+
+  // callback returns 
+  // ENOTEMPTY, ENOTDIR
+  // this function try to move srcDirUUID into dstDirUUID
+  // this function may fail if target exists (non-empty)
+  mvdir(user, srcDriveUUID, srcDirUUID, name, dstDriveUUID, dstDirUUID, callback) {
+ 
+    let srcDir = this.driveList.getDriveDir(srcDriveUUID, srcDirUUID) 
+    if (!srcDir) return callback(new Error('source drive or dir not found'))
+    if (srcDir.name !== name) return callback(new Error('source directory name mismatch'))
+    if (srcDir.parent === null) return callback(new Error('source directory is root'))
+
+    let dstDir = this.driveList.getDriveDir(dstDriveUUID, dstDirUUID)
+    if (!dstDir) return callback(new Error('destination drive or dir not found'))
+
+    let srcPath = srcDir.abspath()
+    readXstat(srcPath, (err, xstat) => {
+      if (err) return callback(err)
+      if (xstat.uuid !== srcDir.uuid) {
+        srcDir.parent.read() 
+        return callback(new Error('inconsistent data between in-memory cache and disk file system'))
+      }
+
+      let dstPath = path.join(dstDir.abspath(), name)
+      try {
+        fs.renameSync(srcPath, dstPath)
+      } catch (e) {
+        // ENOTEMPTY target is non-empty directory 
+        // ENOTDIR target is not a directory
+        return callback(e)
+      }
+
+      let srcParent = srcDir.parent
+      srcDir.detach()
+      srcDir.attach(dstDir)
+      srcParent.read()
+      dstDir.read()
+      callback(null)
+    })
+  }
+
+  mvfile(user, srcDriveUUID, srcDirUUID, fileUUID, name, dstDriveUUID, dstDirUUID, callback) {
+    let srcDir = this.driveList.getDriveDir(srcDriveUUID, srcDirUUID)
+    if (!srcDir) return callback(new Error('source drive or directory not found'))
+    
+    let dstDir = this.driveList.getDriveDir(dstDriveUUID, dstDirUUID)
+    if (!dstDir) return callback(new Error('destination drive or directory not found'))
+
+    let srcPath = path.join(srcDir.abspath(), name)
+    readXstat(srcPath, (err, xstat) => {
+      if (err) return callback(err)
+      if (xstat.uuid !== fileUUID) return callback(new Error('uuid mismatch'))
+     
+      let dstPath = path.join(dstDir.abspath(), name) 
+      fs.lstat(dstPath, (err, stat) => {
+        if (!err) return callback(new Error('target exists'))
+        if (err.code !== 'ENOENT') return callback(err)
+
+        // EISDIR rename file to existing directory
+        fs.rename(srcPath, dstPath, err => {
+          if (err) return callback(err)
+          srcDir.read()
+          dstDir.read()
+          callback(null)
         })
       })
     })

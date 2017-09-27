@@ -11,7 +11,7 @@ router.get('/', auth.jwt(), (req, res) => {
   res.status(200).json(tasks)
 })
 
-router.get('/:taskUUID', (req, res) => {
+router.get('/:taskUUID', auth.jwt(), (req, res) => {
   let task = getFruit().getTasks(req.user).find(t => t.uuid === req.params.taskUUID)
   if (!task) {
     res.status(404).end()
