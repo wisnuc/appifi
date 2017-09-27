@@ -207,9 +207,12 @@ class Pipe {
           if(['GetMediaThumbnail', 'GetMediaFile'].includes(data.subType))
             return this.errorFetchResponseAsync(data.serverAddr, data.sessionId, Object.assign(e, { code: 400 }))
                       .then(() => {}).catch(debug)
-          else if(['WriteDirNewFile', 'WriteDirAppendFile'].includes(data.subType))
-            return this.errorStoreResponseAsync(data.serverAddr, data.sessionId, Object.assign(e, { code: 400 }))
+          else if(['WriteDirNewFile', 'WriteDirAppendFile'].includes(data.subType)) {
+            let code = 400
+            if(e.code === 'EEXIST') code = 403 
+            return this.errorStoreResponseAsync(data.serverAddr, data.sessionId, Object.assign(e, { code }))
                       .then(() => {}).catch(debug)
+          }
           else
             return this.errorResponseAsync(data.serverAddr, data.sessionId, Object.assign(e, { code: 400 }))
                       .then(() => {}).catch(debug)

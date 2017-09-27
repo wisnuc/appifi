@@ -55,7 +55,6 @@ class Station {
         this.connect.on('ConnectStateChange', state => {
           debug('state change :', state)
           this.initialized = (state === CONNECT_STATE.CONNED) ? true : false
-          //TODO: reconnect need update userIds??
           if (this.initialized) {
             this.updateCloudUsersAsync()
               .then(() => {debug('station update success')})
@@ -110,7 +109,6 @@ class Station {
     let pbkPath = path.join(froot, 'station', FILE.PUBKEY)
     let pvkPath = path.join(froot, 'station', FILE.PVKEY)
     try{
-        //TODO:
       let pbStat = await fs.lstatAsync(pbkPath)
       let pvStat = await fs.lstatAsync(pvkPath)
       if(pbStat.isFile() && pvStat.isFile()){
@@ -156,8 +154,7 @@ class Station {
       this.pvkPath = pvkPath
       return 
     }catch(e){
-
-      //TODO:  
+      debug(e)
       throw e
     }
   }
