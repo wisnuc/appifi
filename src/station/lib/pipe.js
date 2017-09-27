@@ -470,7 +470,7 @@ class Pipe {
     let asyncNewFile = Promise.promisify(fruit.createNewFile).bind(fruit)
     let xstat = await asyncNewFile(user, body.driveUUID, body.dirUUID, body.toName, fpath, body.sha256, body.overwrite)
     debug('newFileAsync success', xstat)
-    await successStoreResponseAsync(serverAddr, sessionId, xstat)
+    await this.successStoreResponseAsync(serverAddr, sessionId, xstat)
   }
 
   async appendFileAsync(data) {
@@ -487,7 +487,7 @@ class Pipe {
     let xstat = await asyncAppendFile(user, body.driveUUID, body.dirUUID, body.toName, body.append, tmp)
 
     debug('appendFileAsync success', xstat)
-    await successStoreResponseAsync(serverAddr, sessionId, xstat)
+    await this.successStoreResponseAsync(serverAddr, sessionId, xstat)
   }
 
   async downloadFileAsync(data) {
