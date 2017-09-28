@@ -200,7 +200,7 @@ const privateShare = (users, drive) => {
   if (!owner) return ''
 
   return `
-[${owner.name}]
+[${owner.username}]
   path = ${froot}/drives/${drive.uuid}
   read only = no
   guest ok = no
@@ -218,7 +218,7 @@ const privateShare = (users, drive) => {
 }
 
 const publicShare = (users, drive) => {
-  let name = drive.name || drive.uuid.slice(0, 8) 
+  let name = drive.label || drive.uuid.slice(0, 8) 
   let writelist = drive.writelist
     .map(uuid => users.find(u => u.uuid === uuid))
     .filter(u => !!u)
