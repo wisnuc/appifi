@@ -207,9 +207,12 @@ class Pipe {
           if(['GetMediaThumbnail', 'GetMediaFile'].includes(data.subType))
             return this.errorFetchResponseAsync(data.serverAddr, data.sessionId, Object.assign(e, { code: 400 }))
                       .then(() => {}).catch(debug)
-          else if(['WriteDirNewFile', 'WriteDirAppendFile'].includes(data.subType))
-            return this.errorStoreResponseAsync(data.serverAddr, data.sessionId, Object.assign(e, { code: 400 }))
+          else if(['WriteDirNewFile', 'WriteDirAppendFile'].includes(data.subType)) {
+            let code = 400
+            if(e.code === 'EEXIST') code = 403 
+            return this.errorStoreResponseAsync(data.serverAddr, data.sessionId, Object.assign(e, { code }))
                       .then(() => {}).catch(debug)
+          }
           else
             return this.errorResponseAsync(data.serverAddr, data.sessionId, Object.assign(e, { code: 400 }))
                       .then(() => {}).catch(debug)
@@ -254,12 +257,24 @@ class Pipe {
                       : (method === 'PUT' ? 'SetMediaBlackList' : (method === 'POST' ? 'AddMediaBlackList' : (method === 'DELETE' ? 'SubtractUserMediaBlackList' : undefined))))
                         : undefined
         break
+      case 'token':
+        return paths.length === 0 && method === 'GET' ? 'GetToken' : undefined
       default:
         return undefined
         break
     }
   }
 
+
+  /***********************************TOKEN***************************/
+
+  async getTokenAsync(data) {
+    let { serverAddr, sessionId, user } = data
+    let fruit = getFruit()
+    if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    let token = fruit.getToken(user)
+    return await this.successResponseJsonAsync(serverAddr, sessionId, token)
+  }
   /***********************************Dirves**************************/
   //get drives
   async getDrivesAsync(data) {
@@ -470,7 +485,7 @@ class Pipe {
     let asyncNewFile = Promise.promisify(fruit.createNewFile).bind(fruit)
     let xstat = await asyncNewFile(user, body.driveUUID, body.dirUUID, body.toName, fpath, body.sha256, body.overwrite)
     debug('newFileAsync success', xstat)
-    await successStoreResponseAsync(serverAddr, sessionId, xstat)
+    await this.successStoreResponseAsync(serverAddr, sessionId, xstat)
   }
 
   async appendFileAsync(data) {
@@ -487,7 +502,7 @@ class Pipe {
     let xstat = await asyncAppendFile(user, body.driveUUID, body.dirUUID, body.toName, body.append, tmp)
 
     debug('appendFileAsync success', xstat)
-    await successStoreResponseAsync(serverAddr, sessionId, xstat)
+    await this.successStoreResponseAsync(serverAddr, sessionId, xstat)
   }
 
   async downloadFileAsync(data) {
@@ -645,7 +660,7 @@ class Pipe {
     let userUUID = paths[1]
     if(user.uuid !== userUUID) throw new Error('user uuid mismatch')
 
-    await fruit.updateUserPasswordAsync(user, userUUID)
+    await fruit.updateUserPasswordAsync(user, userUUID, body)
     return await this.successResponseJsonAsync(serverAddr, sessionId, {})
   }
 
@@ -715,19 +730,32 @@ class Pipe {
         'Authorization': this.connect.token
       }
     }
+
+    let error = err => {
+      if(finished) return 
+      debug('error fetch', err)
+      finished = true
+      callback(err)
+    }
+
+    let finish = () => {
+      if(finished) return
+      finished = true
+      debug('success fetch', fpath)
+      callback(null)
+    }
+
     if(addr.length === 2) options.port = addr[1]
 
     let req = http.request(options, res => {
       res.setEncoding('utf8')
-      res.on('error', error => {
-        debug('fetch res error: ', e)
-      })
+      res.on('error', error)
+      res.on('end', finish);
     })
 
-    req.on('error', e => {  
-      debug('fetch problem with request: ' + e)
-      debug('fetch error file: ' + fpath)
-    })
+    req.on('error', error)
+
+    req.on('abort', error)
 
     rs.pipe(req)
   }
@@ -798,6 +826,7 @@ class Pipe {
   }
 
   register() {
+    this.handlers.set('GetToken', this.getTokenAsync.bind(this))
     //drives
     this.handlers.set('GetDrives', this.getDrivesAsync.bind(this))
     this.handlers.set('CreateDrive', this.createDriveAsync.bind(this))

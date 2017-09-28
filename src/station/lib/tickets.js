@@ -30,7 +30,7 @@ class Tickets {
     // let creator = u.uuid
     let stationId = this.saId
     let token = this.connect.token
-    let data = '123456'
+    let data = 'placeholder'
     let params = { stationId, data, creator, type }
     let url = CONFIG.CLOUD_PATH + 's/v1/tickets'
     let opts = { 'Content-Type': 'application/json', 'Authorization': token }
