@@ -227,7 +227,8 @@ describe(path.basename(__filename), () => {
         })
     })
 
-    it("should succeed for empty file, fc376f5c", done => {
+    it("should succeed for empty file, fc376f5c", function (done) {
+      this.timeout(0)
       REQ()
         .attach('empty', 'testdata/empty', J({
           size: FILES.empty.size,

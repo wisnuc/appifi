@@ -8,31 +8,60 @@ const script = `
 const fs = require('fs')
 const hash = require('crypto').createHash('sha256')
 
-let totalRead = 0, written = -1
-process.on('message', message => written = message)
-const Loop = () => fs.createReadStream(null, { 
-      fd: 4, 
-      autoClose: false, 
-      start: totalRead, 
-      highWaterMark: 16 * 1024 * 1024  // important for performance
-    })
-    .on('error', err => {
-      console.log('tail hash error', err)
-      process.exit(119)
-    })
-    .on('data', data => {
-      hash.update(data)
-      totalRead += data.length
-    })
-    .on('end', () => {
-      if (written === totalRead) {
-        process.send(hash.digest('hex'), () => setTimeout(() => process.exit(), 5000))
-      } else {
-        setImmediate(Loop)
-      }
-    })
+let ended = false
+let finished = false
+let length = 0
+let totalRead = 0
+let buffers = []
 
-Loop()
+process.on('message', message => {
+  if (message === 'end') {
+    ended = true 
+  } else if (typeof message === 'number') {
+    length = message  
+  } else {
+    process.exit(119)
+  }
+})
+
+const readLoop = () => {
+  if (length === totalRead) {
+    if (ended) {
+      finished = true // break loop
+    } else {
+      setImmediate(readLoop)
+    }
+    return
+  }
+
+  let len = length - totalRead 
+  let buf = Buffer.allocUnsafe(len)
+  fs.read(4, buf, 0, len, totalRead, (err, bytesRead, buffer) => {
+    if (err) process.exit(119)
+    if (bytesRead !== 0) {
+      totalRead += bytesRead
+      buffers.push(buffer.slice(0, bytesRead))
+    } 
+    setImmediate(readLoop) 
+  })
+}
+
+const hashLoop = () => {
+  if (buffers.length === 0) {
+    if (finished) {
+      process.send(hash.digest('hex'), () => {
+        setTimeout(() => process.exit(0), 8000)
+      })
+    }
+  } else {
+    buffers.forEach(buf => hash.update(buf))
+    buffers = []
+  }
+  setImmediate(hashLoop)
+}
+
+readLoop()
+hashLoop()
 `
 
 // state 1: opening fd -> state 2: rs | ws && hashing
@@ -50,7 +79,9 @@ const pipeHash = (rs, fpath, callback) => {
     rs.on('error', () => {})
 
     if (fd !== undefined) {
-      rs.unpipe()
+      // rs.unpipe()
+      rs.removeAllListeners('data')
+      rs.removeAllListeners('end')
       ws.removeAllListeners()
       ws.on('error', () => {})
       ws.destroy()
@@ -66,7 +97,7 @@ const pipeHash = (rs, fpath, callback) => {
   fs.open(fpath, 'a+', (err, _fd) => {
     if (destroyed) return fs.close(_fd, () => {})
     if (err) return error(err)
-    
+
     fd = _fd
     ws = fs.createWriteStream(null, { fd })
     ws.on('error', error)
@@ -84,7 +115,8 @@ const pipeHash = (rs, fpath, callback) => {
     hash.on('exit', (code, signal) => 
       error(new Error(`unexpected exit with code ${code} and signal ${signal}`)))
    
-    rs.pipe(ws)    
+    rs.on('data', data => ws.write(data, () => hash.send(ws.bytesWritten)))
+    rs.on('end', () => ws.end())
   })
 
   return destroy
@@ -115,7 +147,7 @@ const drainHash = (hash, bytesWritten, callback) => {
   })
 
   hash.send(bytesWritten) 
-
+  hash.send('end')
   return destroy
 }
 

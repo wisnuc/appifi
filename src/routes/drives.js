@@ -476,7 +476,7 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
         if (digest !== x.sha256) {
 
           // test code
-          if (process.env.NODE_PATH !== undefined) {
+          if (process.env.NODE_PATH !== undefined || process.env.NODE_ENV === 'test') {
 
             let buf = Buffer.alloc(x.size)
             let data = fs.readFileSync(x.tmp)
