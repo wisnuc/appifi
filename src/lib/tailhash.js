@@ -18,6 +18,7 @@ const Loop = () => fs.createReadStream(null, {
     })
     .on('error', err => {
       console.log('tail hash error', err)
+      process.exit(119)
     })
     .on('data', data => {
       hash.update(data)
