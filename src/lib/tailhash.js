@@ -16,10 +16,20 @@ const Loop = () => fs.createReadStream(null, {
       start: totalRead, 
       highWaterMark: 16 * 1024 * 1024  // important for performance
     })
-    .on('data', data => (hash.update(data), totalRead += data.length))
-    .on('end', () => written === totalRead 
-      ? process.send(hash.digest('hex'), () => setTimeout(() => process.exit(), 5000))
-      : setImmediate(Loop))
+    .on('error', err => {
+      console.log('tail hash error', err)
+    })
+    .on('data', data => {
+      hash.update(data)
+      totalRead += data.length
+    })
+    .on('end', () => {
+      if (written === totalRead) {
+        process.send(hash.digest('hex'), () => setTimeout(() => process.exit(), 5000))
+      } else {
+        setImmediate(Loop)
+      }
+    })
 
 Loop()
 `

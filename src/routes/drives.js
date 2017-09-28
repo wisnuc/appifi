@@ -441,12 +441,13 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
 
     pipes.push(x) 
     x.tmp = path.join(getFruit().getTmpDir(), UUID.v4())
-    x.destroyPipe = pipeHash(x.part, x.tmp, (err, { hash, bytesWritten }) => {
+    x.destroyPipe = pipeHash(x.part, x.tmp, (err, props) => {
       delete x.part
       delete x.destroyPipe
       pipes.splice(pipes.indexOf(x), 1) 
 
       if (err) return error(x, err) 
+      let { hash, bytesWritten } = props
       if (bytesWritten !== x.size) {
         hash.on('error', () => {})
         hash.kill()
@@ -462,6 +463,21 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
 
         if (err) return error(x, err)
         if (digest !== x.sha256) {
+
+          // test code
+          if (process.env.NODE_PATH !== undefined) {
+            let buf = Buffer.alloc(x.size)
+            let data = fs.readFileSync(x.tmp)
+            let verify = crypto.createHash('sha256').update(data).digest('hex') 
+
+            console.log('===============================================')
+            console.log('client claimed', x.sha256)
+            console.log('tmp file (received', verify)
+            console.log('child process returns', digest)
+            console.log('===============================================')
+          }
+
+
           let e = new Error(`sha256 mismatch, actual: ${digest}`)
           e.status = 400
           return error(x, e)

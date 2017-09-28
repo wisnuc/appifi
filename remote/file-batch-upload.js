@@ -8,7 +8,7 @@ const request = require('superagent')
 
 let address = process.argv.find((x, index, array) => index > 0 && array[index - 1] === '--address')
 if (!address) {
-  console.log('please provide server address with --address 10.10.10.10')
+  console.log('please provide server address, eg: --address 10.10.10.10')
   process.exit(1)
 }
 
@@ -73,7 +73,5 @@ describe(path.basename(__filename), () => {
           })
       })
   })
-
-
 })
 
