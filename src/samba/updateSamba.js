@@ -1,9 +1,9 @@
-let fs = require('fs')
-let child = require('child_process')
-let mkdirp = require('mkdirp')
-let getPrependPath = require('./prependPath')
+const path = require('path')
+const fs = require('fs')
+const child = require('child_process')
+const mkdirp = require('mkdirp')
+const getPrependPath = require('./prependPath')
 
-let path = require('path')
 let process = require('process')
 
 import Debug from 'debug'

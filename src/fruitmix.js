@@ -3,11 +3,13 @@ const path = require('path')
 const fs = Promise.promisifyAll(require('fs'))
 const EventEmitter = require('events')
 const crypto = require('crypto')
+const dgram = require('dgram')
 
 const rimraf = require('rimraf')
 const mkdirp = require('mkdirp')
 const mkdirpAsync = Promise.promisify(mkdirp)
 const rimrafAsync = Promise.promisify(rimraf)
+
 const UUID = require('uuid')
 
 const UserList = require('./user/user')
@@ -24,24 +26,21 @@ const CopyTask = require('./tasks/fruitcopy')
 const MoveTask = require('./tasks/fruitmove')
 
 const { readXstat, forceXstat } = require('./lib/xstat')
+const samba = require('./samba/server')
+
+const Debug = require('debug')
+const smbDebug = Debug('samba')
 
 const combineHash = (a, b) => {
-  let a1 = typeof a === 'string'
-    ? Buffer.from(a, 'hex')
-    : a
-
-
-  let b1 = typeof b === 'string'
-    ? Buffer.from(b, 'hex')
-    : b
-
+  let a1 = typeof a === 'string' ? Buffer.from(a, 'hex') : a
+  let b1 = typeof b === 'string' ? Buffer.from(b, 'hex') : b
   let hash = crypto.createHash('sha256')
   hash.update(Buffer.concat([a1, b1]))
-
   let digest = hash.digest('hex')
   return digest
 }
 
+const nosmb = !!process.argv.find(arg => arg === '--disable-smb')
 
 /**
 Fruitmix is the facade of internal modules, including user, drive, forest, and box.
@@ -60,7 +59,6 @@ class Fruitmix extends EventEmitter {
   */
   constructor (froot) {
     super()
-
     let thumbDir = path.join(froot, 'thumbnail')
     let tmpDir = path.join(froot, 'tmp')
 
@@ -76,6 +74,26 @@ class Fruitmix extends EventEmitter {
         .then(() => {})
         .catch(e => {})
     }, 1000*60*60)
+
+    if (!nosmb) {
+      samba.start(froot)
+      let udp = dgram.createSocket('udp4')
+      udp.on('listening', () => {
+        const a = udp.address()
+        console.log(`fruitmix udp listening ${a.address}:${a.port}`)
+      }) 
+
+      udp.on('message', (msg, rinfo) => {
+      })
+     
+      udp.on('error', err => {
+        console.log('fruitmix udp server error', err)
+        // should restart with back-off TODO
+        upd.close()
+      }) 
+
+      udp.bind('3721', '127.0.0.1')
+    }
   }
 
   loadMediaMap (fpath) {
@@ -1402,9 +1420,9 @@ const broadcast = require('./common/broadcast')
 
 let fruitmix = null
 
-broadcast.on('FruitmixStart', froot => {
+broadcast.on('FruitmixStart', (froot, opts) => {
   try {
-    fruitmix = new Fruitmix(froot)
+    fruitmix = new Fruitmix(froot, opts)
     // !!! guarantee to be async
     process.nextTick(() => broadcast.emit('FruitmixStarted'))
   } catch (e) {
