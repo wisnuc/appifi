@@ -86,9 +86,9 @@ class StoreFile {
       let bytesWritten = ws.bytesWritten
       let sha256 = transform.getHash()
       if(bytesWritten !== this.size)
-        return error(new Error('size mismatch: ', fpath, bytesWritten, this.size))
+        return error(Object.assign(new Error('size mismatch'), { code: 'EMISMATCH'}))
       if(sha256 !== this.sha256)
-        return error(new Error('sha256 mismatch: ', fpath, sha256, this.sha256))
+        return error(Object.assign(new Error('sha256 mismatch'), { code: 'EMISMATCH'}))
       debug('store file bytesWritten')
       finished = true
       callback(null, fpath)
@@ -253,8 +253,10 @@ class Pipe {
       case  'users':
         return paths.length === 0 ? (method === 'GET' ? 'GetUsers' : (method === 'POST' ? 'CreateUser' : undefined))
                   : paths.length === 1 ? (method === 'GET' ? 'GetUser' : (method === 'PATCH' ? 'UpdateUserInfo' : undefined))
-                    : paths.length === 2 ? (method === 'GET' ? (paths[1] === 'password'? 'UpdateUserPasswd': (paths[1] === 'media-blacklist' ? 'GetMediaBlackList' : undefined))
-                      : (method === 'PUT' ? 'SetMediaBlackList' : (method === 'POST' ? 'AddMediaBlackList' : (method === 'DELETE' ? 'SubtractUserMediaBlackList' : undefined))))
+                    : paths.length === 2 ? (method === 'GET' ? (paths[1] === 'media-blacklist' ? 'GetMediaBlackList' : undefined)
+                      : (method === 'PUT' ? (path[1] === 'password' ? 'UpdateUserPasswd' : (path[1] === 'media-blacklist' ?'SetMediaBlackList' : undefined))
+                       : (method === 'POST' ? 'AddMediaBlackList' 
+                        : (method === 'DELETE' ? 'SubtractUserMediaBlackList' : undefined))))
                         : undefined
         break
       case 'token':
@@ -266,7 +268,7 @@ class Pipe {
   }
 
 
-  /***********************************TOKEN***************************/
+  /*****************************TOKEN***************************/
 
   async getTokenAsync(data) {
     let { serverAddr, sessionId, user } = data
@@ -384,13 +386,6 @@ class Pipe {
     da.driveUUID = driveUUID
     da.dirUUID = dirUUID
     data.body = da
-    // let split = da.name.split('|')
-    // if (split.length === 0 || split.length > 2)
-    //    throw new Error('invalid name')
-    // if (!split.every(name => name === sanitize(name)))
-    //    throw new Error('invalid name')
-    // da.fromName = split.shift()
-    // da.toName = split.shift() || da.fromName
 
     switch (da.op) {
       case 'mkdir':
@@ -658,7 +653,7 @@ class Pipe {
     if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
     
     let userUUID = paths[1]
-    if(user.uuid !== userUUID) throw new Error('user uuid mismatch')
+    if(user.uuid !== userUUID) return await this.errorResponseAsync(serverAddr, sessionId, new Error('user uuid mismatch'))
 
     await fruit.updateUserPasswordAsync(user, userUUID, body)
     return await this.successResponseJsonAsync(serverAddr, sessionId, {})
@@ -670,7 +665,7 @@ class Pipe {
     if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
     
     let userUUID = paths[1]
-    if(user.uuid !== userUUID) throw new Error('user uuid mismatch')
+    if(user.uuid !== userUUID) return await this.errorResponseAsync(serverAddr, sessionId, new Error('user uuid mismatch'))
     let list = await fruit.getMediaBlacklistAsync(user)
     return await this.successResponseJsonAsync(serverAddr, sessionId, list)
   }
@@ -691,7 +686,7 @@ class Pipe {
     if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
     
     let userUUID = paths[1]
-    if(user.uuid !== userUUID) throw new Error('user uuid mismatch')
+    if(user.uuid !== userUUID) return await this.errorResponseAsync(serverAddr, sessionId, new Error('user uuid mismatch'))
 
     let list = await fruit.addMediaBlacklistAsync(user, body)
     return await this.successResponseJsonAsync(serverAddr, sessionId, list)
@@ -700,10 +695,10 @@ class Pipe {
   async subtractUserMediaBlackListAsync(data) {
     let { serverAddr, sessionId, user, body, paths } = data
     let fruit = getFruit()
-    if(!fruit) throw new Error('fruitmix not start')
+    if(!fruit)  return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
     
     let userUUID = paths[1]
-    if(user.uuid !== userUUID) throw new Error('user uuid mismatch')
+    if(user.uuid !== userUUID) return await this.errorResponseAsync(serverAddr, sessionId, new Error('user uuid mismatch'))
 
     let list = await fruit.subtractMediaBlacklistAsync(user, body)
     return await this.successResponseJsonAsync(serverAddr, sessionId, list)
