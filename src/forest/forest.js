@@ -18,6 +18,8 @@ const Directory = require('./directory')
 
 const { readXstatAsync, forceXstatAsync } = require('../lib/xstat')
 
+const Debug = require('debug')
+const smbDebug = Debug('samba')
 
 /**
 Forest is a collection of file system cache for each `Drive` defined in Fruitmix.
@@ -372,6 +374,27 @@ class Forest extends EventEmitter {
    
     node.name = xstat.name
     return node
+  }
+
+  audit(drivePath, relPath1, relPath2) {
+    let rootDir
+    this.roots.forEach(dir => {
+      if (dir.abspath() === drivePath) rootDir = dir
+    })
+
+    if (!rootDir) {
+      console.log(`warning: (drive audit) root dir not found for ${drivePath}`)
+      return
+    }
+
+    let relPath = relPath2 || relPath1
+    let names = relPath.split(path.sep).filter(x => !!x)
+    let dir = rootDir.nameWalk(names)
+
+    smbDebug(`audit walk to ${dir.abspath()}`)
+    
+    // delay 1s
+    dir.read(1000)
   }
 }
 
