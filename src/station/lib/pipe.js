@@ -733,8 +733,7 @@ class Pipe {
 
     let error = err => {
       if(finished) return 
-      debug(err)
-      debug('error fetch', error)
+      debug('error fetch', err)
       finished = true
       callback(err)
     }
@@ -827,6 +826,7 @@ class Pipe {
   }
 
   register() {
+    this.handlers.set('GetToken', this.getTokenAsync.bind(this))
     //drives
     this.handlers.set('GetDrives', this.getDrivesAsync.bind(this))
     this.handlers.set('CreateDrive', this.createDriveAsync.bind(this))
