@@ -254,7 +254,7 @@ class Pipe {
         return paths.length === 0 ? (method === 'GET' ? 'GetUsers' : (method === 'POST' ? 'CreateUser' : undefined))
                   : paths.length === 1 ? (method === 'GET' ? 'GetUser' : (method === 'PATCH' ? 'UpdateUserInfo' : undefined))
                     : paths.length === 2 ? (method === 'GET' ? (paths[1] === 'media-blacklist' ? 'GetMediaBlackList' : undefined)
-                      : (method === 'PUT' ? (path[1] === 'password' ? 'UpdateUserPasswd' : (path[1] === 'media-blacklist' ?'SetMediaBlackList' : undefined))
+                      : (method === 'PUT' ? (paths[1] === 'password' ? 'UpdateUserPasswd' : (paths[1] === 'media-blacklist' ?'SetMediaBlackList' : undefined))
                        : (method === 'POST' ? 'AddMediaBlackList' 
                         : (method === 'DELETE' ? 'SubtractUserMediaBlackList' : undefined))))
                         : undefined
