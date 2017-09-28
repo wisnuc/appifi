@@ -257,12 +257,24 @@ class Pipe {
                       : (method === 'PUT' ? 'SetMediaBlackList' : (method === 'POST' ? 'AddMediaBlackList' : (method === 'DELETE' ? 'SubtractUserMediaBlackList' : undefined))))
                         : undefined
         break
+      case 'token':
+        return paths.length === 0 && method === 'GET' ? 'GetToken' : undefined
       default:
         return undefined
         break
     }
   }
 
+
+  /***********************************TOKEN***************************/
+
+  async getTokenAsync(data) {
+    let { serverAddr, sessionId, user } = data
+    let fruit = getFruit()
+    if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    let token = fruit.getToken(user)
+    return await this.successResponseJsonAsync(serverAddr, sessionId, token)
+  }
   /***********************************Dirves**************************/
   //get drives
   async getDrivesAsync(data) {
@@ -718,19 +730,33 @@ class Pipe {
         'Authorization': this.connect.token
       }
     }
+
+    let error = err => {
+      if(finished) return 
+      debug(err)
+      debug('error fetch', error)
+      finished = true
+      callback(err)
+    }
+
+    let finish = () => {
+      if(finished) return
+      finished = true
+      debug('success fetch', fpath)
+      callback(null)
+    }
+
     if(addr.length === 2) options.port = addr[1]
 
     let req = http.request(options, res => {
       res.setEncoding('utf8')
-      res.on('error', error => {
-        debug('fetch res error: ', e)
-      })
+      res.on('error', error)
+      res.on('end', finish);
     })
 
-    req.on('error', e => {  
-      debug('fetch problem with request: ' + e)
-      debug('fetch error file: ' + fpath)
-    })
+    req.on('error', error)
+
+    req.on('abort', error)
 
     rs.pipe(req)
   }

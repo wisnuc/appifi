@@ -17,6 +17,8 @@ const Thumbnail = require('./lib/thumbnail2')
 const File = require('./forest/file')
 const Identifier = require('./lib/identifier')
 const { btrfsConcat, btrfsClone } = require('./lib/btrfs')
+const jwt = require('jwt-simple')
+const secret = require('./config/passportJwt')
 
 const { assert, isUUID, isSHA256, validateProps } = require('./common/assertion')
 
@@ -150,6 +152,12 @@ class Fruitmix extends EventEmitter {
     }))
   }
 
+  getToken(user) {
+    return {
+      type: 'JWT',
+      token: jwt.encode({ uuid: user.uuid }, secret)
+    }
+  }
 
   /**
   {
