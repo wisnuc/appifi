@@ -24,7 +24,7 @@ const rsyslogAsync = async () => {
     if (e.code !== 'ENOENT') throw e
   }
 
-  await fs.writeFileAsync(rsyslogPath, data)
+  await fs.writeFileAsync(rsyslogPath, text)
 
   try {
     await child.execAsync('systemctl restart rsyslog')  
@@ -210,7 +210,7 @@ const privateShare = (users, drive) => {
   valid users = ${owner.unixName}
   vfs objects = full_audit
   full_audit:prefix = %u|%U|%S|%P
-  full_audit:success = create_file mkdir rename rmdir unlink write pwrite
+  full_audit:success = create_file mkdir rename rmdir unlink write pwrite close
   full_audit:failure = connect
   full_audit:facility = LOCAL7
   full_audit:priority = ALERT
