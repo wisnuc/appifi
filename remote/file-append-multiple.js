@@ -120,23 +120,42 @@ describe(path.basename(__filename), () => {
         res.setEncoding('utf8')
         res.on('data', data => buffers.push(data))
         res.on('end', () => {
+
+          let body = {}
           if (buffers.length) {
-            const body = JSON.parse(buffers.join(''))
+            body = JSON.parse(buffers.join(''))
             console.log(body)
           }
 
           if (res.statusCode !== 200) 
             callback(new Error('failed'))
           else 
-            callback(null)
+            callback(null, body)
         })
       })
     }
 
     const loop = () => {
-      formUploadOneHalf(UUID.v4().slice(0, 8), err => {
-        if (err) done(err)
-        setImmediate(loop)
+      let name = UUID.v4().slice(0, 8)
+      formUploadOneHalf(name, (err, body) => {
+        if (err) return done(err)
+      
+        console.log(body)
+        let uuid = body[0].data.uuid
+
+        request.post(`http://${address}:3000/drives/${alice.home.uuid}/dirs/${alice.home.uuid}/entries`)
+          .set('Authorization', 'JWT ' + alice.token)
+          .field(name, JSON.stringify({ op: 'remove', uuid: body[0].data.uuid }))
+          .end((err, res) => {
+
+            console.log(res.body)
+
+            if (err) return done(err)
+
+            console.log(`${name} uploaded and removed`)
+
+            setImmediate(loop)
+          })
       })
     }
 
