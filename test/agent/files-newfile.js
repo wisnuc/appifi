@@ -132,9 +132,8 @@ describe(path.basename(__filename), () => {
         .expect(400)
         .end((err, res) => {
           if (err) return done(err)
-
           debug(res.body)
-
+          expect(fs.readdirSync(tmpDir)).to.deep.equal([])
           done()
         })
     })
@@ -149,6 +148,7 @@ describe(path.basename(__filename), () => {
         .end((err, res) => {
           if (err) return done(err)
           debug(res.body)
+          expect(fs.readdirSync(tmpDir)).to.deep.equal([])
           done()
         })
     })
@@ -163,6 +163,7 @@ describe(path.basename(__filename), () => {
         .end((err, res) => {
           if (err) return done(err)
           debug(res.body)
+          expect(fs.readdirSync(tmpDir)).to.deep.equal([])
           done()
         })
     })
@@ -177,6 +178,7 @@ describe(path.basename(__filename), () => {
         .end((err, res) => {
           if (err) return done(err)
           debug(res.body)
+          expect(fs.readdirSync(tmpDir)).to.deep.equal([])
           done()
         })
     })
@@ -191,6 +193,7 @@ describe(path.basename(__filename), () => {
         .end((err, res) => {
           if (err) return done(err)
           debug(res.body)
+          expect(fs.readdirSync(tmpDir)).to.deep.equal([])
           done()
         })
     })
@@ -204,6 +207,7 @@ describe(path.basename(__filename), () => {
         .end((err, res) => {
           if (err) return done(err)
           debug(res.body)
+          expect(fs.readdirSync(tmpDir)).to.deep.equal([])
           done()
         })
     })
@@ -215,7 +219,12 @@ describe(path.basename(__filename), () => {
           sha256: 'hello'
         }))
         .expect(400)
-        .end((err, res) => err ? done(err) : (debug(res.body), done()))
+        .end((err, res) => {
+          if (err) return done(err) 
+          debug(res.body)
+          expect(fs.readdirSync(tmpDir)).to.deep.equal([])
+          done()
+        })
     })
 
     it("should succeed for empty file, fc376f5c", done => {
@@ -227,7 +236,6 @@ describe(path.basename(__filename), () => {
         .expect(200)
         .end((err, res) => {
           if (err) return done(err)
-  
           debug(res.body)
 
           let filePath = path.join(DrivesDir, IDS.alice.home, 'empty')
@@ -236,6 +244,7 @@ describe(path.basename(__filename), () => {
           expect(stat.isFile()).to.be.true
           expect(attr.hash).to.equal(FILES.empty.hash)
           expect(attr.magic).to.equal(0)
+          expect(fs.readdirSync(tmpDir)).to.deep.equal([])
           done()
         })
     })
@@ -246,7 +255,6 @@ describe(path.basename(__filename), () => {
         .expect(200)
         .end((err, res) => {
           if (err) return done(err)
-          
           debug(res.body)
 
           let filePath = path.join(DrivesDir, IDS.alice.home, 'empty')
@@ -255,6 +263,7 @@ describe(path.basename(__filename), () => {
           expect(stat.isFile()).to.be.true
           expect(attr.hash).to.equal(FILES.empty.hash)
           expect(attr.magic).to.equal(0)
+          expect(fs.readdirSync(tmpDir)).to.deep.equal([])
           done()
         })
     })
@@ -268,7 +277,6 @@ describe(path.basename(__filename), () => {
         .expect(200)
         .end((err, res) => {
           if (err) return done(err)
-
           debug(res.body)
 
           expect(res.body.length).to.equal(1)
@@ -283,6 +291,8 @@ describe(path.basename(__filename), () => {
           expect(stat.isFile()).to.be.true
           expect(attr.hash).to.equal(FILES.empty.hash)
           expect(attr.magic).to.equal(0)
+
+          expect(fs.readdirSync(tmpDir)).to.deep.equal([])
           done()
         })
     })
@@ -308,6 +318,7 @@ describe(path.basename(__filename), () => {
             hash: FILES.alonzo.hash
           }).to.have.keys('uuid','mtime')
 
+          expect(fs.readdirSync(tmpDir)).to.deep.equal([])
           done() 
         })
     })
@@ -323,6 +334,7 @@ describe(path.basename(__filename), () => {
         .end((err, res) => {
           if (err) return done(err)
           debug(res.body)
+          expect(fs.readdirSync(tmpDir)).to.deep.equal([])
           done()
         })
     })
@@ -337,6 +349,7 @@ describe(path.basename(__filename), () => {
         .end((err, res) => {
           if (err) return done(err)
           debug(res.body)
+          expect(fs.readdirSync(tmpDir)).to.deep.equal([])
           done()
         })
     })
@@ -363,6 +376,7 @@ describe(path.basename(__filename), () => {
               debug(res.body)
               expect(res.body.length).to.equal(1)
               expect(res.body[0].error.code).to.equal('EEXIST')
+              expect(fs.readdirSync(tmpDir)).to.deep.equal([])
               done()
             })
         })
@@ -390,6 +404,7 @@ describe(path.basename(__filename), () => {
               debug(res.body)
               expect(res.body.length).to.equal(1)
               expect(res.body[0].error.code).to.equal('EEXIST')
+              expect(fs.readdirSync(tmpDir)).to.deep.equal([])
               done()
             }) 
         })
@@ -406,6 +421,7 @@ describe(path.basename(__filename), () => {
         .end((err, res) => {
           if (err) return done(err)
           debug(res.body)
+          expect(fs.readdirSync(tmpDir)).to.deep.equal([])
           done()
         })
     })
@@ -434,6 +450,7 @@ describe(path.basename(__filename), () => {
               debug(res.body)
               expect(res.body.length).to.equal(1)
               expect(res.body[0].error.code).to.equal('ENOENT')
+              expect(fs.readdirSync(tmpDir)).to.deep.equal([])
               done()
             })
         })
@@ -460,6 +477,7 @@ describe(path.basename(__filename), () => {
               expect(res.body.length).to.equal(1)
               expect(res.body[0].error.code).to.equal('EEXIST')
               expect(res.body[0].error.syscall).to.equal('link')
+              expect(fs.readdirSync(tmpDir)).to.deep.equal([])
               done()
             })
         })
@@ -487,6 +505,7 @@ describe(path.basename(__filename), () => {
             .end((err, res) => {
               if (err) return done(err)
               debug(res.body)
+              expect(fs.readdirSync(tmpDir)).to.deep.equal([])
               done()
             })
         })
@@ -528,6 +547,7 @@ describe(path.basename(__filename), () => {
                 .to.have.keys('uuid', 'mtime')
 
               // TODO assert disk file
+              expect(fs.readdirSync(tmpDir)).to.deep.equal([])
               done()
             })
         })
@@ -569,6 +589,7 @@ describe(path.basename(__filename), () => {
                 .to.have.keys('uuid', 'mtime')
 
               // TODO assert disk file
+              expect(fs.readdirSync(tmpDir)).to.deep.equal([])
               done()
             })
         })
@@ -597,6 +618,7 @@ describe(path.basename(__filename), () => {
             .end((err, res) => {
               if (err) return done(err)
               debug(res.body)
+              expect(fs.readdirSync(tmpDir)).to.deep.equal([])
               done()
             })
         })
@@ -626,6 +648,7 @@ describe(path.basename(__filename), () => {
               if (err) return done(err)
               debug(res.body)
               // TODO could we assert actual hash ???
+              expect(fs.readdirSync(tmpDir)).to.deep.equal([])
               done()
             })
         })
@@ -664,6 +687,8 @@ describe(path.basename(__filename), () => {
                   hash: FILES.empty.hash
                 })
                 .to.have.keys('uuid', 'mtime')
+
+              expect(fs.readdirSync(tmpDir)).to.deep.equal([])
               done()
             })
         })
@@ -701,6 +726,8 @@ describe(path.basename(__filename), () => {
                   hash: FILES.hello.hash
                 })
                 .to.have.keys('uuid', 'mtime')
+
+              expect(fs.readdirSync(tmpDir)).to.deep.equal([])
               done()
             })
         })
@@ -729,6 +756,7 @@ describe(path.basename(__filename), () => {
             .end((err, res) => {
               if (err) return done(err)
               debug(res.body)
+              expect(fs.readdirSync(tmpDir)).to.deep.equal([])
               done()
             })
         })
@@ -757,6 +785,7 @@ describe(path.basename(__filename), () => {
             .end((err, res) => {
               if (err) return done(err)
               debug(res.body)
+              expect(fs.readdirSync(tmpDir)).to.deep.equal([])
               done()
             })
         })

@@ -306,12 +306,14 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
       if (index !== -1) {
         let x = drains[index]
         x.destroyDrain()
+        rimraf(x.tmp, () => {})
         drains.splice(index, 1)
         x.error = x.error || EDestroyed
       } else {
         index = drains_.findIndex(predecessorErrored)
         if (index !== -1) {
           let x = drains_[index]
+          rimraf(x.tmp, () => {})
           drains_.splice(index, 1)
           x.error = x.error || EDestroyed
         } else {
@@ -446,13 +448,18 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
       delete x.destroyPipe
       pipes.splice(pipes.indexOf(x), 1) 
 
-      if (err) return error(x, err) 
+      if (err) {
+        rimraf(x.tmp, () => {})
+        return error(x, err) 
+      }
+
       let { hash, bytesWritten } = props
       if (bytesWritten !== x.size) {
         hash.on('error', () => {})
         hash.kill()
         let e = new Error(`size mismatch, actual: ${bytesWritten}`)
         e.status = 400
+        rimraf(x.tmp, () => {})
         return error(x, e)
       }
 
@@ -461,11 +468,16 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
         delete x.destroyDrain
         drains.splice(drains.indexOf(x), 1)
 
-        if (err) return error(x, err)
+        if (err) {
+          rimraf(x.tmp, () => {})
+          return error(x, err)
+        }
+
         if (digest !== x.sha256) {
 
           // test code
           if (process.env.NODE_PATH !== undefined) {
+
             let buf = Buffer.alloc(x.size)
             let data = fs.readFileSync(x.tmp)
             let verify = crypto.createHash('sha256').update(data).digest('hex') 
@@ -480,6 +492,7 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
 
           let e = new Error(`sha256 mismatch, actual: ${digest}`)
           e.status = 400
+          rimraf(x.tmp, () => {})
           return error(x, e)
         }
   
@@ -560,6 +573,8 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
       if (x.append) {
         let tmp = { path: x.tmp, size: x.size, sha256: x.sha256 }
         getFruit().appendFile(user, driveUUID, dirUUID, x.toName, x.append, tmp, (err, xstat) => {
+          executions.splice(executions.indexOf(x), 1)
+          rimraf(x.tmp, () => {})
           if (err) {
             error(x, err)
           } else {
@@ -570,6 +585,7 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
         getFruit().createNewFile(user, driveUUID, dirUUID, x.toName, x.tmp, x.digest, x.overwrite, 
           guard('on new file return', (err, xstat) => {
             executions.splice(executions.indexOf(x), 1)
+            rimraf(x.tmp, () => {})
             if (err) {
               error(x, err)
             } else {
