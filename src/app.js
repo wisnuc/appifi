@@ -26,12 +26,12 @@ const media = require('./routes/media')
 const tasks = require('./routes/tasks')
 const cloudToken = require('./routes/wxtoken')
 const station = require('./station')
+
 /**
 This module is the entry point of the whole application.
 
 @module App
 */
-
 app.set('json spaces', 0)
 app.use(logger('dev', { skip: (req, res) => res.nolog === true || app.nolog === true }))
 app.use(bodyParser.json())
