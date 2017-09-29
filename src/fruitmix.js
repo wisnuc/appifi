@@ -1078,6 +1078,7 @@ class Fruitmix extends EventEmitter {
   /// /////////////////////////
 
   mkdirp (user, driveUUID, dirUUID, name, cb) {
+    let dir
     let callback = (err, data) => {
       if (err) return cb(err)
       else {
@@ -1086,7 +1087,7 @@ class Fruitmix extends EventEmitter {
       }
     }
     // TODO permission check
-    let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
+    dir = this.driveList.getDriveDir(driveUUID, dirUUID)
     if (!dir) {
       let err = new Error('drive or dir not found')
       err.status = 404
@@ -1102,6 +1103,7 @@ class Fruitmix extends EventEmitter {
       })
     })
   }
+
   /**
   mkdir (user, driveUUID, dirUUID, name, cb) {
     let callback = (err, data) => {
