@@ -20,8 +20,15 @@ class HashTransform extends Transform {
     next()
   }
 
+/**  
   getHash() {
     return this.hashStream.digest('hex')
+  }
+**/
+  
+  _flush(next) {
+    this.digest = this.hashStream.digest('hex')
+    next()
   }
 }
 
