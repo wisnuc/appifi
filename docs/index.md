@@ -65,5 +65,5 @@
 除上述内容之外，本网站的所有页面都仅针对`appifi`软件提供文档和使用说明。
 
 ## 内部
-
+[files](files.md)
 [samba](samba.md)

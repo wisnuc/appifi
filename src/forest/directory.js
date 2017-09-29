@@ -145,6 +145,18 @@ class Directory extends Node {
       this.read((err, xstats) => err ? reject(err) : resolve(xstats)))
   }
 
+  /**
+  mkdirp and update children
+  
+  */
+  mkdirp(name, parents, callback) {
+     
+  }
+
+  rimraf() {
+    
+  } 
+
   nameWalk(names) {
     if (names.length === 0) return this
     let c = this.children.find(x => x instanceof Directory && x.name === names[0])

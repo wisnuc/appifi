@@ -167,7 +167,7 @@ const init = () => {
 
   router.patch('/', (req, res) => {
     if (Number.isInteger(req.body.fanScale) && req.body.fanScale >= 0 && req.body.fanScale <= 100) {
-      broadcast.emit('FanScaleUpdate', req.body.fanScale)
+      broadcast.emit('FanScaleUpdate', null, req.body.fanScale)
       res.status(200).end()
     } else {
       res.status(400).end()
@@ -190,6 +190,7 @@ const init = () => {
           .toString()
         let mac = child
           .execSync('dd if=/dev/mtd0ro bs=1 skip=1660976 count=6 | xxd -p')
+          .toString()
           .trim()
           .match(/.{2}/g)
           .join(':')
