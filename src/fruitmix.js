@@ -34,6 +34,7 @@ const samba = require('./samba/server')
 
 const Debug = require('debug')
 const smbDebug = Debug('samba')
+const debug = Debug('fruitmix')
 
 const combineHash = (a, b) => {
   let a1 = typeof a === 'string' ? Buffer.from(a, 'hex') : a
@@ -81,7 +82,7 @@ class Fruitmix extends EventEmitter {
       this.storeMediaMapAsync()
         .then(() => {})
         .catch(e => {})
-    }, 1000*60*60)
+    }, 1000 * 60 * 60)
 
     if (!nosmb) {
       samba.start(froot)
@@ -89,7 +90,7 @@ class Fruitmix extends EventEmitter {
       udp.on('listening', () => {
         const a = udp.address()
         console.log(`fruitmix udp listening ${a.address}:${a.port}`)
-      }) 
+      })
 
       udp.on('message', (message, rinfo) => {
         const token = ' smbd_audit: '
@@ -149,49 +150,49 @@ class Fruitmix extends EventEmitter {
         // pwrite
 
         switch (op) {
-        case 'create_file':
-          if (arr.length !== 10) return
-          if (arr[8] !== 'create') return
-          if (arr[7] !== 'file') return
-          arg0 = arr[9]
-          break
+          case 'create_file':
+            if (arr.length !== 10) return
+            if (arr[8] !== 'create') return
+            if (arr[7] !== 'file') return
+            arg0 = arr[9]
+            break
 
-        case 'mkdir':
-        case 'rmdir':
-        case 'unlink':
-        case 'pwrite':
-          if (arr.length !== 7) return
-          arg0 = arr[6]
-          break
+          case 'mkdir':
+          case 'rmdir':
+          case 'unlink':
+          case 'pwrite':
+            if (arr.length !== 7) return
+            arg0 = arr[6]
+            break
 
-        case 'rename':
-          if (arr.length !== 8) return
-          arg0 = arr[6]
-          arg1 = arr[7]
-          break
+          case 'rename':
+            if (arr.length !== 8) return
+            arg0 = arr[6]
+            arg1 = arr[7]
+            break
 
-        case 'close':
-          if (arr.lenght !== 7) return
-          arg0 = arr[6]
-          break
+          case 'close':
+            if (arr.lenght !== 7) return
+            arg0 = arr[6]
+            break
 
-        default:
-          return
+          default:
+            return
         }
 
         let audit = { user, share, abspath, op, arg0 }
         if (arg1) audit.arg1 = arg1
 
-        smbDebug(audit) 
-        
+        smbDebug(audit)
+
         this.driveList.audit(abspath, arg0, arg1)
-     })
-     
+      })
+
       udp.on('error', err => {
         console.log('fruitmix udp server error', err)
         // should restart with back-off TODO
         udp.close()
-      }) 
+      })
 
       udp.bind('3721', '127.0.0.1')
     }
@@ -199,9 +200,9 @@ class Fruitmix extends EventEmitter {
 
   loadMediaMap (fpath) {
     let medias, data
-    try{
-      medias = fs.readFileSync(fpath,{ encoding: 'utf8'}).split('\n').filter(x => !!x.length)
-    } catch(e) {
+    try {
+      medias = fs.readFileSync(fpath, { encoding: 'utf8' }).split('\n').filter(x => !!x.length)
+    } catch (e) {
       rimraf.sync(fpath) // remove
       medias = []
     }
@@ -209,10 +210,10 @@ class Fruitmix extends EventEmitter {
     medias.forEach(x => {
       try {
         data = JSON.parse(x)
-        if(data.length === 2) {
+        if (data.length === 2) {
           mediaMap.set(data[0], data[1])
         }
-      }catch(e) { } //TODO:
+      } catch (e) { } // TODO:
     })
     return mediaMap
   }
@@ -221,18 +222,17 @@ class Fruitmix extends EventEmitter {
     let tmp = path.join(this.fruitmixPath, 'tmp', UUID.v4())
     let fpath = path.join(this.fruitmixPath, 'metadataDB.json')
     let metadata = Array.from(this.mediaMap).map(x => {
-      try{
+      try {
         return JSON.stringify(x)
-      }catch(e){
+      } catch (e) {
         debug(e)
-        return
       }
     })
-    try{
+    try {
       await fs.writeFileAsync(tmp, metadata.join('\n'))
       await rimrafAsync(fpath)
       await fs.renameAsync(tmp, fpath)
-    }catch(e){
+    } catch (e) {
       debug(e)
       throw e
     }
@@ -263,13 +263,13 @@ class Fruitmix extends EventEmitter {
       username: u.username,
       isFirstUser: u.isFirstUser,
       isAdmin: u.isAdmin,
-      avatar: u.avatar, 
+      avatar: u.avatar,
       global: u.global,
       disabled: u.disabled
     }))
   }
 
-  getToken(user) {
+  getToken (user) {
     return {
       type: 'JWT',
       token: jwt.encode({ uuid: user.uuid }, secret)
@@ -297,13 +297,13 @@ class Fruitmix extends EventEmitter {
   if user is common user
     only can change itself
   */ 
-  userCanUpdate(user, userUUID, props) {
-    let u = this.findUserByUUID(userUUID) //is operated
-    if(!user || !userUUID) throw Object.assign(new Error('user not found'), { status: 404 })
-    if(props === undefined || (Array.isArray(props) && props.length === 0)) return true
-    //'uuid', 'isFirstUser', 'avatar' can not be change
+  userCanUpdate (user, userUUID, props) {
+    let u = this.findUserByUUID(userUUID) // is operated
+    if (!user || !userUUID) throw Object.assign(new Error('user not found'), { status: 404 })
+    if (props === undefined || (Array.isArray(props) && props.length === 0)) return true
+    // 'uuid', 'isFirstUser', 'avatar' can not be change
     let recognized = [
-      'username', 'password', 'isAdmin', 'global', 'disabled' 
+      'username', 'password', 'isAdmin', 'global', 'disabled'
     ]
 
     Object.getOwnPropertyNames(props).forEach(name => {
@@ -314,15 +314,14 @@ class Fruitmix extends EventEmitter {
 
     let disallowed
 
-    if(user.uuid === userUUID){
+    if (user.uuid === userUUID) {
       disallowed = [ 'isAdmin', 'disabled' ]
-    }else {
+    } else {
       if (user.isFirstUser) return true
       else if (user.isAdmin) {
-        if(u.isAdmin) return false // admin and isFirstUser
+        if (u.isAdmin) return false // admin and isFirstUser
         disallowed = ['isAdmin']
-      }
-      else return false // common user
+      } else return false // common user
     }
 
     Object.getOwnPropertyNames(props).forEach(name => {
@@ -333,55 +332,50 @@ class Fruitmix extends EventEmitter {
     return true
   }
 
-    /**
+  /**
    * 1 own drives
    * 2 public drive (writelist or readlist)
    * @param {*} user 
    * @param {*} dirUUID 
    */
-  userCanRead(user, dirUUID) {
-    if(!user || !dirUUID || !dirUUID.length) throw Object.assign(new Error('Invalid parameters'), { status: 400 })
-    if(!this.driveList.uuidMap.has(dirUUID))
-      throw Object.assign(new Error('drive not found'), { status: 404 })
+  userCanRead (user, dirUUID) {
+    if (!user || !dirUUID || !dirUUID.length) throw Object.assign(new Error('Invalid parameters'), { status: 400 })
+    if (!this.driveList.uuidMap.has(dirUUID)) { throw Object.assign(new Error('drive not found'), { status: 404 }) }
     let drive = this.driveList.uuidMap.get(dirUUID)
     let rootDrive = drive.root()
     let userDrives = this.getDrives(user)
-    if(userDrives.findIndex(d => d.uuid === rootDrive.uuid) !== -1) return true
+    if (userDrives.findIndex(d => d.uuid === rootDrive.uuid) !== -1) return true
     return false
   }
 
   // write maybe upload, (remove??)
   // 1 own drives
   // 2 public drive && (writelist or (readlist&& admin))
-  userCanWrite(user, dirUUID) {
-    if(!user || !dirUUID || !dirUUID.length) throw Object.assign(new Error('Invalid parameters'), { status: 400 })
-    if(!this.driveList.uuidMap.has(dirUUID))
-      throw Object.assign(new Error('drive not found'), { status: 404 })
+  userCanWrite (user, dirUUID) {
+    if (!user || !dirUUID || !dirUUID.length) throw Object.assign(new Error('Invalid parameters'), { status: 400 })
+    if (!this.driveList.uuidMap.has(dirUUID)) { throw Object.assign(new Error('drive not found'), { status: 404 }) }
     let drive = this.driveList.uuidMap.get(dirUUID)
     let rootDrive = drive.root()
 
     let userDrives = this.driveList.drives.filter(drv => {
       if (drv.type === 'private' && drv.owner === user.uuid) return true
-      if (drv.type === 'public' && ((drv.writelist.includes(user.uuid)) || 
+      if (drv.type === 'public' && ((drv.writelist.includes(user.uuid)) ||
         (drv.readlist.includes(user.uuid) && user.isAdmin))) return true
       return false
     })
 
-    if(userDrives.findIndex(d => d.uuid === rootDrive.uuid) !== -1) return true
+    if (userDrives.findIndex(d => d.uuid === rootDrive.uuid) !== -1) return true
     return false
   }
 
-  userCanReadMedia(user, fingerprint) {
-    if(!user || !fingerprint || !fingerprint.length) throw Object.assign(new Error('Invalid parameters'), { status: 400 })
-    if(!this.driveList.hashMap.has(fingerprint))
-      throw Object.assign(new Error('media not found'), { status: 404 })
+  userCanReadMedia (user, fingerprint) {
+    if (!user || !fingerprint || !fingerprint.length) throw Object.assign(new Error('Invalid parameters'), { status: 400 })
+    if (!this.driveList.hashMap.has(fingerprint)) { throw Object.assign(new Error('media not found'), { status: 404 }) }
     let medias = Array.from(this.driveList.hashMap.get(fingerprint))
-    let userDrives = this.getDrives(user).map( d => d.uuid)
-    if(medias.find(media => userDrives.indexOf(media.root().uuid) !== -1))
-      return true
+    let userDrives = this.getDrives(user).map(d => d.uuid)
+    if (medias.find(media => userDrives.indexOf(media.root().uuid) !== -1)) { return true }
     return false
   }
-
 
   /**
    * if no user: create first user 
@@ -390,10 +384,10 @@ class Fruitmix extends EventEmitter {
    * if common user return 403
   */
   async createUserAsync (user, props) {
-    if(!user && this.hasUsers()) throw Object.assign(new Error('user not found'), { status: 400 })
-    if(user && !user.isAdmin) throw Object.assign(new Error('permission denied'), { status: 403 })
-    let recognized = [ 'username', 'password', 'global', 'disabled']
-    if(!user || user.isFirstUser) {
+    if (!user && this.hasUsers()) throw Object.assign(new Error('user not found'), { status: 400 })
+    if (user && !user.isAdmin) throw Object.assign(new Error('permission denied'), { status: 403 })
+    let recognized = ['username', 'password', 'global', 'disabled']
+    if (!user || user.isFirstUser) {
       recognized.push('isAdmin') // super user
       let index = recognized.indexOf('disabled')
       recognized = [...recognized.slice(0, index), ...recognized.slice(index + 1)]
@@ -405,13 +399,13 @@ class Fruitmix extends EventEmitter {
     })
 
     let u = await this.userList.createUserAsync(props)
-    let drive = await this.driveList.createPrivateDriveAsync(u.uuid, 'home') 
+    await this.driveList.createPrivateDriveAsync(u.uuid, 'home')
     return u
   }
 
   /**
   */
-  userUpdatePassword() {
+  userUpdatePassword () {
     this.User.updatePassword()
   }
 
@@ -419,11 +413,11 @@ class Fruitmix extends EventEmitter {
     this.userList.verifyPassword(userUUID, password, done)
   }
 
-  findUserByUUID(userUUID) {
+  findUserByUUID (userUUID) {
     return this.userList.findUser(userUUID)
   }
 
-  findUserByGUID(guid) {
+  findUserByGUID (guid) {
     let user = this.userList.users.find(u => u.global && u.global.id === guid)
     return user
   }
@@ -446,41 +440,34 @@ class Fruitmix extends EventEmitter {
   If user is super user, userUUID is not itself
     allowed: isAdmin, 
   */ 
-  async updateUserAsync(user, userUUID, body) {
-    if(!this.userCanUpdate(user, userUUID, body))
-      throw Object.assign(new Error(`unrecognized prop name `), { status: 400 })
-    if(Object.getOwnPropertyNames(body).includes('password'))
-      throw Object.assign(new Error(`password is not allowed to change`), { status: 403 })
-    return await this.userList.updateUserAsync(userUUID, body) 
+  async updateUserAsync (user, userUUID, body) {
+    if (!this.userCanUpdate(user, userUUID, body)) { throw Object.assign(new Error(`unrecognized prop name `), { status: 400 }) }
+    if (Object.getOwnPropertyNames(body).includes('password')) { throw Object.assign(new Error(`password is not allowed to change`), { status: 403 }) }
+    return this.userList.updateUserAsync(userUUID, body)
   }
 
-  async updateUserPasswordAsync(user, userUUID, body) {
-    if(!user || user.uuid !== userUUID) throw Object.assign(new Error('user or uuid error'), { status: 400 })
+  async updateUserPasswordAsync (user, userUUID, body) {
+    if (!user || user.uuid !== userUUID) throw Object.assign(new Error('user or uuid error'), { status: 400 })
 
     if (typeof body.password !== 'string') {
       throw Object.assign(new Error('bad format'), { status: 400 })
     }
 
-    await this.userList.updatePasswordAsync(user.uuid, body.password) 
+    await this.userList.updatePasswordAsync(user.uuid, body.password)
   }
 
-  async updateUserGlobalAsync(user, userUUID, body) {
+  async updateUserGlobalAsync (user, userUUID, body) {
+    if (!body.global || typeof body.global !== 'object') { throw Object.assign(new Error('global format error'), { status: 400 }) }
 
-    if (!body.global || typeof body.global !== 'object') 
-      throw Object.assign(new Error('global format error'), { status: 400 })
-    
-    if(!body.global.id || typeof body.global.id !== 'string')
-      throw Object.assign(new Error('global.id format error'), { status: 400 })
+    if (!body.global.id || typeof body.global.id !== 'string') { throw Object.assign(new Error('global.id format error'), { status: 400 }) }
 
-    if(!body.global.wx || !(body.global.wx instanceof Array) || !body.global.wx.length)
-      throw Object.assign(new Error('global.wx format error'), { status: 400 })
-    
+    if (!body.global.wx || !(body.global.wx instanceof Array) || !body.global.wx.length) { throw Object.assign(new Error('global.wx format error'), { status: 400 }) }
+
     let props = Object.assign({}, { global: body.global })
-    return await this.userList.updateUserAsync(userUUID, props)
+    return this.userList.updateUserAsync(userUUID, props)
   }
 
-  async getMediaBlacklistAsync(user) {
-
+  async getMediaBlacklistAsync (user) {
     let dirPath = path.join(this.fruitmixPath, 'users', user.uuid)
     await mkdirpAsync(dirPath)
     try {
@@ -491,27 +478,27 @@ class Fruitmix extends EventEmitter {
       if (e.code === 'ENOENT' || e instanceof SyntaxError) return []
       throw e
     }
-  } 
+  }
 
-  async setMediaBlacklistAsync(user, props) {
-
+  async setMediaBlacklistAsync (user, props) {
     // TODO must all be sha256 value
 
-    if (!Array.isArray(props) || !props.every(x => isSHA256(x)))
+    if (!Array.isArray(props) || !props.every(x => isSHA256(x))) {
       throw Object.assign(new Error('invalid parameters'),
         { status: 400 })
+    }
 
     let dirPath = path.join(this.fruitmixPath, 'users', user.uuid)
     await mkdirpAsync(dirPath)
     let filePath = path.join(this.fruitmixPath, 'users', user.uuid, 'media-blacklist.json')
-    await fs.writeFileAsync(filePath, JSON.stringify(props)) 
+    await fs.writeFileAsync(filePath, JSON.stringify(props))
   }
 
-  async addMediaBlacklistAsync(user, props) {
-
-    if (!Array.isArray(props) || !props.every(x => isSHA256(x)))
+  async addMediaBlacklistAsync (user, props) {
+    if (!Array.isArray(props) || !props.every(x => isSHA256(x))) {
       throw Object.assign(new Error('invalid parameters'),
         { status: 400 })
+    }
 
     let dirPath = path.join(this.fruitmixPath, 'users', user.uuid)
     await mkdirpAsync(dirPath)
@@ -526,18 +513,18 @@ class Fruitmix extends EventEmitter {
       } else {
         throw e
       }
-    }  
+    }
 
-    let merged = Array.from(new Set([...list, ...props])) 
+    let merged = Array.from(new Set([...list, ...props]))
     await fs.writeFileAsync(filePath, JSON.stringify(merged))
     return merged
   }
 
-  async subtractMediaBlacklistAsync(user, props) {
-
-    if (!Array.isArray(props) || !props.every(x => isSHA256(x)))
+  async subtractMediaBlacklistAsync (user, props) {
+    if (!Array.isArray(props) || !props.every(x => isSHA256(x))) {
       throw Object.assign(new Error('invalid parameters'),
         { status: 400 })
+    }
 
     let dirPath = path.join(this.fruitmixPath, 'users', user.uuid)
     await mkdirpAsync(dirPath)
@@ -552,7 +539,7 @@ class Fruitmix extends EventEmitter {
       } else {
         throw e
       }
-    }  
+    }
 
     let set = new Set(props)
     let subtracted = list.filter(x => !set.has(x))
@@ -563,7 +550,7 @@ class Fruitmix extends EventEmitter {
   getDrives (user) {
     let drives = this.driveList.drives.filter(drv => {
       if (drv.type === 'private' && drv.owner === user.uuid) return true
-      if (drv.type === 'public' && 
+      if (drv.type === 'public' &&
         (drv.writelist.includes(user.uuid) || drv.readlist.includes(user.uuid))) {
         return true
       }
@@ -576,7 +563,7 @@ class Fruitmix extends EventEmitter {
   getDriveList (user) {
     let drives = this.driveList.drives.filter(drv => {
       if (drv.type === 'private' && drv.owner === user.uuid) return true
-      if (drv.type === 'public' && 
+      if (drv.type === 'public' &&
         (drv.writelist.includes(user.uuid) || drv.readlist.includes(user.uuid) || user.isAdmin)) {
         return true
       }
@@ -586,30 +573,26 @@ class Fruitmix extends EventEmitter {
     return drives
   }
 
-  async createPublicDriveAsync(user, props) {
-    
+  async createPublicDriveAsync (user, props) {
     if (!user) throw Object.assign(new Error('Invaild user'), { status: 400 })
-    if (!user.isAdmin)
-      throw Object.assign(new Error(`requires admin priviledge`), { status: 403 })
-    
+    if (!user.isAdmin) { throw Object.assign(new Error(`requires admin priviledge`), { status: 403 }) }
+
     return this.driveList.createPublicDriveAsync(props)
   }
 
   getDrive (user, driveUUID) {
-    if(!this.userCanRead(user, driveUUID)) throw Object.assign(new Error('permission denied'), { status: 403 })
-      
+    if (!this.userCanRead(user, driveUUID)) throw Object.assign(new Error('permission denied'), { status: 403 })
+
     let drive = this.driveList.drives.find(drv => drv.uuid === driveUUID)
-    if (!drive)
-      throw Object.assign(new Error(`drive ${driveUUID} not found`), { status: 404 })
-    
-    return drive 
+    if (!drive) { throw Object.assign(new Error(`drive ${driveUUID} not found`), { status: 404 }) }
+
+    return drive
   }
 
   /**
     uuid, type, writelist, readlist, label 
   */
-  async updatePublicDriveAsync(user, driveUUID, props) {
-
+  async updatePublicDriveAsync (user, driveUUID, props) {
     if (!user.isAdmin) {
       throw Object.assign(new Error(`requires admin priviledge`), { status: 403 })
     }
@@ -628,9 +611,9 @@ class Fruitmix extends EventEmitter {
       if (!recognized.includes(name)) {
         throw Object.assign(new Error(`unrecognized prop name ${name}`), { status: 400 })
       }
-    }) 
+    })
 
-    let disallowed = ['uuid', 'type', 'readlist'] 
+    let disallowed = ['uuid', 'type', 'readlist']
     Object.getOwnPropertyNames(props).forEach(name => {
       if (disallowed.includes(name)) {
         throw Object.assign(new Error(`${name} is not allowed to update`), { status: 403 })
@@ -654,26 +637,28 @@ class Fruitmix extends EventEmitter {
   }
 
   getDriveDirs (user, driveUUID) {
-    if(!this.userCanRead(user, driveUUID)) throw Object.assign(new Error('Permission Denied'), { status: 401})
+    // FIXME should this 401 ?
+    if (!this.userCanRead(user, driveUUID)) throw Object.assign(new Error('Permission Denied'), { status: 401 })
     return this.driveList.getDriveDirs(driveUUID)
   }
 
   async getDriveDirAsync (user, driveUUID, dirUUID, metadata) {
-    if(!this.userCanRead(user, driveUUID)) throw Object.assign(new Error('Permission Denied'), { status: 401})
+    // FIXME should this 401 ?
+    if (!this.userCanRead(user, driveUUID)) throw Object.assign(new Error('Permission Denied'), { status: 401 })
     let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
     if (!dir) throw Object.assign(new Error('drive or dir not found'), { status: 404 })
 
     let path = dir.nodepath().map(dir => ({
-        uuid: dir.uuid,
-        name: dir.name,
-        mtime: Math.abs(dir.mtime)
-      }))
+      uuid: dir.uuid,
+      name: dir.name,
+      mtime: Math.abs(dir.mtime)
+    }))
 
     let entries = await dir.readdirAsync()
     if (metadata) {
       entries.forEach(entry => {
         if (entry.type === 'file' && entry.magic === 'JPEG' && entry.hash) {
-          entry.metadata = this.mediaMap.get(entry.hash) 
+          entry.metadata = this.mediaMap.get(entry.hash)
         }
       })
     }
@@ -682,30 +667,31 @@ class Fruitmix extends EventEmitter {
   }
 
   getDriveDirPath (user, driveUUID, dirUUID) {
-    if(!this.userCanRead(user, driveUUID)) throw Object.assign(new Error('Permission Denied'), { status: 401})
+    // FIXME should this 401 ?
+    if (!this.userCanRead(user, driveUUID)) throw Object.assign(new Error('Permission Denied'), { status: 401 })
 
     let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
-    if (!dir) throw 404 // FIXME
+    if (!dir) throw Object.assign(new Error('not found'), { status: 404 })
     return dir.abspath()
   }
 
   // async or sync ??? TODO
   getDriveFilePath (user, driveUUID, dirUUID, fileUUID, name) {
-    
+
   }
 
   getTmpDir () {
     return path.join(this.fruitmixPath, 'tmp')
   }
 
-   ///////////////// box api ///////////////////////
+  /// ////////////// box api ///////////////////////
 
   /**
    * get all box descriptions user can access
    * @param {Object} user
    * @return {array} a docList of boxes user can view
    */
-  getAllBoxes(user) {
+  getAllBoxes (user) {
     let guid = user.global.id
     return this.boxData.getAllBoxes(guid)
   }
@@ -716,15 +702,14 @@ class Fruitmix extends EventEmitter {
    * @param {Object} user
    * @param {string} boxUUID - uuid of box
    */
-  getBox(user, boxUUID) {
+  getBox (user, boxUUID) {
     if (!isUUID(boxUUID)) throw Object.assign(new Error('invalid boxUUID'), { status: 400 })
     let box = this.boxData.getBox(boxUUID)
     if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
 
     let guid = user.global.id
     let doc = box.doc
-    if (doc.owner !== guid && !doc.users.includes(guid)) 
-      throw Object.assign(new Error('no permission'), { status: 403 })
+    if (doc.owner !== guid && !doc.users.includes(guid)) { throw Object.assign(new Error('no permission'), { status: 403 }) }
     return doc
   }
 
@@ -737,17 +722,16 @@ class Fruitmix extends EventEmitter {
    * @param {array} props.users - collection of global ID string
    * @return {Object} box description (doc)
    */
-  async createBoxAsync(user, props) {
+  async createBoxAsync (user, props) {
     let u = this.findUserByUUID(user.uuid)
-    if (!u || user.global.id !== u.global.id) 
-      throw Object.assign(new Error('no permission'), { status: 403 })
+    if (!u || user.global.id !== u.global.id) { throw Object.assign(new Error('no permission'), { status: 403 }) }
     validateProps(props, ['name', 'users'])
     assert(typeof props.name === 'string', 'name should be a string')
     assert(Array.isArray(props.users), 'users should be an array')
     // FIXME: check user global ID in props.users ?
-    
+
     props.owner = user.global.id
-    return await this.boxData.createBoxAsync(props)
+    return this.boxData.createBoxAsync(props)
   }
 
   // update name and users, only box owner is allowed
@@ -762,17 +746,15 @@ class Fruitmix extends EventEmitter {
    * @param {number} props.mtime - optional
    * @return {Object} new description of box
    */
-  async updateBoxAsync(user, boxUUID, props) {
+  async updateBoxAsync (user, boxUUID, props) {
     let u = this.findUserByUUID(user.uuid)
-    if (!u || user.global.id !== u.global.id) 
-      throw Object.assign(new Error('no permission'), { status: 403 })
+    if (!u || user.global.id !== u.global.id) { throw Object.assign(new Error('no permission'), { status: 403 }) }
 
     if (!isUUID(boxUUID)) throw Object.assign(new Error('invalid boxUUID'), { status: 400 })
     let box = this.boxData.getBox(boxUUID)
     if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
 
-    if (box.doc.owner !== user.global.id) 
-      throw Object.assign(new Error('no permission'), { status: 403 })
+    if (box.doc.owner !== user.global.id) { throw Object.assign(new Error('no permission'), { status: 403 }) }
 
     validateProps(props, [], ['name', 'users', 'mtime'])
     if (props.name) assert(typeof props.name === 'string', 'name should be a string')
@@ -781,8 +763,8 @@ class Fruitmix extends EventEmitter {
       assert(props.users.op === 'add' || props.users.op === 'delete', 'operation should be add or delete')
       assert(Array.isArray(props.users.value), 'value should be an array')
     }
-    
-    return await this.boxData.updateBoxAsync(props, boxUUID)
+
+    return this.boxData.updateBoxAsync(props, boxUUID)
   }
 
   /**
@@ -790,18 +772,16 @@ class Fruitmix extends EventEmitter {
    * @param {Object} user 
    * @param {string} boxUUID 
    */
-  async deleteBoxAsync(user, boxUUID) {
+  async deleteBoxAsync (user, boxUUID) {
     let u = this.findUserByUUID(user.uuid)
-    if (!u || user.global.id !== u.global.id) 
-      throw Object.assign(new Error('no permission'), { status: 403 })
+    if (!u || user.global.id !== u.global.id) { throw Object.assign(new Error('no permission'), { status: 403 }) }
 
     if (!isUUID(boxUUID)) throw Object.assign(new Error('invalid boxUUID'), { status: 400 })
     let box = this.boxData.getBox(boxUUID)
     if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
 
-    if (box.doc.owner !== user.global.id) 
-      throw Object.assign(new Error('no permission'), { status: 403 })
-    return await this.boxData.deleteBoxAsync(boxUUID)
+    if (box.doc.owner !== user.global.id) { throw Object.assign(new Error('no permission'), { status: 403 }) }
+    return this.boxData.deleteBoxAsync(boxUUID)
   }
 
   /**
@@ -810,7 +790,7 @@ class Fruitmix extends EventEmitter {
    * @param {string} boxUUID 
    * @return {array} a list of branch descriptions
    */
-  async getAllBranchesAsync(user, boxUUID) {
+  async getAllBranchesAsync (user, boxUUID) {
     if (!isUUID(boxUUID)) throw Object.assign(new Error('invalid boxUUID'), { status: 400 })
     let box = this.boxData.getBox(boxUUID)
     if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
@@ -829,15 +809,14 @@ class Fruitmix extends EventEmitter {
    * @param {string} branchUUID 
    * @return {Object} branch information
    */
-  async getBranchAsync(user, boxUUID, branchUUID) {
+  async getBranchAsync (user, boxUUID, branchUUID) {
     if (!isUUID(boxUUID)) throw Object.assign(new Error('invalid boxUUID'), { status: 400 })
     if (!isUUID(branchUUID)) throw Object.assign(new Error('invalid branchUUID'), { status: 400 })
     let box = this.boxData.getBox(boxUUID)
     if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
 
     let guid = user.global.id
-    if (box.doc.owner !== guid && !box.doc.users.includes(guid))
-      throw Object.assign(new Error('no permission'), { status: 403 })
+    if (box.doc.owner !== guid && !box.doc.users.includes(guid)) { throw Object.assign(new Error('no permission'), { status: 403 }) }
 
     return await box.retrieveBranchAsync(branchUUID)
   }
@@ -852,20 +831,19 @@ class Fruitmix extends EventEmitter {
    * @param {string} props.head - sha256, a commit hash
    * @return {object} description of branch
    */
-  async createBranchAsync(user, boxUUID, props) {
+  async createBranchAsync (user, boxUUID, props) {
     if (!isUUID(boxUUID)) throw Object.assign(new Error('invalid boxUUID'), { status: 400 })
     let box = this.boxData.getBox(boxUUID)
     if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
 
     let guid = user.global.id
-    if (box.doc.owner !== guid && !box.doc.users.includes(guid))
-      throw Object.assign(new Error('no permission'), { status: 403 })
+    if (box.doc.owner !== guid && !box.doc.users.includes(guid)) { throw Object.assign(new Error('no permission'), { status: 403 }) }
 
     validateProps(props, ['name', 'head'])
     assert(typeof props.name === 'string', 'name should be a string')
     assert(isSHA256(props.head), 'head should be a sha256')
 
-    return await box.createBranchAsync(props)
+    return box.createBranchAsync(props)
   }
 
   // props {name, head}
@@ -879,34 +857,32 @@ class Fruitmix extends EventEmitter {
    * @param {string} props.head - sha256, new commit hash
    * @return {Object} new description of branch
    */
-  async updateBranchAsync(user, boxUUID, branchUUID, props) {
+  async updateBranchAsync (user, boxUUID, branchUUID, props) {
     if (!isUUID(boxUUID)) throw Object.assign(new Error('invalid boxUUID'), { status: 400 })
     if (!isUUID(branchUUID)) throw Object.assign(new Error('invalid branchUUID'), { status: 400 })
     let box = this.boxData.getBox(boxUUID)
     if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
 
     let guid = user.global.id
-    if (box.doc.owner !== guid && !box.doc.users.includes(guid))
-      throw Object.assign(new Error('no permission'), { status: 403 })
-    
+    if (box.doc.owner !== guid && !box.doc.users.includes(guid)) { throw Object.assign(new Error('no permission'), { status: 403 }) }
+
     validateProps(props, [], ['name', 'head'])
     if (props.name) assert(typeof props.name === 'string', 'name should be a string')
     if (props.head) assert(isSHA256(props.head), 'head should be a sha256')
 
-    return await box.updateBranchAsync(branchUUID, props)
+    return box.updateBranchAsync(branchUUID, props)
   }
 
-  async deleteBranchAsync(user, boxUUID, branchUUID) {
+  async deleteBranchAsync (user, boxUUID, branchUUID) {
     if (!isUUID(boxUUID)) throw Object.assign(new Error('invalid boxUUID'), { status: 400 })
     if (!isUUID(branchUUID)) throw Object.assign(new Error('invalid branchUUID'), { status: 400 })
     let box = this.boxData.getBox(boxUUID)
     if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
 
     let guid = user.global.id
-    if (box.doc.owner !== guid && !box.doc.users.includes(guid))
-      throw Object.assign(new Error('no permission'), { status: 403 })
+    if (box.doc.owner !== guid && !box.doc.users.includes(guid)) { throw Object.assign(new Error('no permission'), { status: 403 }) }
 
-    return await box.deleteBranchAsync(branchUUID)
+    return box.deleteBranchAsync(branchUUID)
   }
 
   // props {first, last, count, segments}
@@ -921,14 +897,13 @@ class Fruitmix extends EventEmitter {
    * @param {number} props.count - optional, number of records user want to get
    * @param {string} props.segments - optional, segments of records user want to get
    */
-  async getTweetsAsync(user, boxUUID, props) {
+  async getTweetsAsync (user, boxUUID, props) {
     if (!isUUID(boxUUID)) throw Object.assign(new Error('invalid boxUUID'), { status: 400 })
     let box = this.boxData.getBox(boxUUID)
     if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
 
     let guid = user.global.id
-    if (box.doc.owner !== guid && !box.doc.users.includes(guid))
-      throw Object.assign(new Error('no permission'), { status: 403 })
+    if (box.doc.owner !== guid && !box.doc.users.includes(guid)) { throw Object.assign(new Error('no permission'), { status: 403 }) }
 
     validateProps(props, [], ['first', 'last', 'count', 'segments'])
     if (props.first) assert(Number.isInteger(props.first), 'first should be an integer')
@@ -936,7 +911,7 @@ class Fruitmix extends EventEmitter {
     if (props.count) assert(Number.isInteger(props.count), 'count should be an integer')
     if (props.last) assert(typeof props.segments === 'string', 'segments should be a string')
 
-    return await box.getTweetsAsync(props)
+    return box.getTweetsAsync(props)
   }
 
   /**
@@ -952,17 +927,16 @@ class Fruitmix extends EventEmitter {
    * @param {array} props.path - {sha256, filepath}, for blob and list
    * @return {Object} tweet object
    */
-  async createTweetAsync(user, boxUUID, props) {
+  async createTweetAsync (user, boxUUID, props) {
     if (!isUUID(boxUUID)) throw Object.assign(new Error('invalid boxUUID'), { status: 400 })
     let box = this.boxData.getBox(boxUUID)
     if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
 
     let global = user.global
-    if (box.doc.owner !== global.id && !box.doc.users.includes(global.id))
-      throw Object.assign(new Error('no permission'), { status: 403 })
-    
+    if (box.doc.owner !== global.id && !box.doc.users.includes(global.id)) { throw Object.assign(new Error('no permission'), { status: 403 }) }
+
     props.global = global
-    
+
     validateProps(props, ['global', 'comment'], ['type', 'id', 'list', 'src'])
     assert(typeof props.comment === 'string', 'comment should be a string')
     assert(typeof props.global === 'object', 'global should be an object')
@@ -971,7 +945,7 @@ class Fruitmix extends EventEmitter {
     if (props.list) assert(Array.isArray(props.list), 'list should be an array')
     if (props.src) assert(Array.isArray(props.src), 'src should be an array')
 
-    let result =  await box.createTweetAsync(props)
+    let result = await box.createTweetAsync(props)
 
     await this.boxData.updateBoxAsync({mtime: result.mtime}, boxUUID)
     return result.tweet
@@ -984,14 +958,13 @@ class Fruitmix extends EventEmitter {
    * @param {string} boxUUID 
    * @param {array} tweetsID - list of tweets ID to be deleted
    */
-  async deleteTweetsAsync(user, boxUUID, tweetsID) {
+  async deleteTweetsAsync (user, boxUUID, tweetsID) {
     if (!isUUID(boxUUID)) throw Object.assign(new Error('invalid boxUUID'), { status: 400 })
     let box = this.boxData.getBox(boxUUID)
     if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
 
     let guid = user.global.id
-    if (box.doc.owner !== guid && !box.doc.users.includes(guid))
-      throw Object.assign(new Error('no permission'), { status: 403 })
+    if (box.doc.owner !== guid && !box.doc.users.includes(guid)) { throw Object.assign(new Error('no permission'), { status: 403 }) }
 
     return await box.deleteTweetsAsync(tweetsID)
   }
@@ -1047,50 +1020,49 @@ class Fruitmix extends EventEmitter {
     return commit
   }
 
-  ///////////// media api //////////////
+  /// ////////// media api //////////////
 
-  getMetaList(user) {
-    if(!user) throw Object.assign(new Error('Invaild user'), { status: 400 })
+  getMetaList (user) {
+    if (!user) throw Object.assign(new Error('Invaild user'), { status: 400 })
     let drives = this.getDrives(user)
     let m = new Map()
     drives.forEach(drive => {
       let root = this.driveList.roots.get(drive.uuid)
-      if(!root) return []
+      if (!root) return []
       root.preVisit(node => {
-        if(node instanceof File && this.mediaMap.has(node.hash))
-          m.set(node.hash ,Object.assign({}, this.mediaMap.get(node.hash), { hash: node.hash}))
-      })     
+        if (node instanceof File && this.mediaMap.has(node.hash)) { m.set(node.hash, Object.assign({}, this.mediaMap.get(node.hash), { hash: node.hash })) }
+      })
     })
     return Array.from(m.values())
   }
 
   // NEW API
   getMetadata (user, fingerprint) {
-    if(!this.userCanReadMedia(user, fingerprint))
-       throw Object.assign(new Error('permission denied'), { status: 401 })
-    return Object.assign({}, this.mediaMap.get(fingerprint), { hash: fingerprint})
+    if (!this.userCanReadMedia(user, fingerprint)) { throw Object.assign(new Error('permission denied'), { status: 401 }) }
+    return Object.assign({}, this.mediaMap.get(fingerprint), { hash: fingerprint })
   }
 
   getFingerprints (user, ...args) {
-    //TODO: drive?
+    // TODO: drive?
     return this.driveList.getFingerprints(...args)
   }
 
   getFilesByFingerprint (user, fingerprint) {
-    if(!this.userCanReadMedia(user, fingerprint)) throw Object.assign(new Error('permission denied'), { status: 401 })
+    if (!this.userCanReadMedia(user, fingerprint)) throw Object.assign(new Error('permission denied'), { status: 401 })
     return this.driveList.getFilesByFingerprint(fingerprint)
   }
 
   reportMedia(fingerprint, metadata) {
     this.mediaMap.set(fingerprint, metadata)
   }
-  
+
   // return a file path, or a function, the function can be called again and returns a 
   // cancel function
-  async getThumbnailAsync(user, fingerprint, query) {
-    let files = this.getFilesByFingerprint(user, fingerprint)    
+  /**
+  async getThumbnailAsync (user, fingerprint, query) {
+    let files = this.getFilesByFingerprint(user, fingerprint)
     if (files.length) {
-      let props = this.thumbnail.genProps(fingerprint, query) 
+      let props = this.thumbnail.genProps(fingerprint, query)
       try {
         await fs.lstatAsync(props.path)
         return props.path
@@ -1102,7 +1074,6 @@ class Fruitmix extends EventEmitter {
       }
 
       this.thumbnail.convert(thumbProps, files[0], listener)
-      
 
       let thumb = this.thumbnail.requestAsync(fingerprint, query, files)
       if (typeof thumb === 'string') {
@@ -1110,22 +1081,21 @@ class Fruitmix extends EventEmitter {
       } else {
         thumb.on('finish', (err, thumb) => {
           if (err) {
-          
-          }
 
+          }
         })
       }
     }
   }
+**/
 
-  getThumbnail(user, fingerprint, query, callback) {
-    if(!this.userCanReadMedia(user, fingerprint)) throw Object.assign(new Error('permission denied'), { status: 401 })
-    
+  getThumbnail (user, fingerprint, query, callback) {
+    if (!this.userCanReadMedia(user, fingerprint)) throw Object.assign(new Error('permission denied'), { status: 401 })
+
     let files = this.getFilesByFingerprint(user, fingerprint)
-    if (files.length === 0)
-      return 
+    if (files.length === 0) { return }
 
-    let props = this.thumbnail.genProps(fingerprint, query) 
+    let props = this.thumbnail.genProps(fingerprint, query)
     fs.lstat(props.path, (err, stat) => {
       if (!err) return callback(null, props.path)
       if (err.code !== 'ENOENT') return callback(err)
@@ -1133,7 +1103,7 @@ class Fruitmix extends EventEmitter {
     })
   }
 
-  ///////////// task api ///////////////////////////////////////////////////////
+  /// ////////// task api ///////////////////////////////////////////////////////
 
   getTasks (user) {
     return this.tasks
@@ -1148,7 +1118,7 @@ class Fruitmix extends EventEmitter {
 
     let src, dst, task, entries
     if (props.type === 'copy' || props.type === 'move') {
-      src = await this.getDriveDirAsync(user, props.src.drive, props.src.dir) 
+      src = await this.getDriveDirAsync(user, props.src.drive, props.src.dir)
       dst = await this.getDriveDirAsync(user, props.dst.drive, props.dst.dir)
       entries = props.entries.map(uuid => {
         let xstat = src.entries.find(x => x.uuid === uuid)
@@ -1168,18 +1138,19 @@ class Fruitmix extends EventEmitter {
     throw new Error('invalid task type')
   }
 
-  ////////////////////////////
-  
+  /// /////////////////////////
+
   mkdirp (user, driveUUID, dirUUID, name, cb) {
+    let dir
     let callback = (err, data) => {
-      if(err) return cb(err)
-      else{
-        cb(null, data) 
+      if (err) return cb(err)
+      else {
+        cb(null, data)
         dir.read()
       }
     }
     // TODO permission check
-    let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
+    dir = this.driveList.getDriveDir(driveUUID, dirUUID)
     if (!dir) {
       let err = new Error('drive or dir not found')
       err.status = 404
@@ -1196,11 +1167,28 @@ class Fruitmix extends EventEmitter {
     })
   }
 
+  /**
+  mkdir (user, driveUUID, dirUUID, name, cb) {
+    let callback = (err, data) => {
+      if (err) return cb(err)
+      else {
+        cb(null, data)
+      }
+    }
+
+    let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
+    if (!dir) {
+      let err = new Error('drive or dir not found')
+      err.status = 404
+      return process.nextTick(() => cb(err))
+    }
+  }
+**/
   rimraf (user, driveUUID, dirUUID, name, uuid, cb) {
     let callback = (err, data) => {
-      if(err) return cb(err)
-      else{
-        cb(null, data) 
+      if (err) return cb(err)
+      else {
+        cb(null, data)
         dir.read()
       }
     }
@@ -1217,17 +1205,16 @@ class Fruitmix extends EventEmitter {
       // ENOENT treated as success
       if (err && err.code === 'ENOENT') return callback(null)
       if (err) return callback(err)
-      if (xstat.uuid !== uuid) 
-        return callback(Object.assign(new Error('uuid mismatch'), { status: 403 }))
+      if (xstat.uuid !== uuid) { return callback(Object.assign(new Error('uuid mismatch'), { status: 403 })) }
 
       rimraf(dst, err => callback(err))
     })
   }
 
-  createNewFile(user, driveUUID, dirUUID, name, tmp, hash, overwrite, cb) {
+  createNewFile (user, driveUUID, dirUUID, name, tmp, hash, overwrite, cb) {
     let callback = (err, data) => {
-      if(err) return cb(err)
-      else{
+      if (err) return cb(err)
+      else {
         cb(null, data)
         dir.read()
       }
@@ -1245,19 +1232,19 @@ class Fruitmix extends EventEmitter {
       readXstat(dst, (err, xstat) => {
         if (err) return callback(err)
         if (xstat.uuid !== overwrite) {
-          let err = new Error('overwrite (uuid) mismatch') 
+          let err = new Error('overwrite (uuid) mismatch')
           err.status = 403
           return callback(err)
         }
 
         forceXstat(tmp, { uuid: xstat.uuid, hash }, (err, xstat) => {
-          if (err) return callback(err) 
+          if (err) return callback(err)
           // dirty
           Object.assign(xstat, { name })
           fs.rename(tmp, dst, err => {
             if (err) return callback(err)
             return callback(null, xstat)
-          }) 
+          })
         })
       })
     } else {
@@ -1288,11 +1275,10 @@ class Fruitmix extends EventEmitter {
   /**
   data { path, size, sha256 }
   **/
-  appendFile(user, driveUUID, dirUUID, name, hash, data, cb) {
-
+  appendFile (user, driveUUID, dirUUID, name, hash, data, cb) {
     let callback = (err, d) => {
-      if(err) return cb(err)
-      else{
+      if (err) return cb(err)
+      else {
         cb(null, d)
         dir.read()
       }
@@ -1308,12 +1294,9 @@ class Fruitmix extends EventEmitter {
     let dst = path.join(dir.abspath(), name)
     readXstat(dst, (err, xstat) => {
       if (err) return callback(err)
-      if (xstat.type !== 'file') 
-        return callback(Object.assign(new Error('not a file'), { code: 'EISDIR' }))
-      if (xstat.hash !== hash) 
-        return callback(new Error(`append (target) hash mismatch, actual: ${xstat.hash}`))
-      if (xstat.size % (1024 * 1024 * 1024) !== 0) 
-        return callback(new Error('target size must be multiple of 1G'))
+      if (xstat.type !== 'file') { return callback(Object.assign(new Error('not a file'), { code: 'EISDIR' })) }
+      if (xstat.hash !== hash) { return callback(new Error(`append (target) hash mismatch, actual: ${xstat.hash}`)) }
+      if (xstat.size % (1024 * 1024 * 1024) !== 0) { return callback(new Error('target size must be multiple of 1G')) }
 
       let tmp = path.join(this.getTmpDir(), UUID.v4())
       btrfsConcat(tmp, [dst, data.path], err => {
@@ -1327,7 +1310,7 @@ class Fruitmix extends EventEmitter {
             return callback(err)
           }
 
-          let fingerprint = xstat.size === 0 
+          let fingerprint = xstat.size === 0
             ? data.sha256
             : combineHash(xstat.hash, data.sha256)
 
@@ -1337,19 +1320,19 @@ class Fruitmix extends EventEmitter {
             xstat2.name = name
             fs.rename(tmp, dst, err => {
               if (err) return callback(err)
-              callback(null, xstat2)               
-            }) 
+              callback(null, xstat2)
+            })
           })
         })
       })
-    }) 
+    })
   }
 
-  rename(user, driveUUID, dirUUID, fromName, toName, overwrite, cb) {
+  rename (user, driveUUID, dirUUID, fromName, toName, overwrite, cb) {
     let callback = (err, data) => {
-      if(err) return cb(err)
-      else{
-        cb(null, data)        
+      if (err) return cb(err)
+      else {
+        cb(null, data)
         dir.read()
       }
     }
@@ -1379,7 +1362,7 @@ class Fruitmix extends EventEmitter {
           if (dstXstat.type !== 'file') {
             let e = new Error(`${toName} is not a file`)
             return callback(e)
-          }          
+          }
 
           if (dstXstat.uuid !== overwrite) {
             let e = new Error(`overwrite uuid mismatch, actual: ${dstXstat.uuid}`)
@@ -1407,15 +1390,15 @@ class Fruitmix extends EventEmitter {
 
                 fs.rename(tmpPath, toPath, err => {
                   rimraf(tmpPath, () => {})
-                  if (err) return callback(err) 
+                  if (err) return callback(err)
                   rimraf(fromPath, err => {
                     if (err) return callback(err)
                     readXstat(toPath, callback)
                   })
                 })
-              })              
-            }) 
-          }) 
+              })
+            })
+          })
         })
       })
     } else {
@@ -1429,20 +1412,20 @@ class Fruitmix extends EventEmitter {
           e.code = 'EEXIST'
           callback(e)
         }
-      })      
+      })
     }
   }
 
-  dup(user, driveUUID, dirUUID, fromName, toName, overwrite, cb) {
+  dup (user, driveUUID, dirUUID, fromName, toName, overwrite, cb) {
     let callback = (err, data) => {
-      if(err) return cb(err)
-      else{
-        cb(null, data) 
+      if (err) return cb(err)
+      else {
+        cb(null, data)
         dir.read()
       }
     }
 
-    let dir = this.driveList.getDriveDir(driveUUID, dirUUID) 
+    let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
     if (!dir) {
       let err = new Error('drive or dir not found')
       err.status = 404
@@ -1468,7 +1451,7 @@ class Fruitmix extends EventEmitter {
             let e = new Error(`race condition detected, try again`)
             return callback(e)
           }
-         
+
           if (overwrite) {
             readXstat(toPath, (err, dstXstat) => {
               if (err) return callback(err)
@@ -1484,13 +1467,13 @@ class Fruitmix extends EventEmitter {
 
               let props = { uuid: dstXstat.uuid }
               if (srcXstat.hash) props.hash = srcXstat.hash
-        
+
               forceXstat(tmpPath, props, err => {
                 if (err) return callback(err)
                 fs.rename(tmpPath, toPath, err => {
                   rimraf(tmpPath, () => {})
                   if (err) return callback(err)
-                  readXstat(toPath, callback) 
+                  readXstat(toPath, callback)
                 })
               })
             })
@@ -1513,9 +1496,8 @@ class Fruitmix extends EventEmitter {
   // ENOTEMPTY, ENOTDIR
   // this function try to move srcDirUUID into dstDirUUID
   // this function may fail if target exists (non-empty)
-  mvdir(user, srcDriveUUID, srcDirUUID, name, dstDriveUUID, dstDirUUID, callback) {
- 
-    let srcDir = this.driveList.getDriveDir(srcDriveUUID, srcDirUUID) 
+  mvdir (user, srcDriveUUID, srcDirUUID, name, dstDriveUUID, dstDirUUID, callback) {
+    let srcDir = this.driveList.getDriveDir(srcDriveUUID, srcDirUUID)
     if (!srcDir) return callback(new Error('source drive or dir not found'))
     if (srcDir.name !== name) return callback(new Error('source directory name mismatch'))
     if (srcDir.parent === null) return callback(new Error('source directory is root'))
@@ -1527,7 +1509,7 @@ class Fruitmix extends EventEmitter {
     readXstat(srcPath, (err, xstat) => {
       if (err) return callback(err)
       if (xstat.uuid !== srcDir.uuid) {
-        srcDir.parent.read() 
+        srcDir.parent.read()
         return callback(new Error('inconsistent data between in-memory cache and disk file system'))
       }
 
@@ -1549,10 +1531,10 @@ class Fruitmix extends EventEmitter {
     })
   }
 
-  mvfile(user, srcDriveUUID, srcDirUUID, fileUUID, name, dstDriveUUID, dstDirUUID, callback) {
+  mvfile (user, srcDriveUUID, srcDirUUID, fileUUID, name, dstDriveUUID, dstDirUUID, callback) {
     let srcDir = this.driveList.getDriveDir(srcDriveUUID, srcDirUUID)
     if (!srcDir) return callback(new Error('source drive or directory not found'))
-    
+
     let dstDir = this.driveList.getDriveDir(dstDriveUUID, dstDirUUID)
     if (!dstDir) return callback(new Error('destination drive or directory not found'))
 
@@ -1560,8 +1542,8 @@ class Fruitmix extends EventEmitter {
     readXstat(srcPath, (err, xstat) => {
       if (err) return callback(err)
       if (xstat.uuid !== fileUUID) return callback(new Error('uuid mismatch'))
-     
-      let dstPath = path.join(dstDir.abspath(), name) 
+
+      let dstPath = path.join(dstDir.abspath(), name)
       fs.lstat(dstPath, (err, stat) => {
         if (!err) return callback(new Error('target exists'))
         if (err.code !== 'ENOENT') return callback(err)
@@ -1576,6 +1558,7 @@ class Fruitmix extends EventEmitter {
       })
     })
   }
+
 }
 
 const broadcast = require('./common/broadcast')
@@ -1598,4 +1581,3 @@ broadcast.on('FruitmixStop', () => {
 })
 
 module.exports = () => fruitmix
-
