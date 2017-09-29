@@ -298,7 +298,7 @@ const loop = async () => {
   }
 }
 
-const nosmb = !!process.argv.find(arg => arg === '--disable-smb')
+const nosmb = !!process.argv.find(arg => arg === '--disable-smb') || process.env.NODE_PATH !== undefined
 
 module.exports = {
   start: function (fruitmixPath) {

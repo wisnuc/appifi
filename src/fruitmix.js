@@ -44,7 +44,7 @@ const combineHash = (a, b) => {
   return digest
 }
 
-const nosmb = !!process.argv.find(arg => arg === '--disable-smb')
+const nosmb = !!process.argv.find(arg => arg === '--disable-smb') || process.env.NODE_PATH !== undefined
 
 /**
 Fruitmix is the facade of internal modules, including user, drive, forest, and box.
@@ -190,7 +190,7 @@ class Fruitmix extends EventEmitter {
       udp.on('error', err => {
         console.log('fruitmix udp server error', err)
         // should restart with back-off TODO
-        upd.close()
+        udp.close()
       }) 
 
       udp.bind('3721', '127.0.0.1')
