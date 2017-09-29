@@ -1076,51 +1076,18 @@ class Fruitmix extends EventEmitter {
   }
 
   /// /////////////////////////
-
-  mkdirp (user, driveUUID, dirUUID, name, cb) {
-    let dir
-    let callback = (err, data) => {
-      if (err) return cb(err)
-      else {
-        cb(null, data)
-        dir.read()
-      }
-    }
+  mkdirp (user, driveUUID, dirUUID, name, callback) {
     // TODO permission check
-    dir = this.driveList.getDriveDir(driveUUID, dirUUID)
-    if (!dir) {
-      let err = new Error('drive or dir not found')
-      err.status = 404
-      return process.nextTick(() => cb(err))
-    }
-
-    let dst = path.join(dir.abspath(), name)
-    mkdirp(dst, err => {
-      if (err) return callback(err)
-      readXstat(dst, (err, xstat) => {
-        if (err) return callback(err)
-        callback(null, xstat)
-      })
-    })
-  }
-
-  /**
-  mkdir (user, driveUUID, dirUUID, name, cb) {
-    let callback = (err, data) => {
-      if (err) return cb(err)
-      else {
-        cb(null, data)
-      }
-    }
-
     let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
     if (!dir) {
       let err = new Error('drive or dir not found')
       err.status = 404
       return process.nextTick(() => cb(err))
     }
+
+    dir.mkdirp(name, true, callback)
   }
-**/
+
   rimraf (user, driveUUID, dirUUID, name, uuid, cb) {
     let callback = (err, data) => {
       if (err) return cb(err)
