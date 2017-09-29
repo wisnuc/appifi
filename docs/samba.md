@@ -1,16 +1,20 @@
-# 软件包（package）
+# Samba
+
+Samba是一个兼容Windows文件共享的服务程序，广泛用于各种非Windows平台系统提供Windows文件共享服务。
+
+## 软件包（package）
 
 Samba功能由Ubuntu Server的samba软件包提供。本项目未使用特殊编译版本。
 
 如果使用wisnuc定制的Ubuntu Server安装光盘安装Ubuntu系统，或者使用wisnuc ws215i设备的官方系统镜像，则samba服务已经安装。
 
-# 配置
+## 配置
 
 Fruitmix（appifi服务的核心组件）内置samba支持。
 
 Fruitmix会使用内置的用户帐号和密码系统创建samba的服务配置文件。
 
-## Linux系统用户帐号
+### Linux系统用户帐号
 
 samba服务的用户需要具有系统用户帐号。
 
@@ -22,19 +26,19 @@ UUID的格式为`xxxxxxxx-xxxx-Mxxx-Nxxx-xxxxxxxxxxxx`，去除所有的`-`，�
 
 > 例如fruitmix用户的UUID为`26d1c018-9f7a-45fa-b849-7008e28b5248`, 则对应的Linux系统用户名为`x` `26d1c018` `9f7a` `5fa` `b849` `7008e28b5248`.
 
-## Samba用户名
+### Samba用户名
 
 fruitmix使用samba的user map功能，将用户的fruitmix用户名map到它的Linux系统用户名，这样用户可以使用它在fruitmix系统内设置的用户名登录samba。
 
 samba用户也可以使用上述Linux系统用户帐号直接访问samba，但不具有实用价值。
 
-## 密码
+### 密码
 
 samba登录使用和fruitmix同样的用户密码。fruitmix不会保留该密码的明文，但会保留该密码的密文（对应fruitmix和samba是两个不同的密文，因为使用的加密算法不同）。
 
 fruitmix在配置samba服务的时候会自动注入该密文到samba的密码数据库中（使用`pdbedit`）。
 
-## share名称
+### share名称
 
 在fruitmix系统中，具有两类虚拟云盘：
 
@@ -49,11 +53,11 @@ fruitmix的虚拟云盘不具有文件夹或文件级的细粒度访问权限控
 
 对共享虚拟云盘，对应的share名称是该云盘的名称属性，如果该属性不存在或者有冲突，则使用该云盘的UUID的前面8个字符命名，如果该名称仍然有冲突，则该云盘不显示。
 
-## samba服务控制
+### samba服务控制
 
 在当前版本中samba服务（包括smbd和nmbd）和fruitmix同时启动，fruitmix如果退出不会关闭samba服务；未来版本中会提供用户手动控制。
 
-## 信息同步
+### 文件信息同步
 
 用户通过samba访问对磁盘文件系统做出的增加、修改、和删除操作，fruitmix系统不会立刻知道。
 
@@ -66,7 +70,7 @@ fruitmix通过观察samba的审核日志（audit log）的方式获知用户对�
 
 用户通过samba访问对文件系统做出改动时，相应的操作动作会被发送给fruitmix，fruitmix会延时检查文件系统，如果发现文件变更，会启动相应的组件工作，例如计算hash值，提取metadata等等。
 
-## 配置文件
+## 配置文件说明
 
 ### rsyslog配置
 
