@@ -1117,7 +1117,8 @@ class Fruitmix extends EventEmitter {
         dir.read()
       }
     }
-    // TODO permission check
+
+    if(!this.userCanWrite(user)) return process.nextTick(() => cb(Object.assign(new Error('Permission Denied'), { status: 401 })))
     let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
     if (!dir) {
       let err = new Error('drive or dir not found')
@@ -1143,7 +1144,8 @@ class Fruitmix extends EventEmitter {
         dir.read()
       }
     }
-    // TODO permission check
+    
+    if(!this.userCanWrite(user)) return process.nextTick(() => cb(Object.assign(new Error('Permission Denied'), { status: 401 })))
     let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
     if (!dir) {
       let err = new Error('drive or dir not found')
@@ -1172,6 +1174,7 @@ class Fruitmix extends EventEmitter {
       }
     }
 
+    if(!this.userCanWrite(user)) return process.nextTick(() => cb(Object.assign(new Error('Permission Denied'), { status: 401 })))
     let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
     if (!dir) {
       let err = new Error('drive or dir not found')
@@ -1237,6 +1240,7 @@ class Fruitmix extends EventEmitter {
       }
     }
 
+    if(!this.userCanWrite(user)) return process.nextTick(() => cb(Object.assign(new Error('Permission Denied'), { status: 401 })))
     let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
     if (!dir) {
       let err = new Error('drive or dir not found')
@@ -1293,6 +1297,7 @@ class Fruitmix extends EventEmitter {
       }
     }
 
+    if(!this.userCanWrite(user)) return process.nextTick(() => cb(Object.assign(new Error('Permission Denied'), { status: 401 })))
     let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
     if (!dir) {
       let err = new Error('drive or dir not found')
@@ -1381,6 +1386,7 @@ class Fruitmix extends EventEmitter {
       }
     }
 
+    if(!this.userCanWrite(user)) return process.nextTick(() => cb(Object.assign(new Error('Permission Denied'), { status: 401 })))
     let dir = this.driveList.getDriveDir(driveUUID, dirUUID) 
     if (!dir) {
       let err = new Error('drive or dir not found')
