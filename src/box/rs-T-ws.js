@@ -32,12 +32,11 @@ class HashTransform extends Transform {
   }
 }
 
+
+// method_1
 class Transfer {
   constructor() {
     this.hashArr = []
-    // this.currentIndex = 0     // used to record how many chips in total
-    // this.bytesWritten = 0
-    // this.totalSize = 0
   }
 
   storeFile(src, dst, callback) {
@@ -64,42 +63,7 @@ class Transfer {
       finished = true
       return callback(new Error('ABORT'))
     }
-    
-    // rs.on('data', data => {
-    //   let chunk = Buffer.from(data)
-    //   if (!hashMaker.length) {
-    //     // 1. hashMaker is empty, write data
-    //     // 2. push hash into hashArr
-    //     console.log('status 1')
-    //     console.log(this.hashArr)
-    //     hashMaker.pipe(ws)
-    //     hashMaker.write(chunk)
-    //     let digest = hashMaker.getHash()
-    //     this.hashArr.push(digest)
-    //   } else if (hashMaker.length < SIZE_1G) {
-    //     console.log('status 2')
-    //     console.log(this.hashArr)
-    //     // 1. hashMaker is non-empty, write data to full
-    //     // 2. update hash
-    //     // 3. write the rest of data
-    //     // 4. push hash of rest data into hashArr
-    //     let len = SIZE_1G - hashMaker.length
-    //     console.log(1111, hashMaker.length)
-    //     // write data to full
-    //     // hashMaker.write(chunk.slice(0, len))
-        
-    //     // update hash in hashArr
-    //     // let digest = hashMaker.getHash()
-    //     this.hashArr.pop()
-    //     this.hashArr.push(digest)
-    //     // write the rest of data
-    //     hashMaker = new HashTransform()
-    //     hashMaker.pipe(ws)
-    //     hashMaker.write(chunk.slice(len))
-    //     // push hash into hashArr
-    //     // this.hashArr.push(hashMaker.getHash())
-    //   }
-    // })
+
     console.log(hashMaker.length)
     rs.on('data', data => {
       let chunk = Buffer.from(data)
@@ -164,6 +128,95 @@ class Transfer {
   }
 }
 
+// method_2: rs -> ws     (when 1G is written, calculate hash)
+class Transfer_1 {
+  constructor() {
+    this.hashArr = []
+  }
+
+  storeFile(src, dst, callback) {
+    let rs = fs.createReadStream(src)
+    let ws = fs.createWriteStream(dst)
+    let size = 0, finished = false
+    rs.pipe(ws)
+    let hashMaker = crypto.createHash('sha256')
+
+    let error = (err) => {
+      if (finished) return
+      finished = true
+      return callback(err)
+    }
+
+    let finish = (hashArr) => {
+      if (finished) return
+      finished = true
+      return callback(null, hashArr)
+    }
+
+    let abort = () => {
+      if (finished) return
+      finished = true
+      return callback(new Error('ABORT'))
+    }
+
+    rs.on('data', data => {
+      let chunk = Buffer.from(data)
+
+      if (size + chunk.length >= SIZE_1G) {
+        rs.pause()
+
+        // write data to full, update hash
+        let len = SIZE_1G - size
+        hashMaker.update(chunk.slice(0, len))
+        this.hashArr.push(hashMaker.digest('hex'))
+
+        // write the rest of data
+        size = chunk.slice(len).length
+        hashMaker = crypto.createHash('sha256')
+        hashMaker.update(chunk.slice(len))
+      } else {
+        size += chunk.length
+        hashMaker.update(chunk)
+      }
+    })
+
+    rs.on('close', () => {
+      console.log('closed')
+      let digest = hashMaker.digest('hex')
+      this.hashArr.push(digest)
+      console.log(this.hashArr)
+      if (this.hashArr.length === 1) finish(digest)
+      else {
+        hashMaker = crypto.createHash('sha256')
+        hashMaker.update(Buffer.from(this.hashArr[0]))
+        for(let i = 1; i < this.hashArr.length; i++) {
+          hashMaker.update(Buffer.from(this.hashArr[i]))
+          digest = hashMaker.digest('hex')
+          if (i === this.hashArr.length - 1) finish(digest)
+          else {
+            hashMaker = crypto.createHash('sha256')
+            hashMaker.update(Buffer.from(digest))
+          }
+        }
+      }     
+    })
+
+    rs.on('error', err => error(err))
+  }
+}
+
+// method_3: rs -> ws     (write to destination)
+//              -> T      (calculate hash)
+class Transfer_2 {
+  constructor() {
+    this.hashArr = []
+  }
+
+  storeFile(src, dst) {
+
+  }
+}
+
 
 let fpath = '/home/laraine/Projects/appifi/test-files/two-and-a-half-giga'
 let dst = '/home/laraine/Projects/appifi/tmptest/two-and-a-half-giga'
@@ -171,6 +224,6 @@ let dst = '/home/laraine/Projects/appifi/tmptest/two-and-a-half-giga'
 // let fpath = '/home/laraine/Projects/appifi/testdata/hello'
 // let dst = '/home/laraine/Projects/appifi/tmptest/hello'
 
-let worker = new Transfer()
+let worker = new Transfer_1()
 worker.storeFile(fpath, dst, (err, hashArr) => console.log('hashArr', hashArr))
 
