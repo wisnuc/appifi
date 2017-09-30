@@ -73,7 +73,7 @@
 
 # 旧版本迁移
 
-+ [ws215i用户](old-migration.md)
++ [ws215i用户](manual-migration.md)
 
 ## 内部
 + [磁盘文件结构](files.md)
