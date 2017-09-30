@@ -1,8 +1,14 @@
 const path = require('path')
+
 const Node = require('./node')
 const File = require('./file')
 const Readdir = require('./readdir')
+
+const mkdirp = require('mkdirp')
+const { readXstat } = require('../lib/xstat')
+
 const Debug = require('debug')
+
 
 /**
 Directory represents a directory in the underlying file system.
@@ -144,6 +150,28 @@ class Directory extends Node {
     return await new Promise((resolve, reject) => 
       this.read((err, xstats) => err ? reject(err) : resolve(xstats)))
   }
+
+  /**
+  mkdirp and update children
+  
+  */
+  mkdirp(name, parents, callback) {
+    let dst = path.join(this.abspath(), name)     
+    mkdirp(dst, err => {
+      if (err) return callback(err)
+      readXstat(dst, (err, xstat) => {
+        if (!err && !this.children.find(x => x.uuid === xstat.uuid)) {
+          new Directory(this.ctx, this, xstat)
+          this.read(100)    
+        }
+        callback(err, xstat)
+      })
+    }) 
+  }
+
+  rimraf() {
+    
+  } 
 
   nameWalk(names) {
     if (names.length === 0) return this

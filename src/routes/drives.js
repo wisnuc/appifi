@@ -194,6 +194,19 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
     debug('  r', num(r))
   }
 
+  const print2 = x => {
+    console.log(x) 
+    console.log('  parts', num(parts))
+    console.log('  parsers_', num(parsers), num(parsers_))
+    console.log('  pipes, drains_', num(pipes), num(drains), num(drains_))
+    console.log('  _dryrun', _dryrun)
+    console.log('  dryrun', dryrun)
+    console.log('  dryrun_', dryrun_)
+    console.log('  executions', num(executions))
+    console.log('  r', num(r))
+  }
+
+
   const assertNoDup = () => {
     const all = [
       ...num(parts),
@@ -271,9 +284,9 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
 
     let { size, sha256, append, overwrite, op, parents, uuid } = y
 
-    debug('======== error begin ========')
-    debug('error', y.number, err)
-    print()
+    console.log('======== error begin ========')
+    console.log('error', y.number, err)
+    print2()
 
     y.error = y.error || err
 
@@ -350,7 +363,7 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
       // for no job would be started when something errored
     }
 
-    print('====== error end ======')
+    print2('====== error end ======')
   }
 
   const success = (x, data) => {
