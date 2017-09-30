@@ -71,6 +71,10 @@
 
 除上述内容之外，本网站的所有页面都仅针对`appifi`软件提供文档和使用说明。
 
+# 旧版本迁移
+
++ [ws215i用户](old-migration.md)
+
 ## 内部
 + [磁盘文件结构](files.md)
 + [Samba服务](samba.md)
