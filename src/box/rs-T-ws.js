@@ -11,25 +11,38 @@ class HashTransform extends Transform {
     super()
     this.hashStream = crypto.createHash('sha256')
     this.length = 0
+    this.total = 0
+    this.fingerprint = undefined
   }
 
   _transform(buf, enc, next) {
-    this.length += buf.length
-    this.hashStream.update(buf, enc)
+    if (this.length + buf.length >= SIZE_1G) {
+      let len = SIZE_1G - this.length
+      this.hashStream.update(buf.slice(0, len))
+      let hash = this.hashStream.digest()
+
+      if (!this.fingerprint)
+        this.fingerprint = hash
+      else 
+        this.fingerprint = crypto.createHash('sha256').update(this.fingerprint).update(hash).digest()
+
+      this.length = buf.slice(len).length
+      this.hashStream = crypto.createHash('sha256')
+      this.hashStream.update(buf.slice(len))
+    } else {
+      this.hashStream.update(buf)
+      this.length += buf.length
+    }
+
+    this.total += buf.length
     this.push(buf)
     next()
   }
-
-/**  
-  getHash() {
-    return this.hashStream.digest('hex')
-  }
-**/
   
-  _flush(next) {
-    this.digest = this.hashStream.digest('hex')
-    next()
-  }
+  // _flush(next) {
+  //   this.digest = this.hashStream.digest('hex')
+  //   next()
+  // }
 }
 
 
@@ -43,7 +56,7 @@ class Transfer {
     let rs = fs.createReadStream(src)
     let ws = fs.createWriteStream(dst, { flags: 'a'})
     let hashMaker = new HashTransform()
-    hashMaker.pipe(ws)
+    rs.pipe(hashMaker)
     let finished = false
 
     let error = (err) => {
@@ -168,12 +181,14 @@ class Transfer_1 {
         // write data to full, update hash
         let len = SIZE_1G - size
         hashMaker.update(chunk.slice(0, len))
-        this.hashArr.push(hashMaker.digest('hex'))
+        this.hashArr.push(hashMaker.digest())
 
         // write the rest of data
         size = chunk.slice(len).length
         hashMaker = crypto.createHash('sha256')
         hashMaker.update(chunk.slice(len))
+
+        rs.resume()
       } else {
         size += chunk.length
         hashMaker.update(chunk)
@@ -182,20 +197,20 @@ class Transfer_1 {
 
     rs.on('close', () => {
       console.log('closed')
-      let digest = hashMaker.digest('hex')
+      let digest = hashMaker.digest()
       this.hashArr.push(digest)
       console.log(this.hashArr)
-      if (this.hashArr.length === 1) finish(digest)
+      if (this.hashArr.length === 1) finish(digest.toString('hex'))
       else {
         hashMaker = crypto.createHash('sha256')
-        hashMaker.update(Buffer.from(this.hashArr[0]))
+        hashMaker.update(this.hashArr[0])
         for(let i = 1; i < this.hashArr.length; i++) {
-          hashMaker.update(Buffer.from(this.hashArr[i]))
-          digest = hashMaker.digest('hex')
-          if (i === this.hashArr.length - 1) finish(digest)
+          hashMaker.update(this.hashArr[i])
+          digest = hashMaker.digest()
+          if (i === this.hashArr.length - 1) finish(digest.toString('hex'))
           else {
             hashMaker = crypto.createHash('sha256')
-            hashMaker.update(Buffer.from(digest))
+            hashMaker.update(digest)
           }
         }
       }     
@@ -218,8 +233,8 @@ class Transfer_2 {
 }
 
 
-let fpath = '/home/laraine/Projects/appifi/test-files/two-and-a-half-giga'
-let dst = '/home/laraine/Projects/appifi/tmptest/two-and-a-half-giga'
+let fpath = '/home/laraine/Projects/appifi/testdata/vpai001.jpg'
+let dst = '/home/laraine/Projects/appifi/tmptest/vpai001.jpg'
 
 // let fpath = '/home/laraine/Projects/appifi/testdata/hello'
 // let dst = '/home/laraine/Projects/appifi/tmptest/hello'
