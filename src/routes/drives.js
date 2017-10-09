@@ -246,47 +246,56 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
     if (xs.find(x => x.error.status === 400)) return 400
     return 403
   }
+  
+  const response = () => {
+    let body = r
+      .map(x => {
+        let obj = {
+          number: x.number,
+          op: x.op,
+          name: x.name,
+        }
 
-  const response = () => r.map(x => {
+        if (x.type === 'file') {
+          obj.size = x.size
+          obj.sha256 = x.sha256
+          obj.append = x.append
+          obj.overwrite = x.overwrite
+        } else {
+          obj.parents = x.parents
+          obj.uuid = x.uuid
+          obj.overwrite = x.overwrite
+        }
 
-    let obj = {
-      number: x.number,
-      op: x.op,
-      name: x.name,
-    }
+        if (x.hasOwnProperty('data')) {
+          obj.data = x.data 
+        } else {
+          let { status, errno, code, syscall, path, dest, message } = x.error
+          obj.error = { status, message, code, errno, syscall, path, dest } 
+        } 
 
-    if (x.type === 'file') {
-      obj.size = x.size
-      obj.sha256 = x.sha256
-      obj.append = x.append
-      obj.overwrite = x.overwrite
-    } else {
-      obj.parents = x.parents
-      obj.uuid = x.uuid
-      obj.overwrite = x.overwrite
-    }
+        return obj
+      })
 
-    if (x.hasOwnProperty('data')) {
-      obj.data = x.data 
-    } else {
-      let { status, errno, code, syscall, path, dest, message } = x.error
-      obj.error = { status, message, code, errno, syscall, path, dest } 
-    } 
-
-    return obj
-  })
+    // FIXME process dir read error
+    getFruit().getDriveDir(user, driveUUID, dirUUID, null, () => {
+      res.status(statusCode()).json(body)
+    }) 
+  }
 
   const predecessorErrored = x => !!r
     .slice(0, x.number)
     .find(y => y.toName === x.fromName && y.error)
 
   const error = (y, err) => {
+    if (process.env.NODE_PATH === undefined) {
+      console.log('======== error begin ========')
+      console.log('job', y)
+      console.log('error', err)
+      print2()
+    }
 
     let { size, sha256, append, overwrite, op, parents, uuid } = y
-
-    console.log('======== error begin ========')
-    console.log('error', y.number, err)
-    print2()
 
     y.error = y.error || err
 
@@ -357,19 +366,23 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
     }
 
     if (settled()) {
-      res.status(statusCode()).json(response())
+      // res.status(statusCode()).json(response())
+      response()
     } else {
       // if there is no concurrency control, then no need to schedule
       // for no job would be started when something errored
     }
 
-    print2('====== error end ======')
+    if (process.env.NODE_PATH === undefined) {
+      print2('====== error end ======')
+    }
   }
 
   const success = (x, data) => {
     x.data = data
     if (settled()) {
-      res.status(statusCode()).json(response()) 
+      // res.status(statusCode()).json(response()) 
+      response()
     } else {
       schedule()
     }

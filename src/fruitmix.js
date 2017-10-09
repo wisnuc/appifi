@@ -666,6 +666,19 @@ class Fruitmix extends EventEmitter {
     return { path, entries }
   }
 
+  // this is slightly different from async versoin
+  getDriveDir (user, driveUUID, dirUUID, opts, callback) {
+    // FIXME user permission check
+    let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
+    if (!dir) {
+      let err = new Error('drive or dir not found')
+      err.status = 404
+      process.nextTick(() => callback(err))
+    } else {
+      dir.read(callback)
+    }
+  }
+
   getDriveDirPath (user, driveUUID, dirUUID) {
     // FIXME should this 401 ?
     if (!this.userCanRead(user, driveUUID)) throw Object.assign(new Error('Permission Denied'), { status: 401 })
@@ -1140,7 +1153,6 @@ class Fruitmix extends EventEmitter {
 
   /// /////////////////////////
   mkdirp (user, driveUUID, dirUUID, name, callback) {
-    // TODO permission check
     let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
     if (!dir) {
       let err = new Error('drive or dir not found')
@@ -1148,17 +1160,17 @@ class Fruitmix extends EventEmitter {
       return process.nextTick(() => callback(err))
     }
 
-    dir.mkdirp(name, true, callback)
+    let dst = path.join(dir.abspath(), name)
+    mkdirp(dst, err => {
+      if (err) return callback(err)
+      readXstat(dst, (err, xstat) => {
+        if (err) return callback(err)
+        callback(null, xstat)
+      })
+    })
   }
 
-  rimraf (user, driveUUID, dirUUID, name, uuid, cb) {
-    let callback = (err, data) => {
-      if (err) return cb(err)
-      else {
-        cb(null, data)
-        dir.read()
-      }
-    }
+  rimraf (user, driveUUID, dirUUID, name, uuid, callback) {
     // TODO permission check
     let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
     if (!dir) {
@@ -1178,15 +1190,7 @@ class Fruitmix extends EventEmitter {
     })
   }
 
-  createNewFile (user, driveUUID, dirUUID, name, tmp, hash, overwrite, cb) {
-    let callback = (err, data) => {
-      if (err) return cb(err)
-      else {
-        cb(null, data)
-        dir.read()
-      }
-    }
-
+  createNewFile (user, driveUUID, dirUUID, name, tmp, hash, overwrite, callback) {
     let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
     if (!dir) {
       let err = new Error('drive or dir not found')
@@ -1242,15 +1246,7 @@ class Fruitmix extends EventEmitter {
   /**
   data { path, size, sha256 }
   **/
-  appendFile (user, driveUUID, dirUUID, name, hash, data, cb) {
-    let callback = (err, d) => {
-      if (err) return cb(err)
-      else {
-        cb(null, d)
-        dir.read()
-      }
-    }
-
+  appendFile (user, driveUUID, dirUUID, name, hash, data, callback) {
     let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
     if (!dir) {
       let err = new Error('drive or dir not found')
@@ -1295,15 +1291,7 @@ class Fruitmix extends EventEmitter {
     })
   }
 
-  rename (user, driveUUID, dirUUID, fromName, toName, overwrite, cb) {
-    let callback = (err, data) => {
-      if (err) return cb(err)
-      else {
-        cb(null, data)
-        dir.read()
-      }
-    }
-
+  rename (user, driveUUID, dirUUID, fromName, toName, overwrite, callback) {
     let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
     if (!dir) {
       let err = new Error('drive or dir not found')
@@ -1383,15 +1371,7 @@ class Fruitmix extends EventEmitter {
     }
   }
 
-  dup (user, driveUUID, dirUUID, fromName, toName, overwrite, cb) {
-    let callback = (err, data) => {
-      if (err) return cb(err)
-      else {
-        cb(null, data)
-        dir.read()
-      }
-    }
-
+  dup (user, driveUUID, dirUUID, fromName, toName, overwrite, callback) {
     let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
     if (!dir) {
       let err = new Error('drive or dir not found')
