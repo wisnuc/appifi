@@ -58,7 +58,7 @@ class DirImport {
 
     this.mkdirPending = []
     this.mkdirError = []
-    this.
+    // this.
   }
 
   copy () {

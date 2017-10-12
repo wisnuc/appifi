@@ -10,8 +10,7 @@ const rimraf = require('rimraf')
 const rimrafAsync = Promise.promisify(rimraf)
 const secret = require('../config/passportJwt')
 
-// const User = require('../models/user')
-// const boxData = require('../box/boxData')
+const fingerprintSimpleAsync = Promise.promisify(require('../utils/fingerprintSimple'))
 const { isSHA256 } = require('../lib/assertion')
 const getFruit = require('../fruitmix')
 
@@ -57,22 +56,6 @@ const auth = (req, res, next) => {
   req.user = user
   next()
 }
-
-// const boxAuth = (req, res, next) => {
-//   let boxUUID = req.params.boxUUID
-//   let box = this.boxData.getBox(boxUUID)
-//   if(!box) return res.status(404).end()
-
-//   let global = req.user.global
-//   if(req.user) global = req.user.global
-//   else global = req.guest.global
-
-//   if(box.doc.owner !== global && !box.doc.users.includes(global)) 
-//     return res.status(403).end()
-  
-//   req.box = box
-//   next()
-// }
 
 router.get('/', fruitless, auth, (req, res, next) => {
   try {
@@ -171,13 +154,13 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
     // UPLOAD
     let form = new formidable.IncomingForm()
     form.hash = 'sha256'
-    let sha256, comment, type, size, error, data, arr
+    let sha256, comment, type, size, error, data, arr, obj
     let urls = []
     let finished = false, formFinished = false, fileFinished = false
 
     const finalize = () => {
       if (finished) return
-      if (formFinished && fileFinished) {
+      if (formFinished) {
         finished = true
         if (error)
           return res.status(500).json({ code: error.code, message: error.message })
@@ -220,58 +203,18 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
           //   id (uuid, identifier)
           // }
       }
-      
-
-      // if (name = 'blob') {
-      //   obj = JSON.parse(value)
-      //   if (typeof obj.comment === 'string') comment = obj.comment
-      //   if (obj.type === 'blob') type = 'blob'
-      //   if (Number.isInteger(obj.size)) size = obj.size
-      //   if (isSHA256(obj.sha256)) sha256 = obj.sha256
-      // }
-
-      // ========================================================
-
-      // if (name === 'comment') {
-      //   if (typeof value === 'string') comment = value
-      // }
-
-      // if (name === 'type') {
-      //   if (typeof value === 'string') type = value
-      // }
-
-      // if (name === 'size') {
-      //   if ('' + parseInt(value) === value) size = parseInt(value)
-      // }
-
-      // if (name === 'sha256') {
-      //   if (isSHA256(value)) sha256 = value 
-      // }
     })
 
     form.on('fileBegin', (name, file) => {
       if (finished) return
-      // if (type === 'list') {
-      //   let id = JSON.parse(file.name).id
-      //   let item = arr.find(i => i.id === id)
-      //   let digest
-      //   if (item) digest = item.sha256
-
-      //   // name the file with its sha256 if exist, otherwise name with uuid
-      //   if (digest) file.path = path.join(box.tmpDir, digest)
-      //   else file.path = path.join(box.tmpDir, UUID.v4())
-      // }
-      
-      // if (type === 'blob') {
-      //   if (!Number.isInteger(size) || sha256 === undefined)
-      //   return finished = true && res.status(409).end()
       let tmpdir = getFruit().getTmpDir()
       file.path = path.join(tmpdir, UUID.v4())
-      // }     
     })
 
     form.on('file', (name, file) => {
       if (finished) return
+
+      // file.hash = await fingerprintSimpleAsync(file.path)
 
       if (type === 'blob') {
         check(size, sha256, file)
@@ -279,8 +222,9 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
       }
 
       if (type === 'list') {
-        let id = JSON.parse(file.name).id
-        let index = arr.findIndex(i => i.id === id)
+        // let id = JSON.parse(file.name).id
+        // let index = arr.findIndex(i => i.id === id)
+        let index = arr.findIndex(i => i.sha256 === file.hash)
 
         if (index !== -1) {
           check(arr[index].size, arr[index].sha256, file)          
@@ -290,6 +234,23 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
           rimraf(file.path, () => {})
         }
       }
+    })
+
+    form.on('error', err => {
+      if (finished) return
+      return finished = true && res.status(500).json({ code: err.code, message: err.message })
+    })
+    
+    form.on('aborted', () => {
+      if (finished) return
+      return finished = true && res.status(500).json({
+        code: 'EABORTED',
+        message: 'aborted'
+      })
+    })
+
+    form.on('end', () => {
+      formFinished = true
 
       if (type === 'blob' || arr.every(i => i.finish)) {
         let props
@@ -302,30 +263,18 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
         getFruit().createTweetAsync(req.user, boxUUID, props)
           .then(result => {
             data = result
-            fileFinished = true
             finalize()
           })
           .catch(err => {
             error = err
-            fileFinished = true
             finalize()
           }) 
+      } else {
+        return finished = true && res.status(404).json({ 
+          code: 'EFILE',
+          message: 'necessary file not uploaded'
+        })
       }
-    })
-
-    form.on('error', err => {
-      if (finished) return
-      return finished = true && res.status(500).json({ code: err.code, message: err.message })
-    })
-    
-    form.on('aborted', () => {
-      if (finished) return
-      finished = true
-    })
-
-    form.on('end', () => {
-      formFinished = true
-      finalize()
     })
 
     form.parse(req)
@@ -342,7 +291,7 @@ router.get('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
   let boxUUID = req.params.boxUUID
   let { first, last, count, segments } = req.query
   let props = { first, last, count, segments }
-
+  
   getFruit().getTweetsAsync(req.user, boxUUID, props)
     .then(data => res.status(200).json(data))
     .catch(next)
@@ -355,6 +304,101 @@ router.delete('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
   getFruit().deleteTweetsAsync(req.user, boxUUID, indexArr)
     .then(() => res.status(200).end())
     .catch(next)
+})
+
+router.get('/:boxUUID/commits/:commitHash', fruitless, auth, (req, res, next) => {
+  let boxUUID = req.params.boxUUID
+  let commitHash = req.params.commitHash
+
+  getFruit().getCommitAsync(req.user, boxUUID, commitHash)
+    .then(data => res.status(200).json(data))
+    .catch(next)
+})
+
+router.get('/:boxUUID/rootTreeHash', fruitless, auth, (req, res, next) => {
+  let boxUUID = req.params.boxUUID
+  let rootTreeHash = req.params.rootTreeHash
+
+  getFruit().getRootListAsync(req.user, boxUUID, rootTreeHash)
+    .then(data => res.status(200).json(data))
+    .catch(next)
+})
+
+router.post('/:boxUUID/commits', fruitless, auth, (req, res, next) => {
+  let boxUUID = req.params.boxUUID
+
+  if (req.is('multipart/form-data')) {
+    let error, obj, uploaded = []
+    let form = new formidable.IncomingForm()
+    // form.hash = 'sha256'
+    let finished = false, formFinished = false
+
+    const finalize = () => {
+      if (finished) return
+      if (formFinished) {
+        finished = true
+        if (error)
+          return res.status(500).json({ code: error.code, message: error.message})
+        else
+          return res.status(200).json(data)
+      }
+    }
+
+    form.on('field', (name, value) => {
+      if (finished) return
+      if (name === 'commit') {
+        /*
+          obj: {
+            root: xxxxxx,       // hash string of a tree obj
+            parent: xxxxxx,     // commit ID
+            branch: xxxxxx,     // branch ID
+            toUpload:[]        // file should upload
+          }
+        */
+        obj = JSON.parse(value)
+      }
+    })
+
+    form.on('fileBegin', (name, file) => {
+      if (finished) return
+      let tmpdir = getFruit().getTmpDir()
+      file.path = path.join(tmpdir, file.name) // file.name should be hash string 
+    })
+
+    form.on('file', (name, file) => {
+      if (finished) return
+      uploaded.push(file.name)
+    })
+
+    form.on('error', err => {
+      if (finished) return
+      return finished = true && res.status(500).json({ code: err.code, message: err.message})
+    })
+
+    form.on('aborted', () => {
+      if (finished) return
+      let err = new Error('aborted')
+      return finished = true && res.status(500).json(err)
+    })
+
+    form.on('end', () => {
+      formFinished = true
+      obj.uploaded = uploaded
+      getFruit().createCommitAsync(req.user, boxUUID, obj)
+        .then(result => {
+          data = result
+          finalize()
+        })
+        .catch(err => {
+          error = err
+          finalize()
+        })
+    })
+
+    form.parse(req)
+  } else if (req.is('application/json')) {
+    getFruit().createCommitAsync(req.user, boxUUID, req.body)
+  }
 })
 
 module.exports = router

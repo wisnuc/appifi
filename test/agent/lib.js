@@ -1,27 +1,37 @@
 const sinon = require('sinon')
 const UUID = require('uuid')
 const request = require('supertest')
+const Promise = require('bluebird')
+const mkdirpAsync = Promise.promisify(require('mkdirp'))
+const crypto = require('crypto')
+const fs = Promise.promisifyAll(require('fs'))
+const path = require('path')
 
-const app = require('src/app')
+const app = require('../../src/app')
+const E = require('../../src/lib/error')
+const fingerprintSimpleAsync = Promise.promisify(require('../../src/utils/fingerprintSimple'))
 
 const IDS = {
 
   alice: {
     uuid:'9f93db43-02e6-4b26-8fae-7d6f51da12af',
     home: 'e2adb5d0-c3c7-4f2a-bd64-3320a1ed0dee',
-    global: {id: "ocMvos6NjeKLIBqg5Mr9QjxrP1FA", wx:[]}
+    global: {id: "ocMvos6NjeKLIBqg5Mr9QjxrP1FA",
+             wx: ["ocMvos6NjeKLIBqg5Mr9QjxrP1FA"]}
   },
 
   bob: {
     uuid: 'a278930c-261b-4a9c-a296-f99ed00ac089',
     home: 'b7566c69-91f5-4299-b4f4-194df92b01a9',
-    global: {id: "ocMvos6NjeKLIBqg5Mr9QjxrP1FB", wx:[]}
+    global: {id: "ocMvos6NjeKLIBqg5Mr9QjxrP1FB",
+             wx: ["ocMvos6NjeKLIBqg5Mr9QjxrP1FB"]}
   },
 
   charlie: {
     uuid: 'c12f1332-be48-488b-a3ae-d5f7636c42d6',
     home: '1da855c5-33a9-43b2-a93a-279c6c17ab58',
-    global: {id: "ocMvos6NjeKLIBqg5Mr9QjxrP1FC", wx:[]}
+    global: {id: "ocMvos6NjeKLIBqg5Mr9QjxrP1FC",
+             wx: ["ocMvos6NjeKLIBqg5Mr9QjxrP1FC"]}
   },
 
   david: {
@@ -347,6 +357,130 @@ const forgeRecords = async (boxUUID, username) => {
   }
 }
 
+// calculate tree object of a directory, return root and hashArr map
+// hashArr contain tree object hash and blob hash
+const createTreeObjectAsync = async dir => {
+  // console.log(process.cwd())
+  let tmpDir = path.join(process.cwd(), 'tmp')
+  let hashArr = new Map()
+  // {fingerprint:xxxx, path:[]}
+  await mkdirpAsync(tmpDir)
+
+  // loop
+  let storeDirAsync = async dir => {
+    let stat = await fs.lstatAsync(dir)
+    if (!stat.isDirectory()) throw new E.ENOTDIR()
+
+    let entries = await fs.readdirAsync(dir)
+
+    if (entries.length === 0) return
+    let treeEntries = await Promise
+      .map(entries, async entry => {
+        let entryPath = path.join(dir, entry)
+        let stat = await fs.lstatAsync(entryPath)
+
+        if (stat.isDirectory()) {
+          let fingerprint = await storeDirAsync(entryPath)
+          let fpath = path.join(tmpDir, fingerprint)
+          if (hashArr.has(fingerprint)) {
+            let result = hashArr.get(fingerprint)
+            result.path.push(fpath)
+          } else {
+            let obj = {fingerprint, path: [fpath]}
+            hashArr.set(fingerprint, obj)
+          }
+
+          return ['tree', entry, fingerprint]
+        }
+         
+        if (stat.isFile()) {
+          let fingerprint = await fingerprintSimpleAsync(entryPath)
+
+          if (hashArr.has(fingerprint)) {
+            let result = hashArr.get(fingerprint)
+            result.path.push(entryPath)
+          } else {
+            let obj = {fingerprint, path: [entryPath]}
+            hashArr.set(fingerprint, obj)
+          }
+
+          return ['blob', entry, fingerprint]
+        }
+
+        return null
+      })
+      .filter(treeEntry => !!treeEntry)
+
+    treeEntries = treeEntries.sort((a, b) => a[1].localeCompare(b[1]))
+    // validateTree(treeEntries)
+    let fingerprint = await storeObjectAsync(treeEntries, tmpDir)
+
+    return fingerprint
+  }
+
+  let root = await storeDirAsync(dir)
+  let rootpath = path.join(tmpDir, root)
+
+  if (hashArr.has(root)) {
+    let result = hashArr.get(root)
+    result.path.push(rootpath)
+  } else {
+    let obj = {root, path: [rootpath]}
+    hashArr.set(root, obj)
+  }
+
+  return {root, hashArr} 
+}
+
+const storeObjectAsync = async (tree, dir) => {
+  let text, hash, digest, tmppath
+
+  text = JSON.stringify(tree, null, '  ')
+  hash = crypto.createHash('sha256')
+  hash.update(text)
+  digest = hash.digest().toString('hex')
+
+  let dst = path.join(dir, digest)
+  try {
+    let stats = await fs.lstatAsync(dst)
+    return digest  
+  }
+  catch (e) {
+    if (e.code !== 'ENOENT') throw e
+  }
+    
+  await writeFileToDiskAsync(dst, text)
+  return digest //{fingerprint: digest, path: dst}
+}
+
+const writeFileToDisk = (fpath, data, callback) => {
+
+  let error, os = fs.createWriteStream(fpath)
+
+  os.on('error', err => {
+    error = err
+    callback(err)
+  })
+
+  os.on('close', () => {
+    if (!error) callback(null)
+  })
+
+  os.write(data)
+  os.end()
+}
+
+const writeFileToDiskAsync = Promise.promisify(writeFileToDisk)
+
+// createTreeObjectAsync('/home/laraine/Projects/appifi/testdata')
+// .then(data => {
+//   console.log('root', data.root)
+//   console.log('size', data.hashArr.size)
+//   console.log('root', data.hashArr.get(data.root))
+// })
+// .catch(e => console.log(e))
+
+
 module.exports = {
   IDS,
   FILES,
@@ -359,6 +493,7 @@ module.exports = {
   waCloudTokenAsync,
   createBoxAsync,
   createBranchAsync,
-  forgeRecords
+  forgeRecords,
+  createTreeObjectAsync
 }
 

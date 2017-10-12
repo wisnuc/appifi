@@ -422,7 +422,9 @@ module.exports = {
   updateFileHashAsync,
 
   forceXstat,
-  forceXstatAsync
+  forceXstatAsync,
+
+  fileMagic2
 }
 
 

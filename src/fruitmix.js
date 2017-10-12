@@ -14,6 +14,8 @@ const UUID = require('uuid')
 
 const UserList = require('./user/user')
 const DriveList = require('./forest/forest')
+const DocStore = require('./box/docStore')
+const BlobStore = require('./box/blobStore')
 const BoxData = require('./box/boxData')
 const Thumbnail = require('./lib/thumbnail2')
 const File = require('./forest/file')
@@ -70,7 +72,11 @@ class Fruitmix extends EventEmitter {
     this.thumbnail = new Thumbnail(thumbDir, tmpDir)
     this.userList = new UserList(froot)
     this.driveList = new DriveList(this, froot)
-    this.boxData = new BoxData(froot)
+    this.docStore = new DocStore(froot)
+    this.blobs = new BlobStore(this)
+    this.blobs.loadAsync()
+      .then(() => this.boxData = new BoxData(this))
+      .catch(err => console.log('err',err))
     this.tasks = []
     this.storeTimer = setInterval(() => {
       this.storeMediaMapAsync()
@@ -803,9 +809,10 @@ class Fruitmix extends EventEmitter {
     if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
 
     let guid = user.global.id
-    if (box.doc.owner !== guid && !box.doc.users.includes(guid)) { throw Object.assign(new Error('no permission'), { status: 403 }) }
-
-    return box.retrieveAllAsync('branches')
+    if (box.doc.owner !== guid && !box.doc.users.includes(guid))
+      throw Object.assign(new Error('no permission'), { status: 403 })
+    
+    return await box.retrieveAllBranchesAsync()
   }
 
   /**
@@ -824,7 +831,7 @@ class Fruitmix extends EventEmitter {
     let guid = user.global.id
     if (box.doc.owner !== guid && !box.doc.users.includes(guid)) { throw Object.assign(new Error('no permission'), { status: 403 }) }
 
-    return box.retrieveAsync('branches', branchUUID)
+    return await box.retrieveBranchAsync(branchUUID)
   }
 
   // props {name, head}
@@ -952,6 +959,7 @@ class Fruitmix extends EventEmitter {
     if (props.src) assert(Array.isArray(props.src), 'src should be an array')
 
     let result = await box.createTweetAsync(props)
+
     await this.boxData.updateBoxAsync({mtime: result.mtime}, boxUUID)
     return result.tweet
   }
@@ -971,7 +979,58 @@ class Fruitmix extends EventEmitter {
     let guid = user.global.id
     if (box.doc.owner !== guid && !box.doc.users.includes(guid)) { throw Object.assign(new Error('no permission'), { status: 403 }) }
 
-    return box.deleteTweetsAsync(tweetsID)
+    return await box.deleteTweetsAsync(tweetsID)
+  }
+
+  async getRootListAsync(user, boxUUID, rootTreeHash) {
+    if (!isUUID(boxUUID)) throw Object.assign(new Error('invalid boxUUID'), { status: 400 })
+    let box = this.boxData.getBox(boxUUID)
+    if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
+
+    let guid = user.global.id
+    if (box.doc.owner !== guid && !box.doc.users.includes(guid))
+      throw Object.assign(new Error('no permission'), { status: 403 })
+
+    return await box.getRootListAsync(rootTreeHash)
+  }
+
+  async getCommitAsync(user, boxUUID, commitHash) {
+    if (!isUUID(boxUUID)) throw Object.assign(new Error('invalid boxUUID'), { status: 400 })
+    let box = this.boxData.getBox(boxUUID)
+    if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
+
+    let guid = user.global.id
+    if (box.doc.owner !== guid && !box.doc.users.includes(guid))
+      throw Object.assign(new Error('no permission'), { status: 403 })
+
+    return await box.getCommitAsync(commitHash)
+  }
+
+  async createCommitAsync(user, boxUUID, props) {
+    if (!isUUID(boxUUID)) throw Object.assign(new Error('invalid boxUUID'), { status: 400 })
+    let box = this.boxData.getBox(boxUUID)
+    if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
+
+    let guid = user.global.id
+    if (box.doc.owner !== guid && !box.doc.users.includes(guid))
+      throw Object.assign(new Error('no permission'), { status: 403 })
+    
+    props.committer = guid
+
+    validateProps(props, ['root', 'committer'], ['parent', 'branch', 'toUpload', 'uploaded'])
+    assert(isSHA256(props.root), 'root must be a sha256 string')
+    if (props.parent) assert(isSHA256(props.parent), 'parent must be a sha256 string')
+    if (props.branch) assert(isUUID(props.branch), 'branch must be an uuid')
+    if (props.toUpload) 
+      assert(Array.isArray(props.toUpload) && props.toUpload.every(isSHA256), 'toUpload should be a sha256 array')
+    if (props.uploaded)
+      assert(Array.isArray(props.uploaded) && props.uploaded.every(isSHA256), 'uploaded should be a sha256 array')
+    if ((props.toUpload && !props.uploaded) || (!props.toUpload && props.uploaded))
+      throw Object.assign(new Error('toUpload and uploaded should both exist or non-exist'), { status: 400 })
+    
+    let commit = await box.createCommitAsync(props)
+    await this.boxData.updateBoxAsync({mtime: new Date().getTime()}, boxUUID)
+    return commit
   }
 
   /// ////////// media api //////////////
@@ -1004,6 +1063,10 @@ class Fruitmix extends EventEmitter {
   getFilesByFingerprint (user, fingerprint) {
     if (!this.userCanReadMedia(user, fingerprint)) throw Object.assign(new Error('permission denied'), { status: 401 })
     return this.driveList.getFilesByFingerprint(fingerprint)
+  }
+
+  reportMedia(fingerprint, metadata) {
+    this.mediaMap.set(fingerprint, metadata)
   }
 
   // return a file path, or a function, the function can be called again and returns a 

@@ -32,7 +32,7 @@ async dirWalk = dirPath => {
   let stats = Promise.map(entries, 
     async entry => {
       await fs.lstat(path.join(dirPath, entry))
-    }))
+    })
     .filter(x => !!x) 
 
   return {

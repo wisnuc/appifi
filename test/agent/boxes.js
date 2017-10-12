@@ -16,13 +16,10 @@ const child = require('child_process')
 const app = require('src/app')
 const { saveObjectAsync } = require('src/lib/utils')
 const broadcast = require('src/common/broadcast')
-// const getFruit = require('src/fruitmix')
-
-// const User = require('src/models/user')
-// const boxData = require('src/box/boxData')
 
 const {
   IDS,
+  FILES,
   stubUserUUID,
   createUserAsync,
   retrieveTokenAsync,
@@ -32,13 +29,13 @@ const {
   waCloudTokenAsync,
   createBoxAsync,
   createBranchAsync,
-  forgeRecords
+  forgeRecords,
+  createTreeObjectAsync
 } = require('./lib')
 
 const cwd = process.cwd()
 const tmptest = path.join(cwd, 'tmptest')
 const tmpDir = path.join(tmptest, 'tmp')
-const repoDir = path.join(tmptest, 'repo')
 
 /**
 Reset directories and reinit User module
@@ -47,11 +44,8 @@ const resetAsync = async() => {
 
   broadcast.emit('FruitmixStop')
 
-  // await broadcast.until('UserDeinitDone', 'BoxDeinitDone')
-
   await rimrafAsync(tmptest) 
   await mkdirpAsync(tmpDir) 
-  await mkdirpAsync(repoDir)
  
   broadcast.emit('FruitmixStart', tmptest) 
 
@@ -272,6 +266,8 @@ describe(path.basename(__filename), () => {
     let uuid_1 = 'ff5d42b9-4b8f-452d-a102-ebfde5cdf948'
     let uuid_2 = 'a474d150-a7d4-47f2-8338-3733fa4b8783'
     let uuid_3 = '30ee1474-571c-42c1-be1e-0f714d0d4968'
+    let uuid_4 = 'ef374915-9be4-452e-827e-67808f7ba8b9'
+    let uuid_5 = '060da4bd-7a6e-445a-8cdd-1c9c99c90f4d'
     let commit_1 = '486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7'
     let commit_2 = '2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824'
 
@@ -286,6 +282,8 @@ describe(path.basename(__filename), () => {
                             .onCall(1).returns(uuid_1)
                             .onCall(2).returns(uuid_2)
                             .onCall(3).returns(uuid_3)
+                            .onCall(4).returns(uuid_4)
+                            .onCall(5).returns(uuid_5)
                           
       let props = {name: 'hello', users: [IDS.bob.global.id]}
       doc = await createBoxAsync(props, 'alice')
@@ -293,6 +291,40 @@ describe(path.basename(__filename), () => {
     })
 
     afterEach(() => UUID.v4.restore())
+
+    it.only('POST /boxes/{uuid}/commits, should create a commit with no parent', async done => {
+      let testDir = 'testdata'
+      let result = await createTreeObjectAsync(testDir)
+      let toUpload = [...result.hashArr.keys()]
+      let tmp = path.join(process.cwd(), 'tmp')
+      let entries = await fs.readdirSync(tmp)
+      // move all files toUpload into tmp dir,
+      // and rename with its hash
+      console.log(toUpload)
+      toUpload.forEach(i => {
+        if (!entries.includes(i)) {
+          let src = result.hashArr.get(i).path[0]
+          let dst = path.join(tmp, i)
+          child.execSync(`cp -r --reflink=auto --preserve=all '${src}' '${dst}'`)
+        }
+      })
+
+      let obj = {
+        root: result.root,       // hash string of a tree obj
+        toUpload:[...result.hashArr.keys()]
+      }
+      request(app)
+        .post(`/boxes/${boxUUID}/commits`)
+        .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
+        .field('commit',JSON.stringify(obj))
+        .attach('tmp', 'tmp')
+        // .attach('vpai001', 'testdata/vpai001.jpg')
+        .expect(200)
+        .end((err, res) => {
+          if (err) return done(err)
+          done()
+        })
+    })
 
     it('POST /boxes/{uuid}/tweets alice should add a tweet into tweetsDB', done => {
       request(app)
@@ -310,55 +342,68 @@ describe(path.basename(__filename), () => {
     })
 
     it('POST /boxes/{uuid}/tweets alice should upload a blob', done => {
-      let sha256 = '7803e8fa1b804d40d412bcd28737e3ae027768ecc559b51a284fbcadcd0e21be'
       let obj = {
         comment: 'hello',
         type: 'blob',
-        size: 2331588,
-        sha256
+        size: FILES.alonzo.size,
+        sha256: FILES.alonzo.hash
       }
       request(app)
         .post(`/boxes/${boxUUID}/tweets`)
         .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
         .field('blob', JSON.stringify(obj))
-        .attach('file', 'testpic/20141213.jpg')
+        .attach('alonzo.jpg', 'testdata/alonzo_church.jpg')
         .expect(200)
         .end((err, res) => {
           if (err) return done(err)
-          expect(res.body.uuid).to.equal(uuid_2)
+          expect(res.body.uuid).to.equal(uuid_3)
           expect(res.body.tweeter.id).to.equal(IDS.alice.global.id)
           expect(res.body.comment).to.equal('hello')
           expect(res.body.type).to.equal('blob')
-          expect(res.body.id).to.equal(sha256)
+          expect(res.body.id).to.equal(FILES.alonzo.hash)
           done()
         })
     })
 
     it('POST /boxes/{uuid}/tweets should upload a list', done => {     
-      let sha256_1 = '7803e8fa1b804d40d412bcd28737e3ae027768ecc559b51a284fbcadcd0e21be'
-      let sha256_2 = '21cb9c64331d69f6134ed25820f46def3791f4439d2536b270b2f57f726718c7'
       let obj = {
         comment: 'hello',
         type: 'list',
-        list: [{size: 2331588, sha256: sha256_1, filename: 'pic1', id: uuid_2},
-               {size: 5366855, sha256: sha256_2, filename: 'pic2', id: uuid_3}]
+        list: [{size: FILES.alonzo.size, sha256: FILES.alonzo.hash, filename: FILES.alonzo.name},
+               {size: FILES.vpai001.size, sha256: FILES.vpai001.hash, filename: FILES.vpai001.name}]
       }
       request(app)
         .post(`/boxes/${boxUUID}/tweets`)
         .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
         .field('list', JSON.stringify(obj))
-        .attach('pic1', 'testpic/20141213.jpg', JSON.stringify({id: uuid_2}))
-        .attach('pic2', 'testpic/20160719.jpg', JSON.stringify({id: uuid_3}))
+        .attach('alonzo.jpg', 'testdata/alonzo_church.jpg')
+        .attach('vpai001', 'testdata/vpai001.jpg')
         .expect(200)
         .end((err, res) => {
           if (err) return done(err)
-          // consume uuid.v4: create box, upload two file(tpm path, twice)
-          expect(res.body.uuid).to.equal(uuid_3)
+          // consume uuid.v4: create box, upload two file(tmp path, twice), readXstat twice
+          expect(res.body.uuid).to.equal(uuid_5)
           expect(res.body.tweeter.id).to.equal(IDS.alice.global.id)
           expect(res.body.comment).to.equal('hello')
           expect(res.body.type).to.equal('list')
           done()
         })
+    })
+
+    it('POST /boxes/{uuid}/tweets should return 404 if file in list not uploaded', done => {     
+      let obj = {
+        comment: 'hello',
+        type: 'list',
+        list: [{size: FILES.alonzo.size, sha256: FILES.alonzo.hash, filename: FILES.alonzo.name},
+               {size: FILES.vpai001.size, sha256: FILES.vpai001.hash, filename: FILES.vpai001.name}]
+      }
+      request(app)
+        .post(`/boxes/${boxUUID}/tweets`)
+        .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
+        .field('list', JSON.stringify(obj))
+        .attach('vpai001', 'testdata/vpai001.jpg')
+        .expect(404)
+        .end(done)
     })
 
     it('POST /boxes/{uuid}/tweets should cover the last record if it is incorrect', done => {
@@ -406,7 +451,7 @@ describe(path.basename(__filename), () => {
     it('GET /boxes/{uuid}/tweets should repair tweets DB if the last record is incorrect', done => {
       forgeRecords(boxUUID, 'alice')
         .then(() => {
-          let filepath = path.join(tmptest, 'boxes', boxUUID, 'records')
+          let filepath = path.join(tmptest, 'boxes', boxUUID, 'recordsDB')
           let size = fs.readFileSync(filepath).length
           let text = '{"comment":"hello","ctime":1500343057045,"index":10,"tweeter":"ocMvos6NjeKLIBqg5Mr9QjxrP1FA"'
           
