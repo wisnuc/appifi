@@ -51,7 +51,7 @@ class Transfer {
     let hashMaker = new HashTransform()
     rs.pipe(hashMaker).pipe(ws)
 
-    hashMaker.on('end', () => {
+    ws.on('finish', () => {
       console.log('end')
       if (hashMaker.hashArr.length === 1) return callback(null, hashMaker.hashArr[0].toString('hex'))
       else {
@@ -73,34 +73,15 @@ class Transfer {
 
 // method_2: rs -> ws     (when 1G is written, calculate hash)
 class Transfer_1 {
-  constructor() {
-    this.hashArr = []
-  }
+  constructor() {}
 
   storeFile(src, dst, callback) {
     let rs = fs.createReadStream(src)
     let ws = fs.createWriteStream(dst)
-    let size = 0, finished = false
-    rs.pipe(ws)
+    let size = 0
+    let hashArr = []
+
     let hashMaker = crypto.createHash('sha256')
-
-    let error = (err) => {
-      if (finished) return
-      finished = true
-      return callback(err)
-    }
-
-    let finish = (fingerprint) => {
-      if (finished) return
-      finished = true
-      return callback(null, fingerprint)
-    }
-
-    let abort = () => {
-      if (finished) return
-      finished = true
-      return callback(new Error('ABORT'))
-    }
 
     rs.on('data', data => {
       let chunk = Buffer.from(data)
@@ -111,32 +92,34 @@ class Transfer_1 {
         // write data to full, update hash
         let len = SIZE_1G - size
         hashMaker.update(chunk.slice(0, len))
-        this.hashArr.push(hashMaker.digest())
+        hashArr.push(hashMaker.digest())
 
         // write the rest of data
         size = chunk.slice(len).length
         hashMaker = crypto.createHash('sha256')
         hashMaker.update(chunk.slice(len))
 
+        ws.write(chunk)
         rs.resume()
       } else {
         size += chunk.length
         hashMaker.update(chunk)
+        ws.write(chunk)
       }
     })
 
     rs.on('end', () => {
       console.log('end')
-      let digest = hashMaker.digest()
-      this.hashArr.push(digest)
-      if (this.hashArr.length === 1) finish(digest.toString('hex'))
+      ws.end()
+      hashArr.push(hashMaker.digest())
+      if (hashArr.length === 1) return callback(null, hashArr[0].toString('hex'))
       else {
         hashMaker = crypto.createHash('sha256')
-        hashMaker.update(this.hashArr[0])
-        for(let i = 1; i < this.hashArr.length; i++) {
-          hashMaker.update(this.hashArr[i])
-          digest = hashMaker.digest()
-          if (i === this.hashArr.length - 1) finish(digest.toString('hex'))
+        hashMaker.update(hashArr[0])
+        for(let i = 1; i < hashArr.length; i++) {
+          hashMaker.update(hashArr[i])
+          let digest = hashMaker.digest()
+          if (i === hashArr.length - 1) return callback(null, digest.toString('hex'))
           else {
             hashMaker = crypto.createHash('sha256')
             hashMaker.update(digest)
@@ -145,38 +128,76 @@ class Transfer_1 {
       }     
     })
 
-    rs.on('error', err => error(err))
+    rs.on('error', err =>{
+      rs.removeAllListeners()
+      ws.removeAllListeners()
+      rs.on('error', () => {})
+      ws.on('error', () => {})
+      rs.destroy()
+      ws.destroy()
+    })
+
+    ws.on('error', err =>{
+      rs.removeAllListeners()
+      ws.removeAllListeners()
+      rs.on('error', () => {})
+      ws.on('error', () => {})
+      rs.destroy()
+      ws.destroy()
+    })
   }
 }
 
-// method_3: rs -> ws     (write to destination)
-//           rs -> T      (calculate hash)
+// method_3: rs -> ws           (write to destination, pipe)
+//           rs -> on data      (calculate hash)
 class Transfer_2 {
   constructor() {}
 
   storeFile(src, dst, callback) {
     let rs = fs.createReadStream(src)
     let ws = fs.createWriteStream(dst)
-    let hashMaker = new HashTransform()
+    let size = 0, total = 0, hashArr = []
+    let hashMaker = crypto.createHash('sha256')
 
     rs.pipe(ws)
-    rs.pipe(hashMaker)
 
-    hashMaker.on('end', () => {
+    rs.on('data', data => {
+      let chunk = Buffer.from(data)
+      
+      if (size + chunk.length > SIZE_1G) {
+        let len = SIZE_1G - size
+        hashMaker.update(chunk.slice(0, len))
+        hashArr.push(hashMaker.digest())
+
+        size = chunk.slice(len).length
+        hashMaker = crypto.createHash('sha256')
+        hashMaker.update(chunk.slice(len))
+
+        total += chunk.length
+      } else {
+        size += chunk.length
+        total += chunk.length
+        hashMaker.update(chunk)
+      }
+    })
+    
+    rs.on('end', () => {
       console.log('end')
       console.log('ws bytes：',ws.bytesWritten)
-      console.log('hashMaker bytes: ', hashMaker.total)
-      if (ws.bytesWritten !== hashMaker.total)
+      console.log('total bytes: ', total)
+
+      hashArr.push(hashMaker.digest())
+      if (ws.bytesWritten !== total)
         return callback(new Error('size mismatch'))
       else {
-        if (hashMaker.hashArr.length === 1) return callback(null, hashMaker.hashArr[0].toString('hex'))
+        if (hashArr.length === 1) return callback(null, hashArr[0].toString('hex'))
         else {
           let hash = crypto.createHash('sha256')
-          hash.update(hashMaker.hashArr[0])
-          for(let i = 1; i < hashMaker.hashArr.length; i++) {
-            hash.update(hashMaker.hashArr[i])
+          hash.update(hashArr[0])
+          for(let i = 1; i < hashArr.length; i++) {
+            hash.update(hashArr[i])
             let digest = hash.digest()
-            if (i === hashMaker.hashArr.length - 1) return callback(null, digest.toString('hex'))
+            if (i === hashArr.length - 1) return callback(null, digest.toString('hex'))
             else {
               hash = crypto.createHash('sha256')
               hash.update(digest)
@@ -185,17 +206,17 @@ class Transfer_2 {
         }
       }
     })
-
-
   }
 }
 
+// let fpath = '/home/laraine/Projects/appifi/test-files/zero'
+// let dst = '/home/laraine/Projects/appifi/tmptest/zero'
 
 // let fpath = '/home/laraine/Projects/appifi/testdata/vpai001.jpg'
 // let dst = '/home/laraine/Projects/appifi/tmptest/vpai001.jpg'
 
-// let fpath = '/home/laraine/Projects/appifi/test-files/two-giga'
-// let dst = '/home/laraine/Projects/appifi/tmptest/two-giga'
+let fpath = '/home/laraine/Projects/appifi/test-files/two-giga'
+let dst = '/home/laraine/Projects/appifi/tmptest/two-giga'
 
 // let fpath = '/home/laraine/Projects/appifi/test-files/two-and-a-half-giga'
 // let dst = '/home/laraine/Projects/appifi/tmptest/two-and-a-half-giga'
@@ -203,8 +224,8 @@ class Transfer_2 {
 // let fpath = '/home/laraine/Projects/appifi/test-files/two-giga-minus-1'
 // let dst = '/home/laraine/Projects/appifi/tmptest/two-giga-minus-1'
 
-let fpath = '/home/laraine/Projects/appifi/test-files/two-giga-plus-x'
-let dst = '/home/laraine/Projects/appifi/tmptest/two-giga-plus-x'
+// let fpath = '/home/laraine/Projects/appifi/test-files/two-giga-plus-x'
+// let dst = '/home/laraine/Projects/appifi/tmptest/two-giga-plus-x'
 
 let worker = new Transfer_2()
 worker.storeFile(fpath, dst, (err, fingerprint) => {
