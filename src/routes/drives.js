@@ -144,7 +144,7 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
   /**
   parts (new) -> [ parser | parsers_ ) -> execute
         (new) -> | -> ( _pipes  |  pipes  | drains  |  drains_ ) -> | -> execute
-                 | -> ( _dryrun | dryrun  | dryrun_ ) -> |
+                 | -> ( _dryrun | dryrun  | dryrun_ )            -> |
   **/
 
   // enter: x { number, part }

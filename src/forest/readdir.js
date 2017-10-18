@@ -202,8 +202,6 @@ class Working {
 
     debug(`${this.dir.name} working finished`)
 
-try {
-
     // processing error or result
     if (err) {
 
@@ -239,10 +237,6 @@ try {
       if (handler instanceof Monitor) 
         handler.end(this.dir.uuid, this.dir.name)
     })
-
-} catch (e) {
-  console.log(e)
-}
 
     debug(`${this.dir.name} working next`, this.pending, transient)
 

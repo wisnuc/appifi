@@ -45,6 +45,11 @@ class Directory extends Node {
     /** mtime **/
     this.mtime = -xstat.mtime
 
+    this.fileCount = 0
+    this.dirCount = 0
+
+    this.level = -1
+
     // index
     this.ctx.indexDirectory(this)
 
@@ -67,7 +72,7 @@ class Directory extends Node {
 
   /**
   Update children according to xstats returned from `read`.
-  This is a internal function and is only called in `readdir`.
+  This is an internal function and is only called in `readdir`.
   @param {xstat[]} xstats
   @param {Monitor[]} monitors
   */
@@ -168,10 +173,6 @@ class Directory extends Node {
       })
     }) 
   }
-
-  rimraf() {
-    
-  } 
 
   nameWalk(names) {
     if (names.length === 0) return this
