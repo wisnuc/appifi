@@ -86,3 +86,9 @@ const createTestFiles = callback =>
 
 module.exports = { createTestFiles, createTestFilesAsync }
 
+if (process.argv.find(arg => arg.endsWith('src/utils/createTestFiles.js'))) {
+  createTestFilesAsync().then(() => console.log('test-files generated'), e => console.log(e))
+}
+
+
+

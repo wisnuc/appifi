@@ -93,7 +93,6 @@ class Forest extends EventEmitter {
     }
 
     // TODO validate
-
     deepFreeze(this.drives)
     this.lock = false
 
@@ -215,15 +214,23 @@ class Forest extends EventEmitter {
   /**
   index a file by file hash
   */
-  index (file) {
-    if (this.hashMap.has(file.hash)) { this.hashMap.get(file.hash).add(file) } else { this.hashMap.set(file.hash, new Set([file])) }
+  indexFile (file) {
+    if (this.hashMap.has(file.hash)) { 
+      this.hashMap.get(file.hash).add(file) 
+    } else { 
+      this.hashMap.set(file.hash, new Set([file])) 
+    }
   }
 
   /**
   unindex a file by file hash
   */
-  unindex (file) {
+  unindexFile (file) {
     this.hashMap.get(file.hash).delete(file)
+  }
+
+  scheduleFingerprintWorker () {
+    
   }
 
   /**

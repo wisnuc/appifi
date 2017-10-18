@@ -103,10 +103,11 @@ class Directory extends Node {
 
     // new 
     map.forEach(val => {
-      if (val.type === 'file')
+      if (val.type === 'file') {
         new File(this.ctx, this, val)
-      else 
+      } else {
         new Directory(this.ctx, this, val, monitors)
+      }
     })
   }
 

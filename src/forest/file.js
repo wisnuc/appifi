@@ -1,4 +1,4 @@
-const debug = require('debug')('file')
+const debug = require('debug')('fruitmix:file')
 
 const Node = require('./node')
 const createMetaWorker = require('../lib/metadata')
@@ -34,9 +34,13 @@ In our good old C pattern, only `hashed` and `hashless` are used as explicit sta
 class File extends Node {
 
   constructor (ctx, parent, xstat) {
-    if (typeof xstat.magic !== 'string') { throw new Error('file must have magic string') }
+    if (typeof xstat.magic !== 'string') { 
+      throw new Error('file must have magic string') 
+    }
 
-    if (xstat.hash !== undefined && typeof xstat.hash !== 'string') { throw new Error('xstat hash must be string or undefined') }
+    if (xstat.hash !== undefined && typeof xstat.hash !== 'string') { 
+      throw new Error('xstat hash must be string or undefined') 
+    }
 
     super(ctx, parent, xstat)
 
@@ -86,21 +90,20 @@ class File extends Node {
   Index this file if it has hash
   */
   index () {
-    if (this.hash) this.ctx.index(this)
+    if (this.hash) this.ctx.indexFile(this)
   }
 
   /**
   Unindex this file before hash dropped, changed, or file object destroyed
   */
   unindex () {
-    if (this.hash) this.ctx.unindex(this)
+    if (this.hash) this.ctx.unindexFile(this)
   }
 
   /**
   Start hash worker
   */
   startWorker () {
-
     if (this.worker) return
     if (!this.hash) {
       debug('start fingerprint worker')
@@ -112,6 +115,7 @@ class File extends Node {
         if (err.code === 'ENOTDIR' || err.code === 'ENOENT') {
           this.dir.fileMissing(err.code)
         } else if (err.code === 'EABORT') {
+          // ????
         } else {
           this.startWorker() // retry
         }
@@ -124,15 +128,13 @@ class File extends Node {
         this.update(xstat)
       })
       this.worker.start()
-//    } else if (!Media.has(this.hash)) {
-      } else if (!this.ctx.ctx.mediaMap.has(this.hash)) {
-
-      debug('start meta worker') 
+    } else if (!this.ctx.ctx.mediaMap.has(this.hash)) {
+      debug('start meta worker')
       this.worker = createMetaWorker(this.abspath(), this.hash, this.uuid)
       this.worker.on('error', err => {
         debug('meta worker error', err)
       })
-    
+
       this.worker.on('finish', metadata => {
         debug('meta worker finish', metadata)
 
@@ -165,8 +167,10 @@ class File extends Node {
 
     // suicide
     if (typeof xstat.magic !== 'string') {
+      // FIXME is this a valid code path in design?
       debug('file node suicide')
       this.destroy()
+      return
     }
 
     if (this.name === xstat.name && this.hash === xstat.hash) return
@@ -184,6 +188,11 @@ class File extends Node {
     this.startWorker()
   }
 
+  startFingerprintWorker () {
+  }
+
+  stopFingerprintWorker () {
+  }
 }
 
 module.exports = File
