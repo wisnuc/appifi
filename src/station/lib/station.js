@@ -277,6 +277,12 @@ class Station {
       name: name
     }
     await this.saveToDiskAsync(current, nextStation)
+    try{
+      await this.updateCloudInfoAsync()
+    }catch(e){
+      debug('update cloud info error: ', e)
+      // update cloud if error  do nothing
+    }
     return this.info()
   }
 
