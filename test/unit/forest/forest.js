@@ -9,8 +9,9 @@ chai.use(chaiAsPromised)
 const expect = chai.expect
 const should = chai.should()
 
-const metamap = require('src/lib/metamap')
-const Forest = require('src/forest/forest')
+// const metamap = require('src/lib/metamap')
+// const Forest = require('src/forest/forest')
+const Fruitmix = require('src/fruitmix')
 const Monitor = require('src/forest/monitor')
 
 const { readXstatAsync, forceDriveXstatAsync } = require('src/lib/xstat')
@@ -41,17 +42,16 @@ describe(path.basename(__filename), () => {
     })
 
     after(() => {
-      Forest.deinit()
+      // Forest.deinit()
     })
 
-    it('read', async () => {
+    it('read, 91e11c6e', async () => {
       let monitor = new Monitor()
-      await Forest.createDriveAsync(drive1, [monitor])
+      await Fruitmix.driveList.createDriveAsync(drive1, [monitor])
       await monitor.done
       r = Forest.getDriveDirs(drive1.uuid)
       console.log(r)
     })
-
     
   })
 

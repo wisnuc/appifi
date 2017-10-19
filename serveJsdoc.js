@@ -34,4 +34,6 @@ http.createServer(function(request, response) {
   })
 }).listen(8889)
 
+console.log('listenning on port 8889')
+
 

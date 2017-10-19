@@ -183,8 +183,8 @@ class Transfer_2 {
     
     rs.on('end', () => {
       console.log('end')
-      console.log('ws bytes：',ws.bytesWritten)
-      console.log('total bytes: ', total)
+      // console.log('ws bytes：',ws.bytesWritten)
+      // console.log('total bytes: ', total)
 
       hashArr.push(hashMaker.digest())
       if (ws.bytesWritten !== total)
@@ -227,9 +227,11 @@ let dst = '/home/laraine/Projects/appifi/tmptest/two-giga'
 // let fpath = '/home/laraine/Projects/appifi/test-files/two-giga-plus-x'
 // let dst = '/home/laraine/Projects/appifi/tmptest/two-giga-plus-x'
 
-let worker = new Transfer_2()
+let worker = new Transfer_1()
+console.time('time')
 worker.storeFile(fpath, dst, (err, fingerprint) => {
   if (err) console.log(err)
   console.log('fingerprint', fingerprint)
+  console.timeEnd('time')
 })
 
