@@ -1,7 +1,8 @@
 const debug = require('debug')('fruitmix:file')
 
 const Node = require('./node')
-const createMetaWorker = require('../lib/metadata')
+const xtractMetadata = require('../lib/metadata')
+const xfingerprint = require('../lib/xfingerprint')
 const hash = require('../lib/hash')
 
 /**
@@ -64,135 +65,178 @@ class File extends Node {
     hash worker
     @type {(null|HashWorker)}
     */
-    this.worker = null
+    this.finger = null
+    this.meta = null
 
     /**
     failed time of hash worker.
     Abort are not counted. When hash lost, this count is reset to 0
     @type {number}
     */
-    this.hashFail = 0
+    this.fingerFail = 0
+    this.metaFail = 0
 
-    this.index()
-    this.startWorker()
+    if (this.hash) {
+      this.ctx.indexFile(this)
+    } else {
+      this.ctx.fingerIdle.push(this)
+    }
   }
 
   /**
   Destroys this file node
   */
   destroy () {
-    this.stopWorker()
-    this.unindex(this)
+    this.stopAllWorkers()
+    if (this.hash) this.ctx.unindexFile(this)
     super.destroy()
   }
 
   /**
-  Index this file if it has hash
-  */
-  index () {
-    if (this.hash) this.ctx.indexFile(this)
-  }
+  Update this object with xstat. This function should only be called by directory when updating.
 
-  /**
-  Unindex this file before hash dropped, changed, or file object destroyed
-  */
-  unindex () {
-    if (this.hash) this.ctx.unindexFile(this)
-  }
-
-  /**
-  Start hash worker
-  */
-  startWorker () {
-    if (this.worker) return
-    if (!this.hash) {
-      debug('start fingerprint worker')
-      this.worker = hash(this.abspath(), this.uuid)
-      this.worker.on('error', err => {
-        debug('fingerprint worker error', err)
-
-        this.worker = null
-        if (err.code === 'ENOTDIR' || err.code === 'ENOENT') {
-          this.dir.fileMissing(err.code)
-        } else if (err.code === 'EABORT') {
-          // ????
-        } else {
-          this.startWorker() // retry
-        }
-      })
-
-      this.worker.on('finish', xstat => {
-        debug('fingerprint worker finish', xstat)
-
-        this.worker = null
-        this.update(xstat)
-      })
-      this.worker.start()
-    } else if (!this.ctx.ctx.mediaMap.has(this.hash)) {
-      debug('start meta worker')
-      this.worker = createMetaWorker(this.abspath(), this.hash, this.uuid)
-      this.worker.on('error', err => {
-        debug('meta worker error', err)
-      })
-
-      this.worker.on('finish', metadata => {
-        debug('meta worker finish', metadata)
-
-        this.worker = null
-        // Media.set(this.hash, metadata)
-        this.ctx.ctx.mediaMap.set(this.hash, metadata)
-      })
-
-      this.worker.start()
-    }
-  }
-
-  /**
-  Stop hash worker
-  */
-  stopWorker () {
-    if (this.worker) {
-      this.worker.abort()
-      this.worker = null
-    }
-  }
-
-  /**
-  Update this object with xstat.
-
+  For anything changed, all workers are stopped. 
+  This function does NOT schedule. The caller takes the responsibility for scheduling
   Only name and hash can be changed.
   */
+
   update (xstat) {
-    if (xstat.uuid !== this.uuid) throw new Error('xstat.uuid mismatch')
-
-    // suicide
-    if (typeof xstat.magic !== 'string') {
-      // FIXME is this a valid code path in design?
-      debug('file node suicide')
-      this.destroy()
-      return
-    }
-
+    // TODO
+    if (xstat.uuid !== this.uuid) throw new Error('uuid mismatch')
     if (this.name === xstat.name && this.hash === xstat.hash) return
+    
+    this.stopFingerWorker()
+    this.stopMetaWorker()
 
-    this.stopWorker()
-
-    if (this.name !== xstat.name) this.name = xstat.name
-
-    if (this.hash !== xstat.hash) {
-      this.unindex()
-      this.hash = xstat.hash
-      this.index()
+    if (this.name !== xstat.name) {
+      this.name = xstat.name
     }
 
-    this.startWorker()
+    if (!this.hash && xstat.hash) {         
+      // fingerprint found
+      this.spliceFingerIdle()
+      this.hash = xstat.hash
+      this.ctx.indexFile(this)
+    } else if (this.hash && !xstat.hash) {  
+      // fingerprint lost
+      this.ctx.unindex(this)
+      this.hash = xstat.hash // acturally undefined
+      this.ctx.fingerIdle.push(this)
+    } else if (this.hash && xstat.hash && this.hash !== xstat.hash) { 
+      // fingerprint changed
+      this.ctx.unindex(this)
+      this.hash = xstat.hash
+      this.ctx.indexFile(this)
+    }
   }
 
-  startFingerprintWorker () {
+  spliceFingerIdle () {
+    let index = this.ctx.fingerIdle.indexOf(this)
+    if (index === -1) {
+    } else {
+      this.ctx.fingerIdle.splice(index, 1)
+    }
   }
 
-  stopFingerprintWorker () {
+  spliceFingerRunning () {
+    let index = this.ctx.fingerRunning.indexOf(this)
+    if (index === -1) {
+    } else {
+      this.ctx.fingerRunning.splice(index, 1)
+    }
   }
+
+  spliceMetaRunning () {
+    let index = this.ctx.metaRunning.indexOf(this)
+    if (index === -1) {
+    } else {
+      this.ctx.metaRunning.splice(index, 1)
+    }
+  }
+
+  startFingerWorker () {
+
+    if (this.finger) return
+    this.spliceFingerIdle()
+    this.finger = xfingerprint(this.abspath(), this.uuid, (err, xstat) => {
+
+      console.log('xfingerprint return', err, xstat)
+
+      this.spliceFingerRunning() 
+      this.finger = null
+      if (err) {  
+        // back to idle
+        this.fingerFail++ 
+        if (this.fingerFail > 7) {
+          // give up if too many failures
+          console.log(`failed too many times for calculating fingerprint for ${this.abspath()}`)
+        } else {
+          this.ctx.fingerIdle.push(this)
+        }
+      } else { 
+        // TODO assert state? 
+        // go to fingerprint state
+        this.fingerFail = 0
+        this.name = xstat.name
+        this.hash = xstat.hash
+
+        this.ctx.indexFile(this)
+
+        this.ctx.scheduleFinger()
+        this.ctx.scheduleMeta()
+      }
+    })
+    this.ctx.fingerRunning.push(this)
+  }
+
+  stopFingerWorker () {
+
+    console.log('start finger worker', this.abspath())
+
+    if (this.finger) {
+      this.spliceFingerRunning()
+      this.finger.destroy()
+      this.finger = null
+      this.ctx.fingerIdle.push(this)
+    }
+  }
+
+  startMetaWorker () {
+
+    console.log('start meta worker', this.abspath())
+
+    if (this.meta) return
+    this.meta = xtractMetadata(this.abspath(), this.magic, this.hash, this.uuid, (err, metadata) => {
+
+      console.log('xtractMetadata returns', err, metadata)
+
+      this.spliceMetaRunning()
+      this.meta = null
+      if (err) {
+        this.metaFail++
+      } else {
+        this.ctx.reportMetadata(metadata)
+      }
+    })
+    this.ctx.metaRunning.push(this)
+  }
+
+  stopMetaWorker () {
+    if (this.meta) {
+      this.spliceMetaRunning()
+      this.meta.destroy()
+      this.meta = null
+    }
+  }
+
+  /**
+  Stop all workers
+  */
+  stopAllWorkers () {
+    this.stopFingerWorker()
+    this.stopMetaWorker()
+  }
+
 }
 
 module.exports = File

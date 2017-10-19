@@ -58,7 +58,7 @@ ws.on('end', () => {
 `
 const EMPTY_SHA256_HEX = crypto.createHash('sha256').digest('hex')
 
-// explicit state: S => 0 
+// explicit state: S => 0, emit error XOR data 
 class Fingerprint extends EventEmitter {
 
   constructor (fpath) {
@@ -72,45 +72,40 @@ class Fingerprint extends EventEmitter {
           fs.close(fd, () => {})
         }
       } else if (err) {
-        this.emit('finish', err)
+        this.emit('error', err)
       } else {
         fs.fstat(fd, (err, stat) => {
           if (this.destroyed) {
             // close anyway
             fs.close(fd, () => {})
           } else if (err) {
-            this.emit('finish', err)
+            this.emit('data', err)
           } else if (stat.size === 0) {
             fs.close(fd, () => {})
-            this.fingerprint = EMPTY_SHA256_HEX
-            this.emit('finish', null, this.fingerprint)
+            this.emit('data', EMPTY_SHA256_HEX)
           } else if (stat.size <= 16 * 1024 * 1024) {
             let hash = crypto.createHash('sha256')
             this.rs = fs.createReadStream(null, { fd })
             this.rs.on('error', err => {
               this.destroy()
-              this.emit('finish', err)
+              this.emit('error', err)
             })
             this.rs.on('data', data => hash.update(data))
-            this.rs.on('end', () => {
-              this.fingerprint = hash.digest('hex')
-              this.emit('finish', null, this.fingerprint)
-            })
+            this.rs.on('end', () => this.emit('data', hash.digest('hex')))
           } else {
             const opts = { stdio: ['ignore', 'inherit', 'ignore', 'ipc', fd] }
             this.child = spawn('node', ['-e', script], opts)
             this.child.on('error', err => {
               this.destroy()
-              this.emit('finish', err)
+              this.emit('error', err)
             })
             this.child.on('message', message => {
               this.destroy()
-              this.fingerprint = message
-              this.emit('finish', null, this.fingerprint)
+              this.emit('data', message)
             })
             this.child.on('exit', (code, signal) => {
               this.destroy()
-              this.emit('finish', new Error(`unexpected exit with code ${code}, signal ${signal}`))
+              this.emit('error', new Error(`unexpected exit with code ${code}, signal ${signal}`))
             })
           }
         })

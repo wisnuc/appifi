@@ -54,13 +54,13 @@ In either case, a `read` on the `Directory` object is enough.
 */
 class Forest extends EventEmitter {
 
-  constructor (ctx, froot) {
+  constructor (froot, mediaMap) {
     super()
 
     /**
     fruitmix
     */
-    this.ctx = ctx
+    this.mediaMap = mediaMap
 
     /**
     Absolute path of Fruitmix drive directory 
@@ -81,6 +81,21 @@ class Forest extends EventEmitter {
     Indexing all media files by file hash
     */
     this.hashMap = new Map()
+
+    /**
+    Array of File object without fingerprint, idle
+    */
+    this.fingerIdle = []
+
+    /**
+    Array of File object without fingerprint, running
+    */
+    this.fingerRunning = []
+
+    /**
+    Array of File object extracting metadata
+    */
+    this.metaRunning = []
 
     this.filePath = path.join(froot, 'drives.json')
     this.tmpDir = path.join(froot, 'tmp')
@@ -215,6 +230,7 @@ class Forest extends EventEmitter {
   index a file by file hash
   */
   indexFile (file) {
+    // FIXME check
     if (this.hashMap.has(file.hash)) { 
       this.hashMap.get(file.hash).add(file) 
     } else { 
@@ -226,11 +242,56 @@ class Forest extends EventEmitter {
   unindex a file by file hash
   */
   unindexFile (file) {
-    this.hashMap.get(file.hash).delete(file)
+    // FIXME check
+    let set = this.hashMap.get(file.hash)
+    set.delete(file)
+    if (set.size === 0) {
+      this.hashMap.delete(file.hash)
+    }
   }
 
-  scheduleFingerprintWorker () {
-    
+  /**
+  */
+  scheduleFinger () {
+
+    console.log('scheduleFinger before', this.fingerIdle.map(f => f.name), this.fingerRunning.map(f => f.name))
+
+    while (this.fingerRunning.length < 2 && this.fingerIdle.length) {
+      let index = Math.floor(Math.random() * this.fingerIdle.length)    
+      this.fingerIdle[index].startFingerWorker()
+    }    
+
+    console.log('scheduleFinger after', this.fingerIdle.map(f => f.name), this.fingerRunning.map(f => f.name))
+  }
+
+  /**
+  slow FIXME
+  */
+  scheduleMeta () {
+
+    console.log('scheduleMeta')
+
+    for (let kv of this.hashMap) {
+      // if maximum concurrency reached
+      if (this.metaRunning.length >= 8) return
+      // skip metadata available
+      if (this.mediaMap.has(kv[0])) continue
+      // skip already running 
+      if (this.metaRunning.find(file => file.hash === kv[0])) continue
+
+      let arr = Array.from(kv[1]).filter(file => file.metaFail < 10)
+      if (arr.length === 0) continue
+
+      let index = Math.floor(Math.random() * arr.length)
+      arr[index].startMetaWorker()
+    } 
+  }
+
+  reportMetadata (metadata) {
+    console.log('reporting metadata', metadata.hash)
+    if (!this.mediaMap.has(metadata.hash)) {
+      this.mediaMap.set(metadata.hash, metadata)
+    }
   }
 
   /**

@@ -29,9 +29,8 @@ describe(path.basename(__filename), () => {
     this.timeout(0)
 
     let fp = new Fingerprint(FILES[name].path)
-    fp.on('finish', err => {
-      if (err) return done(err)
-      expect(fp.fingerprint).to.equal(FILES[name].hash)
+    fp.on('data', fingerprint => {
+      expect(fingerprint).to.equal(FILES[name].hash)
       done()
     })
 

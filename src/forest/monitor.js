@@ -1,5 +1,5 @@
 const EventEmitter = require('events')
-const debug = require('debug')('monitor')
+const debug = require('debug')('fruitmix:monitor')
 
 /**
 Monitor is used to track `read` operation on `Directory` objects.

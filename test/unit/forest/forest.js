@@ -1,6 +1,7 @@
 const Promise = require('bluebird')
 const path = require('path')
-const fs = Promise.promisifyAll(require('fs-extra'))
+//const fs = Promise.promisifyAll(require('fs-extra'))
+const fs = Promise.promisifyAll(require('fs'))
 const rimrafAsync = Promise.promisify(require('rimraf'))
 const mkdirpAsync = Promise.promisify(require('mkdirp'))
 const chai = require('chai')
@@ -9,17 +10,15 @@ chai.use(chaiAsPromised)
 const expect = chai.expect
 const should = chai.should()
 
-// const metamap = require('src/lib/metamap')
-// const Forest = require('src/forest/forest')
-const Fruitmix = require('src/fruitmix')
+const DriveList = require('src/forest/forest')
 const Monitor = require('src/forest/monitor')
 
 const { readXstatAsync, forceDriveXstatAsync } = require('src/lib/xstat')
 
 const cwd = process.cwd()
-const rootPath = path.join(cwd, 'tmptest')
-const tmpDir = path.join(rootPath, 'tmp')
-const drivesDir = path.join(rootPath, 'drives')
+const tmptest = path.join(cwd, 'tmptest')
+const tmpDir = path.join(tmptest, 'tmp')
+const drivesDir = path.join(tmptest, 'drives')
 
 const drive1 = {
   uuid: 'c4713fb1-ffee-4015-88f1-dcd6ca928e2b',
@@ -30,54 +29,67 @@ describe(path.basename(__filename), () => {
 
   describe('create drive 1 with /hello/world/foo/bar (all directories)', () => {
 
-    let mtime
+//    let mtime
 
     before(async () => {
-      await rimrafAsync(rootPath)
+      await rimrafAsync(tmptest)
       await mkdirpAsync(tmpDir)
       await mkdirpAsync(drivesDir)
       await mkdirpAsync(path.join(drivesDir, drive1.uuid, 'hello', 'world', 'foo', 'bar'))
-      mtime = (await fs.lstatAsync(path.join(drivesDir, drive1.uuid))).mtime.getTime()
-      await Forest.init(drivesDir, tmpDir)
+//      mtime = (await fs.lstatAsync(path.join(drivesDir, drive1.uuid))).mtime.getTime()
     })
 
-    after(() => {
-      // Forest.deinit()
-    })
-
-    it('read, 91e11c6e', async () => {
+    it('simple read, 91e11c6e', async () => {
+      // use fruitmix:monitor to print monitor information
       let monitor = new Monitor()
-      await Fruitmix.driveList.createDriveAsync(drive1, [monitor])
+      let mediaMap = new Map()
+      let driveList = new DriveList('tmptest', mediaMap)
+      driveList.createDriveAsync(drive1, [monitor])
       await monitor.done
-      r = Forest.getDriveDirs(drive1.uuid)
-      console.log(r)
+
+      let obj = Array.from(driveList.uuidMap)
+        .reduce((o, kv) => {
+          let dir = kv[1]
+          o[dir.name] = dir.parent ? dir.parent.name : null
+          return o
+        }, {})
+
+      expect(obj).to.deep.equal({ 
+        'c4713fb1-ffee-4015-88f1-dcd6ca928e2b': null,
+        hello: 'c4713fb1-ffee-4015-88f1-dcd6ca928e2b',
+        world: 'hello',
+        foo: 'world',
+        bar: 'foo' 
+      })
     })
     
   })
 
-  describe('single JPEG file vpai001.jpg', () => {
+  describe('single JPEG file vpai001.jpg, e640de0e', () => {
   
     beforeEach(async () => {
-      await rimrafAsync(rootPath)
+      await rimrafAsync(tmptest)
       await mkdirpAsync(tmpDir)
-
       await mkdirpAsync(path.join(drivesDir, drive1.uuid))
-      await fs.copy(path.join(cwd, 'testdata', 'vpai001.jpg'), path.join(drivesDir, drive1.uuid, 'vpai001.jpg'))
-      await Forest.init(drivesDir, tmpDir)
-    })
 
-    afterEach(async () => {
-      Forest.deinit()
+      let src = path.join(cwd, 'testdata', 'vpai001.jpg')
+      let dst = path.join(drivesDir, drive1.uuid, 'vpai001.jpg')
+
+      await fs.copyFileAsync(src, dst)
+
     })
 
     it('read', async () => {
       let monitor = new Monitor()
-      await Forest.createDriveAsync(drive1, [monitor])
+      let mediaMap = new Map()
+      let driveList = new DriveList(tmptest, mediaMap)
+      driveList.createDriveAsync(drive1, [monitor])
       await monitor.done
 
       await Promise.delay(500)
-      console.log(Forest)
-      console.log(metamap)
+      console.log(mediaMap)
+      // console.log(Forest)
+      // console.log(metamap)
       return
     })
   })

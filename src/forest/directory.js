@@ -78,6 +78,8 @@ class Directory extends Node {
   */
   merge(xstats, monitors) { 
 
+    console.log('merge', xstats)
+
     // remove non-interested files
     xstats = xstats.filter(x => x.type === 'directory' 
       || (x.type === 'file' && typeof x.magic === 'string'))
@@ -109,6 +111,9 @@ class Directory extends Node {
         new Directory(this.ctx, this, val, monitors)
       }
     })
+
+    this.ctx.scheduleFinger()
+    this.ctx.scheduleMeta()
   }
 
   /**

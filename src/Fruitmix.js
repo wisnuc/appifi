@@ -69,7 +69,7 @@ class Fruitmix extends EventEmitter {
     this.mediaMap = this.loadMediaMap(path.join(froot, 'metadataDB.json'))
     this.thumbnail = new Thumbnail(thumbDir, tmpDir)
     this.userList = new UserList(froot)
-    this.driveList = new DriveList(this, froot)
+    this.driveList = new DriveList(froot, this.mediaMap)
     this.boxData = new BoxData(froot)
     this.tasks = []
     this.storeTimer = setInterval(() => {

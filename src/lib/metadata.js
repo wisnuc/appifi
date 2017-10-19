@@ -1,3 +1,14 @@
-const identify = require('./identify')
+const identify = require('./identify2')
 
-module.exports = (fpath, hash, uuid) => identify(fpath, hash, uuid)
+const extractMetadata = (filePath, magic, hash, uuid, callback) => {
+
+  console.log('extractMetadata', filePath, magic, hash, uuid)
+
+  if (magic === 'JPEG') {
+    identify(filePath, hash, uuid, callback)
+  } else {
+    process.nextTick(() => callback('unsupported magic type'))
+  }
+}
+
+module.exports = extractMetadata
