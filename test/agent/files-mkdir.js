@@ -20,6 +20,7 @@ const { saveObjectAsync } = require('src/lib/utils')
 const broadcast = require('src/common/broadcast')
 const createBigFile = require('src/utils/createBigFile')
 
+const Directory = require('src/forest/directory')
 const getFruit = require('src/fruitmix')
 
 const {
@@ -88,6 +89,36 @@ describe(path.basename(__filename), () => {
         })
       })
   })
+
+  // this test is the same with above so no duplicate assert
+  it("200 if hello does not exist, e227dac4", done => {
+    request(app)
+      .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
+      .set('Authorization', 'JWT ' + token)
+      .field('hello', JSON.stringify({ op: 'mkdir' }))
+      .expect(200)
+      .end((err, res) => {
+        if (err) return done(err)
+        debug(res.body)
+
+        let subdirs = getFruit()
+          .driveList
+          .roots
+          .get(IDS.alice.home)
+          .children
+          .filter(x => x instanceof Directory)
+          .map(x => ({
+            uuid: x.uuid,
+            name: x.name,
+            mtime: x.mtime
+          }))
+
+        expect(subdirs[0].uuid).to.equal(res.body[0].data.uuid)
+        expect(subdirs[0].name).to.equal(res.body[0].data.name)
+        done()
+      })
+  })
+
 
   it("200 if hello is a directory, batch, 3bf0913e", done => {
     request(app)

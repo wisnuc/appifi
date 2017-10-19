@@ -54,7 +54,7 @@ In either case, a `read` on the `Directory` object is enough.
 */
 class Forest extends EventEmitter {
 
-  constructor(ctx, froot) {
+  constructor (ctx, froot) {
     super()
 
     /**
@@ -100,29 +100,26 @@ class Forest extends EventEmitter {
     this.drives.forEach(drive => this.createDriveAsync(drive).then(x => x))
   }
 
-  async commitDrivesAsync(currDrives, nextDrives) {
-  
+  async commitDrivesAsync (currDrives, nextDrives) {
     if (currDrives !== this.drives) throw E.ECOMMITFAIL()
-    if (this.lock === true) throw E.ECOMMITFAIL() 
+    if (this.lock === true) throw E.ECOMMITFAIL()
 
     this.lock = true
     try {
       await saveObjectAsync(this.filePath, this.tmpDir, nextDrives)
       this.drives = nextDrives
       deepFreeze(this.drives)
-    }
-    finally {
+    } finally {
       this.lock = false
     }
   }
 
-  async createPrivateDriveAsync(owner, tag) {
-
-    let drive = { 
-      uuid: UUID.v4(), 
-      type: 'private', 
-      owner, 
-      tag,
+  async createPrivateDriveAsync (owner, tag) {
+    let drive = {
+      uuid: UUID.v4(),
+      type: 'private',
+      owner,
+      tag
       // label: '' // FIXME
     }
 
@@ -136,13 +133,12 @@ class Forest extends EventEmitter {
     return drive
   }
 
-  async createPublicDriveAsync(props) {
-
+  async createPublicDriveAsync (props) {
     let drive = {
       uuid: UUID.v4(),
       type: 'public',
       writelist: props.writelist || [],
-      readlist: props.readlist || [], 
+      readlist: props.readlist || [],
       label: props.label || ''
     }
 
@@ -152,11 +148,10 @@ class Forest extends EventEmitter {
     deepFreeze(this.drives)
 
     await this.createDriveAsync(drive)
-    return drive 
-  } 
+    return drive
+  }
 
   async updatePublicDriveAsync (driveUUID, props) {
-
     let currDrives = this.drives
 
     let index = this.drives.findIndex(drv => drv.uuid === driveUUID)
@@ -173,33 +168,32 @@ class Forest extends EventEmitter {
     return nextDrive
   }
 
-  //////////////////////////////////////////////////////////////////////////////
+  /// ///////////////////////////////////////////////////////////////////////////
 
-  isRoot(dir) {
+  isRoot (dir) {
     return this.roots.get(dir.uuid) === dir
   }
 
-  isDriveUUID(driveUUID) {
+  isDriveUUID (driveUUID) {
     return !!this.roots.get(driveUUID)
   }
 
   /**
   index a directory by uuid
   */
-  indexDirectory(dir) {
+  indexDirectory (dir) {
     this.uuidMap.set(dir.uuid, dir)
   }
 
   /**
   unindex a directory by uuid
   */
-  unindexDirectory(dir) {
+  unindexDirectory (dir) {
     this.uuidMap.set(dir.uuid, dir)
   }
 
-  getDriveDirs(driveUUID) {
-
-    return Array.from(this.uuidMap)    
+  getDriveDirs (driveUUID) {
+    return Array.from(this.uuidMap)
       .map(kv => kv[1])
       .filter(dir => dir.root().uuid === driveUUID)
       .map(dir => ({
@@ -210,29 +204,25 @@ class Forest extends EventEmitter {
       }))
   }
 
-  getDriveDir(driveUUID, dirUUID) {
-
+  getDriveDir (driveUUID, dirUUID) {
     let drive = this.roots.get(driveUUID)
-    let dir = this.uuidMap.get(dirUUID) 
+    let dir = this.uuidMap.get(dirUUID)
     if (!drive || !dir || dir.root() !== drive) return
 
-    return dir  
+    return dir
   }
 
   /**
   index a file by file hash
   */
-  index(file) {
-    if (this.hashMap.has(file.hash)) 
-      this.hashMap.get(file.hash).add(file)
-    else 
-      this.hashMap.set(file.hash, new Set([file]))
+  index (file) {
+    if (this.hashMap.has(file.hash)) { this.hashMap.get(file.hash).add(file) } else { this.hashMap.set(file.hash, new Set([file])) }
   }
 
   /**
   unindex a file by file hash
   */
-  unindex(file) {
+  unindex (file) {
     this.hashMap.get(file.hash).delete(file)
   }
 
@@ -241,29 +231,27 @@ class Forest extends EventEmitter {
 
   @param {Drive}
   */
-  async createDriveAsync(drive, monitor) {
-    
-    let dirPath = path.join(this.dir, drive.uuid) 
+  async createDriveAsync (drive, monitor) {
+    let dirPath = path.join(this.dir, drive.uuid)
     await mkdirpAsync(dirPath)
 
     let xstat = await forceXstatAsync(dirPath, { uuid: drive.uuid })
     let root = new Directory(this, null, xstat, monitor)
     this.roots.set(root.uuid, root)
-  }    
+  }
 
   /**
   Delete the file system cache for the drive identified by given uuid
 
   @param {string} driveUUID
   */
-  deleteDrive(driveUUID) {
-  
-    let index = this.roots.findIndex(d => d.uuid === driveUUID) 
-    if (index === -1) return 
+  deleteDrive (driveUUID) {
+    let index = this.roots.findIndex(d => d.uuid === driveUUID)
+    if (index === -1) return
 
     this.roots[index].destroy()
     this.roots.splice(index, 1)
-  } 
+  }
 
   /**
   Get directory path by drive uuid and dir uuid
@@ -271,10 +259,9 @@ class Forest extends EventEmitter {
   @param {string} driveUUID
   @param {string} dirUUID - directory uuid
   */
-  directoryPath(driveUUID, dirUUID) {
-
+  directoryPath (driveUUID, dirUUID) {
     let drive = this.roots.get(driveUUID)
-    let dir = this.uuidMap.get(dirUUID) 
+    let dir = this.uuidMap.get(dirUUID)
 
     if (!drive || !dir || dir.root() !== drive) return
 
@@ -284,8 +271,7 @@ class Forest extends EventEmitter {
   /**
   Get file path by drive uuid, dir uuid, and file name
   */
-  filePath(driveUUID, dirUUID, name) {
-
+  filePath (driveUUID, dirUUID, name) {
     let dirPath = this.directoryPath(driveUUID, dirUUID)
 
     if (!dirPath) return
@@ -294,13 +280,12 @@ class Forest extends EventEmitter {
   }
 
   // TODO filter by drives
-  getFingerprints(drives) {
+  getFingerprints (drives) {
     return Array.from(this.hashMap).map(kv => kv[0])
   }
 
   // TODO filter by drives
-  getFilesByFingerprint(fingerprint, drives) {
-
+  getFilesByFingerprint (fingerprint, drives) {
     let fileSet = this.hashMap.get(fingerprint)
     if (!fileSet) return []
 
@@ -316,44 +301,37 @@ class Forest extends EventEmitter {
   @param {string[]} names - names array to walk
   @returns {Directory[]} `Directory` object array starting from the givne dir
   */
-  dirWalk(dir, names) {
-
+  dirWalk (dir, names) {
     let q = [dir]
     for (i = 0; i < names.length; i++) {
       let child = dir.directories.find(d => d.name === names[i])
       if (child) {
         q.push(child)
         dir = child
-      }
-      else 
-        return q
+      } else { return q }
     }
   }
 
   // what is a fix?
-  reportPathError(abspath, code) {
-
+  reportPathError (abspath, code) {
     // not a frutimix drive path FIXME check slash
     if (!abspath.startsWith(this.dir)) return
-   
+
     let names = abspath
-      .slice(this.dir.length) 
+      .slice(this.dir.length)
       .split(path.sep)
-      .filter(name => name.length > 0) 
+      .filter(name => name.length > 0)
 
     // check names[0] is uuid TODO 
-    
+
     let root = this.roots.find(r => r.name === names[0])
     if (!root) return
 
     let q = this.nameWalk(names, root)
-    
   }
 
-  async mkdirAsync(parent, name) {
-
-    if (!parent instanceof Directory) 
-      throw new Error('mkdirAsync: parent is not a dir node')
+  async mkdirAsync (parent, name) {
+    if (!(parent instanceof Directory)) { throw new Error('mkdirAsync: parent is not a dir node') }
 
     let dirPath = path.join(parent.abspath(), name)
     await fs.mkdirAsync(dirPath)
@@ -363,20 +341,19 @@ class Forest extends EventEmitter {
     return node
   }
 
-  async renameDirAsync(node, name) {
-
+  async renameDirAsync (node, name) {
     let oldPath = node.abspath()
     let newPath = path.join(path.dirname(oldPath), name)
     await fs.renameAsync(oldPath, newPath)
     let xstat = await readXstatAsync(newPath)
 
     // TODO node.uuid === xstat.uuid ?
-   
+
     node.name = xstat.name
     return node
   }
 
-  audit(drivePath, relPath1, relPath2) {
+  audit (drivePath, relPath1, relPath2) {
     let rootDir
     this.roots.forEach(dir => {
       if (dir.abspath() === drivePath) rootDir = dir
@@ -392,11 +369,11 @@ class Forest extends EventEmitter {
     let dir = rootDir.nameWalk(names)
 
     smbDebug(`audit walk to ${dir.abspath()}`)
-    
+
     // delay 1s
     dir.read(1000)
   }
+
 }
 
 module.exports = Forest
-

@@ -405,6 +405,7 @@ describe(path.basename(__filename), () => {
         })
     })
 
+    // FIXME this test fails occasionally.
     // data block oversize
     it("400 append one-giga-plus-x to one-giga, 0c0232d7", function (done) {
       this.timeout(0)

@@ -1,8 +1,14 @@
 const path = require('path')
+
 const Node = require('./node')
 const File = require('./file')
 const Readdir = require('./readdir')
+
+const mkdirp = require('mkdirp')
+const { readXstat } = require('../lib/xstat')
+
 const Debug = require('debug')
+
 
 /**
 Directory represents a directory in the underlying file system.
@@ -39,6 +45,11 @@ class Directory extends Node {
     /** mtime **/
     this.mtime = -xstat.mtime
 
+    this.fileCount = 0
+    this.dirCount = 0
+
+    this.level = -1
+
     // index
     this.ctx.indexDirectory(this)
 
@@ -61,7 +72,7 @@ class Directory extends Node {
 
   /**
   Update children according to xstats returned from `read`.
-  This is a internal function and is only called in `readdir`.
+  This is an internal function and is only called in `readdir`.
   @param {xstat[]} xstats
   @param {Monitor[]} monitors
   */
@@ -143,6 +154,24 @@ class Directory extends Node {
   async readdirAsync() {
     return await new Promise((resolve, reject) => 
       this.read((err, xstats) => err ? reject(err) : resolve(xstats)))
+  }
+
+  /**
+  mkdirp and update children
+  
+  */
+  mkdirp(name, parents, callback) {
+    let dst = path.join(this.abspath(), name)     
+    mkdirp(dst, err => {
+      if (err) return callback(err)
+      readXstat(dst, (err, xstat) => {
+        if (!err && !this.children.find(x => x.uuid === xstat.uuid)) {
+          new Directory(this.ctx, this, xstat)
+          this.read(100)    
+        }
+        callback(err, xstat)
+      })
+    }) 
   }
 
   nameWalk(names) {

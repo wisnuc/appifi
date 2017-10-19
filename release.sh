@@ -51,6 +51,7 @@ rm -rf serveJsdoc.js
 rm -rf static.js
 rm -rf test
 rm -rf webpack.config.js
+rm -rf remote
 
 git add *
 git add .[!.]*

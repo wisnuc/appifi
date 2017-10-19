@@ -144,7 +144,7 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
   /**
   parts (new) -> [ parser | parsers_ ) -> execute
         (new) -> | -> ( _pipes  |  pipes  | drains  |  drains_ ) -> | -> execute
-                 | -> ( _dryrun | dryrun  | dryrun_ ) -> |
+                 | -> ( _dryrun | dryrun  | dryrun_ )            -> |
   **/
 
   // enter: x { number, part }
@@ -194,6 +194,19 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
     debug('  r', num(r))
   }
 
+  const print2 = x => {
+    console.log(x) 
+    console.log('  parts', num(parts))
+    console.log('  parsers_', num(parsers), num(parsers_))
+    console.log('  pipes, drains_', num(pipes), num(drains), num(drains_))
+    console.log('  _dryrun', _dryrun)
+    console.log('  dryrun', dryrun)
+    console.log('  dryrun_', dryrun_)
+    console.log('  executions', num(executions))
+    console.log('  r', num(r))
+  }
+
+
   const assertNoDup = () => {
     const all = [
       ...num(parts),
@@ -233,47 +246,56 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
     if (xs.find(x => x.error.status === 400)) return 400
     return 403
   }
+  
+  const response = () => {
+    let body = r
+      .map(x => {
+        let obj = {
+          number: x.number,
+          op: x.op,
+          name: x.name,
+        }
 
-  const response = () => r.map(x => {
+        if (x.type === 'file') {
+          obj.size = x.size
+          obj.sha256 = x.sha256
+          obj.append = x.append
+          obj.overwrite = x.overwrite
+        } else {
+          obj.parents = x.parents
+          obj.uuid = x.uuid
+          obj.overwrite = x.overwrite
+        }
 
-    let obj = {
-      number: x.number,
-      op: x.op,
-      name: x.name,
-    }
+        if (x.hasOwnProperty('data')) {
+          obj.data = x.data 
+        } else {
+          let { status, errno, code, syscall, path, dest, message } = x.error
+          obj.error = { status, message, code, errno, syscall, path, dest } 
+        } 
 
-    if (x.type === 'file') {
-      obj.size = x.size
-      obj.sha256 = x.sha256
-      obj.append = x.append
-      obj.overwrite = x.overwrite
-    } else {
-      obj.parents = x.parents
-      obj.uuid = x.uuid
-      obj.overwrite = x.overwrite
-    }
+        return obj
+      })
 
-    if (x.hasOwnProperty('data')) {
-      obj.data = x.data 
-    } else {
-      let { status, errno, code, syscall, path, dest, message } = x.error
-      obj.error = { status, message, code, errno, syscall, path, dest } 
-    } 
-
-    return obj
-  })
+    // FIXME process dir read error
+    getFruit().getDriveDir(user, driveUUID, dirUUID, null, () => {
+      res.status(statusCode()).json(body)
+    }) 
+  }
 
   const predecessorErrored = x => !!r
     .slice(0, x.number)
     .find(y => y.toName === x.fromName && y.error)
 
   const error = (y, err) => {
+    if (process.env.NODE_PATH === undefined) {
+      console.log('======== error begin ========')
+      console.log('job', y)
+      console.log('error', err)
+      print2()
+    }
 
     let { size, sha256, append, overwrite, op, parents, uuid } = y
-
-    debug('======== error begin ========')
-    debug('error', y.number, err)
-    print()
 
     y.error = y.error || err
 
@@ -344,19 +366,23 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
     }
 
     if (settled()) {
-      res.status(statusCode()).json(response())
+      // res.status(statusCode()).json(response())
+      response()
     } else {
       // if there is no concurrency control, then no need to schedule
       // for no job would be started when something errored
     }
 
-    print('====== error end ======')
+    if (process.env.NODE_PATH === undefined) {
+      print2('====== error end ======')
+    }
   }
 
   const success = (x, data) => {
     x.data = data
     if (settled()) {
-      res.status(statusCode()).json(response()) 
+      // res.status(statusCode()).json(response()) 
+      response()
     } else {
       schedule()
     }
