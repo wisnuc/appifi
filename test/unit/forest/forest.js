@@ -29,14 +29,11 @@ describe(path.basename(__filename), () => {
 
   describe('create drive 1 with /hello/world/foo/bar (all directories)', () => {
 
-//    let mtime
-
     before(async () => {
       await rimrafAsync(tmptest)
       await mkdirpAsync(tmpDir)
       await mkdirpAsync(drivesDir)
       await mkdirpAsync(path.join(drivesDir, drive1.uuid, 'hello', 'world', 'foo', 'bar'))
-//      mtime = (await fs.lstatAsync(path.join(drivesDir, drive1.uuid))).mtime.getTime()
     })
 
     it('simple read, 91e11c6e', async () => {
@@ -65,7 +62,7 @@ describe(path.basename(__filename), () => {
     
   })
 
-  describe('single JPEG file vpai001.jpg, e640de0e', () => {
+  describe('single JPEG file vpai001.jpg', () => {
   
     beforeEach(async () => {
       await rimrafAsync(tmptest)
@@ -79,18 +76,17 @@ describe(path.basename(__filename), () => {
 
     })
 
-    it('read', async () => {
-      let monitor = new Monitor()
+    it('read e640de0e', done => {
       let mediaMap = new Map()
       let driveList = new DriveList(tmptest, mediaMap)
-      driveList.createDriveAsync(drive1, [monitor])
-      await monitor.done
-
-      await Promise.delay(500)
-      console.log(mediaMap)
-      // console.log(Forest)
-      // console.log(metamap)
-      return
+      driveList.createDrive(drive1, err => {
+        if (err) return done(err)
+        driveList.on('indexingDone', () => {
+          console.log(driveList)
+          done()
+        })
+      })
     })
+
   })
 })

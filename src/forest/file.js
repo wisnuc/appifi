@@ -5,6 +5,8 @@ const xtractMetadata = require('../lib/metadata')
 const xfingerprint = require('../lib/xfingerprint')
 const hash = require('../lib/hash')
 
+const debugi = require('debug')('fruitmix:indexing')
+
 /**
 File is a in-memory file node maintaining (some) xstat props and related tasks.
 
@@ -61,180 +63,28 @@ class File extends Node {
     */
     this.hash = xstat.hash
 
-    /**
-    hash worker
-    @type {(null|HashWorker)}
-    */
-    this.finger = null
-    this.meta = null
-
-    /**
-    failed time of hash worker.
-    Abort are not counted. When hash lost, this count is reset to 0
-    @type {number}
-    */
-    this.fingerFail = 0
-    this.metaFail = 0
-
-    if (this.hash) {
-      this.ctx.indexFile(this)
-    } else {
-      this.ctx.fingerIdle.push(this)
-    }
+    this.ctx.onFileCreated(this)
   }
 
   /**
   Destroys this file node
   */
   destroy () {
-    this.stopAllWorkers()
-    if (this.hash) this.ctx.unindexFile(this)
+    this.ctx.onFileDestroying(this)
     super.destroy()
   }
 
   /**
   Update this object with xstat. This function should only be called by directory when updating.
-
-  For anything changed, all workers are stopped. 
-  This function does NOT schedule. The caller takes the responsibility for scheduling
   Only name and hash can be changed.
   */
-
   update (xstat) {
-    // TODO
     if (xstat.uuid !== this.uuid) throw new Error('uuid mismatch')
     if (this.name === xstat.name && this.hash === xstat.hash) return
-    
-    this.stopFingerWorker()
-    this.stopMetaWorker()
-
-    if (this.name !== xstat.name) {
-      this.name = xstat.name
-    }
-
-    if (!this.hash && xstat.hash) {         
-      // fingerprint found
-      this.spliceFingerIdle()
-      this.hash = xstat.hash
-      this.ctx.indexFile(this)
-    } else if (this.hash && !xstat.hash) {  
-      // fingerprint lost
-      this.ctx.unindex(this)
-      this.hash = xstat.hash // acturally undefined
-      this.ctx.fingerIdle.push(this)
-    } else if (this.hash && xstat.hash && this.hash !== xstat.hash) { 
-      // fingerprint changed
-      this.ctx.unindex(this)
-      this.hash = xstat.hash
-      this.ctx.indexFile(this)
-    }
-  }
-
-  spliceFingerIdle () {
-    let index = this.ctx.fingerIdle.indexOf(this)
-    if (index === -1) {
-    } else {
-      this.ctx.fingerIdle.splice(index, 1)
-    }
-  }
-
-  spliceFingerRunning () {
-    let index = this.ctx.fingerRunning.indexOf(this)
-    if (index === -1) {
-    } else {
-      this.ctx.fingerRunning.splice(index, 1)
-    }
-  }
-
-  spliceMetaRunning () {
-    let index = this.ctx.metaRunning.indexOf(this)
-    if (index === -1) {
-    } else {
-      this.ctx.metaRunning.splice(index, 1)
-    }
-  }
-
-  startFingerWorker () {
-
-    if (this.finger) return
-    this.spliceFingerIdle()
-    this.finger = xfingerprint(this.abspath(), this.uuid, (err, xstat) => {
-
-      console.log('xfingerprint return', err, xstat)
-
-      this.spliceFingerRunning() 
-      this.finger = null
-      if (err) {  
-        // back to idle
-        this.fingerFail++ 
-        if (this.fingerFail > 7) {
-          // give up if too many failures
-          console.log(`failed too many times for calculating fingerprint for ${this.abspath()}`)
-        } else {
-          this.ctx.fingerIdle.push(this)
-        }
-      } else { 
-        // TODO assert state? 
-        // go to fingerprint state
-        this.fingerFail = 0
-        this.name = xstat.name
-        this.hash = xstat.hash
-
-        this.ctx.indexFile(this)
-
-        this.ctx.scheduleFinger()
-        this.ctx.scheduleMeta()
-      }
-    })
-    this.ctx.fingerRunning.push(this)
-  }
-
-  stopFingerWorker () {
-
-    console.log('start finger worker', this.abspath())
-
-    if (this.finger) {
-      this.spliceFingerRunning()
-      this.finger.destroy()
-      this.finger = null
-      this.ctx.fingerIdle.push(this)
-    }
-  }
-
-  startMetaWorker () {
-
-    console.log('start meta worker', this.abspath())
-
-    if (this.meta) return
-    this.meta = xtractMetadata(this.abspath(), this.magic, this.hash, this.uuid, (err, metadata) => {
-
-      console.log('xtractMetadata returns', err, metadata)
-
-      this.spliceMetaRunning()
-      this.meta = null
-      if (err) {
-        this.metaFail++
-      } else {
-        this.ctx.reportMetadata(metadata)
-      }
-    })
-    this.ctx.metaRunning.push(this)
-  }
-
-  stopMetaWorker () {
-    if (this.meta) {
-      this.spliceMetaRunning()
-      this.meta.destroy()
-      this.meta = null
-    }
-  }
-
-  /**
-  Stop all workers
-  */
-  stopAllWorkers () {
-    this.stopFingerWorker()
-    this.stopMetaWorker()
+    this.ctx.onFileUpdating(this)
+    this.name = xstat.name
+    this.hash = xstat.hash
+    this.ctx.onFileUpdated(this)
   }
 
 }

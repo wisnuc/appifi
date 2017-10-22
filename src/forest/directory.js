@@ -78,11 +78,8 @@ class Directory extends Node {
   */
   merge(xstats, monitors) { 
 
-    console.log('merge', xstats)
-
     // remove non-interested files
-    xstats = xstats.filter(x => x.type === 'directory' 
-      || (x.type === 'file' && typeof x.magic === 'string'))
+    xstats = xstats.filter(x => x.type === 'directory' || (x.type === 'file' && typeof x.magic === 'string'))
 
     // convert to a map
     let map = new Map(xstats.map(x => [x.uuid, x]))
@@ -112,8 +109,6 @@ class Directory extends Node {
       }
     })
 
-    this.ctx.scheduleFinger()
-    this.ctx.scheduleMeta()
   }
 
   /**
@@ -134,10 +129,19 @@ class Directory extends Node {
     // either name or timestamp changed, a read is required.
     this.name = xstat.name
 
-    monitors
-      ? monitors.forEach(monitor => this.read(monitor))
-      : this.read()
+    if (monitors) {
+      monitors.forEach(monitor => this.read(monitor))
+    } else {
+      this.read()
+    }
   }
+
+/**
+  pathChanging () {
+    [...this.children].forEach(child => child.pathChanging)
+    
+  }
+**/
 
   /**
   Request a `readdir` operation. 
