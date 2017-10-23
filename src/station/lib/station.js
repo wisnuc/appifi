@@ -281,7 +281,7 @@ class Station {
       await this.updateCloudInfoAsync()
     }catch(e){
       debug('update cloud info error: ', e)
-      // update cloud if error  do nothing
+      // do nothing if update cloud error
     }
     return this.info()
   }
@@ -295,7 +295,7 @@ class Station {
     this.lock = true
     try {
 
-      await saveObjectAsync(path.join(this.froot, 'station', FILE.SA), (this.froot, 'tmp'), nextStation)
+      await saveObjectAsync(path.join(this.froot, 'station', FILE.SA), path.join(this.froot, 'tmp'), nextStation)
 
       this.station = nextStation
 
