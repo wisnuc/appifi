@@ -364,8 +364,8 @@ class Fruitmix extends EventEmitter {
 
   userCanReadMedia (user, fingerprint) {
     if (!user || !fingerprint || !fingerprint.length) throw Object.assign(new Error('Invalid parameters'), { status: 400 })
-    if (!this.driveList.hashMap.has(fingerprint)) { throw Object.assign(new Error('media not found'), { status: 404 }) }
-    let medias = Array.from(this.driveList.hashMap.get(fingerprint))
+    if (!this.driveList.metaMap.has(fingerprint)) { throw Object.assign(new Error('media not found'), { status: 404 }) }
+    let medias = Array.from(this.driveList.metaMap.get(fingerprint))
     let userDrives = this.getDrives(user).map(d => d.uuid)
     if (medias.find(media => userDrives.indexOf(media.root().uuid) !== -1)) { return true }
     return false
