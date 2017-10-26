@@ -1,101 +1,67 @@
-import UUID from 'node-uuid'
-
-// this module implements a command pattern over ipc
-
-/**
- * job :{
- *  id,
- *  op,
- *  args,
- *  timestamp,
- *  callback
- * }
- */
-const jobs = []
-
-class Job {
-  
-  constructor(op, args, callback) {
-    this.id = UUID.v4()
-    this.op = op
-    this.args = args
-    this.callback = callback
-    this.timestamp = new Date().getTime()
-  }
-
-  message() {
-    return {
-      type: 'command',
-      id: this.id,
-      op: this.op,
-      args: this.args
-    }
-  }
-}
-
 class IpcWorker {
 
   constructor() {
-    this.jobs = []
+    this.commandMap = new Map()
   }
 
-  createJob(op, args, callback) {
-    let job = new Job(op, args, callback)
-    jobs.push(job)
-    return job
+  register(key, val) {
+    this.commandMap.set(key, val)
   }
 
-  call(op, args, callback) {
-
-    // change to debug TODO
-    // console.log('ipc call', op, args)
-
-    let job
-    try {
-      job = this.createJob(op, args, callback)
-    }
-    catch (e) {
-      process.nextTick(() => callback(e))
-      return
-    }
-
-    process.send(job.message())
-  }  
-
-  handleCommandMessage(msg) {
-
-    let { id, data, err } = msg
-    let index = jobs.findIndex(job => job.id === id)
-
-    if (index !== -1) {
-      let job = jobs[index]  
-      jobs.splice(index, 1)
-      job.callback(err ? err : null, data)
-    }
-    else {
-      console.log('job not found' + msg)
-    }
+  registerMap(map) {
+    this.commandMap = new Map([...this.commandMap, ...map])
   }
-}
 
-const createIpcWorker = () => {
+  // no id is illegal
+  handleCommand(worker, msg) {
 
-  let ipc = new IpcWorker()
+    let { id, op, args } = msg
+    let handler = this.commandMap.get(op)
 
-  process.on('message', msg => {
+    if (!handler) {
+      return worker.send({
+        type: 'command',
+        id,
+        err: {
+          code: 'ENOHANDLER',
+          message: `no handler found for ${op}`
+        }
+      })
+    }
 
-    // console.log('ipcworker, msg', msg)
+    // default data to null, otherwise it will be eliminated
+    handler(msg.args, (err, data = null) => {
 
+      // change to debug TODO
+      // console.log('handler', err || data)
+
+      if (err) {
+        worker.send({
+          type: 'command',
+          id: id,
+          err: {
+            code: err.code,
+            message: err.message
+          }
+        })
+      }
+      else {
+        worker.send({ type: 'command', id, data })
+      }
+    })
+  }
+
+  handle(worker, msg) {
     switch(msg.type) {
       case 'command':
-        ipc.handleCommandMessage(msg)
+        this.handleCommand(worker, msg)
         break
       default:
         break
     }
-  })
-
-  return ipc
+  }
 }
 
-export default createIpcWorker
+const createIpcWorker = () => new IpcWorker()
+
+module.exports = createIpcHandler

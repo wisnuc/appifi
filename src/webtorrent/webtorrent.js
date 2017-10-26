@@ -1,11 +1,11 @@
 const path = require('path')
 const fs = require('fs')
-
 const webT = require('webtorrent')
+
+const ipc = require('./ipcWorker')
 
 class WebTorrent {
   constructor(tempPath) {
-    super()
     this.tempPath = tempPath
     this.catchPath = path.join(this.tempPath, 'storage.json')
     this.client = new webT()
@@ -40,8 +40,8 @@ class WebTorrent {
       let tasks = JSON.parse(fs.readFileSync(this.catchPath))
       this.downloaded = tasks.downloaded
       tasks.downloading.forEach((file, index) => {
-        if (file.torrentPath) this.addTorrent(file.torrentPath, file.downloadPath)
-        else if (file.magnetURL) this.addMagnet(file.magnetURL, file.downloadPath)
+        if (file.torrentPath) this.addTorrent({ torrentPath:file.torrentPath, downloadPath:file.downloadPath })
+        else if (file.magnetURL) this.addMagnet({ magnetURL:file.magnetURL, downloadPath:file.downloadPath })
       })
     }catch(e) {
       console.log('Error in init ', e)
@@ -51,20 +51,20 @@ class WebTorrent {
   }
 
   //add task with torrent file
-  async addTorrent(torrentPath, downloadPath) {
+  async addTorrent({torrentPath, downloadPath}) {
     if (!fs.existsSync(torrentPath)) throw new Error('torrent file not exist')
     let torrentBuffer = fs.readFileSync(torrentPath)
-    return await this.createTorrent(torrentBuffer, downloadPath, torrentPath)
+    return await this.createTorrent({torrentBuffer, downloadPath, torrentPath})
   }
 
   //add task with magnet url
-  async addMagnet(magnetURL, downloadPath) {
+  async addMagnet({magnetURL, downloadPath}) {
     if (typeof magnetURL !== 'string' || magnetURL.indexOf('magnet') == -1) throw new Error('magnetURL is not a legal magnetURL')
-    return await this.createTorrent(magnetURL, downloadPath)
+    return await this.createTorrent({magnetURL, downloadPath})
   }
 
   // create torrent & storage
-  async createTorrent(torrentSource, downloadPath, torrentPath) {
+  async createTorrent({torrentSource, downloadPath, torrentPath}) {
     let torrent = this.client.add(torrentSource, {path: this.tempPath})
     if (this.downloading.findIndex(item => item.infoHash == torrent.infoHash) !== -1) return console.log('torrent exist now')
     torrent.downloadPath = downloadPath
@@ -95,7 +95,7 @@ class WebTorrent {
   }
 
   //pasuse a torrent with torrentID
-  pause(torrentId) {
+  pause({torrentId}) {
     let torrent = this.client.get(torrentId)
     if (!torrent) return {code: -1}
     torrent.files.forEach(file => {file.deselect()})
@@ -103,7 +103,7 @@ class WebTorrent {
   }
 
   //resume a torrent with torrentID
-  resume(torrentId) {
+  resume({torrentId}) {
     let torrent = this.client.get(torrentId)
     if (!torrent) return {code: -1}
     torrent.files.forEach(file => {file.select()})
@@ -111,7 +111,7 @@ class WebTorrent {
   }
 
   //query summary of downloading torrent (torrentID is not necessary)
-  getSummary(torrentId) {
+  getSummary({torrentId}) {
     if (torrentId) {
       if (typeof torrentId !== 'string' || torrentId.length < 1) throw new Error('torrentId is not legal')
       let result = this.client.get(torrentId)
@@ -162,7 +162,7 @@ class WebTorrent {
   }
 
   //delete torrent task
-  destory(torrentId) {
+  destory({torrentId}) {
     return new Promise(async (resolve, reject) => {
       let torrent = this.downloading.find(item => item.infoHash == torrentId)
       if (torrent) {
@@ -189,6 +189,10 @@ class WebTorrent {
 
   clientError() {
 
+  }
+
+  register(ipc) {
+    
   }
 }
 
