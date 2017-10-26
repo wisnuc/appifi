@@ -4,6 +4,14 @@ const webT = require('webtorrent')
 
 const ipc = require('./ipcWorker')
 
+const asCallback = (fn) => {
+  return (props, callback) => {
+    fn(props)
+      .then(data => callback(null, data))
+      .catch(e => callback(e))
+  }
+}
+
 class WebTorrent {
   constructor(tempPath) {
     this.tempPath = tempPath
@@ -97,9 +105,9 @@ class WebTorrent {
   //pasuse a torrent with torrentID
   pause({torrentId}) {
     let torrent = this.client.get(torrentId)
-    if (!torrent) return {code: -1}
+    if (!torrent) return -1
     torrent.files.forEach(file => {file.deselect()})
-    return {code: 0}
+    return 0
   }
 
   //resume a torrent with torrentID
@@ -192,7 +200,9 @@ class WebTorrent {
   }
 
   register(ipc) {
-    
+    ipc.register('addTorrent', asCallback(this.addTorrent.bind(this)))
+    ipc.register('addMagnet', asCallback(this.addMagnet.bind(this)))
+    ipc.register('pause', (props, callback) => { callback(null, this.pause(props)) })
   }
 }
 
