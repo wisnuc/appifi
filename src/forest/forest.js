@@ -301,7 +301,7 @@ class Forest extends EventEmitter {
 
         if (err) {
           file.metaFail++
-          this.metalessMap.add(file.hash, set) // put into metaless map
+          this.metalessMap.set(file.hash, set) // put into metaless map
         } else {
           this.mediaMap.set(file.hash, metadata) // report metadata
           this.metaMap.set(file.hash, set) // put into meta map
