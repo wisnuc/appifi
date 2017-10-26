@@ -138,8 +138,10 @@ const identify = (filePath, hash, uuid, callback) => {
       if (destroyed) return
       if (err) return callback(err)
       let metadata = parseIdentifyOutput(stdout)
-      if (metadata)
-        callback(null, Object.assign({ hash }, metadata))
+      if (metadata) {
+        // callback(null, Object.assign({ hash }, metadata))
+        callback(null, metadata)
+      }
       else 
         callback(new Error('failed to parse identify output'))
     })

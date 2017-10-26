@@ -15,7 +15,9 @@ let totalRead = 0
 let buffers = []
 
 process.on('message', message => {
-  if (message === 'end') {
+  if (message === 'exit') {
+    process.exit(0)
+  } else if (message === 'end') {
     ended = true 
   } else if (typeof message === 'number') {
     length = message  
@@ -49,9 +51,10 @@ const readLoop = () => {
 const hashLoop = () => {
   if (buffers.length === 0) {
     if (finished) {
-      process.send(hash.digest('hex'), () => {
-        setTimeout(() => process.exit(0), 8000)
-      })
+      process.send(hash.digest('hex'))
+      setTimeout(() => {
+        process.exit(120) 
+      }, 60 * 1000)
     }
   } else {
     buffers.forEach(buf => hash.update(buf))

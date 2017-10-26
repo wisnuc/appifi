@@ -2,79 +2,726 @@ const path = require('path')
 const fs = require('fs')
 const child = require('child_process')
 const EventEmitter = require('events')
+const crypto = require('crypto')
+
+const rimraf = require('rimraf')
 const debug = require('debug')('hash-stream')
 
 const script = `
-
 const fs = require('fs')
 const hash = require('crypto').createHash('sha256')
 
+let ended = false
+let finished = false
+let length = 0
 let totalRead = 0
-let written = -1
+let buffers = []
 
-process.on('message', message => written = message)
+process.on('message', message => {
+  if (message === 'end') {
+    ended = true 
+  } else if (typeof message === 'number') {
+    length = message  
+  } else {
+    process.exit(118)
+  }
+})
 
-const Loop = () => 
-  fs.createReadStream(null, { fd: 4, autoClose: false, start: totalRead, highWaterMark: 16 * 1024 * 1024 })
-    .on('data', data => (hash.update(data), totalRead += data.length))
-    .on('end', () => written === totalRead 
-      ? process.send(hash.digest('hex'), () => process.exit())
-      : setImmediate(Loop))
-
-Loop()
-`
-
-/**
-
-  1. fs.opening, w or w/o queue
-  2. fs.fstat, w or w/o queue
-  3. writestream | child
-
-**/
-class HashStream extends EventEmitter {
-
-  constructor(fd) {
-    super()
-
-    const opts = { stdio: ['ignore', 'inherit', 'ignore', 'ipc', fd] }
-    this.child = child.spawn('node', ['-e', script], opts)
-
-    this.child.on('error', err => {
-      this.child.removeAllListeners()
-      this.child.kill()
-      this.child = null
-      this.emit(err)
-    })
-
-    this.child.on('exit', (code, signal) => {
-      this.child.removeAllListeners()
-      this.child = null
-      if (code) {
-        this.emit('error', new Error(`child exit code ${code}`))
-      } else if (signal) {
-        this.emit('error', new Error(`child exit signal ${signal}`))
-      } else {
-        this.emit('error', new Error(`child exit unexpectedly`))
-      }
-    })
-
-    this.child.on('message', digest => {
-      this.child.removeAllListeners()
-      this.child.on('error', () => {})
-      this.child = null
-      this.digest = digest
-      this.emit('data', digest)
-    })
-
+const readLoop = () => {
+  if (length === totalRead) {
+    if (ended) {
+      finished = true // break loop
+    } else {
+      setImmediate(readLoop)
+    }
+    return
   }
 
-  end (bytesWritten) {
-    if (this.child) this.child.send(bytesWritten)
+  let len = length - totalRead 
+  let buf = Buffer.allocUnsafe(len)
+  fs.read(4, buf, 0, len, totalRead, (err, bytesRead, buffer) => {
+    if (err) process.exit(119)
+    if (bytesRead !== 0) {
+      totalRead += bytesRead
+      buffers.push(buffer.slice(0, bytesRead))
+    } 
+    setImmediate(readLoop) 
+  })
+}
+
+const hashLoop = () => {
+  if (buffers.length === 0) {
+    if (finished) {
+      process.send(hash.digest('hex'))
+      setTimeout(() => process.exit(120), 32000)
+      return
+    }
+  } else {
+    buffers.forEach(buf => hash.update(buf))
+    buffers = []
+  }
+  setImmediate(hashLoop)
+}
+
+readLoop()
+hashLoop()
+`
+
+/*******************************************************************************
+  
+There are two ways to calculate hash, in-process (ip) or using child process 
+(cp) to offload main thread.
+
+The incoming request may provide sha256 value in advance (pre), or it may append 
+the value right after the stream (post).
+
+So the combinations are:
+1. ip-pre
+2. cp-pre
+3. ip-post
+4. cp-post
+
+in pre mode, digest is calculated when read stream ends.
+in post mode, digest is received from hash stream.
+
+(1) ip-pre:
+
+S   rs  ws  hash  digest  sha256
+1   Y                     Y
+2   Y   Y   Y             Y
+3       Y         Y       Y
+4                 Y       Y
+
+(2) ip-post
+
+S   rs  ws  hash  digest  sha256
+1   Y
+2   Y   Y   Y      
+3       Y         Y       
+4                 Y       Y
+
+(3) cp-pre:
+
+S   rs  ws  hs    digest  sha256
+1   Y                     Y
+2   Y   Y   Y             Y
+3       Y   Y             Y
+4           Y             Y
+5                 Y       Y
+
+(4) cp-post:
+S   rs  ws  hs    digest  sha256
+1   Y
+2   Y   Y   Y
+3       Y   Y             Y
+4           Y             Y
+5                 Y       Y
+
+**/
+
+/**
+(1) ip-pre:
+
+S   rs  ws  hash  digest  sha256
+1   Y                     Y
+2   Y   Y   Y             Y
+3       Y         Y       Y
+4                 Y       Y
+*/
+class IPre extends EventEmitter {
+
+  constructor(rs, filePath, size, sha256) {
+    super() 
+    
+    this.rs = rs
+    this.path = filePath
+    this.size = size
+    this.sha256 = sha256
+
+    this.bytesRead = 0
+    this.ws = null
+    this.hash = null
+
+    fs.open(this.path, 'w+', (err, fd) => {
+      if (this.isFinished()) {
+        if (!err) fs.close(fd, () => {})
+        return
+      }
+
+      if (err) return this.error(err)
+
+      this.ws = fs.createWriteStream(null, { fd })
+      this.ws.on('error', err => this.error(err))
+      this.ws.on('finish', () => {
+        if (this.ws.bytesWritten !== this.size) {
+          this.error('bytesWritten different than expected size')
+        } else {
+          this.ws = null
+          this.emit('finish')
+        }
+      })
+
+      this.hash = crypto.createHash('sha256')
+
+      this.rs.on('error', err => this.error(err)) 
+      this.rs.on('data', data => {
+        this.bytesRead += data.length
+        if (this.bytesRead > this.size) {
+          let err = new Error('more data read than expected size')
+          err.code = 'EOVERSIZE'
+          this.error(err)
+        } else {
+          this.hash.update(data)
+          this.ws.write(data)
+        }
+      })
+      this.rs.on('end', () => {
+        if (this.bytesRead < this.size) {
+          let err = new Error('less data read than expected size')
+          err.code = 'EUNDERSIZE'
+          this.error(err)
+        } else {
+          let digest = this.hash.digest('hex')
+          if (digest !== this.sha256) {
+            let err = new Error('sha256 mismatch')
+            err.code = 'ESHA256MISMATCH'
+            this.error(err)
+          } else {
+            this.digest = digest
+            this.rs = null
+            this.hash = null
+
+            // this may trigger write stream finished synchronously!
+            this.ws.end()
+          }
+        }
+      })
+    })
+  }
+
+  readFinished () {
+    return this.rs === null
+  }
+
+  isFinished () {
+    return !this.rs && !this.ws
+  }
+
+  destroy() {
+    if (this.rs && !this.ws) {            // S1: opening file
+      this.rs.removeAllListeners() 
+      this.rs.on('error', () => {})
+      this.rs = null
+    } else if (this.rs && this.ws) {      // S2: piping
+      this.rs.removeAllListeners()
+      this.rs.on('error', () => {})
+      this.ws.removeAllListeners()
+      this.ws.on('error', () => {})
+      this.ws.destroy()
+      this.rs = null
+      this.ws = null
+      this.hash = null
+    } else if (!this.rs && this.ws) {   // S3: ws draining
+      this.ws.removeAllListeners()
+      this.ws.on('error', () => {})
+      this.ws.destroy()
+      this.ws = null
+    } else {
+      // equivalent to finished
+      return
+    }
+  }
+
+  error (err) {
+    this.destroy()
+    this.emit('finish', err)
+    rimraf(this.path, () => {})
+  }
+
+}
+
+/**
+(2) ip-post
+
+S   rs  ws  hash  digest  sha256
+1   Y
+2   Y   Y   (Y)   (Y)             // digest is generated before read stream end
+3       Y         Y       Y       // ws is delibrartely delayed
+4                 Y       Y
+*/
+class IPost extends EventEmitter {
+
+  constructor(rs, filePath, size) {
+    super()
+    
+    this.rs = rs
+    this.path = filePath
+    this.size = size
+    this.sha256 = undefined
+
+    this.fd = null
+    this.bytesRead = 0
+    this.bytesWritten = 0
+    this.trailing = []
+    this.ws = null 
+    this.hash = null
+
+    fs.open(this.path, 'w+', (err, fd) => {
+      if (this.isFinished()) {
+        if (!err) fs.close(fd, () => {})
+        return
+      }
+
+      if (err) return this.error(err)
+
+      // S1 -> S2
+      this.ws = fs.createWriteStream(null, { fd })
+      this.ws.on('error', err => this.error(err))
+      this.ws.on('finish', () => {
+        if (this.ws.bytesWritten !== this.size) {
+          this.error(new Error('write stream bytesWritten mismatch'))
+        } else {
+          this.ws = null
+          this.emit('finish')
+        }
+      })
+
+      this.hash = crypto.createHash('sha256')
+
+      this.rs.on('error', err => this.error(err))
+      this.rs.on('data', data => {
+        this.bytesRead += data.length
+        if (this.bytesRead > this.size + 32) {
+          let err = new Error('more data read than expected size')
+          err.code = 'EOVERSIZE'
+          this.error(err)
+        } else {
+          if (this.bytesWritten < this.size) {
+            let data1
+
+            if (this.bytesWritten + data.length <= this.size) {
+              data1 = data
+            } else { // >
+              data1 = data.slice(0, this.size - this.bytesWritten)
+              this.trailing.push(data.slice(this.size - this.bytesWritten))
+            }
+
+            this.hash.update(data1)
+            this.ws.write(data1)
+            this.bytesWritten += data1.length
+          } else if (this.bytesWritten === this.size) {
+            this.trailing.push(data) 
+          } else {
+            this.error(new Error('internal error, bytesWritten is larger than expected size'))
+          }
+        }
+      })
+
+      this.rs.on('end', () => {
+        if (this.bytesRead < this.size + 32) {
+          let err = new Error('less data read than expected size')
+          err.code = 'EUNDERSIZE'
+          this.error(err)
+        } else {
+          // assert internal state
+          if (this.bytesWritten !== this.size) {
+            return this.error(new Error('internal error, bytesWritten does not equal size'))
+          }          
+
+          // calc digest
+          this.digest = this.hash.digest('hex')
+          this.hash = null
+
+          // buf size must be 32
+          let sha256 = Buffer.concat(this.trailing).toString('hex')
+          this.trailing = null
+
+          if (sha256 !== this.digest) {
+            let err = new Error('trailing hash mismatch')
+            err.code = 'ESHA256MISMATCH'
+            this.error(err)
+          } else {
+            // S2 -> S3, ws.end() is delibrartely delayed to avoid joining
+            this.sha256 = sha256
+            this.rs = null
+            // this may trigger ws finish asynchronously
+            this.ws.end()
+          }
+        }
+      })
+    })
+  }
+
+  readFinished () {
+    return this.rs === null
+  }
+
+  isFinished () {
+    return !this.rs && !this.ws
   }
 
   destroy () {
-    if (this.child) this.child.kill()
+    if (this.rs && !this.ws) {
+      this.rs.removeAllListeners()
+      this.rs.on('error', () => {})
+      this.rs = null
+    } else if (this.rs && this.ws) {
+      this.rs.removeAllListeners()
+      this.rs.on('error', () => {})
+      this.rs = null
+      this.ws.removeAllListeners()
+      this.ws.on('error', () => {})
+      this.ws = null
+    } else if (!this.rs && this.ws) {
+      this.ws.removeAllListeners()
+      this.ws.on('error', () => {})
+      this.ws = null
+    } else {
+      // equivalent to isFinished()
+      return
+    }
+  }
+
+  error (err) {
+    this.destroy()
+    this.emit('finish', err)
+    rimraf(this.path, () => {})
   }
 }
 
-module.exports = HashStream
+/**
+
+(3) cp-pre:
+
+S   rs  ws  hs    digest  sha256
+1   Y                     Y
+2   Y   Y   Y             Y
+3       Y   Y             Y
+4           Y             Y
+5                 Y       Y
+*/
+class CPre extends EventEmitter {
+
+  constructor(rs, path, size, sha256) {
+    super()
+
+    this.rs = rs
+    this.path = path
+    this.size = size
+    this.sha256 = sha256
+
+    this.ws = null
+    this.hash = null
+    this.bytesRead = 0
+    this.bytesWritten = 0
+
+    fs.open(this.path, 'w+', (err, fd) => {
+      if (this.isFinished()) {
+        if (!err) fs.close(fd, () => {})
+        return
+      }
+
+      if (err) return this.error(err)
+
+      this.ws = fs.createWriteStream(null, { fd })
+      this.ws.on('error', err => this.error(err))
+      this.ws.on('finish', () => {
+        if (this.ws.bytesWritten !== this.size) {
+          this.error(new Error('write stream bytesWritten does not equal expected size'))
+        } else {
+          // S3 -> S4
+          this.hash.on('message', message => {
+            if (message !== this.sha256) {
+              let err = new Error('sha256 mismatch')
+              err.code = 'ESHA256MISMATCH'
+              this.error(err)
+            } else {
+              // S4 -> S5
+              this.digest = message
+              this.destroy()
+              this.emit('finish')
+            }
+          })
+          this.ws = null
+          this.hash.send('end')
+        }
+      })
+
+      const opts = { stdio: ['ignore', 'inherit', 'ignore', 'ipc', fd] }
+      this.hash = child.spawn('node', ['-e', script], opts)
+      this.hash.on('error', err => this.error(err))
+      this.hash.on('exit', (code, signal) => this.error(new Error('unexpected exit')))
+
+      this.rs.on('error', err => this.error(err))
+      this.rs.on('data', data => {
+        this.bytesRead += data.length
+        if (this.bytesRead > this.size) {
+          let err = new Error('more data read than expected size')
+          err.code = 'EOVERSIZE'
+          this.error(err)
+        } else {
+          this.ws.write(data, () => { 
+            if (this.isFinished()) return
+            this.hash.send(this.ws.bytesWritten)
+          })
+        }
+      })
+      this.rs.on('end', () => {
+        if (this.bytesRead < this.size) {
+          let err = new Error('less data read than expected size')
+          err.code = 'EUNDERSIZE'
+          this.error(err)
+        } else {
+          // S2 -> S3
+          this.rs = null
+          this.ws.end()
+        }
+      })
+    })
+
+  }
+
+  isFinished () {
+    return !this.rs && !this.ws && !this.ws && !this.hash
+  }
+
+  destroy () {
+    if (this.isFinished()) return
+
+    if (this.rs && !this.ws && !this.hash) {              // S1
+      this.rs.removeAllListeners()
+      this.rs.on('error', () => {})
+      this.rs = null
+    } else if (this.rs && this.ws && this.hash) {         // S2
+      this.rs.removeAllListeners()
+      this.rs.on('error', () => {})
+      this.rs = null
+      this.ws.removeAllListeners()
+      this.ws.on('error', () => {})
+      this.ws.destroy()
+      this.ws = null
+      this.hash.removeAllListeners()
+      this.hash.on('error', () => {})
+      this.hash.kill()
+      this.hash = null
+    } else if (!this.rs && this.ws && this.hash) {        // S3
+      this.ws.removeAllListeners()
+      this.ws.on('error', () => {})
+      this.ws.destroy()
+      this.ws = null
+      this.hash.removeAllListeners()
+      this.hash.on('error', () => {})
+      this.hash.kill()
+      this.hash = null
+    } else if (!this.rs && !this.ws && this.hash) {       // S4
+      this.hash.removeAllListeners() 
+      this.hash.on('error', () => {})
+      this.hash.kill()
+      this.hash = null
+    } else {
+      console.log('invalid internal state', this)
+      throw new Error('invalid internal state')
+    }
+  }
+
+  error (err) {
+    this.destroy()
+    this.emit('finish', err)
+    rimraf(this.path, () => {})
+  }
+}
+
+
+
+/**
+(4) cp-post:
+S   rs  ws  hs    digest  sha256
+1   Y
+2   Y   Y   Y
+3       Y   Y             Y
+4           Y             Y
+5                 Y       Y
+*/
+class CPost extends EventEmitter {
+
+  constructor(rs, filePath, size) {
+    super()
+
+    this.rs = rs
+    this.path = filePath
+    this.size = size
+
+    this.ws = null
+    this.hash = null
+    this.trailing = [] 
+    this.bytesRead = 0
+    this.bytesWritten = 0
+    
+    fs.open(this.path, 'w+', (err, fd) => {
+      if (this.isFinished()) {
+        if (!err) fs.close(fd, () => {})
+        return
+      }
+
+      if (err) return this.error(err)
+
+      this.ws = fs.createWriteStream(null, { fd })
+      this.ws.on('error', err => this.error(err))
+      this.ws.on('finish', () => {
+        if (this.ws.bytesWritten !== this.size) {
+          this.error(new Error('write stream bytesWritten mismatch'))
+        } else {
+          // S3 -> S4
+          this.hash.on('message', message => {
+            if (message !== this.sha256) {
+              let err = new Error('sha256 mismatch')
+              err.code = 'ESHA256MISMATCH'
+              this.error(err)
+            } else {
+              // S4 -> S5
+              this.digest = message
+              this.destroy()
+              this.emit('finish')
+            } 
+          })
+          this.hash.send('end')
+          this.ws = null
+        }
+      })
+
+      const opts = { stdio: ['ignore', 'inherit', 'ignore', 'ipc', fd] } 
+      this.hash = child.spawn('node', ['-e', script], opts)
+      this.hash.on('error', err => this.error(err))
+      this.hash.on('exit', (code, signal) => {
+        console.log(code, this.rs, this.ws, !!this.hash)
+        this.error(new Error('unexpected exit'))
+      })
+
+      this.rs.on('error', err => this.error(err))
+      this.rs.on('data', data => {
+        this.bytesRead += data.length
+        if (this.bytesRead > this.size + 32) {
+          let err = new Error('more data read than expected size')
+          err.code = 'EOVERSIZE'
+          this.error(err)
+        } else {
+          if (this.bytesWritten < this.size) {
+            let data1
+            if (this.bytesWritten + data.length <= this.size) {
+              data1 = data
+            } else {
+              data1 = data.slice(0, this.size - this.bytesWritten)
+              this.trailing.push(data.slice(this.size - this.bytesWritten))
+            }
+
+            this.ws.write(data1, () => { 
+              if (this.isFinished()) return
+              this.hash.send(this.ws.bytesWritten)
+            })
+            this.bytesWritten += data1.length
+          } else if (this.bytesWritten === this.size) {
+            this.trailing.push(data)
+          } else {
+            this.error(new Error('internal error, bytesWriten is larger than expected size'))
+          }
+        }
+      })
+      this.rs.on('end', () => {
+        if (this.bytesRead < this.size + 32) {
+          let err = new Error('less data read than expected size')
+          err.code = 'EUNDERSIZE'
+          this.error(err)
+        } else {
+          // assert internal state
+          if (this.bytesWritten !== this.size) {
+            return this.error(new Error('internal error, bytesWritten does not equal size'))
+          }
+
+          // S2 -> S3
+          this.sha256 = Buffer.concat(this.trailing).toString('hex')
+          this.trailing = null
+          this.rs = null
+          this.ws.end()
+        }
+      }) 
+    })
+  }
+
+  readFinished () {
+    return this.rs === null
+  }
+
+  isFinished () {
+    return !this.rs && !this.ws && !this.hash
+  }
+
+  destroy () {
+    if (this.isFinished()) return
+
+    if (this.rs && !this.ws && !this.hash) {
+      this.rs.removeAllListeners() 
+      this.rs.on('error', () => {})
+      this.rs = null
+    } else if (this.rs && this.ws && this.hash) {
+      this.rs.removeAllListeners()
+      this.rs.on('error', () => {})
+      this.rs = null
+      this.ws.removeAllListeners()
+      this.ws.on('error', () => {})
+      this.ws.destroy()
+      this.ws = null
+      this.hash.removeAllListeners()
+      this.hash.on('error', () => {})
+      this.hash.kill()
+      this.hash = null
+    } else if (!this.rs && this.ws && this.hash) {
+      this.ws.removeAllListeners()
+      this.ws.on('error', () => {})
+      this.ws.destroy()
+      this.ws = null
+      this.hash.removeAllListeners()
+      this.hash.on('error', () => {})
+      this.hash.kill()
+      this.hash = null
+    } else if (!this.rs && !this.ws && this.hash) {
+      this.hash.removeAllListeners()
+      this.hash.on('error', () => {})
+      this.hash.kill()
+      this.hash = null
+    } else {
+      console.log('invalid internal state', this)
+      throw new Error('invalid internal state')
+    }
+  }
+
+  error (err) {
+    this.destroy() 
+    this.emit('finish', err)
+    rimraf(this.path, () => {})
+  }
+}
+
+module.exports = {
+  thresh: 16 * 1024 * 1024,
+
+  createStream: function(rs, filePath, size, sha256) {
+    if (sha256) {
+      if (size > this.thresh) {
+        return new CPre(rs, filePath, size, sha256)
+      } else {
+        return new IPre(rs, filePath, size, sha256)
+      }
+    } else {
+      if (size > this.thresh) {
+        return new CPost(rs, filePath, size)
+      } else {
+        return new IPost(rs, filePath, size)
+      }
+    }
+  },
+
+  IPre, 
+  IPost,
+  CPre,
+  CPost 
+}

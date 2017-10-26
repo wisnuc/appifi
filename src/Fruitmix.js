@@ -993,7 +993,8 @@ class Fruitmix extends EventEmitter {
   // NEW API
   getMetadata (user, fingerprint) {
     if (!this.userCanReadMedia(user, fingerprint)) { throw Object.assign(new Error('permission denied'), { status: 401 }) }
-    return Object.assign({}, this.mediaMap.get(fingerprint), { hash: fingerprint })
+    // return Object.assign({}, this.mediaMap.get(fingerprint), { hash: fingerprint })
+    return this.mediaMap.get(fingerprint)
   }
 
   getFingerprints (user, ...args) {
@@ -1165,15 +1166,19 @@ class Fruitmix extends EventEmitter {
             callback(err)
           } else {
             callback(null, xstat)
+/**
             if (xstat.magic === 'JPEG') {
               if (!this.mediaMap.has(xstat.hash)) {
                 Identifier.identify(dst, xstat.hash, xstat.uuid, (err, metadata) => {
+                  console.log(metadata)
                   // TODO
                   if (err) return
                   this.mediaMap.set(xstat.hash, metadata)
+                  console.log(this.mediaMap)
                 })
               }
             }
+**/
           }
         })
       })
