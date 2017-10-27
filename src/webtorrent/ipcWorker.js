@@ -64,4 +64,4 @@ class IpcWorker {
 
 const createIpcWorker = () => new IpcWorker()
 
-module.exports = createIpcHandler
+module.exports = createIpcWorker

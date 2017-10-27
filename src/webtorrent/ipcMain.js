@@ -35,8 +35,9 @@ class Job {
 
 class IpcMain {
 
-  constructor() {
+  constructor(worker) {
     this.jobs = []
+    this.worker = worker
   }
 
   createJob(op, args, callback) {
@@ -58,8 +59,8 @@ class IpcMain {
       process.nextTick(() => callback(e))
       return
     }
-
-    process.send(job.message())
+    console.log(this.worker)
+    this.worker.send(job.message())
   }  
 
   handleCommandMessage(msg) {
@@ -78,12 +79,12 @@ class IpcMain {
   }
 }
 
-const createIpcMain = () => {
+const createIpcMain = (worker) => {
 
-  let ipc = new IpcMain()
+  let ipc = new IpcMain(worker)
 
-  process.on('message', msg => {
-
+  worker.on('message', msg => {
+    console.log('worker --> ', msg)
     // console.log('ipcworker, msg', msg)
 
     switch(msg.type) {
