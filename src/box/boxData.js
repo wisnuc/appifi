@@ -58,7 +58,8 @@ const createBox = (ctx, dir, doc) => {
 }
 
 /*
-  fruitmix/blobs          // store blob 
+  fruitmix/blobs            // store blob
+          /objects          // commits, trees and so on           
           /boxes
             [uuid]/
               manifest      // box doc

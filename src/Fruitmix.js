@@ -981,6 +981,44 @@ class Fruitmix extends EventEmitter {
     return box.deleteTweetsAsync(tweetsID)
   }
 
+  /**
+   * get commit object
+   * @param {Object} user 
+   * @param {string} boxUUID 
+   * @param {string} commitHash - sha256 of commit object
+   * @return {Object} commit Object
+   */
+  async getCommitAsync (user, boxUUID, commitHash) {
+    if (!isUUID(boxUUID)) throw Object.assign(new Error('invalid boxUUID'), { status: 400 })
+    if (!isSHA256(commitHash)) throw Object.assign(new Error('invalid commitHash'), { status: 400 })
+    let box = this.boxData.getBox(boxUUID)
+    if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
+
+    let guid = user.global.id
+    if (box.doc.owner !== guid && !box.doc.users.includes(guid)) { throw Object.assign(new Error('no permission'), { status: 403 }) }
+
+    return box.getCommitAsync(commitHash)
+  }
+
+  /**
+   * get hash array of contents in root tree object
+   * @param {Object} user 
+   * @param {string} boxUUID 
+   * @param {string} rootTreeHash - sha256 of root tree object
+   * @return {array} hash array of contents in tree
+   */
+  async getRootListAsync (user, boxUUID, rootTreeHash) {
+    if (!isUUID(boxUUID)) throw Object.assign(new Error('invalid boxUUID'), { status: 400 })
+    if (!isSHA256(rootTreeHash)) throw Object.assign(new Error('invalid rootTreeHash'), { status: 400 })
+    let box = this.boxData.getBox(boxUUID)
+    if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
+
+    let guid = user.global.id
+    if (box.doc.owner !== guid && !box.doc.users.includes(guid)) { throw Object.assign(new Error('no permission'), { status: 403 }) }
+
+    return box.getRootListAsync(rootTreeHash)
+  }
+
   /// ////////// media api //////////////
 
   getMetaList (user) {

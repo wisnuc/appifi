@@ -256,6 +256,7 @@ class Box {
     let branches = await this.retrieveAllBranchesAsync()
     let exist, _this = this
 
+    // head is a commit hash
     let findCommit = async head => {
       if (commitHash === head) return true
       let commit = await _this.ctx.ctx.docStore.retrieveAsync(head)
@@ -437,7 +438,7 @@ class Box {
       committer: props.committer,
       ctime: new Date().getTime()
     }
-    props.parent ? commit.parent = null : commit.parent = props.parent
+    commit.parent = props.parent ? props.parent : null
 
     // store commit object
     let text = Stringify(commit)
