@@ -16,10 +16,14 @@ const Node = require('./node')
 const File = require('./file')
 const Directory = require('./directory')
 
-const { readXstatAsync, forceXstatAsync } = require('../lib/xstat')
+const { readXstatAsync, forceXstatAsync, forceXstat } = require('../lib/xstat')
 
 const Debug = require('debug')
 const smbDebug = Debug('samba')
+const debugi = require('debug')('fruitmix:indexing')
+
+const xfingerprint = require('../lib/xfingerprint')
+const xtractMetadata = require('../lib/metadata')
 
 /**
 Forest is a collection of file system cache for each `Drive` defined in Fruitmix.
@@ -54,13 +58,13 @@ In either case, a `read` on the `Directory` object is enough.
 */
 class Forest extends EventEmitter {
 
-  constructor (ctx, froot) {
+  constructor (froot, mediaMap) {
     super()
 
     /**
     fruitmix
     */
-    this.ctx = ctx
+    this.mediaMap = mediaMap
 
     /**
     Absolute path of Fruitmix drive directory 
@@ -80,7 +84,11 @@ class Forest extends EventEmitter {
     /**
     Indexing all media files by file hash
     */
-    this.hashMap = new Map()
+    this.fingerless = new Set()
+    this.fingering = new Set()
+    this.metalessMap = new Map()
+    this.metaingMap = new Map()
+    this.metaMap = new Map()
 
     this.filePath = path.join(froot, 'drives.json')
     this.tmpDir = path.join(froot, 'tmp')
@@ -93,13 +101,267 @@ class Forest extends EventEmitter {
     }
 
     // TODO validate
-
     deepFreeze(this.drives)
     this.lock = false
 
     this.drives.forEach(drive => this.createDriveAsync(drive).then(x => x))
   }
 
+  /// ///////////////////////////////////////////////////////////////////////////
+  //
+  // internal methods
+  //
+  //
+  // From the viewpoint of DriveList, which holds a collection of in-memory 
+  // caching of file system hierarchy, each node is a container for (asynchronous) workers.
+  // 
+  // The following methods are conceptually equivalent to event handlers in reactor model.
+  // They are implemented in function form instead of
+  // 1. emitter for performance reason
+  // 2. callback for multiple outgoing transitions (say, destroy is a hierarchical/harel transition)
+  //
+  // The recursive transition MUST populate in bottom-up order, including pathChanging and destroying
+  //
+  /// ///////////////////////////////////////////////////////////////////////////
+
+  // add file into fingerless, fingering, metaMap, hashingMap or hashlessMap 
+  indexFile (file) {
+    debugi('indexFile', Object.assign({}, {
+      uuid: file.uuid,
+      name: file.name,
+      magic: file.magic,
+      hash: file.hash,
+      finger: !!file.finger,
+      fingerFail: file.fingerFail,
+      meta: !!file.meta,
+      metaFail: file.metaFail
+    }))
+
+    if (file.hash) {
+      if (this.mediaMap.has(file.hash)) { // metadata already extracted
+        if (this.metaMap.has(file.hash)) {
+          this.metaMap.get(file.hash).add(file)
+        } else {
+          this.metaMap.set(file.hash, new Set([file]))
+        }
+      } else { // metadata not extracted yet
+        if (this.metaingMap.has(file.hash)) {
+          this.metaingMap.get(file.hash).add(file)
+        } else {
+          if (this.metalessMap.has(file.hash)) {
+            this.metalessMap.get(file.hash).add(file)
+          } else {
+            this.metalessMap.set(file.hash, new Set([file]))
+          }
+
+          this.requestSchedule('meta')
+        }
+      }
+    } else { // without fingerprint
+      if (file.finger) {
+        this.fingering.add(file)
+      } else {
+        this.fingerless.add(file)
+        this.requestSchedule('finger')
+      }
+    }
+  }
+
+  /**
+  remove a single File object out of map or set
+
+  for file in metaing map, it may influece the whole set
+  */
+  unindexFile (file) {
+    if (file.hash) {
+      let key = file.hash
+
+      if (this.metaMap.has(key)) {
+        let set = this.metaMap.get(key)
+        let found = set.delete(file)
+        if (!found) throw new Error('not found in meta map')
+        if (set.size === 0) this.metaMap.delete(key)
+      } else if (this.metaingMap.has(key)) {
+        let set = this.metaingMap.get(key)
+        let found = set.delete(file)
+        if (!found) throw new Error('not found in metaing map')
+        if (set.size === 0) {
+          this.metaingMap.delete(key)
+        } else {
+          // the removed one holds the worker
+          if (file.meta) {
+            this.metaingMap.delete(key)
+            this.metalessMap.set(key, set)
+          }
+        }
+      } else if (this.metalessMap.get(key)) {
+        let set = this.metalessMap.get(key)
+        let found = set.delete(file)
+        if (!found) throw new Error('not found in metaless map')
+        if (set.size === 0) this.metalessMap.delete(key)
+      } else {
+        console.log(this)
+        console.log(file)
+        throw new Error('ERROR unindexFile: File object w/ hash not found in any maps')
+      }
+    } else { // without fingerprint
+      if (this.fingering.has(file)) {
+        this.fingering.delete(file)
+      } else if (this.fingerless.has(file)) {
+        this.fingerless.delete(file)
+      } else {
+        console.log(this)
+        console.log(file)
+        throw new Error('ERROR unindexFile: File object w/o hash not found in any sets')
+      }
+    }
+  }
+
+  requestSchedule (name) {
+    debugi('requestSchedule', name)
+
+    if (!['finger', 'meta'].includes(name)) {
+      throw new Error('requestSchedule name must be either finger or meta')
+    }
+
+    // already scheduled
+    let alreadyScheduled = this.fingerScheduled || this.metaScheduled
+    if (name === 'finger') this.fingerScheduled = true
+    if (name === 'meta') this.metaScheduled = true
+
+    if (alreadyScheduled) return
+
+    process.nextTick(() => {
+      debugi('schedule ticked', this.fingerScheduled, this.metaScheduled)
+
+      if (this.destroying || this.destroyed) return
+
+      if (this.fingerScheduled) {
+        this.scheduleFingerWorkers()
+        this.fingerScheduled = false
+      }
+
+      if (this.metaScheduled) {
+        this.scheduleMetaWorkers()
+        this.metaScheduled = false
+      }
+
+      if (this.metaingMap.size === 0 &&
+        this.metalessMap.size === 0 &&
+        this.fingering.size === 0 &&
+        this.fingerless.size === 0) {
+
+        this.emit('indexingDone') 
+      }
+    })
+  }
+
+  // Don't use indexFile/unindexFile, which may trigger schedule
+  scheduleFingerWorkers () {
+    debugi('scheduling finger workers')
+
+    while (this.fingerless.size > 0 && this.fingering.size < 2) {
+      let file = this.fingerless[Symbol.iterator]().next().value
+      this.fingerless.delete(file)
+
+      file.finger = xfingerprint(file.abspath(), file.uuid, (err, xstat) => {
+        this.unindexFile(file)
+        file.finger = null
+
+        if (err) {
+          file.fingerFail++
+        } else {
+          file.fingerFail = 0
+          file.name = xstat.name
+          file.hash = xstat.hash
+        }
+
+        this.indexFile(file)
+      })
+      this.fingering.add(file)
+    }
+  }
+
+  // Don't use indexFile/unindexFile, which may trigger schedule
+  // remove file failed too many times TODO
+  scheduleMetaWorkers () {
+    debugi('scheduling meta workers')
+
+    while (this.metalessMap.size > 0 && this.metaingMap.size < 4) {
+      // pull set (rather than single file) out of metaless map
+      let [fingerprint, set] = this.metalessMap[Symbol.iterator]().next().value
+      this.metalessMap.delete(fingerprint)
+
+      let file = Array.from(set)[0]
+      file.meta = xtractMetadata(file.abspath(), file.magic, file.hash, file.uuid, (err, metadata) => {
+        // pull set out of metaing map
+        let set = this.metaingMap.get(file.hash)
+        this.metaingMap.delete(file.hash)
+        file.meta = null
+
+        if (err) {
+          file.metaFail++
+          this.metalessMap.add(file.hash, set) // put into metaless map
+        } else {
+          this.mediaMap.set(file.hash, metadata) // report metadata
+          this.metaMap.set(file.hash, set) // put into meta map
+        }
+
+        this.requestSchedule('meta')
+      })
+
+      // put set back into metaing map
+      this.metaingMap.set(fingerprint, set)
+    }
+  }
+
+  onFileCreated (file) {
+    file.finger = null
+    file.fingerFail = 0
+    file.meta = null
+    file.metaFail = 0
+    this.indexFile(file)
+  }
+
+  onFileUpdating (file) {
+    debugi('updating file')
+
+    this.unindexFile(file)
+    if (file.finger) {
+      file.finger.destroy()
+      file.finger = null
+      file.fingerFail = 0
+    }
+
+    if (file.meta) {
+      file.meta.destroy()
+      file.meta = null
+      file.metaFail = 0
+    }
+  }
+
+  onFileUpdated (file) {
+    this.indexFile(file)
+  }
+
+  onFileDestroying (file) {
+    this.unindexFile(file)
+  }
+
+  onDirectoryCreated () {
+  }
+
+  onDirectoryPathChanging () {
+  }
+
+  onDirectoryDestroying () {
+  }
+
+  /// ///////////////////////////////////////////////////////////////////////////
+  //
+  // external methods
+  //
+  /// ///////////////////////////////////////////////////////////////////////////
   async commitDrivesAsync (currDrives, nextDrives) {
     if (currDrives !== this.drives) throw E.ECOMMITFAIL()
     if (this.lock === true) throw E.ECOMMITFAIL()
@@ -213,20 +475,6 @@ class Forest extends EventEmitter {
   }
 
   /**
-  index a file by file hash
-  */
-  index (file) {
-    if (this.hashMap.has(file.hash)) { this.hashMap.get(file.hash).add(file) } else { this.hashMap.set(file.hash, new Set([file])) }
-  }
-
-  /**
-  unindex a file by file hash
-  */
-  unindex (file) {
-    this.hashMap.get(file.hash).delete(file)
-  }
-
-  /**
   Create the file system cache for given `Drive` 
 
   @param {Drive}
@@ -238,6 +486,25 @@ class Forest extends EventEmitter {
     let xstat = await forceXstatAsync(dirPath, { uuid: drive.uuid })
     let root = new Directory(this, null, xstat, monitor)
     this.roots.set(root.uuid, root)
+  }
+
+  // 
+  createDrive (drive, monitor, callback) {
+    if (typeof monitor === 'function') {
+      callback = monitor
+      monitor = null
+    }
+
+    let dirPath = path.join(this.dir, drive.uuid)
+    mkdirp(dirPath, err => {
+      if (err) return callback(err)
+      forceXstat(dirPath, { uuid: drive.uuid }, (err, xstat) => {
+        if (err) return callback(err)
+        let root = new Directory(this, null, xstat, monitor)
+        this.roots.set(root.uuid, root)
+        callback()
+      })
+    }) 
   }
 
   /**
@@ -281,12 +548,12 @@ class Forest extends EventEmitter {
 
   // TODO filter by drives
   getFingerprints (drives) {
-    return Array.from(this.hashMap).map(kv => kv[0])
+    return Array.from(this.metaMap).map(kv => kv[0])
   }
 
   // TODO filter by drives
   getFilesByFingerprint (fingerprint, drives) {
-    let fileSet = this.hashMap.get(fingerprint)
+    let fileSet = this.metaMap.get(fingerprint)
     if (!fileSet) return []
 
     let arr = []
@@ -303,7 +570,7 @@ class Forest extends EventEmitter {
   */
   dirWalk (dir, names) {
     let q = [dir]
-    for (i = 0; i < names.length; i++) {
+    for (let i = 0; i < names.length; i++) {
       let child = dir.directories.find(d => d.name === names[i])
       if (child) {
         q.push(child)

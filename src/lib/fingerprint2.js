@@ -1,6 +1,6 @@
-const path = require('path')
 const fs = require('fs')
-const child = require('child_process')
+const EventEmitter = require('events')
+const spawn = require('child_process').spawn
 const crypto = require('crypto')
 
 const script = `
@@ -52,45 +52,88 @@ ws.on('end', () => {
         .digest()
   }
 
-  process.send(fingerprint.toString('hex'), () => process.exit())
+  process.send(fingerprint.toString('hex'))
 })
 
 `
 const EMPTY_SHA256_HEX = crypto.createHash('sha256').digest('hex')
 
-const fingerprint = (fpath, callback) => {
+// explicit state: S => 0, emit error XOR data 
+class Fingerprint extends EventEmitter {
 
-  let hash
-  let destroyed = false
-  const destroy = () => {
-    if (destroyed) return
-
-    if (hash) {
-      hash.removeAllListeners()
-      hash.on('error', () => {})
-      hash.kill()
-      hash = null
-    }
-
-    destroyed = true
+  constructor (fpath) {
+    super()
+    this.child = null
+    this.rs = null
+    this.destroyed = false
+    fs.open(fpath, 'r', (err, fd) => {
+      if (this.destroyed) {
+        if (!err) {
+          fs.close(fd, () => {})
+        }
+      } else if (err) {
+        this.emit('error', err)
+      } else {
+        fs.fstat(fd, (err, stat) => {
+          if (this.destroyed) {
+            // close anyway
+            fs.close(fd, () => {})
+          } else if (err) {
+            this.emit('data', err)
+          } else if (stat.size === 0) {
+            fs.close(fd, () => {})
+            this.emit('data', EMPTY_SHA256_HEX)
+          } else if (stat.size <= 16 * 1024 * 1024) {
+            let hash = crypto.createHash('sha256')
+            this.rs = fs.createReadStream(null, { fd })
+            this.rs.on('error', err => {
+              this.destroy()
+              this.emit('error', err)
+            })
+            this.rs.on('data', data => hash.update(data))
+            this.rs.on('end', () => this.emit('data', hash.digest('hex')))
+          } else {
+            const opts = { stdio: ['ignore', 'inherit', 'ignore', 'ipc', fd] }
+            this.child = spawn('node', ['-e', script], opts)
+            this.child.on('error', err => {
+              this.destroy()
+              this.emit('error', err)
+            })
+            this.child.on('message', message => {
+              this.destroy()
+              this.emit('data', message)
+            })
+            this.child.on('exit', (code, signal) => {
+              this.destroy()
+              this.emit('error', new Error(`unexpected exit with code ${code}, signal ${signal}`))
+            })
+          }
+        })
+      }
+    })
   }
 
-  fs.open(fpath, 'r', (err, fd) => {
-    if (destroyed) return fs.close(fd, () => {})
-    if (err) return callback(err)
+  destroy () {
+    if (this.destroyed) return
+    this.destroyed = true
 
-    const opts = { stdio: ['ignore', 'inherit', 'ignore', 'ipc', fd]  }
-    hash = child.spawn('node', ['-e', script], opts)
-    hash.on('error', err => (destroy(), callback(err)))
-    hash.on('message', message => (destroy(), callback(null, message)))
-    hash.on('exit', (code, signal) => {
-      let err = new Error(`unexpected exit with code ${code}, signal ${signal}`)
-      destroy()
-      callback(err)
-    })
-  }) 
+    if (this.child) {
+      this.child.removeAllListeners()
+      this.child.on('error', () => {})
+      this.child.kill()
+      this.child = null
+    }
 
-  return destroy
+    if (this.rs) {
+      this.rs.removeAllListeners()
+      this.rs.on('error', () => {})
+      this.rs.destroy()
+      this.rs = null
+    }
+  }
+
 }
 
-module.exports = fingerprint
+module.exports = Fingerprint
+
+

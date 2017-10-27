@@ -1,8 +1,11 @@
-const debug = require('debug')('file')
+const debug = require('debug')('fruitmix:file')
 
 const Node = require('./node')
-const createMetaWorker = require('../lib/metadata')
+const xtractMetadata = require('../lib/metadata')
+const xfingerprint = require('../lib/xfingerprint')
 const hash = require('../lib/hash')
+
+const debugi = require('debug')('fruitmix:indexing')
 
 /**
 File is a in-memory file node maintaining (some) xstat props and related tasks.
@@ -34,9 +37,13 @@ In our good old C pattern, only `hashed` and `hashless` are used as explicit sta
 class File extends Node {
 
   constructor (ctx, parent, xstat) {
-    if (typeof xstat.magic !== 'string') { throw new Error('file must have magic string') }
+    if (typeof xstat.magic !== 'string') { 
+      throw new Error('file must have magic string') 
+    }
 
-    if (xstat.hash !== undefined && typeof xstat.hash !== 'string') { throw new Error('xstat hash must be string or undefined') }
+    if (xstat.hash !== undefined && typeof xstat.hash !== 'string') { 
+      throw new Error('xstat hash must be string or undefined') 
+    }
 
     super(ctx, parent, xstat)
 
@@ -56,132 +63,28 @@ class File extends Node {
     */
     this.hash = xstat.hash
 
-    /**
-    hash worker
-    @type {(null|HashWorker)}
-    */
-    this.worker = null
-
-    /**
-    failed time of hash worker.
-    Abort are not counted. When hash lost, this count is reset to 0
-    @type {number}
-    */
-    this.hashFail = 0
-
-    this.index()
-    this.startWorker()
+    this.ctx.onFileCreated(this)
   }
 
   /**
   Destroys this file node
   */
   destroy () {
-    this.stopWorker()
-    this.unindex(this)
+    this.ctx.onFileDestroying(this)
     super.destroy()
   }
 
   /**
-  Index this file if it has hash
-  */
-  index () {
-    if (this.hash) this.ctx.index(this)
-  }
-
-  /**
-  Unindex this file before hash dropped, changed, or file object destroyed
-  */
-  unindex () {
-    if (this.hash) this.ctx.unindex(this)
-  }
-
-  /**
-  Start hash worker
-  */
-  startWorker () {
-
-    if (this.worker) return
-    if (!this.hash) {
-      debug('start fingerprint worker')
-      this.worker = hash(this.abspath(), this.uuid)
-      this.worker.on('error', err => {
-        debug('fingerprint worker error', err)
-
-        this.worker = null
-        if (err.code === 'ENOTDIR' || err.code === 'ENOENT') {
-          this.dir.fileMissing(err.code)
-        } else if (err.code === 'EABORT') {
-        } else {
-          this.startWorker() // retry
-        }
-      })
-
-      this.worker.on('finish', xstat => {
-        debug('fingerprint worker finish', xstat)
-
-        this.worker = null
-        this.update(xstat)
-      })
-      this.worker.start()
-//    } else if (!Media.has(this.hash)) {
-      } else if (!this.ctx.ctx.mediaMap.has(this.hash)) {
-
-      debug('start meta worker') 
-      this.worker = createMetaWorker(this.abspath(), this.hash, this.uuid)
-      this.worker.on('error', err => {
-        debug('meta worker error', err)
-      })
-    
-      this.worker.on('finish', metadata => {
-        debug('meta worker finish', metadata)
-
-        this.worker = null
-        // Media.set(this.hash, metadata)
-        this.ctx.ctx.mediaMap.set(this.hash, metadata)
-      })
-
-      this.worker.start()
-    }
-  }
-
-  /**
-  Stop hash worker
-  */
-  stopWorker () {
-    if (this.worker) {
-      this.worker.abort()
-      this.worker = null
-    }
-  }
-
-  /**
-  Update this object with xstat.
-
+  Update this object with xstat. This function should only be called by directory when updating.
   Only name and hash can be changed.
   */
   update (xstat) {
-    if (xstat.uuid !== this.uuid) throw new Error('xstat.uuid mismatch')
-
-    // suicide
-    if (typeof xstat.magic !== 'string') {
-      debug('file node suicide')
-      this.destroy()
-    }
-
+    if (xstat.uuid !== this.uuid) throw new Error('uuid mismatch')
     if (this.name === xstat.name && this.hash === xstat.hash) return
-
-    this.stopWorker()
-
-    if (this.name !== xstat.name) this.name = xstat.name
-
-    if (this.hash !== xstat.hash) {
-      this.unindex()
-      this.hash = xstat.hash
-      this.index()
-    }
-
-    this.startWorker()
+    this.ctx.onFileUpdating(this)
+    this.name = xstat.name
+    this.hash = xstat.hash
+    this.ctx.onFileUpdated(this)
   }
 
 }
