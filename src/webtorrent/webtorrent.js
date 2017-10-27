@@ -1,8 +1,9 @@
 const path = require('path')
 const fs = require('fs')
 const webT = require('webtorrent')
+const mkdirpAsync = require('bluebird').promisify(require('mkdirp'))
 
-const ipc = require('./ipcWorker')
+const IPCWorker = require('./ipcWorker')
 
 const asCallback = (fn) => {
   return (props, callback) => {
@@ -12,7 +13,7 @@ const asCallback = (fn) => {
   }
 }
 
-class WebTorrent {
+class WebTorrentService {
   constructor(tempPath) {
     this.tempPath = tempPath
     this.catchPath = path.join(this.tempPath, 'storage.json')
@@ -113,9 +114,9 @@ class WebTorrent {
   //resume a torrent with torrentID
   resume({torrentId}) {
     let torrent = this.client.get(torrentId)
-    if (!torrent) return {code: -1}
+    if (!torrent) return -1
     torrent.files.forEach(file => {file.select()})
-    return {code: 0}
+    return 0
   }
 
   //query summary of downloading torrent (torrentID is not necessary)
@@ -202,9 +203,18 @@ class WebTorrent {
   register(ipc) {
     ipc.register('addTorrent', asCallback(this.addTorrent.bind(this)))
     ipc.register('addMagnet', asCallback(this.addMagnet.bind(this)))
-    ipc.register('pause', (props, callback) => { callback(null, this.pause(props)) })
+    ipc.register('pause', (props, callback) => callback(null, this.pause(props)))
+    ipc.register('resume', (props, callback) => callback(null, this.resume(props)))
+    ipc.register('getSummary', (props, callback) => callback(null, this.getSummary(props)))
+    ipc.register('getFinish', (props, callback) => callback(null, this.getFinish()))
+    ipc.register('destory', asCallback(this.destory.bind(this)))
   }
 }
 
+let ipc = IPCWorker()
 
-module.exports = WebTorrent
+// folder
+let wPath
+
+let webTorrentService = new WebTorrentService(wPath)
+webTorrentService.register(ipc)
