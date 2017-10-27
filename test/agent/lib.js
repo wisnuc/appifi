@@ -386,7 +386,7 @@ const createTreeObjectAsync = async dir => {
             let result = hashArr.get(fingerprint)
             result.path.push(fpath)
           } else {
-            let obj = {fingerprint, path: [fpath]}
+            let obj = {fingerprint, path: [fpath], size: stat.size}
             hashArr.set(fingerprint, obj)
           }
 
@@ -400,7 +400,7 @@ const createTreeObjectAsync = async dir => {
             let result = hashArr.get(fingerprint)
             result.path.push(entryPath)
           } else {
-            let obj = {fingerprint, path: [entryPath]}
+            let obj = {fingerprint, path: [entryPath], size: stat.size}
             hashArr.set(fingerprint, obj)
           }
 
@@ -425,7 +425,8 @@ const createTreeObjectAsync = async dir => {
     let result = hashArr.get(root)
     result.path.push(rootpath)
   } else {
-    let obj = {root, path: [rootpath]}
+    let size = await fs.lstatAsync(rootpath).size
+    let obj = {root, path: [rootpath], size}
     hashArr.set(root, obj)
   }
 

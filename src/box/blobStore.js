@@ -51,7 +51,7 @@ class BlobStore {
               if (++i === hashArr.length) return callback()
             })
             worker.on('error', err => callback(err))
-          }
+          } else return callback()
         })
       }
     } else return callback()
@@ -83,7 +83,6 @@ class BlobStore {
   store(src, callback) {
     let srcStr = src.join(' ')
     let dst = this.dir
-
     // move files into blobs
     child.exec(`mv ${srcStr} -t ${dst}`, (err, stdout, stderr) => {
       if (err) return callback(err)

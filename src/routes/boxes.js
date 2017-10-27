@@ -8,14 +8,18 @@ const UUID = require('uuid')
 const fs = require('fs')
 const rimraf = require('rimraf')
 const rimrafAsync = Promise.promisify(rimraf)
-const secret = require('../config/passportJwt')
+const Dicer = require('dicer')
+const sanitize = require('sanitize-filename')
+const crypto = require('crypto')
 
+const secret = require('../config/passportJwt')
 const fingerprintSimpleAsync = Promise.promisify(require('../utils/fingerprintSimple'))
 const { isSHA256 } = require('../lib/assertion')
 const getFruit = require('../fruitmix')
 
 const EUnavail = Object.assign(new Error('fruitmix unavailable'), { status: 503 })
 const fruitless = (req, res, next) => getFruit() ? next() : next(EUnavail)
+const SIZE_1G = 1024 * 1024 * 1024
 
 /**
 This auth requires client providing:
@@ -147,9 +151,39 @@ router.delete('/:boxUUID/branches/:branchUUID', fruitless, auth, (req, res, next
     .catch(next)
 })
 
+const parseHeader = header => {
+  let name, filename, fromName, toName
+  // let x = header['content-disposition'][0].split('; ')
+  let x = Buffer.from(header['content-disposition'][0], 'binary').toString('utf8').replace(/%22/g, '"').split('; ')
+  //fix %22
+
+  if (x[0] !== 'form-data') throw new Error('not form-data')
+  if (!x[1].startsWith('name="') || !x[1].endsWith('"')) throw new Error('invalid name')
+  name = x[1].slice(6, -1) 
+
+  // validate name and generate part.fromName and .toName
+  let split = name.split('|')
+  if (split.length === 0 || split.length > 2) throw new Error('invalid name')
+  if (!split.every(name => name === sanitize(name))) throw new Error('invalid name')
+  fromName = split.shift()
+  toName = split.shift() || fromName
+
+  if (x.length > 2) {
+    if (!x[2].startsWith('filename="') || !x[2].endsWith('"')) throw new Error('invalid filename')
+    filename = x[2].slice(10, -1)
+
+    // validate part.filename and generate part.opts
+    let { size, sha256 } = JSON.parse(filename)
+    return { type: 'file', name, fromName, toName, size, sha256 }
+  } else {
+    return { type: 'field', name }
+  } 
+}
+
 router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
   let boxUUID = req.params.boxUUID
 
+  /**
   if (req.is('multipart/form-data')) {
     // UPLOAD
     let form = new formidable.IncomingForm()
@@ -278,6 +312,196 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
     })
 
     form.parse(req)
+
+  } else if (req.is('application/json')) {
+    getFruit().createTweetAsync(req.user, boxUUID, req.body)
+      .then(tweet => res.status(200).json(tweet))
+      .catch(next)
+  } else
+    return res.status(415).end()
+  **/
+
+  if (req.is('multipart/form-data')) {
+    const regex = /^multipart\/.+?(?:; boundary=(?:(?:"(.+)")|(?:([^\s]+))))$/i
+    const m = regex.exec(req.headers['content-type'])
+    let obj, comment, type, size, sha256, arr
+    let urls = []
+
+    dicer = new Dicer({ boundary: m[1] || m[2] })
+
+    const error = err => {
+      if (dicer) {
+        dicer.removeAllListeners()
+        dicer.on('error', () => {})
+        req.unpipe(dicer)
+        dicer.end()
+        dicer = null
+      }
+      return res.status(err.status).json(err)
+    }
+
+    // check given size and sha256 match with received file 
+    const check = (size, sha256, obj) => {
+      if (size !== obj.total) {
+        let e = new Error('size mismatch')
+        e.status = 409
+        error(e)
+      }
+
+      if (sha256 !== obj.fingerprint) {
+        let e = new Error('sha256 mismatch')
+        e.status = 409
+        error(e)
+      }
+    }
+
+    const onField = rs => {
+      rs.on('data', data => {
+        obj = JSON.parse(data)
+        if (typeof obj.comment === 'string') comment = obj.comment
+        if (obj.type) type = obj.type
+
+        if (type === 'blob') {
+          if (Number.isInteger(obj.size)) size = obj.size
+          if (isSHA256(obj.sha256)) sha256 = obj.sha256
+        }
+
+        if (type === 'list') arr = obj.list
+      })
+    }
+
+    const onFile = (rs, props) => {
+      try {
+        if (!Number.isInteger(props.size))
+          throw new Error('size must be an integer')
+
+        if (!isSHA256(props.sha256))
+          throw new Error('invalid sha256')
+      } catch(e) {
+        e.status = 400
+        return error(e)
+      }
+
+      let tmpdir = getFruit().getTmpDir()
+      let tmpPath = path.join(tmpdir, UUID.v4())
+      let ws = fs.createWriteStream(tmpPath)
+      let hashMaker = crypto.createHash('sha256')
+      let hashArr = [], fingerprint
+      let lenWritten = 0     // total length is 1G
+      let total = 0
+
+      // calculate hash of each segment(1G)
+      rs.on('data', data => {
+        let chunk = Buffer.from(data)
+
+        if (lenWritten + chunk.length > SIZE_1G) {
+          // write data to full, update hash
+          let len = SIZE_1G - lenWritten
+          hashMaker.update(chunk.slice(0, len))
+          hashArr.push(hashMaker.digest())
+
+          // write the rest of data
+          lenWritten = chunk.slice(len).length
+          hashMaker = crypto.createHash('sha256')
+          hashMaker.update(chunk.slice(len))
+
+          ws.write(chunk)
+          total += chunk.length
+        } else {
+          lenWritten += chunk.length
+          hashMaker.update(chunk)
+          ws.write(chunk)
+          total += chunk.length
+        }
+      })
+
+      rs.on('end', () => {
+        ws.end()
+        // calculate fingerprint
+        hashArr.push(hashMaker.digest())
+        if (hashArr.length === 1) fingerprint = hashArr[0].toString('hex')
+        else {
+          hashMaker = crypto.createHash('sha256')
+          hashMaker.update(hashArr[0])
+          for(let i = 1; i < hashArr.length; i++) {
+            hashMaker.update(hashArr[i])
+            let digest = hashMaker.digest()
+            if (i === hashArr.length - 1) fingerprint = digest.toString('hex')
+            else {
+              hashMaker = crypto.createHash('sha256')
+              hashMaker.update(digest)
+            }
+          }
+        }
+
+        let received = { total, fingerprint }
+        // check whether given size and sha256 match received file
+        check(props.size, props.sha256, received)
+
+        if (type === 'blob') { 
+          // check received file and data given in field
+          check(size, sha256, received)
+          urls.push({sha256, filepath: tmpPath})
+        }
+
+        if (type === 'list') {
+          let index = arr.findIndex(i => i.sha256 === received.fingerprint)
+          if (index !== -1) {
+            check(arr[index].size, arr[index].sha256, received)
+            urls.push({sha256: arr[index].sha256, filepath: tmpPath})
+            arr[index].finish = true
+          } else {
+            rimraf(tmpPath, () => {})
+          }
+        }
+      })
+    }
+
+    dicer.on('part', part => {
+      part.on('error', err => {
+        part.removeAllListeners()
+        part.on('error', () => {})
+        return error(err)
+      })
+
+      part.on('header', header => {
+        let props
+        try {
+          props = parseHeader(header)
+        } catch(e) {
+          part.on('error', () => {})
+          e.status = 400
+          return error(e)
+        }
+
+        if (props.type === 'field') {
+          onField(part)
+        } else {
+          onFile(part, props)
+        }
+      })
+    })
+    
+    dicer.on('finish', () => {
+      if (type === 'blob' || arr.every(i => i.finish)) {
+        let props
+        if (type === 'blob') props = { comment, type, id: sha256, src: urls}
+        else {
+          let list = obj.list.map(i => { return {sha256: i.sha256, filename: i.filename} })
+          props = {comment, type, list, src: urls}
+        }
+
+        getFruit().createTweetAsync(req.user, boxUUID, props)
+          .then(tweet => res.status(200).json(tweet))
+          .catch(e => error(e)) 
+      } else {
+        let e = new Error('necessary file not uploaded')
+        e.status = 404
+        return error(e)
+      }
+    })
+
+    req.pipe(dicer)
 
   } else if (req.is('application/json')) {
     getFruit().createTweetAsync(req.user, boxUUID, req.body)

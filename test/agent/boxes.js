@@ -1,6 +1,6 @@
 const path = require('path')
 const request = require('supertest')
-const superagent = require('superagent')
+// const superagent = require('superagent')
 const Promise = require('bluebird')
 const fs = require('fs')
 const rimrafAsync = Promise.promisify(require('rimraf'))
@@ -52,8 +52,9 @@ const resetAsync = async() => {
   await broadcast.until('FruitmixStarted')
 }
 
-describe(path.basename(__filename), () => {
-
+describe(path.basename(__filename), function() {
+  // console.log(this)
+  this.timeout(100000)
   describe('No user', () => {
 
     beforeEach(async () => {
@@ -292,39 +293,39 @@ describe(path.basename(__filename), () => {
 
     afterEach(() => UUID.v4.restore())
 
-    it.only('POST /boxes/{uuid}/commits, should create a commit with no parent', async done => {
-      let testDir = 'testdata'
-      let result = await createTreeObjectAsync(testDir)
-      let toUpload = [...result.hashArr.keys()]
-      let tmp = path.join(process.cwd(), 'tmp')
-      let entries = await fs.readdirSync(tmp)
-      // move all files toUpload into tmp dir,
-      // and rename with its hash
-      console.log(toUpload)
-      toUpload.forEach(i => {
-        if (!entries.includes(i)) {
-          let src = result.hashArr.get(i).path[0]
-          let dst = path.join(tmp, i)
-          child.execSync(`cp -r --reflink=auto --preserve=all '${src}' '${dst}'`)
-        }
-      })
+    // it('POST /boxes/{uuid}/commits, should create a commit with no parent', async done => {
+    //   let testDir = 'testdata'
+    //   let result = await createTreeObjectAsync(testDir)
+    //   let toUpload = [...result.hashArr.keys()]
+    //   let tmp = path.join(process.cwd(), 'tmp')
+    //   let entries = await fs.readdirSync(tmp)
+    //   // move all files toUpload into tmp dir,
+    //   // and rename with its hash
+    //   console.log(toUpload)
+    //   toUpload.forEach(i => {
+    //     if (!entries.includes(i)) {
+    //       let src = result.hashArr.get(i).path[0]
+    //       let dst = path.join(tmp, i)
+    //       child.execSync(`cp -r --reflink=auto --preserve=all '${src}' '${dst}'`)
+    //     }
+    //   })
 
-      let obj = {
-        root: result.root,       // hash string of a tree obj
-        toUpload:[...result.hashArr.keys()]
-      }
-      request(app)
-        .post(`/boxes/${boxUUID}/commits`)
-        .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
-        .field('commit',JSON.stringify(obj))
-        .attach('tmp', 'tmp')
-        // .attach('vpai001', 'testdata/vpai001.jpg')
-        .expect(200)
-        .end((err, res) => {
-          if (err) return done(err)
-          done()
-        })
-    })
+    //   let obj = {
+    //     root: result.root,       // hash string of a tree obj
+    //     toUpload:[...result.hashArr.keys()]
+    //   }
+    //   request(app)
+    //     .post(`/boxes/${boxUUID}/commits`)
+    //     .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
+    //     .field('commit',JSON.stringify(obj))
+    //     .attach('tmp', 'tmp')
+    //     // .attach('vpai001', 'testdata/vpai001.jpg')
+    //     .expect(200)
+    //     .end((err, res) => {
+    //       if (err) return done(err)
+    //       done()
+    //     })
+    // })
 
     it('POST /boxes/{uuid}/tweets alice should add a tweet into tweetsDB', done => {
       request(app)
@@ -352,7 +353,7 @@ describe(path.basename(__filename), () => {
         .post(`/boxes/${boxUUID}/tweets`)
         .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
         .field('blob', JSON.stringify(obj))
-        .attach('alonzo.jpg', 'testdata/alonzo_church.jpg')
+        .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', JSON.stringify({size: obj.size, sha256: obj.sha256}))
         .expect(200)
         .end((err, res) => {
           if (err) return done(err)
@@ -376,8 +377,8 @@ describe(path.basename(__filename), () => {
         .post(`/boxes/${boxUUID}/tweets`)
         .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
         .field('list', JSON.stringify(obj))
-        .attach('alonzo.jpg', 'testdata/alonzo_church.jpg')
-        .attach('vpai001', 'testdata/vpai001.jpg')
+        .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', JSON.stringify({ size: FILES.alonzo.size, sha256: FILES.alonzo.hash}))
+        .attach('vpai001', 'testdata/vpai001.jpg', JSON.stringify({ size: FILES.vpai001.size, sha256: FILES.vpai001.hash}))
         .expect(200)
         .end((err, res) => {
           if (err) return done(err)
@@ -401,9 +402,32 @@ describe(path.basename(__filename), () => {
         .post(`/boxes/${boxUUID}/tweets`)
         .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
         .field('list', JSON.stringify(obj))
-        .attach('vpai001', 'testdata/vpai001.jpg')
+        .attach('vpai001', 'testdata/vpai001.jpg', JSON.stringify({ size: FILES.vpai001.size, sha256: FILES.vpai001.hash}))
         .expect(404)
         .end(done)
+    })
+
+    it('POST /boxes/{uuid}/tweets alice should upload a list contain a big file (test hash)', done => {
+      let obj = {
+        comment: 'hello',
+        type: 'list',
+        list: [{size: FILES.twoAndAHalfGiga.size, sha256: FILES.twoAndAHalfGiga.hash, filename: FILES.twoAndAHalfGiga.name}]
+      }
+      request(app)
+        .post(`/boxes/${boxUUID}/tweets`)
+        .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
+        .field('list', JSON.stringify(obj))
+        .attach('two-and-a-half-giga', 'test-files/two-and-a-half-giga', JSON.stringify({size: FILES.twoAndAHalfGiga.size, sha256: FILES.twoAndAHalfGiga.hash}))
+        .expect(200)
+        .end((err, res) => {
+          if (err) return done(err)
+          expect(res.body.uuid).to.equal(uuid_2)
+          expect(res.body.tweeter.id).to.equal(IDS.alice.global.id)
+          expect(res.body.comment).to.equal('hello')
+          expect(res.body.type).to.equal('list')
+          expect(res.body.list[0].sha256).to.equal(FILES.twoAndAHalfGiga.hash)
+          done()
+        })
     })
 
     it('POST /boxes/{uuid}/tweets should cover the last record if it is incorrect', done => {
