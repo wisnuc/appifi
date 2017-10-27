@@ -85,9 +85,8 @@ const writeFanScale = (fanScale, callback) =>
 Polling power button every 1 second. When power button held down for over 5 seconds, broadcasts an {@link PowerButtonLongPress} event.
 @fires PowerButtonLongPress
 */
+let powerButtonCounter = 0
 const pollingPowerButton = () => setInterval(() => {
-  let powerButtonCounter = 0
-
   fs.readFile(BOARD_EVENT, (err, data) => {
     if (err) {
       powerButtonCounter = 0

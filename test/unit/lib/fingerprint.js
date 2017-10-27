@@ -11,7 +11,7 @@ const chai = require('chai').use(require('chai-as-promised'))
 const expect = chai.expect
 const should = chai.should()
 
-const fingerprint = require('src/lib/fingerprint2')
+const Fingerprint = require('src/lib/fingerprint2')
 
 const { FILES } = require('test/agent/lib')
 
@@ -27,11 +27,13 @@ describe(path.basename(__filename), () => {
 
   Object.keys(FILES).forEach(name => it(`calc fingerprint of ${name}`, function (done) {
     this.timeout(0)
-    fingerprint(FILES[name].path, (err, hash) => {
-      if (err) return done(err)
-      expect(hash).to.equal(FILES[name].hash)
+
+    let fp = new Fingerprint(FILES[name].path)
+    fp.on('data', fingerprint => {
+      expect(fingerprint).to.equal(FILES[name].hash)
       done()
     })
+
   }))
 
 })
