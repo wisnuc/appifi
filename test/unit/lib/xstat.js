@@ -19,6 +19,8 @@ const sinon = require('sinon')
 const E = require('src/lib/error')
 const S = require('test/assets/samples') // TODO
 
+const { alonzo, pngHDrgba, foo, oneGigaMinus1, oneGiga, oneGigaPlusX  } = require('test/lib/files')
+
 const { 
   readXstat, readXstatAsync, updateFileHash, updateFileHashAsync, forceXstat, forceXstatAsync
 } = require('src/lib/xstat')
@@ -39,201 +41,696 @@ const cwd = process.cwd()
 const tmptest = 'tmptest'
 const tmpdir = path.join(cwd, tmptest)
 
-describe(path.basename(__filename) + ' readXstat', () => {
+const MAGICVER = 1
 
-  beforeEach(async () => {
-    await rimrafAsync(tmptest) 
-    await mkdirpAsync(tmptest)
-  })
+describe(path.basename(__filename) + ' readXstat new', () => {
 
-  describe('readXstat', () => {
+  let footime, jpgtime, pngtime
+  let foopath = path.join(tmptest, foo.name)
+  let jpgpath = path.join(tmptest, alonzo.name)
+  let pngpath = path.join(tmptest, pngHDrgba.name)
+  let dpath = path.join(tmptest, 'dir')
+  let lpath = path.join(tmptest, 'link')
 
-    beforeEach(() => sinon.stub(UUID, 'v4').returns(uuidArr[2]))
-    afterEach(() => UUID.v4.restore())
+  let uuid = 'a6fb4e15-4735-461f-8f1d-f9b702f69b61' 
+  const getAttr = path => JSON.parse(xattr.getSync(path, 'user.fruitmix'))
+  const setAttr = (path, obj) => xattr.setSync(path, 'user.fruitmix', JSON.stringify(obj))
 
-    it('should read xstat from clean directory', done => {
-      fs.stat(tmpdir, (err, stats) => {
-        if (err) return done(err)
-        let mtime = stats.mtime.getTime()
-        readXstat(tmpdir, (err, xstat) => {
-          expect(xstat).to.deep.equal({
-            uuid: uuidArr[2],
-            type: 'directory',
-            name: 'tmptest',
-            mtime
-          })
-          done()
-        })
+  const xas = (path, callback) => 
+    readXstat(path, (err, xstat) => {
+      if (err) return callback(err)
+      callback(null, {
+        xstat,
+        attr: getAttr(path),
+        stat: fs.statSync(path)
       })
     })
-
-    it('should read xstat from clean directory, async', () => 
-      (async () => {
-        let stats = await fs.statAsync(tmpdir)
-        let mtime = stats.mtime.getTime()
-        let xstat = await readXstatAsync(tmpdir)
-        expect(xstat).to.deep.equal({
-          uuid: uuidArr[2],
-          type: 'directory',
-          name: 'tmptest',
-          mtime
-        })
-      })())
-
-    it('should read xstat from clean directory, mocha async', async () => {
-
-      let stats = await fs.statAsync(tmpdir)
-      let mtime = stats.mtime.getTime()
-      let xstat = await readXstatAsync(tmpdir)
-      expect(xstat).to.deep.equal({
-        uuid: uuidArr[2],
-        type: 'directory',
-        name: 'tmptest',
-        mtime
-      })
-    })
-
-    it('should throw ENOTDIRFILE for /dev/null, callback', done => {
-      readXstat('/dev/null', (err, xstat) => {
-        expect(err).to.be.an.instanceof(E.ENOTDIRFILE)
-        done()
-      })
-    })
-
-/**
-    it('should throw ENOTDIRFILE for /dev/null, async bluebird asCallback', done => {
-      readXstatAsync('/dev/null').asCallback((err, xstat) => {
-        expect(err).to.be.an.instanceof(E.ENOTDIRFILE)
-        done()
-      })
-    })
-**/
-
-    it('should throw ENOTDIRFILE for /dev/null, async chai-as-promise', () => {
-      // this assertion comes from chai as promised.
-      return expect(readXstatAsync('/dev/null')).to.be.rejectedWith(E.ENOTDIRFILE)
-    })
-
-    it('should throw ENOTDIRFILE for /dev/null, async try-catch', async () => {
-      let err
-      try { 
-        await readXstatAsync('/dev/null') 
-      }
-      catch (e) { 
-        err = e 
-      }
-      expect(err).to.be.an.instanceof(E.ENOTDIRFILE)
-    })
-
-    it('should drop non-json attr', async () => {
-      await xattr.setAsync(tmpdir, 'user.fruitmix', 'hello')
-      let stats = await fs.statAsync(tmpdir)
-      let xstat = await readXstatAsync(tmpdir)
-      expect(xstat).to.deep.equal({
-        uuid: uuidArr[2],
-        type: 'directory',
-        name: 'tmptest',
-        mtime: stats.mtime.getTime()
-      })
-    })
-  })
-}) 
-
-describe(path.basename(__filename) + ' readXstat file', () => {
-
-  let fpath = path.join(tmpdir, S[0].name)
 
   beforeEach(async () => {
     await rimrafAsync(tmptest)
-    await mkdirpAsync(tmptest)
-    await fs.copy(path.join(cwd, 'test', 'assets', S[0].name), fpath)
-    sinon.stub(UUID, 'v4').returns(uuidArr[0])
+    await mkdirpAsync(dpath)
+    await fs.copyFileAsync(foo.path, foopath)
+    await fs.copyFileAsync(alonzo.path, jpgpath)
+    await fs.copyFileAsync(pngHDrgba.path, pngpath)
+    await fs.symlinkAsync('./file', lpath)
+    sinon.stub(UUID, 'v4').returns(uuid)
   })
 
   afterEach(() => {
     UUID.v4.restore()
   })
 
-  it('should read xstat from file without attr', async() => {
-    let stats = await fs.statAsync(fpath)
-
-    let xstat = await readXstatAsync(fpath)
-
-    expect(xstat).to.deep.equal({ 
-      uuid: uuidArr[0],
-      type: 'file',
-      name: 'gg_gps.jpg',
-      mtime: stats.mtime.getTime(),
-      size: 80603,
-      magic: 'JPEG'
+  it('read unsupported file type (/dev/null)', done => {
+    readXstat('/dev/null', (err, xstat) => {
+      expect(err).to.be.an('error')
+      expect(err.code).to.equal('EUNSUPPORTEDFILETYPE')
+      done()
     })
   })
 
-  it('should read xstat from file with attr containing uuid and type', async() => {
-
-    let stats = await fs.statAsync(fpath)    
-    xattr.setAsync(fpath, 'user.fruitmix', JSON.stringify({
-      uuid: uuidArr[1],
-      magic: 'JPEG' 
-    }))
-
-    let xstat = await readXstatAsync(fpath)
-
-    expect(xstat).to.deep.equal({ 
-      uuid: uuidArr[1],
-      type: 'file',
-      name: S[0].name,
-      mtime: stats.mtime.getTime(),
-      size: S[0].size,
-      magic: 'JPEG'
+  it('read unsupported file type (symlink)', done => {
+    readXstat(lpath, (err, xstat) => {
+      expect(err).to.be.an('error')
+      expect(err.code).to.equal('EUNSUPPORTEDFILETYPE')
+      done()
     })
   })
 
-  it('should read xstat from file with attr containing uuid, type, htime, and hash', async() => {
-
-    let stats = await fs.statAsync(fpath)    
-    xattr.setAsync(fpath, 'user.fruitmix', JSON.stringify({
-      uuid: uuidArr[1],
-      hash: S[0].hash,
-      htime: stats.mtime.getTime(),
-      magic: 'JPEG'
-    }))
-
-    let xstat = await readXstatAsync(fpath)
-
-    expect(xstat).to.deep.equal({ 
-      uuid: uuidArr[1],
-      type: 'file',
-      name: 'gg_gps.jpg',
-      mtime: stats.mtime.getTime(),
-      size: 80603,
-      magic: 'JPEG',
-      hash: S[0].hash
+  it('return { uuid } for clean dir', done => {
+    xas(dpath, (err, { xstat, attr, stat }) => {
+      if (err) return done(err)
+      expect(xstat).to.deep.equal({
+        uuid,
+        type: 'directory',
+        name: 'dir',
+        mtime: stat.mtime.getTime()
+      })
+      expect(attr).to.deep.equal({ uuid })
+      done()
     })
   })
 
-  it('should read xstat from file with attr containing uuid, type, outdated htime, and hash', async() => {
-
-    let stats = await fs.statAsync(fpath)    
-    await xattr.setAsync(fpath, 'user.fruitmix', JSON.stringify({
-      uuid: uuidArr[1],
-      hash: S[0].hash,
-      htime: stats.mtime.getTime() - 1000,
-      magic: 'JPEG'
-    }))
-
-    let xstat = await readXstatAsync(fpath)
-
-    expect(xstat).to.deep.equal({ 
-      uuid: uuidArr[1],
-      type: 'file',
-      name: 'gg_gps.jpg',
-      mtime: stats.mtime.getTime(),
-      size: 80603,
-      magic: 'JPEG'
+  it('return { uuid } for dir whose xattr is invalid json (string)', done => {
+    xattr.setSync(dpath, 'user.fruitmix', 'hello world')
+    xas(dpath, (err, data) => {
+      if (err) return done(err)
+      let { xstat, attr, stat } = data
+      expect(xstat).to.deep.equal({
+        uuid,
+        type: 'directory',
+        name: 'dir',
+        mtime: stat.mtime.getTime()
+      })
+      expect(attr).to.deep.equal({ uuid })
+      done()
     })
   })
+
+  it('return { uuid } for dir whose xattr is null', done => {
+    setAttr(dpath, null)
+    xas(dpath, (err, data) => {
+      if (err) return done(err)
+      let { xstat, attr, stat } = data
+      expect(xstat).to.deep.equal({
+        uuid,
+        type: 'directory',
+        name: 'dir',
+        mtime: stat.mtime.getTime()
+      })
+      expect(attr).to.deep.equal({ uuid })
+      done()
+    })
+  })
+
+  it('return { uuid } for dir whose xattr is string', done => {
+    setAttr(dpath, 'hello')
+    xas(dpath, (err, data) => {
+      if (err) return done(err)
+      let { xstat, attr, stat } = data
+      expect(xstat).to.deep.equal({
+        uuid,
+        type: 'directory',
+        name: 'dir',
+        mtime: stat.mtime.getTime()
+      })
+      expect(attr).to.deep.equal({ uuid })
+      done()
+    })
+  })
+
+  it('return { uuid } for dir whose xattr is array', done => {
+    setAttr(dpath, [])
+    xas(dpath, (err, data) => {
+      if (err) return done(err)
+      let { xstat, attr, stat } = data
+      expect(xstat).to.deep.equal({
+        uuid,
+        type: 'directory',
+        name: 'dir',
+        mtime: stat.mtime.getTime()
+      })
+      expect(attr).to.deep.equal({ uuid })
+      done()
+    })
+  })
+
+  it('return { uuid } for dir without uuid', done => {
+    setAttr(dpath, { hello: 'world' })
+    xas(dpath, (err, { xstat, attr, stat }) => {
+      expect(xstat).to.deep.equal({
+        uuid,
+        type: 'directory',
+        name: 'dir',
+        mtime: stat.mtime.getTime()
+      })
+      expect(attr).to.deep.equal({ uuid })
+      done()
+    })
+  })
+
+  it('return { uuid } for dir with bad uuid', done => {
+    setAttr(dpath, { uuid: 'hello' })
+    xas(dpath, (err, data) => {
+      if (err) return done(err)
+      let { xstat, attr, stat } = data
+      expect(xstat).to.deep.equal({
+        uuid,
+        type: 'directory',
+        name: 'dir',
+        mtime: stat.mtime.getTime()
+      })
+      expect(attr).to.deep.equal({ uuid })
+      done()
+    })
+  })
+
+  // drop old properties
+  it('return { uuid } for dir with owner, readlist, writelist', done => {
+    setAttr(dpath, { uuid, owner: uuidArr[0], readlist: [], writelist: [] })
+    xas(dpath, (err, { xstat, attr, stat }) => {
+      if (err) return done(err)
+      expect(xstat).to.deep.equal({
+        uuid,
+        type: 'directory',
+        name: 'dir',
+        mtime: stat.mtime.getTime()
+      })
+      expect(attr).to.deep.equal({ uuid })
+      done()
+    })
+  })
+
+  it('return { uuid, magic: VER } for clean foo', done => {
+    xas(foopath, (err, data) => {
+      if (err) return done(err)
+      let { xstat, attr, stat } = data
+      expect(xstat).to.deep.equal({
+        uuid,
+        type: 'file',
+        name: foo.name,
+        mtime: stat.mtime.getTime(),
+        magic: MAGICVER,
+        size: stat.size
+      })
+      expect(attr).to.deep.equal({ 
+        uuid,
+        magic: MAGICVER
+      })
+      done()
+    })
+  })
+
+  it('return { uuid, magic: JPEG } for clean jpg', done => {
+    xas(jpgpath, (err, data) => {
+      if (err) return done(err)
+      let { xstat, attr, stat } = data
+      expect(xstat).to.deep.equal({
+        uuid,
+        type: 'file',
+        name: alonzo.name,
+        mtime: stat.mtime.getTime(),
+        magic: 'JPEG',
+        size: stat.size
+      })
+      expect(attr).to.deep.equal({ 
+        uuid,
+        magic: 'JPEG'
+      })
+      done()
+    })
+  }) 
+
+  it('return { uuid, magic: PNG } for clean png', done => {
+    xas(pngpath, (err, data) => {
+      if (err) return done(err)
+      let { xstat, attr, stat } = data
+      expect(xstat).to.deep.equal({
+        uuid,
+        type: 'file',
+        name: pngHDrgba.name,
+        size: stat.size,
+        mtime: stat.mtime.getTime(),
+        magic: 'PNG'
+      })
+      expect(attr).to.deep.equal({ 
+        uuid,
+        magic: 'PNG'
+      })
+      done()
+    })
+  }) 
+
+  it('return { uuid, magic: VER } for foo when xattr is invalid json (string)', done => {
+    xattr.setSync(foopath, 'user.fruitmix', 'hello world')
+    xas(foopath, (err, data) => {
+      if (err) return done(err)
+      let { xstat, attr, stat } = data
+      expect(xstat).to.deep.equal({
+        uuid,
+        type: 'file',
+        name: foo.name,
+        size: foo.size,
+        mtime: stat.mtime.getTime(),
+        magic: MAGICVER
+      })
+      expect(attr).to.deep.equal({ 
+        uuid,
+        magic: MAGICVER
+      })
+      done()
+    })
+  })
+
+  it('return { uuid, magic: VER } for foo when xattr is null', done => {
+    setAttr(foopath, null)
+    xas(foopath, (err, data) => {
+      if (err) return done(err)
+      let { xstat, attr, stat } = data
+      expect(xstat).to.deep.equal({
+        uuid,
+        type: 'file',
+        name: foo.name,
+        size: foo.size,
+        mtime: stat.mtime.getTime(),
+        magic: MAGICVER
+      })
+      expect(attr).to.deep.equal({ 
+        uuid,
+        magic: MAGICVER
+      })
+      done()
+    })
+  })
+
+  it('return { uuid, magic: VER } for foo when xattr is string', done => {
+    setAttr(foopath, 'hello')
+    xas(foopath, (err, data) => {
+      if (err) return done(err)
+      let { xstat, attr, stat } = data
+      expect(xstat).to.deep.equal({
+        uuid,
+        type: 'file',
+        name: foo.name,
+        size: foo.size,
+        mtime: stat.mtime.getTime(),
+        magic: MAGICVER
+      })
+      expect(attr).to.deep.equal({ 
+        uuid,
+        magic: MAGICVER
+      })
+      done()
+    })
+  })
+
+  it('return { uuid, magic: VER } for foo when xattr is array', done => {
+    setAttr(foopath, [])
+    xas(foopath, (err, data) => {
+      if (err) return done(err)
+      let { xstat, attr, stat } = data
+      expect(xstat).to.deep.equal({
+        uuid,
+        type: 'file',
+        name: foo.name,
+        size: foo.size,
+        mtime: stat.mtime.getTime(),
+        magic: MAGICVER
+      })
+      expect(attr).to.deep.equal({ 
+        uuid,
+        magic: MAGICVER
+      })
+      done()
+    })
+  })
+
+  it('return { uuid, magic: VER } for foo without uuid', done => {
+    setAttr(foopath, { hello: 'world' })
+    xas(foopath, (err, data) => {
+      if (err) return done(err)
+      let { xstat, attr, stat } = data
+      expect(xstat).to.deep.equal({
+        uuid,
+        type: 'file',
+        name: foo.name,
+        size: foo.size,
+        mtime: stat.mtime.getTime(),
+        magic: MAGICVER
+      })
+      expect(attr).to.deep.equal({ 
+        uuid,
+        magic: MAGICVER
+      })
+      done()
+    })
+  })
+
+  it('return { uuid, magic: VER } for foo with bad uuid', done => {
+    setAttr(foopath, { uuid: 'world' })
+    xas(foopath, (err, data) => {
+      if (err) return done(err)
+      let { xstat, attr, stat } = data
+      expect(xstat).to.deep.equal({
+        uuid,
+        type: 'file',
+        name: foo.name,
+        size: foo.size,
+        mtime: stat.mtime.getTime(),
+        magic: MAGICVER
+      })
+      expect(attr).to.deep.equal({ 
+        uuid,
+        magic: MAGICVER
+      })
+      done()
+    })
+  })
+
+  // drop old properties
+  it('return { uuid, magic: VER } for foo with owner, readlist, writelist', done => {
+    setAttr(foopath, { 
+      uuid, 
+      magic: 0,
+      owner: uuid,
+      writelist: [],
+      readlist: []
+    })
+
+    xas(foopath, (err, data) => {
+      if (err) return done(err)
+      let { xstat, attr, stat } = data
+      expect(xstat).to.deep.equal({
+        uuid,
+        type: 'file',
+        name: foo.name,
+        size: foo.size,
+        mtime: stat.mtime.getTime(),
+        magic: MAGICVER
+      })
+      expect(attr).to.deep.equal({ 
+        uuid,
+        magic: MAGICVER
+      })
+      done()
+    })
+  })
+
+  it('return xstat for foo with uuid and up-to-date magic', done => {
+    setAttr(foopath, { uuid, magic: MAGICVER })
+    xas(foopath, (err, data) => {
+      if (err) return done(err)
+      let { xstat, attr, stat } = data
+      expect(xstat).to.deep.equal({
+        uuid,
+        type: 'file',
+        name: foo.name,
+        size: foo.size,
+        mtime: stat.mtime.getTime(),
+        magic: MAGICVER
+      })
+      expect(attr).to.deep.equal({ 
+        uuid,
+        magic: MAGICVER
+      })
+      done()
+    })
+  })
+
+  it('return xstat for foo with uuid and outdated magic', done => {
+    setAttr(foopath, { uuid, magic: 0 })
+    xas(foopath, (err, data) => {
+      if (err) return done(err)
+      let { xstat, attr, stat } = data
+      expect(xstat).to.deep.equal({
+        uuid,
+        type: 'file',
+        name: foo.name,
+        size: foo.size,
+        mtime: stat.mtime.getTime(),
+        magic: MAGICVER
+      })
+      expect(attr).to.deep.equal({ 
+        uuid,
+        magic: MAGICVER
+      })
+      done()
+    })
+  })
+
+  it('return xstat with hash for foo with uuid, magic, hash and up-to-date time', done => {
+    setAttr(foopath, { 
+      uuid, 
+      magic: MAGICVER,
+      hash: foo.hash,
+      time: fs.statSync(foopath).mtime.getTime()
+    })
+    xas(foopath, (err, data) => {
+      if (err) return done(err)
+      let { xstat, attr, stat } = data
+      expect(xstat).to.deep.equal({
+        uuid,
+        type: 'file',
+        name: foo.name,
+        size: foo.size,
+        mtime: stat.mtime.getTime(),
+        magic: MAGICVER,
+        hash: foo.hash
+      })
+      expect(attr).to.deep.equal({ 
+        uuid,
+        magic: MAGICVER,
+        hash: foo.hash,
+        time: stat.mtime.getTime()
+      })
+      done()
+    })
+  })
+
+  // drop hash
+  it('return xstat without hash for foo with uuid, magic, hash and outdated time', done => {
+    setAttr(foopath, { 
+      uuid, 
+      magic: MAGICVER,
+      hash: foo.hash,
+      time: fs.statSync(foopath).mtime.getTime() - 1
+    })
+    xas(foopath, (err, data) => {
+      if (err) return done(err)
+      let { xstat, attr, stat } = data
+      expect(xstat).to.deep.equal({
+        uuid,
+        type: 'file',
+        name: foo.name,
+        size: foo.size,
+        mtime: stat.mtime.getTime(),
+        magic: MAGICVER,
+      })
+      expect(attr).to.deep.equal({ 
+        uuid,
+        magic: MAGICVER
+      })
+      done()
+    })
+  })
+
+  // keep hash, convert time from htime
+  it('return xstat with hash for foo with uuid, magic, hash and up-to-date htime', done => {
+    setAttr(foopath, { 
+      uuid, 
+      magic: MAGICVER,
+      hash: foo.hash,
+      htime: fs.statSync(foopath).mtime.getTime()
+    })
+    xas(foopath, (err, data) => {
+      if (err) return done(err)
+      let { xstat, attr, stat } = data
+      expect(xstat).to.deep.equal({
+        uuid,
+        type: 'file',
+        name: foo.name,
+        size: foo.size,
+        mtime: stat.mtime.getTime(),
+        magic: MAGICVER,
+        hash: foo.hash
+      })
+      expect(attr).to.deep.equal({ 
+        uuid,
+        magic: MAGICVER,
+        hash: foo.hash,
+        time: stat.mtime.getTime()
+      })
+      done()
+    })
+  })
+
+  // keep hash for oneGiga
+  it('return xstat with hash for foo with uuid, magic, hash and up-to-date htime', function (done) {
+    this.timeout(0)
+
+    let fpath = path.join(tmptest, oneGiga.name)
+    fs.copyFileSync(oneGiga.path, fpath) 
+
+    setAttr(fpath, { 
+      uuid, 
+      magic: MAGICVER,
+      hash: oneGiga.hash,
+      htime: fs.statSync(fpath).mtime.getTime()
+    })
+
+    xas(fpath, (err, data) => {
+      if (err) return done(err)
+      let { xstat, attr, stat } = data
+      expect(xstat).to.deep.equal({
+        uuid,
+        type: 'file',
+        name: oneGiga.name,
+        size: oneGiga.size,
+        mtime: stat.mtime.getTime(),
+        magic: MAGICVER,
+        hash: oneGiga.hash
+      })
+      expect(attr).to.deep.equal({ 
+        uuid,
+        magic: MAGICVER,
+        hash: oneGiga.hash,
+        time: stat.mtime.getTime()
+      })
+      done()
+    })
+  })
+
+  // drop hash for oneGigaPlusX
+  it('return xstat without hash for oneGigaPlusX with uuid, magic, hash and up-to-date htime', function (done) {
+    this.timeout(0)
+
+    let fpath = path.join(tmptest, oneGigaPlusX.name)
+    fs.copyFileSync(oneGigaPlusX.path, fpath) 
+
+    setAttr(fpath, { 
+      uuid, 
+      magic: MAGICVER,
+      hash: oneGigaPlusX.hash,
+      htime: fs.statSync(fpath).mtime.getTime()
+    })
+
+    xas(fpath, (err, data) => {
+      if (err) return done(err)
+      let { xstat, attr, stat } = data
+      expect(xstat).to.deep.equal({
+        uuid,
+        type: 'file',
+        name: oneGigaPlusX.name,
+        size: oneGigaPlusX.size,
+        mtime: stat.mtime.getTime(),
+        magic: MAGICVER,
+      })
+      expect(attr).to.deep.equal({ 
+        uuid,
+        magic: MAGICVER,
+      })
+      done()
+    })
+  })
+
+  // drop hash
+  it('return xstat without hash for foo with uuid, magic, hash and outdated htime', done => {
+    setAttr(foopath, { 
+      uuid, 
+      magic: MAGICVER,
+      hash: foo.hash,
+      htime: fs.statSync(foopath).mtime.getTime() - 1
+    })
+    xas(foopath, (err, data) => {
+      if (err) return done(err)
+      let { xstat, attr, stat } = data
+      expect(xstat).to.deep.equal({
+        uuid,
+        type: 'file',
+        name: foo.name,
+        size: foo.size,
+        mtime: stat.mtime.getTime(),
+        magic: MAGICVER,
+      })
+      expect(attr).to.deep.equal({ 
+        uuid,
+        magic: MAGICVER
+      })
+      done()
+    })
+  })
+
+  it('return { uuid, magic: JPEG } for jpg file with uuid and magic', done => {
+    setAttr(jpgpath, { uuid, magic: 'JPEG' })
+    xas(jpgpath, (err, data) => {
+      if (err) return done(err)
+      let { xstat, attr, stat } = data
+      expect(xstat).to.deep.equal({
+        uuid,
+        type: 'file',
+        name: alonzo.name,
+        size: alonzo.size,
+        mtime: stat.mtime.getTime(),
+        magic: 'JPEG'
+      })
+      expect(attr).to.deep.equal({ 
+        uuid,
+        magic: 'JPEG'
+      })
+      done()
+    })
+  })
+
+  it('return { uuid, magic: PNG } for png file with uuid and magic', done => {
+    setAttr(pngpath, { uuid, magic: 'PNG' })
+    xas(pngpath, (err, data) => {
+      if (err) return done(err)
+      let { xstat, attr, stat } = data
+      expect(xstat).to.deep.equal({
+        uuid,
+        type: 'file',
+        name: pngHDrgba.name,
+        size: pngHDrgba.size,
+        mtime: stat.mtime.getTime(),
+        magic: 'PNG'
+      })
+      expect(attr).to.deep.equal({ 
+        uuid,
+        magic: 'PNG'
+      })
+      done()
+    })
+  })
+
+  // bump magic ver for PNG
+  it('return { uuid, magic: PNG } for png file with uuid and old magic', done => {
+    setAttr(pngpath, { 
+      uuid, 
+      magic: 0
+    })
+
+    xas(pngpath, (err, data) => {
+      if (err) return done(err)
+      let { xstat, attr, stat } = data
+      expect(xstat).to.deep.equal({
+        uuid,
+        type: 'file',
+        name: pngHDrgba.name,
+        size: pngHDrgba.size,
+        mtime: stat.mtime.getTime(),
+        magic: 'PNG'
+      })
+      expect(attr).to.deep.equal({ 
+        uuid,
+        magic: 'PNG'
+      })
+      done()
+    })
+  })
+
+ 
 })
+
+
 
 describe(path.basename(__filename) + ' forceXstat', () => {
 
