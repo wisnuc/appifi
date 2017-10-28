@@ -1,3 +1,6 @@
+This work is licensed under GPL v3.
+
+
 # Notice
 
 
