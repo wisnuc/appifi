@@ -37,7 +37,8 @@ const { isUUID, isSHA256 } = require('./assertion')
 
 #### xattr
 
-Fruitmix uses linux file system specific **extended attributes** (xattr) to store information for regular files and directories.
+Fruitmix uses **extended attributes** (xattr) to store information for regular 
+files and directories.
 
 xattr stores information as key value pair. 
 
@@ -52,7 +53,7 @@ The object has a uuid for both files and directories.
 For files, the object has extra properties:
 
 + hash: file hash in hex string (sha256)
-+ htime: timestamp in number (mtime.getTime()), used to detect outdated hash
++ time: timestamp in number (mtime.getTime()), used to detect outdated hash
 + magic: string | version number
 
 magic is mandatory. hash and htime is optional, but they must exist together.
