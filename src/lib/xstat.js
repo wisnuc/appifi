@@ -387,7 +387,6 @@ Tests:
 @returns {object} - xstat object
 */
 const forceXstatAsync = async (target, { uuid, hash }) => {
-
   if (uuid && !isUUID(uuid)) throw new E.EINVAL()
   if (hash && !isSHA256(hash)) throw new E.EINVAL() 
 
@@ -414,13 +413,10 @@ const forceXstat = (target, opts, callback) => {
 }
 
 module.exports = { 
-
   readXstat,
   readXstatAsync,
-
   updateFileHash,
   updateFileHashAsync,
-
   forceXstat,
   forceXstatAsync
 }
