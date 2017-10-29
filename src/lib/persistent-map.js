@@ -42,7 +42,6 @@ class PersistentMap extends EventEmitter {
     try {
       raw = fs.readFileSync(this.path, { encoding: 'utf8' })
     } catch (e) {
-      console.log(e)
       if (e.code === 'ENOENT') {
         return false
       } else {

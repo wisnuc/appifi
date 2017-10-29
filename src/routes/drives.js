@@ -147,6 +147,13 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
                  | -> ( _dryrun | dryrun  | dryrun_ )            -> |
   **/
 
+  /**
+  parts (new) -> [ parser | parsers_ ) -> execute
+        (new) -> | -> ( _pipes  |  pipes  | drains  |  drains_ ) -> | -> execute
+                 | -> ( _dryrun | dryrun  | dryrun_ )            -> |
+  **/
+
+
   // enter: x { number, part }
   // do: part on ['error', 'header']
   // exit: x { number, part } 
@@ -164,6 +171,8 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
   const drains = []
   // x { number, type, name, fromName, toName, opts, tmp, digest }
   const drains_ = []
+
+  const pipes_ = []
 
   // x { number }
   let _dryrun = []

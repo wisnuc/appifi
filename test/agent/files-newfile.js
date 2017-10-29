@@ -684,7 +684,7 @@ describe(path.basename(__filename), () => {
                   type: 'file',
                   name: 'alonzo.jpg',
                   size: FILES.empty.size,
-                  magic: 0,
+                  magic: 1,
                   hash: FILES.empty.hash
                 })
                 .to.have.keys('uuid', 'mtime')
@@ -723,7 +723,7 @@ describe(path.basename(__filename), () => {
                   type: 'file',
                   name: 'alonzo.jpg',
                   size: FILES.hello.size,
-                  magic: 0,
+                  magic: 1,
                   hash: FILES.hello.hash
                 })
                 .to.have.keys('uuid', 'mtime')

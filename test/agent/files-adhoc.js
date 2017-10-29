@@ -235,7 +235,7 @@ describe(path.basename(__filename), () => {
             type: 'file',
             name: 'empty',
             size: 0,
-            magic: 0,
+            magic: 1,
             hash: FILES.empty.hash
           }).to.have.keys('uuid')
           // mkdir
@@ -260,7 +260,7 @@ describe(path.basename(__filename), () => {
             type: 'file',
             name: 'empty',
             size: 0,
-            magic: 0,
+            magic: 1,
             hash: FILES.empty.hash
           })
 
@@ -268,7 +268,7 @@ describe(path.basename(__filename), () => {
             type: 'file',
             name: 'zero',
             size: 0,
-            magic: 0,
+            magic: 1,
             hash: FILES.empty.hash
           })
 
