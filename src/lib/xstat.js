@@ -56,7 +56,7 @@ For files, the object has extra properties:
 + time: timestamp in number (mtime.getTime()), used to detect outdated hash
 + magic: string | version number
 
-magic is mandatory. hash and htime is optional, but they must exist together.
+magic is mandatory. hash and time is optional, but they must exist together.
 
 magic is either a string representing a file type, or a number representing a version.
 
@@ -99,16 +99,10 @@ const MAGICVER = 1
 /** @func isNonNullObject **/
 const isNonNullObject = obj => typeof obj === 'object' && obj !== null
 
+const magics = ['JPEG', 'PNG']
+
 /** @func isValidMagic **/
-const isValidMagic = magic => { 
-  if ((Number.isInteger(magic) && magic >= MAGICVER) || 
-    magic === 'JPEG' ||
-    magic === 'PNG') {
-    return true
-  } else {
-    return false
-  }
-}
+const isValidMagic = magic => (Number.isInteger(magic) && magic >= MAGICVER) || magics.includes(magic)
 
 /** 
 Parse file magic output to magic 
@@ -168,28 +162,6 @@ const fileMagicAsync = Promise.promisify(fileMagic1)
 Read and validate xattr, drop invalid properties.
 
 This function do NOT change file/folder or its xattr.
-
-Tests:
-+ throw EUNSUPPORTEDFILETYPE if not dir or file
-+ return null attr if no attr (file, no dirty)
-+ return null attr if no attr (dir, no dirty)
-+ return null attr if attr not json (file, dirty)
-+ return null attr if attr not json (dir, dirty)
-+ return attr with valid if uuid invalid (file, dirty)
-+ return attr with valid if uuid invalid (dir, dirty)
-+ drop hash and time if attr has only hash (file, dirty)
-+ drop hash and time if attr has only htime (file, dirty)
-+ drop hash and time if hash invalid (file, dirty)
-+ drop hash and time if htime invalid (file, dirty)
-+ drop hash and time if htime outdated (file, dirty) 
-+ drop magic if invalid (file, dirty)
-+ drop magic if outdated (file, dirty)
-+ drop owner if attr has owner (file, dirty)
-+ drop owner if attr has owner (dir, dirty)
-+ drop writelist if attr has writelist (file, dirty)
-+ drop writelist if attr has writelist (dir, dirty)
-+ drop readlist if attr has readlist (file, dirty)
-+ drop readlist if attr has readlist (dir, dirty)
 
 @method readXattrAsync
 @param {string} target - absolute path
@@ -267,10 +239,6 @@ const readXattrAsync = async (target, stats) => {
 /**
 Update target xattr. If target is file and attr has no magic, create it.
 
-Tests:
-+ test1
-+ test2
-
 @func updateXattrAsync
 @param {string} target - absolute path
 @param {object} attr - xattr object
@@ -322,10 +290,6 @@ const createXstat = (target, stats, attr) => {
 /**
 Read xstat object from target.
 
-Tests:
-+ disk1
-+ disk2
-
 @func readXstatAsync
 @param {string} target - absolute path
 @returns {object} - xstat object
@@ -364,22 +328,22 @@ Update file hash
 @param {string} target - absolute file path
 @param {string} uuid - file uuid
 @param {string} hash - file hash
-@param {number} htime - timestamp before calculating file hash
+@param {number} time - timestamp before calculating file fingerprint
 @returns {object} updated xstat
 */
-const updateFileHashAsync = async (target, uuid, hash, htime) => {
+const updateFileHashAsync = async (target, uuid, hash, time) => {
   
-  if (!isSHA256(hash) || !Number.isInteger(htime)) throw new E.EINVAL()
+  if (!isSHA256(hash) || !Number.isInteger(time)) throw new E.EINVAL()
 
   let stats = await fs.lstatAsync(target)
   if (!stats.isFile()) throw new E.ENOTFILE()
-  if (htime !== stats.mtime.getTime()) throw new E.ETIMESTAMP()
+  if (time !== stats.mtime.getTime()) throw new E.ETIMESTAMP()
 
-  let { attr, dirty } = await readXattrAsync(target, stats)
+  let attr = await readXattrAsync(target, stats)
   if (!attr) throw new E.EINSTANCE() // TODO
   if (uuid !== attr.uuid) throw new E.EINSTANCE()
 
-  Object.assign(attr, { hash, htime })
+  Object.assign(attr, { hash, time })
   await xattr.setAsync(target, FRUITMIX, JSON.stringify(attr))
   return createXstat(target, stats, attr)
 }
@@ -390,11 +354,11 @@ callback version of updateFileHashAsync
 @param {string} target - absolute path
 @param {string} uuid - file uuid
 @param {string} hash - file hash
-@param {number} htime - timestamp before calculating file hash
+@param {number} time - timestamp before calculating file hash
 @param {function} callback - `(err, xstat) => {}`
 */
-const updateFileHash = (target, uuid, hash, htime, callback) =>
-  updateFileHashAsync(target, uuid, hash, htime)
+const updateFileHash = (target, uuid, hash, time, callback) =>
+  updateFileHashAsync(target, uuid, hash, time)
     .then(xstat => callback(null, xstat))
     .catch(e => callback(e))
 
@@ -404,10 +368,8 @@ Forcefully set xattr with given uuid and/or hash.
 This function should only be used for:
 1. drive dir
 2. temp file
-
-Tests:
-+ test1
-+ test2
+  1. preserve original uuid and hash for duplicated file
+  2. assign fingerprint to file saved from transmission
 
 @param {string} target - absolute path
 @param {string} uuid - target uuid
@@ -426,7 +388,7 @@ const forceXstatAsync = async (target, { uuid, hash }) => {
   if (!stats.isFile() && hash) throw new Error('forceXstatAsync: not a file')
 
   let attr = { uuid: uuid || UUID.v4() }
-  if (hash) Object.assign(attr, { hash, htime: stats.mtime.getTime() })
+  if (hash) Object.assign(attr, { hash, time: stats.mtime.getTime() })
 
   attr = await updateXattrAsync(target, attr, stats.isFile())
   let xstat = createXstat(target, stats, attr)
@@ -434,7 +396,6 @@ const forceXstatAsync = async (target, { uuid, hash }) => {
 }
 
 const forceXstat = (target, opts, callback) => {
-
   forceXstatAsync(target, opts)
     .then(xstat => callback(null, xstat))
     .catch(e => callback(e))

@@ -22,6 +22,8 @@ const { btrfsConcat, btrfsClone } = require('./lib/btrfs')
 const jwt = require('jwt-simple')
 const secret = require('./config/passportJwt')
 
+const PersistentMap = require('./lib/persistent-map')
+
 const { assert, isUUID, isSHA256, validateProps } = require('./common/assertion')
 
 const CopyTask = require('./tasks/fruitcopy')
@@ -66,17 +68,25 @@ class Fruitmix extends EventEmitter {
     let tmpDir = path.join(froot, 'tmp')
 
     this.fruitmixPath = froot
-    this.mediaMap = this.loadMediaMap(path.join(froot, 'metadataDB.json'))
+
+    let metaPath = path.join(froot, 'metadataDB.json')
+//    this.mediaMap = this.loadMediaMap(path.join(froot, 'metadataDB.json'))
+
+    this.mediaMap = new PersistentMap(metaPath, tmpDir)
+
     this.thumbnail = new Thumbnail(thumbDir, tmpDir)
     this.userList = new UserList(froot)
     this.driveList = new DriveList(froot, this.mediaMap)
     this.boxData = new BoxData(froot)
     this.tasks = []
+
+/**
     this.storeTimer = setInterval(() => {
       this.storeMediaMapAsync()
         .then(() => {})
         .catch(e => {})
     }, 1000 * 60 * 60)
+**/
 
     if (!nosmb) {
       samba.start(froot)

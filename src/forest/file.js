@@ -3,7 +3,6 @@ const debug = require('debug')('fruitmix:file')
 const Node = require('./node')
 const xtractMetadata = require('../lib/metadata')
 const xfingerprint = require('../lib/xfingerprint')
-const hash = require('../lib/hash')
 
 const debugi = require('debug')('fruitmix:indexing')
 
