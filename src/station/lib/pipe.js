@@ -670,16 +670,22 @@ class Pipe {
     return await this.successResponseJsonAsync(serverAddr, sessionId, list)
   }
 
+  /**
+   * FIXME: mediablacklist array ->> add key blacklist 
+  */
   async setUserMediaBlackListAsync(data) {
     let { serverAddr, sessionId, user, body, paths } = data
     let fruit = getFruit()
     if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
     
     let userUUID = paths[1]
-    let list = await fruit.setMediaBlacklistAsync(user, body)
+    let list = await fruit.setMediaBlacklistAsync(user, body.blacklist)
     return await this.successResponseJsonAsync(serverAddr, sessionId, list)
   }
 
+  /**
+   * FIXME: mediablacklist array ->> add key blacklist 
+  */
   async addUserMediaBlackListAsync(data) {
     let { serverAddr, sessionId, user, body, paths } = data
     let fruit = getFruit()
@@ -688,10 +694,13 @@ class Pipe {
     let userUUID = paths[1]
     if(user.uuid !== userUUID) return await this.errorResponseAsync(serverAddr, sessionId, new Error('user uuid mismatch'))
 
-    let list = await fruit.addMediaBlacklistAsync(user, body)
+    let list = await fruit.addMediaBlacklistAsync(user, body.blacklist)
     return await this.successResponseJsonAsync(serverAddr, sessionId, list)
   }
 
+  /**
+   * FIXME: mediablacklist array ->> add key blacklist 
+  */
   async subtractUserMediaBlackListAsync(data) {
     let { serverAddr, sessionId, user, body, paths } = data
     let fruit = getFruit()
@@ -700,7 +709,7 @@ class Pipe {
     let userUUID = paths[1]
     if(user.uuid !== userUUID) return await this.errorResponseAsync(serverAddr, sessionId, new Error('user uuid mismatch'))
 
-    let list = await fruit.subtractMediaBlacklistAsync(user, body)
+    let list = await fruit.subtractMediaBlacklistAsync(user, body.blacklist)
     return await this.successResponseJsonAsync(serverAddr, sessionId, list)
   }
 

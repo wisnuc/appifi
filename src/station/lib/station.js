@@ -277,6 +277,12 @@ class Station {
       name: name
     }
     await this.saveToDiskAsync(current, nextStation)
+    try{
+      await this.updateCloudInfoAsync()
+    }catch(e){
+      debug('update cloud info error: ', e)
+      // do nothing if update cloud error
+    }
     return this.info()
   }
 
@@ -289,7 +295,7 @@ class Station {
     this.lock = true
     try {
 
-      await saveObjectAsync(path.join(this.froot, 'station', FILE.SA), (this.froot, 'tmp'), nextStation)
+      await saveObjectAsync(path.join(this.froot, 'station', FILE.SA), path.join(this.froot, 'tmp'), nextStation)
 
       this.station = nextStation
 

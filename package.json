@@ -6,7 +6,8 @@
     "start": "node build/app.js",
     "build": "babel src --out-dir build",
     "devel": "nodemon --exec babel-node --ignore web src/app.js",
-    "devel-cloud": "nodemon --ignore out --ignore tmptest src/app.js --fake-bootstrap",
+    "devel-cloud": "nodemon --ignore out --ignore tmptest src/app.js --fake-bootstrap --disable-smb",
+    "devel-dev": "NODE_ENV=dev nodemon --ignore out --ignore tmptest --ignore remote src/app.js --fake-bootstrap --disable-smb",
     "devel-bootstrap": "NODE_ENV=test nodemon --ignore out --ignore tmptest --ignore remote src/app.js --fake-bootstrap --disable-smb",
     "devel-bootstrap-smb": "NODE_ENV=test nodemon --ignore out --ignore tmptest src/app.js --fake-bootstrap",
     "devel-assets": "nodemon --exec babel-node --ignore web --ignore public/bundle.js assets.js",
@@ -58,6 +59,7 @@
     "ursa": "^0.9.4",
     "uuid": "^3.1.0",
     "validator": "^8.1.0",
+    "webtorrent": "^0.98.20",
     "winston": "^2.3.1",
     "xxhash": "^0.2.4",
     "xxhashjs": "^0.2.1"
