@@ -307,6 +307,7 @@ class Forest extends EventEmitter {
           this.metaMap.set(file.hash, set) // put into meta map
         }
 
+
         this.requestSchedule('meta')
       })
 
