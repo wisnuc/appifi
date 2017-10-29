@@ -13,7 +13,7 @@ const { isSHA256, isUUID } = require('../lib/assertion')
 const Dicer = require('dicer')
 const getFruit = require('../fruitmix')
 const { pipeHash, drainHash } = require('../lib/tailhash')
-const TailHash = require('../lib/hash-stream')
+const HashStream = require('../lib/hash-stream')
 
 const Debug = require('debug')
 const debug = Debug('writedir')
@@ -128,6 +128,8 @@ const parseHeader = header => {
   }
 }
 
+/////// writedir ///////////////////////////////////
+
 router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, res, next) => {
 
   const EDestroyed = Object.assign(new Error('destroyed'), { 
@@ -149,8 +151,8 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
 
   /**
   parts (new) -> [ parser | parsers_ ) -> execute
-        (new) -> | -> ( _pipes  |  pipes  | drains  |  drains_ ) -> | -> execute
-                 | -> ( _dryrun | dryrun  | dryrun_ )            -> |
+        (new) -> | -> ( pipes  | pipes_ )  -> | -> execute
+                 | -> ( _dryrun | dryrun  | dryrun_ ) -> |
   **/
 
 
@@ -324,6 +326,21 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
     })
     pipes.splice(0) 
 
+    // clear streaming hash stream
+    while (true) {
+      let index = pipes.findIndex(x => !!x.hs.rs)
+      if (index !== -1) {
+        let x = pipes[index]
+        x.hs.destroy()
+        x.hs = null
+        // rimraf(x.tmp, () => {}) TODO do this? or hash-stream will do it?
+        pipes.splice(index, 1) 
+        x.error = x.error || EDestroyed
+      } else {
+        break
+      }
+    }
+
     parsers.forEach(x => {
       x.part.removeAllListeners()
       x.part.on('error', () => {})
@@ -333,19 +350,19 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
 
     // for drains and drains_, the remaining job must NOT have errored predecessor
     while (true) {
-      let index = drains.findIndex(predecessorErrored)
+      let index = pipes.findIndex(predecessorErrored)
       if (index !== -1) {
-        let x = drains[index]
-        x.destroyDrain()
-        rimraf(x.tmp, () => {})
-        drains.splice(index, 1)
+        let x = pipes[index]
+        x.hs.destroy()
+        // rimraf(x.tmp, () => {}) TODO ???
+        pipes.splice(index, 1)
         x.error = x.error || EDestroyed
       } else {
-        index = drains_.findIndex(predecessorErrored)
+        index = pipes_.findIndex(predecessorErrored)
         if (index !== -1) {
-          let x = drains_[index]
+          let x = pipes_[index]
           rimraf(x.tmp, () => {})
-          drains_.splice(index, 1)
+          pipes_.splice(index, 1)
           x.error = x.error || EDestroyed
         } else {
           index = parsers_.findIndex(predecessorErrored) 
@@ -361,7 +378,8 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
     }
 
     // clear (orphan) dryrun
-    const remaining = [...drains, ...drains_].map(x => x.number)
+    const remaining = [...pipes, ...pipes_].map(x => x.number)
+
     _dryrun = _dryrun.filter(y => remaining.includes(y.number))
     dryrun = dryrun.filter(y => remaining.includes(y.number))
     dryrun_ = dryrun_.filter(y => remaining.includes(y.number))
@@ -478,6 +496,31 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
 
     pipes.push(x) 
     x.tmp = path.join(getFruit().getTmpDir(), UUID.v4())
+
+    x.hs = HashStream.createStream(x.part, x.tmp, x.size, x.sha256)
+    x.hs.on('finish', err => {
+      let digest = x.hs.digest
+      delete x.part
+      delete x.hs 
+      pipes.splice(pipes.indexOf(x), 1)      
+
+      if (err) {
+        if (err.code === 'EOVERSIZE' || 
+          err.code === 'EUNDERSIZE' ||
+          err.code === 'ESHA256MISMATCH') {
+          err.status = 400
+        } else {
+          console.log('hash stream error code', err.code)
+        }
+        error(x, err)
+      } else {
+        x.digest = digest 
+        pipes_.push(x)
+        schedule()
+      }
+    })
+
+/**
     x.destroyPipe = pipeHash(x.part, x.tmp, (err, props) => {
       delete x.part
       delete x.destroyPipe
@@ -536,6 +579,7 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
         schedule()
       })
     })
+**/
 
     _dryrun.push({ number: x.number })
     try {
@@ -699,10 +743,22 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
     }
 
     // drains_ && dryrun_ join
+/**
     while (true) {
       let x = drains_.find(x => !blocked(x.number) && !!dryrun_.find(y => y.number === x.number)) 
       if (!x) break
       drains_.splice(drains_.indexOf(x), 1)
+      let y = dryrun_.find(y => y.number === x.number)
+      dryrun_.splice(dryrun_.indexOf(y), 1)
+      execute(x)
+    }
+**/
+
+    // pipes_ && dryrun_ join
+    while (true) {
+      let x = pipes_.find(x => !blocked(x.number) && !!dryrun_.find(y => y.number === x.number)) 
+      if (!x) break
+      pipes_.splice(pipes_.indexOf(x), 1)
       let y = dryrun_.find(y => y.number === x.number)
       dryrun_.splice(dryrun_.indexOf(y), 1)
       execute(x)
