@@ -70,23 +70,15 @@ class Fruitmix extends EventEmitter {
     this.fruitmixPath = froot
 
     let metaPath = path.join(froot, 'metadataDB.json')
-//    this.mediaMap = this.loadMediaMap(path.join(froot, 'metadataDB.json'))
-
     this.mediaMap = new PersistentMap(metaPath, tmpDir)
+
+    console.log(`metadata loaded, ${this.mediaMap.size} entries`)
 
     this.thumbnail = new Thumbnail(thumbDir, tmpDir)
     this.userList = new UserList(froot)
     this.driveList = new DriveList(froot, this.mediaMap)
     this.boxData = new BoxData(froot)
     this.tasks = []
-
-/**
-    this.storeTimer = setInterval(() => {
-      this.storeMediaMapAsync()
-        .then(() => {})
-        .catch(e => {})
-    }, 1000 * 60 * 60)
-**/
 
     if (!nosmb) {
       samba.start(froot)
@@ -220,26 +212,6 @@ class Fruitmix extends EventEmitter {
       } catch (e) { } // TODO:
     })
     return mediaMap
-  }
-
-  async storeMediaMapAsync () {
-    let tmp = path.join(this.fruitmixPath, 'tmp', UUID.v4())
-    let fpath = path.join(this.fruitmixPath, 'metadataDB.json')
-    let metadata = Array.from(this.mediaMap).map(x => {
-      try {
-        return JSON.stringify(x)
-      } catch (e) {
-        debug(e)
-      }
-    })
-    try {
-      await fs.writeFileAsync(tmp, metadata.join('\n'))
-      await rimrafAsync(fpath)
-      await fs.renameAsync(tmp, fpath)
-    } catch (e) {
-      debug(e)
-      throw e
-    }
   }
 
   /**

@@ -28,7 +28,7 @@ class PersistentMap extends EventEmitter {
       this.saveSync()
     }
 
-    this.ws = fs.createWriteStream(this.path, { flag: 'a' })    
+    this.ws = fs.createWriteStream(this.path, { flags: 'a' })    
   }
 
   // this function load 
@@ -42,9 +42,12 @@ class PersistentMap extends EventEmitter {
     try {
       raw = fs.readFileSync(this.path, { encoding: 'utf8' })
     } catch (e) {
+      console.log(e)
       if (e.code === 'ENOENT') {
         return false
       } else {
+        console.log(`error loading ${this.path}`)
+        console.log(e)
         throw e
       }
     }
@@ -66,6 +69,9 @@ class PersistentMap extends EventEmitter {
   }
 
   saveSync () {
+
+    console.log('full save persistent map')
+
     let data = Array.from(this.map)
       .map(pair => JSON.stringify(pair))
       .join('\n')
@@ -76,7 +82,7 @@ class PersistentMap extends EventEmitter {
   }
 
   set (k, v) {
-    if (this.map.has(key)) return
+    if (this.map.has(k)) return
     this.map.set(k, v) 
     let prefix = this.map.size === 1 ? '' : '\n'
     this.ws.write(prefix + JSON.stringify([k, v]))
