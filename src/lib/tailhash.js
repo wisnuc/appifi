@@ -55,6 +55,7 @@ const hashLoop = () => {
       setTimeout(() => {
         process.exit(120) 
       }, 60 * 1000)
+      return
     }
   } else {
     buffers.forEach(buf => hash.update(buf))
