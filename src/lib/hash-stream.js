@@ -707,14 +707,18 @@ module.exports = {
   createStream: function(rs, filePath, size, sha256) {
     if (sha256) {
       if (size > this.thresh) {
+        debug('create child-process pre')
         return new CPre(rs, filePath, size, sha256)
       } else {
+        debug('create in-process pre')
         return new IPre(rs, filePath, size, sha256)
       }
     } else {
       if (size > this.thresh) {
+        debug('create child-process post')
         return new CPost(rs, filePath, size)
       } else {
+        debug('create in-process post')
         return new IPost(rs, filePath, size)
       }
     }

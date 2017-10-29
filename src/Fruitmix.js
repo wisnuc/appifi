@@ -67,6 +67,9 @@ class Fruitmix extends EventEmitter {
     let thumbDir = path.join(froot, 'thumbnail')
     let tmpDir = path.join(froot, 'tmp')
 
+    rimraf.sync(tmpDir)
+    mkdirp.sync(tmpDir)
+
     this.fruitmixPath = froot
 
     let metaPath = path.join(froot, 'metadataDB.json')
