@@ -37,7 +37,8 @@ const { isUUID, isSHA256 } = require('./assertion')
 
 #### xattr
 
-Fruitmix uses linux file system specific **extended attributes** (xattr) to store information for regular files and directories.
+Fruitmix uses **extended attributes** (xattr) to store information for regular 
+files and directories.
 
 xattr stores information as key value pair. 
 
@@ -52,10 +53,10 @@ The object has a uuid for both files and directories.
 For files, the object has extra properties:
 
 + hash: file hash in hex string (sha256)
-+ htime: timestamp in number (mtime.getTime()), used to detect outdated hash
++ time: timestamp in number (mtime.getTime()), used to detect outdated hash
 + magic: string | version number
 
-magic is mandatory. hash and htime is optional, but they must exist together.
+magic is mandatory. hash and time is optional, but they must exist together.
 
 magic is either a string representing a file type, or a number representing a version.
 
@@ -93,14 +94,15 @@ xstat (file) {
 const FRUITMIX = 'user.fruitmix'
 
 /** @constant {number} MAGICVER - bump version for magic **/
-const MAGICVER = 0
+const MAGICVER = 1
 
 /** @func isNonNullObject **/
 const isNonNullObject = obj => typeof obj === 'object' && obj !== null
 
+const magics = ['JPEG', 'PNG']
+
 /** @func isValidMagic **/
-const isValidMagic = magic => 
-  (Number.isInteger(magic) && magic >= MAGICVER) || magic === 'JPEG'
+const isValidMagic = magic => (Number.isInteger(magic) && magic >= MAGICVER) || magics.includes(magic)
 
 /** 
 Parse file magic output to magic 
@@ -108,7 +110,15 @@ Parse file magic output to magic
 @param {string} text
 @returns {(string|number)}
 */
-const parseMagic = text => text.startsWith('JPEG image data') ? 'JPEG' : MAGICVER
+const parseMagic = text => {
+  if (text.startsWith('JPEG image data')) {
+    return 'JPEG'
+  } else if (text.startsWith('PNG image data')) {
+    return 'PNG'
+  } else {
+    return MAGICVER
+  }
+}
 
 /**
 Return magic by file magic
@@ -116,10 +126,14 @@ Return magic by file magic
 @param {string} target - absolute path
 @returns {(string|number)} 
 */
-const fileMagic = (target, callback) => 
-  child.exec(`file -b ${target}`, (err, stdout, stderr) => err 
-    ? callback(err) 
-    : callback(null, parseMagic(stdout.toString())))
+const fileMagic1 = (target, callback) => 
+  child.exec(`file -b ${target}`, (err, stdout, stderr) => {
+    if (err) {
+      callback(err)
+    } else {
+      callback(null, parseMagic(stdout.toString()))
+    }
+  })
 
 /**
 Return magic by fileType
@@ -142,34 +156,12 @@ Return magic for a regular file. This function uses fileMagic2.
 @param {string} target - absolute path
 @returns {(string|number)}
 **/
-const fileMagicAsync = Promise.promisify(fileMagic2)
+const fileMagicAsync = Promise.promisify(fileMagic1)
 
 /**
 Read and validate xattr, drop invalid properties.
 
 This function do NOT change file/folder or its xattr.
-
-Tests:
-+ throw ENOTDIRFILE if not dir or file
-+ return null attr if no attr (file, no dirty)
-+ return null attr if no attr (dir, no dirty)
-+ return null attr if attr not json (file, dirty)
-+ return null attr if attr not json (dir, dirty)
-+ return attr with valid if uuid invalid (file, dirty)
-+ return attr with valid if uuid invalid (dir, dirty)
-+ drop hash and htime if attr has only hash (file, dirty)
-+ drop hash and htime if attr has only htime (file, dirty)
-+ drop hash and htime if hash invalid (file, dirty)
-+ drop hash and htime if htime invalid (file, dirty)
-+ drop hash and htime if htime outdated (file, dirty) 
-+ drop magic if invalid (file, dirty)
-+ drop magic if outdated (file, dirty)
-+ drop owner if attr has owner (file, dirty)
-+ drop owner if attr has owner (dir, dirty)
-+ drop writelist if attr has writelist (file, dirty)
-+ drop writelist if attr has writelist (dir, dirty)
-+ drop readlist if attr has readlist (file, dirty)
-+ drop readlist if attr has readlist (dir, dirty)
 
 @method readXattrAsync
 @param {string} target - absolute path
@@ -178,74 +170,74 @@ Tests:
 @public
 */
 const readXattrAsync = async (target, stats) => {
-
-  let attr 
+  let raw
   try {
-    // may throw xattr ENOENT or JSON SyntaxError
-    attr = JSON.parse(await xattr.getAsync(target, FRUITMIX))
-  }
-  catch (e) {
-    // no xattr data or json parse failed, continue
-    if (e.code === 'ENODATA' || e instanceof SyntaxError) {}
-    else throw e
+    raw = await xattr.getAsync(target, FRUITMIX)
+  } catch (e) {
+    if (e.code === 'ENODATA') {
+      return
+    } else {
+      throw e
+    }
   }
 
-  if (!attr) return { attr }
+  let orig, attr = {}
+  try {
+    orig = JSON.parse(raw)
+  } catch (e) {
+    return
+  }
 
   let dirty = false
 
   // validate uuid
-  if (!isUUID(attr.uuid)) {
-    dirty = true
+  if (typeof orig === 'object' && orig !== null && isUUID(orig.uuid)) {
+    attr.uuid = orig.uuid
+  } else {
+    // if there is no valid uuid, the xattr is totally dropped
     attr.uuid = UUID.v4()
+    attr.dirty = undefined
+    return attr
   }
 
   // validate hash and magic for file
   if (stats.isFile()) {
-
-    if (attr.hasOwnProperty('hash') || attr.hasOwnProperty('htime')) { 
-
-      // drop hash and htime if 
-      // 1. hash invalid
-      // 2. htime invalid
-      // 3. time outdated
-      if ( !isSHA256(attr.hash) 
-        || !Number.isInteger(attr.htime) // is timestamp
-        || attr.htime !== stats.mtime.getTime()) {
-
-        dirty = true
-        delete attr.hash
-        delete attr.htime
+    if (orig.hasOwnProperty('hash')) { 
+      if (isSHA256(orig.hash) && orig.time === stats.mtime.getTime()) {
+        attr.hash = orig.hash
+        attr.time = orig.time
+      } else if (isSHA256(orig.hash) && 
+        !orig.hasOwnProperty('time') &&
+        orig.htime === stats.mtime.getTime() &&
+        stats.size <= 1024 * 1024 * 1024) {
+        attr.hash = orig.hash
+        attr.time = orig.htime
+        attr.dirty = undefined
+      } else {
+        attr.dirty = undefined
       }
     }
 
     // drop magic if version bumped
-    if (!isValidMagic(attr.magic)) {
-      dirty = true
-      delete attr.magic
+    if (isValidMagic(orig.magic)) {
+      attr.magic = orig.magic
+    } else {
+      attr.dirty = undefined
     }
   }
 
   // remove old data if any TODO remove this code after a few months
-  if ( attr.hasOwnProperty('owner')
-    || attr.hasOwnProperty('writelist')
-    || attr.hasOwnProperty('readlist')) {
-
-    dirty = true 
-    delete attr.owner
-    delete attr.writelist
-    delete attr.readlist
+  if (orig.hasOwnProperty('owner') || 
+    orig.hasOwnProperty('writelist') || 
+    orig.hasOwnProperty('readlist')) {
+    attr.dirty = undefined
   }
 
-  return { attr, dirty }
+  return attr
 }
 
 /**
 Update target xattr. If target is file and attr has no magic, create it.
-
-Tests:
-+ test1
-+ test2
 
 @func updateXattrAsync
 @param {string} target - absolute path
@@ -253,9 +245,9 @@ Tests:
 @param {boolean} isFile - if target is a file
 */
 const updateXattrAsync = async (target, attr, isFile) => {
-
-  if (isFile && !attr.hasOwnProperty('magic'))
+  if (isFile && !attr.hasOwnProperty('magic')) {
     attr.magic = await fileMagicAsync(target)
+  }
 
   await xattr.setAsync(target, FRUITMIX, JSON.stringify(attr))
   return attr
@@ -280,8 +272,7 @@ const createXstat = (target, stats, attr) => {
       name,
       mtime: stats.mtime.getTime()
     }
-  } 
-  else if (stats.isFile()) {
+  } else if (stats.isFile()) {
     xstat = {
       uuid: attr.uuid,
       type: 'file',
@@ -299,10 +290,6 @@ const createXstat = (target, stats, attr) => {
 /**
 Read xstat object from target.
 
-Tests:
-+ disk1
-+ disk2
-
 @func readXstatAsync
 @param {string} target - absolute path
 @returns {object} - xstat object
@@ -310,13 +297,18 @@ Tests:
 const readXstatAsync = async target => {
 
   let stats = await fs.lstatAsync(target)
-  if (!stats.isDirectory() && !stats.isFile()) throw new E.ENOTDIRFILE()
+  if (!stats.isDirectory() && !stats.isFile()) {
+    let err = new Error('target is neither directory nor regular file')
+    err.code = 'EUNSUPPORTEDFILETYPE'
+    throw err
+  }
 
-  let { attr, dirty } = await readXattrAsync(target, stats)
-  if (dirty || !attr) 
+  let attr = await readXattrAsync(target, stats)
+  if (!attr || attr.hasOwnProperty('dirty')) 
     attr = await updateXattrAsync(target, attr || { uuid: UUID.v4() }, stats.isFile())
 
-  return createXstat(target, stats, attr)
+  let xstat = createXstat(target, stats, attr)
+  return xstat
 }
 
 /**
@@ -336,22 +328,22 @@ Update file hash
 @param {string} target - absolute file path
 @param {string} uuid - file uuid
 @param {string} hash - file hash
-@param {number} htime - timestamp before calculating file hash
+@param {number} time - timestamp before calculating file fingerprint
 @returns {object} updated xstat
 */
-const updateFileHashAsync = async (target, uuid, hash, htime) => {
+const updateFileHashAsync = async (target, uuid, hash, time) => {
   
-  if (!isSHA256(hash) || !Number.isInteger(htime)) throw new E.EINVAL()
+  if (!isSHA256(hash) || !Number.isInteger(time)) throw new E.EINVAL()
 
   let stats = await fs.lstatAsync(target)
   if (!stats.isFile()) throw new E.ENOTFILE()
-  if (htime !== stats.mtime.getTime()) throw new E.ETIMESTAMP()
+  if (time !== stats.mtime.getTime()) throw new E.ETIMESTAMP()
 
-  let { attr, dirty } = await readXattrAsync(target, stats)
+  let attr = await readXattrAsync(target, stats)
   if (!attr) throw new E.EINSTANCE() // TODO
   if (uuid !== attr.uuid) throw new E.EINSTANCE()
 
-  Object.assign(attr, { hash, htime })
+  Object.assign(attr, { hash, time })
   await xattr.setAsync(target, FRUITMIX, JSON.stringify(attr))
   return createXstat(target, stats, attr)
 }
@@ -362,11 +354,11 @@ callback version of updateFileHashAsync
 @param {string} target - absolute path
 @param {string} uuid - file uuid
 @param {string} hash - file hash
-@param {number} htime - timestamp before calculating file hash
+@param {number} time - timestamp before calculating file hash
 @param {function} callback - `(err, xstat) => {}`
 */
-const updateFileHash = (target, uuid, hash, htime, callback) =>
-  updateFileHashAsync(target, uuid, hash, htime)
+const updateFileHash = (target, uuid, hash, time, callback) =>
+  updateFileHashAsync(target, uuid, hash, time)
     .then(xstat => callback(null, xstat))
     .catch(e => callback(e))
 
@@ -376,10 +368,8 @@ Forcefully set xattr with given uuid and/or hash.
 This function should only be used for:
 1. drive dir
 2. temp file
-
-Tests:
-+ test1
-+ test2
+  1. preserve original uuid and hash for duplicated file
+  2. assign fingerprint to file saved from transmission
 
 @param {string} target - absolute path
 @param {string} uuid - target uuid
@@ -387,7 +377,6 @@ Tests:
 @returns {object} - xstat object
 */
 const forceXstatAsync = async (target, { uuid, hash }) => {
-
   if (uuid && !isUUID(uuid)) throw new E.EINVAL()
   if (hash && !isSHA256(hash)) throw new E.EINVAL() 
 
@@ -399,7 +388,7 @@ const forceXstatAsync = async (target, { uuid, hash }) => {
   if (!stats.isFile() && hash) throw new Error('forceXstatAsync: not a file')
 
   let attr = { uuid: uuid || UUID.v4() }
-  if (hash) Object.assign(attr, { hash, htime: stats.mtime.getTime() })
+  if (hash) Object.assign(attr, { hash, time: stats.mtime.getTime() })
 
   attr = await updateXattrAsync(target, attr, stats.isFile())
   let xstat = createXstat(target, stats, attr)
@@ -407,20 +396,16 @@ const forceXstatAsync = async (target, { uuid, hash }) => {
 }
 
 const forceXstat = (target, opts, callback) => {
-
   forceXstatAsync(target, opts)
     .then(xstat => callback(null, xstat))
     .catch(e => callback(e))
 }
 
 module.exports = { 
-
   readXstat,
   readXstatAsync,
-
   updateFileHash,
   updateFileHashAsync,
-
   forceXstat,
   forceXstatAsync,
 

@@ -244,7 +244,7 @@ describe(path.basename(__filename), () => {
           let attr = JSON.parse(xattr.getSync(filePath, 'user.fruitmix'))
           expect(stat.isFile()).to.be.true
           expect(attr.hash).to.equal(FILES.empty.hash)
-          expect(attr.magic).to.equal(0)
+          expect(attr.magic).to.equal(1)
           expect(fs.readdirSync(tmpDir)).to.deep.equal([])
           done()
         })
@@ -263,7 +263,7 @@ describe(path.basename(__filename), () => {
           let attr = JSON.parse(xattr.getSync(filePath, 'user.fruitmix'))
           expect(stat.isFile()).to.be.true
           expect(attr.hash).to.equal(FILES.empty.hash)
-          expect(attr.magic).to.equal(0)
+          expect(attr.magic).to.equal(1)
           expect(fs.readdirSync(tmpDir)).to.deep.equal([])
           done()
         })
@@ -282,8 +282,11 @@ describe(path.basename(__filename), () => {
 
           expect(res.body.length).to.equal(1)
           expect(res.body[0].data).to.include({
-            type: 'file', name: 'empty', size: 0,
-            magic: 0, hash: FILES.empty.hash
+            type: 'file', 
+            name: 'empty', 
+            size: 0,
+            magic: 1, 
+            hash: FILES.empty.hash
           }).to.have.keys('uuid','mtime')
 
           let filePath = path.join(DrivesDir, IDS.alice.home, 'empty')
@@ -291,7 +294,7 @@ describe(path.basename(__filename), () => {
           let attr = JSON.parse(xattr.getSync(filePath, 'user.fruitmix'))
           expect(stat.isFile()).to.be.true
           expect(attr.hash).to.equal(FILES.empty.hash)
-          expect(attr.magic).to.equal(0)
+          expect(attr.magic).to.equal(1)
 
           expect(fs.readdirSync(tmpDir)).to.deep.equal([])
           done()
@@ -542,7 +545,7 @@ describe(path.basename(__filename), () => {
                   type: 'file',
                   name: 'empty',
                   size: 0,
-                  magic: 0,
+                  magic: 1,
                   hash: FILES.empty.hash
                 })
                 .to.have.keys('uuid', 'mtime')
@@ -684,7 +687,7 @@ describe(path.basename(__filename), () => {
                   type: 'file',
                   name: 'alonzo.jpg',
                   size: FILES.empty.size,
-                  magic: 0,
+                  magic: 1,
                   hash: FILES.empty.hash
                 })
                 .to.have.keys('uuid', 'mtime')
@@ -723,7 +726,7 @@ describe(path.basename(__filename), () => {
                   type: 'file',
                   name: 'alonzo.jpg',
                   size: FILES.hello.size,
-                  magic: 0,
+                  magic: 1,
                   hash: FILES.hello.hash
                 })
                 .to.have.keys('uuid', 'mtime')

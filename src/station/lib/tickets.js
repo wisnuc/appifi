@@ -129,43 +129,41 @@ class Tickets {
     let index = ticket.users.findIndex(u => u.id === id)
     if (index === -1) throw new Error('wechat user not found')
     debug(ticket)
+
+    // refuse
+    if(!state) return await this.updateUserTypeAsync(id, ticketId, false)
+
     if(fruit.getUsers().find(u => !!u.global && u.global.id === id)) throw new Error('this wechat has already bind another user')
     let user = ticket.users[index]
     let unionid = user.unionId
     if (!unionid) throw Object.assign(new Error('wechat unionid not found'), { status: 401 })
+
+    // All about confirm
+    await this.updateUserTypeAsync(id, ticketId, true) 
+
     switch (ticket.type) {
-      case 'invite': {
-        //TODO: confirm userList 
-        await this.updateUserTypeAsync(id, ticketId, state)
-        //discard this ticket 
-        // await this.updateTicketAsync(ticketId)
-        if (state) {
-          let username = user.nickName
-          // TODO: use pvKey decode password
-          let password = user.password ? user.password : '123456'
-          return await fruit.createUserAsync(u, {
-            username,
-            password,
-            global: {
-              id,
-              wx: [unionid]
-            }
-          })
-        }
+      case 'invite': { 
+        let username = user.nickName
+        // TODO: use pvKey decode password
+        let password = user.password ? user.password : '123456'
+        return await fruit.createUserAsync(u, {
+          username,
+          password,
+          global: {
+            id,
+            wx: [unionid]
+          }
+        })
       }
         break
       case 'bind': {
-        await this.updateUserTypeAsync(id, ticketId, state)
         //discard this ticket 
-        // await this.updateTicketAsync(ticketId)
-        if (state) {
-          return await fruit.updateUserGlobalAsync(u, userId, {
-            global: {
-              id,
-              wx: [unionid]
-            }
-          })
-        }
+        return await fruit.updateUserGlobalAsync(u, userId, {
+          global: {
+            id,
+            wx: [unionid]
+          }
+        })
       }
         break
       default:

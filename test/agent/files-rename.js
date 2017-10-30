@@ -489,7 +489,7 @@ describe(path.basename(__filename), () => {
               type: 'file',
               name: 'world',
               size: FILES.hello.size,
-              magic: 0,
+              magic: 1,
               hash: FILES.hello.hash
             })
 /**

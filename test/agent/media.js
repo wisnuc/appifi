@@ -19,7 +19,6 @@ const app = require('src/app')
 const broadcast = require('src/common/broadcast')
 
 const Forest = require('src/forest/forest')
-// const Media = require('src/media/media')
 
 const {
   IDS,
@@ -47,7 +46,6 @@ const resetAsync = async () => {
 describe(path.basename(__filename), () => {
 
   describe("alice, empty", () => {
-
     let token
 
     beforeEach(async () => {
@@ -69,7 +67,7 @@ describe(path.basename(__filename), () => {
     })
   })
 
-  describe("alice, single media file vpai001.jpg", () => {
+  describe("alice, single media file vpai001.jpg in home root", () => {
 
     let token
 
@@ -97,7 +95,6 @@ describe(path.basename(__filename), () => {
       token = await retrieveTokenAsync('alice')
 
       await new Promise((resolve, reject) => {
-
         // for vpai001.jpg
         let size = vpai001Metadata.size 
         let sha256 = vpai001Fingerprint
@@ -112,10 +109,10 @@ describe(path.basename(__filename), () => {
       })
 
       // this delay is required for generating metadata
-      await Promise.delay(500)
+      await Promise.delay(200)
     })
 
-    it("all i can view", done => {
+    it("GET media should return [vpai001 metadata], e1730087", done => {
       request(app)
         .get('/media')
         .set('Authorization', 'JWT ' + token)
@@ -127,7 +124,7 @@ describe(path.basename(__filename), () => {
         })
     })
 
-    it("vpai001 metadata, no query", done => {
+    it("GET vpai001 metadata should return vpai001 metadata (w/o hash), f18469c6", done => {
       request(app)
         .get(`/media/${vpai001Fingerprint}`)
         .set('Authorization', 'JWT ' + token)
@@ -141,10 +138,9 @@ describe(path.basename(__filename), () => {
         })
     })
 
-    it("vpai001 data", done => {
+    it("GET vpai001 data should download file, 99734c12", done => {
       let downloadPath = path.join(tmptest, 'downloaded')
       let ws = fs.createWriteStream(path.join(tmptest, 'downloaded'))
-
       ws.on('close', () => {
         expect(ws.bytesWritten).to.equal(vpai001Metadata.size)
         let data = fs.readFileSync(downloadPath)
@@ -160,7 +156,7 @@ describe(path.basename(__filename), () => {
         .pipe(ws)
     })
 
-    it("vpai001 thumbnail width 160 and height 160", done => {
+    it("GET vpai001 thumbnail (w/ width 160 and height 160) should match width and height, 5270e6ea", done => {
       let downloadPath = path.join(tmptest, 'downloaded')
       let ws = fs.createWriteStream(path.join(tmptest, 'downloaded'))
       ws.on('close', () => {
@@ -174,7 +170,7 @@ describe(path.basename(__filename), () => {
         .pipe(ws)
     })
 
-    it("vpai001 thumbnail width 160", done => {
+    it("GET vpai001 thumbnail (w/ width 160) should match width and height, 2068b765", done => {
       let downloadPath = path.join(tmptest, 'downloaded')
       let ws = fs.createWriteStream(path.join(tmptest, 'downloaded'))
       ws.on('close', () => {
@@ -188,8 +184,8 @@ describe(path.basename(__filename), () => {
         .pipe(ws)
     })
 
-    // failing test for #397
-    it("vpai001 thumbnail width 160, twice", done => {
+    // failing test for #397 (code path coverage)
+    it("GET vpai001 thumbnail width 160, twice, a211b567", done => {
       let downloadPath = path.join(tmptest, 'downloaded')
       let ws = fs.createWriteStream(path.join(tmptest, 'downloaded'))
       ws.on('close', () => {
@@ -215,12 +211,11 @@ describe(path.basename(__filename), () => {
         .pipe(ws)
     })
 
-    it("vpai001 thumbnail height 160", done => {
+    it("GET vpai001 thumbnail height 160, 783f8bf3", done => {
       let downloadPath = path.join(tmptest, 'downloaded')
       let ws = fs.createWriteStream(path.join(tmptest, 'downloaded'))
       ws.on('close', () => {
         let dim = sizeOf(downloadPath)
-        console.log(dim)
         expect(dim).to.deep.equal({ width: 284, height: 160, type: 'jpg' })
         done()
       })
@@ -231,7 +226,7 @@ describe(path.basename(__filename), () => {
         .pipe(ws)
     })
 
-    it("vpai001 thumbnail width 160 and height 160 and caret", done => {
+    it("GET vpai001 thumbnail width 160 and height 160 and caret, 0eeac2aa", done => {
       let downloadPath = path.join(tmptest, 'downloaded')
       let ws = fs.createWriteStream(path.join(tmptest, 'downloaded'))
       ws.on('close', () => {
@@ -256,7 +251,7 @@ describe(path.basename(__filename), () => {
       m: 'JPEG',
       w: 1200,
       h: 800,
-      size: 190,
+      size: 190264,
       hash: 'ec73573659424a860569e60e0f5ff97b23c7bfb329f53329f6a49b8d1712baae'
     }
     image2Size = 201090
@@ -264,7 +259,7 @@ describe(path.basename(__filename), () => {
       m: 'JPEG',
       w: 1200,
       h: 800,
-      size: 201,
+      size: 201090,
       hash: '2c4dfc6c9108dc1e0b79112e00a9431e4cdd1282813a4df9b4ec77d4fb5e08db'
     }
     image3Size = 21834
@@ -272,7 +267,7 @@ describe(path.basename(__filename), () => {
       m: 'JPEG',
       w: 1200,
       h: 800,
-      size: 21,
+      size: 21834,
       hash: '88f5217cac2322e810990547708f17c3c8af4ea013b8b4cadbf1822333b8e5bd'
     }
 
@@ -315,7 +310,7 @@ describe(path.basename(__filename), () => {
         })
     })
 
-    it("Media List should return [{image1}] for alice", done => {
+    it("Media List should return [{image1}] for alice, 5b940916", done => {
       request(app)
         .get(`/media`)
         .set('Authorization', 'JWT ' + aliceToken)
@@ -327,7 +322,7 @@ describe(path.basename(__filename), () => {
         })
     })
 
-    it("Media List should return [{image1}] for alice, and return [{image2}] for bob", done => {
+    it("Media List should return [{image1}] for alice, and return [{image2}] for bob, d6d82bb9", done => {
       let url = `/drives/${IDS.bob.home}/dirs/${IDS.bob.home}/entries`
       request(app)
         .post(url)
@@ -370,7 +365,7 @@ describe(path.basename(__filename), () => {
         })
     })
 
-    it("Media get metadata should return [image1] for bob", done => {
+    it("Media get metadata should return [image1] for bob, bc441c4c", done => {
       let url = `/drives/${IDS.bob.home}/dirs/${IDS.bob.home}/entries`
       request(app)
         .post(url)
@@ -386,7 +381,10 @@ describe(path.basename(__filename), () => {
             .expect(200)
             .end((err, res) => {
               if (err) return done(err)
-              expect(res.body).to.deep.equal(image1)
+
+              let obj = Object.assign({}, image1)
+              delete obj.hash
+              expect(res.body).to.deep.equal(obj)
               done()
             })
           }, 500)
@@ -444,7 +442,7 @@ describe(path.basename(__filename), () => {
           })
       })
 
-      it("Media List should return [{image2}] for bob", done => {
+      it("Media List should return [{image2}] for bob, a7009927", done => {
         request(app)
           .get(`/media`)
           .set('Authorization', 'JWT ' + bobToken)
@@ -521,3 +519,5 @@ describe(path.basename(__filename), () => {
     })
   })
 })
+
+

@@ -78,3 +78,6 @@
 ## 内部
 + [磁盘文件结构](files.md)
 + [Samba服务](samba.md)
+
+## 开发者
++ [内部结构](internals/index.md) 
