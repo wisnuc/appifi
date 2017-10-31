@@ -28,7 +28,7 @@ const validator = require('validator')
 
 const filetype = require('./file-type')
 
-const magic = require('./magic') 
+const Magic = require('./magic') 
 const E = require('./error')
 
 const { isUUID, isSHA256 } = require('./assertion')
@@ -95,39 +95,9 @@ xstat (file) {
 /** @constant {string} FRUITMIX - `user.fruitmix`, xattr key **/
 const FRUITMIX = 'user.fruitmix'
 
-/** @constant {number} MAGICVER - bump version for magic **/
-const MAGICVER = 1
 
 /** @func isNonNullObject **/
 const isNonNullObject = obj => typeof obj === 'object' && obj !== null
-
-const magics = ['JPEG', 'PNG']
-
-/** @func isValidMagic **/
-const isValidMagic = magic => (Number.isInteger(magic) && magic >= MAGICVER) || magics.includes(magic)
-
-/** 
-Parse file magic output to magic 
-@func parseMagic
-@param {string} text
-@returns {(string|number)}
-*/
-const parseMagic = text => {
-  if (text.startsWith('JPEG image data')) {
-    return 'JPEG'
-  } else if (text.startsWith('PNG image data')) {
-    return 'PNG'
-  } else if (text.startsWith('GIF image data')) {
-    return 'GIF'
-  } else if (text.startsWith('ISO Media, MPEG v4 system, 3GPP')) {
-    return '3GP'
-  } else if (text.startsWith('ISO Media, MP4 v2 [ISO 14496-14]')) {
-    return 'MP4'
-  } else if (text.startsWith('ISO Media, Apple QuickTime movie, Apple QuickTime (.MOV/QT)')) {
-    return 'MOV'
-  } else if (text.startsWith('ASCII text')) {
-  }
-}
 
 /**
 Return magic by file magic
@@ -140,7 +110,7 @@ const fileMagic1 = (target, callback) =>
     if (err) {
       callback(err)
     } else {
-      callback(null, parseMagic(stdout.toString()))
+      callback(null, Magic.parse(stdout.toString()))
     }
   })
 
@@ -150,6 +120,8 @@ Return magic by fileType
 @param {string} target - absolute path
 @returns {(string|number)}
 */
+
+/** obsolete code 
 const fileMagic2 = (target, callback) => 
   filetype(target, (err, type) => {
     if (err) return callback(err)
@@ -181,13 +153,14 @@ const fileMagic3 = (target, callback) =>
       } 
     }
   })
+**/
 
 const fileMagic4 = (target, callback) => 
   new mmm.Magic().detectFile(target, (err, str) => {
     if (err) {
       callback(err)
     } else {
-      callback(null, magic.parse(str) || magic.ver)
+      callback(null, Magic.parse(str))
     }
   })
 
@@ -270,7 +243,7 @@ const readXattrAsync = async (target, stats) => {
     }
 
     // drop magic if version bumped
-    if (isValidMagic(orig.magic)) {
+    if (Magic.isValidMagic(orig.magic)) {
       attr.magic = orig.magic
     } else {
       attr.dirty = undefined

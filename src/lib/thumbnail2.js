@@ -92,11 +92,14 @@ const geometry = (width, height, modifier) => {
 // generate convert args
 const genArgs = (src, tmp, opts) => {
   let args = []
-  args.push(src)
+  args.push(src + '[0]')
   if (opts.autoOrient) args.push('-auto-orient')
   args.push('-thumbnail')
   args.push(geometry(opts.width, opts.height, opts.modifier))
   args.push(tmp)
+
+  console.log(args)
+
   return args
 }
 
@@ -158,7 +161,7 @@ class Thumbnail extends EventEmitter {
       let x = this.pending.shift()    
       this.converting.push(x)
 
-      x.tmp = path.join(this.tmpDir, UUID.v4())
+      x.tmp = path.join(this.tmpDir, UUID.v4() + '.jpg')
 
       spawn('convert', genArgs(x.file, x.tmp, x.opts), err => {
         // converting -> 

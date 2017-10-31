@@ -16,6 +16,7 @@ const kMap = new Map([
   ['FileSize', 'size'],
 ])
 
+// value is integer
 const iSet = new Set([
   'w',
   'h',
@@ -24,6 +25,7 @@ const iSet = new Set([
   'rot',
 ])
 
+// value is float
 const fSet = new Set([
   'dur'
 ])
