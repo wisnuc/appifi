@@ -34,17 +34,6 @@ const {
   setUserUnionIdAsync
 } = require('./lib')
 
-/*
-
-tmptest
-  /tmp
-  /users.json
-  /drives.json
-  /drives
-  /boxes
-
-*/
-
 const cwd = process.cwd()
 const tmptest = path.join(cwd, 'tmptest')
 const tmpDir = path.join(tmptest, 'tmp')
@@ -160,7 +149,7 @@ describe(path.basename(__filename), () => {
 
     let { 
       alonzo, bar, empty, foo, hello, vpai001,  
-      world, fiveGiga, halfGiga, oneAndAHalfGiga, 
+      world, fourGiga, fiveGiga, halfGiga, oneAndAHalfGiga, 
       oneByteX, oneGiga, oneGigaMinus1, oneGigaPlusX,
       twoGiga, twoGigaMinus1, twoGigaPlusX, twoAndAHalfGiga,
       threeGiga, threeGigaMinus1, threeGigaPlusX, threeAndAHalfGiga
@@ -466,6 +455,31 @@ describe(path.basename(__filename), () => {
             expect(fs.readdirSync(tmpDir)).to.deep.equal([])
             done()          
           })))
+    })
+
+    it("append one-giga to four-giga, df1181e5", function (done) {
+      this.timeout(0)
+      NewFile2('five-giga', oneGiga, null, 200, done, res => {
+        Append2('five-giga', oneGiga, oneGiga.hash, 200, done, res => {
+          Append2('five-giga', oneGiga, twoGiga.hash, 200, done, res => {
+            Append2('five-giga', oneGiga, threeGiga.hash, 200, done, res => {
+              Append2('five-giga', oneGiga, fourGiga.hash, 200, done, res => {
+                expect(res.body[0].data.size).to.equal(fiveGiga.size)
+                expect(res.body[0].data.hash).to.equal(fiveGiga.hash)
+
+                let fpath = path.join(tmptest, 'drives', IDS.alice.home, 'five-giga')  
+                fingerprintSimple(fpath, (err, fingerprint) => {
+                  if (err) return done(err)
+                
+                  expect(fingerprint).to.equal(fiveGiga.hash)
+                  done()
+                }) 
+
+              })
+            })
+          })
+        })
+      })
     })
 
     /** -------------------------------------------------------------- **/

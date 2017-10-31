@@ -145,12 +145,6 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
 
   /**
   parts (new) -> [ parser | parsers_ ) -> execute
-        (new) -> | -> ( _pipes  |  pipes  | drains  |  drains_ ) -> | -> execute
-                 | -> ( _dryrun | dryrun  | dryrun_ )            -> |
-  **/
-
-  /**
-  parts (new) -> [ parser | parsers_ ) -> execute
         (new) -> | -> ( pipes  | pipes_ )  -> | -> execute
                  | -> ( _dryrun | dryrun  | dryrun_ ) -> |
   **/
@@ -163,24 +157,16 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
 
   // x { number, type, name, fromName, toName, part, buffers  }
   const parsers = []
-  // x { number, type, name, fromName, toName, ...props } 
   const parsers_ = []
 
   // file
   // x { number, type, name, fromName, toName, opts, part, tmp, destroyPipe }
   const pipes = []
-  // x { number, type, name, fromName, toName, opts, part, tmp, destroyDrain }
-  const drains = []
-  // x { number, type, name, fromName, toName, opts, tmp, digest }
-  const drains_ = []
-
   const pipes_ = []
 
   // x { number }
   let _dryrun = []
-  // x { number }
   let dryrun = []
-  // x { number }
   let dryrun_ = []
 
   /**
@@ -242,11 +228,6 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
     }
     // print(`--------------------- ${message} <<<< end`)
   })
-
-  const pluck = (arr, x) => {
-    let index = arr.indexOf(x)
-    arr.splice(index, 1)
-  }
 
   const isFinished = x => x.hasOwnProperty('data') || x.hasOwnProperty('error') 
   const settled = () => dicer === null && r.every(isFinished) 
@@ -317,14 +298,6 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
       x.error = x.error || EDestroyed
     })
     parts.splice(0)
-
-    // clear pipes
-    pipes.forEach(x => {
-      x.destroyPipe()
-      rimraf(x.tmp, () => {})
-      x.error = x.error || EDestroyed
-    })
-    pipes.splice(0) 
 
     // clear streaming hash stream
     while (true) {
@@ -520,67 +493,6 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
       }
     })
 
-/**
-    x.destroyPipe = pipeHash(x.part, x.tmp, (err, props) => {
-      delete x.part
-      delete x.destroyPipe
-      pipes.splice(pipes.indexOf(x), 1) 
-
-      if (err) {
-        rimraf(x.tmp, () => {})
-        return error(x, err) 
-      }
-
-      let { hash, bytesWritten } = props
-      if (bytesWritten !== x.size) {
-        hash.on('error', () => {})
-        hash.kill()
-        let e = new Error(`size mismatch, actual: ${bytesWritten}`)
-        e.status = 400
-        rimraf(x.tmp, () => {})
-        return error(x, e)
-      }
-
-      drains.push(x) 
-      x.destroyDrain = drainHash(hash, bytesWritten, (err, digest) => {
-        delete x.destroyDrain
-        drains.splice(drains.indexOf(x), 1)
-
-        if (err) {
-          rimraf(x.tmp, () => {})
-          return error(x, err)
-        }
-
-        if (digest !== x.sha256) {
-
-          // test code
-          if (process.env.NODE_PATH !== undefined || process.env.NODE_ENV === 'test') {
-
-            let buf = Buffer.alloc(x.size)
-            let data = fs.readFileSync(x.tmp)
-            let verify = crypto.createHash('sha256').update(data).digest('hex') 
-
-            console.log('===============================================')
-            console.log('client claimed', x.sha256)
-            console.log('tmp file (received', verify)
-            console.log('child process returns', digest)
-            console.log('===============================================')
-          }
-
-
-          let e = new Error(`sha256 mismatch, actual: ${digest}`)
-          e.status = 400
-          rimraf(x.tmp, () => {})
-          return error(x, e)
-        }
-  
-        x.digest = digest
-        drains_.push(x)
-        schedule()
-      })
-    })
-**/
-
     _dryrun.push({ number: x.number })
     try {
       schedule()
@@ -741,18 +653,6 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
       parsers_.splice(parsers_.indexOf(x), 1)
       execute(x)
     }
-
-    // drains_ && dryrun_ join
-/**
-    while (true) {
-      let x = drains_.find(x => !blocked(x.number) && !!dryrun_.find(y => y.number === x.number)) 
-      if (!x) break
-      drains_.splice(drains_.indexOf(x), 1)
-      let y = dryrun_.find(y => y.number === x.number)
-      dryrun_.splice(dryrun_.indexOf(y), 1)
-      execute(x)
-    }
-**/
 
     // pipes_ && dryrun_ join
     while (true) {

@@ -73,9 +73,12 @@ const createTestFilesAsync = async () => {
   await btrfsCloneAsync(join('three-and-a-half-giga'), join('three-giga'))
   await btrfsConcatAsync(join('three-and-a-half-giga'), join('half-giga'))
 
+  // 4 giga
+  await btrfsCloneAsync(join('four-giga'), join('two-giga'))
+  await btrfsConcatAsync(join('four-giga'), join('two-giga'))
+
   // 5 giga
-  await btrfsCloneAsync(join('five-giga'), join('two-giga')) 
-  await btrfsConcatAsync(join('five-giga'), join('two-giga'))
+  await btrfsCloneAsync(join('five-giga'), join('four-giga')) 
   await btrfsConcatAsync(join('five-giga'), join('one-giga'))
 }
 

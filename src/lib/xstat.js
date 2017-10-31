@@ -21,12 +21,14 @@ const path = require('path')
 const fs = Promise.promisifyAll(require('fs'))
 const child = require('child_process')
 
+const mmm = require('mmmagic')
 const xattr = Promise.promisifyAll(require('fs-xattr'))
 const UUID = require('uuid')
 const validator = require('validator')
 
 const filetype = require('./file-type')
 
+const magic = require('./magic') 
 const E = require('./error')
 
 const { isUUID, isSHA256 } = require('./assertion')
@@ -115,8 +117,15 @@ const parseMagic = text => {
     return 'JPEG'
   } else if (text.startsWith('PNG image data')) {
     return 'PNG'
-  } else {
-    return MAGICVER
+  } else if (text.startsWith('GIF image data')) {
+    return 'GIF'
+  } else if (text.startsWith('ISO Media, MPEG v4 system, 3GPP')) {
+    return '3GP'
+  } else if (text.startsWith('ISO Media, MP4 v2 [ISO 14496-14]')) {
+    return 'MP4'
+  } else if (text.startsWith('ISO Media, Apple QuickTime movie, Apple QuickTime (.MOV/QT)')) {
+    return 'MOV'
+  } else if (text.startsWith('ASCII text')) {
   }
 }
 
@@ -127,7 +136,7 @@ Return magic by file magic
 @returns {(string|number)} 
 */
 const fileMagic1 = (target, callback) => 
-  child.exec(`file -b ${target}`, (err, stdout, stderr) => {
+  child.exec(`file -b '${target}'`, (err, stdout, stderr) => {
     if (err) {
       callback(err)
     } else {
@@ -150,13 +159,52 @@ const fileMagic2 = (target, callback) =>
       return callback(null, MAGICVER)
   })
 
+const fileMagic3 = (target, callback) => 
+  child.exec(`exiftool -S -FileType '${target}'`, (err, stdout, stderr) => {
+    console.log(stdout.toString())
+    if (err) {
+      callback(null, MAGICVER)
+    } else {
+      let str = stdout.toString().trim()
+      let pre = 'FileType: '
+      if (str.startsWith(pre)) {
+        let type = str.slice(pre.length)
+        if (type === 'JPEG') {
+          callback(null, 'JPEG')
+        } else if (type === 'PNG') {
+          callback(null, 'PNG')
+        } else {
+          callback(null, MAGICVER)
+        }
+      } else {
+        callback(null, MAGICVER)
+      } 
+    }
+  })
+
+const fileMagic4 = (target, callback) => 
+  new mmm.Magic().detectFile(target, (err, str) => {
+    if (err) {
+      callback(err)
+    } else {
+      callback(null, magic.parse(str) || magic.ver)
+    }
+  })
+
+
 /** 
 Return magic for a regular file. This function uses fileMagic2.
 @func fileMagicAsync 
 @param {string} target - absolute path
 @returns {(string|number)}
 **/
-const fileMagicAsync = Promise.promisify(fileMagic1)
+const fileMagicAsync = Promise.promisify(fileMagic4)
+
+let a = 0
+let b = 0
+setInterval(() => (a = b, b = 0), 200)
+
+const readStat = () => Math.floor((a + b) / 2)
 
 /**
 Read and validate xattr, drop invalid properties.
@@ -170,6 +218,9 @@ This function do NOT change file/folder or its xattr.
 @public
 */
 const readXattrAsync = async (target, stats) => {
+
+  console.log(b++)
+
   let raw
   try {
     raw = await xattr.getAsync(target, FRUITMIX)
@@ -402,12 +453,13 @@ const forceXstat = (target, opts, callback) => {
 }
 
 module.exports = { 
+  readStat,
   readXstat,
   readXstatAsync,
   updateFileHash,
   updateFileHashAsync,
   forceXstat,
-  forceXstatAsync
+  forceXstatAsync,
 }
 
 
