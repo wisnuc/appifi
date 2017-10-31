@@ -18,7 +18,7 @@ const installed = name => {
 
 const opts = {
   stdio: ['ignore', process.stdout, process.stderr],
-  timeout: 1000 * 30
+  timeout: 1000 * 120
 }
 
 
