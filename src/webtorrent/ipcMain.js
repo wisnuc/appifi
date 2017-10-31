@@ -59,7 +59,6 @@ class IpcMain {
       process.nextTick(() => callback(e))
       return
     }
-    console.log(this.worker)
     this.worker.send(job.message())
   }  
 

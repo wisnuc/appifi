@@ -262,10 +262,13 @@ class Station {
   }
 
   info (){
-    let info = Object.assign({}, this.station)
-    info.connectState = this.connect.getState()
-    info.pbk = this.publicKey
-    return info
+    if(this.initialized) {
+      let info = Object.assign({}, this.station)
+      info.connectState = this.connect.getState()
+      info.pbk = this.publicKey
+      return info
+    }
+    return false
   }
 
   async updateInfoAsync (props) {
