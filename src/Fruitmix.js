@@ -219,6 +219,21 @@ class Fruitmix extends EventEmitter {
     return mediaMap
   }
 
+  getUserByUUID (userUUID) {
+    let user = this.userList.users.find(u => u.uuid === userUUID)
+    if (user) {
+      return {
+        uuid: user.uuid,
+        username: user.username,
+        isFirstUser: user.isFirstUser,
+        isAdmin: user.isAdmin,
+        avatar: user.avatar,
+        global: user.global,
+        disabled: user.disabled
+      }
+    }
+  }
+
   /**
 
   */

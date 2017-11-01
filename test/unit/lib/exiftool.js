@@ -97,7 +97,8 @@ describe(path.basename(__filename), () => {
     let et = new ExifTool('testdata/iphone7_1080p_4to3.mov', 'MOV')
     et.on('finish', err => {
       if (err) return done(err)
-      expect(et.metadata).to.deep.equal({ m: 'MOV',
+      expect(et.metadata).to.deep.equal({ 
+        m: 'MOV',
         w: 1440,
         h: 1080,
         date: '2016:10:31 06:55:09',

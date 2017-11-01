@@ -192,15 +192,19 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
   }
 
   const print2 = x => {
-    console.log(x) 
-    console.log('  parts', num(parts))
-    console.log('  parsers_', num(parsers), num(parsers_))
-    console.log('  pipes, drains_', num(pipes), num(drains), num(drains_))
-    console.log('  _dryrun', _dryrun)
-    console.log('  dryrun', dryrun)
-    console.log('  dryrun_', dryrun_)
-    console.log('  executions', num(executions))
-    console.log('  r', num(r))
+    try {
+      console.log(x) 
+      console.log('  parts', num(parts))
+      console.log('  parsers_', num(parsers), num(parsers_))
+      console.log('  pipes, drains_', num(pipes), num(pipes_))
+      console.log('  _dryrun', _dryrun)
+      console.log('  dryrun', dryrun)
+      console.log('  dryrun_', dryrun_)
+      console.log('  executions', num(executions))
+      console.log('  r', num(r))
+    } catch (e) {
+      console.log(e)
+    }
   }
 
 

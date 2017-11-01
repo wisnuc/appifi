@@ -97,9 +97,6 @@ const genArgs = (src, tmp, opts) => {
   args.push('-thumbnail')
   args.push(geometry(opts.width, opts.height, opts.modifier))
   args.push(tmp)
-
-  console.log(args)
-
   return args
 }
 
