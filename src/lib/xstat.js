@@ -173,12 +173,6 @@ Return magic for a regular file. This function uses fileMagic2.
 **/
 const fileMagicAsync = Promise.promisify(fileMagic4)
 
-let a = 0
-let b = 0
-setInterval(() => (a = b, b = 0), 200)
-
-const readStat = () => Math.floor((a + b) / 2)
-
 /**
 Read and validate xattr, drop invalid properties.
 
@@ -191,8 +185,6 @@ This function do NOT change file/folder or its xattr.
 @public
 */
 const readXattrAsync = async (target, stats) => {
-
-  console.log(b++)
 
   let raw
   try {
@@ -426,7 +418,6 @@ const forceXstat = (target, opts, callback) => {
 }
 
 module.exports = { 
-  readStat,
   readXstat,
   readXstatAsync,
   updateFileHash,
