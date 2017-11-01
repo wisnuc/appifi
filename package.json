@@ -91,5 +91,15 @@
     "supertest": "^3.0.0",
     "uglifyjs-webpack-plugin": "^0.4.6",
     "webpack": "^3.5.5"
+  },
+  "wisnuc": {
+    "ubuntu-server-amd64": {
+      "prerequisites": {
+        "node": "8.5",
+        "debs": [
+          "libimage-exiftool-perl"
+        ]
+      }
+    }
   }
 }
