@@ -144,9 +144,9 @@ class StoreFile {
  * 
  */
 class Pipe {
-  constructor(tmp, connect) {
-    this.tmp = path.join(connect.froot, 'tmp')
-    this.connect = connect
+  constructor(ctx) {
+    this.tmp = path.join(ctx.froot, 'tmp')
+    this.connect = ctx
     this.connect.register('pipe', this.handle.bind(this))
     this.handlers = new Map()
     this.register()
