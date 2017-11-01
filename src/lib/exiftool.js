@@ -143,7 +143,7 @@ class ExifTool extends EventEmitter {
 
     if (metadata.m !== this.magic) {
       let t = `exiftool reports different magic, expected ${this.magic}, actual ${metadata.m}`
-      console.log(t, Buffer.concat(this.data).toString())
+      console.log(t, this.path, this.magic, this.args, Buffer.concat(this.data).toString())
       throw new Error(t)
     }
 
