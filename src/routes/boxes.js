@@ -539,7 +539,7 @@ router.get('/:boxUUID/commits/:commitHash', fruitless, auth, (req, res, next) =>
     .catch(next)
 })
 
-router.get('/:boxUUID/rootTreeHash', fruitless, auth, (req, res, next) => {
+router.get('/:boxUUID/rootTrees/:rootTreeHash', fruitless, auth, (req, res, next) => {
   let boxUUID = req.params.boxUUID
   let rootTreeHash = req.params.rootTreeHash
 
@@ -552,76 +552,227 @@ router.post('/:boxUUID/commits', fruitless, auth, (req, res, next) => {
   let boxUUID = req.params.boxUUID
 
   if (req.is('multipart/form-data')) {
-    let error, obj, uploaded = []
-    let form = new formidable.IncomingForm()
-    // form.hash = 'sha256'
-    let finished = false, formFinished = false
+    // let error, obj, uploaded = []
+    // let form = new formidable.IncomingForm()
+    // // form.hash = 'sha256'
+    // let finished = false, formFinished = false
 
-    const finalize = () => {
-      if (finished) return
-      if (formFinished) {
-        finished = true
-        if (error)
-          return res.status(500).json({ code: error.code, message: error.message})
-        else
-          return res.status(200).json(data)
+    // const finalize = () => {
+    //   if (finished) return
+    //   if (formFinished) {
+    //     finished = true
+    //     if (error)
+    //       return res.status(500).json({ code: error.code, message: error.message})
+    //     else
+    //       return res.status(200).json(data)
+    //   }
+    // }
+
+    // form.on('field', (name, value) => {
+    //   if (finished) return
+    //   if (name === 'commit') {
+    //     /*
+    //       obj: {
+    //         root: xxxxxx,       // hash string of a tree obj
+    //         parent: xxxxxx,     // commit ID
+    //         branch: xxxxxx,     // branch ID
+    //         toUpload:[]        // file should upload
+    //       }
+    //     */
+    //     obj = JSON.parse(value)
+    //   }
+    // })
+
+    // form.on('fileBegin', (name, file) => {
+    //   if (finished) return
+    //   let tmpdir = getFruit().getTmpDir()
+    //   file.path = path.join(tmpdir, file.name) // file.name should be hash string 
+    // })
+
+    // form.on('file', (name, file) => {
+    //   if (finished) return
+    //   uploaded.push(file.name)
+    // })
+
+    // form.on('error', err => {
+    //   if (finished) return
+    //   return finished = true && res.status(500).json({ code: err.code, message: err.message})
+    // })
+
+    // form.on('aborted', () => {
+    //   if (finished) return
+    //   let err = new Error('aborted')
+    //   return finished = true && res.status(500).json(err)
+    // })
+
+    // form.on('end', () => {
+    //   formFinished = true
+    //   obj.uploaded = uploaded
+    //   getFruit().createCommitAsync(req.user, boxUUID, obj)
+    //     .then(result => {
+    //       data = result
+    //       finalize()
+    //     })
+    //     .catch(err => {
+    //       error = err
+    //       finalize()
+    //     })
+    // })
+
+    // form.parse(req)
+
+    const regex = /^multipart\/.+?(?:; boundary=(?:(?:"(.+)")|(?:([^\s]+))))$/i
+    const m = regex.exec(req.headers['content-type'])
+    let obj, uploaded = new Set()
+
+    const error = err => {
+      if (dicer) {
+        dicer.removeAllListeners()
+        dicer.on('error', () => {})
+        req.unpipe(dicer)
+        dicer.end()
+        dicer = null
+      }
+      return res.status(err.status).json(err)
+    }
+
+    const check = (size, sha256, obj) => {
+      if (size !== obj.total) {
+        let e = new Error('size mismatch')
+        e.status = 409
+        error(e)
+      }
+
+      if (sha256 !== obj.fingerprint) {
+        let e = new Error('sha256 mismatch')
+        e.status = 409
+        error(e)
       }
     }
 
-    form.on('field', (name, value) => {
-      if (finished) return
-      if (name === 'commit') {
-        /*
-          obj: {
-            root: xxxxxx,       // hash string of a tree obj
-            parent: xxxxxx,     // commit ID
-            branch: xxxxxx,     // branch ID
-            toUpload:[]        // file should upload
-          }
-        */
-        obj = JSON.parse(value)
+    // obj: {root, toUpload, parent, branch}
+    // root is required the others are optional
+    const onField = rs => {
+      rs.on('data', data => {
+        obj = JSON.parse(data)
+      })
+    }
+
+    // props: {type: 'file', name, fromName, toName, size, sha256}
+    // properties of file uploaded, given in header
+    const onFile = (rs, props) => {
+      try {
+        if (!Number.isInteger(props.size))
+          throw new Error('size must be an integer')
+
+        if (!isSHA256(props.sha256))
+          throw new Error('invalid sha256')
+      } catch(e) {
+        e.status = 400
+        return error(e)
       }
-    })
 
-    form.on('fileBegin', (name, file) => {
-      if (finished) return
       let tmpdir = getFruit().getTmpDir()
-      file.path = path.join(tmpdir, file.name) // file.name should be hash string 
+      let tmpPath = path.join(tmpdir, UUID.v4())
+      let ws = fs.createWriteStream(tmpPath)
+      let hashMaker = crypto.createHash('sha256')
+      let hashArr = [], fingerprint
+      let lenWritten = 0     // total length is 1G
+      let total = 0
+
+      rs.on('data', data => {
+        let chunk = Buffer.from(data)
+
+        if (lenWritten + chunk.length > SIZE_1G) {
+          // write data to full, update hash
+          let len = SIZE_1G - lenWritten
+          hashMaker.update(chunk.slice(0, len))
+          hashArr.push(hashMaker.digest())
+
+          // write the rest of data
+          lenWritten = chunk.slice(len).length
+          hashMaker = crypto.createHash('sha256')
+          hashMaker.update(chunk.slice(len))
+
+          ws.write(chunk)
+          total += chunk.length
+        } else {
+          lenWritten += chunk.length
+          hashMaker.update(chunk)
+          ws.write(chunk)
+          total += chunk.length
+        }
+      })
+
+      rs.on('end', () => {
+        ws.end()
+
+        hashArr.push(hashMaker.digest())
+        if (hashArr.length === 1) fingerprint = hashArr[0].toString('hex')
+        else {
+          hashMaker = crypto.createHash('sha256')
+          hashMaker.update(hashArr[0])
+          for(let i = 1; i < hashArr.length; i++) {
+            hashMaker.update(hashArr[i])
+            let digest = hashMaker.digest()
+            if (i === hashArr.length - 1) fingerprint = digest.toString('hex')
+            else {
+              hashMaker = crypto.createHash('sha256')
+              hashMaker.update(digest)
+            }
+          }
+        }
+
+        let received = { total, fingerprint }
+        // check whether given size and sha256 match received file
+        check(props.size, props.sha256, received)
+        fs.renameSync(tmpPath, path.join(tmpdir, fingerprint))
+        uploaded.add(fingerprint)
+      })
+    }
+
+    dicer = new Dicer({ boundary: m[1] || m[2] })
+
+    dicer.on('part', part => {
+      part.on('error', err => {
+        part.removeAllListeners()
+        part.on('error', () => {})
+        return error(err)
+      })
+
+      part.on('header', header => {
+        let props
+        try {
+          props = parseHeader(header)
+        } catch(e) {
+          part.on('error', () => {})
+          e.status(400)
+          return error(e)
+        }
+
+        if (props.type === 'field') {
+          onField(part)
+        } else {
+          onFile(part, props)
+        }
+      })
     })
 
-    form.on('file', (name, file) => {
-      if (finished) return
-      uploaded.push(file.name)
-    })
-
-    form.on('error', err => {
-      if (finished) return
-      return finished = true && res.status(500).json({ code: err.code, message: err.message})
-    })
-
-    form.on('aborted', () => {
-      if (finished) return
-      let err = new Error('aborted')
-      return finished = true && res.status(500).json(err)
-    })
-
-    form.on('end', () => {
-      formFinished = true
-      obj.uploaded = uploaded
+    dicer.on('finish', () => {
+      if (uploaded.size !== 0) obj.uploaded = [...uploaded]
       getFruit().createCommitAsync(req.user, boxUUID, obj)
-        .then(result => {
-          data = result
-          finalize()
-        })
-        .catch(err => {
-          error = err
-          finalize()
-        })
+        .then(commit => res.status(200).json(commit))
+        .catch(e => error(e)) 
     })
 
-    form.parse(req)
+    req.pipe(dicer)
+
   } else if (req.is('application/json')) {
     getFruit().createCommitAsync(req.user, boxUUID, req.body)
+      .then(tweet => res.status(200).json(tweet))
+      .catch(next) 
+  } else {
+    return res.status(415).end()
   }
 })
 

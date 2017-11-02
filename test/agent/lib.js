@@ -361,7 +361,7 @@ const forgeRecords = async (boxUUID, username) => {
 // hashArr contain tree object hash and blob hash
 const createTreeObjectAsync = async dir => {
   // console.log(process.cwd())
-  let tmpDir = path.join(process.cwd(), 'tmp')
+  let tmpDir = path.join(process.cwd(), UUID.v4())
   let hashArr = new Map()
   // {fingerprint:xxxx, path:[]}
   await mkdirpAsync(tmpDir)
@@ -384,9 +384,10 @@ const createTreeObjectAsync = async dir => {
           let fpath = path.join(tmpDir, fingerprint)
           if (hashArr.has(fingerprint)) {
             let result = hashArr.get(fingerprint)
-            result.path.push(fpath)
+            result.path.add(fpath)
           } else {
-            let obj = {fingerprint, path: [fpath], size: stat.size}
+            let size = fs.lstatSync(fpath).size
+            let obj = {fingerprint, path: new Set([fpath]), size}
             hashArr.set(fingerprint, obj)
           }
 
@@ -398,9 +399,9 @@ const createTreeObjectAsync = async dir => {
 
           if (hashArr.has(fingerprint)) {
             let result = hashArr.get(fingerprint)
-            result.path.push(entryPath)
+            result.path.add(entryPath)
           } else {
-            let obj = {fingerprint, path: [entryPath], size: stat.size}
+            let obj = {fingerprint, path: new Set([entryPath]), size: stat.size}
             hashArr.set(fingerprint, obj)
           }
 
@@ -423,14 +424,15 @@ const createTreeObjectAsync = async dir => {
 
   if (hashArr.has(root)) {
     let result = hashArr.get(root)
-    result.path.push(rootpath)
+    result.path.add(rootpath)
   } else {
-    let size = await fs.lstatAsync(rootpath).size
-    let obj = {root, path: [rootpath], size}
+    let size = fs.lstatSync(rootpath).size
+    let obj = {fingerprint: root, path: new Set([rootpath]), size}
     hashArr.set(root, obj)
   }
-
-  return {root, hashArr} 
+  // root is the sha256 of rootTree
+  // hashArr contains all the file hash and sub tree hash in rootTree(including rootTree hash)
+  return {tmpDir, root, hashArr} 
 }
 
 const storeObjectAsync = async (tree, dir) => {

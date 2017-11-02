@@ -293,40 +293,6 @@ describe(path.basename(__filename), function() {
 
     afterEach(() => UUID.v4.restore())
 
-    // it('POST /boxes/{uuid}/commits, should create a commit with no parent', async done => {
-    //   let testDir = 'testdata'
-    //   let result = await createTreeObjectAsync(testDir)
-    //   let toUpload = [...result.hashArr.keys()]
-    //   let tmp = path.join(process.cwd(), 'tmp')
-    //   let entries = await fs.readdirSync(tmp)
-    //   // move all files toUpload into tmp dir,
-    //   // and rename with its hash
-    //   console.log(toUpload)
-    //   toUpload.forEach(i => {
-    //     if (!entries.includes(i)) {
-    //       let src = result.hashArr.get(i).path[0]
-    //       let dst = path.join(tmp, i)
-    //       child.execSync(`cp -r --reflink=auto --preserve=all '${src}' '${dst}'`)
-    //     }
-    //   })
-
-    //   let obj = {
-    //     root: result.root,       // hash string of a tree obj
-    //     toUpload:[...result.hashArr.keys()]
-    //   }
-    //   request(app)
-    //     .post(`/boxes/${boxUUID}/commits`)
-    //     .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
-    //     .field('commit',JSON.stringify(obj))
-    //     .attach('tmp', 'tmp')
-    //     // .attach('vpai001', 'testdata/vpai001.jpg')
-    //     .expect(200)
-    //     .end((err, res) => {
-    //       if (err) return done(err)
-    //       done()
-    //     })
-    // })
-
     it('POST /boxes/{uuid}/tweets alice should add a tweet into tweetsDB', done => {
       request(app)
         .post(`/boxes/${boxUUID}/tweets`)
@@ -590,6 +556,58 @@ describe(path.basename(__filename), function() {
               expect(res.body).to.deep.equal([result])
               done()
             })
+        })
+    })
+  })
+
+  describe('box created, test commit', () => {
+    let aliceToken, aliceCloudToken
+    let boxUUID = 'a96241c5-bfe2-458f-90a0-46ccd1c2fa9a'
+
+    beforeEach(async () => {
+      await resetAsync()
+      await createUserAsync('alice')
+      await setUserGlobalAsync('alice')
+      aliceToken = await retrieveTokenAsync('alice')
+      aliceCloudToken = await laCloudTokenAsync('alice')
+
+      sinon.stub(UUID, 'v4').onCall(0).returns(boxUUID)
+                          
+      let props = {name: 'hello', users: [IDS.bob.global.id]}
+      await createBoxAsync(props, 'alice')
+      UUID.v4.restore()
+    })
+
+    // prepare test data
+    let result, toUpload
+    before(async () => {
+      let testDir = 'testdata'
+      result = await createTreeObjectAsync(testDir)
+      toUpload = [...result.hashArr.keys()]
+    })
+
+    it('POST /boxes/{uuid}/commits, should create a commit with no parent', done => {
+      let obj = {
+        root: result.root,       // hash string of a tree obj
+        toUpload
+      }
+
+      let res = request(app)
+        .post(`/boxes/${boxUUID}/commits`)
+        .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
+        .field('commit', JSON.stringify(obj))
+
+      for (let i = 0; i < toUpload.length; i++) {
+        let obj = result.hashArr.get(toUpload[i])
+        let fpath = [...obj.path][0]
+        res.attach(toUpload[i], fpath, JSON.stringify({size: obj.size, sha256: toUpload[i]}))
+      }
+
+      res.expect(200)
+        .end((err, res) => {
+          if (err) return done(err)
+          expect(res.body).to.be.an('string')
+          done()
         })
     })
   })

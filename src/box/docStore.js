@@ -35,8 +35,8 @@ class DocStore {
     })
   }
 
-  async storeAsync(object) {
-    return Promise.promisify(this.store).bind(this)(src)
+  async storeAsync(pathArr) {
+    return Promise.promisify(this.store).bind(this)(pathArr)
   }
 
   retrieve(hash, callback) {
