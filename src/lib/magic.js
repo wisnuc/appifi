@@ -1,5 +1,5 @@
 /** @constant {number} MAGICVER - bump version for magic **/
-const MAGICVER = 1
+const MAGICVER = 2
 
 const allMagics = ['JPEG', 'PNG', 'GIF', '3GP', 'MP4', 'MOV']
 

@@ -158,7 +158,7 @@ const fileMagic3 = (target, callback) =>
 const fileMagic4 = (target, callback) => 
   new mmm.Magic().detectFile(target, (err, str) => {
     if (err) {
-      callback(err)
+      fileMagic1(target, callback)
     } else {
       callback(null, Magic.parse(str))
     }
