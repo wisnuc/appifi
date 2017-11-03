@@ -54,6 +54,37 @@ class Idle {
 
 }
 
+class InitPending {
+
+  constructor (dir, monitor) {
+    this.dir = dir
+    this.monitor = monitor
+
+    this.timer = setInterval(() => {
+       
+    }, 200)
+  }
+
+  read (handler) {
+    clearTimeout(this.timer)
+    if (Number.isInteger(handler)) {
+      this.timer = setTimeout(() => {
+        this.dir.readdir = new Working(this.dir, [this.monitor]) 
+      })
+    } else if (typeof handler === 'function' || handlers instanceof Monitor) {
+      this.dir.readdir = new Working(this.dir, [this.monitor, handler])
+    } else if (handler === undefined) {
+      this.dir.readir = new Working(this.dir, [this.monitor])
+    } else {
+      throw new Error('invalid handler')
+    }
+  }
+
+  abort() {
+    clearTimeout()
+  }
+}
+
 /**
 Pending State
 */

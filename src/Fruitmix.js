@@ -12,6 +12,7 @@ const rimrafAsync = Promise.promisify(rimraf)
 
 const UUID = require('uuid')
 
+const Magic = require('./lib/magic')
 const UserList = require('./user/user')
 const DriveList = require('./forest/forest')
 const BoxData = require('./box/boxData')
@@ -21,6 +22,7 @@ const Identifier = require('./lib/identifier')
 const { btrfsConcat, btrfsClone } = require('./lib/btrfs')
 const jwt = require('jwt-simple')
 const secret = require('./config/passportJwt')
+
 
 const PersistentMap = require('./lib/persistent-map')
 
@@ -217,6 +219,21 @@ class Fruitmix extends EventEmitter {
     return mediaMap
   }
 
+  getUserByUUID (userUUID) {
+    let user = this.userList.users.find(u => u.uuid === userUUID)
+    if (user) {
+      return {
+        uuid: user.uuid,
+        username: user.username,
+        isFirstUser: user.isFirstUser,
+        isAdmin: user.isAdmin,
+        avatar: user.avatar,
+        global: user.global,
+        disabled: user.disabled
+      }
+    }
+  }
+
   /**
 
   */
@@ -347,9 +364,18 @@ class Fruitmix extends EventEmitter {
     return false
   }
 
+  //
+  // FIXME this function won't work for non-media indexed files
+  //
   userCanReadMedia (user, fingerprint) {
-    if (!user || !fingerprint || !fingerprint.length) throw Object.assign(new Error('Invalid parameters'), { status: 400 })
-    if (!this.driveList.metaMap.has(fingerprint)) { throw Object.assign(new Error('media not found'), { status: 404 }) }
+    if (!user || !fingerprint || !fingerprint.length) {
+      throw Object.assign(new Error('Invalid parameters'), { status: 400 })
+    }
+
+    if (!this.driveList.metaMap.has(fingerprint)) { 
+      throw Object.assign(new Error('media not found'), { status: 404 }) 
+    }
+
     let medias = Array.from(this.driveList.metaMap.get(fingerprint))
     let userDrives = this.getDrives(user).map(d => d.uuid)
     if (medias.find(media => userDrives.indexOf(media.root().uuid) !== -1)) { return true }
@@ -636,7 +662,9 @@ class Fruitmix extends EventEmitter {
     let entries = await dir.readdirAsync()
     if (metadata) {
       entries.forEach(entry => {
-        if (entry.type === 'file' && entry.magic === 'JPEG' && entry.hash) {
+        if (entry.type === 'file' && 
+          Magic.isMedia(entry.magic) && 
+          entry.hash && this.mediaMap.has(entry.hash)) {
           entry.metadata = this.mediaMap.get(entry.hash)
         }
       })
@@ -977,7 +1005,10 @@ class Fruitmix extends EventEmitter {
 
   // NEW API
   getMetadata (user, fingerprint) {
-    if (!this.userCanReadMedia(user, fingerprint)) { throw Object.assign(new Error('permission denied'), { status: 401 }) }
+    if (!this.userCanReadMedia(user, fingerprint)) { 
+      throw Object.assign(new Error('permission denied'), { status: 401 }) 
+    }
+
     // return Object.assign({}, this.mediaMap.get(fingerprint), { hash: fingerprint })
     return this.mediaMap.get(fingerprint)
   }
@@ -1025,8 +1056,17 @@ class Fruitmix extends EventEmitter {
   }
 **/
 
+  // FIXME DONT mix async and callback error handlings
   getThumbnail (user, fingerprint, query, callback) {
-    if (!this.userCanReadMedia(user, fingerprint)) throw Object.assign(new Error('permission denied'), { status: 401 })
+    if (!this.userCanReadMedia(user, fingerprint)) {
+      throw Object.assign(new Error('permission denied'), { status: 401 })
+    }
+
+    if (!this.mediaMap.has(fingerprint)) {
+      let err = new Error('media not found')
+      err.status = 404
+      process.nextTick(() => callback(err))
+    }
 
     let files = this.getFilesByFingerprint(user, fingerprint)
     if (files.length === 0) { return }
@@ -1035,6 +1075,8 @@ class Fruitmix extends EventEmitter {
     fs.lstat(props.path, (err, stat) => {
       if (!err) return callback(null, props.path)
       if (err.code !== 'ENOENT') return callback(err)
+
+      // TODO add randomness
       callback(null, cb => this.thumbnail.convert(props, files[0], cb))
     })
   }
@@ -1151,7 +1193,8 @@ class Fruitmix extends EventEmitter {
             callback(err)
           } else {
             callback(null, xstat)
-/**
+/** FIXME
+
             if (xstat.magic === 'JPEG') {
               if (!this.mediaMap.has(xstat.hash)) {
                 Identifier.identify(dst, xstat.hash, xstat.uuid, (err, metadata) => {

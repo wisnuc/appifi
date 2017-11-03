@@ -17,6 +17,7 @@ const debug = require('debug')('divider')
 
 const app = require('src/app')
 const broadcast = require('src/common/broadcast')
+const { isUUID } = require('src/lib/assertion') 
 
 const Forest = require('src/forest/forest')
 
@@ -78,13 +79,10 @@ describe(path.basename(__filename), () => {
       w: 4624,
       h: 2608,
       orient: 1,
-      datetime: '2017:06:17 17:31:18',
+      date: '2017:06:17 17:31:18',
       make: 'Sony',
       model: 'G3116',
-      lat: '31/1, 10/1, 506721/10000',
-      latr: 'N',
-      long: '121/1, 36/1, 27960/10000',
-      longr: 'E',
+      gps: `31 deg 10' 50.67" N, 121 deg 36' 2.80" E`,
       size: 4192863
     }
 
@@ -238,6 +236,47 @@ describe(path.basename(__filename), () => {
         .set('Authorization', 'JWT ' + token)
         .expect(200)
         .pipe(ws)
+    })
+
+    it("GET vpai001 random, 549dad02", done => {
+      request(app)
+        .get(`/media/${vpai001Fingerprint}?alt=random`)
+        .set('Authorization', 'JWT ' + token)
+        .expect(200)
+        .end((err, res) => {
+          if (err) return done(err)
+          expect(isUUID(res.body.key)).to.be.true
+          done()
+        })
+    })
+
+    it("GET vpai001 by random, efb46d50", done => {
+      request(app)
+        .get(`/media/${vpai001Fingerprint}?alt=random`)
+        .set('Authorization', 'JWT ' + token)
+        .expect(200)
+        .end((err, res) => {
+          if (err) return done(err)
+
+          let key = res.body.key
+          expect(isUUID(key)).to.be.true
+
+          let downloadPath = path.join(tmptest, 'downloaded')
+          let ws = fs.createWriteStream(path.join(tmptest, 'downloaded'))
+          ws.on('close', () => {
+            expect(ws.bytesWritten).to.equal(vpai001Metadata.size)
+            let data = fs.readFileSync(downloadPath)
+            let sha256 = crypto.createHash('sha256').update(data).digest('hex')
+            expect(sha256).to.equal(vpai001Fingerprint)
+            done()
+          })
+             
+          request(app)
+            .get(`/media/random/${key}`)
+            .set('Authorization', 'JWT ' + token)
+            .expect(200)
+            .pipe(ws)
+        })
     })
 
   })

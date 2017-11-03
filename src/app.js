@@ -1,3 +1,5 @@
+require('./prerequisite')
+
 const path = require('path')
 const fs = require('fs')
 const express = require('express')
@@ -5,8 +7,6 @@ const logger = require('morgan')
 const bodyParser = require('body-parser')
 
 const broadcast = require('./common/broadcast')
-
-
 const settings = require('./system/settings')
 
 const app = express()

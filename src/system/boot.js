@@ -3,12 +3,14 @@ const path = require('path')
 const child = Promise.promisifyAll(require('child_process'))
 const mkdirp = require('mkdirp')
 const rimraf = require('rimraf')
+
 // const debug = require('debug')('system:boot')
 
 const router = require('express').Router()
 
 const { isUUID } = require('../common/assertion')
 const broadcast = require('../common/broadcast')
+const prerequisite = require('../prerequisite')
 
 /**
 `boot` module is responsible for boot logic.
@@ -131,7 +133,10 @@ Module init. Hook listeners to `ConfigUpdate` and `StorageUpdate` events.
 */
 const init = () => {
   const readyToBoot = () =>
-    mode !== undefined && last !== undefined && storage !== undefined
+    prerequisite.error === null && 
+    mode !== undefined && 
+    last !== undefined && 
+    storage !== undefined
 
   broadcast.on('ConfigUpdate', (err, config) => {
     if (err) return
@@ -211,7 +216,7 @@ init()
 /**
 see apib document
 */
-router.get('/', (req, res) => res.status(200).json({ mode, last, state, current, error }))
+router.get('/', (req, res) => res.status(200).json({ prerequisite, mode, last, state, current, error }))
 
 /**
 see apib document
@@ -221,6 +226,12 @@ see apib document
 */
 router.patch('/', (req, res, next) => {
   let arg = req.body
+
+  if (prerequisite.error) {
+    if (arg.hasOwnProperty('mode') || arg.hasOwnProperty('current')) {
+      res.status(403).json({ message: 'mode or current cannot be updated when prerequisite not satisfied' })
+    }
+  }
 
   const err = (code, message) => res.status(code).json({ message })
 
