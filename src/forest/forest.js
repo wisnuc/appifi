@@ -191,14 +191,20 @@ class Forest extends EventEmitter {
           // the removed one holds the worker
           if (file.meta) {
             this.metaingMap.delete(key)
+            console.log('before 456', this.metalessMap)
             this.metalessMap.set(key, set)
+            console.log('after 456', this.metalessMap)
           }
         }
       } else if (this.metalessMap.get(key)) {
         let set = this.metalessMap.get(key)
         let found = set.delete(file)
         if (!found) throw new Error('not found in metaless map')
-        if (set.size === 0) this.metalessMap.delete(key)
+        if (set.size === 0) {
+          console.log('789', this.metalessMap)
+          this.metalessMap.delete(key)
+          console.log('789', this.metalessMap)
+        }
       } else {
         console.log(this)
         console.log(file)
@@ -286,16 +292,19 @@ class Forest extends EventEmitter {
   // remove file failed too many times TODO
   scheduleMetaWorkers () {
     debugi('scheduling meta workers')
-
+try {
     while (this.metalessMap.size > 0 && this.metaingMap.size < 4) {
       // pull set (rather than single file) out of metaless map
-      let [fingerprint, set] = this.metalessMap[Symbol.iterator]().next().value
-      this.metalessMap.delete(fingerprint)
+      let vvv = this.metalessMap[Symbol.iterator]().next().value
+      let [fingerprint, set] = vvv 
 
+      this.metalessMap.delete(fingerprint)
       let file = Array.from(set)[0]
       file.meta = xtractMetadata(file.abspath(), file.magic, file.hash, file.uuid, (err, metadata) => {
         // pull set out of metaing map
         let set = this.metaingMap.get(file.hash)
+        if (set === undefined) return // who steals it?
+
         this.metaingMap.delete(file.hash)
         file.meta = null
 
@@ -314,7 +323,11 @@ class Forest extends EventEmitter {
 
       // put set back into metaing map
       this.metaingMap.set(fingerprint, set)
+
     }
+} catch (e) {
+  console.log(e)
+}
   }
 
   onFileCreated (file) {

@@ -20,6 +20,8 @@ const broadcast = require('src/common/broadcast')
 const createBigFile = require('src/utils/createBigFile')
 const { createTestFilesAsync } = require('src/utils/createTestFiles')
 
+const Magic = require('src/lib/magic')
+
 const fingerprintSimple = require('src/utils/fingerprintSimple')
 
 const getFruit = require('src/fruitmix')

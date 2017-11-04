@@ -20,6 +20,8 @@ const { saveObjectAsync } = require('src/lib/utils')
 const broadcast = require('src/common/broadcast')
 const createBigFile = require('src/utils/createBigFile')
 
+const Magic = require('src/lib/magic')
+
 const getFruit = require('src/fruitmix')
 
 const {
@@ -125,6 +127,10 @@ describe(path.basename(__filename), () => {
       token = await retrieveTokenAsync('alice')
       stat = await fs.lstatAsync(path.join(DrivesDir, IDS.alice.home))
     }) 
+
+    afterEach(async () => {
+      await Promise.delay(100)
+    })
 
     it('should fail 400 if size not provided, cfd1934f', done => {
       REQ()
@@ -244,7 +250,7 @@ describe(path.basename(__filename), () => {
           let attr = JSON.parse(xattr.getSync(filePath, 'user.fruitmix'))
           expect(stat.isFile()).to.be.true
           expect(attr.hash).to.equal(FILES.empty.hash)
-          expect(attr.magic).to.equal(1)
+          expect(attr.magic).to.equal(Magic.ver)
           expect(fs.readdirSync(tmpDir)).to.deep.equal([])
           done()
         })
@@ -263,7 +269,7 @@ describe(path.basename(__filename), () => {
           let attr = JSON.parse(xattr.getSync(filePath, 'user.fruitmix'))
           expect(stat.isFile()).to.be.true
           expect(attr.hash).to.equal(FILES.empty.hash)
-          expect(attr.magic).to.equal(1)
+          expect(attr.magic).to.equal(Magic.ver)
           expect(fs.readdirSync(tmpDir)).to.deep.equal([])
           done()
         })
@@ -285,7 +291,7 @@ describe(path.basename(__filename), () => {
             type: 'file', 
             name: 'empty', 
             size: 0,
-            magic: 1, 
+            magic: Magic.ver, 
             hash: FILES.empty.hash
           }).to.have.keys('uuid','mtime')
 
@@ -294,7 +300,7 @@ describe(path.basename(__filename), () => {
           let attr = JSON.parse(xattr.getSync(filePath, 'user.fruitmix'))
           expect(stat.isFile()).to.be.true
           expect(attr.hash).to.equal(FILES.empty.hash)
-          expect(attr.magic).to.equal(1)
+          expect(attr.magic).to.equal(Magic.ver)
 
           expect(fs.readdirSync(tmpDir)).to.deep.equal([])
           done()
@@ -545,7 +551,7 @@ describe(path.basename(__filename), () => {
                   type: 'file',
                   name: 'empty',
                   size: 0,
-                  magic: 1,
+                  magic: Magic.ver,
                   hash: FILES.empty.hash
                 })
                 .to.have.keys('uuid', 'mtime')
@@ -687,7 +693,7 @@ describe(path.basename(__filename), () => {
                   type: 'file',
                   name: 'alonzo.jpg',
                   size: FILES.empty.size,
-                  magic: 1,
+                  magic: Magic.ver,
                   hash: FILES.empty.hash
                 })
                 .to.have.keys('uuid', 'mtime')
@@ -726,7 +732,7 @@ describe(path.basename(__filename), () => {
                   type: 'file',
                   name: 'alonzo.jpg',
                   size: FILES.hello.size,
-                  magic: 1,
+                  magic: Magic.ver,
                   hash: FILES.hello.hash
                 })
                 .to.have.keys('uuid', 'mtime')

@@ -18,6 +18,7 @@ const app = require('src/app')
 const { saveObjectAsync } = require('src/lib/utils')
 const broadcast = require('src/common/broadcast')
 const createBigFile = require('src/utils/createBigFile')
+const Magic = require('src/lib/magic')
 
 const getFruit = require('src/fruitmix')
 
@@ -235,7 +236,7 @@ describe(path.basename(__filename), () => {
             type: 'file',
             name: 'empty',
             size: 0,
-            magic: 1,
+            magic: Magic.ver,
             hash: FILES.empty.hash
           }).to.have.keys('uuid')
           // mkdir
@@ -260,7 +261,7 @@ describe(path.basename(__filename), () => {
             type: 'file',
             name: 'empty',
             size: 0,
-            magic: 1,
+            magic: Magic.ver,
             hash: FILES.empty.hash
           })
 
@@ -268,7 +269,7 @@ describe(path.basename(__filename), () => {
             type: 'file',
             name: 'zero',
             size: 0,
-            magic: 1,
+            magic: Magic.ver,
             hash: FILES.empty.hash
           })
 
