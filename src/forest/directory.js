@@ -23,35 +23,19 @@ class Directory extends Node {
   @param {Forest} ctx
   @param {Directory} parent - parent `Directory` object
   @param {xstat} xstat
-  @param {Monitor} [monitor]
   */ 
-  constructor(ctx, parent, xstat, monitors) {
-
-    if (xstat.type !== 'directory') {
-      console.log(xstat)
-      throw new Error('xstat is not a directory')
-    }
-    
+  constructor(ctx, parent, xstat) {
     super(ctx, parent, xstat)
-
     this.children = []
 
-    /** uuid **/
     this.uuid = xstat.uuid
-
-    /** name **/
     this.name = xstat.name 
-
-    /** mtime **/
     this.mtime = -xstat.mtime
 
     // index
+    // this.ctx.indexDirectory(this)
+    this.ctx.onDirectoryCreated(this)
     this.ctx.indexDirectory(this)
-
-    /**
-    readdir worker
-    */
-    this.readdir = Readdir(this, monitors)
   }
 
   /**
@@ -61,7 +45,8 @@ class Directory extends Node {
     [...this.children].forEach(child => child.destroy()) 
     this.readdir.abort()
     this.readdir = null
-    this.ctx.unindexDirectory(this) 
+    // this.ctx.unindexDirectory(this) 
+    this.ctx.onDirectoryDestroying(this)
     super.destroy()
   }
 
@@ -71,36 +56,36 @@ class Directory extends Node {
   @param {xstat[]} xstats
   @param {Monitor[]} monitors
   */
-  merge(xstats, monitors) { 
+  merge(xstats) { 
 
     // remove non-interested files
-    xstats = xstats.filter(x => x.type === 'directory' || (x.type === 'file' && typeof x.magic === 'string'))
+    xstats = xstats.filter(x => x.type === 'directory' || 
+      (x.type === 'file' && typeof x.magic === 'string'))
 
     // convert to a map
     let map = new Map(xstats.map(x => [x.uuid, x]))
 
     // update found child, remove found out of map, then destroy lost
-    Array.from(this.children)
-      .reduce((lost, child) => {
+    let lost = Array.from(this.children).reduce((arr, child) => {
+      let xstat = map.get(child.uuid)
+      if (xstat) {
+        child.update(xstat) 
+        map.delete(child.uuid)
+      } else {
+        arr.push(child)
+      }
+      return arr
+    }, [])
 
-        let xstat = map.get(child.uuid)
-        if (xstat) {
-          child.update(xstat, monitors) 
-          map.delete(child.uuid)
-        }
-        else
-          lost.push(child)
-
-        return lost
-      }, [])
-      .forEach(child => child.destroy())
+    // remove lost
+    lost.forEach(child => child.destroy())
 
     // new 
     map.forEach(val => {
       if (val.type === 'file') {
         new File(this.ctx, this, val)
       } else {
-        new Directory(this.ctx, this, val, monitors)
+        new Directory(this.ctx, this, val)
       }
     })
 
@@ -113,42 +98,37 @@ class Directory extends Node {
   @param {xstat} xstat - new `xstat`
   @param {Monitor[]} [monitors]
   */ 
-  update(xstat, monitors) {
-    
-    // guard
-    if (xstat.uuid !== this.uuid) throw new Error('uuid mismatch')    
-
+  update(xstat) {
     // if nothing changed, return
     if (this.name === xstat.name && this.mtime === xstat.mtime) return
 
     // either name or timestamp changed, a read is required.
-    this.name = xstat.name
-
-    if (monitors) {
-      monitors.forEach(monitor => this.read(monitor))
+    if (this.name !== xstat.name) {
+      this.name = xstat.name
+      this.restart()
     } else {
       this.read()
     }
   }
 
-/**
-  pathChanging () {
-    [...this.children].forEach(child => child.pathChanging)
-    
+  restart () {
+    if (this.readdir) this.readdir.restart()
+    this.children.forEach(c => c.restart())
   }
-**/
 
   /**
   Request a `readdir` operation. 
 
-  + if `handler` is not provided, request a immediate `readdir` operation
-  + if `handler` is a number, request a deferred `readdir` operation
-  + if `handler` is a callback, request a immediate `readdir` operation
-  + if `handler` is a Monitor, request a immediate `readdir` operation
-  @param {(function|Monitor)} [handler] - handler may be a callback function or a Monitor
+  @param {(function|number)} [x] - may be a callback function or a number
   */
-  read(handler) {
-    this.readdir.read(handler)
+  read(x) {
+    if (typeof x === 'function') {
+      this.readdir.readc(x)
+    } else if (typeof x === 'number') {
+      this.readdir.readn(x)
+    } else {
+      this.readdir.readi()
+    }
   }
 
   /**

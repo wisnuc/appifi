@@ -24,6 +24,7 @@ const debugi = require('debug')('fruitmix:indexing')
 
 const xfingerprint = require('../lib/xfingerprint')
 const xtractMetadata = require('../lib/metadata')
+const readdir = require('./readdir')
 
 /**
 Forest is a collection of file system cache for each `Drive` defined in Fruitmix.
@@ -80,6 +81,9 @@ class Forest extends EventEmitter {
     Indexing all directories by uuid
     */
     this.uuidMap = new Map()
+    this.firstReading = new Set()
+    this.firstPending = new Set()
+
 
     /**
     Indexing all media files by file hash
@@ -191,9 +195,7 @@ class Forest extends EventEmitter {
           // the removed one holds the worker
           if (file.meta) {
             this.metaingMap.delete(key)
-            console.log('before 456', this.metalessMap)
             this.metalessMap.set(key, set)
-            console.log('after 456', this.metalessMap)
           }
         }
       } else if (this.metalessMap.get(key)) {
@@ -201,9 +203,7 @@ class Forest extends EventEmitter {
         let found = set.delete(file)
         if (!found) throw new Error('not found in metaless map')
         if (set.size === 0) {
-          console.log('789', this.metalessMap)
           this.metalessMap.delete(key)
-          console.log('789', this.metalessMap)
         }
       } else {
         console.log(this)
@@ -363,13 +363,29 @@ try {
     this.unindexFile(file)
   }
 
-  onDirectoryCreated () {
+  scheduleFirstRead () {
+    while (this.firstPending > 0 && this.firstPending < 4) {
+      let uuid = this.firstPending[Symbol.iterator]().next().value 
+      let dir = this.uuidMap.get(uuid)
+      if (!dir) continue
+      if (dir.readdir.reading()) continue
+    }
   }
 
-  onDirectoryPathChanging () {
+  onDirectoryCreated (dir) {
+    console.log('onDirectoryCreated', dir)
+    this.uuidMap.set(dir.uuid, dir)
+    readdir(dir) 
+    this.firstPending.add(dir.uuid) 
+    this.scheduleFirstRead()
   }
 
-  onDirectoryDestroying () {
+  onDirectory1stReadDone (dir) {
+    
+  }
+
+  onDirectoryDestroying (dir) {
+    this.uuidMap.set(dir.uuid, dir)
   }
 
   /// ///////////////////////////////////////////////////////////////////////////
