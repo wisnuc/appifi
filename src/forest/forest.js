@@ -24,7 +24,6 @@ const debugi = require('debug')('fruitmix:indexing')
 
 const xfingerprint = require('../lib/xfingerprint')
 const xtractMetadata = require('../lib/metadata')
-const readdir = require('./readdir')
 
 /**
 Forest is a collection of file system cache for each `Drive` defined in Fruitmix.
@@ -81,8 +80,21 @@ class Forest extends EventEmitter {
     Indexing all directories by uuid
     */
     this.uuidMap = new Map()
-    this.firstReading = new Set()
-    this.firstPending = new Set()
+    
+    /**
+    init dir may be in Init or Pending state, but neither idle nor reading
+    */
+    this.initDirs = new Set()
+
+    /**
+    dir
+    */
+    this.pendingDirs = new Set()
+
+    /**
+    dir in readding state
+    */
+    this.readingDirs = new Set()
 
 
     /**
@@ -292,7 +304,7 @@ class Forest extends EventEmitter {
   // remove file failed too many times TODO
   scheduleMetaWorkers () {
     debugi('scheduling meta workers')
-try {
+
     while (this.metalessMap.size > 0 && this.metaingMap.size < 4) {
       // pull set (rather than single file) out of metaless map
       let vvv = this.metalessMap[Symbol.iterator]().next().value
@@ -325,9 +337,6 @@ try {
       this.metaingMap.set(fingerprint, set)
 
     }
-} catch (e) {
-  console.log(e)
-}
   }
 
   onFileCreated (file) {
@@ -355,6 +364,10 @@ try {
     }
   }
 
+  onFileRestart (file) {
+     
+  }
+
   onFileUpdated (file) {
     this.indexFile(file)
   }
@@ -363,30 +376,80 @@ try {
     this.unindexFile(file)
   }
 
-  scheduleFirstRead () {
-    while (this.firstPending > 0 && this.firstPending < 4) {
-      let uuid = this.firstPending[Symbol.iterator]().next().value 
+  /**
+  index a directory by uuid
+  */
+  indexDirectory (dir) {
+    this.uuidMap.set(dir.uuid, dir)
+  }
+
+  /**
+  unindex a directory by uuid
+  */
+  unindexDirectory (dir) {
+    this.uuidMap.delete(dir.uuid)
+  }
+
+  dirEnterInit (dir) {
+    console.log(`dir ${dir.name} enter init`)
+    this.initDirs.add(dir.uuid)
+    this.reqSchedDirRead()
+  }
+
+  dirExitInit (dir) {
+    console.log(`dir ${dir.name} exit init`)
+    this.initDirs.delete(dir.uuid)
+    this.reqSchedDirRead()
+  }
+
+  dirEnterPending (dir) {
+    console.log(`dir ${dir.name} enter pending`)
+    this.pendingDirs.add(dir.uuid)
+    this.reqSchedDirRead()
+  }
+
+  dirExitPending (dir) {
+    console.log(`dir ${dir.name} exit pending`)
+    this.pendingDirs.delete(dir.uuid)
+    this.reqSchedDirRead()
+  }
+
+  dirEnterReading (dir) {
+    console.log(`dir ${dir.name} enter reading`)
+    this.readingDirs.add(dir.uuid)
+    this.reqSchedDirRead()
+  }
+
+  dirExitReading (dir) {
+    console.log(`dir ${dir.name} exit reading`)
+    this.readingDirs.delete(dir.uuid)
+    this.reqSchedDirRead()
+  }
+
+  reqSchedDirRead () {
+    if (this.dirReadScheduled) return
+    this.dirReadScheduled = true
+    process.nextTick(() => this.scheduleDirRead())
+  }
+
+  dirReadSettled () {
+    return this.initDirs.size === 0 &&
+      this.pendingDirs.size === 0 &&
+      this.readingDirs.size === 0
+  }
+
+  scheduleDirRead () {
+    this.dirReadScheduled = false
+
+    if (this.dirReadSettled()) return this.emit('dirReadSettled')
+
+    while (this.initDirs.size > 0 && this.readingDirs.size < 6) {
+      let uuid = this.initDirs[Symbol.iterator]().next().value
       let dir = this.uuidMap.get(uuid)
-      if (!dir) continue
-      if (dir.readdir.reading()) continue
+      if (dir) dir.read()
     }
   }
 
-  onDirectoryCreated (dir) {
-    console.log('onDirectoryCreated', dir)
-    this.uuidMap.set(dir.uuid, dir)
-    readdir(dir) 
-    this.firstPending.add(dir.uuid) 
-    this.scheduleFirstRead()
-  }
-
-  onDirectory1stReadDone (dir) {
-    
-  }
-
-  onDirectoryDestroying (dir) {
-    this.uuidMap.set(dir.uuid, dir)
-  }
 
   /// ///////////////////////////////////////////////////////////////////////////
   //
@@ -471,21 +534,10 @@ try {
     return !!this.roots.get(driveUUID)
   }
 
-  /**
-  index a directory by uuid
-  */
-  indexDirectory (dir) {
-    this.uuidMap.set(dir.uuid, dir)
-  }
-
-  /**
-  unindex a directory by uuid
-  */
-  unindexDirectory (dir) {
-    this.uuidMap.set(dir.uuid, dir)
-  }
-
   getDriveDirs (driveUUID) {
+
+    console.log(this.uuidMap)
+
     return Array.from(this.uuidMap)
       .map(kv => kv[1])
       .filter(dir => dir.root().uuid === driveUUID)
@@ -515,23 +567,18 @@ try {
     await mkdirpAsync(dirPath)
 
     let xstat = await forceXstatAsync(dirPath, { uuid: drive.uuid })
-    let root = new Directory(this, null, xstat, monitor)
+    let root = new Directory(this, null, xstat)
     this.roots.set(root.uuid, root)
   }
 
   // 
-  createDrive (drive, monitor, callback) {
-    if (typeof monitor === 'function') {
-      callback = monitor
-      monitor = null
-    }
-
+  createDrive (drive, callback) {
     let dirPath = path.join(this.dir, drive.uuid)
     mkdirp(dirPath, err => {
       if (err) return callback(err)
       forceXstat(dirPath, { uuid: drive.uuid }, (err, xstat) => {
         if (err) return callback(err)
-        let root = new Directory(this, null, xstat, monitor)
+        let root = new Directory(this, null, xstat)
         this.roots.set(root.uuid, root)
         callback()
       })

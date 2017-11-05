@@ -26,28 +26,24 @@ class Directory extends Node {
   */ 
   constructor(ctx, parent, xstat) {
     super(ctx, parent, xstat)
-    this.children = []
 
+    this.children = []
     this.uuid = xstat.uuid
     this.name = xstat.name 
     this.mtime = -xstat.mtime
 
-    // index
-    // this.ctx.indexDirectory(this)
-    this.ctx.onDirectoryCreated(this)
     this.ctx.indexDirectory(this)
+    Readdir(this)
   }
 
   /**
   Destructor
   */
-  destroy() {
+  destroy(detach) {
     [...this.children].forEach(child => child.destroy()) 
-    this.readdir.abort()
-    this.readdir = null
-    // this.ctx.unindexDirectory(this) 
-    this.ctx.onDirectoryDestroying(this)
-    super.destroy()
+    this.readdir.destory()
+    this.ctx.unindexDirectory(this) 
+    super.destroy(detach)
   }
 
   /**
@@ -57,7 +53,6 @@ class Directory extends Node {
   @param {Monitor[]} monitors
   */
   merge(xstats) { 
-
     // remove non-interested files
     xstats = xstats.filter(x => x.type === 'directory' || 
       (x.type === 'file' && typeof x.magic === 'string'))
@@ -77,18 +72,11 @@ class Directory extends Node {
       return arr
     }, [])
 
-    // remove lost
-    lost.forEach(child => child.destroy())
+    // detroy AND detach lost children
+    lost.forEach(c => c.destroy(true))
 
-    // new 
-    map.forEach(val => {
-      if (val.type === 'file') {
-        new File(this.ctx, this, val)
-      } else {
-        new Directory(this.ctx, this, val)
-      }
-    })
-
+    // create new 
+    map.forEach(x => x.type === 'file' ? new File(this.ctx, this, x) : new Directory(this.ctx, this, x))
   }
 
   /**
@@ -99,7 +87,6 @@ class Directory extends Node {
   @param {Monitor[]} [monitors]
   */ 
   update(xstat) {
-    // if nothing changed, return
     if (this.name === xstat.name && this.mtime === xstat.mtime) return
 
     // either name or timestamp changed, a read is required.
@@ -112,8 +99,8 @@ class Directory extends Node {
   }
 
   restart () {
-    if (this.readdir) this.readdir.restart()
     this.children.forEach(c => c.restart())
+    if (this.readdir) this.readdir.restart()
   }
 
   /**
@@ -141,10 +128,7 @@ class Directory extends Node {
       this.read((err, xstats) => err ? reject(err) : resolve(xstats)))
   }
 
-  /**
-  mkdirp and update children
-  
-  */
+  /** supposed to be obsolete
   mkdirp(name, parents, callback) {
     let dst = path.join(this.abspath(), name)     
     mkdirp(dst, err => {
@@ -158,7 +142,10 @@ class Directory extends Node {
       })
     }) 
   }
+  **/
 
+  /**
+  */
   nameWalk(names) {
     if (names.length === 0) return this
     let c = this.children.find(x => x instanceof Directory && x.name === names[0])

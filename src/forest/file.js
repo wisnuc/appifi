@@ -68,9 +68,9 @@ class File extends Node {
   /**
   Destroys this file node
   */
-  destroy () {
+  destroy (detach) {
     this.ctx.onFileDestroying(this)
-    super.destroy()
+    super.destroy(detach)
   }
 
   /**
@@ -86,6 +86,9 @@ class File extends Node {
     this.ctx.onFileUpdated(this)
   }
 
+  restart () {
+    this.ctx.onFileRestart(this)
+  }
 }
 
 module.exports = File

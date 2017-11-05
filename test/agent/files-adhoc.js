@@ -63,7 +63,7 @@ describe(path.basename(__filename), () => {
     }) 
 
     // Get directories in alice home drive
-    it("GET dirs should return [alice.home]", done => {
+    it("GET dirs should return [alice.home], 197f8bd4", done => {
 
       // array of (mapped) dir object
       let expected = [{
@@ -79,6 +79,9 @@ describe(path.basename(__filename), () => {
         .expect(200)
         .end((err, res) => {
           if (err) return done(err)
+
+          console.log(res.body)
+
           expect(res.body).to.deep.equal(expected)
           done()
         })
