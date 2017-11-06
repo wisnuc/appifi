@@ -96,6 +96,17 @@ class Forest extends EventEmitter {
     */
     this.readingDirs = new Set()
 
+    /**
+    */
+    this.hashlessFiles = new Set()
+
+    /**
+    */
+    this.hashingFiles = new Set()
+
+    /**
+    */
+    this.hashFailedFiles = new Set()
 
     /**
     Indexing all media files by file hash
@@ -375,6 +386,53 @@ class Forest extends EventEmitter {
   onFileDestroying (file) {
     this.unindexFile(file)
   }
+
+  fileEnterHashless (file) {
+    this.hashlessFiles.add(file)
+  }
+
+  fileExitHashless (file) {
+    this.hashlessFiles.delete(file)
+  }
+
+  fileEnterHashing (file) {
+    this.hashingFiles.add(file)
+  }
+
+  fileExitHashing (file) {
+    this.hashingFiles.delete(file)
+  }
+
+  fileEnterHashFailed (file) {
+    this.hashFailedFiles.add(file)
+  }
+
+  fileExitHashFailed (file) {
+    this.hashFailedFiles.delete(file)
+  }
+
+  fileEnterHashed (file) {
+    this.mediaMap.indexFile(file)
+  }
+
+  fileExitHashed (file) {
+    this.mediaMap.unindexFile(file)
+  }
+
+  reqSchedFileHash () {
+    if (this.fileHashScheduled) return
+    this.fileHashScheduled = true
+    process.nextTick(() => this.scheduleFileHash())
+  }
+
+  scheduleFileHash () {
+    this.fileHashScheduled = false
+    while (this.hashlessFiles.size > 0 && this.hashingFiles.size < 2) {
+      let file = this.hashlessFiles[Symbol.iterator]().next().value
+      file.calcFingerprint()
+    } 
+  }
+
 
   /**
   index a directory by uuid

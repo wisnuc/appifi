@@ -23,7 +23,9 @@ const { btrfsConcat, btrfsClone } = require('./lib/btrfs')
 const jwt = require('jwt-simple')
 const secret = require('./config/passportJwt')
 
+const xtractMetadata = require('./lib/metadata')
 
+const MediaMap = require('./media/map')
 const PersistentMap = require('./lib/persistent-map')
 
 const { assert, isUUID, isSHA256, validateProps } = require('./common/assertion')
@@ -45,6 +47,14 @@ const combineHash = (a, b) => {
   hash.update(Buffer.concat([a1, b1]))
   let digest = hash.digest('hex')
   return digest
+}
+
+const statusError = (err, status) => Object.assign(err, { status })
+
+const Throw = (err, code, status) => {
+  err.code = code
+  err.status = status
+  throw err
 }
 
 const nosmb = !!process.argv.find(arg => arg === '--disable-smb') || process.env.NODE_PATH !== undefined
@@ -75,9 +85,7 @@ class Fruitmix extends EventEmitter {
     this.fruitmixPath = froot
 
     let metaPath = path.join(froot, 'metadataDB.json')
-    this.mediaMap = new PersistentMap(metaPath, tmpDir)
-
-    // console.log(`metadata loaded, ${this.mediaMap.size} entries`)
+    this.mediaMap = new MediaMap()
 
     this.thumbnail = new Thumbnail(thumbDir, tmpDir)
     this.userList = new UserList(froot)
@@ -365,21 +373,39 @@ class Fruitmix extends EventEmitter {
   }
 
   //
-  // FIXME this function won't work for non-media indexed files
+  // This is an synchronous function
   //
-  userCanReadMedia (user, fingerprint) {
-    if (!user || !fingerprint || !fingerprint.length) {
-      throw Object.assign(new Error('Invalid parameters'), { status: 400 })
-    }
+  assertUserCanReadMedia (user, fingerprint) {
+    if (!user || !isSHA256(fingerprint)) 
+      Throw(new Error('invalid parameters'), 'EINVAL', 400)
 
+    let meta = this.mediaMap.get(fingerprint)
+    if (!meta) Throw (new Error('media not found'), null, 404)
+
+    if (!meta.files.find(f => this.userCanRead(user, f.root().uuid)))
+      Throw(new Error('permission denied'), 'EPERM', 403)
+
+    return true
+
+/**
     if (!this.driveList.metaMap.has(fingerprint)) { 
       throw Object.assign(new Error('media not found'), { status: 404 }) 
     }
+**/
 
+/**
+    let meta = this.mediaMap.get(fingerprint)
+    if (!meta) throw statusError(new Error('media not found'), 404)
+
+    if (meta.files.find(f => this.userCanRead(user, f.root().uuid)) 
+**/
+/**
     let medias = Array.from(this.driveList.metaMap.get(fingerprint))
     let userDrives = this.getDrives(user).map(d => d.uuid)
     if (medias.find(media => userDrives.indexOf(media.root().uuid) !== -1)) { return true }
     return false
+**/
+    // return true
   }
 
   /**
@@ -664,8 +690,9 @@ class Fruitmix extends EventEmitter {
       entries.forEach(entry => {
         if (entry.type === 'file' && 
           Magic.isMedia(entry.magic) && 
-          entry.hash && this.mediaMap.has(entry.hash)) {
-          entry.metadata = this.mediaMap.get(entry.hash)
+          entry.hash && 
+          this.mediaMap.hasMetadata(entry.hash)) { // TODO almost
+          entry.metadata = this.mediaMap.getMetadata(entry.hash)
         }
       })
     }
@@ -997,7 +1024,9 @@ class Fruitmix extends EventEmitter {
       let root = this.driveList.roots.get(drive.uuid)
       if (!root) return []
       root.preVisit(node => {
-        if (node instanceof File && this.mediaMap.has(node.hash)) { m.set(node.hash, Object.assign({}, this.mediaMap.get(node.hash), { hash: node.hash })) }
+        if (node instanceof File && this.mediaMap.hasMetadata(node.hash)) { 
+          m.set(node.hash, Object.assign({}, this.mediaMap.getMetadata(node.hash), { hash: node.hash })) 
+        }
       })
     })
     return Array.from(m.values())
@@ -1005,12 +1034,17 @@ class Fruitmix extends EventEmitter {
 
   // NEW API
   getMetadata (user, fingerprint) {
-    if (!this.userCanReadMedia(user, fingerprint)) { 
-      throw Object.assign(new Error('permission denied'), { status: 401 }) 
-    }
+
+    console.log('getMetadata', user, fingerprint)
+
+    this.assertUserCanReadMedia(user, fingerprint)
 
     // return Object.assign({}, this.mediaMap.get(fingerprint), { hash: fingerprint })
-    return this.mediaMap.get(fingerprint)
+    let meta = this.mediaMap.get(fingerprint)
+    if (!meta) return
+    if (!meta.metadata) return
+    return meta.metadata
+    // return this.mediaMap.get(fingerprint)
   }
 
   getFingerprints (user, ...args) {
@@ -1019,47 +1053,22 @@ class Fruitmix extends EventEmitter {
   }
 
   getFilesByFingerprint (user, fingerprint) {
-    if (!this.userCanReadMedia(user, fingerprint)) throw Object.assign(new Error('permission denied'), { status: 401 })
-    return this.driveList.getFilesByFingerprint(fingerprint)
+    this.assertUserCanReadMedia(user, fingerprint)
+   
+    let meta = this.mediaMap.get(fingerprint) 
+    return meta ? meta.files.map(f => f.abspath()) : [] 
+    
+    // return this.driveList.getFilesByFingerprint(fingerprint)
   }
 
-  // return a file path, or a function, the function can be called again and returns a 
-  // cancel function
-  /**
-  async getThumbnailAsync (user, fingerprint, query) {
-    let files = this.getFilesByFingerprint(user, fingerprint)
-    if (files.length) {
-      let props = this.thumbnail.genProps(fingerprint, query)
-      try {
-        await fs.lstatAsync(props.path)
-        return props.path
-      } catch (e) {
-        if (e.code !== 'ENOENT') throw e
-      }
-
-      let listener = () => {
-      }
-
-      this.thumbnail.convert(thumbProps, files[0], listener)
-
-      let thumb = this.thumbnail.requestAsync(fingerprint, query, files)
-      if (typeof thumb === 'string') {
-        res.status(200).sendFile(thumb)
-      } else {
-        thumb.on('finish', (err, thumb) => {
-          if (err) {
-
-          }
-        })
-      }
-    }
-  }
-**/
 
   // FIXME DONT mix async and callback error handlings
   getThumbnail (user, fingerprint, query, callback) {
-    if (!this.userCanReadMedia(user, fingerprint)) {
-      throw Object.assign(new Error('permission denied'), { status: 401 })
+
+    try {
+      this.assertUserCanReadMedia(user, fingerprint)
+    } catch (e) {
+      return callback(e)
     }
 
     if (!this.mediaMap.has(fingerprint)) {
@@ -1118,6 +1127,7 @@ class Fruitmix extends EventEmitter {
 
   /// /////////////////////////
   mkdirp (user, driveUUID, dirUUID, name, callback) {
+
     let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
     if (!dir) {
       let err = new Error('drive or dir not found')
@@ -1175,7 +1185,7 @@ class Fruitmix extends EventEmitter {
 
         forceXstat(tmp, { uuid: xstat.uuid, hash }, (err, xstat) => {
           if (err) return callback(err)
-          // dirty
+          // dirty TODO similar to test 0553082f, extract metadata
           Object.assign(xstat, { name })
           fs.rename(tmp, dst, err => {
             if (err) return callback(err)
@@ -1186,29 +1196,17 @@ class Fruitmix extends EventEmitter {
     } else {
       forceXstat(tmp, { hash }, (err, xstat) => {
         if (err) return callback(err)
-        // dirty
-        Object.assign(xstat, { name })
-        fs.link(tmp, dst, err => {
-          if (err) {
-            callback(err)
-          } else {
-            callback(null, xstat)
-/** FIXME
 
-            if (xstat.magic === 'JPEG') {
-              if (!this.mediaMap.has(xstat.hash)) {
-                Identifier.identify(dst, xstat.hash, xstat.uuid, (err, metadata) => {
-                  console.log(metadata)
-                  // TODO
-                  if (err) return
-                  this.mediaMap.set(xstat.hash, metadata)
-                  console.log(this.mediaMap)
-                })
-              }
-            }
-**/
-          }
-        })
+        if (Magic.isMedia(xstat.magic)) {
+          let { magic, uuid } = xstat
+          xtractMetadata(tmp, magic, hash, uuid, (err, metadata) => {
+            if (err) return callback(err)
+            this.mediaMap.report(hash, metadata)
+            fs.link(tmp, dst, err => err ?  callback(err) : callback(null, Object.assign(xstat, { name })))
+          })
+        } else {
+          fs.link(tmp, dst, err => err ?  callback(err) : callback(null, Object.assign(xstat, { name })))
+        }
       })
     }
   }
@@ -1227,9 +1225,9 @@ class Fruitmix extends EventEmitter {
     let dst = path.join(dir.abspath(), name)
     readXstat(dst, (err, xstat) => {
       if (err) return callback(err)
-      if (xstat.type !== 'file') { return callback(Object.assign(new Error('not a file'), { code: 'EISDIR' })) }
+      if (xstat.type !== 'file') return callback(Object.assign(new Error('not a file'), { code: 'EISDIR' }))
       if (xstat.hash !== hash) { return callback(new Error(`append (target) hash mismatch, actual: ${xstat.hash}`)) }
-      if (xstat.size % (1024 * 1024 * 1024) !== 0) { return callback(new Error('target size must be multiple of 1G')) }
+      if (xstat.size % (1024 * 1024 * 1024) !== 0) return callback(new Error('target size must be multiple of 1G')) 
 
       let tmp = path.join(this.getTmpDir(), UUID.v4())
       btrfsConcat(tmp, [dst, data.path], err => {

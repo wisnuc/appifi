@@ -117,7 +117,7 @@ class Reading extends Idle {
 
     this.xread = xreaddir(dirPath, uuid, _mtime, (err, xstats, mtime, transient) => {
 
-      console.log('xreaddir done', this.dir.name, err, xstats, mtime, transient)
+      // console.log('xreaddir done', this.dir.name, err, xstats, mtime, transient)
 
       if (dirPath !== this.dir.abspath()) {
         err = new Error('path changed during readdir operation')

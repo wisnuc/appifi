@@ -111,7 +111,7 @@ describe(path.basename(__filename), () => {
     })
 
     // this test fails in #398
-    it("metadata should be provided for media file when metadata=true", function (done) {
+    it("metadata should be provided for media file when metadata=true, 0553082f", function (done) {
       this.timeout(5000)
 
       request(app)

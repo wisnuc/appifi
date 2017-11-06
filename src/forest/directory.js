@@ -64,7 +64,17 @@ class Directory extends Node {
     let lost = Array.from(this.children).reduce((arr, child) => {
       let xstat = map.get(child.uuid)
       if (xstat) {
-        child.update(xstat) 
+        if (child instanceof File) {
+          if (child.magic === xstat.magic && child.name === xstat.name && child.hash === xstat.hash) {
+            // skip
+          } else {
+            // file update is too complex when magic/name/hash changed
+            child.destroy(true) 
+            new File(this.ctx, this, xstat)
+          }
+        } else {
+          child.update(xstat) 
+        }
         map.delete(child.uuid)
       } else {
         arr.push(child)
