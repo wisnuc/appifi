@@ -86,17 +86,16 @@ class Unbound extends Meta {
 
 }
 
-
 // no metadata, with source, pending
 // there's no run method, calling meta.setState(Running) instead
 class Pending extends Meta {
 
   enter (props) {
-    this.ctx.indexPending()
+    this.ctx.indexPending(this)
   }
 
   exit () {
-    this.ctx.unindexPending()
+    this.ctx.unindexPending(this)
   }
 
   setMetadata (metadata) {
@@ -122,7 +121,6 @@ class Failed extends Pending {
   }
 
 }
-
 
 // having source but no metadata, running
 class Running extends Pending {
@@ -207,60 +205,6 @@ An Entry can be created from:
 2. a media blob found in repo
 3. a media file found in vfs
 */
-/**
-class Meta {
-
-  constructor (ctx, key, magic) {
-    this.ctx = ctx
-    this.key = key
-    this.magic = magic
-    this.metadata = null
-    this.blob = false
-    this.files = []
-  }
-
-  run () {
-    if (this.metadata) return 
-    if (this.blob) {
-      // 
-    } else {
-      let file = this.files.find(f => f.metaFail < 3)      
-      if (!file) return
-      file.meta = xtract(file.abspath(), file.magic, file.hash, file.uuid, (err, metadata) => {
-        this.ctx.running.delete(this.key)
-        if (err) {
-          file.metaFail++
-          this.ctx.pending.add(this.key)
-        } else {
-          this.metadata = metadata
-        }
-        this.ctx.schedule()
-      })
-    }
-  } 
-
-  add (file) {
-    this.files.push(file)
-    if (this.metadata || this.ctx.running.has(this.key)) return
-    this.ctx.pending.add(this.key)
-  }
-
-  remove (file) {
-    let index = this.files.indexOf(file)
-    if (index === -1) {
-      console.log("ASSERTION FAIL") // TODO
-    } else {
-      this.files.splice(index, 1)
-      if (file.metaWorker) {
-        file.metaWorker.destroy()
-        file.metaFail = 0
-        this.ctx.running.delete(this.key)
-        this.ctx.pending.add(this.key)
-      }
-    }
-  }
-}
-**/
 
 /**
 
@@ -351,48 +295,6 @@ class MediaMap extends EventEmitter {
     this.failed.delete(meta)
   }
 
-
-  //////////////////////////////////////////////////////////////////////////////
-  // 
-  //
-  //
-
-  createMetaFromFile (file) {
-
-    console.log('createMetaFromFile', file)
-/**
-    let key = file.hash
-    let meta = new Meta(this, key, file.magic) 
-    meta.files = [file]
-    this.map.set(key, meta)
-    this.pending.add(key)
-    this.schedule()
-**/
-    new Pending({
-      ctx: this,
-      key: file.hash,
-      magic: file.magic,
-      files: [file] 
-    })
-  }
-
-  createMetaFromMetadata (fingerprint, metadata) {
-
-    console.log('createMetaFromMetadata', fingerprint, metadata)
-/**
-    let key = fingerprint
-    let meta = new Meta(this, key, metadata.m)
-    meta.metadata = metadata
-    this.map.set(key, meta)
-**/
-    new Unbound({
-      ctx: this,
-      key: fingerprint,
-      magic: metadata.m,
-      metadata
-    })
-  }
-
   requestSchedule () {
     if (this.scheduled) return
     this.scheduled = true
@@ -402,10 +304,14 @@ class MediaMap extends EventEmitter {
   schedule () {
     while (this.pending.size > 0 && this.running.size < this.concurrency) {
       let meta = this.pending[Symbol.iterator]().next().value
-      meta.setState(Running)
+      if (!meta) {
+        console.log(this)
+        process.exit()
+      } else {
+        meta.setState(Running)
+      }
     }
   }
-
 
   indexFile (file) {
     let meta = this.map.get(file.hash)
@@ -425,6 +331,14 @@ class MediaMap extends EventEmitter {
     }
   } 
 
+  createMetaFromFile (file) {
+    new Pending({ ctx: this, key: file.hash, magic: file.magic, files: [file] })
+  }
+
+  createMetaFromMetadata (fingerprint, metadata) {
+    new Unbound({ ctx: this, key: fingerprint, magic: metadata.m, metadata })
+  }
+
   /**
   report metadata
   */
@@ -441,5 +355,4 @@ class MediaMap extends EventEmitter {
 MediaMap.Meta = Meta
 
 module.exports = MediaMap
-
 

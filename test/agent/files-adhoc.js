@@ -79,9 +79,6 @@ describe(path.basename(__filename), () => {
         .expect(200)
         .end((err, res) => {
           if (err) return done(err)
-
-          console.log(res.body)
-
           expect(res.body).to.deep.equal(expected)
           done()
         })
