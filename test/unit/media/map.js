@@ -11,8 +11,8 @@ const rimrafAsync = Promise.promisify(rimraf)
 const chai = require('chai')
 const expect = chai.expect
 
-const File = require('src/forest/file')
-const Directory = require('src/forest/directory')
+const File = require('src/vfs/file')
+const Directory = require('src/vfs/directory')
 const MediaMap = require('src/media/map')
 const Meta = MediaMap.Meta
 

@@ -1,6 +1,5 @@
 const Promise = require('bluebird')
 const path = require('path')
-//const fs = Promise.promisifyAll(require('fs-extra'))
 const fs = Promise.promisifyAll(require('fs'))
 const rimrafAsync = Promise.promisify(require('rimraf'))
 const mkdirpAsync = Promise.promisify(require('mkdirp'))
@@ -10,10 +9,10 @@ chai.use(chaiAsPromised)
 const expect = chai.expect
 const should = chai.should()
 
-const DriveList = require('src/forest/forest')
-const Monitor = require('src/forest/monitor')
-const Directory = require('src/forest/directory')
-const File = require('src/forest/file')
+const DriveList = require('src/vfs/vfs')
+const Monitor = require('src/vfs/monitor')
+const Directory = require('src/vfs/directory')
+const File = require('src/vfs/file')
 
 const { FILES } = require('test/agent/lib')
 

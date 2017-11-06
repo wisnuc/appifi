@@ -14,10 +14,10 @@ const UUID = require('uuid')
 
 const Magic = require('./lib/magic')
 const UserList = require('./user/user')
-const DriveList = require('./forest/forest')
+const DriveList = require('./vfs/vfs')
 const BoxData = require('./box/boxData')
 const Thumbnail = require('./lib/thumbnail2')
-const File = require('./forest/file')
+const File = require('./vfs/file')
 const Identifier = require('./lib/identifier')
 const { btrfsConcat, btrfsClone } = require('./lib/btrfs')
 const jwt = require('jwt-simple')
@@ -25,7 +25,7 @@ const secret = require('./config/passportJwt')
 
 const xtractMetadata = require('./lib/metadata')
 
-const MediaMap = require('./media/map')
+const MediaMap = require('./media/persistent')
 const PersistentMap = require('./lib/persistent-map')
 
 const { assert, isUUID, isSHA256, validateProps } = require('./common/assertion')
@@ -85,7 +85,9 @@ class Fruitmix extends EventEmitter {
     this.fruitmixPath = froot
 
     let metaPath = path.join(froot, 'metadataDB.json')
-    this.mediaMap = new MediaMap()
+
+    // this is acturally a PersistentMediaMap
+    this.mediaMap = new MediaMap(metaPath, tmpDir)
 
     this.thumbnail = new Thumbnail(thumbDir, tmpDir)
     this.userList = new UserList(froot)
@@ -452,6 +454,7 @@ class Fruitmix extends EventEmitter {
     let user = this.userList.users.find(u => u.global && u.global.id === guid)
     return user
   }
+
   /**
   isFirstUser never allowed to change.
   possibly allowed props: username, isAdmin, global
@@ -1035,7 +1038,7 @@ class Fruitmix extends EventEmitter {
   // NEW API
   getMetadata (user, fingerprint) {
 
-    console.log('getMetadata', user, fingerprint)
+    debug('getMetadata', user, fingerprint)
 
     this.assertUserCanReadMedia(user, fingerprint)
 
@@ -1201,7 +1204,7 @@ class Fruitmix extends EventEmitter {
           let { magic, uuid } = xstat
           xtractMetadata(tmp, magic, hash, uuid, (err, metadata) => {
             if (err) return callback(err)
-            this.mediaMap.report(hash, metadata)
+            this.mediaMap.setMetadata(hash, metadata)
             fs.link(tmp, dst, err => err ?  callback(err) : callback(null, Object.assign(xstat, { name })))
           })
         } else {
@@ -1477,4 +1480,23 @@ class Fruitmix extends EventEmitter {
 }
 
 module.exports = Fruitmix
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

@@ -6,6 +6,8 @@ const mkdirp = require('mkdirp')
 const rimraf = require('rimraf')
 const UUID = require('uuid')
 
+const debug = require('debug')('mediamap')
+
 const xtract = require('../lib/metadata')
 
 const isMediaMagic = magic =>
@@ -123,6 +125,7 @@ class Failed extends Pending {
 }
 
 // having source but no metadata, running
+//  
 class Running extends Pending {
 
   enter (props) {
@@ -141,7 +144,6 @@ class Running extends Pending {
   }
 
   restart () {
-
     this.files.forEach(f => {
       if (typeof f.metaFail !== 'number') f.metaFail = 0
     })
@@ -163,6 +165,7 @@ class Running extends Pending {
           this.file.metaFail = 0
           this.file = null
           this.metadata = metadata
+          this.ctx.saveMetadata(this.key, metadata)
           this.setState(Bound)
         }
       })
@@ -190,7 +193,6 @@ class Running extends Pending {
 
 // with metadata AND sources 
 class Bound extends Meta {
-
   // if all sources dropped, return to Unbound state
   removeFile (file) {
     super.removeFile(file)  
@@ -240,6 +242,9 @@ class MediaMap extends EventEmitter {
     })
   }
 
+  saveMetadata(key, metadata) {
+  }
+
   set (k, v) {
     if (this.map.has(k)) return
     this.map.set(k, v) 
@@ -267,31 +272,41 @@ class MediaMap extends EventEmitter {
     }
   }
 
+  formatMeta(meta) {
+    return meta.key.slice(0, 8) + ' [' + meta.files.map(f => f.name).join(',') + '] '
+  }
+
   indexPending (meta) {
+    debug(`${this.formatMeta(meta)} enter pending`)
     this.pending.add(meta)
     this.requestSchedule()
   }
 
   unindexPending (meta) {
+    debug(`${this.formatMeta(meta)} exit pending`)
     this.pending.delete(meta)
     this.requestSchedule()
   }
 
   indexRunning (meta) {
+    debug(`${this.formatMeta(meta)} enter running`)
     this.running.add(meta)
     this.requestSchedule()
   }
 
   unindexRunning (meta) {
+    debug(`${this.formatMeta(meta)} exit running`)
     this.running.delete(meta)
     this.requestSchedule()
   }
 
   indexFailed (meta) {
+    debug(`${this.formatMeta(meta)} enter failed`)
     this.failed.add(meta)
   } 
 
   unindexFailed (meta) {
+    debug(`${this.formatMeta(meta)} exit failed`)
     this.failed.delete(meta)
   }
 
@@ -302,6 +317,7 @@ class MediaMap extends EventEmitter {
   }
 
   schedule () {
+    this.scheduled = false
     while (this.pending.size > 0 && this.running.size < this.concurrency) {
       let meta = this.pending[Symbol.iterator]().next().value
       if (!meta) {
@@ -314,15 +330,17 @@ class MediaMap extends EventEmitter {
   }
 
   indexFile (file) {
+    debug(`index media file ${file.name}`)
     let meta = this.map.get(file.hash)
     if (meta) {
       meta.addFile(file)
     } else {
-      this.createMetaFromFile(file)
+      new Pending({ ctx: this, key: file.hash, magic: file.magic, files: [file] })
     }
   }
 
   unindexFile (file) {
+    debug(`unindex media file ${file.name}`)
     let meta = this.map.get(file.hash)
     if (meta) {
       meta.removeFile(file)
@@ -331,23 +349,12 @@ class MediaMap extends EventEmitter {
     }
   } 
 
-  createMetaFromFile (file) {
-    new Pending({ ctx: this, key: file.hash, magic: file.magic, files: [file] })
-  }
-
-  createMetaFromMetadata (fingerprint, metadata) {
-    new Unbound({ ctx: this, key: fingerprint, magic: metadata.m, metadata })
-  }
-
-  /**
-  report metadata
-  */
-  report (fingerprint, metadata) {
+  setMetadata (fingerprint, metadata) {
     let meta = this.map.get(fingerprint)
     if (meta) {
       meta.setMetadata(metadata)
     } else {
-      this.createMetaFromMetadata(fingerprint, metadata)
+      new Unbound({ ctx: this, key: fingerprint, magic: metadata.m, metadata })
     }
   } 
 }

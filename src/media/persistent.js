@@ -1,7 +1,13 @@
+const path = require('path')
+const fs = require('fs') 
+
+const mkdirp = require('mkdirp')
+const rimraf = require('rimraf')
+const UUID = require('uuid')
+
 const MediaMap = require('./map')
 
-
-const PersistentMediaMap extends MediaMap {
+class PersistentMediaMap extends MediaMap {
 
   constructor(dbPath, tmpDir) {
     super()
@@ -12,6 +18,8 @@ const PersistentMediaMap extends MediaMap {
     if (this.loadSync()) {
       this.saveSync()
     }
+
+    console.log(this.map)
 
     this.ws = fs.createWriteStream(this.path, { flags: 'a' })
   }
@@ -43,7 +51,8 @@ const PersistentMediaMap extends MediaMap {
         try {
           let pair = JSON.parse(l)
           if (!Array.isArray(pair) || pair.length !== 2) throw new Error('invalid')
-          this.map.set(pair[0], pair[1])
+          // this.map.set(pair[0], pair[1]) // TODO
+          this.setMetadata(pair[0], pair[1])
         } catch (e) {
           dirty = true
         }
@@ -56,7 +65,7 @@ const PersistentMediaMap extends MediaMap {
 
     console.log('full save persistent map')
 
-    let data = Array.from(this.map)
+    let data = Array.from(this.map) // TODO
       .map(pair => JSON.stringify(pair))
       .join('\n')
 
@@ -66,4 +75,6 @@ const PersistentMediaMap extends MediaMap {
   }
 
 }
+
+module.exports = PersistentMediaMap
 

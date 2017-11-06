@@ -19,7 +19,7 @@ const app = require('src/app')
 const broadcast = require('src/common/broadcast')
 const { isUUID } = require('src/lib/assertion') 
 
-const Forest = require('src/forest/forest')
+const Forest = require('src/vfs/vfs')
 
 const {
   IDS,
