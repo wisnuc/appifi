@@ -1,5 +1,6 @@
 const path = require('path')
 const EventEmitter = require('events')
+const assert = require('assert')
 
 // FIXME
 const debug = require('debug')('forest')
@@ -9,8 +10,18 @@ const { forceXstat } = require('../lib/xstat')
 const Directory = require('./directory')
 // const File = require('./file')
 
+
 /**
-Forest is a collection of file system cache for each `Drive` defined in Fruitmix.
+Forest maintains a collection of tree hierarchy containing Directory and File nodes.
+
+Forest is considered to be the context of all nodes.
+
+
+But MediaMap is NOT visible to nodes. So hash/fingerprint worker and metadata 
+worker are treated differently. The former is encapsulated in state of file 
+nodes. While the latter is considered to be an exteranl observer.
+
+
 
 Forest provides two critical services to other parts of Fruitmix: looking up file path by uuid or by file hash.
 
@@ -99,6 +110,7 @@ class Forest extends EventEmitter {
   fileEnterHashless (file) {
     debug(`file ${file.name} enter hashless`)
     this.hashlessFiles.add(file)
+    this.reqSchedFileHash()
   }
 
   fileExitHashless (file) {
@@ -114,6 +126,7 @@ class Forest extends EventEmitter {
   fileExitHashing (file) {
     debug(`file ${file.name} exit hashing`)
     this.hashingFiles.delete(file)
+    this.reqSchedFileHash()
   }
 
   fileEnterHashFailed (file) {
@@ -131,6 +144,14 @@ class Forest extends EventEmitter {
     this.mediaMap.indexFile(file)
   }
 
+  /**
+
+  */
+  hashedFileNamePathUpdated (file) {
+    debug(`hashed file ${file.name} name path updated`)
+    this.mediaMap.fileNamePathChanged(file)
+  }
+
   fileExitHashed (file) {
     debug(`file ${file.name} exit hashed`)
     this.mediaMap.unindexFile(file)
@@ -144,11 +165,15 @@ class Forest extends EventEmitter {
 
   scheduleFileHash () {
     this.fileHashScheduled = false
+
+    if (this.hashlessFiles.size === 0 && this.hashingFiles.size === 0) {
+      console.log('all file hashing jobs finished')
+      return
+    }
+
     while (this.hashlessFiles.size > 0 && this.hashingFiles.size < 2) {
       let file = this.hashlessFiles[Symbol.iterator]().next().value
-
-      // FIXME
-      file.calcFingerprint()
+      file.calcHash()    
     } 
   }
 
@@ -213,8 +238,8 @@ class Forest extends EventEmitter {
   scheduleDirRead () {
     this.dirReadScheduled = false
     if (this.dirReadSettled()) {
-      console.log('all directories probed', this.uuidMap.size)
-      return this.emit('dirReadSettled')
+      console.log('total directories: ', this.uuidMap.size)
+      return this.emit('DirReadSettled')
     }
 
     while (this.initDirs.size > 0 && this.readingDirs.size < 6) {

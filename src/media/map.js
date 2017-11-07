@@ -1,23 +1,16 @@
 const path = require('path')
 const fs = require('fs')
 const EventEmitter = require('events')
+const assert = require('assert')
 
 const mkdirp = require('mkdirp')
 const rimraf = require('rimraf')
 const UUID = require('uuid')
+const deepEqual = require('deep-equal')
 
 const debug = require('debug')('mediamap')
 
-const xtract = require('../lib/metadata')
-
-const isMediaMagic = magic =>
-  magic === 'JPEG' ||
-  magic === 'PNG' ||
-  magic === 'GIF' ||
-  magic === 'MP4' ||
-  magic === '3GP' ||
-  magic === 'MOV' 
-
+const extract = require('../lib/metadata')
 
 // A Meta must have ctx, key, and magic
 // it may:
@@ -73,6 +66,10 @@ class Meta {
   }
 
   setMetadata(metadata) {
+    if (this.metadata !== metadata) {
+      this.ctx.saveMetadata(this.key, metadata)
+    }
+
     this.metadata = metadata
   }
 
@@ -88,9 +85,8 @@ class Unbound extends Meta {
 
 }
 
-// no metadata, with source, pending
-// there's no run method, calling meta.setState(Running) instead
-class Pending extends Meta {
+// no metadata, with source
+class NoMetadata extends Meta {
 
   enter (props) {
     this.ctx.indexPending(this)
@@ -106,8 +102,11 @@ class Pending extends Meta {
   }
 }
 
+// there's no run method, calling meta.setState(Running) instead
+class Pending extends NoMetadata {} 
+
 // no metadata, failed too many times
-class Failed extends Pending {
+class Failed extends NoMetadata {
 
   enter (props) {
     this.ctx.indexFailed(this)
@@ -126,79 +125,97 @@ class Failed extends Pending {
 
 // having source but no metadata, running
 //  
-class Running extends Pending {
+class Running extends NoMetadata {
 
+  // pick a file, install this.file and this.file.meta, bidirectional link
   enter (props) {
     this.ctx.indexRunning(this)
-    this.restart()
+
+    let xs = this.files.filter(f => f.metaFail === undefined || f.metaFail < 4)
+    if (xs.length === 0) throw new Error('Assert Failed')
+
+    this.file = xs[Math.floor(Math.random() * xs.length)]
+    this.file.meta = this
+    this.start()
   }
 
   exit () {
     if (this.file) {
+      // destroy worker
       this.file.metaWorker.destroy()
-      this.file.metaWorker = null
-      this.file = null
+      delete file.metaWorker
+      // unlink
+      delete file.meta
+      delete this.file
     }
-
     this.ctx.unindexRunning(this)
   }
 
-  restart () {
-    this.files.forEach(f => {
-      if (typeof f.metaFail !== 'number') f.metaFail = 0
+  // create metaWorker
+  start () {
+    let filePath = this.file.abspath()
+    let { uuid, hash, magic } = this.file
+    this.file.metaWorker = extract(filePath, magic, hash, uuid, (err, metadata) => {
+
+      // clean links
+      let file = this.file
+      delete this.file.metaWorker 
+      delete this.file.meta
+      delete this.file
+
+      if (err) {
+        file.metaFail = (this.file.metaFail || 0) + 1
+        this.nextState()
+      } else {
+        delete file.metaFail
+        this.setMetadata(metadata)
+      }
     })
+  }
 
-    let file = this.files.find(f => f.metaFail < 3)
-    if (!file) {
-      this.setState(Failed)
-    } else {
-      this.file = file
-
-      let filePath = file.abspath()
-      let { uuid, hash, magic } = file
-      file.metaWorker = xtract(filePath, magic, hash, uuid, (err, metadata) => {
-        if (err) {
-          this.file.metaFail++
-          this.file = null
-          this.restart()
-        } else {
-          this.file.metaFail = 0
-          this.file = null
-          this.metadata = metadata
-          this.ctx.saveMetadata(this.key, metadata)
-          this.setState(Bound)
-        }
-      })
-    }
+  restart () {
+    this.file.metaWorker.destroy()
+    this.start()
   }
 
   removeFile (file) {
-
-    if (this.file === file) {
-      this.file.metaWorker.destroy() 
-      delete this.file.metaWorker
+    if (this.file === file) {         // removing working file
+      super.removeFile()
       delete this.file.metaFail
-      this.file = null
-    }
-
-    super.removeFile(file)
-
-    if (!this.hasSource()) {
-      this.destroy()
-    } else {
-      this.restart()
+      this.nextState()
+    } else {                          // removing non-working file, no state change
+      super.removeFile(file)
     }
   }
+
+  nextState () {
+    if (this.files.length + this.files.length === 0) {
+      this.destroy()
+    } else if (this.files.length > 0 && this.files.every(f => f.metaFail > 3)) {
+      this.setState(Failed)
+    } else {
+      this.setState(Pending)
+    }
+  }
+ 
 }
 
 // with metadata AND sources 
 class Bound extends Meta {
+
+  enter () {
+    this.ctx.indexBound(this) 
+  }
+
+  exit () {
+    this.ctx.unindexBound(this)
+  }
+
   // if all sources dropped, return to Unbound state
   removeFile (file) {
     super.removeFile(file)  
     if (!this.hasSource()) this.setState(Unbound)
   }
-
 }
 
 /**
@@ -242,9 +259,6 @@ class MediaMap extends EventEmitter {
     })
   }
 
-  saveMetadata(key, metadata) {
-  }
-
   set (k, v) {
     if (this.map.has(k)) return
     this.map.set(k, v) 
@@ -285,13 +299,11 @@ class MediaMap extends EventEmitter {
   unindexPending (meta) {
     debug(`${this.formatMeta(meta)} exit pending`)
     this.pending.delete(meta)
-    this.requestSchedule()
   }
 
   indexRunning (meta) {
     debug(`${this.formatMeta(meta)} enter running`)
     this.running.add(meta)
-    this.requestSchedule()
   }
 
   unindexRunning (meta) {
@@ -310,6 +322,14 @@ class MediaMap extends EventEmitter {
     this.failed.delete(meta)
   }
 
+  indexBound (meta) {
+    debug(`${this.formatMeta(meta)} enter bound`)
+  }
+
+  unindexBound (meta) {
+    debug(`${this.formatMeta(meta)} exit bound`)
+  }
+
   requestSchedule () {
     if (this.scheduled) return
     this.scheduled = true
@@ -318,11 +338,16 @@ class MediaMap extends EventEmitter {
 
   schedule () {
     this.scheduled = false
+
+    if (this.pending.size === 0 && this.running.size === 0) {
+      console.log('all metadata jobs finished')
+      return
+    }
+
     while (this.pending.size > 0 && this.running.size < this.concurrency) {
       let meta = this.pending[Symbol.iterator]().next().value
       if (!meta) {
-        console.log(this)
-        process.exit()
+        process.exit() // FIXME change to assert
       } else {
         meta.setState(Running)
       }
@@ -330,7 +355,7 @@ class MediaMap extends EventEmitter {
   }
 
   indexFile (file) {
-    debug(`index media file ${file.name}`)
+    debug(`index ${file.hash.slice(0, 8)} ${file.name}`)
     let meta = this.map.get(file.hash)
     if (meta) {
       meta.addFile(file)
@@ -339,8 +364,13 @@ class MediaMap extends EventEmitter {
     }
   }
 
+  fileNamePathChanged (file) {
+    assert(file.meta instanceof Running)
+    file.meta.restart() 
+  }
+
   unindexFile (file) {
-    debug(`unindex media file ${file.name}`)
+    debug(`unindex ${file.hash.slice(0, 8)} ${file.name}`)
     let meta = this.map.get(file.hash)
     if (meta) {
       meta.removeFile(file)
@@ -354,9 +384,14 @@ class MediaMap extends EventEmitter {
     if (meta) {
       meta.setMetadata(metadata)
     } else {
+      this.saveMetadata(fingerprint, metadata)
       new Unbound({ ctx: this, key: fingerprint, magic: metadata.m, metadata })
     }
   } 
+
+  // virtual method
+  saveMetadata (fingerprint, metadata) {}
+ 
 }
 
 MediaMap.Meta = Meta

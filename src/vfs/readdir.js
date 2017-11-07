@@ -141,7 +141,10 @@ class Reading extends Idle {
       } else if (xstats) {
         if (mtime !== this.dir.mtime) this.dir.merge(xstats)
         if (mtime !== this.dir.mtime && !transient) this.dir.mtime = mtime
-        if (transient) this.readn(1000)
+        if (transient) {
+          console.log('readdir: transient state detected')
+          this.readn(1000)
+        }
       }
 
       // console.log(xstats)
@@ -153,6 +156,7 @@ class Reading extends Idle {
       } else {
         this.exit()
         if (typeof this.pending === 'number') {
+          console.log('this.pending', this.pending)
           new Pending(this.dir, this.pending)
         } else if (xstats && transient) {
           new Pending(this.dir, 500)
@@ -178,6 +182,10 @@ class Reading extends Idle {
   }
 
   readn (delay) {
+
+    let err = new Error('why is readn called?')
+    console.log(err)
+
     if (Array.isArray(this.pending)) {
       return
     } else if (typeof this.pending === 'number') {

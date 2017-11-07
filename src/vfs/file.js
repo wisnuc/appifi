@@ -1,3 +1,5 @@
+const assert = require('assert')
+
 const debug = require('debug')('fruitmix:file')
 
 const Node = require('./node')
@@ -36,37 +38,35 @@ In our good old C pattern, only `hashed` and `hashless` are used as explicit sta
 
 class Base {
   
-  constructor(file, ...args) {
-    this.file = file
+  constructor(props) {
+
+    this.file = props.file
+    this.fail = props.fail
     this.file.state = this
-    this.enter(...args)
+    this.enter()
   }
 
-  enter () {
-  }
+  enter () {}
 
-  restart () {
-  }
+  exit () {}
 
-  exit () {
-  }
+  onNamePathChanged () {}
 
   destroy () {
     this.exit()
+  }
+
+  setState(Next) {
+    this.exit()
+    new Next(this)
   }
 }
 
 // file has no hash and idling
 class Hashless extends Base {
 
-  enter (fail = 0) {
-    this.fail = fail
+  enter () {
     this.file.ctx.fileEnterHashless(this.file) 
-  }
-
-  calcFingeprint () {
-    this.exit()
-    this.file.state = new Hashing(this.file, this.fail)
   }
 
   exit () {
@@ -78,37 +78,42 @@ class Hashless extends Base {
 // file has no hash and calculating 
 class Hashing extends Base {
   
-  enter (fail) {
-    this.failed = fail
+  enter () {
     this.file.ctx.fileEnterHashing(this.file)
-    this.worker = null
-    this.restart()
+    this.start()
   }
 
-  restart () {
-    if (this.worker) this.worker.destroy()
-
+  start () {
     let filePath = this.file.abspath()
     let uuid = this.file.uuid
+
     this.worker = xfingerprint(filePath, uuid, (err, xstat) => {
-      this.exit()
+      delete this.worker
+
       if (err) {
-        this.fail++
-        if (this.fail > 5) {
-          new HashFailed(this.file)
+        this.fail = (this.fail || 0) + 1
+        if (this.fail > 3) {
+          this.setState(HashFailed)
         } else {
-          new Hashless(this.file, this.fail)
+          this.setState(Hashless)
         }
       } else {
         this.file.hash = xstat.hash 
-        new Hashed(this.file)
+        this.setState(Hashed)
       }
     })
   }
 
   exit () {
-    this.worker.destroy()
+    if (this.worker) {
+      this.worker.destroy()
+      delete this.worker
+    }
     this.file.ctx.fileExitHashing(this.file)
+  }
+
+  onNamePathChanged () {
+    this.start()
   }
 }
 
@@ -123,6 +128,9 @@ class HashFailed extends Base {
     this.file.ctx.fileExitHashFailed(this.file)
   }
 
+  onNamePathChanged () {
+    // TODO ???
+  }
 }
 
 // when file has hash
@@ -133,24 +141,11 @@ class Hashed extends Base {
   }
 
   exit () {
-    if (this.worker) this.worker.destroy()
-    // here we don't callback, cause it's going to be removed anyway
     this.file.ctx.fileExitHashed(this.file)
   }
 
-  extractMetadata (callback) {
-    this.callback = callback
-    this.worker = null
-    this.restart()
-  }
-
-  restart () {
-    if (this.worker) this.worker.destroy()
-    let filePath = this.file.abspath()
-    let { magic, hash, uuid } = this.file
-    this.worker = xtractMetadata(filePath, magic, hash, uuid, (err, metadata) => {
-      this.callback(this.file, err, metadata)
-    }) 
+  onNamePathChanged () {
+    this.file.ctx.hashedFileNamePathChanged(this.file)
   }
 }
 
@@ -176,9 +171,9 @@ class File extends Node {
     this.hash = xstat.hash
 
     if (!this.hash) {
-      new Hashless(this)
+      new Hashless({ file: this })
     } else {
-      new Hashed(this)
+      new Hashed({ file: this })
     }
   }
 
@@ -190,15 +185,14 @@ class File extends Node {
     super.destroy(detach)
   }
 
-  restart () {
-    this.state.restart()
+  onNamePathChanged () {
+    this.state.onNamePathChanged()
   }
 
-  extractMetadata(callback) {
-  }
-
-  calcFingerprint () {
-  }
+  calcHash () {
+    assert(this.state instanceof Hashless, 'calcHash called on invalid state')
+    this.state.setState(Hashing)
+  }  
 }
 
 module.exports = File
