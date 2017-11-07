@@ -561,7 +561,7 @@ describe(path.basename(__filename), function() {
   })
 
   describe('box created, test commit', () => {
-    let aliceToken, aliceCloudToken
+    let aliceToken, aliceCloudToken, result
     let boxUUID = 'a96241c5-bfe2-458f-90a0-46ccd1c2fa9a'
 
     beforeEach(async () => {
@@ -578,15 +578,16 @@ describe(path.basename(__filename), function() {
       UUID.v4.restore()
     })
 
-    // prepare test data
-    let result, toUpload
-    before(async () => {
-      let testDir = 'testdata'
-      result = await createTreeObjectAsync(testDir)
-      toUpload = [...result.hashArr.keys()]
+    afterEach(async () => {
+      await rimrafAsync(result.tmpDir)
     })
 
-    it('POST /boxes/{uuid}/commits, should create a commit with no parent', done => {
+    it('POST /boxes/{uuid}/commits, should create a commit with no parent', async () => {
+      // prepare test data
+      let testDir = 'testdata'
+      result = await createTreeObjectAsync(testDir)
+      let toUpload = [...result.hashArr.keys()]
+
       let obj = {
         root: result.root,       // hash string of a tree obj
         toUpload
@@ -603,12 +604,9 @@ describe(path.basename(__filename), function() {
         res.attach(toUpload[i], fpath, JSON.stringify({size: obj.size, sha256: toUpload[i]}))
       }
 
-      res.expect(200)
-        .end((err, res) => {
-          if (err) return done(err)
-          expect(res.body).to.be.an('string')
-          done()
-        })
+      return res.expect(200)
+        .should.eventually.have.property('body')
+        .to.be.an('string')
     })
   })
 
