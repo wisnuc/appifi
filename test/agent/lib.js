@@ -207,6 +207,13 @@ const FILES = {
     hash: 'a55587006fb9125fd09e7d8534ab6e7e0e9ec47aa02fc6d8495a3bb43d3968bb' 
   },
 
+  fourGiga: {
+    name: 'four-giga',
+    path: 'test-files/four-giga',
+    size: 1024 * 1024 * 1024 * 4,
+    hash: '66099adb50d529ee26f9a9ec287ec1c9677189d1928d7ca8681ea4c66d85d43f'
+  },
+
   fiveGiga: {
     name: 'five-giga',
     path: 'test-files/five-giga',

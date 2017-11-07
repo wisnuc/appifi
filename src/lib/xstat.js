@@ -21,12 +21,14 @@ const path = require('path')
 const fs = Promise.promisifyAll(require('fs'))
 const child = require('child_process')
 
+const mmm = require('mmmagic')
 const xattr = Promise.promisifyAll(require('fs-xattr'))
 const UUID = require('uuid')
 const validator = require('validator')
 
 const filetype = require('./file-type')
 
+const Magic = require('./magic') 
 const E = require('./error')
 
 const { isUUID, isSHA256 } = require('./assertion')
@@ -93,32 +95,9 @@ xstat (file) {
 /** @constant {string} FRUITMIX - `user.fruitmix`, xattr key **/
 const FRUITMIX = 'user.fruitmix'
 
-/** @constant {number} MAGICVER - bump version for magic **/
-const MAGICVER = 1
 
 /** @func isNonNullObject **/
 const isNonNullObject = obj => typeof obj === 'object' && obj !== null
-
-const magics = ['JPEG', 'PNG']
-
-/** @func isValidMagic **/
-const isValidMagic = magic => (Number.isInteger(magic) && magic >= MAGICVER) || magics.includes(magic)
-
-/** 
-Parse file magic output to magic 
-@func parseMagic
-@param {string} text
-@returns {(string|number)}
-*/
-const parseMagic = text => {
-  if (text.startsWith('JPEG image data')) {
-    return 'JPEG'
-  } else if (text.startsWith('PNG image data')) {
-    return 'PNG'
-  } else {
-    return MAGICVER
-  }
-}
 
 /**
 Return magic by file magic
@@ -127,11 +106,11 @@ Return magic by file magic
 @returns {(string|number)} 
 */
 const fileMagic1 = (target, callback) => 
-  child.exec(`file -b ${target}`, (err, stdout, stderr) => {
+  child.exec(`file -b '${target}'`, (err, stdout, stderr) => {
     if (err) {
       callback(err)
     } else {
-      callback(null, parseMagic(stdout.toString()))
+      callback(null, Magic.parse(stdout.toString()))
     }
   })
 
@@ -141,6 +120,8 @@ Return magic by fileType
 @param {string} target - absolute path
 @returns {(string|number)}
 */
+
+/** obsolete code 
 const fileMagic2 = (target, callback) => 
   filetype(target, (err, type) => {
     if (err) return callback(err)
@@ -150,13 +131,47 @@ const fileMagic2 = (target, callback) =>
       return callback(null, MAGICVER)
   })
 
+const fileMagic3 = (target, callback) => 
+  child.exec(`exiftool -S -FileType '${target}'`, (err, stdout, stderr) => {
+    console.log(stdout.toString())
+    if (err) {
+      callback(null, MAGICVER)
+    } else {
+      let str = stdout.toString().trim()
+      let pre = 'FileType: '
+      if (str.startsWith(pre)) {
+        let type = str.slice(pre.length)
+        if (type === 'JPEG') {
+          callback(null, 'JPEG')
+        } else if (type === 'PNG') {
+          callback(null, 'PNG')
+        } else {
+          callback(null, MAGICVER)
+        }
+      } else {
+        callback(null, MAGICVER)
+      } 
+    }
+  })
+**/
+
+const fileMagic4 = (target, callback) => 
+  new mmm.Magic().detectFile(target, (err, str) => {
+    if (err) {
+      fileMagic1(target, callback)
+    } else {
+      callback(null, Magic.parse(str))
+    }
+  })
+
+
 /** 
 Return magic for a regular file. This function uses fileMagic2.
 @func fileMagicAsync 
 @param {string} target - absolute path
 @returns {(string|number)}
 **/
-const fileMagicAsync = Promise.promisify(fileMagic1)
+const fileMagicAsync = Promise.promisify(fileMagic4)
 
 /**
 Read and validate xattr, drop invalid properties.
@@ -170,6 +185,7 @@ This function do NOT change file/folder or its xattr.
 @public
 */
 const readXattrAsync = async (target, stats) => {
+
   let raw
   try {
     raw = await xattr.getAsync(target, FRUITMIX)
@@ -219,7 +235,7 @@ const readXattrAsync = async (target, stats) => {
     }
 
     // drop magic if version bumped
-    if (isValidMagic(orig.magic)) {
+    if (Magic.isValidMagic(orig.magic)) {
       attr.magic = orig.magic
     } else {
       attr.dirty = undefined
@@ -408,7 +424,6 @@ module.exports = {
   updateFileHashAsync,
   forceXstat,
   forceXstatAsync,
-
   fileMagic2
 }
 

@@ -30,6 +30,8 @@ const btrfsConcat = (target, files, callback) => {
   fs.open(target, 'w', (err, wfd) => {
     if (err) return callback(err)
 
+    let FourGiga = 4 * 1024 * 1024 * 1024
+
     let dst_offset = 0
     try {
 
@@ -55,9 +57,11 @@ const btrfsConcat = (target, files, callback) => {
             // src_offset: always 0
             buffer.writeUInt32LE(0, 8)
             // src_length: always 0
-            buffer.writeUInt32LE(round, 16)
+            buffer.writeUInt32LE(round % FourGiga, 16)
+            buffer.writeUInt32LE(Math.floor(round / FourGiga), 20)
             // dst_offset: increment from 0
-            buffer.writeUInt32LE(dst_offset, 24)
+            buffer.writeUInt32LE(dst_offset % FourGiga, 24)
+            buffer.writeUInt32LE(Math.floor(dst_offset / FourGiga), 28)
 
             ioctl(wfd, BTRFS_IOC_CLONE_RANGE, buffer) 
             dst_offset += round

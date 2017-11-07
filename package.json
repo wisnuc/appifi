@@ -46,6 +46,7 @@
     "jwt-simple": "^0.5.1",
     "line-by-line": "^0.1.5",
     "mkdirp": "^0.5.1",
+    "mmmagic": "^0.4.5",
     "morgan": "~1.8.2",
     "passport": "^0.4.0",
     "passport-http": "^0.3.0",
@@ -90,5 +91,15 @@
     "supertest": "^3.0.0",
     "uglifyjs-webpack-plugin": "^0.4.6",
     "webpack": "^3.5.5"
+  },
+  "wisnuc": {
+    "ubuntu-server-amd64": {
+      "prerequisites": {
+        "node": "8.5",
+        "debs": [
+          "libimage-exiftool-perl"
+        ]
+      }
+    }
   }
 }
