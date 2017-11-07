@@ -54,7 +54,7 @@ const resetAsync = async() => {
 
 describe(path.basename(__filename), function() {
   // console.log(this)
-  this.timeout(100000)
+  this.timeout(200000)
   describe('No user', () => {
 
     beforeEach(async () => {

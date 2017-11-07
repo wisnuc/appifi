@@ -508,7 +508,7 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
 
         getFruit().createTweetAsync(req.user, boxUUID, props)
           .then(tweet => res.status(200).json(tweet))
-          .catch(e => error(e)) 
+          .catch(next) 
       } else {
         let e = new Error('necessary file not uploaded')
         e.status = 404
