@@ -54,8 +54,7 @@ class Directory extends Node {
   */
   merge(xstats) { 
     // remove non-interested files
-    xstats = xstats.filter(x => x.type === 'directory' || 
-      (x.type === 'file' && typeof x.magic === 'string'))
+    xstats = xstats.filter(x => x.type === 'directory' || (x.type === 'file' && typeof x.magic === 'string'))
 
     // convert to a map
     let map = new Map(xstats.map(x => [x.uuid, x]))
@@ -73,7 +72,16 @@ class Directory extends Node {
             new File(this.ctx, this, xstat)
           }
         } else {
-          child.update(xstat) 
+          if (child.name === xstat.name && child.mtime === xstat.mtime) return
+          
+          if (child.name !== xstat.name) {
+            child.name = xstat.name   
+            child.namePathChanged()
+          }
+
+          if (child.mtime !== xstat.mtime) {
+            child.readdir.readi()
+          }
         }
         map.delete(child.uuid)
       } else {
@@ -89,28 +97,9 @@ class Directory extends Node {
     map.forEach(x => x.type === 'file' ? new File(this.ctx, this, x) : new Directory(this.ctx, this, x))
   }
 
-  /**
-  Update this object with xstat props.
-  This is an internal function and can only be called by `readdir`.
-  Only `name` may be updated. `mtime` is updated by `readdir`. Either name or mtime change will trigger a `read`.
-  @param {xstat} xstat - new `xstat`
-  @param {Monitor[]} [monitors]
-  */ 
-  update(xstat) {
-    if (this.name === xstat.name && this.mtime === xstat.mtime) return
-
-    // either name or timestamp changed, a read is required.
-    if (this.name !== xstat.name) {
-      this.name = xstat.name
-      this.restart()
-    } else {
-      this.read()
-    }
-  }
-
-  restart () {
-    this.children.forEach(c => c.restart())
-    if (this.readdir) this.readdir.restart()
+  namePathChanged () {
+    this.children.forEach(c => c.namePathChanged())
+    this.readdir.namePathChanged()
   }
 
   /**

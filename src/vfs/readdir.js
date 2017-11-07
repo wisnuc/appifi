@@ -14,7 +14,7 @@ const xreaddir = require('./xreaddir')
 @module readdir
 */
 
-class Idle {
+class Base {
 
   constructor (dir, ...args) {
     this.dir = dir
@@ -43,18 +43,19 @@ class Idle {
     new Reading(this.dir, [callback])
   }
 
-  restart () {
-  }
-
   destroy () {
     this.exit()
   }
 
+  namePathChanged () {
+  }
 }
+
+class Idle extends Base {}
 
 
 // init may be idle or pending
-class Init extends Idle {
+class Init extends Base {
 
   enter () {
     this.timer = -1
@@ -73,7 +74,7 @@ class Init extends Idle {
 
 }
 
-class Pending extends Idle {
+class Pending extends Base {
 
   enter (delay) {
     this.dir.ctx.dirEnterPending(this.dir)
@@ -92,7 +93,7 @@ class Pending extends Idle {
 
 }
 
-class Reading extends Idle {
+class Reading extends Base {
 
   enter (callbacks = []) {
     this.callbacks = callbacks
@@ -126,7 +127,6 @@ class Reading extends Idle {
 
       if (err) {
         err.status = 503
-
         const pathErrCodes = ['ENOENT', 'ENOTDIR', 'EINSTANCE', 'EINTERRUPTED']
         if (pathErrCodes.includes(err.code)) {
           // this.fixPath()
@@ -136,6 +136,7 @@ class Reading extends Idle {
             this.readn(1000)
           }
         } else {
+          console.log('xread error', err.message)
           this.readn(1000)
         }
       } else if (xstats) {
@@ -147,8 +148,6 @@ class Reading extends Idle {
         }
       }
 
-      // console.log(xstats)
-
       this.callbacks.forEach(callback => callback(err, xstats))
 
       if (Array.isArray(this.pending)) { // stay in working
@@ -156,7 +155,6 @@ class Reading extends Idle {
       } else {
         this.exit()
         if (typeof this.pending === 'number') {
-          console.log('this.pending', this.pending)
           new Pending(this.dir, this.pending)
         } else if (xstats && transient) {
           new Pending(this.dir, 500)
@@ -182,10 +180,6 @@ class Reading extends Idle {
   }
 
   readn (delay) {
-
-    let err = new Error('why is readn called?')
-    console.log(err)
-
     if (Array.isArray(this.pending)) {
       return
     } else if (typeof this.pending === 'number') {
@@ -201,6 +195,10 @@ class Reading extends Idle {
     } else {
       this.pending = [callback]
     }
+  }
+
+  namePathChanged () {
+    this.restart()
   }
 
   destroy () {
