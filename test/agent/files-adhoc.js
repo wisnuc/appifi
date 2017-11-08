@@ -18,6 +18,7 @@ const app = require('src/app')
 const { saveObjectAsync } = require('src/lib/utils')
 const broadcast = require('src/common/broadcast')
 const createBigFile = require('src/utils/createBigFile')
+const Magic = require('src/lib/magic')
 
 const getFruit = require('src/fruitmix')
 
@@ -62,7 +63,7 @@ describe(path.basename(__filename), () => {
     }) 
 
     // Get directories in alice home drive
-    it("GET dirs should return [alice.home]", done => {
+    it("GET dirs should return [alice.home], 197f8bd4", done => {
 
       // array of (mapped) dir object
       let expected = [{
@@ -84,7 +85,7 @@ describe(path.basename(__filename), () => {
     }) 
 
     // Get a single directory
-    it("GET dirs/:home should return { path: [alice.home], entries: [] }", done => {
+    it("GET dirs/:home should return { path: [alice.home], entries: [] }, db5a991e", done => {
 
       let root = {
         uuid: IDS.alice.home,
@@ -97,6 +98,7 @@ describe(path.basename(__filename), () => {
         .set('Authorization', 'JWT ' + token)
         .expect(200)
         .end((err, res) => {
+
           if (err) return done(err)
           expect(res.body).to.deep.equal({
             path: [root],
@@ -107,7 +109,7 @@ describe(path.basename(__filename), () => {
     })
 
     // this test fails in #398
-    it("metadata should be provided for media file when metadata=true", function (done) {
+    it("metadata should be provided for media file when metadata=true, 0553082f", function (done) {
       this.timeout(5000)
 
       request(app)
@@ -235,7 +237,7 @@ describe(path.basename(__filename), () => {
             type: 'file',
             name: 'empty',
             size: 0,
-            magic: 1,
+            magic: Magic.ver,
             hash: FILES.empty.hash
           }).to.have.keys('uuid')
           // mkdir
@@ -260,7 +262,7 @@ describe(path.basename(__filename), () => {
             type: 'file',
             name: 'empty',
             size: 0,
-            magic: 1,
+            magic: Magic.ver,
             hash: FILES.empty.hash
           })
 
@@ -268,7 +270,7 @@ describe(path.basename(__filename), () => {
             type: 'file',
             name: 'zero',
             size: 0,
-            magic: 1,
+            magic: Magic.ver,
             hash: FILES.empty.hash
           })
 

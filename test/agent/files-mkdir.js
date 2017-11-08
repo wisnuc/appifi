@@ -20,7 +20,7 @@ const { saveObjectAsync } = require('src/lib/utils')
 const broadcast = require('src/common/broadcast')
 const createBigFile = require('src/utils/createBigFile')
 
-const Directory = require('src/forest/directory')
+const Directory = require('src/vfs/directory')
 const getFruit = require('src/fruitmix')
 
 const {

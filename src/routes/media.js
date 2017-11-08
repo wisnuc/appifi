@@ -8,11 +8,8 @@ const UUID = require('uuid')
 
 // return meta data of all I can view
 router.get('/', auth.jwt(), (req, res) => {
-
   const user = req.user
-  // const fingerprints = getFruit().getFingerprints(user)
   const metadata = getFruit().getMetaList(user)
-
   res.status(200).json(metadata)
 })
 

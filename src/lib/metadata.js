@@ -21,7 +21,9 @@ const xtractMetadata = (filePath, magic, hash, uuid, callback) => {
     if (xstat.hash !== hash) return callback(new Error('fingerprint mismatch'))
 
     et = new ExifTool(filePath, magic)
+
     et.on('finish', err => {
+      if (destroyed) return 
       let metadata = et.metadata
       et = null
       callback(err, metadata)
@@ -30,6 +32,10 @@ const xtractMetadata = (filePath, magic, hash, uuid, callback) => {
 
   return {
     destroy: function () {
+
+      let err = new Error('why xtractMetadata destroyed')
+      console.log(err)
+
       if (destroyed) return
       destroyed = true
       if (et) {
