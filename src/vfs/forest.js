@@ -11,6 +11,8 @@ const { forceXstat } = require('../lib/xstat')
 const Directory = require('./directory')
 const File = require('./file')
 
+const autoTesting = process.env.hasOwnProperty('NODE_PATH') ? true : false
+
 
 /**
 Forest maintains a collection of tree hierarchy containing Directory and File nodes.
@@ -52,7 +54,7 @@ In either case, a `read` on the `Directory` object is enough.
 
 class Forest extends EventEmitter {
 
-  constructor (froot, mediaMap) {
+ constructor (froot, mediaMap) {
     super()
 
     /**
@@ -174,7 +176,6 @@ class Forest extends EventEmitter {
 
     while (this.hashlessFiles.size > 0 && this.hashingFiles.size < 2) {
       let file = this.hashlessFiles[Symbol.iterator]().next().value
-      assert(file.state instanceof File.Hashless)
       file.setState(File.Hashing)
     } 
   }
@@ -248,8 +249,13 @@ class Forest extends EventEmitter {
   scheduleDirRead () {
     this.dirReadScheduled = false
     if (this.dirReadSettled()) {
-      console.log('total directories: ', this.uuidMap.size)
-      return this.emit('DirReadSettled')
+
+      if (!autoTesting) {
+        console.log('total directories: ', this.uuidMap.size)
+      }
+
+      this.emit('DirReadSettled')
+      return
     }
 
     while (this.initDirs.size > 0 && this.readingDirs.size < 6) {

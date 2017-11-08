@@ -1,11 +1,12 @@
 const path = require('path')
 const fs = require('fs')
-const Node = require('./node')
-const File = require('./file')
+const assert = require('assert')
 
 const mkdirp = require('mkdirp')
-
 const Debug = require('debug')
+
+const Node = require('./node')
+const File = require('./file')
 
 const readdir = require('./readdir')
 
@@ -25,7 +26,7 @@ class Base {
 
   constructor (dir, ...args) {
     this.dir = dir
-    this.dir.state = this
+    dir.state = this
     this.enter(...args)
   }
 
@@ -41,18 +42,15 @@ class Base {
   }
 
   readi () {
-    this.exit()
-    new Reading(this.dir)
+    this.setState(Reading)
   }
 
   readn (delay) {
-    this.exit()
-    new Pending(this.dir, delay)
+    this.setState(Pending, delay)
   }
 
   readc (callback) {
-    this.exit()
-    new Reading(this.dir, [callback])
+    this.setState(Reading, [callback])
   }
 
   destroy () {
@@ -62,9 +60,9 @@ class Base {
   namePathChanged () {
   }
 
-
 }
 
+// Do nothing, just for log
 class Idle extends Base {
 
   enter () {
@@ -74,6 +72,7 @@ class Idle extends Base {
   exit () {
     this.dir.ctx.dirExitIdle(this.dir)
   }
+
 }
 
 
@@ -91,15 +90,20 @@ class Init extends Base {
   }
 
   readn (delay) {
+    assert(Number.isInteger(delay) && delay > 0)
+
     clearTimeout(this.timer) 
-    this.timer = setTimeout(() => this.readi() , delay)
+    this.timer = setTimeout(() => this.readi(), delay)
   }
 
 }
 
+// 
 class Pending extends Base {
 
   enter (delay) {
+    assert(Number.isInteger(delay) && delay > 0)
+    
     this.dir.ctx.dirEnterPending(this.dir)
     this.readn(delay)
   }
@@ -110,6 +114,8 @@ class Pending extends Base {
   }
 
   readn (delay) {
+    assert(Number.isInteger(delay) && delay > 0)
+
     clearTimeout(this.timer)
     this.timer = setTimeout(() => this.readi(), delay)
   }
@@ -119,11 +125,11 @@ class Pending extends Base {
 class Reading extends Base {
 
   enter (callbacks = []) {
+    this.dir.ctx.dirEnterReading(this.dir)
     this.callbacks = callbacks
     this.pending = undefined
     this.xread = null
     this.restart()
-    this.dir.ctx.dirEnterReading(this.dir)
   }
 
   exit () {
@@ -165,7 +171,7 @@ class Reading extends Base {
       } else if (xstats) {
         if (mtime !== this.dir.mtime) {
           try { 
-          this.dir.merge(xstats)
+            this.dir.merge(xstats)
           } catch (e) {
             console.log(e)
             process.exit(1)
@@ -273,7 +279,7 @@ class Directory extends Node {
   */
   destroy(detach) {
     [...this.children].forEach(child => child.destroy()) 
-    this.state.destory()
+    this.state.destroy()
     this.ctx.unindexDirectory(this) 
     super.destroy(detach)
   }
@@ -295,9 +301,6 @@ class Directory extends Node {
     let dup = Array.from(this.children)
     let lost = dup.reduce((arr, child) => {
       let xstat = map.get(child.uuid)
-
-      console.log('xstat', xstat)
-
       if (xstat) {
         if (child instanceof File) {
           if (child.magic === xstat.magic && child.name === xstat.name && child.hash === xstat.hash) {
@@ -333,7 +336,9 @@ class Directory extends Node {
     lost.forEach(c => c.destroy(true))
 
     // create new 
-    map.forEach(x => x.type === 'file' ? new File(this.ctx, this, x) : new Directory(this.ctx, this, x))
+    map.forEach(x => x.type === 'file' ? 
+      new File(this.ctx, this, x) : 
+      new Directory(this.ctx, this, x))
   }
 
   namePathChanged () {

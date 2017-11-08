@@ -99,8 +99,6 @@ describe(path.basename(__filename), () => {
         .expect(200)
         .end((err, res) => {
 
-          console.log(err || res.body)
-
           if (err) return done(err)
           expect(res.body).to.deep.equal({
             path: [root],

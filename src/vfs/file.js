@@ -36,12 +36,23 @@ In our good old C pattern, only `hashed` and `hashless` are used as explicit sta
 + new xstat may drop magic string. The Directory class should take care of this. Before removing a File object, the desctructor method (`exit`) should be called. Or, the `update` method cleans up everything before returning a null.
 */
 
+// hashFail is a shared extended state accross hashless and hashing state, but neither
+// hashFailed nor hashed state
 class Base {
-  
+ 
+/** 
   constructor(props) {
     this.file = props.file
     this.fail = props.fail
     this.file.state = this
+    this.enter()
+  }
+**/
+
+  constructor (file) {
+    // mutual references
+    this.file = file
+    file.state = this
     this.enter()
   }
 
@@ -49,22 +60,17 @@ class Base {
 
   exit () {}
 
+  setState(NextState) {
+    this.exit()
+    new NextState(this)
+  }
+
   namePathChanged () {}
 
   destroy () {
     this.exit()
   }
 
-  setState(Next) {
-    this.exit()
-    new Next(this)
-  }
-
-  hash () {
-    let err = new Error(`hash() is called in invalid state ${this.constructor.name}`)
-    console.log(err.stack, this)
-    throw err
-  }
 }
 
 // file has no hash and idling
@@ -78,9 +84,6 @@ class Hashless extends Base {
     this.file.ctx.fileExitHashless(this.file)
   }
 
-  hash () {
-    this.setState(Hashing, this.fail) 
-  }
 }
 
 // file has no hash and calculating 
@@ -99,8 +102,8 @@ class Hashing extends Base {
       delete this.worker
 
       if (err) {
-        this.fail = (this.fail || 0) + 1
-        if (this.fail > 3) {
+        this.file.hashFail = (this.file.hashFail || 0) + 1
+        if (this.file.hashFail > 3) {
           this.setState(HashFailed)
         } else {
           this.setState(Hashless)
@@ -117,10 +120,12 @@ class Hashing extends Base {
       this.worker.destroy()
       delete this.worker
     }
+
     this.file.ctx.fileExitHashing(this.file)
   }
 
   namePathChanged () {
+    this.worker.destroyed() 
     this.start()
   }
 }
@@ -130,6 +135,7 @@ class HashFailed extends Base {
 
   enter () {
     this.file.ctx.fileEnterHashFailed(this.file)
+    delete this.file.hashFail
   }
 
   exit () {
@@ -146,6 +152,7 @@ class Hashed extends Base {
 
   enter () {
     this.file.ctx.fileEnterHashed(this.file)
+    delete this.file.hashFail
   }
 
   exit () {
@@ -179,9 +186,9 @@ class File extends Node {
     this.hash = xstat.hash
 
     if (!this.hash) {
-      new Hashless({ file: this })
+      new Hashless(this)
     } else {
-      new Hashed({ file: this })
+      new Hashed(this)
     }
   }
 
@@ -195,6 +202,9 @@ class File extends Node {
   }
 
   setState (State) {
+    // currently, only Hashless -> Hashing is allowed to be set from outside
+    assert(this.state instanceof Hashless)
+    assert(State === Hashing)
     this.state.setState(State)
   }
 }
