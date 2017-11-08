@@ -163,7 +163,14 @@ class Reading extends Base {
           this.readn(1000)
         }
       } else if (xstats) {
-        if (mtime !== this.dir.mtime) this.dir.merge(xstats)
+        if (mtime !== this.dir.mtime) {
+          try { 
+          this.dir.merge(xstats)
+          } catch (e) {
+            console.log(e)
+            process.exit(1)
+          }
+        }
         if (mtime !== this.dir.mtime && !transient) this.dir.mtime = mtime
         if (transient) {
           console.log('readdir: transient state detected')
@@ -285,8 +292,12 @@ class Directory extends Node {
     let map = new Map(xstats.map(x => [x.uuid, x]))
 
     // update found child, remove found out of map, then destroy lost
-    let lost = Array.from(this.children).reduce((arr, child) => {
+    let dup = Array.from(this.children)
+    let lost = dup.reduce((arr, child) => {
       let xstat = map.get(child.uuid)
+
+      console.log('xstat', xstat)
+
       if (xstat) {
         if (child instanceof File) {
           if (child.magic === xstat.magic && child.name === xstat.name && child.hash === xstat.hash) {
@@ -297,17 +308,21 @@ class Directory extends Node {
             new File(this.ctx, this, xstat)
           }
         } else {
-          if (child.name === xstat.name && child.mtime === xstat.mtime) return
-          
-          if (child.name !== xstat.name) {
-            child.name = xstat.name   
-            child.namePathChanged()
-          }
+          if (child.name === xstat.name && child.mtime === xstat.mtime) {
+            // don't return !
+          } else {
 
-          if (child.mtime !== xstat.mtime) {
-            child.state.readi()
+            if (child.name !== xstat.name) {
+              child.name = xstat.name   
+              child.namePathChanged()
+            }
+
+            if (child.mtime !== xstat.mtime) {
+              child.state.readi()
+            }
           }
         }
+
         map.delete(child.uuid)
       } else {
         arr.push(child)
@@ -315,7 +330,6 @@ class Directory extends Node {
       return arr
     }, [])
 
-    // detroy AND detach lost children
     lost.forEach(c => c.destroy(true))
 
     // create new 
