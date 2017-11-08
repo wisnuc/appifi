@@ -189,6 +189,14 @@ class Forest extends EventEmitter {
     this.uuidMap.delete(dir.uuid)
   }
 
+  dirEnterIdle (dir) {
+    debug(`dir ${dir.name} enter idle`)
+  }
+
+  dirExitIdle (dir) {
+    debug(`dir ${dir.name} exit idle`)
+  }
+
   dirEnterInit (dir) {
     debug(`dir ${dir.name} enter init`)
     this.initDirs.add(dir.uuid)

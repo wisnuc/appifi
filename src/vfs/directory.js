@@ -2,7 +2,6 @@ const path = require('path')
 const fs = require('fs')
 const Node = require('./node')
 const File = require('./file')
-const Readdir = require('./readdir')
 
 const mkdirp = require('mkdirp')
 
@@ -11,16 +10,16 @@ const Debug = require('debug')
 const readdir = require('./readdir')
 
 /**
-`readdir` reads the contents of directories and updates `Directory` children and mtime accordingly.
+Directory has four states:
 
-`readdir` is implemented in state machine pattern. There are three states defined:
-+ Idle (also the base class)
++ Idle
 + Init (with or without a timer)
 + Pending
 + Reading
 
-@module readdir
+@module Directory
 */
+
 
 class Base {
 
@@ -34,6 +33,11 @@ class Base {
   }
 
   exit () {
+  }
+
+  setState (NextState, ...args) {
+    this.exit()
+    new NextState(this.dir, ...args)
   }
 
   readi () {
@@ -57,9 +61,20 @@ class Base {
 
   namePathChanged () {
   }
+
+
 }
 
-class Idle extends Base {}
+class Idle extends Base {
+
+  enter () {
+    this.dir.ctx.dirEnterIdle(this.dir)
+  }
+
+  exit () {
+    this.dir.ctx.dirExitIdle(this.dir)
+  }
+}
 
 
 // init may be idle or pending

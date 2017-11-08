@@ -59,6 +59,12 @@ class Base {
     this.exit()
     new Next(this)
   }
+
+  hash () {
+    let err = new Error(`hash() is called in invalid state ${this.constructor.name}`)
+    console.log(err.stack, this)
+    throw err
+  }
 }
 
 // file has no hash and idling
@@ -72,6 +78,9 @@ class Hashless extends Base {
     this.file.ctx.fileExitHashless(this.file)
   }
 
+  hash () {
+    this.setState(Hashing, this.fail) 
+  }
 }
 
 // file has no hash and calculating 
