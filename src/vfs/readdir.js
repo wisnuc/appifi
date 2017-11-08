@@ -1,224 +1,83 @@
 const path = require('path')
 const fs = require('fs')
-const xreaddir = require('./xreaddir')
+const { readXstat } = require('../lib/xstat')
 
-/**
-`readdir` reads the contents of directories and updates `Directory` children and mtime accordingly.
+const readdir = (dirPath, uuid, mtime, callback) => {
+  // guard
+  let destroyed = false
 
-`readdir` is implemented in state machine pattern. There are three states defined:
-+ Idle (also the base class)
-+ Init (with or without a timer)
-+ Pending
-+ Reading
-
-@module readdir
-*/
-
-class Base {
-
-  constructor (dir, ...args) {
-    this.dir = dir
-    this.dir.readdir = this
-    this.enter(...args)
-  }
-
-  enter () {
-  }
-
-  exit () {
-  }
-
-  readi () {
-    this.exit()
-    new Reading(this.dir)
-  }
-
-  readn (delay) {
-    this.exit()
-    new Pending(this.dir, delay)
-  }
-
-  readc (callback) {
-    this.exit()
-    new Reading(this.dir, [callback])
-  }
-
-  destroy () {
-    this.exit()
-  }
-
-  namePathChanged () {
-  }
-}
-
-class Idle extends Base {}
-
-
-// init may be idle or pending
-class Init extends Base {
-
-  enter () {
-    this.timer = -1
-    this.dir.ctx.dirEnterInit(this.dir)
-  }
-
-  exit () {
-    clearTimeout(this.timer)
-    this.dir.ctx.dirExitInit(this.dir)
-  }
-
-  readn (delay) {
-    clearTimeout(this.timer) 
-    this.timer = setTimeout(() => this.readi() , delay)
-  }
-
-}
-
-class Pending extends Base {
-
-  enter (delay) {
-    this.dir.ctx.dirEnterPending(this.dir)
-    this.readn(delay)
-  }
-
-  exit () {
-    clearTimeout(this.timer)
-    this.dir.ctx.dirExitPending(this.dir)
-  }
-
-  readn (delay) {
-    clearTimeout(this.timer)
-    this.timer = setTimeout(() => this.readi(), delay)
-  }
-
-}
-
-class Reading extends Base {
-
-  enter (callbacks = []) {
-    this.callbacks = callbacks
-    this.pending = undefined
-    this.xread = null
-    this.restart()
-    this.dir.ctx.dirEnterReading(this.dir)
-  }
-
-  exit () {
-    this.dir.ctx.dirExitReading(this.dir)
-  }
-
-  restart () {
-    if (this.xread) this.xread.destroy()
-
-    let dirPath = this.dir.abspath()
-    let uuid = this.dir.uuid
-    let _mtime = this.callbacks.length === 0 ? this.dir.mtime : null
-
-    // console.log('xread', dirPath, uuid, _mtime)
-
-    this.xread = xreaddir(dirPath, uuid, _mtime, (err, xstats, mtime, transient) => {
-
-      // console.log('xreaddir done', this.dir.name, err, xstats, mtime, transient)
-
-      if (dirPath !== this.dir.abspath()) {
-        err = new Error('path changed during readdir operation')
-        err.code = 'EINTERRUPTED'
-      }
-
-      if (err) {
-        err.status = 503
-        const pathErrCodes = ['ENOENT', 'ENOTDIR', 'EINSTANCE', 'EINTERRUPTED']
-        if (pathErrCodes.includes(err.code)) {
-          // this.fixPath()
-          if (this.dir.parent) {
-            this.dir.parent.read()
-          } else {
-            this.readn(1000)
-          }
-        } else {
-          console.log('xread error', err.message)
-          this.readn(1000)
-        }
-      } else if (xstats) {
-        if (mtime !== this.dir.mtime) this.dir.merge(xstats)
-        if (mtime !== this.dir.mtime && !transient) this.dir.mtime = mtime
-        if (transient) {
-          console.log('readdir: transient state detected')
-          this.readn(1000)
-        }
-      }
-
-      this.callbacks.forEach(callback => callback(err, xstats))
-
-      if (Array.isArray(this.pending)) { // stay in working
-        this.enter(this.pending)
-      } else {
-        this.exit()
-        if (typeof this.pending === 'number') {
-          new Pending(this.dir, this.pending)
-        } else if (xstats && transient) {
-          new Pending(this.dir, 500)
-        } else {
-          new Idle(this.dir)
-        }
-      }
-    }) 
-  }
-
-  /**
-  Request immediate `read` on all ancestors along node path (exclusive).
-  */
-  fixPath () {
-    // ancestors (exclusive)
-    let ancestors = []
-    for (let n = this.dir.parent; n !== null; n = n.parent) ancestors.unshift(n)
-    ancestors.forEach(n => n.read())
-  }
-
-  readi () {
-    if (!Array.isArray(this.pending)) this.pending = []
-  }
-
-  readn (delay) {
-    if (Array.isArray(this.pending)) {
-      return
-    } else if (typeof this.pending === 'number') {
-      this.pending = Math.min(this.pending, delay)
+  readXstat(dirPath, (err, x1) => {
+    if (destroyed) return 
+    if (err) return callback(err)
+    if (x1.type !== 'directory') {
+      callback(Object.assign(new Error('not a directory'), { code: 'ENOTDIR' }))
+    } else if (x1.uuid !== uuid) {
+      callback(Object.assign(new Error('uuid mismatch'), { code: 'EINSTANCE' }))
+    } else if (mtime && x1.mtime === mtime) {
+      callback(null, null)
     } else {
-      this.pending = delay
+      fs.readdir(dirPath, (err, entries) => {
+        if (destroyed) return
+        if (err) return callback(err)
+        if (entries.length === 0)  {
+          readXstat(dirPath, (err, x2) => {
+            if (destroyed) return
+            if (err) return callback(err)
+            if (x2.type !== 'directory') {
+              callback(Object.assign(new Error('not a directory'), { code: 'ENOTDIR' }))
+            } else if (x2.uuid !== uuid) {
+              callback(Object.assign(new Error('uuid mismatch'), { code: 'EINSTANTCE' }))
+            } else {
+              callback(null, [], x2.mtime, x2.mtime !== x1.mtime)
+            }
+          })
+        } else {
+          let names = entries.sort()
+          let running = 0
+          let xstats = []
+          const schedule = () => {
+            while (names.length > 0 && running < 16) {
+              let name = names.shift()
+              readXstat(path.join(dirPath, name), (err, xstat) => {
+                if (destroyed) return
+                if (!err) xstats.push(xstat)
+                if (--running || names.length) {
+                  schedule() 
+                } else {
+                  readXstat(dirPath, (err, x2) => {
+                    if (destroyed) return
+                    if (err) return callback(err)
+                    if (x2.type !== 'directory') {
+                      callback(Object.assign(new Error('not a directory'), { code: 'ENOTDIR' }))
+                    } else if (x2.uuid !== uuid) {
+                      callback(Object.assign(new Error('uuid mismatch'), { code: 'EINSTANCE' }))
+                    } else {
+                      callback(null, xstats, x2.mtime, x2.mtime !== x1.mtime)
+                    }
+                  }) 
+                }
+              })
+              running++
+            }
+          } 
+          
+          schedule()
+        }
+      })   
     }
-  }
+  })
 
-  readc (callback) {
-    if (Array.isArray(this.pending)) {
-      this.pending.push(callback)
-    } else {
-      this.pending = [callback]
-    }
-  }
-
-  namePathChanged () {
-    this.restart()
-  }
-
-  destroy () {
-    let err = new Error('destroyed')
-    err.code = 'EDESTROYED'
-    this.callbacks.forEach(cb => cb(err))
-    if (Array.isArray(this.pending)) this.pending.forEach(cb => cb(err))
-    this.xread.destroy()
-    super.destroy()
-  }
-
+  return {
+    path: dirPath,
+    destroy: () => destroyed = true
+  } 
 }
-
-/**
-Construct a `readdir` state machine, starting from `Reading` state.
-
-@param {Directory} dir - Directory object
-*/
-const readdir = dir => new Init(dir)
 
 module.exports = readdir
+
+
+
+
+
 
 

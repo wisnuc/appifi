@@ -85,7 +85,7 @@ describe(path.basename(__filename), () => {
     }) 
 
     // Get a single directory
-    it("GET dirs/:home should return { path: [alice.home], entries: [] }", done => {
+    it("GET dirs/:home should return { path: [alice.home], entries: [] }, db5a991e", done => {
 
       let root = {
         uuid: IDS.alice.home,
@@ -98,6 +98,9 @@ describe(path.basename(__filename), () => {
         .set('Authorization', 'JWT ' + token)
         .expect(200)
         .end((err, res) => {
+
+          console.log(err || res.body)
+
           if (err) return done(err)
           expect(res.body).to.deep.equal({
             path: [root],

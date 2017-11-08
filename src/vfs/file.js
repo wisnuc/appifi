@@ -185,14 +185,14 @@ class File extends Node {
     this.state.namePathChanged()
   }
 
-  calcHash () {
-    assert(this.state instanceof Hashless, 'calcHash called on invalid state')
-    this.state.setState(Hashing)
-  }  
-
   setState (State) {
     this.state.setState(State)
   }
 }
+
+File.Hashless = Hashless
+File.Hashing = Hashing
+File.HashFailed = HashFailed
+File.Hashed = Hashed
 
 module.exports = File

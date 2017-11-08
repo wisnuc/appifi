@@ -76,7 +76,6 @@ router.get('/:driveUUID/dirs', fruitless, auth.jwt(), (req, res, next) => {
 
   try {
     let dirs = getFruit().getDriveDirs(req.user, req.params.driveUUID)
-
     res.status(200).json(dirs)
   } catch (e) {
     next(e)

@@ -1,14 +1,15 @@
 const path = require('path')
 const EventEmitter = require('events')
 const assert = require('assert')
+const Debug = require('debug')
 
-// FIXME
-const debug = require('debug')('forest')
+// short circuit debug (suspect memory leaks)
+const debug = process.env.hasOwnProperty('DEBUG') ? Debug('forest') : () => {}
 
 const mkdirp = require('mkdirp')
 const { forceXstat } = require('../lib/xstat') 
 const Directory = require('./directory')
-// const File = require('./file')
+const File = require('./file')
 
 
 /**
@@ -167,13 +168,14 @@ class Forest extends EventEmitter {
     this.fileHashScheduled = false
 
     if (this.hashlessFiles.size === 0 && this.hashingFiles.size === 0) {
-      console.log('all file hashing jobs finished')
+      console.log('all file hashing jobs finished') // TODO
       return
     }
 
     while (this.hashlessFiles.size > 0 && this.hashingFiles.size < 2) {
       let file = this.hashlessFiles[Symbol.iterator]().next().value
-      file.calcHash()    
+      assert(file.state instanceof File.Hashless)
+      file.setState(File.Hashing)
     } 
   }
 
@@ -245,7 +247,8 @@ class Forest extends EventEmitter {
     while (this.initDirs.size > 0 && this.readingDirs.size < 6) {
       let uuid = this.initDirs[Symbol.iterator]().next().value
       let dir = this.uuidMap.get(uuid)
-      if (dir) dir.read() // FIXME
+      assert(!!dir)
+      dir.read() // TODO
     }
   }
 

@@ -1,14 +1,224 @@
 const path = require('path')
-
+const fs = require('fs')
 const Node = require('./node')
 const File = require('./file')
 const Readdir = require('./readdir')
 
 const mkdirp = require('mkdirp')
-const { readXstat } = require('../lib/xstat')
 
 const Debug = require('debug')
 
+const readdir = require('./readdir')
+
+/**
+`readdir` reads the contents of directories and updates `Directory` children and mtime accordingly.
+
+`readdir` is implemented in state machine pattern. There are three states defined:
++ Idle (also the base class)
++ Init (with or without a timer)
++ Pending
++ Reading
+
+@module readdir
+*/
+
+class Base {
+
+  constructor (dir, ...args) {
+    this.dir = dir
+    this.dir.state = this
+    this.enter(...args)
+  }
+
+  enter () {
+  }
+
+  exit () {
+  }
+
+  readi () {
+    this.exit()
+    new Reading(this.dir)
+  }
+
+  readn (delay) {
+    this.exit()
+    new Pending(this.dir, delay)
+  }
+
+  readc (callback) {
+    this.exit()
+    new Reading(this.dir, [callback])
+  }
+
+  destroy () {
+    this.exit()
+  }
+
+  namePathChanged () {
+  }
+}
+
+class Idle extends Base {}
+
+
+// init may be idle or pending
+class Init extends Base {
+
+  enter () {
+    this.dir.ctx.dirEnterInit(this.dir)
+    this.timer = -1
+  }
+
+  exit () {
+    clearTimeout(this.timer)
+    this.dir.ctx.dirExitInit(this.dir)
+  }
+
+  readn (delay) {
+    clearTimeout(this.timer) 
+    this.timer = setTimeout(() => this.readi() , delay)
+  }
+
+}
+
+class Pending extends Base {
+
+  enter (delay) {
+    this.dir.ctx.dirEnterPending(this.dir)
+    this.readn(delay)
+  }
+
+  exit () {
+    clearTimeout(this.timer)
+    this.dir.ctx.dirExitPending(this.dir)
+  }
+
+  readn (delay) {
+    clearTimeout(this.timer)
+    this.timer = setTimeout(() => this.readi(), delay)
+  }
+
+}
+
+class Reading extends Base {
+
+  enter (callbacks = []) {
+    this.callbacks = callbacks
+    this.pending = undefined
+    this.xread = null
+    this.restart()
+    this.dir.ctx.dirEnterReading(this.dir)
+  }
+
+  exit () {
+    this.dir.ctx.dirExitReading(this.dir)
+  }
+
+  restart () {
+    if (this.xread) this.xread.destroy()
+
+    let dirPath = this.dir.abspath()
+    let uuid = this.dir.uuid
+    let _mtime = this.callbacks.length === 0 ? this.dir.mtime : null
+
+    // console.log('xread', dirPath, uuid, _mtime)
+
+    this.xread = readdir(dirPath, uuid, _mtime, (err, xstats, mtime, transient) => {
+
+      // console.log('readdir done', this.dir.name, err, xstats, mtime, transient)
+
+      if (dirPath !== this.dir.abspath()) {
+        err = new Error('path changed during readdir operation')
+        err.code = 'EINTERRUPTED'
+      }
+
+      if (err) {
+        err.status = 503
+        const pathErrCodes = ['ENOENT', 'ENOTDIR', 'EINSTANCE', 'EINTERRUPTED']
+        if (pathErrCodes.includes(err.code)) {
+          // this.fixPath()
+          if (this.dir.parent) {
+            this.dir.parent.read()
+          } else {
+            this.readn(1000)
+          }
+        } else {
+          console.log('xread error', err.message)
+          this.readn(1000)
+        }
+      } else if (xstats) {
+        if (mtime !== this.dir.mtime) this.dir.merge(xstats)
+        if (mtime !== this.dir.mtime && !transient) this.dir.mtime = mtime
+        if (transient) {
+          console.log('readdir: transient state detected')
+          this.readn(1000)
+        }
+      }
+
+      this.callbacks.forEach(callback => callback(err, xstats))
+
+      if (Array.isArray(this.pending)) { // stay in working
+        this.enter(this.pending)
+      } else {
+        this.exit()
+        if (typeof this.pending === 'number') {
+          new Pending(this.dir, this.pending)
+        } else if (xstats && transient) {
+          new Pending(this.dir, 500)
+        } else {
+          new Idle(this.dir)
+        }
+      }
+    }) 
+  }
+
+  /**
+  Request immediate `read` on all ancestors along node path (exclusive).
+  */
+  fixPath () {
+    // ancestors (exclusive)
+    let ancestors = []
+    for (let n = this.dir.parent; n !== null; n = n.parent) ancestors.unshift(n)
+    ancestors.forEach(n => n.read())
+  }
+
+  readi () {
+    if (!Array.isArray(this.pending)) this.pending = []
+  }
+
+  readn (delay) {
+    if (Array.isArray(this.pending)) {
+      return
+    } else if (typeof this.pending === 'number') {
+      this.pending = Math.min(this.pending, delay)
+    } else {
+      this.pending = delay
+    }
+  }
+
+  readc (callback) {
+    if (Array.isArray(this.pending)) {
+      this.pending.push(callback)
+    } else {
+      this.pending = [callback]
+    }
+  }
+
+  namePathChanged () {
+    this.restart()
+  }
+
+  destroy () {
+    let err = new Error('destroyed')
+    err.code = 'EDESTROYED'
+    this.callbacks.forEach(cb => cb(err))
+    if (Array.isArray(this.pending)) this.pending.forEach(cb => cb(err))
+    this.xread.destroy()
+    super.destroy()
+  }
+
+}
 
 /**
 Directory represents a directory in the underlying file system.
@@ -33,7 +243,7 @@ class Directory extends Node {
     this.mtime = -xstat.mtime
 
     this.ctx.indexDirectory(this)
-    Readdir(this)
+    new Init(this)
   }
 
   /**
@@ -41,14 +251,14 @@ class Directory extends Node {
   */
   destroy(detach) {
     [...this.children].forEach(child => child.destroy()) 
-    this.readdir.destory()
+    this.state.destory()
     this.ctx.unindexDirectory(this) 
     super.destroy(detach)
   }
 
   /**
   Update children according to xstats returned from `read`.
-  This is an internal function and is only called in `readdir`.
+  This is an internal function and is only called in `state`.
   @param {xstat[]} xstats
   @param {Monitor[]} monitors
   */
@@ -80,7 +290,7 @@ class Directory extends Node {
           }
 
           if (child.mtime !== xstat.mtime) {
-            child.readdir.readi()
+            child.state.readi()
           }
         }
         map.delete(child.uuid)
@@ -99,22 +309,34 @@ class Directory extends Node {
 
   namePathChanged () {
     this.children.forEach(c => c.namePathChanged())
-    this.readdir.namePathChanged()
+    this.state.namePathChanged()
   }
 
   /**
-  Request a `readdir` operation. 
+  Request a `state` operation. 
 
   @param {(function|number)} [x] - may be a callback function or a number
   */
   read(x) {
     if (typeof x === 'function') {
-      this.readdir.readc(x)
+      this.state.readc(x)
     } else if (typeof x === 'number') {
-      this.readdir.readn(x)
+      this.state.readn(x)
     } else {
-      this.readdir.readi()
+      this.state.readi()
     }
+  }
+
+  readi () {
+    this.state.readi()
+  }
+
+  readc (callback) {
+    this.state.readc(callback)
+  }
+
+  readn (delay) {
+    this.state.readn(delay)
   }
 
   /**
@@ -123,25 +345,9 @@ class Directory extends Node {
   @returns {xstats[]}
   */
   async readdirAsync() {
-    return await new Promise((resolve, reject) => 
-      this.read((err, xstats) => err ? reject(err) : resolve(xstats)))
+    return new Promise((resolve, reject) => 
+      this.readc((err, xstats) => err ? reject(err) : resolve(xstats)))
   }
-
-  /** supposed to be obsolete
-  mkdirp(name, parents, callback) {
-    let dst = path.join(this.abspath(), name)     
-    mkdirp(dst, err => {
-      if (err) return callback(err)
-      readXstat(dst, (err, xstat) => {
-        if (!err && !this.children.find(x => x.uuid === xstat.uuid)) {
-          new Directory(this.ctx, this, xstat)
-          this.read(100)    
-        }
-        callback(err, xstat)
-      })
-    }) 
-  }
-  **/
 
   /**
   */
@@ -156,7 +362,20 @@ class Directory extends Node {
   }
 }
 
+Directory.Init = Init
+Directory.Idle = Idle
+Directory.Pending = Pending
+Directory.Reading = Reading
+
 module.exports = Directory
+
+
+
+
+
+
+
+
 
 
 
