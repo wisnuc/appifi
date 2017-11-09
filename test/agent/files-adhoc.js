@@ -201,6 +201,38 @@ describe(path.basename(__filename), () => {
         })
     })
 
+    it("mkdir hello and get it immediately, d2d85eea", function (done) {
+      this.timeout(5000)
+      request(app)
+        .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
+        .set('Authorization', 'JWT ' + token)
+        .field('hello', JSON.stringify({ op: 'mkdir' }))
+        .expect(200)
+        .end((err, res) => {
+          if (err) return done(err)
+         
+          let helloUUID = res.body[0].data.uuid 
+
+          setTimeout(() => {
+
+          console.log('request error')
+          request(app)
+            .get(`/drives/${IDS.alice.home}/dirs/${helloUUID}/entries`)
+            .set('Authorization', 'JWT ' + token)
+            // .expect(200)
+            .end((err, res) => {
+              if (err) return done(err)
+              console.log(res.status)
+              console.log('=======================')
+              console.log(res.body)
+              // console.log(getFruit())
+              done()
+            })
+
+          }, 2000)
+        })
+    }) 
+
     it("mkdir with chinese name, 92f28276", done => {
       request(app)
         .post(`/drives/${IDS.alice.home}/dirs/${IDS.alice.home}/entries`)
