@@ -244,7 +244,7 @@ class MediaMap extends EventEmitter {
   constructor(opts) {
     super() 
 
-    this.concurrency = (opts && opts.concurrency) || 2
+    this.concurrency = (opts && opts.concurrency) || 4
     this.map = new Map()
 
     // fingerprints
