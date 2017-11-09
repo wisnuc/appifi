@@ -24,9 +24,6 @@ const debugi = require('debug')('fruitmix:indexing')
 
 const debug = Debug('vfs')
 
-const xfingerprint = require('../lib/xfingerprint')
-const xtractMetadata = require('../lib/metadata')
-
 const Forest = require('./forest')
 
 /**

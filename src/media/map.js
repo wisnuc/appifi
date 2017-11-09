@@ -164,7 +164,7 @@ class Running extends NoMetadata {
       delete this.file
 
       if (err) {
-        file.metaFail = (this.file.metaFail || 0) + 1
+        file.metaFail = (file.metaFail || 0) + 1
         this.nextState()
       } else {
         delete file.metaFail

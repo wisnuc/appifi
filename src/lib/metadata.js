@@ -1,12 +1,13 @@
 const spawn = require('child_process').spawn
 
 const Magic = require('./magic')
-const ExifTool = require('./exiftool')
+// const ExifTool = require('./exiftool')
+const exiftool = require('./exiftool2')
 const { readXstat } = require('./xstat')
 
-const xtractMetadata = (filePath, magic, hash, uuid, callback) => {
+const extract = (filePath, magic, hash, uuid, callback) => {
 
-  let et
+  let destroy = null
   let destroyed = false
 
   if (!Magic.isMedia(magic)) {
@@ -20,6 +21,7 @@ const xtractMetadata = (filePath, magic, hash, uuid, callback) => {
     if (xstat.uuid !== uuid) return callback(new Error('uuid mismatch'))
     if (xstat.hash !== hash) return callback(new Error('fingerprint mismatch'))
 
+/**
     et = new ExifTool(filePath, magic)
 
     et.on('finish', err => {
@@ -28,22 +30,27 @@ const xtractMetadata = (filePath, magic, hash, uuid, callback) => {
       et = null
       callback(err, metadata)
     })
+**/
+    destroy = exiftool(filePath, magic, (err, metadata) => (destroy = null, callback(err, metadata)))
+
   })
 
   return {
     destroy: function () {
-
-      let err = new Error('why xtractMetadata destroyed')
-      console.log(err)
-
       if (destroyed) return
       destroyed = true
+      if (destroy) {
+        destroy()
+        destroy = null
+      }
+/**
       if (et) {
         et.destroy()
         et = null
       }
+**/
     }
   }
 }
 
-module.exports = xtractMetadata
+module.exports = extract

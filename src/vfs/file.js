@@ -3,7 +3,6 @@ const assert = require('assert')
 const debug = require('debug')('fruitmix:file')
 
 const Node = require('./node')
-const xtractMetadata = require('../lib/metadata')
 const xfingerprint = require('../lib/xfingerprint')
 
 const debugi = require('debug')('fruitmix:indexing')
@@ -62,7 +61,7 @@ class Base {
 
   setState(NextState) {
     this.exit()
-    new NextState(this)
+    new NextState(this.file)
   }
 
   namePathChanged () {}

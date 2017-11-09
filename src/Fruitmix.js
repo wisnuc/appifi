@@ -23,7 +23,7 @@ const { btrfsConcat, btrfsClone } = require('./lib/btrfs')
 const jwt = require('jwt-simple')
 const secret = require('./config/passportJwt')
 
-const xtractMetadata = require('./lib/metadata')
+const extract = require('./lib/metadata')
 
 const MediaMap = require('./media/persistent')
 const PersistentMap = require('./lib/persistent-map')
@@ -1202,7 +1202,7 @@ class Fruitmix extends EventEmitter {
 
         if (Magic.isMedia(xstat.magic)) {
           let { magic, uuid } = xstat
-          xtractMetadata(tmp, magic, hash, uuid, (err, metadata) => {
+          extract(tmp, magic, hash, uuid, (err, metadata) => {
             if (err) return callback(err)
             this.mediaMap.setMetadata(hash, metadata)
             fs.link(tmp, dst, err => err ?  callback(err) : callback(null, Object.assign(xstat, { name })))
