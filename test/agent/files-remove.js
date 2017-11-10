@@ -168,7 +168,6 @@ describe(path.basename(__filename), () => {
           .expect(200)
           .end((err, res) => {
             if (err) return done(err)
-            console.log('res.body', res.body)
             expect(res.body.length).to.equal(1)
             expect(res.body[0].data).to.be.null
             done()

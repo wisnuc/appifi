@@ -19,6 +19,8 @@ const { saveObjectAsync } = require('src/lib/utils')
 const broadcast = require('src/common/broadcast')
 const createBigFile = require('src/utils/createBigFile')
 
+const Magic = require('src/lib/magic')
+
 const getFruit = require('src/fruitmix')
 
 const {
@@ -489,7 +491,7 @@ describe(path.basename(__filename), () => {
               type: 'file',
               name: 'world',
               size: FILES.hello.size,
-              magic: 1,
+              magic: Magic.ver,
               hash: FILES.hello.hash
             })
 /**

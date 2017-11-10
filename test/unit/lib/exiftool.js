@@ -9,14 +9,14 @@ const should = chai.should()
 const UUID = require('uuid')
 
 const ExifTool = require('src/lib/exiftool')
+const exiftool = require('src/lib/exiftool2')
 
 describe(path.basename(__filename), () => {
 
   it('test vpai jpg', done => {
-    let et = new ExifTool('testdata/vpai001.jpg', 'JPEG')
-    et.on('finish', err => {
+    exiftool('testdata/vpai001.jpg', 'JPEG', (err, metadata) => {
       if (err) return done(err)
-      expect(et.metadata).to.deep.equal({ 
+      expect(metadata).to.deep.equal({ 
         m: 'JPEG',
         w: 4624,
         h: 2608,
@@ -32,10 +32,9 @@ describe(path.basename(__filename), () => {
   })
 
   it('test png HD PNG', done => {
-    let et = new ExifTool('testdata/pnggradHDrgba.png', 'PNG')
-    et.on('finish', err => {
+    exiftool('testdata/pnggradHDrgba.png', 'PNG', (err, metadata) => {
       if (err) return done(err)
-      expect(et.metadata).to.deep.equal({
+      expect(metadata).to.deep.equal({
         m: 'PNG',
         w: 1920,
         h: 1080,
@@ -46,10 +45,9 @@ describe(path.basename(__filename), () => {
   })
 
   it('test tumblr GIF', done => {
-    let et = new ExifTool('testdata/tumblr.gif', 'GIF')
-    et.on('finish', err => {
+    exiftool('testdata/tumblr.gif', 'GIF', (err, metadata) => {
       if (err) return done(err)
-      expect(et.metadata).to.deep.equal({
+      expect(metadata).to.deep.equal({
         m: 'GIF',
         w: 660,
         h: 361,
@@ -60,10 +58,9 @@ describe(path.basename(__filename), () => {
   })
 
   it('test Sony 3GP', done => {
-    let et = new ExifTool('testdata/sony_3gp_1080p.mp4', '3GP')
-    et.on('finish', err => {
+    exiftool('testdata/sony_3gp_1080p.mp4', '3GP', (err, metadata) => {
       if (err) return done(err)
-      expect(et.metadata).to.deep.equal({ 
+      expect(metadata).to.deep.equal({ 
         m: '3GP',
         w: 1920,
         h: 1080,
@@ -77,10 +74,9 @@ describe(path.basename(__filename), () => {
   })
 
   it('test Sony MP4', done => {
-    let et = new ExifTool('testdata/sony_mp4_vga.mp4', 'MP4')
-    et.on('finish', err => {
+    exiftool('testdata/sony_mp4_vga.mp4', 'MP4', (err, metadata) => {
       if (err) return done(err)
-      expect(et.metadata).to.deep.equal({ 
+      expect(metadata).to.deep.equal({ 
         m: 'MP4',
         w: 640,
         h: 480,
@@ -94,10 +90,9 @@ describe(path.basename(__filename), () => {
   })
 
   it('test iPhone MOV', done => {
-    let et = new ExifTool('testdata/iphone7_1080p_4to3.mov', 'MOV')
-    et.on('finish', err => {
+    exiftool('testdata/iphone7_1080p_4to3.mov', 'MOV', (err, metadata) => {
       if (err) return done(err)
-      expect(et.metadata).to.deep.equal({ 
+      expect(metadata).to.deep.equal({ 
         m: 'MOV',
         w: 1440,
         h: 1080,
@@ -113,4 +108,24 @@ describe(path.basename(__filename), () => {
       done()      
     })
   })
+
+  it('test noMakeModel, f0b6fb81', done => {
+    exiftool('testdata/noMakeModel.jpg', 'JPEG', (err, metadata) => {
+      if (err) return done(err)
+      expect(metadata).to.deep.equal({
+        m: 'JPEG', 
+        w: 960, 
+        h: 720, 
+        orient: 0, 
+        size: 63669 
+      })
+      done()
+    })
+  })
 })
+
+
+
+
+
+

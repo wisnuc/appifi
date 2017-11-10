@@ -1,6 +1,5 @@
 const Promise = require('bluebird')
 const path = require('path')
-//const fs = Promise.promisifyAll(require('fs-extra'))
 const fs = Promise.promisifyAll(require('fs'))
 const rimrafAsync = Promise.promisify(require('rimraf'))
 const mkdirpAsync = Promise.promisify(require('mkdirp'))
@@ -10,10 +9,10 @@ chai.use(chaiAsPromised)
 const expect = chai.expect
 const should = chai.should()
 
-const DriveList = require('src/forest/forest')
-const Monitor = require('src/forest/monitor')
-const Directory = require('src/forest/directory')
-const File = require('src/forest/file')
+const DriveList = require('src/vfs/vfs')
+const Monitor = require('src/vfs/monitor')
+const Directory = require('src/vfs/directory')
+const File = require('src/vfs/file')
 
 const { FILES } = require('test/agent/lib')
 
@@ -40,29 +39,32 @@ describe(path.basename(__filename), () => {
       await mkdirpAsync(path.join(drivesDir, drive1.uuid, 'hello', 'world', 'foo', 'bar'))
     })
 
-    it('simple read, 91e11c6e', async () => {
-      // use fruitmix:monitor to print monitor information
-      let monitor = new Monitor()
+    it('simple read, f924ae12', done => {
       let mediaMap = new Map()
       let driveList = new DriveList('tmptest', mediaMap)
-      driveList.createDriveAsync(drive1, [monitor])
-      await monitor.done
+      driveList.createDrive(drive1, err => {
+        if (err) return done(err)
+        driveList.on('dirReadSettled', () => {
 
-      let obj = Array.from(driveList.uuidMap)
-        .reduce((o, kv) => {
-          let dir = kv[1]
-          o[dir.name] = dir.parent ? dir.parent.name : null
-          return o
-        }, {})
+          let obj = Array.from(driveList.uuidMap)
+            .reduce((o, kv) => {
+              let dir = kv[1]
+              o[dir.name] = dir.parent ? dir.parent.name : null
+              return o
+            }, {})
 
-      expect(obj).to.deep.equal({ 
-        'c4713fb1-ffee-4015-88f1-dcd6ca928e2b': null,
-        hello: 'c4713fb1-ffee-4015-88f1-dcd6ca928e2b',
-        world: 'hello',
-        foo: 'world',
-        bar: 'foo' 
+          expect(obj).to.deep.equal({ 
+            'c4713fb1-ffee-4015-88f1-dcd6ca928e2b': null,
+            hello: 'c4713fb1-ffee-4015-88f1-dcd6ca928e2b',
+            world: 'hello',
+            foo: 'world',
+            bar: 'foo' 
+          })
+
+          done()
+        })
       })
-    })
+    }) 
     
   })
 
@@ -72,24 +74,23 @@ describe(path.basename(__filename), () => {
       await rimrafAsync(tmptest)
       await mkdirpAsync(tmpDir)
       await mkdirpAsync(path.join(drivesDir, drive1.uuid))
-
       let src = path.join(cwd, 'testdata', 'vpai001.jpg')
       let dst = path.join(drivesDir, drive1.uuid, 'vpai001.jpg')
-
       await fs.copyFileAsync(src, dst)
-
     })
 
-    it('read e640de0e', done => {
+    it('read e640de0e', function(done) {
       let mediaMap = new Map()
       let driveList = new DriveList(tmptest, mediaMap)
       driveList.createDrive(drive1, err => {
         if (err) return done(err)
-        driveList.on('indexingDone', () => {
+
+        setTimeout(() => {
           console.log(driveList)
-          done()
-        })
+          done() // FIXME
+        }, 1500)
       })
+      
     })
 
   })

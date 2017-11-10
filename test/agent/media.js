@@ -19,7 +19,7 @@ const app = require('src/app')
 const broadcast = require('src/common/broadcast')
 const { isUUID } = require('src/lib/assertion') 
 
-const Forest = require('src/forest/forest')
+const Forest = require('src/vfs/vfs')
 
 const {
   IDS,
@@ -393,11 +393,11 @@ describe(path.basename(__filename), () => {
         })
     })
 
-    it("Media get metadata should return 401 for bob", done => {
+    it("Media get metadata should return 403 for bob", done => {
       request(app)
         .get(`/media/${ image1.hash }`)
         .set('Authorization', 'JWT ' + bobToken)
-        .expect(401)
+        .expect(403)
         .end((err, res) => {
           if (err) return done(err)
           done()
@@ -505,32 +505,32 @@ describe(path.basename(__filename), () => {
           })
       })
 
-      it("Media get metadata should return 401 for alice", done => {
+      it("Media get metadata should return 403 for alice", done => {
         request(app)
           .get(`/media/${ image2.hash }`)
           .set('Authorization', 'JWT ' + aliceToken)
-          .expect(401)
+          .expect(403)
           .end((err, res) => {
             if (err) return done(err)
             done()
           })
       })
 
-      it("Media get thumbnail should return 401 for alice", done => {
+      it("Media get thumbnail should return 403 for alice", done => {
         request(app)
           .get(`/media/${ image2.hash }?alt=thumbnail&height=160`)
           .set('Authorization', 'JWT ' + aliceToken)
-          .expect(401)
+          .expect(403)
           .end((err, res) => {
             if (err) return done(err)
             done()
           })
       })
-      it("Media get data should return 401 for alice", done => {
+      it("Media get data should return 403 for alice", done => {
         request(app)
           .get(`/media/${ image2.hash }?alt=data`)
           .set('Authorization', 'JWT ' + aliceToken)
-          .expect(401)
+          .expect(403)
           .end((err, res) => {
             if (err) return done(err)
             done()
