@@ -39,15 +39,6 @@ In our good old C pattern, only `hashed` and `hashless` are used as explicit sta
 // hashFailed nor hashed state
 class Base {
  
-/** 
-  constructor(props) {
-    this.file = props.file
-    this.fail = props.fail
-    this.file.state = this
-    this.enter()
-  }
-**/
-
   constructor (file) {
     // mutual references
     this.file = file

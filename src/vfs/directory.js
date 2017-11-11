@@ -128,7 +128,7 @@ class Reading extends Base {
     this.dir.ctx.dirEnterReading(this.dir)
     this.callbacks = callbacks
     this.pending = undefined
-    this.xread = null
+    this.readdir = null
     this.restart()
   }
 
@@ -137,17 +137,15 @@ class Reading extends Base {
   }
 
   restart () {
-    if (this.xread) this.xread.destroy()
+    if (this.readdir) this.readdir.destroy()
 
     let dirPath = this.dir.abspath()
     let uuid = this.dir.uuid
     let _mtime = this.callbacks.length === 0 ? this.dir.mtime : null
 
-    // console.log('xread', dirPath, uuid, _mtime)
+    this.readdir = readdir(dirPath, uuid, _mtime, (err, xstats, mtime, transient) => {
 
-    this.xread = readdir(dirPath, uuid, _mtime, (err, xstats, mtime, transient) => {
-
-      // console.log('readdir done', this.dir.name, err, xstats, mtime, transient)
+      console.log('readdir done', dirPath, uuid, _mtime, err, xstats.length, mtime, transient)
 
       if (dirPath !== this.dir.abspath()) {
         err = new Error('path changed during readdir operation')
@@ -165,13 +163,14 @@ class Reading extends Base {
             this.readn(1000)
           }
         } else {
-          console.log('xread error', err.message)
+          console.log('readdir error', err.message)
           this.readn(1000)
         }
       } else if (xstats) {
         if (mtime !== this.dir.mtime) {
           try { 
-            this.dir.merge(xstats)
+            // this.dir.merge(xstats)
+            this.updateChildren(xstats)
           } catch (e) {
             console.log(e)
             process.exit(1)
@@ -200,6 +199,57 @@ class Reading extends Base {
       }
     }) 
   }
+
+  updateChildren (xstats) {
+    // remove non-interested files
+    xstats = xstats.filter(x => x.type === 'directory' || (x.type === 'file' && typeof x.magic === 'string'))
+
+    // convert to a map
+    let map = new Map(xstats.map(x => [x.uuid, x]))
+
+    // update found child, remove found out of map, then destroy lost
+    let dup = Array.from(this.dir.children)
+    let lost = dup.reduce((arr, child) => {
+      let xstat = map.get(child.uuid)
+      if (xstat) {
+        if (child instanceof File) {
+          if (child.magic === xstat.magic && child.name === xstat.name && child.hash === xstat.hash) {
+            // skip
+          } else {
+            // file update is too complex when magic/name/hash changed
+            child.destroy(true) 
+            new File(this.dir.ctx, this.dir, xstat)
+          }
+        } else {
+          if (child.name === xstat.name && child.mtime === xstat.mtime) {
+            // don't return !
+          } else {
+            if (child.name !== xstat.name) {
+              child.name = xstat.name   
+              child.namePathChanged()
+            }
+
+            if (child.mtime !== xstat.mtime) {
+              child.state.readi()
+            }
+          }
+        }
+
+        map.delete(child.uuid)
+      } else {
+        arr.push(child)
+      }
+      return arr
+    }, [])
+
+    lost.forEach(c => c.destroy(true))
+
+    // create new 
+    map.forEach(x => x.type === 'file' ? 
+      new File(this.dir.ctx, this.dir, x) : 
+      new Directory(this.dir.ctx, this.dir, x))
+  }
+
 
   /**
   Request immediate `read` on all ancestors along node path (exclusive).
@@ -242,7 +292,7 @@ class Reading extends Base {
     err.code = 'EDESTROYED'
     this.callbacks.forEach(cb => cb(err))
     if (Array.isArray(this.pending)) this.pending.forEach(cb => cb(err))
-    this.xread.destroy()
+    this.readdir.destroy()
     super.destroy()
   }
 
@@ -394,6 +444,7 @@ class Directory extends Node {
       return c.nameWalk(names.slice(1))
     }
   }
+
 }
 
 Directory.Init = Init

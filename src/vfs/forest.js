@@ -251,10 +251,10 @@ class Forest extends EventEmitter {
     if (this.dirReadSettled()) {
 
       if (!autoTesting) {
-        console.log('total directories: ', this.uuidMap.size)
+        // console.log('total directories: ', this.uuidMap.size)
       }
 
-      this.emit('DirReadSettled')
+      this.emit('DirReadDone')
       return
     }
 
@@ -279,6 +279,11 @@ class Forest extends EventEmitter {
     })
   }
 
+  // not implemented TODO
+  removeRoot (uuid) {
+     
+  }
+ 
 }
 
 module.exports = Forest

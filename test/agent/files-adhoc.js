@@ -213,23 +213,31 @@ describe(path.basename(__filename), () => {
          
           let helloUUID = res.body[0].data.uuid 
 
-          setTimeout(() => {
-
-          console.log('request error')
           request(app)
-            .get(`/drives/${IDS.alice.home}/dirs/${helloUUID}/entries`)
+            .get(`/drives/${IDS.alice.home}/dirs/${helloUUID}`)
             .set('Authorization', 'JWT ' + token)
-            // .expect(200)
+            .expect(200)
             .end((err, res) => {
               if (err) return done(err)
-              console.log(res.status)
-              console.log('=======================')
-              console.log(res.body)
-              // console.log(getFruit())
+              expect({
+                path: res.body.path.map(d => ({
+                  uuid: d.uuid,
+                  name: d.name
+                })),
+                entries: res.body.entries
+              }).to.deep.equal({
+                path: [{
+                  uuid: IDS.alice.home,
+                  name: IDS.alice.home
+                }, {
+                  uuid: helloUUID,
+                  name: 'hello' 
+                }],
+                entries: []
+              })
               done()
             })
 
-          }, 2000)
         })
     }) 
 

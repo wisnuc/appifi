@@ -52,7 +52,7 @@ class Node {
   */
   detach () {
     if (this.parent === null) return 
-    let index = this.parent.children.findIndex(child => child === this) 
+    let index = this.parent.children.indexOf(this)
     if (index === -1) throw new Error("node.detach: node is not in parent's children list")
     this.parent.children.splice(index, 1)
     this.parent = null

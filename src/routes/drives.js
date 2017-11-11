@@ -139,6 +139,21 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
   const user = req.user
   const { driveUUID, dirUUID } = req.params
 
+  let fruit = getFruit()
+
+  let dir = fruit.driveList.getDriveDir(driveUUID, dirUUID)
+  if (!dir) {
+
+    console.log('======')
+    console.log('driveUUID', driveUUID)
+    console.log('dirUUID', dirUUID)
+    console.log('dir not fond')
+    console.log('======')
+
+    process.exit(1)
+    return
+  }
+
   // set dicer to null to indicate all parts have been generated. 
   let dicer
 
@@ -273,7 +288,19 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
       })
 
     // FIXME process dir read error
-    getFruit().getDriveDir(user, driveUUID, dirUUID, null, () => {
+    getFruit().getDriveDir(user, driveUUID, dirUUID, null, (err, xstats) => {
+
+      if (err) {
+        console.log('------------------------------------------- final refresh error')
+        process.exit(1)
+      } else {
+        let ds = xstats
+          .filter(x => x.type === 'directory')
+          .map(x => '  ' + x.uuid + ' ' + x.name)
+          .join('\n')
+        console.log('final refresh', ds)
+      }
+
       res.status(statusCode()).json(body)
     }) 
   }
