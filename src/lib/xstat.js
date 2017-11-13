@@ -417,6 +417,38 @@ const forceXstat = (target, opts, callback) => {
     .catch(e => callback(e))
 }
 
+const assertDirXstatSync = (target, uuid) => {
+  let stat = fs.lstat(target)
+  if (!stat.isDirectory()) {
+    let err = new Error('not a directory')
+    err.code = 'ENOTDIR'
+    throw err
+  }
+
+  let attr = JSON.parse(xattr.getSync(target, 'user.fruitmix'))
+  if (attr.uuid !== uuid) {
+    let err = new Error('uuid mismatch')
+    err.code = 'EUUIDMISMATCH'
+    throw err
+  } 
+}
+
+const assertFileXstatSync = (target, uuid) => {
+  let stat = fs.lstat(target)
+  if (!stat.isFile()) {
+    let err = new Error('not a file')
+    err.code = 'ENOTFILE'
+    throw err
+  }
+
+  let attr = JSON.parse(xattr.getSync(target, 'user.fruitmix'))
+  if (attr.uuid !== uuid) {
+    let err = new Error('uuid mismatch')
+    err.code = 'EUUIDMISMATCH'
+    throw err
+  }
+}
+
 module.exports = { 
   readXstat,
   readXstatAsync,
@@ -424,6 +456,9 @@ module.exports = {
   updateFileHashAsync,
   forceXstat,
   forceXstatAsync,
+
+  assertDirXstatSync,
+  assertFileXstatSync
 }
 
 

@@ -182,6 +182,12 @@ class File extends Node {
     }
   }
 
+  reattach (parent) {
+    this.detach()
+    this.attach(parent)
+    this.namePathChanged()
+  }
+
   destroy (detach) {
     this.state.destroy() 
     super.destroy(detach)
@@ -197,6 +203,7 @@ class File extends Node {
     assert(State === Hashing)
     this.state.setState(State)
   }
+
 }
 
 File.Hashless = Hashless

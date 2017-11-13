@@ -16,7 +16,10 @@ const Node = require('./node')
 const File = require('./file')
 const Directory = require('./directory')
 
-const { readXstatAsync, forceXstatAsync, forceXstat } = require('../lib/xstat')
+const { 
+  readXstatAsync, forceXstatAsync, forceXstat, 
+  assertDirXstatSync, assertFileXstatSync
+} = require('../lib/xstat')
 
 const Debug = require('debug')
 const smbDebug = Debug('samba')
@@ -25,6 +28,18 @@ const debugi = require('debug')('fruitmix:indexing')
 const debug = Debug('vfs')
 
 const Forest = require('./forest')
+
+
+// TODO move to lib
+const Throw = (err, code, status) => {
+  err.code = code
+  err.status = status
+  throw err
+}
+
+const EINVAL = err => { throw Object.assign(err, 'EINVAL', 400) }
+const EINCONSISTENCE = err => { throw Object.assign(err, 'EINCONSISTENCE', 503) }
+
 
 /**
 VFS inherits from Forest. It adds virtual drive logic.
@@ -250,6 +265,94 @@ class VFS extends Forest {
     dir.read(1000)
   }
 
+  mvDirSync (srcDriveUUID, srcDirUUID, srcDirName, dstDriveUUID, dstDirUUID) {
+    // check destination
+    let dstRoot = this.roots.get(dstDriveUUID)
+    if (!dstRoot) EINVAL(new Error('dst drive uuid not found'))
+
+    let dstDir = this.uuidMap.get(dstDirUUID) 
+    if (!dstDir) EINVAL(new Error('dst dir uuid not found'))
+    if (dstDir.root() !== dstRoot) EINVAL(new Error('dst dir is not in dst drive'))
+
+    // check source
+    let srcRoot = this.roots.get(srcDriveUUID)
+    if (!srcRoot) EINVAL(new Error('src drive uuid not found'))
+
+    let srcDir = this.uuidMap.get(srcDirUUID)       
+    if (!srcDir) EINVAL(new Error('src dir uuid not found'))
+    if (srcDir.root() !== srcRoot) EINVAL(new Error('src dir is not in src drive'))
+    if (srcDir.name !== srcDirName) EINVAL(new Error('src dir name mismatch'))
+
+    // assert consistence with underlying file system
+    let srcPath = srcDir.abspath()
+    let dstPath = dstDir.abspath()
+    try {
+      assertDirXstatSync(srcPath, srcDirUUID)
+      assertDirXstatSync(dstPath, dstDirUUID)
+    } catch (e) {
+      e.code = 'EINCONSISTENCE'
+      e.status = 503
+      throw e
+    }
+
+    // do rename
+    try {
+      fs.renamesync(srcPath, dstPath)
+    } catch (e) {
+      EINCONSISTENCE(e)
+    }
+
+    // reattach
+    srcDir.reattach(dstDir)
+
+    // final read
+    srcDir.read()
+    dstDir.read()
+  }
+
+  mvFileSync (srcDriveUUID, srcDirUUID, fileUUID, fileName, dstDriveUUID, dstDirUUID) {
+    // check destination
+    let dstRoot = this.roots.get(dstDriveUUID)
+    if (!dstRoot) EINVAL(new Error('dst drive uuid not found'))
+
+    let dstDir = this.uuidMap.get(dstDirUUID) 
+    if (!dstDir) EINVAL(new Error('dst dir uuid not found'))
+    if (dstDir.root() !== dstRoot) EINVAL(new Error('dst dir is not in dst drive'))
+
+    // check source
+    let srcRoot = this.roots.get(srcDriveUUID)
+    if (!srcRoot) EINVAL(new Error('src drive uuid not found'))
+
+    let srcDir = this.uuidMap.get(srcDirUUID)       
+    if (!srcDir) EINVAL(new Error('src dir uuid not found'))
+    if (srcDir.root() !== srcRoot) EINVAL(new Error('src dir is not in src drive')) 
+
+    let fn = srcDir.children.find(x => x.uuid === fileUUID)
+    if (fn && fn.name !== fileName) EINVAL(new Error('file name mismatch'))
+
+    // assert consistence with underlying file system
+    let srcPath = path.join(srcDir.abspath(), fileName)
+    let dstPath = dstDir.abspath()
+    try {
+      assertFileXstatSync(srcPath, fileUUID) 
+      assertDirXstatSync(dstPath, dstDirUUID)
+    } catch (e) {
+      EINCONSISTENCE(e)
+    }
+
+    try {
+      fs.renamesync(srcPath, dstPath)
+    } catch (e) {
+      throw e
+    }
+
+    if (fn) fn.reattach(dstDir)
+    srcDir.read()
+    dstDir.read()
+  }
+
 }
+
+
 
 module.exports = VFS

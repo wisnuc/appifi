@@ -398,6 +398,11 @@ class Directory extends Node {
     }
   }
 
+  reattach (parent) {
+    this.detach()
+    this.attach(parent)
+    this.namePathChanged()
+  }
 }
 
 Directory.Init = Init

@@ -66,6 +66,12 @@ class Node {
     return this.parent === null
   }
 
+  reattach (parent) {
+    this.detach()
+    this.attach(parent)
+    this.namePathChanged()
+  }
+
   /**
   pre-visitor
   */
