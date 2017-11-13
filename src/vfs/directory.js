@@ -58,7 +58,8 @@ class Base {
     this.exit()
   }
 
-  namePathChanged () {
+  updateName (name) {
+    this.dir.name = name
   }
 
 }
@@ -150,7 +151,7 @@ class Reading extends Base {
     this.readdir = readdir(dirPath, uuid, _mtime, (err, xstats, mtime, transient) => {
 
       // change to debug
-      debug('readdir done', err || xstats.length, mtime, transient)
+      debug('readdir done', err || (xstats ? xstats.length : xstats), mtime, transient)
 
       if (dirPath !== this.dir.abspath()) {
         err = new Error('path changed during readdir operation')
@@ -223,21 +224,10 @@ class Reading extends Base {
             child.destroy(true) 
             new File(this.dir.ctx, this.dir, xstat)
           }
-        } else {
-          if (child.name === xstat.name && child.mtime === xstat.mtime) {
-            // don't return !
-          } else {
-            if (child.name !== xstat.name) {
-              child.name = xstat.name   
-              child.namePathChanged()
-            }
-
-            if (child.mtime !== xstat.mtime) {
-              child.state.readi()
-            }
-          }
+        } else if (child instanceof Directory) {
+          if (child.name !== xstat.name) child.updateName(xstat.name)
+          if (child.mtime !== xstat.mtime) child.read()
         }
-
         map.delete(child.uuid)
       } else {
         arr.push(child)
@@ -253,9 +243,10 @@ class Reading extends Base {
       new Directory(this.dir.ctx, this.dir, x))
   }
 
-
   /**
   Request immediate `read` on all ancestors along node path (exclusive).
+
+  This function is not currently used
   */
   fixPath () {
     // ancestors (exclusive)
@@ -264,10 +255,16 @@ class Reading extends Base {
     ancestors.forEach(n => n.read())
   }
 
+  /**
+  read immediately
+  */
   readi () {
     if (!Array.isArray(this.pending)) this.pending = []
   }
 
+  /**
+  request a delayed read
+  */
   readn (delay) {
     if (Array.isArray(this.pending)) {
       return
@@ -278,6 +275,9 @@ class Reading extends Base {
     }
   }
 
+  /**
+  read with callback
+  */
   readc (callback) {
     if (Array.isArray(this.pending)) {
       this.pending.push(callback)
@@ -286,10 +286,15 @@ class Reading extends Base {
     }
   }
 
-  namePathChanged () {
-    this.restart()
+  /**
+  */
+  updateName (name) {
+    super.updatename(name)
+    this.restart()    // TODO test root change?
   }
 
+  /**
+  */
   destroy () {
     let err = new Error('destroyed')
     err.code = 'EDESTROYED'
@@ -343,10 +348,14 @@ class Directory extends Node {
     debug('destroyed', this.uuid, this.name, !!detach)
   }
 
-  namePathChanged () {
-    debug('namePathChanged', this.uuid, this.name)
-    this.children.forEach(c => c.namePathChanged())
-    this.state.namePathChanged()
+  /**
+  Update name recursively
+  */
+  updateName (name) {
+    debug('updateName', this.uuid, this.name)
+    // update name first
+    this.state.updateName(name)
+    this.children.forEach(c => c.updateName())
   }
 
   /**
@@ -398,11 +407,6 @@ class Directory extends Node {
     }
   }
 
-  reattach (parent) {
-    this.detach()
-    this.attach(parent)
-    this.namePathChanged()
-  }
 }
 
 Directory.Init = Init
@@ -411,10 +415,6 @@ Directory.Pending = Pending
 Directory.Reading = Reading
 
 module.exports = Directory
-
-
-
-
 
 
 

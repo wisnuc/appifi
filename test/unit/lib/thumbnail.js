@@ -9,54 +9,94 @@ const chai = require('chai').use(require('chai-as-promised'))
 const expect = chai.expect
 const should = chai.should()
 
-const Thumbnail = require('src/lib/thumbnail')
+const Thumbnail = require('src/lib/thumbnail2')
 
 const cwd = process.cwd()
-const fruitmixPath = path.join(cwd, 'tmptest')
+const froot = path.join(cwd, 'tmptest')
 
 const vpaiFingerprint = '529e471a71866e439d8892179e4a702cf8529ff32771fcf4654cfdcea68c11fb'
 const vpaiFile = path.join(cwd, 'testdata', 'vpai001.jpg')
 
+const pluck = (obj, names) => names.reduce((o, n) => (o[n] = obj[n], o), {})
+
 describe(path.basename(__filename), () => {
 
-  let retrieveFiles = () => []
+  describe('constructor', () => {
 
-  beforeEach(async () => {
-    await rimrafAsync(fruitmixPath)
-    await mkdirpAsync(fruitmixPath)
-  })
-
-  describe('do something', () => {
-
-    it('do nothing', done => {
-      let thumbnail = new Thumbnail(fruitmixPath, 116) 
-      done()
+    beforeEach(async () => {
+      await rimrafAsync(froot)
+      await mkdirpAsync(froot)
     })
 
-    it('request should return EABORT error if thumbnailer aborted', async () => {
+    it('construct new thumbnail', done => {
 
-      let thumbnail = new Thumbnail(fruitmixPath, 116, retrieveFiles) 
-      thumbnail.abort()
+      let thumbDir = path.join(path.join(froot, 'thumbnail'))
+      let tmpDir = path.join(path.join(froot, 'tmp'))
+      let thumb = new Thumbnail(thumbDir, tmpDir)
+   
+      let names = ['thumbDir', 'tmpDir', 
+        'pending', 'converting', 'renaming', 
+        'concurrency', 'destroyed' ] 
 
-      try {
-        await thumbnail.requestAsync(vpaiFingerprint, { width: 160, height: 160 }, [])
-        throw new Error('should throw error')
-      } catch (e) {
-        expect(e).to.be.an('error')
-        expect(e.code).to.equal('EABORT')
-      }
-    })
-
-    it('request should return EABORT error after abort 2', async () => {
-
-      let thumbnail = new Thumbnail(fruitmixPath, 116, retrieveFiles) 
-      let r = await thumbnail.requestAsync(vpaiFingerprint, { width: 160, height: 160 }, [vpaiFile])
-
-      expect(r instanceof EventEmitter).to.be.true
-
-      let thumb = await new Promise((res, rej) => r.on('finish', (err, thumb) => err ? rej(err) : res(thumb)))
-
-      // TODO 
+      expect(pluck(thumb, names)).to.deep.equal({ thumbDir, tmpDir, 
+        pending: [], converting: [], renaming: [], concurrency: 4, destroyed: false })
+      
+      done() 
     })
   }) 
+
+  describe('methods', () => {
+
+    let thumbDir = path.join(path.join(froot, 'thumbnail'))
+    let tmpDir = path.join(path.join(froot, 'tmp'))
+    let thumb
+ 
+    beforeEach(async () => {
+      await rimrafAsync(froot)
+      await mkdirpAsync(froot)
+      thumb = new Thumbnail(thumbDir, tmpDir)
+    })
+
+    it('genProps', done => {
+      let query = { width: '160', height: '160' }
+      let props = thumb.genProps(vpaiFingerprint, query)  
+      // TODO
+      let key = "529e471a71866e439d8892179e4a702cf8529ff32771fcf4654cfdcea68c11fb0b1ff93c7c5063ea61b0fbf62889185b4aa290088cddd5acae655591a83c84e4"
+      expect(props).to.deep.equal({
+        fingerprint: vpaiFingerprint,
+        opts: { width: 160, height: 160, autoOrient: undefined, modifier: undefined },
+        key,
+        path: path.join(thumbDir, key)
+      })
+      done() 
+    })
+
+    it('convert', done => {
+      let query = { width: '160', height: '160' }
+      let props = thumb.genProps(vpaiFingerprint, query)
+
+      thumb.convert(props, vpaiFile, err => done(err))
+      // thumb.on('step', (op, x) => console.log(op, x))
+    })
+
+    it('convert many times', done => {
+      let query = { width: '160', height: '160' }
+      let props = thumb.genProps(vpaiFingerprint, query)
+
+      let count = 5
+      thumb.convert(props, vpaiFile, err => (!--count) && done())
+      thumb.convert(props, vpaiFile, err => (!--count) && done())
+      thumb.convert(props, vpaiFile, err => (!--count) && done())
+      thumb.convert(props, vpaiFile, err => (!--count) && done())
+      thumb.convert(props, vpaiFile, err => (!--count) && done())
+
+      thumb.on('step', (op, x) => {
+        // console.log(op, pluck(thumb, ['pending', 'converting', 'renaming']))
+      })
+
+      // console.log(pluck(thumb, ['pending', 'converting', 'renaming']))
+    })
+  })
 })
+
+

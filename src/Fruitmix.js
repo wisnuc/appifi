@@ -1122,6 +1122,9 @@ class Fruitmix extends EventEmitter {
         task = new MoveTask(this, user, Object.assign({}, props, { entries }))
       }
       this.tasks.push(task)
+
+      console.log(task.view())
+
       return task.view()
     }
 
@@ -1414,7 +1417,7 @@ class Fruitmix extends EventEmitter {
   // ENOTEMPTY, ENOTDIR
   // this function try to move srcDirUUID into dstDirUUID
   // this function may fail if target exists (non-empty)
-  mvdir (user, srcDriveUUID, srcDirUUID, name, dstDriveUUID, dstDirUUID, callback) {
+  mvdir_obsolete (user, srcDriveUUID, srcDirUUID, name, dstDriveUUID, dstDirUUID, callback) {
     let srcDir = this.driveList.getDriveDir(srcDriveUUID, srcDirUUID)
     if (!srcDir) return callback(new Error('source drive or dir not found'))
     if (srcDir.name !== name) return callback(new Error('source directory name mismatch'))
@@ -1449,7 +1452,20 @@ class Fruitmix extends EventEmitter {
     })
   }
 
-  mvfile (user, srcDriveUUID, srcDirUUID, fileUUID, name, dstDriveUUID, dstDirUUID, callback) {
+  mvdir (user, srcDriveUUID, srcDirUUID, name, dstDriveUUID, dstDirUUID, callback) {
+
+    console.log('mvdir')
+
+    try {
+      this.driveList.mvDirSync(srcDriveUUID, srcDirUUID, name, dstDriveUUID, dstDirUUID)
+      process.nextTick(() => callback(null))
+    } catch (e) {
+      process.nextTick(() => callback(e))
+    }
+  }
+
+
+  mvfile_obsolete (user, srcDriveUUID, srcDirUUID, fileUUID, name, dstDriveUUID, dstDirUUID, callback) {
     let srcDir = this.driveList.getDriveDir(srcDriveUUID, srcDirUUID)
     if (!srcDir) return callback(new Error('source drive or directory not found'))
 
@@ -1477,6 +1493,20 @@ class Fruitmix extends EventEmitter {
     })
   }
 
+  mvfile (user, srcDriveUUID, srcDirUUID, fileUUID, fileName, dstDriveUUID, dstDirUUID, callback) {
+
+    console.log('mvfile')
+
+    try {
+      this.driveList.mvFileSync(srcDriveUUID, srcDirUUID, fileUUID, fileName, dstDriveUUID, dstDirUUID)
+      console.log('mvfile done')
+      process.nextTick(() => callback(null))
+    } catch (e) {
+      console.log('mvfile', e)
+      process.nextTick(() => callback(e))
+    }
+  }
+
   // for test
   assertDirUUIDsIndexed (uuids) {
     this.driveList.assertDirUUIDsIndexed (uuids)
@@ -1484,22 +1514,6 @@ class Fruitmix extends EventEmitter {
 }
 
 module.exports = Fruitmix
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

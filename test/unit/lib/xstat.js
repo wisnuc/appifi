@@ -17,6 +17,7 @@ const should = chai.should()
 const sinon = require('sinon')
 
 const E = require('src/lib/error')
+const Magic = require('src/lib/magic')
 const S = require('test/assets/samples') // TODO
 
 const { alonzo, pngHDrgba, foo, oneGigaMinus1, oneGiga, oneGigaPlusX  } = require('test/lib/files')
@@ -41,7 +42,7 @@ const cwd = process.cwd()
 const tmptest = 'tmptest'
 const tmpdir = path.join(cwd, tmptest)
 
-const MAGICVER = 1
+// const MAGICVER = 1
 
 describe(path.basename(__filename) + ' readXstat new', () => {
 
@@ -229,12 +230,12 @@ describe(path.basename(__filename) + ' readXstat new', () => {
         type: 'file',
         name: foo.name,
         mtime: stat.mtime.getTime(),
-        magic: MAGICVER,
+        magic: Magic.ver,
         size: stat.size
       })
       expect(attr).to.deep.equal({ 
         uuid,
-        magic: MAGICVER
+        magic: Magic.ver
       })
       done()
     })
@@ -291,11 +292,11 @@ describe(path.basename(__filename) + ' readXstat new', () => {
         name: foo.name,
         size: foo.size,
         mtime: stat.mtime.getTime(),
-        magic: MAGICVER
+        magic: Magic.ver
       })
       expect(attr).to.deep.equal({ 
         uuid,
-        magic: MAGICVER
+        magic: Magic.ver
       })
       done()
     })
@@ -312,11 +313,11 @@ describe(path.basename(__filename) + ' readXstat new', () => {
         name: foo.name,
         size: foo.size,
         mtime: stat.mtime.getTime(),
-        magic: MAGICVER
+        magic: Magic.ver
       })
       expect(attr).to.deep.equal({ 
         uuid,
-        magic: MAGICVER
+        magic: Magic.ver
       })
       done()
     })
@@ -333,11 +334,11 @@ describe(path.basename(__filename) + ' readXstat new', () => {
         name: foo.name,
         size: foo.size,
         mtime: stat.mtime.getTime(),
-        magic: MAGICVER
+        magic: Magic.ver
       })
       expect(attr).to.deep.equal({ 
         uuid,
-        magic: MAGICVER
+        magic: Magic.ver
       })
       done()
     })
@@ -354,11 +355,11 @@ describe(path.basename(__filename) + ' readXstat new', () => {
         name: foo.name,
         size: foo.size,
         mtime: stat.mtime.getTime(),
-        magic: MAGICVER
+        magic: Magic.ver
       })
       expect(attr).to.deep.equal({ 
         uuid,
-        magic: MAGICVER
+        magic: Magic.ver
       })
       done()
     })
@@ -375,11 +376,11 @@ describe(path.basename(__filename) + ' readXstat new', () => {
         name: foo.name,
         size: foo.size,
         mtime: stat.mtime.getTime(),
-        magic: MAGICVER
+        magic: Magic.ver
       })
       expect(attr).to.deep.equal({ 
         uuid,
-        magic: MAGICVER
+        magic: Magic.ver
       })
       done()
     })
@@ -396,11 +397,11 @@ describe(path.basename(__filename) + ' readXstat new', () => {
         name: foo.name,
         size: foo.size,
         mtime: stat.mtime.getTime(),
-        magic: MAGICVER
+        magic: Magic.ver
       })
       expect(attr).to.deep.equal({ 
         uuid,
-        magic: MAGICVER
+        magic: Magic.ver
       })
       done()
     })
@@ -425,18 +426,18 @@ describe(path.basename(__filename) + ' readXstat new', () => {
         name: foo.name,
         size: foo.size,
         mtime: stat.mtime.getTime(),
-        magic: MAGICVER
+        magic: Magic.ver
       })
       expect(attr).to.deep.equal({ 
         uuid,
-        magic: MAGICVER
+        magic: Magic.ver
       })
       done()
     })
   })
 
   it('return xstat for foo with uuid and up-to-date magic', done => {
-    setAttr(foopath, { uuid, magic: MAGICVER })
+    setAttr(foopath, { uuid, magic: Magic.ver })
     xas(foopath, (err, data) => {
       if (err) return done(err)
       let { xstat, attr, stat } = data
@@ -446,11 +447,11 @@ describe(path.basename(__filename) + ' readXstat new', () => {
         name: foo.name,
         size: foo.size,
         mtime: stat.mtime.getTime(),
-        magic: MAGICVER
+        magic: Magic.ver
       })
       expect(attr).to.deep.equal({ 
         uuid,
-        magic: MAGICVER
+        magic: Magic.ver
       })
       done()
     })
@@ -467,11 +468,11 @@ describe(path.basename(__filename) + ' readXstat new', () => {
         name: foo.name,
         size: foo.size,
         mtime: stat.mtime.getTime(),
-        magic: MAGICVER
+        magic: Magic.ver
       })
       expect(attr).to.deep.equal({ 
         uuid,
-        magic: MAGICVER
+        magic: Magic.ver
       })
       done()
     })
@@ -480,7 +481,7 @@ describe(path.basename(__filename) + ' readXstat new', () => {
   it('return xstat with hash for foo with uuid, magic, hash and up-to-date time', done => {
     setAttr(foopath, { 
       uuid, 
-      magic: MAGICVER,
+      magic: Magic.ver,
       hash: foo.hash,
       time: fs.statSync(foopath).mtime.getTime()
     })
@@ -493,12 +494,12 @@ describe(path.basename(__filename) + ' readXstat new', () => {
         name: foo.name,
         size: foo.size,
         mtime: stat.mtime.getTime(),
-        magic: MAGICVER,
+        magic: Magic.ver,
         hash: foo.hash
       })
       expect(attr).to.deep.equal({ 
         uuid,
-        magic: MAGICVER,
+        magic: Magic.ver,
         hash: foo.hash,
         time: stat.mtime.getTime()
       })
@@ -510,7 +511,7 @@ describe(path.basename(__filename) + ' readXstat new', () => {
   it('return xstat without hash for foo with uuid, magic, hash and outdated time', done => {
     setAttr(foopath, { 
       uuid, 
-      magic: MAGICVER,
+      magic: Magic.ver,
       hash: foo.hash,
       time: fs.statSync(foopath).mtime.getTime() - 1
     })
@@ -523,11 +524,11 @@ describe(path.basename(__filename) + ' readXstat new', () => {
         name: foo.name,
         size: foo.size,
         mtime: stat.mtime.getTime(),
-        magic: MAGICVER,
+        magic: Magic.ver,
       })
       expect(attr).to.deep.equal({ 
         uuid,
-        magic: MAGICVER
+        magic: Magic.ver
       })
       done()
     })
@@ -537,7 +538,7 @@ describe(path.basename(__filename) + ' readXstat new', () => {
   it('return xstat with hash for foo with uuid, magic, hash and up-to-date htime', done => {
     setAttr(foopath, { 
       uuid, 
-      magic: MAGICVER,
+      magic: Magic.ver,
       hash: foo.hash,
       htime: fs.statSync(foopath).mtime.getTime()
     })
@@ -550,12 +551,12 @@ describe(path.basename(__filename) + ' readXstat new', () => {
         name: foo.name,
         size: foo.size,
         mtime: stat.mtime.getTime(),
-        magic: MAGICVER,
+        magic: Magic.ver,
         hash: foo.hash
       })
       expect(attr).to.deep.equal({ 
         uuid,
-        magic: MAGICVER,
+        magic: Magic.ver,
         hash: foo.hash,
         time: stat.mtime.getTime()
       })
@@ -572,7 +573,7 @@ describe(path.basename(__filename) + ' readXstat new', () => {
 
     setAttr(fpath, { 
       uuid, 
-      magic: MAGICVER,
+      magic: Magic.ver,
       hash: oneGiga.hash,
       htime: fs.statSync(fpath).mtime.getTime()
     })
@@ -586,12 +587,12 @@ describe(path.basename(__filename) + ' readXstat new', () => {
         name: oneGiga.name,
         size: oneGiga.size,
         mtime: stat.mtime.getTime(),
-        magic: MAGICVER,
+        magic: Magic.ver,
         hash: oneGiga.hash
       })
       expect(attr).to.deep.equal({ 
         uuid,
-        magic: MAGICVER,
+        magic: Magic.ver,
         hash: oneGiga.hash,
         time: stat.mtime.getTime()
       })
@@ -608,7 +609,7 @@ describe(path.basename(__filename) + ' readXstat new', () => {
 
     setAttr(fpath, { 
       uuid, 
-      magic: MAGICVER,
+      magic: Magic.ver,
       hash: oneGigaPlusX.hash,
       htime: fs.statSync(fpath).mtime.getTime()
     })
@@ -622,11 +623,11 @@ describe(path.basename(__filename) + ' readXstat new', () => {
         name: oneGigaPlusX.name,
         size: oneGigaPlusX.size,
         mtime: stat.mtime.getTime(),
-        magic: MAGICVER,
+        magic: Magic.ver,
       })
       expect(attr).to.deep.equal({ 
         uuid,
-        magic: MAGICVER,
+        magic: Magic.ver,
       })
       done()
     })
@@ -636,7 +637,7 @@ describe(path.basename(__filename) + ' readXstat new', () => {
   it('return xstat without hash for foo with uuid, magic, hash and outdated htime', done => {
     setAttr(foopath, { 
       uuid, 
-      magic: MAGICVER,
+      magic: Magic.ver,
       hash: foo.hash,
       htime: fs.statSync(foopath).mtime.getTime() - 1
     })
@@ -649,11 +650,11 @@ describe(path.basename(__filename) + ' readXstat new', () => {
         name: foo.name,
         size: foo.size,
         mtime: stat.mtime.getTime(),
-        magic: MAGICVER,
+        magic: Magic.ver,
       })
       expect(attr).to.deep.equal({ 
         uuid,
-        magic: MAGICVER
+        magic: Magic.ver
       })
       done()
     })

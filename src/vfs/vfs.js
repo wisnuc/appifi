@@ -297,7 +297,7 @@ class VFS extends Forest {
 
     // do rename
     try {
-      fs.renamesync(srcPath, dstPath)
+      fs.renameSync(srcPath, dstPath)
     } catch (e) {
       EINCONSISTENCE(e)
     }
@@ -331,17 +331,34 @@ class VFS extends Forest {
     if (fn && fn.name !== fileName) EINVAL(new Error('file name mismatch'))
 
     // assert consistence with underlying file system
-    let srcPath = path.join(srcDir.abspath(), fileName)
-    let dstPath = dstDir.abspath()
+    let srcFilePath = path.join(srcDir.abspath(), fileName)
+    let dstDirPath = dstDir.abspath()
+    let dstFilePath = path.join(dstDir.abspath(), fileName)
     try {
-      assertFileXstatSync(srcPath, fileUUID) 
-      assertDirXstatSync(dstPath, dstDirUUID)
+      assertFileXstatSync(srcFilePath, fileUUID) 
+      assertDirXstatSync(dstDirPath, dstDirUUID)
     } catch (e) {
       EINCONSISTENCE(e)
     }
 
+    // assert target name does not exist
     try {
-      fs.renamesync(srcPath, dstPath)
+      let stat = fs.lstatSync(dstFilePath)
+      let err
+      if (stat.isFile()) {
+        err = new Error('target file already exists')
+        err.code = 'EEXIST'
+      } else {
+        err = new Error('traget name alreadys exists, not a regular file')
+        err.code = 'ENOTFILE'
+      }
+      throw err
+    } catch (e) {
+      if (e.code !== 'ENOENT') throw e
+    }
+
+    try {
+      fs.renameSync(srcFilePath, dstFilePath)
     } catch (e) {
       throw e
     }
@@ -351,6 +368,22 @@ class VFS extends Forest {
     dstDir.read()
   }
 
+  /**
+  move a single file
+  opts {
+    srcDriveUUID,       // mandatory
+    srcDirUUID,         // mandatory
+    fileUUID,           // mandatory
+    fileName,           // mandatory
+    dstDriveUUID,       // mandatory
+    dstDirUUID,         // mandatory
+    overwrite           // optional  
+  }
+  */ 
+  mvFile (srcDriveUUID, srcDirUUID, fileUUID, fileName, dstDriveUUID, dstDirUUID, callback) {
+    let dstRoot = this.roots.get(dstDriveUUID)
+    // if  
+  }
 }
 
 

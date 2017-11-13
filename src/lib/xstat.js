@@ -121,7 +121,6 @@ Return magic by fileType
 @returns {(string|number)}
 */
 
-/** obsolete code 
 const fileMagic2 = (target, callback) => 
   filetype(target, (err, type) => {
     if (err) return callback(err)
@@ -131,6 +130,7 @@ const fileMagic2 = (target, callback) =>
       return callback(null, MAGICVER)
   })
 
+/**
 const fileMagic3 = (target, callback) => 
   child.exec(`exiftool -S -FileType '${target}'`, (err, stdout, stderr) => {
     console.log(stdout.toString())
@@ -164,6 +164,16 @@ const fileMagic4 = (target, callback) =>
     }
   })
 
+const fileMagic5 = (target, callback) => 
+  filetype(target, (err, type) => {
+    if (err) return callback(err) 
+    if (type && type.ext === 'jpg') {
+      callback(null, 'JPEG')
+    } else {
+      fileMagic4(target, callback)
+    }
+  })
+
 
 /** 
 Return magic for a regular file. This function uses fileMagic2.
@@ -171,7 +181,7 @@ Return magic for a regular file. This function uses fileMagic2.
 @param {string} target - absolute path
 @returns {(string|number)}
 **/
-const fileMagicAsync = Promise.promisify(fileMagic4)
+const fileMagicAsync = Promise.promisify(fileMagic5)
 
 /**
 Read and validate xattr, drop invalid properties.
@@ -418,7 +428,7 @@ const forceXstat = (target, opts, callback) => {
 }
 
 const assertDirXstatSync = (target, uuid) => {
-  let stat = fs.lstat(target)
+  let stat = fs.lstatSync(target)
   if (!stat.isDirectory()) {
     let err = new Error('not a directory')
     err.code = 'ENOTDIR'
@@ -434,7 +444,7 @@ const assertDirXstatSync = (target, uuid) => {
 }
 
 const assertFileXstatSync = (target, uuid) => {
-  let stat = fs.lstat(target)
+  let stat = fs.lstatSync(target)
   if (!stat.isFile()) {
     let err = new Error('not a file')
     err.code = 'ENOTFILE'

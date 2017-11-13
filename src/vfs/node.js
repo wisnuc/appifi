@@ -69,7 +69,7 @@ class Node {
   reattach (parent) {
     this.detach()
     this.attach(parent)
-    this.namePathChanged()
+    this.updateName()
   }
 
   /**

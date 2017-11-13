@@ -55,7 +55,7 @@ class Base {
     new NextState(this.file)
   }
 
-  namePathChanged () {}
+  updateName () {}
 
   destroy () {
     this.exit()
@@ -114,7 +114,7 @@ class Hashing extends Base {
     this.file.ctx.fileExitHashing(this.file)
   }
 
-  namePathChanged () {
+  updateName () {
     this.worker.destroyed() 
     this.start()
   }
@@ -132,7 +132,7 @@ class HashFailed extends Base {
     this.file.ctx.fileExitHashFailed(this.file)
   }
 
-  namePathChanged () {
+  updateName () {
     // TODO ???
   }
 }
@@ -149,8 +149,8 @@ class Hashed extends Base {
     this.file.ctx.fileExitHashed(this.file)
   }
 
-  namePathChanged () {
-    this.file.ctx.hashedFileNamePathChanged(this.file)
+  updateName () {
+    this.file.ctx.hashedFileNameUpdated(this.file)
   }
 }
 
@@ -182,19 +182,16 @@ class File extends Node {
     }
   }
 
-  reattach (parent) {
-    this.detach()
-    this.attach(parent)
-    this.namePathChanged()
-  }
-
   destroy (detach) {
     this.state.destroy() 
     super.destroy(detach)
   }
 
-  namePathChanged () {
-    this.state.namePathChanged()
+  /**
+  For file, update name 
+  */
+  updateName () {
+    this.state.updateName()
   }
 
   setState (State) {

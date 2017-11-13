@@ -150,9 +150,9 @@ class Forest extends EventEmitter {
   /**
 
   */
-  hashedFileNamePathUpdated (file) {
+  hashedFileNameUpdated (file) {
     debug(`hashed file ${file.name} name path updated`)
-    this.mediaMap.fileNamePathChanged(file)
+    this.mediaMap.fileNameUpdated(file)
   }
 
   fileExitHashed (file) {

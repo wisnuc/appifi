@@ -241,7 +241,10 @@ describe(path.basename(__filename), () => {
         if (err) return done(err)
         debug(res.body)
 
-        let worldUUID = res.body.find(entry => entry.name === 'world').uuid
+        let worldUUID = res.body.find(entry => entry.name === 'world').data.uuid
+
+        debug('worldUUID', worldUUID)
+
         request(app)
           .post(`/drives/${IDS.alice.home}/dirs/${worldUUID}/entries`)
           .set('Authorization', 'JWT ' + token)
