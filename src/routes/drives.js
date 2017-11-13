@@ -289,16 +289,30 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
 
     // FIXME process dir read error
     getFruit().getDriveDir(user, driveUUID, dirUUID, null, (err, xstats) => {
-
       if (err) {
-        console.log('------------------------------------------- final refresh error')
-        process.exit(1)
+        console.log('==== final refresh error begin ====')
+        console.log(err)
+        console.log('==== final refresh error end ====')
       } else {
-        let ds = xstats
-          .filter(x => x.type === 'directory')
-          .map(x => '  ' + x.uuid + ' ' + x.name)
-          .join('\n')
-        console.log('final refresh', ds)
+
+/**
+        let dirUUIDs = r
+          .filter(x => x.op === 'mkdir' && x.hasOwnProperty('data')) 
+          .map(x => x.data.uuid) 
+
+        console.log('dirUUIDs', dirUUIDs)
+
+        try {
+          getFruit().assertDirUUIDsIndexed(dirUUIDs)
+        } catch (e) {
+          console.log('========')
+          console.log('r', r)
+          console.log('xstats', xstats)
+          console.log(dirUUIDs)
+          console.log(e)
+          process.exit(1)
+        }
+**/
       }
 
       res.status(statusCode()).json(body)

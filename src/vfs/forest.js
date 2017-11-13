@@ -283,7 +283,34 @@ class Forest extends EventEmitter {
   removeRoot (uuid) {
      
   }
- 
+
+
+  /*
+   *
+   * The following functions are for debug usage
+   *
+   */
+  findRootDirByUUID(uuid) {
+    for (let [key, dir] of this.roots) {
+      if (key === uuid) return dir
+    }
+  }
+
+  findDirByName(name) {
+    for (let [uuid, dir] of this.uuidMap) {
+      if (dir.name === name) return dir
+    }
+  }
+
+  assertDirUUIDsIndexed (uuids) {
+    let missing = uuids.filter(uuid => !this.uuidMap.has(uuid))
+    if (missing.length) {
+      console.log('assertion fail')
+      console.log(missing)
+      throw new Error('assert Dir UUIDs failed')
+    }
+  } 
+
 }
 
 module.exports = Forest

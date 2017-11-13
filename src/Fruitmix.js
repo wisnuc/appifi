@@ -1477,6 +1477,9 @@ class Fruitmix extends EventEmitter {
     })
   }
 
+  assertDirUUIDsIndexed (uuids) {
+    this.driveList.assertDirUUIDsIndexed (uuids)
+  }
 }
 
 module.exports = Fruitmix

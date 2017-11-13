@@ -3,12 +3,13 @@ const fs = require('fs')
 const assert = require('assert')
 
 const mkdirp = require('mkdirp')
-const Debug = require('debug')
 
 const Node = require('./node')
 const File = require('./file')
-
 const readdir = require('./readdir')
+
+const Debug = require('debug')
+const debug = process.env.hasOwnProperty('DEBUG') ? Debug('directory') : () => {}
 
 /**
 Directory has four states:
@@ -141,11 +142,15 @@ class Reading extends Base {
 
     let dirPath = this.dir.abspath()
     let uuid = this.dir.uuid
+
+    // when _mtime is null, read xstats forcefully
     let _mtime = this.callbacks.length === 0 ? this.dir.mtime : null
 
+    debug('readdir', dirPath, uuid, _mtime)
     this.readdir = readdir(dirPath, uuid, _mtime, (err, xstats, mtime, transient) => {
 
-      console.log('readdir done', dirPath, uuid, _mtime, err, xstats.length, mtime, transient)
+      // change to debug
+      debug('readdir done', err || xstats.length, mtime, transient)
 
       if (dirPath !== this.dir.abspath()) {
         err = new Error('path changed during readdir operation')
@@ -156,7 +161,6 @@ class Reading extends Base {
         err.status = 503
         const pathErrCodes = ['ENOENT', 'ENOTDIR', 'EINSTANCE', 'EINTERRUPTED']
         if (pathErrCodes.includes(err.code)) {
-          // this.fixPath()
           if (this.dir.parent) {
             this.dir.parent.read()
           } else {
@@ -167,16 +171,15 @@ class Reading extends Base {
           this.readn(1000)
         }
       } else if (xstats) {
-        if (mtime !== this.dir.mtime) {
-          try { 
-            // this.dir.merge(xstats)
-            this.updateChildren(xstats)
-          } catch (e) {
-            console.log(e)
-            process.exit(1)
-          }
+        /**
+        Don't bypass update children! Do it anyway. Node.js fs timestamp resolution is not adequate.
+        */
+        this.updateChildren(xstats)
+
+        if (mtime !== this.dir.mtime && !transient) {
+          this.dir.mtime = mtime
         }
-        if (mtime !== this.dir.mtime && !transient) this.dir.mtime = mtime
+
         if (transient) {
           console.log('readdir: transient state detected')
           this.readn(1000)
@@ -328,70 +331,20 @@ class Directory extends Node {
   Destructor
   */
   destroy(detach) {
-    [...this.children].forEach(child => child.destroy()) 
+    debug('destroying', this.uuid, this.name, !!detach)
+
+    // why this does not work ???
+    // [...this.children].forEach(child => child.destroy()) 
+    Array.from(this.children).forEach(c => c.destroy())
     this.state.destroy()
     this.ctx.unindexDirectory(this) 
     super.destroy(detach)
-  }
 
-  /**
-  Update children according to xstats returned from `read`.
-  This is an internal function and is only called in `state`.
-  @param {xstat[]} xstats
-  @param {Monitor[]} monitors
-  */
-  merge(xstats) { 
-    // remove non-interested files
-    xstats = xstats.filter(x => x.type === 'directory' || (x.type === 'file' && typeof x.magic === 'string'))
-
-    // convert to a map
-    let map = new Map(xstats.map(x => [x.uuid, x]))
-
-    // update found child, remove found out of map, then destroy lost
-    let dup = Array.from(this.children)
-    let lost = dup.reduce((arr, child) => {
-      let xstat = map.get(child.uuid)
-      if (xstat) {
-        if (child instanceof File) {
-          if (child.magic === xstat.magic && child.name === xstat.name && child.hash === xstat.hash) {
-            // skip
-          } else {
-            // file update is too complex when magic/name/hash changed
-            child.destroy(true) 
-            new File(this.ctx, this, xstat)
-          }
-        } else {
-          if (child.name === xstat.name && child.mtime === xstat.mtime) {
-            // don't return !
-          } else {
-
-            if (child.name !== xstat.name) {
-              child.name = xstat.name   
-              child.namePathChanged()
-            }
-
-            if (child.mtime !== xstat.mtime) {
-              child.state.readi()
-            }
-          }
-        }
-
-        map.delete(child.uuid)
-      } else {
-        arr.push(child)
-      }
-      return arr
-    }, [])
-
-    lost.forEach(c => c.destroy(true))
-
-    // create new 
-    map.forEach(x => x.type === 'file' ? 
-      new File(this.ctx, this, x) : 
-      new Directory(this.ctx, this, x))
+    debug('destroyed', this.uuid, this.name, !!detach)
   }
 
   namePathChanged () {
+    debug('namePathChanged', this.uuid, this.name)
     this.children.forEach(c => c.namePathChanged())
     this.state.namePathChanged()
   }
@@ -453,10 +406,6 @@ Directory.Pending = Pending
 Directory.Reading = Reading
 
 module.exports = Directory
-
-
-
-
 
 
 

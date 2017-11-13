@@ -58,12 +58,29 @@ class Node {
     this.parent = null
   }
 
+  isAttached () {
+    return this.parent instanceof Node
+  }
+
+  isDetached () {
+    return this.parent === null
+  }
+
   /**
   pre-visitor
   */
   preVisit(func) {
     func(this)
     if (this.children) this.children.forEach(c => c.preVisit(func)) 
+  }
+
+  /**
+  return node array by previsit
+  */
+  linearize() {
+    let ns = []
+    this.preVisit(n => ns.push(n))
+    return ns
   }
 
   /**
