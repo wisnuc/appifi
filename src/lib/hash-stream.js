@@ -38,6 +38,7 @@ const readLoop = () => {
   }
 
   let len = length - totalRead 
+  if (len > 4 * 1024 * 1024) len = 4 * 1024 * 1024
   let buf = Buffer.allocUnsafe(len)
   fs.read(4, buf, 0, len, totalRead, (err, bytesRead, buffer) => {
     if (err) process.exit(119)

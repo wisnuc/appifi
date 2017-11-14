@@ -57,8 +57,14 @@ class FileE2F extends File {
 }
 
 class DirectoryBase extends Node {
-  constructor() {
+  constructor(uuid) {
     super()
+    this.uuid = uuid
+    this.children = []
+  }
+
+  run () {
+      
   }
 }
 
