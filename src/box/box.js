@@ -259,7 +259,7 @@ class Box {
     } catch(e) {
       if (e.code === 'ENOENT') return
     }
-    
+
     let exist, _this = this
 
     // head is a commit hash
@@ -271,7 +271,7 @@ class Box {
 
     for (let i = 0; i < branches.length; i++) {
       exist = await findCommit(branches[i].head)
-      if (exist) return
+      if (exist) break
     }
 
     return exist
@@ -300,7 +300,7 @@ class Box {
      else {
        let arr = contents.filter(i => i[0] === 'tree')
        for (let i = 0; i < arr.length; i++) {
-         let existence = isSubTree(arr[i])
+         let existence = await isSubTree(arr[i][2])
          if (existence) return true
        }
      }
@@ -325,7 +325,7 @@ class Box {
 
     for (let i = 0; i < branches.length; i++) {
       exist = await findTree(branches[i].head)
-      if (exist) return
+      if (exist) break
     }
 
     return exist
@@ -343,11 +343,11 @@ class Box {
     let getContent = async hash => {
       hashSet.add(hash)
       let obj = await _this.ctx.ctx.docStore.retrieveAsync(hash)
-      obj.forEach(async o => {
-        if (o[0] === 'blob') hashSet.add(o[2])
-        else if (o[0] === 'tree') await getContent(o[2])
-        else throw Object.assign(new Error('invalid object type'), { status: 500 })
-      })
+      await Promise.map(obj, async o => {
+          if (o[0] === 'blob') hashSet.add(o[2])
+          else if (o[0] === 'tree') await getContent(o[2])
+          else throw Object.assign(new Error('invalid object type'), { status: 500 })
+        })
     }
 
     let exist = await this.treeExistInBox(treeHash)
@@ -393,9 +393,8 @@ class Box {
     // if branch exist, parent must exist
     if (props.branch && !props.parent)
       throw Object.assign(new Error('parent must exist if branch exist'), { status: 400 })
-
+    
     let exist = await this.treeExistInBox(props.root)
-
     if (!exist) {
       // in this case, uploaded in non-empty
       // toUpload should equal to uploaded
@@ -412,7 +411,7 @@ class Box {
         universe = await this.getTreeListAsync(commit.tree)
       }
       // no intersectionn (universe and uploaded)
-      if (universe.length !== 0 && complementArray(universe, props.uploaded) !== universe)
+      if (universe.length !== 0 && complementArray(universe, props.uploaded).length !== universe.length)
         throw Object.assign(new Error('some file already exist uploaded again'), { status: 400 })
       
       // children first - a tree object is valid, children valid first
@@ -488,8 +487,9 @@ class Box {
     // update branch
     props.branch ? await this.updateBranchAsync(props.branch, {head: sha256})
                  : await this.createBranchAsync({name:'', head: sha256})
-
-    return sha256
+    
+    // return commitObj just using for test
+    return { sha256, commitObj: commit }
   }
 }
 

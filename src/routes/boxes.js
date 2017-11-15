@@ -555,11 +555,10 @@ router.get('/:boxUUID/commits/:commitHash', fruitless, auth, (req, res, next) =>
     .catch(next)
 })
 
-router.get('/:boxUUID/rootTrees/:rootTreeHash', fruitless, auth, (req, res, next) => {
+router.get('/:boxUUID/trees/:treeHash', fruitless, auth, (req, res, next) => {
   let boxUUID = req.params.boxUUID
-  let rootTreeHash = req.params.rootTreeHash
-
-  getFruit().getRootListAsync(req.user, boxUUID, rootTreeHash)
+  let treeHash = req.params.treeHash
+  getFruit().getTreeListAsync(req.user, boxUUID, treeHash)
     .then(data => res.status(200).json(data))
     .catch(next)
 })

@@ -6,6 +6,7 @@ const mkdirpAsync = Promise.promisify(require('mkdirp'))
 const crypto = require('crypto')
 const fs = Promise.promisifyAll(require('fs'))
 const path = require('path')
+const rimrafAsync = Promise.promisify(require('rimraf'))
 
 const app = require('../../src/app')
 const E = require('../../src/lib/error')
@@ -482,13 +483,71 @@ const writeFileToDisk = (fpath, data, callback) => {
 
 const writeFileToDiskAsync = Promise.promisify(writeFileToDisk)
 
-// createTreeObjectAsync('/home/laraine/Projects/appifi/testdata')
-// .then(data => {
-//   console.log('root', data.root)
-//   console.log('size', data.hashArr.size)
-//   console.log('root', data.hashArr.get(data.root))
-// })
-// .catch(e => console.log(e))
+const getCommitAsync = async (boxUUID, username, commitHash) => {
+  let token = await retrieveTokenAsync(username)
+  let cloudToken = await laCloudTokenAsync(username)
+
+  return (await request(app)
+    .get(`/boxes/${boxUUID}/commits/${commitHash}`)
+    .set('Authorization', 'JWT ' + cloudToken + ' ' + token)
+    .expect(200)).body
+}
+
+const getTreeListAsync = async (boxUUID, username, treeHash) => {
+  let token = await retrieveTokenAsync(username)
+  let cloudToken = await laCloudTokenAsync(username)
+
+  return (await request(app)
+    .get(`/boxes/${boxUUID}/trees/${treeHash}`)
+    .set('Authorization', 'JWT ' + cloudToken + ' ' + token)
+    .expect(200)).body
+}
+
+// create a new commit
+// props is optional {parent, branch}
+const createCommitAsync = async (dir, boxUUID, username, props) => {
+  let token = await retrieveTokenAsync(username)
+  let cloudToken = await laCloudTokenAsync(username)
+
+  // calculate hash array in dir(hash array of trees and blobs)
+  let testDir = 'testdata'
+  let result = await createTreeObjectAsync(testDir)
+
+  // get parent hash array
+  let parentCommit, parentTreeList = []
+  if (props && props.parent) {
+    parentCommit = await getCommitAsync(boxUUID, username, props.parent)
+    parentTreeList = await getTreeListAsync(boxUUID, username, parentCommit.tree)
+  }
+
+  // calculate files to upload
+  let toUpload = [...result.hashArr.keys()].reduce((pre, c) => parentTreeList.includes(c) ? pre : [...pre, c], [])
+
+  // root: hash string of a tree obj
+  let obj = toUpload.length !== 0 ? Object.assign({ root: result.root, toUpload }, props)
+                                  : Object.assign({ root: result.root}, props)
+
+  let res = request(app)
+    .post(`/boxes/${boxUUID}/commits`)
+    .set('Authorization', 'JWT ' + cloudToken + ' ' + token)
+    .field('commit', JSON.stringify(obj))
+
+  for (let i = 0; i < toUpload.length; i++) {
+    let info = result.hashArr.get(toUpload[i])
+    let fpath = [...info.path][0]
+
+    res.attach(toUpload[i], fpath, JSON.stringify({size: info.size, sha256: toUpload[i]}))
+  }
+
+  let commit = (await res.expect(200)).body
+  commit.hashArr = [...result.hashArr.keys()]
+  // commit: {sha256, commitObj, hashArr}
+  // sha256 is the hash of commitObj
+  // hashArr is the content hash in commitObj.tree, including tree hash and blob hash
+  await rimrafAsync(result.tmpDir)
+
+  return commit
+}
 
 
 module.exports = {
@@ -504,6 +563,9 @@ module.exports = {
   createBoxAsync,
   createBranchAsync,
   forgeRecords,
-  createTreeObjectAsync
+  createTreeObjectAsync,
+  getCommitAsync,
+  getTreeListAsync,
+  createCommitAsync
 }
 

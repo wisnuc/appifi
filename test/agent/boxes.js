@@ -30,7 +30,8 @@ const {
   createBoxAsync,
   createBranchAsync,
   forgeRecords,
-  createTreeObjectAsync
+  createTreeObjectAsync,
+  createCommitAsync
 } = require('./lib')
 
 const cwd = process.cwd()
@@ -560,7 +561,7 @@ describe(path.basename(__filename), function() {
     })
   })
 
-  describe('box created, test commit', () => {
+  describe('box created, test create a commit(no parent and no branch)', () => {
     let aliceToken, aliceCloudToken, result
     let boxUUID = 'a96241c5-bfe2-458f-90a0-46ccd1c2fa9a'
 
@@ -606,8 +607,77 @@ describe(path.basename(__filename), function() {
 
       return res.expect(200)
         .should.eventually.have.property('body')
-        .to.be.an('string')
+        .to.have.keys('sha256', 'commitObj')
     })
+  })
+
+  describe('after a commit is created', () => {
+    let aliceToken, aliceCloudToken, result, commit
+    let boxUUID = 'a96241c5-bfe2-458f-90a0-46ccd1c2fa9a'
+
+    beforeEach(async () => {
+      await resetAsync()
+      await createUserAsync('alice')
+      await setUserGlobalAsync('alice')
+      aliceToken = await retrieveTokenAsync('alice')
+      aliceCloudToken = await laCloudTokenAsync('alice')
+
+      sinon.stub(UUID, 'v4').onCall(0).returns(boxUUID)
+      // create box                 
+      let props = {name: 'hello', users: [IDS.bob.global.id]}
+      await createBoxAsync(props, 'alice')
+      UUID.v4.restore()
+      // create initial commit
+      let testDir = 'testdata'
+      commit = await createCommitAsync(testDir, boxUUID, 'alice')
+    })
+
+    // afterEach(async () => {
+    //   await rimrafAsync(result.tmpDir)
+    // })
+
+    it('GET /boxes/{uuid}/commits/{commitHash}, should return a commit object', done => {
+      request(app)
+        .get(`/boxes/${boxUUID}/commits/${commit.sha256}`)
+        .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
+        .expect(200)
+        .end((err, res) => {
+          if (err) return done(err)
+          expect(res.body).to.deep.equal(commit.commitObj)
+          done()
+        })
+    })
+
+    it('GET /boxes/{uuid}/trees/{treeHash}, should return a hash array of contents in tree', done => {
+      request(app)
+        .get(`/boxes/${boxUUID}/trees/${commit.commitObj.tree}`)
+        .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
+        .expect(200)
+        .end((err, res) => {
+          if (err) return done(err)
+          let arr = commit.hashArr.reduce((pre, c) => res.body.includes(c) ? pre : [...pre, c], [])
+          expect(arr.length).to.equal(0)
+          done()
+        })
+    })
+
+    it('POST /boxes/{uuid}/commits, should new a branch if create commit with parent and no branch', async () => {
+      let testDir = 'testdata'
+      let test = path.join(testDir, 'foobar/test')
+      fs.writeFileSync(test, 'test')
+
+      let props = { parent: commit.sha256 }
+      await createCommitAsync(testDir, boxUUID, 'alice', props)
+
+      let res = await request(app)
+        .get(`/boxes/${boxUUID}/branches`)
+        .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
+        .expect(200)
+      
+      await rimrafAsync(test)
+      expect(res.body.length).to.equal(2)
+    })
+
   })
 
   describe('after branch is created', () => {
