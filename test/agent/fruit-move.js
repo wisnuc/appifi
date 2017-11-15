@@ -161,7 +161,28 @@ describe(path.basename(__filename), () => {
       })
     })
 
-    it("do nothing (for checking file system), 7e3d2b84", done => done()) 
+    it("do nothing (for checking file system), 7e3d2b84", function (done) {
+      this.timeout(0)
+
+      let vfs = getFruit().driveList
+      let rootDir = vfs.findRootDirByUUID(IDS.alice.home)
+
+/**
+      expect(rootDir.linearize().map(n => n.name)).to.deep.equal([
+        'e2adb5d0-c3c7-4f2a-bd64-3320a1ed0dee',
+        'alonzo_church.jpg',
+        'dir1',
+        'alonzo_church.jpg',
+        'dir3',
+        'alonzo_church.jpg',
+        'vpai001',
+        'dir4',
+        'vpai001',
+        'dir2',
+        'vpai001' ])
+**/    
+      done()
+    }) 
 
     it("move alonzo in root into dir2, 2a47f5ac", function (done) {
       this.timeout(0)
@@ -202,6 +223,8 @@ describe(path.basename(__filename), () => {
                 if (res.body.isStopped) {
                   clearInterval(polling)
 
+                  console.log(res.body)
+
                   let dstPath = path.join(driveDir, IDS.alice.home, 'dir2', FILES.alonzo.name)
                   fingerprint(dstPath, (err, hash) => {
                     if (err) return done(err)
@@ -237,6 +260,7 @@ describe(path.basename(__filename), () => {
         .end((err, res) => {
           if (err) return done(err)  
           debug(res.body) 
+          console.log(res.body)
           let taskId = res.body.uuid
           let polling = setInterval(() => {
             request(app)

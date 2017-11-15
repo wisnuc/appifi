@@ -39,15 +39,6 @@ In our good old C pattern, only `hashed` and `hashless` are used as explicit sta
 // hashFailed nor hashed state
 class Base {
  
-/** 
-  constructor(props) {
-    this.file = props.file
-    this.fail = props.fail
-    this.file.state = this
-    this.enter()
-  }
-**/
-
   constructor (file) {
     // mutual references
     this.file = file
@@ -64,7 +55,7 @@ class Base {
     new NextState(this.file)
   }
 
-  namePathChanged () {}
+  updateName () {}
 
   destroy () {
     this.exit()
@@ -123,7 +114,7 @@ class Hashing extends Base {
     this.file.ctx.fileExitHashing(this.file)
   }
 
-  namePathChanged () {
+  updateName () {
     this.worker.destroyed() 
     this.start()
   }
@@ -141,7 +132,7 @@ class HashFailed extends Base {
     this.file.ctx.fileExitHashFailed(this.file)
   }
 
-  namePathChanged () {
+  updateName () {
     // TODO ???
   }
 }
@@ -158,8 +149,8 @@ class Hashed extends Base {
     this.file.ctx.fileExitHashed(this.file)
   }
 
-  namePathChanged () {
-    this.file.ctx.hashedFileNamePathChanged(this.file)
+  updateName () {
+    this.file.ctx.hashedFileNameUpdated(this.file)
   }
 }
 
@@ -196,8 +187,11 @@ class File extends Node {
     super.destroy(detach)
   }
 
-  namePathChanged () {
-    this.state.namePathChanged()
+  /**
+  For file, update name 
+  */
+  updateName () {
+    this.state.updateName()
   }
 
   setState (State) {
@@ -206,6 +200,7 @@ class File extends Node {
     assert(State === Hashing)
     this.state.setState(State)
   }
+
 }
 
 File.Hashless = Hashless

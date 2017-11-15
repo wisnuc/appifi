@@ -364,9 +364,12 @@ class MediaMap extends EventEmitter {
     }
   }
 
-  fileNamePathChanged (file) {
-    assert(file.meta instanceof Running)
-    file.meta.restart() 
+  fileNameUpdated (file) {
+    // check states, not all files have meta. TODO
+    if (file.meta) {
+      assert(file.meta instanceof Running)
+      file.meta.restart() 
+    }
   }
 
   unindexFile (file) {
