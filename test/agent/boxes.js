@@ -678,6 +678,51 @@ describe(path.basename(__filename), function() {
       expect(res.body.length).to.equal(2)
     })
 
+    it('POST /boxes/{uuid}/commits, should update a branch if create commit with parent and branch', async () => {
+      let testDir = 'testdata'
+      let test = path.join(testDir, 'foobar/test')
+      fs.writeFileSync(test, 'test')
+
+      let branches = (await request(app)
+        .get(`/boxes/${boxUUID}/branches`)
+        .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
+        .expect(200)).body
+      let branch = branches.find(b => b.head === commit.sha256)
+      let props = { parent: commit.sha256, branch: branch.uuid }
+
+      let result = await createCommitAsync(testDir, boxUUID, 'alice', props)
+
+      let updatedBranch = (await request(app)
+        .get(`/boxes/${boxUUID}/branches/${branch.uuid}`)
+        .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
+        .expect(200)).body
+
+      await rimrafAsync(test)
+      expect(updatedBranch.head).to.equal(result.sha256)
+    })
+
+    it.only('POST /boxes/{uuid}/commits, create commit with its root tree already exist in parent commit', async () => {
+      let tree = 'fd4176ea45adef56e4623123d7b5669fcf28a973aff83371903157b527ef5108'
+      let branches = (await request(app)
+        .get(`/boxes/${boxUUID}/branches`)
+        .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
+        .expect(200)).body
+      let branch = branches.find(b => b.head === commit.sha256)
+
+      let result = (await request(app)
+        .post(`/boxes/${boxUUID}/commits`)
+        .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
+        .send({root: tree, parent: commit.sha256, branch: branch.uuid})
+        .expect(200)).body
+      
+      let updatedBranch = (await request(app)
+        .get(`/boxes/${boxUUID}/branches/${branch.uuid}`)
+        .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
+        .expect(200)).body
+
+      expect(result.commitObj.tree).to.equal(tree)
+      expect(updatedBranch.head).to.equal(result.sha256)
+    })
   })
 
   describe('after branch is created', () => {
