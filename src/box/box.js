@@ -420,9 +420,10 @@ class Box {
         else if (props.uploaded.includes(root)) {
           let fpath = path.join(this.ctx.ctx.getTmpDir(), root)
           let data = fs.readFileSync(fpath)
-
+          // console.log(fpath)
           // get tree object
           try {
+            // console.log('read========',data.toString())
             data = JSON.parse(data.toString())
           } catch(e) {
             if (e instanceof SyntaxError)

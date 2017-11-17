@@ -243,14 +243,17 @@ const dataHandler = (rs, callback) => {
       hashMaker = crypto.createHash('sha256')
       hashMaker.update(chunk.slice(len))
 
-      ws.write(chunk)
-      total += chunk.length
+      // ws.write(chunk)
+      if (ws.write(chunk) === false) rs.pause()
+      // total += chunk.length
     } else {
       lenWritten += chunk.length
       hashMaker.update(chunk)
-      ws.write(chunk)
-      total += chunk.length
+      if (ws.write(chunk) === false) rs.pause()
+      // ws.write(chunk)
+      // total += chunk.length
     }
+    total += chunk.length
   })
 
   rs.on('end', () => {
@@ -272,8 +275,19 @@ const dataHandler = (rs, callback) => {
       }
     }
 
+    // console.log('received-----------', fingerprint)
+    // let aaa = 'd4be8322a0978cf6398d9dce471104d38b7da95692d51403121ffe4f8e174485'
+    // if (fingerprint === aaa) {
+    //   console.log(fs.statSync(tmpPath).size)
+    //   let s = fs.readFileSync(tmpPath)
+    //   console.log('=-==========',s.toString())
+    // }
     let received = { total, fingerprint, tmpPath }
     callback(received)
+  })
+
+  ws.on('drain', () => {
+    rs.resume()
   })
 }
 

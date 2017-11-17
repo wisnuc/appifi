@@ -701,7 +701,7 @@ describe(path.basename(__filename), function() {
       expect(updatedBranch.head).to.equal(result.sha256)
     })
 
-    it.only('POST /boxes/{uuid}/commits, create commit with its root tree already exist in parent commit', async () => {
+    it('POST /boxes/{uuid}/commits, create commit with its root tree already exist in parent commit', async () => {
       let tree = 'fd4176ea45adef56e4623123d7b5669fcf28a973aff83371903157b527ef5108'
       let branches = (await request(app)
         .get(`/boxes/${boxUUID}/branches`)

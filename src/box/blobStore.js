@@ -3,7 +3,7 @@ const Promise = require('bluebird')
 const fs = Promise.promisifyAll(require('fs'))
 const child = require('child_process')
 const broadcast = require('../common/broadcast')
-const { fileMagic4 } = require('../lib/xstat')
+const { fileMagic5 } = require('../lib/xstat')
 const identify = require('../lib/identify')
 
 /**
@@ -40,7 +40,7 @@ class BlobStore {
   report(hashArr, callback) {
     if (hashArr.length) {
       for(let i = 0; i < hashArr.length; i++) {
-        fileMagic4(path.join(this.dir, hashArr[i]), (err, magic) => {
+        fileMagic5(path.join(this.dir, hashArr[i]), (err, magic) => {
           if (err) return callback(err)
           if (magic === 'JPEG') {
             let fpath = path.join(this.dir, hashArr[i])

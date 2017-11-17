@@ -466,7 +466,7 @@ module.exports = {
   updateFileHashAsync,
   forceXstat,
   forceXstatAsync,
-  fileMagic4,
+  fileMagic5,
   assertDirXstatSync,
   assertFileXstatSync
 }
