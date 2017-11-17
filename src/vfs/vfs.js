@@ -476,18 +476,15 @@ class VFS extends Forest {
     let srcPath = path.join(srcDir.abspath(), fileName)
     let dstPath = path.join(dstDir.abspath(), fileName)
 
-    cloneFile(srcPath, fileUUID, tmpPath, { hash: true}, err => {
-      if (err) return callback(err)
-      commitFile(tmpPath, dstPath, resolve, callback)
-    })
+    cloneFile(srcPath, fileUUID, tmpPath, { hash: true}, err => err
+      ? callback(err)
+      : commitFile(tmpPath, dstPath, resolve, callback))
   }
 
   mvFile (srcDriveUUID, srcDirUUID, fileUUID, fileName, dstDriveUUID, dstDirUUID, resolve, callback) {
 
     let srcDir = this.uuidMap.get(srcDirUUID)
     let dstDir = this.uuidMap.get(dstDirUUID)
-
-    
   }
 
   readdir(dirUUID, callback) {

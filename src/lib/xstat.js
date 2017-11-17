@@ -175,13 +175,16 @@ const fileMagic5 = (target, callback) =>
   })
 
 
+const fileMagic = fileMagic5
+
 /** 
 Return magic for a regular file. This function uses fileMagic2.
 @func fileMagicAsync 
 @param {string} target - absolute path
 @returns {(string|number)}
 **/
-const fileMagicAsync = Promise.promisify(fileMagic5)
+const fileMagicAsync = Promise.promisify(fileMagic)
+
 
 /**
 Read and validate xattr, drop invalid properties.
@@ -262,6 +265,71 @@ const readXattrAsync = async (target, stats) => {
   return attr
 }
 
+const readXattr = (target, stats, callback) => 
+  xattr.get(target, FRUITMIX, (err, raw) => {
+    if (err && err.code === 'ENODATA') {
+      callback(null, null)
+    } else if (err) {
+      callback(err)
+    } else {
+      let orig, attr = {}
+
+      try {
+        orig = JSON.parse(raw)
+      } catch (e) {
+        return callback(null)
+      }
+
+      let dirty = false
+
+      // validate uuid
+      if (typeof orig === 'object' && orig !== null && isUUID(orig.uuid)) {
+        attr.uuid = orig.uuid
+        // fall-through
+      } else {
+        // if there is no valid uuid, the xattr is totally dropped
+        attr.uuid = UUID.v4()
+        attr.dirty = undefined
+        return callback(null, attr)
+      }
+
+      // validate hash and magic for file
+      if (stats.isFile()) {
+        if (orig.hasOwnProperty('hash')) { 
+          if (isSHA256(orig.hash) && orig.time === stats.mtime.getTime()) {
+            attr.hash = orig.hash
+            attr.time = orig.time
+          } else if (isSHA256(orig.hash) && 
+            !orig.hasOwnProperty('time') &&
+            orig.htime === stats.mtime.getTime() &&
+            stats.size <= 1024 * 1024 * 1024) {
+            attr.hash = orig.hash
+            attr.time = orig.htime
+            attr.dirty = undefined
+          } else {
+            attr.dirty = undefined
+          }
+        }
+
+        // drop magic if version bumped
+        if (Magic.isValidMagic(orig.magic)) {
+          attr.magic = orig.magic
+        } else {
+          attr.dirty = undefined
+        }
+      }
+
+      // remove old data if any TODO remove this code after a few months
+      if (orig.hasOwnProperty('owner') || 
+        orig.hasOwnProperty('writelist') || 
+        orig.hasOwnProperty('readlist')) {
+        attr.dirty = undefined
+      }
+
+      callback(null, attr)
+    }
+  })
+
 /**
 Update target xattr. If target is file and attr has no magic, create it.
 
@@ -277,6 +345,26 @@ const updateXattrAsync = async (target, attr, isFile) => {
 
   await xattr.setAsync(target, FRUITMIX, JSON.stringify(attr))
   return attr
+}
+
+const updateXattr = (target, attr, isFile, callback) => {
+
+  if (isFile && !attr.hasOwnProperty('magic')) {
+    fileMagic(target, (err, magic) => {
+      if (err) {
+        callback(err)
+      } else {
+        attr.magic = magic
+        xattr.set(target, FRUITMIX, JSON.stringify(attr), err => err
+          ? callback(err)
+          : callback(null, attr))
+      }
+    })
+  } else {
+    xattr.set(target, FRUITMIX, JSON.stringify(attr), err => err
+      ? callback(err)
+      : callback(null, attr))
+  }
 }
 
 /**
@@ -343,10 +431,35 @@ callback version of readXstatAsync
 @param {function} callback
 @alias module:xstat.readXstat
 */
-const readXstat = (target, callback) => 
+const readXstatOrig = (target, callback) => 
   readXstatAsync(target)
     .then(xstat => callback(null, xstat))
     .catch(e => callback(e))
+
+const readXstatAlt = (target, callback) => 
+  fs.lstat(target, (err, stats) => {
+    if (err) {
+      callback(err)
+    } else if (!stats.isDirectory() && !stats.isFile()) {
+      let err = new Error('target is neither directory nor regular file')
+      err.code = 'EUNSUPPORTEDFILETYPE'
+      callback(err)
+    } else {
+      readXattr(target, stats, (err, attr) => {
+        if (err) {
+          callback(err)
+        } else if (!attr || attr.hasOwnProperty('dirty')) {
+          updateXattr(target, attr || { uuid: UUID.v4() }, stats.isFile(), (err, attr) => err
+            ? callback(err)
+            : callback(null, createXstat(target, stats, attr)))
+        } else {
+          callback(null, createXstat(target, stats, attr))
+        }
+      })
+    }
+  })
+
+const readXstat = readXstatAlt
 
 /**
 Update file hash

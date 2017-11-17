@@ -31,6 +31,17 @@ class XCopy extends EventEmitter {
     this.root.on('finish', () => this.emit('finish'))
   }
 
+  destroy () {
+    this.root.destroy()
+    this.root = null
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
+  //
+  // state machine
+  //
+  //////////////////////////////////////////////////////////////////////////////
+
   formatDir (dir) {
     return `${dir.srcUUID} ${this.vfs.uuidMap.get(dir.srcUUID).name}`
   }
@@ -38,15 +49,6 @@ class XCopy extends EventEmitter {
   formatFile (file) {
     return `${file.srcUUID} ${file.srcName}`
   }
-
-  readdir (dir, callback) {
-    if (this.user) {
-    } else {
-      this.vfs
-    }
-  } 
-
-
 
   indexPendingFile (file) {
     debug(`file ${this.formatFile(file)} enter pending`)    
@@ -117,6 +119,7 @@ class XCopy extends EventEmitter {
   unindexMakingDir (dir) {
     debug(`dir ${this.formatDir(dir)} exit making (dst)`)
     this.makingDirs.delete(dir)
+    this.reqSched()
   }
 
   indexReadingDir (dir) {
@@ -150,23 +153,22 @@ class XCopy extends EventEmitter {
 
   indexConflictDir (dir) {
     debug(`dir ${this.formatDir(dir)} enter conflict`)
+    this.conflictDirs.add(dir)
   }
 
   unindexConflictDir (dir) {
     debug(`dir ${this.formatDir(dir)} exit conflict`)
+    this.conflictDirs.delete(dir)
   }
 
   indexFailedDir (dir) {
-
+    debug(`dir ${this.formatDir(dir)} enter failed`)
+    this.failedDirs.add(dir) 
   }
 
   unindexFailedDir (dir) {
-
-  }
-
-  destroy () {
-    this.root.destroy()
-    this.root = null
+    debug(`dir ${this.formatDir(dir)} exit failed`)
+    this.failedDirs.delete(dir) 
   }
 
   reqSched () {
@@ -175,42 +177,88 @@ class XCopy extends EventEmitter {
     process.nextTick(() => this.schedule())
   }
 
+  activeParents () {
+    // active parents are dirs containing pending or working files
+    return new Set(Array.from(new Set([...this.pendingFiles, 
+      ...this.workingFiles])).map(f => f.parent))
+  }
+
   // dir pending -> making -> reading -> read
   schedule () {
     this.scheduled = false
 
+    // console.log('schedule begin >>>>')
+
+    // schedule file job
     while (this.pendingFiles.size > 0 && this.workingFiles.size < 1) {
       let file = this.pendingFiles[Symbol.iterator]().next().value
       file.setState(File.Working)
     }
 
-    const condition1 = () => 
-      this.makingDirs.size + this.readingDirs.size + this.readDirs.size < 10 &&
-      this.pendingDirs.size > 0
-
-    while (condition1()) {
-      let dir = this.pendingDirs[Symbol.iterator]().next().value  
-      if (!dir) console.log(this.pendingDirs)
+    // schedule dir job
+    while (this.pendingDirs.size > 0 && 
+      this.activeParents().size + this.makingDirs.size + this.readingDirs.size < 2) { 
+      let dir = this.pendingDirs[Symbol.iterator]().next().value
       dir.setState(Directory.Making)  
     } 
+
+    if (this.makingDirs.size + this.readingDirs.size + this.workingFiles.size === 0) {
+      process.nextTick(() => this.emit('stopped'))
+    }
+
+    // console.log('schedule end <<<<')
   }
 
   /////////////////////////////////////////////////////////////////////////////
+  //
+  // vfs/fruitfs operation proxy
+  //
+  //////////////////////////////////////////////////////////////////////////////
 
-  mkdir(dirUUID, name, resolve, callback) {
-    this.vfs.mkdir(dirUUID, name, resolve, callback)
+
+  mkdir(dirUUID, name, policy, callback) {
+    this.vfs.mkdir(dirUUID, name, policy, callback)
   } 
 
-  // mkdirc
-  mkdirc (srcDirUUID, dstDirUUID, resolve, callback) {
-    this.vfs.mkdirc(this.srcDriveUUID, srcDirUUID, this.dstDriveUUID, dstDirUUID, resolve, callback)
+  // mkdirc make a new dir with name from an existing dir
+  mkdirc (srcDirUUID, dstDirUUID, policy, callback) {
+    this.vfs.mkdirc(this.srcDriveUUID, srcDirUUID, this.dstDriveUUID, dstDirUUID, policy, callback)
   }
 
   cpFile (srcDirUUID, fileUUID, fileName, dstDirUUID, resolve, callback) {
-    this.vfs.cpFile(this.srcDriveUUID, srcDirUUID, fileUUID, fileName, this.dstDriveUUID, dstDirUUID, resolve, callback)
+    this.vfs.cpFile(this.srcDriveUUID, srcDirUUID, fileUUID, fileName, 
+      this.dstDriveUUID, dstDirUUID, resolve, callback)
   }
 
+  //////////////////////////////////////////////////////////////////////////////
+  //
+  //  external/api interface
+  //
+  //  1. view hierarchy
+  //  2. update policy
+  //  3. pause / resume / auto-stop
+  //  4. destroy (cancel)
+  //
+  //////////////////////////////////////////////////////////////////////////////
 
+  view () {
+    let vs = []
+    if (this.root) {
+      this.root.visit(n => vs.push(n.view()))
+    }
+    return vs
+  }
+
+  update (srcUUID, policies) {
+    let node = this.root.find(n => n.srcUUID === srcUUID)
+    node.updatePolicies(policies)
+  }
+
+  pause () {
+  } 
+
+  resume () {
+  }
 }
 
 const xcopy = (vfs, src, dst, entries, callback) => {

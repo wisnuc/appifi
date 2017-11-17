@@ -5,6 +5,7 @@ const rimraf = require('rimraf')
 
 const { readXstat, forceXstat } = require('../lib/xstat')
 const { clone } = require('../lib/btrfs')
+const autoname = require('../lib/autoname') 
 
 /**
 mkdir
@@ -13,27 +14,61 @@ vanilla: new (may be conflict)
 parents: mkdirp (merge) - this is the same logic
 rename: (keep both) - this is the diff logic
 
+problem 1: fs.mkdir returns just EEXIST irrelevent to file type.
+problem 2: if parent ERROR, such as ENOTDIR or ENOENT, vfs is interested on such error. But unable to diff.
+
 no replace logic is provided, you cannot use an empty folder to replace a whole sub-tree.
+
+@param {string} dirPath - directory path to make
+@param {string} resolve - `parents`, `rename`, or else. How to resolve a name conflict
+@param {function} callback - `(err, xstat, resolved) => {}`
 */
 const mkdir = (dirPath, resolve, callback) => {
-  if (resolve === 'parents') {
-    // mkdirp
-    mkdirp(dirPath, err => err 
-      ? callback(err)
-      : readXstat(dirPath, callback))
-  } else if (resolve === 'rename') {
+  if (resolve === 'parents') { // parents (keep if conflict)
     // 
+    // mkdirp cannot be used here for if parent dir does not exist, it succeeds.
+    //
     fs.mkdir(dirPath, err => {
-      if (err) {
-        if (err.code !== 'EEXIST') return callback(err)
+      if (err && err.code === 'EEXIST') {
+        fs.lstat(dirPath, (e, stat) => {
+          if (e) {
+            err.xcode = 'EAGAIN'
+          } else if (stat.isDirectory()) {
+            readXstat(dirPath, (err, xstat) => err
+              ? callback(err)  
+              : callback(null, xstat, true))
+          } else {
+            callback(err)
+          }
+        })
+      } else if (err) {
+        callback(err)
+      } else {
+        readXstat(dirPath, callback)
+      }
+    })
+  } else if (resolve === 'rename') { // auto rename
+    fs.mkdir(dirPath, err => {
+      if (err && err.code === 'EEXIST') {
         let dirname = path.dirname(dirPath)
         let basename = path.basename(dirPath)
-        let dirPath2 = path.join(dirname, autoname(basename, names))
-        fs.mkdir(dirPath2, err => err
-          ? callback(err)
-          : readXstat(dirPath2, (err, xstat) => err 
-              ? callback(err) 
-              : callback(null, xstat, true)))
+        fs.readdir(dirname, (e, names) => {
+          if (e && e.code === 'ENOTDIR') {
+            callback(err)
+          } else if (e) {
+            err.xcode = 'EAGAIN'
+            callback(err)
+          } else {
+            let dirPath2 = path.join(dirname, autoname(basename, names))
+            fs.mkdir(dirPath2, err => err
+              ? callback(err)
+              : readXstat(dirPath2, (err, xstat) => err 
+                  ? callback(err) 
+                  : callback(null, xstat, true))) 
+          }
+        })
+      } else if (err) {
+        callback(err)
       } else {
         readXstat(dirPath, (err, xstat) => err 
           ? callback(err) 
@@ -42,8 +77,20 @@ const mkdir = (dirPath, resolve, callback) => {
     })
   } else { // vanilla
     fs.mkdir(dirPath, err => {
-      if (err) return callback(err)
-      readXstat(dirPath, callback)
+      if (err && err.code === 'EEXIST') {
+        fs.lstat(dirPath, (e, stat) => {
+          if (e) {
+            err.xcode = 'EAGAIN'
+          } else if (stat.isDirectory()) {
+            err.xcode = 'ECONFLICT'     
+          }
+          callback(err)
+        })
+      } else if (err) {
+        callback(err)
+      } else {
+        readXstat(dirPath, callback)
+      }
     })
   }
 }
@@ -158,6 +205,13 @@ module.exports = {
   cloneFile,
   commitFile,
 }
+
+
+
+
+
+
+
 
 
 

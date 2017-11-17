@@ -18,6 +18,9 @@ class State {
     new NextState(this.dir, ...args)
   }
 
+  resolve () {
+  }
+
   enter () {
   }
 
@@ -43,9 +46,20 @@ class Making extends State {
 
     let srcDirUUID = this.dir.srcUUID
     let dstDirUUID = this.dir.parent.dstUUID
-    this.dir.ctx.mkdirc(srcDirUUID, dstDirUUID, null, (err, xstat) => {
+    let policy = this.dir.getPolicy()
+
+    this.dir.ctx.mkdirc(srcDirUUID, dstDirUUID, policy === 'skip' ? null : policy, (err, xstat) => {
       if (err) {
-        this.setState(Failed, err)
+        if (err.xcode === 'ECONFLICT') {
+          if (policy === 'skip') {
+            this.setState(Finished)
+          } else {
+            // pass err and policy to conflict state
+            this.setState(Conflict, err, policy)
+          }
+        } else {
+          this.setState(Failed, err)
+        }
       } else {
         this.dir.dstUUID = xstat.uuid
         this.setState(Reading)
@@ -57,6 +71,27 @@ class Making extends State {
     this.dir.ctx.unindexMakingDir(this.dir)
   }
 }
+
+class Conflict extends State {
+
+  enter (err, policy) {
+    this.err = err
+    this.policy = policy
+    this.dir.ctx.indexConflictDir(this.dir)
+  }
+
+  resolve () {
+    if (this.policy !== this.dir.getPolicy()) {
+      // policy changed
+      this.setState(Making)
+    }
+  }
+
+  exit () {
+    this.dir.ctx.unindexConflictDir(this.dir)
+  }
+}
+
 
 class Reading extends State {
 
@@ -123,17 +158,6 @@ class Read extends State {
   }
 }
 
-class Conflict extends State {
-
-  enter () {
-    this.dir.ctx.indexConflictDir(this.dir)
-  }
-
-  exit () {
-    this.dir.ctx.unindexConflictDir(this.dir)
-  }
-}
-
 class Failed extends State {
   // when directory enter failed 
   // all descendant node are destroyed (but not removed)
@@ -167,7 +191,7 @@ class Directory extends Node {
     super(ctx, parent)
     this.children = []
     this.srcUUID = srcUUID
-   
+
     if (dstUUID) {
       this.dstUUID = dstUUID
       new Read(this, xstats)
@@ -176,10 +200,17 @@ class Directory extends Node {
     } 
   }
 
+  destroy (detach) {
+    this.children.forEach(c => c.destroy())
+    this.state.destroy ()
+    super.destroy(detach)
+  }
+
   setState (NextState) {
     this.state.setState(NextState)
   }
 
+  // change to event emitter
   onChildFinish (child) {
     child.destroy()
     if (this.children.length === 0) {
@@ -187,10 +218,54 @@ class Directory extends Node {
     }
   }
 
-  destroy (detach) {
-    this.children.forEach(c => c.destroy())
-    this.state.destroy ()
-    super.destroy(detach)
+  view () {
+    let obj = {
+      type: 'directory',
+      parent: this.parent && this.parent.srcUUID,
+      srcUUID: this.srcUUID,
+    }
+    
+    if (this.dstUUID) obj.dstUUID = this.dstUUID
+
+    obj.state = this.state.constructor.name
+
+    if (this.policies) obj.policies = this.policies
+
+    return obj
+  }
+
+  getPolicy () {
+    if (this.policies && this.policies.dir) return this.policies.dir.policy
+
+    for (let n = this.parent; n !== null; n = n.parent) {
+      if (n.policies && n.policies.dir && n.policies.dir.recursive) 
+        return n.policies.dir.policy
+    }
+
+    return null
+  }
+
+  /**
+  policies {
+    dir: {
+      policy: 'parents', 'rename', 'skip', or null 
+      recursive: true, or falsy value
+    },
+    file: {
+      policy: 'overwrite', 'rename', 'skip', or null
+      recursive: true, or falsy value
+    }
+  }
+  */
+  updatePolicies (policies) {
+    // FIXME dirty
+    this.policies = policies
+    this.resolve()
+  }
+
+  resolve () {
+    if (this.children) this.children.forEach(c => c.resolve())
+    this.state.resolve()
   }
 }
 

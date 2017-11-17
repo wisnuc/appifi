@@ -7,6 +7,7 @@ const mkdirp = require('mkdirp')
 const mkdirpAsync = Promise.promisify(mkdirp)
 const rimraf = require('rimraf')
 const rimrafAsync = Promise.promisify(rimraf)
+const xattr = require('fs-xattr')
 
 const chai = require('chai')
 const expect = chai.expect
@@ -42,7 +43,7 @@ const dirDPath = path.join(tmptest, 'drives', rootUUID, 'a', 'b', 'c', 'd')
 const dirEPath = path.join(tmptest, 'drives', rootUUID, 'a', 'b', 'c', 'd', 'e')
 const dirFPath = path.join(tmptest, 'drives', rootUUID, 'a', 'b', 'f') 
 const dirGPath = path.join(tmptest, 'drives', rootUUID, 'a', 'b', 'f', 'g') 
-const dirHPath = path.join(tmptest, 'drives', rootUUID, 'a', 'b', 'f', 'g', 'h') 
+const dirHPath = path.join(tmptest, 'drives', rootUUID, 'a', 'b', 'f', 'g', 'h')
 
 describe(path.basename(__filename) + ' dirs', () => {
 
@@ -99,7 +100,7 @@ describe(path.basename(__filename) + ' dirs', () => {
 
     })
   })
- 
+
 })
 
 /**
@@ -116,6 +117,7 @@ tmptest
                         └── h
 
 */
+
 describe(path.basename(__filename) + ' files', () => {
 
   let vfs, mm
@@ -187,5 +189,292 @@ describe(path.basename(__filename) + ' files', () => {
   })
  
 })
+
+// root
+//  a
+//    c (from dir)
+//  b
+//    c (to dir)
+describe(path.basename(__filename) + ', cp dir on dir conflict', () => {
+
+  let mm, vfs, dirA, dirB, dirAC, dirBC, xc
+
+  beforeEach(done => {
+    rimraf.sync(tmptest)
+    mkdirp.sync(path.join(tmptest, 'drives', rootUUID, 'a', 'c'))
+    mkdirp.sync(path.join(tmptest, 'drives', rootUUID, 'b', 'c'))
+
+    mm = new MediaMap()
+    vfs = new VFS(tmptest, mm)
+  
+    vfs.createRoot(rootUUID, (err, root) => {
+      vfs.once('DirReadDone', () => {
+        dirA = vfs.findDirByName('a')
+        dirB = vfs.findDirByName('b')
+        dirAC = vfs.findDirByName('c', 'a')
+        dirBC = vfs.findDirByName('c', 'b')
+
+        let src = { drive: rootUUID, dir: dirA.uuid }
+        let dst = { drive: rootUUID, dir: dirB.uuid }
+        let entries = [dirAC.uuid]
+
+        xcopy(vfs, src, dst, entries, (err, _xc) => {
+          if (err) done(err)
+          xc = _xc
+          done()
+        })
+      })
+    })
+  })
+
+  it('stopped with a @ Read and a/c @ Conflict', done => {
+    xc.on('stopped', () => {
+      // a is in read
+      let xs = Array.from(xc.readDirs)
+      expect(xs.length).to.equal(1)
+      expect(xs[0].srcUUID).to.equal(dirA.uuid)
+      expect(xs[0].dstUUID).to.equal(dirB.uuid)
+      expect(xs[0].state.constructor.name).to.equal('Read') 
+      
+      // a/c is in conflict
+      let ys = Array.from(xc.conflictDirs)
+      expect(ys.length).to.equal(1)
+      expect(ys[0].srcUUID).to.equal(dirAC.uuid)
+      expect(ys[0].state.constructor.name).to.equal('Conflict')
+      done()
+    })
+  })
+
+  it('update a/c with parents should resolve conflict', done => {
+    xc.once('stopped', () => {
+      xc.update(dirAC.uuid, {
+        dir: { policy: 'parents' }
+      }) 
+
+      xc.once('stopped', () => {
+        expect(xc.readDirs.size).to.equal(0)
+        expect(xc.conflictDirs.size).to.equal(0)
+        expect(xc.root.state.constructor.name).to.equal('Finished')
+        done()
+      })
+    })
+  })
+
+  it('update a with parents should NOT resolve conflict', done => {
+    xc.once('stopped', () => {
+      xc.update(dirA.uuid, {
+        dir: { policy: 'parents' }
+      }) 
+
+      xc.reqSched()
+      xc.once('stopped', () => {
+        // a is in read
+        let xs = Array.from(xc.readDirs)
+        expect(xs.length).to.equal(1)
+        expect(xs[0].srcUUID).to.equal(dirA.uuid)
+        expect(xs[0].dstUUID).to.equal(dirB.uuid)
+        expect(xs[0].state.constructor.name).to.equal('Read') 
+        
+        // a/c is in conflict
+        let ys = Array.from(xc.conflictDirs)
+        expect(ys.length).to.equal(1)
+        expect(ys[0].srcUUID).to.equal(dirAC.uuid)
+        expect(ys[0].state.constructor.name).to.equal('Conflict')
+        done()
+      })
+    })
+  })
+
+  it('update a with parents,recursive should resolve conflict', done => {
+    xc.once('stopped', () => {
+      xc.update(dirAC.uuid, {
+        dir: { policy: 'parents', recursive: true }
+      }) 
+
+      xc.once('stopped', () => {
+        expect(xc.readDirs.size).to.equal(0)
+        expect(xc.conflictDirs.size).to.equal(0)
+        expect(xc.root.state.constructor.name).to.equal('Finished')
+        done()
+      })
+    })
+  })
+
+  it('update a/c with rename should resolve conflict', done => {
+    xc.once('stopped', () => {
+      xc.update(dirAC.uuid, {
+        dir: { policy: 'rename' }
+      }) 
+
+      xc.once('stopped', () => {
+        expect(xc.readDirs.size).to.equal(0)
+        expect(xc.conflictDirs.size).to.equal(0)
+        expect(xc.root.state.constructor.name).to.equal('Finished')
+        done()
+      })
+    })
+  })
+
+  it('update a with rename should NOT resolve conflict', done => {
+    xc.once('stopped', () => {
+      xc.update(dirA.uuid, {
+        dir: { policy: 'parents' }
+      }) 
+
+      xc.reqSched()
+      xc.once('stopped', () => {
+        // a is in read
+        let xs = Array.from(xc.readDirs)
+        expect(xs.length).to.equal(1)
+        expect(xs[0].srcUUID).to.equal(dirA.uuid)
+        expect(xs[0].dstUUID).to.equal(dirB.uuid)
+        expect(xs[0].state.constructor.name).to.equal('Read') 
+        
+        // a/c is in conflict
+        let ys = Array.from(xc.conflictDirs)
+        expect(ys.length).to.equal(1)
+        expect(ys[0].srcUUID).to.equal(dirAC.uuid)
+        expect(ys[0].state.constructor.name).to.equal('Conflict')
+        done()
+      })
+    })
+  })
+
+  it('update a with rename,recursive should resolve conflict', done => {
+    xc.once('stopped', () => {
+      xc.update(dirAC.uuid, {
+        dir: { policy: 'rename' }
+      }) 
+
+      xc.once('stopped', () => {
+        expect(xc.readDirs.size).to.equal(0)
+        expect(xc.conflictDirs.size).to.equal(0)
+        expect(xc.root.state.constructor.name).to.equal('Finished')
+        done()
+      })
+    })
+  })
+
+  it('update a/c with skip should resolve conflict', done => {
+    xc.once('stopped', () => {
+      xc.update(dirAC.uuid, {
+        dir: { policy: 'skip' }
+      }) 
+
+      xc.once('stopped', () => {
+        expect(xc.readDirs.size).to.equal(0)
+        expect(xc.conflictDirs.size).to.equal(0)
+        expect(xc.root.state.constructor.name).to.equal('Finished')
+        done()
+      })
+    })
+  })
+
+  it('update a with skip should NOT resolve conflict', done => {
+    xc.once('stopped', () => {
+      xc.update(dirA.uuid, {
+        dir: { policy: 'skip' }
+      }) 
+
+      xc.reqSched()
+      xc.once('stopped', () => {
+        // a is in read
+        let xs = Array.from(xc.readDirs)
+        expect(xs.length).to.equal(1)
+        expect(xs[0].srcUUID).to.equal(dirA.uuid)
+        expect(xs[0].dstUUID).to.equal(dirB.uuid)
+        expect(xs[0].state.constructor.name).to.equal('Read') 
+        
+        // a/c is in conflict
+        let ys = Array.from(xc.conflictDirs)
+        expect(ys.length).to.equal(1)
+        expect(ys[0].srcUUID).to.equal(dirAC.uuid)
+        expect(ys[0].state.constructor.name).to.equal('Conflict')
+        done()
+      })
+    })
+  })
+
+  it('update a with skip,recursive should resolve conflict', done => {
+    xc.once('stopped', () => {
+      xc.update(dirAC.uuid, {
+        dir: { policy: 'skip' }
+      }) 
+
+      xc.once('stopped', () => {
+        expect(xc.readDirs.size).to.equal(0)
+        expect(xc.conflictDirs.size).to.equal(0)
+        expect(xc.root.state.constructor.name).to.equal('Finished')
+        done()
+      })
+    })
+  })
+
+})
+
+// root
+//  a
+//    c (from file)
+//  b
+//    c (to file)
+describe(path.basename(__filename) + ', cp file on file conflict', () => {
+
+  let mm, vfs, dirA, dirB, xc
+
+  beforeEach(done => {
+    rimraf.sync(tmptest)
+    mkdirp.sync(path.join(tmptest, 'drives', rootUUID, 'a'))
+    mkdirp.sync(path.join(tmptest, 'drives', rootUUID, 'b'))
+    fs.copyFileSync('testdata/foo', path.join(tmptest, 'drives', rootUUID, 'a', 'c'))
+    fs.copyFileSync('testdata/foo', path.join(tmptest, 'drives', rootUUID, 'b', 'c'))
+
+    mm = new MediaMap()
+    vfs = new VFS(tmptest, mm)
+  
+    vfs.createRoot(rootUUID, (err, root) => {
+      vfs.once('DirReadDone', () => {
+        dirA = vfs.findDirByName('a')
+        dirB = vfs.findDirByName('b')
+
+        let src = { drive: rootUUID, dir: dirA.uuid }
+        let dst = { drive: rootUUID, dir: dirB.uuid }
+
+        let attr = JSON.parse(xattr.getSync(path.join(tmptest, 'drives', rootUUID, 'a', 'c'), 'user.fruitmix'))
+        let entries = [attr.uuid]
+        xcopy(vfs, src, dst, entries, (err, _xc) => {
+          if (err) done(err)
+          xc = _xc
+          done()
+        })
+      })
+    })
+  })
+
+  it('stopped with a @ Read and a/c @ Conflict', done => {
+    xc.on('stopped', () => {
+
+      console.log(xc)
+     
+      let xs = Array.from(xc.readDirs) 
+      expect(xs.length).to.equal(1)
+      expect(xs[0].srcUUID).to.equal(dirA.uuid)
+      expect(xs[0].dstUUID).to.equal(dirB.uuid)
+      expect(xs[0].state.constructor.name).to.equal('Read')
+
+      let ys = Array.from(xc.conflictFiles)
+      expect(ys.length).to.equal(1)
+      done()
+    })
+  })
+})
+
+
+
+
+
+
+
+
+
 
 
