@@ -440,34 +440,33 @@ class VFS extends Forest {
       return process.nextTick(() => callback(err))
     }
 
-    let dirPath = path.join(this.absolutePath(dir), name)
-    mkdir(dirPath, resolve, (err, xstat, resolved) => {
-      // TODO check dir lost
-      if (err) return callback(err) 
-
-      dir.updateDirChild(xstat)
-      callback(null, xstat, resolved)
+    let target = path.join(this.absolutePath(dir), name)
+    let tmp = path.join(this.tmpDir, UUID.v4())
+    fs.mkdir(tmp, err => {
+      if (err) return callback(err)
+      link(target, tmp, null, resolve, callback)
     })
   }
 
-  // mkdir by copying an existing dir name
+  // mkdir by copying an existing dir (name only)
   mkdirc (srcDriveUUID, srcDirUUID, dstDriveUUID, dstDirUUID, resolve, callback) {
-    
     let srcDir = this.uuidMap.get(srcDirUUID)
-    let dstDir = this.uuidMap.get(dstDirUUID)
+    let name = srcDir.name
 
-    let dstPath = path.join(dstDir.abspath(), srcDir.name)
-    mkdir(dstPath, resolve, (err, xstat, resolved) => {
-      // TODO check dir lost or change
-      if (err) return callback(err)
-
-      dstDir.updateDirChild(xstat)
-      callback(null, xstat, resolved)
-    }) 
+    this.mkdir(dstDriveUUID, dstDirUUID, name, resolve, callback)
   }
 
-  // cp a file. Since the file may not be indexed, fileName should be provided.
-  cpFile (srcDriveUUID, srcDirUUID, fileUUID, fileName, dstDriveUUID, dstDirUUID, resolve, callback) {
+  // mkfile
+  mkfile (driveUUID, dirUUID, fileName, tmp, hash, resolve, callback) {
+
+    let dstDir = this.uuidMap.get(dirUUID)
+    let target = path.join(dstDir.abspath(), fileName)    
+     
+    link(target, tmp, hash, resolve, callback)
+  }  
+
+  // mkfile by copying an existing file
+  mkfilec (srcDriveUUID, srcDirUUID, fileUUID, fileName, ...args) {
 
     let srcDir = this.uuidMap.get(srcDirUUID)
     let dstDir = this.uuidMap.get(dstDirUUID)
@@ -476,13 +475,44 @@ class VFS extends Forest {
     let srcPath = path.join(srcDir.abspath(), fileName)
     let dstPath = path.join(dstDir.abspath(), fileName)
 
-    cloneFile(srcPath, fileUUID, tmpPath, { hash: true}, err => err
-      ? callback(err)
-      : commitFile(tmpPath, dstPath, resolve, callback))
+    clone(srcPath, fileUUID, tmp, (err, xstat) => {
+      if (err) return callback(err)
+      link(dstPath, tmp, xstat.hash, resolve, callback)
+    })
+  }
+
+/**
+  // copy ext file into tmp
+  importFile (extFilePath, tmp, callback) {
+    let destroyed = false
+    let rs, ws
+
+    const destroy = () => {
+    }
+
+    fs.open(extFilePath, 'r', (err, _fd) => {
+      if (destroyed) {
+        fs.close(fd, () => {})
+        return
+      }
+
+      rs = fs.createReadStream(
+      ws = fs.createWriteStream(tmp)
+      rs.on('error', 
+      ws.on('error',
+    })
+
+    return {
+    }
+  }
+**/
+
+  // copy tmp to ext file 
+  exportFile (tmp, extFilePath, callback) {
+
   }
 
   mvFile (srcDriveUUID, srcDirUUID, fileUUID, fileName, dstDriveUUID, dstDirUUID, resolve, callback) {
-
     let srcDir = this.uuidMap.get(srcDirUUID)
     let dstDir = this.uuidMap.get(dstDirUUID)
   }

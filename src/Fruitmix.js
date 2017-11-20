@@ -1453,9 +1453,6 @@ class Fruitmix extends EventEmitter {
   }
 
   mvdir (user, srcDriveUUID, srcDirUUID, name, dstDriveUUID, dstDirUUID, callback) {
-
-    console.log('mvdir')
-
     try {
       this.driveList.mvDirSync(srcDriveUUID, srcDirUUID, name, dstDriveUUID, dstDirUUID)
       process.nextTick(() => callback(null))

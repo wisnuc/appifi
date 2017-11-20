@@ -265,69 +265,77 @@ const readXattrAsync = async (target, stats) => {
   return attr
 }
 
+/**
+Read and validate xattr, drop invalid properties
+
+This function is read-only. It does NOT change xattr of target file or directory.
+
+returns null if target has no attr, or attr is not valid JSON.
+
+@func readXattr
+@param {string} target - target path
+@param {object} stats - `fs.stats` object of target
+@param {function} callback - `(err, null | { attr, dirty }) => {}`
+*/
 const readXattr = (target, stats, callback) => 
   xattr.get(target, FRUITMIX, (err, raw) => {
-    if (err && err.code === 'ENODATA') {
-      callback(null, null)
-    } else if (err) {
-      callback(err)
+    if (err && err.code === 'ENODATA') return callback(null, null)
+    if (err) return callback(err)
+
+    let orig, attr = {}
+    try {
+      orig = JSON.parse(raw)
+    } catch (e) {
+      return callback(null)
+    }
+
+    let dirty = false
+
+    // validate uuid
+    if (typeof orig === 'object' && orig !== null && isUUID(orig.uuid)) {
+      attr.uuid = orig.uuid
+      // fall-through
     } else {
-      let orig, attr = {}
+      // if there is no valid uuid, the xattr is totally dropped
+      attr.uuid = UUID.v4()
+      attr.dirty = undefined
+      return callback(null, attr)
+    }
 
-      try {
-        orig = JSON.parse(raw)
-      } catch (e) {
-        return callback(null)
-      }
-
-      let dirty = false
-
-      // validate uuid
-      if (typeof orig === 'object' && orig !== null && isUUID(orig.uuid)) {
-        attr.uuid = orig.uuid
-        // fall-through
-      } else {
-        // if there is no valid uuid, the xattr is totally dropped
-        attr.uuid = UUID.v4()
-        attr.dirty = undefined
-        return callback(null, attr)
-      }
-
-      // validate hash and magic for file
-      if (stats.isFile()) {
-        if (orig.hasOwnProperty('hash')) { 
-          if (isSHA256(orig.hash) && orig.time === stats.mtime.getTime()) {
-            attr.hash = orig.hash
-            attr.time = orig.time
-          } else if (isSHA256(orig.hash) && 
-            !orig.hasOwnProperty('time') &&
-            orig.htime === stats.mtime.getTime() &&
-            stats.size <= 1024 * 1024 * 1024) {
-            attr.hash = orig.hash
-            attr.time = orig.htime
-            attr.dirty = undefined
-          } else {
-            attr.dirty = undefined
-          }
-        }
-
-        // drop magic if version bumped
-        if (Magic.isValidMagic(orig.magic)) {
-          attr.magic = orig.magic
+    // validate hash and magic for file
+    if (stats.isFile()) {
+      if (orig.hasOwnProperty('hash')) { 
+        if (isSHA256(orig.hash) && orig.time === stats.mtime.getTime()) {
+          attr.hash = orig.hash
+          attr.time = orig.time
+        } else if (isSHA256(orig.hash) && 
+          !orig.hasOwnProperty('time') &&
+          orig.htime === stats.mtime.getTime() &&
+          stats.size <= 1024 * 1024 * 1024) {
+          attr.hash = orig.hash
+          attr.time = orig.htime
+          attr.dirty = undefined
         } else {
           attr.dirty = undefined
         }
       }
 
-      // remove old data if any TODO remove this code after a few months
-      if (orig.hasOwnProperty('owner') || 
-        orig.hasOwnProperty('writelist') || 
-        orig.hasOwnProperty('readlist')) {
+      // drop magic if version bumped
+      if (Magic.isValidMagic(orig.magic)) {
+        attr.magic = orig.magic
+      } else {
         attr.dirty = undefined
       }
-
-      callback(null, attr)
     }
+
+    // remove old data if any TODO remove this code after a few months
+    if (orig.hasOwnProperty('owner') || 
+      orig.hasOwnProperty('writelist') || 
+      orig.hasOwnProperty('readlist')) {
+      attr.dirty = undefined
+    }
+
+    callback(null, attr)
   })
 
 /**
@@ -376,9 +384,9 @@ Create a xstat object.
 @param {object} attr - fruitmix xattr object
 */
 const createXstat = (target, stats, attr) => {
-
   let name = path.basename(target)
   let xstat
+
   if (stats.isDirectory()) {
     xstat = {
       uuid: attr.uuid,
@@ -386,7 +394,9 @@ const createXstat = (target, stats, attr) => {
       name,
       mtime: stats.mtime.getTime()
     }
-  } else if (stats.isFile()) {
+  } 
+
+  if (stats.isFile()) {
     xstat = {
       uuid: attr.uuid,
       type: 'file',
@@ -425,6 +435,36 @@ const readXstatAsync = async target => {
   return xstat
 }
 
+const EUnsupported = stat => {
+  let err = new Error('target is not a regular file or directory')
+
+  /** from nodejs 8.x LTS doc
+  stats.isFile()
+  stats.isDirectory()
+  stats.isBlockDevice()
+  stats.isCharacterDevice()
+  stats.isSymbolicLink() (only valid with fs.lstat())
+  stats.isFIFO()
+  stats.isSocket()
+  */
+  if (stat.isBlockDevice()) {
+    err.code = 'EISBLOCKDEV'
+  } else if (stat.isCharacterDevice()) {
+    err.code = 'EISCHARDEV'
+  } else if (stat.isSymbolicLink()) {
+    err.code = 'EISSYMLINK'
+  } else if (stat.isFIFO()) {
+    err.code = 'EISFIFO'
+  } else if (stat.isSocket()) {
+    err.code = 'EISSOCKET'
+  } else {
+    err.code = 'EISUNKNOWN'
+  }
+
+  err.xcode = 'EUNSUPPORTED'
+  return err
+}
+
 /**
 callback version of readXstatAsync
 @param {string} target - absolute path for file or dir
@@ -441,9 +481,7 @@ const readXstatAlt = (target, callback) =>
     if (err) {
       callback(err)
     } else if (!stats.isDirectory() && !stats.isFile()) {
-      let err = new Error('target is neither directory nor regular file')
-      err.code = 'EUNSUPPORTEDFILETYPE'
-      callback(err)
+      callback(EUnsupported(stats))
     } else {
       readXattr(target, stats, (err, attr) => {
         if (err) {
@@ -487,6 +525,7 @@ const updateFileHashAsync = async (target, uuid, hash, time) => {
   return createXstat(target, stats, attr)
 }
 
+
 /**
 callback version of updateFileHashAsync
 
@@ -500,6 +539,14 @@ const updateFileHash = (target, uuid, hash, time, callback) =>
   updateFileHashAsync(target, uuid, hash, time)
     .then(xstat => callback(null, xstat))
     .catch(e => callback(e))
+
+const updateFileHashAlt = (target, uuid, hash, time, callback) => {
+
+  fs.lstat(target, (err, stat) => {
+    if (err) return callback(err)
+    if (!stat.isFile()) return callback(something ) 
+  })
+}
 
 /**
 Forcefully set xattr with given uuid and/or hash. 
@@ -534,11 +581,47 @@ const forceXstatAsync = async (target, { uuid, hash }) => {
   return xstat
 }
 
-const forceXstat = (target, opts, callback) => {
+const forceXstatOrig = (target, opts, callback) => {
   forceXstatAsync(target, opts)
     .then(xstat => callback(null, xstat))
     .catch(e => callback(e))
 }
+
+// opt can be undefined, null, empty object
+// hash is silently discarded if target is a directory
+const forceXstatAlt = (target, opt, callback) => {
+  let { uuid, hash } = opt || {}
+
+  if (uuid && !isUUID(uuid)) {
+    let err = new Error('invalid uuid')
+    err.code = 'EINVAL'
+    return callback(err)
+  }
+
+  if (hash && !isSHA256(hash)) {
+    let err = new Error('invalid hash/fingerprint')
+    err.code = 'EINVAL'
+    return callback(err)
+  }
+
+  fs.lstat(target, (err, stat) => {
+    if (err) return callback(err)
+    if (!stat.isDirectory() && !stat.isFile()) return callback(EUnsupported(stat))
+
+    let attr = { uuid: uuid || UUID.v4() }
+    if (stat.isFile() && hash) {
+      attr.hash = hash
+      attr.time = stat.mtime.getTime()
+    }
+
+    updateXattr(target, attr, stat.isFile(), (err, attr) => {
+      if (err) return callback(err) 
+      callback(null, createXstat(target, stat, attr))
+    })
+  })
+}
+
+const forceXstat = forceXstatAlt
 
 const assertDirXstatSync = (target, uuid) => {
   let stat = fs.lstatSync(target)
@@ -581,7 +664,7 @@ module.exports = {
   forceXstatAsync,
 
   assertDirXstatSync,
-  assertFileXstatSync
+  assertFileXstatSync,
 }
 
 

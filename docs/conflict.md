@@ -13,21 +13,20 @@
 
 
 
-## 文件夹
+## mkdir
 
-在内部模块的API层面，对于`mkdir`操作，有如下几种可能：
+**undefined/null**
 
+冲突：
 
-
-**vanilla case**
-
-如果同名目标文件夹存在，冲突。
-
-如果同名非文件夹文件存在，失败。
-
+```js
+err.code = 'EEXIST'
+err.xcode = 'ENOTDIR' // if not dir
+```
 
 
-**auto-rename**
+
+**rename**
 
 永远不会失败。用户的意图是创建**新**的文件夹。
 
@@ -39,9 +38,13 @@
 
 
 
-**skip/keep**
+**keep**
 
-不动。
+```js
+err.code = 'EEXIST'
+```
+
+
 
 
 
