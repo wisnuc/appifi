@@ -50,14 +50,14 @@ class Making extends State {
 
     this.dir.ctx.mkdirc(srcDirUUID, dstDirUUID, policy === 'skip' ? null : policy, (err, xstat) => {
       if (err) {
-        if (err.xcode === 'ECONFLICT') {
+        if (err.code === 'EEXIST') {
           if (policy === 'skip') {
             this.setState(Finished)
           } else {
-            // pass err and policy to conflict state
             this.setState(Conflict, err, policy)
           }
         } else {
+          console.log(err)
           this.setState(Failed, err)
         }
       } else {

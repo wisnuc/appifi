@@ -226,7 +226,7 @@ class XCopy extends EventEmitter {
   }
 
   cpFile (srcDirUUID, fileUUID, fileName, dstDirUUID, resolve, callback) {
-    this.vfs.cpFile(this.srcDriveUUID, srcDirUUID, fileUUID, fileName, 
+    this.vfs.copy(this.srcDriveUUID, srcDirUUID, fileUUID, fileName, 
       this.dstDriveUUID, dstDirUUID, resolve, callback)
   }
 

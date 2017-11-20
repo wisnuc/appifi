@@ -31,7 +31,7 @@ const debugi = require('debug')('fruitmix:indexing')
 const debug = Debug('vfs')
 
 const Forest = require('./forest')
-const { mkdir, cloneFile, commitFile } = require('./underlying')
+const { mkdir, mkfile, clone } = require('./underlying')
 
 
 // TODO move to lib
@@ -429,6 +429,13 @@ class VFS extends Forest {
 
     let dir = this.uuidMap.get(dirUUID)
     if (!dir) {
+
+      console.log('=================')
+      for (let [k, dir] of this.uuidMap) {
+        console.log(k, dir.name, dir.parent ? dir.parent.name : null)
+      }
+      console.log('=================')
+
       let err = new Error(`dir ${dirUUID} not found`)
       err.code = 'ENOENT'
       return process.nextTick(() => callback(err))
@@ -441,10 +448,13 @@ class VFS extends Forest {
     }
 
     let target = path.join(this.absolutePath(dir), name)
-    let tmp = path.join(this.tmpDir, UUID.v4())
-    fs.mkdir(tmp, err => {
+    mkdir(target, resolve, (err, xstat, resolved) => {
       if (err) return callback(err)
-      link(target, tmp, null, resolve, callback)
+
+      // this is workaround !!! TODO FIXME
+      let dir = this.uuidMap.get(dirUUID) 
+      dir.updateDirChild(xstat)
+      callback(err, xstat, resolved)
     })
   }
 
@@ -481,35 +491,20 @@ class VFS extends Forest {
     })
   }
 
-/**
-  // copy ext file into tmp
-  importFile (extFilePath, tmp, callback) {
-    let destroyed = false
-    let rs, ws
+  // copy one fruitmix file into another frutimix directory
+  copy (srcDriveUUID, srcDirUUID, fileUUID, fileName, dstDriveUUID, dstDirUUID, policy, callback) {
+    
+    let srcDir = this.uuidMap.get(srcDirUUID)
+    let dstDir = this.uuidMap.get(dstDirUUID)
 
-    const destroy = () => {
-    }
+    let srcFilePath = path.join(srcDir.abspath(), fileName)
+    let dstFilePath = path.join(dstDir.abspath(), fileName)
 
-    fs.open(extFilePath, 'r', (err, _fd) => {
-      if (destroyed) {
-        fs.close(fd, () => {})
-        return
-      }
-
-      rs = fs.createReadStream(
-      ws = fs.createWriteStream(tmp)
-      rs.on('error', 
-      ws.on('error',
-    })
-
-    return {
-    }
-  }
-**/
-
-  // copy tmp to ext file 
-  exportFile (tmp, extFilePath, callback) {
-
+    let tmp = this.genTmpPath()
+    clone(srcFilePath, fileUUID, tmp, (err, xstat) => {
+      if (err) return callback(err)
+      mkfile(dstFilePath, tmp, xstat.hash, policy, callback)
+   }) 
   }
 
   mvFile (srcDriveUUID, srcDirUUID, fileUUID, fileName, dstDriveUUID, dstDirUUID, resolve, callback) {

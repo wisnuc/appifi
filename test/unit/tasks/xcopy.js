@@ -94,7 +94,7 @@ describe(path.basename(__filename) + ' dirs', () => {
       expect(xc.srcDriveUUID).to.equal(src.drive)
       expect(xc.dstDriveUUID).to.equal(dst.drive)
 
-      xc.on('finish', () => {
+      xc.once('stopped', () => {
         done()
       })
 
@@ -227,7 +227,7 @@ describe(path.basename(__filename) + ', cp dir on dir conflict', () => {
     })
   })
 
-  it('stopped with a @ Read and a/c @ Conflict', done => {
+  it('stopped with a @ Read and a/c @ Conflict, cf35240f', done => {
     xc.on('stopped', () => {
       // a is in read
       let xs = Array.from(xc.readDirs)
@@ -245,10 +245,10 @@ describe(path.basename(__filename) + ', cp dir on dir conflict', () => {
     })
   })
 
-  it('update a/c with parents should resolve conflict', done => {
+  it('update a/c with parents should resolve conflict, a6a94864', done => {
     xc.once('stopped', () => {
       xc.update(dirAC.uuid, {
-        dir: { policy: 'parents' }
+        dir: { policy: 'keep' }
       }) 
 
       xc.once('stopped', () => {
@@ -260,10 +260,10 @@ describe(path.basename(__filename) + ', cp dir on dir conflict', () => {
     })
   })
 
-  it('update a with parents should NOT resolve conflict', done => {
+  it('update a with keep should NOT resolve conflict, d52a6d0f', done => {
     xc.once('stopped', () => {
       xc.update(dirA.uuid, {
-        dir: { policy: 'parents' }
+        dir: { policy: 'keep' }
       }) 
 
       xc.reqSched()
@@ -285,10 +285,10 @@ describe(path.basename(__filename) + ', cp dir on dir conflict', () => {
     })
   })
 
-  it('update a with parents,recursive should resolve conflict', done => {
+  it('update a with keep,recursive should resolve conflict, 5f0b8000', done => {
     xc.once('stopped', () => {
       xc.update(dirAC.uuid, {
-        dir: { policy: 'parents', recursive: true }
+        dir: { policy: 'keep', recursive: true }
       }) 
 
       xc.once('stopped', () => {
@@ -300,7 +300,7 @@ describe(path.basename(__filename) + ', cp dir on dir conflict', () => {
     })
   })
 
-  it('update a/c with rename should resolve conflict', done => {
+  it('update a/c with rename should resolve conflict, 6817775f', done => {
     xc.once('stopped', () => {
       xc.update(dirAC.uuid, {
         dir: { policy: 'rename' }
@@ -315,7 +315,7 @@ describe(path.basename(__filename) + ', cp dir on dir conflict', () => {
     })
   })
 
-  it('update a with rename should NOT resolve conflict', done => {
+  it('update a with rename should NOT resolve conflict, e766cc6c', done => {
     xc.once('stopped', () => {
       xc.update(dirA.uuid, {
         dir: { policy: 'parents' }
@@ -340,7 +340,7 @@ describe(path.basename(__filename) + ', cp dir on dir conflict', () => {
     })
   })
 
-  it('update a with rename,recursive should resolve conflict', done => {
+  it('update a with rename,recursive should resolve conflict, c215608a', done => {
     xc.once('stopped', () => {
       xc.update(dirAC.uuid, {
         dir: { policy: 'rename' }
@@ -355,7 +355,7 @@ describe(path.basename(__filename) + ', cp dir on dir conflict', () => {
     })
   })
 
-  it('update a/c with skip should resolve conflict', done => {
+  it('update a/c with skip should resolve conflict, 7422531c', done => {
     xc.once('stopped', () => {
       xc.update(dirAC.uuid, {
         dir: { policy: 'skip' }
@@ -370,7 +370,7 @@ describe(path.basename(__filename) + ', cp dir on dir conflict', () => {
     })
   })
 
-  it('update a with skip should NOT resolve conflict', done => {
+  it('update a with skip should NOT resolve conflict, 619b1e40', done => {
     xc.once('stopped', () => {
       xc.update(dirA.uuid, {
         dir: { policy: 'skip' }
@@ -395,7 +395,23 @@ describe(path.basename(__filename) + ', cp dir on dir conflict', () => {
     })
   })
 
-  it('update a with skip,recursive should resolve conflict', done => {
+  it('update a with skip should resolve conflict, 250937fa', done => {
+    xc.once('stopped', () => {
+      xc.update(dirA.uuid, {
+        dir: { policy: 'skip', recursive: true }
+      }) 
+
+      xc.once('stopped', () => {
+        expect(xc.readDirs.size).to.equal(0)
+        expect(xc.conflictDirs.size).to.equal(0)
+        expect(xc.root.state.constructor.name).to.equal('Finished')
+        done()
+      })
+    })
+  })
+
+
+  it('update a/c with skip should resolve conflict, be695f08', done => {
     xc.once('stopped', () => {
       xc.update(dirAC.uuid, {
         dir: { policy: 'skip' }
@@ -450,10 +466,8 @@ describe(path.basename(__filename) + ', cp file on file conflict', () => {
     })
   })
 
-  it('stopped with a @ Read and a/c @ Conflict', done => {
+  it('stopped with a @ Read and a/c @ Conflict, 3dea504f', done => {
     xc.on('stopped', () => {
-
-      console.log(xc)
      
       let xs = Array.from(xc.readDirs) 
       expect(xs.length).to.equal(1)
