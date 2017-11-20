@@ -7,7 +7,7 @@ const File = require('./file')
 
 class XCopy extends EventEmitter {
 
-  constructor (vfs, src, dst, xstats) {
+  constructor (vfs, src, dst, xstats, policies) {
     super()
 
     this.vfs = vfs
@@ -28,6 +28,9 @@ class XCopy extends EventEmitter {
     this.failedDirs = new Set()
 
     this.root = new Directory(this, null, src.dir, dst.dir, xstats)
+
+    // TODO dirty
+    if (policies) this.root.policies = policies
     this.root.on('finish', () => this.emit('finish'))
   }
 
@@ -261,7 +264,13 @@ class XCopy extends EventEmitter {
   }
 }
 
-const xcopy = (vfs, src, dst, entries, callback) => {
+const xcopy = (vfs, src, dst, entries, policies, callback) => {
+
+  if (typeof policies === 'function') {
+    callback = policies
+    policies = null
+  }
+
   vfs.readdir(src.dir, (err, xstats) => {
     if (err) return callback(err)
 
@@ -280,7 +289,7 @@ const xcopy = (vfs, src, dst, entries, callback) => {
     if (missing.length) {
       callback(new Error('missing'))
     } else {
-      callback(null, new XCopy(vfs, src, dst, found))
+      callback(null, new XCopy(vfs, src, dst, found, policies))
     }
   })
 }
