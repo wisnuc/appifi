@@ -43,28 +43,30 @@ class Making extends State {
   
   enter () {
     this.dir.ctx.indexMakingDir(this.dir)
-
     let srcDirUUID = this.dir.srcUUID
     let dstDirUUID = this.dir.parent.dstUUID
     let policy = this.dir.getPolicy()
 
-    this.dir.ctx.mkdirc(srcDirUUID, dstDirUUID, policy === 'skip' ? null : policy, (err, xstat) => {
-      if (err) {
-        if (err.code === 'EEXIST') {
-          if (policy === 'skip') {
-            this.setState(Finished)
+    this.dir.ctx.mkdirc(
+      srcDirUUID, 
+      dstDirUUID, 
+      policy === 'skip' ? null : policy, 
+      (err, xstat) => {
+        if (err) {
+          if (err.code === 'EEXIST') {
+            if (policy === 'skip') {
+              this.setState(Finished)
+            } else {
+              this.setState(Conflict, err, policy)
+            }
           } else {
-            this.setState(Conflict, err, policy)
+            this.setState(Failed, err)
           }
         } else {
-          console.log(err)
-          this.setState(Failed, err)
+          this.dir.dstUUID = xstat.uuid
+          this.setState(Reading)
         }
-      } else {
-        this.dir.dstUUID = xstat.uuid
-        this.setState(Reading)
-      }
-    })
+      })
   }
 
   exit () {
@@ -87,11 +89,14 @@ class Conflict extends State {
     }
   }
 
+  retry () {
+    this.setState(Making)
+  }
+
   exit () {
     this.dir.ctx.unindexConflictDir(this.dir)
   }
 }
-
 
 class Reading extends State {
 
@@ -226,41 +231,17 @@ class Directory extends Node {
     }
     
     if (this.dstUUID) obj.dstUUID = this.dstUUID
-
     obj.state = this.state.constructor.name
-
-    if (this.policies) obj.policies = this.policies
-
+    if (this.policies) obj.policy = this.policy
     return obj
   }
 
   getPolicy () {
-    if (this.policies && this.policies.dir) return this.policies.dir.policy
-
-    for (let n = this.parent; n !== null; n = n.parent) {
-      if (n.policies && n.policies.dir && n.policies.dir.recursive) 
-        return n.policies.dir.policy
-    }
-
-    return null
+    return this.policy || this.ctx.policies.dir || null
   }
 
-  /**
-  policies {
-    dir: {
-      policy: 'parents', 'rename', 'skip', or null 
-      recursive: true, or falsy value
-    },
-    file: {
-      policy: 'overwrite', 'rename', 'skip', or null
-      recursive: true, or falsy value
-    }
-  }
-  */
-  updatePolicies (policies) {
-    // FIXME dirty
+  setPolicy (policy) {
     this.policies = policies
-    this.resolve()
   }
 
   resolve () {
@@ -277,4 +258,11 @@ Directory.Finished = Finished
 Directory.Failed = Failed
 
 module.exports = Directory
+
+
+
+
+
+
+
 

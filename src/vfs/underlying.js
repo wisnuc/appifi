@@ -90,6 +90,91 @@ const link = (target, tmp, uuid, hash, opt, callback) => {
           }
         })
       } 
+      readXstat(target, (error, xstat) => {
+        if (error && error.xcode !== 'EUNSUPPORTED') {
+          callback(error)
+        } else if (type === 'file' && hash && !error && xstat.hash === hash) {
+          callback(null, xstat, false)
+        } else if (error) {
+          
+        }
+      })
+    } else if (err) {                                     // failed
+      callback(err)
+    } else {                                              // successful
+      if (type === 'directory' && uuid) {
+        forceXstat(target, { uuid }, (err, xstat) => 
+          err ? callback(err) : callback(null, xstat, false))
+      } else {
+        readXstat(target, (err, xstat) => 
+          err ? callback(err) : callback(null, xstat, false))
+      }
+    }
+  })
+}
+
+/**
+opt is a 2-tuple, [same, diff]
+
+same can be (null | undefined), replace, rename)
+diff can be (null | undefined), ~replace~, rename)
+
+callback has (err, xstat, resolved)
+
+resolved is also a 2-tuple of boolean value. 
+
+If the file exists and is resolved by the first rule, 
+
+*/
+const link2 = (target, tmp, uuid, hash, opt, callback) => {
+  const type = tmp ? 'file' : 'directory'
+  const f = tmp
+    ? cb => forceXstat(tmp, { uuid, hash }, (err, xstat) => err ? cb(err) : fs.link(tmp, target, cb))
+    : cb => fs.mkdir(target, cb)
+
+  f(err => {
+    if (err && err.code === 'EEXIST') {                   // conflict
+      if (opt == 'rename') {
+        let dirname = path.dirname(target)
+        let basename = path.basename(target)
+        fs.readdir(dirname, (error, files) => {
+          if (error) return callback(error)
+          let target2 = path.join(dirname, autoname(basename, files))
+          link(target2, tmp, uuid, hash, opt, (err, xstat) => 
+            err ? callback(err) : callback(null, xstat, true))
+        })
+      } else {  // keep, replace, or vanilla
+        readXstat(target, (error, xstat) => {
+          if (error && error.xcode === 'EUNSUPPORTED') {
+            err.xcode = error.code
+            callback(err)
+          } else if (error) {
+            callback(error)
+          } else {
+            if (opt === 'keep' && xstat.type === type) {
+              callback(null, xstat, true)
+            } else if (opt === 'replace' && xstat.type === type) {
+              rimraf(target, error => {
+                if (error) return callback(error)
+                link(target, tmp, xstat.uuid, hash, opt, (err, xstat) => 
+                  err ? callback(err) : callback(null, xstat, true))
+              })
+            } else {
+              err.xcode = xstat.type === 'directory' ? 'EISDIR' : 'EISFILE'  
+              callback(err)
+            }
+          }
+        })
+      } 
+      readXstat(target, (error, xstat) => {
+        if (error && error.xcode !== 'EUNSUPPORTED') {
+          callback(error)
+        } else if (type === 'file' && hash && !error && xstat.hash === hash) {
+          callback(null, xstat, false)
+        } else if (error) {
+          
+        }
+      })
     } else if (err) {                                     // failed
       callback(err)
     } else {                                              // successful
@@ -106,63 +191,6 @@ const link = (target, tmp, uuid, hash, opt, callback) => {
 
 const mkdir = (target, opt, callback) => link(target, null, null, null, opt, callback)
 const mkfile = (target, tmp, hash, opt, callback) => link(target, tmp, null, hash, opt, callback) 
-
-/**
-Clone a file from fruitmix into tmp dir
-*/
-/**
-const cloneFile = (filePath, fileUUID, tmpPath, preserve, callback) => {
-  readXstat(filePath, (err, xstat) => {
-    if (err) return callback(err)
-
-    if (xstat.type !== 'file') {
-      let err = new Error('not a file')
-      err.code = 'ENOTFILE'
-      return callback(err)
-    }
-
-    if (xstat.uuid !== fileUUID) {
-      let err = new Error('uuid mismatch')
-      err.code = 'EUUIDMISMATCH'
-      return callback(err)
-    }
-
-    clone(filePath, tmpPath, err => {
-      if (err) return callback(err)
-
-      fs.lstat(filePath, (err, stat) => {
-        if (err) {
-          rimraf(tmpPath, () => {})
-          return callback(err)
-        } 
-
-        if (stat.mtime.getTime() !== xstat.mtime) {
-          rimraf(tmpPath, () => {})
-          let err = new Error('timestamp mismatch before and after cloning file')
-          err.code === 'ETIMESTAMPMISMATCH'
-          return callback(err)
-        }
-
-        if (preserve) {
-          let opt = {}
-          if (preserve.uuid) opt.uuid = xstat.uuid
-          if (preserve.hash && xstat.hash) opt.hash = xstat.hash
-          forceXstat(tmpPath, opt, err => {
-            if (err) {
-              rimraf(tmpPath, () => {})
-              callback(err)
-            } else {
-              callback(null)
-            }
-          })
-        } else {
-          callback(null) 
-        }
-      })
-    })
-  }) 
-}
-*/
 
 /**
 Clone a file from fruitmix to tmp dir.

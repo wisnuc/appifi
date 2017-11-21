@@ -11,6 +11,7 @@ class XCopy extends EventEmitter {
     super()
 
     this.vfs = vfs
+    this.policies = policies || {}
 
     this.srcDriveUUID = src.drive
     this.dstDriveUUID = dst.drive
@@ -28,9 +29,6 @@ class XCopy extends EventEmitter {
     this.failedDirs = new Set()
 
     this.root = new Directory(this, null, src.dir, dst.dir, xstats)
-
-    // TODO dirty
-    if (policies) this.root.policies = policies
     this.root.on('finish', () => this.emit('finish'))
   }
 
@@ -182,8 +180,7 @@ class XCopy extends EventEmitter {
 
   activeParents () {
     // active parents are dirs containing pending or working files
-    return new Set(Array.from(new Set([...this.pendingFiles, 
-      ...this.workingFiles])).map(f => f.parent))
+    return new Set(Array.from(new Set([...this.pendingFiles, ...this.workingFiles])).map(f => f.parent))
   }
 
   // dir pending -> making -> reading -> read
@@ -271,7 +268,7 @@ Create a xcopy machine.
 @param {object} src - src object
 @param {object} dst - dst object
 @param {object} entries - array of uuid to be copied
-@param {object} policies - 
+@param {object} policies - { dir, file }
 @param {function} callback - `(err, xcopy) => {}`
 */
 const xcopy = (vfs, src, dst, entries, policies, callback) => {
@@ -305,6 +302,3 @@ const xcopy = (vfs, src, dst, entries, policies, callback) => {
 }
 
 module.exports = xcopy
-
-
-

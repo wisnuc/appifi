@@ -127,27 +127,25 @@ class File extends Node {
     this.state.setState(NextState)
   }
 
-  getPolicy () {
-    if (this.policies && this.policies.file && this.policies.file.policy) 
-      return this.policies.file.policy
-
-    let p = this.parent
-    if (p.policies && p.policies.file && p.policies.file.policy)
-      return p.policies.file.policy
-
-    // a for ancestor
-    for (let a = p.parent; a !== null; a = a.parent) {
-      if (a.policies && a.policies.file && a.policies.file.policy)
-        return a.policies.file.policy
+  view () {
+    let obj = {
+      type: 'directory',
+      parent: this.parent && this.parent.srcUUID,
+      srcUUID: this.srcUUID
     }
 
-    return null
+    if (this.dstUUID) obj.dstUUID = this.dstUUID
+    obj.state = this.state.constructor.name
+    if (this.policy) obj.policy = this.policy
+    return obj
+  }
+
+  getPolicy () {
+    return this.policy || this.ctx.policies.file || null
   } 
 
-  updatePolicies (policies) {
-    // FIXME dirty
-    this.policies = policies
-    this.resolve()
+  setPolicy (policy) {
+    this.policy = policy
   }
 
   resolve () {

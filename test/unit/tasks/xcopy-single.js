@@ -26,6 +26,15 @@ const rootUUID = '5c3571f7-c057-41e8-a4cb-489c5c3e2022'
 
 single test includes:
 
+ctx dir policy is null 
+
+keep: if type match
+replace: if type match
+rename: irrelevent of type
+skip: skip if type mismatch
+
+keep, replace, rename, skip
+
 dir -> null
   null, keep, replace, rename, skip
 dir -> dir
@@ -40,19 +49,6 @@ file -> file
 file -> dir
   null, keep, replace, rename, skip
 
-**/
-
-/**
-
-resolve
-
-dir Conflict, code must be EEXIST, xcode: EISDIR, EISFILE, EISSYMLINK
-file Conflict, code must be EEXIST, xcode: EISDIR, EISFIEl, EISSYMLINK 
-
-**/
-
-/**
-retry
 **/
 
 describe(path.basename(__filename) + 'cp a/c (dir) -> b/', () => {
