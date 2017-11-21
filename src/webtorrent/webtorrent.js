@@ -104,6 +104,7 @@ class WebTorrentService {
       return { infoHash, timeRemaining, downloaded, downloadSpeed, progress, numPeers, path, name, torrentPath, magnetURL, downloadPath }
     }
     this.init()
+    console.log('WebTorrent Start!')
   }
 
   //read storage & create tasks
@@ -127,13 +128,13 @@ class WebTorrentService {
   async addTorrent({ torrentPath, downloadPath }) {
     if (!fs.existsSync(torrentPath)) throw new Error('torrent file not exist')
     let torrentBuffer = fs.readFileSync(torrentPath)
-    return await this.createTorrent({ torrentBuffer, downloadPath, torrentPath })
+    return await this.createTorrent({ torrentSource: torrentBuffer, downloadPath, torrentPath })
   }
 
   //add task with magnet url
   async addMagnet({ magnetURL, downloadPath }) {
     if (typeof magnetURL !== 'string' || magnetURL.indexOf('magnet') == -1) throw new Error('magnetURL is not a legal magnetURL')
-    return await this.createTorrent({ magnetURL, downloadPath })
+    return await this.createTorrent({ torrentSource: magnetURL, downloadPath })
   }
 
   // create torrent & storage
@@ -185,6 +186,7 @@ class WebTorrentService {
 
   //query summary of downloading torrent (torrentID is not necessary)
   getSummary({ torrentId }) {
+    console.log(torrentId)
     if (torrentId) {
       if (typeof torrentId !== 'string' || torrentId.length < 1) throw new Error('torrentId is not legal')
       let result = this.client.get(torrentId)
@@ -196,10 +198,13 @@ class WebTorrentService {
   }
 
   //query summary of downloaded torrent
-  getFinish() {
-    return ['hello', 'world']
+  getFinished() {
     return this.downloaded.map(file => file.log())
   }
+
+  getAllTask() {
+    return [...this.getSummary({}), ...this.getFinished({})]
+  }  
 
   //storage list of torrent
   cache() {
@@ -271,7 +276,8 @@ class WebTorrentService {
     ipc.register('pause', (props, callback) => callback(null, this.pause(props)))
     ipc.register('resume', (props, callback) => callback(null, this.resume(props)))
     ipc.register('getSummary', (props, callback) => callback(null, this.getSummary(props)))
-    ipc.register('getFinish', (props, callback) => callback(null, this.getFinish()))
+    ipc.register('getFinished', (props, callback) => callback(null, this.getFinished()))
+    ipc.register('getAllTask', (props, callback) => callback(null, this.getAllTask()))
     ipc.register('destory', asCallback(this.destory.bind(this)))
   }
 }
@@ -279,7 +285,7 @@ class WebTorrentService {
 let ipc = createIpcWorker()
 
 // folder
-let wPath = process.cwd()
+let wPath = process.cwd() + '/tmptest'
 
 let webTorrentService = new WebTorrentService(wPath)
 webTorrentService.register(ipc)

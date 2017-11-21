@@ -35,8 +35,8 @@ class Station {
     this.publicKey = undefined
     this.privateKey = undefined
     this.station = undefined
-    this.connect = undefined
     this.pipe = undefined
+    this.connects = undefined
     this.initialized = false
     this.lock = false
     this.init()
@@ -50,22 +50,28 @@ class Station {
         debug('station start building')
         // await this.registerAsync(froot)
         this.station = await this.registerAsync(froot)
-        //connect to cloud
-        this.connect = new Connect(this) 
-        this.connect.on('ConnectStateChange', state => {
-          debug('state change :', state)
-          this.initialized = (state === CONNECT_STATE.CONNED) ? true : false
-          if (this.initialized) {
-            this.updateCloudUsersAsync()
-              .then(() => {debug('station update success')})
-              .catch(e => debug(e))
-          }
+
+        this.getServerAddresses().forEach(async addr => {
+          //connect to cloud
+          let connect = new Connect(this) 
+          connect.on('ConnectStateChange', state => {
+            debug('state change :', state)
+            if (state === CONNECT_STATE.CONNED) {
+              this.updateCloudUsersAsync()
+                .then(() => {debug('station update success')})
+                .catch(e => debug(e))
+            }
+          })
+          connect.pipe = new Pipe(connect)
+  
+          this.connects = this.connects ? this.connects.push(connect) : [connect]
+
+          await connect.initAsync(addr) // connect to cloud and get token
         })
-        this.tickets = new Tickets(this.station.id, this.connect)
-        this.pipe = new Pipe(path.join(froot, 'tmp'), this.connect)
+
+        this.tickets = new Tickets(this)
         this.initialized = true
 
-        await this.connect.initAsync() // connect to cloud and get token
         broadcast.emit('StationStartDone', this)
       }catch(e){
         debug('Station start error!',e)
@@ -94,11 +100,10 @@ class Station {
     this.froot = undefined
     this.pbkPath = undefined
     this.pvkPath = undefined
-    if(this.initialized)
-      this.connect.deinit()
-    this.connect = undefined
+    if(this.connects)
+      this.connects.forEach(conn => conn.deinit())
+    this.connects = undefined
     this.tickets = undefined
-    this.pipe = undefined
     this.initialized = false
     this.lock = false
     debug('station deinit')
@@ -203,7 +208,7 @@ class Station {
   async updateCloudUsersAsync() {
     let fruit = getFruit()
     if(!fruit) throw new Error('fruitmix not start')
-    let userIds = fruit.userList.users.filter(u=> !!u.global).map(u => u.global.id)
+    let userIds = fruit.userList.users.filter(u=> !!u.global && !disabled).map(u => u.global.id)
     let LANIP = this.getLANIP()
     await this.updateCloudStationAsync({ userIds, LANIP, name: this.station.name })
   }
@@ -230,10 +235,10 @@ class Station {
   }
 
   async updateCloudStationAsync(props) {
-    if(this.initialized && this.connect.isConnected()){
+    if(this.initialized && this.getConnect()){
       let url = CONFIG.CLOUD_PATH + 's/v1/stations/' + this.station.id
-      let token = this.connect.token
-      let opts = { 'Authorization': this.connect.token }
+      let token = this.getToken()
+      let opts = { 'Authorization': token }
       let params = props // TODO change ticket status
       try {
         debug('发起update station info ')
@@ -250,10 +255,11 @@ class Station {
     return
   }
 
+  //FIXME: change ticket
   stationFinishStart(req, res, next) {
-    if(this.initialized && this.connect.isConnected()){
+    if(this.initialized && this.getConnect()){
       req.body.station = this.station
-      req.body.Connect = this.connect
+      req.body.Connect = this.getConnect()
       req.Tickets = this.tickets
       return next()
     }
@@ -262,10 +268,13 @@ class Station {
   }
 
   info (){
-    let info = Object.assign({}, this.station)
-    info.connectState = this.connect.getState()
-    info.pbk = this.publicKey
-    return info
+    if(this.initialized) {
+      let info = Object.assign({}, this.station)
+      info.connectState = this.connects.map(c => c.getState())
+      info.pbk = this.publicKey
+      return info
+    }
+    return false
   }
 
   async updateInfoAsync (props) {
@@ -303,6 +312,26 @@ class Station {
     } finally {
       this.lock = false
     }
+  }
+
+  getServerAddresses() {
+    return [CONFIG.CLOUD_PATH]
+  }
+
+  getToken() {
+    return this.getConnect().token
+  }
+
+  getConnect() {
+    let index = parseInt(Math.random() * 10) % this.connects.length
+    if(!this.connects[index].isConnected()) {
+      for(connect in this.connects) {
+        if(connect.isConnected())
+          return connect
+      }
+      return undefined
+    }
+    return this.connects[index]
   }
 }
 
