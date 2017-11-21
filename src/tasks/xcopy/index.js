@@ -218,7 +218,6 @@ class XCopy extends EventEmitter {
   //
   //////////////////////////////////////////////////////////////////////////////
 
-
   mkdir(dirUUID, name, policy, callback) {
     this.vfs.mkdir(dirUUID, name, policy, callback)
   } 
@@ -229,7 +228,8 @@ class XCopy extends EventEmitter {
   }
 
   cpFile (srcDirUUID, fileUUID, fileName, dstDirUUID, resolve, callback) {
-    this.vfs.copy(this.srcDriveUUID, srcDirUUID, fileUUID, fileName, 
+    this.vfs.copy(
+      this.srcDriveUUID, srcDirUUID, fileUUID, fileName, 
       this.dstDriveUUID, dstDirUUID, resolve, callback)
   }
 
@@ -264,6 +264,16 @@ class XCopy extends EventEmitter {
   }
 }
 
+/**
+Create a xcopy machine.
+
+@param {object} vfs - reference to vfs
+@param {object} src - src object
+@param {object} dst - dst object
+@param {object} entries - array of uuid to be copied
+@param {object} policies - 
+@param {function} callback - `(err, xcopy) => {}`
+*/
 const xcopy = (vfs, src, dst, entries, policies, callback) => {
 
   if (typeof policies === 'function') {
@@ -295,5 +305,6 @@ const xcopy = (vfs, src, dst, entries, policies, callback) => {
 }
 
 module.exports = xcopy
+
 
 

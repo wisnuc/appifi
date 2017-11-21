@@ -412,7 +412,63 @@ class VFS extends Forest {
     }
   }
 
+
   /**
+  This function returns dir or throw an error
+
+  union can be an dirUUID, or an array of dir uuids represential a partial path (reverse order).
+
+  @param {string} driveUUID - drive uuid
+  @param {string|string[]} union - dir uuid or dir uuids
+  */
+  getDriveDirSync (driveUUID, union) {
+    let root = this.roots.get(driveUUID)
+    if (!root) {
+      let err = new Error(`drive ${driveUUID} not found`)
+      err.code = 'ENOENT'
+      throw err
+    }
+
+    let dirUUID = Array.isArray(union) ? union[0] : union
+    let dir = this.uuidMap.get(dirUUID)
+    if (!dir) {
+      let err = new Error(`dir ${dirUUID} not found`)
+      err.code = 'ENOENT'
+      throw err
+    }
+
+    if (dir.root() !== root) {
+      let err = new Error(`dir ${dirUUID} is not in drive ${driveUUID}`)
+      err.code = 'ENOENT'
+      throw err
+    }
+
+    if (Array.isArray(union)) {
+      // TODO rewrite with for ???
+
+      // reverse order
+      let partial = union.join(',')
+      // reverse nodepath
+      let full = dir.nodepath().reverse().map(n => n.uuid).join(',')
+
+      if (!full.startsWith(partial)) {
+        let err = new Error(`invalid dir uuid path`)
+        err.code = 'ENOENT'
+        throw err
+      }
+    }
+
+    return dir
+  } 
+
+  getDriveDirPathSync (driveUUID, union) {
+    let dir = this.getDriveDirSync(dirveUUID, union) 
+    return dir.abspath()
+  }
+
+  /**
+  !!! Important !!!
+  This is the only place to read dir after making new dir
   
   @param {string} driveUUID - drive uuid
   @param {string} dirUUID - directory uuid
@@ -420,41 +476,43 @@ class VFS extends Forest {
   @param {string} resolve - 
   */
   mkdir (driveUUID, dirUUID, name, resolve, callback) {
-    let root = this.roots.get(driveUUID)
-    if (!root) {
-      let err = new Error(`drive ${driveUUID} not found`)
-      err.code = 'ENOENT'
-      return process.nextTick(() => callback(err))
-    }
+    let dir
 
-    let dir = this.uuidMap.get(dirUUID)
-    if (!dir) {
-
-      console.log('=================')
-      for (let [k, dir] of this.uuidMap) {
-        console.log(k, dir.name, dir.parent ? dir.parent.name : null)
-      }
-      console.log('=================')
-
-      let err = new Error(`dir ${dirUUID} not found`)
-      err.code = 'ENOENT'
-      return process.nextTick(() => callback(err))
-    }
-
-    if (dir.root() !== root) {
-      let err = new Error(`drive ${driveUUID} does not contain dir ${dirUUID}`)
-      err.code = 'ENOENT'
-      return process.nextTick(() => callback(err))
+    try {
+      dir = this.getDriveDirSync(driveUUID, dirUUID) 
+    } catch (e) {
+      return process.nextTick(() => callback(e))
     }
 
     let target = path.join(this.absolutePath(dir), name)
     mkdir(target, resolve, (err, xstat, resolved) => {
-      if (err) return callback(err)
+      // check dir again
+      try {
+        dir = this.getDriveDirSync(driveUUID, dirUUID)
+      } catch (e) {
+        e.xcode = 'EDIRTY'
+        return callback(e)
+      }
 
-      // this is workaround !!! TODO FIXME
-      let dir = this.uuidMap.get(dirUUID) 
-      dir.updateDirChild(xstat)
-      callback(err, xstat, resolved)
+      if (err) return callback(err)
+      
+      // TODO read more dirs in every case!
+      // when a new dir is created:
+      // 1. resolved === false
+      // 2. policy === rename && resolved === true 
+      // 3. policy === replace && resolved === true 
+      dir.read((err, xstats) => {
+        if (err) return callback(err)
+        let found = xstats.find(x => x.uuid === xstat.uuid)
+        if (!found) {
+          let err = new Error(`failed to find newly created directory`)
+          err.code = 'ENOENT'
+          err.xdoe = 'EDIRTY'
+          return callback(err)
+        } else {
+          callback(null, found, resolved)
+        }
+      }) 
     })
   }
 
@@ -468,7 +526,6 @@ class VFS extends Forest {
 
   // mkfile
   mkfile (driveUUID, dirUUID, fileName, tmp, hash, resolve, callback) {
-
     let dstDir = this.uuidMap.get(dirUUID)
     let target = path.join(dstDir.abspath(), fileName)    
      
