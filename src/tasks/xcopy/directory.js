@@ -1,5 +1,10 @@
 const Node = require('./node')
-const File = require('./file')
+const { 
+  File,
+  CopyFile,
+  ImportFile,
+  ExportFile
+} = require('./file')
 
 class State {
 
@@ -39,10 +44,21 @@ class Pending extends State {
   } 
 }
 
-class Making extends State {
+class Working extends State {
+  enter () {
+    this.dir.ctx.indexWorkingDir(this.dir)
+  }
+
+  exit () {
+    this.dir.ctx.unindexWorkingDir(this.dir)
+  } 
+}
+
+class CopyWorking extends Working {
   
   enter () {
-    this.dir.ctx.indexMakingDir(this.dir)
+    super.enter()
+
     let srcDirUUID = this.dir.srcUUID
     let dstDirUUID = this.dir.parent.dstUUID
     let policy = this.dir.getPolicy()
@@ -58,9 +74,46 @@ class Making extends State {
       }
     })
   }
+}
 
-  exit () {
-    this.dir.ctx.unindexMakingDir(this.dir)
+class MoveWorking extends Working {
+
+  enter () {
+    super.enter()
+
+    let srcDirUUID = this.dir.srcUUID
+    let dstDirUUID = this.dir.parent.dstUUID
+    let policy = this.dir.getPolicy()
+    this.dir.ctx.mvdirc(srcDirUUID, dstDirUUID, policy, (err, xstat, resolved) => {
+      if (err && err.code === 'EEXIST') {
+        this.setState(Conflict, err, policy)
+      } else if (err) {
+        this.setState(Failed, err)
+      } else {
+        let [same, diff] = resolved 
+        if (same === 'skip') { // this is acturally a merging, same with copy
+          this.dir.dstUUID = xstat.uuid 
+          this.setState(Reading)
+        } else {
+          this.setState(Finished)
+        }
+      }
+    })
+  }
+
+}
+
+class ImportWorking extends Working {
+
+  enter () {
+    super.enter()
+  }
+}
+
+class ExportWorking extends Working {
+
+  enter () {
+    super.enter()
   }
 }
 
@@ -86,7 +139,7 @@ class Reading extends State {
   enter () {
     this.dir.ctx.indexReadingDir(this.dir)
 
-    this.dir.ctx.vfs.readdir(this.dir.srcUUID, (err, xstats) => {
+    this.dir.ctx.ctx.readdir(this.dir.srcUUID, (err, xstats) => {
       if (err) {
         this.setState(Failed, err)
       } else {
@@ -114,19 +167,24 @@ class Read extends State {
 
     if (this.dir.fstats.length) {
       let fstat = this.dir.fstats.shift()
-      let file = new File(this.dir.ctx, this.dir, fstat.uuid, fstat.name)
+      let file = new CopyFile(this.dir.ctx, this.dir, fstat.uuid, fstat.name)
       file.on('error', err => { 
         // TODO
         this.next()
       })
 
-      file.on('finish', () => (file.destroy(true), this.next()))
+      file.on('finish', () => {
+        console.log(file.state.constructor.name)
+        file.destroy(true)
+        this.next()
+      })
+
       return
     }
 
     if (this.dir.dstats.length) {
       let dstat = this.dir.dstats.shift()
-      let dir = new Directory(this.dir.ctx, this.dir, dstat.uuid)
+      let dir = new CopyDirectory(this.dir.ctx, this.dir, dstat.uuid)
       dir.on('error', err => {
         // TODO
         this.next()
@@ -175,17 +233,9 @@ class Finished extends State {
 class Directory extends Node {
 
   // dstUUID and xstats must be provided together
-  constructor(ctx, parent, srcUUID, dstUUID, xstats) {
+  constructor(ctx, parent) {
     super(ctx, parent)
     this.children = []
-    this.srcUUID = srcUUID
-
-    if (dstUUID) {
-      this.dstUUID = dstUUID
-      new Read(this, xstats)
-    } else {
-      new Pending(this)
-    } 
   }
 
   destroy (detach) {
@@ -200,6 +250,9 @@ class Directory extends Node {
 
   // change to event emitter
   onChildFinish (child) {
+
+    console.log('destorying child', child)
+
     child.destroy()
     if (this.children.length === 0) {
       console.log('done')  
@@ -241,14 +294,84 @@ class Directory extends Node {
   }
 }
 
-Directory.Pending = Pending
-Directory.Making = Making
-Directory.Reading = Reading
-Directory.Conflict = Conflict
-Directory.Finished = Finished
-Directory.Failed = Failed
+Directory.prototype.Pending = Pending
+Directory.prototype.Working = Working
+Directory.prototype.Reading = Reading
+Directory.prototype.Conflict = Conflict
+Directory.prototype.Finished = Finished
+Directory.prototype.Failed = Failed
 
-module.exports = Directory
+class CopyDirectory extends Directory {
+
+  constructor(ctx, parent, srcUUID, dstUUID, xstats) {
+    super(ctx, parent)
+    this.srcUUID = srcUUID
+    if (dstUUID) {
+      this.dstUUID = dstUUID
+      new Read(this, xstats)
+    } else {
+      new Pending(this)
+    }
+  } 
+}
+
+CopyDirectory.prototype.Working = CopyWorking
+
+class MoveDirectory extends Directory {
+
+  constructor(ctx, parent, srcUUID, dstUUID, xstats) {
+    super(ctx, parent)
+    this.srcUUID = srcUUID
+    if (dstUUID) {
+      this.dstUUID = dstUUID
+      new Read(this, xstats)
+    } else {
+      new Pending(this)
+    }
+  }
+}
+
+MoveDirectory.prototype.Working = MoveWorking
+
+class ImportDirectory extends Directory {
+  
+  constructor(ctx, parent, srcPath, dstUUID, stats) {
+    super(ctx, parent)
+    this.srcPath = srcPath
+    if (dstUUID) {
+      this.dstUUID = dstUUID
+      new Read(this, stats)
+    } else {
+      new Pending(this)
+    }
+  }
+}
+
+ImportDirectory.prototype.Working = ImportWorking
+
+class ExportDirectory extends Directory {
+
+  constructor(ctx, parent, srcUUID, dstPath, xstats) {
+    super(ctx, parent)
+    this.srcUUID = srcUUID
+    if (dstPath) {
+      this.dstPath = dstPath
+      new Read(this, xstats)
+    } else {
+      new Pending(this)
+    }
+  }
+}
+
+ExportDirectory.prototype.Working = ExportWorking
+
+module.exports = {
+  Directory,
+  CopyDirectory,
+  MoveDirectory,
+  ImportDirectory,
+  ExportDirectory
+}
 
 
 

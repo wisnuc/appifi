@@ -2,19 +2,30 @@ const EventEmitter = require('events')
 
 const debug = require('debug')('xcopy')
 
-const Directory = require('./directory')
-const File = require('./file')
+const { 
+  Directory,
+  CopyDirectory,
+  MoveDirectory,
+  ImportDirectory,
+  ExportDirectory
+} = require('./directory')
 
-class XCopy extends EventEmitter {
+const { 
+  File,
+  CopyFile,
+  MoveFile,
+  ImportFile,
+  ExportFile
+} = require('./file')
 
-  constructor (vfs, src, dst, xstats, policies) {
+class XBase extends EventEmitter {
+
+  // if user is not provided, ctx is vfs, otherwise, it is fruitmix
+  constructor (ctx, user, policies) {
     super()
-
-    this.vfs = vfs
+    this.ctx = ctx
+    this.user = user
     this.policies = policies || { dir: [], file: [] }
-
-    this.srcDriveUUID = src.drive
-    this.dstDriveUUID = dst.drive
 
     this.pendingFiles = new Set()
     this.workingFiles = new Set()
@@ -27,15 +38,18 @@ class XCopy extends EventEmitter {
     this.readDirs = new Set()
     this.conflictDirs = new Set()
     this.failedDirs = new Set()
-
-    this.root = new Directory(this, null, src.dir, dst.dir, xstats)
-    this.root.on('finish', () => this.emit('finish'))
   }
 
   destroy () {
     this.root.destroy()
-    this.root = null
   }
+
+  pause () {
+  } 
+
+  resume () {
+  }
+
 
   //////////////////////////////////////////////////////////////////////////////
   //
@@ -44,7 +58,7 @@ class XCopy extends EventEmitter {
   //////////////////////////////////////////////////////////////////////////////
 
   formatDir (dir) {
-    return `${dir.srcUUID} ${this.vfs.uuidMap.get(dir.srcUUID).name}`
+    return `${dir.srcUUID} ${this.ctx.uuidMap.get(dir.srcUUID).name}`
   }
 
   formatFile (file) {
@@ -112,12 +126,12 @@ class XCopy extends EventEmitter {
     this.pendingDirs.delete(dir)
   }
 
-  indexMakingDir (dir) {
+  indexWorkingDir (dir) {
     debug(`dir ${this.formatDir(dir)} enter making (dst)`)
     this.makingDirs.add(dir)
   }
 
-  unindexMakingDir (dir) {
+  unindexWorkingDir (dir) {
     debug(`dir ${this.formatDir(dir)} exit making (dst)`)
     this.makingDirs.delete(dir)
     this.reqSched()
@@ -192,14 +206,14 @@ class XCopy extends EventEmitter {
     // schedule file job
     while (this.pendingFiles.size > 0 && this.workingFiles.size < 1) {
       let file = this.pendingFiles[Symbol.iterator]().next().value
-      file.setState(File.Working)
+      file.setState(file.Working)
     }
 
     // schedule dir job
     while (this.pendingDirs.size > 0 && 
       this.activeParents().size + this.makingDirs.size + this.readingDirs.size < 2) { 
       let dir = this.pendingDirs[Symbol.iterator]().next().value
-      dir.setState(Directory.Making)  
+      dir.setState(dir.Working)  
     } 
 
     if (this.makingDirs.size + this.readingDirs.size + this.workingFiles.size === 0) {
@@ -216,18 +230,88 @@ class XCopy extends EventEmitter {
   //////////////////////////////////////////////////////////////////////////////
 
   mkdir(dirUUID, name, policy, callback) {
-    this.vfs.mkdir(dirUUID, name, policy, callback)
+    if (this.user) {
+      this.ctx.mkdir(this.user, dirUUID, name, policy, callback)
+    } else {
+      this.ctx.mkdir(dirUUID, name, policy, callback)
+    }
   } 
 
   // mkdirc make a new dir with name from an existing dir
   mkdirc (srcDirUUID, dstDirUUID, policy, callback) {
-    this.vfs.mkdirc(this.srcDriveUUID, srcDirUUID, this.dstDriveUUID, dstDirUUID, policy, callback)
+    if (this.user) {
+      this.ctx.mkdirc(
+        this.user, 
+        this.srcDriveUUID, 
+        srcDirUUID, 
+        this.dstDriveUUID, 
+        dstDirUUID, policy, 
+        callback
+      )
+    } else {
+      this.ctx.mkdirc(
+        this.srcDriveUUID, 
+        srcDirUUID, 
+        this.dstDriveUUID, 
+        dstDirUUID, 
+        policy, callback
+      )
+    }
   }
 
   cpFile (srcDirUUID, fileUUID, fileName, dstDirUUID, policy, callback) {
-    this.vfs.copy(
-      this.srcDriveUUID, srcDirUUID, fileUUID, fileName, 
-      this.dstDriveUUID, dstDirUUID, policy, callback)
+
+    if (this.user) {
+      this.ctx.copy(
+        this.user,
+        this.srcDriveUUID, 
+        srcDirUUID, fileUUID, 
+        fileName, 
+        this.dstDriveUUID, 
+        dstDirUUID, 
+        policy, 
+        callback
+      )
+    } else {
+      this.ctx.copy(
+        this.srcDriveUUID, 
+        srcDirUUID, fileUUID, 
+        fileName, 
+        this.dstDriveUUID, 
+        dstDirUUID, 
+        policy, 
+        callback
+      )
+    }
+  }
+
+  mvdirc (srcDirUUID, dstDirUUID, policy, callback) {
+    if (this.user) {
+    } else {
+      this.ctx.mvdirc(
+        this.srcDriveUUID, 
+        srcDirUUID, 
+        this.dstDriveUUID, 
+        dstDirUUID, 
+        policy, callback
+      )
+    }
+  }
+
+  mvfilec (srcDirUUID, srcFileUUID, srcFilename, dstDirUUID, policy, callback) {
+    if (this.user) {
+    } else {
+      this.ctx.mvfilec(
+        this.srcDriveUUID,
+        srcDirUUID,
+        srcFileUUID,
+        srcFileName,
+        this.dstDriveUUID,
+        dstDirUUID,
+        policy,
+        callback
+      )
+    }
   }
 
   //////////////////////////////////////////////////////////////////////////////
@@ -242,16 +326,15 @@ class XCopy extends EventEmitter {
   //////////////////////////////////////////////////////////////////////////////
 
   view () {
-    let vs = []
+    
+    let nodes = []
     if (this.root) {
-      this.root.visit(n => vs.push(n.view()))
+      this.root.visit(n => nodes.push(n.view()))
     }
-    return vs
-  }
-
-  update (srcUUID, policies) {
-    let node = this.root.find(n => n.srcUUID === srcUUID)
-    node.updatePolicies(policies)
+    return {
+      mode: this.mode,
+      nodes
+    }
   }
 
   setPolicy (srcUUID, type, policy, applyToAll) {
@@ -267,51 +350,80 @@ class XCopy extends EventEmitter {
     }
   }
 
-  pause () {
+}
+
+class XCopy extends XBase {
+
+  constructor (ctx, user, policies, src, dst, xstats) {
+    super(ctx, user, policies)
+    this.srcDriveUUID = src.drive
+    this.dstDriveUUID = dst.drive
+    this.root = new CopyDirectory(this, null, src.dir, dst.dir, xstats)
+    this.root.on('finish', () => {})
+  }
+}
+
+class XMove extends XBase {
+  constructor (ctx, user, policies, src, dst, xstats) {
+    super(ctx, user, policies)
+    this.srcDriveUUID = src.drive
+    this.dstDriveUUID = dst.drive
+    this.root = new MoveDirectory(this, null, src.dir, dst.dir, xstats)
+    this.root.on('finish', () => {})
+  }
+}
+
+// return formatted policies 
+const formatPolicies = policies => {
+  const vs = [undefined, null, 'skip', 'replace', 'rename']
+  const obj = { dir: [], file: [] }  
+
+  if (policies === undefined || policies === null) return obj
+
+  if (typeof policies !== 'object') throw new Error('policies is not an object')
+
+  if (policies.hasOwnProperty('dir')) {
+    if (!Array.isArray(policies.dir)) throw new Error('policies.dir is not an array')
+    if (!vs.includes(policies.dir[0])) throw new Error('invalid policies.dir[0]')
+    if (!vs.includes(policies.dir[1])) throw new Error('invalid policies.dir[1]')
+    obj.dir = policies.dir.slice(0, 2)
   } 
 
-  resume () {
-  }
+  if (policies.hasOwnProperty('file')) {
+    if (!Array.isArray(policies.file)) throw new Error('policies.file is not an array')
+    if (!vs.includes(policies.file[0])) throw new Error('invalid policies.file[0]')
+    if (!vs.includes(policies.file[1])) throw new Error('invalid policies.file[1]')
+    obj.file = policies.file.slice(0, 2)
+  } 
+
+  return obj
 }
 
 /**
 Create a xcopy machine.
 
-@param {object} vfs - reference to vfs
-@param {object} src - src object
-@param {object} dst - dst object
-@param {object} entries - array of uuid to be copied
+@param {object} ctx - reference fruitmix or vfs (if user is not provided)
+@param {object} user - user object
+@parma {string} mode - copy, move, import, export
+@param {object} src - { drive, dir } or { path }
+@param {object} dst - { drive, dir } or { path }
+@param {object} entries - array of uuid or names to be copied
 @param {object} policies - { dir, file }
 @param {function} callback - `(err, xcopy) => {}`
 */
-const xcopy = (vfs, src, dst, entries, policies, callback) => {
-
+const xcopy = (ctx, user, mode, src, dst, entries, policies, callback) => {
   if (typeof policies === 'function') {
     callback = policies
-    policies = {
-      dir: [],
-      file: []
-    }
+    policies = null
   }
 
-  if (policies) {
-    if (typeof policies !== 'object') { 
-      let err = new Error('invalid format of policies')
-      return process.nextTick(() => callback(err))
-    }
-
-    if (policies.hasOwnProperty('dir') && !Array.isArray(policies.dir)) {
-      let err = new Error('invalid')
-      return process.nextTick(() => callback(err))
-    }
-
-    if (policies.hasOwnProperty('file') && !Array.isArray(policies.file)) {
-      let err = new Error('invalid')
-      return process.nextTick(() => callback(err))
-    }
+  try {
+    policies = formatPolicies(policies)
+  } catch (e) {
+    return process.nextTick(() => callback(e))
   }
 
-  vfs.readdir(src.dir, (err, xstats) => {
+  ctx.readdir(src.dir, (err, xstats) => {
     if (err) return callback(err)
 
     let found = []   // xstat
@@ -329,7 +441,17 @@ const xcopy = (vfs, src, dst, entries, policies, callback) => {
     if (missing.length) {
       callback(new Error('missing'))
     } else {
-      callback(null, new XCopy(vfs, src, dst, found, policies))
+
+      if (mode === 'copy') {
+        let xc = new XCopy(ctx, user, policies, src, dst, xstats)
+        callback(null, xc)
+      } else if (mode === 'move') {
+        let xc = new XMove(ctx, user, policies, src, dst, xstats)
+        callback(null, xc)
+      } else {
+        let err = new Error('unsupported')
+        callback(err)
+      }
     }
   })
 }

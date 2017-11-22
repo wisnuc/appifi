@@ -560,7 +560,10 @@ class VFS extends Forest {
     let tmp = this.genTmpPath()
     clone(srcFilePath, fileUUID, tmp, (err, xstat) => {
       if (err) return callback(err)
-      mkfile(dstFilePath, tmp, xstat.hash, policy, callback)
+      mkfile(dstFilePath, tmp, xstat.hash, policy, err => {
+        rimraf(tmp, () => {})
+        callback(err)
+      })
    }) 
   }
 

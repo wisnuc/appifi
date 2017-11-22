@@ -7,104 +7,7 @@ const { readXstat, forceXstat } = require('../lib/xstat')
 const btrfs = require('../lib/btrfs')
 const autoname = require('../lib/autoname') 
 
-/**
-mkdir
 
-fs.mkdir returns EEXIST if name conflicts. But it does not tell if the existing file is a regular file,
-directory, or other kind of special files. 
-
-This may raise the problem for caller to decide next operation. 
-
-There are two ways to define `conflict`. If the existing target is a regular file, 
-it can be considered as `failure`, not `conflict`. Or, it is considered to be a `conflict`,
-since user may remove the existing file anyway. 
-
-`mkdir` should leave this problem to upper layer, without implementing the conflict as a mechanism.
-
-problem 
-de
-1: fs.mkdir returns just EEXIST irrelevent to file type.
-2: if parent ERROR, such as ENOTDIR or ENOENT, vfs is interested on such error. But unable to diff.
-
-opt: null or undefined, 'keep', 'replace', 'rename'
-
-@param {string} dirPath - directory path to make
-@param {string} opt - `keep`, `rename`, or else. How to resolve a name conflict
-@param {function} callback - `(err, xstat, resolved) => {}`
-*/
-
-
-/**
-This function is an internal function to create a new link for file or directory.
-
-The function is intended to resolve name conflict in one place.
-
-A hash/fingerprint value can be provided if the tmp file is a regular file.
-
-uuid is used for recursion when opt is replace.
-
-for file
-link(target, tmp, (uuid), (hash), opt, callback)
-
-for directory
-link(target, null, (uuid), null, opt, callback)
-
-*/ 
-const link1 = (target, tmp, uuid, hash, opt, callback) => {
-  const type = tmp ? 'file' : 'directory'
-  const f = tmp
-    ? cb => forceXstat(tmp, { uuid, hash }, (err, xstat) => err ? cb(err) : fs.link(tmp, target, cb))
-    : cb => fs.mkdir(target, cb)
-
-  f(err => {
-    if (err && err.code === 'EEXIST') {                   // conflict
-
-      if (opt == 'rename') {
-        let dirname = path.dirname(target)
-        let basename = path.basename(target)
-        fs.readdir(dirname, (error, files) => {
-          if (error) return callback(error)
-          let target2 = path.join(dirname, autoname(basename, files))
-          link(target2, tmp, uuid, hash, opt, (err, xstat) => 
-            err ? callback(err) : callback(null, xstat, true))
-        })
-      } else {  // keep, replace, or vanilla
-        readXstat(target, (error, xstat) => {
-          if (error && error.xcode === 'EUNSUPPORTED') {
-            err.xcode = error.code
-            callback(err)
-          } else if (error) {
-            callback(error)
-          } else {
-            if (opt === 'keep' && xstat.type === type) {
-              callback(null, xstat, true)
-            } else if (opt === 'replace' && xstat.type === type) {
-              rimraf(target, error => {
-                if (error) return callback(error)
-                link(target, tmp, xstat.uuid, hash, opt, (err, xstat) => 
-                  err ? callback(err) : callback(null, xstat, true))
-              })
-            } else {
-              err.xcode = xstat.type === 'directory' ? 'EISDIR' : 'EISFILE'  
-              callback(err)
-            }
-          }
-        })
-      } 
-
-    } else if (err) {                                     // failed
-      callback(err)
-    } else {                                              // successful
-      if (type === 'directory' && uuid) {
-        forceXstat(target, { uuid }, (err, xstat) => 
-          err ? callback(err) : callback(null, xstat, false))
-      } else {
-        readXstat(target, (err, xstat) => 
-          err ? callback(err) : callback(null, xstat, false))
-      }
-    }
-  })
-}
 
 /**
 opt is a 2-tuple, [same, diff]
@@ -119,7 +22,7 @@ resolved is also a 2-tuple of boolean value.
 If the file exists and is resolved by the first rule, 
 
 */
-const link2 = (target, tmp, uuid, hash, opt, callback) => {
+const link = (target, tmp, uuid, hash, opt, callback) => {
   const type = tmp ? 'file' : 'directory'
   const f = tmp
     ? cb => forceXstat(tmp, { uuid, hash }, (err, xstat) => err ? cb(err) : fs.link(tmp, target, cb))
@@ -146,12 +49,13 @@ const link2 = (target, tmp, uuid, hash, opt, callback) => {
           fs.readdir(dirname, (error, files) => { 
             if (error) return callback(error)
             let target2 = path.join(dirname, autoname(basename, files))
-            link(target2, tmp, uuid, hash, opt, (err, xstat) => {
-              if (err) return callback(error)
+            link(target2, tmp, uuid, hash, opt, (error, xstat) => {
+              if (error) return callback(error)
               callback(null, xstat, [same(), diff()])
             })
           })
         } else if (same() && opt[0] === 'replace' || diff() && opt[1] === 'replace') {
+          // fs.unlink does not work on directory
           rimraf(target, error => {
             if (error) return callback(error)
 
@@ -187,9 +91,81 @@ const link2 = (target, tmp, uuid, hash, opt, callback) => {
   })
 }
 
-const link = link2
-const mkdir = (target, opt, callback) => link(target, null, null, null, opt, callback)
-const mkfile = (target, tmp, hash, opt, callback) => link(target, tmp, null, hash, opt, callback) 
+const renameNoReplace = (oldPath, newPath, callback) => 
+  // stat parent directory
+  fs.lstat(path.dirname(newPath), (err, stat) => {
+    if (err) {
+      callback(err) 
+    } else if (!stat.isDirectory()) {
+      let err = new Error('parent is not a directory')
+      err.code = 'ENOTDIR'
+      return callback(err)
+    } else {
+      // stat target
+      fs.lstat(newPath, (err, stat) => {
+        if (err && err.code === 'ENOENT') {
+          fs.rename(oldPath, newPath, callback)
+        } else if (err) {
+          callback(err)
+        } else {
+          let err = new Error('target exist')
+          err.code = 'EEXIST'
+          callback(err)
+        }
+      })
+    }
+  })
+
+const rename = (oldPath, newPath, type, opt, callback) =>
+  renameNoReplace(oldPath, newPath, err => {
+    if (err && err.code === 'EEXIST') {                   // conflict
+      readXstat(target, (xerr, xstat) => {
+        // return the error we cannot handle
+        if (xerr && xerr.xcode !== 'EUNSUPPORTED') return callback(xerr)
+
+        const diff = () => !!xerr || xstat.type !== type  // !!xerr makes sure boolean value
+        const same = () => !xerr && xstat.type === type
+
+        if (same() && opt[0] === 'skip') {
+          callback(null, [true, false])
+        } else if (diff() && opt[1] === 'skip') {
+          // there is no use for xstat when skipping diff
+          callback(null, [false, true]) 
+        } else if (same() && opt[0] === 'rename' || diff() && opt[1] === 'rename') {
+          let dirname = path.dirname(target)
+          let basename = path.basename(target)
+          fs.readdir(dirname, (error, files) => { 
+            if (error) return callback(error)
+            let newPath2 = path.join(dirname, autoname(basename, files))
+            rename(oldPath, newPath, type, opt, (error, xstat) => {
+              if (error) return callback(error)
+              callback(null, [same(), diff()])
+            })
+          })
+        } else if (same() && opt[0] === 'replace' || diff() && opt[1] === 'replace') {
+          rimraf(target, error => {
+            if (error) return callback(error)
+            rename(oldPath, newPath, type, opt, (error, xstat) => {
+              if (error) return callback(error)
+              callback(null, [same(), diff()])
+            })
+          })
+        } else {
+          if (xerr) {
+            err.xcode = xerr.code
+          } else {
+            err.xcode = xstat.type === 'directory' ? 'EISDIR' : 'EISFILE'
+          }
+          callback(err)
+        }
+
+      })
+    } else if (err) {                                     // failed
+      callback(err)
+    } else {                                              // successful
+      callback(null, [false, false])
+    }
+  })
 
 /**
 Clone a file from fruitmix to tmp dir.
@@ -393,8 +369,10 @@ const receive = (target, tmp, callback) => {
 
 module.exports = {
   link,                   // internal
-  mkdir,
-  mkfile,
+  mkdir: (target, opt, callback) => link(target, null, null, null, opt, callback),
+  mkfile: (target, tmp, hash, opt, callback) => link(target, tmp, null, hash, opt, callback),
+  mvdir: (oldPath, newPath, opt, callback) => rename(oldPath, newPath, 'directory', opt, callback),
+  mvfile: (oldPath, newPath, opt, callback) => rename(oldPath, newPath, 'file', opt, callback),
   clone,
   createExWriteStream,    // internal
   send,

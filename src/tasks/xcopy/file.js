@@ -37,11 +37,22 @@ class Pending extends State {
   }
 }
 
+// Working state is overridden by each File derivatives
 class Working extends State {
-  
-  enter () {
-    this.file.ctx.indexWorkingFile(this.file)
 
+  enter () {
+   this.file.ctx.indexWorkingFile(this.file)
+  }
+
+  exit () {
+    this.file.ctx.unindexWorkingFile(this.file)
+  }
+}
+
+class CopyWorking extends Working {
+
+  enter () {
+    super.enter()
     let srcDirUUID = this.file.parent.srcUUID
     let dstDirUUID = this.file.parent.dstUUID
     let fileUUID = this.file.srcUUID
@@ -49,6 +60,7 @@ class Working extends State {
     let policy = this.file.getPolicy()
 
     this.file.ctx.cpFile(srcDirUUID, fileUUID, fileName, dstDirUUID, policy, (err, xstat, resolved) => {
+      // the following setState works for they are not overridden
       if (err && err.code === 'EEXIST') {
         this.setState(Conflict, err, policy)
       } else if (err) {
@@ -59,8 +71,45 @@ class Working extends State {
     }) 
   }
 
-  exit () {
-    this.file.ctx.unindexWorkingFile(this.file)
+}
+
+class MoveWorking extends Working {
+
+  enter () {
+    super.enter()
+    let srcDirUUID = this.file.parent.srcUUID
+    let dstDirUUID = this.file.parent.dstUUID
+    let fileUUID = this.file.srcUUID
+    let fileName = this.file.srcName
+    let policy = this.file.getPolicy()
+
+    this.file.ctx.mvfilec(srcDirUUID, fileUUID, fileName, dstDirUUID, policy, (err, xstat, resolved) => {
+      if (err && err.code === 'EEXIST') {
+        this.setState(Conflict, err, policy)
+      } else if (err) {
+        this.setStaate(Failed, err)
+      } else {
+        this.setState(Finished)
+      }
+    })
+  }
+
+}
+
+class ImportWorking extends Working {
+
+  enter () {
+    super.enter()
+
+    
+  }
+}
+
+class ExportWorking extends Working {
+
+  enter () {
+    super.enter()
+
   }
 }
 
@@ -106,14 +155,6 @@ class Finished extends State {
 
 class File extends Node {
 
-  constructor(ctx, parent, srcUUID, srcName) {
-    super(ctx, parent)
-    this.srcUUID = srcUUID
-    this.srcName = srcName
-
-    this.state = new Pending(this)
-  }
-
   destroy (detach) {
     this.state.destroy()
     super.destroy(detach)
@@ -150,17 +191,72 @@ class File extends Node {
   }
 
   retry () {
+    // FIXME !!!
     this.state.retry() 
   }  
 }
 
-File.Pending = Pending
-File.Working = Working
-File.Conflict = Conflict
-File.Finished = Finished
-File.Failed = Failed
+File.prototype.Pending = Pending
+File.prototype.Working = Working      // <- this will be overridden
+File.prototype.Conflict = Conflict
+File.prototype.Finished = Finished
+File.prototype.Failed = Failed
 
-module.exports = File
+class CopyFile extends File {
+
+  constructor(ctx, parent, srcUUID, srcName) {
+    super(ctx, parent)
+    this.srcUUID = srcUUID
+    this.srcName = srcName
+    this.state = new Pending(this)
+  }
+
+}
+
+CopyFile.prototype.Working = CopyWorking
+
+class MoveFile extends File {
+
+  constructor(ctx, parent, srcUUID, srcName) {
+    super(ctx, parent)
+    this.srcUUID = srcUUID
+    this.srcName = srcName
+  }
+
+}
+
+MoveFile.prototype.Working = MoveWorking
+
+class ImportFile extends File {
+
+  constructor(ctx, parent, srcPath) {
+    super(ctx, parent)
+    this.srcPath = srcPath
+  }
+
+}
+
+ImportFile.prototype.Working = ImportWorking
+
+class ExportFile extends File {
+
+  constructor(ctx, parent, srcUUID, srcName) {
+    super(ctx, parent)
+    this.srcUUID = srcUUID
+    this.srcName = srcName
+  }
+}
+
+ExportFile.prototype.Working = ExportWorking
+
+
+module.exports = {
+  File,
+  CopyFile,
+  MoveFile,
+  ImportFile,
+  ExportFile,
+}
 
 
 
