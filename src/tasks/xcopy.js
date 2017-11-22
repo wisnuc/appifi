@@ -1,82 +1,90 @@
-class Node {
+class XCopy {
 
-  constructor () {
-     
+  constructor (fruit) {
+
+    this.root = new Directory()
+    this.fruit = fruit
+    this.vfs = vfs
+    this.srcDriveUUID
+    this.dstDriveUUID
+    this.user = user
+
+    this.filePending = new Set()
+    this.fileWorking = new Set()
+    this.fileConflict = new Set()
+    this.fileFailed = new Set()
+
+    this.dirPending = new Set()
+    this.dirMkdir = new Set()
+    this.dirConflict = new Set()
+    this.dirReaddir = new Set()
+    this.dirFailed = new Set()
+
   }
 
-  attach (parent) {
-    this.parent = parent
-    parent.children.push(this)
+  readdir (dir, callback) {
+    if (this.user) {
+    } else {
+      this.vfs
+    }
+  } 
+
+  indexPendingFile (file) {
   }
 
-  detach () {
-    let index = parent.children.indexOf(this)
-    if (index === -1) throw new Error('structural error') // TODO
-    parent.children.splice(index, 1)
-    this.parent = null
+  unindexPendingFile (file) {
   }
 
-  previsit() {
+  indexWorkingFile (file) {
   }
 
-  schedule() {
+  unindexWorkingFile (file) {
   }
 
-  fileConflict () {
-    return this.parent ? this.parent.fileConflict() : this.fileConflictDefault
+  indexFailedFile (file) {
   }
 
-  dirConflict () {
-    return this.parent ? this.parent.dirConflict() : this.dirConflictDefault
+  unindexFailedFile (file) {
+  }
+
+  indexPendingDir (dir) {
+  }
+
+  unindexPendingDir (dir) {
+  }
+
+  indexMkdir (dir) {
+  }
+
+  unindexMkdir (dir) {
+  }
+
+  indexConflictDir (dir) {
+  }
+
+  unindexConflictDir (dir) {
+  }
+
+  indexReaddir (dir) {
+  }
+
+  unindexReaddir (dir) {
+  }
+
+  indexFailedDir (dir) {
+  }
+
+  unindexFailedDir (dir) {
   }
 
   destroy () {
+    this.root.destroy()
+    this.root = null
   }
 }
 
-// state: failed, running, paused
-class File extends Node {
-  constructor () {
-    super()
-  }
- 
+const createXcopy = (fruit, something) => {}
 
-  destroy () {
-  }
-}
-
-class FileToExt extends File {
-
-}
-
-class FileFromExt extends File {
-
-}
-
-class FileE2F extends File {
-}
-
-class DirectoryBase extends Node {
-  constructor(uuid) {
-    super()
-    this.uuid = uuid
-    this.children = []
-  }
-
-  run () {
-      
-  }
-}
-
-class DirF2F extends Directory {
-}
-
-class DirF2E extends Directory {
-}
-
-class DirE2F extends Directory {
-}
-
-
+module.exports = XCopy
 
 

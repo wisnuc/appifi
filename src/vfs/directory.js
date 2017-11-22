@@ -22,7 +22,6 @@ Directory has four states:
 @module Directory
 */
 
-
 class Base {
 
   constructor (dir, ...args) {
@@ -405,6 +404,28 @@ class Directory extends Node {
     } else {
       return c.nameWalk(names.slice(1))
     }
+  }
+
+  // this function is used by external components
+  // that operates on underlying file system
+  // it should be called right after a readXstat is performed
+  // this function returns Directory object
+  updateDirChild (xstat) {
+    let child = this.children.find(c => c.uuid === xstat.uuid)
+    if (child) {
+      if (child.name !== xstat.name) {
+        child.updateName(name)
+      } else {
+        child.read() 
+      }
+      return child
+    } else {
+      return new Directory(this.ctx, this, xstat)
+    }
+  }
+
+  updateFileChild (xstat) {
+    /// TODO
   }
 
 }

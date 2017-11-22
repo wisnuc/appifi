@@ -11,9 +11,9 @@ const TICKET_TYPES = ['invite', 'bind', 'share']
 Object.freeze(TICKET_TYPES)
 
 class Tickets {
-  constructor(saId, connect) {
-    this.saId = saId
-    this.connect = connect
+  constructor(ctx) {
+    this.saId = ctx.station.id
+    this.ctx = ctx
   }
 
   async createTicketAsync(userId, type) {
@@ -22,14 +22,13 @@ class Tickets {
     if (!u) throw new Error('user not found')
     if (TICKET_TYPES.indexOf(type) === -1) throw new Error('ticket type error')
     
-    
     if(type !== 'bind' && (!u.global || u.global.id === undefined)) throw new Error('user not bind wechat')
     let creator = type === 'bind' ? u.uuid : u.global.id
 
     // FIXME: creator maybe guid if not bind
     // let creator = u.uuid
     let stationId = this.saId
-    let token = this.connect.token
+    let token = this.ctx.getToken()
     let data = 'placeholder'
     let params = { stationId, data, creator, type }
     let url = CONFIG.CLOUD_PATH + 's/v1/tickets'
@@ -48,7 +47,7 @@ class Tickets {
 
   async getTicketAsync(ticketId) {
     let url = CONFIG.CLOUD_PATH + 's/v1/tickets/' + ticketId
-    let token = this.connect.token
+    let token = this.ctx.getToken()
     let opts = { 'Content-Type': 'application/json', 'Authorization': token }
     try {
       let res = await requestAsync('GET', url, {}, opts)
@@ -69,7 +68,7 @@ class Tickets {
     let url = CONFIG.CLOUD_PATH + 's/v1/tickets/'
 
     let creator = u.global.id
-    let token = this.connect.token
+    let token = this.ctx.getToken()
     let query = { creator }
     
     let opts = { 'Content-Type': 'application/json', 'Authorization': token }
@@ -87,7 +86,7 @@ class Tickets {
 
   async updateTicketAsync(ticketId) {
     let url = CONFIG.CLOUD_PATH + 's/v1/tickets/' + ticketId
-    let token = this.connect.token
+    let token = this.ctx.getToken()
     let opts = { 'Content-Type': 'application/json', 'Authorization': token }
     let params = { status: 1 } // TODO: change ticket status
     try {
@@ -104,7 +103,7 @@ class Tickets {
 
   async updateUserTypeAsync(guid, ticketId, state) {
     let url = CONFIG.CLOUD_PATH + 's/v1/tickets/' + ticketId + '/users/' + guid
-    let token = this.connect.token
+    let token = this.ctx.getToken()
     let opts = { 'Content-Type': 'application/json', 'Authorization': token }
     let params = { type: (state ? 'resolved' : 'rejected') } // TODO change ticket status
     try {

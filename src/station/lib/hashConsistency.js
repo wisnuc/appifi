@@ -31,6 +31,13 @@ class HashConsistency {
     this._sort()
   }
 
+  deinit() {
+    this.nodeMap = undefined
+    this.replicas = 0
+    this.nodes_replicas = undefined
+    this.nodes = undefined
+  }
+
   getNode(key) {
 
     let keyHash = HashFunc(key)

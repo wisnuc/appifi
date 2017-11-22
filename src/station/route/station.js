@@ -8,7 +8,10 @@ const Station = require('../lib/station')
 let router = Router()
 
 router.get('/info', (req, res) => {
-  return res.status(200).json(Station.info())
+  let info = Station.info()
+  if(info)
+    return res.status(200).json(info)
+  return res.status(503).json({ message: 'Station has not start' })
 })
 
 router.patch('/info', (req, res, next) => {

@@ -11,6 +11,7 @@ const log = require('winston')
 const UUID = require('uuid')
 const deepFreeze = require('deep-freeze')
 const { saveObjectAsync } = require('../lib/utils')
+const autoname = require('src/lib/autoname')
 
 const Node = require('./node')
 const File = require('./file')
@@ -384,6 +385,215 @@ class VFS extends Forest {
     let dstRoot = this.roots.get(dstDriveUUID)
     // if  
   }
+
+
+  //////
+  // we are going to add a mkdir method to vfs
+  // it can be destroyed
+  // it verifies root or node path (may be a relpath)
+  // it supports parents
+  // it supports auto-rename
+
+  /**
+  opts {
+    parents: truthy/falsy, optional
+    autoRename: truthy/falsy, optional
+    nodePath: [uuid], bottom-up fashion, optional
+  }
+  */
+  mkdir (dirUUID, name, opts, callback) {
+    let dirPath = this.absolutePath(dir) 
+    let subDirPath = path.join(dirPath, name)
+    
+    fs.lstat(subDirPath, (err, stat) => {
+      if (err) {
+        if (err.code !== 'ENOENT') {
+          callback(err)   
+        } else { // no such entry
+          fs.mkdir(subDirPath, err => {
+            if (err) return callback(err) 
+            readXstat(subDirPath, (err, xstat) => {
+              if (err) return callback(err)
+              callback(null, xstat)
+            })
+          }) 
+        }
+      } else { // EXIST
+        if (stat.isDirectory()) {
+          readXstat(subDirPath, (err, xstat) => {
+            if (err) return callback(err)
+
+            try {
+              let child = dir.updateDirChild(xstat)
+              callback(null, child)
+            } catch (e) {
+              callback(e)
+            }
+          })  
+        } else {
+          let err = new Error('not a directory')
+          err.code = 'ENOTDIR'
+          callback(err)
+        }
+      }
+    })
+  }
+
+
+  findDir(driveUUID, dirUUID) {
+    if (driveUUID
+    this.uuidMap.get(uuid)
+  }
+
+  findDirPath(driveUUID, dirUUID) {
+  }
+
+  getDirSync (uuid) {
+    let dir = this.uuidMap.get(uuid)
+    if (dir) {
+      return dir
+    } else {
+      throw new Error('dir not found')
+    }
+  }
+
+  getDirPathSync (dirUUID, childName) {
+    let dirPath = this.getDirSync(uuid).abspath()
+    return childName ? path.join(dirPath, childName) : dirPath 
+  }
+
+  /**
+
+  opts.parents means I want merge/diff
+  opts.autoname means I want create something new
+
+  They are exclusive
+
+  @param
+  */
+  async mkdirAsync (dirUUID, name, opts, callback) {
+    
+    const newDirPath = () => this.getDirPathSync(dirUUID, name)
+
+    let xstat
+    try {
+      xstat = await readXstatAsync(newDirPath())
+    } catch (e) {
+      if (e.code !== 'ENOENT')
+      throw e
+    } 
+
+    // EXIST on underlying file system
+    if (xstat) {       
+      if (xstat.type !== 'directory') {
+        
+        throw new Error('not a directory') // ENOTDIR
+      } else {
+        if (opts && opts.parents) {
+          // TODO
+          return xstat 
+        } else if (opts && opts.autoRename) {
+          name = autoname(name, await fs.readdirAsync(this.getDirPathSync(uuid))
+          // fall through
+        } else {
+          throw new Error('directory already exists')
+        }
+      }
+    }
+  
+    // ENOENT
+    await fs.mkdirAsync(newDirPath()) 
+    xstat = readXstatAsync(newDirPath())
+    // TODO
+    return xstat
+  }
+
+  async mkdirpAsync (dirUUID, name, callback) {
+    // volatile
+    const newDirPath = () => path.join(this.getDirPathSync(dirUUID), name))
+
+    let xstat
+    try {
+      xstat = await readXstatAstync(newDirPath())
+    } catch (e) {
+      if (e.code !== 'ENOENT')
+      throw e
+    }
+
+    if (xstat) {
+      if (xstat.type !== 'directory') {
+        throw new Error('not a directory')
+      } else {
+        return xstat
+      }
+    }
+
+    await fs.mkdirpAsync(newDirPath()) 
+    xstat = readXstatAsync(newDirPath())
+    return xstat
+  }
+
+  // conflict may be 'rename' or 'replace'
+  async mkdirAsync (dirUUID, name, conflict, callback) {
+    // volatile
+    const newDirPath = () => path.join(this.getDirPathSync(dirUUID), name)
+        
+    let stat
+    try {
+      stat = await fs.lstatAsync(newDirPath())
+    } catch (e) {
+      if (e.code !== 'ENOENT') throw e  
+    }
+
+    if (stat) {
+      switch (conflict) {
+        case 'rename':
+          name = autoname(name, await fs.readdirAsync(this.getDirPathSync(dirUUID)))
+          break
+        case 'replace':
+          
+          await rimrafAsync(newDirPath())
+          break
+        default:
+      }
+
+      if (conflict === 'rename') {
+        name = autoname(name, await fs.readdirAsync(this.getDirPathSync(dirUUID)))
+        // fallthrough
+      } else {
+        if (!stat.isDirectory()) {
+          throw 'ENOTDIR'
+        }
+
+        // now existing dir
+        if (conflict === 'replace') {
+          await rimrafAsync(newDirPath())
+          // fallthrough
+        } else {
+          throw 'EEXIST' 
+        }
+      }
+    }
+     
+    await fs.mkdirAsync(newDirPath())
+    xstat = readXstatAsync(newDirPath())
+    this.getDirSync(dirUUID).updateDirChild(xstat)
+    return xstat
+  }
+
+  absolutePath (node) {
+    return node.abspath()
+  }
+
+  readdir(dirUUID, callback) {
+    let dir = this.uuidMap.get(dirUUID)
+    if (!dir) {
+      callback(new Error('not found'))
+    } else {
+      dir.read(callback)
+    }
+  }
+
 }
 
 

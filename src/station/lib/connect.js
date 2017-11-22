@@ -116,34 +116,38 @@ cloud is responsible for method validation.
 
 class Connect extends EventEmitter{ 
 
-  constructor(station) {
+  constructor(ctx) {
     super()
     this.state = CONNECT_STATE.DISCED
-    this.privateKey = station.privateKey
-    this.saId = station.station.id
-    this.froot = station.froot
+    this.privateKey = ctx.privateKey
+    this.saId = ctx.station.id
+    this.froot = ctx.froot
     this.handler = new Map()
     this.socket = undefined
     this.error = undefined
     this.token = undefined
+    this.pipe = undefined
+    this.address = undefined
     this.initialized = false
     this.reconnectCounter = 0
     this.reconnectTimer = undefined
   }
 
-  async initAsync() {
-    return this.startConnectAsync(CONFIG.CLOUD_PATH)
+  async initAsync(address) {
+    return this.startConnectAsync(address)
   }
   
   deinit(){
     this.disconnect()
-    this.error = null
-    this.froot = null
+    this.error = undefined
+    this.froot = undefined
     this.state = CONNECT_STATE.DISCED
-    this.saId = null
-    this.socket = null
-    this.privateKey = null
-    this.token = null
+    this.saId = undefined
+    this.socket = undefined
+    this.privateKey = undefined
+    this.token = undefined
+    this.pipe = undefined
+    this.address = undefined
     this.initialized = false
     this.handler.clear()
     this.handler = undefined
@@ -166,6 +170,7 @@ class Connect extends EventEmitter{
     }
     this.socket = undefined
     this._changeState(CONNECT_STATE.CONNING) 
+    this.address = address
     try{
       this.socket = await createSocketAsync(address, this.saId, this.privateKey)
       //reset
@@ -230,10 +235,10 @@ class Connect extends EventEmitter{
     }
   }
 
-  connect() { // reconnect
-    this.startConnectAsync(CONFIG.CLOUD_PATH)
+  connect(address) { // reconnect
+    this.startConnectAsync(address)
       .then(() => {})
-      .catch(e => debug)
+      .catch(e => debug(e))
   }
 
   getState(){
