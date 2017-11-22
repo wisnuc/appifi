@@ -51,7 +51,7 @@ file -> dir
 
 **/
 
-describe(path.basename(__filename) + 'cp a/c (dir) -> b/', () => {
+describe(path.basename(__filename) + ', cp a/c (dir) -> b/', () => {
 
   let vfs, mm, dirA, dirB, dirAC
 
@@ -79,7 +79,7 @@ describe(path.basename(__filename) + 'cp a/c (dir) -> b/', () => {
     mkdirp.sync(path.join(tmptest, 'drives', rootUUID, 'b'))
   }) 
 
-  it('OK if no policy', done => f(null, (err, xc) => {
+  it('OK if no policy, f9a4c2e5', done => f(null, (err, xc) => {
     if (err) return done(err)
     xc.once('stopped', () => {
       // assert state
@@ -92,8 +92,8 @@ describe(path.basename(__filename) + 'cp a/c (dir) -> b/', () => {
     })
   }))
 
-  it('OK if keep', done => f({
-    dir: { policy: 'keep', recursive: true }
+  it('OK if [skip]', done => f({
+    dir: ['skip']
   }, (err, xc) => {
     if (err) return done(err)
     xc.once('stopped', () => {
@@ -107,8 +107,8 @@ describe(path.basename(__filename) + 'cp a/c (dir) -> b/', () => {
     })
   }))
 
-  it('OK if rename', done => f({
-    dir: { policy: 'rename', recursive: true }
+  it('OK if [,skip]', done => f({
+    dir: [',skip']
   }, (err, xc) => {
     if (err) return done(err)
     xc.once('stopped', () => {
@@ -122,8 +122,8 @@ describe(path.basename(__filename) + 'cp a/c (dir) -> b/', () => {
     })
   }))
 
-  it('OK if replace', done => f({
-    dir: { policy: 'replace', recursive: true }
+  it('OK if [replace]', done => f({
+    dir: ['replace']
   }, (err, xc) => {
     if (err) return done(err)
     xc.once('stopped', () => {
@@ -137,8 +137,38 @@ describe(path.basename(__filename) + 'cp a/c (dir) -> b/', () => {
     })
   }))
 
-  it('OK if skip', done => f({
-    dir: { policy: 'skip', recursive: true }
+  it('OK if [,replace]', done => f({
+    dir: [,'replace']
+  }, (err, xc) => {
+    if (err) return done(err)
+    xc.once('stopped', () => {
+      // assert state
+      expect(xc.root.state.constructor.name).to.equal('Finished')
+      // assert file system and vfs
+      let attr = JSON.parse(xattr.getSync(path.join(tmptest, 'drives', rootUUID, 'b', 'c'), 'user.fruitmix'))
+      let dirBC = vfs.findDirByName('c', 'b')
+      expect(dirBC.uuid).to.equal(attr.uuid)
+      done()
+    })
+  }))
+
+  it('OK if [rename]', done => f({
+    dir: ['rename']
+  }, (err, xc) => {
+    if (err) return done(err)
+    xc.once('stopped', () => {
+      // assert state
+      expect(xc.root.state.constructor.name).to.equal('Finished')
+      // assert file system and vfs
+      let attr = JSON.parse(xattr.getSync(path.join(tmptest, 'drives', rootUUID, 'b', 'c'), 'user.fruitmix'))
+      let dirBC = vfs.findDirByName('c', 'b')
+      expect(dirBC.uuid).to.equal(attr.uuid)
+      done()
+    })
+  }))
+
+  it('OK if [,rename]', done => f({
+    dir: [,'rename']
   }, (err, xc) => {
     if (err) return done(err)
     xc.once('stopped', () => {
@@ -154,7 +184,7 @@ describe(path.basename(__filename) + 'cp a/c (dir) -> b/', () => {
 
 })
 
-describe(path.basename(__filename) + 'cp a/c (dir) -> b/c (dir)', () => {
+describe(path.basename(__filename) + ', cp a/c (dir) -> b/c (dir)', () => {
 
   let vfs, mm, dirA, dirB, dirAC, dirBC
 
@@ -193,11 +223,12 @@ describe(path.basename(__filename) + 'cp a/c (dir) -> b/c (dir)', () => {
       expect(child.state.constructor.name).to.equal('Conflict')
       expect(child.state.err.code).to.equal('EEXIST')
       expect(child.state.err.xcode).to.equal('EISDIR')
-      expect(child.state.policy).to.be.null
+      expect(child.state.policy).to.deep.equal([null, null])
       done()
     })
   }))
 
+/**
   it('EEXIST + EISDIR if no policy', done => f(null, (err, xc) => {
     if (err) return done(err)
     xc.once('stopped', () => {
@@ -257,7 +288,7 @@ describe(path.basename(__filename) + 'cp a/c (dir) -> b/c (dir)', () => {
       done()
     })
   }))
-
+**/
 })
 
 

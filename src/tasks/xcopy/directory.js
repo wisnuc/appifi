@@ -18,7 +18,7 @@ class State {
     new NextState(this.dir, ...args)
   }
 
-  resolve () {
+  retry () {
   }
 
   enter () {
@@ -47,26 +47,16 @@ class Making extends State {
     let dstDirUUID = this.dir.parent.dstUUID
     let policy = this.dir.getPolicy()
 
-    this.dir.ctx.mkdirc(
-      srcDirUUID, 
-      dstDirUUID, 
-      policy === 'skip' ? null : policy, 
-      (err, xstat) => {
-        if (err) {
-          if (err.code === 'EEXIST') {
-            if (policy === 'skip') {
-              this.setState(Finished)
-            } else {
-              this.setState(Conflict, err, policy)
-            }
-          } else {
-            this.setState(Failed, err)
-          }
-        } else {
-          this.dir.dstUUID = xstat.uuid
-          this.setState(Reading)
-        }
-      })
+    this.dir.ctx.mkdirc(srcDirUUID, dstDirUUID, policy, (err, xstat) => {
+      if (err && err.code === 'EEXIST') {
+        this.setState(Conflict, err, policy)
+      } else if (err) {
+        this.setState(Failed, err)
+      } else {
+        this.dir.dstUUID = xstat.uuid
+        this.setState(Reading)
+      }
+    })
   }
 
   exit () {
@@ -80,13 +70,6 @@ class Conflict extends State {
     this.err = err
     this.policy = policy
     this.dir.ctx.indexConflictDir(this.dir)
-  }
-
-  resolve () {
-    if (this.policy !== this.dir.getPolicy()) {
-      // policy changed
-      this.setState(Making)
-    }
   }
 
   retry () {
@@ -236,17 +219,25 @@ class Directory extends Node {
     return obj
   }
 
+  setPolicy (type, policy) {
+    if (type === 'same') {
+      this.policy[0] = policy
+    } else {
+      this.policy[1] = policy
+    }
+    this.retry()
+  }
+
   getPolicy () {
-    return this.policy || this.ctx.policies.dir || null
+    return [
+      this.policy[0] || this.ctx.policies.dir[0] || null,
+      this.policy[1] || this.ctx.policies.dir[1] || null
+    ]  
   }
 
-  setPolicy (policy) {
-    this.policies = policies
-  }
-
-  resolve () {
-    if (this.children) this.children.forEach(c => c.resolve())
-    this.state.resolve()
+  retry () {
+    if (this.children) this.children.forEach(c => c.retry())
+    this.state.retry()
   }
 }
 

@@ -8,6 +8,7 @@ class Node extends EventEmitter {
     this.parent = null
     
     this.attach(parent)
+    this.policy = []
   }
 
   destroy (detach) {

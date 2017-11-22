@@ -11,7 +11,7 @@ class XCopy extends EventEmitter {
     super()
 
     this.vfs = vfs
-    this.policies = policies || {}
+    this.policies = policies || { dir: [], file: [] }
 
     this.srcDriveUUID = src.drive
     this.dstDriveUUID = dst.drive
@@ -224,10 +224,10 @@ class XCopy extends EventEmitter {
     this.vfs.mkdirc(this.srcDriveUUID, srcDirUUID, this.dstDriveUUID, dstDirUUID, policy, callback)
   }
 
-  cpFile (srcDirUUID, fileUUID, fileName, dstDirUUID, resolve, callback) {
+  cpFile (srcDirUUID, fileUUID, fileName, dstDirUUID, policy, callback) {
     this.vfs.copy(
       this.srcDriveUUID, srcDirUUID, fileUUID, fileName, 
-      this.dstDriveUUID, dstDirUUID, resolve, callback)
+      this.dstDriveUUID, dstDirUUID, policy, callback)
   }
 
   //////////////////////////////////////////////////////////////////////////////
@@ -254,6 +254,19 @@ class XCopy extends EventEmitter {
     node.updatePolicies(policies)
   }
 
+  setPolicy (srcUUID, type, policy, applyToAll) {
+    let node = this.root.find(n => n.srcUUID === srcUUID)
+    if (!node) throw new Error('not found')
+
+    node.setPolicy(type, policy)
+
+    if (applyToAll) {
+      let name = node instanceof Directory ? 'dir' : 'file'
+      let index = type === 'same' ? 0 : 1
+      this.policies[name][index] = policy
+    }
+  }
+
   pause () {
   } 
 
@@ -275,7 +288,27 @@ const xcopy = (vfs, src, dst, entries, policies, callback) => {
 
   if (typeof policies === 'function') {
     callback = policies
-    policies = null
+    policies = {
+      dir: [],
+      file: []
+    }
+  }
+
+  if (policies) {
+    if (typeof policies !== 'object') { 
+      let err = new Error('invalid format of policies')
+      return process.nextTick(() => callback(err))
+    }
+
+    if (policies.hasOwnProperty('dir') && !Array.isArray(policies.dir)) {
+      let err = new Error('invalid')
+      return process.nextTick(() => callback(err))
+    }
+
+    if (policies.hasOwnProperty('file') && !Array.isArray(policies.file)) {
+      let err = new Error('invalid')
+      return process.nextTick(() => callback(err))
+    }
   }
 
   vfs.readdir(src.dir, (err, xstats) => {

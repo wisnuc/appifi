@@ -245,11 +245,10 @@ describe(path.basename(__filename) + ', cp dir on dir conflict', () => {
     })
   })
 
-  it('update a/c with parents should resolve conflict, a6a94864', done => {
+  it('update a/c with same,skip should resolve conflict, a6a94864', done => {
     xc.once('stopped', () => {
-      xc.update(dirAC.uuid, {
-        dir: { policy: 'keep' }
-      }) 
+
+      xc.setPolicy(dirAC.uuid, 'same', 'skip', false)
 
       xc.once('stopped', () => {
         expect(xc.readDirs.size).to.equal(0)
@@ -260,47 +259,7 @@ describe(path.basename(__filename) + ', cp dir on dir conflict', () => {
     })
   })
 
-  it('update a with keep should NOT resolve conflict, d52a6d0f', done => {
-    xc.once('stopped', () => {
-      xc.update(dirA.uuid, {
-        dir: { policy: 'keep' }
-      }) 
-
-      xc.reqSched()
-      xc.once('stopped', () => {
-        // a is in read
-        let xs = Array.from(xc.readDirs)
-        expect(xs.length).to.equal(1)
-        expect(xs[0].srcUUID).to.equal(dirA.uuid)
-        expect(xs[0].dstUUID).to.equal(dirB.uuid)
-        expect(xs[0].state.constructor.name).to.equal('Read') 
-        
-        // a/c is in conflict
-        let ys = Array.from(xc.conflictDirs)
-        expect(ys.length).to.equal(1)
-        expect(ys[0].srcUUID).to.equal(dirAC.uuid)
-        expect(ys[0].state.constructor.name).to.equal('Conflict')
-        done()
-      })
-    })
-  })
-
-  it('update a with keep,recursive should resolve conflict, 5f0b8000', done => {
-    xc.once('stopped', () => {
-      xc.update(dirAC.uuid, {
-        dir: { policy: 'keep', recursive: true }
-      }) 
-
-      xc.once('stopped', () => {
-        expect(xc.readDirs.size).to.equal(0)
-        expect(xc.conflictDirs.size).to.equal(0)
-        expect(xc.root.state.constructor.name).to.equal('Finished')
-        done()
-      })
-    })
-  })
-
-  it('update a/c with rename should resolve conflict, 6817775f', done => {
+  it('update a/c with same,replace should resolve conflict, 6817775f', done => {
     xc.once('stopped', () => {
       xc.update(dirAC.uuid, {
         dir: { policy: 'rename' }
@@ -433,6 +392,8 @@ describe(path.basename(__filename) + ', cp dir on dir conflict', () => {
 //    c (from file)
 //  b
 //    c (to file)
+
+/**
 describe(path.basename(__filename) + ', cp file on file conflict', () => {
 
   let mm, vfs, dirA, dirB, xc
@@ -482,7 +443,7 @@ describe(path.basename(__filename) + ', cp file on file conflict', () => {
   })
 })
 
-
+**/
 
 
 

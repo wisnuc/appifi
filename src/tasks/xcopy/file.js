@@ -16,7 +16,7 @@ class State {
     new NextState(this.file, ...args)
   }
 
-  resolve () {
+  retry () {
   }
 
   enter () {
@@ -49,12 +49,10 @@ class Working extends State {
     let policy = this.file.getPolicy()
 
     this.file.ctx.cpFile(srcDirUUID, fileUUID, fileName, dstDirUUID, policy, (err, xstat, resolved) => {
-      if (err) {
-        if (err.xcode === 'ECONFLICT') {
-          this.setState(Conflict, err, policy) 
-        } else {
-          this.setState(Failed, err)
-        }
+      if (err && err.code === 'EEXIST') {
+        this.setState(Conflict, err, policy)
+      } else if (err) {
+        this.setState(Failed, err)
       } else {
         this.setState(Finished)
       }
@@ -72,10 +70,8 @@ class Conflict extends State {
     this.file.ctx.indexConflictFile(this.file)
   }
 
-  resolve () {
-    if (this.policy !== this.dir.getPolicy()) {
-      this.setState(Working)
-    }
+  retry () {
+    this.setState(Working)
   }
 
   exit () {
@@ -141,15 +137,20 @@ class File extends Node {
   }
 
   getPolicy () {
-    return this.policy || this.ctx.policies.file || null
-  } 
-
-  setPolicy (policy) {
-    this.policy = policy
+    return [
+      this.policy[0] || this.ctx.policies.file[0] || null,
+      this.policy[1] || this.ctx.policies.file[1] || null
+    ]  
   }
 
-  resolve () {
-    this.state.resolve()
+  setPolicy (type, policy) {
+    let index = type === 'same' ? 0 : 1
+    this.policy[index] = policy
+    this.retry()
+  }
+
+  retry () {
+    this.state.retry() 
   }  
 }
 
