@@ -50,7 +50,7 @@ for directory
 link(target, null, (uuid), null, opt, callback)
 
 */ 
-const link = (target, tmp, uuid, hash, opt, callback) => {
+const link1 = (target, tmp, uuid, hash, opt, callback) => {
   const type = tmp ? 'file' : 'directory'
   const f = tmp
     ? cb => forceXstat(tmp, { uuid, hash }, (err, xstat) => err ? cb(err) : fs.link(tmp, target, cb))
@@ -58,6 +58,7 @@ const link = (target, tmp, uuid, hash, opt, callback) => {
 
   f(err => {
     if (err && err.code === 'EEXIST') {                   // conflict
+
       if (opt == 'rename') {
         let dirname = path.dirname(target)
         let basename = path.basename(target)
@@ -90,15 +91,7 @@ const link = (target, tmp, uuid, hash, opt, callback) => {
           }
         })
       } 
-      readXstat(target, (error, xstat) => {
-        if (error && error.xcode !== 'EUNSUPPORTED') {
-          callback(error)
-        } else if (type === 'file' && hash && !error && xstat.hash === hash) {
-          callback(null, xstat, false)
-        } else if (error) {
-          
-        }
-      })
+
     } else if (err) {                                     // failed
       callback(err)
     } else {                                              // successful
@@ -116,8 +109,8 @@ const link = (target, tmp, uuid, hash, opt, callback) => {
 /**
 opt is a 2-tuple, [same, diff]
 
-same can be (null | undefined), replace, rename)
-diff can be (null | undefined), ~replace~, rename)
+same can be (null | undefined), skip, replace, rename
+diff can be (null | undefined), skip, replace, rename
 
 callback has (err, xstat, resolved)
 
@@ -133,62 +126,68 @@ const link2 = (target, tmp, uuid, hash, opt, callback) => {
     : cb => fs.mkdir(target, cb)
 
   f(err => {
+
     if (err && err.code === 'EEXIST') {                   // conflict
-      if (opt == 'rename') {
-        let dirname = path.dirname(target)
-        let basename = path.basename(target)
-        fs.readdir(dirname, (error, files) => {
-          if (error) return callback(error)
-          let target2 = path.join(dirname, autoname(basename, files))
-          link(target2, tmp, uuid, hash, opt, (err, xstat) => 
-            err ? callback(err) : callback(null, xstat, true))
-        })
-      } else {  // keep, replace, or vanilla
-        readXstat(target, (error, xstat) => {
-          if (error && error.xcode === 'EUNSUPPORTED') {
-            err.xcode = error.code
-            callback(err)
-          } else if (error) {
-            callback(error)
+      readXstat(target, (xerr, xstat) => {
+        // return the error we cannot handle
+        if (xerr && xerr.xcode !== 'EUNSUPPORTED') return callback(xerr)
+
+        const diff = () => !!xerr || xstat.type !== type  // !!xerr makes sure boolean value
+        const same = () => !xerr && xstat.type === type
+
+        if (same() && opt[0] === 'skip') {
+          callback(null, xstat, [true, false])
+        } else if (diff() && opt[1] === 'skip') {
+          // there is no use for xstat when skipping diff
+          callback(null, null, [false, true]) 
+        } else if (same() && opt[0] === 'rename' || diff() && opt[1] === 'rename') {
+          let dirname = path.dirname(target)
+          let basename = path.basename(target)
+          fs.readdir(dirname, (error, files) => { 
+            if (error) return callback(error)
+            let target2 = path.join(dirname, autoname(basename, files))
+            link(target2, tmp, uuid, hash, opt, (err, xstat) => {
+              if (err) return callback(error)
+              callback(null, xstat, [same(), diff()])
+            })
+          })
+        } else if (same() && opt[0] === 'replace' || diff() && opt[1] === 'replace') {
+          rimraf(target, error => {
+            if (error) return callback(error)
+
+            // be careful for replace special file
+            let uuid = xerr ? null : xstat.uuid
+            link(target, tmp, uuid, hash, opt, (error, xstat) => {
+              if (error) return callback(error)
+              callback(null, xstat, [same(), diff()])
+            })
+          })
+        } else {
+          if (xerr) {
+            err.xcode = xerr.code
           } else {
-            if (opt === 'keep' && xstat.type === type) {
-              callback(null, xstat, true)
-            } else if (opt === 'replace' && xstat.type === type) {
-              rimraf(target, error => {
-                if (error) return callback(error)
-                link(target, tmp, xstat.uuid, hash, opt, (err, xstat) => 
-                  err ? callback(err) : callback(null, xstat, true))
-              })
-            } else {
-              err.xcode = xstat.type === 'directory' ? 'EISDIR' : 'EISFILE'  
-              callback(err)
-            }
+            err.xcode = xstat.type === 'directory' ? 'EISDIR' : 'EISFILE'
           }
-        })
-      } 
-      readXstat(target, (error, xstat) => {
-        if (error && error.xcode !== 'EUNSUPPORTED') {
-          callback(error)
-        } else if (type === 'file' && hash && !error && xstat.hash === hash) {
-          callback(null, xstat, false)
-        } else if (error) {
-          
+          callback(err)
         }
+
       })
     } else if (err) {                                     // failed
       callback(err)
     } else {                                              // successful
       if (type === 'directory' && uuid) {
         forceXstat(target, { uuid }, (err, xstat) => 
-          err ? callback(err) : callback(null, xstat, false))
+          err ? callback(err) : callback(null, xstat, [false, false]))
       } else {
         readXstat(target, (err, xstat) => 
-          err ? callback(err) : callback(null, xstat, false))
+          err ? callback(err) : callback(null, xstat, [false, false]))
       }
     }
+
   })
 }
 
+const link = link2
 const mkdir = (target, opt, callback) => link(target, null, null, null, opt, callback)
 const mkfile = (target, tmp, hash, opt, callback) => link(target, tmp, null, hash, opt, callback) 
 
