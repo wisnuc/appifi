@@ -8,7 +8,6 @@ const btrfs = require('../lib/btrfs')
 const autoname = require('../lib/autoname') 
 
 
-
 /**
 opt is a 2-tuple, [same, diff]
 
@@ -119,7 +118,7 @@ const renameNoReplace = (oldPath, newPath, callback) =>
 const rename = (oldPath, newPath, type, opt, callback) =>
   renameNoReplace(oldPath, newPath, err => {
     if (err && err.code === 'EEXIST') {                   // conflict
-      readXstat(target, (xerr, xstat) => {
+      readXstat(newPath, (xerr, xstat) => {
         // return the error we cannot handle
         if (xerr && xerr.xcode !== 'EUNSUPPORTED') return callback(xerr)
 
@@ -127,27 +126,27 @@ const rename = (oldPath, newPath, type, opt, callback) =>
         const same = () => !xerr && xstat.type === type
 
         if (same() && opt[0] === 'skip') {
-          callback(null, [true, false])
+          callback(null, xstat, [true, false])
         } else if (diff() && opt[1] === 'skip') {
-          // there is no use for xstat when skipping diff
-          callback(null, [false, true]) 
+          // there is no use for xstat when skipping diff (???)
+          callback(null, null, [false, true]) 
         } else if (same() && opt[0] === 'rename' || diff() && opt[1] === 'rename') {
-          let dirname = path.dirname(target)
-          let basename = path.basename(target)
+          let dirname = path.dirname(newPath)
+          let basename = path.basename(newPath)
           fs.readdir(dirname, (error, files) => { 
             if (error) return callback(error)
             let newPath2 = path.join(dirname, autoname(basename, files))
             rename(oldPath, newPath, type, opt, (error, xstat) => {
               if (error) return callback(error)
-              callback(null, [same(), diff()])
+              callback(null, xstat, [same(), diff()])
             })
           })
         } else if (same() && opt[0] === 'replace' || diff() && opt[1] === 'replace') {
-          rimraf(target, error => {
+          rimraf(newPath, error => {
             if (error) return callback(error)
             rename(oldPath, newPath, type, opt, (error, xstat) => {
               if (error) return callback(error)
-              callback(null, [same(), diff()])
+              callback(null, xstat, [same(), diff()])
             })
           })
         } else {
@@ -163,7 +162,10 @@ const rename = (oldPath, newPath, type, opt, callback) =>
     } else if (err) {                                     // failed
       callback(err)
     } else {                                              // successful
-      callback(null, [false, false])
+      readXstat(newPath, (err, xstat) => {
+        if (err) return callback(err)
+        callback(null, xstat, [false, false])
+      })
     }
   })
 
@@ -203,77 +205,13 @@ const clone = (filePath, fileUUID, tmp, callback) =>
     })
   })
 
-//
-// exactly the same pattern with link
-// 
-const createExWriteStream = (target, opt, callback) => 
-  fs.open(target, 'wx', (err, fd) => {
-    if (err && err.code === 'EEXIST') {
-      if (opt === 'rename') {
-        let dirname = path.dirname(target)
-        let basename = path.basename(target)
-        fs.readdir(dirname, (error, files) => {
-          if (error) return callback(error)
-          let target2 = path.join(dirname, autoname(basename, files))
-          openwx(target2, opt, (err, ws) => err ? callback(err) : callback(null, ws, true))
-        })
-      } else {
-        fs.lstat(target, (err, stat) => {
-          if (error) {
-            return callback(error)
-          } else {
-            if (stat.isFile() && opt === 'keep') {
-              callback(null, null, true) 
-            } else if (stat.isFile() && opt === 'replace') {
-              rimraf(target, error => {
-                if (error) return callback(error)
-                openwx(target, opt, (err, ws) => err ? callback(err) : callback(null, ws, true)) 
-              })
-            } else {
 
-              // the following code are duplicate from that in lib/xstat
-              /** from nodejs 8.x LTS doc
-              stats.isFile()
-              stats.isDirectory()
-              stats.isBlockDevice()
-              stats.isCharacterDevice()
-              stats.isSymbolicLink() (only valid with fs.lstat())
-              stats.isFIFO()
-              stats.isSocket()
-              */
-              if (stat.isFile()) {
-                err.xcode = 'EISFILE'
-              } else if (stat.isDirectory()) {
-                err.xcode = 'EISDIR'
-              } else if (stat.isBlockDevice()) {
-                err.xcode = 'EISBLOCKDEV'
-              } else if (stat.isCharacterDevice()) {
-                err.xcode = 'EISCHARDEV'
-              } else if (stat.isSymbolicLink()) {
-                err.xcode = 'EISSYMLINK'
-              } else if (stat.isFIFO()) {
-                err.xcode = 'EISFIFO'
-              } else if (stat.isSocket()) {
-                err.xcode = 'EISSOCKET'
-              } else {
-                err.xcode = 'EISUNKNOWN'
-              }
-              callback(err)
-            }
-          }
-        })
-      }
-    } else if (err) {
-      callback(err)
-    } else {
-      callback(null, createWriteStream(null, { fd }), false) 
-    }
-  })
 
 /**
 Send tmp file to (external) target
 */
-const send = (target, tmp, opt, callback) => {
+const send = (tmp, target, opt, callback) => {
+
   let size, rs, ws, destroyed = false
   const destroy = () => {
     if (destroyed) return
@@ -374,7 +312,6 @@ module.exports = {
   mvdir: (oldPath, newPath, opt, callback) => rename(oldPath, newPath, 'directory', opt, callback),
   mvfile: (oldPath, newPath, opt, callback) => rename(oldPath, newPath, 'file', opt, callback),
   clone,
-  createExWriteStream,    // internal
   send,
   receive,
 }

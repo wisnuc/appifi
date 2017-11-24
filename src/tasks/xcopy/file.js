@@ -1,3 +1,8 @@
+const path = require('path')
+const fs = require('fs')
+const rimraf = require('rimraf')
+
+const autoname = require('../../lib/autoname')
 const Node = require('./node')
 
 class State {
@@ -11,8 +16,9 @@ class State {
     this.exit()
   }
 
-  setState (NextState, ...args) {
+  setState (state, ...args) {
     this.exit()
+    let NextState = this.file[state]
     new NextState(this.file, ...args)
   }
 
@@ -62,11 +68,11 @@ class CopyWorking extends Working {
     this.file.ctx.cpFile(srcDirUUID, fileUUID, fileName, dstDirUUID, policy, (err, xstat, resolved) => {
       // the following setState works for they are not overridden
       if (err && err.code === 'EEXIST') {
-        this.setState(Conflict, err, policy)
+        this.setState('Conflict', err, policy)
       } else if (err) {
-        this.setState(Failed, err)
+        this.setState('Failed', err)
       } else {
-        this.setState(Finished)
+        this.setState('Finished')
       }
     }) 
   }
@@ -85,13 +91,14 @@ class MoveWorking extends Working {
 
     this.file.ctx.mvfilec(srcDirUUID, fileUUID, fileName, dstDirUUID, policy, (err, xstat, resolved) => {
       if (err && err.code === 'EEXIST') {
-        this.setState(Conflict, err, policy)
+        this.setState('Conflict', err, policy)
       } else if (err) {
-        this.setStaate(Failed, err)
+        this.setStaate('Failed', err)
       } else {
-        this.setState(Finished)
+        this.setState('Finished')
       }
     })
+
   }
 
 }
@@ -105,11 +112,103 @@ class ImportWorking extends Working {
   }
 }
 
+const xcode = stat => {
+  if (stat.isFile()) {
+    return 'EISFILE'
+  } else if (stat.isDirectory()) {
+    return 'EISDIRECTORY'
+  } else if (stat.isBlockDevice()) {
+    return 'EISBLOCKDEV'
+  } else if (stat.isCharacterDevice()) {
+    return 'EISCHARDEV'
+  } else if (stat.isSymbolicLink()) {
+    return 'EISSYMLINK'
+  } else if (stat.isFIFO()) {
+    return 'EISFIFO'
+  } else if (stat.isSocket()) {
+    return 'EISSOCKET'
+  } else {
+    return 'EISUNKNOWN'
+  }
+}
+
+const openwx = (target, policy, callback) => {
+  fs.open(target, 'wx', (err, fd) => {
+    if (err && err.code === 'EEXIST') {
+      fs.lstat(target, (error, stat) => {
+        if (error) return callback(error)
+
+        const same = stat.isFile()  
+        const diff = !same
+
+        if ((same && policy[0] === 'skip') || (diff && policy[1] === 'skip')) {
+          callback(null, null, [same, diff])
+        } else if (same && policy[0] === 'replace' || diff && policy[1] === 'replace') {
+          rimraf(target, err => {
+            if (err) return callback(err)
+            openwx(target, policy, (err, fd) => {
+              if (err) return callback(err)
+              callback(null, fd, [same, diff])
+            })
+          })
+        } else if (same && policy[0] === 'rename' || diff && policy[1] === 'rename') {
+          let dirname = path.dirname(target)
+          let basename = path.basenmae(target)
+          fs.readdir(dirname, (error, files) => {
+            if (error) return callback(error)
+            let target2 = path.join(dirname, autoname(basename, files))
+            openwx(target2, policy, (err, fd) => {
+              if (err) return callback(err)
+              callback(null, fd, [same, diff])
+            })
+          })
+        } else {
+          err.xcode = xcode(stat)  
+          callback(err)
+        }
+      })
+    } else if (err) {
+      callback(err)
+    } else {
+      callback(null, fd, [false, false])
+    }
+  })
+}
+
+
 class ExportWorking extends Working {
 
   enter () {
     super.enter()
 
+    let srcDirUUID = this.file.parent.srcUUID     
+    let fileUUID = this.file.srcUUID
+    let fileName = this.file.srcName
+    let dstDirPath = this.file.parent.dstPath
+    let dstFilePath = path.join(dstDirPath, fileName)
+    let policy = this.file.getPolicy()
+  
+    this.file.ctx.clone(srcDirUUID, fileUUID, fileName, (err, tmp) => {
+      if (err) {
+        this.setState('Failed', err)
+      } else {
+        openwx(dstFilePath, policy, (err, fd) => {
+          if (err) {
+            rimraf(tmp, () => {})
+            this.setState('Failed', err) 
+          } else {
+            this.rs = fs.createReadStream(tmp) 
+            this.ws = fs.createWriteStream(null, { fd })
+            this.rs.pipe(this.ws)
+
+            this.ws.on('finish', () => {
+              rimraf(tmp, () => {})
+              this.setState('Finished')
+            })
+          }
+        })
+      }
+    })
   }
 }
 
@@ -120,7 +219,7 @@ class Conflict extends State {
   }
 
   retry () {
-    this.setState(Working)
+    this.setState('Working')
   }
 
   exit () {
@@ -160,8 +259,8 @@ class File extends Node {
     super.destroy(detach)
   }
 
-  setState (NextState) {
-    this.state.setState(NextState)
+  setState (state) {
+    this.state.setState(state)
   }
 
   view () {
@@ -221,6 +320,7 @@ class MoveFile extends File {
     super(ctx, parent)
     this.srcUUID = srcUUID
     this.srcName = srcName
+    this.state = new Pending(this)
   }
 
 }
@@ -244,11 +344,11 @@ class ExportFile extends File {
     super(ctx, parent)
     this.srcUUID = srcUUID
     this.srcName = srcName
+    this.state = new Pending(this)
   }
 }
 
 ExportFile.prototype.Working = ExportWorking
-
 
 module.exports = {
   File,

@@ -18,7 +18,15 @@ const {
   ExportFile
 } = require('./file')
 
-class XBase extends EventEmitter {
+/**
+Split different task into different sub-class is a better practice since the proxied methods
+may be different
+*/
+
+/**
+Base class
+*/
+class Base extends EventEmitter {
 
   // if user is not provided, ctx is vfs, otherwise, it is fruitmix
   constructor (ctx, user, policies) {
@@ -44,9 +52,11 @@ class XBase extends EventEmitter {
     this.root.destroy()
   }
 
+  // not implemented TODO
   pause () {
   } 
 
+  // not implemented TODO
   resume () {
   }
 
@@ -58,11 +68,13 @@ class XBase extends EventEmitter {
   //////////////////////////////////////////////////////////////////////////////
 
   formatDir (dir) {
-    return `${dir.srcUUID} ${this.ctx.uuidMap.get(dir.srcUUID).name}`
+    // TODO this does not work for fruit or native fs
+    // it's better to keep a copy of srcName in dir
+    return `${dir.constructor.name} ${dir.srcUUID} ${this.ctx.uuidMap.get(dir.srcUUID).name}`
   }
 
   formatFile (file) {
-    return `${file.srcUUID} ${file.srcName}`
+    return `${file.constructor.name} ${file.srcUUID} ${file.srcName}`
   }
 
   indexPendingFile (file) {
@@ -116,73 +128,73 @@ class XBase extends EventEmitter {
   }
 
   indexPendingDir (dir) {
-    debug(`dir ${this.formatDir(dir)} enter pending`)    
+    debug(`${this.formatDir(dir)} enter pending`)    
     this.pendingDirs.add(dir)
     this.reqSched()
   }
 
   unindexPendingDir (dir) {
-    debug(`dir ${this.formatDir(dir)} exit pending`)    
+    debug(`${this.formatDir(dir)} exit pending`)    
     this.pendingDirs.delete(dir)
   }
 
   indexWorkingDir (dir) {
-    debug(`dir ${this.formatDir(dir)} enter making (dst)`)
+    debug(`${this.formatDir(dir)} enter making (dst)`)
     this.makingDirs.add(dir)
   }
 
   unindexWorkingDir (dir) {
-    debug(`dir ${this.formatDir(dir)} exit making (dst)`)
+    debug(`${this.formatDir(dir)} exit making (dst)`)
     this.makingDirs.delete(dir)
     this.reqSched()
   }
 
   indexReadingDir (dir) {
-    debug(`dir ${this.formatDir(dir)} enter reading (src)`)
+    debug(`${this.formatDir(dir)} enter reading (src)`)
     this.readingDirs.add(dir)
   }
 
   unindexReadingDir (dir) {
-    debug(`dir ${this.formatDir(dir)} exit reading`)
+    debug(`${this.formatDir(dir)} exit reading`)
     this.readingDirs.delete(dir)
     this.reqSched()
   }
 
   indexReadDir (dir) {
-    debug(`dir ${this.formatDir(dir)} enter read`)
+    debug(`${this.formatDir(dir)} enter read`)
     this.readDirs.add(dir)
   }
 
   unindexReadDir (dir) {
-    debug(`dir ${this.formatDir(dir)} exit read`)
+    debug(`${this.formatDir(dir)} exit read`)
     this.readDirs.delete(dir)
   }
 
   indexFinishedDir (dir) {
-    debug(`dir ${this.formatDir(dir)} enter finished`)
+    debug(`${this.formatDir(dir)} enter finished`)
   }
 
   unindexFinishedDir (dir) {
-    debug(`dir ${this.formatDir(dir)} exit finished`)    
+    debug(`${this.formatDir(dir)} exit finished`)    
   }
 
   indexConflictDir (dir) {
-    debug(`dir ${this.formatDir(dir)} enter conflict`)
+    debug(`${this.formatDir(dir)} enter conflict`)
     this.conflictDirs.add(dir)
   }
 
   unindexConflictDir (dir) {
-    debug(`dir ${this.formatDir(dir)} exit conflict`)
+    debug(`${this.formatDir(dir)} exit conflict`)
     this.conflictDirs.delete(dir)
   }
 
   indexFailedDir (dir) {
-    debug(`dir ${this.formatDir(dir)} enter failed`)
+    debug(`${this.formatDir(dir)} enter failed`)
     this.failedDirs.add(dir) 
   }
 
   unindexFailedDir (dir) {
-    debug(`dir ${this.formatDir(dir)} exit failed`)
+    debug(`${this.formatDir(dir)} exit failed`)
     this.failedDirs.delete(dir) 
   }
 
@@ -206,14 +218,14 @@ class XBase extends EventEmitter {
     // schedule file job
     while (this.pendingFiles.size > 0 && this.workingFiles.size < 1) {
       let file = this.pendingFiles[Symbol.iterator]().next().value
-      file.setState(file.Working)
+      file.setState('Working')
     }
 
     // schedule dir job
     while (this.pendingDirs.size > 0 && 
       this.activeParents().size + this.makingDirs.size + this.readingDirs.size < 2) { 
       let dir = this.pendingDirs[Symbol.iterator]().next().value
-      dir.setState(dir.Working)  
+      dir.setState('Working')  
     } 
 
     if (this.makingDirs.size + this.readingDirs.size + this.workingFiles.size === 0) {
@@ -223,11 +235,47 @@ class XBase extends EventEmitter {
     // console.log('schedule end <<<<')
   }
 
+  //////////////////////////////////////////////////////////////////////////////
+  //
+  //  external/api interface
+  //
+  //  1. view hierarchy
+  //  2. update policy
+  //  3. pause / resume / auto-stop
+  //  4. destroy (cancel)
+  //
+  //////////////////////////////////////////////////////////////////////////////
+  view () {
+    
+    let nodes = []
+    if (this.root) {
+      this.root.visit(n => nodes.push(n.view()))
+    }
+    return {
+      mode: this.mode,
+      nodes
+    }
+  }
+
+  setPolicy (srcUUID, type, policy, applyToAll) {
+    let node = this.root.find(n => n.srcUUID === srcUUID)
+    if (!node) throw new Error('not found')
+
+    node.setPolicy(type, policy)
+
+    if (applyToAll) {
+      let name = node instanceof Directory ? 'dir' : 'file'
+      let index = type === 'same' ? 0 : 1
+      this.policies[name][index] = policy
+    }
+  }
+
   /////////////////////////////////////////////////////////////////////////////
   //
   // vfs/fruitfs operation proxy
   //
   //////////////////////////////////////////////////////////////////////////////
+
 
   mkdir(dirUUID, name, policy, callback) {
     if (this.user) {
@@ -260,7 +308,6 @@ class XBase extends EventEmitter {
   }
 
   cpFile (srcDirUUID, fileUUID, fileName, dstDirUUID, policy, callback) {
-
     if (this.user) {
       this.ctx.copy(
         this.user,
@@ -298,7 +345,7 @@ class XBase extends EventEmitter {
     }
   }
 
-  mvfilec (srcDirUUID, srcFileUUID, srcFilename, dstDirUUID, policy, callback) {
+  mvfilec (srcDirUUID, srcFileUUID, srcFileName, dstDirUUID, policy, callback) {
     if (this.user) {
     } else {
       this.ctx.mvfilec(
@@ -314,67 +361,69 @@ class XBase extends EventEmitter {
     }
   }
 
-  //////////////////////////////////////////////////////////////////////////////
-  //
-  //  external/api interface
-  //
-  //  1. view hierarchy
-  //  2. update policy
-  //  3. pause / resume / auto-stop
-  //  4. destroy (cancel)
-  //
-  //////////////////////////////////////////////////////////////////////////////
-
-  view () {
-    
-    let nodes = []
-    if (this.root) {
-      this.root.visit(n => nodes.push(n.view()))
-    }
-    return {
-      mode: this.mode,
-      nodes
-    }
-  }
-
-  setPolicy (srcUUID, type, policy, applyToAll) {
-    let node = this.root.find(n => n.srcUUID === srcUUID)
-    if (!node) throw new Error('not found')
-
-    node.setPolicy(type, policy)
-
-    if (applyToAll) {
-      let name = node instanceof Directory ? 'dir' : 'file'
-      let index = type === 'same' ? 0 : 1
-      this.policies[name][index] = policy
-    }
-  }
-
 }
 
-class XCopy extends XBase {
+class Copy extends Base {
 
   constructor (ctx, user, policies, src, dst, xstats) {
     super(ctx, user, policies)
     this.srcDriveUUID = src.drive
     this.dstDriveUUID = dst.drive
     this.root = new CopyDirectory(this, null, src.dir, dst.dir, xstats)
-    this.root.on('finish', () => {})
+  }
+
+  readdir(srcDirUUID, callback) {
+    this.ctx.readdir(this.srcDriveUUID, srcDirUUID, callback)
   }
 }
 
-class XMove extends XBase {
+class Move extends Base {
+
   constructor (ctx, user, policies, src, dst, xstats) {
     super(ctx, user, policies)
     this.srcDriveUUID = src.drive
     this.dstDriveUUID = dst.drive
     this.root = new MoveDirectory(this, null, src.dir, dst.dir, xstats)
-    this.root.on('finish', () => {})
   }
+
+  // same as copy
+  readdir(srcDirUUID, callback) {
+    this.ctx.readdir(this.srcDriveUUID, srcDirUUID, callback)
+  }
+}
+
+class Import extends Base {
+
+  constructor (ctx, user, policies, src, dst, stats) {
+    super(ctx, user, policies)
+    this.srcPath = src.path
+    this.dstDriveUUID = dst.drive
+    this.root = new ImportDirectory(this, null, srcPath, dst.dir, stats)
+  }
+}
+
+class Export extends Base {
+
+  constructor (ctx, user, policies, src, dst, xstats) {
+    super(ctx, user, policies)
+    this.srcDriveUUID = src.drive
+    this.dstPath = dst.path
+    this.root = new ExportDirectory(this, null, src.dir, '', this.dstPath, xstats)
+  }
+
+  readdir(srcDirUUID, callback) {
+    this.ctx.readdir(this.srcDriveUUID, srcDirUUID, callback)
+  }
+
+  clone(dirUUID, fileUUID, fileName, callback) {
+    this.ctx.clone(this.srcDriveUUID, dirUUID, fileUUID, fileName, callback)
+  }
+
 }
 
 // return formatted policies 
 const formatPolicies = policies => {
+
   const vs = [undefined, null, 'skip', 'replace', 'rename']
   const obj = { dir: [], file: [] }  
 
@@ -399,6 +448,64 @@ const formatPolicies = policies => {
   return obj
 }
 
+// entries are uuids
+// returns xstats or throw error
+const entriesToXstats = (ctx, user, driveUUID, dirUUID, entries, callback) => {
+  if (user) {
+    // TODO 
+  } else {
+    ctx.readdir(driveUUID, dirUUID, (err, xstats) => {
+      if (err) return callback(err)
+      let found = []    // xstats
+      let missing = []  // uuids
+
+      entries.forEach(uuid => {
+        let x = xstats.find(x => x.uuid === uuid)
+        if (x) {
+          found.push(x)
+        } else {
+          missing.push(uuid)
+        }
+      })
+
+      if (missing.length) {
+        let err = new Error('some entries are missing')
+        err.missing = missing
+        callback(err)
+      } else {
+        callback(null, found)
+      }
+    })
+  }
+}
+
+// entries are names
+// returns stats or throw error
+const entriesToStats = (dirPath, entries, callback) => 
+  fs.readdir(dirPath, (err, files) => {
+    if (err) return callback(err)
+
+    let found = []    // names
+    let missing = []  // names
+
+    entries.forEach(name => {
+      if (files.includes(name)) {
+        found.push(name)
+      } else {
+        missing.push(name)
+      }
+    })
+
+    if (missing.length) {
+      let err = new Error('some entries are missing')
+      err.missing = missing
+      callback(err)
+    } else {
+      callback(null, found)
+    }
+  })
+
+
 /**
 Create a xcopy machine.
 
@@ -411,49 +518,29 @@ Create a xcopy machine.
 @param {object} policies - { dir, file }
 @param {function} callback - `(err, xcopy) => {}`
 */
-const xcopy = (ctx, user, mode, src, dst, entries, policies, callback) => {
-  if (typeof policies === 'function') {
-    callback = policies
-    policies = null
-  }
+const xcopy = (ctx, user, mode, policies, src, dst, entries, callback) => {
 
   try {
-    policies = formatPolicies(policies)
+    policies = formatPolicies(policies) 
   } catch (e) {
     return process.nextTick(() => callback(e))
   }
 
-  ctx.readdir(src.dir, (err, xstats) => {
-    if (err) return callback(err)
+  if (user) {
+  } 
 
-    let found = []   // xstat
-    let missing = []  // uuid
-
-    entries.forEach(ent => {
-      let x = xstats.find(x => x.uuid === ent)
-      if (x) {
-        found.push(x)
-      } else {
-        missing.push(ent)
-      }
+  if (mode === 'copy' || mode === 'move' || mode === 'export') {
+    entriesToXstats(ctx, user, src.drive, src.dir, entries, (err, xstats) => {
+      if (err) return callback(err)
+      let X = mode === 'copy' ? Copy : mode === 'move' ? Move : Export
+      callback(null, new X(ctx, user, policies, src, dst, xstats))
     })
-
-    if (missing.length) {
-      callback(new Error('missing'))
-    } else {
-
-      if (mode === 'copy') {
-        let xc = new XCopy(ctx, user, policies, src, dst, xstats)
-        callback(null, xc)
-      } else if (mode === 'move') {
-        let xc = new XMove(ctx, user, policies, src, dst, xstats)
-        callback(null, xc)
-      } else {
-        let err = new Error('unsupported')
-        callback(err)
-      }
-    }
-  })
+  } else if (mode === 'import') {
+    entriesToStats(src.path, entries, (err, stats) => {
+      if (err) return callback(err) 
+      callback(null, Import(ctx, user, policies, src, dst, stats))
+    })
+  }
 }
 
 module.exports = xcopy

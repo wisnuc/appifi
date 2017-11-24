@@ -31,7 +31,7 @@ const debugi = require('debug')('fruitmix:indexing')
 const debug = Debug('vfs')
 
 const Forest = require('./forest')
-const { mkdir, mkfile, clone } = require('./underlying')
+const { mkdir, mkfile, mvdir, mvfile, clone, send } = require('./underlying')
 
 
 // TODO move to lib
@@ -548,6 +548,7 @@ class VFS extends Forest {
     })
   }
 
+
   // copy one fruitmix file into another frutimix directory
   copy (srcDriveUUID, srcDirUUID, fileUUID, fileName, dstDriveUUID, dstDirUUID, policy, callback) {
     
@@ -567,20 +568,67 @@ class VFS extends Forest {
    }) 
   }
 
-  mvFile (srcDriveUUID, srcDirUUID, fileUUID, fileName, dstDriveUUID, dstDirUUID, resolve, callback) {
-    let srcDir = this.uuidMap.get(srcDirUUID)
-    let dstDir = this.uuidMap.get(dstDirUUID)
+  // move src dir into dst dir
+  mvdirc(srcDriveUUID, srcDirUUID, dstDriveUUID, dstDirUUID, policy, callback) {
+    let srcDir, dstDir
+    try {
+      srcDir = this.getDriveDirSync(srcDriveUUID, srcDirUUID)
+      dstDir = this.getDriveDirSync(dstDriveUUID, dstDirUUID)
+    } catch (e) {
+      return process.nextTick(() => callback(e))
+    } 
+
+    let oldPath = srcDir.abspath()
+    let newPath = path.join(dstDir.abspath(), srcDir.name)
+    mvdir(oldPath, newPath, policy, (err, xstat, resolved) => {
+      // TODO
+      callback(err, xstat, resolved)
+    })
   }
 
-  readdir(dirUUID, callback) {
-    let dir = this.uuidMap.get(dirUUID)
-    if (!dir) {
-      callback(new Error('not found'))
-    } else {
-      dir.read(callback)
+  mvfilec(srcDriveUUID, srcDirUUID, srcFileUUID, srcFileName, dstDriveUUID, dstDirUUID, policy, callback) {
+    let srcDir, dstDir
+    try {
+      srcDir = this.getDriveDirSync(srcDriveUUID, srcDirUUID)
+      dstDir = this.getDriveDirSync(dstDriveUUID, dstDirUUID)
+    } catch (e) {
+      return process.nextTick(() => callback(e))
     }
+
+    let oldPath = path.join(srcDir.abspath(), srcFileName)
+    let newPath = path.join(dstDir.abspath(), srcFileName)
+    mvfile(oldPath, newPath, policy, (err, xstat, resolved) => {
+      // TODO
+      callback(err, xstat, resolved)
+    })
   }
 
+  // clone a fruit fs file to tmp dir
+  // returns tmp file path
+  clone (driveUUID, dirUUID, fileUUID, fileName, callback) {
+  
+    let dir = this.uuidMap.get(dirUUID)
+    let filePath = path.join(dir.abspath(), fileName)
+    let tmp = this.genTmpPath()
+
+    clone(filePath, fileUUID, tmp, (err, xstat) => {
+      if (err) return callback(err)
+      callback(null, tmp)
+    })
+  }
+
+
+  readdir(driveUUID, dirUUID, callback) {
+    let dir
+    try {
+      dir = this.getDriveDirSync(driveUUID, dirUUID)
+    } catch (e) {
+
+      return process.nextTick(() => callback(e))
+    }
+
+    dir.read(callback)
+  }
 }
 
 module.exports = VFS
