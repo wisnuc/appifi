@@ -48,6 +48,8 @@ class Base extends EventEmitter {
     this.readDirs = new Set()
     this.conflictDirs = new Set()
     this.failedDirs = new Set()
+
+   
   }
 
   destroy () {
@@ -277,6 +279,7 @@ class Copy extends Base {
 
   constructor (ctx, user, policies, src, dst, xstats) {
     super(ctx, user, policies)
+    this.mode = 'copy'
     this.srcDriveUUID = src.drive
     this.dstDriveUUID = dst.drive
     this.root = new CopyDirectory(this, null, src.dir, dst.dir, xstats)
@@ -310,6 +313,7 @@ class Move extends Base {
 
   constructor (ctx, user, policies, src, dst, xstats) {
     super(ctx, user, policies)
+    this.mode = 'move'
     this.srcDriveUUID = src.drive
     this.dstDriveUUID = dst.drive
     this.root = new MoveDirectory(this, null, src.dir, dst.dir, xstats)
@@ -343,6 +347,7 @@ class Import extends Base {
 
   constructor (ctx, user, policies, src, dst, stats) {
     super(ctx, user, policies)
+    this.mode = 'import'
     this.srcPath = src.path
     this.dstDriveUUID = dst.drive
     this.root = new ImportDirectory(this, null, this.srcPath, dst.dir, stats)
@@ -371,12 +376,14 @@ class Import extends Base {
       this.ctx.mkfile(tmp, dst, policy, callback)
     }
   }
+
 }
 
 class Export extends Base {
 
   constructor (ctx, user, policies, src, dst, xstats) {
     super(ctx, user, policies)
+    this.mode = 'export'
     this.srcDriveUUID = src.drive
     this.dstPath = dst.path
     this.root = new ExportDirectory(this, null, src.dir, '', this.dstPath, xstats)
@@ -496,9 +503,7 @@ const entriesToStats = (dirPath, entries, callback) =>
             }
           }
 
-          if (!--count) {
-            callback(null, stats)
-          }
+          if (!--count) callback(null, stats)
         }) 
       })
     }
