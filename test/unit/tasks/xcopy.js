@@ -252,8 +252,26 @@ describe(path.basename(__filename) + ' files', () => {
       })
     })
   })  
+
+  it('import alonzo11 and x in dir import into dir a, 7c093703', done => {
+    let dirA = vfs.findDirByName('a')
+    
+    let src = { path: importDirPath }
+    let dst = { drive: rootUUID, dir: dirA.uuid }
+    let entries = ['alonzo11', 'x']
+
+    xcopy(vfs, null, 'import', null, src, dst, entries, (err, xc) => {
+      if (err) return done(err)
+
+      xc.on('stopped', () => {
+        console.log(xc.view())
+        done()
+      })
+    })
+  })
 })
 
+/**
 // root
 //  a
 //    c (from dir)
@@ -453,6 +471,7 @@ describe(path.basename(__filename) + ', cp dir on dir conflict', () => {
   })
 
 })
+*/
 
 // root
 //  a

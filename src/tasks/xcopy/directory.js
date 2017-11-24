@@ -114,6 +114,21 @@ class ImportWorking extends Working {
 
   enter () {
     super.enter()
+
+    let dirUUID = this.dir.parent.dstUUID   
+    let name = this.dir.srcName 
+    let policy = this.dir.getPolicy()
+    
+    this.dir.ctx.mkdir(dirUUID, name, policy, (err, xstat, resolved) => {
+      if (err && err.code === 'EEXIST') {
+        this.setState('Conflict', err, policy)
+      } else if (err) {
+        this.setState('Failed', err)
+      } else {
+        this.dir.dstUUID = xstat.uuid
+        this.setState('Reading')
+      }
+    })
   }
 }
 
@@ -241,7 +256,7 @@ class Reading extends State {
 class ImportReading extends State {
 
   enter () {
-    super.enter()    
+    this.dir.ctx.indexReadingDir(this.dir)
 
     let srcPath = this.dir.srcPath
     fs.readdir(this.dir.srcPath, (err, files) => {
@@ -256,8 +271,8 @@ class ImportReading extends State {
           fs.lstat(path.join(srcPath, file), (err, stat) => {
             if (!err && (stat.isDirectory() || stat.isFile())) {
               let x = { 
-                type: stat.isDirectory ? 'directory' : 'file',
-                name: stat.name
+                type: stat.isDirectory() ? 'directory' : 'file',
+                name: file
               }
 
               if (x.type === 'file') {
@@ -268,11 +283,17 @@ class ImportReading extends State {
               stats.push(x)
             } 
 
-            if (!--count) this.setState('Read', stats)
+            if (!--count) {
+              this.setState('Read', stats)
+            }
           })
         })
       }
     })
+  }
+
+  exit () {
+    this.dir.ctx.unindexReadingDir(this.dir)
   }
 
 }
@@ -387,13 +408,19 @@ class ImportRead extends Read {
     super.enter()
     this.dir.dstats = stats.filter(x => x.type === 'directory')
     this.dir.fstats = stats.filter(x => x.type === 'file')
+
+    console.log('-------------------------')
+    console.log('dstats', this.dir.dstats)
+    console.log('fstats', this.dir.fstats)
+    console.log('-------------------------')
+
     this.next()
   }
 
   next () {
     if (this.dir.fstats.length) {
       let fstat = this.dir.fstats.shift()
-      let file = new ExportFile(this.dir.ctx, this.dir, fstat.name)
+      let file = new ImportFile(this.dir.ctx, this.dir, path.join(this.dir.srcPath, fstat.name))
 
       file.on('error', err => { 
         // TODO
@@ -411,7 +438,13 @@ class ImportRead extends Read {
 
     if (this.dir.dstats.length) {
       let dstat = this.dir.dstats.shift()
-      let dir = new ExportDirectory(this.dir.ctx, this.dir, dstat.uuid)
+
+      console.log('-------------------')
+      console.log(this.dir.srcPath)
+      console.log(dstat.name)
+
+      let dir = new ImportDirectory(this.dir.ctx, this.dir, path.join(this.dir.srcPath, dstat.name))
+
       dir.on('error', err => {
         // TODO
         this.next()
@@ -617,6 +650,8 @@ class ImportDirectory extends Directory {
   constructor(ctx, parent, srcPath, dstUUID, stats) {
     super(ctx, parent)
     this.srcPath = srcPath
+    this.srcName = path.basename(srcPath)
+
     if (dstUUID) {
       this.dstUUID = dstUUID
       new ImportRead(this, stats)
@@ -627,6 +662,7 @@ class ImportDirectory extends Directory {
 }
 
 ImportDirectory.prototype.Working = ImportWorking
+ImportDirectory.prototype.Reading = ImportReading
 ImportDirectory.prototype.Read = ImportRead
 
 class ExportDirectory extends Directory {

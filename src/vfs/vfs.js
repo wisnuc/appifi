@@ -507,7 +507,7 @@ class VFS extends Forest {
         if (!found) {
           let err = new Error(`failed to find newly created directory`)
           err.code = 'ENOENT'
-          err.xdoe = 'EDIRTY'
+          err.xcode = 'EDIRTY'
           return callback(err)
         } else {
           callback(null, found, resolved)
@@ -525,29 +525,11 @@ class VFS extends Forest {
   }
 
   // mkfile
-  mkfile (driveUUID, dirUUID, fileName, tmp, hash, resolve, callback) {
+  mkfile (driveUUID, dirUUID, fileName, tmp, hash, policy, callback) {
     let dstDir = this.uuidMap.get(dirUUID)
     let target = path.join(dstDir.abspath(), fileName)    
-     
-    link(target, tmp, hash, resolve, callback)
+    mkfile (target, tmp, hash, policy, callback)
   }  
-
-  // mkfile by copying an existing file
-  mkfilec (srcDriveUUID, srcDirUUID, fileUUID, fileName, ...args) {
-
-    let srcDir = this.uuidMap.get(srcDirUUID)
-    let dstDir = this.uuidMap.get(dstDirUUID)
-
-    let tmpPath = this.genTmpPath() 
-    let srcPath = path.join(srcDir.abspath(), fileName)
-    let dstPath = path.join(dstDir.abspath(), fileName)
-
-    clone(srcPath, fileUUID, tmp, (err, xstat) => {
-      if (err) return callback(err)
-      link(dstPath, tmp, xstat.hash, resolve, callback)
-    })
-  }
-
 
   // copy one fruitmix file into another frutimix directory
   copy (srcDriveUUID, srcDirUUID, fileUUID, fileName, dstDriveUUID, dstDirUUID, policy, callback) {
@@ -616,7 +598,6 @@ class VFS extends Forest {
       callback(null, tmp)
     })
   }
-
 
   readdir(driveUUID, dirUUID, callback) {
     let dir

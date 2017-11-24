@@ -108,7 +108,33 @@ class ImportWorking extends Working {
   enter () {
     super.enter()
 
-    
+    let tmp = this.file.ctx.genTmpPath()  
+    fs.open(this.file.srcPath, 'r', (err, fd) => {
+      if (err) {
+        // TODO
+      } else {
+        this.rs = fs.createReadStream(null, { fd })
+        this.ws = fs.createWriteStream(tmp)
+        this.rs.pipe(this.ws)
+        this.ws.on('finish', () => {
+       
+          let dstDirUUID = this.file.parent.dstUUID 
+          let policy = this.file.getPolicy()
+          this.file.ctx.mkfile(dstDirUUID, this.file.srcName, tmp, null, policy, (err, xstat, resolved) => {
+          
+            if (err && err.code === 'EEXIST') {
+              this.setState('Conflict', err, policy)
+            } else if (err) {
+              this.setState('Failed', err)
+            } else {
+              rimraf(tmp, () => {})
+              this.setState('Finished')
+            }
+
+          })
+        })
+      }
+    })
   }
 }
 
@@ -332,6 +358,8 @@ class ImportFile extends File {
   constructor(ctx, parent, srcPath) {
     super(ctx, parent)
     this.srcPath = srcPath
+    this.srcName = path.basename(srcPath)
+    this.state = new Pending(this)
   }
 
 }

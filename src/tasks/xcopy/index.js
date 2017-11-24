@@ -1,3 +1,5 @@
+const path = require('path')
+const fs = require('fs')
 const EventEmitter = require('events')
 
 const debug = require('debug')('xcopy')
@@ -70,7 +72,7 @@ class Base extends EventEmitter {
   formatDir (dir) {
     // TODO this does not work for fruit or native fs
     // it's better to keep a copy of srcName in dir
-    return `${dir.constructor.name} ${dir.srcUUID} ${this.ctx.uuidMap.get(dir.srcUUID).name}`
+    return `${dir.constructor.name} ${dir.srcUUID || dir.srcPath} ${dir.srcName}`
   }
 
   formatFile (file) {
@@ -398,7 +400,19 @@ class Import extends Base {
     super(ctx, user, policies)
     this.srcPath = src.path
     this.dstDriveUUID = dst.drive
-    this.root = new ImportDirectory(this, null, srcPath, dst.dir, stats)
+    this.root = new ImportDirectory(this, null, this.srcPath, dst.dir, stats)
+  }
+
+  genTmpPath () {
+    return this.ctx.genTmpPath()
+  }
+
+  mkdir(dirUUID, name, policy, callback) {
+    this.ctx.mkdir(this.dstDriveUUID, dirUUID, name, policy, callback)
+  }
+
+  mkfile (dirUUID, fileName, tmp, hash, policy, callback) {
+    this.ctx.mkfile(this.dstDriveUUID, dirUUID, fileName, tmp, hash, policy, callback)
   }
 }
 
@@ -485,23 +499,50 @@ const entriesToStats = (dirPath, entries, callback) =>
   fs.readdir(dirPath, (err, files) => {
     if (err) return callback(err)
 
+    if (files.length === 0) {
+      let err = new Error('all entries are missing')
+      err.missing = [...entries]
+      return callback(err)
+    }
+
     let found = []    // names
     let missing = []  // names
 
-    entries.forEach(name => {
-      if (files.includes(name)) {
-        found.push(name)
-      } else {
-        missing.push(name)
-      }
-    })
+    entries.forEach(name => files.includes(name) ? found.push(name) : missing.push(name))
 
     if (missing.length) {
       let err = new Error('some entries are missing')
       err.missing = missing
       callback(err)
     } else {
-      callback(null, found)
+
+      let count = entries.length 
+      let stats = []
+      entries.forEach(name => {
+        fs.lstat(path.join(dirPath, name), (err, stat) => {
+          if (!err) {
+            if (stat.isDirectory()) {
+              stats.push({
+                type: 'directory',
+                name
+              })
+            } else if (stat.isFile()) {
+              stats.push({
+                type: 'file',
+                name,
+                size: stat.size,
+                mtime: stat.mtime.getTime()
+              })
+            } else {
+
+            }
+          }
+
+          if (!--count) {
+            callback(null, stats)
+          }
+        }) 
+      })
     }
   })
 
@@ -538,7 +579,7 @@ const xcopy = (ctx, user, mode, policies, src, dst, entries, callback) => {
   } else if (mode === 'import') {
     entriesToStats(src.path, entries, (err, stats) => {
       if (err) return callback(err) 
-      callback(null, Import(ctx, user, policies, src, dst, stats))
+      callback(null, new Import(ctx, user, policies, src, dst, stats))
     })
   }
 }
