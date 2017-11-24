@@ -62,7 +62,6 @@ class Base extends EventEmitter {
   resume () {
   }
 
-
   //////////////////////////////////////////////////////////////////////////////
   //
   // state machine
@@ -76,56 +75,56 @@ class Base extends EventEmitter {
   }
 
   formatFile (file) {
-    return `${file.constructor.name} ${file.srcUUID} ${file.srcName}`
+    return `${file.constructor.name} ${file.srcUUID || file.srcPath} ${file.srcName}`
   }
 
   indexPendingFile (file) {
-    debug(`file ${this.formatFile(file)} enter pending`)    
+    debug(`${this.formatFile(file)} enter pending`)    
     this.pendingFiles.add(file) 
     this.reqSched()
   }
 
   unindexPendingFile (file) {
-    debug(`file ${this.formatFile(file)} exit pending`)    
+    debug(`${this.formatFile(file)} exit pending`)    
     this.pendingFiles.delete(file) 
   }
 
   indexWorkingFile (file) {
-    debug(`file ${this.formatFile(file)} enter working`)    
+    debug(`${this.formatFile(file)} enter working`)    
     this.workingFiles.add(file)   
   }
 
   unindexWorkingFile (file) {
-    debug(`file ${this.formatFile(file)} exit working`)
+    debug(`${this.formatFile(file)} exit working`)
     this.workingFiles.delete(file)
     this.reqSched()
   }
 
   indexFinishedFile (file) {
-    debug(`file ${this.formatFile(file)} enter finished`) 
+    debug(`${this.formatFile(file)} enter finished`) 
   }
 
   unindexFinishedFile (file) {
-    debug(`file ${this.formatFile(file)} exit finished`) 
+    debug(`${this.formatFile(file)} exit finished`) 
   }
 
   indexConflictFile (file) {
-    debug(`file ${this.formatFile(file)} enter conflict`)
+    debug(`${this.formatFile(file)} enter conflict`)
     this.conflictFiles.add(file)
   }
 
   unindexConflictFile (file) {
-    debug(`file ${this.formatFile(file)} exit conflict`)
+    debug(`${this.formatFile(file)} exit conflict`)
     this.conflictFiles.delete(file) 
   }
 
   indexFailedFile (file) {
-    debug(`file ${this.formatFile(file)} enter failed`)
+    debug(`${this.formatFile(file)} enter failed`)
     this.failedFiles.add(file)
   }
 
   unindexFailedFile (file) {
-    debug(`file ${this.formatFile(file)} enter failed`)
+    debug(`${this.formatFile(file)} enter failed`)
     this.failedFiles.delete(file)
   }
 
@@ -215,8 +214,6 @@ class Base extends EventEmitter {
   schedule () {
     this.scheduled = false
 
-    // console.log('schedule begin >>>>')
-
     // schedule file job
     while (this.pendingFiles.size > 0 && this.workingFiles.size < 1) {
       let file = this.pendingFiles[Symbol.iterator]().next().value
@@ -234,7 +231,6 @@ class Base extends EventEmitter {
       process.nextTick(() => this.emit('stopped'))
     }
 
-    // console.log('schedule end <<<<')
   }
 
   //////////////////////////////////////////////////////////////////////////////
@@ -243,16 +239,14 @@ class Base extends EventEmitter {
   //
   //  1. view hierarchy
   //  2. update policy
-  //  3. pause / resume / auto-stop
+  //  3. pause / resume (not implemented)
   //  4. destroy (cancel)
   //
   //////////////////////////////////////////////////////////////////////////////
+
   view () {
-    
     let nodes = []
-    if (this.root) {
-      this.root.visit(n => nodes.push(n.view()))
-    }
+    if (this.root) this.root.visit(n => nodes.push(n.view()))
     return {
       mode: this.mode,
       nodes
@@ -272,95 +266,9 @@ class Base extends EventEmitter {
     }
   }
 
-  /////////////////////////////////////////////////////////////////////////////
-  //
-  // vfs/fruitfs operation proxy
-  //
-  //////////////////////////////////////////////////////////////////////////////
-
-
-  mkdir(dirUUID, name, policy, callback) {
-    if (this.user) {
-      this.ctx.mkdir(this.user, dirUUID, name, policy, callback)
-    } else {
-      this.ctx.mkdir(dirUUID, name, policy, callback)
-    }
-  } 
-
-  // mkdirc make a new dir with name from an existing dir
-  mkdirc (srcDirUUID, dstDirUUID, policy, callback) {
-    if (this.user) {
-      this.ctx.mkdirc(
-        this.user, 
-        this.srcDriveUUID, 
-        srcDirUUID, 
-        this.dstDriveUUID, 
-        dstDirUUID, policy, 
-        callback
-      )
-    } else {
-      this.ctx.mkdirc(
-        this.srcDriveUUID, 
-        srcDirUUID, 
-        this.dstDriveUUID, 
-        dstDirUUID, 
-        policy, callback
-      )
-    }
-  }
-
-  cpFile (srcDirUUID, fileUUID, fileName, dstDirUUID, policy, callback) {
-    if (this.user) {
-      this.ctx.copy(
-        this.user,
-        this.srcDriveUUID, 
-        srcDirUUID, fileUUID, 
-        fileName, 
-        this.dstDriveUUID, 
-        dstDirUUID, 
-        policy, 
-        callback
-      )
-    } else {
-      this.ctx.copy(
-        this.srcDriveUUID, 
-        srcDirUUID, fileUUID, 
-        fileName, 
-        this.dstDriveUUID, 
-        dstDirUUID, 
-        policy, 
-        callback
-      )
-    }
-  }
-
-  mvdirc (srcDirUUID, dstDirUUID, policy, callback) {
-    if (this.user) {
-    } else {
-      this.ctx.mvdirc(
-        this.srcDriveUUID, 
-        srcDirUUID, 
-        this.dstDriveUUID, 
-        dstDirUUID, 
-        policy, callback
-      )
-    }
-  }
-
-  mvfilec (srcDirUUID, srcFileUUID, srcFileName, dstDirUUID, policy, callback) {
-    if (this.user) {
-    } else {
-      this.ctx.mvfilec(
-        this.srcDriveUUID,
-        srcDirUUID,
-        srcFileUUID,
-        srcFileName,
-        this.dstDriveUUID,
-        dstDirUUID,
-        policy,
-        callback
-      )
-    }
+  // this method is used by copy, move and export, but not import
+  readdir(srcDirUUID, callback) {
+    this.ctx.readdir(this.srcDriveUUID, srcDirUUID, callback)
   }
 
 }
@@ -374,9 +282,28 @@ class Copy extends Base {
     this.root = new CopyDirectory(this, null, src.dir, dst.dir, xstats)
   }
 
-  readdir(srcDirUUID, callback) {
-    this.ctx.readdir(this.srcDriveUUID, srcDirUUID, callback)
+  cpdir (src, dst, policy, callback) {
+    src.drive = this.srcDriveUUID
+    dst.drive = this.dstDriveUUID
+
+    if (this.user) {
+      this.ctx.cpdir(user, src, dst, policy, callback)
+    } else {
+      this.ctx.cpdir(src, dst, policy, callback)
+    }
+  } 
+
+  cpfile (src, dst, policy, callback) {
+    src.drive = this.srcDriveUUID
+    dst.drive = this.dstDriveUUID
+
+    if (this.user) {
+      this.ctx.cpfile(user, src, dst, policy, callback)
+    } else {
+      this.ctx.cpfile(src, dst, policy, callback)
+    }
   }
+
 }
 
 class Move extends Base {
@@ -388,10 +315,28 @@ class Move extends Base {
     this.root = new MoveDirectory(this, null, src.dir, dst.dir, xstats)
   }
 
-  // same as copy
-  readdir(srcDirUUID, callback) {
-    this.ctx.readdir(this.srcDriveUUID, srcDirUUID, callback)
+  mvdir (src, dst, policy, callback) {
+    src.drive = this.srcDriveUUID
+    dst.drive = this.dstDriveUUID
+    
+    if (this.user) {
+      this.ctx.mvdir(user, src, dst, policy, callback)
+    } else {
+      this.ctx.mvdir(src, dst, policy, callback)
+    } 
   }
+
+  mvfile (src, dst, policy, callback) {
+    src.drive = this.srcDriveUUID
+    dst.drive = this.dstDriveUUID
+
+    if (this.user) {
+      this.ctx.mvfile(user, src, dst, policy, callback)
+    } else {
+      this.ctx.mvfile(src, dst, policy, callback)
+    }
+  }
+
 }
 
 class Import extends Base {
@@ -407,12 +352,24 @@ class Import extends Base {
     return this.ctx.genTmpPath()
   }
 
-  mkdir(dirUUID, name, policy, callback) {
-    this.ctx.mkdir(this.dstDriveUUID, dirUUID, name, policy, callback)
+  mkdir (dst, policy, callback) {
+    dst.drive = this.dstDriveUUID
+
+    if (this.user) {
+      this.ctx.mkdir(this.user, dst, policy, callback)
+    } else {
+      this.ctx.mkdir(dst, policy, callback)
+    }
   }
 
-  mkfile (dirUUID, fileName, tmp, hash, policy, callback) {
-    this.ctx.mkfile(this.dstDriveUUID, dirUUID, fileName, tmp, hash, policy, callback)
+  mkfile (tmp, dst, policy, callback) {
+    dst.drive = this.dstDriveUUID
+
+    if (this.user) {
+      this.ctx.mkfile(this.user, tmp, dst, policy, callback)
+    } else {
+      this.ctx.mkfile(tmp, dst, policy, callback)
+    }
   }
 }
 
@@ -425,14 +382,15 @@ class Export extends Base {
     this.root = new ExportDirectory(this, null, src.dir, '', this.dstPath, xstats)
   }
 
-  readdir(srcDirUUID, callback) {
-    this.ctx.readdir(this.srcDriveUUID, srcDirUUID, callback)
-  }
+  clone (src, callback) {
+    src.drive = this.srcDriveUUID
 
-  clone(dirUUID, fileUUID, fileName, callback) {
-    this.ctx.clone(this.srcDriveUUID, dirUUID, fileUUID, fileName, callback)
+    if (this.user) {
+      this.ctx.clone(this.user, src, callback)
+    } else {
+      this.ctx.clone(src, callback)
+    }
   }
-
 }
 
 // return formatted policies 

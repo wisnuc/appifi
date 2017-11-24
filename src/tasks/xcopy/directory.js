@@ -2,17 +2,14 @@ const path = require('path')
 const fs = require('fs')
 const rimraf = require('rimraf')
 
-const autoname = require('../../lib/autoname')
+const { mkdir } = require('./lib')
+
 const Node = require('./node')
+const { File, CopyFile, MoveFile, ImportFile, ExportFile } = require('./file')
 
-const { 
-  File,
-  CopyFile,
-  MoveFile,
-  ImportFile,
-  ExportFile
-} = require('./file')
-
+/**
+Base File State
+*/
 class State {
 
   constructor(dir, ...args) {
@@ -39,6 +36,7 @@ class State {
 
   exit () {
   }
+
 }
 
 class Pending extends State {
@@ -50,9 +48,11 @@ class Pending extends State {
   exit () {
     this.dir.ctx.unindexPendingDir(this.dir)
   } 
+
 }
 
 class Working extends State {
+
   enter () {
     this.dir.ctx.indexWorkingDir(this.dir)
   }
@@ -60,6 +60,7 @@ class Working extends State {
   exit () {
     this.dir.ctx.unindexWorkingDir(this.dir)
   } 
+
 }
 
 class CopyWorking extends Working {
@@ -67,11 +68,11 @@ class CopyWorking extends Working {
   enter () {
     super.enter()
 
-    let srcDirUUID = this.dir.srcUUID
-    let dstDirUUID = this.dir.parent.dstUUID
+    let src = { dir: this.dir.srcUUID }
+    let dst = { dir: this.dir.parent.dstUUID }
     let policy = this.dir.getPolicy()
 
-    this.dir.ctx.mkdirc(srcDirUUID, dstDirUUID, policy, (err, xstat) => {
+    this.dir.ctx.cpdir(src, dst, policy, (err, xstat) => {
       if (err && err.code === 'EEXIST') {
         this.setState('Conflict', err, policy)
       } else if (err) {
@@ -82,16 +83,19 @@ class CopyWorking extends Working {
       }
     })
   }
+
 }
 
 class MoveWorking extends Working {
 
   enter () {
     super.enter()
-    let srcDirUUID = this.dir.srcUUID
-    let dstDirUUID = this.dir.parent.dstUUID
+
+    let src = { dir: this.dir.srcUUID }
+    let dst = { dir: this.dir.parent.dstUUID }
     let policy = this.dir.getPolicy()
-    this.dir.ctx.mvdirc(srcDirUUID, dstDirUUID, policy, (err, xstat, resolved) => {
+
+    this.dir.ctx.mvdir(src, dst, policy, (err, xstat, resolved) => {
       if (err && err.code === 'EEXIST') {
         this.setState('Conflict', err, policy)
       } else if (err) {
@@ -115,11 +119,14 @@ class ImportWorking extends Working {
   enter () {
     super.enter()
 
-    let dirUUID = this.dir.parent.dstUUID   
-    let name = this.dir.srcName 
+    let dst = {
+      dir: this.dir.parent.dstUUID,
+      name: this.dir.srcName,
+    }
+
     let policy = this.dir.getPolicy()
-    
-    this.dir.ctx.mkdir(dirUUID, name, policy, (err, xstat, resolved) => {
+   
+    this.dir.ctx.mkdir(dst, policy, (err, xstat, resolved) => {
       if (err && err.code === 'EEXIST') {
         this.setState('Conflict', err, policy)
       } else if (err) {
@@ -130,69 +137,7 @@ class ImportWorking extends Working {
       }
     })
   }
-}
 
-const xcode = stat => {
-  if (stat.isFile()) {
-    return 'EISFILE'
-  } else if (stat.isDirectory()) {
-    return 'EISDIRECTORY'
-  } else if (stat.isBlockDevice()) {
-    return 'EISBLOCKDEV'
-  } else if (stat.isCharacterDevice()) {
-    return 'EISCHARDEV'
-  } else if (stat.isSymbolicLink()) {
-    return 'EISSYMLINK'
-  } else if (stat.isFIFO()) {
-    return 'EISFIFO'
-  } else if (stat.isSocket()) {
-    return 'EISSOCKET'
-  } else {
-    return 'EISUNKNOWN'
-  }
-}
-
-const mkdir = (target, policy, callback) => {
-  fs.mkdir(target, err => {
-    if (err && err === 'EEXIST') {
-      fs.lstat(target, (error, stat) => {
-        if (error) return callback(error)
-
-        const same = stat.isDirectory()
-        const diff = !same
-
-        if ((same && policy[0] === 'skip') || (diff && policy[1] === 'skip')) {
-          callback(null, null, [same, diff])
-        } else if (same && policy[0] === 'replace' || diff && policy[1] === 'replace') {
-          rimraf(target, err => {
-            if (err) return callback(err)
-            mkdir(target, policy, err => {
-              if (err) return callback(err)
-              callback(null, null, [same, diff])
-            })
-          }) 
-        } else if (same && policy[0] === 'rename' || diff && policy[1] === 'rename') {
-          let dirname = path.dirname(target)
-          let basename = path.basenmae(target)
-          fs.readdir(dirname, (error, files) => {
-            if (error) return callback(error)
-            let target2 = path.join(dirname, autoname(basename, files))
-            mkdir(target2, policy, (err, fd) => {
-              if (err) return callback(err)
-              callback(null, fd, [same, diff])
-            })
-          })
-        } else {
-          err.xcode = xcode(stat)
-          callback(err)
-        }
-      })
-    } else if (err) {
-      callback(err)
-    } else {
-      callback(null, null, [false, false])
-    }
-  }) 
 }
 
 class ExportWorking extends Working {
@@ -214,6 +159,7 @@ class ExportWorking extends Working {
       } 
     })
   }
+
 }
 
 class Conflict extends State {
@@ -231,20 +177,13 @@ class Conflict extends State {
   exit () {
     this.dir.ctx.unindexConflictDir(this.dir)
   }
+
 }
 
 class Reading extends State {
 
   enter () {
     this.dir.ctx.indexReadingDir(this.dir)
-    // readdir always read source dir
-    this.dir.ctx.readdir(this.dir.srcUUID, (err, xstats) => {
-      if (err) {
-        this.setState('Failed', err)
-      } else {
-        this.setState('Read', xstats)
-      }
-    })
   } 
 
   exit () {
@@ -253,10 +192,26 @@ class Reading extends State {
 
 }
 
-class ImportReading extends State {
+class FruitReading extends Reading {
 
   enter () {
-    this.dir.ctx.indexReadingDir(this.dir)
+    super.enter()
+    // readdir always read source dir
+    this.dir.ctx.readdir(this.dir.srcUUID, (err, xstats) => {
+      if (err) {
+        this.setState('Failed', err)
+      } else {
+        this.setState('Read', xstats)
+      }
+    })
+  }
+
+}
+
+class NativeReading extends Reading {
+
+  enter () {
+    super.enter()
 
     let srcPath = this.dir.srcPath
     fs.readdir(this.dir.srcPath, (err, files) => {
@@ -292,32 +247,24 @@ class ImportReading extends State {
     })
   }
 
-  exit () {
-    this.dir.ctx.unindexReadingDir(this.dir)
-  }
-
 }
 
 class Read extends State {
 
-  enter () {
+  enter (xstats) {
     this.dir.ctx.indexReadDir(this.dir)
+    this.dir.dstats = xstats.filter(x => x.type === 'directory')
+    this.dir.fstats = xstats.filter(x => x.type === 'file')
+    this.next()
   }
 
   exit () {
     this.dir.ctx.unindexReadDir(this.dir)
   }
+
 }
 
 class CopyRead extends Read {
-
-  enter (xstats) {
-    super.enter()
-
-    this.dir.dstats = xstats.filter(x => x.type === 'directory')
-    this.dir.fstats = xstats.filter(x => x.type === 'file')
-    this.next()
-  }
 
   next () {
     if (this.dir.fstats.length) {
@@ -356,13 +303,6 @@ class CopyRead extends Read {
 }
 
 class MoveRead extends Read {
-
-  enter (xstats) {
-    super.enter()
-    this.dir.dstats = xstats.filter(x => x.type === 'directory')
-    this.dir.fstats = xstats.filter(x => x.type === 'file')
-    this.next()
-  }
 
   next () {
     if (this.dir.fstats.length) {
@@ -404,19 +344,6 @@ class MoveRead extends Read {
 
 class ImportRead extends Read {
 
-  enter (stats) {
-    super.enter()
-    this.dir.dstats = stats.filter(x => x.type === 'directory')
-    this.dir.fstats = stats.filter(x => x.type === 'file')
-
-    console.log('-------------------------')
-    console.log('dstats', this.dir.dstats)
-    console.log('fstats', this.dir.fstats)
-    console.log('-------------------------')
-
-    this.next()
-  }
-
   next () {
     if (this.dir.fstats.length) {
       let fstat = this.dir.fstats.shift()
@@ -438,11 +365,6 @@ class ImportRead extends Read {
 
     if (this.dir.dstats.length) {
       let dstat = this.dir.dstats.shift()
-
-      console.log('-------------------')
-      console.log(this.dir.srcPath)
-      console.log(dstat.name)
-
       let dir = new ImportDirectory(this.dir.ctx, this.dir, path.join(this.dir.srcPath, dstat.name))
 
       dir.on('error', err => {
@@ -461,15 +383,7 @@ class ImportRead extends Read {
 
 }
 
-
 class ExportRead extends Read {
-
-  enter (xstats) {
-    super.enter()
-    this.dir.dstats = xstats.filter(x => x.type === 'directory')
-    this.dir.fstats = xstats.filter(x => x.type === 'file')
-    this.next()
-  }
 
   next () {
     if (this.dir.fstats.length) {
@@ -513,9 +427,6 @@ class Failed extends State {
   // when directory enter failed 
   // all descendant node are destroyed (but not removed)
   enter (err) {
-
-    console.log(err) 
-
     this.dir.ctx.indexFailedDir(this.dir)
     this.dir.children.forEach(c => c.destroy())
     this.dir.emit('error', err)
@@ -524,6 +435,7 @@ class Failed extends State {
   exit () {
     this.dir.ctx.unindexFailedDir(this.dir)
   }
+
 }
 
 class Finished extends State {
@@ -536,11 +448,11 @@ class Finished extends State {
   exit () {
     this.dir.ctx.unindexFinishedDir(this.dir)
   }
+
 }
 
 class Directory extends Node {
 
-  // dstUUID and xstats must be provided together
   constructor(ctx, parent) {
     super(ctx, parent)
     this.children = []
@@ -559,9 +471,6 @@ class Directory extends Node {
 
   // change to event emitter
   onChildFinish (child) {
-
-    console.log('destorying child', child)
-
     child.destroy()
     if (this.children.length === 0) {
       console.log('done')  
@@ -601,11 +510,12 @@ class Directory extends Node {
     if (this.children) this.children.forEach(c => c.retry())
     this.state.retry()
   }
+
 }
 
 Directory.prototype.Pending = Pending
 Directory.prototype.Working = Working
-Directory.prototype.Reading = Reading
+Directory.prototype.Reading = FruitReading
 Directory.prototype.Read = Read
 Directory.prototype.Conflict = Conflict
 Directory.prototype.Finished = Finished
@@ -662,7 +572,7 @@ class ImportDirectory extends Directory {
 }
 
 ImportDirectory.prototype.Working = ImportWorking
-ImportDirectory.prototype.Reading = ImportReading
+ImportDirectory.prototype.Reading = NativeReading
 ImportDirectory.prototype.Read = ImportRead
 
 class ExportDirectory extends Directory {
@@ -690,11 +600,4 @@ module.exports = {
   ImportDirectory,
   ExportDirectory
 }
-
-
-
-
-
-
-
 

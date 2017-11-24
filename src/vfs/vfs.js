@@ -33,7 +33,6 @@ const debug = Debug('vfs')
 const Forest = require('./forest')
 const { mkdir, mkfile, mvdir, mvfile, clone, send } = require('./underlying')
 
-
 // TODO move to lib
 const Throw = (err, code, status) => {
   err.code = code
@@ -55,7 +54,6 @@ class VFS extends Forest {
 
     this.filePath = path.join(froot, 'drives.json')
     this.tmpDir = path.join(froot, 'tmp')
-
 
     mkdirp.sync(this.tmpDir)
 
@@ -272,6 +270,7 @@ class VFS extends Forest {
     dir.read(1000)
   }
 
+  // planned to be replaced
   mvDirSync (srcDriveUUID, srcDirUUID, srcDirName, dstDriveUUID, dstDirUUID) {
     // check destination
     let dstRoot = this.roots.get(dstDriveUUID)
@@ -317,6 +316,7 @@ class VFS extends Forest {
     dstDir.read()
   }
 
+  // Planned to be replaced
   mvFileSync (srcDriveUUID, srcDirUUID, fileUUID, fileName, dstDriveUUID, dstDirUUID) {
     // check destination
     let dstRoot = this.roots.get(dstDriveUUID)
@@ -473,29 +473,28 @@ class VFS extends Forest {
   @param {string} driveUUID - drive uuid
   @param {string} dirUUID - directory uuid
   @param {string} name - new directory name
-  @param {string} resolve - 
+  @param {string} policy - 
   */
-  mkdir (driveUUID, dirUUID, name, resolve, callback) {
+  mkdir (dst, policy, callback) {
     let dir
 
     try {
-      dir = this.getDriveDirSync(driveUUID, dirUUID) 
+      dir = this.getDriveDirSync(dst.drive, dst.dir)
     } catch (e) {
       return process.nextTick(() => callback(e))
     }
 
-    let target = path.join(this.absolutePath(dir), name)
-    mkdir(target, resolve, (err, xstat, resolved) => {
-      // check dir again
+    let target = path.join(this.absolutePath(dir), dst.name)
+    mkdir(target, policy, (err, xstat, resolved) => {
       try {
-        dir = this.getDriveDirSync(driveUUID, dirUUID)
+        dir = this.getDriveDirSync(dst.drive, dst.dir)
       } catch (e) {
         e.xcode = 'EDIRTY'
         return callback(e)
       }
 
-      if (err) return callback(err)
-      
+      if (err) return callback(err) 
+
       // TODO read more dirs in every case!
       // when a new dir is created:
       // 1. resolved === false
@@ -503,6 +502,7 @@ class VFS extends Forest {
       // 3. policy === replace && resolved === true 
       dir.read((err, xstats) => {
         if (err) return callback(err)
+
         let found = xstats.find(x => x.uuid === xstat.uuid)
         if (!found) {
           let err = new Error(`failed to find newly created directory`)
@@ -512,36 +512,55 @@ class VFS extends Forest {
         } else {
           callback(null, found, resolved)
         }
-      }) 
+      })
     })
   }
 
-  // mkdir by copying an existing dir (name only)
-  mkdirc (srcDriveUUID, srcDirUUID, dstDriveUUID, dstDirUUID, resolve, callback) {
-    let srcDir = this.uuidMap.get(srcDirUUID)
-    let name = srcDir.name
 
-    this.mkdir(dstDriveUUID, dstDirUUID, name, resolve, callback)
+  // copy src dir (name) into dst dir
+  cpdir (src, dst, policy, callback) {
+    let dir
+  
+    try {
+      dir = this.getDriveDirSync(src.drive, src.dir) 
+    } catch (e) {
+      return process.nextTick(() => callback(e))
+    }
+
+    // this.mkdir(dst.drive, dst.dir, dir.name, policy, callback)
+    this.mkdir(Object.assign({}, dst, { name: dir.name }), policy, callback)
   }
 
-  // mkfile
-  mkfile (driveUUID, dirUUID, fileName, tmp, hash, policy, callback) {
-    let dstDir = this.uuidMap.get(dirUUID)
-    let target = path.join(dstDir.abspath(), fileName)    
-    mkfile (target, tmp, hash, policy, callback)
-  }  
+  // copy tmp file into dst dir
+  mkfile (tmp, dst, policy, callback) {
+    let dir
+  
+    try {
+      dir = this.getDriveDirSync(dst.drive, dst.dir)
+    } catch (e) {
+      return process.nextTick(() => callback(e))
+    }
 
-  // copy one fruitmix file into another frutimix directory
-  copy (srcDriveUUID, srcDirUUID, fileUUID, fileName, dstDriveUUID, dstDirUUID, policy, callback) {
-    
-    let srcDir = this.uuidMap.get(srcDirUUID)
-    let dstDir = this.uuidMap.get(dstDirUUID)
+    let target = path.join(this.absolutePath(dir), dst.name)
+    mkfile (target, tmp.path, tmp.hash || null, policy, callback)
+  }
 
-    let srcFilePath = path.join(srcDir.abspath(), fileName)
-    let dstFilePath = path.join(dstDir.abspath(), fileName)
+  // copy src file into dst dir
+  cpfile (src, dst, policy, callback) {
+    let srcDir, dstDir
+   
+    try {
+      srcDir = this.getDriveDirSync(src.drive, src.dir)
+      dstDir = this.getDriveDirSync(dst.drive, dst.dir)
+    } catch (e) {
+      return process.nextTick(() => callback(e))
+    } 
+
+    let srcFilePath = path.join(this.absolutePath(srcDir), src.name)
+    let dstFilePath = path.join(this.absolutePath(dstDir), src.name)
 
     let tmp = this.genTmpPath()
-    clone(srcFilePath, fileUUID, tmp, (err, xstat) => {
+    clone(srcFilePath, src.uuid, tmp, (err, xstat) => {
       if (err) return callback(err)
       mkfile(dstFilePath, tmp, xstat.hash, policy, err => {
         rimraf(tmp, () => {})
@@ -551,65 +570,80 @@ class VFS extends Forest {
   }
 
   // move src dir into dst dir
-  mvdirc(srcDriveUUID, srcDirUUID, dstDriveUUID, dstDirUUID, policy, callback) {
+  mvdir (src, dst, policy, callback) {
     let srcDir, dstDir
-    try {
-      srcDir = this.getDriveDirSync(srcDriveUUID, srcDirUUID)
-      dstDir = this.getDriveDirSync(dstDriveUUID, dstDirUUID)
-    } catch (e) {
-      return process.nextTick(() => callback(e))
-    } 
 
-    let oldPath = srcDir.abspath()
-    let newPath = path.join(dstDir.abspath(), srcDir.name)
-    mvdir(oldPath, newPath, policy, (err, xstat, resolved) => {
-      // TODO
-      callback(err, xstat, resolved)
-    })
-  }
-
-  mvfilec(srcDriveUUID, srcDirUUID, srcFileUUID, srcFileName, dstDriveUUID, dstDirUUID, policy, callback) {
-    let srcDir, dstDir
     try {
-      srcDir = this.getDriveDirSync(srcDriveUUID, srcDirUUID)
-      dstDir = this.getDriveDirSync(dstDriveUUID, dstDirUUID)
+      srcDir = this.getDriveDirSync(src.drive, src.dir)
+      dstDir = this.getDriveDirSync(dst.drive, dst.dir)
     } catch (e) {
       return process.nextTick(() => callback(e))
     }
 
-    let oldPath = path.join(srcDir.abspath(), srcFileName)
-    let newPath = path.join(dstDir.abspath(), srcFileName)
+    let oldPath = this.absolutePath(srcDir)
+    let newPath = path.join(this.absolutePath(dstDir), srcDir.name)
+    mvdir(oldPath, newPath, policy, (err, xstat, resolved) => {
+      // TODO 
+      callback(err, xstat, resolved)
+    })
+  }
+
+  // move src file into dst dir
+  // mvfilec(srcDriveUUID, srcDirUUID, srcFileUUID, srcFileName, dstDriveUUID, dstDirUUID, policy, callback) {
+  mvfile (src, dst, policy, callback) {
+    let srcDir, dstDir
+
+    try {
+      srcDir = this.getDriveDirSync(src.drive, src.dir)
+      dstDir = this.getDriveDirSync(dst.drive, dst.dir)
+    } catch (e) {
+      return process.nextTick(() => callback(e))
+    }
+
+    let oldPath = path.join(this.absolutePath(srcDir), src.name)
+    let newPath = path.join(this.absolutePath(dstDir), src.name)
     mvfile(oldPath, newPath, policy, (err, xstat, resolved) => {
       // TODO
       callback(err, xstat, resolved)
     })
   }
 
-  // clone a fruit fs file to tmp dir
+  // clone a fruitfs file to tmp dir
   // returns tmp file path
-  clone (driveUUID, dirUUID, fileUUID, fileName, callback) {
-  
-    let dir = this.uuidMap.get(dirUUID)
-    let filePath = path.join(dir.abspath(), fileName)
-    let tmp = this.genTmpPath()
+  clone (src, callback) {
+    let dir
 
-    clone(filePath, fileUUID, tmp, (err, xstat) => {
+    try {
+      dir = this.getDriveDirSync(src.drive, src.dir)
+    } catch (e) {
+      return process.nextTick(() => callback(e))
+    }
+
+    let srcFilePath = path.join(this.absolutePath(dir), src.name)
+    let tmpPath = this.genTmpPath()
+    
+    clone(srcFilePath, src.uuid, tmpPath, (err, xstat) => {
       if (err) return callback(err)
-      callback(null, tmp)
+      callback(null, tmpPath)
     })
   }
 
+  // readdir
   readdir(driveUUID, dirUUID, callback) {
     let dir
     try {
       dir = this.getDriveDirSync(driveUUID, dirUUID)
     } catch (e) {
-
       return process.nextTick(() => callback(e))
     }
 
     dir.read(callback)
   }
+
 }
 
 module.exports = VFS
+
+
+
+
