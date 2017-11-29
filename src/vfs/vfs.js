@@ -462,7 +462,7 @@ class VFS extends Forest {
   } 
 
   getDriveDirPathSync (driveUUID, union) {
-    let dir = this.getDriveDirSync(dirveUUID, union) 
+    let dir = this.getDriveDirSync(driveUUID, union) 
     return dir.abspath()
   }
 
