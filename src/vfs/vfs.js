@@ -11,7 +11,7 @@ const log = require('winston')
 const UUID = require('uuid')
 const deepFreeze = require('deep-freeze')
 const { saveObjectAsync } = require('../lib/utils')
-const autoname = require('src/lib/autoname')
+const autoname = require('../lib/autoname')
 
 const Node = require('./node')
 const File = require('./file')
