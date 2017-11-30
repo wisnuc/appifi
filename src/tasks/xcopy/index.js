@@ -48,8 +48,6 @@ class Base extends EventEmitter {
     this.readDirs = new Set()
     this.conflictDirs = new Set()
     this.failedDirs = new Set()
-
-   
   }
 
   destroy () {
