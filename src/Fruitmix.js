@@ -1528,9 +1528,6 @@ class Fruitmix extends EventEmitter {
   }
 
   mvdir (user, srcDriveUUID, srcDirUUID, name, dstDriveUUID, dstDirUUID, callback) {
-
-    console.log('mvdir')
-
     try {
       this.driveList.mvDirSync(srcDriveUUID, srcDirUUID, name, dstDriveUUID, dstDirUUID)
       process.nextTick(() => callback(null))
@@ -1569,9 +1566,6 @@ class Fruitmix extends EventEmitter {
   }
 
   mvfile (user, srcDriveUUID, srcDirUUID, fileUUID, fileName, dstDriveUUID, dstDirUUID, callback) {
-
-    console.log('mvfile')
-
     try {
       this.driveList.mvFileSync(srcDriveUUID, srcDirUUID, fileUUID, fileName, dstDriveUUID, dstDirUUID)
       console.log('mvfile done')

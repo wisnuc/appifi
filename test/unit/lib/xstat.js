@@ -84,7 +84,8 @@ describe(path.basename(__filename) + ' readXstat new', () => {
   it('read unsupported file type (/dev/null)', done => {
     readXstat('/dev/null', (err, xstat) => {
       expect(err).to.be.an('error')
-      expect(err.code).to.equal('EUNSUPPORTEDFILETYPE')
+      expect(err.code).to.equal('EISCHARDEV')
+      expect(err.xcode).to.equal('EUNSUPPORTED')
       done()
     })
   })
@@ -92,7 +93,8 @@ describe(path.basename(__filename) + ' readXstat new', () => {
   it('read unsupported file type (symlink)', done => {
     readXstat(lpath, (err, xstat) => {
       expect(err).to.be.an('error')
-      expect(err.code).to.equal('EUNSUPPORTEDFILETYPE')
+      expect(err.code).to.equal('EISSYMLINK')
+      expect(err.xcode).to.equal('EUNSUPPORTED')
       done()
     })
   })
@@ -770,4 +772,116 @@ describe(path.basename(__filename) + ' forceXstat', () => {
     expect(xstat).to.deep.equal(pre)
   })
 })
+
+describe(path.basename(__filename) + ' forceXstat2', () => {
+
+  const mockUUID = '7da84e6a-82cc-4687-99bf-0336168e6db2'
+  const testUUID = 'd3bd9713-1c14-4be4-9411-eb970f399375'
+  const hash = '064a2742c29593781497cc9e8223f3bcb012fa7eba99c94b2935661aecc75204'
+  let dirPath = path.join(tmptest, 'dir')
+  let filePath = path.join(tmptest, 'file')
+
+  beforeEach(() => {
+    rimraf.sync(tmptest)
+    mkdirp.sync(tmptest)
+    sinon.stub(UUID, 'v4').returns(mockUUID)
+  })
+
+  afterEach(() => UUID.v4.restore())
+
+  it('clean directory, undefined', done => {
+    mkdirp.sync(dirPath)
+    forceXstat(dirPath, undefined, (err, xstat) => {
+      if (err) return done(err) 
+      let attr = JSON.parse(xattr.getSync(dirPath, 'user.fruitmix'))
+      expect(attr).to.deep.equal({ uuid: mockUUID })
+      done()
+    })
+  })
+
+  it('clean directory, null', done => {
+    mkdirp.sync(dirPath)
+    forceXstat(dirPath, null, (err, xstat) => {
+      if (err) return done(err) 
+      let attr = JSON.parse(xattr.getSync(dirPath, 'user.fruitmix'))
+      expect(attr).to.deep.equal({ uuid: mockUUID })
+      done()
+    })
+  })
+
+  it('clean directory, empty object', done => {
+    mkdirp.sync(dirPath)
+    forceXstat(dirPath, {}, (err, xstat) => {
+      if (err) return done(err) 
+      let stat = fs.lstatSync(dirPath)
+      let attr = JSON.parse(xattr.getSync(dirPath, 'user.fruitmix'))
+      expect(attr).to.deep.equal({ uuid: mockUUID })
+      expect(xstat).to.deep.equal({
+        uuid: mockUUID,
+        type: 'directory',
+        name: 'dir',
+        mtime: stat.mtime.getTime()
+      })
+      done()
+    })
+  })
+
+  it('clean directory, { uuid }', done => {
+    mkdirp.sync(dirPath)
+    forceXstat(dirPath, { uuid: testUUID }, (err, xstat) => {
+      if (err) return done(err)
+      let stat = fs.lstatSync(dirPath)
+      let attr = JSON.parse(xattr.getSync(dirPath, 'user.fruitmix'))
+      expect(attr).to.deep.equal({ uuid: testUUID })
+      expect(xstat).to.deep.equal({
+        uuid: testUUID,
+        type: 'directory',
+        name: 'dir',
+        mtime: stat.mtime.getTime() 
+      })
+      done()
+    })
+  })
+
+  it('clean directory, { uuid, hash }, hash dropped silently', done => {
+    mkdirp.sync(dirPath)
+    forceXstat(dirPath, { uuid: testUUID, hash }, (err, xstat) => {
+      if (err) return done(err)
+      let stat = fs.lstatSync(dirPath)
+      let attr = JSON.parse(xattr.getSync(dirPath, 'user.fruitmix'))
+      expect(attr).to.deep.equal({ uuid: testUUID })
+      expect(xstat).to.deep.equal({
+        uuid: testUUID,
+        type: 'directory',
+        name: 'dir',
+        mtime: stat.mtime.getTime() 
+      })
+      done()
+    })
+  })
+
+  it('clean directory, { hash }, hash dropped silently', done => {
+    mkdirp.sync(dirPath)
+    forceXstat(dirPath, { hash }, (err, xstat) => {
+      if (err) return done(err)
+      let stat = fs.lstatSync(dirPath)
+      let attr = JSON.parse(xattr.getSync(dirPath, 'user.fruitmix'))
+      expect(attr).to.deep.equal({ uuid: mockUUID })
+      expect(xstat).to.deep.equal({
+        uuid: mockUUID,
+        type: 'directory',
+        name: 'dir',
+        mtime: stat.mtime.getTime() 
+      })
+      done()
+    })
+  })
+})
+
+
+
+
+
+
+
 

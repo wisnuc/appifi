@@ -107,6 +107,13 @@ class Node {
     return q 
   }
 
+  reverseNodePath () {
+    if (!this.ctx) throw new Error('node.nodepath: node is already destroyed')
+    let q = []
+    for (let n = this; n !== null; n = n.parent) q.push(n)
+    return q
+  }
+
   /**
   Return Absolute path of the node
 
