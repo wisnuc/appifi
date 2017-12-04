@@ -35,12 +35,22 @@ skip: skip if type mismatch
 
 keep, replace, rename, skip
 
-dir -> null
-  null, keep, replace, rename, skip
-dir -> dir
-  null, keep, replace, rename, skip
-dir -> file
-  null, keep, replace, rename, skip
+1. dir -> null (all success, no conflict)
+  1. 
+    1 null, 2 replace, 3 rename, 4 skip
+
+2. dir -> dir
+  1
+            2 replace, 3 rename, 4 skip
+  null  (conflict, EEXIST + EISDIR)
+    [replace,], [rename,], [skip,] should resolve
+    [,replace], [,rename], [,skip] should NOT resolve
+
+3. dir -> file
+  1 replace, rename, skip
+  null (conflict)
+    [replace], [rename], [skip] should NOT resolve
+    [,replace], [,rename], [,skip] should resolve
 
 file -> null
   null, keep, replace, rename, skip
@@ -67,8 +77,7 @@ describe(path.basename(__filename) + ', cp a/c (dir) -> b/', () => {
         let src = { drive: rootUUID, dir: dirA.uuid }
         let dst = { drive: rootUUID, dir: dirB.uuid }
         let entries = [dirAC.uuid]
-
-        xcopy(vfs, src, dst, entries, policies, callback)
+        xcopy(vfs, null, 'copy', policies, src, dst, entries, callback)
       })
     })
   }
@@ -79,15 +88,20 @@ describe(path.basename(__filename) + ', cp a/c (dir) -> b/', () => {
     mkdirp.sync(path.join(tmptest, 'drives', rootUUID, 'b'))
   }) 
 
+  
+
   it('OK if no policy, f9a4c2e5', done => f(null, (err, xc) => {
     if (err) return done(err)
     xc.once('stopped', () => {
       // assert state
       expect(xc.root.state.constructor.name).to.equal('Finished')
+
       // assert file system and vfs
       let attr = JSON.parse(xattr.getSync(path.join(tmptest, 'drives', rootUUID, 'b', 'c'), 'user.fruitmix'))
       let dirBC = vfs.findDirByName('c', 'b')
       expect(dirBC.uuid).to.equal(attr.uuid)
+
+      // assert view? TODO
       done()
     })
   }))
