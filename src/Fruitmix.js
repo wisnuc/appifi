@@ -1157,7 +1157,7 @@ class Fruitmix extends EventEmitter {
     if (!dir) {
       let err = new Error('drive or dir not found')
       err.status = 404
-      return process.nextTick(() => cb(err))
+      return process.nextTick(() => callback(err))
     }
 
     let dst = path.join(dir.abspath(), name)
@@ -1225,7 +1225,7 @@ class Fruitmix extends EventEmitter {
     if (!dir) {
       let err = new Error('drive or dir not found')
       err.status = 404
-      return process.nextTick(() => cb(err))
+      return process.nextTick(() => callback(err))
     }
 
     let dst = path.join(dir.abspath(), name)
@@ -1270,7 +1270,7 @@ class Fruitmix extends EventEmitter {
     if (!dir) {
       let err = new Error('drive or dir not found')
       err.status = 404
-      return process.nextTick(() => cb(err))
+      return process.nextTick(() => callback(err))
     }
 
     let fromPath = path.join(dir.abspath(), fromName)
@@ -1350,7 +1350,7 @@ class Fruitmix extends EventEmitter {
     if (!dir) {
       let err = new Error('drive or dir not found')
       err.status = 404
-      return process.nextTick(() => cb(err))
+      return process.nextTick(() => callback(err))
     }
 
     let fromPath = path.join(dir.abspath(), fromName)

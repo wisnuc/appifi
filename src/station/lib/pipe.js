@@ -261,6 +261,14 @@ class Pipe {
         break
       case 'token':
         return paths.length === 0 && method === 'GET' ? 'GetToken' : undefined
+        break
+      case 'station':
+        return paths.length === 1 ? (method === 'GET' ? (paths[0] === 'info' ? 'GetStationInfo' 
+                    : (paths[0] === 'tickets' ? 'GetTickets' : undefined)) : (method === 'PATCH' ? 'UpdateStationInfo' : (method === 'POST' ? 'CreateTicket' : undefined)))
+                      : paths.length === 2 ? (method === 'GET' ? 'GetTicket' : undefined) 
+                        : paths.length === 3 ? 'ConfirmTicket'
+                        : undefined
+        break
       default:
         return undefined
         break
@@ -591,6 +599,10 @@ class Pipe {
   async getMediaThumbnailAsync(user, fingerprint, query) {
     return Promise.promisify(this.getMediaThumbnail).bind(this)(user, fingerprint, query)
   }
+
+  /*************************************** Station *****************************************/
+
+  
 
   /*************************************** User *********************************************/
 
