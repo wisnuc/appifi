@@ -11,6 +11,17 @@ const asCallback = (fn) => {
   }
 }
 
+const syncCallback = (fn) => {
+  return (props, callback) => {
+    try{
+      let result = fn(props)
+      callback(null, result)
+    } catch(e) {
+      callback(e)
+    }
+  }
+}
+
 class IpcWorker {
 
   constructor() {
@@ -101,7 +112,7 @@ class WebTorrentService {
       let torrentPath = this.torrentPath
       let magnetURL = this.magnetURL
       let downloadPath = this.downloadPath
-      return { infoHash, timeRemaining, downloaded, downloadSpeed, progress, numPeers, path, name, torrentPath, magnetURL, downloadPath }
+      return { infoHash, timeRemaining, downloaded, downloadSpeed, progress, numPeers, path, name, torrentPath, magnetURL, downloadPath, state }
     }
     this.init()
     console.log('WebTorrent Start!')
@@ -113,6 +124,7 @@ class WebTorrentService {
     try {
       let tasks = JSON.parse(fs.readFileSync(this.catchPath))
       this.downloaded = tasks.downloaded
+      this.downloaded.forEach(item => item.log = this.log)
       tasks.downloading.forEach((file, index) => {
         if (file.torrentPath) this.addTorrent({ torrentPath: file.torrentPath, downloadPath: file.downloadPath })
         else if (file.magnetURL) this.addMagnet({ magnetURL: file.magnetURL, downloadPath: file.downloadPath })
@@ -140,7 +152,8 @@ class WebTorrentService {
   // create torrent & storage
   async createTorrent({ torrentSource, downloadPath, torrentPath }) {
     let torrent = this.client.add(torrentSource, { path: this.tempPath })
-    if (this.downloading.findIndex(item => item.infoHash == torrent.infoHash) !== -1) return console.log('torrent exist now')
+    if (!torrent.infoHash) throw new Error('unknow torrent')
+    if (this.downloading.findIndex(item => item.infoHash == torrent.infoHash) !== -1) throw new Error('torrent exist')
     torrent.downloadPath = downloadPath
     torrent.log = this.log
     torrent.state = 'downloading'
@@ -153,14 +166,13 @@ class WebTorrentService {
       torrent.state = 'downloaded'
       // stop torrent uploading & move to downloaded array
       torrent.destroy(async () => {
-        fs.renameSync(path.join(torrent.path, torrent.name), path.join(torrent.downloadPath, torrent.name))
+        // fs.renameSync(path.join(torrent.path, torrent.name), path.join(torrent.downloadPath, torrent.name))
         let index = this.downloading.indexOf(torrent)
         if (index == -1) throw new Error('torrent is not exist in downloading array')
         this.downloading.splice(index, 1)
         this.downloaded.push(torrent)
         await this.cache()
         console.log('torrent destory success')
-        console.log(this.downloading.length + ' -- ' + this.downloaded.length)
       })
     })
     this.downloading.push(torrent)
@@ -185,26 +197,31 @@ class WebTorrentService {
   }
 
   //query summary of downloading torrent (torrentID is not necessary)
-  getSummary({ torrentId }) {
-    console.log(torrentId)
+  getSummary({ torrentId, type }) {
     if (torrentId) {
-      if (typeof torrentId !== 'string' || torrentId.length < 1) throw new Error('torrentId is not legal')
-      let result = this.client.get(torrentId)
-      if (!result) return []
-      else return [result.log()]
-    } else {
-      return this.downloading.map(torrent => torrent.log())
-    }
+      if (typeof torrentId !== 'string' || torrentId.length <= 1) throw new Error('torrentId is not legal')
+      let result = this.client.get(torrentId) || this.downloaded.find(item => item.infoHash == torrentId)
+      if (result) return [result.log()]
+      else throw new Error ('torrentId is not legal ')
+    } else if (type){
+      if ([ 'finished', 'running' ].indexOf(type) == -1) throw new Error('type is not legal')
+      return type == 'running'? this.getDownloading(): this.getDownloaded()
+    } else return { running : this.getDownloading(), finished: this.getDownloaded()}
+    
+  }
+
+  getDownloading() {
+    return this.downloading.map(file => file.log())
   }
 
   //query summary of downloaded torrent
-  getFinished() {
+  getDownloaded() {
     return this.downloaded.map(file => file.log())
   }
 
-  getAllTask() {
-    return [...this.getSummary({}), ...this.getFinished({})]
-  }  
+  // getAllTask() {
+  //   return [...this.getSummary({}), ...this.getFinished({})]
+  // }  
 
   //storage list of torrent
   cache() {
@@ -273,11 +290,12 @@ class WebTorrentService {
   register(ipc) {
     ipc.register('addTorrent', asCallback(this.addTorrent.bind(this)))
     ipc.register('addMagnet', asCallback(this.addMagnet.bind(this)))
+    ipc.register('getSummary', syncCallback(this.getSummary.bind(this)))
     ipc.register('pause', (props, callback) => callback(null, this.pause(props)))
     ipc.register('resume', (props, callback) => callback(null, this.resume(props)))
-    ipc.register('getSummary', (props, callback) => callback(null, this.getSummary(props)))
-    ipc.register('getFinished', (props, callback) => callback(null, this.getFinished()))
-    ipc.register('getAllTask', (props, callback) => callback(null, this.getAllTask()))
+    
+    // ipc.register('getFinished', (props, callback) => callback(null, this.getFinished()))
+    // ipc.register('getAllTask', (props, callback) => callback(null, this.getAllTask()))
     ipc.register('destory', asCallback(this.destory.bind(this)))
   }
 }

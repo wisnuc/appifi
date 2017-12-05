@@ -83,7 +83,7 @@ const createIpcMain = (worker) => {
   let ipc = new IpcMain(worker)
 
   worker.on('message', msg => {
-    console.log('worker --> ', msg)
+    // console.log('worker --> ', msg)
     // console.log('ipcworker, msg', msg)
 
     switch(msg.type) {
