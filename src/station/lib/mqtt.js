@@ -6,7 +6,7 @@
 /*   By: JianJin Wu <mosaic101@foxmail.com>         +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2017/12/04 14:15:21 by JianJin Wu        #+#    #+#             */
-/*   Updated: 2017/12/04 18:21:56 by JianJin Wu       ###   ########.fr       */
+/*   Updated: 2017/12/05 18:06:43 by JianJin Wu       ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -24,27 +24,24 @@
 
 const debug = require('debug')('mqtt:station')
 const mqtt = require('mqtt')
-const debug = require('debug')
 
 // stationId => clientId 
 const stationId = `123123` // TODO:
 const clientId = `station_${stationId}` // 'mqttjs_' + Math.random().toString(16).substr(2, 8)
 
+const payload = JSON.stringify({ stationId: stationId })
 const settings = {
-  clientId: clientId,
-  clean: false,  // set to false to receive QoS 1 and 2 messages while offline
+  clientId: 'mqttjs_' + Math.random().toString(16).substr(2, 8),
+  clean: false, // set to false to receive QoS 1 and 2 messages while offline
   will: {
-    topic: `station/disconnect`, // string or buffer
-    payload: 'I am offline',
+    topic: `station/disconnect`,
+    payload: payload, // string or buffer
     qos: 1,
     retain: false
   }
 }
-// var client = mqtt.connect('mqtt://122.152.206.50:1883', settings)
+// const client = mqtt.connect('mqtt://122.152.206.50:1883', settings)
 const client = mqtt.connect('mqtt://localhost:1883', settings)
-
-// sub pipe 
-client.subscribe('hello/world')
 
 /**
  * TODO:
@@ -64,16 +61,17 @@ function init() {
     // subcribe cloud pipe event
   }
 }
-console.log(`clientId: ${clientId}`)
+
 client.on('connect', function (connack) {
-  // client.subscribe(`station/${stationId}`, {qos: 1})
-  // client.publish('presence', 'Hello mqtt')
-  debug('station connect successfully!', connack);
+  client.publish(`station/connect`, payload, { qos: 1 })
+  // sub pipe
+  // client.subscribe(`station/pipe`, { qos: 1 })
+  debug('station connect successfully!', connack)
 })
 
 client.on('message', function (topic, message, packet) {
   // message is Buffer
-  debug(123, topic, message.toString(), Date.now())
+  debug(`message`, topic, message, message.toString(), Date.now())
   // client.end()
 })
 
@@ -86,4 +84,3 @@ client.on('reconnect', function (err) {
 client.on('close', function () {
   debug('close')
 })
-
