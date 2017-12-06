@@ -296,9 +296,13 @@ class Forest extends EventEmitter {
     }
   }
 
-  findDirByName(name) {
+  findDirByName(name, parentName) {
     for (let [uuid, dir] of this.uuidMap) {
-      if (dir.name === name) return dir
+      if (!parentName) {
+        if (dir.name === name) return dir
+      } else {
+        if (dir.name === name && dir.parent && dir.parent.name === parentName) return dir
+      }
     }
   }
 

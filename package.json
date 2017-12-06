@@ -66,7 +66,7 @@
     "xxhashjs": "^0.2.1"
   },
   "devDependencies": {
-    "chai": "^4.1.1",
+    "chai": "^4.1.2",
     "chai-as-promised": "^7.1.1",
     "eslint": "^4.5.0",
     "eslint-config-airbnb-base": "^11.3.2",

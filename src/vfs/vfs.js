@@ -11,11 +11,13 @@ const log = require('winston')
 const UUID = require('uuid')
 const deepFreeze = require('deep-freeze')
 const { saveObjectAsync } = require('../lib/utils')
-const autoname = require('src/lib/autoname')
+const autoname = require('../lib/autoname')
 
 const Node = require('./node')
 const File = require('./file')
 const Directory = require('./directory')
+
+const { btrfsConcat, btrfsClone, btrfsClone2 } = require('../lib/btrfs')
 
 const { 
   readXstatAsync, forceXstatAsync, forceXstat, 
@@ -29,7 +31,7 @@ const debugi = require('debug')('fruitmix:indexing')
 const debug = Debug('vfs')
 
 const Forest = require('./forest')
-
+const { mkdir, mkfile, mvdir, mvfile, clone, send } = require('./underlying')
 
 // TODO move to lib
 const Throw = (err, code, status) => {
@@ -52,6 +54,8 @@ class VFS extends Forest {
 
     this.filePath = path.join(froot, 'drives.json')
     this.tmpDir = path.join(froot, 'tmp')
+
+    mkdirp.sync(this.tmpDir)
 
     try {
       this.drives = JSON.parse(fs.readFileSync(this.filePath))
@@ -266,6 +270,7 @@ class VFS extends Forest {
     dir.read(1000)
   }
 
+  // planned to be replaced
   mvDirSync (srcDriveUUID, srcDirUUID, srcDirName, dstDriveUUID, dstDirUUID) {
     // check destination
     let dstRoot = this.roots.get(dstDriveUUID)
@@ -311,6 +316,7 @@ class VFS extends Forest {
     dstDir.read()
   }
 
+  // Planned to be replaced
   mvFileSync (srcDriveUUID, srcDirUUID, fileUUID, fileName, dstDriveUUID, dstDirUUID) {
     // check destination
     let dstRoot = this.roots.get(dstDriveUUID)
@@ -369,83 +375,18 @@ class VFS extends Forest {
     dstDir.read()
   }
 
-  /**
-  move a single file
-  opts {
-    srcDriveUUID,       // mandatory
-    srcDirUUID,         // mandatory
-    fileUUID,           // mandatory
-    fileName,           // mandatory
-    dstDriveUUID,       // mandatory
-    dstDirUUID,         // mandatory
-    overwrite           // optional  
-  }
-  */ 
-  mvFile (srcDriveUUID, srcDirUUID, fileUUID, fileName, dstDriveUUID, dstDirUUID, callback) {
-    let dstRoot = this.roots.get(dstDriveUUID)
-    // if  
+  //////////////////////////////////////////////////////////////////////////////
+  //                                                                          // 
+  // the following code are experimental
+  //                                                                          //
+  //////////////////////////////////////////////////////////////////////////////
+
+  genTmpPath () {
+    return path.join(this.tmpDir, UUID.v4())
   }
 
-
-  //////
-  // we are going to add a mkdir method to vfs
-  // it can be destroyed
-  // it verifies root or node path (may be a relpath)
-  // it supports parents
-  // it supports auto-rename
-
-  /**
-  opts {
-    parents: truthy/falsy, optional
-    autoRename: truthy/falsy, optional
-    nodePath: [uuid], bottom-up fashion, optional
-  }
-  */
-  mkdir (dirUUID, name, opts, callback) {
-    let dirPath = this.absolutePath(dir) 
-    let subDirPath = path.join(dirPath, name)
-    
-    fs.lstat(subDirPath, (err, stat) => {
-      if (err) {
-        if (err.code !== 'ENOENT') {
-          callback(err)   
-        } else { // no such entry
-          fs.mkdir(subDirPath, err => {
-            if (err) return callback(err) 
-            readXstat(subDirPath, (err, xstat) => {
-              if (err) return callback(err)
-              callback(null, xstat)
-            })
-          }) 
-        }
-      } else { // EXIST
-        if (stat.isDirectory()) {
-          readXstat(subDirPath, (err, xstat) => {
-            if (err) return callback(err)
-
-            try {
-              let child = dir.updateDirChild(xstat)
-              callback(null, child)
-            } catch (e) {
-              callback(e)
-            }
-          })  
-        } else {
-          let err = new Error('not a directory')
-          err.code = 'ENOTDIR'
-          callback(err)
-        }
-      }
-    })
-  }
-
-
-  findDir(driveUUID, dirUUID) {
-    if (driveUUID
-    this.uuidMap.get(uuid)
-  }
-
-  findDirPath(driveUUID, dirUUID) {
+  absolutePath (node) {
+    return node.abspath()
   }
 
   getDirSync (uuid) {
@@ -458,144 +399,251 @@ class VFS extends Forest {
   }
 
   getDirPathSync (dirUUID, childName) {
-    let dirPath = this.getDirSync(uuid).abspath()
+    let dirPath = this.getDirSync(dirUUID).abspath()
     return childName ? path.join(dirPath, childName) : dirPath 
   }
 
+  getDirPath (dirUUID, childName, callback) {
+    try {
+      let r = getDirPathSync(dirUUID, childName)
+      process.nextTick(null, r)
+    } catch (e) {
+      process.nextTick(e)
+    }
+  }
+
+
   /**
+  This function returns dir or throw an error
 
-  opts.parents means I want merge/diff
-  opts.autoname means I want create something new
+  union can be an dirUUID, or an array of dir uuids represential a partial path (reverse order).
 
-  They are exclusive
-
-  @param
+  @param {string} driveUUID - drive uuid
+  @param {string|string[]} union - dir uuid or dir uuids
   */
-  async mkdirAsync (dirUUID, name, opts, callback) {
-    
-    const newDirPath = () => this.getDirPathSync(dirUUID, name)
-
-    let xstat
-    try {
-      xstat = await readXstatAsync(newDirPath())
-    } catch (e) {
-      if (e.code !== 'ENOENT')
-      throw e
-    } 
-
-    // EXIST on underlying file system
-    if (xstat) {       
-      if (xstat.type !== 'directory') {
-        
-        throw new Error('not a directory') // ENOTDIR
-      } else {
-        if (opts && opts.parents) {
-          // TODO
-          return xstat 
-        } else if (opts && opts.autoRename) {
-          name = autoname(name, await fs.readdirAsync(this.getDirPathSync(uuid))
-          // fall through
-        } else {
-          throw new Error('directory already exists')
-        }
-      }
-    }
-  
-    // ENOENT
-    await fs.mkdirAsync(newDirPath()) 
-    xstat = readXstatAsync(newDirPath())
-    // TODO
-    return xstat
-  }
-
-  async mkdirpAsync (dirUUID, name, callback) {
-    // volatile
-    const newDirPath = () => path.join(this.getDirPathSync(dirUUID), name))
-
-    let xstat
-    try {
-      xstat = await readXstatAstync(newDirPath())
-    } catch (e) {
-      if (e.code !== 'ENOENT')
-      throw e
+  getDriveDirSync (driveUUID, union) {
+    let root = this.roots.get(driveUUID)
+    if (!root) {
+      let err = new Error(`drive ${driveUUID} not found`)
+      err.code = 'ENOENT'
+      throw err
     }
 
-    if (xstat) {
-      if (xstat.type !== 'directory') {
-        throw new Error('not a directory')
-      } else {
-        return xstat
-      }
-    }
-
-    await fs.mkdirpAsync(newDirPath()) 
-    xstat = readXstatAsync(newDirPath())
-    return xstat
-  }
-
-  // conflict may be 'rename' or 'replace'
-  async mkdirAsync (dirUUID, name, conflict, callback) {
-    // volatile
-    const newDirPath = () => path.join(this.getDirPathSync(dirUUID), name)
-        
-    let stat
-    try {
-      stat = await fs.lstatAsync(newDirPath())
-    } catch (e) {
-      if (e.code !== 'ENOENT') throw e  
-    }
-
-    if (stat) {
-      switch (conflict) {
-        case 'rename':
-          name = autoname(name, await fs.readdirAsync(this.getDirPathSync(dirUUID)))
-          break
-        case 'replace':
-          
-          await rimrafAsync(newDirPath())
-          break
-        default:
-      }
-
-      if (conflict === 'rename') {
-        name = autoname(name, await fs.readdirAsync(this.getDirPathSync(dirUUID)))
-        // fallthrough
-      } else {
-        if (!stat.isDirectory()) {
-          throw 'ENOTDIR'
-        }
-
-        // now existing dir
-        if (conflict === 'replace') {
-          await rimrafAsync(newDirPath())
-          // fallthrough
-        } else {
-          throw 'EEXIST' 
-        }
-      }
-    }
-     
-    await fs.mkdirAsync(newDirPath())
-    xstat = readXstatAsync(newDirPath())
-    this.getDirSync(dirUUID).updateDirChild(xstat)
-    return xstat
-  }
-
-  absolutePath (node) {
-    return node.abspath()
-  }
-
-  readdir(dirUUID, callback) {
+    let dirUUID = Array.isArray(union) ? union[0] : union
     let dir = this.uuidMap.get(dirUUID)
     if (!dir) {
-      callback(new Error('not found'))
-    } else {
-      dir.read(callback)
+      let err = new Error(`dir ${dirUUID} not found`)
+      err.code = 'ENOENT'
+      throw err
     }
+
+    if (dir.root() !== root) {
+      let err = new Error(`dir ${dirUUID} is not in drive ${driveUUID}`)
+      err.code = 'ENOENT'
+      throw err
+    }
+
+    if (Array.isArray(union)) {
+      // TODO rewrite with for ???
+
+      // reverse order
+      let partial = union.join(',')
+      // reverse nodepath
+      let full = dir.nodepath().reverse().map(n => n.uuid).join(',')
+
+      if (!full.startsWith(partial)) {
+        let err = new Error(`invalid dir uuid path`)
+        err.code = 'ENOENT'
+        throw err
+      }
+    }
+
+    return dir
+  } 
+
+  getDriveDirPathSync (driveUUID, union) {
+    let dir = this.getDriveDirSync(driveUUID, union) 
+    return dir.abspath()
+  }
+
+  /**
+  !!! Important !!!
+  This is the only place to read dir after making new dir
+  
+  @param {string} driveUUID - drive uuid
+  @param {string} dirUUID - directory uuid
+  @param {string} name - new directory name
+  @param {string} policy - 
+  */
+  mkdir (dst, policy, callback) {
+    let dir
+
+    try {
+      dir = this.getDriveDirSync(dst.drive, dst.dir)
+    } catch (e) {
+      return process.nextTick(() => callback(e))
+    }
+
+    let target = path.join(this.absolutePath(dir), dst.name)
+    mkdir(target, policy, (err, xstat, resolved) => {
+      try {
+        dir = this.getDriveDirSync(dst.drive, dst.dir)
+      } catch (e) {
+        e.xcode = 'EDIRTY'
+        return callback(e)
+      }
+
+      if (err) return callback(err) 
+
+      // TODO read more dirs in every case!
+      // when a new dir is created:
+      // 1. resolved === false
+      // 2. policy === rename && resolved === true 
+      // 3. policy === replace && resolved === true 
+      dir.read((err, xstats) => {
+        if (err) return callback(err)
+
+        let found = xstats.find(x => x.uuid === xstat.uuid)
+        if (!found) {
+          let err = new Error(`failed to find newly created directory`)
+          err.code = 'ENOENT'
+          err.xcode = 'EDIRTY'
+          return callback(err)
+        } else {
+          callback(null, found, resolved)
+        }
+      })
+    })
+  }
+
+
+  // copy src dir (name) into dst dir
+  cpdir (src, dst, policy, callback) {
+    let dir
+  
+    try {
+      dir = this.getDriveDirSync(src.drive, src.dir) 
+    } catch (e) {
+      return process.nextTick(() => callback(e))
+    }
+
+    // this.mkdir(dst.drive, dst.dir, dir.name, policy, callback)
+    this.mkdir(Object.assign({}, dst, { name: dir.name }), policy, callback)
+  }
+
+  // copy tmp file into dst dir
+  mkfile (tmp, dst, policy, callback) {
+    let dir
+  
+    try {
+      dir = this.getDriveDirSync(dst.drive, dst.dir)
+    } catch (e) {
+      return process.nextTick(() => callback(e))
+    }
+
+    let target = path.join(this.absolutePath(dir), dst.name)
+    mkfile (target, tmp.path, tmp.hash || null, policy, callback)
+  }
+
+  // copy src file into dst dir
+  cpfile (src, dst, policy, callback) {
+    let srcDir, dstDir
+   
+    try {
+      srcDir = this.getDriveDirSync(src.drive, src.dir)
+      dstDir = this.getDriveDirSync(dst.drive, dst.dir)
+    } catch (e) {
+      return process.nextTick(() => callback(e))
+    } 
+
+    let srcFilePath = path.join(this.absolutePath(srcDir), src.name)
+    let dstFilePath = path.join(this.absolutePath(dstDir), src.name)
+
+    let tmp = this.genTmpPath()
+    clone(srcFilePath, src.uuid, tmp, (err, xstat) => {
+      if (err) return callback(err)
+      mkfile(dstFilePath, tmp, xstat.hash, policy, err => {
+        rimraf(tmp, () => {})
+        callback(err)
+      })
+   }) 
+  }
+
+  // move src dir into dst dir
+  mvdir (src, dst, policy, callback) {
+    let srcDir, dstDir
+
+    try {
+      srcDir = this.getDriveDirSync(src.drive, src.dir)
+      dstDir = this.getDriveDirSync(dst.drive, dst.dir)
+    } catch (e) {
+      return process.nextTick(() => callback(e))
+    }
+
+    let oldPath = this.absolutePath(srcDir)
+    let newPath = path.join(this.absolutePath(dstDir), srcDir.name)
+    mvdir(oldPath, newPath, policy, (err, xstat, resolved) => {
+      // TODO 
+      callback(err, xstat, resolved)
+    })
+  }
+
+  // move src file into dst dir
+  // mvfilec(srcDriveUUID, srcDirUUID, srcFileUUID, srcFileName, dstDriveUUID, dstDirUUID, policy, callback) {
+  mvfile (src, dst, policy, callback) {
+    let srcDir, dstDir
+
+    try {
+      srcDir = this.getDriveDirSync(src.drive, src.dir)
+      dstDir = this.getDriveDirSync(dst.drive, dst.dir)
+    } catch (e) {
+      return process.nextTick(() => callback(e))
+    }
+
+    let oldPath = path.join(this.absolutePath(srcDir), src.name)
+    let newPath = path.join(this.absolutePath(dstDir), src.name)
+    mvfile(oldPath, newPath, policy, (err, xstat, resolved) => {
+      // TODO
+      callback(err, xstat, resolved)
+    })
+  }
+
+  // clone a fruitfs file to tmp dir
+  // returns tmp file path
+  clone (src, callback) {
+    let dir
+
+    try {
+      dir = this.getDriveDirSync(src.drive, src.dir)
+    } catch (e) {
+      return process.nextTick(() => callback(e))
+    }
+
+    let srcFilePath = path.join(this.absolutePath(dir), src.name)
+    let tmpPath = this.genTmpPath()
+    
+    clone(srcFilePath, src.uuid, tmpPath, (err, xstat) => {
+      if (err) return callback(err)
+      callback(null, tmpPath)
+    })
+  }
+
+  // readdir
+  readdir(driveUUID, dirUUID, callback) {
+    let dir
+    try {
+      dir = this.getDriveDirSync(driveUUID, dirUUID)
+    } catch (e) {
+      return process.nextTick(() => callback(e))
+    }
+
+    dir.read(callback)
   }
 
 }
 
-
-
 module.exports = VFS
+
+
+
+

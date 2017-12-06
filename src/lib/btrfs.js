@@ -100,7 +100,7 @@ const btrfsClone = (target, src, callback) =>
     if (err) return callback(err)
     fs.open(target, 'w', (err, dstFd) => {
       if (err) {
-        fs.close(dstFd, () => {})
+        fs.close(srcFd, () => {})
         callback(err)
       } else {
         try {
@@ -116,7 +116,34 @@ const btrfsClone = (target, src, callback) =>
     })
   })
 
-module.exports = { btrfsConcat, btrfsClone }
+// this version has differnt arg sequence 
+const btrfsClone2 = (src, dst, callback) =>
+  fs.open(src, 'r', (err, srcFd) => {
+    if (err) return callback(err)
+    fs.open(dst, 'w', (err, dstFd) => {
+      if (err) {
+        fs.close(srcFd, () => {})
+        callback(err)
+      } else {
+        try {
+          ioctl(dstFd, 0x40049409, srcFd)      
+          callback(null)
+        } catch (e) {
+          callback(e)
+        } finally {
+          fs.close(srcFd, () => {})
+          fs.close(dstFd, () => {})
+        }
+      }
+    })
+  })
+
+module.exports = { 
+  btrfsConcat, 
+  btrfsClone, 
+  btrfsClone2, 
+  clone: btrfsClone2
+}
 
 
 
