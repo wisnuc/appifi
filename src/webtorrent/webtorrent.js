@@ -88,6 +88,11 @@ class IpcWorker {
 
 const createIpcWorker = () => new IpcWorker()
 
+var log = function () {
+  let { infoHash, timeRemaining, downloaded, downloadSpeed, progress, numPeers, path, name, torrentPath, magnetURL, downloadPath, state, userUUID } = this
+  return { infoHash, timeRemaining, downloaded, downloadSpeed, progress, numPeers, path, name, torrentPath, magnetURL, downloadPath, state, userUUID } = this
+}
+
 class WebTorrentService {
   constructor(tempPath) {
     this.tempPath = tempPath
@@ -99,21 +104,6 @@ class WebTorrentService {
     this.downloaded = []
     this.writing = false
     this.lockNumber = 0
-    this.log = function () {
-      let infoHash = this.infoHash
-      let timeRemaining = this.timeRemaining
-      let downloaded = this.downloaded
-      let downloadSpeed = this.downloadSpeed
-      let progress = this.progress
-      let numPeers = this.numPeers
-      let path = this.path
-      let state = this.state
-      let name = this.name
-      let torrentPath = this.torrentPath
-      let magnetURL = this.magnetURL
-      let downloadPath = this.downloadPath
-      return { infoHash, timeRemaining, downloaded, downloadSpeed, progress, numPeers, path, name, torrentPath, magnetURL, downloadPath, state }
-    }
     this.init()
     console.log('WebTorrent Start!')
   }
@@ -124,10 +114,10 @@ class WebTorrentService {
     try {
       let tasks = JSON.parse(fs.readFileSync(this.catchPath))
       this.downloaded = tasks.downloaded
-      this.downloaded.forEach(item => item.log = this.log)
+      this.downloaded.forEach(item => item.log = log)
       tasks.downloading.forEach((file, index) => {
-        if (file.torrentPath) this.addTorrent({ torrentPath: file.torrentPath, downloadPath: file.downloadPath })
-        else if (file.magnetURL) this.addMagnet({ magnetURL: file.magnetURL, downloadPath: file.downloadPath })
+        if (file.torrentPath) this.addTorrent({ torrentPath: file.torrentPath, downloadPath: file.downloadPath, userUUID: file.userUUID })
+        else if (file.magnetURL) this.addMagnet({ magnetURL: file.magnetURL, downloadPath: file.downloadPath, userUUID: file.userUUID })
       })
     } catch (e) {
       console.log('Error in init ', e)
@@ -137,28 +127,30 @@ class WebTorrentService {
   }
 
   //add task with torrent file
-  async addTorrent({ torrentPath, downloadPath }) {
+  async addTorrent({ torrentPath, downloadPath, userUUID }) {
     if (!fs.existsSync(torrentPath)) throw new Error('torrent file not exist')
     let torrentBuffer = fs.readFileSync(torrentPath)
-    return await this.createTorrent({ torrentSource: torrentBuffer, downloadPath, torrentPath })
+    return await this.createTorrent({ torrentSource: torrentBuffer, downloadPath, torrentPath, userUUID })
   }
 
   //add task with magnet url
-  async addMagnet({ magnetURL, downloadPath }) {
+  async addMagnet({ magnetURL, downloadPath, userUUID }) {
     if (typeof magnetURL !== 'string' || magnetURL.indexOf('magnet') == -1) throw new Error('magnetURL is not a legal magnetURL')
-    return await this.createTorrent({ torrentSource: magnetURL, downloadPath })
+    return await this.createTorrent({ torrentSource: magnetURL, downloadPath, userUUID })
   }
 
   // create torrent & storage
-  async createTorrent({ torrentSource, downloadPath, torrentPath }) {
-    let torrent = this.client.add(torrentSource, { path: this.tempPath })
+  async createTorrent({ torrentSource, downloadPath, torrentPath, userUUID }) {
+    let userFolder = path.join(this.tempPath, userUUID)
+    let torrent = this.client.add(torrentSource, { path: userFolder })
     if (!torrent.infoHash) throw new Error('unknow torrent')
-    if (this.downloading.findIndex(item => item.infoHash == torrent.infoHash) !== -1) throw new Error('torrent exist')
+    if (this.downloading.findIndex(item => item.infoHash == torrent.infoHash && item.userUUID == userUUID) !== -1) throw new Error('torrent exist')
     torrent.downloadPath = downloadPath
-    torrent.log = this.log
+    torrent.log = log
     torrent.state = 'downloading'
     torrent.torrentPath = torrentPath ? torrentPath : null
     torrent.magnetURL = torrentPath ? null : torrentSource
+    torrent.userUUID = userUUID
     torrent.on('done', () => {
       console.log('torrent done trigger ' + torrent.progress)
       // pause also will trigger done event
@@ -197,26 +189,30 @@ class WebTorrentService {
   }
 
   //query summary of downloading torrent (torrentID is not necessary)
-  getSummary({ torrentId, type }) {
+  getSummary({ torrentId, type, userUUID}) {
     if (torrentId) {
       if (typeof torrentId !== 'string' || torrentId.length <= 1) throw new Error('torrentId is not legal')
       let result = this.client.get(torrentId) || this.downloaded.find(item => item.infoHash == torrentId)
-      if (result) return [result.log()]
+      if (result) {
+        if (result.userUUID !== userUUID) throw new Error('Unauthorized')
+        else return result.log()
+      }
       else throw new Error ('torrentId is not legal ')
     } else if (type){
       if ([ 'finished', 'running' ].indexOf(type) == -1) throw new Error('type is not legal')
-      return type == 'running'? this.getDownloading(): this.getDownloaded()
-    } else return { running : this.getDownloading(), finished: this.getDownloaded()}
+      return type == 'running'? this.getDownloading(userUUID): this.getDownloaded(userUUID)
+    } else return { running : this.getDownloading(userUUID), finished: this.getDownloaded(userUUID)}
     
   }
 
-  getDownloading() {
-    return this.downloading.map(file => file.log())
+  //query summary of downloading torrent with userUUID
+  getDownloading(userUUID) {
+    return this.downloading.filter(file => file.userUUID == userUUID).map(file => file.log())
   }
 
-  //query summary of downloaded torrent
-  getDownloaded() {
-    return this.downloaded.map(file => file.log())
+  //query summary of downloaded torrent with userUUID
+  getDownloaded(userUUID) {
+    return this.downloaded.filter(file => file.userUUID == userUUID).map(file => file.log())
   }
 
   // getAllTask() {
