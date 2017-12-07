@@ -9,6 +9,7 @@ class State {
 
   constructor(file, ...args) {
     this.file = file
+    file.state = this
     this.enter(...args)
   }
 
@@ -220,7 +221,7 @@ class Failed extends State {
   }
 
   exit () {
-    this.file.ctx.unindexWorkingFile(this.file)
+    this.file.ctx.unindexFailedFile(this.file)
   }
 
 }
