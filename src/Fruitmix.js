@@ -33,6 +33,9 @@ const { assert, isUUID, isSHA256, validateProps } = require('./common/assertion'
 const CopyTask = require('./tasks/fruitcopy')
 const MoveTask = require('./tasks/fruitmove')
 
+const xcopy = require('./tasks/xcopy')
+const xcopyAsync = Promise.promisify(xcopy)
+
 const { readXstat, forceXstat } = require('./lib/xstat')
 const samba = require('./samba/server')
 
@@ -1102,6 +1105,7 @@ class Fruitmix extends EventEmitter {
   }
 
   async createTaskAsync (user, props) {
+
     if (typeof props !== 'object' || props === null) {
       throw Object.assign(new Error('invalid'), { status: 400 })
     }
@@ -1122,13 +1126,20 @@ class Fruitmix extends EventEmitter {
         task = new MoveTask(this, user, Object.assign({}, props, { entries }))
       }
       this.tasks.push(task)
-
-      console.log(task.view())
-
       return task.view()
     }
 
     throw new Error('invalid task type')
+  }
+
+  async createTaskAsync2 (user, props) {
+    let {src, dst, policies, entries} = props
+    let task = await xcopyAsync(this.driveList, null, props.type, policies, src, dst, entries)
+    this.tasks.push(task)
+
+    console.log(task.view())
+
+    return task.view()
   }
 
   /// /////////////////////////

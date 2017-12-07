@@ -2,6 +2,8 @@ const path = require('path')
 const fs = require('fs')
 const EventEmitter = require('events')
 
+const UUID = require('uuid')
+
 const debug = require('debug')('xcopy')
 
 const { 
@@ -31,11 +33,15 @@ Base class
 class Base extends EventEmitter {
 
   // if user is not provided, ctx is vfs, otherwise, it is fruitmix
-  constructor (ctx, user, policies) {
+  constructor (ctx, user, policies, src, dst, entries) {
     super()
     this.ctx = ctx
     this.user = user
+    this.uuid = UUID.v4()
     this.policies = policies || { dir: [], file: [] }
+    this.src = src
+    this.dst = dst
+    this.entries = entries
 
     this.pendingFiles = new Set()
     this.workingFiles = new Set()
@@ -248,7 +254,11 @@ class Base extends EventEmitter {
     let nodes = []
     if (this.root) this.root.visit(n => nodes.push(n.view()))
     return {
-      mode: this.mode,
+      uuid: this.uuid,
+      type: this.mode,
+      src: this.src,
+      dst: this.dst,
+      entries: this.entries,
       nodes
     }
   }
@@ -276,7 +286,7 @@ class Base extends EventEmitter {
 class Copy extends Base {
 
   constructor (ctx, user, policies, src, dst, xstats) {
-    super(ctx, user, policies)
+    super(ctx, user, policies, src, dst, xstats)
     this.mode = 'copy'
     this.srcDriveUUID = src.drive
     this.dstDriveUUID = dst.drive
@@ -310,7 +320,7 @@ class Copy extends Base {
 class Move extends Base {
 
   constructor (ctx, user, policies, src, dst, xstats) {
-    super(ctx, user, policies)
+    super(ctx, user, policies, src, dst, xstats)
     this.mode = 'move'
     this.srcDriveUUID = src.drive
     this.dstDriveUUID = dst.drive
@@ -344,7 +354,7 @@ class Move extends Base {
 class Import extends Base {
 
   constructor (ctx, user, policies, src, dst, stats) {
-    super(ctx, user, policies)
+    super(ctx, user, policies, src, dst, stats)
     this.mode = 'import'
     this.srcPath = src.path
     this.dstDriveUUID = dst.drive
@@ -380,7 +390,7 @@ class Import extends Base {
 class Export extends Base {
 
   constructor (ctx, user, policies, src, dst, xstats) {
-    super(ctx, user, policies)
+    super(ctx, user, policies, src, dst, xstats)
     this.mode = 'export'
     this.srcDriveUUID = src.drive
     this.dstPath = dst.path
