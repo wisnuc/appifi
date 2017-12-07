@@ -28,7 +28,8 @@ const rimrafAsync = Promise.promisify(rimraf)
 const f = af => (req, res, next) => af(req, res).then(x => x, next)
 
 class Station {
-  constructor(){
+
+  constructor () {
     this.froot = undefined
     this.pbkPath = undefined
     this.pvkPath = undefined
@@ -40,42 +41,56 @@ class Station {
     this.initialized = false
     this.lock = false
     this.init()
-  }                                                  
-  
-  init() {
+    this.token = undefined
+  }
+
+  init () {
     broadcast.on('StationStart', f(async (froot) => {
       this.froot = froot
       await this.startAsync(froot) // init station for keys
-      try{
-        debug('station start building')
-        // await this.registerAsync(froot)
+      try {
         this.station = await this.registerAsync(froot)
+        // start mqtt
+        require('./mqtt')()
+        // get station token
+        await this._getToken()
 
-        this.getServerAddresses().forEach(async addr => {
-          //connect to cloud
-          let connect = new Connect(this) 
-          connect.on('ConnectStateChange', state => {
-            debug('state change :', state)
-            if (state === CONNECT_STATE.CONNED) {
-              this.updateCloudUsersAsync()
-                .then(() => {debug('station update success')})
-                .catch(e => debug(e))
-            }
-          })
-          connect.pipe = new Pipe(connect)
-  
-          this.connects = this.connects ? this.connects.push(connect) : [connect]
+        // TODO:
+        const pipe = new Pipe(this)
 
-          await connect.initAsync(addr) // connect to cloud and get token
-        })
-
-        this.tickets = new Tickets(this)
-        this.initialized = true
-
-        broadcast.emit('StationStartDone', this)
-      }catch(e){
-        debug('Station start error!',e)
+      } catch (e) {
+        debug('Station start error!', e)
       }
+      // try {
+      //   debug('station start building')
+      //   // await this.registerAsync(froot)
+      //   this.station = await this.registerAsync(froot)
+        
+      //   this.getServerAddresses().forEach(async addr => {
+      //     // connect to cloud
+      //     let connect = new Connect(this)
+      //     connect.on('ConnectStateChange', state => {
+      //       debug('state change :', state)
+      //       if (state === CONNECT_STATE.CONNED) {
+      //         this.updateCloudUsersAsync()
+      //           .then(() => { debug('station update success') })
+      //           .catch(e => debug(e))
+      //       }
+      //     })
+      //     connect.pipe = new Pipe(connect)
+
+      //     this.connects = this.connects ? this.connects.push(connect) : [connect]
+
+      //     await connect.initAsync(addr) // connect to cloud and get token
+      //   })
+
+      //   this.tickets = new Tickets(this)
+      //   this.initialized = true
+
+      //   broadcast.emit('StationStartDone', this)
+      // } catch (e) {
+      //   debug('Station start error!', e)
+      // }
     }))
 
     // UserList Changed Notify
@@ -84,13 +99,38 @@ class Station {
       if (this.initialized) {
         debug('Station Handler UserListChanged Notify')
         this.updateCloudUsersAsync()
-          .then(() => {debug('station update userlist success')})
+          .then(() => { debug('station update userlist success') })
           .catch(e => debug(e))
       }
     })
 
     // deinit
     broadcast.on('StationStop', this.deinit.bind(this))
+  }
+
+  /**
+   * get token from cloud, when appifi start
+   * @param {string} stationId
+   */
+  async _getToken () {
+    try {
+      debug('get token')
+      let url = CONFIG.CLOUD_PATH + 's/v1/stations/' + this.station.id + '/token'
+      debug(url)
+      let res = await requestAsync('get', url, {}, {})
+      if (res.status === 200) {
+        let data = res.body.data
+        let secretKey = ursa.createPrivateKey(this.privateKey)
+        let seed = secretKey.decrypt(data.encryptData, 'base64', 'utf8')
+        if (seed !== data.seed) throw new Error('public key authorization faild')
+        this.token = data.token
+      } else {
+        throw new Error(res.body.message)
+      }
+    } catch (error) {
+      debug(error)
+      throw new Error('get token error')
+    }
   }
 
   deinit() {
@@ -100,7 +140,7 @@ class Station {
     this.froot = undefined
     this.pbkPath = undefined
     this.pvkPath = undefined
-    if(this.connects)
+    if (this.connects)
       this.connects.forEach(conn => conn.deinit())
     this.connects = undefined
     this.tickets = undefined
@@ -113,37 +153,37 @@ class Station {
   async startAsync(froot) {
     let pbkPath = path.join(froot, 'station', FILE.PUBKEY)
     let pvkPath = path.join(froot, 'station', FILE.PVKEY)
-    try{
+    try {
       let pbStat = await fs.lstatAsync(pbkPath)
       let pvStat = await fs.lstatAsync(pvkPath)
-      if(pbStat.isFile() && pvStat.isFile()){
+      if (pbStat.isFile() && pvStat.isFile()) {
         this.publicKey = (await fs.readFileAsync(pbkPath)).toString('utf8')
         this.privateKey = (await fs.readFileAsync(pvkPath)).toString('utf8')
         this.pbkPath = pbkPath
         this.pvkPath = pvkPath
-        return  
+        return
       }
       return await this.createKeysAsync(froot)
-      
-    }catch(e){
-      if(e.code === 'ENOENT')
+
+    } catch (e) {
+      if (e.code === 'ENOENT')
         return await this.createKeysAsync(froot)
       throw e
     }
   }
 
   async createKeysAsync(froot) {
-      //remove keys 
-    try{
+    //remove keys 
+    try {
       await rimrafAsync(path.join(froot, 'station'))
       await mkdirpAsync(path.join(froot, 'station'))
 
-      let modulusBit = 2048 
+      let modulusBit = 2048
 
       let pbkPath = path.join(froot, 'station', FILE.PUBKEY)
       let pvkPath = path.join(froot, 'station', FILE.PVKEY)
 
-      let key  = ursa.generatePrivateKey(modulusBit, 65537)
+      let key = ursa.generatePrivateKey(modulusBit, 65537)
 
       let privatePem = ursa.createPrivateKey(key.toPrivatePem()) //生成私钥
       let privateKey = privatePem.toPrivatePem('utf8')
@@ -157,8 +197,8 @@ class Station {
       this.privateKey = privateKey
       this.pbkPath = pbkPath
       this.pvkPath = pvkPath
-      return 
-    }catch(e){
+      return
+    } catch (e) {
       debug(e)
       throw e
     }
@@ -167,19 +207,19 @@ class Station {
   register(froot, callback) {
     let saPath = path.join(froot, 'station', FILE.SA)
     fs.lstat(saPath, (err, lstat) => {
-      if(err || !lstat.isFile()) return this.requestRegisterStation(froot, callback)
+      if (err || !lstat.isFile()) return this.requestRegisterStation(froot, callback)
       fs.readFile(saPath, (err, data) => {
-        if(err){ 
-           debug(err)
+        if (err) {
+          debug(err)
           return callback(err)
         }
-        debug( JSON.parse(data))
+        debug(JSON.parse(data))
         return callback(null, JSON.parse(data))
       })
     })
   }
 
-  async registerAsync(froot)　{
+  async registerAsync(froot) 　{
     return Promise.promisify(this.register).bind(this)(froot)
   }
 
@@ -193,22 +233,22 @@ class Station {
       })
       .end((err, res) => {
         let SA_PATH = path.join(froot, 'station', FILE.SA)
-        if(err || res.status !== 200){
+        if (err || res.status !== 200) {
           debug(err)
-          return callback(new Error('register error')) 
+          return callback(new Error('register error'))
         }
         res.body.data.name = 'HomeStation'
         let ws = fs.createWriteStream(SA_PATH)
         ws.write(JSON.stringify(res.body.data, null, ' '))
         ws.close()
         return callback(null, res.body.data)
-      }) 
+      })
   }
 
   async updateCloudUsersAsync() {
     let fruit = getFruit()
-    if(!fruit) throw new Error('fruitmix not start')
-    let userIds = fruit.userList.users.filter(u=> !!u.global && !disabled).map(u => u.global.id)
+    if (!fruit) throw new Error('fruitmix not start')
+    let userIds = fruit.userList.users.filter(u => !!u.global && !disabled).map(u => u.global.id)
     let LANIP = this.getLANIP()
     await this.updateCloudStationAsync({ userIds, LANIP, name: this.station.name })
   }
@@ -220,24 +260,24 @@ class Station {
       addrs = [...addrs, ...ipAddresses[key]]
     })
     return addrs.find(add => {
-              if(!add.internal && add.family === 'IPv4') return true
-              return false
-            }).address
+      if (!add.internal && add.family === 'IPv4') return true
+      return false
+    }).address
   }
 
   async updateCloudInfoAsync() {
     let LANIP = this.getLANIP()
-    let props = { 
-      name: this.station.name, 
+    let props = {
+      name: this.station.name,
       LANIP
     }
     await this.updateCloudStationAsync(props)
   }
 
   async updateCloudStationAsync(props) {
-    if(this.initialized && this.getConnect()){
+    if (this.initialized && this.getConnect()) {
       let url = CONFIG.CLOUD_PATH + 's/v1/stations/' + this.station.id
-      let token = this.getToken()
+      let token = this.token
       let opts = { 'Authorization': token }
       let params = props // TODO change ticket status
       try {
@@ -257,7 +297,7 @@ class Station {
 
   //FIXME: change ticket
   stationFinishStart(req, res, next) {
-    if(this.initialized && this.getConnect()){
+    if (this.initialized && this.getConnect()) {
       req.body.station = this.station
       req.body.Connect = this.getConnect()
       req.Tickets = this.tickets
@@ -267,8 +307,8 @@ class Station {
     return res.status(500).json('station initialize error')
   }
 
-  info (){
-    if(this.initialized) {
+  info() {
+    if (this.initialized) {
       let info = Object.assign({}, this.station)
       info.connectState = this.connects.map(c => c.getState())
       info.pbk = this.publicKey
@@ -277,8 +317,8 @@ class Station {
     return false
   }
 
-  async updateInfoAsync (props) {
-    if(!this.station) throw Object.assign(new Error('station not registe'), { status: 500 })
+  async updateInfoAsync(props) {
+    if (!this.station) throw Object.assign(new Error('station not registe'), { status: 500 })
     let name = props.name
     let current = this.station
     let nextStation = {
@@ -286,9 +326,9 @@ class Station {
       name: name
     }
     await this.saveToDiskAsync(current, nextStation)
-    try{
+    try {
       await this.updateCloudInfoAsync()
-    }catch(e){
+    } catch (e) {
       debug('update cloud info error: ', e)
       // do nothing if update cloud error
     }
@@ -318,15 +358,15 @@ class Station {
     return [CONFIG.CLOUD_PATH]
   }
 
-  getToken() {
-    return this.getConnect().token
-  }
+  // getToken() {
+  //   return this.getConnect().token
+  // }
 
   getConnect() {
     let index = parseInt(Math.random() * 10) % this.connects.length
-    if(!this.connects[index].isConnected()) {
-      for(connect in this.connects) {
-        if(connect.isConnected())
+    if (!this.connects[index].isConnected()) {
+      for (connect in this.connects) {
+        if (connect.isConnected())
           return connect
       }
       return undefined
