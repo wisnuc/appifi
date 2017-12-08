@@ -20,8 +20,24 @@ router.get('/:taskUUID', auth.jwt(), (req, res) => {
   }
 })
 
+
+router.patch('/:taskUUID/node', auth.jwt(), (req, res) => {
+})
+
+router.patch('/:taskUUID/nodes/:nodeUUID', auth.jwt(), (req, res, next) => {
+  let { taskUUID, nodeUUID } = req.params
+  getFruit().updateTask(req.user, taskUUID, nodeUUID, req.body, (err, view) => 
+    err ? next(err) : res.status(200).json(view))
+})
+
 router.post('/', auth.jwt(), f(async (req, res) => 
-  res.status(200).json(await getFruit().createTaskAsync(req.user, req.body))))
+  res.status(200).json(await getFruit().createTaskAsync2(req.user, req.body))))
+
+/**
+router.post('/', auth.jwt(), f(async (req, res) => {
+
+}))
+**/
 
 module.exports = router
 
