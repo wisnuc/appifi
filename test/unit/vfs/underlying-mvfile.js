@@ -675,7 +675,6 @@ describe(path.basename(__filename) + 'mvfile, [skip/rename/replace, skip/rename/
     mkdirp.sync('tmptest/c/d')
     mvfile('tmptest/a/b', 'tmptest/c/d', ['skip', 'skip'], (err, xstat, resolved) => {
       expect(xstat).to.be.null
-      console.log(resolved)
       expect(resolved).to.deep.equal([false, true])
       done()
     })
@@ -743,7 +742,6 @@ describe(path.basename(__filename) + 'mvfile, [skip/rename/replace, skip/rename/
         magic: 'JPEG'
       })
       expect(resolved).to.deep.equal([false, true])
-      done()
     })
   })
 
