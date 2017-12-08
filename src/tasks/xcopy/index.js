@@ -278,7 +278,11 @@ class Base extends EventEmitter {
 
   // this method is used by copy, move and export, but not import
   readdir(srcDirUUID, callback) {
-    this.ctx.readdir(this.srcDriveUUID, srcDirUUID, callback)
+    if (this.user) {
+      this.ctx.readdir(this.user, this.srcDriveUUID, srcDirUUID, callback)
+    } else {
+      this.ctx.readdir(this.srcDriveUUID, srcDirUUID, callback)
+    }
   }
 
 }
@@ -298,7 +302,7 @@ class Copy extends Base {
     dst.drive = this.dstDriveUUID
 
     if (this.user) {
-      this.ctx.cpdir(user, src, dst, policy, callback)
+      this.ctx.cpdir(this.user, src, dst, policy, callback)
     } else {
       this.ctx.cpdir(src, dst, policy, callback)
     }
@@ -309,7 +313,7 @@ class Copy extends Base {
     dst.drive = this.dstDriveUUID
 
     if (this.user) {
-      this.ctx.cpfile(user, src, dst, policy, callback)
+      this.ctx.cpfile(this.user, src, dst, policy, callback)
     } else {
       this.ctx.cpfile(src, dst, policy, callback)
     }
@@ -357,7 +361,7 @@ class Move extends Base {
     dst.drive = this.dstDriveUUID
     
     if (this.user) {
-      this.ctx.mvdir(user, src, dst, policy, callback)
+      this.ctx.mvdir2(this.user, src, dst, policy, callback)
     } else {
       this.ctx.mvdir(src, dst, policy, callback)
     } 
@@ -368,7 +372,7 @@ class Move extends Base {
     dst.drive = this.dstDriveUUID
 
     if (this.user) {
-      this.ctx.mvfile(user, src, dst, policy, callback)
+      this.ctx.mvfile2(this.user, src, dst, policy, callback)
     } else {
       this.ctx.mvfile(src, dst, policy, callback)
     }
@@ -463,31 +467,34 @@ const formatPolicies = policies => {
 // entries are uuids
 // returns xstats or throw error
 const entriesToXstats = (ctx, user, driveUUID, dirUUID, entries, callback) => {
-  if (user) {
-    // TODO 
-  } else {
-    ctx.readdir(driveUUID, dirUUID, (err, xstats) => {
-      if (err) return callback(err)
-      let found = []    // xstats
-      let missing = []  // uuids
 
-      entries.forEach(uuid => {
-        let x = xstats.find(x => x.uuid === uuid)
-        if (x) {
-          found.push(x)
-        } else {
-          missing.push(uuid)
-        }
-      })
+  const handler = (err, xstats) => {
+    if (err) return callback(err)
+    let found = []    // xstats
+    let missing = []  // uuids
 
-      if (missing.length) {
-        let err = new Error('some entries are missing')
-        err.missing = missing
-        callback(err)
+    entries.forEach(uuid => {
+      let x = xstats.find(x => x.uuid === uuid)
+      if (x) {
+        found.push(x)
       } else {
-        callback(null, found)
+        missing.push(uuid)
       }
     })
+
+    if (missing.length) {
+      let err = new Error('some entries are missing')
+      err.missing = missing
+      callback(err)
+    } else {
+      callback(null, found)
+    }
+  }
+
+  if (user) {
+    ctx.readdir(user, driveUUID, dirUUID, handler)  
+  } else {
+    ctx.readdir(driveUUID, dirUUID, handler)
   }
 }
 

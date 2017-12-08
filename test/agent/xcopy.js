@@ -129,7 +129,7 @@ describe(path.basename(__filename) + ' cp/mv a / [dir c, file d] -> dir b', () =
   })
 **/
 
-  it('cp vanilla (assert what?), xyz', async () => {
+  it('cp vanilla (assert what?), 7338eeb6', async () => {
     let task = await createTaskAsync(token, {
       type: 'copy',
       src: { drive: IDS.alice.home, dir: dirAUUID },
@@ -237,6 +237,7 @@ describe(path.basename(__filename) + ' cp/mv a / [dir c, file d] -> dir b', () =
         setTimeout(done, 1000)
       })
   }) 
+
 })
 
 describe(path.basename(__filename) + 'mv a / [dir c, file d] -> dir b', () => {
