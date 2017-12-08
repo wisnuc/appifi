@@ -88,18 +88,23 @@ class IpcWorker {
 
 const createIpcWorker = () => new IpcWorker()
 
-var log = function () {
-  let { infoHash, timeRemaining, downloaded, downloadSpeed, progress, numPeers, path, name, torrentPath, magnetURL, downloadPath, state, userUUID } = this
-  return { infoHash, timeRemaining, downloaded, downloadSpeed, progress, numPeers, path, name, torrentPath, magnetURL, downloadPath, state, userUUID } = this
+var logA = function () {
+  let { infoHash, timeRemaining, downloaded, downloadSpeed, progress, numPeers, path, name, torrentPath, magnetURL, dirUUID, state, userUUID, isPause } = this
+  return { infoHash, timeRemaining, downloaded, downloadSpeed, progress, numPeers, path, name, torrentPath, magnetURL, dirUUID, state, userUUID, isPause }
+}
+
+var logB = function() {
+  
 }
 
 class WebTorrentService {
   constructor(tempPath) {
     this.tempPath = tempPath
     this.catchPath = path.join(this.tempPath, 'storage.json')
-    this.client = new webT()
+    // this.client = new webT()
     // this.client.on('torrent', this.newTorrent)
-    this.client.on('error', this.clientError)
+    // this.client.on('error', this.clientError)
+    this.clients = []
     this.downloading = []
     this.downloaded = []
     this.writing = false
@@ -108,7 +113,7 @@ class WebTorrentService {
     console.log('WebTorrent Start!')
   }
 
-  //read storage & create tasks
+  //read storage & create tasksuuid:
   init() {
     if (!fs.existsSync(this.catchPath)) return console.log('catch path not exist')
     try {
@@ -116,8 +121,10 @@ class WebTorrentService {
       this.downloaded = tasks.downloaded
       this.downloaded.forEach(item => item.log = log)
       tasks.downloading.forEach((file, index) => {
-        if (file.torrentPath) this.addTorrent({ torrentPath: file.torrentPath, downloadPath: file.downloadPath, userUUID: file.userUUID })
-        else if (file.magnetURL) this.addMagnet({ magnetURL: file.magnetURL, downloadPath: file.downloadPath, userUUID: file.userUUID })
+        if (file.torrentPath) 
+          this.addTorrent({ torrentPath: file.torrentPath, dirUUID: file.dirUUID, user: {uuid: file.userUUID} })
+        else if (file.magnetURL) 
+          this.addMagnet({ magnetURL: file.magnetURL, dirUUID: file.dirUUID, user: {uuid: file.userUUID} })
       })
     } catch (e) {
       console.log('Error in init ', e)
@@ -126,105 +133,110 @@ class WebTorrentService {
     }
   }
 
+  // each user has own client will be created in first request
+  getClient(userUUID) {
+    let client = this.clients.find(item => item.userUUID == userUUID)
+    if (client) return client
+    let newClient = new webT()
+    newClient.userUUID = userUUID
+    newClient.on('error', err => {
+      console.log('client error : ' + err.message)
+    })
+    this.clients.push(newClient)
+    return newClient
+  }
+
   //add task with torrent file
-  async addTorrent({ torrentPath, downloadPath, userUUID }) {
+  async addTorrent({ torrentPath, dirUUID, user }) {
     if (!fs.existsSync(torrentPath)) throw new Error('torrent file not exist')
     let torrentBuffer = fs.readFileSync(torrentPath)
-    return await this.createTorrent({ torrentSource: torrentBuffer, downloadPath, torrentPath, userUUID })
+    return await this.createTorrent({ torrentSource: torrentBuffer, dirUUID, torrentPath, user })
   }
 
   //add task with magnet url
-  async addMagnet({ magnetURL, downloadPath, userUUID }) {
-    if (typeof magnetURL !== 'string' || magnetURL.indexOf('magnet') == -1) throw new Error('magnetURL is not a legal magnetURL')
-    return await this.createTorrent({ torrentSource: magnetURL, downloadPath, userUUID })
+  async addMagnet({ magnetURL, dirUUID, user }) {
+    if (typeof magnetURL !== 'string' || magnetURL.indexOf('magnet') == -1) 
+      throw new Error('magnetURL is not a legal magnetURL')
+    return await this.createTorrent({ torrentSource: magnetURL, dirUUID, user })
   }
 
   // create torrent & storage
-  async createTorrent({ torrentSource, downloadPath, torrentPath, userUUID }) {
-    let userFolder = path.join(this.tempPath, userUUID)
-    let torrent = this.client.add(torrentSource, { path: userFolder })
+  async createTorrent({ torrentSource, dirUUID, torrentPath, user }) {
+    // create client(not necessary) & create torrent
+    let userTmpPath = path.join(this.tempPath, user.uuid)
+    let torrent = this.getClient(user.uuid).add(torrentSource, { path: userTmpPath })
     if (!torrent.infoHash) throw new Error('unknow torrent')
-    if (this.downloading.findIndex(item => item.infoHash == torrent.infoHash && item.userUUID == userUUID) !== -1) throw new Error('torrent exist')
-    torrent.downloadPath = downloadPath
-    torrent.log = log
+
+    // add property to torrent object & add object to downloading list
+    if (this.downloading.findIndex(item => item.infoHash == torrent.infoHash && item.userUUID == user.uuid) !== -1) throw new Error('torrent exist')
+      
+    torrent.dirUUID = dirUUID
+    torrent.log = logA
     torrent.state = 'downloading'
     torrent.torrentPath = torrentPath ? torrentPath : null
     torrent.magnetURL = torrentPath ? null : torrentSource
-    torrent.userUUID = userUUID
-    torrent.on('done', () => {
+    torrent.userUUID = user.uuid
+    torrent.isPause = false
+    torrent.on('done', () => {//todo 
       console.log('torrent done trigger ' + torrent.progress)
-      // pause also will trigger done event
       if (torrent.progress !== 1) return
-      torrent.state = 'downloaded'
-      // stop torrent uploading & move to downloaded array
-      torrent.destroy(async () => {
-        // fs.renameSync(path.join(torrent.path, torrent.name), path.join(torrent.downloadPath, torrent.name))
-        let index = this.downloading.indexOf(torrent)
-        if (index == -1) throw new Error('torrent is not exist in downloading array')
-        this.downloading.splice(index, 1)
-        this.downloaded.push(torrent)
-        await this.cache()
-        console.log('torrent destory success')
-      })
+      this.enterMove(torrent)
     })
     this.downloading.push(torrent)
+    
+    // add torrent to storage
     await this.cache()
     return torrent.infoHash
   }
 
   //pasuse a torrent with torrentID
-  pause({ torrentId }) {
-    let torrent = this.client.get(torrentId)
+  pause({ torrentId, user }) {
+    let torrent = this.getClient(user.uuid).get(torrentId)
     if (!torrent) return -1
-    torrent.files.forEach(file => { file.deselect() })
-    return 0
+    torrent.pause()
+    torrent.isPause = true
+    return torrent.log()
   }
 
   //resume a torrent with torrentID
-  resume({ torrentId }) {
-    let torrent = this.client.get(torrentId)
+  resume({ torrentId, user }) {
+    let torrent = this.getClient(user.uuid).get(torrentId)
     if (!torrent) return -1
-    torrent.files.forEach(file => { file.select() })
-    return 0
+    torrent.resume()
+    torrent.isPause = false
+    return torrent.log()
   }
 
   //query summary of downloading torrent (torrentID is not necessary)
-  getSummary({ torrentId, type, userUUID}) {
+  getSummary({ torrentId, type, user}) {
+    let client = this.getClient(user.uuid)
     if (torrentId) {
+      // get summary with id
       if (typeof torrentId !== 'string' || torrentId.length <= 1) throw new Error('torrentId is not legal')
-      let result = this.client.get(torrentId) || this.downloaded.find(item => item.infoHash == torrentId)
-      if (result) {
-        if (result.userUUID !== userUUID) throw new Error('Unauthorized')
-        else return result.log()
-      }
-      else throw new Error ('torrentId is not legal ')
+      let result = client.get(torrentId) || this.downloaded.find(item => item.infoHash == torrentId && item.userUUID == user.uuid)
+      if (result) return result.log() 
+      else throw new Error ('torrentId is not legal')
     } else if (type){
+      // get summary with type
       if ([ 'finished', 'running' ].indexOf(type) == -1) throw new Error('type is not legal')
-      return type == 'running'? this.getDownloading(userUUID): this.getDownloaded(userUUID)
-    } else return { running : this.getDownloading(userUUID), finished: this.getDownloaded(userUUID)}
-    
+      return type == 'running'? this.getDownloading(user): this.getDownloaded(user)
+    } else return { running : this.getDownloading(user), finish: this.getDownloaded(user)}
   }
 
   //query summary of downloading torrent with userUUID
-  getDownloading(userUUID) {
-    return this.downloading.filter(file => file.userUUID == userUUID).map(file => file.log())
+  getDownloading(user) {
+    return this.downloading.filter(file => file.userUUID == user.uuid).map(file => file.log())
   }
 
   //query summary of downloaded torrent with userUUID
-  getDownloaded(userUUID) {
-    return this.downloaded.filter(file => file.userUUID == userUUID).map(file => file.log())
+  getDownloaded(user) {
+    return this.downloaded.filter(file => file.userUUID == user.uuid).map(file => file.log())
   }
-
-  // getAllTask() {
-  //   return [...this.getSummary({}), ...this.getFinished({})]
-  // }  
 
   //storage list of torrent
   cache() {
     return new Promise((resolve, reject) => {
-      console.log('begin cache ...')
       if (this.writing) {
-        console.log('schedule is writing catche now, waiting...')
         this.lockNumber++
         resolve()
         return
@@ -235,14 +247,9 @@ class WebTorrentService {
         downloaded: this.downloaded.map(file => file.log())
       }
       fs.writeFile(this.catchPath, JSON.stringify(obj, null, '\t'), err => {
-
         this.writing = false
-        if (err) {
-          console.log('cache tasks failed')
-          reject(err)
-        }
+        if (err) reject(err)
         else {
-          console.log('cache tasks success, lockNumber: ' + this.lockNumber)
           if (this.lockNumber > 0) {
             this.lockNumber = 0
             this.cache()
@@ -279,6 +286,27 @@ class WebTorrentService {
 
   }
 
+  enterMove(torrent) {
+    process.send({type: 'move', torrent: torrent.log()})
+  }
+
+  moveFinish({ torrentId, userUUID}) {
+    return console.log('torrent move finish', torrentId, userUUID)
+    let torrent = this.getClient(userUUID).get(torrentId)
+    if (!torrent) throw new Error('not found torrent')
+    torrent.state = 'finish'
+    // stop torrent uploading & move to downloaded array
+    torrent.destroy(async () => {
+      // fs.renameSync(path.join(torrent.path, torrent.name), path.join(torrent.dirUUID, torrent.name))
+      let index = this.downloading.indexOf(torrent)
+      if (index == -1) throw new Error('torrent is not exist in downloading array')
+      this.downloading.splice(index, 1)
+      this.downloaded.push(torrent)
+      await this.cache()
+      console.log('torrent destory success')
+    })
+  }
+
   clientError() {
 
   }
@@ -287,19 +315,17 @@ class WebTorrentService {
     ipc.register('addTorrent', asCallback(this.addTorrent.bind(this)))
     ipc.register('addMagnet', asCallback(this.addMagnet.bind(this)))
     ipc.register('getSummary', syncCallback(this.getSummary.bind(this)))
-    ipc.register('pause', (props, callback) => callback(null, this.pause(props)))
-    ipc.register('resume', (props, callback) => callback(null, this.resume(props)))
-    
-    // ipc.register('getFinished', (props, callback) => callback(null, this.getFinished()))
-    // ipc.register('getAllTask', (props, callback) => callback(null, this.getAllTask()))
+    ipc.register('pause', syncCallback(this.pause.bind(this)))
+    ipc.register('resume', syncCallback(this.resume.bind(this)))
     ipc.register('destory', asCallback(this.destory.bind(this)))
+    ipc.register('moveFinish', asCallback(this.moveFinish.bind(this)))
   }
 }
 
 let ipc = createIpcWorker()
 
 // folder
-let wPath = process.cwd() + '/tmptest'
+let wPath = process.argv[2]
 
 let webTorrentService = new WebTorrentService(wPath)
 webTorrentService.register(ipc)
