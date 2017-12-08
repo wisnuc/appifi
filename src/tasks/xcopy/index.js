@@ -315,6 +315,31 @@ class Copy extends Base {
     }
   }
 
+  update (identity, props, callback) {
+    let err = null
+
+    let node = this.root.find(n => n.identity() === identity)
+    if (!node) {
+      err = new Error(`node ${uuid} not found`)
+      err.code = 'ENOTFOUND'
+      err.status = 404
+    } else if (node.getState() !== 'Conflict') {
+      err = new Error(`node is not in conflict state`)
+      err.code = 'EINAPPLICABLE'
+      err.status = 403
+    } else {
+      node.update(props)
+      if (props.applyToAll) {
+        let type = node instanceof Directory ? 'dir' : 'file'
+        this.policies[type][0] = props.policy[0] || this.policies[type][0]
+        this.policies[type][1] = props.policy[1] || this.policies[type][1]
+
+        // FIXME retry all ?
+      }
+    }   
+
+    process.nextTick(() => callback(err))
+  }
 }
 
 class Move extends Base {

@@ -1100,7 +1100,7 @@ class Fruitmix extends EventEmitter {
 
   getTasks (user) {
     return this.tasks
-      .filter(t => t.user.uuid === user.uuid)
+      // .filter(t => t.user.uuid === user.uuid) FIXME
       .map(t => t.view())
   }
 
@@ -1133,13 +1133,28 @@ class Fruitmix extends EventEmitter {
   }
 
   async createTaskAsync2 (user, props) {
-    let {src, dst, policies, entries} = props
+    let { src, dst, policies, entries } = props
+    // FIXME user
     let task = await xcopyAsync(this.driveList, null, props.type, policies, src, dst, entries)
+    // task.user = user 
     this.tasks.push(task)
 
-    console.log(task.view())
+    // console.log(task.view())
 
     return task.view()
+  }
+
+  // identity is uuid (copy, move, export) or relative path (import)
+  updateTask(user, taskUUID, identity, props, callback) {
+    let task = this.tasks.find(task => task.uuid === taskUUID) 
+    if (!task) {
+      let err = new Error(`task ${taskUUID} not found`)
+      err.code = 'ENOTFOUND'
+      err.status = 404
+      callback(err)
+    } else {
+      task.update(identity, props, callback)
+    }
   }
 
   /// /////////////////////////

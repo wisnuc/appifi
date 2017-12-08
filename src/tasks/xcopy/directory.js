@@ -49,6 +49,10 @@ class Pending extends State {
     this.dir.ctx.unindexPendingDir(this.dir)
   } 
 
+  getState () {
+    return 'Pending'
+  }
+
 }
 
 class Working extends State {
@@ -61,6 +65,9 @@ class Working extends State {
     this.dir.ctx.unindexWorkingDir(this.dir)
   } 
 
+  getState () {
+    return 'Working'
+  }
 }
 
 class CopyWorking extends Working {
@@ -170,6 +177,10 @@ class Conflict extends State {
     this.dir.ctx.indexConflictDir(this.dir)
   }
 
+  getState () {
+    return 'Conflict'
+  }
+
   retry () {
     this.setState('Working')
   }
@@ -177,7 +188,6 @@ class Conflict extends State {
   exit () {
     this.dir.ctx.unindexConflictDir(this.dir)
   }
-
 }
 
 class Reading extends State {
@@ -185,6 +195,10 @@ class Reading extends State {
   enter () {
     this.dir.ctx.indexReadingDir(this.dir)
   } 
+
+  getState () {
+    return 'Reading'
+  }
 
   exit () {
     this.dir.ctx.unindexReadingDir(this.dir)
@@ -256,6 +270,10 @@ class Read extends State {
     this.dir.dstats = xstats.filter(x => x.type === 'directory')
     this.dir.fstats = xstats.filter(x => x.type === 'file')
     this.next()
+  }
+
+  getState () {
+    return 'Read'
   }
 
   exit () {
@@ -436,6 +454,9 @@ class Failed extends State {
     this.dir.ctx.unindexFailedDir(this.dir)
   }
 
+  getState () {
+    return 'Failed'
+  }
 }
 
 class Finished extends State {
@@ -449,6 +470,9 @@ class Finished extends State {
     this.dir.ctx.unindexFinishedDir(this.dir)
   }
 
+  getState () {
+    return 'Finished'
+  }
 }
 
 class Directory extends Node {
@@ -458,10 +482,18 @@ class Directory extends Node {
     this.children = []
   }
 
+  identity () {
+    return this.srcUUID
+  }
+
   destroy (detach) {
     this.children.forEach(c => c.destroy())
     this.state.destroy ()
     super.destroy(detach)
+  }
+
+  getState () {
+    return this.state.getState() 
   }
 
   // state is a string
@@ -481,11 +513,18 @@ class Directory extends Node {
     let obj = {
       type: 'directory',
       parent: this.parent && this.parent.srcUUID,
-      srcUUID: this.srcUUID,
+      srcUUID: this.srcUUID
     }
     
     if (this.dstUUID) obj.dstUUID = this.dstUUID
-    obj.state = this.state.constructor.name
+
+    try {
+      obj.state = this.state.getState()
+    } catch (e) {
+      console.log(this.state)
+      console.log(e)
+    }
+
     if (this.policies) obj.policy = this.policy
     return obj
   }
@@ -506,6 +545,16 @@ class Directory extends Node {
     ]  
   }
 
+  // update only applicable on Conflict state
+  // this rule is enforced in ctx
+  update (props) {
+    let policy = props.policy
+    this.policy[0] = policy[0] || this.policy[0]
+    this.policy[1] = policy[1] || this.policy[1]
+    this.setState('Working')
+  }
+
+  // retry only available on Conflict or Failed state
   retry () {
     if (this.children) this.children.forEach(c => c.retry())
     this.state.retry()
@@ -568,6 +617,10 @@ class ImportDirectory extends Directory {
     } else {
       new Pending(this)
     }
+  }
+
+  identity () {
+    return this.srcPath
   }
 }
 
