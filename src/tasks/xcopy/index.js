@@ -3,7 +3,6 @@ const fs = require('fs')
 const EventEmitter = require('events')
 
 const UUID = require('uuid')
-
 const debug = require('debug')('xcopy')
 
 const { 
@@ -18,9 +17,14 @@ const {
   File,
   CopyFile,
   MoveFile,
-  ImportFile,
+  FileImport,
   ExportFile
 } = require('./file')
+
+/**
+Xcopy as a namespace
+@namespace XCopy
+*/
 
 /**
 Split different task into different sub-class is a better practice since the proxied methods
@@ -263,6 +267,7 @@ class Base extends EventEmitter {
     }
   }
 
+/**
   setPolicy (srcUUID, type, policy, applyToAll) {
     let node = this.root.find(n => n.srcUUID === srcUUID)
     if (!node) throw new Error('not found')
@@ -275,6 +280,7 @@ class Base extends EventEmitter {
       this.policies[name][index] = policy
     }
   }
+**/
 
   // this method is used by copy, move and export, but not import
   readdir(srcDirUUID, callback) {

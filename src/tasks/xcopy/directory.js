@@ -5,7 +5,7 @@ const rimraf = require('rimraf')
 const { mkdir } = require('./lib')
 
 const Node = require('./node')
-const { File, CopyFile, MoveFile, ImportFile, ExportFile } = require('./file')
+const { File, CopyFile, MoveFile, FileImport, ExportFile } = require('./file')
 
 /**
 Base File State
@@ -26,9 +26,6 @@ class State {
     this.exit()
     let NextState = this.dir[state]
     new NextState(this.dir, ...args)
-  }
-
-  retry () {
   }
 
   enter () {
@@ -365,7 +362,7 @@ class ImportRead extends Read {
   next () {
     if (this.dir.fstats.length) {
       let fstat = this.dir.fstats.shift()
-      let file = new ImportFile(this.dir.ctx, this.dir, path.join(this.dir.srcPath, fstat.name))
+      let file = new FileImport(this.dir.ctx, this.dir, path.join(this.dir.srcPath, fstat.name))
 
       file.on('error', err => { 
         // TODO
@@ -475,6 +472,11 @@ class Finished extends State {
   }
 }
 
+/**
+A directory sub-task, base class
+
+@memberof XCopy
+*/
 class Directory extends Node {
 
   constructor(ctx, parent) {
@@ -482,31 +484,13 @@ class Directory extends Node {
     this.children = []
   }
 
+  destroy () {
+    [...this.children].forEach(c => c.destroy())
+    super.destroy()
+  }
+
   identity () {
     return this.srcUUID
-  }
-
-  destroy (detach) {
-    this.children.forEach(c => c.destroy())
-    this.state.destroy ()
-    super.destroy(detach)
-  }
-
-  getState () {
-    return this.state.getState() 
-  }
-
-  // state is a string
-  setState (state) {
-    this.state.setState(state)
-  }
-
-  // change to event emitter
-  onChildFinish (child) {
-    child.destroy()
-    if (this.children.length === 0) {
-      console.log('done')  
-    }
   }
 
   view () {
@@ -529,35 +513,11 @@ class Directory extends Node {
     return obj
   }
 
-  setPolicy (type, policy) {
-    if (type === 'same') {
-      this.policy[0] = policy
-    } else {
-      this.policy[1] = policy
-    }
-    this.retry()
-  }
-
   getPolicy () {
     return [
       this.policy[0] || this.ctx.policies.dir[0] || null,
       this.policy[1] || this.ctx.policies.dir[1] || null
     ]  
-  }
-
-  // update only applicable on Conflict state
-  // this rule is enforced in ctx
-  update (props) {
-    let policy = props.policy
-    this.policy[0] = policy[0] || this.policy[0]
-    this.policy[1] = policy[1] || this.policy[1]
-    this.setState('Working')
-  }
-
-  // retry only available on Conflict or Failed state
-  retry () {
-    if (this.children) this.children.forEach(c => c.retry())
-    this.state.retry()
   }
 
 }
