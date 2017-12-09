@@ -15,10 +15,10 @@ const {
 
 const { 
   File,
-  CopyFile,
-  MoveFile,
+  FileCopy,
+  FileMove,
   FileImport,
-  ExportFile
+  FileExport
 } = require('./file')
 
 /**
@@ -53,7 +53,7 @@ class Base extends EventEmitter {
     this.failedFiles = new Set()
 
     this.pendingDirs = new Set()
-    this.makingDirs = new Set()
+    this.workingDirs = new Set()
     this.readingDirs = new Set()
     this.readDirs = new Set()
     this.conflictDirs = new Set()
@@ -151,12 +151,12 @@ class Base extends EventEmitter {
 
   indexWorkingDir (dir) {
     debug(`${this.formatDir(dir)} enter making (dst)`)
-    this.makingDirs.add(dir)
+    this.workingDirs.add(dir)
   }
 
   unindexWorkingDir (dir) {
     debug(`${this.formatDir(dir)} exit making (dst)`)
-    this.makingDirs.delete(dir)
+    this.workingDirs.delete(dir)
     this.reqSched()
   }
 
@@ -232,12 +232,12 @@ class Base extends EventEmitter {
 
     // schedule dir job
     while (this.pendingDirs.size > 0 && 
-      this.activeParents().size + this.makingDirs.size + this.readingDirs.size < 2) { 
+      this.activeParents().size + this.workingDirs.size + this.readingDirs.size < 2) { 
       let dir = this.pendingDirs[Symbol.iterator]().next().value
       dir.setState('Working')  
     } 
 
-    if (this.makingDirs.size + this.readingDirs.size + this.workingFiles.size === 0) {
+    if (this.workingDirs.size + this.readingDirs.size + this.workingFiles.size === 0) {
       process.nextTick(() => this.emit('stopped'))
     }
 

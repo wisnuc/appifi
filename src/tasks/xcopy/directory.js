@@ -5,45 +5,18 @@ const rimraf = require('rimraf')
 const { mkdir } = require('./lib')
 
 const Node = require('./node')
-const { File, CopyFile, MoveFile, FileImport, ExportFile } = require('./file')
+const State = require('./state')
 
-/**
-Base File State
-*/
-class State {
-
-  constructor(dir, ...args) {
-    this.dir = dir
-    this.dir.state = this
-    this.enter(...args)
-  }
-
-  destroy () {
-    this.exit()
-  }
-
-  setState (state, ...args) {
-    this.exit()
-    let NextState = this.dir[state]
-    new NextState(this.dir, ...args)
-  }
-
-  enter () {
-  }
-
-  exit () {
-  }
-
-}
+const { File, FileCopy, FileMove, FileImport, FileExport } = require('./file')
 
 class Pending extends State {
 
   enter () {
-    this.dir.ctx.indexPendingDir(this.dir)
+    this.ctx.ctx.indexPendingDir(this.ctx)
   }
 
   exit () {
-    this.dir.ctx.unindexPendingDir(this.dir)
+    this.ctx.ctx.unindexPendingDir(this.ctx)
   } 
 
   getState () {
@@ -55,11 +28,11 @@ class Pending extends State {
 class Working extends State {
 
   enter () {
-    this.dir.ctx.indexWorkingDir(this.dir)
+    this.ctx.ctx.indexWorkingDir(this.ctx)
   }
 
   exit () {
-    this.dir.ctx.unindexWorkingDir(this.dir)
+    this.ctx.ctx.unindexWorkingDir(this.ctx)
   } 
 
   getState () {
@@ -72,17 +45,17 @@ class CopyWorking extends Working {
   enter () {
     super.enter()
 
-    let src = { dir: this.dir.srcUUID }
-    let dst = { dir: this.dir.parent.dstUUID }
-    let policy = this.dir.getPolicy()
+    let src = { dir: this.ctx.srcUUID }
+    let dst = { dir: this.ctx.parent.dstUUID }
+    let policy = this.ctx.getPolicy()
 
-    this.dir.ctx.cpdir(src, dst, policy, (err, xstat) => {
+    this.ctx.ctx.cpdir(src, dst, policy, (err, xstat) => {
       if (err && err.code === 'EEXIST') {
         this.setState('Conflict', err, policy)
       } else if (err) {
         this.setState('Failed', err)
       } else {
-        this.dir.dstUUID = xstat.uuid
+        this.ctx.dstUUID = xstat.uuid
         this.setState('Reading')
       }
     })
@@ -95,11 +68,11 @@ class MoveWorking extends Working {
   enter () {
     super.enter()
 
-    let src = { dir: this.dir.srcUUID }
-    let dst = { dir: this.dir.parent.dstUUID }
-    let policy = this.dir.getPolicy()
+    let src = { dir: this.ctx.srcUUID }
+    let dst = { dir: this.ctx.parent.dstUUID }
+    let policy = this.ctx.getPolicy()
 
-    this.dir.ctx.mvdir(src, dst, policy, (err, xstat, resolved) => {
+    this.ctx.ctx.mvdir(src, dst, policy, (err, xstat, resolved) => {
       if (err && err.code === 'EEXIST') {
         this.setState('Conflict', err, policy)
       } else if (err) {
@@ -107,7 +80,7 @@ class MoveWorking extends Working {
       } else {
         let [same, diff] = resolved 
         if (same === 'skip') { // this is acturally a merging, same with copy
-          this.dir.dstUUID = xstat.uuid 
+          this.ctx.dstUUID = xstat.uuid 
           this.setState('Reading')
         } else {
           this.setState('Finished')
@@ -124,19 +97,19 @@ class ImportWorking extends Working {
     super.enter()
 
     let dst = {
-      dir: this.dir.parent.dstUUID,
-      name: this.dir.srcName,
+      dir: this.ctx.parent.dstUUID,
+      name: this.ctx.srcName,
     }
 
-    let policy = this.dir.getPolicy()
+    let policy = this.ctx.getPolicy()
    
-    this.dir.ctx.mkdir(dst, policy, (err, xstat, resolved) => {
+    this.ctx.ctx.mkdir(dst, policy, (err, xstat, resolved) => {
       if (err && err.code === 'EEXIST') {
         this.setState('Conflict', err, policy)
       } else if (err) {
         this.setState('Failed', err)
       } else {
-        this.dir.dstUUID = xstat.uuid
+        this.ctx.dstUUID = xstat.uuid
         this.setState('Reading')
       }
     })
@@ -149,8 +122,8 @@ class ExportWorking extends Working {
   enter () {
     super.enter()
 
-    let dstPath = path.join(this.dir.parent.dstPath, this.dir.srcName)
-    let policy = this.dir.getPolicy()
+    let dstPath = path.join(this.ctx.parent.dstPath, this.ctx.srcName)
+    let policy = this.ctx.getPolicy()
 
     mkdir(dstPath, policy, (err, _, resolved) => {
       if (err && err.code === 'EEXIST') {
@@ -158,7 +131,7 @@ class ExportWorking extends Working {
       } else if (err) {
         this.setState('Failed', err)
       } else {
-        this.dir.dstPath = dstPath
+        this.ctx.dstPath = dstPath
         this.setState('Reading')
       } 
     })
@@ -171,7 +144,7 @@ class Conflict extends State {
   enter (err, policy) {
     this.err = err
     this.policy = policy
-    this.dir.ctx.indexConflictDir(this.dir)
+    this.ctx.ctx.indexConflictDir(this.ctx)
   }
 
   getState () {
@@ -183,14 +156,14 @@ class Conflict extends State {
   }
 
   exit () {
-    this.dir.ctx.unindexConflictDir(this.dir)
+    this.ctx.ctx.unindexConflictDir(this.ctx)
   }
 }
 
 class Reading extends State {
 
   enter () {
-    this.dir.ctx.indexReadingDir(this.dir)
+    this.ctx.ctx.indexReadingDir(this.ctx)
   } 
 
   getState () {
@@ -198,7 +171,7 @@ class Reading extends State {
   }
 
   exit () {
-    this.dir.ctx.unindexReadingDir(this.dir)
+    this.ctx.ctx.unindexReadingDir(this.ctx)
   }
 
 }
@@ -208,7 +181,7 @@ class FruitReading extends Reading {
   enter () {
     super.enter()
     // readdir always read source dir
-    this.dir.ctx.readdir(this.dir.srcUUID, (err, xstats) => {
+    this.ctx.ctx.readdir(this.ctx.srcUUID, (err, xstats) => {
       if (err) {
         this.setState('Failed', err)
       } else {
@@ -224,8 +197,8 @@ class NativeReading extends Reading {
   enter () {
     super.enter()
 
-    let srcPath = this.dir.srcPath
-    fs.readdir(this.dir.srcPath, (err, files) => {
+    let srcPath = this.ctx.srcPath
+    fs.readdir(this.ctx.srcPath, (err, files) => {
       if (err) {
         this.setState('Failed', err)
       } else if (files.length === 0) {
@@ -263,9 +236,9 @@ class NativeReading extends Reading {
 class Read extends State {
 
   enter (xstats) {
-    this.dir.ctx.indexReadDir(this.dir)
-    this.dir.dstats = xstats.filter(x => x.type === 'directory')
-    this.dir.fstats = xstats.filter(x => x.type === 'file')
+    this.ctx.ctx.indexReadDir(this.ctx)
+    this.ctx.dstats = xstats.filter(x => x.type === 'directory')
+    this.ctx.fstats = xstats.filter(x => x.type === 'file')
     this.next()
   }
 
@@ -274,7 +247,7 @@ class Read extends State {
   }
 
   exit () {
-    this.dir.ctx.unindexReadDir(this.dir)
+    this.ctx.ctx.unindexReadDir(this.ctx)
   }
 
 }
@@ -282,9 +255,9 @@ class Read extends State {
 class CopyRead extends Read {
 
   next () {
-    if (this.dir.fstats.length) {
-      let fstat = this.dir.fstats.shift()
-      let file = new CopyFile(this.dir.ctx, this.dir, fstat.uuid, fstat.name)
+    if (this.ctx.fstats.length) {
+      let fstat = this.ctx.fstats.shift()
+      let file = new FileCopy(this.ctx.ctx, this.ctx, fstat.uuid, fstat.name)
       file.on('error', err => { 
         // TODO
         this.next()
@@ -298,9 +271,9 @@ class CopyRead extends Read {
       return
     }
 
-    if (this.dir.dstats.length) {
-      let dstat = this.dir.dstats.shift()
-      let dir = new CopyDirectory(this.dir.ctx, this.dir, dstat.uuid)
+    if (this.ctx.dstats.length) {
+      let dstat = this.ctx.dstats.shift()
+      let dir = new CopyDirectory(this.ctx.ctx, this.ctx, dstat.uuid)
       dir.on('error', err => {
         // TODO
         this.next()
@@ -310,7 +283,7 @@ class CopyRead extends Read {
       return
     } 
 
-    if (this.dir.children.length === 0) {
+    if (this.ctx.children.length === 0) {
       this.setState('Finished')
     }
   }
@@ -320,9 +293,9 @@ class CopyRead extends Read {
 class MoveRead extends Read {
 
   next () {
-    if (this.dir.fstats.length) {
-      let fstat = this.dir.fstats.shift()
-      let file = new MoveFile(this.dir.ctx, this.dir, fstat.uuid, fstat.name)
+    if (this.ctx.fstats.length) {
+      let fstat = this.ctx.fstats.shift()
+      let file = new FileMove(this.ctx.ctx, this.ctx, fstat.uuid, fstat.name)
 
       file.on('error', err => { 
         // TODO
@@ -338,9 +311,9 @@ class MoveRead extends Read {
       return
     }
 
-    if (this.dir.dstats.length) {
-      let dstat = this.dir.dstats.shift()
-      let dir = new MoveDirectory(this.dir.ctx, this.dir, dstat.uuid)
+    if (this.ctx.dstats.length) {
+      let dstat = this.ctx.dstats.shift()
+      let dir = new MoveDirectory(this.ctx.ctx, this.ctx, dstat.uuid)
       dir.on('error', err => {
         // TODO
         this.next()
@@ -350,7 +323,7 @@ class MoveRead extends Read {
       return
     } 
 
-    if (this.dir.children.length === 0) {
+    if (this.ctx.children.length === 0) {
       this.setState('Finished')
     }
   }
@@ -360,9 +333,9 @@ class MoveRead extends Read {
 class ImportRead extends Read {
 
   next () {
-    if (this.dir.fstats.length) {
-      let fstat = this.dir.fstats.shift()
-      let file = new FileImport(this.dir.ctx, this.dir, path.join(this.dir.srcPath, fstat.name))
+    if (this.ctx.fstats.length) {
+      let fstat = this.ctx.fstats.shift()
+      let file = new FileImport(this.ctx.ctx, this.ctx, path.join(this.ctx.srcPath, fstat.name))
 
       file.on('error', err => { 
         // TODO
@@ -378,9 +351,9 @@ class ImportRead extends Read {
       return
     }
 
-    if (this.dir.dstats.length) {
-      let dstat = this.dir.dstats.shift()
-      let dir = new ImportDirectory(this.dir.ctx, this.dir, path.join(this.dir.srcPath, dstat.name))
+    if (this.ctx.dstats.length) {
+      let dstat = this.ctx.dstats.shift()
+      let dir = new ImportDirectory(this.ctx.ctx, this.ctx, path.join(this.ctx.srcPath, dstat.name))
 
       dir.on('error', err => {
         // TODO
@@ -391,7 +364,7 @@ class ImportRead extends Read {
       return
     } 
 
-    if (this.dir.children.length === 0) {
+    if (this.ctx.children.length === 0) {
       this.setState('Finished')
     }
   }
@@ -401,9 +374,9 @@ class ImportRead extends Read {
 class ExportRead extends Read {
 
   next () {
-    if (this.dir.fstats.length) {
-      let fstat = this.dir.fstats.shift()
-      let file = new ExportFile(this.dir.ctx, this.dir, fstat.uuid, fstat.name)
+    if (this.ctx.fstats.length) {
+      let fstat = this.ctx.fstats.shift()
+      let file = new FileExport(this.ctx.ctx, this.ctx, fstat.uuid, fstat.name)
 
       file.on('error', err => { 
         // TODO
@@ -419,9 +392,9 @@ class ExportRead extends Read {
       return
     }
 
-    if (this.dir.dstats.length) {
-      let dstat = this.dir.dstats.shift()
-      let dir = new ExportDirectory(this.dir.ctx, this.dir, dstat.uuid, dstat.name)
+    if (this.ctx.dstats.length) {
+      let dstat = this.ctx.dstats.shift()
+      let dir = new ExportDirectory(this.ctx.ctx, this.ctx, dstat.uuid, dstat.name)
       dir.on('error', err => {
         // TODO
         this.next()
@@ -431,7 +404,7 @@ class ExportRead extends Read {
       return
     } 
 
-    if (this.dir.children.length === 0) {
+    if (this.ctx.children.length === 0) {
       this.setState('Finished')
     }
   }
@@ -442,13 +415,13 @@ class Failed extends State {
   // when directory enter failed 
   // all descendant node are destroyed (but not removed)
   enter (err) {
-    this.dir.ctx.indexFailedDir(this.dir)
-    this.dir.children.forEach(c => c.destroy())
-    this.dir.emit('error', err)
+    this.ctx.ctx.indexFailedDir(this.ctx)
+    this.ctx.children.forEach(c => c.destroy())
+    this.ctx.emit('error', err)
   }
 
   exit () {
-    this.dir.ctx.unindexFailedDir(this.dir)
+    this.ctx.ctx.unindexFailedDir(this.ctx)
   }
 
   getState () {
@@ -459,12 +432,12 @@ class Failed extends State {
 class Finished extends State {
 
   enter () {
-    this.dir.ctx.indexFinishedDir(this.dir)
-    this.dir.emit('finish')
+    this.ctx.ctx.indexFinishedDir(this.ctx)
+    this.ctx.emit('finish')
   }
 
   exit () {
-    this.dir.ctx.unindexFinishedDir(this.dir)
+    this.ctx.ctx.unindexFinishedDir(this.ctx)
   }
 
   getState () {
@@ -501,14 +474,7 @@ class Directory extends Node {
     }
     
     if (this.dstUUID) obj.dstUUID = this.dstUUID
-
-    try {
-      obj.state = this.state.getState()
-    } catch (e) {
-      console.log(this.state)
-      console.log(e)
-    }
-
+    obj.state = this.state.getState()
     if (this.policies) obj.policy = this.policy
     return obj
   }
