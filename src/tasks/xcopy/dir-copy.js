@@ -6,8 +6,8 @@ class Working extends Dir.prototype.Working {
   enter () {
     super.enter()
 
-    let src = { dir: this.ctx.srcUUID }
-    let dst = { dir: this.ctx.parent.dstUUID }
+    let src = { dir: this.ctx.src.uuid }
+    let dst = { dir: this.ctx.parent.dst.uuid }
     let policy = this.ctx.getPolicy()
 
     this.ctx.ctx.cpdir(src, dst, policy, (err, xstat) => {
@@ -16,7 +16,7 @@ class Working extends Dir.prototype.Working {
       } else if (err) {
         this.setState('Failed', err)
       } else {
-        this.ctx.dstUUID = xstat.uuid
+        this.ctx.dst = { uuid: xstat.uuid, name: xstat.name }
         this.setState('Reading')
       }
     })
@@ -29,10 +29,8 @@ class Read extends Dir.prototype.Read {
   next () {
     if (this.ctx.fstats.length) {
       let fstat = this.ctx.fstats.shift()
-      let file = new FileCopy(this.ctx.ctx, this.ctx, {
-        uuid: fstat.uuid, 
-        name: fstat.name
-      })
+      let src = { uuid: fstat.uuid, name: fstat.name }
+      let file = new FileCopy(this.ctx.ctx, this.ctx, src)
 
       file.on('error', err => { 
         // TODO
@@ -49,7 +47,9 @@ class Read extends Dir.prototype.Read {
 
     if (this.ctx.dstats.length) {
       let dstat = this.ctx.dstats.shift()
-      let dir = new DirCopy(this.ctx.ctx, this.ctx, dstat.uuid)
+      let src = { uuid: dstat.uuid, name: dstat.name }
+      let dir = new DirCopy(this.ctx.ctx, this.ctx, src) 
+
       dir.on('error', err => {
         // TODO
         this.next()
@@ -69,22 +69,18 @@ class Read extends Dir.prototype.Read {
 
 class DirCopy extends Dir {
 
-  constructor(ctx, parent, srcUUID, dstUUID, xstats) {
-    super(ctx, parent)
-    this.srcUUID = srcUUID
-    if (dstUUID) {
-      this.dstUUID = dstUUID
-      new this.Read(this, xstats)
-    } else {
-      new this.Pending(this)
-    }
-  } 
+  get Working () {
+    return Working
+  }
+
+  get Reading () {
+    return this.FruitReading
+  }
+
+  get Read () {
+    return Read
+  }
 }
-
-DirCopy.prototype.Working = Working
-DirCopy.prototype.Reading = Dir.prototype.FruitReading
-DirCopy.prototype.Read = Read
-
 module.exports = DirCopy
 
 

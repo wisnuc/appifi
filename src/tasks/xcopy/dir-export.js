@@ -9,7 +9,7 @@ class Working extends Dir.prototype.Working {
   enter () {
     super.enter()
 
-    let dstPath = path.join(this.ctx.parent.dstPath, this.ctx.srcName)
+    let dstPath = path.join(this.ctx.parent.dst.path, this.ctx.src.name)
     let policy = this.ctx.getPolicy()
 
     mkdir(dstPath, policy, (err, _, resolved) => {
@@ -18,7 +18,11 @@ class Working extends Dir.prototype.Working {
       } else if (err) {
         this.setState('Failed', err)
       } else {
-        this.ctx.dstPath = dstPath
+        this.ctx.dst = {
+          name: this.ctx.src.name,
+          path: dstPath,
+        }
+
         this.setState('Reading')
       } 
     })
@@ -31,10 +35,8 @@ class Read extends Dir.prototype.Read {
   next () {
     if (this.ctx.fstats.length) {
       let fstat = this.ctx.fstats.shift()
-      let file = new FileExport(this.ctx.ctx, this.ctx, {
-        uuid: fstat.uuid, 
-        name: fstat.name
-      })
+      let src = { uuid: fstat.uuid, name: fstat.name }
+      let file = new FileExport(this.ctx.ctx, this.ctx, src)
 
       file.on('error', err => { 
         // TODO
@@ -52,7 +54,8 @@ class Read extends Dir.prototype.Read {
 
     if (this.ctx.dstats.length) {
       let dstat = this.ctx.dstats.shift()
-      let dir = new DirExport(this.ctx.ctx, this.ctx, dstat.uuid, dstat.name)
+      let src = { uuid: dstat.uuid, name: dstat.name }
+      let dir = new DirExport(this.ctx.ctx, this.ctx, src)
       dir.on('error', err => {
         // TODO
         this.next()
@@ -69,20 +72,7 @@ class Read extends Dir.prototype.Read {
 
 }
 
-class DirExport extends Dir {
-
-  constructor(ctx, parent, srcUUID, srcName, dstPath, xstats) {
-    super(ctx, parent)
-    this.srcUUID = srcUUID
-    this.srcName = srcName
-    if (dstPath) {
-      this.dstPath = dstPath
-      new this.Read(this, xstats)
-    } else {
-      new this.Pending(this)
-    }
-  }
-}
+class DirExport extends Dir { }
 
 DirExport.prototype.Working = Working
 DirExport.prototype.Reading = Dir.prototype.FruitReading

@@ -77,17 +77,8 @@ class File extends Node {
     this.state = new this.Pending(this)
   }
 
-  view () {
-    let obj = {
-      type: 'directory',
-      parent: this.parent && this.parent.srcUUID,
-      srcUUID: this.srcUUID
-    }
-
-    if (this.dstUUID) obj.dstUUID = this.dstUUID
-    obj.state = this.getState()
-    if (this.policy) obj.policy = this.policy
-    return obj
+  get type () {
+    return 'file'
   }
 
   getPolicy () {

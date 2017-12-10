@@ -22,7 +22,7 @@ class Working extends File.prototype.Working {
        
           let tmp = { path: tmpPath }
           let dst = { 
-            dir: this.ctx.parent.dstUUID,
+            dir: this.ctx.parent.dst.uuid,
             name: this.ctx.src.name
           }
 

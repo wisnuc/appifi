@@ -143,9 +143,9 @@ class Running extends NoMetadata {
     if (this.file) {
       // destroy worker
       this.file.metaWorker.destroy()
-      delete file.metaWorker
+      delete this.file.metaWorker
       // unlink
-      delete file.meta
+      delete this.file.meta
       delete this.file
     }
     this.ctx.unindexRunning(this)

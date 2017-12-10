@@ -1,9 +1,15 @@
+/**
+abstract base class of state
+@memberof XCopy
+*/
 class State {
 
   constructor(ctx, ...args) {
     this.ctx = ctx
     this.ctx.state = this
     this.enter(...args)
+
+    this.ctx.emit(this.getState())
   }
 
   destroy () {
@@ -24,6 +30,10 @@ class State {
   }
 
   exit () {
+  }
+
+  view () {
+    return null
   }
 }
 

@@ -12,8 +12,8 @@ class Working extends Dir.prototype.Working {
     super.enter()
 
     let dst = {
-      dir: this.ctx.parent.dstUUID,
-      name: this.ctx.srcName,
+      dir: this.ctx.parent.dst.uuid,
+      name: this.ctx.src.name,
     }
 
     let policy = this.ctx.getPolicy()
@@ -24,7 +24,11 @@ class Working extends Dir.prototype.Working {
       } else if (err) {
         this.setState('Failed', err)
       } else {
-        this.ctx.dstUUID = xstat.uuid
+        this.ctx.dst = {
+          uuid: xstat.uuid,
+          name: xstat.name 
+        }
+
         this.setState('Reading')
       }
     })
@@ -38,8 +42,8 @@ class Reading extends Dir.prototype.Reading {
   enter () {
     super.enter()
 
-    let srcPath = this.ctx.srcPath
-    fs.readdir(this.ctx.srcPath, (err, files) => {
+    let srcPath = this.ctx.src.path
+    fs.readdir(srcPath, (err, files) => {
       if (err) {
         this.setState('Failed', err)
       } else if (files.length === 0) {
@@ -80,11 +84,13 @@ class Read extends Dir.prototype.Read {
   next () {
     if (this.ctx.fstats.length) {
       let fstat = this.ctx.fstats.shift()
-      let file = new FileImport(this.ctx.ctx, this.ctx, {
+      let src = {
         uuid: UUID.v4(),
         name: fstat.name,
-        path: path.join(this.ctx.srcPath, fstat.name)
-      })
+        path: path.join(this.ctx.src.path, fstat.name)
+      }
+
+      let file = new FileImport(this.ctx.ctx, this.ctx, src)
 
       file.on('error', err => { 
         // TODO
@@ -102,7 +108,14 @@ class Read extends Dir.prototype.Read {
 
     if (this.ctx.dstats.length) {
       let dstat = this.ctx.dstats.shift()
-      let dir = new DirImport(this.ctx.ctx, this.ctx, path.join(this.ctx.srcPath, dstat.name))
+
+      let src = {
+        uuid: UUID.v4(),
+        name: dstat.name,
+        path: path.join(this.ctx.src.path, dstat.name)
+      }
+
+      let dir = new DirImport(this.ctx.ctx, this.ctx, src)
 
       dir.on('error', err => {
         // TODO
@@ -120,25 +133,7 @@ class Read extends Dir.prototype.Read {
 
 }
 
-class DirImport extends Dir {
-  
-  constructor(ctx, parent, srcPath, dstUUID, stats) {
-    super(ctx, parent)
-    this.srcPath = srcPath
-    this.srcName = path.basename(srcPath)
-
-    if (dstUUID) {
-      this.dstUUID = dstUUID
-      new this.Read(this, stats)
-    } else {
-      new this.Pending(this)
-    }
-  }
-
-  identity () {
-    return this.srcPath
-  }
-}
+class DirImport extends Dir { }
 
 DirImport.prototype.Working = Working
 DirImport.prototype.Reading = Reading

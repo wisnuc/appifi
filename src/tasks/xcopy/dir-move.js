@@ -6,8 +6,8 @@ class Working extends Dir.prototype.Working {
   enter () {
     super.enter()
 
-    let src = { dir: this.ctx.srcUUID }
-    let dst = { dir: this.ctx.parent.dstUUID }
+    let src = { dir: this.ctx.src.uuid }
+    let dst = { dir: this.ctx.parent.dst.uuid }
     let policy = this.ctx.getPolicy()
 
     this.ctx.ctx.mvdir(src, dst, policy, (err, xstat, resolved) => {
@@ -18,7 +18,7 @@ class Working extends Dir.prototype.Working {
       } else {
         let [same, diff] = resolved 
         if (same === 'skip') { // this is acturally a merging, same with copy
-          this.ctx.dstUUID = xstat.uuid 
+          this.ctx.dst = { uuid: xstat.uuid, name: xstat.name }
           this.setState('Reading')
         } else {
           this.setState('Finished')
@@ -34,11 +34,11 @@ class Read extends Dir.prototype.Read {
   next () {
     if (this.ctx.fstats.length) {
       let fstat = this.ctx.fstats.shift()
-      let file = new FileMove(this.ctx.ctx, this.ctx, { uuid: fstat.uuid, name: fstat.name })
+      let src = { uuid: fstat.uuid, name: fstat.name }
+      let file = new FileMove(this.ctx.ctx, this.ctx, src)
 
       file.on('error', err => { 
         // TODO
-        console.log(err)
         this.next()
       })
 
@@ -52,7 +52,9 @@ class Read extends Dir.prototype.Read {
 
     if (this.ctx.dstats.length) {
       let dstat = this.ctx.dstats.shift()
-      let dir = new DirMove(this.ctx.ctx, this.ctx, dstat.uuid)
+      let src = { uuid: dstat.uuid, name: dstat.name }
+      let dir = new DirMove(this.ctx.ctx, this.ctx, src)
+
       dir.on('error', err => {
         // TODO
         this.next()
@@ -69,19 +71,7 @@ class Read extends Dir.prototype.Read {
 
 }
 
-class DirMove extends Dir {
-
-  constructor(ctx, parent, srcUUID, dstUUID, xstats) {
-    super(ctx, parent)
-    this.srcUUID = srcUUID
-    if (dstUUID) {
-      this.dstUUID = dstUUID
-      new this.Read(this, xstats)
-    } else {
-      new this.Pending(this)
-    }
-  }
-}
+class DirMove extends Dir { }
 
 DirMove.prototype.Working = Working
 DirMove.prototype.Reading = Dir.prototype.FruitReading

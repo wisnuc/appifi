@@ -4,27 +4,19 @@ class Working extends File.prototype.Working {
 
   enter () {
     super.enter()
-/**
     let src = {
-      dir: this.ctx.parent.srcUUID,
-      uuid: this.ctx.srcUUID,
-      name: this.ctx.srcName,
-    }
-**/
-    let src = {
-      dir: this.ctx.parent.srcUUID,
+      dir: this.ctx.parent.src.uuid,
       uuid: this.ctx.src.uuid,
       name: this.ctx.src.name
     }
 
     let dst = {
-      dir: this.ctx.parent.dstUUID
+      dir: this.ctx.parent.dst.uuid
     }
 
     let policy = this.ctx.getPolicy()
 
     this.ctx.ctx.cpfile(src, dst, policy, (err, xstat, resolved) => {
-      // the following setState works for they are not overridden
       if (err && err.code === 'EEXIST') {
         this.setState('Conflict', err, policy)
       } else if (err) {

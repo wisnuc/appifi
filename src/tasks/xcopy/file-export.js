@@ -12,7 +12,7 @@ class Working extends File.prototype.Working {
     super.enter()
 
     let src = {
-      dir: this.ctx.parent.srcUUID,
+      dir: this.ctx.parent.src.uuid,
       uuid: this.ctx.src.uuid,
       name: this.ctx.src.name
     }
@@ -21,7 +21,7 @@ class Working extends File.prototype.Working {
       if (err) {
         this.setState('Failed', err)
       } else {
-        let dstFilePath = path.join(this.ctx.parent.dstPath, this.ctx.src.name)
+        let dstFilePath = path.join(this.ctx.parent.dst.path, this.ctx.src.name)
         let policy = this.ctx.getPolicy()
 
         openwx(dstFilePath, policy, (err, fd) => {

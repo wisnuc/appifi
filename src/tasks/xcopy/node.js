@@ -122,6 +122,22 @@ class Node extends EventEmitter {
       this.setState('Working')
     }
   }
+
+  /**
+  Returns view
+  */
+  view () {
+    let obj = {
+      type: this.type,
+      parent: this.parent && this.parent.src.uuid,
+      src: this.src,
+      dst: this.dst,
+      policy: this.policy,
+      state: this.state.getState()
+    }
+
+    return Object.assign(obj, this.state.view())    
+  }
 }
 
 module.exports = Node

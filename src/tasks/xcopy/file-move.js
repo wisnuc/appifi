@@ -4,21 +4,14 @@ class Working extends File.prototype.Working {
 
   enter () {
     super.enter()
-/**
     let src = {
-      dir: this.ctx.parent.srcUUID,
-      uuid: this.ctx.srcUUID,
-      name: this.ctx.srcName,
-    }
-**/
-    let src = {
-      dir: this.ctx.parent.srcUUID,
+      dir: this.ctx.parent.src.uuid,
       uuid: this.ctx.src.uuid,
       name: this.ctx.src.name
     }
 
     let dst = {
-      dir: this.ctx.parent.dstUUID
+      dir: this.ctx.parent.dst.uuid
     }
 
     let policy = this.ctx.getPolicy()
@@ -27,7 +20,7 @@ class Working extends File.prototype.Working {
       if (err && err.code === 'EEXIST') {
         this.setState('Conflict', err, policy)
       } else if (err) {
-        this.setStaate('Failed', err)
+        this.setState('Failed', err)
       } else {
         this.setState('Finished')
       }
@@ -41,14 +34,6 @@ class Working extends File.prototype.Working {
 @memberof XCopy
 */
 class FileMove extends File { }
-/**
-  constructor(ctx, parent, srcUUID, srcName) {
-    super(ctx, parent)
-    this.srcUUID = srcUUID
-    this.srcName = srcName
-    this.state = new this.Pending(this)
-  }
-**/
 
 FileMove.prototype.Working = Working
 

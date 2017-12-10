@@ -287,7 +287,9 @@ class Copy extends Base {
     this.mode = 'copy'
     this.srcDriveUUID = src.drive
     this.dstDriveUUID = dst.drive
-    this.root = new DirCopy(this, null, src.dir, dst.dir, xstats)
+    let _src = { uuid: src.dir }
+    let _dst = { uuid: dst.dir }
+    this.root = new DirCopy(this, null, _src, _dst, xstats)
   }
 
   cpdir (src, dst, policy, callback) {
@@ -346,7 +348,9 @@ class Move extends Base {
     this.mode = 'move'
     this.srcDriveUUID = src.drive
     this.dstDriveUUID = dst.drive
-    this.root = new DirMove(this, null, src.dir, dst.dir, xstats)
+    let _src = { uuid: src.dir }
+    let _dst = { uuid: dst.dir }
+    this.root = new DirMove(this, null, _src, _dst, xstats)
   }
 
   mvdir (src, dst, policy, callback) {
@@ -380,7 +384,18 @@ class Import extends Base {
     this.mode = 'import'
     this.srcPath = src.path
     this.dstDriveUUID = dst.drive
-    this.root = new DirImport(this, null, this.srcPath, dst.dir, stats)
+    let _src = { 
+      uuid: UUID.v4(),
+      name: '',
+      path: src.path
+    }
+
+    let _dst = { 
+      uuid: dst.dir,
+      name: ''
+    } 
+
+    this.root = new DirImport(this, null, _src, _dst, stats)
   }
 
   genTmpPath () {
@@ -416,7 +431,17 @@ class Export extends Base {
     this.mode = 'export'
     this.srcDriveUUID = src.drive
     this.dstPath = dst.path
-    this.root = new DirExport(this, null, src.dir, '', this.dstPath, xstats)
+
+    let _src = {
+      uuid: src.dir,
+      name: '',
+    }
+
+    let _dst = {
+      path: dst.path
+    }
+
+    this.root = new DirExport(this, null, _src, _dst, xstats)
   }
 
   clone (src, callback) {

@@ -28,15 +28,21 @@ class Working extends State {
 class Conflict extends State {
 
   enter (err, policy) {
+    this.ctx.ctx.indexConflictDir(this.ctx)
     this.err = err
     this.policy = policy
-    this.ctx.ctx.indexConflictDir(this.ctx)
   }
 
   exit () {
     this.ctx.ctx.unindexConflictDir(this.ctx)
   }
 
+  view () {
+    return {
+      error: this.err,
+      policy: this.policy
+    }
+  }
 }
 
 class Reading extends State {
@@ -56,7 +62,7 @@ class FruitReading extends Reading {
   enter () {
     super.enter()
     // readdir always read source dir
-    this.ctx.ctx.readdir(this.ctx.srcUUID, (err, xstats) => {
+    this.ctx.ctx.readdir(this.ctx.src.uuid, (err, xstats) => {
       if (err) {
         this.setState('Failed', err)
       } else {
@@ -71,7 +77,6 @@ class Read extends State {
 
   enter (xstats) {
     this.ctx.ctx.indexReadDir(this.ctx)
-    this.entries = 
 
     this.ctx.dstats = xstats.filter(x => x.type === 'directory')
     this.ctx.fstats = xstats.filter(x => x.type === 'file')
@@ -89,33 +94,26 @@ class Failed extends State {
   // all descendant node are destroyed (but not removed)
   enter (err) {
     this.ctx.ctx.indexFailedDir(this.ctx)
-    this.ctx.children.forEach(c => c.destroy())
-    this.ctx.emit('error', err)
+    let children = [...this.ctx.children]
+    children.forEach(c => c.destroy())
   }
 
   exit () {
     this.ctx.ctx.unindexFailedDir(this.ctx)
   }
 
-  getState () {
-    return 'Failed'
-  }
 }
 
 class Finished extends State {
 
   enter () {
     this.ctx.ctx.indexFinishedDir(this.ctx)
-    this.ctx.emit('finish')
   }
 
   exit () {
     this.ctx.ctx.unindexFinishedDir(this.ctx)
   }
 
-  getState () {
-    return 'Finished'
-  }
 }
 
 /**
@@ -125,31 +123,21 @@ A directory sub-task, base class
 */
 class Dir extends Node {
 
-  constructor(ctx, parent) {
+  constructor(ctx, parent, src, dst, entries) {
     super(ctx, parent)
     this.children = []
+    this.src = src
+    if (dst) {
+      this.dst = dst
+      new this.Read(this, entries)
+    } else {
+      new this.Pending(this)
+    }
   }
 
   destroy () {
     [...this.children].forEach(c => c.destroy())
     super.destroy()
-  }
-
-  identity () {
-    return this.srcUUID
-  }
-
-  view () {
-    let obj = {
-      type: 'directory',
-      parent: this.parent && this.parent.srcUUID,
-      srcUUID: this.srcUUID
-    }
-    
-    if (this.dstUUID) obj.dstUUID = this.dstUUID
-    obj.state = this.state.getState()
-    if (this.policies) obj.policy = this.policy
-    return obj
   }
 
   getPolicy () {
