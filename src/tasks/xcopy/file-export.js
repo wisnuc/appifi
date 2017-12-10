@@ -6,7 +6,6 @@ const rimraf = require('rimraf')
 const File = require('./file-base')
 const openwx = require('./lib').openwx
 
-
 class Working extends File.prototype.Working {
 
   enter () {
@@ -14,15 +13,15 @@ class Working extends File.prototype.Working {
 
     let src = {
       dir: this.ctx.parent.srcUUID,
-      uuid: this.ctx.srcUUID,
-      name: this.ctx.srcName
+      uuid: this.ctx.src.uuid,
+      name: this.ctx.src.name
     }
 
     this.ctx.ctx.clone(src, (err, tmpPath) => {
       if (err) {
         this.setState('Failed', err)
       } else {
-        let dstFilePath = path.join(this.ctx.parent.dstPath, this.ctx.srcName)
+        let dstFilePath = path.join(this.ctx.parent.dstPath, this.ctx.src.name)
         let policy = this.ctx.getPolicy()
 
         openwx(dstFilePath, policy, (err, fd) => {
@@ -49,16 +48,7 @@ class Working extends File.prototype.Working {
 @extends XCopy.File
 @memberof XCopy
 */
-class FileExport extends File {
-
-  constructor(ctx, parent, srcUUID, srcName) {
-    super(ctx, parent)
-    this.srcUUID = srcUUID
-    this.srcName = srcName
-    this.state = new this.Pending(this)
-  }
-
-}
+class FileExport extends File { }
 
 FileExport.prototype.Working = Working
 

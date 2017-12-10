@@ -31,7 +31,10 @@ class Read extends Dir.prototype.Read {
   next () {
     if (this.ctx.fstats.length) {
       let fstat = this.ctx.fstats.shift()
-      let file = new FileExport(this.ctx.ctx, this.ctx, fstat.uuid, fstat.name)
+      let file = new FileExport(this.ctx.ctx, this.ctx, {
+        uuid: fstat.uuid, 
+        name: fstat.name
+      })
 
       file.on('error', err => { 
         // TODO

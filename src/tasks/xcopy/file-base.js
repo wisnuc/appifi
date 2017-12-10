@@ -71,6 +71,12 @@ A file sub-tasks, base class
 */
 class File extends Node {
 
+  constructor(ctx, parent, src) {
+    super(ctx, parent)
+    this.src = src
+    this.state = new this.Pending(this)
+  }
+
   view () {
     let obj = {
       type: 'directory',

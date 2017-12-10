@@ -1,6 +1,8 @@
 const path = require('path')
 const fs = require('fs')
 
+const UUID = require('uuid')
+
 const FileImport = require('./file-import')
 const Dir = require('./dir-base')
 
@@ -78,7 +80,11 @@ class Read extends Dir.prototype.Read {
   next () {
     if (this.ctx.fstats.length) {
       let fstat = this.ctx.fstats.shift()
-      let file = new FileImport(this.ctx.ctx, this.ctx, path.join(this.ctx.srcPath, fstat.name))
+      let file = new FileImport(this.ctx.ctx, this.ctx, {
+        uuid: UUID.v4(),
+        name: fstat.name,
+        path: path.join(this.ctx.srcPath, fstat.name)
+      })
 
       file.on('error', err => { 
         // TODO

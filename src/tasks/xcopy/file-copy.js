@@ -4,11 +4,17 @@ class Working extends File.prototype.Working {
 
   enter () {
     super.enter()
-
+/**
     let src = {
       dir: this.ctx.parent.srcUUID,
       uuid: this.ctx.srcUUID,
       name: this.ctx.srcName,
+    }
+**/
+    let src = {
+      dir: this.ctx.parent.srcUUID,
+      uuid: this.ctx.src.uuid,
+      name: this.ctx.src.name
     }
 
     let dst = {
@@ -35,16 +41,7 @@ class Working extends File.prototype.Working {
 @extends XCopy.File
 @memberof XCopy
 */
-class FileCopy extends File {
-
-  constructor(ctx, parent, srcUUID, srcName) {
-    super(ctx, parent)
-    this.srcUUID = srcUUID
-    this.srcName = srcName
-    this.state = new this.Pending(this)
-  }
-
-}
+class FileCopy extends File {}
 
 FileCopy.prototype.Working = Working
 

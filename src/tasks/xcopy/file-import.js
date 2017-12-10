@@ -11,7 +11,7 @@ class Working extends File.prototype.Working {
     super.enter()
 
     let tmpPath = this.ctx.ctx.genTmpPath()  
-    fs.open(this.ctx.srcPath, 'r', (err, fd) => {
+    fs.open(this.ctx.src.path, 'r', (err, fd) => {
       if (err) {
         // TODO
       } else {
@@ -23,7 +23,7 @@ class Working extends File.prototype.Working {
           let tmp = { path: tmpPath }
           let dst = { 
             dir: this.ctx.parent.dstUUID,
-            name: this.ctx.srcName
+            name: this.ctx.src.name
           }
 
           let policy = this.ctx.getPolicy()
@@ -49,16 +49,7 @@ class Working extends File.prototype.Working {
 @extends XCopy.File
 @memberof XCopy
 */
-class FileImport extends File {
-
-  constructor(ctx, parent, srcPath) {
-    super(ctx, parent)
-    this.srcPath = srcPath
-    this.srcName = path.basename(srcPath)
-    this.state = new this.Pending(this)
-  }
-
-}
+class FileImport extends File { }
 
 FileImport.prototype.Working = Working
 
