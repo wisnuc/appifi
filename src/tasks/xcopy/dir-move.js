@@ -1,6 +1,7 @@
-const Directory = require('./dir-base')
+const Dir = require('./dir-base')
+const FileMove = require('./file-move')
 
-class Working extends Directory.Working {
+class Working extends Dir.prototype.Working {
 
   enter () {
     super.enter()
@@ -28,7 +29,7 @@ class Working extends Directory.Working {
 
 }
 
-class Read extends Directory.Read {
+class Read extends Dir.prototype.Read {
 
   next () {
     if (this.ctx.fstats.length) {
@@ -51,7 +52,7 @@ class Read extends Directory.Read {
 
     if (this.ctx.dstats.length) {
       let dstat = this.ctx.dstats.shift()
-      let dir = new MoveDirectory(this.ctx.ctx, this.ctx, dstat.uuid)
+      let dir = new DirMove(this.ctx.ctx, this.ctx, dstat.uuid)
       dir.on('error', err => {
         // TODO
         this.next()
@@ -68,22 +69,23 @@ class Read extends Directory.Read {
 
 }
 
-class DirMove extends Directory {
+class DirMove extends Dir {
 
   constructor(ctx, parent, srcUUID, dstUUID, xstats) {
     super(ctx, parent)
     this.srcUUID = srcUUID
     if (dstUUID) {
       this.dstUUID = dstUUID
-      new MoveRead(this, xstats)
+      new this.Read(this, xstats)
     } else {
-      new Pending(this)
+      new this.Pending(this)
     }
   }
 }
 
-DirMove.prototype.Working = MoveWorking
-DirMove.prototype.Read = MoveRead
+DirMove.prototype.Working = Working
+DirMove.prototype.Reading = Dir.prototype.FruitReading
+DirMove.prototype.Read = Read
 
 module.exports = DirMove
 

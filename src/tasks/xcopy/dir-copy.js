@@ -1,6 +1,7 @@
-const Directory = require('./dir-base')
+const Dir = require('./dir-base')
+const FileCopy = require('./file-copy')
 
-class Working extends Directory.Working {
+class Working extends Dir.prototype.Working {
   
   enter () {
     super.enter()
@@ -23,7 +24,7 @@ class Working extends Directory.Working {
 
 }
 
-class Read extends Directory.Read {
+class Read extends Dir.prototype.Read {
 
   next () {
     if (this.ctx.fstats.length) {
@@ -44,7 +45,7 @@ class Read extends Directory.Read {
 
     if (this.ctx.dstats.length) {
       let dstat = this.ctx.dstats.shift()
-      let dir = new CopyDirectory(this.ctx.ctx, this.ctx, dstat.uuid)
+      let dir = new DirCopy(this.ctx.ctx, this.ctx, dstat.uuid)
       dir.on('error', err => {
         // TODO
         this.next()
@@ -59,28 +60,25 @@ class Read extends Directory.Read {
     }
   }
 
-  next () {
-    let name = this.entries.shift()
-    fs.lstat(
-  }
 }
 
 
-class DirCopy extends Directory {
+class DirCopy extends Dir {
 
   constructor(ctx, parent, srcUUID, dstUUID, xstats) {
     super(ctx, parent)
     this.srcUUID = srcUUID
     if (dstUUID) {
       this.dstUUID = dstUUID
-      new CopyRead(this, xstats)
+      new this.Read(this, xstats)
     } else {
-      new Pending(this)
+      new this.Pending(this)
     }
   } 
 }
 
 DirCopy.prototype.Working = Working
+DirCopy.prototype.Reading = Dir.prototype.FruitReading
 DirCopy.prototype.Read = Read
 
 module.exports = DirCopy

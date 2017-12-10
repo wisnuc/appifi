@@ -1,3 +1,4 @@
+const Node = require('./node')
 const State = require('./state')
 
 class Pending extends State {
@@ -46,6 +47,22 @@ class Reading extends State {
 
   exit () {
     this.ctx.ctx.unindexReadingDir(this.ctx)
+  }
+
+}
+
+class FruitReading extends Reading {
+
+  enter () {
+    super.enter()
+    // readdir always read source dir
+    this.ctx.ctx.readdir(this.ctx.srcUUID, (err, xstats) => {
+      if (err) {
+        this.setState('Failed', err)
+      } else {
+        this.setState('Read', xstats)
+      }
+    })
   }
 
 }
@@ -106,7 +123,7 @@ A directory sub-task, base class
 
 @memberof XCopy
 */
-class Directory extends Node {
+class Dir extends Node {
 
   constructor(ctx, parent) {
     super(ctx, parent)
@@ -144,12 +161,13 @@ class Directory extends Node {
 
 }
 
-Directory.prototype.Pending = Pending
-Directory.prototype.Working = Working
-Directory.prototype.Reading = FruitReading
-Directory.prototype.Read = Read
-Directory.prototype.Conflict = Conflict
-Directory.prototype.Finished = Finished
-Directory.prototype.Failed = Failed
+Dir.prototype.Pending = Pending
+Dir.prototype.Working = Working
+Dir.prototype.Reading = Reading
+Dir.prototype.FruitReading = FruitReading
+Dir.prototype.Read = Read
+Dir.prototype.Conflict = Conflict
+Dir.prototype.Finished = Finished
+Dir.prototype.Failed = Failed
 
-
+module.exports = Dir

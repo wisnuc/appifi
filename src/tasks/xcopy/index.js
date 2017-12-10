@@ -5,21 +5,8 @@ const EventEmitter = require('events')
 const UUID = require('uuid')
 const debug = require('debug')('xcopy')
 
-const { 
-  Directory,
-  CopyDirectory,
-  MoveDirectory,
-  ImportDirectory,
-  ExportDirectory
-} = require('./directory')
-
-const { 
-  File,
-  FileCopy,
-  FileMove,
-  FileImport,
-  FileExport
-} = require('./file')
+const { Dir, DirCopy, DirMove, DirImport, DirExport } = require('./directory')
+const { File, FileCopy, FileMove, FileImport, FileExport } = require('./file')
 
 /**
 Xcopy as a namespace
@@ -300,7 +287,7 @@ class Copy extends Base {
     this.mode = 'copy'
     this.srcDriveUUID = src.drive
     this.dstDriveUUID = dst.drive
-    this.root = new CopyDirectory(this, null, src.dir, dst.dir, xstats)
+    this.root = new DirCopy(this, null, src.dir, dst.dir, xstats)
   }
 
   cpdir (src, dst, policy, callback) {
@@ -359,7 +346,7 @@ class Move extends Base {
     this.mode = 'move'
     this.srcDriveUUID = src.drive
     this.dstDriveUUID = dst.drive
-    this.root = new MoveDirectory(this, null, src.dir, dst.dir, xstats)
+    this.root = new DirMove(this, null, src.dir, dst.dir, xstats)
   }
 
   mvdir (src, dst, policy, callback) {
@@ -393,7 +380,7 @@ class Import extends Base {
     this.mode = 'import'
     this.srcPath = src.path
     this.dstDriveUUID = dst.drive
-    this.root = new ImportDirectory(this, null, this.srcPath, dst.dir, stats)
+    this.root = new DirImport(this, null, this.srcPath, dst.dir, stats)
   }
 
   genTmpPath () {
@@ -429,7 +416,7 @@ class Export extends Base {
     this.mode = 'export'
     this.srcDriveUUID = src.drive
     this.dstPath = dst.path
-    this.root = new ExportDirectory(this, null, src.dir, '', this.dstPath, xstats)
+    this.root = new DirExport(this, null, src.dir, '', this.dstPath, xstats)
   }
 
   clone (src, callback) {

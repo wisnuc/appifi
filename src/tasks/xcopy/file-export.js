@@ -1,6 +1,13 @@
-const File = require('./file-base')
+const path = require('path')
+const fs = require('fs')
 
-class Working extends File.Working {
+const rimraf = require('rimraf')
+
+const File = require('./file-base')
+const openwx = require('./lib').openwx
+
+
+class Working extends File.prototype.Working {
 
   enter () {
     super.enter()
@@ -48,7 +55,7 @@ class FileExport extends File {
     super(ctx, parent)
     this.srcUUID = srcUUID
     this.srcName = srcName
-    this.state = new Pending(this)
+    this.state = new this.Pending(this)
   }
 
 }

@@ -16,9 +16,9 @@ class Node extends EventEmitter {
     super()
     this.ctx = ctx
     if (parent) {
-      this.parent = null
-    } else {
       this.attach(parent)
+    } else {
+      this.parent = null
     }
     this.policy = []
   }

@@ -1,6 +1,6 @@
 const File = require('./file-base')
 
-class Working extends File.Working {
+class Working extends File.prototype.Working {
 
   enter () {
     super.enter()
@@ -41,7 +41,7 @@ class FileCopy extends File {
     super(ctx, parent)
     this.srcUUID = srcUUID
     this.srcName = srcName
-    this.state = new Pending(this)
+    this.state = new this.Pending(this)
   }
 
 }

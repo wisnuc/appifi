@@ -1,3 +1,4 @@
+const Node = require('./node')
 const State = require('./state')
 
 class Pending extends State {

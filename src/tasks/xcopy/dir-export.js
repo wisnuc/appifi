@@ -1,4 +1,10 @@
-class ExportWorking extends Working {
+const path = require('path')
+
+const Dir = require('./dir-base')
+const FileExport = require('./file-export')
+const mkdir = require('./lib').mkdir
+
+class Working extends Dir.prototype.Working {
 
   enter () {
     super.enter()
@@ -20,7 +26,7 @@ class ExportWorking extends Working {
 
 }
 
-class ExportRead extends Read {
+class Read extends Dir.prototype.Read {
 
   next () {
     if (this.ctx.fstats.length) {
@@ -43,7 +49,7 @@ class ExportRead extends Read {
 
     if (this.ctx.dstats.length) {
       let dstat = this.ctx.dstats.shift()
-      let dir = new ExportDirectory(this.ctx.ctx, this.ctx, dstat.uuid, dstat.name)
+      let dir = new DirExport(this.ctx.ctx, this.ctx, dstat.uuid, dstat.name)
       dir.on('error', err => {
         // TODO
         this.next()
@@ -60,7 +66,7 @@ class ExportRead extends Read {
 
 }
 
-class ExportDirectory extends Directory {
+class DirExport extends Dir {
 
   constructor(ctx, parent, srcUUID, srcName, dstPath, xstats) {
     super(ctx, parent)
@@ -68,14 +74,15 @@ class ExportDirectory extends Directory {
     this.srcName = srcName
     if (dstPath) {
       this.dstPath = dstPath
-      new ExportRead(this, xstats)
+      new this.Read(this, xstats)
     } else {
-      new Pending(this)
+      new this.Pending(this)
     }
   }
 }
 
-ExportDirectory.prototype.Working = ExportWorking
-ExportDirectory.prototype.Read = ExportRead
+DirExport.prototype.Working = Working
+DirExport.prototype.Reading = Dir.prototype.FruitReading
+DirExport.prototype.Read = Read
 
 module.exports = DirExport
