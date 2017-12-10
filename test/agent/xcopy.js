@@ -131,7 +131,6 @@ describe(path.basename(__filename) + ' cp/mv a / [dir c, file d] -> dir b', () =
     }, (err, body) => {
       if (err) return done(err)
       setTimeout(() => getTask(token, body.uuid, (err, task) => {
-        console.log(task)
         expect(task.nodes.length).to.equal(1)
         expect(task.nodes[0].state).to.equal('Finished')
         done()
@@ -151,7 +150,6 @@ describe(path.basename(__filename) + ' cp/mv a / [dir c, file d] -> dir b', () =
         if (err) return done(err)
         setTimeout(() => 
           getTask(token, body.uuid, (err, task) => {
-
             request(app)
               .patch(`/tasks/${body.uuid}/nodes/${dirCUUID}`)
               .set('Authorization', 'JWT ' + token)
@@ -164,7 +162,7 @@ describe(path.basename(__filename) + ' cp/mv a / [dir c, file d] -> dir b', () =
 
                 setTimeout(() => 
                 getTask(token, body.uuid, (err, task) => {
-                  console.log(err || task)
+                  // console.log(err || task)
                   done()
                 }), 100)
 
@@ -191,8 +189,7 @@ describe(path.basename(__filename) + ' cp/mv a / [dir c, file d] -> dir b', () =
 
     // dir c should be in conflict state
     task = await getTaskAsync(token, task.uuid)
-    expect(task.nodes.find(n => n.srcUUID === dirCUUID).state).to.equal('Conflict')
-
+    expect(task.nodes.find(n => n.src.uuid === dirCUUID).state).to.equal('Conflict')
 
     updateNodeByUUIDAsync(token, task.uuid, dirCUUID, { policy: ['skip', null] }, 200) 
     await Promise.delay(100)

@@ -1,6 +1,12 @@
 const Node = require('./node')
 const State = require('./state')
 
+/**
+`Pending` state for directory sub-task
+
+@memberof XCopy.Dir
+@extends XCopy.State
+*/
 class Pending extends State {
 
   enter () {
@@ -13,10 +19,41 @@ class Pending extends State {
 
 }
 
+/**
+`Working` state for directory sub-task
+
+The destination directory (`dst`) should be created in this state.
+
+@memberof XCopy.Dir
+@extends XCopy.State
+*/
 class Working extends State {
 
   enter () {
     this.ctx.ctx.indexWorkingDir(this.ctx)
+
+    let policy = this.ctx.getPolicy()
+    let [same, diff] = policy
+    if (same === 'keep') same = 'skip'
+    this.mkdir([same, diff], (err, dst, resolved) => {
+      if (err && err.code === 'EEXIST') {
+        this.setState('Conflict', err, policy)
+      } else if (err) {
+        this.setState('Failed', err)
+      } else {
+        if (policy[0] === 'skip' && resolved[0]) {
+          this.setState('Finished')
+        } else {
+          this.ctx.dst = dst
+          this.setState('Reading')
+        }
+      }
+    })
+  }
+
+  // abstract
+  mkdir (policy, callback) {
+    process.nextTick(() => callback(new Error('this function must be implemented by inherited class'))) 
   }
 
   exit () {
@@ -25,6 +62,12 @@ class Working extends State {
 
 }
 
+/**
+`Conflict` state for directory sub-task
+
+@memberof XCopy.Dir
+@extends XCopy.State
+*/
 class Conflict extends State {
 
   enter (err, policy) {
@@ -39,27 +82,39 @@ class Conflict extends State {
 
   view () {
     return {
-      error: this.err,
+      error: {
+        code: this.err.code,
+        xcode: this.err.xcode,
+        message: this.err.message
+      },
       policy: this.policy
     }
   }
+
 }
 
+/**
+`Reading` state for directory sub-task
+
+@memberof XCopy.Dir
+@extends XCopy.State
+*/
 class Reading extends State {
 
   enter () {
     this.ctx.ctx.indexReadingDir(this.ctx)
-    this.read()
-  } 
-
-  read () {
-    this.ctx.ctx.readdir(this.ctx.src.uuid, (err, xstats) => {
+    this.read((err, xstats) => {
+      if (this.ctx.isDestroyed()) return
       if (err) {
         this.setState('Failed', err)
       } else {
         this.setState('Read', xstats)
       }
     })
+  } 
+
+  read (callback) {
+    this.ctx.ctx.readdir(this.ctx.src.uuid, callback)
   }
 
   exit () {
@@ -68,6 +123,12 @@ class Reading extends State {
 
 }
 
+/**
+`Read` state for directory sub-task
+
+@memberof XCopy.Dir
+@extends XCopy.State
+*/
 class Read extends State {
 
   enter (xstats) {
@@ -108,21 +169,44 @@ class Read extends State {
 
 }
 
+/**
+`Failed` state for directory sub-task
+
+@memberof XCopy.Dir
+@extends XCopy.State
+*/
 class Failed extends State {
   // when directory enter failed 
   // all descendant node are destroyed (but not removed)
   enter (err) {
     this.ctx.ctx.indexFailedDir(this.ctx)
+
     let children = [...this.ctx.children]
     children.forEach(c => c.destroy())
+
+    this.err = err
   }
 
   exit () {
     this.ctx.ctx.unindexFailedDir(this.ctx)
   }
 
+  view () {
+    return {
+      error: {
+        code: this.err.code,
+        message: this.err.message
+      }
+    } 
+  }
 }
 
+/**
+`Finished` state for directory sub-task
+
+@memberof XCopy.Dir
+@extends XCopy.State
+*/
 class Finished extends State {
 
   enter () {
@@ -136,9 +220,10 @@ class Finished extends State {
 }
 
 /**
-A directory sub-task, base class
+The base class of sub-task for directory.
 
 @memberof XCopy
+@extends XCopy.Node
 */
 class Dir extends Node {
 
@@ -180,6 +265,7 @@ class Dir extends Node {
       return new this.constructor.File(this.ctx, this, src)
     }
   }
+
 }
 
 Dir.prototype.Pending = Pending

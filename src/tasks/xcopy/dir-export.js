@@ -6,6 +6,7 @@ const mkdir = require('./lib').mkdir
 
 class Working extends Dir.prototype.Working {
 
+/**
   enter () {
     super.enter()
     let dstPath = path.join(this.ctx.parent.dst.path, this.ctx.src.name)
@@ -24,7 +25,23 @@ class Working extends Dir.prototype.Working {
       } 
     })
   }
+**/
 
+  mkdir (policy, callback) {
+    let name = this.ctx.src.name
+    let dstPath = path.join(this.ctx.parent.dst.path, name)
+    mkdir(dstPath, policy, (err, _, resolved) => {
+      if (err) {
+        callback(err)
+      } else {
+        let dst2 = {
+          name: this.ctx.src.name,
+          path: dstPath
+        }
+        callback(null, dst2, resolved)
+      }
+    }) 
+  }
 }
 
 class DirExport extends Dir { }

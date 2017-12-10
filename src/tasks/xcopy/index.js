@@ -317,12 +317,13 @@ class Copy extends Base {
   update (identity, props, callback) {
     let err = null
 
-    let node = this.root.find(n => n.identity() === identity)
+    let node = this.root.find(n => n.src.uuid === identity)
     if (!node) {
       err = new Error(`node ${uuid} not found`)
       err.code = 'ENOTFOUND'
       err.status = 404
     } else if (node.getState() !== 'Conflict') {
+      console.log(node)
       err = new Error(`node is not in conflict state`)
       err.code = 'EINAPPLICABLE'
       err.status = 403

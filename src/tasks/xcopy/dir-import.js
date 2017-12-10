@@ -6,8 +6,14 @@ const UUID = require('uuid')
 const FileImport = require('./file-import')
 const Dir = require('./dir-base')
 
+/**
+Working state for DirImport
+
+@memeberof XCopy.DirImport
+*/
 class Working extends Dir.prototype.Working {
 
+/**
   enter () {
     super.enter()
     let dst = {
@@ -31,52 +37,83 @@ class Working extends Dir.prototype.Working {
       }
     })
   }
+**/
 
+  mkdir (policy, callback) {
+    let dst = {
+      dir: this.ctx.parent.dst.uuid,
+      name: this.ctx.src.name,
+    }
+
+    this.ctx.ctx.mkdir(dst, policy, (err, xstat, resolved) => {
+      if (err) {
+        callback(err)
+      } else {
+        let dst2 = { uuid: xstat.uuid, name: xstat.name }
+        callback(null, dst2, resolved)
+      }
+    })
+  }
 }
 
-// Native File System
+/**
+Reading state for DirImport
+
+@memberof XCopy.DirImport
+*/
 class Reading extends Dir.prototype.Reading {
 
-  read () {
+  /**
+  Returns stats of source directory
+
+  @override
+  */
+  read (callback) {
     let srcPath = this.ctx.src.path
     fs.readdir(srcPath, (err, files) => {
-      if (err) {
-        this.setState('Failed', err)
-      } else if (files.length === 0) {
-          this.setState('Read', [])
-      } else {
-        let count = files.length
-        let stats = []
-        files.forEach(file => {
-          fs.lstat(path.join(srcPath, file), (err, stat) => {
-            if (!err && (stat.isDirectory() || stat.isFile())) {
-              let x = { 
-                type: stat.isDirectory() ? 'directory' : 'file',
+      if (err) return callback(err)
+      if (files.length === 0) return callback(null, [])
+      let count = files.length
+      let stats = []
+      files.forEach(file => {
+        fs.lstat(path.join(srcPath, file), (err, stat) => {
+          if (!err && (stat.isDirectory() || stat.isFile())) {
+            if (stat.isDirectory()) {
+              stats.push({
+                type: 'directory',
                 name: file
-              }
-
-              if (x.type === 'file') {
-                x.size = stat.size
-                x.mtime = stat.mtime.getTime()
-              }
-              
-              stats.push(x)
-            } 
-
-            if (!--count) {
-              this.setState('Read', stats)
+              })
+            } else {
+              stats.push({
+                type: 'file',
+                name: file,
+                size: stat.size,
+                mtime: stat.mtime.getTime()
+              })
             }
-          })
+          }
+
+          if (!--count) callback(null, stats)
         })
-      }
+      })
     })
   }
 
 }
 
+/**
+Directory sub-task for import.
+
+@memberof XCopy
+@extends XCopy.Dir
+*/
 class DirImport extends Dir { 
 
-  // override base method
+  /**
+  Returns subtask from native file system stat 
+
+  @override
+  */
   createSubTask (stat) {
     let src = {
       uuid: UUID.v4(),

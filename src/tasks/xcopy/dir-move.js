@@ -1,32 +1,34 @@
 const Dir = require('./dir-base')
 const FileMove = require('./file-move')
 
+/**
+`Working` state for DirMove sub-task
+
+The destination directory (`dst`) should be created in this state.
+
+@memberof XCopy.DirCopy
+@extends XCopy.State
+*/
 class Working extends Dir.prototype.Working {
 
-  enter () {
-    super.enter()
+  mkdir (policy, callback) {
     let src = { dir: this.ctx.src.uuid }
     let dst = { dir: this.ctx.parent.dst.uuid }
-    let policy = this.ctx.getPolicy()
     this.ctx.ctx.mvdir(src, dst, policy, (err, xstat, resolved) => {
-      if (err && err.code === 'EEXIST') {
-        this.setState('Conflict', err, policy)
-      } else if (err) {
-        this.setState('Failed', err)
+      if (err) {
+        callback(err)
       } else {
-        let [same, diff] = resolved 
-        if (same === 'skip') { // this is a merge, same with copy
-          this.ctx.dst = { uuid: xstat.uuid, name: xstat.name }
-          this.setState('Reading')
-        } else {
-          this.setState('Finished')
-        }
+        let dst = { uuid: xstat.uuid, name: xstat.name }
+        callback(null, dst, resolved)
       }
     })
   }
-
 }
 
+/**
+@memberof XCopy
+@extends XCopy.Dir
+*/
 class DirMove extends Dir { }
 
 DirMove.prototype.Working = Working
