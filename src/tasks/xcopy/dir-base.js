@@ -49,19 +49,10 @@ class Reading extends State {
 
   enter () {
     this.ctx.ctx.indexReadingDir(this.ctx)
+    this.read()
   } 
 
-  exit () {
-    this.ctx.ctx.unindexReadingDir(this.ctx)
-  }
-
-}
-
-class FruitReading extends Reading {
-
-  enter () {
-    super.enter()
-    // readdir always read source dir
+  read () {
     this.ctx.ctx.readdir(this.ctx.src.uuid, (err, xstats) => {
       if (err) {
         this.setState('Failed', err)
@@ -71,6 +62,10 @@ class FruitReading extends Reading {
     })
   }
 
+  exit () {
+    this.ctx.ctx.unindexReadingDir(this.ctx)
+  }
+
 }
 
 class Read extends State {
@@ -78,9 +73,33 @@ class Read extends State {
   enter (xstats) {
     this.ctx.ctx.indexReadDir(this.ctx)
 
-    this.ctx.dstats = xstats.filter(x => x.type === 'directory')
-    this.ctx.fstats = xstats.filter(x => x.type === 'file')
+    this.dstats = xstats.filter(x => x.type === 'directory')
+    this.fstats = xstats.filter(x => x.type === 'file')
     this.next()
+  }
+
+  next () {
+    if (this.fstats.length) {
+      let stat = this.fstats.shift()
+      let sub = this.ctx.createSubTask(stat) 
+      sub.once('Conflict', () => this.next())
+      sub.once('Failed', () => this.next())
+      sub.once('Finished', () => (sub.destroy(), this.next()))
+      return
+    }
+
+    if (this.dstats.length) {
+      let stat = this.dstats.shift()
+      let sub = this.ctx.createSubTask(stat) 
+      sub.once('Conflict', () => this.next())
+      sub.once('Failed', () => this.next())
+      sub.once('Finished', () => (sub.destroy(), this.next()))
+      return
+    }
+
+    if (this.ctx.children.length === 0) {
+      this.setState('Finished')
+    }
   }
 
   exit () {
@@ -135,8 +154,13 @@ class Dir extends Node {
     }
   }
 
+  get type () {
+    return 'directory'
+  }
+
   destroy () {
-    [...this.children].forEach(c => c.destroy())
+    let children = [...this.children]
+    children.forEach(c => c.destroy())
     super.destroy()
   }
 
@@ -147,15 +171,28 @@ class Dir extends Node {
     ]  
   }
 
+  // virtual
+  createSubTask (xstat) { 
+    let src = { uuid: xstat.uuid, name: xstat.name } 
+    if (xstat.type === 'directory') {
+      return new this.constructor(this.ctx, this, src)
+    } else {
+      return new this.constructor.File(this.ctx, this, src)
+    }
+  }
 }
 
 Dir.prototype.Pending = Pending
 Dir.prototype.Working = Working
 Dir.prototype.Reading = Reading
-Dir.prototype.FruitReading = FruitReading
 Dir.prototype.Read = Read
 Dir.prototype.Conflict = Conflict
 Dir.prototype.Finished = Finished
 Dir.prototype.Failed = Failed
 
 module.exports = Dir
+
+
+
+
+

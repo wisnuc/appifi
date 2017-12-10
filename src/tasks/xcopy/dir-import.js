@@ -10,7 +10,6 @@ class Working extends Dir.prototype.Working {
 
   enter () {
     super.enter()
-
     let dst = {
       dir: this.ctx.parent.dst.uuid,
       name: this.ctx.src.name,
@@ -28,7 +27,6 @@ class Working extends Dir.prototype.Working {
           uuid: xstat.uuid,
           name: xstat.name 
         }
-
         this.setState('Reading')
       }
     })
@@ -36,12 +34,10 @@ class Working extends Dir.prototype.Working {
 
 }
 
-// Native Reading
+// Native File System
 class Reading extends Dir.prototype.Reading {
 
-  enter () {
-    super.enter()
-
+  read () {
     let srcPath = this.ctx.src.path
     fs.readdir(srcPath, (err, files) => {
       if (err) {
@@ -78,66 +74,28 @@ class Reading extends Dir.prototype.Reading {
 
 }
 
+class DirImport extends Dir { 
 
-class Read extends Dir.prototype.Read {
-
-  next () {
-    if (this.ctx.fstats.length) {
-      let fstat = this.ctx.fstats.shift()
-      let src = {
-        uuid: UUID.v4(),
-        name: fstat.name,
-        path: path.join(this.ctx.src.path, fstat.name)
-      }
-
-      let file = new FileImport(this.ctx.ctx, this.ctx, src)
-
-      file.on('error', err => { 
-        // TODO
-        console.log(err)
-        this.next()
-      })
-
-      file.on('finish', () => {
-        file.destroy(true)
-        this.next()
-      })
-
-      return
+  // override base method
+  createSubTask (stat) {
+    let src = {
+      uuid: UUID.v4(),
+      name: stat.name,
+      path: path.join(this.ctx.src.path, stat.name)
     }
 
-    if (this.ctx.dstats.length) {
-      let dstat = this.ctx.dstats.shift()
-
-      let src = {
-        uuid: UUID.v4(),
-        name: dstat.name,
-        path: path.join(this.ctx.src.path, dstat.name)
-      }
-
-      let dir = new DirImport(this.ctx.ctx, this.ctx, src)
-
-      dir.on('error', err => {
-        // TODO
-        this.next()
-      })
-
-      dir.on('finish', () => (dir.destroy(true), this.next()))
-      return
-    } 
-
-    if (this.ctx.children.length === 0) {
-      this.setState('Finished')
+    if (stat.type === 'directory') {
+      return new DirImport(this.ctx, this, src)
+    } else {
+      return new FileImport(this.ctx, this, src)
     }
   }
 
 }
 
-class DirImport extends Dir { }
-
 DirImport.prototype.Working = Working
 DirImport.prototype.Reading = Reading
-DirImport.prototype.Read = Read
+DirImport.File = FileImport
 
 module.exports = DirImport
 

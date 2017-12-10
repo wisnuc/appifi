@@ -95,12 +95,8 @@ const updateNodeByUUIDAsync = Promise.promisify(updateNodeByUUID)
 
 
 describe(path.basename(__filename) + ' cp/mv a / [dir c, file d] -> dir b', () => {
-
-
   let alonzo = FILES.alonzo
-
   let token, dirAUUID, dirBUUID, dirCUUID, fileDUUID
-
 
   beforeEach(async () => {
     await resetAsync()
@@ -114,20 +110,6 @@ describe(path.basename(__filename) + ' cp/mv a / [dir c, file d] -> dir b', () =
     })
     dirBUUID = await createDirAsync(token, IDS.alice.home, IDS.alice.home, 'b')
   })
-
-/**
-  it('cp vanilla (assert what?), cf94913c', done => {
-    createTask(token, {
-      type: 'copy',
-      src: { drive: IDS.alice.home, dir: dirAUUID },
-      dst: { drive: IDS.alice.home, dir: dirBUUID },
-      entries: [dirCUUID, fileDUUID],
-    }, (err, body) => {
-      if (err) return done(err)
-      setTimeout(done, 1000)
-    })
-  })
-**/
 
   it('cp vanilla (assert what?), 7338eeb6', async () => {
     let task = await createTaskAsync(token, {
@@ -149,6 +131,7 @@ describe(path.basename(__filename) + ' cp/mv a / [dir c, file d] -> dir b', () =
     }, (err, body) => {
       if (err) return done(err)
       setTimeout(() => getTask(token, body.uuid, (err, task) => {
+        console.log(task)
         expect(task.nodes.length).to.equal(1)
         expect(task.nodes[0].state).to.equal('Finished')
         done()
