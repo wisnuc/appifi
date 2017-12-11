@@ -97,11 +97,16 @@ class Fruitmix extends EventEmitter {
     this.thumbnail = new Thumbnail(thumbDir, tmpDir)
     this.userList = new UserList(froot)
     this.driveList = new DriveList(froot, this.mediaMap)
+<<<<<<< HEAD
     this.docStore = new DocStore(froot)
     this.blobs = new BlobStore(this)
     this.blobs.loadAsync()
       .then(() => this.boxData = new BoxData(this))
       .catch(err => console.log('err',err))
+=======
+    this.vfs = this.driveList
+    this.boxData = new BoxData(froot)
+>>>>>>> 16b844d743799514750bf155e6c092c17bc4c0aa
     this.tasks = []
 
     if (!nosmb) {
@@ -1173,10 +1178,52 @@ class Fruitmix extends EventEmitter {
 
   /// ////////// task api ///////////////////////////////////////////////////////
 
-  getTasks (user) {
-    return this.tasks
-      .filter(t => t.user.uuid === user.uuid)
-      .map(t => t.view())
+  /**
+  internally called by xcopy
+  */
+  cpdir (user, src, dst, policy, callback) {
+    this.vfs.cpdir(src, dst, policy, callback)  
+  }
+
+  cpfile (user, src, dst, policy, callback) {
+    this.vfs.cpfile(src, dst, policy, callback)
+  }
+
+  mvdir2 (user, src, dst, policy, callback) {
+    this.vfs.mvdir(src, dst, policy, callback)
+  }
+
+  mvfile2 (user, src, dst, policy, callback) {
+    this.vfs.mvfile(src, dst, policy, callback)
+  } 
+
+  mkdir2 (user, dst, policy, callback) {
+    this.vfs.mkdir(dst, policy, callbacl)
+  }
+
+  mkfile (user, tmp, dst, policy, callback) {
+    this.vfs.mkfile(tmp, dst, policy, callback)
+  }
+
+  readdir (user, driveUUID, dirUUID, callback) {
+    this.vfs.readdir(driveUUID, dirUUID, callback)
+  }
+  
+  getTasks (user, callback) {
+    let tasks = this.tasks.filter(t => t.user.uuid === user.uuid).map(t => t.view())
+    process.nextTick(() => callback(null, tasks))
+  }
+
+  getTask (user, taskUUID, callback) {
+    let task = this.tasks.find(t => t.user.uuid === user.uuid && t.uuid === taskUUID) 
+    if (task) {
+      callback(null, task.view())
+    } else {
+      let err = new Error('task not found')
+      err.code = 'ENOTFOUND'
+      err.status = 404
+      callback(err)
+    }
   }
 
   async createTaskAsync (user, props) {
@@ -1208,13 +1255,54 @@ class Fruitmix extends EventEmitter {
   }
 
   async createTaskAsync2 (user, props) {
-    let {src, dst, policies, entries} = props
-    let task = await xcopyAsync(this.driveList, null, props.type, policies, src, dst, entries)
+    let { src, dst, policies, entries } = props
+    // FIXME user
+    let task = await xcopyAsync(this, user, props.type, policies, src, dst, entries)
+    // task.user = user 
     this.tasks.push(task)
 
-    console.log(task.view())
+    // console.log(task.view())
 
     return task.view()
+  }
+
+  createTask (user, body, callback) {
+    let { type, policies, src, dst, entries } = body
+    let task = xcopy(this, user, type, policies, src, dst, entries, (err, task) => {
+      if (err) {
+        callback(err)
+      } else {
+        this.tasks.push(task)
+        callback(null, task.view())
+      }
+    })
+  }
+
+  deleteTask (user, taskUUID, callback) {
+    let index = this.tasks.findIndex(t => t.user.uuid === user.uuid && t.uuid === taskUUID) 
+    if (index !== -1) {
+      this.tasks[index].destroy()
+      this.tasks.splice(index, 1)
+    }
+
+    process.nextTick(() => callback(null))
+  }
+
+  // subTaskId is uuid (copy, move, export) or relative path (import)
+  updateSubTask(user, taskUUID, subTaskId, props, callback) {
+    let task = this.tasks.find(t => t.user.uuid === user.uuid && t.uuid === taskUUID) 
+    if (!task) {
+      let err = new Error(`task ${taskUUID} not found`)
+      err.code = 'ENOTFOUND'
+      err.status = 404
+      callback(err)
+    } else {
+      task.update(subTaskId, props, callback)
+    }
+  }
+
+  deleteSubTask (user, taskUUID, subTaskId, callback) {
+    // let task = this.tasks.find(t => t.uuid === 
   }
 
   /// /////////////////////////

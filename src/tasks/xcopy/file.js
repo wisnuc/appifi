@@ -23,9 +23,6 @@ class State {
     new NextState(this.file, ...args)
   }
 
-  retry () {
-  }
-
   enter () {
   }
 
@@ -239,16 +236,13 @@ class Finished extends State {
 
 }
 
+/**
+A file sub-tasks, base class
+
+@memberof XCopy
+*/
 class File extends Node {
 
-  destroy (detach) {
-    this.state.destroy()
-    super.destroy(detach)
-  }
-
-  setState (state) {
-    this.state.setState(state)
-  }
 
   view () {
     let obj = {
@@ -270,16 +264,14 @@ class File extends Node {
     ]  
   }
 
+/**
   setPolicy (type, policy) {
     let index = type === 'same' ? 0 : 1
     this.policy[index] = policy
     this.retry()
   }
-
-  retry () {
-    // FIXME !!!
-    this.state.retry() 
-  }  
+**/
+  
 }
 
 File.prototype.Pending = Pending
@@ -288,6 +280,10 @@ File.prototype.Conflict = Conflict
 File.prototype.Finished = Finished
 File.prototype.Failed = Failed
 
+/**
+@extends XCopy.File
+@memberof XCopy
+*/
 class CopyFile extends File {
 
   constructor(ctx, parent, srcUUID, srcName) {
@@ -301,6 +297,10 @@ class CopyFile extends File {
 
 CopyFile.prototype.Working = CopyWorking
 
+/**
+@extends XCopy.File
+@memberof XCopy
+*/
 class MoveFile extends File {
 
   constructor(ctx, parent, srcUUID, srcName) {
@@ -314,7 +314,11 @@ class MoveFile extends File {
 
 MoveFile.prototype.Working = MoveWorking
 
-class ImportFile extends File {
+/**
+@extends XCopy.File
+@memberof XCopy
+*/
+class FileImport extends File {
 
   constructor(ctx, parent, srcPath) {
     super(ctx, parent)
@@ -325,8 +329,12 @@ class ImportFile extends File {
 
 }
 
-ImportFile.prototype.Working = ImportWorking
+FileImport.prototype.Working = ImportWorking
 
+/**
+@extends XCopy.File
+@memberof XCopy
+*/
 class ExportFile extends File {
 
   constructor(ctx, parent, srcUUID, srcName) {
@@ -344,7 +352,7 @@ module.exports = {
   File,
   CopyFile,
   MoveFile,
-  ImportFile,
+  FileImport,
   ExportFile,
 }
 

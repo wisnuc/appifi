@@ -5,7 +5,7 @@ const rimraf = require('rimraf')
 const { mkdir } = require('./lib')
 
 const Node = require('./node')
-const { File, CopyFile, MoveFile, ImportFile, ExportFile } = require('./file')
+const { File, CopyFile, MoveFile, FileImport, ExportFile } = require('./file')
 
 /**
 Base File State
@@ -28,9 +28,6 @@ class State {
     new NextState(this.dir, ...args)
   }
 
-  retry () {
-  }
-
   enter () {
   }
 
@@ -49,6 +46,10 @@ class Pending extends State {
     this.dir.ctx.unindexPendingDir(this.dir)
   } 
 
+  getState () {
+    return 'Pending'
+  }
+
 }
 
 class Working extends State {
@@ -61,6 +62,9 @@ class Working extends State {
     this.dir.ctx.unindexWorkingDir(this.dir)
   } 
 
+  getState () {
+    return 'Working'
+  }
 }
 
 class CopyWorking extends Working {
@@ -170,6 +174,10 @@ class Conflict extends State {
     this.dir.ctx.indexConflictDir(this.dir)
   }
 
+  getState () {
+    return 'Conflict'
+  }
+
   retry () {
     this.setState('Working')
   }
@@ -177,7 +185,6 @@ class Conflict extends State {
   exit () {
     this.dir.ctx.unindexConflictDir(this.dir)
   }
-
 }
 
 class Reading extends State {
@@ -185,6 +192,10 @@ class Reading extends State {
   enter () {
     this.dir.ctx.indexReadingDir(this.dir)
   } 
+
+  getState () {
+    return 'Reading'
+  }
 
   exit () {
     this.dir.ctx.unindexReadingDir(this.dir)
@@ -256,6 +267,10 @@ class Read extends State {
     this.dir.dstats = xstats.filter(x => x.type === 'directory')
     this.dir.fstats = xstats.filter(x => x.type === 'file')
     this.next()
+  }
+
+  getState () {
+    return 'Read'
   }
 
   exit () {
@@ -347,7 +362,7 @@ class ImportRead extends Read {
   next () {
     if (this.dir.fstats.length) {
       let fstat = this.dir.fstats.shift()
-      let file = new ImportFile(this.dir.ctx, this.dir, path.join(this.dir.srcPath, fstat.name))
+      let file = new FileImport(this.dir.ctx, this.dir, path.join(this.dir.srcPath, fstat.name))
 
       file.on('error', err => { 
         // TODO
@@ -436,6 +451,9 @@ class Failed extends State {
     this.dir.ctx.unindexFailedDir(this.dir)
   }
 
+  getState () {
+    return 'Failed'
+  }
 }
 
 class Finished extends State {
@@ -449,8 +467,16 @@ class Finished extends State {
     this.dir.ctx.unindexFinishedDir(this.dir)
   }
 
+  getState () {
+    return 'Finished'
+  }
 }
 
+/**
+A directory sub-task, base class
+
+@memberof XCopy
+*/
 class Directory extends Node {
 
   constructor(ctx, parent) {
@@ -458,45 +484,33 @@ class Directory extends Node {
     this.children = []
   }
 
-  destroy (detach) {
-    this.children.forEach(c => c.destroy())
-    this.state.destroy ()
-    super.destroy(detach)
+  destroy () {
+    [...this.children].forEach(c => c.destroy())
+    super.destroy()
   }
 
-  // state is a string
-  setState (state) {
-    this.state.setState(state)
-  }
-
-  // change to event emitter
-  onChildFinish (child) {
-    child.destroy()
-    if (this.children.length === 0) {
-      console.log('done')  
-    }
+  identity () {
+    return this.srcUUID
   }
 
   view () {
     let obj = {
       type: 'directory',
       parent: this.parent && this.parent.srcUUID,
-      srcUUID: this.srcUUID,
+      srcUUID: this.srcUUID
     }
     
     if (this.dstUUID) obj.dstUUID = this.dstUUID
-    obj.state = this.state.constructor.name
+
+    try {
+      obj.state = this.state.getState()
+    } catch (e) {
+      console.log(this.state)
+      console.log(e)
+    }
+
     if (this.policies) obj.policy = this.policy
     return obj
-  }
-
-  setPolicy (type, policy) {
-    if (type === 'same') {
-      this.policy[0] = policy
-    } else {
-      this.policy[1] = policy
-    }
-    this.retry()
   }
 
   getPolicy () {
@@ -504,11 +518,6 @@ class Directory extends Node {
       this.policy[0] || this.ctx.policies.dir[0] || null,
       this.policy[1] || this.ctx.policies.dir[1] || null
     ]  
-  }
-
-  retry () {
-    if (this.children) this.children.forEach(c => c.retry())
-    this.state.retry()
   }
 
 }
@@ -568,6 +577,10 @@ class ImportDirectory extends Directory {
     } else {
       new Pending(this)
     }
+  }
+
+  identity () {
+    return this.srcPath
   }
 }
 

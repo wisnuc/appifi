@@ -636,7 +636,6 @@ class VFS extends Forest {
     } catch (e) {
       return process.nextTick(() => callback(e))
     }
-
     dir.read(callback)
   }
 

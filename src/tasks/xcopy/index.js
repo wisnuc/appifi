@@ -3,7 +3,6 @@ const fs = require('fs')
 const EventEmitter = require('events')
 
 const UUID = require('uuid')
-
 const debug = require('debug')('xcopy')
 
 const { 
@@ -18,9 +17,14 @@ const {
   File,
   CopyFile,
   MoveFile,
-  ImportFile,
+  FileImport,
   ExportFile
 } = require('./file')
+
+/**
+Xcopy as a namespace
+@namespace XCopy
+*/
 
 /**
 Split different task into different sub-class is a better practice since the proxied methods
@@ -263,6 +267,7 @@ class Base extends EventEmitter {
     }
   }
 
+/**
   setPolicy (srcUUID, type, policy, applyToAll) {
     let node = this.root.find(n => n.srcUUID === srcUUID)
     if (!node) throw new Error('not found')
@@ -275,10 +280,15 @@ class Base extends EventEmitter {
       this.policies[name][index] = policy
     }
   }
+**/
 
   // this method is used by copy, move and export, but not import
   readdir(srcDirUUID, callback) {
-    this.ctx.readdir(this.srcDriveUUID, srcDirUUID, callback)
+    if (this.user) {
+      this.ctx.readdir(this.user, this.srcDriveUUID, srcDirUUID, callback)
+    } else {
+      this.ctx.readdir(this.srcDriveUUID, srcDirUUID, callback)
+    }
   }
 
 }
@@ -298,7 +308,7 @@ class Copy extends Base {
     dst.drive = this.dstDriveUUID
 
     if (this.user) {
-      this.ctx.cpdir(user, src, dst, policy, callback)
+      this.ctx.cpdir(this.user, src, dst, policy, callback)
     } else {
       this.ctx.cpdir(src, dst, policy, callback)
     }
@@ -309,12 +319,37 @@ class Copy extends Base {
     dst.drive = this.dstDriveUUID
 
     if (this.user) {
-      this.ctx.cpfile(user, src, dst, policy, callback)
+      this.ctx.cpfile(this.user, src, dst, policy, callback)
     } else {
       this.ctx.cpfile(src, dst, policy, callback)
     }
   }
 
+  update (identity, props, callback) {
+    let err = null
+
+    let node = this.root.find(n => n.identity() === identity)
+    if (!node) {
+      err = new Error(`node ${uuid} not found`)
+      err.code = 'ENOTFOUND'
+      err.status = 404
+    } else if (node.getState() !== 'Conflict') {
+      err = new Error(`node is not in conflict state`)
+      err.code = 'EINAPPLICABLE'
+      err.status = 403
+    } else {
+      node.update(props)
+      if (props.applyToAll) {
+        let type = node instanceof Directory ? 'dir' : 'file'
+        this.policies[type][0] = props.policy[0] || this.policies[type][0]
+        this.policies[type][1] = props.policy[1] || this.policies[type][1]
+
+        // FIXME retry all ?
+      }
+    }   
+
+    process.nextTick(() => callback(err))
+  }
 }
 
 class Move extends Base {
@@ -332,7 +367,7 @@ class Move extends Base {
     dst.drive = this.dstDriveUUID
     
     if (this.user) {
-      this.ctx.mvdir(user, src, dst, policy, callback)
+      this.ctx.mvdir2(this.user, src, dst, policy, callback)
     } else {
       this.ctx.mvdir(src, dst, policy, callback)
     } 
@@ -343,7 +378,7 @@ class Move extends Base {
     dst.drive = this.dstDriveUUID
 
     if (this.user) {
-      this.ctx.mvfile(user, src, dst, policy, callback)
+      this.ctx.mvfile2(this.user, src, dst, policy, callback)
     } else {
       this.ctx.mvfile(src, dst, policy, callback)
     }
@@ -438,31 +473,34 @@ const formatPolicies = policies => {
 // entries are uuids
 // returns xstats or throw error
 const entriesToXstats = (ctx, user, driveUUID, dirUUID, entries, callback) => {
-  if (user) {
-    // TODO 
-  } else {
-    ctx.readdir(driveUUID, dirUUID, (err, xstats) => {
-      if (err) return callback(err)
-      let found = []    // xstats
-      let missing = []  // uuids
 
-      entries.forEach(uuid => {
-        let x = xstats.find(x => x.uuid === uuid)
-        if (x) {
-          found.push(x)
-        } else {
-          missing.push(uuid)
-        }
-      })
+  const handler = (err, xstats) => {
+    if (err) return callback(err)
+    let found = []    // xstats
+    let missing = []  // uuids
 
-      if (missing.length) {
-        let err = new Error('some entries are missing')
-        err.missing = missing
-        callback(err)
+    entries.forEach(uuid => {
+      let x = xstats.find(x => x.uuid === uuid)
+      if (x) {
+        found.push(x)
       } else {
-        callback(null, found)
+        missing.push(uuid)
       }
     })
+
+    if (missing.length) {
+      let err = new Error('some entries are missing')
+      err.missing = missing
+      callback(err)
+    } else {
+      callback(null, found)
+    }
+  }
+
+  if (user) {
+    ctx.readdir(user, driveUUID, dirUUID, handler)  
+  } else {
+    ctx.readdir(driveUUID, dirUUID, handler)
   }
 }
 
