@@ -164,6 +164,8 @@ describe(path.basename(__filename) + ' files', () => {
     vfs.createRoot(rootUUID, (err, root) => vfs.once('DirReadDone', done))
   })
 
+  afterEach(async () => Promise.delay(100))
+
   // for viewing setup
   it('do nothing, d7119a6f', done => done())
 

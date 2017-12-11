@@ -5,21 +5,8 @@ const EventEmitter = require('events')
 const UUID = require('uuid')
 const debug = require('debug')('xcopy')
 
-const { 
-  Directory,
-  CopyDirectory,
-  MoveDirectory,
-  ImportDirectory,
-  ExportDirectory
-} = require('./directory')
-
-const { 
-  File,
-  CopyFile,
-  MoveFile,
-  FileImport,
-  ExportFile
-} = require('./file')
+const { Dir, DirCopy, DirMove, DirImport, DirExport } = require('./directory')
+const { File, FileCopy, FileMove, FileImport, FileExport } = require('./file')
 
 /**
 Xcopy as a namespace
@@ -53,7 +40,7 @@ class Base extends EventEmitter {
     this.failedFiles = new Set()
 
     this.pendingDirs = new Set()
-    this.makingDirs = new Set()
+    this.workingDirs = new Set()
     this.readingDirs = new Set()
     this.readDirs = new Set()
     this.conflictDirs = new Set()
@@ -151,12 +138,12 @@ class Base extends EventEmitter {
 
   indexWorkingDir (dir) {
     debug(`${this.formatDir(dir)} enter making (dst)`)
-    this.makingDirs.add(dir)
+    this.workingDirs.add(dir)
   }
 
   unindexWorkingDir (dir) {
     debug(`${this.formatDir(dir)} exit making (dst)`)
-    this.makingDirs.delete(dir)
+    this.workingDirs.delete(dir)
     this.reqSched()
   }
 
@@ -232,12 +219,12 @@ class Base extends EventEmitter {
 
     // schedule dir job
     while (this.pendingDirs.size > 0 && 
-      this.activeParents().size + this.makingDirs.size + this.readingDirs.size < 2) { 
+      this.activeParents().size + this.workingDirs.size + this.readingDirs.size < 2) { 
       let dir = this.pendingDirs[Symbol.iterator]().next().value
       dir.setState('Working')  
     } 
 
-    if (this.makingDirs.size + this.readingDirs.size + this.workingFiles.size === 0) {
+    if (this.workingDirs.size + this.readingDirs.size + this.workingFiles.size === 0) {
       process.nextTick(() => this.emit('stopped'))
     }
 
@@ -291,6 +278,52 @@ class Base extends EventEmitter {
     }
   }
 
+  update (uuid, props, callback) {
+    let err = null
+    let node = this.root.find(n => n.src.uuid === uuid)
+    if (!node) {
+      err = new Error(`node ${uuid} not found`)
+      err.code = 'ENOTFOUND'
+      err.status = 404
+    } else if (node.getState() !== 'Conflict') {
+      console.log(node)
+      err = new Error(`node is not in conflict state`)
+      err.code = 'EFORBIDDEN'
+      err.status = 403
+    } else {
+      node.update(props)
+      if (props.applyToAll) {
+        let type = node instanceof Directory ? 'dir' : 'file'
+        this.policies[type][0] = props.policy[0] || this.policies[type][0]
+        this.policies[type][1] = props.policy[1] || this.policies[type][1]
+
+        // FIXME retry all ?
+      }
+    }   
+
+    process.nextTick(() => callback(err))
+  }
+
+  delete (uuid, callback) {
+    let err = null
+    let node = this.root.find(n => n.src.uuid === uuid)
+    if (!node) {
+      // idempotent
+    } else if (node.root() === node) {
+      err = new Error(`root node cannot be deleted`)
+      err.code = 'EFORBIDDEN'
+      err.status = 403
+    } else if (node.getState() !== 'Failed') {
+      err = new Error(`node is not in Failed state`)
+      err.code = 'EFORBIDDEN'
+      err.status = 403
+    } else {
+      node.destroy()
+    }
+
+    process.nextTick(() => callback(err))
+  }
+
 }
 
 class Copy extends Base {
@@ -300,7 +333,9 @@ class Copy extends Base {
     this.mode = 'copy'
     this.srcDriveUUID = src.drive
     this.dstDriveUUID = dst.drive
-    this.root = new CopyDirectory(this, null, src.dir, dst.dir, xstats)
+    let _src = { uuid: src.dir }
+    let _dst = { uuid: dst.dir }
+    this.root = new DirCopy(this, null, _src, _dst, xstats)
   }
 
   cpdir (src, dst, policy, callback) {
@@ -325,31 +360,6 @@ class Copy extends Base {
     }
   }
 
-  update (identity, props, callback) {
-    let err = null
-
-    let node = this.root.find(n => n.identity() === identity)
-    if (!node) {
-      err = new Error(`node ${uuid} not found`)
-      err.code = 'ENOTFOUND'
-      err.status = 404
-    } else if (node.getState() !== 'Conflict') {
-      err = new Error(`node is not in conflict state`)
-      err.code = 'EINAPPLICABLE'
-      err.status = 403
-    } else {
-      node.update(props)
-      if (props.applyToAll) {
-        let type = node instanceof Directory ? 'dir' : 'file'
-        this.policies[type][0] = props.policy[0] || this.policies[type][0]
-        this.policies[type][1] = props.policy[1] || this.policies[type][1]
-
-        // FIXME retry all ?
-      }
-    }   
-
-    process.nextTick(() => callback(err))
-  }
 }
 
 class Move extends Base {
@@ -359,7 +369,9 @@ class Move extends Base {
     this.mode = 'move'
     this.srcDriveUUID = src.drive
     this.dstDriveUUID = dst.drive
-    this.root = new MoveDirectory(this, null, src.dir, dst.dir, xstats)
+    let _src = { uuid: src.dir }
+    let _dst = { uuid: dst.dir }
+    this.root = new DirMove(this, null, _src, _dst, xstats)
   }
 
   mvdir (src, dst, policy, callback) {
@@ -393,7 +405,18 @@ class Import extends Base {
     this.mode = 'import'
     this.srcPath = src.path
     this.dstDriveUUID = dst.drive
-    this.root = new ImportDirectory(this, null, this.srcPath, dst.dir, stats)
+    let _src = { 
+      uuid: UUID.v4(),
+      name: '',
+      path: src.path
+    }
+
+    let _dst = { 
+      uuid: dst.dir,
+      name: ''
+    } 
+
+    this.root = new DirImport(this, null, _src, _dst, stats)
   }
 
   genTmpPath () {
@@ -429,7 +452,17 @@ class Export extends Base {
     this.mode = 'export'
     this.srcDriveUUID = src.drive
     this.dstPath = dst.path
-    this.root = new ExportDirectory(this, null, src.dir, '', this.dstPath, xstats)
+
+    let _src = {
+      uuid: src.dir,
+      name: '',
+    }
+
+    let _dst = {
+      path: dst.path
+    }
+
+    this.root = new DirExport(this, null, _src, _dst, xstats)
   }
 
   clone (src, callback) {

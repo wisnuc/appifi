@@ -1288,8 +1288,7 @@ class Fruitmix extends EventEmitter {
     process.nextTick(() => callback(null))
   }
 
-  // subTaskId is uuid (copy, move, export) or relative path (import)
-  updateSubTask(user, taskUUID, subTaskId, props, callback) {
+  updateSubTask(user, taskUUID, nodeUUID, props, callback) {
     let task = this.tasks.find(t => t.user.uuid === user.uuid && t.uuid === taskUUID) 
     if (!task) {
       let err = new Error(`task ${taskUUID} not found`)
@@ -1297,12 +1296,20 @@ class Fruitmix extends EventEmitter {
       err.status = 404
       callback(err)
     } else {
-      task.update(subTaskId, props, callback)
+      task.update(nodeUUID, props, callback)
     }
   }
 
   deleteSubTask (user, taskUUID, subTaskId, callback) {
-    // let task = this.tasks.find(t => t.uuid === 
+    let task = this.tasks.find(t => t.user.uuid === user.uuid && t.uuid === taskUUID)
+    if (!task) {
+      let err = new Error(`task ${taskUUID} not found`)
+      err.code = 'ENOTFOUND'
+      err.status = 404
+      callback(err)
+    } else {
+      task.delete(nodeUUID, callback)
+    }
   }
 
   /// /////////////////////////

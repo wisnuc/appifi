@@ -3,6 +3,7 @@ const EventEmitter = require('events')
 
 /**
 The abstract base class for different type of sub-tasks
+
 @memberof XCopy
 */
 class Node extends EventEmitter {
@@ -16,9 +17,9 @@ class Node extends EventEmitter {
     super()
     this.ctx = ctx
     if (parent) {
-      this.parent = null
-    } else {
       this.attach(parent)
+    } else {
+      this.parent = null
     }
     this.policy = []
   }
@@ -31,6 +32,13 @@ class Node extends EventEmitter {
     this.state.destroy()
     this.ctx = null
     if (this.parent) this.detach()
+  }
+
+  /**
+  Returns whether the node is already destroyed
+  */
+  isDestroyed () {
+    return this.ctx === null
   }
 
   /**
@@ -91,7 +99,7 @@ class Node extends EventEmitter {
   Returns current state name
   */
   getState () {
-    this.state.getState()
+    return this.state.getState()
   }
 
   /**
@@ -121,6 +129,22 @@ class Node extends EventEmitter {
     if (s === 'Conflict' || s === 'Failed') {
       this.setState('Working')
     }
+  }
+
+  /**
+  Returns view
+  */
+  view () {
+    let obj = {
+      type: this.type,
+      parent: this.parent && this.parent.src.uuid,
+      src: this.src,
+      dst: this.dst,
+      policy: this.policy,
+      state: this.state.getState()
+    }
+
+    return Object.assign(obj, this.state.view())    
   }
 }
 
