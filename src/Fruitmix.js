@@ -97,16 +97,12 @@ class Fruitmix extends EventEmitter {
     this.thumbnail = new Thumbnail(thumbDir, tmpDir)
     this.userList = new UserList(froot)
     this.driveList = new DriveList(froot, this.mediaMap)
-<<<<<<< HEAD
     this.docStore = new DocStore(froot)
     this.blobs = new BlobStore(this)
     this.blobs.loadAsync()
       .then(() => this.boxData = new BoxData(this))
       .catch(err => console.log('err',err))
-=======
     this.vfs = this.driveList
-    this.boxData = new BoxData(froot)
->>>>>>> 16b844d743799514750bf155e6c092c17bc4c0aa
     this.tasks = []
 
     if (!nosmb) {
