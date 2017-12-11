@@ -143,7 +143,7 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
 
   let dir = fruit.driveList.getDriveDir(driveUUID, dirUUID)
   if (!dir) {
-
+/**
     console.log('======')
     console.log('driveUUID', driveUUID)
     console.log('dirUUID', dirUUID)
@@ -151,7 +151,9 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
     console.log('======')
 
     process.exit(1)
-    return
+*/
+
+    return res.status(404).end()
   }
 
   // set dicer to null to indicate all parts have been generated. 
