@@ -278,6 +278,52 @@ class Base extends EventEmitter {
     }
   }
 
+  update (uuid, props, callback) {
+    let err = null
+    let node = this.root.find(n => n.src.uuid === uuid)
+    if (!node) {
+      err = new Error(`node ${uuid} not found`)
+      err.code = 'ENOTFOUND'
+      err.status = 404
+    } else if (node.getState() !== 'Conflict') {
+      console.log(node)
+      err = new Error(`node is not in conflict state`)
+      err.code = 'EFORBIDDEN'
+      err.status = 403
+    } else {
+      node.update(props)
+      if (props.applyToAll) {
+        let type = node instanceof Directory ? 'dir' : 'file'
+        this.policies[type][0] = props.policy[0] || this.policies[type][0]
+        this.policies[type][1] = props.policy[1] || this.policies[type][1]
+
+        // FIXME retry all ?
+      }
+    }   
+
+    process.nextTick(() => callback(err))
+  }
+
+  delete (uuid, callback) {
+    let err = null
+    let node = this.root.find(n => n.src.uuid === uuid)
+    if (!node) {
+      // idempotent
+    } else if (node.root() === node) {
+      err = new Error(`root node cannot be deleted`)
+      err.code = 'EFORBIDDEN'
+      err.status = 403
+    } else if (node.getState() !== 'Failed') {
+      err = new Error(`node is not in Failed state`)
+      err.code = 'EFORBIDDEN'
+      err.status = 403
+    } else {
+      node.destroy()
+    }
+
+    process.nextTick(() => callback(err))
+  }
+
 }
 
 class Copy extends Base {
@@ -314,32 +360,6 @@ class Copy extends Base {
     }
   }
 
-  update (identity, props, callback) {
-    let err = null
-
-    let node = this.root.find(n => n.src.uuid === identity)
-    if (!node) {
-      err = new Error(`node ${uuid} not found`)
-      err.code = 'ENOTFOUND'
-      err.status = 404
-    } else if (node.getState() !== 'Conflict') {
-      console.log(node)
-      err = new Error(`node is not in conflict state`)
-      err.code = 'EINAPPLICABLE'
-      err.status = 403
-    } else {
-      node.update(props)
-      if (props.applyToAll) {
-        let type = node instanceof Directory ? 'dir' : 'file'
-        this.policies[type][0] = props.policy[0] || this.policies[type][0]
-        this.policies[type][1] = props.policy[1] || this.policies[type][1]
-
-        // FIXME retry all ?
-      }
-    }   
-
-    process.nextTick(() => callback(err))
-  }
 }
 
 class Move extends Base {
