@@ -12,7 +12,7 @@ const { expect } = require('chai')
 
 const Magic = require('src/lib/magic')
 const { readXstat } = require('src/lib/xstat')
-const { mkdir, mkfile, mvfile } = require('src/vfs/underlying')
+const { mkfile, mvfile } = require('src/vfs/underlying')
 
 const cwd = process.cwd()
 const tmptest = path.join(cwd, 'tmptest')
@@ -56,7 +56,7 @@ describe(path.basename(__filename) + ' mvfile, []', () => {
     let attr = JSON.parse(xattr.getSync('tmptest/a/b', 'user.fruitmix'))
     let stat = fs.lstatSync('tmptest/a/b')
     mvfile('tmptest/a/b', 'tmptest/c/d', [], (err, xstat, resolved) => {
-      if (err) done(err)
+      if (err) return done(err)
       expect(xstat).to.deep.equal({
         uuid: attr.uuid,
         type: 'file',
@@ -140,7 +140,7 @@ describe(path.basename(__filename) + ' mvfile, [skip]', () => {
     let attr = JSON.parse(xattr.getSync('tmptest/a/b', 'user.fruitmix'))
     let stat = fs.lstatSync('tmptest/a/b')
     mvfile('tmptest/a/b', 'tmptest/c/d', ['skip'], (err, xstat, resolved) => {
-      if (err) done(err)
+      if (err) return done(err)
       expect(xstat).to.deep.equal({
         uuid: attr.uuid,
         type: 'file',
@@ -233,7 +233,7 @@ describe(path.basename(__filename) + ' mvfile, [,skip]', () => {
     let attr = JSON.parse(xattr.getSync('tmptest/a/b', 'user.fruitmix'))
     let stat = fs.lstatSync('tmptest/a/b')
     mvfile('tmptest/a/b', 'tmptest/c/d', [,'skip'], (err, xstat, resolved) => {
-      if (err) done(err)
+      if (err) return done(err)
       expect(xstat).to.deep.equal({
         uuid: attr.uuid,
         type: 'file',
@@ -250,7 +250,7 @@ describe(path.basename(__filename) + ' mvfile, [,skip]', () => {
   it('success if newPath is dir', done => {
     mkdirp.sync('tmptest/c/d')
     mvfile('tmptest/a/b', 'tmptest/c/d', [,'skip'], (err, xstat, resolved) => {
-      if (err) done(err)
+      if (err) return done(err)
       expect(xstat).to.be.null
       expect(resolved).to.be.deep.equal([false, true])
       done()
@@ -315,7 +315,7 @@ describe(path.basename(__filename) + ' mvfile, [rename]', () => {
     let attr = JSON.parse(xattr.getSync('tmptest/a/b', 'user.fruitmix'))
     let stat = fs.lstatSync('tmptest/a/b')
     mvfile('tmptest/a/b', 'tmptest/c/d', ['rename'], (err, xstat, resolved) => {
-      if (err) done(err)
+      if (err) return done(err)
       expect(xstat).to.deep.equal({
         uuid: attr.uuid,
         type: 'file',
@@ -408,7 +408,7 @@ describe(path.basename(__filename) + ' mvfile, [,rename]', () => {
     let attr = JSON.parse(xattr.getSync('tmptest/a/b', 'user.fruitmix'))
     let stat = fs.lstatSync('tmptest/a/b')
     mvfile('tmptest/a/b', 'tmptest/c/d', [,'rename'], (err, xstat, resolved) => {
-      if (err) done(err)
+      if (err) return done(err)
       expect(xstat).to.deep.equal({
         uuid: attr.uuid,
         type: 'file',
@@ -507,7 +507,7 @@ describe(path.basename(__filename) + ' mvfile, [replace]', () => {
     let attr = JSON.parse(xattr.getSync('tmptest/a/b', 'user.fruitmix'))
     let stat = fs.lstatSync('tmptest/a/b')
     mvfile('tmptest/a/b', 'tmptest/c/d', ['replace'], (err, xstat, resolved) => {
-      if (err) done(err)
+      if (err) return done(err)
       expect(xstat).to.deep.equal({
         uuid: attr.uuid,
         type: 'file',
@@ -600,7 +600,7 @@ describe(path.basename(__filename) + ' mvfile, [,replace]', () => {
     let attr = JSON.parse(xattr.getSync('tmptest/a/b', 'user.fruitmix'))
     let stat = fs.lstatSync('tmptest/a/b')
     mvfile('tmptest/a/b', 'tmptest/c/d', [,'replace'], (err, xstat, resolved) => {
-      if (err) done(err)
+      if (err) return done(err)
       expect(xstat).to.deep.equal({
         uuid: attr.uuid,
         type: 'file',
