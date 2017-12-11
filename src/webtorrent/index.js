@@ -37,11 +37,11 @@ broadcast.on('FruitmixStarted', () => {
     let torrentPath = path.join(msg.torrent.path, msg.torrent.name)
     console.log(dirPath)
     console.log(torrentPath)
-    fs.rename(torrentPath, dirPath, err => {
+    fs.rename(torrentPath, path.join(dirPath, msg.torrent.name), err => {
       if (err) return console.log(err) //todo
       fruitmix.driveList.getDriveDir(drive.uuid, dirUUID)
       console.log('move finish')
-      ipc.call('moveFinish', {userUUID: msg.torrent.userUUID, infoHash: msg.torrent.infoHash})
+      ipc.call('moveFinish', {userUUID: msg.torrent.userUUID, torrentId: msg.torrent.infoHash},(err,data) => {console.log(err, data, 'this is end')})
     })
   })
   // create ipc main 
@@ -61,7 +61,7 @@ router.get('/', auth.jwt(), (req, res) => {
 })
 
 // create new download task
-router.post('/', auth.jwt(), (req, res) => {
+router.post('/magnet', auth.jwt(), (req, res) => {
   ipc.call('addMagnet', { magnetURL: req.body.magnetURL, dirUUID: req.body.dirUUID, user: req.user }, (error, data) => {
     if(error) return res.status(400).json(error)
     res.status(200).json(data)
@@ -78,15 +78,15 @@ router.post('/torrent', auth.jwt(), (req, res) => {
     let torrentPath = files.torrent.path
     let user = req.user
     if (!dirUUID || !torrentPath) return res.status(400).end('parameter error')
-    ipc.call('addTorrent', {torrentPath, dirUUID, user}, (err, data) => {
+    ipc.call('addTorrent', {torrentPath, dirUUID, user}, (err, torrentId) => {
       if (err) return res.status(400).json(err)
-      return res.status(200).json(data)
+      return res.status(200).json({torrentId})
     })
   })
 })
 
 router.patch('/:torrentId', auth.jwt(), (req, res) => {
-  let ops = ['pause', 'resume', 'destory']
+  let ops = ['pause', 'resume', 'destroy']
   let op = req.body.op
   if(!ops.includes(op)) return res.status(400).json({ message: 'unknown op' })
   ipc.call(op, { torrentId: req.params.torrentId, user: req.user }, (error, data) => {

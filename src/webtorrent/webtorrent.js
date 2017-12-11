@@ -165,6 +165,8 @@ class WebTorrentService {
     // create client(not necessary) & create torrent
     let userTmpPath = path.join(this.tempPath, user.uuid)
     let torrent = this.getClient(user.uuid).add(torrentSource, { path: userTmpPath })
+    // let server = torrent.createServer()
+    // server.listen(3456)
     if (!torrent.infoHash) throw new Error('unknow torrent')
 
     // add property to torrent object & add object to downloading list
@@ -261,10 +263,12 @@ class WebTorrentService {
   }
 
   //delete torrent task
-  destory({ torrentId }) {
+  destory({ torrentId, user }) {
     return new Promise(async (resolve, reject) => {
-      let torrent = this.downloading.find(item => item.infoHash == torrentId)
+      console.log(torrentId, user.uuid)
+      let torrent = this.downloading.find(item => item.infoHash == torrentId && item.userUUID == user.uuid)
       if (torrent) {
+        console.log('find torrent in downloading array')
         torrent.destroy(async () => {
           console.log('torrent has been destory')
           let index = this.downloading.indexOf(torrent)
@@ -282,27 +286,27 @@ class WebTorrentService {
         await this.cache()
         resolve()
       }
-    })
 
+      // todo remove cache
+    })
   }
 
   enterMove(torrent) {
     process.send({type: 'move', torrent: torrent.log()})
   }
 
-  moveFinish({ torrentId, userUUID}) {
-    return console.log('torrent move finish', torrentId, userUUID)
+  moveFinish({ torrentId, userUUID}) {console.log('torrent move finish', torrentId, userUUID)
     let torrent = this.getClient(userUUID).get(torrentId)
     if (!torrent) throw new Error('not found torrent')
     torrent.state = 'finish'
     // stop torrent uploading & move to downloaded array
-    torrent.destroy(async () => {
+    torrent.destroy(() => {
       // fs.renameSync(path.join(torrent.path, torrent.name), path.join(torrent.dirUUID, torrent.name))
       let index = this.downloading.indexOf(torrent)
       if (index == -1) throw new Error('torrent is not exist in downloading array')
       this.downloading.splice(index, 1)
       this.downloaded.push(torrent)
-      await this.cache()
+      this.cache()
       console.log('torrent destory success')
     })
   }
@@ -317,8 +321,8 @@ class WebTorrentService {
     ipc.register('getSummary', syncCallback(this.getSummary.bind(this)))
     ipc.register('pause', syncCallback(this.pause.bind(this)))
     ipc.register('resume', syncCallback(this.resume.bind(this)))
-    ipc.register('destory', asCallback(this.destory.bind(this)))
-    ipc.register('moveFinish', asCallback(this.moveFinish.bind(this)))
+    ipc.register('destroy', asCallback(this.destory.bind(this)))
+    ipc.register('moveFinish', syncCallback(this.moveFinish.bind(this)))
   }
 }
 
