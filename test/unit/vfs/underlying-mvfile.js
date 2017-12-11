@@ -742,6 +742,7 @@ describe(path.basename(__filename) + 'mvfile, [skip/rename/replace, skip/rename/
         magic: 'JPEG'
       })
       expect(resolved).to.deep.equal([false, true])
+      done()
     })
   })
 
@@ -755,6 +756,62 @@ describe(path.basename(__filename) + 'mvfile, [skip/rename/replace, skip/rename/
         uuid: attr.uuid,
         type: 'file',
         name: 'd (2)',
+        mtime: stat.mtime.getTime(),
+        size: stat.size,
+        magic: 'JPEG'
+      })
+      expect(resolved).to.deep.equal([true, false])
+      done()
+    })
+  })
+
+  it('[replace, replace], success if newPath is dir', done => {
+    mkdirp.sync('tmptest/c/d')
+    let attr = JSON.parse(xattr.getSync('tmptest/a/b', 'user.fruitmix'))
+    let stat = fs.lstatSync('tmptest/a/b')
+    mvfile('tmptest/a/b', 'tmptest/c/d', ['replace', 'replace'], (err, xstat, resolved) => {
+      expect(xstat).to.deep.equal({
+        uuid: attr.uuid,
+        type: 'file',
+        name: 'd',
+        mtime: stat.mtime.getTime(),
+        size: stat.size,
+        magic: 'JPEG'
+      })
+      expect(resolved).to.deep.equal([false, true])
+      done()
+    })
+  })
+
+  it('[replace, replace], success if newPath is (broken) symlink', done => {
+    mkdirp.sync('tmptest/c')
+    fs.symlinkSync('hello', 'tmptest/c/d')
+    let attr = JSON.parse(xattr.getSync('tmptest/a/b', 'user.fruitmix'))
+    let stat = fs.lstatSync('tmptest/a/b')
+    mvfile('tmptest/a/b', 'tmptest/c/d', ['replace', 'replace'], (err, xstat, resolved) => {
+      expect(xstat).to.deep.equal({
+        uuid: attr.uuid,
+        type: 'file',
+        name: 'd',
+        mtime: stat.mtime.getTime(),
+        size: stat.size,
+        magic: 'JPEG'
+      })
+      expect(resolved).to.deep.equal([false, true])
+      done()
+    })
+  })
+
+   it('[replace, replace], success if newPath is file', done => {
+    mkdirp.sync('tmptest/c')
+    fs.copyFileSync('testdata/foo', 'tmptest/c/d')
+    let attr = JSON.parse(xattr.getSync('tmptest/a/b', 'user.fruitmix'))
+    let stat = fs.lstatSync('tmptest/a/b')
+    mvfile('tmptest/a/b', 'tmptest/c/d', ['replace', 'replace'], (err, xstat, resolved) => {
+      expect(xstat).to.deep.equal({
+        uuid: attr.uuid,
+        type: 'file',
+        name: 'd',
         mtime: stat.mtime.getTime(),
         size: stat.size,
         magic: 'JPEG'
