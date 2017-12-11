@@ -148,6 +148,7 @@ describe(path.basename(__filename) + ' cp/mv a / [dir c, file d] -> dir b', () =
         entries: [dirCUUID, fileDUUID],
       }, (err, body) => {
         if (err) return done(err)
+
         setTimeout(() => 
           getTask(token, body.uuid, (err, task) => {
             request(app)

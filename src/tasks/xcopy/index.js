@@ -254,21 +254,6 @@ class Base extends EventEmitter {
     }
   }
 
-/**
-  setPolicy (srcUUID, type, policy, applyToAll) {
-    let node = this.root.find(n => n.srcUUID === srcUUID)
-    if (!node) throw new Error('not found')
-
-    node.setPolicy(type, policy)
-
-    if (applyToAll) {
-      let name = node instanceof Directory ? 'dir' : 'file'
-      let index = type === 'same' ? 0 : 1
-      this.policies[name][index] = policy
-    }
-  }
-**/
-
   // this method is used by copy, move and export, but not import
   readdir(srcDirUUID, callback) {
     if (this.user) {
@@ -299,7 +284,7 @@ class Base extends EventEmitter {
 
         // FIXME retry all ?
       }
-    }   
+    } 
 
     process.nextTick(() => callback(err))
   }
