@@ -48,6 +48,7 @@
     "mkdirp": "^0.5.1",
     "mmmagic": "^0.4.5",
     "morgan": "~1.8.2",
+    "mqtt": "^2.14.0",
     "passport": "^0.4.0",
     "passport-http": "^0.3.0",
     "passport-jwt": "^3.0.0",

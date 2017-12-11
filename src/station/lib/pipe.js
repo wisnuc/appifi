@@ -1,4 +1,15 @@
-const EventEmitter = require('events').EventEmitter
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   pipe.js                                            :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: JianJin Wu <mosaic101@foxmail.com>         +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2017/12/06 15:54:44 by JianJin Wu        #+#    #+#             */
+/*   Updated: 2017/12/06 17:06:56 by JianJin Wu       ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 const crypto = require('crypto')
 const stream = require('stream')
 const fs = require('fs')
@@ -62,11 +73,11 @@ class StoreFile {
     this.sha256 = sha256
   }
 
-  async storeFileAsync(cloudAddr,sessionId, saId, token)  {
-    return Promise.promisify(this.storeFile).bind(this)(cloudAddr,sessionId, saId, token)
+  async storeFileAsync(cloudAddr, sessionId, saId, token) {
+    return Promise.promisify(this.storeFile).bind(this)(cloudAddr, sessionId, saId, token)
   }
 
-  storeFile(cloudAddr,sessionId, saId, token, callback) {
+  storeFile(cloudAddr, sessionId, saId, token, callback) {
     let transform = new HashTransform()
     let url = cloudAddr + '/s/v1/stations/' + saId + '/response/' + sessionId
     let fpath = path.join(this.tmp, uuid.v4())
@@ -85,10 +96,10 @@ class StoreFile {
       debug('store file checking')
       let bytesWritten = ws.bytesWritten
       let sha256 = transform.getHash()
-      if(bytesWritten !== this.size)
-        return error(Object.assign(new Error('size mismatch'), { code: 'EMISMATCH'}))
-      if(sha256 !== this.sha256)
-        return error(Object.assign(new Error('sha256 mismatch'), { code: 'EMISMATCH'}))
+      if (bytesWritten !== this.size)
+        return error(Object.assign(new Error('size mismatch'), { code: 'EMISMATCH' }))
+      if (sha256 !== this.sha256)
+        return error(Object.assign(new Error('sha256 mismatch'), { code: 'EMISMATCH' }))
       debug('store file bytesWritten')
       finished = true
       callback(null, fpath)
@@ -105,7 +116,7 @@ class StoreFile {
     debug('store req created')
     req.on('response', res => {
       debug('response', fpath)
-      if(res.status !== 200){
+      if (res.status !== 200) {
         debug('response error', fpath)
         error(res.error)
         ws.end()
@@ -146,12 +157,12 @@ class StoreFile {
 class Pipe {
   constructor(ctx) {
     this.tmp = path.join(ctx.froot, 'tmp')
-    this.connect = ctx
-    this.connect.register('pipe', this.handle.bind(this))
+    // this.connect = ctx
+    // this.connect.register('pipe', this.handle.bind(this))
     this.handlers = new Map()
     this.register()
   }
-  
+
   /**
    * @param {object} data -- from socket
    * 
@@ -169,54 +180,54 @@ class Pipe {
    */
   handle(data) {
     debug(data)
-    
-    if(!data.serverAddr || !data.sessionId) return debug('Invaild pipe request')
+
+    if (!data.serverAddr || !data.sessionId) return debug('Invaild pipe request')
 
     let fruit = getFruit()
-    if(!fruit) return  this.errorResponseAsync(data.serverAddr, data.sessionId, Object.assign(new Error('fruitmix not start'), { code: 500 }))
-                              .then(() => {}).catch(debug)
-    
-    if(!data.resource || !data.method) {
+    if (!fruit) return this.errorResponseAsync(data.serverAddr, data.sessionId, Object.assign(new Error('fruitmix not start'), { code: 500 }))
+      .then(() => { }).catch(debug)
+
+    if (!data.resource || !data.method) {
       debug('resource or method error')
       return this.errorResponseAsync(data.serverAddr, data.sessionId, Object.assign(new Error('resource or method not found'), { code: 400 }))
-                    .then(() => {}).catch(debug)
+        .then(() => { }).catch(debug)
     }
 
     let localUser = fruit.findUserByGUID(data.user.id)
-    
-    if(!localUser) 
+
+    if (!localUser)
       return this.errorResponseAsync(data.serverAddr, data.sessionId, Object.assign(new Error('user not found'), { code: 400 }))
-                    .then(() => {}).catch(debug)
+        .then(() => { }).catch(debug)
 
     data.user = Object.assign({}, data.user, localUser)
     // debug('fruit pipe user: ', data.user)
     let messageType = this.decodeType(data)
-    if(!messageType){
+    if (!messageType) {
       debug('resource error')
       return this.errorResponseAsync(data.serverAddr, data.sessionId, Object.assign(new Error('resource error'), { code: 400 }))
-                    .then(() => {}).catch(debug)
-    } 
+        .then(() => { }).catch(debug)
+    }
     debug('pipe messageType:', messageType)
-    if(this.handlers.has(messageType))
+    if (this.handlers.has(messageType))
       this.handlers.get(messageType)(data)
-        .then(() => {debug('success for request')})
+        .then(() => { debug('success for request') })
         .catch(e => {
           debug('pipe catch exception:', e)
           debug('pipe error messageType:', messageType)
           debug('pipe error subType: ', data.subType)
-          if(['GetMediaThumbnail', 'GetMediaFile'].includes(data.subType))
+          if (['GetMediaThumbnail', 'GetMediaFile'].includes(data.subType))
             return this.errorFetchResponseAsync(data.serverAddr, data.sessionId, Object.assign(e, { code: 400 }))
-                      .then(() => {}).catch(debug)
-          else if(['WriteDirNewFile', 'WriteDirAppendFile'].includes(data.subType)) {
+              .then(() => { }).catch(debug)
+          else if (['WriteDirNewFile', 'WriteDirAppendFile'].includes(data.subType)) {
             let code = 400
-            if(e.code === 'EEXIST') code = 403 
+            if (e.code === 'EEXIST') code = 403
             return this.errorStoreResponseAsync(data.serverAddr, data.sessionId, Object.assign(e, { code }))
-                      .then(() => {}).catch(debug)
+              .then(() => { }).catch(debug)
           }
           else
             return this.errorResponseAsync(data.serverAddr, data.sessionId, Object.assign(e, { code: 400 }))
-                      .then(() => {}).catch(debug)
-          
+              .then(() => { }).catch(debug)
+
         })
     else
       debug('NOT FOUND EVENT HANDLER', messageType, data)
@@ -233,31 +244,31 @@ class Pipe {
     let method = data.method
     let paths = resource.split('/').filter(p => p.length)
     data.paths = [...paths]
-    
-    if(!paths.length) return undefined
+
+    if (!paths.length) return undefined
     let r1 = paths.shift()
-    switch(r1) {
+    switch (r1) {
       case 'drives':
-        return  paths.length === 0 ? (method === 'GET' ? 'GetDrives' : (method === 'POST' ? 'CreateDrive' : undefined))
-                  : paths.length === 1 ? (method === 'GET' ? 'GetDrive' : (method === 'PATCH' ? 'UpdateDrive' : (method === 'DELETE' ? 'DeleteDrive' : undefined)))
-                    : paths.length === 2 && method === 'GET' ? 'GetDirectories'
-                      : paths.length === 3 && method === 'GET' ? 'GetDirectory'
-                        : paths.length === 4 && method === 'POST' ? 'WriteDir'
-                          : paths.length === 5 && method === 'GET' ? 'DownloadFile' : undefined
+        return paths.length === 0 ? (method === 'GET' ? 'GetDrives' : (method === 'POST' ? 'CreateDrive' : undefined))
+          : paths.length === 1 ? (method === 'GET' ? 'GetDrive' : (method === 'PATCH' ? 'UpdateDrive' : (method === 'DELETE' ? 'DeleteDrive' : undefined)))
+            : paths.length === 2 && method === 'GET' ? 'GetDirectories'
+              : paths.length === 3 && method === 'GET' ? 'GetDirectory'
+                : paths.length === 4 && method === 'POST' ? 'WriteDir'
+                  : paths.length === 5 && method === 'GET' ? 'DownloadFile' : undefined
         break
       case 'media':
         return paths.length === 0 && method === 'GET' ? 'GetMetadatas'
-                  : paths.length === 1 && method === 'GET' ? 'GetMetadata'
-                  : undefined
+          : paths.length === 1 && method === 'GET' ? 'GetMetadata'
+            : undefined
         break
-      case  'users':
+      case 'users':
         return paths.length === 0 ? (method === 'GET' ? 'GetUsers' : (method === 'POST' ? 'CreateUser' : undefined))
-                  : paths.length === 1 ? (method === 'GET' ? 'GetUser' : (method === 'PATCH' ? 'UpdateUserInfo' : undefined))
-                    : paths.length === 2 ? (method === 'GET' ? (paths[1] === 'media-blacklist' ? 'GetMediaBlackList' : undefined)
-                      : (method === 'PUT' ? (paths[1] === 'password' ? 'UpdateUserPasswd' : (paths[1] === 'media-blacklist' ?'SetMediaBlackList' : undefined))
-                       : (method === 'POST' ? 'AddMediaBlackList' 
-                        : (method === 'DELETE' ? 'SubtractUserMediaBlackList' : undefined))))
-                        : undefined
+          : paths.length === 1 ? (method === 'GET' ? 'GetUser' : (method === 'PATCH' ? 'UpdateUserInfo' : undefined))
+            : paths.length === 2 ? (method === 'GET' ? (paths[1] === 'media-blacklist' ? 'GetMediaBlackList' : undefined)
+              : (method === 'PUT' ? (paths[1] === 'password' ? 'UpdateUserPasswd' : (paths[1] === 'media-blacklist' ? 'SetMediaBlackList' : undefined))
+                : (method === 'POST' ? 'AddMediaBlackList'
+                  : (method === 'DELETE' ? 'SubtractUserMediaBlackList' : undefined))))
+              : undefined
         break
       case 'token':
         return paths.length === 0 && method === 'GET' ? 'GetToken' : undefined
@@ -281,7 +292,7 @@ class Pipe {
   async getTokenAsync(data) {
     let { serverAddr, sessionId, user } = data
     let fruit = getFruit()
-    if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    if (!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
     let token = fruit.getToken(user)
     return await this.successResponseJsonAsync(serverAddr, sessionId, token)
   }
@@ -290,27 +301,27 @@ class Pipe {
   async getDrivesAsync(data) {
     let { serverAddr, sessionId, user } = data
     let fruit = getFruit()
-    if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    if (!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
     let drives = fruit.getDriveList(user)
     return await this.successResponseJsonAsync(serverAddr, sessionId, drives)
   }
 
   //create drive
   async createDriveAsync(data) {
-    let { serverAddr, sessionId, user, body} = data
+    let { serverAddr, sessionId, user, body } = data
     let fruit = getFruit()
-    if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    if (!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
     let drives = await fruit.createPublicDriveAsync(user, body)
     return await this.successResponseJsonAsync(serverAddr, sessionId, drives)
   }
-  
+
   //get drive
   async getDriveAsync(data) {
     let { serverAddr, sessionId, user, paths } = data
     let fruit = getFruit()
 
-    if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
-    if(paths.length !== 2 || !isUUID(paths[1])) return await this.errorResponseAsync(serverAddr, sessionId, new Error('resource error'))
+    if (!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    if (paths.length !== 2 || !isUUID(paths[1])) return await this.errorResponseAsync(serverAddr, sessionId, new Error('resource error'))
     let driveUUID = paths[1]
 
     let drive = fruit.getDrive(user, driveUUID)
@@ -322,10 +333,10 @@ class Pipe {
     let { serverAddr, sessionId, user, body, paths } = data
     let fruit = getFruit()
 
-    if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
-    if(paths.length !== 2 || !isUUID(paths[1])) return await this.errorResponseAsync(serverAddr, sessionId, new Error('resource error'))
+    if (!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    if (paths.length !== 2 || !isUUID(paths[1])) return await this.errorResponseAsync(serverAddr, sessionId, new Error('resource error'))
     let driveUUID = paths[1]
-    
+
     let drive = await fruit.updatePublicDriveAsync(user, driveUUID, body)
     return await this.successResponseJsonAsync(serverAddr, sessionId, drive)
   }
@@ -339,10 +350,10 @@ class Pipe {
     let { serverAddr, sessionId, user, paths } = data
     let fruit = getFruit()
 
-    if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    if (!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
 
-    if(paths.length !== 3 || paths[2] !== 'dirs' || !isUUID(paths[1])) return await this.errorResponseAsync(serverAddr, sessionId, new Error('resource error'))
-    
+    if (paths.length !== 3 || paths[2] !== 'dirs' || !isUUID(paths[1])) return await this.errorResponseAsync(serverAddr, sessionId, new Error('resource error'))
+
     let driveUUID = paths[1]
     let dirs = fruit.getDriveDirs(user, driveUUID)
 
@@ -353,9 +364,9 @@ class Pipe {
     let { serverAddr, sessionId, user, body, paths } = data
     let fruit = getFruit()
 
-    if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
-    if(paths.length !== 4 || paths[2] !== 'dirs' || !isUUID(paths[1] || !isUUID(paths[3]))) return await this.errorResponseAsync(serverAddr, sessionId, new Error('resource error'))
-    
+    if (!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    if (paths.length !== 4 || paths[2] !== 'dirs' || !isUUID(paths[1] || !isUUID(paths[3]))) return await this.errorResponseAsync(serverAddr, sessionId, new Error('resource error'))
+
     let driveUUID = paths[1]
     let dirUUID = paths[3]
     let metadata = body.metadata === 'true' ? true : false
@@ -379,15 +390,15 @@ class Pipe {
   async writeDirAsync(data) {
     let { serverAddr, sessionId, user, body, paths } = data
     let fruit = getFruit()
-    
-    if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
-    if(paths.length !== 5 || paths[2] !== 'dirs' || !isUUID(paths[1] || !isUUID(paths[3] || paths[4] !== 'entries'))) 
+
+    if (!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    if (paths.length !== 5 || paths[2] !== 'dirs' || !isUUID(paths[1] || !isUUID(paths[3] || paths[4] !== 'entries')))
       return await this.errorResponseAsync(serverAddr, sessionId, new Error('resource error'))
-    
+
     let driveUUID = paths[1]
     let dirUUID = paths[3]
     let ops = ['mkdir', 'rename', 'dup', 'remove', 'newfile', 'appendfile']
-    if(!ops.includes(body.op))
+    if (!ops.includes(body.op))
       return await this.errorResponseAsync(serverAddr, sessionId, new Error('op error'))
 
     let da = Object.assign({}, body)
@@ -422,7 +433,7 @@ class Pipe {
   }
 
   /********************************************************************************************/
-  
+
   /**
    * {
    *  version: 1,
@@ -441,7 +452,7 @@ class Pipe {
   async mkdirpAsync(data) {
     let { serverAddr, sessionId, user, body, paths } = data
     let fruit = getFruit()
-    if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    if (!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
     let asyncMkdir = Promise.promisify(fruit.mkdirp).bind(fruit)
     let xstat = await asyncMkdir(user, body.driveUUID, body.dirUUID, body.toName)
     debug('mkdirp success', xstat)
@@ -451,7 +462,7 @@ class Pipe {
   async renameAsync(data) {
     let { serverAddr, sessionId, user, body, paths } = data
     let fruit = getFruit()
-    if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    if (!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
     let asyncRename = Promise.promisify(fruit.rename).bind(fruit)
     let xstat = await asyncRename(user, body.driveUUID, body.dirUUID, body.fromName, body.toName, body.overwrite)
     debug('renameAsync success', xstat)
@@ -461,7 +472,7 @@ class Pipe {
   async dupAsync(data) {
     let { serverAddr, sessionId, user, body, paths } = data
     let fruit = getFruit()
-    if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    if (!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
     let asyncDup = Promise.promisify(fruit.dup).bind(fruit)
     let xstat = await asyncDup(user, body.driveUUID, body.dirUUID, body.fromName, body.toName, body.overwrite)
     debug('dupAsync success', xstat)
@@ -471,7 +482,7 @@ class Pipe {
   async removeAsync(data) {
     let { serverAddr, sessionId, user, body, paths } = data
     let fruit = getFruit()
-    if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    if (!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
     let asyncRemove = Promise.promisify(fruit.rimraf).bind(fruit)
     await asyncRemove(user, body.driveUUID, body.dirUUID, body.toName, body.uuid)
     debug('removeAsync success')
@@ -481,7 +492,7 @@ class Pipe {
   async newFileAsync(data) {
     let { serverAddr, sessionId, user, body, paths } = data
     let fruit = getFruit()
-    if(!fruit) return await this.errorStoreResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    if (!fruit) return await this.errorStoreResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
     data.subType = 'WriteDirNewFile'
     let store = new StoreFile(this.tmp, body.size, body.sha256)
     let fpath = await store.storeFileAsync(serverAddr, sessionId, this.connect.saId, this.connect.token)
@@ -494,7 +505,7 @@ class Pipe {
   async appendFileAsync(data) {
     let { serverAddr, sessionId, user, body, paths } = data
     let fruit = getFruit()
-    if(!fruit) return await this.errorStoreResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    if (!fruit) return await this.errorStoreResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
     data.subType = 'WriteDirAppendFile'
     let store = new StoreFile(this.tmp, body.size, body.sha256)
     let fpath = await store.storeFileAsync(serverAddr, sessionId, this.connect.saId, this.connect.token)
@@ -511,8 +522,8 @@ class Pipe {
   async downloadFileAsync(data) {
     let { serverAddr, sessionId, user, body, paths } = data
     let fruit = getFruit()
-    if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
-    if(paths.length !== 6 || paths[2] !== 'dirs' || paths[4] !== 'entries' || !isUUID(paths[1]) || !isUUID(paths[3]) || !isUUID(paths[5])) return await this.errorResponseAsync(serverAddr, sessionId, new Error('resource error'))
+    if (!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    if (paths.length !== 6 || paths[2] !== 'dirs' || paths[4] !== 'entries' || !isUUID(paths[1]) || !isUUID(paths[3]) || !isUUID(paths[5])) return await this.errorResponseAsync(serverAddr, sessionId, new Error('resource error'))
     let driveUUID = paths[1]
     let dirUUID = paths[3]
     let entryUUID = paths[5]
@@ -523,12 +534,12 @@ class Pipe {
   }
 
   /****************************************Media Api**************************************/
-  
+
   // return metadata list
   async getMetadatasAsync(data) {
     let { serverAddr, sessionId, user, body } = data
     let fruit = getFruit()
-    if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    if (!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
     let metadata = fruit.getMetaList(user)
     debug('getMetaList success', metadata)
     return await this.successResponseJsonAsync(serverAddr, sessionId, metadata)
@@ -543,7 +554,7 @@ class Pipe {
   async getMetadataAsync(data) {
     let { serverAddr, sessionId, user, body, paths } = data
     let fruit = getFruit()
-    if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    if (!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
 
     const fingerprint = paths[1]
 
@@ -568,21 +579,21 @@ class Pipe {
     else if (body.alt === 'thumbnail') {
       data.subType = 'GetMediaThumbnail'
       let thumb = await this.getMediaThumbnailAsync(user, fingerprint, body)
-      if(thumb){
+      if (thumb) {
         return await this.fetchFileResponseAsync(thumb, serverAddr, sessionId)
       } else {
         return await this.errorFetchResponseAsync(serverAddr, sessionId, new Error('thumbnail not found'))
       }
-    }else{
+    } else {
       return await this.errorResponseAsync(serverAddr, sessionId, new Error('operation not found'))
     }
-    
+
   }
-  
+
   getMediaThumbnail(user, fingerprint, query, callback) {
     //getMediaThumbnail
     let fruit = getFruit()
-    if(!fruit) return callback(new Error('fruitmix not start'))
+    if (!fruit) return callback(new Error('fruitmix not start'))
     fruit.getThumbnail(user, fingerprint, query, (err, thumb) => {
       if (err) return callback(err)
       if (typeof thumb === 'string') {
@@ -610,18 +621,18 @@ class Pipe {
   async getUsersAsync(data) {
     let { serverAddr, sessionId, user } = data
     let fruit = getFruit()
-    if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    if (!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
     // let userList = user.isAdmin ? fruit.getUsers() : fruit.displayUsers()
-    let userList = fruit.getUsers() 
+    let userList = fruit.getUsers()
     return await this.successResponseJsonAsync(serverAddr, sessionId, userList)
   }
-  
+
   // not first user
   // create new user
   async createUserAsync(data) {
     let { serverAddr, sessionId, user, body } = data
     let fruit = getFruit()
-    if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    if (!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
     let newUser = await fruit.createUserAsync(user, body)
     return await this.successResponseJsonAsync(serverAddr, sessionId, newUser)
   }
@@ -633,12 +644,12 @@ class Pipe {
   async getUserAsync(data) {
     let { serverAddr, sessionId, user, body, paths } = data
     let fruit = getFruit()
-    if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
-    
+    if (!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+
     let err = {}, userUUID = paths[1]
-    if(user.uuid === userUUID || user.isAdmin) {
+    if (user.uuid === userUUID || user.isAdmin) {
       let u = fruit.findUserByUUID(userUUID)
-      if(u) return await this.successResponseJsonAsync(serverAddr, sessionId, u)
+      if (u) return await this.successResponseJsonAsync(serverAddr, sessionId, u)
       err = new Error('user not find')
       err.code = 404
       return await this.errorResponseAsync(serverAddr, sessionId, err)
@@ -652,8 +663,8 @@ class Pipe {
   async updateUserInfoAsync(data) {
     let { serverAddr, sessionId, user, body, paths } = data
     let fruit = getFruit()
-    if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
-    
+    if (!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+
     let u, userUUID = paths[1]
     u = await fruit.updateUserAsync(user, userUUID, body)
     return await this.successResponseJsonAsync(serverAddr, sessionId, u)
@@ -662,10 +673,10 @@ class Pipe {
   async updateUserPasswdAsync(data) {
     let { serverAddr, sessionId, user, body, paths } = data
     let fruit = getFruit()
-    if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
-    
+    if (!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+
     let userUUID = paths[1]
-    if(user.uuid !== userUUID) return await this.errorResponseAsync(serverAddr, sessionId, new Error('user uuid mismatch'))
+    if (user.uuid !== userUUID) return await this.errorResponseAsync(serverAddr, sessionId, new Error('user uuid mismatch'))
 
     await fruit.updateUserPasswordAsync(user, userUUID, body)
     return await this.successResponseJsonAsync(serverAddr, sessionId, {})
@@ -674,10 +685,10 @@ class Pipe {
   async getUserMediaBlackListAsync(data) {
     let { serverAddr, sessionId, user, body, paths } = data
     let fruit = getFruit()
-    if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
-    
+    if (!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+
     let userUUID = paths[1]
-    if(user.uuid !== userUUID) return await this.errorResponseAsync(serverAddr, sessionId, new Error('user uuid mismatch'))
+    if (user.uuid !== userUUID) return await this.errorResponseAsync(serverAddr, sessionId, new Error('user uuid mismatch'))
     let list = await fruit.getMediaBlacklistAsync(user)
     return await this.successResponseJsonAsync(serverAddr, sessionId, list)
   }
@@ -688,8 +699,8 @@ class Pipe {
   async setUserMediaBlackListAsync(data) {
     let { serverAddr, sessionId, user, body, paths } = data
     let fruit = getFruit()
-    if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
-    
+    if (!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+
     let userUUID = paths[1]
     let list = await fruit.setMediaBlacklistAsync(user, body.blacklist)
     return await this.successResponseJsonAsync(serverAddr, sessionId, list)
@@ -701,10 +712,10 @@ class Pipe {
   async addUserMediaBlackListAsync(data) {
     let { serverAddr, sessionId, user, body, paths } = data
     let fruit = getFruit()
-    if(!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
-    
+    if (!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+
     let userUUID = paths[1]
-    if(user.uuid !== userUUID) return await this.errorResponseAsync(serverAddr, sessionId, new Error('user uuid mismatch'))
+    if (user.uuid !== userUUID) return await this.errorResponseAsync(serverAddr, sessionId, new Error('user uuid mismatch'))
 
     let list = await fruit.addMediaBlacklistAsync(user, body.blacklist)
     return await this.successResponseJsonAsync(serverAddr, sessionId, list)
@@ -716,10 +727,10 @@ class Pipe {
   async subtractUserMediaBlackListAsync(data) {
     let { serverAddr, sessionId, user, body, paths } = data
     let fruit = getFruit()
-    if(!fruit)  return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
-    
+    if (!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+
     let userUUID = paths[1]
-    if(user.uuid !== userUUID) return await this.errorResponseAsync(serverAddr, sessionId, new Error('user uuid mismatch'))
+    if (user.uuid !== userUUID) return await this.errorResponseAsync(serverAddr, sessionId, new Error('user uuid mismatch'))
 
     let list = await fruit.subtractMediaBlacklistAsync(user, body.blacklist)
     return await this.successResponseJsonAsync(serverAddr, sessionId, list)
@@ -735,12 +746,12 @@ class Pipe {
    */
   fetchFileResponse(fpath, cloudAddr, sessionId, callback) {
     let finished = false
-    let url = cloudAddr+ '/s/v1/stations/' + this.connect.saId + '/response/' + sessionId
+    let url = cloudAddr + '/s/v1/stations/' + this.connect.saId + '/response/' + sessionId
     let rs = fs.createReadStream(fpath)
     let addr = cloudAddr.split(':')
     let options = {
       hostname: addr[0],
-      path:'/s/v1/stations/' + this.connect.saId + '/response/' + sessionId,
+      path: '/s/v1/stations/' + this.connect.saId + '/response/' + sessionId,
       method: 'POST',
       headers: {
         'Authorization': this.connect.token
@@ -748,20 +759,20 @@ class Pipe {
     }
 
     let error = err => {
-      if(finished) return 
+      if (finished) return
       debug('error fetch', err)
       finished = true
       callback(err)
     }
 
     let finish = () => {
-      if(finished) return
+      if (finished) return
       finished = true
       debug('success fetch', fpath)
       callback(null)
     }
 
-    if(addr.length === 2) options.port = addr[1]
+    if (addr.length === 2) options.port = addr[1]
 
     let req = http.request(options, res => {
       res.setEncoding('utf8')
@@ -789,15 +800,15 @@ class Pipe {
   }
 
   async errorFetchResponseAsync(cloudAddr, sessionId, err) {
-    let url = cloudAddr + '/s/v1/stations/' + this.connect.saId + '/response/' + sessionId +'/pipe/fetch'
+    let url = cloudAddr + '/s/v1/stations/' + this.connect.saId + '/response/' + sessionId + '/pipe/fetch'
     let error = { code: 400, message: err.message }
-    let params = error 
+    let params = error
     debug('pipe handle error', params)
     await requestAsync('POST', url, { params }, { 'Authorization': this.connect.token })
   }
 
   async errorResponseAsync(cloudAddr, sessionId, err) {
-    let url = cloudAddr + '/s/v1/stations/' + this.connect.saId + '/response/' + sessionId +'/json'
+    let url = cloudAddr + '/s/v1/stations/' + this.connect.saId + '/response/' + sessionId + '/json'
     let error = { code: 400, message: err.message }
     let params = { error }
     debug('pipe handle error', params)
@@ -805,7 +816,7 @@ class Pipe {
   }
 
   async errorStoreResponseAsync(cloudAddr, sessionId, err) {
-    let url = cloudAddr + '/s/v1/stations/' + this.connect.saId + '/response/' + sessionId +'/pipe/store'
+    let url = cloudAddr + '/s/v1/stations/' + this.connect.saId + '/response/' + sessionId + '/pipe/store'
     let error = { code: 400, message: err.message }
     let params = { error }
     debug('pipe handle error', params)
@@ -830,7 +841,7 @@ class Pipe {
   async successResponseJsonAsync(cloudAddr, sessionId, data) {
     let url = cloudAddr + '/s/v1/stations/' + this.connect.saId + '/response/' + sessionId + '/json'
     let params = data
-    debug('aaaaaaa',params)
+    debug('aaaaaaa', params)
     await requestAsync('POST', url, { params }, { 'Authorization': this.connect.token })
     debug('request success')
   }
