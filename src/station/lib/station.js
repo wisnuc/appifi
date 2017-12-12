@@ -17,7 +17,7 @@ const { saveObjectAsync } = require('../../lib/utils')
 const { FILE, CONFIG } = require('./const')
 const broadcast = require('../../common/broadcast')
 const Pipe = require('./pipe')
-const { Connect, CONNECT_STATE } = require('./connect')
+const { MQTT, CONNECT_STATE } = require('./mqtt')
 const Tickets = require('./tickets').Tickets
 const getFruit = require('../../fruitmix')
 
@@ -37,11 +37,12 @@ class Station {
     this.privateKey = undefined
     this.station = undefined
     this.pipe = undefined
-    this.connects = undefined
     this.initialized = false
     this.lock = false
-    this.init()
     this.token = undefined
+    this.mqtt = undefined
+    this.deinited = false
+    this.init()
   }
 
   init () {
@@ -50,50 +51,23 @@ class Station {
       await this.startAsync(froot) // init station for keys
       try {
         this.station = await this.registerAsync(froot)
-        // start mqtt
-        require('./mqtt')()
         // get station token
-        await this._getToken()
-
-        // TODO:
+        this.token = await this.getToken()
         const pipe = new Pipe(this)
+         // start mqtt
+        this.mqtt = new MQTT(this)
+        // register 
+        this.mqtt.register(pipe)
+        this.mqtt.connect()
+        this.initialized = true
 
+        await this.updateCloudUsersAsync()
       } catch (e) {
         debug('Station start error!', e)
+
+        //TODO: retry
       }
-      // try {
-      //   debug('station start building')
-      //   // await this.registerAsync(froot)
-      //   this.station = await this.registerAsync(froot)
-        
-      //   this.getServerAddresses().forEach(async addr => {
-      //     // connect to cloud
-      //     let connect = new Connect(this)
-      //     connect.on('ConnectStateChange', state => {
-      //       debug('state change :', state)
-      //       if (state === CONNECT_STATE.CONNED) {
-      //         this.updateCloudUsersAsync()
-      //           .then(() => { debug('station update success') })
-      //           .catch(e => debug(e))
-      //       }
-      //     })
-      //     connect.pipe = new Pipe(connect)
-
-      //     this.connects = this.connects ? this.connects.push(connect) : [connect]
-
-      //     await connect.initAsync(addr) // connect to cloud and get token
-      //   })
-
-      //   this.tickets = new Tickets(this)
-      //   this.initialized = true
-
-      //   broadcast.emit('StationStartDone', this)
-      // } catch (e) {
-      //   debug('Station start error!', e)
-      // }
     }))
-
-    // UserList Changed Notify
 
     broadcast.on('UserListChanged', async () => {
       if (this.initialized) {
@@ -103,8 +77,6 @@ class Station {
           .catch(e => debug(e))
       }
     })
-
-    // deinit
     broadcast.on('StationStop', this.deinit.bind(this))
   }
 
@@ -112,18 +84,17 @@ class Station {
    * get token from cloud, when appifi start
    * @param {string} stationId
    */
-  async _getToken () {
+  async getToken () {
     try {
-      debug('get token')
+      debug('Start Get Station Token')
       let url = CONFIG.CLOUD_PATH + 's/v1/stations/' + this.station.id + '/token'
-      debug(url)
       let res = await requestAsync('get', url, {}, {})
       if (res.status === 200) {
         let data = res.body.data
         let secretKey = ursa.createPrivateKey(this.privateKey)
         let seed = secretKey.decrypt(data.encryptData, 'base64', 'utf8')
         if (seed !== data.seed) throw new Error('public key authorization faild')
-        this.token = data.token
+        return data.token
       } else {
         throw new Error(res.body.message)
       }
@@ -134,18 +105,17 @@ class Station {
   }
 
   deinit() {
+    this.deinited = true
+    this.initialized = false
     this.publicKey = undefined
     this.privateKey = undefined
     this.station = undefined
     this.froot = undefined
     this.pbkPath = undefined
     this.pvkPath = undefined
-    if (this.connects)
-      this.connects.forEach(conn => conn.deinit())
-    this.connects = undefined
     this.tickets = undefined
-    this.initialized = false
     this.lock = false
+    if(this.mqtt) this.mqtt.destory()
     debug('station deinit')
     broadcast.emit('StationStopDone', this)
   }
@@ -164,7 +134,6 @@ class Station {
         return
       }
       return await this.createKeysAsync(froot)
-
     } catch (e) {
       if (e.code === 'ENOENT')
         return await this.createKeysAsync(froot)
@@ -248,7 +217,7 @@ class Station {
   async updateCloudUsersAsync() {
     let fruit = getFruit()
     if (!fruit) throw new Error('fruitmix not start')
-    let userIds = fruit.userList.users.filter(u => !!u.global && !disabled).map(u => u.global.id)
+    let userIds = fruit.userList.users.filter(u => !!u.global && !u.disabled).map(u => u.global.id)
     let LANIP = this.getLANIP()
     await this.updateCloudStationAsync({ userIds, LANIP, name: this.station.name })
   }
@@ -275,7 +244,7 @@ class Station {
   }
 
   async updateCloudStationAsync(props) {
-    if (this.initialized && this.getConnect()) {
+    if (this.initialized && this.mqtt.isConnected()) {
       let url = CONFIG.CLOUD_PATH + 's/v1/stations/' + this.station.id
       let token = this.token
       let opts = { 'Authorization': token }
@@ -297,9 +266,8 @@ class Station {
 
   //FIXME: change ticket
   stationFinishStart(req, res, next) {
-    if (this.initialized && this.getConnect()) {
-      req.body.station = this.station
-      req.body.Connect = this.getConnect()
+    if (this.initialized && this.mqtt.isConnected()) {
+      req.station = this.station
       req.Tickets = this.tickets
       return next()
     }
@@ -310,7 +278,7 @@ class Station {
   info() {
     if (this.initialized) {
       let info = Object.assign({}, this.station)
-      info.connectState = this.connects.map(c => c.getState())
+      info.connectState = this.mqtt.getState()
       info.pbk = this.publicKey
       return info
     }
@@ -352,26 +320,6 @@ class Station {
     } finally {
       this.lock = false
     }
-  }
-
-  getServerAddresses() {
-    return [CONFIG.CLOUD_PATH]
-  }
-
-  // getToken() {
-  //   return this.getConnect().token
-  // }
-
-  getConnect() {
-    let index = parseInt(Math.random() * 10) % this.connects.length
-    if (!this.connects[index].isConnected()) {
-      for (connect in this.connects) {
-        if (connect.isConnected())
-          return connect
-      }
-      return undefined
-    }
-    return this.connects[index]
   }
 }
 

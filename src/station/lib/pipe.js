@@ -152,13 +152,16 @@ class StoreFile {
 
 /**
  * service for connect message 'pipe'
- * 
+ *  ctx : stationh
  */
 class Pipe {
   constructor(ctx) {
     this.tmp = path.join(ctx.froot, 'tmp')
     // this.connect = ctx
     // this.connect.register('pipe', this.handle.bind(this))
+    this.ctx = ctx
+    this.token = ctx.token
+    this.stationId = ctx.station.id
     this.handlers = new Map()
     this.register()
   }
@@ -495,7 +498,7 @@ class Pipe {
     if (!fruit) return await this.errorStoreResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
     data.subType = 'WriteDirNewFile'
     let store = new StoreFile(this.tmp, body.size, body.sha256)
-    let fpath = await store.storeFileAsync(serverAddr, sessionId, this.connect.saId, this.connect.token)
+    let fpath = await store.storeFileAsync(serverAddr, sessionId, this.stationId, this.token)
     let asyncNewFile = Promise.promisify(fruit.createNewFile).bind(fruit)
     let xstat = await asyncNewFile(user, body.driveUUID, body.dirUUID, body.toName, fpath, body.sha256, body.overwrite)
     debug('newFileAsync success', xstat)
@@ -508,7 +511,7 @@ class Pipe {
     if (!fruit) return await this.errorStoreResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
     data.subType = 'WriteDirAppendFile'
     let store = new StoreFile(this.tmp, body.size, body.sha256)
-    let fpath = await store.storeFileAsync(serverAddr, sessionId, this.connect.saId, this.connect.token)
+    let fpath = await store.storeFileAsync(serverAddr, sessionId, this.stationId, this.token)
     let asyncAppendFile = Promise.promisify(fruit.appendFile).bind(fruit)
 
 
@@ -746,15 +749,15 @@ class Pipe {
    */
   fetchFileResponse(fpath, cloudAddr, sessionId, callback) {
     let finished = false
-    let url = cloudAddr + '/s/v1/stations/' + this.connect.saId + '/response/' + sessionId
+    let url = cloudAddr + '/s/v1/stations/' + this.stationId + '/response/' + sessionId
     let rs = fs.createReadStream(fpath)
     let addr = cloudAddr.split(':')
     let options = {
       hostname: addr[0],
-      path: '/s/v1/stations/' + this.connect.saId + '/response/' + sessionId,
+      path: '/s/v1/stations/' + this.stationId + '/response/' + sessionId,
       method: 'POST',
       headers: {
-        'Authorization': this.connect.token
+        'Authorization': this.token
       }
     }
 
@@ -800,34 +803,34 @@ class Pipe {
   }
 
   async errorFetchResponseAsync(cloudAddr, sessionId, err) {
-    let url = cloudAddr + '/s/v1/stations/' + this.connect.saId + '/response/' + sessionId + '/pipe/fetch'
+    let url = cloudAddr + '/s/v1/stations/' + this.stationId + '/response/' + sessionId + '/pipe/fetch'
     let error = { code: 400, message: err.message }
     let params = error
     debug('pipe handle error', params)
-    await requestAsync('POST', url, { params }, { 'Authorization': this.connect.token })
+    await requestAsync('POST', url, { params }, { 'Authorization': this.token })
   }
 
   async errorResponseAsync(cloudAddr, sessionId, err) {
-    let url = cloudAddr + '/s/v1/stations/' + this.connect.saId + '/response/' + sessionId + '/json'
+    let url = cloudAddr + '/s/v1/stations/' + this.stationId + '/response/' + sessionId + '/json'
     let error = { code: 400, message: err.message }
     let params = { error }
     debug('pipe handle error', params)
-    await requestAsync('POST', url, { params }, { 'Authorization': this.connect.token })
+    await requestAsync('POST', url, { params }, { 'Authorization': this.token })
   }
 
   async errorStoreResponseAsync(cloudAddr, sessionId, err) {
-    let url = cloudAddr + '/s/v1/stations/' + this.connect.saId + '/response/' + sessionId + '/pipe/store'
+    let url = cloudAddr + '/s/v1/stations/' + this.stationId + '/response/' + sessionId + '/pipe/store'
     let error = { code: 400, message: err.message }
     let params = { error }
     debug('pipe handle error', params)
-    await requestAsync('POST', url, { params }, { 'Authorization': this.connect.token })
+    await requestAsync('POST', url, { params }, { 'Authorization': this.token })
   }
 
   async successStoreResponseAsync(cloudAddr, sessionId, data) {
-    let url = cloudAddr + '/s/v1/stations/' + this.connect.saId + '/response/' + sessionId + '/pipe/store'
+    let url = cloudAddr + '/s/v1/stations/' + this.stationId + '/response/' + sessionId + '/pipe/store'
     let params = { data }
     debug(params)
-    await requestAsync('POST', url, { params }, { 'Authorization': this.connect.token })
+    await requestAsync('POST', url, { params }, { 'Authorization': this.token })
     debug('request success')
   }
 
@@ -839,10 +842,10 @@ class Pipe {
   // }
 
   async successResponseJsonAsync(cloudAddr, sessionId, data) {
-    let url = cloudAddr + '/s/v1/stations/' + this.connect.saId + '/response/' + sessionId + '/json'
+    let url = cloudAddr + '/s/v1/stations/' + this.stationId + '/response/' + sessionId + '/json'
     let params = data
     debug('aaaaaaa', params)
-    await requestAsync('POST', url, { params }, { 'Authorization': this.connect.token })
+    await requestAsync('POST', url, { params }, { 'Authorization': this.token })
     debug('request success')
   }
 

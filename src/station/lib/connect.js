@@ -17,6 +17,7 @@ const CONNECT_STATE = {
   CONNED: 'CONNECTED',
   CONNING: 'CONNECT_ING'
 }
+
 Object.freeze(CONNECT_STATE)
 
 function createSocket (address, saId, privateKey, callback) {

@@ -1,59 +1,96 @@
-/* ************************************************************************** */
-/*                                                                            */
-/*                                                        :::      ::::::::   */
-/*   mqtt.js                                            :+:      :+:    :+:   */
-/*                                                    +:+ +:+         +:+     */
-/*   By: JianJin Wu <mosaic101@foxmail.com>         +#+  +:+       +#+        */
-/*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2017/12/07 13:46:13 by JianJin Wu        #+#    #+#             */
-/*   Updated: 2017/12/07 17:59:42 by JianJin Wu       ###   ########.fr       */
-/*                                                                            */
-/* ************************************************************************** */
-
 const debug = require('debug')('station')
 const mqtt = require('mqtt')
 const { CONFIG } = require('./const')
+const EventEmiter = require('events').EventEmitter
 
-module.exports = (stationId) => {
-  debug(stationId)
-  const payload = JSON.stringify({ stationId: stationId })
-  const settings = {
-    clientId: 'mqttjs_' + Math.random().toString(16).substr(2, 8),
-    clean: false, // set to false to receive QoS 1 and 2 messages while offline
-    will: {
-      topic: `station/disconnect`,
-      payload: payload, // string or buffer
-      qos: 1,
-      retain: false
-    }
-  }
-  const client = mqtt.connect(CONFIG.MQTT_URL, settings)
-
-  // connect
-  client.on('connect', function (connack) {
-    debug('station connect successfully!', connack)
-    // publish topic
-    client.publish(`station/connect`, payload, { qos: 1 })
-    // subscribe topic 
-    client.subscribe(`station/pipe`, { qos: 1 })
-  })
-
-  // message
-  client.on('message', function (topic, message, packet) {
-    // message is Buffer
-    debug(`message`, topic, message, message.toString(), Date.now())
-    // client.end()
-    // TODO: 
-    
-  })
-
-  // reconnectregister
-  client.on('reconnect', function (err) {
-    debug('reconnect', err)
-  })
-
-  // close
-  client.on('close', function () {
-    debug('close')
-  })
+const CONNECT_STATE = {
+  DISCED: 'DISCONNECTED',
+  DISCING: 'DISCONNECT_ING',
+  CONNED: 'CONNECTED',
+  CONNING: 'CONNECT_ING',
+  RECONNING: 'RECONNECT_ING',
+  UNKNOWN : 'UNKNOWN'
 }
+
+class MQTT extends EventEmiter {
+
+  constructor(ctx) {
+    super()
+    this.state = CONNECT_STATE.DISCED
+    this.ctx = ctx 
+    this.client = undefined
+    this.payload = JSON.stringify({ stationId: ctx.station.id })
+    this.settings = {
+      clientId: 'mqttjs_' + Math.random().toString(16).substr(2, 8),
+      clean: false,
+      will: {
+        topic: `station/disconnect`,
+        payload: this.payload,
+        qos: 1,
+        retain: false
+      }
+    }
+    this.handlers = new Map()
+  }
+
+  connect(addr, callback) {
+    const client = mqtt.connect(CONFIG.MQTT_URL, this.settings)
+    client.on('connect', connack => {
+      debug('station connect successfully!', connack)
+      client.publish(`station/connect`, this.payload, { qos: 1 })
+      client.subscribe(`station/pipe`, { qos: 1 })
+    })
+  
+    client.on('message', (topic, message, packet) => {
+      debug(`message`, topic, message, message.toString(), Date.now())
+      let data = JSON.parse(message)
+      this.dispatch(data.type, data)
+    })
+    client.on('reconnect', err => {
+      debug('reconnect', err)
+    })
+    client.on('error', err => {
+      debug('error:', err)
+    })
+    client.on('close', () => {
+      debug('close')
+    })
+    this.client = client
+  }
+
+  destory() {
+    this.ctx = null
+    if(this.client) {
+      this.client.removeAllListeners()
+      this.client.on('error', () => {})
+      this.client.end()
+      this.client = undefined
+    }
+    this.handlers.clear()
+  }
+
+  register(key, value) {
+    this.handlers.set(key, value)
+  }
+
+  dispatch(eventType, data) {
+    if (this.handlers.has(eventType))
+      this.handlers.get(eventType)(data)
+    else
+      debug('NOT FOUND EVENT HANDLER', eventType, data)
+  }
+
+  getState() {
+    if(!this.client) return CONNECT_STATE.DISCED
+    return this.client.disconnected ? CONNECT_STATE.DISCED : this.client.disconnecting ? CONNECT_STATE.DISCING
+                : this.client.connected ? CONNECT_STATE.CONNED : this.client.reconnecting ? CONNECT_STATE.reconnecting
+                 : CONNECT_STATE.UNKNOWN
+  }
+
+  isConnected() {
+    return this.getState() === CONNECT_STATE.CONNED
+  }
+}
+
+module.exports.MQTT = MQTT
+module.exports.CONNECT_STATE = CONNECT_STATE
