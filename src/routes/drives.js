@@ -25,14 +25,28 @@ const fruitless = (req, res, next) => getFruit() ? next() : next(EFruitUnavail)
 
 const EMPTY_SHA256_HEX = crypto.createHash('sha256').digest('hex')
 
-/**
-Get a fruitmix drive
-*/
-router.get('/', fruitless, auth.jwt(), (req, res) => 
-  res.status(200).json(getFruit().getDriveList(req.user)))
+const fruit = (req, res, next) => {
+  req.fruit = getFruit()
+  if (req.fruit) {
+    next()
+  } else {
+    res.status(503).json({ message: 'fruitmix not available' })
+  }
+}
 
 /**
-Create a fruitmix drive
+DriveList GET
+*/
+/**
+router.get('/', fruitless, auth.jwt(), (req, res) => 
+  res.status(200).json(getFruit().getDriveList(req.user)))
+**/
+router.get('/', fruit, auth.jwt(), (req, res, next) => 
+  req.fruit.getDriveList2(req.user, (err, list) => 
+    err ? next(err) : res.status(200).json(list)))
+
+/**
+DriveList POST TODO change to callback
 */
 router.post('/', fruitless, auth.jwt(), (req, res, next) => 
   getFruit().createPublicDriveAsync(req.user, req.body)
@@ -40,10 +54,11 @@ router.post('/', fruitless, auth.jwt(), (req, res, next) =>
     .catch(next))
 
 /**
-Get single drive
+Drive GET
 */
-router.get('/:driveUUID', fruitless, auth.jwt(), (req, res, next) => 
-  res.status(200).json(getFruit().getDrive(req.user, req.params.driveUUID)))
+router.get('/:driveUUID', fruit, auth.jwt(), (req, res, next) => 
+  req.fruit.getDrive2(req.user, req.params.driveUUID, (err, drive) => 
+    err ? next(err) : res.status(200).json(drive)))
 
 /**
 Patch a drive, only public drive is allowed
@@ -143,15 +158,7 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
 
   let dir = fruit.driveList.getDriveDir(driveUUID, dirUUID)
   if (!dir) {
-
-    console.log('======')
-    console.log('driveUUID', driveUUID)
-    console.log('dirUUID', dirUUID)
-    console.log('dir not fond')
-    console.log('======')
-
-    process.exit(1)
-    return
+    return res.status(404).end()
   }
 
   // set dicer to null to indicate all parts have been generated. 
