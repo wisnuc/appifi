@@ -261,6 +261,10 @@ class Pipe {
         break
       case 'token':
         return paths.length === 0 && method === 'GET' ? 'GetToken' : undefined
+      case 'download':
+        return paths.length === 0 && method === 'GET' ? 'getSummary' 
+                  : paths.length === 1 ? (method === 'PATCH' ? 'patchTorrent' : (paths[0] === 'magnet' ? 'addMagnet' : 'addTorrent'))
+                  : undefined
       default:
         return undefined
         break
@@ -713,6 +717,23 @@ class Pipe {
     return await this.successResponseJsonAsync(serverAddr, sessionId, list)
   }
 
+  async getSummaryAsync(data) {
+    let { serverAddr, sessionId, user, body, paths } = data
+    return await this.successResponseJsonAsync(serverAddr, sessionId)
+  }
+
+  async patchTorrentAsync(data) {
+    
+  }
+
+  async addMagnetAsync(data) {
+    
+  }
+
+  async addTorrentAsync(data) {
+    
+  }
+
   //fetch file -- client download --> post file to cloud
   /**
    * 
@@ -854,6 +875,11 @@ class Pipe {
     //media
     this.handlers.set('GetMetadatas', this.getMetadatasAsync.bind(this))
     this.handlers.set('GetMetadata', this.getMetadataAsync.bind(this))
+    //download
+    this.handlers.set('getSummary', this.getSummaryAsync.bind(this))
+    this.handlers.set('patchTorrent', this.patchTorrentAsync.bind(this))
+    this.handlers.set('addMagnet', this.addMagnetAsync.bind(this))
+    this.handlers.set('addTorrent', this.addTorrentAsync.bind(this))
   }
 }
 

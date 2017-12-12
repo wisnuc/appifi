@@ -208,7 +208,7 @@ class Station {
   async updateCloudUsersAsync() {
     let fruit = getFruit()
     if(!fruit) throw new Error('fruitmix not start')
-    let userIds = fruit.userList.users.filter(u=> !!u.global && !disabled).map(u => u.global.id)
+    let userIds = fruit.userList.users.filter(u=> !!u.global && !u.disabled).map(u => u.global.id)
     let LANIP = this.getLANIP()
     await this.updateCloudStationAsync({ userIds, LANIP, name: this.station.name })
   }

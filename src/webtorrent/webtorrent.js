@@ -119,7 +119,7 @@ class WebTorrentService {
     try {
       let tasks = JSON.parse(fs.readFileSync(this.catchPath))
       this.downloaded = tasks.downloaded
-      this.downloaded.forEach(item => item.log = log)
+      this.downloaded.forEach(item => item.log = logA)
       tasks.downloading.forEach((file, index) => {
         if (file.torrentPath) 
           this.addTorrent({ torrentPath: file.torrentPath, dirUUID: file.dirUUID, user: {uuid: file.userUUID} })
