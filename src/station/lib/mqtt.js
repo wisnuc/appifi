@@ -38,7 +38,7 @@ class MQTT extends EventEmiter {
     client.on('connect', connack => {
       debug('station connect successfully!', connack)
       client.publish(`station/connect`, this.payload, { qos: 1 })
-      client.subscribe(`station/pipe`, { qos: 1 })
+      client.subscribe(`station/${this.ctx.station.id}/pipe`, { qos: 1 })
     })
   
     client.on('message', (topic, message, packet) => {
