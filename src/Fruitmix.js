@@ -598,26 +598,101 @@ class Fruitmix extends EventEmitter {
     return drives
   }
 
+  /**
+  Drive Metadata is the Drive Object
+  Drive Data is the files and directories inside the Drive
+  */
+
+  // internal
+  userCanReadDriveMetadata (user, drive) {
+    if (drive.type === 'private' && drive.owner === user.uuid) return true
+    if (drive.type === 'public') {
+      if (user.isAdmin) return true
+      if (drv.writelist === '*') return true
+      if (Array.isArray(drv.writelist) && drv.writelist.includes(user.uuid)) return true
+      if (drv.readlist === '*') return true
+      if (Array.isArray(drv.readlist) && drv.readlist.includes(user.uuid)) return true
+    } 
+    return false
+  }
+
+  // internal
+  userCanWriteDriveMetadata (user, drive) {
+    if (drive.type === 'private' && drive.owner === user.uuid) return true
+    if (drive.type === 'public' && user.isAdmin) return true
+    return false
+  }
+
+  // internal
+  userCanReadDriveData (user, drive) {
+    if (drive.type === 'private' && drive.owner === user.uuid) return true
+    if (drive.type === 'public') {
+      if (drv.writelist === '*') return true
+      if (Array.isArray(drv.writelist) && drv.writelist.includes(user.uuid)) return true
+      if (drv.readlist === '*') return true
+      if (Array.isArray(drv.readlist) && drv.readlist.includes(user.uuid)) return true
+    }
+    return false
+  }
+
+  // internal
+  userCanWriteDriveData (user, drive) {
+    if (drive.type === 'private' && drive.owner === user.uuid) return true
+    if (drive.type === 'public') {
+      if (drv.writelist === '*') return true
+      if (Array.isArray(drv.writelist) && drv.writelist.includes(user.uuid)) return true
+    }
+    return false
+  }
+
+  /**
+  TODO this function is used by pipe
+  */
   getDriveList (user) {
     let drives = this.driveList.drives.filter(drv => {
       if (drv.type === 'private' && drv.owner === user.uuid) return true
-      if (drv.type === 'public' &&
-        (drv.writelist.includes(user.uuid) || drv.readlist.includes(user.uuid) || user.isAdmin)) {
-        return true
+      if (drv.type === 'public') {
+        if (user.isAdmin) return true
+        if (drv.writelist === '*') return true
+        if (Array.isArray(drv.writelist) && drv.writelist.includes(user.uuid)) return true
+        if (drv.readlist === '*') return true
+        if (Array.isArray(drv.readlist) && drv.readlist.includes(user.uuid)) return true
       }
       return false
     })
-
     return drives
   }
 
+  /**
+  API: DriveList [GET]
+  */
+  getDriveList2 (user, callback) {
+    let drives = this.driveList.drives.filter(drv => {
+      if (drv.type === 'private' && drv.owner === user.uuid) return true
+      if (drv.type === 'public') {
+        if (user.isAdmin) return true
+        if (drv.writelist === '*') return true
+        if (Array.isArray(drv.writelist) && drv.writelist.includes(user.uuid)) return true
+        if (drv.readlist === '*') return true
+        if (Array.isArray(drv.readlist) && drv.readlist.includes(user.uuid)) return true
+      }
+      return false
+    })
+    process.nextTick(() => callback(null, drives))
+  }
+
+  /**
+  API: DriveList [POST]
+  */
   async createPublicDriveAsync (user, props) {
     if (!user) throw Object.assign(new Error('Invaild user'), { status: 400 })
-    if (!user.isAdmin) { throw Object.assign(new Error(`requires admin priviledge`), { status: 403 }) }
-
+    if (!user.isAdmin) throw Object.assign(new Error(`requires admin priviledge`), { status: 403 })
     return this.driveList.createPublicDriveAsync(props)
   }
 
+  /**
+  TODO
+  */
   getDrive (user, driveUUID) {
     if (!this.userCanRead(user, driveUUID)) throw Object.assign(new Error('permission denied'), { status: 403 })
 
@@ -628,9 +703,25 @@ class Fruitmix extends EventEmitter {
   }
 
   /**
-    uuid, type, writelist, readlist, label 
+  API: Drive [GET]
+  */
+  getDrive2 (user, driveUUID, callback) {
+    let drive = this.driveList.drives.find(drv => drv.uuid === driveUUID)
+    if (!drive || !this.userCanReadDriveMetadata(user, drive)) {
+      let err = new Error(`drive ${driveUUID} not found`)
+      err.code = 'ENOTFOUND'
+      err.status = 404
+      process.nextTick(() => callback(err))
+    } else {
+      process.nextTick(() => callback(null, drive))
+    } 
+  }
+
+  /**
+  uuid, type, writelist, readlist, label 
   */
   async updatePublicDriveAsync (user, driveUUID, props) {
+    
     if (!user.isAdmin) {
       throw Object.assign(new Error(`requires admin priviledge`), { status: 403 })
     }
@@ -640,35 +731,54 @@ class Fruitmix extends EventEmitter {
       throw Object.assign(new Error(`drive ${driveUUID} not found`), { status: 404 })
     }
 
+    // validate prop names
     if (drive.type === 'private') {
+      // private drive is not allowed to update
       throw Object.assign(new Error(`private drive is not allowed to update`), { status: 403 })
+    } else if (drive.type === 'public' && drive.tag === 'built-in') {
+      // built-in public drive, only label can be updated
+      if (!Object.getOwnPropertyNames(props).every(name => name === 'label')) {
+        let err = new Error('Only label is allowed to update for built-in public drive')     
+        err.code = 'EBADREQUEST'
+        err.status = 400
+        throw err
+      }
+    } else {
+      // public drive other than built-in one
+      let recognized = ['uuid', 'type', 'writelist', 'readlist', 'label']
+      Object.getOwnPropertyNames(props).forEach(name => {
+        if (!recognized.includes(name)) {
+          throw Object.assign(new Error(`unrecognized prop name ${name}`), { status: 400 })
+        }
+      })
+
+      let disallowed = ['uuid', 'type', 'readlist']
+      Object.getOwnPropertyNames(props).forEach(name => {
+        if (disallowed.includes(name)) {
+          throw Object.assign(new Error(`${name} is not allowed to update`), { status: 403 })
+        }
+      })
     }
 
-    let recognized = ['uuid', 'type', 'writelist', 'readlist', 'label']
-    Object.getOwnPropertyNames(props).forEach(name => {
-      if (!recognized.includes(name)) {
-        throw Object.assign(new Error(`unrecognized prop name ${name}`), { status: 400 })
-      }
-    })
-
-    let disallowed = ['uuid', 'type', 'readlist']
-    Object.getOwnPropertyNames(props).forEach(name => {
-      if (disallowed.includes(name)) {
-        throw Object.assign(new Error(`${name} is not allowed to update`), { status: 403 })
-      }
-    })
-
+    // validate writelist, readlist
     if (props.writelist) {
       let wl = props.writelist
-      if (!Array.isArray(wl)) {
-        throw Object.assign(new Error(`writelist must be an uuid array`), { status: 400 })
+      if (wl === '*') {
+      } else if (Array.isArray(wl)) {
+        if (!wl.every(uuid => !!this.userList.users.find(u => u.uuid === uuid))) {
+          let err = new Error(`not all user uuid found`) // TODO
+          err.code = 'EBADREQUEST'
+          err.status = 400
+          throw err
+        }
+        props.writelist = Array.from(new Set(props.writelist)).sort()
+      } else {
+        let err = new Error('writelist must be either wildcard or an uuid array')
+        err.code = 'EBADREQUEST'
+        err.status = 400
+        throw err
       }
 
-      if (!wl.every(uuid => !!this.userList.users.find(u => u.uuid === uuid))) {
-        throw Object.assign(new Error(`not all user uuid found`), { status: 400 })
-      }
-
-      props.writelist = Array.from(new Set(props.writelist)).sort()
     }
 
     return this.driveList.updatePublicDriveAsync(driveUUID, props)
