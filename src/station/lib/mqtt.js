@@ -24,7 +24,7 @@ class MQTT extends EventEmiter {
       clientId: `mqttjs_${ctx.station.id}`,
       clean: false,
       keepalive: 3,
-      reconnectPeriod: 5000,
+      reconnectPeriod: 5 * 1000,
       connectTimeout: 10 * 1000,
       will: {
         topic: `station/disconnect`,
