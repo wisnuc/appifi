@@ -402,8 +402,8 @@ class SambaServer extends events.EventEmitter {
     await rsyslogAsync()
     let x = this.transfer(users, drives)
     let userArr = await processUsersAsync(x.users)
-    let driveArr = await processDrivesAsync(x.drives) 
-    debug('smbd start!') 
+    let driveArr = await processDrivesAsync(x.users, x.drives) 
+    debug('smbd start!', driveArr) 
     await genSmbConfAsync(this.froot, userArr, driveArr)
     await this.restartAsync()
   }
@@ -429,8 +429,9 @@ class SambaServer extends events.EventEmitter {
   }
 
   async updateAsync(users, drives) {
-    let userArr = await processUsersAsync(users)
-    let driveArr = await processDrivesAsync(drives)  
+    let x = this.transfer(users, drives)
+    let userArr = await processUsersAsync(x.users)
+    let driveArr = await processDrivesAsync(x.users, x.drives)  
     await genSmbConfAsync(this.froot, userArr, driveArr)
     await this.restartAsync()
   }
