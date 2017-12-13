@@ -14,8 +14,6 @@ const UUID = require('uuid')
 
 const Magic = require('./lib/magic')
 const UserList = require('./user/user')
-const DocStore = require('./box/docStore')
-const BlobStore = require('./box/blobStore')
 const DriveList = require('./vfs/vfs')
 const BoxData = require('./box/boxData')
 const Thumbnail = require('./lib/thumbnail2')
@@ -96,11 +94,6 @@ class Fruitmix extends EventEmitter {
     this.thumbnail = new Thumbnail(thumbDir, tmpDir)
     this.userList = new UserList(froot)
     this.driveList = new DriveList(froot, this.mediaMap)
-    this.docStore = new DocStore(froot)
-    this.blobs = new BlobStore(this)
-    this.blobs.loadAsync()
-      .then(() => this.boxData = new BoxData(this))
-      .catch(err => console.log('err',err))
     this.vfs = this.driveList
     // this.boxData = new BoxData(froot)
 
@@ -256,7 +249,7 @@ class Fruitmix extends EventEmitter {
   }
 
   /**
-
+   
   */
   hasUsers () {
     return this.userList.users.length !== 0
@@ -409,7 +402,7 @@ class Fruitmix extends EventEmitter {
 /**
     let meta = this.mediaMap.get(fingerprint)
     if (!meta) throw statusError(new Error('media not found'), 404)
-
+    
     if (meta.files.find(f => this.userCanRead(user, f.root().uuid)) 
 **/
 /**
@@ -469,7 +462,7 @@ class Fruitmix extends EventEmitter {
   /**
   isFirstUser never allowed to change.
   possibly allowed props: username, isAdmin, global
-
+  
   {
     uuid:         // not allowed to change
     username:     // allowed
@@ -479,7 +472,7 @@ class Fruitmix extends EventEmitter {
     avatar:       // not allowed to change
     global:       // allowed
   }
-
+  
   If user is super user, userUUID is itself
     allowed: username, global
   If user is super user, userUUID is not itself
@@ -902,9 +895,6 @@ class Fruitmix extends EventEmitter {
     // return this.driveList.getFilesByFingerprint(fingerprint)
   }
 
-  reportMedia(fingerprint, metadata) {
-    this.mediaMap.set(fingerprint, metadata)
-  }
 
   // FIXME DONT mix async and callback error handlings
   getThumbnail (user, fingerprint, query, callback) {
