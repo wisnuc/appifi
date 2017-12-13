@@ -1,3 +1,4 @@
+/*
 let fs = require('fs')
 let child = require('child_process')
 
@@ -48,3 +49,46 @@ runSambaAsync().then(() => {
 }, (error) => {
   SAMBA(error)
 })
+*/
+
+const events = require('events')
+
+class SambaServer extends events.EventEmitter {
+  constructor() {
+    super()
+    this.froot = undefined
+  }
+
+  start(fpath, callpack) {
+    this.froot = fpath
+  }
+
+  async startAsync(fpath) {
+
+  }
+
+  stop(callpack) {
+
+  }
+
+  async stopAsync() {
+
+  }
+
+  restart(callpack) {
+
+  }
+
+  async restartAsync() {
+
+  }
+
+  update(users, drives) {
+
+  }
+
+  destory() {
+
+  }
+}
+
