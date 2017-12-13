@@ -23,6 +23,9 @@ class MQTT extends EventEmiter {
     this.settings = {
       clientId: `mqttjs_${ctx.station.id}`,
       clean: false,
+      keepalive: 3,
+      reconnectPeriod: 5000,
+      connectTimeout: 10 * 1000,
       will: {
         topic: `station/disconnect`,
         payload: this.payload,
@@ -50,10 +53,13 @@ class MQTT extends EventEmiter {
       debug('reconnect', err)
     })
     client.on('error', err => {
-      debug('error:', err)
+      debug('error', err)
     })
     client.on('close', () => {
       debug('close')
+    })
+    client.on('offline', () => {
+      debug('offline')
     })
     this.client = client
   }
