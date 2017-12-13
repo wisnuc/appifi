@@ -35,21 +35,21 @@ describe(path.basename(__filename) + ' clone', () => {
     await rimrafAsync(tmptest)
     await mkdirpAsync(tmptest)
     fs.mkdirSync('tmptest/a')
-    fs.writeFileSync('tmptest/clone', '')
+    // fs.writeFileSync('tmptest/clone', '')
     fs.copyFileSync('testdata/foo', 'tmptest/tmp')
     stats = await mkfileAsync('tmptest/a/b', 'tmptest/tmp', null, [])
   })
 
   it('ENOENT if filepath does not exist', done => {
-    clone('tmptest/c', stats.uuid, 'tmptest/clone', err => {
+    clone('tmptest/clone', stats.uuid, 'tmptest/c/d', err => {
       expect(err.code).to.equal('ENOENT')
       done()
     })
   })
 
   it('EISSYMLINK if filepath is (broken) symlink', done => {
-    fs.symlinkSync('hello', 'tmptest/c')
-    clone('tmptest/c', stats.uuid, 'tmptest/clone', err => {
+    fs.symlinkSync('hello', 'tmptest/clone')
+    clone('tmptest/clone', stats.uuid, 'tmptest/c/d', err => {
       expect(err.code).to.equal('EISSYMLINK')
       expect(err.xcode).to.equal('EUNSUPPORTED')
       done()
@@ -57,8 +57,8 @@ describe(path.basename(__filename) + ' clone', () => {
   })
 
   it('ENOTFILE if filepath is dir', done => {
-    fs.mkdirSync('tmptest/c')
-    clone('tmptest/c', stats.uuid, 'tmptest/clone', err => {
+    fs.mkdirSync('tmptest/clone')
+    clone('tmptest/clone', stats.uuid, 'tmptest/c/d', err => {
       expect(err.code).to.equal('ENOTFILE')
       done()
     })
@@ -66,16 +66,15 @@ describe(path.basename(__filename) + ' clone', () => {
 
   it('EUUIDMISMATCH if uuid mismatch', done => {
     let uuid = '742c44cb-e180-452c-9aae-1343117bb2ac'
-    clone('tmptest/a/b', uuid, 'tmptest/clone', err => {
+    clone('tmptest/a/b', uuid, 'tmptest/c/d', err => {
       expect(err.code).to.equal('EUUIDMISMATCH')
       done()
     })
   })
 
-  // ENOTTY is an ioctl error
-  it('ENOTTY if tmp does not exist', done => {
-    clone('tmptest/a/b', stats.uuid, 'tmptest/c', err => {
-      expect(err.code).to.equal('ENOTTY')
+  it('ENOENT if parent of tmp does not exist', done => {
+    clone('tmptest/a/b', stats.uuid, 'tmptest/c/d', (err, xstat) => {
+      expect(err.code).to.equal('ENOENT')
       done()
     })
   })
@@ -89,15 +88,13 @@ describe(path.basename(__filename) + ' clone', () => {
   })
 
   it('clone successfully', done => {
-    clone('tmptest/a/b', stats.uuid, 'tmptest/clone', (err, xstat) => {
-      console.log(err)
+    fs.mkdirSync('tmptest/c')
+    clone('tmptest/a/b', stats.uuid, 'tmptest/c/d', (err, xstat) => {
       if (err) return done(err)
-      console.log(xstat)
-      // expect(xstat).to.deep.equal({
-      //   uuid: stats.uuid,
-      //   mtime: stats.mtime.getTime()
-      // })
-      done()
+      xattr.get('tmptest/c/d', 'user.fruitmix', err => {
+        expect(err.code).to.equal('ENODATA')
+        done()
+      })
     })
   })
 })
