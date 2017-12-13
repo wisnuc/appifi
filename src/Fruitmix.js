@@ -256,7 +256,7 @@ class Fruitmix extends EventEmitter {
   }
 
   /**
-
+   
   */
   hasUsers () {
     return this.userList.users.length !== 0
@@ -409,7 +409,7 @@ class Fruitmix extends EventEmitter {
 /**
     let meta = this.mediaMap.get(fingerprint)
     if (!meta) throw statusError(new Error('media not found'), 404)
-
+    
     if (meta.files.find(f => this.userCanRead(user, f.root().uuid)) 
 **/
 /**
@@ -469,7 +469,7 @@ class Fruitmix extends EventEmitter {
   /**
   isFirstUser never allowed to change.
   possibly allowed props: username, isAdmin, global
-
+  
   {
     uuid:         // not allowed to change
     username:     // allowed
@@ -479,7 +479,7 @@ class Fruitmix extends EventEmitter {
     avatar:       // not allowed to change
     global:       // allowed
   }
-
+  
   If user is super user, userUUID is itself
     allowed: username, global
   If user is super user, userUUID is not itself
