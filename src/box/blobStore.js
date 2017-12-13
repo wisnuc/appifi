@@ -1,90 +1,124 @@
-const mkdirp = require('mkdirp')
 const path = require('path')
 const Promise = require('bluebird')
-const fs = require('fs')
+const fs = Promise.promisifyAll(require('fs'))
 const child = require('child_process')
 const broadcast = require('../common/broadcast')
+const { fileMagic5 } = require('../lib/xstat')
+const identify = require('../lib/identify')
 
+/**
+ * blobStore
+ */
 class BlobStore {
-  constructor() {
-    this.initialized = false
-    this.repoDir = undefined
 
-    broadcast.on('FruitmixStart', froot => {
-      let repoDir = path.join(froot, 'repo')
-      this.init(repoDir)
-    })
+  /**
+   * 
+   * @param {Object} ctx - context 
+   */
+  constructor(ctx) {
+    this.ctx = ctx
+    this.dir = path.join(this.ctx.fruitmixPath, 'blobs')
 
-    broadcast.on('FruitmixStop', () => this.deinit())
-  }
-
-  init(repoDir) {
-    mkdirp(repoDir, err => {
-      if (err) {
-        console.log(err)
-        broadcast.emit('RepoInitDone', err)
-        return
+    // if dir path not exist, create it
+    if (!fs.existsSync(this.dir)) {
+      try{
+        fs.mkdirSync(this.dir)
+        broadcast.emit('BlobsInitDone')
       }
-
-      this.repoDir = repoDir
-      this.initialized = true
-
-      broadcast.emit('RepoInitDone')
-    })
+      catch(e) {
+        broadcast.emit('BlobsInitDone', e)
+      }
+    }
   }
 
-  deinit() {
-    this.initialized = false
-    this.repoDir = undefined
+  // register medias in MediaMap
+  /**
+   * register medias in MediaMap
+   * @param {array} hashArr - an array of media hash to be reported
+   * @param {function} callback
+   */
+  report(hashArr, callback) {
+    if (hashArr.length) {
+      for(let i = 0; i < hashArr.length; i++) {
+        fileMagic5(path.join(this.dir, hashArr[i]), (err, magic) => {
+          if (err) return callback(err)
+          if (magic === 'JPEG') {
+            let fpath = path.join(this.dir, hashArr[i])
+            let worker = identify(fpath, hashArr[i])
+            worker.run()
+            worker.on('finish', data => {
+              this.ctx.reportMedia(hashArr[i], data)
+              if (++i === hashArr.length) return callback()
+            })
+            worker.on('error', err => callback(err))
+          } else return callback()
+        })
+      }
+    } else return callback()
+  }
 
-    process.nextTick(() => broadcast.emit('RepoDeinitDone'))
+  /**
+   * async edition of report
+   * @param {*} hashArr - an array of media hash to be reported
+   */
+  async reportAsync(hashArr) {
+    return Promise.promisify(this.report).bind(this)(hashArr)
+  }
+
+  /**
+   * load all medias in blobs, register them in MediaMap
+   */
+  async loadAsync() {
+    let entries = await fs.readdirAsync(this.dir)
+    await this.reportAsync(entries)
   }
 
   // store a list of files
   // src is an array of tmp filepath, file name is the sha256 of itself
+  /**
+   * 
+   * @param {array} src - an array of filepaths to be stored into blobs
+   * @param {function} callback 
+   */
   store(src, callback) {
     let srcStr = src.join(' ')
-    let dst = this.repoDir
-
-    child.exec(`chmod 444 ${srcStr}`, (err, stdout, stderr) => {
+    let dst = this.dir
+    // move files into blobs
+    child.exec(`mv ${srcStr} -t ${dst}`, (err, stdout, stderr) => {
       if (err) return callback(err)
       if (stderr) return callback(stderr)
-
-      child.exec(`mv ${srcStr} -t ${dst}`, (err, stdout, stderr) => {
-        if (err) return callback(err)
-        if (stderr) return callback(stderr)
-        return callback(stdout)
-      })
+      let hashArr = src.map(s => path.basename(s))
+      this.reportAsync(hashArr)
+        .then(() => {
+          let files = hashArr.map(i => path.join(dst, i)).join(' ')
+          // modify permissions to read only
+          child.exec(`chmod 444 ${files}`, (err, stdout, stderr) => {
+            if (err) return callback(err)
+            if (stderr) return callback(stderr)
+            callback(null, stdout)
+          })
+        })
+        .catch(e => callback(e))
     })
   }
-  // store(src, hash, callback) {
-  //   if(!this.initialized) throw new Error('BlobStore not init')
-  //   let dst = path.join(this.repoDir, hash)
-  //   mkdirp(this.repoDir, err => {
-  //     if (err) return callback(err)
-  //     fs.lstat(dst, (err, stats) => {
-  //       if (!err) return callback(null)
-  //       if (err.code !== 'ENOENT') return callback(err)
-  //       fs.rename(src, dst, err => {
-  //         if (err) return callback(err)
-  //         child.exec(`chmod 444 ${dst}`, (err, stdout, stderr) => {
-  //           if(err) return callback(err)
-  //           if(stderr) return callback(stderr)
-  //           return callback(null, stdout)
-  //         })
-  //       })
-  //     })
-  //   })
-  // }
 
+  /**
+   * async edition of store
+   * @param {array} src - an array of filepaths to be stored into blobs
+   */
   async storeAsync(src) {
     return Promise.promisify(this.store).bind(this)(src)
   }
 
+  /**
+   * get a filepath by given file hash
+   * @param {string} hash - hash of file to be retrieved
+   * @param {string} path
+   */
   retrieve(hash) {
-    return path.join(this.repoDir, hash)
+    return path.join(this.dir, hash)
   }
 }
 
-module.exports = new BlobStore()
+module.exports = BlobStore
 

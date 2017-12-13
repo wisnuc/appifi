@@ -14,6 +14,8 @@ const UUID = require('uuid')
 
 const Magic = require('./lib/magic')
 const UserList = require('./user/user')
+const DocStore = require('./box/docStore')
+const BlobStore = require('./box/blobStore')
 const DriveList = require('./vfs/vfs')
 const BoxData = require('./box/boxData')
 const Thumbnail = require('./lib/thumbnail2')
@@ -94,6 +96,11 @@ class Fruitmix extends EventEmitter {
     this.thumbnail = new Thumbnail(thumbDir, tmpDir)
     this.userList = new UserList(froot)
     this.driveList = new DriveList(froot, this.mediaMap)
+    this.docStore = new DocStore(froot)
+    this.blobs = new BlobStore(this)
+    this.blobs.loadAsync()
+      .then(() => this.boxData = new BoxData(this))
+      .catch(err => console.log('err',err))
     this.vfs = this.driveList
     // this.boxData = new BoxData(froot)
 
@@ -895,6 +902,9 @@ class Fruitmix extends EventEmitter {
     // return this.driveList.getFilesByFingerprint(fingerprint)
   }
 
+  reportMedia(fingerprint, metadata) {
+    this.mediaMap.set(fingerprint, metadata)
+  }
 
   // FIXME DONT mix async and callback error handlings
   getThumbnail (user, fingerprint, query, callback) {

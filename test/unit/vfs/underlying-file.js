@@ -488,7 +488,6 @@ describe(path.basename(__filename) + ' mkfile, [,skip], w/o hash, 1b78de44', () 
 
 })
 
-
 describe(path.basename(__filename) + ' mkfile, [,skip], w/ hash, c6bee78c', () => {
   // alonzo hash
   const hash = '8e28737e8cdf679e65714fe2bdbe461c80b2158746f4346b06af75b42f212408'
@@ -797,7 +796,6 @@ describe(path.basename(__filename) + ' mkfile, [,replace], w/o hash, e1a52596', 
   })
 
 })
-
 
 describe(path.basename(__filename) + ' mkfile, [replace], w/ hash, aef1e476', () => {
 
@@ -1253,7 +1251,6 @@ describe(path.basename(__filename) + ' mkfile, [,rename], w/o hash, 08bb9141', (
   })
 
 })
-
 
 describe(path.basename(__filename) + ' mkfile, [rename], w/ hash, 37326082', () => {
 

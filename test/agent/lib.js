@@ -1,27 +1,38 @@
 const sinon = require('sinon')
 const UUID = require('uuid')
 const request = require('supertest')
+const Promise = require('bluebird')
+const mkdirpAsync = Promise.promisify(require('mkdirp'))
+const crypto = require('crypto')
+const fs = Promise.promisifyAll(require('fs'))
+const path = require('path')
+const rimrafAsync = Promise.promisify(require('rimraf'))
 
-const app = require('src/app')
+const app = require('../../src/app')
+const E = require('../../src/lib/error')
+const fingerprintSimpleAsync = Promise.promisify(require('../../src/utils/fingerprintSimple'))
 
 const IDS = {
 
   alice: {
     uuid:'9f93db43-02e6-4b26-8fae-7d6f51da12af',
     home: 'e2adb5d0-c3c7-4f2a-bd64-3320a1ed0dee',
-    global: {id: "ocMvos6NjeKLIBqg5Mr9QjxrP1FA", wx:[]}
+    global: {id: "ocMvos6NjeKLIBqg5Mr9QjxrP1FA",
+             wx: ["ocMvos6NjeKLIBqg5Mr9QjxrP1FA"]}
   },
 
   bob: {
     uuid: 'a278930c-261b-4a9c-a296-f99ed00ac089',
     home: 'b7566c69-91f5-4299-b4f4-194df92b01a9',
-    global: {id: "ocMvos6NjeKLIBqg5Mr9QjxrP1FB", wx:[]}
+    global: {id: "ocMvos6NjeKLIBqg5Mr9QjxrP1FB",
+             wx: ["ocMvos6NjeKLIBqg5Mr9QjxrP1FB"]}
   },
 
   charlie: {
     uuid: 'c12f1332-be48-488b-a3ae-d5f7636c42d6',
     home: '1da855c5-33a9-43b2-a93a-279c6c17ab58',
-    global: {id: "ocMvos6NjeKLIBqg5Mr9QjxrP1FC", wx:[]}
+    global: {id: "ocMvos6NjeKLIBqg5Mr9QjxrP1FC",
+             wx: ["ocMvos6NjeKLIBqg5Mr9QjxrP1FC"]}
   },
 
   david: {
@@ -354,6 +365,191 @@ const forgeRecords = async (boxUUID, username) => {
   }
 }
 
+// calculate tree object of a directory, return root and hashArr map
+// hashArr contain tree object hash and blob hash
+const createTreeObjectAsync = async dir => {
+  // console.log(process.cwd())
+  let tmpDir = path.join(process.cwd(), UUID.v4())
+  let hashArr = new Map()
+  // {fingerprint:xxxx, path:[]}
+  await mkdirpAsync(tmpDir)
+
+  // loop
+  let storeDirAsync = async dir => {
+    let stat = await fs.lstatAsync(dir)
+    if (!stat.isDirectory()) throw new E.ENOTDIR()
+
+    let entries = await fs.readdirAsync(dir)
+
+    if (entries.length === 0) return
+    let treeEntries = await Promise
+      .map(entries, async entry => {
+        let entryPath = path.join(dir, entry)
+        let stat = await fs.lstatAsync(entryPath)
+
+        if (stat.isDirectory()) {
+          let fingerprint = await storeDirAsync(entryPath)
+          let fpath = path.join(tmpDir, fingerprint)
+          if (hashArr.has(fingerprint)) {
+            let result = hashArr.get(fingerprint)
+            result.path.add(fpath)
+          } else {
+            let size = fs.lstatSync(fpath).size
+            let obj = {fingerprint, path: new Set([fpath]), size}
+            hashArr.set(fingerprint, obj)
+          }
+
+          return ['tree', entry, fingerprint]
+        }
+         
+        if (stat.isFile()) {
+          let fingerprint = await fingerprintSimpleAsync(entryPath)
+
+          if (hashArr.has(fingerprint)) {
+            let result = hashArr.get(fingerprint)
+            result.path.add(entryPath)
+          } else {
+            let obj = {fingerprint, path: new Set([entryPath]), size: stat.size}
+            hashArr.set(fingerprint, obj)
+          }
+
+          return ['blob', entry, fingerprint]
+        }
+
+        return null
+      })
+      .filter(treeEntry => !!treeEntry)
+
+    treeEntries = treeEntries.sort((a, b) => a[1].localeCompare(b[1]))
+    // validateTree(treeEntries)
+    let fingerprint = await storeObjectAsync(treeEntries, tmpDir)
+
+    return fingerprint
+  }
+
+  let root = await storeDirAsync(dir)
+  let rootpath = path.join(tmpDir, root)
+
+  if (hashArr.has(root)) {
+    let result = hashArr.get(root)
+    result.path.add(rootpath)
+  } else {
+    let size = fs.lstatSync(rootpath).size
+    let obj = {fingerprint: root, path: new Set([rootpath]), size}
+    hashArr.set(root, obj)
+  }
+  // root is the sha256 of rootTree
+  // hashArr contains all the file hash and sub tree hash in rootTree(including rootTree hash)
+  return {tmpDir, root, hashArr} 
+}
+
+const storeObjectAsync = async (tree, dir) => {
+  let text, hash, digest, tmppath
+
+  text = JSON.stringify(tree, null, '  ')
+  hash = crypto.createHash('sha256')
+  hash.update(text)
+  digest = hash.digest().toString('hex')
+
+  let dst = path.join(dir, digest)
+  try {
+    let stats = await fs.lstatAsync(dst)
+    return digest  
+  }
+  catch (e) {
+    if (e.code !== 'ENOENT') throw e
+  }
+    
+  await writeFileToDiskAsync(dst, text)
+  return digest //{fingerprint: digest, path: dst}
+}
+
+const writeFileToDisk = (fpath, data, callback) => {
+
+  let error, os = fs.createWriteStream(fpath)
+
+  os.on('error', err => {
+    error = err
+    callback(err)
+  })
+
+  os.on('close', () => {
+    if (!error) callback(null)
+  })
+
+  os.write(data)
+  os.end()
+}
+
+const writeFileToDiskAsync = Promise.promisify(writeFileToDisk)
+
+const getCommitAsync = async (boxUUID, username, commitHash) => {
+  let token = await retrieveTokenAsync(username)
+  let cloudToken = await laCloudTokenAsync(username)
+
+  return (await request(app)
+    .get(`/boxes/${boxUUID}/commits/${commitHash}`)
+    .set('Authorization', 'JWT ' + cloudToken + ' ' + token)
+    .expect(200)).body
+}
+
+const getTreeListAsync = async (boxUUID, username, treeHash) => {
+  let token = await retrieveTokenAsync(username)
+  let cloudToken = await laCloudTokenAsync(username)
+
+  return (await request(app)
+    .get(`/boxes/${boxUUID}/trees/${treeHash}`)
+    .set('Authorization', 'JWT ' + cloudToken + ' ' + token)
+    .expect(200)).body
+}
+
+// create a new commit
+// props is optional {parent, branch}
+const createCommitAsync = async (dir, boxUUID, username, props) => {
+  let token = await retrieveTokenAsync(username)
+  let cloudToken = await laCloudTokenAsync(username)
+
+  // calculate hash array in dir(hash array of trees and blobs)
+  let testDir = 'testdata'
+  let result = await createTreeObjectAsync(testDir)
+
+  // get parent hash array
+  let parentCommit, parentTreeList = []
+  if (props && props.parent) {
+    parentCommit = await getCommitAsync(boxUUID, username, props.parent)
+    parentTreeList = await getTreeListAsync(boxUUID, username, parentCommit.tree)
+  }
+
+  // calculate files to upload
+  let toUpload = [...result.hashArr.keys()].reduce((pre, c) => parentTreeList.includes(c) ? pre : [...pre, c], [])
+
+  // root: hash string of a tree obj
+  let obj = toUpload.length !== 0 ? Object.assign({ root: result.root, toUpload }, props)
+                                  : Object.assign({ root: result.root}, props)
+
+  let res = request(app)
+    .post(`/boxes/${boxUUID}/commits`)
+    .set('Authorization', 'JWT ' + cloudToken + ' ' + token)
+    .field('commit', JSON.stringify(obj))
+
+  for (let i = 0; i < toUpload.length; i++) {
+    let info = result.hashArr.get(toUpload[i])
+    let fpath = [...info.path][0]
+
+    res.attach(toUpload[i], fpath, JSON.stringify({size: info.size, sha256: toUpload[i]}))
+  }
+
+  let commit = (await res.expect(200)).body
+  commit.hashArr = [...result.hashArr.keys()]
+  // commit: {sha256, commitObj, hashArr}
+  // sha256 is the hash of commitObj
+  // hashArr is the content hash in commitObj.tree, including tree hash and blob hash
+  await rimrafAsync(result.tmpDir)
+
+  return commit
+}
+
+
 module.exports = {
   IDS,
   FILES,
@@ -366,6 +562,10 @@ module.exports = {
   waCloudTokenAsync,
   createBoxAsync,
   createBranchAsync,
-  forgeRecords
+  forgeRecords,
+  createTreeObjectAsync,
+  getCommitAsync,
+  getTreeListAsync,
+  createCommitAsync
 }
 
