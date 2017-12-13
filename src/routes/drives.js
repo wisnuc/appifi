@@ -534,7 +534,7 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
           err.code === 'ESHA256MISMATCH') {
           err.status = 400
         } else {
-          console.log('hash stream error code', err.code)
+          console.log('hash stream error code', err.code, x.hs)
         }
         error(x, err)
       } else {
@@ -726,6 +726,7 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
   })
 
   req.pipe(dicer)
+
 })
 
 /**

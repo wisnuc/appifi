@@ -43,6 +43,9 @@ const Debug = require('debug')
 const smbDebug = Debug('samba')
 const debug = Debug('fruitmix')
 
+const mixin = require('./fruitmix/mixin')
+const driveapi = require('./fruitmix/drive')
+
 const combineHash = (a, b) => {
   let a1 = typeof a === 'string' ? Buffer.from(a, 'hex') : a
   let b1 = typeof b === 'string' ? Buffer.from(b, 'hex') : b
@@ -71,6 +74,10 @@ Station module and all routers consumes only Fruitmix API. They are NOT allowed 
 bypass the facade to access the internal modules.
 
 Fruitmix is also responsible for initialize all internal modules and paths.
+
+@extends EventEmitter
+@mixes mixin
+@mixes driveapi
 */
 class Fruitmix extends EventEmitter {
 
@@ -664,24 +671,6 @@ class Fruitmix extends EventEmitter {
   }
 
   /**
-  API: DriveList [GET]
-  */
-  getDriveList2 (user, callback) {
-    let drives = this.driveList.drives.filter(drv => {
-      if (drv.type === 'private' && drv.owner === user.uuid) return true
-      if (drv.type === 'public') {
-        if (user.isAdmin) return true
-        if (drv.writelist === '*') return true
-        if (Array.isArray(drv.writelist) && drv.writelist.includes(user.uuid)) return true
-        if (drv.readlist === '*') return true
-        if (Array.isArray(drv.readlist) && drv.readlist.includes(user.uuid)) return true
-      }
-      return false
-    })
-    process.nextTick(() => callback(null, drives))
-  }
-
-  /**
   API: DriveList [POST]
   */
   async createPublicDriveAsync (user, props) {
@@ -704,6 +693,11 @@ class Fruitmix extends EventEmitter {
 
   /**
   API: Drive [GET]
+  callback version of Drive GET
+  @param {object} user
+  @param {string} driveUUID
+  @param {function} callback - `(err, drive) => {}`
+  @memberof api
   */
   getDrive2 (user, driveUUID, callback) {
     let drive = this.driveList.drives.find(drv => drv.uuid === driveUUID)
@@ -1061,6 +1055,7 @@ class Fruitmix extends EventEmitter {
   }
 
   /// /////////////////////////
+  // mkdirp make a new directory
   mkdirp (user, driveUUID, dirUUID, name, callback) {
     let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
     if (!dir) {
@@ -1433,9 +1428,15 @@ class Fruitmix extends EventEmitter {
   assertDirUUIDsIndexed (uuids) {
     this.driveList.assertDirUUIDsIndexed (uuids)
   }
+
+  setStorage (storage) {
+    console.log('storage update')
+  }
 }
 
 Object.assign(Fruitmix.prototype, {})
+Object.assign(Fruitmix.prototype, driveapi)
+
 
 module.exports = Fruitmix
 

@@ -23,6 +23,7 @@
     "lyc": "NODE_ENV=test nyc --reporter=lcov --reporter=text mocha --compilers js:babel-core/register",
     "lycmon": "NODE_ENV=test nodemon --exec nyc --reporter=lcov --reporter=text mocha --compilers js:babel-core/register",
     "doc": "nodemon --ignore out --ignore tmpest --exec 'jsdoc -c jsdoc.conf.json -t node_modules/ink-docstrap/template -r -p src src/README.md'",
+    "baseline": "nodemon --ignore out --ignore tmpest --exec 'jsdoc -c jsdoc.conf.json -t node_modules/jsdoc-baseline -r -p src src/README.md'",
     "sidekick": "node src/fruitmix/sidekick/cluster"
   },
   "dependencies": {
@@ -81,6 +82,7 @@
     "ink-docstrap": "^1.3.2",
     "istanbul": "^0.4.5",
     "jsdoc": "^3.5.5",
+    "jsdoc-baseline": "https://github.com/hegemonic/baseline/tarball/master",
     "jsdoc-strip-async-await": "^0.1.0",
     "mocha": "^3.5.0",
     "nodemon": "^1.12.0",

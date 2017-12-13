@@ -121,6 +121,17 @@ class VFS extends Forest {
     return drive
   }
 
+  // TODO
+  createPublicDrive (props, callback) {
+    let drive = {
+      uuid: UUID.v4(),
+      type: 'public',
+      writelist: props.writelist || [],
+      readlist: props.readlist || [],
+      label: props.label || ''
+    }
+  }
+
   async createPublicDriveAsync (props) {
     let drive = {
       uuid: UUID.v4(),
