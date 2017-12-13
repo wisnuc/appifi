@@ -21,7 +21,7 @@ class MQTT extends EventEmiter {
     this.client = undefined
     this.payload = JSON.stringify({ stationId: ctx.station.id })
     this.settings = {
-      clientId: 'mqttjs_' + Math.random().toString(16).substr(2, 8),
+      clientId: `mqttjs_${ctx.station.id}`,
       clean: false,
       will: {
         topic: `station/disconnect`,
