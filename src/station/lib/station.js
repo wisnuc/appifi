@@ -59,6 +59,8 @@ class Station {
         // register 
         this.mqtt.register(pipe)
         this.mqtt.connect()
+        
+        this.tickets = new Tickets(this)
         this.initialized = true
 
         await this.updateCloudUsersAsync()

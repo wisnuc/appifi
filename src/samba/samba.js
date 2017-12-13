@@ -80,7 +80,7 @@ const processUsersAsync = async users => {
   // generate unix name 
   users.forEach(u => 
     u.unixName = ['x', ...u.uuid.split('-').map((s, i) => i === 2 ? s.slice(1) : s)].join(''))
-
+  
   // retrieve
   let sysUsers = await retrieveSysUsersAsync()
 
@@ -98,7 +98,7 @@ const processUsersAsync = async users => {
   let newNames = users
     .filter(fu => !sysUsers.find(su => su.name === fu.unixName))
     .map(fu => fu.unixName)
-
+  
   for (let i = 0; i < newNames.length; i++) {
     try {
       let cmd = 'adduser --disabled-password --disabled-login --no-create-home --gecos ",,," ' + 
@@ -228,24 +228,16 @@ const publicShare = (froot, users, drive) => {
 `
 }
 
-const genSmbConfAsync = async (users, drives) => {
+const genSmbConfAsync = async (froot, users, drives) => {
   let text = globalSection
   let conf = drives.reduce((t, drive) => {
     if (drive.type === 'private') {
-      return t + privateShare(users, drive)
+      return t + privateShare(froot, users, drive)
     } else {
-      return t + publicShare(users, drive)
+      return t + publicShare(froot, users, drive)
     }
   }, text)
   await fs.writeFileAsync('/etc/samba/smb.conf', conf)
-}
-
-const restartSambaAsync = async () => {
-  await child.execAsync('systemctl enable nmbd')
-  await child.execAsync('systemctl enable smbd')
-  await Promise.delay(1000)
-  await child.execAsync('systemctl restart smbd')
-  await child.execAsync('systemctl restart nmbd')
 }
 
 /*
@@ -282,14 +274,11 @@ const loop = async () => {
 */
 
 class SambaServer extends events.EventEmitter {
-  constructor() {
+  constructor(fpath) {
     super()
-    this.froot = undefined
-    this.udpServer = undefined
-  }
-
-  start(fpath, callback) {
     this.froot = fpath
+    this.udpServer = undefined
+    this.startUdpServer(() => {}) //  FIXME: error?
   }
 
   startUdpServer(callback) {
@@ -394,6 +383,7 @@ class SambaServer extends events.EventEmitter {
       smbDebug(audit)
 
       //TODO: emit message
+      this.emit('SambaServerNewAudit', audit)
       // this.driveList.audit(abspath, arg0, arg1)
     })
 
@@ -402,37 +392,70 @@ class SambaServer extends events.EventEmitter {
       // should restart with back-off TODO
       //TODO: retry ？？
       udp.close()
+      this.udpServer = undefined
     })
 
     udp.bind('3721', '127.0.0.1', callback)
   }
 
-  async startAsync(fpath) {
-    this.froot = fpath
+  async startAsync(users, drives) {
+    await rsyslogAsync()
+    let x = this.transfer(users, drives)
+    let userArr = await processUsersAsync(x.users)
+    let driveArr = await processDrivesAsync(x.drives) 
+    debug('smbd start!') 
+    await genSmbConfAsync(this.froot, userArr, driveArr)
+    await this.restartAsync()
   }
 
-  stop(callback) {
-
+  transfer(users, drives) {
+    let userArr = users.map(u => Object.assign({}, u))
+    let driveArr = drives.map(d => Object.assign({}, d))
+    return { users: userArr, drives: driveArr }
   }
 
   async stopAsync() {
-
-  }
-
-  restart(callback) {
-
+    await child.execAsync('systemctl stop smbd')
+    await child.execAsync('systemctl stop nmbd')
   }
 
   async restartAsync() {
-
+    await rsyslogAsync() // ?
+    await child.execAsync('systemctl enable nmbd')
+    await child.execAsync('systemctl enable smbd')
+    await Promise.delay(1000)
+    await child.execAsync('systemctl restart smbd')
+    await child.execAsync('systemctl restart nmbd')
   }
 
-  update(users, drives) {
+  async updateAsync(users, drives) {
+    let userArr = await processUsersAsync(users)
+    let driveArr = await processDrivesAsync(drives)  
+    await genSmbConfAsync(this.froot, userArr, driveArr)
+    await this.restartAsync()
+  }
 
+  isActive() {
+    try {
+      let status = child.execSync('systemctl is-active smbd', { encoding: 'utf8'})
+      return status === 'active' ? true : false
+    } 
+    catch(e) {
+      debug(e)
+      return false
+    }
   }
 
   destory() {
-
+    if(this.udpServer) {
+      this.udpServer.removeAllListeners()
+      this.udpServer.on('error', () => {})
+      this.udpServer.close()
+      this.udpServer = undefined
+    }
+    this.froot = undefined
   }
+
 }
 
+module.exports = SambaServer

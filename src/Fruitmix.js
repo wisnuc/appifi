@@ -3,7 +3,7 @@ const path = require('path')
 const fs = Promise.promisifyAll(require('fs'))
 const EventEmitter = require('events')
 const crypto = require('crypto')
-const dgram = require('dgram')
+// const dgram = require('dgram')
 
 const rimraf = require('rimraf')
 const mkdirp = require('mkdirp')
@@ -37,6 +37,7 @@ const xcopy = require('./tasks/xcopy')
 const xcopyAsync = Promise.promisify(xcopy)
 
 const { readXstat, forceXstat } = require('./lib/xstat')
+const SambaServer = require('./samba/samba')
 const samba = require('./samba/server')
 
 const Debug = require('debug')
@@ -98,8 +99,9 @@ class Fruitmix extends EventEmitter {
     // this.boxData = new BoxData(froot)
 
     this.tasks = []
-
+    this.smbServer = new SambaServer(froot)
     if (!nosmb) {
+      /*
       samba.start(froot)
       let udp = dgram.createSocket('udp4')
       udp.on('listening', () => {
@@ -210,6 +212,12 @@ class Fruitmix extends EventEmitter {
       })
 
       udp.bind('3721', '127.0.0.1')
+      */
+      this.smbServer.startAsync(this.userList.users, this.driveList.drives)
+        .then(() => {})
+        .catch( e => {
+          console.log('error', e)
+        })
     }
   }
 
