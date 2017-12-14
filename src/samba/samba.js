@@ -240,45 +240,13 @@ const genSmbConfAsync = async (froot, users, drives) => {
   await fs.writeFileAsync('/etc/samba/smb.conf', conf)
 }
 
-/*
-const refreshAsync = async () => {
-  try {
-    await rsyslogAsync()
-  } catch (e) {
-    await Promise.delay(4000)
-    throw e
-  }
-
-  let x = await pollingFilesAsync()
-  if (!x) return
-  let users = await processUsersAsync(x.users)
-  let drives = await processDrivesAsync(users, x.drives)  
-  await genSmbConfAsync(users, drives)
-  await restartSambaAsync()
-}
-
-const loop = async () => {
-  let delay = 4000
-
-  while (true) {
-    try {
-      await refreshAsync()
-      delay = 4000
-    } catch (e) {
-      console.log('samba error', e)
-      if (delay < 4000 * 128)  delay = delay * 2
-    }
-    await Promise.delay(delay)
-  }
-}
-*/
-
 class SambaServer extends events.EventEmitter {
   constructor(fpath) {
     super()
     this.froot = fpath
     this.udpServer = undefined
     this.startUdpServer(() => {}) //  FIXME: error?
+    this.isStop = true
   }
 
   startUdpServer(callback) {
@@ -380,7 +348,7 @@ class SambaServer extends events.EventEmitter {
       let audit = { user, share, abspath, op, arg0 }
       if (arg1) audit.arg1 = arg1
 
-      smbDebug(audit)
+      debug(audit)
 
       //TODO: emit message
       this.emit('SambaServerNewAudit', audit)
@@ -399,22 +367,29 @@ class SambaServer extends events.EventEmitter {
   }
 
   async startAsync(users, drives) {
+    this.isStop = false
     await rsyslogAsync()
     let x = this.transfer(users, drives)
     let userArr = await processUsersAsync(x.users)
     let driveArr = await processDrivesAsync(x.users, x.drives) 
-    debug('smbd start!', driveArr) 
     await genSmbConfAsync(this.froot, userArr, driveArr)
     await this.restartAsync()
+    debug('smbd start!!!') 
   }
 
   transfer(users, drives) {
     let userArr = users.map(u => Object.assign({}, u))
+    let uids = userArr.map(u => u.uuid)
     let driveArr = drives.map(d => Object.assign({}, d))
+    driveArr.forEach(d => {
+      if(d.writelist === '*') d.writelist = uids
+      if(d.readlist === '*') d.readlist = uids
+    })
     return { users: userArr, drives: driveArr }
   }
 
   async stopAsync() {
+    this.isStop = true
     await child.execAsync('systemctl stop smbd')
     await child.execAsync('systemctl stop nmbd')
   }
@@ -429,6 +404,7 @@ class SambaServer extends events.EventEmitter {
   }
 
   async updateAsync(users, drives) {
+    if(this.isStop) return
     let x = this.transfer(users, drives)
     let userArr = await processUsersAsync(x.users)
     let driveArr = await processDrivesAsync(x.users, x.drives)  
@@ -454,6 +430,7 @@ class SambaServer extends events.EventEmitter {
       this.udpServer.close()
       this.udpServer = undefined
     }
+    this.stopAsync().then(() => {})
     this.froot = undefined
   }
 
