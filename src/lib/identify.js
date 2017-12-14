@@ -138,8 +138,12 @@ class Identify extends Worker {
       if (this.finished) return
       if (err) return this.error(err)
       if (xstat.type !== 'file') return this.error(new E.ENOTFILE())
-      if (xstat.uuid !== this.uuid) return this.error(new E.EINSTANCE())
-      if (xstat.hash !== this.hash) return this.error(new E.ECONTENT()) 
+      if (this.uuid) {
+        if (xstat.uuid !== this.uuid) return this.error(new E.EINSTANCE())
+      }
+      if (xstat.hash) {
+        if (xstat.hash !== this.hash) return this.error(new E.ECONTENT())
+      } 
       
       // !!! quote file path
       child.exec(`identify -format '${identifyFormatString}' '${this.fpath}'`, (err, stdout) => {

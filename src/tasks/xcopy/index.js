@@ -579,7 +579,7 @@ Create a xcopy machine.
 
 @param {object} ctx - reference fruitmix or vfs (if user is not provided)
 @param {object} user - user object
-@parma {string} mode - copy, move, import, export
+@param {string} mode - copy, move, import, export
 @param {object} src - { drive, dir } or { path }
 @param {object} dst - { drive, dir } or { path }
 @param {object} entries - array of uuid or names to be copied

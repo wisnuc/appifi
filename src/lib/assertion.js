@@ -142,6 +142,7 @@ module.exports = {
   isNonNullObject,
   isNonEmptyString,
   isNormalizedAbsolutePath,
-  isCIDR
+  isCIDR,
+  complementArray
 }
 
