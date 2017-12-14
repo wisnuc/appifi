@@ -3,7 +3,7 @@ const path = require('path')
 const fs = Promise.promisifyAll(require('fs'))
 const EventEmitter = require('events')
 const crypto = require('crypto')
-const dgram = require('dgram')
+// const dgram = require('dgram')
 
 const rimraf = require('rimraf')
 const mkdirp = require('mkdirp')
@@ -33,8 +33,11 @@ const { assert, isUUID, isSHA256, validateProps } = require('./common/assertion'
 const CopyTask = require('./tasks/fruitcopy')
 const MoveTask = require('./tasks/fruitmove')
 
+const xcopy = require('./tasks/xcopy')
+const xcopyAsync = Promise.promisify(xcopy)
+
 const { readXstat, forceXstat } = require('./lib/xstat')
-const samba = require('./samba/server')
+const SambaServer = require('./samba/samba')
 
 const Debug = require('debug')
 const smbDebug = Debug('samba')
@@ -78,7 +81,6 @@ class Fruitmix extends EventEmitter {
     super()
     let thumbDir = path.join(froot, 'thumbnail')
     let tmpDir = path.join(froot, 'tmp')
-
     rimraf.sync(tmpDir)
     mkdirp.sync(tmpDir)
 
@@ -92,121 +94,31 @@ class Fruitmix extends EventEmitter {
     this.thumbnail = new Thumbnail(thumbDir, tmpDir)
     this.userList = new UserList(froot)
     this.driveList = new DriveList(froot, this.mediaMap)
-    this.boxData = new BoxData(froot)
+    this.vfs = this.driveList
+    // this.boxData = new BoxData(froot)
+
     this.tasks = []
-
+    this.smbServer = new SambaServer(froot)
+    this.smbServer.on('SambaServerNewAudit', audit => {
+      this.driveList.audit(audit.abspath, audit.arg0, audit.arg1)
+    })
     if (!nosmb) {
-      samba.start(froot)
-      let udp = dgram.createSocket('udp4')
-      udp.on('listening', () => {
-        const a = udp.address()
-        console.log(`fruitmix udp listening ${a.address}:${a.port}`)
-      })
-
-      udp.on('message', (message, rinfo) => {
-        const token = ' smbd_audit: '
-
-        let text = message.toString()
-        // SAMBA_AUDIT(text)
-        //
-        // enter into folder 'aaa', then create a new file named 'bbb', then edit it.
-        //
-        // samba audit like below:
-        // <185>Jun 16 11:01:14 wisnuc-virtual-machine smbd_audit: root|a|a (home)|/run/wisnuc/volumes/56b.../wisnuc/fruitmix/drives/21b...|create_file|ok|0x100080|file|open|aaa/bbb.txt
-        //
-        // arr[0]: root
-        // arr[1]: a
-        // arr[2]: a (home)
-        // arr[3]: /run/wisnuc/volumes/56b.../wisnuc/fruitmix/drives/21b...
-        // arr[4]: create_file
-        // arr[5]: ok
-        // arr[6]: 0x100080
-        // arr[7]: file
-        // arr[8]: open
-        // arr[9]: aaa/bbb.txt
-        //
-        // user: a
-        // share: a (home)
-        // abspath: /run/wisnuc/volumes/56b.../wisnuc/fruitmix/drives/21b...
-        // op: create_file
-
-        let tidx = text.indexOf(' smbd_audit: ')
-        if (tidx === -1) return
-
-        let arr = text.trim().slice(tidx + token.length).split('|')
-
-        // for(var i = 0; i < arr.length; i++){
-        //   SAMBA_AUDIT(`arr[${i}]: ` + arr[i])
-        // }
-
-        // %u <- user
-        // %U <- represented user
-        // %S <- share
-        // %P <- path
-
-        if (arr.length < 6 || arr[0] !== 'root' || arr[5] !== 'ok') return
-
-        let user = arr[1]
-        let share = arr[2]
-        let abspath = arr[3]
-        let op = arr[4]
-        let arg0, arg1
-
-        // create_file arg0
-        // mkdir arg0
-        // rename arg0 arg1 (file or directory)
-        // rmdir arg0 (delete directory)
-        // unlink arg0 (delete file)
-        // write (not used anymore)
-        // pwrite
-
-        switch (op) {
-          case 'create_file':
-            if (arr.length !== 10) return
-            if (arr[8] !== 'create') return
-            if (arr[7] !== 'file') return
-            arg0 = arr[9]
-            break
-
-          case 'mkdir':
-          case 'rmdir':
-          case 'unlink':
-          case 'pwrite':
-            if (arr.length !== 7) return
-            arg0 = arr[6]
-            break
-
-          case 'rename':
-            if (arr.length !== 8) return
-            arg0 = arr[6]
-            arg1 = arr[7]
-            break
-
-          case 'close':
-            if (arr.lenght !== 7) return
-            arg0 = arr[6]
-            break
-
-          default:
-            return
-        }
-
-        let audit = { user, share, abspath, op, arg0 }
-        if (arg1) audit.arg1 = arg1
-
-        smbDebug(audit)
-
-        this.driveList.audit(abspath, arg0, arg1)
-      })
-
-      udp.on('error', err => {
-        console.log('fruitmix udp server error', err)
-        // should restart with back-off TODO
-        udp.close()
-      })
-
-      udp.bind('3721', '127.0.0.1')
+      this.smbServer.startAsync(this.userList.users, this.driveList.drives)
+        .then(() => {})
+        .catch( e => {
+          console.log('error', e)
+        })
     }
+  }
+
+  updateSamba() {
+    this.smbServer.updateAsync(this.userList.users, this.driveList.drives)
+      .then(() => {})
+      .catch(e => console.error.bind(console, 'smbServer update error:'))
+  }
+
+  async startSambaAsync() {
+    await this.smbServer.startAsync(this.userList.users, this.driveList.drives)
   }
 
   loadMediaMap (fpath) {
@@ -245,7 +157,7 @@ class Fruitmix extends EventEmitter {
   }
 
   /**
-
+   
   */
   hasUsers () {
     return this.userList.users.length !== 0
@@ -398,7 +310,7 @@ class Fruitmix extends EventEmitter {
 /**
     let meta = this.mediaMap.get(fingerprint)
     if (!meta) throw statusError(new Error('media not found'), 404)
-
+    
     if (meta.files.find(f => this.userCanRead(user, f.root().uuid)) 
 **/
 /**
@@ -433,6 +345,7 @@ class Fruitmix extends EventEmitter {
 
     let u = await this.userList.createUserAsync(props)
     await this.driveList.createPrivateDriveAsync(u.uuid, 'home')
+    this.updateSamba()
     return u
   }
 
@@ -458,7 +371,7 @@ class Fruitmix extends EventEmitter {
   /**
   isFirstUser never allowed to change.
   possibly allowed props: username, isAdmin, global
-
+  
   {
     uuid:         // not allowed to change
     username:     // allowed
@@ -468,7 +381,7 @@ class Fruitmix extends EventEmitter {
     avatar:       // not allowed to change
     global:       // allowed
   }
-
+  
   If user is super user, userUUID is itself
     allowed: username, global
   If user is super user, userUUID is not itself
@@ -477,7 +390,9 @@ class Fruitmix extends EventEmitter {
   async updateUserAsync (user, userUUID, body) {
     if (!this.userCanUpdate(user, userUUID, body)) { throw Object.assign(new Error(`unrecognized prop name `), { status: 400 }) }
     if (Object.getOwnPropertyNames(body).includes('password')) { throw Object.assign(new Error(`password is not allowed to change`), { status: 403 }) }
-    return this.userList.updateUserAsync(userUUID, body)
+    let u = this.userList.updateUserAsync(userUUID, body)
+    this.updateSamba()
+    return u
   }
 
   async updateUserPasswordAsync (user, userUUID, body) {
@@ -488,6 +403,7 @@ class Fruitmix extends EventEmitter {
     }
 
     await this.userList.updatePasswordAsync(user.uuid, body.password)
+    this.updateSamba()
   }
 
   async updateUserGlobalAsync (user, userUUID, body) {
@@ -594,26 +510,103 @@ class Fruitmix extends EventEmitter {
     return drives
   }
 
+  /**
+  Drive Metadata is the Drive Object
+  Drive Data is the files and directories inside the Drive
+  */
+
+  // internal
+  userCanReadDriveMetadata (user, drive) {
+    if (drive.type === 'private' && drive.owner === user.uuid) return true
+    if (drive.type === 'public') {
+      if (user.isAdmin) return true
+      if (drv.writelist === '*') return true
+      if (Array.isArray(drv.writelist) && drv.writelist.includes(user.uuid)) return true
+      if (drv.readlist === '*') return true
+      if (Array.isArray(drv.readlist) && drv.readlist.includes(user.uuid)) return true
+    } 
+    return false
+  }
+
+  // internal
+  userCanWriteDriveMetadata (user, drive) {
+    if (drive.type === 'private' && drive.owner === user.uuid) return true
+    if (drive.type === 'public' && user.isAdmin) return true
+    return false
+  }
+
+  // internal
+  userCanReadDriveData (user, drive) {
+    if (drive.type === 'private' && drive.owner === user.uuid) return true
+    if (drive.type === 'public') {
+      if (drv.writelist === '*') return true
+      if (Array.isArray(drv.writelist) && drv.writelist.includes(user.uuid)) return true
+      if (drv.readlist === '*') return true
+      if (Array.isArray(drv.readlist) && drv.readlist.includes(user.uuid)) return true
+    }
+    return false
+  }
+
+  // internal
+  userCanWriteDriveData (user, drive) {
+    if (drive.type === 'private' && drive.owner === user.uuid) return true
+    if (drive.type === 'public') {
+      if (drv.writelist === '*') return true
+      if (Array.isArray(drv.writelist) && drv.writelist.includes(user.uuid)) return true
+    }
+    return false
+  }
+
+  /**
+  TODO this function is used by pipe
+  */
   getDriveList (user) {
     let drives = this.driveList.drives.filter(drv => {
       if (drv.type === 'private' && drv.owner === user.uuid) return true
-      if (drv.type === 'public' &&
-        (drv.writelist.includes(user.uuid) || drv.readlist.includes(user.uuid) || user.isAdmin)) {
-        return true
+      if (drv.type === 'public') {
+        if (user.isAdmin) return true
+        if (drv.writelist === '*') return true
+        if (Array.isArray(drv.writelist) && drv.writelist.includes(user.uuid)) return true
+        if (drv.readlist === '*') return true
+        if (Array.isArray(drv.readlist) && drv.readlist.includes(user.uuid)) return true
       }
       return false
     })
-
     return drives
   }
 
-  async createPublicDriveAsync (user, props) {
-    if (!user) throw Object.assign(new Error('Invaild user'), { status: 400 })
-    if (!user.isAdmin) { throw Object.assign(new Error(`requires admin priviledge`), { status: 403 }) }
-
-    return this.driveList.createPublicDriveAsync(props)
+  /**
+  API: DriveList [GET]
+  */
+  getDriveList2 (user, callback) {
+    let drives = this.driveList.drives.filter(drv => {
+      if (drv.type === 'private' && drv.owner === user.uuid) return true
+      if (drv.type === 'public') {
+        if (user.isAdmin) return true
+        if (drv.writelist === '*') return true
+        if (Array.isArray(drv.writelist) && drv.writelist.includes(user.uuid)) return true
+        if (drv.readlist === '*') return true
+        if (Array.isArray(drv.readlist) && drv.readlist.includes(user.uuid)) return true
+      }
+      return false
+    })
+    process.nextTick(() => callback(null, drives))
   }
 
+  /**
+  API: DriveList [POST]
+  */
+  async createPublicDriveAsync (user, props) {
+    if (!user) throw Object.assign(new Error('Invaild user'), { status: 400 })
+    if (!user.isAdmin) throw Object.assign(new Error(`requires admin priviledge`), { status: 403 })
+    let d = this.driveList.createPublicDriveAsync(props)
+    this.updateSamba()
+    return d
+  }
+
+  /**
+  TODO
+  */
   getDrive (user, driveUUID) {
     if (!this.userCanRead(user, driveUUID)) throw Object.assign(new Error('permission denied'), { status: 403 })
 
@@ -624,9 +617,25 @@ class Fruitmix extends EventEmitter {
   }
 
   /**
-    uuid, type, writelist, readlist, label 
+  API: Drive [GET]
+  */
+  getDrive2 (user, driveUUID, callback) {
+    let drive = this.driveList.drives.find(drv => drv.uuid === driveUUID)
+    if (!drive || !this.userCanReadDriveMetadata(user, drive)) {
+      let err = new Error(`drive ${driveUUID} not found`)
+      err.code = 'ENOTFOUND'
+      err.status = 404
+      process.nextTick(() => callback(err))
+    } else {
+      process.nextTick(() => callback(null, drive))
+    } 
+  }
+
+  /**
+  uuid, type, writelist, readlist, label 
   */
   async updatePublicDriveAsync (user, driveUUID, props) {
+    
     if (!user.isAdmin) {
       throw Object.assign(new Error(`requires admin priviledge`), { status: 403 })
     }
@@ -636,38 +645,59 @@ class Fruitmix extends EventEmitter {
       throw Object.assign(new Error(`drive ${driveUUID} not found`), { status: 404 })
     }
 
+    // validate prop names
     if (drive.type === 'private') {
+      // private drive is not allowed to update
       throw Object.assign(new Error(`private drive is not allowed to update`), { status: 403 })
+    } else if (drive.type === 'public' && drive.tag === 'built-in') {
+      // built-in public drive, only label can be updated
+      if (!Object.getOwnPropertyNames(props).every(name => name === 'label')) {
+        let err = new Error('Only label is allowed to update for built-in public drive')     
+        err.code = 'EBADREQUEST'
+        err.status = 400
+        throw err
+      }
+    } else {
+      // public drive other than built-in one
+      let recognized = ['uuid', 'type', 'writelist', 'readlist', 'label']
+      Object.getOwnPropertyNames(props).forEach(name => {
+        if (!recognized.includes(name)) {
+          throw Object.assign(new Error(`unrecognized prop name ${name}`), { status: 400 })
+        }
+      })
+
+      let disallowed = ['uuid', 'type', 'readlist']
+      Object.getOwnPropertyNames(props).forEach(name => {
+        if (disallowed.includes(name)) {
+          throw Object.assign(new Error(`${name} is not allowed to update`), { status: 403 })
+        }
+      })
     }
 
-    let recognized = ['uuid', 'type', 'writelist', 'readlist', 'label']
-    Object.getOwnPropertyNames(props).forEach(name => {
-      if (!recognized.includes(name)) {
-        throw Object.assign(new Error(`unrecognized prop name ${name}`), { status: 400 })
-      }
-    })
-
-    let disallowed = ['uuid', 'type', 'readlist']
-    Object.getOwnPropertyNames(props).forEach(name => {
-      if (disallowed.includes(name)) {
-        throw Object.assign(new Error(`${name} is not allowed to update`), { status: 403 })
-      }
-    })
-
+    // validate writelist, readlist
     if (props.writelist) {
       let wl = props.writelist
-      if (!Array.isArray(wl)) {
-        throw Object.assign(new Error(`writelist must be an uuid array`), { status: 400 })
+      if (wl === '*') {
+      } else if (Array.isArray(wl)) {
+        if (!wl.every(uuid => !!this.userList.users.find(u => u.uuid === uuid))) {
+          let err = new Error(`not all user uuid found`) // TODO
+          err.code = 'EBADREQUEST'
+          err.status = 400
+          throw err
+        }
+        props.writelist = Array.from(new Set(props.writelist)).sort()
+      } else {
+        let err = new Error('writelist must be either wildcard or an uuid array')
+        err.code = 'EBADREQUEST'
+        err.status = 400
+        throw err
       }
 
-      if (!wl.every(uuid => !!this.userList.users.find(u => u.uuid === uuid))) {
-        throw Object.assign(new Error(`not all user uuid found`), { status: 400 })
-      }
-
-      props.writelist = Array.from(new Set(props.writelist)).sort()
     }
 
-    return this.driveList.updatePublicDriveAsync(driveUUID, props)
+    let nextDrive =  this.driveList.updatePublicDriveAsync(driveUUID, props)
+    this.updateSamba()
+    return nextDrive
   }
 
   getDriveDirs (user, driveUUID) {
@@ -732,289 +762,6 @@ class Fruitmix extends EventEmitter {
 
   getTmpDir () {
     return path.join(this.fruitmixPath, 'tmp')
-  }
-
-  /// ////////////// box api ///////////////////////
-
-  /**
-   * get all box descriptions user can access
-   * @param {Object} user
-   * @return {array} a docList of boxes user can view
-   */
-  getAllBoxes (user) {
-    let guid = user.global.id
-    return this.boxData.getAllBoxes(guid)
-  }
-
-  // return a box doc
-  /**
-   * get a box description
-   * @param {Object} user
-   * @param {string} boxUUID - uuid of box
-   */
-  getBox (user, boxUUID) {
-    if (!isUUID(boxUUID)) throw Object.assign(new Error('invalid boxUUID'), { status: 400 })
-    let box = this.boxData.getBox(boxUUID)
-    if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
-
-    let guid = user.global.id
-    let doc = box.doc
-    if (doc.owner !== guid && !doc.users.includes(guid)) { throw Object.assign(new Error('no permission'), { status: 403 }) }
-    return doc
-  }
-
-  // props {name, users:[]}
-  /**
-   * create a new box
-   * @param {Object} user 
-   * @param {Object} props
-   * @param {string} props.name - name of box to be created
-   * @param {array} props.users - collection of global ID string
-   * @return {Object} box description (doc)
-   */
-  async createBoxAsync (user, props) {
-    let u = this.findUserByUUID(user.uuid)
-    if (!u || user.global.id !== u.global.id) { throw Object.assign(new Error('no permission'), { status: 403 }) }
-    validateProps(props, ['name', 'users'])
-    assert(typeof props.name === 'string', 'name should be a string')
-    assert(Array.isArray(props.users), 'users should be an array')
-    // FIXME: check user global ID in props.users ?
-
-    props.owner = user.global.id
-    return this.boxData.createBoxAsync(props)
-  }
-
-  // update name and users, only box owner is allowed
-  // props {name, users: {op: add/delete, value: [user global ID]}}
-  /**
-   * update a box, name, users or mtime
-   * @param {Object} user 
-   * @param {string} boxUUID - uuid of box to be updated
-   * @param {Object} props
-   * @param {string} props.name - optional, new name of box
-   * @param {Object} props.users - optional, {op: add/delete, value: [user global ID]}
-   * @param {number} props.mtime - optional
-   * @return {Object} new description of box
-   */
-  async updateBoxAsync (user, boxUUID, props) {
-    let u = this.findUserByUUID(user.uuid)
-    if (!u || user.global.id !== u.global.id) { throw Object.assign(new Error('no permission'), { status: 403 }) }
-
-    if (!isUUID(boxUUID)) throw Object.assign(new Error('invalid boxUUID'), { status: 400 })
-    let box = this.boxData.getBox(boxUUID)
-    if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
-
-    if (box.doc.owner !== user.global.id) { throw Object.assign(new Error('no permission'), { status: 403 }) }
-
-    validateProps(props, [], ['name', 'users', 'mtime'])
-    if (props.name) assert(typeof props.name === 'string', 'name should be a string')
-    if (props.users) {
-      assert(typeof props.users === 'object', 'users should be an object')
-      assert(props.users.op === 'add' || props.users.op === 'delete', 'operation should be add or delete')
-      assert(Array.isArray(props.users.value), 'value should be an array')
-    }
-
-    return this.boxData.updateBoxAsync(props, boxUUID)
-  }
-
-  /**
-   * delete a box, only box owner is allowed
-   * @param {Object} user 
-   * @param {string} boxUUID 
-   */
-  async deleteBoxAsync (user, boxUUID) {
-    let u = this.findUserByUUID(user.uuid)
-    if (!u || user.global.id !== u.global.id) { throw Object.assign(new Error('no permission'), { status: 403 }) }
-
-    if (!isUUID(boxUUID)) throw Object.assign(new Error('invalid boxUUID'), { status: 400 })
-    let box = this.boxData.getBox(boxUUID)
-    if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
-
-    if (box.doc.owner !== user.global.id) { throw Object.assign(new Error('no permission'), { status: 403 }) }
-    return this.boxData.deleteBoxAsync(boxUUID)
-  }
-
-  /**
-   * get all branches
-   * @param {Object} user 
-   * @param {string} boxUUID 
-   * @return {array} a list of branch descriptions
-   */
-  async getAllBranchesAsync (user, boxUUID) {
-    if (!isUUID(boxUUID)) throw Object.assign(new Error('invalid boxUUID'), { status: 400 })
-    let box = this.boxData.getBox(boxUUID)
-    if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
-
-    let guid = user.global.id
-    if (box.doc.owner !== guid && !box.doc.users.includes(guid)) { throw Object.assign(new Error('no permission'), { status: 403 }) }
-
-    return box.retrieveAllAsync('branches')
-  }
-
-  /**
-   * get a branch information
-   * @param {Object} user 
-   * @param {string} boxUUID 
-   * @param {string} branchUUID 
-   * @return {Object} branch information
-   */
-  async getBranchAsync (user, boxUUID, branchUUID) {
-    if (!isUUID(boxUUID)) throw Object.assign(new Error('invalid boxUUID'), { status: 400 })
-    if (!isUUID(branchUUID)) throw Object.assign(new Error('invalid branchUUID'), { status: 400 })
-    let box = this.boxData.getBox(boxUUID)
-    if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
-
-    let guid = user.global.id
-    if (box.doc.owner !== guid && !box.doc.users.includes(guid)) { throw Object.assign(new Error('no permission'), { status: 403 }) }
-
-    return box.retrieveAsync('branches', branchUUID)
-  }
-
-  // props {name, head}
-  /**
-   * create a new branch
-   * @param {Object} user 
-   * @param {string} boxUUID
-   * @param {Object} props 
-   * @param {string} props.name - branch name
-   * @param {string} props.head - sha256, a commit hash
-   * @return {object} description of branch
-   */
-  async createBranchAsync (user, boxUUID, props) {
-    if (!isUUID(boxUUID)) throw Object.assign(new Error('invalid boxUUID'), { status: 400 })
-    let box = this.boxData.getBox(boxUUID)
-    if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
-
-    let guid = user.global.id
-    if (box.doc.owner !== guid && !box.doc.users.includes(guid)) { throw Object.assign(new Error('no permission'), { status: 403 }) }
-
-    validateProps(props, ['name', 'head'])
-    assert(typeof props.name === 'string', 'name should be a string')
-    assert(isSHA256(props.head), 'head should be a sha256')
-
-    return box.createBranchAsync(props)
-  }
-
-  // props {name, head}
-  /**
-   * updata a branch, name or head
-   * @param {Object} user 
-   * @param {string} boxUUID 
-   * @param {string} branchUUID 
-   * @param {Object} props 
-   * @param {string} props.name - new name of branch
-   * @param {string} props.head - sha256, new commit hash
-   * @return {Object} new description of branch
-   */
-  async updateBranchAsync (user, boxUUID, branchUUID, props) {
-    if (!isUUID(boxUUID)) throw Object.assign(new Error('invalid boxUUID'), { status: 400 })
-    if (!isUUID(branchUUID)) throw Object.assign(new Error('invalid branchUUID'), { status: 400 })
-    let box = this.boxData.getBox(boxUUID)
-    if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
-
-    let guid = user.global.id
-    if (box.doc.owner !== guid && !box.doc.users.includes(guid)) { throw Object.assign(new Error('no permission'), { status: 403 }) }
-
-    validateProps(props, [], ['name', 'head'])
-    if (props.name) assert(typeof props.name === 'string', 'name should be a string')
-    if (props.head) assert(isSHA256(props.head), 'head should be a sha256')
-
-    return box.updateBranchAsync(branchUUID, props)
-  }
-
-  async deleteBranchAsync (user, boxUUID, branchUUID) {
-    if (!isUUID(boxUUID)) throw Object.assign(new Error('invalid boxUUID'), { status: 400 })
-    if (!isUUID(branchUUID)) throw Object.assign(new Error('invalid branchUUID'), { status: 400 })
-    let box = this.boxData.getBox(boxUUID)
-    if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
-
-    let guid = user.global.id
-    if (box.doc.owner !== guid && !box.doc.users.includes(guid)) { throw Object.assign(new Error('no permission'), { status: 403 }) }
-
-    return box.deleteBranchAsync(branchUUID)
-  }
-
-  // props {first, last, count, segments}
-  /**
-   * get appointed segments
-   * segments: '3:5|7:10|20:30'
-   * @param {Object} user 
-   * @param {string} boxUUID 
-   * @param {Object} props
-   * @param {number} props.first - optional, the first index of segment user hold 
-   * @param {number} props.last - optional, the last index of segment user hold
-   * @param {number} props.count - optional, number of records user want to get
-   * @param {string} props.segments - optional, segments of records user want to get
-   */
-  async getTweetsAsync (user, boxUUID, props) {
-    if (!isUUID(boxUUID)) throw Object.assign(new Error('invalid boxUUID'), { status: 400 })
-    let box = this.boxData.getBox(boxUUID)
-    if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
-
-    let guid = user.global.id
-    if (box.doc.owner !== guid && !box.doc.users.includes(guid)) { throw Object.assign(new Error('no permission'), { status: 403 }) }
-
-    validateProps(props, [], ['first', 'last', 'count', 'segments'])
-    if (props.first) assert(Number.isInteger(props.first), 'first should be an integer')
-    if (props.last) assert(Number.isInteger(props.last), 'last should be an integer')
-    if (props.count) assert(Number.isInteger(props.count), 'count should be an integer')
-    if (props.last) assert(typeof props.segments === 'string', 'segments should be a string')
-
-    return box.getTweetsAsync(props)
-  }
-
-  /**
-   * 
-   * @param {Object} user 
-   * @param {string} boxUUID 
-   * @param {Object} props
-   * @param {string} props.comment
-   * @param {string} props.type - blob, list, branch, commit, job, tag
-   * @param {string} props.id - sha256 or uuid, for blob, branch, commit, job, tag
-   * @param {array} props.list - [{sha256, filename}], only for list
-   * @param {Object} props.global - user global object
-   * @param {array} props.path - {sha256, filepath}, for blob and list
-   * @return {Object} tweet object
-   */
-  async createTweetAsync (user, boxUUID, props) {
-    if (!isUUID(boxUUID)) throw Object.assign(new Error('invalid boxUUID'), { status: 400 })
-    let box = this.boxData.getBox(boxUUID)
-    if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
-
-    let global = user.global
-    if (box.doc.owner !== global.id && !box.doc.users.includes(global.id)) { throw Object.assign(new Error('no permission'), { status: 403 }) }
-
-    props.global = global
-
-    validateProps(props, ['global', 'comment'], ['type', 'id', 'list', 'src'])
-    assert(typeof props.comment === 'string', 'comment should be a string')
-    assert(typeof props.global === 'object', 'global should be an object')
-    if (props.type) assert(typeof props.type === 'string', 'type should be a string')
-    if (props.id) assert(isSHA256(props.id) || isUUID(props.id), 'id should be sha256 or uuid')
-    if (props.list) assert(Array.isArray(props.list), 'list should be an array')
-    if (props.src) assert(Array.isArray(props.src), 'src should be an array')
-
-    let result = await box.createTweetAsync(props)
-    await this.boxData.updateBoxAsync({mtime: result.mtime}, boxUUID)
-    return result.tweet
-  }
-
-  /**
-   * delete tweets
-   * add tweetsID into blacklist
-   * @param {Object} user 
-   * @param {string} boxUUID 
-   * @param {array} tweetsID - list of tweets ID to be deleted
-   */
-  async deleteTweetsAsync (user, boxUUID, tweetsID) {
-    if (!isUUID(boxUUID)) throw Object.assign(new Error('invalid boxUUID'), { status: 400 })
-    let box = this.boxData.getBox(boxUUID)
-    if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
-
-    let guid = user.global.id
-    if (box.doc.owner !== guid && !box.doc.users.includes(guid)) { throw Object.assign(new Error('no permission'), { status: 403 }) }
-
-    return box.deleteTweetsAsync(tweetsID)
   }
 
   /// ////////// media api //////////////
@@ -1095,13 +842,56 @@ class Fruitmix extends EventEmitter {
 
   /// ////////// task api ///////////////////////////////////////////////////////
 
-  getTasks (user) {
-    return this.tasks
-      .filter(t => t.user.uuid === user.uuid)
-      .map(t => t.view())
+  /**
+  internally called by xcopy
+  */
+  cpdir (user, src, dst, policy, callback) {
+    this.vfs.cpdir(src, dst, policy, callback)  
+  }
+
+  cpfile (user, src, dst, policy, callback) {
+    this.vfs.cpfile(src, dst, policy, callback)
+  }
+
+  mvdir2 (user, src, dst, policy, callback) {
+    this.vfs.mvdir(src, dst, policy, callback)
+  }
+
+  mvfile2 (user, src, dst, policy, callback) {
+    this.vfs.mvfile(src, dst, policy, callback)
+  } 
+
+  mkdir2 (user, dst, policy, callback) {
+    this.vfs.mkdir(dst, policy, callbacl)
+  }
+
+  mkfile (user, tmp, dst, policy, callback) {
+    this.vfs.mkfile(tmp, dst, policy, callback)
+  }
+
+  readdir (user, driveUUID, dirUUID, callback) {
+    this.vfs.readdir(driveUUID, dirUUID, callback)
+  }
+  
+  getTasks (user, callback) {
+    let tasks = this.tasks.filter(t => t.user.uuid === user.uuid).map(t => t.view())
+    process.nextTick(() => callback(null, tasks))
+  }
+
+  getTask (user, taskUUID, callback) {
+    let task = this.tasks.find(t => t.user.uuid === user.uuid && t.uuid === taskUUID) 
+    if (task) {
+      callback(null, task.view())
+    } else {
+      let err = new Error('task not found')
+      err.code = 'ENOTFOUND'
+      err.status = 404
+      callback(err)
+    }
   }
 
   async createTaskAsync (user, props) {
+
     if (typeof props !== 'object' || props === null) {
       throw Object.assign(new Error('invalid'), { status: 400 })
     }
@@ -1122,18 +912,72 @@ class Fruitmix extends EventEmitter {
         task = new MoveTask(this, user, Object.assign({}, props, { entries }))
       }
       this.tasks.push(task)
-
-      console.log(task.view())
-
       return task.view()
     }
 
     throw new Error('invalid task type')
   }
 
+  async createTaskAsync2 (user, props) {
+    let { src, dst, policies, entries } = props
+    // FIXME user
+    let task = await xcopyAsync(this, user, props.type, policies, src, dst, entries)
+    // task.user = user 
+    this.tasks.push(task)
+
+    // console.log(task.view())
+
+    return task.view()
+  }
+
+  createTask (user, body, callback) {
+    let { type, policies, src, dst, entries } = body
+    let task = xcopy(this, user, type, policies, src, dst, entries, (err, task) => {
+      if (err) {
+        callback(err)
+      } else {
+        this.tasks.push(task)
+        callback(null, task.view())
+      }
+    })
+  }
+
+  deleteTask (user, taskUUID, callback) {
+    let index = this.tasks.findIndex(t => t.user.uuid === user.uuid && t.uuid === taskUUID) 
+    if (index !== -1) {
+      this.tasks[index].destroy()
+      this.tasks.splice(index, 1)
+    }
+
+    process.nextTick(() => callback(null))
+  }
+
+  updateSubTask(user, taskUUID, nodeUUID, props, callback) {
+    let task = this.tasks.find(t => t.user.uuid === user.uuid && t.uuid === taskUUID) 
+    if (!task) {
+      let err = new Error(`task ${taskUUID} not found`)
+      err.code = 'ENOTFOUND'
+      err.status = 404
+      callback(err)
+    } else {
+      task.update(nodeUUID, props, callback)
+    }
+  }
+
+  deleteSubTask (user, taskUUID, subTaskId, callback) {
+    let task = this.tasks.find(t => t.user.uuid === user.uuid && t.uuid === taskUUID)
+    if (!task) {
+      let err = new Error(`task ${taskUUID} not found`)
+      err.code = 'ENOTFOUND'
+      err.status = 404
+      callback(err)
+    } else {
+      task.delete(nodeUUID, callback)
+    }
+  }
+
   /// /////////////////////////
   mkdirp (user, driveUUID, dirUUID, name, callback) {
-
     let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
     if (!dir) {
       let err = new Error('drive or dir not found')
@@ -1157,7 +1001,7 @@ class Fruitmix extends EventEmitter {
     if (!dir) {
       let err = new Error('drive or dir not found')
       err.status = 404
-      return process.nextTick(() => cb(err))
+      return process.nextTick(() => callback(err))
     }
 
     let dst = path.join(dir.abspath(), name)
@@ -1225,7 +1069,7 @@ class Fruitmix extends EventEmitter {
     if (!dir) {
       let err = new Error('drive or dir not found')
       err.status = 404
-      return process.nextTick(() => cb(err))
+      return process.nextTick(() => callback(err))
     }
 
     let dst = path.join(dir.abspath(), name)
@@ -1270,7 +1114,7 @@ class Fruitmix extends EventEmitter {
     if (!dir) {
       let err = new Error('drive or dir not found')
       err.status = 404
-      return process.nextTick(() => cb(err))
+      return process.nextTick(() => callback(err))
     }
 
     let fromPath = path.join(dir.abspath(), fromName)
@@ -1350,7 +1194,7 @@ class Fruitmix extends EventEmitter {
     if (!dir) {
       let err = new Error('drive or dir not found')
       err.status = 404
-      return process.nextTick(() => cb(err))
+      return process.nextTick(() => callback(err))
     }
 
     let fromPath = path.join(dir.abspath(), fromName)
@@ -1506,6 +1350,8 @@ class Fruitmix extends EventEmitter {
     this.driveList.assertDirUUIDsIndexed (uuids)
   }
 }
+
+Object.assign(Fruitmix.prototype, {})
 
 module.exports = Fruitmix
 
