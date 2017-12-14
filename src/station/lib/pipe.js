@@ -700,7 +700,7 @@ class Pipe {
     if(user.uuid !== userUUID) return await this.errorResponseAsync(serverAddr, sessionId, new Error('user uuid mismatch'))
 
     let list = await fruit.addMediaBlacklistAsync(user, body.blacklist)
-    return await this.successResponseJsonAsync(serverAddr, sessionId, list)
+    return await this.successResponseJsonAsync(sherverAddr, sessionId, list)
   }
 
   /**
@@ -722,22 +722,51 @@ class Pipe {
     let { serverAddr, sessionId, user, body, paths } = data
     let { torrentId, type } = body
     getIpcMain().call('getSummary', { torrentId, type, user }, async (error, summary) => {
-      console.log(summary)
-      if (error) this.errorResponseAsync(serverAddr, sessionId, error)
+      if (error) await this.errorResponseAsync(serverAddr, sessionId, error)
       else await this.successResponseJsonAsync(serverAddr, sessionId, summary)
     })
   }
 
   async patchTorrentAsync(data) {
-    
+    let { serverAddr, sessionId, user, body, paths } = data
+    let { op } = body
+    let torrentId = paths[1]
+    let ops = ['pause', 'resume', 'destroy']
+    if(!ops.includes(op)) return await this.errorResponseAsync(serverAddr, sessionId, new Error('unknow op'))
+    getIpcMain().call(op, { torrentId, user }, async (error, result) => {
+      if(error) return await this.errorResponseAsync(serverAddr, sessionId, error)
+      else await this.successResponseJsonAsync(serverAddr, sessionId, result)
+    })
   }
 
   async addMagnetAsync(data) {
-    
+    let { serverAddr, sessionId, user, body, paths } = data
+    let { dirUUID, magnetURL } = body
+    getIpcMain().call('addMagnet', { magnetURL, dirUUID, user}, async (error, result) => {
+      if(error) return await this.errorResponseAsync(serverAddr, sessionId, error)
+      else await this.successResponseJsonAsync(serverAddr, sessionId, result)
+    })
   }
 
   async addTorrentAsync(data) {
-    
+    console.log('enter torrent cloud', data.body.dirUUID)
+    let { serverAddr, sessionId, user, body, paths } = data
+    let { dirUUID } = body
+    data.subType = 'WriteDirNewFile'
+    let store = new StoreFile(this.tmp, body.size, body.sha256)
+    let fpath = await store.storeFileAsync(serverAddr, sessionId, this.connect.saId, this.connect.token)
+    let fname = path.basename(fpath)
+    let torrentTmp = path.join(getFruit().fruitmixPath, 'torrentTmp')
+    let torrentPath = path.join(torrentTmp, fname)
+    let fruit = getFruit()
+    mkdirp.sync(torrentTmp)
+    fs.rename(fpath, torrentPath, async (error, data) => {
+      if (error) return await this.errorStoreResponseAsync(serverAddr, sessionId, error)
+      else getIpcMain().call('addTorrent', { torrentPath, dirUUID, user }, async (err, result) => {
+        if (err) return await this.errorStoreResponseAsync(serverAddr, sessionId, err)
+        else return await this.successStoreResponseAsync(serverAddr, sessionId, result)
+      })
+    })
   }
 
   //fetch file -- client download --> post file to cloud

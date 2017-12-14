@@ -188,13 +188,13 @@ class WebTorrentService {
     
     // add torrent to storage
     await this.cache()
-    return torrent.infoHash
+    return {torrentId: torrent.infoHash}
   }
 
   //pasuse a torrent with torrentID
   pause({ torrentId, user }) {
     let torrent = this.getClient(user.uuid).get(torrentId)
-    if (!torrent) return -1
+    if (!torrent) throw new Error('torrent not exist')
     torrent.pause()
     torrent.isPause = true
     return torrent.log()
@@ -203,7 +203,7 @@ class WebTorrentService {
   //resume a torrent with torrentID
   resume({ torrentId, user }) {
     let torrent = this.getClient(user.uuid).get(torrentId)
-    if (!torrent) return -1
+    if (!torrent) throw new Error('torrent not exist')
     torrent.resume()
     torrent.isPause = false
     return torrent.log()
