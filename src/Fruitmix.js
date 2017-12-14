@@ -117,6 +117,10 @@ class Fruitmix extends EventEmitter {
       .catch(e => console.error.bind(console, 'smbServer update error:'))
   }
 
+  async startSambaAsync() {
+    await this.smbServer.startAsync(this.userList.users, this.driveList.drives)
+  }
+
   loadMediaMap (fpath) {
     let medias, data
     try {
