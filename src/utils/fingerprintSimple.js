@@ -43,7 +43,6 @@ const fingerprintSimple = (filePath, callback) => {
 
     let digest = crypto.createHash('sha256').update(buffer.slice(0, bytesRead)).digest()
     debug('  digest: ', digest)
-
     if (!fingerprint)
       fingerprint = digest
     else

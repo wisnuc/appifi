@@ -22,7 +22,7 @@ Forest is considered to be the context of all nodes.
 
 But MediaMap is NOT visible to nodes. So hash/fingerprint worker and metadata 
 worker are treated differently. The former is encapsulated in state of file 
-nodes. While the latter is considered to be an exteranl observer.
+nodes. While the latter is considered to be an external observer.
 
 
 

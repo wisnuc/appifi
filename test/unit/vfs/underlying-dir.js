@@ -191,7 +191,7 @@ describe(path.basename(__filename) + ' mkdir, [,skip], a113c558', () => {
     })
   })
 
-  it ('OK if target is dir, ff102b85', done => {
+  it ('EEXIST + EISDIR, if target is dir, ff102b85', done => {
     mkdirp.sync('tmptest/a/b')
     mkdir('tmptest/a/b', [,'skip'], (err, xstat, resolved) => {
       expect(err.code).to.equal('EEXIST')
@@ -200,7 +200,7 @@ describe(path.basename(__filename) + ' mkdir, [,skip], a113c558', () => {
     })
   })
 
-  it('EEXIST + EISFILE if target is file', done => {
+  it('OK if target is file', done => {
     mkdirp.sync('tmptest/a')
     fs.copyFileSync('testdata/foo', 'tmptest/a/b')
     mkdir('tmptest/a/b', [,'skip'], (err, xstat, resolved) => {
