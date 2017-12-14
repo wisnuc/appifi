@@ -107,12 +107,12 @@ class Fruitmix extends EventEmitter {
 
     this.tasks = []
 
-    this.tasks = []
-    this.smbServer = new SambaServer(froot)
-    this.smbServer.on('SambaServerNewAudit', audit => {
-      this.driveList.audit(audit.abspath, audit.arg0, audit.arg1)
-    })
     if (!nosmb) {
+      this.smbServer = new SambaServer(froot)
+      this.smbServer.on('SambaServerNewAudit', audit => {
+        this.driveList.audit(audit.abspath, audit.arg0, audit.arg1)
+      })
+
       this.smbServer.startAsync(this.userList.users, this.driveList.drives)
         .then(() => {})
         .catch( e => {
@@ -122,6 +122,7 @@ class Fruitmix extends EventEmitter {
   }
 
   updateSamba() {
+    if (nosmb) return
     this.smbServer.updateAsync(this.userList.users, this.driveList.drives)
       .then(() => {})
       .catch(e => console.error.bind(console, 'smbServer update error:'))
