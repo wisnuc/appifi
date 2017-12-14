@@ -16,10 +16,22 @@ broadcast.on('FruitmixStart', (froot, opts) => {
 })
 
 broadcast.on('StorageUpdate', (err, _storage) => {
+
+  if (_storage === undefined) {
+    let err = new Error('stack')
+    console.log(err)
+  }
+
   if (err) return
   if (storage === _storage) return
   storage = _storage
-  if (fruitmix) fruitmix.setStorage(storage)
+  if (fruitmix) {
+    try {
+      fruitmix.setStorage(storage)
+    } catch (e) {
+      console.log(e)
+    }
+  }
 })
 
 // TODO

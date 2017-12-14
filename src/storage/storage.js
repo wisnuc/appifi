@@ -630,7 +630,7 @@ const singleton = new class extends Synchronized {
         this.finish(null, data)
       })
       .catch(e => {
-        // console.log('error', e)
+        console.log('WARNING: probeAsync error', e)
         this.finish(e)
       })
   }

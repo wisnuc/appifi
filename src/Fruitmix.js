@@ -45,6 +45,7 @@ const debug = Debug('fruitmix')
 
 const mixin = require('./fruitmix/mixin')
 const driveapi = require('./fruitmix/drive')
+const ndriveapi = require('./fruitmix/ndrive')
 
 const combineHash = (a, b) => {
   let a1 = typeof a === 'string' ? Buffer.from(a, 'hex') : a
@@ -1125,12 +1126,11 @@ class Fruitmix extends EventEmitter {
     } else {
       forceXstat(tmp, { hash }, (err, xstat) => {
         if (err) return callback(err)
-
         if (Magic.isMedia(xstat.magic)) {
           let { magic, uuid } = xstat
           extract(tmp, magic, hash, uuid, (err, metadata) => {
-            if (err) return callback(err)
-            this.mediaMap.setMetadata(hash, metadata)
+            // ignore extract error
+            if (!err) this.mediaMap.setMetadata(hash, metadata)
             fs.link(tmp, dst, err => err ?  callback(err) : callback(null, Object.assign(xstat, { name })))
           })
         } else {
@@ -1429,13 +1429,11 @@ class Fruitmix extends EventEmitter {
     this.driveList.assertDirUUIDsIndexed (uuids)
   }
 
-  setStorage (storage) {
-    // console.log('storage update')
-  }
 }
 
 Object.assign(Fruitmix.prototype, {})
 Object.assign(Fruitmix.prototype, driveapi)
+Object.assign(Fruitmix.prototype, ndriveapi)
 
 module.exports = Fruitmix
 
