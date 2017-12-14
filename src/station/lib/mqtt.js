@@ -45,7 +45,7 @@ class MQTT extends EventEmiter {
     })
   
     client.on('message', (topic, message, packet) => {
-      debug(`message`, topic, message.toString(), Date.now())
+      debug(`message comming`)
       let data = JSON.parse(message)
       this.dispatch(data.type, data)
     })
