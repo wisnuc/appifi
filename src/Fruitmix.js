@@ -1437,7 +1437,6 @@ class Fruitmix extends EventEmitter {
 Object.assign(Fruitmix.prototype, {})
 Object.assign(Fruitmix.prototype, driveapi)
 
-
 module.exports = Fruitmix
 
 

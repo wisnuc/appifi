@@ -66,3 +66,5 @@ A uuid string (version 4, random)
 /**
 @typedef {PrivateDrive | PublicDrive} Drive
 */
+
+module.exports = driveapi
