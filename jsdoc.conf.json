@@ -24,5 +24,8 @@
   "markdown": {
     "parser": "gfm",
     "hardwrap": true
+  },
+  "template": {
+    "baseline": "baseline-config.json" 
   }
 }

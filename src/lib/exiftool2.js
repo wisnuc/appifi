@@ -75,30 +75,33 @@ const parse = (text, magic) => text
   .reduce((o, l) => {
     let idx = l.indexOf(':')
     if (idx === -1) {
-      console.log('token not found', l)
-      throw new Error('invalid format')
+      console.log('WARNING: token not found', l)
+//      throw new Error('invalid format')
+      return o
     }
 
     let k = l.slice(0, idx)
     let v = l.slice(idx + 2)
     if (k.length === 0) {
-      console.log('zero key length', l, k, v)
-      throw new Error('invalid key format')
+      console.log('WARNING: zero key length', l, k, v)
+//      throw new Error('invalid key format')
+      return o
     }
 
     if (v.length === 0) {
       if (zSet.has(k)) {
         return o 
       } else {
-        console.log('zero length value', l, k, v)
-        throw new Error('invalid value format')
+        console.log('WARNING: invalid value format, zero length value', l, k, v)
+        // throw new Error('invalid value format')
+        return o
       }
     }
 
     if (!kMap.has(k)) {
-      let t = `invalid key: ${k}`
+      let t = `WARNING: invalid key: ${k}`
       console.log(t)
-      throw new Error(t)
+      return o
     }
 
     let key = kMap.get(k)
