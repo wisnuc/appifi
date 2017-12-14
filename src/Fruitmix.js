@@ -1430,7 +1430,7 @@ class Fruitmix extends EventEmitter {
   }
 
   setStorage (storage) {
-    console.log('storage update')
+    // console.log('storage update')
   }
 }
 

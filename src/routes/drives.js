@@ -12,7 +12,6 @@ const UUID = require('uuid')
 const { isSHA256, isUUID } = require('../lib/assertion')
 const Dicer = require('dicer')
 const getFruit = require('../fruitmix')
-const { pipeHash, drainHash } = require('../lib/tailhash')
 const HashStream = require('../lib/hash-stream')
 
 const Debug = require('debug')
@@ -204,7 +203,7 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
     debug(x) 
     debug('  parts', num(parts))
     debug('  parsers_', num(parsers), num(parsers_))
-    debug('  pipes, drains_', num(pipes), num(drains), num(drains_))
+    debug('  pipes, pipes_', num(pipes), num(pipes_))
     debug('  _dryrun', _dryrun)
     debug('  dryrun', dryrun)
     debug('  dryrun_', dryrun_)
@@ -217,7 +216,7 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
       console.log(x) 
       console.log('  parts', num(parts))
       console.log('  parsers_', num(parsers), num(parsers_))
-      console.log('  pipes, drains_', num(pipes), num(pipes_))
+      console.log('  pipes, pipes_', num(pipes), num(pipes_))
       console.log('  _dryrun', _dryrun)
       console.log('  dryrun', dryrun)
       console.log('  dryrun_', dryrun_)
@@ -228,21 +227,21 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
     }
   }
 
-
+/**
   const assertNoDup = () => {
     const all = [
       ...num(parts),
       ...num(parsers),
       ...num(parsers_),
       ...num(pipes),
-      ...num(drains),
-      ...num(drains_),
+      ...num(pipes_),
       ...num(executions)
     ]
 
     let set = new Set(all)
     if (set.size !== all.length) throw new Error('duplicate found')
   }
+**/
 
   const guard = (message, f) => ((...args) => {
     // print(`--------------------- ${message} >>>> begin`)
@@ -372,7 +371,6 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
     })
     parsers.splice(0)
 
-    // for drains and drains_, the remaining job must NOT have errored predecessor
     while (true) {
       let index = pipes.findIndex(predecessorErrored)
       if (index !== -1) {

@@ -89,15 +89,18 @@ app.use(function(err, req, res, next) {
 if (NODE_PATH) app.nolog = true
 
 if (!isAutoTesting) {
-  app.listen(3000, err => {
-
+  let server = app.listen(3000, err => {
     if (err) {
       console.log('failed to listen on port 3000')
-      return process.exit(1)
+      process.exit(1)
+    } else {
+      console.log('server started on port 3000')
     }
-
-    console.log('server started on port 3000')
   })
+
+  server.on('error', err => console.log('WARNING: http server error', err))
+  server.on('timeout', () => console.log('WARNING: http server timeout'))
+  server.setTimeout(600 * 1000) // 10 minutes
 }
 
 module.exports = app
