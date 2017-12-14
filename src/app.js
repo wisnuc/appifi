@@ -52,6 +52,7 @@ app.use('/drives', drives)
 app.use('/boxes', boxes)
 app.use('/media', media)
 app.use('/tasks', tasks)
+// app.use('/samba', require('./routes/samba'))
 // app.use('/download', require('./webtorrent'))
 
 let { NODE_ENV, NODE_PATH, LOGE } = process.env

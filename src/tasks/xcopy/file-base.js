@@ -3,6 +3,7 @@ const State = require('./state')
 
 class Pending extends State {
 
+// this.ctx => file
   enter () {
     this.ctx.ctx.indexPendingFile(this.ctx)
   }

@@ -8,7 +8,7 @@ const E = require('../lib/error')
 /**
  * tweets DB
  */
-class Records {
+class RecordsDB {
 
   /**
    * @param {string} filePath - tweetsDB path 
@@ -206,4 +206,4 @@ class Records {
   }
 }
 
-module.exports = Records
+module.exports = RecordsDB

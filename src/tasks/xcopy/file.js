@@ -5,7 +5,6 @@ const rimraf = require('rimraf')
 
 const { openwx } = require('./lib')
 const Node = require('./node')
-const State = require('./state')
 **/
 
 module.exports = {

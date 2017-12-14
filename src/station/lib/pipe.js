@@ -96,6 +96,7 @@ class StoreFile {
       debug('store file checking')
       let bytesWritten = ws.bytesWritten
       let sha256 = transform.getHash()
+      debug('Bytes Written -->', bytesWritten)
       if (bytesWritten !== this.size)
         return error(Object.assign(new Error('size mismatch'), { code: 'EMISMATCH' }))
       if (sha256 !== this.sha256)
@@ -128,6 +129,7 @@ class StoreFile {
     ws.on('error', err => error(err))
 
     req.pipe(transform).pipe(ws)
+    transform.on('data', data => console.log(data))
   }
 }
 /* data:  {
