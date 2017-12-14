@@ -129,7 +129,7 @@ class StoreFile {
     ws.on('error', err => error(err))
 
     req.pipe(transform).pipe(ws)
-    req.on('data', console.log.bind(console))
+    transform.on('data', data => console.log(data))
   }
 }
 /* data:  {
