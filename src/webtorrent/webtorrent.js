@@ -89,8 +89,8 @@ class IpcWorker {
 const createIpcWorker = () => new IpcWorker()
 
 var logA = function () {
-  let { infoHash, timeRemaining, downloaded, downloadSpeed, progress, numPeers, path, name, torrentPath, magnetURL, dirUUID, state, userUUID, isPause } = this
-  return { infoHash, timeRemaining, downloaded, downloadSpeed, progress, numPeers, path, name, torrentPath, magnetURL, dirUUID, state, userUUID, isPause }
+  let { infoHash, timeRemaining, downloaded, downloadSpeed, progress, numPeers, path, name, torrentPath, magnetURL, dirUUID, state, userUUID, isPause, finishTime } = this
+  return { infoHash, timeRemaining, downloaded, downloadSpeed, progress, numPeers, path, name, torrentPath, magnetURL, dirUUID, state, userUUID, isPause, finishTime }
 }
 
 var logB = function() {
@@ -299,6 +299,7 @@ class WebTorrentService {
     let torrent = this.getClient(userUUID).get(torrentId)
     if (!torrent) throw new Error('not found torrent')
     torrent.state = 'finish'
+    torrent.finishTime = (new Date).getTime()
     // stop torrent uploading & move to downloaded array
     torrent.destroy(() => {
       // fs.renameSync(path.join(torrent.path, torrent.name), path.join(torrent.dirUUID, torrent.name))

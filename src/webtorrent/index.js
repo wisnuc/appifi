@@ -2,7 +2,7 @@ const child = require('child_process')
 
 const Router = require('express').Router
 const debug = require('debug')('webtorrent')
-const createIpcMain = require('./ipcMain')
+const { createIpcMain, getIpcMain } = require('./ipcMain')
 const fs = require('fs')
 const path = require('path')
 const formidable = require('formidable')
@@ -35,8 +35,6 @@ broadcast.on('FruitmixStarted', () => {
     let dirUUID = msg.torrent.dirUUID
     let dirPath = fruitmix.getDriveDirPath(user, drive.uuid, dirUUID)
     let torrentPath = path.join(msg.torrent.path, msg.torrent.name)
-    console.log(dirPath)
-    console.log(torrentPath)
     fs.rename(torrentPath, path.join(dirPath, msg.torrent.name), err => {
       if (err) return console.log(err) //todo
       fruitmix.driveList.getDriveDir(drive.uuid, dirUUID)
@@ -45,7 +43,8 @@ broadcast.on('FruitmixStarted', () => {
     })
   })
   // create ipc main 
-  ipc = createIpcMain(worker)
+  createIpcMain(worker)
+  ipc = getIpcMain()
 })
 
 let router = Router()

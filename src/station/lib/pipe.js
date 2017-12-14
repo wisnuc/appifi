@@ -22,6 +22,7 @@ const broadcast = require('../../common/broadcast')
 const boxData = require('../../box/boxData')
 
 const getFruit = require('../../fruitmix')
+const { getIpcMain } = require('../../webtorrent/ipcMain')
 
 const { isUUID } = require('../../common/assertion')
 // const Config = require('./const').CONFIG
@@ -719,7 +720,12 @@ class Pipe {
 
   async getSummaryAsync(data) {
     let { serverAddr, sessionId, user, body, paths } = data
-    return await this.successResponseJsonAsync(serverAddr, sessionId)
+    let { torrentId, type } = body
+    getIpcMain().call('getSummary', { torrentId, type, user }, async (error, summary) => {
+      console.log(summary)
+      if (error) this.errorResponseAsync(serverAddr, sessionId, error)
+      else await this.successResponseJsonAsync(serverAddr, sessionId, summary)
+    })
   }
 
   async patchTorrentAsync(data) {
