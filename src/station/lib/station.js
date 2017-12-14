@@ -57,7 +57,7 @@ class Station {
          // start mqtt
         this.mqtt = new MQTT(this)
         // register 
-        this.mqtt.register(pipe)
+        this.mqtt.register('pipe', pipe)
         this.mqtt.connect()
         
         this.tickets = new Tickets(this)
