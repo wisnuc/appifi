@@ -3,7 +3,7 @@ const path = require('path')
 const fs = Promise.promisifyAll(require('fs'))
 const EventEmitter = require('events')
 const crypto = require('crypto')
-const dgram = require('dgram')
+// const dgram = require('dgram')
 
 const rimraf = require('rimraf')
 const mkdirp = require('mkdirp')
@@ -37,7 +37,7 @@ const xcopy = require('./tasks/xcopy')
 const xcopyAsync = Promise.promisify(xcopy)
 
 const { readXstat, forceXstat } = require('./lib/xstat')
-const samba = require('./samba/server')
+const SambaServer = require('./samba/samba')
 
 const Debug = require('debug')
 const smbDebug = Debug('samba')
@@ -107,118 +107,28 @@ class Fruitmix extends EventEmitter {
 
     this.tasks = []
 
+    this.tasks = []
+    this.smbServer = new SambaServer(froot)
+    this.smbServer.on('SambaServerNewAudit', audit => {
+      this.driveList.audit(audit.abspath, audit.arg0, audit.arg1)
+    })
     if (!nosmb) {
-      samba.start(froot)
-      let udp = dgram.createSocket('udp4')
-      udp.on('listening', () => {
-        const a = udp.address()
-        console.log(`fruitmix udp listening ${a.address}:${a.port}`)
-      })
-
-      udp.on('message', (message, rinfo) => {
-        const token = ' smbd_audit: '
-
-        let text = message.toString()
-        // SAMBA_AUDIT(text)
-        //
-        // enter into folder 'aaa', then create a new file named 'bbb', then edit it.
-        //
-        // samba audit like below:
-        // <185>Jun 16 11:01:14 wisnuc-virtual-machine smbd_audit: root|a|a (home)|/run/wisnuc/volumes/56b.../wisnuc/fruitmix/drives/21b...|create_file|ok|0x100080|file|open|aaa/bbb.txt
-        //
-        // arr[0]: root
-        // arr[1]: a
-        // arr[2]: a (home)
-        // arr[3]: /run/wisnuc/volumes/56b.../wisnuc/fruitmix/drives/21b...
-        // arr[4]: create_file
-        // arr[5]: ok
-        // arr[6]: 0x100080
-        // arr[7]: file
-        // arr[8]: open
-        // arr[9]: aaa/bbb.txt
-        //
-        // user: a
-        // share: a (home)
-        // abspath: /run/wisnuc/volumes/56b.../wisnuc/fruitmix/drives/21b...
-        // op: create_file
-
-        let tidx = text.indexOf(' smbd_audit: ')
-        if (tidx === -1) return
-
-        let arr = text.trim().slice(tidx + token.length).split('|')
-
-        // for(var i = 0; i < arr.length; i++){
-        //   SAMBA_AUDIT(`arr[${i}]: ` + arr[i])
-        // }
-
-        // %u <- user
-        // %U <- represented user
-        // %S <- share
-        // %P <- path
-
-        if (arr.length < 6 || arr[0] !== 'root' || arr[5] !== 'ok') return
-
-        let user = arr[1]
-        let share = arr[2]
-        let abspath = arr[3]
-        let op = arr[4]
-        let arg0, arg1
-
-        // create_file arg0
-        // mkdir arg0
-        // rename arg0 arg1 (file or directory)
-        // rmdir arg0 (delete directory)
-        // unlink arg0 (delete file)
-        // write (not used anymore)
-        // pwrite
-
-        switch (op) {
-          case 'create_file':
-            if (arr.length !== 10) return
-            if (arr[8] !== 'create') return
-            if (arr[7] !== 'file') return
-            arg0 = arr[9]
-            break
-
-          case 'mkdir':
-          case 'rmdir':
-          case 'unlink':
-          case 'pwrite':
-            if (arr.length !== 7) return
-            arg0 = arr[6]
-            break
-
-          case 'rename':
-            if (arr.length !== 8) return
-            arg0 = arr[6]
-            arg1 = arr[7]
-            break
-
-          case 'close':
-            if (arr.lenght !== 7) return
-            arg0 = arr[6]
-            break
-
-          default:
-            return
-        }
-
-        let audit = { user, share, abspath, op, arg0 }
-        if (arg1) audit.arg1 = arg1
-
-        smbDebug(audit)
-
-        this.driveList.audit(abspath, arg0, arg1)
-      })
-
-      udp.on('error', err => {
-        console.log('fruitmix udp server error', err)
-        // should restart with back-off TODO
-        udp.close()
-      })
-
-      udp.bind('3721', '127.0.0.1')
+      this.smbServer.startAsync(this.userList.users, this.driveList.drives)
+        .then(() => {})
+        .catch( e => {
+          console.log('error', e)
+        })
     }
+  }
+
+  updateSamba() {
+    this.smbServer.updateAsync(this.userList.users, this.driveList.drives)
+      .then(() => {})
+      .catch(e => console.error.bind(console, 'smbServer update error:'))
+  }
+
+  async startSambaAsync() {
+    await this.smbServer.startAsync(this.userList.users, this.driveList.drives)
   }
 
   loadMediaMap (fpath) {
@@ -445,6 +355,7 @@ class Fruitmix extends EventEmitter {
 
     let u = await this.userList.createUserAsync(props)
     await this.driveList.createPrivateDriveAsync(u.uuid, 'home')
+    this.updateSamba()
     return u
   }
 
@@ -489,7 +400,9 @@ class Fruitmix extends EventEmitter {
   async updateUserAsync (user, userUUID, body) {
     if (!this.userCanUpdate(user, userUUID, body)) { throw Object.assign(new Error(`unrecognized prop name `), { status: 400 }) }
     if (Object.getOwnPropertyNames(body).includes('password')) { throw Object.assign(new Error(`password is not allowed to change`), { status: 403 }) }
-    return this.userList.updateUserAsync(userUUID, body)
+    let u = this.userList.updateUserAsync(userUUID, body)
+    this.updateSamba()
+    return u
   }
 
   async updateUserPasswordAsync (user, userUUID, body) {
@@ -500,6 +413,7 @@ class Fruitmix extends EventEmitter {
     }
 
     await this.userList.updatePasswordAsync(user.uuid, body.password)
+    this.updateSamba()
   }
 
   async updateUserGlobalAsync (user, userUUID, body) {
@@ -776,7 +690,9 @@ class Fruitmix extends EventEmitter {
 
     }
 
-    return this.driveList.updatePublicDriveAsync(driveUUID, props)
+    let nextDrive =  this.driveList.updatePublicDriveAsync(driveUUID, props)
+    this.updateSamba()
+    return nextDrive
   }
 
   getDriveDirs (user, driveUUID) {
@@ -1081,7 +997,7 @@ class Fruitmix extends EventEmitter {
     if (!dir) {
       let err = new Error('drive or dir not found')
       err.status = 404
-      return process.nextTick(() => cb(err))
+      return process.nextTick(() => callback(err))
     }
 
     let dst = path.join(dir.abspath(), name)
@@ -1148,7 +1064,7 @@ class Fruitmix extends EventEmitter {
     if (!dir) {
       let err = new Error('drive or dir not found')
       err.status = 404
-      return process.nextTick(() => cb(err))
+      return process.nextTick(() => callback(err))
     }
 
     let dst = path.join(dir.abspath(), name)
@@ -1193,7 +1109,7 @@ class Fruitmix extends EventEmitter {
     if (!dir) {
       let err = new Error('drive or dir not found')
       err.status = 404
-      return process.nextTick(() => cb(err))
+      return process.nextTick(() => callback(err))
     }
 
     let fromPath = path.join(dir.abspath(), fromName)
@@ -1273,7 +1189,7 @@ class Fruitmix extends EventEmitter {
     if (!dir) {
       let err = new Error('drive or dir not found')
       err.status = 404
-      return process.nextTick(() => cb(err))
+      return process.nextTick(() => callback(err))
     }
 
     let fromPath = path.join(dir.abspath(), fromName)
@@ -1434,7 +1350,6 @@ class Fruitmix extends EventEmitter {
 Object.assign(Fruitmix.prototype, {})
 Object.assign(Fruitmix.prototype, driveapi)
 Object.assign(Fruitmix.prototype, ndriveapi)
-
 module.exports = Fruitmix
 
 
