@@ -1045,11 +1045,11 @@ class Fruitmix extends EventEmitter {
         if (err) return callback(err)
         if (Magic.isMedia(xstat.magic)) {
           let { magic, uuid } = xstat
-          extract(tmp, magic, hash, uuid, (err, metadata) => {
+          // extract(tmp, magic, hash, uuid, (err, metadata) => {
             // ignore extract error
-            if (!err) this.mediaMap.setMetadata(hash, metadata)
+            // if (!err) this.mediaMap.setMetadata(hash, metadata)
             fs.link(tmp, dst, err => err ?  callback(err) : callback(null, Object.assign(xstat, { name })))
-          })
+          // })
         } else {
           fs.link(tmp, dst, err => err ?  callback(err) : callback(null, Object.assign(xstat, { name })))
         }
