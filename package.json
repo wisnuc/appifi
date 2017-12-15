@@ -27,6 +27,7 @@
     "sidekick": "node src/fruitmix/sidekick/cluster"
   },
   "dependencies": {
+    "@ronomon/crypto-async": "^2.2.1",
     "bcrypt": "^1.0.3",
     "bcryptjs": "^2.4.3",
     "bluebird": "^3.5.0",
