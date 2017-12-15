@@ -25,7 +25,7 @@ const xcode = stat => {
 
 const mkdir = (target, policy, callback) => {
   fs.mkdir(target, err => {
-    if (err && err === 'EEXIST') {
+    if (err && err.code === 'EEXIST') {
       fs.lstat(target, (error, stat) => {
         if (error) return callback(error)
 

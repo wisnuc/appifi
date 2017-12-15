@@ -136,7 +136,7 @@ const rename = (oldPath, newPath, type, opt, callback) =>
           fs.readdir(dirname, (error, files) => { 
             if (error) return callback(error)
             let newPath2 = path.join(dirname, autoname(basename, files))
-            rename(oldPath, newPath, type, opt, (error, xstat) => {
+            rename(oldPath, newPath2, type, opt, (error, xstat) => {
               if (error) return callback(error)
               callback(null, xstat, [same(), diff()])
             })

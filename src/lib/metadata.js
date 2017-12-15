@@ -7,7 +7,7 @@ const { readXstat } = require('./xstat')
 
 const extract = (filePath, magic, hash, uuid, callback) => {
 
-  let destroy = null
+  let worker = null
   let destroyed = false
 
   if (!Magic.isMedia(magic)) {
@@ -31,7 +31,7 @@ const extract = (filePath, magic, hash, uuid, callback) => {
       callback(err, metadata)
     })
 **/
-    destroy = exiftool(filePath, magic, (err, metadata) => (destroy = null, callback(err, metadata)))
+    worker = exiftool(filePath, magic, (err, metadata) => (destroy = null, callback(err, metadata)))
 
   })
 
@@ -39,9 +39,10 @@ const extract = (filePath, magic, hash, uuid, callback) => {
     destroy: function () {
       if (destroyed) return
       destroyed = true
-      if (destroy) {
-        destroy()
-        destroy = null
+      if (worker) {
+        // console.log('destroy', destroy)
+        worker.destroy()
+        worker = null
       }
 /**
       if (et) {

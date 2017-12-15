@@ -19,7 +19,6 @@ const fs = require('fs')
 const crypto = require('crypto')
 
 process.on('message', message => {
-
   let hash = crypto.createHash('sha256')
   hash.on('error', () => process.exit(1))
   hash.on('readable', () => {

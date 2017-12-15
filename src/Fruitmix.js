@@ -96,7 +96,6 @@ class Fruitmix extends EventEmitter {
     this.driveList = new DriveList(froot, this.mediaMap)
     this.vfs = this.driveList
     // this.boxData = new BoxData(froot)
-
     this.tasks = []
     this.smbServer = new SambaServer(froot)
     this.smbServer.on('SambaServerNewAudit', audit => {
