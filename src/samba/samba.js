@@ -11,6 +11,7 @@ const debug = require('debug')('samba')
 
 const rsyslogPath = '/etc/rsyslog.d/99-smbaudit.conf'
 
+const nosmb = !!process.argv.find(arg => arg === '--disable-smb') || process.env.NODE_PATH !== undefined
 
 // this function update rsyslog conf
 const rsyslogAsync = async () => {
@@ -245,6 +246,9 @@ class SambaServer extends events.EventEmitter {
     super()
     this.froot = fpath
     this.udpServer = undefined
+
+
+
     this.startUdpServer(() => {}) //  FIXME: error?
     this.isStop = true
   }
@@ -367,6 +371,10 @@ class SambaServer extends events.EventEmitter {
   }
 
   async startAsync(users, drives) {
+
+    let err = new Error('stack')
+    console.log(err)
+
     this.isStop = false
     await rsyslogAsync()
     let x = this.transfer(users, drives)

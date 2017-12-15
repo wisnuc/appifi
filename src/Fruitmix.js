@@ -43,6 +43,10 @@ const Debug = require('debug')
 const smbDebug = Debug('samba')
 const debug = Debug('fruitmix')
 
+const mixin = require('./fruitmix/mixin')
+const driveapi = require('./fruitmix/drive')
+const ndriveapi = require('./fruitmix/ndrive')
+
 const combineHash = (a, b) => {
   let a1 = typeof a === 'string' ? Buffer.from(a, 'hex') : a
   let b1 = typeof b === 'string' ? Buffer.from(b, 'hex') : b
@@ -71,6 +75,10 @@ Station module and all routers consumes only Fruitmix API. They are NOT allowed 
 bypass the facade to access the internal modules.
 
 Fruitmix is also responsible for initialize all internal modules and paths.
+
+@extends EventEmitter
+@mixes mixin
+@mixes driveapi
 */
 class Fruitmix extends EventEmitter {
 
@@ -97,11 +105,13 @@ class Fruitmix extends EventEmitter {
     this.vfs = this.driveList
     // this.boxData = new BoxData(froot)
     this.tasks = []
-    this.smbServer = new SambaServer(froot)
-    this.smbServer.on('SambaServerNewAudit', audit => {
-      this.driveList.audit(audit.abspath, audit.arg0, audit.arg1)
-    })
+    
     if (!nosmb) {
+      this.smbServer = new SambaServer(froot)
+      this.smbServer.on('SambaServerNewAudit', audit => {
+        this.driveList.audit(audit.abspath, audit.arg0, audit.arg1)
+      })
+
       this.smbServer.startAsync(this.userList.users, this.driveList.drives)
         .then(() => {})
         .catch( e => {
@@ -111,6 +121,7 @@ class Fruitmix extends EventEmitter {
   }
 
   updateSamba() {
+    if (nosmb) return
     this.smbServer.updateAsync(this.userList.users, this.driveList.drives)
       .then(() => {})
       .catch(e => console.error.bind(console, 'smbServer update error:'))
@@ -575,32 +586,18 @@ class Fruitmix extends EventEmitter {
   }
 
   /**
-  API: DriveList [GET]
-  */
-  getDriveList2 (user, callback) {
-    let drives = this.driveList.drives.filter(drv => {
-      if (drv.type === 'private' && drv.owner === user.uuid) return true
-      if (drv.type === 'public') {
-        if (user.isAdmin) return true
-        if (drv.writelist === '*') return true
-        if (Array.isArray(drv.writelist) && drv.writelist.includes(user.uuid)) return true
-        if (drv.readlist === '*') return true
-        if (Array.isArray(drv.readlist) && drv.readlist.includes(user.uuid)) return true
-      }
-      return false
-    })
-    process.nextTick(() => callback(null, drives))
-  }
-
-  /**
   API: DriveList [POST]
   */
   async createPublicDriveAsync (user, props) {
     if (!user) throw Object.assign(new Error('Invaild user'), { status: 400 })
     if (!user.isAdmin) throw Object.assign(new Error(`requires admin priviledge`), { status: 403 })
+<<<<<<< HEAD
     let d = this.driveList.createPublicDriveAsync(props)
     this.updateSamba()
     return d
+=======
+    return this.driveList.createPublicDriveAsync(props)
+>>>>>>> cc8f242abaace5e34b40716000af751ae5ff30d2
   }
 
   /**
@@ -617,6 +614,11 @@ class Fruitmix extends EventEmitter {
 
   /**
   API: Drive [GET]
+  callback version of Drive GET
+  @param {object} user
+  @param {string} driveUUID
+  @param {function} callback - `(err, drive) => {}`
+  @memberof api
   */
   getDrive2 (user, driveUUID, callback) {
     let drive = this.driveList.drives.find(drv => drv.uuid === driveUUID)
@@ -976,6 +978,7 @@ class Fruitmix extends EventEmitter {
   }
 
   /// /////////////////////////
+  // mkdirp make a new directory
   mkdirp (user, driveUUID, dirUUID, name, callback) {
     let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
     if (!dir) {
@@ -1045,12 +1048,11 @@ class Fruitmix extends EventEmitter {
     } else {
       forceXstat(tmp, { hash }, (err, xstat) => {
         if (err) return callback(err)
-
         if (Magic.isMedia(xstat.magic)) {
           let { magic, uuid } = xstat
           extract(tmp, magic, hash, uuid, (err, metadata) => {
-            if (err) return callback(err)
-            this.mediaMap.setMetadata(hash, metadata)
+            // ignore extract error
+            if (!err) this.mediaMap.setMetadata(hash, metadata)
             fs.link(tmp, dst, err => err ?  callback(err) : callback(null, Object.assign(xstat, { name })))
           })
         } else {
@@ -1348,10 +1350,12 @@ class Fruitmix extends EventEmitter {
   assertDirUUIDsIndexed (uuids) {
     this.driveList.assertDirUUIDsIndexed (uuids)
   }
+
 }
 
 Object.assign(Fruitmix.prototype, {})
-
+Object.assign(Fruitmix.prototype, driveapi)
+Object.assign(Fruitmix.prototype, ndriveapi)
 module.exports = Fruitmix
 
 

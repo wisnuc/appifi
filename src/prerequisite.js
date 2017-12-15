@@ -42,6 +42,7 @@ const install = name => {
 
 const names = [
   'libimage-exiftool-perl', 
+  'minidlna'
 ]
 
 const packages = names.map(name => ({
