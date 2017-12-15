@@ -120,15 +120,36 @@ class Fruitmix extends EventEmitter {
     }
   }
 
+  async startSambaAsync(user) {
+    if(!this.smbServer) {
+      this.smbServer = new SambaServer(froot)
+      this.smbServer.on('SambaServerNewAudit', audit => {
+        this.driveList.audit(audit.abspath, audit.arg0, audit.arg1)
+      })
+    }
+    await this.smbServer.startAsync(this.userList.users, this.driveList.drives)
+  }
+
+  async stopSambaAsync(user) {
+    if(!this.smbServer) return
+    this.smbServer.stopAsync()
+  }
+
+  async restartSambaAsync(user) {
+    if(!this.smbServer) throw Object.assign(new Error('samba not start'), { status: 400 })
+    await this.smbServer.restartAsync()
+  }
+
+  getSambaStatus(user) {
+    if(!this.smbServer) return 'inactive'
+    return this.smbServer.isActive() ? 'active' : 'inactive'
+  }
+
   updateSamba() {
     if (nosmb) return
     this.smbServer.updateAsync(this.userList.users, this.driveList.drives)
       .then(() => {})
       .catch(e => console.error.bind(console, 'smbServer update error:'))
-  }
-
-  async startSambaAsync() {
-    await this.smbServer.startAsync(this.userList.users, this.driveList.drives)
   }
 
   loadMediaMap (fpath) {
@@ -591,13 +612,9 @@ class Fruitmix extends EventEmitter {
   async createPublicDriveAsync (user, props) {
     if (!user) throw Object.assign(new Error('Invaild user'), { status: 400 })
     if (!user.isAdmin) throw Object.assign(new Error(`requires admin priviledge`), { status: 403 })
-<<<<<<< HEAD
     let d = this.driveList.createPublicDriveAsync(props)
     this.updateSamba()
-    return d
-=======
-    return this.driveList.createPublicDriveAsync(props)
->>>>>>> cc8f242abaace5e34b40716000af751ae5ff30d2
+    return df242abaace5e34b40716000af751ae5ff30d2
   }
 
   /**
