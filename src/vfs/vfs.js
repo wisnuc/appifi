@@ -65,7 +65,7 @@ class VFS extends Forest {
     }
 
     //
-    let bid = this.drives.find(drv => drv.type === 'public' ** drv.tag === 'built-in')
+    let bid = this.drives.find(drv => drv.type === 'public' && drv.tag === 'built-in')
     if (!bid) {
       this.drives.push({
         uuid: UUID.v4(),
