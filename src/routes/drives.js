@@ -519,7 +519,8 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
     pipes.push(x) 
     x.tmp = path.join(getFruit().getTmpDir(), UUID.v4())
 
-    x.hs = HashStream.createStream(x.part, x.tmp, x.size, x.sha256)
+    let aggressive = !(req.socket.bytesRead + x.size > parseInt(req.header('content-length')))
+    x.hs = HashStream.createStream(x.part, x.tmp, x.size, x.sha256, aggressive)
     x.hs.on('finish', err => {
       let digest = x.hs.digest
       delete x.part
