@@ -246,9 +246,6 @@ class SambaServer extends events.EventEmitter {
     super()
     this.froot = fpath
     this.udpServer = undefined
-
-
-
     this.startUdpServer(() => {}) //  FIXME: error?
     this.isStop = true
   }

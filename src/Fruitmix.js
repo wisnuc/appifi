@@ -38,6 +38,7 @@ const xcopyAsync = Promise.promisify(xcopy)
 
 const { readXstat, forceXstat } = require('./lib/xstat')
 const SambaServer = require('./samba/samba')
+const DlnaServer = require('./samba/dlna')
 
 const Debug = require('debug')
 const smbDebug = Debug('samba')
@@ -114,15 +115,17 @@ class Fruitmix extends EventEmitter {
 
       this.smbServer.startAsync(this.userList.users, this.driveList.drives)
         .then(() => {})
-        .catch( e => {
-          console.log('error', e)
-        })
+        .catch(console.error.bind(console,'smb start error'))
     }
+    this.dlnaServer = new DlnaServer(froot)
+    this.dlnaServer.startAsync(this.getBuiltInDrivePath())
+      .then(() => {})
+      .catch(console.error.bind(console,'dlna start error'))
   }
 
   async startSambaAsync(user) {
     if(!this.smbServer) {
-      this.smbServer = new SambaServer(froot)
+      this.smbServer = new SambaServer(this.fruitmixPath)
       this.smbServer.on('SambaServerNewAudit', audit => {
         this.driveList.audit(audit.abspath, audit.arg0, audit.arg1)
       })
@@ -150,6 +153,26 @@ class Fruitmix extends EventEmitter {
     this.smbServer.updateAsync(this.userList.users, this.driveList.drives)
       .then(() => {})
       .catch(e => console.error.bind(console, 'smbServer update error:'))
+  }
+
+  async startDlnaAsync(user) {
+    if(!this.dlnaServer) this.dlnaServer = new DlnaServer(this.fruitmixPath)
+    await this.dlnaServer.startAsync(this.getBuiltInDrivePath(user))
+  }
+
+  async stopDlnaAsync(user) {
+    if(!this.dlnaServer) return
+    await this.dlnaServer.stopAsync()
+  }
+
+  async restartDlnaAsync(user) {
+    if(!this.dlnaServer) throw Object.assign(new Error('dlna not start'), { status: 400 })
+    await this.dlnaServer.restartAsync()
+  }
+
+  getDlnaStatus(user) {
+    if(!this.dlnaServer) return 'inactive'
+    return this.dlnaServer.isActive() ? 'active' : 'inactive'
   }
 
   loadMediaMap (fpath) {
@@ -647,6 +670,12 @@ class Fruitmix extends EventEmitter {
     } else {
       process.nextTick(() => callback(null, drive))
     } 
+  }
+
+  getBuiltInDrivePath (user) {
+    let d = this.driveList.drives.find(drv => drv.tag === 'built-in' && drv.type === 'public')
+    if(!d) throw Object.assign(new Error(`built-in drive not found`), { status: 404 })
+    return path.join(this.fruitmixPath, d.uuid)
   }
 
   /**
