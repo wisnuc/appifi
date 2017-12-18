@@ -80,22 +80,27 @@ class IpcMain {
 
 const createIpcMain = (worker) => {
 
-  let ipc = new IpcMain(worker)
+  let newIpc = new IpcMain(worker)
 
   worker.on('message', msg => {
-    console.log('worker --> ', msg)
+    // console.log('worker --> ', msg)
     // console.log('ipcworker, msg', msg)
 
     switch(msg.type) {
       case 'command':
-        ipc.handleCommandMessage(msg)
+      newIpc.handleCommandMessage(msg)
         break
       default:
         break
     }
   })
 
-  return ipc
+  ipc = newIpc
 }
 
-module.exports = createIpcMain
+const getIpcMain = () => ipc
+
+
+var ipc
+
+module.exports = { createIpcMain, getIpcMain }

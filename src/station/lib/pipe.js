@@ -33,6 +33,7 @@ const broadcast = require('../../common/broadcast')
 const boxData = require('../../box/boxData')
 
 const getFruit = require('../../fruitmix')
+const { getIpcMain } = require('../../webtorrent/ipcMain')
 
 const { isUUID } = require('../../common/assertion')
 // const Config = require('./const').CONFIG
@@ -285,6 +286,10 @@ class Pipe {
                         : paths.length === 3 ? 'ConfirmTicket'
                         : undefined
         break
+      case 'download':
+        return paths.length === 0 && method === 'GET' ? 'getSummary' 
+                  : paths.length === 1 ? (method === 'PATCH' ? 'patchTorrent' : (paths[0] === 'magnet' ? 'addMagnet' : 'addTorrent'))
+                  : undefined
       default:
         return undefined
         break
@@ -723,7 +728,7 @@ class Pipe {
     if (user.uuid !== userUUID) return await this.errorResponseAsync(serverAddr, sessionId, new Error('user uuid mismatch'))
 
     let list = await fruit.addMediaBlacklistAsync(user, body.blacklist)
-    return await this.successResponseJsonAsync(serverAddr, sessionId, list)
+    return await this.successResponseJsonAsync(sherverAddr, sessionId, list)
   }
 
   /**
@@ -739,6 +744,57 @@ class Pipe {
 
     let list = await fruit.subtractMediaBlacklistAsync(user, body.blacklist)
     return await this.successResponseJsonAsync(serverAddr, sessionId, list)
+  }
+
+  async getSummaryAsync(data) {
+    let { serverAddr, sessionId, user, body, paths } = data
+    let { torrentId, type } = body
+    getIpcMain().call('getSummary', { torrentId, type, user }, async (error, summary) => {
+      if (error) await this.errorResponseAsync(serverAddr, sessionId, error)
+      else await this.successResponseJsonAsync(serverAddr, sessionId, summary)
+    })
+  }
+
+  async patchTorrentAsync(data) {
+    let { serverAddr, sessionId, user, body, paths } = data
+    let { op } = body
+    let torrentId = paths[1]
+    let ops = ['pause', 'resume', 'destroy']
+    if(!ops.includes(op)) return await this.errorResponseAsync(serverAddr, sessionId, new Error('unknow op'))
+    getIpcMain().call(op, { torrentId, user }, async (error, result) => {
+      if(error) return await this.errorResponseAsync(serverAddr, sessionId, error)
+      else await this.successResponseJsonAsync(serverAddr, sessionId, result)
+    })
+  }
+
+  async addMagnetAsync(data) {
+    let { serverAddr, sessionId, user, body, paths } = data
+    let { dirUUID, magnetURL } = body
+    getIpcMain().call('addMagnet', { magnetURL, dirUUID, user}, async (error, result) => {
+      if(error) return await this.errorResponseAsync(serverAddr, sessionId, error)
+      else await this.successResponseJsonAsync(serverAddr, sessionId, result)
+    })
+  }
+
+  async addTorrentAsync(data) {
+    console.log('enter torrent cloud', data.body.dirUUID)
+    let { serverAddr, sessionId, user, body, paths } = data
+    let { dirUUID } = body
+    data.subType = 'WriteDirNewFile'
+    let store = new StoreFile(this.tmp, body.size, body.sha256)
+    let fpath = await store.storeFileAsync(serverAddr, sessionId, this.connect.saId, this.connect.token)
+    let fname = path.basename(fpath)
+    let torrentTmp = path.join(getFruit().fruitmixPath, 'torrentTmp')
+    let torrentPath = path.join(torrentTmp, fname)
+    let fruit = getFruit()
+    mkdirp.sync(torrentTmp)
+    fs.rename(fpath, torrentPath, async (error, data) => {
+      if (error) return await this.errorStoreResponseAsync(serverAddr, sessionId, error)
+      else getIpcMain().call('addTorrent', { torrentPath, dirUUID, user }, async (err, result) => {
+        if (err) return await this.errorStoreResponseAsync(serverAddr, sessionId, err)
+        else return await this.successStoreResponseAsync(serverAddr, sessionId, result)
+      })
+    })
   }
 
   //fetch file -- client download --> post file to cloud
@@ -882,6 +938,11 @@ class Pipe {
     //media
     this.handlers.set('GetMetadatas', this.getMetadatasAsync.bind(this))
     this.handlers.set('GetMetadata', this.getMetadataAsync.bind(this))
+    //download
+    this.handlers.set('getSummary', this.getSummaryAsync.bind(this))
+    this.handlers.set('patchTorrent', this.patchTorrentAsync.bind(this))
+    this.handlers.set('addMagnet', this.addMagnetAsync.bind(this))
+    this.handlers.set('addTorrent', this.addTorrentAsync.bind(this))
   }
 }
 
