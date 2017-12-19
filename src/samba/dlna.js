@@ -12,7 +12,7 @@ const dlnaConfPath = '/etc/minidlna.conf'
 const nodlna = !!process.argv.find(arg => arg === '--disable-dlna') || process.env.NODE_PATH !== undefined
 
 const confGen = mediaPath => `
-  media_dir=${ mediaPath }
+  media_dir=${mediaPath}
   log_dir=/var/log
   db_dir=/var/cache/minidlna
   port=8200

@@ -675,7 +675,7 @@ class Fruitmix extends EventEmitter {
   getBuiltInDrivePath (user) {
     let d = this.driveList.drives.find(drv => drv.tag === 'built-in' && drv.type === 'public')
     if(!d) throw Object.assign(new Error(`built-in drive not found`), { status: 404 })
-    return path.join(this.fruitmixPath, d.uuid)
+    return path.join(this.fruitmixPath, 'drives', d.uuid)
   }
 
   /**
