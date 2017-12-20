@@ -354,8 +354,6 @@ class Move extends Base {
     this.mode = 'move'
     this.srcDriveUUID = src.drive
     this.dstDriveUUID = dst.drive
-    console.log(src)
-    console.log(dst)
     let _src = { uuid: src.dir }
     let _dst = { uuid: dst.dir }
     this.root = new DirMove(this, null, _src, _dst, xstats)

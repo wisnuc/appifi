@@ -513,6 +513,7 @@ class VFS extends Forest {
     }
 
     let target = path.join(this.absolutePath(dir), dst.name)
+    console.log(target)
     mkdir(target, policy, (err, xstat, resolved) => {
       try {
         dir = this.getDriveDirSync(dst.drive, dst.dir)
