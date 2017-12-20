@@ -343,8 +343,8 @@ class Pipe {
     let guid = body.guid
     let state = body.state
     let ticketId = paths[3]
-    let data = await Tickets.consumeTicket(user.uuid, guid, ticketId, state)
-    return await this.successResponseJsonAsync(serverAddr, sessionId, data)
+    let d = await Tickets.consumeTicket(user.uuid, guid, ticketId, state)
+    return await this.successResponseJsonAsync(serverAddr, sessionId, d)
   }
 
   /*****************************TOKEN***************************/
