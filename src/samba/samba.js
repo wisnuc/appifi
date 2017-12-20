@@ -11,6 +11,7 @@ const debug = require('debug')('samba')
 
 const rsyslogPath = '/etc/rsyslog.d/99-smbaudit.conf'
 
+const nosmb = !!process.argv.find(arg => arg === '--disable-smb') || process.env.NODE_PATH !== undefined
 
 // this function update rsyslog conf
 const rsyslogAsync = async () => {
@@ -130,7 +131,6 @@ const processUsersAsync = async users => {
       console.log(`error deleting smb user ${smbUsers[i].name}`)
     }
   }
-
   // create all smbusers
   let text = users
     .map(u => {

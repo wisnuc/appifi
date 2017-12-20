@@ -1,3 +1,4 @@
+process.env['UV_THREADPOOL_SIZE'] = 16
 require('./prerequisite')
 
 const path = require('path')
@@ -22,6 +23,7 @@ const auth = require('./middleware/auth')
 const token = require('./routes/token')
 const users = require('./routes/users')
 const drives = require('./routes/drives')
+const ndrives = require('./routes/ndrives')
 const boxes = require('./routes/boxes')
 const media = require('./routes/media')
 const tasks = require('./routes/tasks')
@@ -49,11 +51,12 @@ app.use('/station', station)
 app.use('/cloudToken', cloudToken)
 app.use('/users', users)
 app.use('/drives', drives)
+app.use('/ndrives', ndrives)
 app.use('/boxes', boxes)
 app.use('/media', media)
 app.use('/tasks', tasks)
-// app.use('/samba', require('./routes/samba'))
-// app.use('/download', require('./webtorrent'))
+
+app.use('/download', require('./webtorrent'))
 
 let { NODE_ENV, NODE_PATH, LOGE } = process.env
 const isAutoTesting = NODE_ENV === 'test' && NODE_PATH !== undefined
@@ -90,15 +93,18 @@ app.use(function(err, req, res, next) {
 if (NODE_PATH) app.nolog = true
 
 if (!isAutoTesting) {
-  app.listen(3000, err => {
-
+  let server = app.listen(3000, err => {
     if (err) {
       console.log('failed to listen on port 3000')
-      return process.exit(1)
+      process.exit(1)
+    } else {
+      console.log('server started on port 3000')
     }
-
-    console.log('server started on port 3000')
   })
+
+  server.on('error', err => console.log('WARNING: http server error', err))
+  server.on('timeout', () => console.log('WARNING: http server timeout'))
+  server.setTimeout(600 * 1000) // 10 minutes
 }
 
 module.exports = app
