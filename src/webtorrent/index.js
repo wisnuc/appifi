@@ -32,7 +32,7 @@ broadcast.on('FruitmixStarted', () => {
   let torrentTmp = path.join(getFruit().fruitmixPath, 'torrentTmp')
   mkdirp.sync(torrentTmp)
   // fork child process
-  worker = child.fork(path.join(__dirname, 'webtorrent.js'), [torrentTmp], { stdio: ['ignore', 'inherit', 'inherit'] })
+  worker = child.fork(path.join(__dirname, 'webtorrent.js'), [torrentTmp], { stdio: ['ignore', 'inherit', 'inherit', 'ipc'] })
   worker.on('error', err => console.log(err))
   worker.on('exit', (code, signal) => console.log('worker exit:', code, signal))
   worker.on('message', msg => {
