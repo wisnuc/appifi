@@ -329,7 +329,7 @@ class Fruitmix extends EventEmitter {
 
     let userDrives = this.driveList.drives.filter(drv => {
       if (drv.type === 'private' && drv.owner === user.uuid) return true
-      if (drv.type === 'public' && (drv.tag === 'built-in' || ((drv.writelist.includes(user.uuid)) ||
+      if (drv.type === 'public' && (drv.writelist === '*' || ((drv.writelist.includes(user.uuid)) ||
         (drv.readlist.includes(user.uuid) && user.isAdmin)))) return true
       return false
     })
@@ -553,7 +553,7 @@ class Fruitmix extends EventEmitter {
     let drives = this.driveList.drives.filter(drv => {
       if (drv.type === 'private' && drv.owner === user.uuid) return true
       if (drv.type === 'public' &&
-        (drv.tag === 'built-in' || (drv.writelist.includes(user.uuid) || drv.readlist.includes(user.uuid)))) {
+        (drv.writelist === '*' || (drv.writelist.includes(user.uuid) || drv.readlist.includes(user.uuid)))) {
         return true
       }
       return false
