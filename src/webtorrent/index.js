@@ -88,10 +88,6 @@ router.patch('/:torrentId', auth.jwt(), (req, res) => {
   })
 })
 
-<<<<<<< HEAD
 
 
 module.exports = router
-=======
-module.exports = router
->>>>>>> master
