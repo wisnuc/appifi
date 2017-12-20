@@ -55,6 +55,7 @@ app.use('/ndrives', ndrives)
 app.use('/boxes', boxes)
 app.use('/media', media)
 app.use('/tasks', tasks)
+app.use('/features', require('./routes/features'))
 app.use('/download', require('./webtorrent'))
 
 let { NODE_ENV, NODE_PATH, LOGE } = process.env

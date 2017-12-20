@@ -28,7 +28,7 @@ class Tickets {
     // FIXME: creator maybe guid if not bind
     // let creator = u.uuid
     let stationId = this.saId
-    let token = this.ctx.getToken()
+    let token = this.ctx.token
     let data = 'placeholder'
     let params = { stationId, data, creator, type }
     let url = CONFIG.CLOUD_PATH + 's/v1/tickets'
@@ -47,7 +47,7 @@ class Tickets {
 
   async getTicketAsync(ticketId) {
     let url = CONFIG.CLOUD_PATH + 's/v1/tickets/' + ticketId
-    let token = this.ctx.getToken()
+    let token = this.ctx.token
     let opts = { 'Content-Type': 'application/json', 'Authorization': token }
     try {
       let res = await requestAsync('GET', url, {}, opts)
@@ -68,7 +68,7 @@ class Tickets {
     let url = CONFIG.CLOUD_PATH + 's/v1/tickets/'
 
     let creator = u.global.id
-    let token = this.ctx.getToken()
+    let token = this.ctx.token
     let query = { creator }
     
     let opts = { 'Content-Type': 'application/json', 'Authorization': token }
@@ -86,7 +86,7 @@ class Tickets {
 
   async updateTicketAsync(ticketId) {
     let url = CONFIG.CLOUD_PATH + 's/v1/tickets/' + ticketId
-    let token = this.ctx.getToken()
+    let token = this.ctx.token
     let opts = { 'Content-Type': 'application/json', 'Authorization': token }
     let params = { status: 1 } // TODO: change ticket status
     try {
@@ -103,7 +103,7 @@ class Tickets {
 
   async updateUserTypeAsync(guid, ticketId, state) {
     let url = CONFIG.CLOUD_PATH + 's/v1/tickets/' + ticketId + '/users/' + guid
-    let token = this.ctx.getToken()
+    let token = this.ctx.token
     let opts = { 'Content-Type': 'application/json', 'Authorization': token }
     let params = { type: (state ? 'resolved' : 'rejected') } // TODO change ticket status
     try {
