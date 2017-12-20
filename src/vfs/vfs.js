@@ -520,8 +520,9 @@ class VFS extends Forest {
         e.xcode = 'EDIRTY'
         return callback(e)
       }
-
+      
       if (err) return callback(err) 
+      if (!xstat) return callback(null, null, resolved)
 
       // TODO read more dirs in every case!
       // when a new dir is created:

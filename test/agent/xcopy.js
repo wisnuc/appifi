@@ -94,7 +94,7 @@ const updateNodeByUUID = (token, taskUUID, nodeUUID, body, status, done) => requ
 const updateNodeByUUIDAsync = Promise.promisify(updateNodeByUUID)
 
 
-describe(path.basename(__filename) + ' cp/mv a / [dir c, file d] -> dir b', () => {
+describe(path.basename(__filename) + ' cp a / [dir c, file d] -> dir b', () => {
   let alonzo = FILES.alonzo
   let token, dirAUUID, dirBUUID, dirCUUID, fileDUUID
 
@@ -141,6 +141,7 @@ describe(path.basename(__filename) + ' cp/mv a / [dir c, file d] -> dir b', () =
   describe('dir conflict, target dir b has dir c', () => {
     let task
     let policyArr = ['skip', 'keep', 'rename', 'replace']
+    let id = ['b320292b', '1c9a0ec1', '3d75d301', '60b624b0']
 
     beforeEach(async () => {
       await createDirAsync(token, IDS.alice.home, dirBUUID, 'c')
@@ -156,25 +157,28 @@ describe(path.basename(__filename) + ' cp/mv a / [dir c, file d] -> dir b', () =
       task = await getTaskAsync(token, task.uuid)
     })
   
-    it('state should be conflict', async () => {
-      // task = await getTaskAsync(token, task.uuid)
+    it('state should be conflict, eef68f1c', async () => {
       expect(task.nodes.find(n => n.src.uuid === dirCUUID).state).to.equal('Conflict')
     })
 
-    policyArr.forEach(p => {
-      it(`resolve with ${p}`, async () => {
-        updateNodeByUUIDAsync(token, task.uuid, dirCUUID, { policy: [p, null] }, 200)
+    policyArr.forEach((current, index, array) => {
+      it(`resolve with ${current}, ${id[index]}`, async () => {
+        expect(task.nodes.find(n => n.src.uuid === dirCUUID).state).to.equal('Conflict')
+
+        updateNodeByUUIDAsync(token, task.uuid, dirCUUID, { policy: [current, null] }, 200)
         await Promise.delay(100)
         task = await getTaskAsync(token, task.uuid)
         expect(task.nodes.length).to.equal(1)
         expect(task.nodes[0].state).to.equal('Finished')
       })
     })
+    
   })
 
   describe('file conflict, target dir b has file alonzo', () => {
     let task
     let policyArr = ['skip', 'rename', 'replace']
+    let id = ['30f1ad48', 'a49b3137', 'd98389c1']
 
     beforeEach(async () => {
       await createFileAsync(token, IDS.alice.home, dirBUUID, alonzo.name, alonzo.path, { 
@@ -193,14 +197,15 @@ describe(path.basename(__filename) + ' cp/mv a / [dir c, file d] -> dir b', () =
       task = await getTaskAsync(token, task.uuid)
     })
 
-    it('state should be conflict', async () => {
-      // tast = await getTaskAsync(token, task.uuid)
+    it('state should be conflict, 170986ff', async () => {
       expect(task.nodes.find(n => n.src.uuid === fileDUUID).state).to.equal('Conflict')
     })
 
-    policyArr.forEach(p => {
-      it(`resolve with ${p}`, async () => {
-        updateNodeByUUIDAsync(token, task.uuid, fileDUUID, { policy: [p, null] }, 200)
+    policyArr.forEach((value, index, array) => {
+      it(`resolve with ${value}, ${id[index]}`, async () => {
+        expect(task.nodes.find(n => n.src.uuid === fileDUUID).state).to.equal('Conflict')
+
+        updateNodeByUUIDAsync(token, task.uuid, fileDUUID, { policy: [value, null] }, 200)
         await Promise.delay(100)
         task = await getTaskAsync(token, task.uuid)
         expect(task.nodes.length).to.equal(1)
@@ -209,23 +214,203 @@ describe(path.basename(__filename) + ' cp/mv a / [dir c, file d] -> dir b', () =
     })
   })
 
-// describe(path.basename(__filename) + 'mv a / [dir c, file d] -> dir b', () => {
+  describe('dir conflict with file (diff), target dir b has file c', () => {
+    let task
+    let policyArr = ['skip', 'rename', 'replace']
+    let id = ['32004d8e', 'e0da3a39', '9ee0d879']
 
-//   it('mv vanilla, 6423a3e1', done => {
-//     request(app)
-//       .post('/tasks') 
-//       .set('Authorization', 'JWT ' + token)
-//       .send({
-//         type: 'move',
-//         src: { drive: IDS.alice.home, dir: dirAUUID },
-//         dst: { drive: IDS.alice.home, dir: dirBUUID },
-//         entries: [dirCUUID, fileDUUID],
-//       })
-//       .expect(200)
-//       .end((err, res) => {
-//         if (err) return done(err)
-//         // console.log(res.body)
-//         setTimeout(done, 1000)
-//       })
-//   })
+    beforeEach(async () => {
+      await createFileAsync(token, IDS.alice.home, dirBUUID, 'c', alonzo.path, { 
+        size: alonzo.size, 
+        sha256: alonzo.hash 
+      })
+
+      task = await createTaskAsync(token, {
+        type: 'copy',
+        src: { drive: IDS.alice.home, dir: dirAUUID },
+        dst: { drive: IDS.alice.home, dir: dirBUUID },
+        entries: [dirCUUID, fileDUUID],
+      })
+
+      await Promise.delay(100)
+      task = await getTaskAsync(token, task.uuid)
+    })
+  
+    it('state should be conflict, 29a07147', async () => {
+      expect(task.nodes.find(n => n.src.uuid === dirCUUID).state).to.equal('Conflict')
+      expect(task.nodes.find(n => n.src.uuid === dirCUUID).error.code).to.equal('EEXIST')
+      expect(task.nodes.find(n => n.src.uuid === dirCUUID).error.xcode).to.equal('EISFILE')
+    })
+
+    policyArr.forEach((value, index, array) => {
+      it(`resolve with ${value}, ${id[index]}`, async () => {
+        expect(task.nodes.find(n => n.src.uuid === dirCUUID).state).to.equal('Conflict')
+        expect(task.nodes.find(n => n.src.uuid === dirCUUID).error.code).to.equal('EEXIST')
+        expect(task.nodes.find(n => n.src.uuid === dirCUUID).error.xcode).to.equal('EISFILE')
+
+        updateNodeByUUIDAsync(token, task.uuid, dirCUUID, { policy: [null, value] }, 200)
+        await Promise.delay(100)
+        task = await getTaskAsync(token, task.uuid)
+        expect(task.nodes.length).to.equal(1)
+        expect(task.nodes[0].state).to.equal('Finished')
+      })
+    })
+  })
+
+  describe('file conflict with dir (diff), target dir b has dir alonzo', () => {
+    let task
+    let policyArr = ['skip', 'rename', 'replace']
+    let id = ['0ee0c3da', 'c069e188', 'f2939798']
+
+    beforeEach(async () => {
+      await createDirAsync(token, IDS.alice.home, dirBUUID, alonzo.name)
+
+      task = await createTaskAsync(token, {
+        type: 'copy',
+        src: { drive: IDS.alice.home, dir: dirAUUID },
+        dst: { drive: IDS.alice.home, dir: dirBUUID },
+        entries: [dirCUUID, fileDUUID],
+      })
+
+      await Promise.delay(100)
+      task = await getTaskAsync(token, task.uuid)
+    })
+
+    it('state should be conflict, 77cc8c76', async () => {
+      expect(task.nodes.find(n => n.src.uuid === fileDUUID).state).to.equal('Conflict')
+      // FIXME: information of error is incomplete, the foliowing two expects would let app crash
+      // expect(task.nodes.find(n => n.src.uuid === fileDUUID).error.code).to.equal('EEXIST')
+      // expect(task.nodes.find(n => n.src.uuid === fileDUUID).error.xcode).to.equal('EISDIR')
+    })
+
+     policyArr.forEach((value, index, array) => {
+      it(`resolve with ${value}, ${id[index]}`, async () => {
+        expect(task.nodes.find(n => n.src.uuid === fileDUUID).state).to.equal('Conflict')
+        // expect(task.nodes.find(n => n.src.uuid === fileDUUID).error.code).to.equal('EEXIST')
+        // expect(task.nodes.find(n => n.src.uuid === fileDUUID).error.xcode).to.equal('EISFILE')
+
+        updateNodeByUUIDAsync(token, task.uuid, fileDUUID, { policy: [null, value] }, 200)
+        await Promise.delay(100)
+        task = await getTaskAsync(token, task.uuid)
+        expect(task.nodes.length).to.equal(1)
+        expect(task.nodes[0].state).to.equal('Finished')
+      })
+    })
+  })
+
+  describe('dif conflict, policies:[keep]', () => {
+    let task, fileEUUID, fileFUUID
+    let bar = FILES.bar
+    let foo = FILES.foo
+
+    beforeEach(async () => {
+      fileEUUID = await createFileAsync(token, IDS.alice.home, dirCUUID, bar.name, bar.path, { 
+        size: bar.size, 
+        sha256: bar.hash 
+      })
+
+      await createDirAsync(token, IDS.alice.home, dirBUUID, 'c')
+
+      task = await createTaskAsync(token, {
+        type: 'copy',
+        src: { drive: IDS.alice.home, dir: dirAUUID },
+        dst: { drive: IDS.alice.home, dir: dirBUUID },
+        entries: [dirCUUID, fileDUUID],
+        policies: {dir: ['keep'] }
+      })
+
+      await Promise.delay(100)
+      task = await getTaskAsync(token, task.uuid)
+    })
+
+    it('dir c should be kept, e68f5660', done => {
+      expect(task.nodes.length).to.equal(1)
+      expect(task.nodes[0].state).to.equal('Finished')
+      done()
+    })
+  })
+
+  describe('policies:[keep], file in dir conflict, apply to all', () => {
+    let task, fileEUUID, fileFUUID
+    let bar = FILES.bar
+    let foo = FILES.foo
+
+    beforeEach(async () => {
+      fileEUUID = await createFileAsync(token, IDS.alice.home, dirCUUID, bar.name, bar.path, { 
+        size: bar.size, 
+        sha256: bar.hash 
+      })
+
+      fileFUUID = await createFileAsync(token, IDS.alice.home, dirCUUID, foo.name, foo.path, { 
+        size: foo.size, 
+        sha256: foo.hash 
+      })
+
+      await createDirAsync(token, IDS.alice.home, dirBUUID, 'c')
+      let dirCUUID_1 = await createDirAsync(token, IDS.alice.home, dirBUUID, 'c')
+      let fileEUUID_1 = await createFileAsync(token, IDS.alice.home, dirCUUID_1, bar.name, bar.path, { 
+        size: bar.size, 
+        sha256: bar.hash 
+      })
+      let fileFUUID_1 = await createFileAsync(token, IDS.alice.home, dirCUUID_1, foo.name, foo.path, { 
+        size: foo.size, 
+        sha256: foo.hash 
+      })
+
+      task = await createTaskAsync(token, {
+        type: 'copy',
+        src: { drive: IDS.alice.home, dir: dirAUUID },
+        dst: { drive: IDS.alice.home, dir: dirBUUID },
+        entries: [dirCUUID, fileDUUID],
+        policies: {dir: ['keep'] }
+      })
+
+      await Promise.delay(100)
+      task = await getTaskAsync(token, task.uuid)
+    })
+
+    it('file {policy:[skip], applyToAll: true}, 99dd711f', async () => {
+      expect(task.nodes.find(n => n.src.uuid === fileEUUID).state).to.equal('Conflict')
+      expect(task.nodes.find(n => n.src.uuid === fileFUUID).state).to.equal('Conflict')
+
+      updateNodeByUUID(token, task.uuid, fileEUUID, { policy: ['skip', null], applyToAll: true }, 200)
+      await Promise.delay(100)
+      task = await getTaskAsync(token, task.uuid)
+      expect(task.nodes.length).to.equal(1)
+      expect(task.nodes[0].state).to.equal('Finished')
+    })
+  })
+})
+
+describe(path.basename(__filename) + 'mv a / [dir c, file d] -> dir b', () => {
+  let alonzo = FILES.alonzo
+  let token, dirAUUID, dirBUUID, dirCUUID, fileDUUID
+
+  beforeEach(async () => {
+    await resetAsync()
+    await createUserAsync('alice')
+    token = await retrieveTokenAsync('alice')
+    dirAUUID = await createDirAsync(token, IDS.alice.home, IDS.alice.home, 'a')
+    dirCUUID = await createDirAsync(token, IDS.alice.home, dirAUUID, 'c')
+    fileDUUID = await createFileAsync(token, IDS.alice.home, dirAUUID, alonzo.name, alonzo.path, { 
+      size: alonzo.size, 
+      sha256: alonzo.hash 
+    })
+    dirBUUID = await createDirAsync(token, IDS.alice.home, IDS.alice.home, 'b')
+  })
+
+  it.only('mv vanilla, 6423a3e1', async () => {
+    let task = await createTaskAsync(token, {
+      type: 'move',
+      src: { drive: IDS.alice.home, dir: dirAUUID },
+      dst: { drive: IDS.alice.home, dir: dirBUUID },
+      entries: [dirCUUID, fileDUUID]
+    })
+
+    await Promise.delay(100)
+    task = await getTaskAsync(token, task.uuid)
+    console.log(task.nodes)
+    expect(task.nodes.length).to.equal(1)
+    expect(task.nodes[0].state).to.equal('Finished')
+  })
 })

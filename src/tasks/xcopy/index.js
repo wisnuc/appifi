@@ -354,6 +354,8 @@ class Move extends Base {
     this.mode = 'move'
     this.srcDriveUUID = src.drive
     this.dstDriveUUID = dst.drive
+    console.log(src)
+    console.log(dst)
     let _src = { uuid: src.dir }
     let _dst = { uuid: dst.dir }
     this.root = new DirMove(this, null, _src, _dst, xstats)
@@ -464,7 +466,7 @@ class Export extends Base {
 // return formatted policies 
 const formatPolicies = policies => {
 
-  const vs = [undefined, null, 'skip', 'replace', 'rename']
+  const vs = [undefined, null, 'skip', 'keep', 'replace', 'rename']
   const obj = { dir: [], file: [] }  
 
   if (policies === undefined || policies === null) return obj
