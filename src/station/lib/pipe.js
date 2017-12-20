@@ -22,7 +22,7 @@ const broadcast = require('../../common/broadcast')
 const boxData = require('../../box/boxData')
 
 const getFruit = require('../../fruitmix')
-const { getIpcMain } = require('../../webtorrent/ipcMain')
+const { createIpcMain, getIpcMain, destroyIpcMain } = require('../../webtorrent/ipcMain')
 
 const { isUUID } = require('../../common/assertion')
 // const Config = require('./const').CONFIG
@@ -263,6 +263,8 @@ class Pipe {
       case 'token':
         return paths.length === 0 && method === 'GET' ? 'GetToken' : undefined
       case 'download':
+        if (paths.length === 1 && method === 'GET' && paths[0] === 'switch') return 'getTorrentSwitch'
+        if (paths.length === 1 && method === 'PATCH' && paths[0] === 'switch') return 'patchTorrentSwitch'
         return paths.length === 0 && method === 'GET' ? 'getSummary' 
                   : paths.length === 1 ? (method === 'PATCH' ? 'patchTorrent' : (paths[0] === 'magnet' ? 'addMagnet' : 'addTorrent'))
                   : undefined
@@ -721,6 +723,7 @@ class Pipe {
   async getSummaryAsync(data) {
     let { serverAddr, sessionId, user, body, paths } = data
     let { torrentId, type } = body
+    if (!getIpcMain()) return await await this.errorResponseAsync(serverAddr, sessionId, new Error('webtorrent is not started'))
     getIpcMain().call('getSummary', { torrentId, type, user }, async (error, summary) => {
       if (error) await this.errorResponseAsync(serverAddr, sessionId, error)
       else await this.successResponseJsonAsync(serverAddr, sessionId, summary)
@@ -732,6 +735,7 @@ class Pipe {
     let { op } = body
     let torrentId = paths[1]
     let ops = ['pause', 'resume', 'destroy']
+    if (!getIpcMain()) return await await this.errorResponseAsync(serverAddr, sessionId, new Error('webtorrent is not started'))
     if(!ops.includes(op)) return await this.errorResponseAsync(serverAddr, sessionId, new Error('unknow op'))
     getIpcMain().call(op, { torrentId, user }, async (error, result) => {
       if(error) return await this.errorResponseAsync(serverAddr, sessionId, error)
@@ -742,6 +746,7 @@ class Pipe {
   async addMagnetAsync(data) {
     let { serverAddr, sessionId, user, body, paths } = data
     let { dirUUID, magnetURL } = body
+    if (!getIpcMain()) return await await this.errorResponseAsync(serverAddr, sessionId, new Error('webtorrent is not started'))
     getIpcMain().call('addMagnet', { magnetURL, dirUUID, user}, async (error, result) => {
       if(error) return await this.errorResponseAsync(serverAddr, sessionId, error)
       else await this.successResponseJsonAsync(serverAddr, sessionId, result)
@@ -751,6 +756,7 @@ class Pipe {
   async addTorrentAsync(data) {
     console.log('enter torrent cloud', data.body.dirUUID)
     let { serverAddr, sessionId, user, body, paths } = data
+    if (!getIpcMain()) return await await this.errorResponseAsync(serverAddr, sessionId, new Error('webtorrent is not started'))
     let { dirUUID } = body
     data.subType = 'WriteDirNewFile'
     let store = new StoreFile(this.tmp, body.size, body.sha256)
@@ -767,6 +773,23 @@ class Pipe {
         else return await this.successStoreResponseAsync(serverAddr, sessionId, result)
       })
     })
+  }
+
+  async getTorrentSwitchAsync(data) {
+    let { serverAddr, sessionId, user, body, paths } = data
+    if (getIpcMain()) await this.successResponseJsonAsync(serverAddr, sessionId, {switch: true})
+    else await this.successResponseJsonAsync(serverAddr, sessionId, {switch: false})
+  }
+
+  async patchTorrentSwitchAsync(data) {
+    let { serverAddr, sessionId, user, body, paths } = data
+    let { op } = body
+    let ops = ['start', 'close']
+    if(!ops.includes(op)) return await this.errorResponseAsync(serverAddr, sessionId, new Error('unknow op'))
+
+    if (op === 'close') destroyIpcMain()
+    else createIpcMain()
+    await this.successResponseJsonAsync(serverAddr, sessionId, {})
   }
 
   //fetch file -- client download --> post file to cloud
@@ -914,7 +937,9 @@ class Pipe {
     this.handlers.set('getSummary', this.getSummaryAsync.bind(this))
     this.handlers.set('patchTorrent', this.patchTorrentAsync.bind(this))
     this.handlers.set('addMagnet', this.addMagnetAsync.bind(this))
-    this.handlers.set('addTorrent', this.addTorrentAsync.bind(this))
+    this.handlers.set('addTorrent', this.addTorrentAsync.bind(this))//getTorrentSwitch
+    this.handlers.set('getTorrentSwitch', this.getTorrentSwitchAsync.bind(this))
+    this.handlers.set('patchTorrentSwitch', this.patchTorrentSwitchAsync.bind(this))
   }
 }
 

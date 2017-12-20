@@ -1,4 +1,22 @@
+const path = require('path')
+const child = require('child_process')
 const UUID = require('uuid')
+const mkdirp = require('mkdirp')
+const getFruit = require('../fruitmix')
+const broadcast = require('../common/broadcast')
+
+
+var torrentTmpPath = ''
+var ipc = null 
+
+
+// init torrent after fruitmix started
+broadcast.on('FruitmixStarted', () => {
+  // create torrentTmp if it has not been created
+  torrentTmpPath = path.join(getFruit().fruitmixPath, 'torrentTmp')
+  mkdirp.sync(torrentTmpPath)
+  if (!ipc) createIpcMain()
+})
 
 // this module implements a command pattern over ipc
 
@@ -76,11 +94,35 @@ class IpcMain {
       console.log('job not found' + msg)
     }
   }
+
+  destroy() {
+    this.worker.kill()
+  }
 }
 
-const createIpcMain = (worker) => {
-
-  let newIpc = new IpcMain(worker)
+const createIpcMain = () => {
+  if (ipc) return console.log('warning: ipc is exist')
+  if (!ipc && !torrentTmpPath) return console.log('can not create ipcmain')
+  // fork child process
+  let worker = child.fork(path.join(__dirname, 'webtorrent.js'), [torrentTmpPath])
+  worker.on('error', err => console.log('sub process error : ', err))
+  worker.on('exit', (code, signal) => console.log('sub process exit:', code, signal))
+  worker.on('message', msg => {
+    if (msg.type !== 'move') return
+    let fruitmix = getFruit()
+    let user = {uuid: msg.torrent.userUUID}
+    let drive = fruitmix.getDrives(user).find(item => item.tag == 'home')
+    let dirUUID = msg.torrent.dirUUID
+    let dirPath = fruitmix.getDriveDirPath(user, drive.uuid, dirUUID)
+    let torrentPath = path.join(msg.torrent.path, msg.torrent.name)
+    fs.rename(torrentPath, path.join(dirPath, msg.torrent.name), err => {
+      if (err) return console.log(err) //todo
+      fruitmix.driveList.getDriveDir(drive.uuid, dirUUID)
+      ipc.call('moveFinish', {userUUID: msg.torrent.userUUID, torrentId: msg.torrent.infoHash},(err,data) => {console.log(err, data, 'this is end')})
+    })
+  })
+  // create ipc main
+  ipc = new IpcMain(worker)
 
   worker.on('message', msg => {
     // console.log('worker --> ', msg)
@@ -88,19 +130,23 @@ const createIpcMain = (worker) => {
 
     switch(msg.type) {
       case 'command':
-      newIpc.handleCommandMessage(msg)
+      ipc.handleCommandMessage(msg)
         break
       default:
         break
     }
   })
+}
 
-  ipc = newIpc
+const destroyIpcMain = () => {
+  console.log('destroy ipcmain...')
+  if (!ipc) return console.log('warning: ipc is not exist')
+  ipc.destroy()
+  ipc = null
 }
 
 const getIpcMain = () => ipc
 
 
-var ipc
 
-module.exports = { createIpcMain, getIpcMain }
+module.exports = { createIpcMain, getIpcMain, destroyIpcMain }
