@@ -414,7 +414,8 @@ class SambaServer extends events.EventEmitter {
 
   isActive() {
     try {
-      let status = child.execSync('systemctl is-active smbd', { encoding: 'utf8'})
+      let status = child.spawnSync('systemctl', ['is-active', 'smbd']).stdout.toString()
+      status = status.split('\n').join('')
       return status === 'active' ? true : false
     } 
     catch(e) {

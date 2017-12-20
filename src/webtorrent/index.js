@@ -11,9 +11,11 @@ const mkdirp = require('mkdirp')
 const broadcast = require('../common/broadcast')
 const getFruit = require('../fruitmix')
 const auth = require('../middleware/auth')
+/**
 const out = fs.openSync('./out.log', 'a');
 const err = fs.openSync('./out.log', 'a');
 let opts = { stdio: ['ignore', out, err] }
+**/
 
 var worker = null
 var ipc = null 
@@ -21,10 +23,16 @@ var ipc = null
 // init torrent after fruitmix started
 broadcast.on('FruitmixStarted', () => {
   // create torrentTmp if it has not been created
+
+  if (process.env.hasOwnProperty('NODE_PATH')) {
+    console.log('bypass webtorrent in auto test')
+    return
+  }
+
   let torrentTmp = path.join(getFruit().fruitmixPath, 'torrentTmp')
   mkdirp.sync(torrentTmp)
   // fork child process
-  worker = child.fork(path.join(__dirname, 'webtorrent.js'), [torrentTmp])
+  worker = child.fork(path.join(__dirname, 'webtorrent.js'), [torrentTmp], { stdio: ['ignore', 'inherit', 'inherit'] })
   worker.on('error', err => console.log(err))
   worker.on('exit', (code, signal) => console.log('worker exit:', code, signal))
   worker.on('message', msg => {
