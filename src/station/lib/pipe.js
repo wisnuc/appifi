@@ -288,7 +288,57 @@ class Pipe {
         break
     }
   }
+  /*****************************STATION*************************/
 
+  async getStationInfoAsync(data) {
+    let { serverAddr, sessionId, user, body, paths } = data
+    let info = this.ctx.info()
+    if(!info) return await this.errorResponseAsync(serverAddr, sessionId, new Error('station not start'))
+    return await this.successResponseJsonAsync(serverAddr, sessionId, info)
+  }
+
+  async updateStationInfoAsync(data) {
+    let { serverAddr, sessionId, user, body, paths } = data
+    if(!this.ctx.initialized)  return await this.errorResponseAsync(serverAddr, sessionId, new Error('station not start'))
+    let info = await this.ctx.updateInfoAsync({ name:body.name })
+    return await this.successResponseJsonAsync(serverAddr, sessionId, info)    
+  }
+
+  async getTicketsAsync(data) {
+    let { serverAddr, sessionId, user, body, paths } = data
+    if(!this.ctx.initialized)  return await this.errorResponseAsync(serverAddr, sessionId, new Error('station not start'))
+    let Tickets = this.ctx.tickets
+    let ticketArr = await Tickets.getTicketsAsync(user.uuid)
+    return await this.successResponseJsonAsync(serverAddr, sessionId, ticketArr)
+  }
+
+  async createTicketAsync(data) {
+    let { serverAddr, sessionId, user, body, paths } = data
+    if(!this.ctx.initialized)  return await this.errorResponseAsync(serverAddr, sessionId, new Error('station not start'))
+    let Tickets = this.ctx.tickets
+    let ticket = await Tickets.createTicketAsync(user.uuid, body.type)
+    return await this.successResponseJsonAsync(serverAddr, sessionId, ticket)
+  }
+
+  async getTicketAsync(data) {
+    let { serverAddr, sessionId, user, body, paths } = data
+    if(!this.ctx.initialized)  return await this.errorResponseAsync(serverAddr, sessionId, new Error('station not start'))
+    let Tickets = this.ctx.tickets
+    let ticketId = paths[2]
+    let t = await Tickets.getTicketAsync(ticketId)
+    return await this.successResponseJsonAsync(serverAddr, sessionId, t)
+  }
+
+  async confirmTicketAsync(data) {
+    let { serverAddr, sessionId, user, body, paths } = data
+    if(!this.ctx.initialized)  return await this.errorResponseAsync(serverAddr, sessionId, new Error('station not start'))
+    let Tickets = this.ctx.tickets
+    let guid = body.guid
+    let state = body.state
+    let ticketId = paths[3]
+    let data = await Tickets.consumeTicket(user.uuid, guid, ticketId, state)
+    return await this.successResponseJsonAsync(serverAddr, sessionId, data)
+  }
 
   /*****************************TOKEN***************************/
 
@@ -880,6 +930,13 @@ class Pipe {
     //media
     this.handlers.set('GetMetadatas', this.getMetadatasAsync.bind(this))
     this.handlers.set('GetMetadata', this.getMetadataAsync.bind(this))
+    //tickets
+    this.handlers.set('GetStationInfo', this.getStationInfoAsync.bind(this))
+    this.handlers.set('GetTickets', this.getTicketsAsync.bind(this))
+    this.handlers.set('UpdateStationInfo', this.updateStationInfoAsync.bind(this))
+    this.handlers.set('CreateTicket', this.createTicketAsync.bind(this))
+    this.handlers.set('GetTicket', this.getTicketAsync.bind(this))
+    this.handlers.set('ConfirmTicket', this.confirmTicketAsync.bind(this))
   }
 }
 
