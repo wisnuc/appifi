@@ -9,9 +9,11 @@ const mkdirp = require('mkdirp')
 const broadcast = require('../common/broadcast')
 const getFruit = require('../fruitmix')
 const auth = require('../middleware/auth')
+/**
 const out = fs.openSync('./out.log', 'a');
 const err = fs.openSync('./out.log', 'a');
 let opts = { stdio: ['ignore', out, err] }
+**/
 
 var torrentTmpPath
 broadcast.on('FruitmixStarted', () => {
@@ -86,6 +88,10 @@ router.patch('/:torrentId', auth.jwt(), (req, res) => {
   })
 })
 
+<<<<<<< HEAD
 
 
 module.exports = router
+=======
+module.exports = router
+>>>>>>> master
