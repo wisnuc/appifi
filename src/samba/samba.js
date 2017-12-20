@@ -246,9 +246,6 @@ class SambaServer extends events.EventEmitter {
     super()
     this.froot = fpath
     this.udpServer = undefined
-
-
-
     this.startUdpServer(() => {}) //  FIXME: error?
     this.isStop = true
   }
@@ -372,8 +369,8 @@ class SambaServer extends events.EventEmitter {
 
   async startAsync(users, drives) {
 
-    let err = new Error('stack')
-    console.log(err)
+    // let err = new Error('stack')
+    // console.log(err)
 
     this.isStop = false
     await rsyslogAsync()
@@ -422,7 +419,8 @@ class SambaServer extends events.EventEmitter {
 
   isActive() {
     try {
-      let status = child.execSync('systemctl is-active smbd', { encoding: 'utf8'})
+      let status = child.spawnSync('systemctl', ['is-active', 'smbd']).stdout.toString()
+      status = status.split('\n').join('')
       return status === 'active' ? true : false
     } 
     catch(e) {
