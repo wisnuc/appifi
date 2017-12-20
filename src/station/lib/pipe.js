@@ -284,7 +284,6 @@ class Pipe {
     }
   }
   /*****************************STATION*************************/
-
   async getStationInfoAsync(data) {
     let { serverAddr, sessionId, user, body, paths } = data
     let info = this.ctx.info()
@@ -456,7 +455,7 @@ class Pipe {
 
     switch (da.op) {
       case 'mkdir':
-        return await this.mkdirpAsync(data)
+        return await this.mkdirpAsync2(data)
         break
       case 'rename':
         return await this.renameAsync(data)
@@ -503,6 +502,21 @@ class Pipe {
     if (!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
     let asyncMkdir = Promise.promisify(fruit.mkdirp).bind(fruit)
     let xstat = await asyncMkdir(user, body.driveUUID, body.dirUUID, body.toName)
+    debug('mkdirp success', xstat)
+    return await this.successResponseJsonAsync(serverAddr, sessionId, xstat)
+  }
+
+  async mkdirpAsync2 (data) {
+    let { serverAddr, sessionId, user, body, paths } = data
+    let fruit = getFruit()
+    if (!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    let dst = {
+      drive: body.driveUUID,
+      dir: body.dirUUID,
+      name: body.toName
+    }
+    let asyncMkdir = Promise.promisify(fruit.driveList.mkdir).bind(fruit.driveList)
+    let xstat = await asyncMkdir(dst, null)
     debug('mkdirp success', xstat)
     return await this.successResponseJsonAsync(serverAddr, sessionId, xstat)
   }
