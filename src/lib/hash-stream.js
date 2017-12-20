@@ -3,6 +3,7 @@ const fs = require('fs')
 const child = require('child_process')
 const EventEmitter = require('events')
 const crypto = require('crypto')
+const cryptoAsync = require('@ronomon/crypto-async')
 
 const rimraf = require('rimraf')
 const debug = require('debug')('hash-stream')
@@ -239,6 +240,44 @@ class IPre extends EventEmitter {
     rimraf(this.path, () => {})
   }
 
+}
+
+class IPre2 extends EventEmitter {
+
+  constructor(rs, filePath, size, sha256) {
+    super()
+
+    this.rs = rs
+    this.filePath = filePath
+    this.size = size
+    this.sha256 = sha256
+    this.buffers = []
+    this.ws = fs.createWriteStream(filePath)
+
+    this.rs.on('data', data => {
+      this.ws.write(data)
+      this.buffers.push(data)
+    })
+
+    this.rs.on('end', () => this.ws.end())
+
+    this.ws.on('finish', () => {
+      let chunk = Buffer.concat(this.buffers)
+      cryptoAsync.hash('SHA256', chunk, (err, hash) => {
+        if (err) {
+          this.emit('finish', err)
+        } else if (hash.toString('hex') !== sha256) {
+          this.emit('finish', new Error('sha256 mismatch'))
+        } else {
+
+          console.log('IPre2 finish')
+
+          this.digest = sha256
+          this.emit('finish')
+        }
+      })
+    })
+  }
 }
 
 /**
@@ -810,16 +849,20 @@ class CPost extends EventEmitter {
 }
 
 module.exports = {
-  thresh: 1024 * 1024,
+  thresh: 16 * 1024 * 1024,
 
-  createStream: function(rs, filePath, size, sha256) {
+  createStream: function(rs, filePath, size, sha256, aggressive) {
     if (sha256) {
       if (size > this.thresh) {
         debug('create child-process pre')
-        return new CPre2(rs, filePath, size, sha256)
+        if (!!aggressive) {
+          return new CPre(rs, filePath, size, sha256)
+        } else {
+          return new CPre2(rs, filePath, size, sha256)
+        }
       } else {
         debug('create in-process pre')
-        return new IPre(rs, filePath, size, sha256)
+        return new IPre2(rs, filePath, size, sha256)
       }
     } else {
       if (size > this.thresh) {
