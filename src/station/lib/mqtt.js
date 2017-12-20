@@ -1,4 +1,4 @@
-const debug = require('debug')('station')
+const debug = require('debug')('station:mqtt')
 const mqtt = require('mqtt')
 const { CONFIG } = require('./const')
 const EventEmiter = require('events').EventEmitter
@@ -21,8 +21,8 @@ class MQTT extends EventEmiter {
     this.client = undefined
     this.payload = JSON.stringify({ stationId: ctx.station.id })
     this.settings = {
-      clientId: `mqttjs_${ctx.station.id}`,
-      clean: false,
+      clientId: `station_${ctx.station.id}`,
+      clean: true,
       keepalive: 3,
       reconnectPeriod: 5 * 1000,
       connectTimeout: 10 * 1000,
@@ -42,10 +42,10 @@ class MQTT extends EventEmiter {
       debug('station connect successfully!', connack)
       client.publish(`station/connect`, this.payload, { qos: 1 })
       client.subscribe(`station/${this.ctx.station.id}/pipe`, { qos: 1 })
+      this.emit('MQTTConnected', this)
     })
-  
     client.on('message', (topic, message, packet) => {
-      debug(`message`, topic, message.toString(), Date.now())
+      debug(`message comming`)
       let data = JSON.parse(message)
       this.dispatch(data.type, data)
     })

@@ -42,44 +42,62 @@ class Station {
     this.token = undefined
     this.mqtt = undefined
     this.deinited = false
-    this.init()
+    this.setUp()
   }
 
-  init () {
-    broadcast.on('StationStart', f(async (froot) => {
+  setUp () {
+    broadcast.on('StationStart', (froot) => {
       this.froot = froot
-      await this.startAsync(froot) // init station for keys
       try {
-        this.station = await this.registerAsync(froot)
-        // get station token
-        this.token = await this.getToken()
-        const pipe = new Pipe(this)
-         // start mqtt
-        this.mqtt = new MQTT(this)
-        // register 
-        this.mqtt.register('pipe', pipe.handle.bind(pipe))
-        this.mqtt.connect()
-        
-        this.tickets = new Tickets(this)
-        this.initialized = true
-
-        await this.updateCloudUsersAsync()
-      } catch (e) {
-        debug('Station start error!', e)
-
-        //TODO: retry
-      }
-    }))
-
-    broadcast.on('UserListChanged', async () => {
-      if (this.initialized) {
-        debug('Station Handler UserListChanged Notify')
-        this.updateCloudUsersAsync()
-          .then(() => { debug('station update userlist success') })
-          .catch(e => debug(e))
+        this.init(froot)
+      } catch(e){
+        debug(e)
       }
     })
+
+    broadcast.on('UserListChanged', async () => {
+      if (!this.initialized) return
+      debug('Station Handler UserListChanged Notify')
+      this.updateCloudUsersAsync()
+        .then(() => { debug('station update userlist success') })
+        .catch(e => debug(e))
+    })
     broadcast.on('StationStop', this.deinit.bind(this))
+  }
+
+  init(froot) {
+    this.initAsync(froot)
+      .then(() => {})
+      .catch(e => {
+        debug('station start error, about to restart', e)
+        setTimeout(() => {
+          if(this.deinited) return
+          this.init(froot)
+        }, 5000)
+      })
+  }
+
+  async initAsync(froot) {
+    await this.startAsync(froot) // init station for keys
+    this.station = await this.registerAsync(froot)
+    // get station token
+    this.token = await this.getToken()
+    const pipe = new Pipe(this)
+      // start mqtt
+    this.mqtt = new MQTT(this)
+    // register 
+    this.mqtt.register('pipe', pipe.handle.bind(pipe))
+    this.mqtt.on('MQTTConnected', () => {
+      this.updateCloudUsersAsync()  //update users and lanIP
+        .then(() => { })
+        .catch(e => debug('update service users error', e))
+    })
+    this.mqtt.connect()
+    
+    this.tickets = new Tickets(this)
+    this.initialized = true
+
+    await this.updateCloudUsersAsync()
   }
 
   /**
@@ -222,6 +240,7 @@ class Station {
     let userIds = fruit.userList.users.filter(u => !!u.global && !u.disabled).map(u => u.global.id)
     let LANIP = this.getLANIP()
     await this.updateCloudStationAsync({ userIds, LANIP, name: this.station.name })
+    debug('update cloud users and LanIP success')
   }
 
   getLANIP() {

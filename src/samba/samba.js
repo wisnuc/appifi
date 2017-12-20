@@ -156,7 +156,7 @@ const processUsersAsync = async users => {
   text = users
     .map(u => `${u.unixName} = "${u.username}"`)
     .join('\n')
-
+    
   await fs.writeFileAsync('/etc/smbusermap', text)
   return users
 }
