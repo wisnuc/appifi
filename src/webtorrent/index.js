@@ -27,6 +27,7 @@ let router = Router()
 router.get('/switch', (req, res) => {
   if (getIpcMain()) res.status(200).json({switch: true})
   else res.status(200).json({switch: false})
+
 })
 
 router.patch('/switch', (req, res) => {
