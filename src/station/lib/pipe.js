@@ -118,7 +118,6 @@ class StoreFile {
     ws.on('error', err => error(err))
 
     req.pipe(transform).pipe(ws)
-    transform.on('data', data => console.log(data))
   }
 }
 /* data:  {
@@ -840,7 +839,7 @@ class Pipe {
     let { dirUUID } = body
     data.subType = 'WriteDirNewFile'
     let store = new StoreFile(this.tmp, body.size, body.sha256)
-    let fpath = await store.storeFileAsync(serverAddr, sessionId, this.connect.saId, this.connect.token)
+    let fpath = await store.storeFileAsync(serverAddr, sessionId, this.stationId, this.token)
     let fname = path.basename(fpath)
     let torrentTmp = path.join(getFruit().fruitmixPath, 'torrentTmp')
     let torrentPath = path.join(torrentTmp, fname)
