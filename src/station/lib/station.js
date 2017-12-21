@@ -80,6 +80,7 @@ class Station {
   async initAsync(froot) {
     await this.startAsync(froot) // init station for keys
     this.station = await this.registerAsync(froot)
+    this.initialized = true
     // get station token
     this.token = await this.getToken()
     const pipe = new Pipe(this)
@@ -95,7 +96,6 @@ class Station {
     this.mqtt.connect()
     
     this.tickets = new Tickets(this)
-    this.initialized = true
 
     await this.updateCloudUsersAsync()
   }
