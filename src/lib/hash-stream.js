@@ -270,7 +270,7 @@ class IPre2 extends EventEmitter {
           this.emit('finish', new Error('sha256 mismatch'))
         } else {
 
-          console.log('IPre2 finish')
+          // console.log('IPre2 finish')
 
           this.digest = sha256
           this.emit('finish')
