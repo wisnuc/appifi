@@ -161,10 +161,10 @@ describe(path.basename(__filename) + ' cp a / [dir c, file d] -> dir b', () => {
       expect(task.nodes.find(n => n.src.uuid === dirCUUID).state).to.equal('Conflict')
     })
 
-    // it(`resolve with replace`, async () => {
+    // it.only(`resolve with skip`, async () => {
     //     expect(task.nodes.find(n => n.src.uuid === dirCUUID).state).to.equal('Conflict')
 
-    //     updateNodeByUUIDAsync(token, task.uuid, dirCUUID, { policy: ['replace', null] }, 200)
+    //     updateNodeByUUIDAsync(token, task.uuid, dirCUUID, { policy: ['skip', null] }, 200)
     //     await Promise.delay(100)
     //     task = await getTaskAsync(token, task.uuid)
     //     expect(task.nodes.length).to.equal(1)
@@ -211,10 +211,10 @@ describe(path.basename(__filename) + ' cp a / [dir c, file d] -> dir b', () => {
       expect(task.nodes.find(n => n.src.uuid === fileDUUID).state).to.equal('Conflict')
     })
 
-    // it(`resolve with replace`, async () => {
+    // it.only(`resolve with skip`, async () => {
     //     expect(task.nodes.find(n => n.src.uuid === fileDUUID).state).to.equal('Conflict')
 
-    //     updateNodeByUUIDAsync(token, task.uuid, fileDUUID, { policy: ['replace', null] }, 200)
+    //     updateNodeByUUIDAsync(token, task.uuid, fileDUUID, { policy: ['skip', null] }, 200)
     //     await Promise.delay(100)
     //     task = await getTaskAsync(token, task.uuid)
     //     expect(task.nodes.length).to.equal(1)
@@ -262,12 +262,12 @@ describe(path.basename(__filename) + ' cp a / [dir c, file d] -> dir b', () => {
       expect(task.nodes.find(n => n.src.uuid === dirCUUID).error.xcode).to.equal('EISFILE')
     })
 
-    // it(`resolve with replace`, async () => {
+    // it.only(`resolve with skip`, async () => {
     //     expect(task.nodes.find(n => n.src.uuid === dirCUUID).state).to.equal('Conflict')
     //     expect(task.nodes.find(n => n.src.uuid === dirCUUID).error.code).to.equal('EEXIST')
     //     expect(task.nodes.find(n => n.src.uuid === dirCUUID).error.xcode).to.equal('EISFILE')
 
-    //     updateNodeByUUIDAsync(token, task.uuid, dirCUUID, { policy: [null, 'replace'] }, 200)
+    //     updateNodeByUUIDAsync(token, task.uuid, dirCUUID, { policy: [null, 'skip'] }, 200)
     //     await Promise.delay(100)
     //     task = await getTaskAsync(token, task.uuid)
     //     expect(task.nodes.length).to.equal(1)
@@ -315,12 +315,12 @@ describe(path.basename(__filename) + ' cp a / [dir c, file d] -> dir b', () => {
       // expect(task.nodes.find(n => n.src.uuid === fileDUUID).error.xcode).to.equal('EISDIR')
     })
 
-    // it(`resolve with replace`, async () => {
+    // it.only(`resolve with skip`, async () => {
     //   expect(task.nodes.find(n => n.src.uuid === fileDUUID).state).to.equal('Conflict')
     //   // expect(task.nodes.find(n => n.src.uuid === fileDUUID).error.code).to.equal('EEXIST')
     //   // expect(task.nodes.find(n => n.src.uuid === fileDUUID).error.xcode).to.equal('EISFILE')
 
-    //   updateNodeByUUIDAsync(token, task.uuid, fileDUUID, { policy: [null, 'replace'] }, 200)
+    //   updateNodeByUUIDAsync(token, task.uuid, fileDUUID, { policy: [null, 'skip'] }, 200)
     //   await Promise.delay(100)
     //   task = await getTaskAsync(token, task.uuid)
     //   expect(task.nodes.length).to.equal(1)
@@ -367,7 +367,7 @@ describe(path.basename(__filename) + ' cp a / [dir c, file d] -> dir b', () => {
       task = await getTaskAsync(token, task.uuid)
     })
 
-    it.only('dir c should be kept, e68f5660', done => {
+    it('dir c should be kept, e68f5660', done => {
       expect(task.nodes.length).to.equal(1)
       expect(task.nodes[0].state).to.equal('Finished')
       done()
@@ -428,7 +428,8 @@ describe(path.basename(__filename) + ' cp a / [dir c, file d] -> dir b', () => {
 
 describe(path.basename(__filename) + 'mv a / [dir c, file d] -> dir b', () => {
   let alonzo = FILES.alonzo
-  let token, dirAUUID, dirBUUID, dirCUUID, fileDUUID
+  let bar = FILES.bar
+  let token, dirAUUID, dirBUUID, dirCUUID, fileDUUID, fileEUUID
 
   beforeEach(async () => {
     await resetAsync()
@@ -436,9 +437,14 @@ describe(path.basename(__filename) + 'mv a / [dir c, file d] -> dir b', () => {
     token = await retrieveTokenAsync('alice')
     dirAUUID = await createDirAsync(token, IDS.alice.home, IDS.alice.home, 'a')
     dirCUUID = await createDirAsync(token, IDS.alice.home, dirAUUID, 'c')
+    dirGUUID = await createDirAsync(token, IDS.alice.home, dirCUUID, 'g')
     fileDUUID = await createFileAsync(token, IDS.alice.home, dirAUUID, alonzo.name, alonzo.path, { 
       size: alonzo.size, 
       sha256: alonzo.hash 
+    })
+    fileEUUID = await createFileAsync(token, IDS.alice.home, dirCUUID, bar.name, bar.path, { 
+      size: bar.size, 
+      sha256: bar.hash 
     })
     dirBUUID = await createDirAsync(token, IDS.alice.home, IDS.alice.home, 'b')
     console.log('dirAUUID', dirAUUID)
