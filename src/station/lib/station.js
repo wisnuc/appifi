@@ -299,7 +299,7 @@ class Station {
   info() {
     if (this.initialized) {
       let info = Object.assign({}, this.station)
-      info.connectState = this.mqtt.getState()
+      info.connectState = this.mqtt ? this.mqtt.getState() : CONNECT_STATE.DISCED
       info.pbk = this.publicKey
       return info
     }
