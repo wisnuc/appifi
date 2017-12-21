@@ -15,7 +15,7 @@ if (process.env.NODE_ENV === 'dev') {
   CONFIG.CLOUD_PATH = 'http://122.152.206.50/'
   CONFIG.MQTT_URL = 'mqtt://122.152.206.50:1883'
 } else {
-  CONFIG.CLOUD_PATH = 'http://test.siyouqun.org/'
+  CONFIG.CLOUD_PATH = 'http://www.siyouqun.org/'
   CONFIG.MQTT_URL = 'mqtt://122.152.206.50:1883'
 }
 
