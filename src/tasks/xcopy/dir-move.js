@@ -15,20 +15,32 @@ class Working extends Dir.prototype.Working {
     let src = { dir: this.ctx.src.uuid }
     let dst = { dir: this.ctx.parent.dst.uuid }   
     this.ctx.ctx.mvdir(src, dst, policy, (err, xstat, resolved) => {
-      // if (err) {
+      if (err) {
+        callback(err)
+      } else {
+        let dst = { uuid: xstat.uuid, name: xstat.name }
+        callback(null, dst, resolved)
+      }
+
+      // if (err && err.code === 'EEXIST') {
       //   callback(err)
+      //   this.setState('Conflict', err, policy)      
+      // } else if (err) {
+      //   callback(err)
+      //   this.setState('Failed', err)       
       // } else {
       //   let dst = { uuid: xstat.uuid, name: xstat.name }
       //   callback(null, dst, resolved)
+      //   this.setState('Finished')      
       // }
 
-      if (err && err.code === 'EEXIST') {
-        this.setState('Conflict', err, policy)
-      } else if (err) {
-        this.setState('Failed', err)
-      } else {
-        this.setState('Finished')
-      }
+      // if (err && err.code === 'EEXIST') {
+      //   this.setState('Conflict', err, policy)
+      // } else if (err) {
+      //   this.setState('Failed', err)
+      // } else {
+      //   this.setState('Finished')
+      // }
     })
   }
 }
