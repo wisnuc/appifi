@@ -517,7 +517,7 @@ class Pipe {
       name: body.toName
     }
     let asyncMkdir = Promise.promisify(fruit.driveList.mkdir).bind(fruit.driveList)
-    let xstat = await asyncMkdir(dst, [])
+    let xstat = await asyncMkdir(dst, ['skip', null])
     debug('mkdirp success', xstat)
     return await this.successResponseJsonAsync(serverAddr, sessionId, xstat)
   }
