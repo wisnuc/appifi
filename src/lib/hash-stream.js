@@ -280,6 +280,50 @@ class IPre2 extends EventEmitter {
   }
 }
 
+class IPre3 extends EventEmitter {
+
+  constructor(rs, filePath, size, sha256) {
+    super()
+
+    this.rs = rs
+    this.filePath = filePath
+    this.size = size
+    this.sha256 = sha256
+    this.buffers = []
+    this.ws = fs.createWriteStream(filePath)
+
+    this.rs.on('data', data => {
+      this.ws.write(data)
+      this.buffers.push(data)
+    })
+
+    this.rs.on('end', () => {
+      this.ws.end()
+      this.ws.on('finish', () => {
+        this.ws = null
+        if (this.digest) this.emit('finish')
+      })
+
+      let chunk = Buffer.concat(this.buffers)
+      cryptoAsync.hash('SHA256', chunk, (err, hash) => {
+        if (err || hash.toString('hex') !== sha256) {
+          if (this.ws) {
+            this.ws.removeAllListeners()
+            this.ws.on('error', () => {})
+            this.ws.destroy()
+          }
+          this.emit('finish', err || new Error('sha256 mismatch'))
+        } else {
+          this.digest = sha256
+          if (!this.ws) this.emit('finish')
+        }
+      })
+    })
+
+  }
+}
+
+
 /**
 (2) ip-post
 
