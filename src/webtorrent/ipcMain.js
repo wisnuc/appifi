@@ -4,6 +4,7 @@ const UUID = require('uuid')
 const mkdirp = require('mkdirp')
 const getFruit = require('../fruitmix')
 const broadcast = require('../common/broadcast')
+const fs = require('fs')
 
 
 var torrentTmpPath = ''
@@ -19,7 +20,9 @@ broadcast.on('FruitmixStarted', () => {
   }
   torrentTmpPath = path.join(getFruit().fruitmixPath, 'torrentTmp')
   mkdirp.sync(torrentTmpPath)
-  if (!ipc) createIpcMain()
+  // if switch is not exist , webtorrent will not start
+  let switchPath = path.join(torrentTmpPath, 'switch')
+  if (fs.existsSync(switchPath) && !ipc) createIpcMain()
 })
 
 // this module implements a command pattern over ipc
@@ -105,6 +108,9 @@ class IpcMain {
 }
 
 const createIpcMain = () => {
+  // create webtorrent mean open switch
+  let switchPath = path.join(torrentTmpPath, 'switch')
+  fs.writeFileSync(switchPath, 'switch')
   if (ipc) return console.log('warning: ipc is exist')
   if (!ipc && !torrentTmpPath) return console.log('can not create ipcmain')
   // fork child process
@@ -144,6 +150,9 @@ const createIpcMain = () => {
 
 const destroyIpcMain = () => {
   console.log('destroy ipcmain...')
+  // destroy webtorrent mean close switch
+  let switchPath = path.join(torrentTmpPath, 'switch')
+  fs.unlinkSync(switchPath)
   if (!ipc) return console.log('warning: ipc is not exist')
   ipc.destroy()
   ipc = null
