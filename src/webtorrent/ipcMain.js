@@ -4,6 +4,7 @@ const UUID = require('uuid')
 const mkdirp = require('mkdirp')
 const getFruit = require('../fruitmix')
 const broadcast = require('../common/broadcast')
+const fs = require('fs')
 
 
 var torrentTmpPath = ''
