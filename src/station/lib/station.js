@@ -80,7 +80,6 @@ class Station {
   async initAsync(froot) {
     await this.startAsync(froot) // init station for keys
     this.station = await this.registerAsync(froot)
-    this.initialized = true
     // get station token
     this.token = await this.getToken()
     const pipe = new Pipe(this)
@@ -96,6 +95,7 @@ class Station {
     this.mqtt.connect()
     
     this.tickets = new Tickets(this)
+    this.initialized = true
 
     await this.updateCloudUsersAsync()
   }
@@ -297,13 +297,10 @@ class Station {
   }
 
   info() {
-    if (this.initialized) {
-      let info = Object.assign({}, this.station)
-      info.connectState = this.mqtt ? this.mqtt.getState() : CONNECT_STATE.DISCED
-      info.pbk = this.publicKey
-      return info
-    }
-    return false
+    let info = Object.assign({}, this.station)
+    info.connectState = this.initialized ? this.mqtt.getState() : CONNECT_STATE.DISCED
+    info.pbk = this.publicKey
+    return info
   }
 
   async updateInfoAsync(props) {
