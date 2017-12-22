@@ -470,7 +470,7 @@ describe(path.basename(__filename) + 'mv a / [dir c, file d] -> dir b', () => {
       done()
     })
 
-    it('resolve with keep', async () => {
+    it('resolve with keep, bab8b468', async () => {
       updateNodeByUUIDAsync(token, task.uuid, dirCUUID, { policy: ['keep'] }, 200)
       await Promise.delay(100)
       task = await getTaskAsync(token, task.uuid)
