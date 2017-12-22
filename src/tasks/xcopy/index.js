@@ -464,7 +464,7 @@ class Export extends Base {
 // return formatted policies 
 const formatPolicies = policies => {
 
-  const vs = [undefined, null, 'skip', 'keep', 'replace', 'rename']
+  const vs = [undefined, null, 'skip', 'replace', 'rename', 'keep']
   const obj = { dir: [], file: [] }  
 
   if (policies === undefined || policies === null) return obj
