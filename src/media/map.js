@@ -341,7 +341,9 @@ class MediaMap extends EventEmitter {
     this.scheduled = false
 
     if (this.pending.size === 0 && this.running.size === 0) {
-      console.log('all metadata jobs finished')
+      if (!process.env.hasOwnProperty('NODE_PATH')) {
+        console.log('all metadata jobs finished')
+      }
       return
     }
 

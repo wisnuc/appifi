@@ -15,7 +15,7 @@ var ipc = null
 broadcast.on('FruitmixStarted', () => {
   // create torrentTmp if it has not been created
   if (process.env.hasOwnProperty('NODE_PATH')) {
-    console.log('bypass webtorrent in auto test')
+    // console.log('bypass webtorrent in auto test')
     return
   }
   torrentTmpPath = path.join(getFruit().fruitmixPath, 'torrentTmp')
