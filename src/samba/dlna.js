@@ -28,7 +28,8 @@ class DlnaServer {
 
   async startAsync(mediaPath) {
     if (process.env.hasOwnProperty('NODE_PATH')) {
-      console.log('bypass dlna in auto test')
+      // mute
+      // console.log('bypass dlna in auto test')
       return
     }
     this.isStop = false
