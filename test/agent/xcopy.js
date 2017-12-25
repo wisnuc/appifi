@@ -339,9 +339,7 @@ describe(path.basename(__filename) + ' cp a / [dir c, file d] -> dir b', () => {
   })
 
   describe('dif conflict, global policies:[keep]', () => {
-    let task, fileEUUID
-    let bar = FILES.bar
-    let foo = FILES.foo
+    let task
 
     beforeEach(async () => {
       await createDirAsync(token, IDS.alice.home, dirBUUID, 'c')
@@ -367,7 +365,6 @@ describe(path.basename(__filename) + ' cp a / [dir c, file d] -> dir b', () => {
 
   describe('policies:[keep], file in dir conflict, apply to all', () => {
     let task, fileFUUID
-    let bar = FILES.bar
     let foo = FILES.foo
 
     beforeEach(async () => {
@@ -403,7 +400,6 @@ describe(path.basename(__filename) + ' cp a / [dir c, file d] -> dir b', () => {
       updateNodeByUUID(token, task.uuid, fileEUUID, { policy: ['skip', null], applyToAll: true }, 200)
       await Promise.delay(100)
       task = await getTaskAsync(token, task.uuid)
-      console.log(task.nodes)
       expect(task.nodes.length).to.equal(1)
       expect(task.nodes[0].state).to.equal('Finished')
     })
@@ -465,8 +461,9 @@ describe(path.basename(__filename) + 'mv a / [dir c, file d] -> dir b', () => {
     })
 
     it('state should be conflict, b68ae7d0', done => {
-      console.log(task.nodes)
       expect(task.nodes.find(n => n.src.uuid === dirCUUID).state).to.equal('Conflict')
+      expect(task.nodes.find(n => n.src.uuid === dirCUUID).error.code).to.equal('EEXIST')
+      expect(task.nodes.find(n => n.src.uuid === dirCUUID).error.xcode).to.equal('EISDIR')
       done()
     })
 
@@ -474,7 +471,6 @@ describe(path.basename(__filename) + 'mv a / [dir c, file d] -> dir b', () => {
       updateNodeByUUIDAsync(token, task.uuid, dirCUUID, { policy: ['keep'] }, 200)
       await Promise.delay(100)
       task = await getTaskAsync(token, task.uuid)
-      console.log(task.nodes)
       expect(task.nodes.length).to.equal(1)
       expect(task.nodes[0].state).to.equal('Finished')
     })
