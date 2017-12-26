@@ -3,6 +3,7 @@ const fs = require('fs')
 const child = require('child_process')
 const EventEmitter = require('events')
 const crypto = require('crypto')
+const { Transform } = require('stream')
 const cryptoAsync = require('@ronomon/crypto-async')
 
 const rimraf = require('rimraf')
@@ -320,6 +321,51 @@ class IPre3 extends EventEmitter {
       })
     })
 
+  }
+}
+
+class Sha256Transform extends Transform {
+
+  constructor(opts) {
+    super(opts)
+    
+    this.hash = crypto.createHash('sha256')
+  }
+
+  _transform(data, encoding, callback) {
+
+    // console.log(data.length)
+
+    this.hash.update(data)
+    this.push(data) 
+    callback()
+  } 
+
+  _flush(callback) {
+    this.digest = this.hash.digest('hex')
+    callback()
+  }
+}
+
+class IPre4 extends EventEmitter {
+
+  constructor(rs, filePath, size, sha256) {
+    super()
+
+    this.rs = rs
+    this.filePath = filePath
+    this.size = size
+    this.sha256 = sha256
+
+    let ts = new Sha256Transform({ highWaterMark: 1024 * 1024 }) 
+    let ws = fs.createWriteStream(filePath)
+
+    ws.on('finish', () => {
+      this.digest = ts.digest
+      this.emit('finish')
+    })
+
+    rs.pipe(ts).pipe(ws)
   }
 }
 
@@ -897,6 +943,9 @@ module.exports = {
 
   createStream: function(rs, filePath, size, sha256, aggressive) {
     if (sha256) {
+
+      // return new IPre4(rs, filePath, size, sha256)
+
       if (size > this.thresh) {
         debug('create child-process pre')
         if (!!aggressive) {
