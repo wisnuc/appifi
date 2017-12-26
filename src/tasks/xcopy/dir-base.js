@@ -223,11 +223,9 @@ class Finished extends State {
       let dir = this.ctx.ctx.ctx.vfs.getDriveDirSync(dirveUUID, this.ctx.src.uuid)
       let dirPath = this.ctx.ctx.ctx.vfs.absolutePath(dir)
       if (this.ctx.parent) {
-        console.log(dirPath)
         try {
           let files = fs.readdirSync(dirPath)
-          console.log(files)
-          if (!files.length) rimraf(dirPath, () => {})
+          if (!files.length) rimraf.sync(dirPath)
         } catch (e) {
           if (e.code !== 'ENOENT') throw e
         }
