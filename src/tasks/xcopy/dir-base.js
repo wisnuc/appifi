@@ -41,7 +41,7 @@ class Working extends State {
       } else if (err) {
         this.setState('Failed', err)
       } else {
-        if ((policy[0] === 'skip' && resolved[0]) || (!resolved[0] && !resolved[1])) {
+        if ((policy[0] === 'skip' && resolved[0]) || (!policy[0] && !resolved[0] && !resolved[1])) {
           this.setState('Finished')
         } else {
           this.ctx.dst = dst
