@@ -43,9 +43,10 @@ class Working extends State {
       } else if (err) {
         this.setState('Failed', err)
       } else {
-        // 1. global keep, no conflict, resolved: [false, false]
-        // 2. no conflict, resolved: [false, false]
-        if ((policy[0] === 'skip' && resolved[0]) || (!policy[0] || policy[0] === 'keep' && !resolved[0] && !resolved[1])) {
+        // global keep, no conflict, resolved: [false, false], dirmove should finished
+        let action = this.ctx.constructor.name
+        // if ((policy[0] === 'skip' && resolved[0]) || (!policy[0] || policy[0] === 'keep' && !resolved[0] && !resolved[1])) {
+        if ((policy[0] === 'skip' && resolved[0]) || (action === 'DirMove' && !resolved[0] && !resolved[1])) {
           this.setState('Finished')
         } else {
           this.ctx.dst = dst

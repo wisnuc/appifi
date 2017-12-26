@@ -338,7 +338,7 @@ describe(path.basename(__filename) + ' cp a / [dir c, file d] -> dir b', () => {
     })
   })
 
-  describe('dif conflict, global policies:[keep]', () => {
+  describe('dif conflict, global policies:{dir:[keep]}', () => {
     let task
 
     beforeEach(async () => {
@@ -363,7 +363,31 @@ describe(path.basename(__filename) + ' cp a / [dir c, file d] -> dir b', () => {
     })
   })
 
-  describe('policies:[keep], file in dir conflict, apply to all', () => {
+  describe('no conflict, global policies:{dir:[keep]}', () => {
+    let task
+
+    beforeEach(async () => {
+
+      task = await createTaskAsync(token, {
+        type: 'copy',
+        src: { drive: IDS.alice.home, dir: dirAUUID },
+        dst: { drive: IDS.alice.home, dir: dirBUUID },
+        entries: [dirCUUID, fileDUUID],
+        policies: {dir: ['keep'] }
+      })
+
+      await Promise.delay(100)
+      task = await getTaskAsync(token, task.uuid)
+    })
+
+    it('copy success, 395c3f15', done => {
+      expect(task.nodes.length).to.equal(1)
+      expect(task.nodes[0].state).to.equal('Finished')
+      done()
+    })
+  })
+
+  describe('global policies:{dir:[keep]}, file in dir conflict, apply to all', () => {
     let task, fileFUUID
     let foo = FILES.foo
 
@@ -447,15 +471,13 @@ describe(path.basename(__filename) + 'mv a / [dir c, file d] -> dir b', () => {
     let task
 
     beforeEach(async () => {
-      let dirCUUID_1 = await createDirAsync(token, IDS.alice.home, dirBUUID, 'c')
-      // await createDirAsync(token, IDS.alice.home, dirCUUID_1, 'g')
+      await createDirAsync(token, IDS.alice.home, dirBUUID, 'c')
 
       task = await createTaskAsync(token, {
         type: 'move',
         src: { drive: IDS.alice.home, dir: dirAUUID },
         dst: { drive: IDS.alice.home, dir: dirBUUID },
-        entries: [dirCUUID, fileDUUID],
-        // policies: {dir: ['keep']}
+        entries: [dirCUUID, fileDUUID]
       })
 
       await Promise.delay(100)
@@ -470,10 +492,60 @@ describe(path.basename(__filename) + 'mv a / [dir c, file d] -> dir b', () => {
     })
 
     it('resolve with keep, bab8b468', async () => {
+      expect(task.nodes.find(n => n.src.uuid === dirCUUID).state).to.equal('Conflict')
+      expect(task.nodes.find(n => n.src.uuid === dirCUUID).error.code).to.equal('EEXIST')
+      expect(task.nodes.find(n => n.src.uuid === dirCUUID).error.xcode).to.equal('EISDIR')
+
       updateNodeByUUIDAsync(token, task.uuid, dirCUUID, { policy: ['keep'] }, 200)
       await Promise.delay(100)
       task = await getTaskAsync(token, task.uuid)
-      console.log(task.nodes)
+      expect(task.nodes.length).to.equal(1)
+      expect(task.nodes[0].state).to.equal('Finished')
+    })
+  })
+
+  describe('no conflict, golbal policies: {dir: [keep]}', () => {
+    let task
+
+    beforeEach(async () => {
+      task = await createTaskAsync(token, {
+        type: 'move',
+        src: { drive: IDS.alice.home, dir: dirAUUID },
+        dst: { drive: IDS.alice.home, dir: dirBUUID },
+        entries: [dirCUUID, fileDUUID],
+        policies: {dir: ['keep']}
+      })
+
+      await Promise.delay(100)
+      task = await getTaskAsync(token, task.uuid)
+    })
+
+    it('move successfully, 36a8f076', async () => {
+      expect(task.nodes.length).to.equal(1)
+      expect(task.nodes[0].state).to.equal('Finished')
+    })
+  })
+
+  describe('dif conflict, global policies:{dir:[keep]}', () => {
+    let task
+
+    beforeEach(async () => {
+      let dirCUUID_1 = await createDirAsync(token, IDS.alice.home, dirBUUID, 'c')
+      await createDirAsync(token, IDS.alice.home, dirCUUID_1, 'g')
+
+      task = await createTaskAsync(token, {
+        type: 'move',
+        src: { drive: IDS.alice.home, dir: dirAUUID },
+        dst: { drive: IDS.alice.home, dir: dirBUUID },
+        entries: [dirCUUID, fileDUUID],
+        policies: {dir: ['keep']}
+      })
+
+      await Promise.delay(100)
+      task = await getTaskAsync(token, task.uuid)
+    })
+
+    it('move successfully, 6f262d24', async () => {
       expect(task.nodes.length).to.equal(1)
       expect(task.nodes[0].state).to.equal('Finished')
     })
