@@ -122,6 +122,22 @@ describe(path.basename(__filename), () => {
       done()
     })
   })
+
+  it('test mysterious 1663 (no create date), b61c5208', done => {
+    exiftool('testdata/1663.jpg', 'JPEG', (err, metadata) => {
+      if (err) return done(err)
+      expect(metadata).to.deep.equal({ 
+        m: 'JPEG',
+        w: 391,
+        h: 480,
+        orient: 1,
+        make: 'NORITSU KOKI',
+        model: 'QSS-32_33',
+        size: 132716 
+      })
+      done()
+    })
+  }) 
 })
 
 

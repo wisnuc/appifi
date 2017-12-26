@@ -1,55 +1,94 @@
-const child = require('child_process')
-
 const Router = require('express').Router
 const debug = require('debug')('webtorrent')
-const createIpcMain = require('./ipcMain')
+const { createIpcMain, getIpcMain, destroyIpcMain } = require('./ipcMain')
 const fs = require('fs')
 const path = require('path')
+const formidable = require('formidable')
+const mkdirp = require('mkdirp')
 
+const broadcast = require('../common/broadcast')
+const getFruit = require('../fruitmix')
+const auth = require('../middleware/auth')
+/**
 const out = fs.openSync('./out.log', 'a');
 const err = fs.openSync('./out.log', 'a');
 let opts = { stdio: ['ignore', out, err] }
+**/
 
-let worker = child.fork(path.join(__dirname, 'webtorrent.js'))
-worker.on('error', err => console.log(err))
-worker.on('exit', (code, signal) => console.log('worker exit:', code, signal))
-
-// require('./webtorrent')
-
-let ipc = createIpcMain(worker)
+var torrentTmpPath
+broadcast.on('FruitmixStarted', () => {
+  // create torrentTmp if it has not been created
+  torrentTmpPath = path.join(getFruit().fruitmixPath, 'torrentTmp')
+  mkdirp.sync(torrentTmpPath)
+})
 
 let router = Router()
 
+router.get('/switch', (req, res) => {
+  if (getIpcMain()) res.status(200).json({switch: true})
+  else res.status(200).json({switch: false})
+
+})
+
+router.patch('/switch', (req, res) => {
+  let { op } = req.body
+  console.log(op)
+  if (!['start', 'close'].includes(op)) res.status(400).end('unknown op')
+  if (op === 'close') destroyIpcMain()
+  else createIpcMain()
+  res.status(200).end()
+})
+
+router.use(function(req, res, next) {
+  if (!getIpcMain()) return res.status(400).end('webTorrent is closed')
+  next()
+})
+
 // query type(optional) : enum [ finished, running ]
-router.get('/', (req, res) => {
-  if(!req.query || !req.query.type || [ 'finished', 'running' ].findIndex(req.query.type) === -1 )
-    ipc.call('getAllTask', {}, (error, data) => {
-      return res.status(200).json(data)
-    })
-  else{
-    let ipcName = req.query.type == 'finished' ? 'getFinished' : 'getSummary'
-    ipc.call(ipcName, {}, (error, data) => {
-      return res.status(200).json(data)
-    })
-  }
+router.get('/', auth.jwt(), (req, res) => {
+  let { torrentId, type } = req.query
+  let user = req.user
+  getIpcMain().call('getSummary', { torrentId, type, user }, (error, data) => {
+    if (error) res.status(400).json(error)
+    else res.status(200).json(data)
+  })
 })
 
 // create new download task
-router.post('/', (req, res) => {
-  ipc.call('addMagnet', { magnetURL: req.body.magnetURL, downloadPath: req.body.downloadPath }, (error, data) => {
+router.post('/magnet', auth.jwt(), (req, res) => {
+  getIpcMain().call('addMagnet', { magnetURL: req.body.magnetURL, dirUUID: req.body.dirUUID, user: req.user }, (error, data) => {
     if(error) return res.status(400).json(error)
     res.status(200).json(data)
   })
 })
 
-router.patch('/:torrentId', (req, res) => {
-  let ops = ['pause', 'resume', 'destory']
+router.post('/torrent', auth.jwt(), (req, res) => {
+  let form = new formidable.IncomingForm()
+  form.uploadDir = torrentTmpPath
+  form.keepExtensions = true
+  form.parse(req, (err, fields, files) => {
+    if (err) return res.status(500).json(err)
+    let dirUUID = fields.dirUUID
+    let torrentPath = files.torrent.path
+    let user = req.user
+    if (!dirUUID || !torrentPath) return res.status(400).end('parameter error')
+    getIpcMain().call('addTorrent', {torrentPath, dirUUID, user}, (err, torrentId) => {
+      if (err) return res.status(400).json(err)
+      return res.status(200).json({torrentId})
+    })
+  })
+})
+
+router.patch('/:torrentId', auth.jwt(), (req, res) => {
+  let ops = ['pause', 'resume', 'destroy']
   let op = req.body.op
   if(!ops.includes(op)) return res.status(400).json({ message: 'unknown op' })
-  ipc.call(op, { torrentId: req.params.torrentId }, (error, data) => {
+  getIpcMain().call(op, { torrentId: req.params.torrentId, user: req.user }, (error, data) => {
     if(error) return res.status(400).json(error)
     return res.status(200).json(data)
   })
 })
+
+
 
 module.exports = router

@@ -1,6 +1,7 @@
 const path = require('path')
 const fs = require('fs')
 const EventEmitter = require('events')
+const os = require('os')
 const assert = require('assert')
 
 const mkdirp = require('mkdirp')
@@ -340,11 +341,23 @@ class MediaMap extends EventEmitter {
     this.scheduled = false
 
     if (this.pending.size === 0 && this.running.size === 0) {
-      console.log('all metadata jobs finished')
+      if (!process.env.hasOwnProperty('NODE_PATH')) {
+        console.log('all metadata jobs finished')
+      }
       return
     }
 
-    while (this.pending.size > 0 && this.running.size < this.concurrency) {
+    let core = os.cpus().length
+    let load = os.loadavg()[0]
+
+    const shouldSpawn = () => {
+      if (this.pending.size === 0) return false
+      if (this.running.size === 0) return true
+      return (load + this.running.size / 2 - 0.5) < core
+    }
+
+//    while (this.pending.size > 0 && this.running.size < this.concurrency) {
+    while (shouldSpawn()) {
       let meta = this.pending[Symbol.iterator]().next().value
       if (!meta) {
         process.exit() // FIXME change to assert

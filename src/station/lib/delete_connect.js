@@ -17,48 +17,48 @@ const CONNECT_STATE = {
   CONNED: 'CONNECTED',
   CONNING: 'CONNECT_ING'
 }
+
 Object.freeze(CONNECT_STATE)
 
-
-function createSocket(address, saId, privateKey, callback) {
-  let socket = client(address,{
-      transports: ['websocket']
+function createSocket (address, saId, privateKey, callback) {
+  let socket = client(address, {
+    transports: ['websocket']
   })
-  
+
   let finished = false
   let state = 'disconnect'
 
   let finish = (token) => {
-    if(finished) return
+    if (finished) return
     socket.removeAllListeners()
     return callback(null, socket)
   }
 
   let error = (err) => {
-    if(finished) return
+    if (finished) return
     socket.close()
     socket = null
     return callback(err)
   }
 
-  socket.on('connect',() => {
+  socket.on('connect', () => {
     state = 'connecting'
-    socket.emit('message', { type: 'requestLogin', data:{ id: saId } })
+    socket.emit('message', { type: 'requestLogin', data: { id: saId } })
   })
   socket.on('message', (data) => {
     debug(data)
-    if(data.type === 'checkLogin'){
+    if (data.type === 'checkLogin') {
       let secretKey = ursa.createPrivateKey(privateKey)
-      let seed  = secretKey.decrypt(data.data.encryptData, 'base64', 'utf8')
-      socket.emit('message',{ type: 'login', data: { seed }})
+      let seed = secretKey.decrypt(data.data.encryptData, 'base64', 'utf8')
+      socket.emit('message', { type: 'login', data: { seed } })
     }
-    if(data.type === 'login'){
+    if (data.type === 'login') {
       let success = data.data.success
-      if(success){
+      if (success) {
         state = 'connected'
         socket.token = data.data.token
         return finish()
-      }else{
+      } else {
         socket.disconnect()
         return error(new Error('login error'))
       }
@@ -114,7 +114,7 @@ cloud is responsible for method validation.
 */
 
 
-class Connect extends EventEmitter{ 
+class Connect extends EventEmitter {
 
   constructor(ctx) {
     super()
@@ -136,8 +136,8 @@ class Connect extends EventEmitter{
   async initAsync(address) {
     return this.startConnectAsync(address)
   }
-  
-  deinit(){
+
+  deinit() {
     this.disconnect()
     this.error = undefined
     this.froot = undefined
@@ -156,7 +156,7 @@ class Connect extends EventEmitter{
 
 
   _changeState(state, error) {
-    if(state === CONNECT_STATE.DISCED && error) this.error = error
+    if (state === CONNECT_STATE.DISCED && error) this.error = error
     else this.error = null
 
     this.state = state
@@ -164,20 +164,20 @@ class Connect extends EventEmitter{
   }
 
   async startConnectAsync(address) {
-    if(this.socket) {
+    if (this.socket) {
       this.socket.disconnect()
       this.socket.close()
     }
     this.socket = undefined
-    this._changeState(CONNECT_STATE.CONNING) 
+    this._changeState(CONNECT_STATE.CONNING)
     this.address = address
-    try{
+    try {
       this.socket = await createSocketAsync(address, this.saId, this.privateKey)
       //reset
       this.reconnectCounter = 0
       let error = false
       let errorHandle = e => {
-        if(error) return 
+        if (error) return
         error = true
         process.nextTick(() => this.connectErrorHandler(address, e))
       }
@@ -196,7 +196,7 @@ class Connect extends EventEmitter{
       this.initialized = true
       return this.token
     }
-    catch(e){ this.connectErrorHandler(e) }
+    catch (e) { this.connectErrorHandler(e) }
   }
 
   connectErrorHandler(address, err) {
@@ -209,13 +209,13 @@ class Connect extends EventEmitter{
     debug('Socket Reconnect: ' + this.reconnectCounter)
     clearTimeout(this.reconnectTimer)
     let time = Math.pow(2, this.reconnectCounter) * 1000
-    if(this.reconnectCounter >= 50) this.reconnectCounter = 0
+    if (this.reconnectCounter >= 50) this.reconnectCounter = 0
     this.reconnectTimer = setTimeout(() => this.connect.bind(this)(address), time)
-    this.reconnectCounter ++
+    this.reconnectCounter++
   }
 
   dispatch(eventType, data) {
-    if(this.handler.has(eventType))
+    if (this.handler.has(eventType))
       this.handler.get(eventType)(data)
     else
       debug('NOT FOUND EVENT HANDLER', eventType, data)
@@ -223,25 +223,25 @@ class Connect extends EventEmitter{
 
   send(eventType, data) {
     debug(eventType, data)
-    this.socket.emit('message', { type: eventType, data})
+    this.socket.emit('message', { type: eventType, data })
   }
 
   disconnect() {
-    if(this.state !== CONNECT_STATE.DISCED){
-        this.socket.disconnect()
-        this.socket.close()
-        this.socket = null
-        this._changeState(CONNECT_STATE.DISCING)
+    if (this.state !== CONNECT_STATE.DISCED) {
+      this.socket.disconnect()
+      this.socket.close()
+      this.socket = null
+      this._changeState(CONNECT_STATE.DISCING)
     }
   }
 
   connect(address) { // reconnect
     this.startConnectAsync(address)
-      .then(() => {})
+      .then(() => { })
       .catch(e => debug(e))
   }
 
-  getState(){
+  getState() {
     return this.state
   }
 

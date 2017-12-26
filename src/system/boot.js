@@ -166,7 +166,6 @@ Boot the system
 @fires FileSystemUpdate
 */
 const boot = () => {
-
   let v
   if (mode === 'maintenance') {
     current = null

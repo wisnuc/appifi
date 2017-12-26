@@ -9,14 +9,20 @@ module.exports = {
   getAllBoxes (user) {
     let guid = user.global.id
     return this.boxData.getAllBoxes(guid)
-  }
+  },
 
   // return a box doc
   /**
-   * get a box description
-   * @param {Object} user
-   * @param {string} boxUUID - uuid of box
-   */
+  get a box description
+  @param {Object} user
+  @param {string} boxUUID - uuid of box
+  */
+
+
+  hello () {
+    return 'world'
+  },
+
   getBox (user, boxUUID) {
     if (!isUUID(boxUUID)) throw Object.assign(new Error('invalid boxUUID'), { status: 400 })
     let box = this.boxData.getBox(boxUUID)
@@ -26,7 +32,7 @@ module.exports = {
     let doc = box.doc
     if (doc.owner !== guid && !doc.users.includes(guid)) { throw Object.assign(new Error('no permission'), { status: 403 }) }
     return doc
-  }
+  },
 
   // props {name, users:[]}
   /**
@@ -47,7 +53,7 @@ module.exports = {
 
     props.owner = user.global.id
     return this.boxData.createBoxAsync(props)
-  }
+  },
 
   // update name and users, only box owner is allowed
   // props {name, users: {op: add/delete, value: [user global ID]}}
@@ -80,7 +86,7 @@ module.exports = {
     }
 
     return this.boxData.updateBoxAsync(props, boxUUID)
-  }
+  },
 
   /**
    * delete a box, only box owner is allowed
@@ -97,7 +103,7 @@ module.exports = {
 
     if (box.doc.owner !== user.global.id) { throw Object.assign(new Error('no permission'), { status: 403 }) }
     return this.boxData.deleteBoxAsync(boxUUID)
-  }
+  },
 
   /**
    * get all branches
@@ -114,7 +120,7 @@ module.exports = {
     if (box.doc.owner !== guid && !box.doc.users.includes(guid)) { throw Object.assign(new Error('no permission'), { status: 403 }) }
 
     return box.retrieveAllAsync('branches')
-  }
+  },
 
   /**
    * get a branch information
@@ -133,7 +139,7 @@ module.exports = {
     if (box.doc.owner !== guid && !box.doc.users.includes(guid)) { throw Object.assign(new Error('no permission'), { status: 403 }) }
 
     return box.retrieveAsync('branches', branchUUID)
-  }
+  },
 
   // props {name, head}
   /**
@@ -158,7 +164,7 @@ module.exports = {
     assert(isSHA256(props.head), 'head should be a sha256')
 
     return box.createBranchAsync(props)
-  }
+  },
 
   // props {name, head}
   /**
@@ -185,7 +191,7 @@ module.exports = {
     if (props.head) assert(isSHA256(props.head), 'head should be a sha256')
 
     return box.updateBranchAsync(branchUUID, props)
-  }
+  },
 
   async deleteBranchAsync (user, boxUUID, branchUUID) {
     if (!isUUID(boxUUID)) throw Object.assign(new Error('invalid boxUUID'), { status: 400 })
@@ -197,7 +203,7 @@ module.exports = {
     if (box.doc.owner !== guid && !box.doc.users.includes(guid)) { throw Object.assign(new Error('no permission'), { status: 403 }) }
 
     return box.deleteBranchAsync(branchUUID)
-  }
+  },
 
   // props {first, last, count, segments}
   /**
@@ -226,7 +232,7 @@ module.exports = {
     if (props.last) assert(typeof props.segments === 'string', 'segments should be a string')
 
     return box.getTweetsAsync(props)
-  }
+  },
 
   /**
    * 
@@ -262,7 +268,7 @@ module.exports = {
     let result = await box.createTweetAsync(props)
     await this.boxData.updateBoxAsync({mtime: result.mtime}, boxUUID)
     return result.tweet
-  }
+  },
 
   /**
    * delete tweets

@@ -3,7 +3,7 @@ const path = require('path')
 const fs = Promise.promisifyAll(require('fs'))
 const EventEmitter = require('events')
 const crypto = require('crypto')
-const dgram = require('dgram')
+// const dgram = require('dgram')
 
 const rimraf = require('rimraf')
 const mkdirp = require('mkdirp')
@@ -37,11 +37,16 @@ const xcopy = require('./tasks/xcopy')
 const xcopyAsync = Promise.promisify(xcopy)
 
 const { readXstat, forceXstat } = require('./lib/xstat')
-const samba = require('./samba/server')
+const SambaServer = require('./samba/samba')
+const DlnaServer = require('./samba/dlna')
 
 const Debug = require('debug')
 const smbDebug = Debug('samba')
 const debug = Debug('fruitmix')
+
+const mixin = require('./fruitmix/mixin')
+const driveapi = require('./fruitmix/drive')
+const ndriveapi = require('./fruitmix/ndrive')
 
 const combineHash = (a, b) => {
   let a1 = typeof a === 'string' ? Buffer.from(a, 'hex') : a
@@ -71,6 +76,10 @@ Station module and all routers consumes only Fruitmix API. They are NOT allowed 
 bypass the facade to access the internal modules.
 
 Fruitmix is also responsible for initialize all internal modules and paths.
+
+@extends EventEmitter
+@mixes mixin
+@mixes driveapi
 */
 class Fruitmix extends EventEmitter {
 
@@ -96,121 +105,72 @@ class Fruitmix extends EventEmitter {
     this.driveList = new DriveList(froot, this.mediaMap)
     this.vfs = this.driveList
     // this.boxData = new BoxData(froot)
-
     this.tasks = []
-
     if (!nosmb) {
-      samba.start(froot)
-      let udp = dgram.createSocket('udp4')
-      udp.on('listening', () => {
-        const a = udp.address()
-        console.log(`fruitmix udp listening ${a.address}:${a.port}`)
+      this.smbServer = new SambaServer(froot)
+      this.smbServer.on('SambaServerNewAudit', audit => {
+        this.driveList.audit(audit.abspath, audit.arg0, audit.arg1)
       })
-
-      udp.on('message', (message, rinfo) => {
-        const token = ' smbd_audit: '
-
-        let text = message.toString()
-        // SAMBA_AUDIT(text)
-        //
-        // enter into folder 'aaa', then create a new file named 'bbb', then edit it.
-        //
-        // samba audit like below:
-        // <185>Jun 16 11:01:14 wisnuc-virtual-machine smbd_audit: root|a|a (home)|/run/wisnuc/volumes/56b.../wisnuc/fruitmix/drives/21b...|create_file|ok|0x100080|file|open|aaa/bbb.txt
-        //
-        // arr[0]: root
-        // arr[1]: a
-        // arr[2]: a (home)
-        // arr[3]: /run/wisnuc/volumes/56b.../wisnuc/fruitmix/drives/21b...
-        // arr[4]: create_file
-        // arr[5]: ok
-        // arr[6]: 0x100080
-        // arr[7]: file
-        // arr[8]: open
-        // arr[9]: aaa/bbb.txt
-        //
-        // user: a
-        // share: a (home)
-        // abspath: /run/wisnuc/volumes/56b.../wisnuc/fruitmix/drives/21b...
-        // op: create_file
-
-        let tidx = text.indexOf(' smbd_audit: ')
-        if (tidx === -1) return
-
-        let arr = text.trim().slice(tidx + token.length).split('|')
-
-        // for(var i = 0; i < arr.length; i++){
-        //   SAMBA_AUDIT(`arr[${i}]: ` + arr[i])
-        // }
-
-        // %u <- user
-        // %U <- represented user
-        // %S <- share
-        // %P <- path
-
-        if (arr.length < 6 || arr[0] !== 'root' || arr[5] !== 'ok') return
-
-        let user = arr[1]
-        let share = arr[2]
-        let abspath = arr[3]
-        let op = arr[4]
-        let arg0, arg1
-
-        // create_file arg0
-        // mkdir arg0
-        // rename arg0 arg1 (file or directory)
-        // rmdir arg0 (delete directory)
-        // unlink arg0 (delete file)
-        // write (not used anymore)
-        // pwrite
-
-        switch (op) {
-          case 'create_file':
-            if (arr.length !== 10) return
-            if (arr[8] !== 'create') return
-            if (arr[7] !== 'file') return
-            arg0 = arr[9]
-            break
-
-          case 'mkdir':
-          case 'rmdir':
-          case 'unlink':
-          case 'pwrite':
-            if (arr.length !== 7) return
-            arg0 = arr[6]
-            break
-
-          case 'rename':
-            if (arr.length !== 8) return
-            arg0 = arr[6]
-            arg1 = arr[7]
-            break
-
-          case 'close':
-            if (arr.lenght !== 7) return
-            arg0 = arr[6]
-            break
-
-          default:
-            return
-        }
-
-        let audit = { user, share, abspath, op, arg0 }
-        if (arg1) audit.arg1 = arg1
-
-        smbDebug(audit)
-
-        this.driveList.audit(abspath, arg0, arg1)
-      })
-
-      udp.on('error', err => {
-        console.log('fruitmix udp server error', err)
-        // should restart with back-off TODO
-        udp.close()
-      })
-
-      udp.bind('3721', '127.0.0.1')
+      this.smbServer.startAsync(this.userList.users, this.driveList.drives)
+        .then(() => {})
+        .catch(console.error.bind(console,'smb start error'))
     }
+    this.dlnaServer = new DlnaServer(froot)
+    this.dlnaServer.startAsync(this.getBuiltInDrivePath())
+      .then(() => {})
+      .catch(console.error.bind(console,'dlna start error'))
+  }
+
+  async startSambaAsync(user) {
+    if(!this.smbServer) {
+      this.smbServer = new SambaServer(this.fruitmixPath)
+      this.smbServer.on('SambaServerNewAudit', audit => {
+        this.driveList.audit(audit.abspath, audit.arg0, audit.arg1)
+      })
+    }
+    await this.smbServer.startAsync(this.userList.users, this.driveList.drives)
+  }
+
+  async stopSambaAsync(user) {
+    if(!this.smbServer) return
+    this.smbServer.stopAsync()
+  }
+
+  async restartSambaAsync(user) {
+    if(!this.smbServer) throw Object.assign(new Error('samba not start'), { status: 400 })
+    await this.smbServer.restartAsync()
+  }
+
+  getSambaStatus(user) {
+    if(!this.smbServer) return 'inactive'
+    return this.smbServer.isActive() ? 'active' : 'inactive'
+  }
+
+  updateSamba() {
+    if (nosmb) return
+    this.smbServer.updateAsync(this.userList.users, this.driveList.drives)
+      .then(() => {})
+      .catch(e => console.error.bind(console, 'smbServer update error:'))
+  }
+
+  async startDlnaAsync(user) {
+    if(!this.dlnaServer) this.dlnaServer = new DlnaServer(this.fruitmixPath)
+    await this.dlnaServer.startAsync(this.getBuiltInDrivePath(user))
+  }
+
+  async stopDlnaAsync(user) {
+    if(!this.dlnaServer) return
+    await this.dlnaServer.stopAsync()
+  }
+
+  async restartDlnaAsync(user) {
+    if(!this.dlnaServer) throw Object.assign(new Error('dlna not start'), { status: 400 })
+    await this.dlnaServer.restartAsync()
+  }
+
+  getDlnaStatus(user) {
+    if(!this.dlnaServer) return 'inactive'
+    return this.dlnaServer.isActive() ? 'active' : 'inactive'
   }
 
   loadMediaMap (fpath) {
@@ -369,8 +329,8 @@ class Fruitmix extends EventEmitter {
 
     let userDrives = this.driveList.drives.filter(drv => {
       if (drv.type === 'private' && drv.owner === user.uuid) return true
-      if (drv.type === 'public' && ((drv.writelist.includes(user.uuid)) ||
-        (drv.readlist.includes(user.uuid) && user.isAdmin))) return true
+      if (drv.type === 'public' && (drv.writelist === '*' || ((drv.writelist.includes(user.uuid)) ||
+        (drv.readlist.includes(user.uuid) && user.isAdmin)))) return true
       return false
     })
 
@@ -437,6 +397,7 @@ class Fruitmix extends EventEmitter {
 
     let u = await this.userList.createUserAsync(props)
     await this.driveList.createPrivateDriveAsync(u.uuid, 'home')
+    this.updateSamba()
     return u
   }
 
@@ -481,7 +442,9 @@ class Fruitmix extends EventEmitter {
   async updateUserAsync (user, userUUID, body) {
     if (!this.userCanUpdate(user, userUUID, body)) { throw Object.assign(new Error(`unrecognized prop name `), { status: 400 }) }
     if (Object.getOwnPropertyNames(body).includes('password')) { throw Object.assign(new Error(`password is not allowed to change`), { status: 403 }) }
-    return this.userList.updateUserAsync(userUUID, body)
+    let u = this.userList.updateUserAsync(userUUID, body)
+    this.updateSamba()
+    return u
   }
 
   async updateUserPasswordAsync (user, userUUID, body) {
@@ -492,6 +455,7 @@ class Fruitmix extends EventEmitter {
     }
 
     await this.userList.updatePasswordAsync(user.uuid, body.password)
+    this.updateSamba()
   }
 
   async updateUserGlobalAsync (user, userUUID, body) {
@@ -589,7 +553,7 @@ class Fruitmix extends EventEmitter {
     let drives = this.driveList.drives.filter(drv => {
       if (drv.type === 'private' && drv.owner === user.uuid) return true
       if (drv.type === 'public' &&
-        (drv.writelist.includes(user.uuid) || drv.readlist.includes(user.uuid))) {
+        (drv.writelist === '*' || (drv.writelist.includes(user.uuid) || drv.readlist.includes(user.uuid)))) {
         return true
       }
       return false
@@ -608,10 +572,10 @@ class Fruitmix extends EventEmitter {
     if (drive.type === 'private' && drive.owner === user.uuid) return true
     if (drive.type === 'public') {
       if (user.isAdmin) return true
-      if (drv.writelist === '*') return true
-      if (Array.isArray(drv.writelist) && drv.writelist.includes(user.uuid)) return true
-      if (drv.readlist === '*') return true
-      if (Array.isArray(drv.readlist) && drv.readlist.includes(user.uuid)) return true
+      if (drive.writelist === '*') return true
+      if (Array.isArray(drive.writelist) && drive.writelist.includes(user.uuid)) return true
+      if (drive.readlist === '*') return true
+      if (Array.isArray(drive.readlist) && drive.readlist.includes(user.uuid)) return true
     } 
     return false
   }
@@ -627,10 +591,10 @@ class Fruitmix extends EventEmitter {
   userCanReadDriveData (user, drive) {
     if (drive.type === 'private' && drive.owner === user.uuid) return true
     if (drive.type === 'public') {
-      if (drv.writelist === '*') return true
-      if (Array.isArray(drv.writelist) && drv.writelist.includes(user.uuid)) return true
-      if (drv.readlist === '*') return true
-      if (Array.isArray(drv.readlist) && drv.readlist.includes(user.uuid)) return true
+      if (drive.writelist === '*') return true
+      if (Array.isArray(drive.writelist) && drive.writelist.includes(user.uuid)) return true
+      if (drive.readlist === '*') return true
+      if (Array.isArray(drive.readlist) && drive.readlist.includes(user.uuid)) return true
     }
     return false
   }
@@ -639,8 +603,8 @@ class Fruitmix extends EventEmitter {
   userCanWriteDriveData (user, drive) {
     if (drive.type === 'private' && drive.owner === user.uuid) return true
     if (drive.type === 'public') {
-      if (drv.writelist === '*') return true
-      if (Array.isArray(drv.writelist) && drv.writelist.includes(user.uuid)) return true
+      if (drive.writelist === '*') return true
+      if (Array.isArray(drive.writelist) && drive.writelist.includes(user.uuid)) return true
     }
     return false
   }
@@ -664,30 +628,14 @@ class Fruitmix extends EventEmitter {
   }
 
   /**
-  API: DriveList [GET]
-  */
-  getDriveList2 (user, callback) {
-    let drives = this.driveList.drives.filter(drv => {
-      if (drv.type === 'private' && drv.owner === user.uuid) return true
-      if (drv.type === 'public') {
-        if (user.isAdmin) return true
-        if (drv.writelist === '*') return true
-        if (Array.isArray(drv.writelist) && drv.writelist.includes(user.uuid)) return true
-        if (drv.readlist === '*') return true
-        if (Array.isArray(drv.readlist) && drv.readlist.includes(user.uuid)) return true
-      }
-      return false
-    })
-    process.nextTick(() => callback(null, drives))
-  }
-
-  /**
   API: DriveList [POST]
   */
   async createPublicDriveAsync (user, props) {
     if (!user) throw Object.assign(new Error('Invaild user'), { status: 400 })
     if (!user.isAdmin) throw Object.assign(new Error(`requires admin priviledge`), { status: 403 })
-    return this.driveList.createPublicDriveAsync(props)
+    let d = this.driveList.createPublicDriveAsync(props)
+    this.updateSamba()
+    return d
   }
 
   /**
@@ -704,6 +652,11 @@ class Fruitmix extends EventEmitter {
 
   /**
   API: Drive [GET]
+  callback version of Drive GET
+  @param {object} user
+  @param {string} driveUUID
+  @param {function} callback - `(err, drive) => {}`
+  @memberof api
   */
   getDrive2 (user, driveUUID, callback) {
     let drive = this.driveList.drives.find(drv => drv.uuid === driveUUID)
@@ -715,6 +668,12 @@ class Fruitmix extends EventEmitter {
     } else {
       process.nextTick(() => callback(null, drive))
     } 
+  }
+
+  getBuiltInDrivePath (user) {
+    let d = this.driveList.drives.find(drv => drv.tag === 'built-in' && drv.type === 'public')
+    if(!d) throw Object.assign(new Error(`built-in drive not found`), { status: 404 })
+    return path.join(this.fruitmixPath, 'drives', d.uuid)
   }
 
   /**
@@ -781,7 +740,9 @@ class Fruitmix extends EventEmitter {
 
     }
 
-    return this.driveList.updatePublicDriveAsync(driveUUID, props)
+    let nextDrive =  this.driveList.updatePublicDriveAsync(driveUUID, props)
+    this.updateSamba()
+    return nextDrive
   }
 
   getDriveDirs (user, driveUUID) {
@@ -1061,6 +1022,7 @@ class Fruitmix extends EventEmitter {
   }
 
   /// /////////////////////////
+  // mkdirp make a new directory
   mkdirp (user, driveUUID, dirUUID, name, callback) {
     let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
     if (!dir) {
@@ -1085,7 +1047,7 @@ class Fruitmix extends EventEmitter {
     if (!dir) {
       let err = new Error('drive or dir not found')
       err.status = 404
-      return process.nextTick(() => cb(err))
+      return process.nextTick(() => callback(err))
     }
 
     let dst = path.join(dir.abspath(), name)
@@ -1130,14 +1092,13 @@ class Fruitmix extends EventEmitter {
     } else {
       forceXstat(tmp, { hash }, (err, xstat) => {
         if (err) return callback(err)
-
         if (Magic.isMedia(xstat.magic)) {
           let { magic, uuid } = xstat
-          extract(tmp, magic, hash, uuid, (err, metadata) => {
-            if (err) return callback(err)
-            this.mediaMap.setMetadata(hash, metadata)
+          // extract(tmp, magic, hash, uuid, (err, metadata) => {
+            // ignore extract error
+            // if (!err) this.mediaMap.setMetadata(hash, metadata)
             fs.link(tmp, dst, err => err ?  callback(err) : callback(null, Object.assign(xstat, { name })))
-          })
+          // })
         } else {
           fs.link(tmp, dst, err => err ?  callback(err) : callback(null, Object.assign(xstat, { name })))
         }
@@ -1153,7 +1114,7 @@ class Fruitmix extends EventEmitter {
     if (!dir) {
       let err = new Error('drive or dir not found')
       err.status = 404
-      return process.nextTick(() => cb(err))
+      return process.nextTick(() => callback(err))
     }
 
     let dst = path.join(dir.abspath(), name)
@@ -1198,7 +1159,7 @@ class Fruitmix extends EventEmitter {
     if (!dir) {
       let err = new Error('drive or dir not found')
       err.status = 404
-      return process.nextTick(() => cb(err))
+      return process.nextTick(() => callback(err))
     }
 
     let fromPath = path.join(dir.abspath(), fromName)
@@ -1278,7 +1239,7 @@ class Fruitmix extends EventEmitter {
     if (!dir) {
       let err = new Error('drive or dir not found')
       err.status = 404
-      return process.nextTick(() => cb(err))
+      return process.nextTick(() => callback(err))
     }
 
     let fromPath = path.join(dir.abspath(), fromName)
@@ -1433,10 +1394,12 @@ class Fruitmix extends EventEmitter {
   assertDirUUIDsIndexed (uuids) {
     this.driveList.assertDirUUIDsIndexed (uuids)
   }
+
 }
 
 Object.assign(Fruitmix.prototype, {})
-
+Object.assign(Fruitmix.prototype, driveapi)
+Object.assign(Fruitmix.prototype, ndriveapi)
 module.exports = Fruitmix
 
 
