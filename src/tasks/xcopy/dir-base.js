@@ -221,7 +221,10 @@ class Finished extends State {
       let dirveUUID = this.ctx.ctx.srcDriveUUID
       let dir = this.ctx.ctx.ctx.vfs.getDriveDirSync(dirveUUID, this.ctx.src.uuid)
       let dirPath = this.ctx.ctx.ctx.vfs.absolutePath(dir)
-      if (this.ctx.parent) rimraf(dirPath, () => {})
+      if (this.ctx.parent) {
+        let files = fs.readdirSync(dirPath)
+        if (!files.length) rimraf(dirPath, () => {})
+      }
     }
 
     this.ctx.ctx.indexFinishedDir(this.ctx)
