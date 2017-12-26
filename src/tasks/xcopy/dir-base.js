@@ -1,3 +1,5 @@
+const rimraf = require('rimraf')
+
 const Node = require('./node')
 const State = require('./state')
 
@@ -41,7 +43,9 @@ class Working extends State {
       } else if (err) {
         this.setState('Failed', err)
       } else {
-        if ((policy[0] === 'skip' && resolved[0]) || (!policy[0] && !resolved[0] && !resolved[1])) {
+        // 1. global keep, no conflict, resolved: [false, false]
+        // 2. no conflict, resolved: [false, false]
+        if ((policy[0] === 'skip' && resolved[0]) || (!policy[0] || policy[0] === 'keep' && !resolved[0] && !resolved[1])) {
           this.setState('Finished')
         } else {
           this.ctx.dst = dst
@@ -210,6 +214,15 @@ class Failed extends State {
 class Finished extends State {
 
   enter () {
+    let p = ['keep', 'skip']
+    // delete the dir which is keep or skip in DirMove
+    if (this.ctx.constructor.name === 'DirMove' && (p.includes(this.ctx.policy[0]) || p.includes(this.ctx.ctx.policies.dir[0]))) {
+      let dirveUUID = this.ctx.ctx.srcDriveUUID
+      let dir = this.ctx.ctx.ctx.vfs.getDriveDirSync(dirveUUID, this.ctx.src.uuid)
+      let dirPath = this.ctx.ctx.ctx.vfs.absolutePath(dir)
+      if (this.ctx.parent) rimraf(dirPath, () => {})
+    }
+
     this.ctx.ctx.indexFinishedDir(this.ctx)
   }
 

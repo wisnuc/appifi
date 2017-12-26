@@ -447,13 +447,15 @@ describe(path.basename(__filename) + 'mv a / [dir c, file d] -> dir b', () => {
     let task
 
     beforeEach(async () => {
-      await createDirAsync(token, IDS.alice.home, dirBUUID, 'c')
+      let dirCUUID_1 = await createDirAsync(token, IDS.alice.home, dirBUUID, 'c')
+      // await createDirAsync(token, IDS.alice.home, dirCUUID_1, 'g')
 
       task = await createTaskAsync(token, {
         type: 'move',
         src: { drive: IDS.alice.home, dir: dirAUUID },
         dst: { drive: IDS.alice.home, dir: dirBUUID },
-        entries: [dirCUUID, fileDUUID]
+        entries: [dirCUUID, fileDUUID],
+        // policies: {dir: ['keep']}
       })
 
       await Promise.delay(100)
@@ -471,6 +473,7 @@ describe(path.basename(__filename) + 'mv a / [dir c, file d] -> dir b', () => {
       updateNodeByUUIDAsync(token, task.uuid, dirCUUID, { policy: ['keep'] }, 200)
       await Promise.delay(100)
       task = await getTaskAsync(token, task.uuid)
+      console.log(task.nodes)
       expect(task.nodes.length).to.equal(1)
       expect(task.nodes[0].state).to.equal('Finished')
     })
