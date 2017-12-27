@@ -418,7 +418,8 @@ class Pipe {
     let driveUUID = paths[1]
     let dirUUID = paths[3]
     let metadata = body.metadata === 'true' ? true : false
-    let dirs = await fruit.getDriveDirAsync(user, driveUUID, dirUUID, metadata)
+    let counter = body.counter === 'true' ? true : false
+    let dirs = await fruit.getDriveDirAsync(user, driveUUID, dirUUID, metadata, counter)
     return await this.successResponseJsonAsync(serverAddr, sessionId, dirs)
   }
 

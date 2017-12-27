@@ -751,7 +751,7 @@ class Fruitmix extends EventEmitter {
     return this.driveList.getDriveDirs(driveUUID)
   }
 
-  async getDriveDirAsync (user, driveUUID, dirUUID, metadata) {
+  async getDriveDirAsync (user, driveUUID, dirUUID, metadata, counter) {
     // FIXME should this 401 ?
     if (!this.userCanRead(user, driveUUID)) throw Object.assign(new Error('Permission Denied'), { status: 401 })
     let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
@@ -774,8 +774,9 @@ class Fruitmix extends EventEmitter {
         }
       })
     }
-
-    return { path, entries }
+    let dirCounter
+    if(counter) dirCounter = this.getDirCounter(user, driveUUID, dirUUID)
+    return counter ? { path, entries, 'counter':dirCounter } : { path, entries }
   }
 
   // this is slightly different from async versoin
@@ -831,15 +832,13 @@ class Fruitmix extends EventEmitter {
     if (!this.userCanRead(user, driveUUID)) throw Object.assign(new Error('Permission Denied'), { status: 401 })
     let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
     if (!dir) throw Object.assign(new Error('dir not found'), { status: 404 })
-    let fileCount, fileSize, dirCount, mediaCount = 0
-
+    let fileCount = 0, fileSize = 0, dirCount = 0, mediaCount = 0
     dir.postVisit(node => {
       if(node instanceof File) return mediaCount ++
       fileCount += node.fileCount
       fileSize += node.fileSize
       dirCount += node.dirCount
     })
-
     return { fileCount, fileSize, dirCount, mediaCount }
   }
 
