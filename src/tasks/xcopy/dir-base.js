@@ -46,8 +46,9 @@ class Working extends State {
       } else {
         // global keep, no conflict, resolved: [false, false], dirmove should finished
         let action = this.ctx.constructor.name
-        // if ((policy[0] === 'skip' && resolved[0]) || (!policy[0] || policy[0] === 'keep' && !resolved[0] && !resolved[1])) {
-        if ((policy[0] === 'skip' && resolved[0]) || (action === 'DirMove' && !resolved[0] && !resolved[1])) {
+        let p = ['rename', 'replace']
+        if ((policy[0] === 'skip' && resolved[0]) 
+            || (action === 'DirMove' && (!resolved[0] || p.includes(policy[0])))) { // in DirMove rename and replace move the whole directory once
           this.setState('Finished')
         } else {
           this.ctx.dst = dst
@@ -218,7 +219,7 @@ class Finished extends State {
   enter () {
     let p = ['keep', 'skip']
     // delete the dir which is keep or skip in DirMove
-    if (this.ctx.constructor.name === 'DirMove' && (p.includes(this.ctx.policy[0]) || p.includes(this.ctx.ctx.policies.dir[0]))) {
+    if (this.ctx.constructor.name === 'DirMove') {// && (p.includes(this.ctx.policy[0]) || p.includes(this.ctx.ctx.policies.dir[0]))) {
       let dirveUUID = this.ctx.ctx.srcDriveUUID
       let dir = this.ctx.ctx.ctx.vfs.getDriveDirSync(dirveUUID, this.ctx.src.uuid)
       let dirPath = this.ctx.ctx.ctx.vfs.absolutePath(dir)
