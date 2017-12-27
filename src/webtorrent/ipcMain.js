@@ -15,12 +15,14 @@ var ipc = null
 broadcast.on('FruitmixStarted', () => {
   // create torrentTmp if it has not been created
   if (process.env.hasOwnProperty('NODE_PATH')) {
-    console.log('bypass webtorrent in auto test')
+    // console.log('bypass webtorrent in auto test')
     return
   }
   torrentTmpPath = path.join(getFruit().fruitmixPath, 'torrentTmp')
   mkdirp.sync(torrentTmpPath)
-  if (!ipc) createIpcMain()
+  // if switch is not exist , webtorrent will not start
+  let switchPath = path.join(torrentTmpPath, 'switch')
+  if (fs.existsSync(switchPath) && !ipc) createIpcMain()
 })
 
 // this module implements a command pattern over ipc
@@ -106,6 +108,9 @@ class IpcMain {
 }
 
 const createIpcMain = () => {
+  // create webtorrent mean open switch
+  let switchPath = path.join(torrentTmpPath, 'switch')
+  fs.writeFileSync(switchPath, 'switch')
   if (ipc) return console.log('warning: ipc is exist')
   if (!ipc && !torrentTmpPath) return console.log('can not create ipcmain')
   // fork child process
@@ -145,6 +150,9 @@ const createIpcMain = () => {
 
 const destroyIpcMain = () => {
   console.log('destroy ipcmain...')
+  // destroy webtorrent mean close switch
+  let switchPath = path.join(torrentTmpPath, 'switch')
+  fs.unlinkSync(switchPath)
   if (!ipc) return console.log('warning: ipc is not exist')
   ipc.destroy()
   ipc = null

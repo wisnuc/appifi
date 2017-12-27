@@ -3,6 +3,7 @@ const fs = require('fs')
 const child = require('child_process')
 const EventEmitter = require('events')
 const crypto = require('crypto')
+const { Transform } = require('stream')
 const cryptoAsync = require('@ronomon/crypto-async')
 
 const rimraf = require('rimraf')
@@ -279,6 +280,95 @@ class IPre2 extends EventEmitter {
     })
   }
 }
+
+class IPre3 extends EventEmitter {
+
+  constructor(rs, filePath, size, sha256) {
+    super()
+
+    this.rs = rs
+    this.filePath = filePath
+    this.size = size
+    this.sha256 = sha256
+    this.buffers = []
+    this.ws = fs.createWriteStream(filePath)
+
+    this.rs.on('data', data => {
+      this.ws.write(data)
+      this.buffers.push(data)
+    })
+
+    this.rs.on('end', () => {
+      this.ws.end()
+      this.ws.on('finish', () => {
+        this.ws = null
+        if (this.digest) this.emit('finish')
+      })
+
+      let chunk = Buffer.concat(this.buffers)
+      cryptoAsync.hash('SHA256', chunk, (err, hash) => {
+        if (err || hash.toString('hex') !== sha256) {
+          if (this.ws) {
+            this.ws.removeAllListeners()
+            this.ws.on('error', () => {})
+            this.ws.destroy()
+          }
+          this.emit('finish', err || new Error('sha256 mismatch'))
+        } else {
+          this.digest = sha256
+          if (!this.ws) this.emit('finish')
+        }
+      })
+    })
+
+  }
+}
+
+class Sha256Transform extends Transform {
+
+  constructor(opts) {
+    super(opts)
+    
+    this.hash = crypto.createHash('sha256')
+  }
+
+  _transform(data, encoding, callback) {
+
+    // console.log(data.length)
+
+    this.hash.update(data)
+    this.push(data) 
+    callback()
+  } 
+
+  _flush(callback) {
+    this.digest = this.hash.digest('hex')
+    callback()
+  }
+}
+
+class IPre4 extends EventEmitter {
+
+  constructor(rs, filePath, size, sha256) {
+    super()
+
+    this.rs = rs
+    this.filePath = filePath
+    this.size = size
+    this.sha256 = sha256
+
+    let ts = new Sha256Transform({ highWaterMark: 1024 * 1024 }) 
+    let ws = fs.createWriteStream(filePath)
+
+    ws.on('finish', () => {
+      this.digest = ts.digest
+      this.emit('finish')
+    })
+
+    rs.pipe(ts).pipe(ws)
+  }
+}
+
 
 /**
 (2) ip-post
@@ -853,6 +943,9 @@ module.exports = {
 
   createStream: function(rs, filePath, size, sha256, aggressive) {
     if (sha256) {
+
+      // return new IPre4(rs, filePath, size, sha256)
+
       if (size > this.thresh) {
         debug('create child-process pre')
         if (!!aggressive) {
