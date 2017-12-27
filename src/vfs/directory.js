@@ -204,6 +204,12 @@ class Reading extends Base {
   }
 
   updateChildren (xstats) {
+    //total 
+    this.dir.dirCount = xstats.filter(x => x.type === 'directory').length
+    let files = xstats.filter(x => x.type === 'file')
+    this.dir.fileCount = files.length
+    this.dir.fileSize = files.reduce((acc, f) => acc + f.size, 0)
+    
     // remove non-interested files
     xstats = xstats.filter(x => x.type === 'directory' || (x.type === 'file' && typeof x.magic === 'string'))
 
@@ -326,6 +332,10 @@ class Directory extends Node {
     this.uuid = xstat.uuid
     this.name = xstat.name 
     this.mtime = -xstat.mtime
+
+    this.fileSize = 0
+    this.fileCount = 0 
+    this.dirCount = 0
 
     this.ctx.indexDirectory(this)
     new Init(this)

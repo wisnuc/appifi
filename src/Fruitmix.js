@@ -827,6 +827,22 @@ class Fruitmix extends EventEmitter {
     return Array.from(m.values())
   }
 
+  getDirCounter (user, driveUUID, dirUUID) {
+    if (!this.userCanRead(user, driveUUID)) throw Object.assign(new Error('Permission Denied'), { status: 401 })
+    let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
+    if (!dir) throw Object.assign(new Error('dir not found'), { status: 404 })
+    let fileCount, fileSize, dirCount, mediaCount = 0
+
+    dir.postVisit(node => {
+      if(node instanceof File) return mediaCount ++
+      fileCount += node.fileCount
+      fileSize += node.fileSize
+      dirCount += node.dirCount
+    })
+
+    return { fileCount, fileSize, dirCount, mediaCount }
+  }
+
   // NEW API
   getMetadata (user, fingerprint) {
 
