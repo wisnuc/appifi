@@ -999,6 +999,7 @@ class Fruitmix extends EventEmitter {
 
   updateSubTask(user, taskUUID, nodeUUID, props, callback) {
     let task = this.tasks.find(t => t.user.uuid === user.uuid && t.uuid === taskUUID) 
+
     if (!task) {
       let err = new Error(`task ${taskUUID} not found`)
       err.code = 'ENOTFOUND'
