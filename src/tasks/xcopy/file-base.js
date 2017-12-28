@@ -35,6 +35,10 @@ class Conflict extends State {
     this.policy = policy
   }
 
+  exit () {
+    this.ctx.ctx.unindexConflictFile(this.ctx)
+  }
+
   view () {
     return {
       error: {
@@ -44,10 +48,6 @@ class Conflict extends State {
       },
       policy: this.policy
     }
-  }
-
-  exit () {
-    this.ctx.ctx.unindexConflictFile(this.ctx)
   }
 
 }
