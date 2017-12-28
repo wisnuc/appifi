@@ -513,6 +513,7 @@ class VFS extends Forest {
     }
 
     let target = path.join(this.absolutePath(dir), dst.name)
+
     mkdir(target, policy, (err, xstat, resolved) => {
       try {
         dir = this.getDriveDirSync(dst.drive, dst.dir)
@@ -520,8 +521,9 @@ class VFS extends Forest {
         e.xcode = 'EDIRTY'
         return callback(e)
       }
-
+      
       if (err) return callback(err) 
+      if (!xstat) return callback(null, null, resolved)
 
       // TODO read more dirs in every case!
       // when a new dir is created:

@@ -18,9 +18,17 @@ class Working extends Dir.prototype.Working {
       if (err) {
         callback(err)
       } else {
+        if (!xstat) return callback(null, null, resolved)
         let dst2 = { uuid: xstat.uuid, name: xstat.name }
         callback(null, dst2, resolved)
       }
+      // if (err && err.code === 'EEXIST') {
+      //   this.setState('Conflict', err, policy)
+      // } else if (err) {
+      //   this.setState('Failed', err)
+      // } else {
+      //   this.setState('Finished')
+      // }
     })
   }
 
