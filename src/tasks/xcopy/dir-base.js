@@ -217,7 +217,7 @@ class Failed extends State {
 class Finished extends State {
 
   enter () {
-    let p = ['keep', 'skip']
+    // let p = ['keep', 'skip']
     // delete the dir which is keep or skip in DirMove
     if (this.ctx.constructor.name === 'DirMove') {// && (p.includes(this.ctx.policy[0]) || p.includes(this.ctx.ctx.policies.dir[0]))) {
       let dirveUUID = this.ctx.ctx.srcDriveUUID

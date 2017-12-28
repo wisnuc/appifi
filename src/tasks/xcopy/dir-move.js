@@ -18,6 +18,7 @@ class Working extends Dir.prototype.Working {
       if (err) {
         callback(err)
       } else {
+        if (!xstat) return callback(null, null, resolved)
         let dst = { uuid: xstat.uuid, name: xstat.name }
         callback(null, dst, resolved)
       }
