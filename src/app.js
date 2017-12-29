@@ -1,4 +1,4 @@
-process.env['UV_THREADPOOL_SIZE'] = 16
+process.env['UV_THREADPOOL_SIZE'] = 64
 require('./prerequisite')
 
 const path = require('path')

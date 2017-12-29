@@ -32,9 +32,7 @@ describe(path.basename(__filename), () => {
     this.timeout(0)
     let target = path.join(tmptest, UUID.v4())
 
-    console.time('btrfsConcat')
     btrfsConcat(target, [FILES.oneGiga.path], err => {
-      console.timeEnd('btrfsConcat')
       done(err)
     })
   })
@@ -43,27 +41,42 @@ describe(path.basename(__filename), () => {
     this.timeout(0)
     let target = path.join(tmptest, UUID.v4())
 
-    console.time('btrfsConcat')
     btrfsConcat(target, [FILES.oneGiga.path], err => {
-      console.timeEnd('btrfsConcat')
       if (err) return done(err)
 
-      console.time('btrfsConcat')
       btrfsConcat(target, [FILES.oneGiga.path], err => {
-        console.timeEnd('btrfsConcat')
         done(err) 
       })
     })
   })
 
-  it('clone one twice (output incorrect)', function (done) {
+  it('clone one twice (output)', function (done) {
+    this.timeout(0)
+    let target = path.join(tmptest, UUID.v4())
+    btrfsConcat(target, [FILES.oneGiga.path, FILES.oneGiga.path], done)
+  })
+
+  it('clone one twice (newly written)', function (done) {
     this.timeout(0)
     let target = path.join(tmptest, UUID.v4())
 
-    console.time('btrfsConcat')
-    btrfsConcat(target, [FILES.oneGiga.path, FILES.oneGiga.path], err => {
-      console.timeEnd('btrfsConcat')
-      done(err) 
+    const buf = Buffer.allocUnsafe(1024 * 1024 * 1024)
+
+    let tmpfile = path.join(tmptest, UUID.v4())
+    let ws = fs.createWriteStream(tmpfile)
+    ws.write(buf)
+    ws.end(() => btrfsConcat(target, [FILES.oneGiga.path, tmpfile], err => done(err)))
+  })
+
+  it('clone one twice (copied file)', function (done) {
+    this.timeout(0)
+    let target = path.join(tmptest, UUID.v4())
+    let tmpfile = path.join(tmptest, UUID.v4())
+    fs.copyFile(FILES.oneGiga.path, tmpfile, err => {
+      if (err) return done(err)
+
+      btrfsConcat(target, [FILES.oneGiga.path, tmpfile], err => done(err))
     })
   })
 })
+

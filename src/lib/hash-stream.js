@@ -2,8 +2,8 @@ const path = require('path')
 const fs = require('fs')
 const child = require('child_process')
 const EventEmitter = require('events')
+const os = require('os')
 const crypto = require('crypto')
-const { Transform } = require('stream')
 const cryptoAsync = require('@ronomon/crypto-async')
 
 const rimraf = require('rimraf')
@@ -324,29 +324,6 @@ class IPre3 extends EventEmitter {
   }
 }
 
-class Sha256Transform extends Transform {
-
-  constructor(opts) {
-    super(opts)
-    
-    this.hash = crypto.createHash('sha256')
-  }
-
-  _transform(data, encoding, callback) {
-
-    // console.log(data.length)
-
-    this.hash.update(data)
-    this.push(data) 
-    callback()
-  } 
-
-  _flush(callback) {
-    this.digest = this.hash.digest('hex')
-    callback()
-  }
-}
-
 class IPre4 extends EventEmitter {
 
   constructor(rs, filePath, size, sha256) {
@@ -357,15 +334,37 @@ class IPre4 extends EventEmitter {
     this.size = size
     this.sha256 = sha256
 
-    let ts = new Sha256Transform({ highWaterMark: 1024 * 1024 }) 
-    let ws = fs.createWriteStream(filePath)
+    const hash = crypto.createHash('sha256')
+    const highWaterMark = os.totalmem() > 3 * 1024 * 1024 * 1024
+      ? 256 * 1024 * 1024 
+      : 64 * 1024 * 1024
 
-    ws.on('finish', () => {
-      this.digest = ts.digest
-      this.emit('finish')
+    const ws = fs.createWriteStream(filePath, { highWaterMark })
+
+    ws.on('open', fd => {
+
+      this.fd = fd
+      const sync = () => {
+        if (this.finished) return
+        fs.fsync(fd, () => {
+          if (this.finished) return
+          setImmediate(sync)
+        })
+      }
+
+      sync()
+
     })
 
-    rs.pipe(ts).pipe(ws)
+    ws.on('finish', () => {
+      this.finished = true
+      hash.end()
+      this.digest = hash.read().toString('hex')
+      fs.fsync(this.fd, () => this.emit('finish'))
+    })
+
+    rs.pipe(ws)
+    rs.pipe(hash)
   }
 }
 
