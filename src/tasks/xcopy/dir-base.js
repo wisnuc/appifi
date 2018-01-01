@@ -48,7 +48,7 @@ class Working extends State {
         let action = this.ctx.constructor.name
         let p = ['rename', 'replace']
         if ((policy[0] === 'skip' && resolved[0]) 
-            // || (policy[1] === 'skip' && resolved[1])
+            || (policy[1] === 'skip' && resolved[1])  // ror dir-copy diff skip
             || (action === 'DirMove' && (!resolved[0] || p.includes(policy[0])))) { // in DirMove rename and replace move the whole directory once
           this.setState('Finished')
         } else {

@@ -229,7 +229,7 @@ describe(path.basename(__filename) + ' cp a / [dir c, file d] -> dir b', () => {
 
   describe('dir conflict with file (diff), target dir b has file c', () => {
     let task
-    let policyArr = ['skip', 'rename', 'repalce']
+    let policyArr = ['skip', 'rename', 'replace']
     let id = ['32004d8e', 'e0da3a39', '9ee0d879']
 
     beforeEach(async () => {
@@ -255,54 +255,18 @@ describe(path.basename(__filename) + ' cp a / [dir c, file d] -> dir b', () => {
       expect(task.nodes.find(n => n.src.uuid === dirCUUID).error.xcode).to.equal('EISFILE')
     })
 
-    // policyArr.forEach((value, index, array) => {
-    //   it(`resolve with ${value}, ${id[index]}`, async () => {
-    //     expect(task.nodes.find(n => n.src.uuid === dirCUUID).state).to.equal('Conflict')
-    //     expect(task.nodes.find(n => n.src.uuid === dirCUUID).error.code).to.equal('EEXIST')
-    //     expect(task.nodes.find(n => n.src.uuid === dirCUUID).error.xcode).to.equal('EISFILE')
+    policyArr.forEach((value, index, array) => {
+      it(`resolve with ${value}, ${id[index]}`, async () => {
+        expect(task.nodes.find(n => n.src.uuid === dirCUUID).state).to.equal('Conflict')
+        expect(task.nodes.find(n => n.src.uuid === dirCUUID).error.code).to.equal('EEXIST')
+        expect(task.nodes.find(n => n.src.uuid === dirCUUID).error.xcode).to.equal('EISFILE')
 
-    //     updateNodeByUUIDAsync(token, task.uuid, dirCUUID, { policy: [null, value] }, 200)
-    //     await Promise.delay(100)
-    //     task = await getTaskAsync(token, task.uuid)
-    //     expect(task.nodes.length).to.equal(1)
-    //     expect(task.nodes[0].state).to.equal('Finished')
-    //   })
-    // })
-
-    // FIXME:
-    it('resolve with skip, 32004d8e', async () => {
-      expect(task.nodes.find(n => n.src.uuid === dirCUUID).state).to.equal('Conflict')
-      expect(task.nodes.find(n => n.src.uuid === dirCUUID).error.code).to.equal('EEXIST')
-      expect(task.nodes.find(n => n.src.uuid === dirCUUID).error.xcode).to.equal('EISFILE')
-      updateNodeByUUIDAsync(token, task.uuid, dirCUUID, { policy: [null, 'replace'] }, 200)
-      await Promise.delay(100)
-      task = await getTaskAsync(token, task.uuid)
-      expect(task.nodes.length).to.equal(1)
-      expect(task.nodes[0].state).to.equal('Finished')
-    })
-
-    it('resolve with rename, e0da3a39', async () => {
-      expect(task.nodes.find(n => n.src.uuid === dirCUUID).state).to.equal('Conflict')
-      expect(task.nodes.find(n => n.src.uuid === dirCUUID).error.code).to.equal('EEXIST')
-      expect(task.nodes.find(n => n.src.uuid === dirCUUID).error.xcode).to.equal('EISFILE')
-
-      updateNodeByUUIDAsync(token, task.uuid, dirCUUID, { policy: [null, 'rename'] }, 200)
-      await Promise.delay(100)
-      task = await getTaskAsync(token, task.uuid)
-      expect(task.nodes.length).to.equal(1)
-      expect(task.nodes[0].state).to.equal('Finished')
-    })
-
-    it.skip('resolve with replace, 9ee0d879', async () => {
-      expect(task.nodes.find(n => n.src.uuid === dirCUUID).state).to.equal('Conflict')
-      expect(task.nodes.find(n => n.src.uuid === dirCUUID).error.code).to.equal('EEXIST')
-      expect(task.nodes.find(n => n.src.uuid === dirCUUID).error.xcode).to.equal('EISFILE')
-
-      updateNodeByUUIDAsync(token, task.uuid, dirCUUID, { policy: [null, 'replace'] }, 200)
-      await Promise.delay(100)
-      task = await getTaskAsync(token, task.uuid)
-      expect(task.nodes.length).to.equal(1)
-      expect(task.nodes[0].state).to.equal('Finished')
+        updateNodeByUUIDAsync(token, task.uuid, dirCUUID, { policy: [null, value] }, 200)
+        await Promise.delay(100)
+        task = await getTaskAsync(token, task.uuid)
+        expect(task.nodes.length).to.equal(1)
+        expect(task.nodes[0].state).to.equal('Finished')
+      })
     })
   })
 
