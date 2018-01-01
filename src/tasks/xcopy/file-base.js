@@ -29,12 +29,25 @@ class Working extends State {
 
 class Conflict extends State {
 
-  enter () {
+  enter (err, policy) {
     this.ctx.ctx.indexConflictFile(this.ctx)
+    this.err = err
+    this.policy = policy
   }
 
   exit () {
     this.ctx.ctx.unindexConflictFile(this.ctx)
+  }
+
+  view () {
+    return {
+      error: {
+        code: this.err.code,
+        xcode: this.err.xcode,
+        message: this.err.message
+      },
+      policy: this.policy
+    }
   }
 
 }

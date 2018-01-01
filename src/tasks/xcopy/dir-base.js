@@ -1,3 +1,6 @@
+const rimraf = require('rimraf')
+const fs = require('fs')
+
 const Node = require('./node')
 const State = require('./state')
 
@@ -41,7 +44,12 @@ class Working extends State {
       } else if (err) {
         this.setState('Failed', err)
       } else {
-        if (policy[0] === 'skip' && resolved[0]) {
+        // global keep, no conflict, resolved: [false, false], dirmove should finished
+        let action = this.ctx.constructor.name
+        let p = ['rename', 'replace']
+        if ((policy[0] === 'skip' && resolved[0]) 
+            // || (policy[1] === 'skip' && resolved[1])
+            || (action === 'DirMove' && (!resolved[0] || p.includes(policy[0])))) { // in DirMove rename and replace move the whole directory once
           this.setState('Finished')
         } else {
           this.ctx.dst = dst
@@ -210,6 +218,22 @@ class Failed extends State {
 class Finished extends State {
 
   enter () {
+    // let p = ['keep', 'skip']
+    // delete the dir which is keep or skip in DirMove
+    if (this.ctx.constructor.name === 'DirMove') {// && (p.includes(this.ctx.policy[0]) || p.includes(this.ctx.ctx.policies.dir[0]))) {
+      let dirveUUID = this.ctx.ctx.srcDriveUUID
+      let dir = this.ctx.ctx.ctx.vfs.getDriveDirSync(dirveUUID, this.ctx.src.uuid)
+      let dirPath = this.ctx.ctx.ctx.vfs.absolutePath(dir)
+      if (this.ctx.parent) {
+        try {
+          let files = fs.readdirSync(dirPath)
+          if (!files.length) rimraf.sync(dirPath)
+        } catch (e) {
+          if (e.code !== 'ENOENT') throw e
+        }
+      }
+    }
+
     this.ctx.ctx.indexFinishedDir(this.ctx)
   }
 

@@ -278,7 +278,7 @@ class Base extends EventEmitter {
     } else {
       node.update(props)
       if (props.applyToAll) {
-        let type = node instanceof Directory ? 'dir' : 'file'
+        let type = node instanceof Dir ? 'dir' : 'file'
         this.policies[type][0] = props.policy[0] || this.policies[type][0]
         this.policies[type][1] = props.policy[1] || this.policies[type][1]
 
@@ -464,7 +464,7 @@ class Export extends Base {
 // return formatted policies 
 const formatPolicies = policies => {
 
-  const vs = [undefined, null, 'skip', 'replace', 'rename']
+  const vs = [undefined, null, 'skip', 'replace', 'rename', 'keep']
   const obj = { dir: [], file: [] }  
 
   if (policies === undefined || policies === null) return obj

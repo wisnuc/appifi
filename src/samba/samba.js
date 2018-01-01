@@ -131,7 +131,6 @@ const processUsersAsync = async users => {
       console.log(`error deleting smb user ${smbUsers[i].name}`)
     }
   }
-
   // create all smbusers
   let text = users
     .map(u => {
@@ -157,7 +156,7 @@ const processUsersAsync = async users => {
   text = users
     .map(u => `${u.unixName} = "${u.username}"`)
     .join('\n')
-
+    
   await fs.writeFileAsync('/etc/smbusermap', text)
   return users
 }
@@ -246,9 +245,6 @@ class SambaServer extends events.EventEmitter {
     super()
     this.froot = fpath
     this.udpServer = undefined
-
-
-
     this.startUdpServer(() => {}) //  FIXME: error?
     this.isStop = true
   }
@@ -371,10 +367,6 @@ class SambaServer extends events.EventEmitter {
   }
 
   async startAsync(users, drives) {
-
-    let err = new Error('stack')
-    console.log(err)
-
     this.isStop = false
     await rsyslogAsync()
     let x = this.transfer(users, drives)
@@ -422,7 +414,8 @@ class SambaServer extends events.EventEmitter {
 
   isActive() {
     try {
-      let status = child.execSync('systemctl is-active smbd', { encoding: 'utf8'})
+      let status = child.spawnSync('systemctl', ['is-active', 'smbd']).stdout.toString()
+      status = status.split('\n').join('')
       return status === 'active' ? true : false
     } 
     catch(e) {
