@@ -21,7 +21,7 @@ const path = require('path')
 const fs = Promise.promisifyAll(require('fs'))
 const child = require('child_process')
 
-// const mmm = require('mmmagic')
+const mmm = require('mmmagic')
 const xattr = Promise.promisifyAll(require('fs-xattr'))
 const UUID = require('uuid')
 const validator = require('validator')
