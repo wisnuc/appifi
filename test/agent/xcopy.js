@@ -706,11 +706,28 @@ describe(path.basename(__filename) + 'mv a / [dir c, file d] -> dir b', () => {
         size: alonzo.size, 
         sha256: alonzo.hash 
       })
-      fileDUUID_1 = await createFileAsync(token, IDS.alice.home, dirBUUID, alonzo.name, alonzo.path, { 
+      fileGUUID = await createFileAsync(token, IDS.alice.home, dirAUUID, 'alonzo_church (3).jpg', alonzo.path, { 
         size: alonzo.size, 
         sha256: alonzo.hash 
       })
-      fileFUUID_1 = await createFileAsync(token, IDS.alice.home, dirBUUID, 'alonzo_church (2).jpg', alonzo.path, { 
+      fileHUUID = await createFileAsync(token, IDS.alice.home, dirAUUID, 'alonzo_church (4).jpg', alonzo.path, { 
+        size: alonzo.size, 
+        sha256: alonzo.hash 
+      })
+
+      await createFileAsync(token, IDS.alice.home, dirBUUID, alonzo.name, alonzo.path, { 
+        size: alonzo.size, 
+        sha256: alonzo.hash 
+      })
+      await createFileAsync(token, IDS.alice.home, dirBUUID, 'alonzo_church (2).jpg', alonzo.path, { 
+        size: alonzo.size, 
+        sha256: alonzo.hash 
+      })
+      await createFileAsync(token, IDS.alice.home, dirBUUID, 'alonzo_church (3).jpg', alonzo.path, { 
+        size: alonzo.size, 
+        sha256: alonzo.hash 
+      })
+      await createFileAsync(token, IDS.alice.home, dirBUUID, 'alonzo_church (4).jpg', alonzo.path, { 
         size: alonzo.size, 
         sha256: alonzo.hash 
       })
@@ -719,18 +736,18 @@ describe(path.basename(__filename) + 'mv a / [dir c, file d] -> dir b', () => {
         type: 'move',
         src: { drive: IDS.alice.home, dir: dirAUUID },
         dst: { drive: IDS.alice.home, dir: dirBUUID },
-        entries: [dirCUUID, fileDUUID, fileFUUID],
+        entries: [dirCUUID, fileDUUID, fileFUUID, fileGUUID, fileHUUID],
         policies: {dir: ['keep'] }
       })
       await Promise.delay(100)
       task = await getTaskAsync(token, task.uuid)
     })
 
-    // FIXME:
-    it.skip('the largest number should be 4, 98382680', async () => {
-      console.log(task.nodes)
+    it('the largest number should be 8, 98382680', async () => {
       updateNodeByUUIDAsync(token, task.uuid, fileDUUID, { policy: ['rename'] }, 200)
       updateNodeByUUIDAsync(token, task.uuid, fileFUUID, { policy: ['rename'] }, 200)
+      updateNodeByUUIDAsync(token, task.uuid, fileGUUID, { policy: ['rename'] }, 200)
+      updateNodeByUUIDAsync(token, task.uuid, fileHUUID, { policy: ['rename'] }, 200)
       await Promise.delay(100)
       task = await getTaskAsync(token, task.uuid)
       expect(task.nodes.length).to.equal(1)
