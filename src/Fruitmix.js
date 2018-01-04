@@ -14,6 +14,8 @@ const UUID = require('uuid')
 
 const Magic = require('./lib/magic')
 const UserList = require('./user/user')
+const DocStore = require('./box/docStore')
+const BlobStore = require('./box/blobStore')
 const DriveList = require('./vfs/vfs')
 const BoxData = require('./box/boxData')
 const Thumbnail = require('./lib/thumbnail2')
@@ -47,6 +49,7 @@ const debug = Debug('fruitmix')
 const mixin = require('./fruitmix/mixin')
 const driveapi = require('./fruitmix/drive')
 const ndriveapi = require('./fruitmix/ndrive')
+const boxapi = require('./fruitmix/box')
 
 const combineHash = (a, b) => {
   let a1 = typeof a === 'string' ? Buffer.from(a, 'hex') : a
@@ -104,7 +107,13 @@ class Fruitmix extends EventEmitter {
     this.userList = new UserList(froot)
     this.driveList = new DriveList(froot, this.mediaMap)
     this.vfs = this.driveList
-    // this.boxData = new BoxData(froot)
+    
+    this.docStore = new DocStore(froot)
+    this.blobs = new BlobStore(this)
+    this.blobs.loadAsync()
+      .then(() => this.boxData = new BoxData(this))
+      .catch(err => console.log('err', err))
+
     this.tasks = []
     if (!nosmb) {
       this.smbServer = new SambaServer(froot)
@@ -1014,6 +1023,7 @@ class Fruitmix extends EventEmitter {
 
   updateSubTask(user, taskUUID, nodeUUID, props, callback) {
     let task = this.tasks.find(t => t.user.uuid === user.uuid && t.uuid === taskUUID) 
+
     if (!task) {
       let err = new Error(`task ${taskUUID} not found`)
       err.code = 'ENOTFOUND'
@@ -1415,6 +1425,7 @@ class Fruitmix extends EventEmitter {
 Object.assign(Fruitmix.prototype, {})
 Object.assign(Fruitmix.prototype, driveapi)
 Object.assign(Fruitmix.prototype, ndriveapi)
+Object.assign(Fruitmix.prototype, boxapi)
 module.exports = Fruitmix
 
 

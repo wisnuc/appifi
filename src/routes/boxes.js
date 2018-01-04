@@ -66,6 +66,7 @@ router.get('/', fruitless, auth, (req, res, next) => {
     let docList = getFruit().getAllBoxes(req.user)
     res.status(200).json(docList)
   } catch(e) {
+    console.log(e)
     next(e)
   } 
 })
@@ -73,7 +74,10 @@ router.get('/', fruitless, auth, (req, res, next) => {
 router.post('/', fruitless, auth, (req, res, next) => {
   getFruit().createBoxAsync(req.user, req.body)
     .then(doc => res.status(200).json(doc))
-    .catch(next)
+    .catch(err => {
+      console.log(err)
+      next()
+    })
 })
 
 router.get('/:boxUUID', fruitless, auth, (req, res, next) => {
@@ -643,7 +647,9 @@ router.post('/:boxUUID/commits', fruitless, auth, (req, res, next) => {
       if (uploaded.size !== 0) obj.uploaded = [...uploaded]
       getFruit().createCommitAsync(req.user, boxUUID, obj)
         .then(commit => res.status(200).json(commit))
-        .catch(next) 
+        .catch(e => {
+          console.log(e)
+        }) 
     })
 
     req.pipe(dicer)

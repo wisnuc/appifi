@@ -48,7 +48,6 @@
     "jwt-simple": "^0.5.1",
     "line-by-line": "^0.1.5",
     "mkdirp": "^0.5.1",
-    "mmmagic": "^0.4.5",
     "morgan": "~1.8.2",
     "mqtt": "^2.14.0",
     "passport": "^0.4.0",

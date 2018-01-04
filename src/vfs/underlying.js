@@ -59,7 +59,7 @@ const link = (target, tmp, uuid, hash, opt, callback) => {
             if (error) return callback(error)
 
             // be careful for replace special file
-            let uuid = xerr ? null : xstat.uuid
+            let uuid = (xerr || diff()) ? null : xstat.uuid
             link(target, tmp, uuid, hash, opt, (error, xstat) => {
               if (error) return callback(error)
               callback(null, xstat, [same(), diff()])

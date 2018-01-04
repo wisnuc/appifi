@@ -174,8 +174,18 @@ const fileMagic5 = (target, callback) =>
     }
   })
 
+const fileMagic6 = (target, callback) => 
+  filetype(target, (err, type) => {
+    if (err) return callback(err) 
+    if (type && type.ext === 'jpg') {
+      callback(null, 'JPEG')
+    } else {
+      fileMagic1(target, callback)
+    }
+  })
 
-const fileMagic = fileMagic5
+
+const fileMagic = fileMagic6
 
 /** 
 Return magic for a regular file. This function uses fileMagic2.

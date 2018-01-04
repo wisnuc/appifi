@@ -1,6 +1,11 @@
+const { assert, isUUID, isSHA256, validateProps } = require('../common/assertion')
+/// ////////////// box api ///////////////////////
 module.exports = {
-  /// ////////////// box api ///////////////////////
 
+  reportMedia(fingerprint, metadata) {
+    this.mediaMap.set(fingerprint, metadata)
+  },
+  
   /**
    * get all box descriptions user can access
    * @param {Object} user
@@ -13,16 +18,10 @@ module.exports = {
 
   // return a box doc
   /**
-  get a box description
-  @param {Object} user
-  @param {string} boxUUID - uuid of box
-  */
-
-
-  hello () {
-    return 'world'
-  },
-
+   * get a box description
+   * @param {Object} user
+   * @param {string} boxUUID - uuid of box
+   */
   getBox (user, boxUUID) {
     if (!isUUID(boxUUID)) throw Object.assign(new Error('invalid boxUUID'), { status: 400 })
     let box = this.boxData.getBox(boxUUID)
@@ -117,9 +116,10 @@ module.exports = {
     if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
 
     let guid = user.global.id
-    if (box.doc.owner !== guid && !box.doc.users.includes(guid)) { throw Object.assign(new Error('no permission'), { status: 403 }) }
-
-    return box.retrieveAllAsync('branches')
+    if (box.doc.owner !== guid && !box.doc.users.includes(guid))
+      throw Object.assign(new Error('no permission'), { status: 403 })
+    
+    return await box.retrieveAllBranchesAsync()
   },
 
   /**
@@ -138,7 +138,7 @@ module.exports = {
     let guid = user.global.id
     if (box.doc.owner !== guid && !box.doc.users.includes(guid)) { throw Object.assign(new Error('no permission'), { status: 403 }) }
 
-    return box.retrieveAsync('branches', branchUUID)
+    return await box.retrieveBranchAsync(branchUUID)
   },
 
   // props {name, head}
@@ -286,6 +286,71 @@ module.exports = {
     if (box.doc.owner !== guid && !box.doc.users.includes(guid)) { throw Object.assign(new Error('no permission'), { status: 403 }) }
 
     return box.deleteTweetsAsync(tweetsID)
+  },
+
+  /**
+   * get commit object
+   * @param {Object} user 
+   * @param {string} boxUUID 
+   * @param {string} commitHash - sha256 of commit object
+   * @return {Object} commit Object
+   */
+  async getCommitAsync (user, boxUUID, commitHash) {
+    if (!isUUID(boxUUID)) throw Object.assign(new Error('invalid boxUUID'), { status: 400 })
+    if (!isSHA256(commitHash)) throw Object.assign(new Error('invalid commitHash'), { status: 400 })
+    let box = this.boxData.getBox(boxUUID)
+    if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
+
+    let guid = user.global.id
+    if (box.doc.owner !== guid && !box.doc.users.includes(guid)) { throw Object.assign(new Error('no permission'), { status: 403 }) }
+
+    return box.getCommitAsync(commitHash)
+  },
+
+  async createCommitAsync(user, boxUUID, props) {
+    if (!isUUID(boxUUID)) throw Object.assign(new Error('invalid boxUUID'), { status: 400 })
+    let box = this.boxData.getBox(boxUUID)
+    if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
+
+    let guid = user.global.id
+    if (box.doc.owner !== guid && !box.doc.users.includes(guid))
+      throw Object.assign(new Error('no permission'), { status: 403 })
+    
+    props.committer = guid
+
+    validateProps(props, ['root', 'committer'], ['parent', 'branch', 'toUpload', 'uploaded'])
+    assert(isSHA256(props.root), 'root must be a sha256 string')
+    if (props.parent) assert(isSHA256(props.parent), 'parent must be a sha256 string')
+    if (props.branch) assert(isUUID(props.branch), 'branch must be an uuid')
+    if (props.toUpload) 
+      assert(Array.isArray(props.toUpload) && props.toUpload.every(isSHA256), 'toUpload should be a sha256 array')
+    if (props.uploaded)
+      assert(Array.isArray(props.uploaded) && props.uploaded.every(isSHA256), 'uploaded should be a sha256 array')
+    if ((props.toUpload && !props.uploaded) || (!props.toUpload && props.uploaded))
+      throw Object.assign(new Error('toUpload and uploaded should both exist or non-exist'), { status: 400 })
+
+    let commit = await box.createCommitAsync(props)
+    await this.boxData.updateBoxAsync({mtime: new Date().getTime()}, boxUUID)
+    return commit
+  },
+
+  /**
+   * get hash array of contents in root tree object
+   * @param {Object} user 
+   * @param {string} boxUUID 
+   * @param {string} treeHash - sha256 of tree object
+   * @return {array} hash array of contents in tree
+   */
+  async getTreeListAsync (user, boxUUID, treeHash) {
+    if (!isUUID(boxUUID)) throw Object.assign(new Error('invalid boxUUID'), { status: 400 })
+    if (!isSHA256(treeHash)) throw Object.assign(new Error('invalid treeHash'), { status: 400 })
+    let box = this.boxData.getBox(boxUUID)
+    if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
+
+    let guid = user.global.id
+    if (box.doc.owner !== guid && !box.doc.users.includes(guid)) { throw Object.assign(new Error('no permission'), { status: 403 }) }
+
+    return box.getTreeListAsync(treeHash)
   }
 
 }
