@@ -443,6 +443,59 @@ describe(path.basename(__filename) + ' cp a / [dir c, file d] -> dir b', () => {
       expect(task.nodes[0].state).to.equal('Finished')
     })
   })
+
+  describe('multi files conflict in different sub-dir', () => {
+    let task, fileFUUID
+    let foo = FILES.foo
+    /**
+      a/
+        c/
+          f/
+            bar
+          g/
+            foo
+          bar
+        alonzo
+    **/
+
+    beforeEach(async () => {
+      let dirFUUID = await createDirAsync(token, IDS.alice.home, dirCUUID, 'f')
+      await createFileAsync(token, IDS.alice.home, dirFUUID, bar.name, bar.path, { 
+        size: bar.size, 
+        sha256: bar.hash 
+      })
+      let dirGUUID = await createDirAsync(token, IDS.alice.home, dirCUUID, 'g')
+      await createFileAsync(token, IDS.alice.home, dirGUUID, foo.name, foo.path, { 
+        size: foo.size, 
+        sha256: foo.hash 
+      })
+
+      // copy twice, make conflict
+      task = await createTaskAsync(token, {
+        type: 'copy',
+        src: { drive: IDS.alice.home, dir: dirAUUID },
+        dst: { drive: IDS.alice.home, dir: dirBUUID },
+        entries: [dirCUUID, fileDUUID],
+        policies: {dir: ['keep'] }
+      })
+      await Promise.delay(100)
+
+      task = await createTaskAsync(token, {
+        type: 'copy',
+        src: { drive: IDS.alice.home, dir: dirAUUID },
+        dst: { drive: IDS.alice.home, dir: dirBUUID },
+        entries: [dirCUUID, fileDUUID],
+        policies: {dir: ['keep'] }
+      })
+      await Promise.delay(100)
+      task = await getTaskAsync(token, task.uuid)
+      
+    })
+
+    it.only('all conflicts should be found, 5c9b3402', async () => {
+      console.log(task.nodes)
+    })
+  })
 })
 
 describe(path.basename(__filename) + 'mv a / [dir c, file d] -> dir b', () => {
