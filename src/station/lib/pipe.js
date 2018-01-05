@@ -665,7 +665,7 @@ class Pipe {
       } else if (typeof thumb === 'function') {
         let cancel = thumb((err, th) => {
           if (err) return callback(err)
-          return callback(th)
+          return callback(null, th)
         })
       }
     })
@@ -782,7 +782,7 @@ class Pipe {
     if (user.uuid !== userUUID) return await this.errorResponseAsync(serverAddr, sessionId, new Error('user uuid mismatch'))
 
     let list = await fruit.addMediaBlacklistAsync(user, body.blacklist)
-    return await this.successResponseJsonAsync(sherverAddr, sessionId, list)
+    return await this.successResponseJsonAsync(serverAddr, sessionId, list)
   }
 
   /**
