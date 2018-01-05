@@ -1,5 +1,6 @@
 const debug = require('debug')('station:mqtt')
 const mqtt = require('mqtt')
+const crypto = require('crypto')
 const { CONFIG } = require('./const')
 const EventEmiter = require('events').EventEmitter
 
@@ -12,20 +13,40 @@ const CONNECT_STATE = {
   UNKNOWN : 'UNKNOWN'
 }
 
+
+const QCLOUD_CONFIG = {
+  appid: '1253758289',
+  secretId: 'AKIDe6QWM26prd8NM1qgd8NM5lCOL3ZrofAP',
+  secretKey: '6xXs4vZx6lCOK0QaU8XgZDbjbEbjgOq2'
+}
+
+const {appid, secretId, secretKey} = QCLOUD_CONFIG
+
+let username, password
+if (process.env.NODE_ENV === 'dev' || process.env.NODE_ENV === 'test') {
+  // test env
+  const srcStr = `Appid=${appid}&Instanceid=mqtt-5p50b9y7s&Action=Connect`
+  const hmac = crypto.createHmac('sha256', secretKey)
+  password = hmac.update(srcStr).digest('base64')
+  username = secretId
+}
+
 class MQTT extends EventEmiter {
 
   constructor(ctx) {
     super()
     this.state = CONNECT_STATE.DISCED
-    this.ctx = ctx 
+    this.ctx = ctx
     this.client = undefined
     this.payload = JSON.stringify({ stationId: ctx.station.id })
     this.settings = {
-      clientId: `station_${ctx.station.id}`,
+      clientId: `mqtt-5p50b9y7s@station_${ctx.station.id}`,
       clean: true,
       keepalive: 3,
       reconnectPeriod: 5 * 1000,
       connectTimeout: 10 * 1000,
+      username: username,
+      password: password,
       will: {
         topic: `station/disconnect`,
         payload: this.payload,
