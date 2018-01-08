@@ -445,7 +445,7 @@ describe(path.basename(__filename) + ' cp a / [dir c, file d] -> dir b', () => {
   })
 
   describe('multi files conflict in different sub-dir', () => {
-    let task, fileFUUID
+    let task, fileHUUID, fileIUUID
     let foo = FILES.foo
     /**
       a/
@@ -460,12 +460,12 @@ describe(path.basename(__filename) + ' cp a / [dir c, file d] -> dir b', () => {
 
     beforeEach(async () => {
       let dirFUUID = await createDirAsync(token, IDS.alice.home, dirCUUID, 'f')
-      await createFileAsync(token, IDS.alice.home, dirFUUID, bar.name, bar.path, { 
+      fileHUUID = await createFileAsync(token, IDS.alice.home, dirFUUID, bar.name, bar.path, { 
         size: bar.size, 
         sha256: bar.hash 
       })
       let dirGUUID = await createDirAsync(token, IDS.alice.home, dirCUUID, 'g')
-      await createFileAsync(token, IDS.alice.home, dirGUUID, foo.name, foo.path, { 
+      fileIUUID = await createFileAsync(token, IDS.alice.home, dirGUUID, foo.name, foo.path, { 
         size: foo.size, 
         sha256: foo.hash 
       })
@@ -492,8 +492,11 @@ describe(path.basename(__filename) + ' cp a / [dir c, file d] -> dir b', () => {
       
     })
 
-    it.only('all conflicts should be found, 5c9b3402', async () => {
-      console.log(task.nodes)
+    it('all conflicts should be found, 5c9b3402', async () => {
+      expect(task.nodes.find(n => n.src.uuid === fileDUUID).state).to.equal('Conflict')
+      expect(task.nodes.find(n => n.src.uuid === fileEUUID).state).to.equal('Conflict')
+      expect(task.nodes.find(n => n.src.uuid === fileHUUID).state).to.equal('Conflict')
+      expect(task.nodes.find(n => n.src.uuid === fileIUUID).state).to.equal('Conflict')
     })
   })
 })
@@ -855,6 +858,60 @@ describe(path.basename(__filename) + 'mv a / [dir c, file d] -> dir b', () => {
       task = await getTaskAsync(token, task.uuid)
       expect(task.nodes.length).to.equal(1)
       expect(task.nodes[0].state).to.equal('Finished')
+    })
+  })
+
+  describe('multi files conflict in different sub-dir', () => {
+    let task, fileHUUID, fileIUUID
+    let foo = FILES.foo
+    /**
+      a/
+        c/
+          f/
+            bar
+          g/
+            foo
+          bar
+        alonzo
+    **/
+
+    beforeEach(async () => {
+      let dirFUUID = await createDirAsync(token, IDS.alice.home, dirCUUID, 'f')
+      fileHUUID = await createFileAsync(token, IDS.alice.home, dirFUUID, bar.name, bar.path, { 
+        size: bar.size, 
+        sha256: bar.hash 
+      })
+      fileIUUID = await createFileAsync(token, IDS.alice.home, dirGUUID, foo.name, foo.path, { 
+        size: foo.size, 
+        sha256: foo.hash 
+      })
+
+      // copy once, move once, make conflict
+      task = await createTaskAsync(token, {
+        type: 'copy',
+        src: { drive: IDS.alice.home, dir: dirAUUID },
+        dst: { drive: IDS.alice.home, dir: dirBUUID },
+        entries: [dirCUUID, fileDUUID],
+        policies: {dir: ['keep'] }
+      })
+      await Promise.delay(100)
+
+      task = await createTaskAsync(token, {
+        type: 'move',
+        src: { drive: IDS.alice.home, dir: dirAUUID },
+        dst: { drive: IDS.alice.home, dir: dirBUUID },
+        entries: [dirCUUID, fileDUUID],
+        policies: {dir: ['keep'] }
+      })
+      await Promise.delay(100)
+      task = await getTaskAsync(token, task.uuid)  
+    })
+
+    it('all conflicts should be found, 41811622', async () => {
+      expect(task.nodes.find(n => n.src.uuid === fileDUUID).state).to.equal('Conflict')
+      expect(task.nodes.find(n => n.src.uuid === fileEUUID).state).to.equal('Conflict')
+      expect(task.nodes.find(n => n.src.uuid === fileHUUID).state).to.equal('Conflict')
+      expect(task.nodes.find(n => n.src.uuid === fileIUUID).state).to.equal('Conflict')
     })
   })
 
