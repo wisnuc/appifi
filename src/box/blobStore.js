@@ -39,9 +39,14 @@ class BlobStore {
    */
   report(hashArr, callback) {
     if (hashArr.length) {
+      let error = false
       for(let i = 0; i < hashArr.length; i++) {
         fileMagic5(path.join(this.dir, hashArr[i]), (err, magic) => {
-          if (err) return callback(err)
+          if (error) return
+          if (err) {
+            error = trues
+            return callback(err)
+          }
           if (magic === 'JPEG') {
             let fpath = path.join(this.dir, hashArr[i])
             let worker = identify(fpath, hashArr[i])
