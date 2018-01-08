@@ -1,4 +1,5 @@
 const fs = require('fs')
+const child = require('child_process')
 const ioctl = require('ioctl')
 
 const BTRFS_IOC_CLONE_RANGE = 0x4020940D
@@ -26,7 +27,7 @@ const BTRFS_IOC_CLONE_RANGE = 0x4020940D
 // src_offset: always 0
 // src_length: always 0
 // dst_offset: increment from 0
-const btrfsConcat = (target, files, callback) => {
+const btrfsConcat = (target, files, callback) => child.exec('sync', err =>  
   fs.open(target, 'w', (err, wfd) => {
     if (err) return callback(err)
 
@@ -91,8 +92,7 @@ const btrfsConcat = (target, files, callback) => {
     } finally {
       fs.close(wfd, () => {})
     }
-  })
-}
+  }))
 
 // btrfs clone, callback version
 const btrfsClone = (target, src, callback) => 
