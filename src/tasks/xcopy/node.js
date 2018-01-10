@@ -92,7 +92,13 @@ class Node extends EventEmitter {
   */
   find (f) {
     if (f(this) === true) return this
-    if (this.children) return this.children.find(c => c.find(f))
+    // if (this.children) return this.children.find(c => c.find(f))
+    if (this.children) { 
+      for (let index in this.children) {
+        let obj = this.children[index].find(f)
+        if(obj) return obj
+      }
+    }
   }
 
   /**
