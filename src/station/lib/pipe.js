@@ -276,6 +276,9 @@ class Pipe {
       case 'download':
         if (paths.length === 1 && method === 'GET' && paths[0] === 'switch') return 'getTorrentSwitch'
         if (paths.length === 1 && method === 'PATCH' && paths[0] === 'switch') return 'patchTorrentSwitch'
+        if (paths[0] == 'ppg1') return 'addMagnet'
+        if (paths[0] == 'ppg2') return 'addTorrent'
+        if (path[0] == 'version') return 'checkVersion'
         return paths.length === 0 && method === 'GET' ? 'getSummary' 
                   : paths.length === 1 ? (method === 'PATCH' ? 'patchTorrent' : (paths[0] === 'magnet' ? 'addMagnet' : 'addTorrent'))
                   : undefined
@@ -809,6 +812,10 @@ class Pipe {
     })
   }
 
+  async checkVersionAsync() {
+    await this.successResponseJsonAsync(serverAddr, sessionId, {version: true})
+  }
+
   async patchTorrentAsync(data) {
     let { serverAddr, sessionId, user, body, paths } = data
     let { op } = body
@@ -1021,6 +1028,7 @@ class Pipe {
     this.handlers.set('ConfirmTicket', this.confirmTicketAsync.bind(this))
     //download
     this.handlers.set('getSummary', this.getSummaryAsync.bind(this))
+    this.handlers.set('checkVersion', this.checkVersionAsync.bind(this))
     this.handlers.set('patchTorrent', this.patchTorrentAsync.bind(this))
     this.handlers.set('addMagnet', this.addMagnetAsync.bind(this))
     this.handlers.set('addTorrent', this.addTorrentAsync.bind(this))//getTorrentSwitch
