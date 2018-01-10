@@ -672,7 +672,7 @@ module.exports = {
   updateFileHashAsync,
   forceXstat,
   forceXstatAsync,
-  fileMagic5,
+  fileMagic6,
   assertDirXstatSync,
   assertFileXstatSync,
 }
