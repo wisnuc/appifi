@@ -276,8 +276,9 @@ class Pipe {
       case 'download':
         if (paths.length === 1 && method === 'GET' && paths[0] === 'switch') return 'getTorrentSwitch'
         if (paths.length === 1 && method === 'PATCH' && paths[0] === 'switch') return 'patchTorrentSwitch'
-        if (paths[0] == 'ppg1') return 'addMagnet'
+        if (paths[0] == 'ppg1') return 'ppg1'
         if (paths[0] == 'ppg2') return 'addTorrent'
+        if (path[0] == 'ppg3') return 'ppg3'
         if (path[0] == 'version') return 'checkVersion'
         return paths.length === 0 && method === 'GET' ? 'getSummary' 
                   : paths.length === 1 ? (method === 'PATCH' ? 'patchTorrent' : (paths[0] === 'magnet' ? 'addMagnet' : 'addTorrent'))
@@ -812,6 +813,16 @@ class Pipe {
     })
   }
 
+  async ppg3Async(data) {
+    let { serverAddr, sessionId, user, body, paths } = data
+    let { ppgId, type } = body
+    if (!getIpcMain()) return await await this.errorResponseAsync(serverAddr, sessionId, new Error('webtorrent is not started'))
+    getIpcMain().call('getSummary', { torrentId: ppgId, type, user }, async (error, summary) => {
+      if (error) await this.errorResponseAsync(serverAddr, sessionId, error)
+      else await this.successResponseJsonAsync(serverAddr, sessionId, summary)
+    })
+  }
+
   async checkVersionAsync() {
     await this.successResponseJsonAsync(serverAddr, sessionId, {version: true})
   }
@@ -832,6 +843,16 @@ class Pipe {
   async addMagnetAsync(data) {
     let { serverAddr, sessionId, user, body, paths } = data
     let { dirUUID, magnetURL } = body
+    if (!getIpcMain()) return await await this.errorResponseAsync(serverAddr, sessionId, new Error('webtorrent is not started'))
+    getIpcMain().call('addMagnet', { magnetURL, dirUUID, user}, async (error, result) => {
+      if(error) return await this.errorResponseAsync(serverAddr, sessionId, error)
+      else await this.successResponseJsonAsync(serverAddr, sessionId, result)
+    })
+  }
+
+  async ppg1Async(data) {
+    let { serverAddr, sessionId, user, body, paths } = data
+    let { dirUUID, ppgURL } = body
     if (!getIpcMain()) return await await this.errorResponseAsync(serverAddr, sessionId, new Error('webtorrent is not started'))
     getIpcMain().call('addMagnet', { magnetURL, dirUUID, user}, async (error, result) => {
       if(error) return await this.errorResponseAsync(serverAddr, sessionId, error)
@@ -1028,9 +1049,11 @@ class Pipe {
     this.handlers.set('ConfirmTicket', this.confirmTicketAsync.bind(this))
     //download
     this.handlers.set('getSummary', this.getSummaryAsync.bind(this))
+    this.handlers.set('ppg3', this.ppg3Async.bind(this))
     this.handlers.set('checkVersion', this.checkVersionAsync.bind(this))
     this.handlers.set('patchTorrent', this.patchTorrentAsync.bind(this))
     this.handlers.set('addMagnet', this.addMagnetAsync.bind(this))
+    this.handlers.set('ppg1', this.ppg1Async.bind(this))
     this.handlers.set('addTorrent', this.addTorrentAsync.bind(this))//getTorrentSwitch
     this.handlers.set('getTorrentSwitch', this.getTorrentSwitchAsync.bind(this))
     this.handlers.set('patchTorrentSwitch', this.patchTorrentSwitchAsync.bind(this))

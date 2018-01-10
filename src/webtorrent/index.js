@@ -57,6 +57,15 @@ router.get('/', auth.jwt(), (req, res) => {
   })
 })
 
+router.get('/ppg3', auth.jwt(), (req, res) => {
+  let { ppgId, type } = req.query
+  let user = req.user
+  getIpcMain().call('getSummary', { torrentId: ppgId, type, user }, (error, data) => {
+    if (error) res.status(400).json(error)
+    else res.status(200).json(data)
+  })
+})
+
 // create new download task
 router.post('/magnet', auth.jwt(), (req, res) => {
   getIpcMain().call('addMagnet', { magnetURL: req.body.magnetURL, dirUUID: req.body.dirUUID, user: req.user }, (error, data) => {
@@ -67,7 +76,7 @@ router.post('/magnet', auth.jwt(), (req, res) => {
 
 //cheat apple
 router.post('/ppg1', auth.jwt(), (req, res) => {
-  getIpcMain().call('addMagnet', { magnetURL: req.body.magnetURL, dirUUID: req.body.dirUUID, user: req.user }, (error, data) => {
+  getIpcMain().call('addMagnet', { magnetURL: req.body.ppgURL, dirUUID: req.body.dirUUID, user: req.user }, (error, data) => {
     if(error) return res.status(400).json(error)
     res.status(200).json(data)
   })
@@ -116,6 +125,8 @@ router.patch('/:torrentId', auth.jwt(), (req, res) => {
     return res.status(200).json(data)
   })
 })
+
+
 
 
 
