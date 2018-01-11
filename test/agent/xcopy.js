@@ -93,6 +93,13 @@ const updateNodeByUUID = (token, taskUUID, nodeUUID, body, status, done) => requ
 
 const updateNodeByUUIDAsync = Promise.promisify(updateNodeByUUID)
 
+const getDriveDir = (token, dirveUUID, dirUUID, callback) => request(app)
+  .get(`/drives/${dirveUUID}/dirs/${dirUUID}`)
+  .set('Authorization', 'JWT ' + token)
+  .expect(200)
+  .end((err, res) => err ? callback(err) : callback(null, res.body))
+
+const getDriveDirAsync = Promise.promisify(getDriveDir)
 
 describe(path.basename(__filename) + ' cp a / [dir c, file d] -> dir b', () => {
   let alonzo = FILES.alonzo
@@ -501,7 +508,7 @@ describe(path.basename(__filename) + ' cp a / [dir c, file d] -> dir b', () => {
   })
 })
 
-describe(path.basename(__filename) + 'mv a / [dir c, file d] -> dir b', () => {
+describe(path.basename(__filename) + ' mv a / [dir c, file d] -> dir b', () => {
   let alonzo = FILES.alonzo
   let bar = FILES.bar
   let token, dirAUUID, dirBUUID, dirCUUID, fileDUUID, fileEUUID
@@ -916,4 +923,32 @@ describe(path.basename(__filename) + 'mv a / [dir c, file d] -> dir b', () => {
   })
 
 
+})
+
+// move dir a into dir b, then read dir b rapidly --error--> dir a not found (not indexed in uuid map)
+describe(path.basename(__filename) + ' mv a -> b, read b concurrently', () => {
+  let task, token, dirAUUID, dirBUUID, dirCUUID
+  beforeEach(async () => {
+    await resetAsync()
+    await createUserAsync('alice')
+    token = await retrieveTokenAsync('alice')
+    dirAUUID = await createDirAsync(token, IDS.alice.home, IDS.alice.home, 'a')
+    dirBUUID = await createDirAsync(token, IDS.alice.home, IDS.alice.home, 'b')
+    dirCUUID = await createDirAsync(token, IDS.alice.home, dirAUUID, 'c')
+  })
+
+  it('move dir a -> dir b, read b', async () => {
+    task = await createTaskAsync(token, {
+      type: 'move',
+      src: { drive: IDS.alice.home, dir: dirAUUID },
+      dst: { drive: IDS.alice.home, dir: dirBUUID },
+      entries: [dirCUUID],
+      policies: {dir: ['keep'] }
+    })
+    await Promise.delay(1500)
+    task = await getTaskAsync(token, task.uuid)
+
+    let result = await getDriveDirAsync(token, IDS.alice.home, dirBUUID)
+    console.log(result)
+  })
 })

@@ -614,7 +614,15 @@ class VFS extends Forest {
     let newPath = path.join(this.absolutePath(dstDir), srcDir.name)
     mvdir(oldPath, newPath, policy, (err, xstat, resolved) => {
       // TODO 
-      callback(err, xstat, resolved)
+      if (err) return callback(err)
+
+      if (!xstat) return callback(null, xstat, resolved)
+      else {
+        let dir = this.uuidMap.get(xstat.uuid)
+        if (dir) dir.destroy() //this.unindexDirectory(dir)
+        new Directory(this, dstDir, xstat)
+        callback(null, xstat, resolved)
+      }
     })
   }
 
