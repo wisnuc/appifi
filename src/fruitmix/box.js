@@ -350,7 +350,7 @@ module.exports = {
     let guid = user.global.id
     if (box.doc.owner !== guid && !box.doc.users.includes(guid)) { throw Object.assign(new Error('no permission'), { status: 403 }) }
 
-    return box.getTreeListAsync(treeHash)
+    return box.getTreeListAsync(treeHash, true)
   }
 
 }

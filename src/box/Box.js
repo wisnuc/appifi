@@ -15,154 +15,6 @@ const { isSHA256, complementArray } = require('../lib/assertion')
 
 
 /**
-Box has four states:
-
-+ Idle
-+ Init (with or without a timer)
-+ Pending
-+ Reading
-
-@module Box
-*/
-
-class Base {
-
-  constructor(box, ...args) {
-    this.box = box
-    box.state = this
-    this.enter(...args)
-  }
-
-  enter() {
-  }
-
-  exit() {
-  }
-
-  setState(NextState, ...args) {
-    this.exit()
-    new NextState(this.box, ...args)
-  }
-
-  readi() {
-    this.setState(Reading)
-  }
-
-  readn(delay) {
-    this.setState(Pending, delay)
-  }
-
-  readc(callback) {
-    this.setState(Reading, [callback])
-  }
-
-  destroy() {
-    this.exit()
-  }
-
-}
-
-// Do nothing, just for log
-class Idle extends Base {
-
-  enter() {
-    this.box.ctx.boxEnterIdle(this.box)
-  }
-
-  exit() {
-    this.box.ctx.boxExitIdle(this.box)
-  }
-
-}
-
-// 
-class Pending extends Base {
-
-  enter(delay) {
-    assert(Number.isInteger(delay) && delay > 0)
-
-    this.box.ctx.boxEnterPending(this.box)
-    this.readn(delay)
-  }
-
-  exit() {
-    clearTimeout(this.timer)
-    this.box.ctx.boxExitPending(this.box)
-  }
-
-  readn(delay) {
-    assert(Number.isInteger(delay) && delay > 0)
-
-    clearTimeout(this.timer)
-    this.timer = setTimeout(() => this.readi(), delay)
-  }
-
-}
-
-class Reading extends Base {
-
-  enter(callbacks = []) {
-    this.box.ctx.boxEnterReading(this.box)
-    this.callbacks = callbacks
-    this.pending = undefined
-    this.restart()
-  }
-
-  exit() {
-    this.box.ctx.boxExitReading(this.box)
-  }
-
-  restart() {
-    if (this.readdir) this.readdir.destroy()
-    
-  }
-
-  /**
-  read immediately
-  */
-  readi() {
-    if (!Array.isArray(this.pending)) this.pending = []
-  }
-
-  /**
-  request a delayed read
-  */
-  readn(delay) {
-    if (Array.isArray(this.pending)) {
-      return
-    } else if (typeof this.pending === 'number') {
-      this.pending = Math.min(this.pending, delay)
-    } else {
-      this.pending = delay
-    }
-  }
-
-  /**
-  read with callback
-  */
-  readc(callback) {
-    if (Array.isArray(this.pending)) {
-      this.pending.push(callback)
-    } else {
-      this.pending = [callback]
-    }
-  }
-
-  /**
-  */
-  destroy() {
-    let err = new Error('destroyed')
-    err.code = 'EDESTROYED'
-    this.callbacks.forEach(cb => cb(err))
-    if (Array.isArray(this.pending)) this.pending.forEach(cb => cb(err))
-    this.readdir.destroy()
-    super.destroy()
-  }
-
-}
-
-
-/**
   box
 */
 class Box {
@@ -179,6 +31,39 @@ class Box {
     this.dir = dir
     this.doc = doc
     this.DB = DB
+  }
+
+  read(callback) {
+    Promise.all([
+      Promise.promisify(this.readTree).bind(this), 
+      Promise.promisify(this.DB.read).bind(this.DB)
+    ])
+    .then(files => {
+  
+    })
+  }
+
+  readTree(callback) {
+    this.retrieveAllBranches((error, branches) => {
+      if(error) return callback(error)
+      let count = branches.count
+      let error, records = []
+      branches.forEach(branch => {
+        let commitHash = branch.head
+        this.getCommitAsync(commitHash)
+          .then(commit => this.getTreeListAsync(commit.tree, false))
+          .then(files => {
+            if(error) return
+            count --
+            records.push(files)
+            if(count === 0) return callback(null, files)
+          })
+          .catch(e => {
+            error = e
+            return callback(e)
+          })
+      })
+    })
   }
 
   /**
@@ -227,19 +112,7 @@ class Box {
 
     if (props.type) {
       tweet.type = props.type
-      if (props.type === 'list') { 
-        tweet.list = props.list 
-        // check if media
-        let p = list.map(l =>  new Promise((resolve, reject) => {
-          let filePath = src.find(i => i.sha256 === l.sha256).filepath
-          fileMagic6(filePath, (err, magic) => {
-            if (err) return reject(err)
-            l.magic = magic !== 2 ?  1 : 0
-            return resolve()
-          })
-        }))
-        await Promise.all(p)
-      }
+      if (props.type === 'list') tweet.list = props.list 
       else tweet.id = props.id
     }
 
@@ -496,9 +369,10 @@ class Box {
   /**
    * list a tree object
    * @param {string} treeHash - tree object hash
+   * @param {Boolean} recordDir - record dir if true
    * @return {array} a hash set of all trees and blobs in root(include itself)
    */
-  async getTreeListAsync(treeHash) {
+  async getTreeListAsync(treeHash, recordDir) {
     let hashSet = new Set()
     let _this = this
     // get contents in a tree object
@@ -570,7 +444,7 @@ class Box {
       let universe = [], trees = new Set(), blobs = new Set()
       if (props.parent) {
         let commit = await this.ctx.ctx.docStore.retrieveAsync(props.parent)
-        universe = await this.getTreeListAsync(commit.tree)
+        universe = await this.getTreeListAsync(commit.tree, true)
       }
       // no intersectionn (universe and uploaded)
       if (universe.length !== 0 && complementArray(universe, props.uploaded).length !== universe.length)
