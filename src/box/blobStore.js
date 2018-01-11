@@ -44,7 +44,7 @@ class BlobStore {
         fileMagic6(path.join(this.dir, hashArr[i]), (err, magic) => {
           if (error) return
           if (err) {
-            error = trues
+            error = true
             return callback(err)
           }
           if (magic === 'JPEG') {
