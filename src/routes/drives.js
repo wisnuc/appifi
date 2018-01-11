@@ -103,7 +103,8 @@ router.get('/:driveUUID/dirs/:dirUUID', fruitless, auth.jwt(), f(async(req, res)
   let user = req.user
   let { driveUUID, dirUUID } = req.params
   let metadata = req.query.metadata === 'true' ? true : false
-  let r = await getFruit().getDriveDirAsync(user, driveUUID, dirUUID, metadata)
+  let counter = req.query.counter === 'true' ? true : false
+  let r = await getFruit().getDriveDirAsync(user, driveUUID, dirUUID, metadata, counter)
   res.status(200).json(r)
 }))
 

@@ -91,6 +91,82 @@ class RecordsDB {
   }
 
   /**
+   * @param {Function} callback - records lines size
+   */
+  read(callback) {
+    let lr = new lineByLineReader(this.filePath, { skipEmptyLines: true })
+
+    let error, records = [], medias = new Set()
+
+    // read all lines record lines size
+    lr.on('line', line => {
+      if(error) return
+      try {
+        let Line = JSON.parse(line)
+        if (Line.type === 'blob') medias.add(l.id)
+        else if (Line.type === 'list') {
+          Line.forEach(l => { if(l.magic) medias.add(l.sha256) })
+        }
+        records.push(new Buffer(line).length)
+      } catch(e) {
+        if (e instanceof SyntaxError) { // only last line
+          // TODO: check is last line
+          this.fixLine(line, (err, isDel) => {
+            if(err) {
+              error = err
+              lr.close()
+              return callback(err)
+            } 
+          })
+        }else {
+          error = e
+          lr.close()
+          return callback(e) 
+        }
+      }
+    })
+
+    // check the last line and repair tweets DB if error exists
+    lr.on('end', () => {
+      if(error) return
+      this.records = records
+      return callback(null, medias)
+    })
+
+    lr.on('error', err => {
+      if(error) return
+      error = err
+      return callback(error)
+    })
+  }
+
+  // delete last line if error
+  /**
+   * @param {Buffer} line - last line in db
+   * @param {Function} callback - error, isDelete 
+   */
+  fixLine(line, callback) {
+    try {
+      JSON.parse(line)
+      process.nextTick(() => callback(null, NO))
+    } catch(e) {
+      if (e instanceof SyntaxError) {
+        fs.readFile(this.filePath, (err, data) => {
+          let size = data.length
+          let start
+          if (line) start = size - new Buffer(line).length - 1
+          else start = size - 1
+          start = (start === -1) ? 0 : start
+          fs.truncate(this.filePath, start, err => {
+            if (err) return callback(err)
+            return callback(null, YES)
+          })
+        })
+      } else return callback(e)
+    }
+  }
+
+  /**
    * get tweets
    * @param {Object} props
    * @param {number} props.first -optional
@@ -111,7 +187,7 @@ class RecordsDB {
     lr.on('end', () => {
       // read blackList
       let blackList = fs.readFileSync(this.blackList).toString()
-      blackList.length ? blackList = [...new Set(blackList.split(',').map(i => parseInt(i)))]
+      blackList.length ? blackList = [...new Set(blackList.split(',').filter(x => x.length).map(i => parseInt(i)))]
                        : blackList = []
 
       // repair wrong content and filter contents in blackList

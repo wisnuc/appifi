@@ -182,6 +182,7 @@ class Forest extends EventEmitter {
 
   indexDirectory (dir) {
     debug(`index dir ${dir.name}`)
+    if(this.uuidMap.has(dir.uuid)) throw new Error(`need index dir ${dir.name}, old uuidMap ${this.uuidMap.get(dir.uuid)}`)
     this.uuidMap.set(dir.uuid, dir)
   }
 
