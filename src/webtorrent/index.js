@@ -112,7 +112,7 @@ router.post('/ppg2', auth.jwt(), (req, res) => {
   form.parse(req, (err, fields, files) => {
     if (err) return res.status(500).json(err)
     let dirUUID = fields.dirUUID
-    let torrentPath = files.torrent.path
+    let torrentPath = files.ppg.path
     let user = req.user
     if (!dirUUID || !torrentPath) return res.status(400).end('parameter error')
     getIpcMain().call('addTorrent', {torrentPath, dirUUID, user}, (err, torrentId) => {
