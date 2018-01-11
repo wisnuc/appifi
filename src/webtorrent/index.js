@@ -62,7 +62,13 @@ router.get('/ppg3', auth.jwt(), (req, res) => {
   let user = req.user
   getIpcMain().call('getSummary', { torrentId: ppgId, type, user }, (error, data) => {
     if (error) res.status(400).json(error)
-    else res.status(200).json(data)
+    else {
+      data.ppgPath = data.torrentPath
+      data.ppgURL = data.magnetURL
+      data.torrentPath = undefined
+      data.magnetURL = undefined
+      res.status(200).json(data)
+    }
   })
 })
 

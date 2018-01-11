@@ -819,7 +819,13 @@ class Pipe {
     if (!getIpcMain()) return await await this.errorResponseAsync(serverAddr, sessionId, new Error('webtorrent is not started'))
     getIpcMain().call('getSummary', { torrentId: ppgId, type, user }, async (error, summary) => {
       if (error) await this.errorResponseAsync(serverAddr, sessionId, error)
-      else await this.successResponseJsonAsync(serverAddr, sessionId, summary)
+      else {
+        summary.ppgPath = summary.torrentPath
+        summary.ppgURL = summary.magnetURL
+        summary.torrentPath = undefined
+        summary.magnetURL = undefined
+        await this.successResponseJsonAsync(serverAddr, sessionId, summary)
+      }
     })
   }
 
