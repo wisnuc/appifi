@@ -101,7 +101,7 @@ class StoreFile {
       callback(new Error('EABORT'))
     }
 
-    let req = request.get(url).set({ 'Authorization': token })
+    let req = request.get(url).set({ 'Authorization': token }).buffer(false)
     let ws = fs.createWriteStream(fpath)
     debug('store req created')
     req.on('response', res => {

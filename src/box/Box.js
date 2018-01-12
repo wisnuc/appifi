@@ -31,6 +31,12 @@ class Box {
     this.dir = dir
     this.doc = doc
     this.DB = DB
+    this.files = new Set()
+    this.ctx.indexBox(this)
+  }
+
+  destory() {
+    this.ctx.unindexBox(this)
   }
 
   read(callback) {
@@ -39,8 +45,11 @@ class Box {
       Promise.promisify(this.DB.read).bind(this.DB)
     ])
     .then(files => {
-  
+      let f = files.reduce((acc, f) => [...acc, ...f], [])
+      this.files = new Set(...f)
+      callback(null, files)
     })
+    .catch(callback)
   }
 
   readTree(callback) {
