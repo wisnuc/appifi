@@ -928,6 +928,7 @@ describe(path.basename(__filename) + ' mv a / [dir c, file d] -> dir b', () => {
 // move dir a into dir b, then read dir b rapidly --error--> dir a not found (not indexed in uuid map)
 describe(path.basename(__filename) + ' mv a -> b, read b concurrently', () => {
   let task, token, dirAUUID, dirBUUID, dirCUUID
+  // let bar = FILES.bar
   beforeEach(async () => {
     await resetAsync()
     await createUserAsync('alice')
@@ -935,9 +936,13 @@ describe(path.basename(__filename) + ' mv a -> b, read b concurrently', () => {
     dirAUUID = await createDirAsync(token, IDS.alice.home, IDS.alice.home, 'a')
     dirBUUID = await createDirAsync(token, IDS.alice.home, IDS.alice.home, 'b')
     dirCUUID = await createDirAsync(token, IDS.alice.home, dirAUUID, 'c')
+    // let fileDUUID = await createFileAsync(token, IDS.alice.home, dirCUUID, bar.name, bar.path, { 
+    //     size: bar.size, 
+    //     sha256: bar.hash 
+    //   })
   })
 
-  it('move dir a -> dir b, read b', async () => {
+  it.only('move dir a -> dir b, read b', async () => {
     task = await createTaskAsync(token, {
       type: 'move',
       src: { drive: IDS.alice.home, dir: dirAUUID },
@@ -948,7 +953,10 @@ describe(path.basename(__filename) + ' mv a -> b, read b concurrently', () => {
     await Promise.delay(1500)
     task = await getTaskAsync(token, task.uuid)
 
-    let result = await getDriveDirAsync(token, IDS.alice.home, dirBUUID)
-    console.log(result)
+    let result_1 = await getDriveDirAsync(token, IDS.alice.home, dirAUUID)
+    let result_2 = await getDriveDirAsync(token, IDS.alice.home, dirBUUID)
+    expect(result_1.entries.length).to.equal(0)
+    expect(result_2.entries.length).to.equal(1)
+    expect(result_2.entries[0].uuid).to.equal(dirCUUID)
   })
 })

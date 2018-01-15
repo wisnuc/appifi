@@ -618,9 +618,8 @@ class VFS extends Forest {
 
       if (!xstat) return callback(null, xstat, resolved)
       else {
-        let dir = this.uuidMap.get(xstat.uuid)
-        if (dir) dir.destroy() //this.unindexDirectory(dir)
-        new Directory(this, dstDir, xstat)
+        srcDir.parent.read()
+        dstDir.read()
         callback(null, xstat, resolved)
       }
     })
