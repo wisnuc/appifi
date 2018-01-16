@@ -150,6 +150,22 @@ describe(path.basename(__filename) + ' cp a / [dir c, file d] -> dir b', () => {
     })
   })
 
+  it('move parent dir into child dir, return EINVAL, db9b2c5d', async () => {
+    task = await createTaskAsync(token, {
+      type: 'copy',
+      src: { drive: IDS.alice.home, dir: IDS.alice.home},
+      dst: { drive: IDS.alice.home, dir: dirCUUID},
+      entries: [dirAUUID],
+      policies: { dir: ['keep'] }
+    })
+
+    await Promise.delay(100)
+    task = await getTaskAsync(token, task.uuid)
+    expect(task.nodes.find(n => n.src.uuid === dirAUUID).state).to.equal('Failed')
+    expect(task.nodes.find(n => n.src.uuid === dirAUUID).error.code).to.equal('EINVAL')
+  })
+
+
   describe('dir conflict, target dir b has dir c', () => {
     let task
     let policyArr = ['skip', 'keep', 'rename', 'replace']
@@ -543,6 +559,21 @@ describe(path.basename(__filename) + ' mv a / [dir c, file d] -> dir b', () => {
     task = await getTaskAsync(token, task.uuid)
     expect(task.nodes.length).to.equal(1)
     expect(task.nodes[0].state).to.equal('Finished')
+  })
+
+  it('move parent dir into child dir, return EINVAL, f3581256', async () => {
+    task = await createTaskAsync(token, {
+      type: 'move',
+      src: { drive: IDS.alice.home, dir: IDS.alice.home},
+      dst: { drive: IDS.alice.home, dir: dirCUUID},
+      entries: [dirAUUID],
+      policies: { dir: ['keep'] }
+    })
+
+    await Promise.delay(100)
+    task = await getTaskAsync(token, task.uuid)
+    expect(task.nodes.find(n => n.src.uuid === dirAUUID).state).to.equal('Failed')
+    expect(task.nodes.find(n => n.src.uuid === dirAUUID).error.code).to.equal('EINVAL')
   })
 
   describe('dir conflict, target dir b has dir c', () => {
@@ -942,15 +973,15 @@ describe(path.basename(__filename) + ' mv a -> b, read b concurrently', () => {
     //   })
   })
 
-  it.only('move dir a -> dir b, read b', async () => {
+  it('move dir c -> dir b, read b, 5add0cc8', async () => {
     task = await createTaskAsync(token, {
       type: 'move',
       src: { drive: IDS.alice.home, dir: dirAUUID },
       dst: { drive: IDS.alice.home, dir: dirBUUID },
       entries: [dirCUUID],
-      policies: {dir: ['keep'] }
+      policies: { dir: ['keep'] }
     })
-    await Promise.delay(1500)
+    await Promise.delay(100)
     task = await getTaskAsync(token, task.uuid)
 
     let result_1 = await getDriveDirAsync(token, IDS.alice.home, dirAUUID)
