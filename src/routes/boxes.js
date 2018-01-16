@@ -449,7 +449,6 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
         obj = JSON.parse(data)
         if (typeof obj.comment === 'string') comment = obj.comment
         if (obj.type) type = obj.type
-
         if (type === 'blob') {
           if (Number.isInteger(obj.size)) size = obj.size
           if (isSHA256(obj.sha256)) sha256 = obj.sha256
@@ -466,7 +465,6 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
         errorHandler()
         return res.status(e.status).json(e)
       }
-
       dataHandler(rs, received => {
         check(props.size, props.sha256, received)
         if (type === 'blob') { 

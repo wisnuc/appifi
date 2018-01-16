@@ -15,9 +15,9 @@ const UUID = require('uuid')
 const Magic = require('./lib/magic')
 const UserList = require('./user/user')
 const DocStore = require('./box/docStore')
-const BlobStore = require('./box/blobStore')
+const BlobStore = require('./box/BlobStore')
+const BoxData = require('./box/Boxes')
 const DriveList = require('./vfs/vfs')
-const BoxData = require('./box/boxData')
 const Thumbnail = require('./lib/thumbnail2')
 const File = require('./vfs/file')
 const Identifier = require('./lib/identifier')
@@ -70,6 +70,8 @@ const Throw = (err, code, status) => {
 
 const nosmb = !!process.argv.find(arg => arg === '--disable-smb') || process.env.NODE_PATH !== undefined
 
+const noBox = !!process.argv.find(arg => arg === '--disable-box') || process.env.NODE_PATH !== undefined
+
 /**
 Fruitmix is the facade of internal modules, including user, drive, forest, and box.
 
@@ -107,14 +109,8 @@ class Fruitmix extends EventEmitter {
     this.userList = new UserList(froot)
     this.driveList = new DriveList(froot, this.mediaMap)
     this.vfs = this.driveList
-    
-    this.docStore = new DocStore(froot)
-    this.blobs = new BlobStore(this)
-    this.blobs.loadAsync()
-      .then(() => this.boxData = new BoxData(this))
-      .catch(err => console.log('err', err))
-
     this.tasks = []
+
     if (!nosmb) {
       this.smbServer = new SambaServer(froot)
       this.smbServer.on('SambaServerNewAudit', audit => {
@@ -128,6 +124,9 @@ class Fruitmix extends EventEmitter {
     this.dlnaServer.startAsync(this.getBuiltInDrivePath())
       .then(() => {})
       .catch(console.error.bind(console,'dlna start error'))
+    
+    if (!noBox) this.boxData = new BoxData(this)
+    
   }
 
   async startSambaAsync(user) {

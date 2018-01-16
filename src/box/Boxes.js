@@ -3,6 +3,7 @@ const Promise = require('bluebird')
 const fs = Promise.promisifyAll(require('fs'))
 const rimrafAsync = Promise.promisify(require('rimraf'))
 const EventEmitter = require('events')
+const assert = require('assert')
 
 const debug = require('debug')('boxes')
 const mkdirp = require('mkdirp')
@@ -15,6 +16,8 @@ const broadcast = require('../common/broadcast')
 const { saveObjectAsync } = require('../lib/utils')
 const Box = require('./Box')
 const RecordsDB = require('./recordsDB')
+const Blobs = require('./BlobStore')
+const Docs = require('./docStore')
 
 /**
  * @module Box
@@ -131,13 +134,15 @@ class B extends EventEmitter {
     this.boxReadScheduled = false
     if (this.boxReadSettled()) {
       this.emit('BoxReadDone')
+      console.log('Box load finished')
       return
     }
-
+    console.log('start read box')
     while (this.initBoxes.size > 0 && this.readingBoxes.size < 6) {
       let uuid = this.initBoxes[Symbol.iterator]().next().value
       let box = this.boxes.get(uuid)
       assert(!!box)
+      this.boxExitInit(box)
       this.boxEnterReading(box)
       box.read((err, files) => {
         this.boxExitReading(box)
@@ -165,15 +170,32 @@ class B extends EventEmitter {
  */
 class Boxes extends B {
   constructor(ctx) {
+    super(ctx.fruitmixPath)
     this.ctx = ctx
-    this.dir = path.join(this.ctx.fruitmixPath, 'boxes')
-    mkdirp.sync(this.dir)
+    this.docStore = new Docs(ctx.fruitmixPath)
+    this.blobs = new Blobs(ctx)
+    this.blobsInited = false
+    this.boxesInited = false
+
+    this.blobs.loadBlobs(e => {
+      if(e) return console.log(e)
+      debug('blob load success')
+      this.blobsInited = true
+    })
+    
+    this.loadBoxes(err => {
+      if(err) return console.log(err)
+      debug('boxes load success')
+      this.boxesInited = true
+    })
   }
 
   loadBoxes (callback) {
+    debug('Box start Load')
     fs.readdir(this.dir, (err, entries) => {
       if(err) return callback(err)
       let error, count = entries.count
+      if (!count) return callback()
       entries.forEach(ent => {
         let target = path.join(this.dir, ent)
         fs.readFile(target, (err, data) => {
@@ -248,6 +270,7 @@ class Boxes extends B {
 
     let box = createBox(this, this.dir, doc)
     this.indexBox(box)
+    this.boxEnterInit(box)
     return doc
   }
 

@@ -53,8 +53,8 @@ class Box {
   }
 
   readTree(callback) {
-    this.retrieveAllBranches((error, branches) => {
-      if(error) return callback(error)
+    this.retrieveAllBranches((err, branches) => {
+      if(err) return callback(err)
       let count = branches.count
       let error, records = []
       branches.forEach(branch => {
@@ -92,7 +92,7 @@ class Box {
     let urls
     if (src) {
       urls = src.filter(s => {
-        let target = this.ctx.ctx.blobs.retrieve(s.sha256)
+        let target = this.ctx.blobs.retrieve(s.sha256)
         try {
           let stats = fs.lstatSync(target)
           // remove the file in tmpdir which is already in repo
@@ -110,9 +110,8 @@ class Box {
         fs.renameSync(u.filepath, newpath)
         return newpath
       })
-      await this.ctx.ctx.blobs.storeAsync(urls)
+      await this.ctx.blobs.storeAsync(urls)
     }
-
     let tweet = {
       uuid: UUID.v4(),
       tweeter: props.global,
@@ -258,7 +257,7 @@ class Box {
 
     let { name, head } = props
     if (head) {
-      let obj = await this.ctx.ctx.docStore.retrieveAsync(head)
+      let obj = await this.ctx.docStore.retrieveAsync(head)
       if (obj.parent !== branch.head) throw new E.EHEAD()
     }
 
@@ -309,7 +308,7 @@ class Box {
     // head is a commit hash
     let findCommit = async head => {
       if (commitHash === head) return true
-      let commit = await _this.ctx.ctx.docStore.retrieveAsync(head)
+      let commit = await _this.ctx.docStore.retrieveAsync(head)
       if (commit.parent) return await findCommit(commit.parent)
     }
 
@@ -338,7 +337,7 @@ class Box {
     let exist, _this = this
 
     const isSubTree = async parentTree => {
-      let contents = await _this.ctx.ctx.docStore.retrieveAsync(parentTree)
+      let contents = await _this.ctx.docStore.retrieveAsync(parentTree)
       let index = contents.findIndex(i => i[2] === treeHash && i[0] === 'tree')
       if (index !== -1) return true
       else {
@@ -356,7 +355,7 @@ class Box {
       // compare rootTreeHash with commit.tree
       // if not equal, look up in commit.tree
       // if not in commit.tree, find again with its parent
-      let commit = await _this.ctx.ctx.docStore.retrieveAsync(head)
+      let commit = await _this.ctx.docStore.retrieveAsync(head)
       if (commit.tree === treeHash) return true
       else {
         let subTree = await isSubTree(commit.tree)
@@ -387,7 +386,7 @@ class Box {
     // get contents in a tree object
     let getContent = async hash => {
       hashSet.add(hash)
-      let obj = await _this.ctx.ctx.docStore.retrieveAsync(hash)
+      let obj = await _this.ctx.docStore.retrieveAsync(hash)
       await Promise.map(obj, async o => {
         if (o[0] === 'blob') hashSet.add(o[2])
         else if (o[0] === 'tree') await getContent(o[2])
@@ -410,7 +409,7 @@ class Box {
   async getCommitAsync(commitHash) {
     let exist = await this.commitExistInBox(commitHash)
     if (!exist) throw Object.assign(new Error('commit not exist in this box'), { status: 404 })
-    else return await this.ctx.ctx.docStore.retrieveAsync(commitHash)
+    else return await this.ctx.docStore.retrieveAsync(commitHash)
   }
 
   /**
@@ -452,7 +451,7 @@ class Box {
 
       let universe = [], trees = new Set(), blobs = new Set()
       if (props.parent) {
-        let commit = await this.ctx.ctx.docStore.retrieveAsync(props.parent)
+        let commit = await this.ctx.docStore.retrieveAsync(props.parent)
         universe = await this.getTreeListAsync(commit.tree, true)
       }
       // no intersectionn (universe and uploaded)
@@ -510,8 +509,8 @@ class Box {
       // store trees and blobs
       let blobpaths = [...blobs].map(i => path.join(this.ctx.ctx.getTmpDir(), i))
       let treepaths = [...trees].map(i => path.join(this.ctx.ctx.getTmpDir(), i))
-      await this.ctx.ctx.blobs.storeAsync(blobpaths)
-      await this.ctx.ctx.docStore.storeAsync(treepaths)
+      await this.ctx.blobs.storeAsync(blobpaths)
+      await this.ctx.docStore.storeAsync(treepaths)
     }
 
     // create commit object
@@ -527,7 +526,7 @@ class Box {
     hash.update(text)
     let sha256 = hash.digest().toString('hex')
 
-    let targetPath = path.join(this.ctx.ctx.docStore.dir, sha256)
+    let targetPath = path.join(this.ctx.docStore.dir, sha256)
     await saveObjectAsync(targetPath, this.ctx.ctx.getTmpDir(), commit)
 
     // update branch
@@ -538,9 +537,5 @@ class Box {
     return { sha256, commitObj: commit }
   }
 }
-
-Box.Idle = Idle
-Box.Pending = Pending
-Box.Reading = Reading
 
 module.exports = Box

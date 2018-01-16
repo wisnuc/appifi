@@ -264,7 +264,6 @@ module.exports = {
     if (props.id) assert(isSHA256(props.id) || isUUID(props.id), 'id should be sha256 or uuid')
     if (props.list) assert(Array.isArray(props.list), 'list should be an array')
     if (props.src) assert(Array.isArray(props.src), 'src should be an array')
-
     let result = await box.createTweetAsync(props)
     await this.boxData.updateBoxAsync({mtime: result.mtime}, boxUUID)
     return result.tweet

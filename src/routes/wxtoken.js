@@ -7,7 +7,6 @@ const getFruit = require('../fruitmix')
 const userInfo = (req, res, next) => {
   let guid = req.query.guid
   let text = req.get('Authorization')
-
   if (text) {
     let split = text.split(' ')
     let local = jwt.decode(split[1], secret)
@@ -18,7 +17,7 @@ const userInfo = (req, res, next) => {
     req.user = user
     next()
   } else {
-    let exist = [...getFruit().boxData.map.values()].find(box => (box.doc.users.includes(guid)
+    let exist = [...getFruit().boxData.boxes.values()].find(box => (box.doc.users.includes(guid)
                     || box.doc.owner === guid))
     if (!exist) return res.status(401).end()
     req.user = { global: {id: guid} }

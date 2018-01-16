@@ -7,7 +7,7 @@ const rimraf = require('rimraf')
 const rimrafAsync = Promise.promisify(rimraf)
 
 const User = require('../models/user')
-const boxData = require('./box/boxData')
+const boxData = require('./Boxes')
 
 const { isUUID, validateProps } = require('../common/assertion')
 const E = require('../lib/error')
