@@ -197,7 +197,7 @@ class Boxes extends B {
       let error, count = entries.count
       if (!count) return callback()
       entries.forEach(ent => {
-        let target = path.join(this.dir, ent)
+        let target = path.join(this.dir, ent, 'manifest')
         fs.readFile(target, (err, data) => {
           if(error) return
           if(err) {
