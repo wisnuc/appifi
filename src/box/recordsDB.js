@@ -95,18 +95,14 @@ class RecordsDB {
    */
   read(callback) {
     let lr = new lineByLineReader(this.filePath, { skipEmptyLines: true })
-
-    let error, records = [], medias = new Set()
-
+    let error, records = [], files = new Set()
     // read all lines record lines size
     lr.on('line', line => {
       if(error) return
       try {
         let Line = JSON.parse(line)
-        if (Line.type === 'blob') medias.add(l.id)
-        else if (Line.type === 'list') {
-          Line.forEach(l => { if(l.magic) medias.add(l.sha256) })
-        }
+        if (Line.type === 'blob') files.add(l.id)
+        else if (Line.type === 'list') Line.forEach(l => files.add(l.sha256))
         records.push(new Buffer(line).length)
       } catch(e) {
         if (e instanceof SyntaxError) { // only last line
@@ -129,8 +125,8 @@ class RecordsDB {
     // check the last line and repair tweets DB if error exists
     lr.on('end', () => {
       if(error) return
-      this.records = records
-      return callback(null, medias)
+      this.records = records // FIXME: ????
+      return callback(null, files)
     })
 
     lr.on('error', err => {

@@ -18,7 +18,7 @@ const ioctl = require('ioctl')
 
 const requestAsync = require('./request').requestHelperAsync
 const broadcast = require('../../common/broadcast')
-const boxData = require('../../box/boxData')
+// const boxData = require('../../box/boxData')
 
 const getFruit = require('../../fruitmix')
 const { createIpcMain, getIpcMain, destroyIpcMain } = require('../../webtorrent/ipcMain')
@@ -101,7 +101,7 @@ class StoreFile {
       callback(new Error('EABORT'))
     }
 
-    let req = request.get(url).set({ 'Authorization': token })
+    let req = request.get(url).set({ 'Authorization': token }).buffer(false)
     let ws = fs.createWriteStream(fpath)
     debug('store req created')
     req.on('response', res => {
@@ -927,14 +927,6 @@ class Pipe {
     return Promise.promisify(this.fetchFileResponse).bind(this)(fpath, cloudAddr, sessionId)
   }
 
-
-  async createTextTweetAsync({ boxUUID, guid, comment }) {
-    let box = boxData.getBox(boxUUID)
-    let props = { comment, global: guid }
-    let result = await box.createTweetAsync(props)
-    let newDoc = await boxData.updateBoxAsync({ mtime: result.mtime }, box.doc.uuid)
-  }
-
   async errorFetchResponseAsync(cloudAddr, sessionId, err) {
     let url = cloudAddr + '/s/v1/stations/' + this.stationId + '/response/' + sessionId + '/pipe/fetch'
     let error = { code: 400, message: err.message }
@@ -982,12 +974,7 @@ class Pipe {
     debug('request success')
   }
 
-  async createBlobTweetAsync({ boxUUID, guid, comment, type, size, sha256, jobId }) {
-    // { comment, type: 'blob', id: sha256, global, path: file.path}
-    //get blob
-    // let storeFile = new StoreFile(this.tmp, this.token, size, sha256, jobId)
-  }
-
+  
   register() {
     this.handlers.set('GetToken', this.getTokenAsync.bind(this))
     //drives

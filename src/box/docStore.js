@@ -12,16 +12,8 @@ class DocStore {
   // the factory must assure the tmp folder exists !
   constructor(froot) {
     this.dir = path.join(froot, 'objects')
-
-    if (!fs.existsSync(this.dir)) {
-      try{
-        fs.mkdirSync(this.dir)
-        broadcast.emit('DocStoreInitDone')
-      }
-      catch(e) {
-        broadcast.emit('DocStoreInitDone', e)
-      }
-    }
+    mkdirp.sync(this.dir)
+    broadcast.emit('DocStoreInitDone')
   }
 
   store(src, callback) {

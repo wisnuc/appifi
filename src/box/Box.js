@@ -15,154 +15,6 @@ const { isSHA256, complementArray } = require('../lib/assertion')
 
 
 /**
-Box has four states:
-
-+ Idle
-+ Init (with or without a timer)
-+ Pending
-+ Reading
-
-@module Box
-*/
-
-class Base {
-
-  constructor(box, ...args) {
-    this.box = box
-    box.state = this
-    this.enter(...args)
-  }
-
-  enter() {
-  }
-
-  exit() {
-  }
-
-  setState(NextState, ...args) {
-    this.exit()
-    new NextState(this.box, ...args)
-  }
-
-  readi() {
-    this.setState(Reading)
-  }
-
-  readn(delay) {
-    this.setState(Pending, delay)
-  }
-
-  readc(callback) {
-    this.setState(Reading, [callback])
-  }
-
-  destroy() {
-    this.exit()
-  }
-
-}
-
-// Do nothing, just for log
-class Idle extends Base {
-
-  enter() {
-    this.box.ctx.boxEnterIdle(this.box)
-  }
-
-  exit() {
-    this.box.ctx.boxExitIdle(this.box)
-  }
-
-}
-
-// 
-class Pending extends Base {
-
-  enter(delay) {
-    assert(Number.isInteger(delay) && delay > 0)
-
-    this.box.ctx.boxEnterPending(this.box)
-    this.readn(delay)
-  }
-
-  exit() {
-    clearTimeout(this.timer)
-    this.box.ctx.boxExitPending(this.box)
-  }
-
-  readn(delay) {
-    assert(Number.isInteger(delay) && delay > 0)
-
-    clearTimeout(this.timer)
-    this.timer = setTimeout(() => this.readi(), delay)
-  }
-
-}
-
-class Reading extends Base {
-
-  enter(callbacks = []) {
-    this.box.ctx.boxEnterReading(this.box)
-    this.callbacks = callbacks
-    this.pending = undefined
-    this.restart()
-  }
-
-  exit() {
-    this.box.ctx.boxExitReading(this.box)
-  }
-
-  restart() {
-    if (this.readdir) this.readdir.destroy()
-    
-  }
-
-  /**
-  read immediately
-  */
-  readi() {
-    if (!Array.isArray(this.pending)) this.pending = []
-  }
-
-  /**
-  request a delayed read
-  */
-  readn(delay) {
-    if (Array.isArray(this.pending)) {
-      return
-    } else if (typeof this.pending === 'number') {
-      this.pending = Math.min(this.pending, delay)
-    } else {
-      this.pending = delay
-    }
-  }
-
-  /**
-  read with callback
-  */
-  readc(callback) {
-    if (Array.isArray(this.pending)) {
-      this.pending.push(callback)
-    } else {
-      this.pending = [callback]
-    }
-  }
-
-  /**
-  */
-  destroy() {
-    let err = new Error('destroyed')
-    err.code = 'EDESTROYED'
-    this.callbacks.forEach(cb => cb(err))
-    if (Array.isArray(this.pending)) this.pending.forEach(cb => cb(err))
-    this.readdir.destroy()
-    super.destroy()
-  }
-
-}
-
-
-/**
   box
 */
 class Box {
@@ -179,6 +31,48 @@ class Box {
     this.dir = dir
     this.doc = doc
     this.DB = DB
+    this.files = new Set()
+    this.ctx.indexBox(this)
+  }
+
+  destory() {
+    this.ctx.unindexBox(this)
+  }
+
+  read(callback) {
+    Promise.all([
+      Promise.promisify(this.readTree).bind(this), 
+      Promise.promisify(this.DB.read).bind(this.DB)
+    ])
+    .then(files => {
+      let f = files.reduce((acc, f) => [...acc, ...f], [])
+      this.files = new Set(...f)
+      callback(null, files)
+    })
+    .catch(callback)
+  }
+
+  readTree(callback) {
+    this.retrieveAllBranches((err, branches) => {
+      if(err) return callback(err)
+      let count = branches.count
+      let error, records = []
+      branches.forEach(branch => {
+        let commitHash = branch.head
+        this.getCommitAsync(commitHash)
+          .then(commit => this.getTreeListAsync(commit.tree, false))
+          .then(files => {
+            if(error) return
+            count --
+            records.push(files)
+            if(count === 0) return callback(null, files)
+          })
+          .catch(e => {
+            error = e
+            return callback(e)
+          })
+      })
+    })
   }
 
   /**
@@ -198,7 +92,7 @@ class Box {
     let urls
     if (src) {
       urls = src.filter(s => {
-        let target = this.ctx.ctx.blobs.retrieve(s.sha256)
+        let target = this.ctx.blobs.retrieve(s.sha256)
         try {
           let stats = fs.lstatSync(target)
           // remove the file in tmpdir which is already in repo
@@ -216,9 +110,8 @@ class Box {
         fs.renameSync(u.filepath, newpath)
         return newpath
       })
-      await this.ctx.ctx.blobs.storeAsync(urls)
+      await this.ctx.blobs.storeAsync(urls)
     }
-
     let tweet = {
       uuid: UUID.v4(),
       tweeter: props.global,
@@ -227,19 +120,7 @@ class Box {
 
     if (props.type) {
       tweet.type = props.type
-      if (props.type === 'list') { 
-        tweet.list = props.list 
-        // check if media
-        let p = list.map(l =>  new Promise((resolve, reject) => {
-          let filePath = src.find(i => i.sha256 === l.sha256).filepath
-          fileMagic6(filePath, (err, magic) => {
-            if (err) return reject(err)
-            l.magic = magic !== 2 ?  1 : 0
-            return resolve()
-          })
-        }))
-        await Promise.all(p)
-      }
+      if (props.type === 'list') tweet.list = props.list 
       else tweet.id = props.id
     }
 
@@ -376,7 +257,7 @@ class Box {
 
     let { name, head } = props
     if (head) {
-      let obj = await this.ctx.ctx.docStore.retrieveAsync(head)
+      let obj = await this.ctx.docStore.retrieveAsync(head)
       if (obj.parent !== branch.head) throw new E.EHEAD()
     }
 
@@ -427,7 +308,7 @@ class Box {
     // head is a commit hash
     let findCommit = async head => {
       if (commitHash === head) return true
-      let commit = await _this.ctx.ctx.docStore.retrieveAsync(head)
+      let commit = await _this.ctx.docStore.retrieveAsync(head)
       if (commit.parent) return await findCommit(commit.parent)
     }
 
@@ -456,7 +337,7 @@ class Box {
     let exist, _this = this
 
     const isSubTree = async parentTree => {
-      let contents = await _this.ctx.ctx.docStore.retrieveAsync(parentTree)
+      let contents = await _this.ctx.docStore.retrieveAsync(parentTree)
       let index = contents.findIndex(i => i[2] === treeHash && i[0] === 'tree')
       if (index !== -1) return true
       else {
@@ -474,7 +355,7 @@ class Box {
       // compare rootTreeHash with commit.tree
       // if not equal, look up in commit.tree
       // if not in commit.tree, find again with its parent
-      let commit = await _this.ctx.ctx.docStore.retrieveAsync(head)
+      let commit = await _this.ctx.docStore.retrieveAsync(head)
       if (commit.tree === treeHash) return true
       else {
         let subTree = await isSubTree(commit.tree)
@@ -496,15 +377,16 @@ class Box {
   /**
    * list a tree object
    * @param {string} treeHash - tree object hash
+   * @param {Boolean} recordDir - record dir if true
    * @return {array} a hash set of all trees and blobs in root(include itself)
    */
-  async getTreeListAsync(treeHash) {
+  async getTreeListAsync(treeHash, recordDir) {
     let hashSet = new Set()
     let _this = this
     // get contents in a tree object
     let getContent = async hash => {
       hashSet.add(hash)
-      let obj = await _this.ctx.ctx.docStore.retrieveAsync(hash)
+      let obj = await _this.ctx.docStore.retrieveAsync(hash)
       await Promise.map(obj, async o => {
         if (o[0] === 'blob') hashSet.add(o[2])
         else if (o[0] === 'tree') await getContent(o[2])
@@ -527,7 +409,7 @@ class Box {
   async getCommitAsync(commitHash) {
     let exist = await this.commitExistInBox(commitHash)
     if (!exist) throw Object.assign(new Error('commit not exist in this box'), { status: 404 })
-    else return await this.ctx.ctx.docStore.retrieveAsync(commitHash)
+    else return await this.ctx.docStore.retrieveAsync(commitHash)
   }
 
   /**
@@ -569,8 +451,8 @@ class Box {
 
       let universe = [], trees = new Set(), blobs = new Set()
       if (props.parent) {
-        let commit = await this.ctx.ctx.docStore.retrieveAsync(props.parent)
-        universe = await this.getTreeListAsync(commit.tree)
+        let commit = await this.ctx.docStore.retrieveAsync(props.parent)
+        universe = await this.getTreeListAsync(commit.tree, true)
       }
       // no intersectionn (universe and uploaded)
       if (universe.length !== 0 && complementArray(universe, props.uploaded).length !== universe.length)
@@ -627,8 +509,8 @@ class Box {
       // store trees and blobs
       let blobpaths = [...blobs].map(i => path.join(this.ctx.ctx.getTmpDir(), i))
       let treepaths = [...trees].map(i => path.join(this.ctx.ctx.getTmpDir(), i))
-      await this.ctx.ctx.blobs.storeAsync(blobpaths)
-      await this.ctx.ctx.docStore.storeAsync(treepaths)
+      await this.ctx.blobs.storeAsync(blobpaths)
+      await this.ctx.docStore.storeAsync(treepaths)
     }
 
     // create commit object
@@ -644,7 +526,7 @@ class Box {
     hash.update(text)
     let sha256 = hash.digest().toString('hex')
 
-    let targetPath = path.join(this.ctx.ctx.docStore.dir, sha256)
+    let targetPath = path.join(this.ctx.docStore.dir, sha256)
     await saveObjectAsync(targetPath, this.ctx.ctx.getTmpDir(), commit)
 
     // update branch
@@ -655,9 +537,5 @@ class Box {
     return { sha256, commitObj: commit }
   }
 }
-
-Box.Idle = Idle
-Box.Pending = Pending
-Box.Reading = Reading
 
 module.exports = Box

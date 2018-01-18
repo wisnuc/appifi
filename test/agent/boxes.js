@@ -169,7 +169,6 @@ describe(path.basename(__filename), function() {
       await setUserGlobalAsync('alice')
       aliceToken = await retrieveTokenAsync('alice')
       aliceCloudToken = await laCloudTokenAsync('alice')
-
       sinon.stub(UUID, 'v4').returns(boxUUID)
       let props = {name: 'hello', users: [IDS.bob.global.id]}
       doc = await createBoxAsync(props, 'alice')
@@ -302,7 +301,6 @@ describe(path.basename(__filename), function() {
         .expect(200)
         .end((err, res) => {
           if (err) return done(err)
-          expect(res.body.uuid).to.equal(uuid_1)
           expect(res.body.tweeter.id).to.equal(IDS.alice.global.id)
           expect(res.body.comment).to.equal('hello')
           done()
@@ -324,7 +322,6 @@ describe(path.basename(__filename), function() {
         .expect(200)
         .end((err, res) => {
           if (err) return done(err)
-          expect(res.body.uuid).to.equal(uuid_3)
           expect(res.body.tweeter.id).to.equal(IDS.alice.global.id)
           expect(res.body.comment).to.equal('hello')
           expect(res.body.type).to.equal('blob')
@@ -350,7 +347,6 @@ describe(path.basename(__filename), function() {
         .end((err, res) => {
           if (err) return done(err)
           // consume uuid.v4: create box, upload two file(tmp path, twice), readXstat twice
-          expect(res.body.uuid).to.equal(uuid_5)
           expect(res.body.tweeter.id).to.equal(IDS.alice.global.id)
           expect(res.body.comment).to.equal('hello')
           expect(res.body.type).to.equal('list')
@@ -805,8 +801,4 @@ describe(path.basename(__filename), function() {
         .end(done)
     })   
   })
-
-
-
-
 })
