@@ -194,7 +194,7 @@ class Boxes extends B {
     debug('Box start Load')
     fs.readdir(this.dir, (err, entries) => {
       if(err) return callback(err)
-      let error, count = entries.count
+      let error, count = entries.length
       if (!count) return callback()
       entries.forEach(ent => {
         let target = path.join(this.dir, ent, 'manifest')
