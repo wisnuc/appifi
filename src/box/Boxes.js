@@ -206,6 +206,7 @@ class Boxes extends B {
           }
           let doc = JSON.parse(data.toString())
           let box = createBox(this, this.dir, doc)
+          debug('load one box')
           this.boxEnterInit(box)
           if(--count === 0 ) return callback(null)
         })
