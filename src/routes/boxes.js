@@ -76,7 +76,7 @@ router.post('/', fruitless, auth, (req, res, next) => {
     .then(doc => res.status(200).json(doc))
     .catch(err => {
       console.log(err)
-      next()
+      next(err)
     })
 })
 

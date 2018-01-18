@@ -101,8 +101,8 @@ class RecordsDB {
       if(error) return
       try {
         let Line = JSON.parse(line)
-        if (Line.type === 'blob') files.add(l.id)
-        else if (Line.type === 'list') Line.forEach(l => files.add(l.sha256))
+        // if (Line.type === 'blob') files.add(l.id)
+        if (Line.type === 'list') Line.forEach(l => files.add(l.sha256))
         records.push(new Buffer(line).length)
       } catch(e) {
         if (e instanceof SyntaxError) { // only last line
