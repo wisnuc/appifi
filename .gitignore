@@ -85,3 +85,6 @@ received
 /bin
 /assets
 appifi.js
+
+.DS_Store
+src/.DS_Store

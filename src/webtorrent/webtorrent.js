@@ -1,6 +1,7 @@
 const path = require('path')
 const fs = require('fs')
 const webT = require('webtorrent')
+const webD = require('./webDownload')
 const mkdirpAsync = require('bluebird').promisify(require('mkdirp'))
 
 const asCallback = (fn) => {
@@ -158,6 +159,16 @@ class WebTorrentService {
     if (typeof magnetURL !== 'string' || magnetURL.indexOf('magnet') == -1) 
       throw new Error('magnetURL is not a legal magnetURL')
     return await this.createTorrent({ torrentSource: magnetURL, dirUUID, user })
+  }
+
+  async addUrl({url, dirUUID, user}) {
+    if (typeof url !== 'string') throw new Errow('url is not legal')
+    return await this.createHttpDownload({ url, dirUUID, user})
+  }
+
+  async createHttpDownload({ url, dirUUID, user}) {
+    let userTmpPath = path.join(this.tempPath, user.uuid)
+    let obj = this.getClient(user.uuid, 'download').add(userTmpPath, url, dirUUID, user.uuid )
   }
 
   // create torrent & storage
