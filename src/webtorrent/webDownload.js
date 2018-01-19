@@ -17,25 +17,29 @@ class WebDownload extends EventEmitter {
     else return null
   }
 
-  add(path, url, dirUUID, userUUID) {
-    let task = new DownloadTask(path, url, dirUUID, userUUID)
+  add(path, url, dirUUID, userUUID, obj) {
+    let task = new DownloadTask(path, url, dirUUID, userUUID, obj)
     this.list.push(task)
     return task
   }
 }
 
 class DownloadTask extends EventEmitter {
-  constructor(path, url, dirUUID, userUUID) {
+  constructor(path, url, dirUUID, user, obj) {
     super()
+    let {inforHash, size} = obj
+    if (inforHash) console.log('old task')
+    else console.log('new task')
+    this.type = 'http'
     this.path = path
     this.url = url
     this.dirUUID = dirUUID
-    this.userUUID = userUUID
+    this.userUUID = user.uuid
     this.state = 'ready'
     this.isPause = false
-    this.infoHash = uuidv4()
+    this.infoHash = inforHash || uuidv4()
     this.timeRemaining = ''
-    this.size = 0
+    this.size = size?size:0
     this.downloaded = 0
     this.bytesWritten = 0
     this.countSpeedFrame = 0
@@ -46,26 +50,45 @@ class DownloadTask extends EventEmitter {
     this.finishTime = ''
     this.handle = null
     this.countSpeed = setInterval(() => {
-      this.downloadSpeed = this.bytesWritten - this.countSpeedFrame
+      let gap = this.bytesWritten - this.countSpeedFrame
+      this.downloadSpeed = gap > 0?gap:0
       this.countSpeedFrame = this.bytesWritten
+      console.log(`current progress is ${(this.downloaded/this.size * 100).toFixed(2) } %, speed is ${this.downloadSpeed} downloaded is ${this.downloaded} size is ${this.size}`)
     }, 1000)
-    this.run()
+    this.init()
+  }
+
+  init() {
+    console.log(this.infoHash)
+    fs.lstat(path.join(this.path, this.infoHash), (err, data) => {
+      if (err) {
+        console.log('文件不存在， 重新下载')
+      }else {
+        console.log('文件存在， 继续下载 downloaded is ' + data.size)
+        this.downloaded = data.size
+      }
+      this.run()
+    })
   }
 
   pause() {
+    if(!this.handle) return
     console.log('enter pause')
     this.isPause = true
     this.handle.abort()
+    this.handle = null
   }
 
   resume() {
+    if (this.handle) return
     console.log('enter resume')
     this.isPause = false
     this.run()
   }
 
   log() {
-    let {infoHash, timeRemaining, downloaded, downloadSpeed, progress} = this
+    let { type, infoHash, timeRemaining, downloaded, downloadSpeed, progress, path, name, dirUUID, state, userUUID, isPause, finishTime} = this
+    return { type, infoHash, timeRemaining, downloaded, downloadSpeed, progress, path, name, dirUUID, state, userUUID, isPause, finishTime}
   }
 
   run() {
@@ -95,7 +118,7 @@ class DownloadTask extends EventEmitter {
       this.downloaded += gap
       this.bytesWritten = stream.bytesWritten
       if (this.size !== 0) {
-        console.log(`current progress is ${(this.downloaded/this.size * 100).toFixed(2) } %, speed is ${this.downloadSpeed}`)
+        // console.log(`current progress is ${(this.downloaded/this.size * 100).toFixed(2) } %, speed is ${this.downloadSpeed}`)
       }else {
         console.log('size is 0 , can not count progress')
       }
@@ -125,12 +148,9 @@ class DownloadTask extends EventEmitter {
   }
 
   finish() {
-    this.state = 'finish'
+    this.state = 'moving'
     this.finishTime = (new Date()).getTime()
-    fs.rename(path.join(this.path, this.infoHash), path.join(this.path, this.name), () => {
-      this.emit('done')
-    })
-    
+    this.emit('done')
   }
 
   getFileName(headers) {
@@ -157,16 +177,16 @@ const d = path.normalize('/Users/apple/Documents/code')
 const u = 'https://dldir1.qq.com/qqfile/qq/TIM2.1.0/22747/TIM2.1.0.exe'
 
 var webD = new WebDownload()
-var task = webD.add(d, u, 'a', 'b')
+var task = webD.add(d, u, 'a', 'b', {inforHash: 'fd73ac27-de74-43be-ac66-1a8131d4395e', size: 69697440})
 task.on('done', () => {
   console.log('done trigger')
 })
 
-setTimeout(() => {
-  task.pause()
-  // console.log(task)
-}, 5000)
+// setTimeout(() => {
+//   task.pause()
+//   // console.log(task)
+// }, 5000)
 
-setTimeout(() => {
-  task.resume()
-}, 8000)
+// setTimeout(() => {
+//   task.resume()
+// }, 8000)

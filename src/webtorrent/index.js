@@ -72,7 +72,15 @@ router.get('/ppg3', auth.jwt(), (req, res) => {
   })
 })
 
-// create new download task
+// create new http download task
+router.post('/http', auth.jwt(), (req, res) => {
+  getIpcMain().call('addHttp', { url: req.body.url, dirUUID: req.body.dirUUID, user: req.user }, (error, data) => {
+    if(error) return res.status(400).json(error)
+    res.status(200).json(data)
+  })
+})
+
+// create new magnet download task
 router.post('/magnet', auth.jwt(), (req, res) => {
   getIpcMain().call('addMagnet', { magnetURL: req.body.magnetURL, dirUUID: req.body.dirUUID, user: req.user }, (error, data) => {
     if(error) return res.status(400).json(error)
@@ -88,6 +96,7 @@ router.post('/ppg1', auth.jwt(), (req, res) => {
   })
 })
 
+// create new torrent download task
 router.post('/torrent', auth.jwt(), (req, res) => {
   let form = new formidable.IncomingForm()
   form.uploadDir = torrentTmpPath
@@ -122,6 +131,7 @@ router.post('/ppg2', auth.jwt(), (req, res) => {
   })
 })
 
+// opertion in torrent
 router.patch('/:torrentId', auth.jwt(), (req, res) => {
   let ops = ['pause', 'resume', 'destroy']
   let op = req.body.op

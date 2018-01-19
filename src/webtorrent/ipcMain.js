@@ -125,7 +125,11 @@ const createIpcMain = () => {
     let dirUUID = msg.torrent.dirUUID
     let dirPath = fruitmix.getDriveDirPath(user, drive.uuid, dirUUID)
     console.log('dir path is ' + dirPath)
-    let torrentPath = path.join(msg.torrent.path, msg.torrent.name)
+    if (msg.torrent.type == 'http') {
+      let torrentPath = path.join(msg.torrent.path, mgs.torrent.infoHash)
+    }else {
+      let torrentPath = path.join(msg.torrent.path, msg.torrent.name)
+    }
     let rename = await getName(dirPath, msg.torrent.name)
     console.log('new name is ', rename)
     fs.rename(torrentPath, rename, err => {
