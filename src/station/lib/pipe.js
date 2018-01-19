@@ -279,6 +279,7 @@ class Pipe {
         if (paths[0] == 'ppg1') return 'ppg1'
         if (paths[0] == 'ppg2') return 'addTorrent'
         if (path[0] == 'ppg3') return 'ppg3'
+        if (path[0] == 'http') return 'addHttp'
         if (path[0] == 'version') return 'checkVersion'
         return paths.length === 0 && method === 'GET' ? 'getSummary' 
                   : paths.length === 1 ? (method === 'PATCH' ? 'patchTorrent' : (paths[0] === 'magnet' ? 'addMagnet' : 'addTorrent'))
@@ -888,6 +889,16 @@ class Pipe {
     })
   }
 
+  async addHttpAsync() {
+    let { serverAddr, sessionId, user, body, paths } = data
+    let { dirUUID, url } = body
+    if (!getIpcMain()) return await await this.errorResponseAsync(serverAddr, sessionId, new Error('webtorrent is not started'))
+    getIpcMain().call('addMagnet', { url, dirUUID, user}, async (error, result) => {
+      if(error) return await this.errorResponseAsync(serverAddr, sessionId, error)
+      else await this.successResponseJsonAsync(serverAddr, sessionId, result)
+    })
+  }
+
   async getTorrentSwitchAsync(data) {
     let { serverAddr, sessionId, user, body, paths } = data
     if (getIpcMain()) await this.successResponseJsonAsync(serverAddr, sessionId, {switch: true})
@@ -1060,7 +1071,8 @@ class Pipe {
     this.handlers.set('patchTorrent', this.patchTorrentAsync.bind(this))
     this.handlers.set('addMagnet', this.addMagnetAsync.bind(this))
     this.handlers.set('ppg1', this.ppg1Async.bind(this))
-    this.handlers.set('addTorrent', this.addTorrentAsync.bind(this))//getTorrentSwitch
+    this.handlers.set('addTorrent', this.addTorrentAsync.bind(this))//addHttp  
+    this.handlers.set('addHttp', this.addHttpAsync.bind(this))
     this.handlers.set('getTorrentSwitch', this.getTorrentSwitchAsync.bind(this))
     this.handlers.set('patchTorrentSwitch', this.patchTorrentSwitchAsync.bind(this))
   }

@@ -27,8 +27,11 @@ class WebDownload extends EventEmitter {
 class DownloadTask extends EventEmitter {
   constructor(path, url, dirUUID, user, obj) {
     super()
-    let {inforHash, size} = obj
-    if (inforHash) console.log('old task')
+    let infoHash, size
+    if (obj) {
+      let {infoHash, size} = obj
+    }
+    if (infoHash) console.log('old task')
     else console.log('new task')
     this.type = 'http'
     this.path = path
@@ -37,7 +40,7 @@ class DownloadTask extends EventEmitter {
     this.userUUID = user.uuid
     this.state = 'ready'
     this.isPause = false
-    this.infoHash = inforHash || uuidv4()
+    this.infoHash = infoHash?infoHash:uuidv4()
     this.timeRemaining = ''
     this.size = size?size:0
     this.downloaded = 0
@@ -53,7 +56,8 @@ class DownloadTask extends EventEmitter {
       let gap = this.bytesWritten - this.countSpeedFrame
       this.downloadSpeed = gap > 0?gap:0
       this.countSpeedFrame = this.bytesWritten
-      console.log(`current progress is ${(this.downloaded/this.size * 100).toFixed(2) } %, speed is ${this.downloadSpeed} downloaded is ${this.downloaded} size is ${this.size}`)
+      // console.log(`current progress is ${(this.downloaded/this.size * 100).toFixed(2) } %, speed is ${this.downloadSpeed} downloaded is ${this.downloaded} size is ${this.size}`)
+      this.progress = this.downloaded / this.size
     }, 1000)
     this.init()
   }
@@ -86,9 +90,14 @@ class DownloadTask extends EventEmitter {
     this.run()
   }
 
+  destroy(callback) {
+    if (!this.isPause) this.handle.abort
+    callback()
+  }
+
   log() {
-    let { type, infoHash, timeRemaining, downloaded, downloadSpeed, progress, path, name, dirUUID, state, userUUID, isPause, finishTime} = this
-    return { type, infoHash, timeRemaining, downloaded, downloadSpeed, progress, path, name, dirUUID, state, userUUID, isPause, finishTime}
+    let { type, infoHash, timeRemaining, downloaded, downloadSpeed, progress, url, path, name, size, dirUUID, state, userUUID, isPause, finishTime} = this
+    return { type, infoHash, timeRemaining, downloaded, downloadSpeed, progress, url, path, name, size, dirUUID, state, userUUID, isPause, finishTime}
   }
 
   run() {
@@ -173,14 +182,14 @@ class DownloadTask extends EventEmitter {
 
 // test
 
-const d = path.normalize('/Users/apple/Documents/code')
-const u = 'https://dldir1.qq.com/qqfile/qq/TIM2.1.0/22747/TIM2.1.0.exe'
+// const d = path.normalize('/Users/apple/Documents/code')
+// const u = 'https://dldir1.qq.com/qqfile/qq/TIM2.1.0/22747/TIM2.1.0.exe'
 
-var webD = new WebDownload()
-var task = webD.add(d, u, 'a', 'b', {inforHash: 'fd73ac27-de74-43be-ac66-1a8131d4395e', size: 69697440})
-task.on('done', () => {
-  console.log('done trigger')
-})
+// var webD = new WebDownload()
+// var task = webD.add(d, u, 'a', 'b', {infoHash: 'fd73ac27-de74-43be-ac66-1a8131d4395e', size: 69697440})
+// task.on('done', () => {
+//   console.log('done trigger')
+// })
 
 // setTimeout(() => {
 //   task.pause()
@@ -190,3 +199,5 @@ task.on('done', () => {
 // setTimeout(() => {
 //   task.resume()
 // }, 8000)
+
+module.exports = WebDownload

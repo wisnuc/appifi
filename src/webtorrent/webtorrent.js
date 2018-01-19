@@ -98,7 +98,7 @@ class WebTorrentService {
   constructor(tempPath) {
     this.tempPath = tempPath
     this.catchPath = path.join(this.tempPath, 'storage.json')
-    this.client = new webT()
+    this.client = new webD()
     this.clients = []
     this.downloading = []
     this.downloaded = []
@@ -117,7 +117,7 @@ class WebTorrentService {
       this.downloaded.forEach(item => item.log = logA)
       tasks.downloading.forEach((file, index) => {
         if (file.type == 'http') {
-          this.addHttp({url: file.url, dirUUID: file.dirUUID, user: {uuid: file.userUUID} })
+          this.addHttp({url: file.url, dirUUID: file.dirUUID, user: {uuid: file.userUUID}, infor: {infoHash: file.infoHash, size: file.size} })
         }else if (file.torrentPath) 
           this.addTorrent({ torrentPath: file.torrentPath, dirUUID: file.dirUUID, user: {uuid: file.userUUID} })
         else if (file.magnetURL) 
@@ -151,20 +151,21 @@ class WebTorrentService {
   }
 
   //add task with magnet url
-  async addMagnet({ magnetURL, dirUUID, user }) {
+  async addMagnet({ magnetURL, dirUUID, user, infor }) {
     if (typeof magnetURL !== 'string' || magnetURL.indexOf('magnet') == -1) 
       throw new Error('magnetURL is not a legal magnetURL')
     return await this.createTorrent({ torrentSource: magnetURL, dirUUID, user })
   }
 
   // add task with http url
-  async addHttp({url, dirUUID, user}) {
-    if (typeof url !== 'string') throw new Errow('url is not legal')
-    return await this.createHttpDownload({ url, dirUUID, user})
+  async addHttp({url, dirUUID, user, infor}) {
+    if (typeof url !== 'string') throw new Error('url is not legal')
+    return await this.createHttpDownload({ url, dirUUID, user, infor})
   }
 
-  async createHttpDownload({ url, dirUUID, user}) {
-    let obj = this.client.add(this.tempPath, url, dirUUID, user)
+  async createHttpDownload({ url, dirUUID, user, infor}) {
+    
+    let obj = this.client.add(this.tempPath, url, dirUUID, user, infor)
     obj.on('done', () => {
       console.log('http download done')
       this.enterMove(obj)
