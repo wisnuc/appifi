@@ -9,7 +9,13 @@ const userInfo = (req, res, next) => {
   let text = req.get('Authorization')
   if (text) {
     let split = text.split(' ')
-    let local = jwt.decode(split[1], secret)
+    let local
+    try {
+      local = jwt.decode(split[1], secret)
+    } catch(e) {
+      e.status = 401
+      return next(e)
+    }
     let user = getFruit().findUserByUUID(local.uuid)
 
     if (!user || user.global.id !== guid)
