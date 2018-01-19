@@ -194,10 +194,10 @@ class Boxes extends B {
     debug('Box start Load')
     fs.readdir(this.dir, (err, entries) => {
       if(err) return callback(err)
-      let error, count = entries.count
+      let error, count = entries.length
       if (!count) return callback()
       entries.forEach(ent => {
-        let target = path.join(this.dir, ent)
+        let target = path.join(this.dir, ent, 'manifest')
         fs.readFile(target, (err, data) => {
           if(error) return
           if(err) {
@@ -206,6 +206,7 @@ class Boxes extends B {
           }
           let doc = JSON.parse(data.toString())
           let box = createBox(this, this.dir, doc)
+          debug('load one box')
           this.boxEnterInit(box)
           if(--count === 0 ) return callback(null)
         })
