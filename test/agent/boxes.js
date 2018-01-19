@@ -130,6 +130,14 @@ describe(path.basename(__filename), function() {
 
     afterEach(() => UUID.v4.restore())
 
+    it("GET /boxes return 401 if cloudToken is invalid", done => {
+      request(app)
+        .get('/boxes')
+        .set('Authorization', 'JWT ' + token)
+        .expect(401)
+        .end(done)
+    })
+
     it("GET /boxes should return []", done => {
       request(app)
         .get('/boxes')

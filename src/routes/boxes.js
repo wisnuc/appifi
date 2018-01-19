@@ -42,6 +42,13 @@ const auth = (req, res, next) => {
     return res.status(401).end()
 
   let cloud = jwt.decode(split[1], secret) 
+
+  // ensure this is a real cloud token
+  if(!cloud.hasOwnProperty('deadline')) {
+    console.log('invalid cloud token')
+    return res.status(401).end()
+  }
+
   if (cloud.deadline < new Date().getTime()) {
     console.log('overdue')
     return res.status(401).end()
