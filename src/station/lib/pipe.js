@@ -863,7 +863,8 @@ class Pipe {
     let { serverAddr, sessionId, user, body, paths } = data
     let { dirUUID, ppgURL } = body
     if (!getIpcMain()) return await await this.errorResponseAsync(serverAddr, sessionId, new Error('webtorrent is not started'))
-    getIpcMain().call('addMagnet', { magnetURL, dirUUID, user}, async (error, result) => {
+    getIpcMain().call('addMagnet', { magnetURL:ppgURL, dirUUID, user}, async (error, result) => {
+console.log('4', error)
       if(error) return await this.errorResponseAsync(serverAddr, sessionId, error)
       else await this.successResponseJsonAsync(serverAddr, sessionId, result)
     })
@@ -891,13 +892,13 @@ class Pipe {
     })
   }
 
-  async addHttpAsync() {
-    console.log('net http')
+  async addHttpAsync(data) {
     let { serverAddr, sessionId, user, body, paths } = data
     let { dirUUID, url } = body
     if (!getIpcMain()) return await await this.errorResponseAsync(serverAddr, sessionId, new Error('webtorrent is not started'))
     getIpcMain().call('addHttp', { url, dirUUID, user}, async (error, result) => {
       if (err) console.log(err)
+      else console.log('not error')	
       if(error) return await this.errorResponseAsync(serverAddr, sessionId, error)
       else await this.successResponseJsonAsync(serverAddr, sessionId, result)
     })
