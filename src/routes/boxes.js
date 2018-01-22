@@ -312,15 +312,15 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
   if (req.is('multipart/form-data')) {
     const regex = /^multipart\/.+?(?:; boundary=(?:(?:"(.+)")|(?:([^\s]+))))$/i
     const m = regex.exec(req.headers['content-type'])
-    let obj, comment, type, size, sha256, arr, error, dicerFinished
+    let obj, comment, type, size, sha256, arr, dicerFinished
     let urls = []
 
     dicer = new Dicer({ boundary: m[1] || m[2] })
     let filecount = 0
-    let partFinish = () => {
-      if(error) return
+    let partFinish = (noCount) => {
+      if(!noCount) filecount--
+      if(filecount !== 0) return
       if(!dicerFinished) return
-      if(--filecount !== 0) return
       if (arr.every(i => i.finish)) {
         let props
         if (type === 'list') {
@@ -332,6 +332,7 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
           .then(tweet => res.status(200).json(tweet))
           .catch(next) 
       } else {
+        console.log(arr)
         let e = new Error('necessary file not uploaded')
         e.status = 404
         errorHandler(dicer, req)
@@ -410,7 +411,10 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
       })
     })
     
-    dicer.on('finish', () => dicerFinished = true)
+    dicer.on('finish', () => { 
+      dicerFinished = true
+      partFinish(true)
+    })
 
     req.pipe(dicer)
 
