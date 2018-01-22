@@ -110,7 +110,7 @@ class Box {
         fs.renameSync(u.filepath, newpath)
         return newpath
       })
-      await this.ctx.blobs.storeAsync(urls)
+      if(urls && urls.length) await this.ctx.blobs.storeAsync(urls)
     }
     let tweet = {
       uuid: UUID.v4(),
