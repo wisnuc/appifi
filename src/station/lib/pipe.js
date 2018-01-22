@@ -895,7 +895,7 @@ class Pipe {
     let { serverAddr, sessionId, user, body, paths } = data
     let { dirUUID, url } = body
     if (!getIpcMain()) return await await this.errorResponseAsync(serverAddr, sessionId, new Error('webtorrent is not started'))
-    getIpcMain().call('addMagnet', { url, dirUUID, user}, async (error, result) => {
+    getIpcMain().call('addHttp', { url, dirUUID, user}, async (error, result) => {
       if(error) return await this.errorResponseAsync(serverAddr, sessionId, error)
       else await this.successResponseJsonAsync(serverAddr, sessionId, result)
     })
