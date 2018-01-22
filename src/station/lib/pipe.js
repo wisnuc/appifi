@@ -279,9 +279,9 @@ class Pipe {
         if (paths.length === 1 && method === 'PATCH' && paths[0] === 'switch') return 'patchTorrentSwitch'
         if (paths[0] == 'ppg1') return 'ppg1'
         if (paths[0] == 'ppg2') return 'addTorrent'
-        if (path[0] == 'ppg3') return 'ppg3'
-        if (path[0] == 'http') return 'addHttp'
-        if (path[0] == 'version') return 'checkVersion'
+        if (paths[0] == 'ppg3') return 'ppg3'
+        if (paths[0] == 'http') return 'addHttp'
+        if (paths[0] == 'version') return 'checkVersion'
         return paths.length === 0 && method === 'GET' ? 'getSummary' 
                   : paths.length === 1 ? (method === 'PATCH' ? 'patchTorrent' : (paths[0] === 'magnet' ? 'addMagnet' : 'addTorrent'))
                   : undefined
