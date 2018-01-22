@@ -176,6 +176,7 @@ class BlobStore extends BlobCTX{
    * @param {function} callback 
    */
   store(src, callback) {
+    if(!src || !src.length) return process.nextTick(() => callback(null))
     let srcStr = src.join(' ')
     let dst = this.dir
     // move files into blobs

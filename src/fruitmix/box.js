@@ -244,7 +244,7 @@ module.exports = {
    * @param {string} props.id - sha256 or uuid, for blob, branch, commit, job, tag
    * @param {array} props.list - [{sha256, filename}], only for list
    * @param {Object} props.global - user global object
-   * @param {array} props.path - {sha256, filepath}, for blob and list
+   * @param {array} props.src - {sha256, filepath}, for blob and list
    * @return {Object} tweet object
    */
   async createTweetAsync (user, boxUUID, props) {

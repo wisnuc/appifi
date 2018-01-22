@@ -442,14 +442,18 @@ router.post('/:boxUUID/tweets/indrive', fruitless, auth, (req, res, next) => {
   let finishHandle = (sha256, filepath) => {
     if(error) return
     src.push({ sha256, filepath })
-    if(list.every(i => i.finish && src.findIndex(s => s.sha256 === i.sha256))) {
+    if(list.every(i => i.finished && (src.findIndex(s => s.sha256 === i.sha256)!== -1))) {
+      console.log(2222)
       console.log('box upload finished')
-      let ls = list.map(l => { sha256, filename })
+      let ls = list.map(l => { 
+        return {sha256, filename:l.filename }
+      })
       let props = { list:ls, src, comment, type }
       getFruit().createTweetAsync(req.user, boxUUID, props)
         .then(tweet => res.status(200).json(tweet))
         .catch(next)
     }
+    console.log(list, src)
   }
 
   let errorHandler = err => {
@@ -484,7 +488,7 @@ router.post('/:boxUUID/tweets/indrive', fruitless, auth, (req, res, next) => {
         if(error) return
         if(err) return errorHandler(err)
         //TODO: read xstat
-        fs.copy(filePath, tmpPath, err => {
+        fs.copyFile(filePath, tmpPath, err => {
           if(error) return
           if(err) return errorHandler(err)
           fingerprintSimple(tmpPath, (err, fingerprint) => {
