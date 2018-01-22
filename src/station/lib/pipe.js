@@ -274,7 +274,6 @@ class Pipe {
                         : undefined
         break
       case 'download':
-        console.log(paths)
         if (paths.length === 1 && method === 'GET' && paths[0] === 'switch') return 'getTorrentSwitch'
         if (paths.length === 1 && method === 'PATCH' && paths[0] === 'switch') return 'patchTorrentSwitch'
         if (paths[0] == 'ppg1') return 'ppg1'
@@ -816,7 +815,6 @@ class Pipe {
   }
 
   async ppg3Async(data) {
-    console.log('net ppg3')
     let { serverAddr, sessionId, user, body, paths } = data
     let { ppgId, type } = body
     if (!getIpcMain()) return await await this.errorResponseAsync(serverAddr, sessionId, new Error('webtorrent is not started'))
