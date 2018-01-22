@@ -5,6 +5,7 @@ const mkdirp = require('mkdirp')
 const getFruit = require('../fruitmix')
 const broadcast = require('../common/broadcast')
 const fs = require('fs')
+const Promise = require('bluebird')
 
 
 var torrentTmpPath = ''
@@ -85,6 +86,10 @@ class IpcMain {
       return
     }
     this.worker.send(job.message())
+  }
+  
+  async callAsync(op, args) {
+    return Promise.promisify(this.call).bind(this)(op, args)
   }  
 
   handleCommandMessage(msg) {

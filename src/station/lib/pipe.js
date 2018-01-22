@@ -852,7 +852,7 @@ class Pipe {
     let { dirUUID, magnetURL } = body
     if (!getIpcMain()) return await await this.errorResponseAsync(serverAddr, sessionId, new Error('webtorrent is not started'))
     getIpcMain().call('addMagnet', { magnetURL, dirUUID, user}, async (error, result) => {
-      if(error) return await this.errorResponseAsync(serverAddr, sessionId, error)
+      if(error) return await this.errorResponseAsync(serverAddr, sessionId, error.message)
       else await this.successResponseJsonAsync(serverAddr, sessionId, result)
     })
   }
@@ -861,11 +861,7 @@ class Pipe {
     let { serverAddr, sessionId, user, body, paths } = data
     let { dirUUID, ppgURL } = body
     if (!getIpcMain()) return await await this.errorResponseAsync(serverAddr, sessionId, new Error('webtorrent is not started'))
-    getIpcMain().call('addMagnet', { magnetURL:ppgURL, dirUUID, user}, async (error, result) => {
-console.log('4', error)
-      if(error) return await this.errorResponseAsync(serverAddr, sessionId, error)
-      else await this.successResponseJsonAsync(serverAddr, sessionId, result)
-    })
+    return await getIpcMain().callAsync('addMagnet', { magnetURL:ppgURL, dirUUID, user})
   }
 
   async addTorrentAsync(data) {
@@ -884,7 +880,7 @@ console.log('4', error)
     fs.rename(fpath, torrentPath, async (error, data) => {
       if (error) return await this.errorStoreResponseAsync(serverAddr, sessionId, error)
       else getIpcMain().call('addTorrent', { torrentPath, dirUUID, user }, async (err, result) => {
-        if (err) return await this.errorStoreResponseAsync(serverAddr, sessionId, err)
+        if (err) return await this.errorStoreResponseAsync(serverAddr, sessionId, err.message)
         else return await this.successStoreResponseAsync(serverAddr, sessionId, result)
       })
     })
@@ -895,9 +891,9 @@ console.log('4', error)
     let { dirUUID, url } = body
     if (!getIpcMain()) return await await this.errorResponseAsync(serverAddr, sessionId, new Error('webtorrent is not started'))
     getIpcMain().call('addHttp', { url, dirUUID, user}, async (error, result) => {
-      if (err) console.log(err)
+      if (error) console.log(error)
       else console.log('not error')	
-      if(error) return await this.errorResponseAsync(serverAddr, sessionId, error)
+      if(error) return await this.errorResponseAsync(serverAddr, sessionId, error.message)
       else await this.successResponseJsonAsync(serverAddr, sessionId, result)
     })
   }
@@ -993,7 +989,7 @@ console.log('4', error)
   async errorResponseAsync(cloudAddr, sessionId, err) {
     let url = cloudAddr + '/s/v1/stations/' + this.stationId + '/response/' + sessionId + '/json'
     let error = { code: 400, message: err.message }
-    let params = { error }
+    let params = error 
     debug('pipe handle error', params)
     await requestAsync('POST', url, { params }, { 'Authorization': this.token })
   }
