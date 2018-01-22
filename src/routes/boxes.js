@@ -41,7 +41,21 @@ const auth = (req, res, next) => {
   if (split.length < 2 || split.length > 3 || split[0] !== 'JWT')
     return res.status(401).end()
 
-  let cloud = jwt.decode(split[1], secret) 
+  let cloud
+  // ensure token is valid(length)
+  try {
+    cloud = jwt.decode(split[1], secret) 
+  } catch(e) {
+    e.status = 401
+    return next(e)
+  }
+
+  // ensure this is a real cloud token
+  if(!cloud.hasOwnProperty('deadline')) {
+    console.log('invalid cloud token')
+    return res.status(401).end()
+  }
+
   if (cloud.deadline < new Date().getTime()) {
     console.log('overdue')
     return res.status(401).end()
@@ -53,7 +67,13 @@ const auth = (req, res, next) => {
     return next()
   }
 
-  let local = jwt.decode(split[2], secret)
+  let local
+  try {
+    local = jwt.decode(split[2], secret)
+  } catch(e) {
+    e.status = 401
+    return next(e)
+  }
   let user = getFruit().findUserByUUID(local.uuid)
   if (!user || user.global.id !== cloud.global.id)
     return res.status(401).end()

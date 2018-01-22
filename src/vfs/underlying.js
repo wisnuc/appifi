@@ -115,9 +115,11 @@ const renameNoReplace = (oldPath, newPath, callback) =>
     }
   })
 
+let working = false
 const rename = (oldPath, newPath, type, opt, callback) =>
   renameNoReplace(oldPath, newPath, err => {
     if (err && err.code === 'EEXIST') {                   // conflict
+      working = false
       readXstat(newPath, (xerr, xstat) => {
         // return the error we cannot handle
         if (xerr && xerr.xcode !== 'EUNSUPPORTED') return callback(xerr)
@@ -133,13 +135,32 @@ const rename = (oldPath, newPath, type, opt, callback) =>
         } else if (same() && opt[0] === 'rename' || diff() && opt[1] === 'rename') {
           let dirname = path.dirname(newPath)
           let basename = path.basename(newPath)
+
           fs.readdir(dirname, (error, files) => { 
             if (error) return callback(error)
             let newPath2 = path.join(dirname, autoname(basename, files))
-            rename(oldPath, newPath2, type, opt, (error, xstat) => {
-              if (error) return callback(error)
-              callback(null, xstat, [same(), diff()])
-            })
+
+            let func = () => {
+              if (!working) {
+                working = true
+                rename(oldPath, newPath2, type, opt, (error, xstat) => {
+                  if (error) return callback(error)
+                  working = false
+                  callback(null, xstat, [same(), diff()])
+                })
+              } else {
+                setTimeout(() => {
+                  func()
+                }, 5)
+              }
+            }
+
+            func()
+
+            // rename(oldPath, newPath2, type, opt, (error, xstat) => {
+            //   if (error) return callback(error)
+            //   callback(null, xstat, [same(), diff()])
+            // })
           })
         } else if (same() && opt[0] === 'replace' || diff() && opt[1] === 'replace') {
           rimraf(newPath, error => {

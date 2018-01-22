@@ -549,10 +549,19 @@ class VFS extends Forest {
 
   // copy src dir (name) into dst dir
   cpdir (src, dst, policy, callback) {
-    let dir
-  
+    let dir, dstDir
+    
     try {
       dir = this.getDriveDirSync(src.drive, src.dir) 
+      dstDir = this.getDriveDirSync(dst.drive, dst.dir)
+
+      // if dstDir is sub-dir of src, return error
+      let nodepath = dstDir.nodepath()
+      if (nodepath.find(n => n.uuid === src.dir)) {
+        let err = new Error('invalid operation')
+        err.code = 'EINVAL'
+        throw err
+      }
     } catch (e) {
       return process.nextTick(() => callback(e))
     }
@@ -614,7 +623,14 @@ class VFS extends Forest {
     let newPath = path.join(this.absolutePath(dstDir), srcDir.name)
     mvdir(oldPath, newPath, policy, (err, xstat, resolved) => {
       // TODO 
-      callback(err, xstat, resolved)
+      if (err) return callback(err)
+
+      if (!xstat) return callback(null, xstat, resolved)
+      else {
+        srcDir.parent.read()
+        dstDir.read()
+        callback(null, xstat, resolved)
+      }
     })
   }
 

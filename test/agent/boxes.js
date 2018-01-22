@@ -93,6 +93,15 @@ describe(path.basename(__filename), function() {
         })
     })
 
+    it("GET /cloudToken return 401 if token is too short or long", done => {
+      request(app)
+        .get('/cloudToken')
+        .query({guid: IDS.alice.global.id})
+        .set('Authorization', 'JWT ' + 'dfetferter')
+        .expect(401)
+        .end(done)
+    })
+
     it("POST /cloudToken/decode", done => {
       request(app)
         .get('/cloudToken')
@@ -129,6 +138,30 @@ describe(path.basename(__filename), function() {
     })
 
     afterEach(() => UUID.v4.restore())
+
+    it("GET /boxes return 401 if cloudToken is invalid", done => {
+      request(app)
+        .get('/boxes')
+        .set('Authorization', 'JWT ' + token)
+        .expect(401)
+        .end(done)
+    })
+
+    it("GET /boxes return 401 if cloudToken is too short or long", done => {
+      request(app)
+        .get('/boxes')
+        .set('Authorization', 'JWT ' + 'dfegerrye')
+        .expect(401)
+        .end(done)
+    })
+
+    it("GET /boxes return 401 if local token is itoo short or long", done => {
+      request(app)
+        .get('/boxes')
+        .set('Authorization', 'JWT ' + cloudToken + ' ' + 'mekrjweoijr')
+        .expect(401)
+        .end(done)
+    })
 
     it("GET /boxes should return []", done => {
       request(app)
