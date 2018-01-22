@@ -317,7 +317,7 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
 
     dicer = new Dicer({ boundary: m[1] || m[2] })
     let filecount = 0
-    let finished = () => {
+    let partFinish = () => {
       if(error) return
       if(!dicerFinished) return
       if(--filecount !== 0) return
@@ -378,8 +378,8 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
           } else {
             rimraf(tmpPath, () => {})
           }
-          partFinish()
         }
+        partFinish()
       })
     }
 
