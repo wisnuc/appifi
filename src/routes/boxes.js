@@ -312,10 +312,32 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
   if (req.is('multipart/form-data')) {
     const regex = /^multipart\/.+?(?:; boundary=(?:(?:"(.+)")|(?:([^\s]+))))$/i
     const m = regex.exec(req.headers['content-type'])
-    let obj, comment, type, size, sha256, arr
+    let obj, comment, type, size, sha256, arr, error, dicerFinished
     let urls = []
 
     dicer = new Dicer({ boundary: m[1] || m[2] })
+    let filecount = 0
+    let finished = () => {
+      if(error) return
+      if(!dicerFinished) return
+      if(--filecount !== 0) return
+      if (arr.every(i => i.finish)) {
+        let props
+        if (type === 'list') {
+          let list = obj.list.map(i => { return {sha256: i.sha256, filename: i.filename} })
+          props = {comment, type, list, src: urls}
+        }
+
+        getFruit().createTweetAsync(req.user, boxUUID, props)
+          .then(tweet => res.status(200).json(tweet))
+          .catch(next) 
+      } else {
+        let e = new Error('necessary file not uploaded')
+        e.status = 404
+        errorHandler(dicer, req)
+        return res.status(e.status).json(e)
+      }
+    } 
 
     const onField = rs => {
       rs.on('data', data => {
@@ -332,6 +354,7 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
     }
 
     const onFile = (rs, props) => {
+      filecount ++
       try {
         validate(props)
       } catch(e) {
@@ -355,6 +378,7 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
           } else {
             rimraf(tmpPath, () => {})
           }
+          partFinish()
         }
       })
     }
@@ -386,24 +410,7 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
       })
     })
     
-    dicer.on('finish', () => {
-      if (arr.every(i => i.finish)) {
-        let props
-        if (type === 'list') {
-          let list = obj.list.map(i => { return {sha256: i.sha256, filename: i.filename} })
-          props = {comment, type, list, src: urls}
-        }
-
-        getFruit().createTweetAsync(req.user, boxUUID, props)
-          .then(tweet => res.status(200).json(tweet))
-          .catch(next) 
-      } else {
-        let e = new Error('necessary file not uploaded')
-        e.status = 404
-        errorHandler(dicer, req)
-        return res.status(e.status).json(e)
-      }
-    })
+    dicer.on('finish', () => dicerFinished = true)
 
     req.pipe(dicer)
 
