@@ -4,7 +4,8 @@ const Stringify = require('canonical-json')
 const fs = Promise.promisifyAll(require('fs'))
 const rimraf = require('rimraf')
 const rimrafAsync = Promise.promisify(rimraf)
-const mkdirpAsync = Promise.promisify(require('mkdirp'))
+const mkdirp = require('mkdirp')
+const mkdirpAsync = Promise.promisify(mkdirp)
 const UUID = require('uuid')
 const crypto = require('crypto')
 
@@ -33,6 +34,9 @@ class Box {
     this.DB = DB
     this.files = new Set()
     this.ctx.indexBox(this)
+    try{
+      mkdirp.sync(path.join(this.dir, 'branches'))
+    }catch(e){console.log(e)}
   }
 
   destory() {
