@@ -27,6 +27,8 @@ const { isUUID } = require('../../common/assertion')
 // const Config = require('./const').CONFIG
 
 const Transform = stream.Transform
+Promise.promisifyAll(fs)
+
 
 let asCallback = (fn) => {
   return (props, callback) => {
@@ -804,6 +806,8 @@ class Pipe {
     return await this.successResponseJsonAsync(serverAddr, sessionId, list)
   }
 
+  // download api
+  // download (get summary)
   async getSummaryAsync(data) {
     let { serverAddr, sessionId, user, body, paths } = data
     let { torrentId, type } = body
@@ -830,10 +834,12 @@ class Pipe {
     })
   }
 
+  // download (get version for ios)
   async checkVersionAsync() {
     await this.successResponseJsonAsync(serverAddr, sessionId, {version: true})
   }
 
+  // download (operation in a task)
   async patchTorrentAsync(data) {
     let { serverAddr, sessionId, user, body, paths } = data
     let { op } = body
@@ -841,31 +847,29 @@ class Pipe {
     let ops = ['pause', 'resume', 'destroy']
     if (!getIpcMain()) return await await this.errorResponseAsync(serverAddr, sessionId, new Error('webtorrent is not started'))
     if(!ops.includes(op)) return await this.errorResponseAsync(serverAddr, sessionId, new Error('unknow op'))
-    getIpcMain().call(op, { torrentId, user }, async (error, result) => {
-      if(error) return await this.errorResponseAsync(serverAddr, sessionId, error)
-      else await this.successResponseJsonAsync(serverAddr, sessionId, result)
-    })
+    let result = await getIpcMain().callAsync(op, { torrentId, user })
+    this.successResponseJsonAsync(serverAddr, sessionId, result)
   }
 
+  // download (create magnet task)
   async addMagnetAsync(data) {
     let { serverAddr, sessionId, user, body, paths } = data
     let { dirUUID, magnetURL } = body
     if (!getIpcMain()) return await await this.errorResponseAsync(serverAddr, sessionId, new Error('webtorrent is not started'))
-    getIpcMain().call('addMagnet', { magnetURL, dirUUID, user}, async (error, result) => {
-      if(error) return await this.errorResponseAsync(serverAddr, sessionId, error.message)
-      else await this.successResponseJsonAsync(serverAddr, sessionId, result)
-    })
+    let result = await getIpcMain().callAsync('addMagnet', { magnetURL, dirUUID, user})
+    this.successResponseJsonAsync(serverAddr, sessionId, result)
   }
 
   async ppg1Async(data) {
     let { serverAddr, sessionId, user, body, paths } = data
     let { dirUUID, ppgURL } = body
     if (!getIpcMain()) return await await this.errorResponseAsync(serverAddr, sessionId, new Error('webtorrent is not started'))
-    return await getIpcMain().callAsync('addMagnet', { magnetURL:ppgURL, dirUUID, user})
+    let result = await getIpcMain().callAsync('addMagnet', { magnetURL:ppgURL, dirUUID, user})
+    this.successResponseJsonAsync(serverAddr, sessionId, result)
   }
 
+  // download (create torrent task)
   async addTorrentAsync(data) {
-    console.log('enter torrent cloud', data.body.dirUUID)
     let { serverAddr, sessionId, user, body, paths } = data
     if (!getIpcMain()) return await await this.errorResponseAsync(serverAddr, sessionId, new Error('webtorrent is not started'))
     let { dirUUID } = body
@@ -877,15 +881,19 @@ class Pipe {
     let torrentPath = path.join(torrentTmp, fname)
     let fruit = getFruit()
     mkdirp.sync(torrentTmp)
-    fs.rename(fpath, torrentPath, async (error, data) => {
-      if (error) return await this.errorStoreResponseAsync(serverAddr, sessionId, error)
-      else getIpcMain().call('addTorrent', { torrentPath, dirUUID, user }, async (err, result) => {
-        if (err) return await this.errorStoreResponseAsync(serverAddr, sessionId, err.message)
-        else return await this.successStoreResponseAsync(serverAddr, sessionId, result)
-      })
-    })
+    await fs.renameAsync(fpath, torrentPath)
+    let result = await getIpcMain().callAsync('addTorrent', { torrentPath, dirUUID, user })
+    return await this.successStoreResponseAsync(serverAddr, sessionId, result)
+    // fs.rename(fpath, torrentPath, async (error, data) => {
+    //   if (error) return await this.errorStoreResponseAsync(serverAddr, sessionId, error)
+    //   else getIpcMain().call('addTorrent', { torrentPath, dirUUID, user }, async (err, result) => {
+    //     if (err) return await this.errorStoreResponseAsync(serverAddr, sessionId, err.message)
+    //     else return await this.successStoreResponseAsync(serverAddr, sessionId, result)
+    //   })
+    // })
   }
 
+  // download (create http task)
   async addHttpAsync(data) {
     let { serverAddr, sessionId, user, body, paths } = data
     let { dirUUID, url } = body
@@ -904,6 +912,7 @@ class Pipe {
     else await this.successResponseJsonAsync(serverAddr, sessionId, {switch: false})
   }
 
+  // download (toggle torrent service)
   async patchTorrentSwitchAsync(data) {
     let { serverAddr, sessionId, user, body, paths } = data
     let { op } = body
