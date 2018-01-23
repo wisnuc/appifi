@@ -27,7 +27,10 @@ let router = Router()
 router.get('/switch', (req, res) => {
   if (getIpcMain()) res.status(200).json({switch: true})
   else res.status(200).json({switch: false})
+})
 
+router.get('/version', (req, res) => {
+  res.status(200).json({version: true})
 })
 
 router.patch('/switch', (req, res) => {
@@ -54,7 +57,30 @@ router.get('/', auth.jwt(), (req, res) => {
   })
 })
 
-// create new download task
+router.get('/ppg3', auth.jwt(), (req, res) => {
+  let { ppgId, type } = req.query
+  let user = req.user
+  getIpcMain().call('getSummary', { torrentId: ppgId, type, user }, (error, data) => {
+    if (error) res.status(400).json(error)
+    else {
+      data.ppgPath = data.torrentPath
+      data.ppgURL = data.magnetURL
+      data.torrentPath = undefined
+      data.magnetURL = undefined
+      res.status(200).json(data)
+    }
+  })
+})
+
+// create new http download task
+router.post('/http', auth.jwt(), (req, res) => {
+  getIpcMain().call('addHttp', { url: req.body.url, dirUUID: req.body.dirUUID, user: req.user }, (error, data) => {
+    if(error) return res.status(400).json(error)
+    res.status(200).json(data)
+  })
+})
+
+// create new magnet download task
 router.post('/magnet', auth.jwt(), (req, res) => {
   getIpcMain().call('addMagnet', { magnetURL: req.body.magnetURL, dirUUID: req.body.dirUUID, user: req.user }, (error, data) => {
     if(error) return res.status(400).json(error)
@@ -62,6 +88,15 @@ router.post('/magnet', auth.jwt(), (req, res) => {
   })
 })
 
+//cheat apple
+router.post('/ppg1', auth.jwt(), (req, res) => {
+  getIpcMain().call('addMagnet', { magnetURL: req.body.ppgURL, dirUUID: req.body.dirUUID, user: req.user }, (error, data) => {
+    if(error) return res.status(400).json(error)
+    res.status(200).json(data)
+  })
+})
+
+// create new torrent download task
 router.post('/torrent', auth.jwt(), (req, res) => {
   let form = new formidable.IncomingForm()
   form.uploadDir = torrentTmpPath
@@ -79,6 +114,24 @@ router.post('/torrent', auth.jwt(), (req, res) => {
   })
 })
 
+router.post('/ppg2', auth.jwt(), (req, res) => {
+  let form = new formidable.IncomingForm()
+  form.uploadDir = torrentTmpPath
+  form.keepExtensions = true
+  form.parse(req, (err, fields, files) => {
+    if (err) return res.status(500).json(err)
+    let dirUUID = fields.dirUUID
+    let torrentPath = files.ppg.path
+    let user = req.user
+    if (!dirUUID || !torrentPath) return res.status(400).end('parameter error')
+    getIpcMain().call('addTorrent', {torrentPath, dirUUID, user}, (err, torrentId) => {
+      if (err) return res.status(400).json(err)
+      return res.status(200).json({torrentId})
+    })
+  })
+})
+
+// opertion in torrent
 router.patch('/:torrentId', auth.jwt(), (req, res) => {
   let ops = ['pause', 'resume', 'destroy']
   let op = req.body.op
@@ -88,6 +141,8 @@ router.patch('/:torrentId', auth.jwt(), (req, res) => {
     return res.status(200).json(data)
   })
 })
+
+
 
 
 

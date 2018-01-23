@@ -1,6 +1,7 @@
 const path = require('path')
 const fs = require('fs')
 const webT = require('webtorrent')
+const webD = require('./webDownload')
 const mkdirpAsync = require('bluebird').promisify(require('mkdirp'))
 
 const asCallback = (fn) => {
@@ -89,21 +90,15 @@ class IpcWorker {
 const createIpcWorker = () => new IpcWorker()
 
 var logA = function () {
-  let { infoHash, timeRemaining, downloaded, downloadSpeed, progress, numPeers, path, name, torrentPath, magnetURL, dirUUID, state, userUUID, isPause, finishTime } = this
-  return { infoHash, timeRemaining, downloaded, downloadSpeed, progress, numPeers, path, name, torrentPath, magnetURL, dirUUID, state, userUUID, isPause, finishTime }
-}
-
-var logB = function() {
-  
+  let { type, infoHash, timeRemaining, downloaded, downloadSpeed, progress, numPeers, path, name, url, torrentPath, magnetURL, dirUUID, state, userUUID, isPause, finishTime } = this
+  return { type, infoHash, timeRemaining, downloaded, downloadSpeed, progress, numPeers, path, name, url, torrentPath, magnetURL, dirUUID, state, userUUID, isPause, finishTime }
 }
 
 class WebTorrentService {
   constructor(tempPath) {
     this.tempPath = tempPath
     this.catchPath = path.join(this.tempPath, 'storage.json')
-    // this.client = new webT()
-    // this.client.on('torrent', this.newTorrent)
-    // this.client.on('error', this.clientError)
+    this.client = new webD()
     this.clients = []
     this.downloading = []
     this.downloaded = []
@@ -121,7 +116,9 @@ class WebTorrentService {
       this.downloaded = tasks.downloaded
       this.downloaded.forEach(item => item.log = logA)
       tasks.downloading.forEach((file, index) => {
-        if (file.torrentPath) 
+        if (file.type == 'http') {
+          this.addHttp({url: file.url, dirUUID: file.dirUUID, user: {uuid: file.userUUID}, infor: {infoHash: file.infoHash, size: file.size} })
+        }else if (file.torrentPath) 
           this.addTorrent({ torrentPath: file.torrentPath, dirUUID: file.dirUUID, user: {uuid: file.userUUID} })
         else if (file.magnetURL) 
           this.addMagnet({ magnetURL: file.magnetURL, dirUUID: file.dirUUID, user: {uuid: file.userUUID} })
@@ -154,10 +151,28 @@ class WebTorrentService {
   }
 
   //add task with magnet url
-  async addMagnet({ magnetURL, dirUUID, user }) {
+  async addMagnet({ magnetURL, dirUUID, user, infor }) {
     if (typeof magnetURL !== 'string' || magnetURL.indexOf('magnet') == -1) 
       throw new Error('magnetURL is not a legal magnetURL')
     return await this.createTorrent({ torrentSource: magnetURL, dirUUID, user })
+  }
+
+  // add task with http url
+  async addHttp({url, dirUUID, user, infor}) {
+    if (typeof url !== 'string') throw new Error('url is not legal')
+    return await this.createHttpDownload({ url, dirUUID, user, infor})
+  }
+
+  async createHttpDownload({ url, dirUUID, user, infor}) {
+    
+    let obj = this.client.add(this.tempPath, url, dirUUID, user, infor)
+    obj.on('done', () => {
+      console.log('http download done')
+      this.enterMove(obj)
+    })
+    this.downloading.push(obj)
+    await this.cache()
+    return {}
   }
 
   // create torrent & storage
@@ -165,13 +180,11 @@ class WebTorrentService {
     // create client(not necessary) & create torrent
     let userTmpPath = path.join(this.tempPath, user.uuid)
     let torrent = this.getClient(user.uuid).add(torrentSource, { path: userTmpPath })
-    // let server = torrent.createServer()
-    // server.listen(3456)
     if (!torrent.infoHash) throw new Error('unknow torrent')
 
     // add property to torrent object & add object to downloading list
     if (this.downloading.findIndex(item => item.infoHash == torrent.infoHash && item.userUUID == user.uuid) !== -1) throw new Error('torrent exist')
-      
+    torrent.type = 'torrent'
     torrent.dirUUID = dirUUID
     torrent.log = logA
     torrent.state = 'downloading'
@@ -194,6 +207,7 @@ class WebTorrentService {
   //pasuse a torrent with torrentID
   pause({ torrentId, user }) {
     let torrent = this.getClient(user.uuid).get(torrentId)
+    if (!torrent) torrent = this.client.get(torrentId)
     if (!torrent) throw new Error('torrent not exist')
     torrent.pause()
     torrent.isPause = true
@@ -203,6 +217,7 @@ class WebTorrentService {
   //resume a torrent with torrentID
   resume({ torrentId, user }) {
     let torrent = this.getClient(user.uuid).get(torrentId)
+    if (!torrent) torrent = this.client.get(torrentId)
     if (!torrent) throw new Error('torrent not exist')
     torrent.resume()
     torrent.isPause = false
@@ -297,6 +312,7 @@ class WebTorrentService {
 
   moveFinish({ torrentId, userUUID}) {console.log('torrent move finish', torrentId, userUUID)
     let torrent = this.getClient(userUUID).get(torrentId)
+    if (!torrent) torrent = this.client.get(torrentId)
     if (!torrent) throw new Error('not found torrent')
     torrent.state = 'finish'
     torrent.finishTime = (new Date).getTime()
@@ -319,6 +335,7 @@ class WebTorrentService {
   register(ipc) {
     ipc.register('addTorrent', asCallback(this.addTorrent.bind(this)))
     ipc.register('addMagnet', asCallback(this.addMagnet.bind(this)))
+    ipc.register('addHttp', asCallback(this.addHttp.bind(this)))
     ipc.register('getSummary', syncCallback(this.getSummary.bind(this)))
     ipc.register('pause', syncCallback(this.pause.bind(this)))
     ipc.register('resume', syncCallback(this.resume.bind(this)))

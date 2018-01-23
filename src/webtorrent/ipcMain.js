@@ -5,6 +5,7 @@ const mkdirp = require('mkdirp')
 const getFruit = require('../fruitmix')
 const broadcast = require('../common/broadcast')
 const fs = require('fs')
+const Promise = require('bluebird')
 
 
 var torrentTmpPath = ''
@@ -85,6 +86,10 @@ class IpcMain {
       return
     }
     this.worker.send(job.message())
+  }
+  
+  async callAsync(op, args) {
+    return Promise.promisify(this.call).bind(this)(op, args)
   }  
 
   handleCommandMessage(msg) {
@@ -117,20 +122,49 @@ const createIpcMain = () => {
   let worker = child.fork(path.join(__dirname, 'webtorrent.js'), [torrentTmpPath])
   worker.on('error', err => console.log('sub process error : ', err))
   worker.on('exit', (code, signal) => console.log('sub process exit:', code, signal))
-  worker.on('message', msg => {
+  worker.on('message', async msg => {
     if (msg.type !== 'move') return
     let fruitmix = getFruit()
     let user = {uuid: msg.torrent.userUUID}
     let drive = fruitmix.getDrives(user).find(item => item.tag == 'home')
     let dirUUID = msg.torrent.dirUUID
     let dirPath = fruitmix.getDriveDirPath(user, drive.uuid, dirUUID)
-    let torrentPath = path.join(msg.torrent.path, msg.torrent.name)
-    fs.rename(torrentPath, path.join(dirPath, msg.torrent.name), err => {
+    console.log('dir path is ' + dirPath)
+    let torrentPath
+    if (msg.torrent.type == 'http') {
+      torrentPath = path.join(msg.torrent.path, msg.torrent.infoHash)
+    }else {
+      torrentPath = path.join(msg.torrent.path, msg.torrent.name)
+    }
+    let rename = await getName(dirPath, msg.torrent.name)
+    console.log('new name is ', rename)
+    fs.rename(torrentPath, rename, err => {
       if (err) return console.log(err) //todo
       fruitmix.driveList.getDriveDir(drive.uuid, dirUUID)
       ipc.call('moveFinish', {userUUID: msg.torrent.userUUID, torrentId: msg.torrent.infoHash},(err,data) => {console.log(err, data, 'this is end')})
     })
   })
+
+  const getName = (dirPath, fileName) => {
+    return new Promise((resolve,reject) => {
+      let newName, index = 0
+      let isFIleExist = () => {
+        try {
+          newName = path.join(dirPath, fileName + (index==0?'':'(' + (index + 1) + ')'))
+
+          let exist = fs.existsSync(newName)
+          if (!exist) resolve(newName)
+          else {
+            console.log('file exist rename', index)
+            index++
+            isFIleExist()
+          }
+        }catch(e) {console.log(e)}
+      }
+      isFIleExist()
+    })
+    
+  }
   // create ipc main
   ipc = new IpcMain(worker)
 
