@@ -179,11 +179,13 @@ class BlobStore extends BlobCTX{
     if(!src || !src.length) return process.nextTick(() => callback(null))
     let srcStr = src.join(' ')
     let dst = this.dir
+    debug('start store blob')
     // move files into blobs
     child.exec(`mv ${srcStr} -t ${dst}`, (err, stdout, stderr) => {
       if (err) return callback(err)
       if (stderr) return callback(stderr)
       let hashArr = src.map(s => path.basename(s))
+      debug(hashArr)
       hashArr.forEach(x => this.blobEnterPending(x))
       let files = hashArr.map(i => path.join(dst, i)).join(' ')
       // modify permissions to read only
