@@ -110,6 +110,18 @@ router.get('/:boxUUID', fruitless, auth, (req, res, next) => {
   }
 })
 
+router.get('/:boxUUID/files/:blobUUID', fruitless,auth, (req, res, next) => {
+  let user = req.user
+  let boxUUID = req.params.boxUUID
+  let blobUUID = req.params.blobUUID
+  try {
+    let fPath = getFruit().getBoxFilepath(user, boxUUID, blobUUID)
+    return res.status(200).sendFile(fPath)
+  } catch(e) {
+    next(e)
+  }
+})
+
 // FIXME: permission: who can patch the box ?
 // here only box owner is allowed
 router.patch('/:boxUUID', fruitless, auth, (req, res, next) => {

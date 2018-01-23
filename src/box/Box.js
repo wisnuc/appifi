@@ -41,12 +41,14 @@ class Box {
 
   read(callback) {
     Promise.all([
-      Promise.promisify(this.readTree).bind(this), 
-      Promise.promisify(this.DB.read).bind(this.DB)
+      new Promise((resolve, reject) => {
+        this.readTree((err, files) => err ? reject(err) : resolve(files))
+      }), 
+      new Promise((resolve, reject) => this.DB.read((err, files) => err ? reject(err) : resolve(files)))
     ])
     .then(files => {
       let f = files.reduce((acc, f) => [...acc, ...f], [])
-      this.files = new Set(...f)
+      f.forEach(i => this.files.add(i))
       callback(null, files)
     })
     .catch(callback)
@@ -57,6 +59,7 @@ class Box {
       if(err) return callback(err)
       let count = branches.count
       let error, records = []
+      if(!count) return callback(null, [])
       branches.forEach(branch => {
         let commitHash = branch.head
         this.getCommitAsync(commitHash)
@@ -93,15 +96,8 @@ class Box {
     if (src) {
       urls = src.filter(s => {
         let target = this.ctx.blobs.retrieve(s.sha256)
-        try {
-          let stats = fs.lstatSync(target)
-          // remove the file in tmpdir which is already in repo
-          rimraf(s.filepath, () => { })
-          return
-        } catch (e) {
-          if (e.code !== 'ENOENT') throw e
-          return true
-        }
+        if (target) rimraf(s.filepath, () => { })  
+        else return true
       })
 
       urls = urls.map(u => {
@@ -120,7 +116,10 @@ class Box {
 
     if (props.type) {
       tweet.type = props.type
-      if (props.type === 'list') tweet.list = props.list 
+      if (props.type === 'list') {
+        tweet.list = props.list 
+        props.list.forEach(l => this.files.add(l.sha256))
+      }
       else tweet.id = props.id
     }
 

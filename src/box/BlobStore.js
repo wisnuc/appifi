@@ -213,7 +213,9 @@ class BlobStore extends BlobCTX{
    * @param {string} path
    */
   retrieve(hash) {
-    return path.join(this.dir, hash)
+    let bpath = path.join(this.dir, hash)
+    if(fs.existsSync(bpath)) return bpath
+    return false
   }
 }
 

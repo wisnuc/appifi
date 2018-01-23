@@ -1,11 +1,54 @@
 const { assert, isUUID, isSHA256, validateProps } = require('../common/assertion')
+const fs = require('fs')
 /// ////////////// box api ///////////////////////
 module.exports = {
+
+  getBlobMediaThumbnail(user, fingerprint, query, callback) {
+
+    try {
+      this.userCanReadBlob(user, fingerprint)
+    } catch (e) {
+      return callback(e)
+    }
+
+    if (!this.mediaMap.has(fingerprint)) {
+      let err = new Error('media not found')
+      err.status = 404
+      process.nextTick(() => callback(err))
+    }
+
+    let fPath = this.getBoxFilepath(user, query.boxUUID, fingerprint)
+
+    let props = this.thumbnail.genProps(fingerprint, query)
+    fs.lstat(props.path, (err, stat) => {
+      if (!err) return callback(null, props.path)
+      if (err.code !== 'ENOENT') return callback(err)
+      callback(null, cb => this.thumbnail.convert(props, fPath, cb))
+    })
+  },
 
   reportMedia(fingerprint, metadata) {
     this.mediaMap.set(fingerprint, metadata)
   },
+
+  userCanReadBlob(user, fingerprint) {
+    if(!user || !user.global || !user.global.id) return false
+    let guid = user.global.id
+    let boxes = [...this.boxData.boxes.values()].filter(box => 
+      box.doc.owner === guid ||
+      box.doc.users.includes(guid))
+    if(boxes.find(box => box.files.has(fingerprint))) return true
+    return false
+  },
   
+  userCanReadBox(user, boxUUID) {
+    if(!user || !user.global.id) throw Object.assign(new Error('user not found'), { status:401 })
+    let guid = user.global.id
+    let box = this.boxData.getBox(boxUUID)
+    if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
+    if (box.doc.owner !== guid && !box.doc.users.includes(guid)) return false
+    return true
+  },
   /**
    * get all box descriptions user can access
    * @param {Object} user
@@ -85,6 +128,14 @@ module.exports = {
     }
 
     return this.boxData.updateBoxAsync(props, boxUUID)
+  },
+
+  getBoxFilepath(user, boxUUID, fingerprint) {
+    if(!this.userCanReadBox(user, boxUUID)) throw Object.assign(new Error('permission denied'), { status: 403 })
+    let box = this.boxData.getBox(boxUUID)
+    let fPath = this.boxData.blobs.retrieve(fingerprint)
+    if(!box.files.has(fingerprint) || !fPath) throw Object.assign(new Error('file not found'), { status: 404 })
+    return fPath
   },
 
   /**

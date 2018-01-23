@@ -80,6 +80,13 @@ router.get('/:fingerprint', auth.jwt(), (req, res, next) => {
       res.status(404).end()
     }
   } else if (query.alt === 'data') {
+    if(query.boxUUID) {
+      try{
+        let fp = getFruit().getBoxFilepath(user, query.boxUUID, fingerprint)
+        return res.status(200).sendFile(fp)
+      }
+      catch(e) { return next(e) }
+    }
     let files = getFruit().getFilesByFingerprint(user, fingerprint)
 
     if (files.length) {
@@ -88,22 +95,41 @@ router.get('/:fingerprint', auth.jwt(), (req, res, next) => {
       res.status(404).end()
     }
   } else if (query.alt === 'thumbnail') {
-    
-    getFruit().getThumbnail(user, fingerprint, query, (err, thumb) => {
-      if (err) return next(err)
-      if (typeof thumb === 'string') {
-        res.status(200).sendFile(thumb)
-      } else if (typeof thumb === 'function') {
-        let cancel = thumb((err, th) => {
+    if (query.boxUUID) {
+      try{
+        let fp = getFruit().getBlobMediaThumbnail(user, fingerprint, query, (err, thumb) => {
           if (err) return next(err)
-          res.status(200).sendFile(th)
+          if (typeof thumb === 'string') {
+            res.status(200).sendFile(thumb)
+          } else if (typeof thumb === 'function') {
+            let cancel = thumb((err, th) => {
+              if (err) return next(err)
+              res.status(200).sendFile(th)
+            })
+            // TODO cancel
+          } else {
+            next(new Error(`unexpected thumb type ${typeof thumb}`))
+          }
         })
-
-        // TODO cancel
-      } else {
-        next(new Error(`unexpected thumb type ${typeof thumb}`))
       }
-    })
+      catch(e) { return next(e) }
+    }
+    else 
+      getFruit().getThumbnail(user, fingerprint, query, (err, thumb) => {
+        if (err) return next(err)
+        if (typeof thumb === 'string') {
+          res.status(200).sendFile(thumb)
+        } else if (typeof thumb === 'function') {
+          let cancel = thumb((err, th) => {
+            if (err) return next(err)
+            res.status(200).sendFile(th)
+          })
+
+          // TODO cancel
+        } else {
+          next(new Error(`unexpected thumb type ${typeof thumb}`))
+        }
+      })    
   } else if (query.alt === 'random') {
     let files = getFruit().getFilesByFingerprint(user, fingerprint)  
    
