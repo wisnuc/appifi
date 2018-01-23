@@ -269,20 +269,20 @@ module.exports = {
    * @param {string} props.segments - optional, segments of records user want to get
    */
   async getTweetsAsync (user, boxUUID, props) {
-    if (!isUUID(boxUUID)) throw Object.assign(new Error('invalid boxUUID'), { status: 400 })
+    if (!this.userCanReadBox(user, boxUUID))  throw Object.assign(new Error('no permission'), { status: 403 }) 
     let box = this.boxData.getBox(boxUUID)
-    if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
-
-    let guid = user.global.id
-    if (box.doc.owner !== guid && !box.doc.users.includes(guid)) { throw Object.assign(new Error('no permission'), { status: 403 }) }
-
-    validateProps(props, [], ['first', 'last', 'count', 'segments'])
     if (props.first) assert(Number.isInteger(props.first), 'first should be an integer')
     if (props.last) assert(Number.isInteger(props.last), 'last should be an integer')
     if (props.count) assert(Number.isInteger(props.count), 'count should be an integer')
     if (props.last) assert(typeof props.segments === 'string', 'segments should be a string')
-
-    return box.getTweetsAsync(props)
+    let metadata = props.metadata
+    let tweets = await box.getTweetsAsync(props)
+    if (metadata) {
+      tweets.forEach(t => 
+        t.type === 'list' ? (t.list.forEach(l => this.mediaMap.hasMetadata(l.sha256) ? l.meta = this.mediaMap.getMetadata(l.sha256) : l)) :t
+      )
+    }
+    return tweets
   },
 
   /**

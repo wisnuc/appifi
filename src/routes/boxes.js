@@ -344,7 +344,6 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
           .then(tweet => res.status(200).json(tweet))
           .catch(next) 
       } else {
-        console.log(arr)
         let e = new Error('necessary file not uploaded')
         e.status = 404
         errorHandler(dicer, req)
@@ -466,8 +465,6 @@ router.post('/:boxUUID/tweets/indrive', fruitless, auth, (req, res, next) => {
     if(error) return
     src.push({ sha256, filepath })
     if(list.every(i => i.finished && (src.findIndex(s => s.sha256 === i.sha256)!== -1))) {
-      console.log(2222)
-      console.log('box upload finished')
       let ls = list.map(l => { 
         return {sha256, filename:l.filename }
       })
@@ -476,7 +473,6 @@ router.post('/:boxUUID/tweets/indrive', fruitless, auth, (req, res, next) => {
         .then(tweet => res.status(200).json(tweet))
         .catch(next)
     }
-    console.log(list, src)
   }
 
   let errorHandler = err => {
@@ -530,8 +526,9 @@ router.post('/:boxUUID/tweets/indrive', fruitless, auth, (req, res, next) => {
 
 router.get('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
   let boxUUID = req.params.boxUUID
+  let metadata = req.query.metadata === 'true' ? true : false
   let { first, last, count, segments } = req.query
-  let props = { first, last, count, segments }
+  let props = { first, last, count, segments, metadata }
   
   getFruit().getTweetsAsync(req.user, boxUUID, props)
     .then(data => res.status(200).json(data))
