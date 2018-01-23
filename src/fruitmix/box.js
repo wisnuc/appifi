@@ -279,7 +279,7 @@ module.exports = {
     let tweets = await box.getTweetsAsync(props)
     if (metadata) {
       tweets.forEach(t => 
-        t.type === 'list' ? (t.list.forEach(l => this.mediaMap.hasMetadata(l.sha256) ? l.meta = this.mediaMap.getMetadata(l.sha256) : l)) :t
+        t.type === 'list' ? (t.list.forEach(l => this.mediaMap.hasMetadata(l.sha256) ? l.metadata = this.mediaMap.getMetadata(l.sha256) : l)) :t
       )
     }
     return tweets
