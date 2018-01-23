@@ -69,7 +69,7 @@ class BlobCTX extends EventEmitter {
     this.blobReadScheduled = false
     if (this.blobReadSettled()) {
       this.emit('BlobReadDone')
-      console.log('blob read finished')
+      debug('blob read finished')
       return
     }
 
