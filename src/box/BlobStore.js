@@ -185,7 +185,6 @@ class BlobStore extends BlobCTX{
       if (err) return callback(err)
       if (stderr) return callback(stderr)
       let hashArr = src.map(s => path.basename(s))
-      debug(hashArr)
       hashArr.forEach(x => this.blobEnterPending(x))
       let files = hashArr.map(i => path.join(dst, i)).join(' ')
       // modify permissions to read only
