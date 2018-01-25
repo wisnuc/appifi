@@ -117,6 +117,8 @@ class Box {
       tweeter: props.global,
       comment: props.comment
     }
+    if(props.parent) //FIXME: check range
+      tweet.parent = props.parent
 
     if (props.type) {
       tweet.type = props.type

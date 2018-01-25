@@ -324,7 +324,7 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
   if (req.is('multipart/form-data')) {
     const regex = /^multipart\/.+?(?:; boundary=(?:(?:"(.+)")|(?:([^\s]+))))$/i
     const m = regex.exec(req.headers['content-type'])
-    let obj, comment, type, size, sha256, arr, dicerFinished
+    let obj, comment, parent, type, size, sha256, arr, dicerFinished
     let urls = []
 
     dicer = new Dicer({ boundary: m[1] || m[2] })
@@ -337,7 +337,7 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
         let props
         if (type === 'list') {
           let list = obj.list.map(i => { return {sha256: i.sha256, filename: i.filename} })
-          props = {comment, type, list, src: urls}
+          props = { parent, comment, type, list, src: urls}
         }
 
         getFruit().createTweetAsync(req.user, boxUUID, props)
@@ -347,7 +347,7 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
         let e = new Error('necessary file not uploaded')
         e.status = 404
         errorHandler(dicer, req)
-        return res.status(e.status).json(e)
+        return next(e)
       }
     } 
 
@@ -355,6 +355,7 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
       rs.on('data', data => {
         obj = JSON.parse(data)
         if (typeof obj.comment === 'string') comment = obj.comment
+        if (obj.parent) parent = obj.parent
         if (obj.type) type = obj.type
         if (type === 'blob') {
           if (Number.isInteger(obj.size)) size = obj.size
@@ -454,7 +455,7 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
  */
 router.post('/:boxUUID/tweets/indrive', fruitless, auth, (req, res, next) => {
   let boxUUID = req.params.boxUUID
-  let { list, comment, type } = req.body
+  let { list, comment, type, parent } = req.body
   // props = {comment, type, list, src: urls}
   if(!list || !list.length ) return res.status(400).json({ message: 'list error'})
   if(type !== 'list') return res.status(400).json({ message: 'type error' })
@@ -468,7 +469,7 @@ router.post('/:boxUUID/tweets/indrive', fruitless, auth, (req, res, next) => {
       let ls = list.map(l => { 
         return {sha256, filename:l.filename }
       })
-      let props = { list:ls, src, comment, type }
+      let props = { list:ls, src, comment, type, parent }
       getFruit().createTweetAsync(req.user, boxUUID, props)
         .then(tweet => res.status(200).json(tweet))
         .catch(next)

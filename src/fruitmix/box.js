@@ -28,7 +28,7 @@ module.exports = {
   },
 
   reportMedia(fingerprint, metadata) {
-    this.mediaMap.set(fingerprint, metadata)
+    this.mediaMap.setMetadata(fingerprint, metadata)
   },
 
   userCanReadBlob(user, fingerprint) {
@@ -42,7 +42,7 @@ module.exports = {
   },
   
   userCanReadBox(user, boxUUID) {
-    if(!user || !user.global.id) throw Object.assign(new Error('user not found'), { status:401 })
+    if(!user || !user.global.id) return false
     let guid = user.global.id
     let box = this.boxData.getBox(boxUUID)
     if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
@@ -308,7 +308,7 @@ module.exports = {
 
     props.global = global
 
-    validateProps(props, ['global', 'comment'], ['type', 'id', 'list', 'src'])
+    validateProps(props, ['global', 'comment'], ['type', 'id', 'list', 'src', 'parent'])
     assert(typeof props.comment === 'string', 'comment should be a string')
     assert(typeof props.global === 'object', 'global should be an object')
     if (props.type) assert(typeof props.type === 'string', 'type should be a string')
