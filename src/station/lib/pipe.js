@@ -837,7 +837,7 @@ class Pipe {
 
   // download (get version for ios)
   async checkVersionAsync() {
-    await this.successResponseJsonAsync(serverAddr, sessionId, {version: true})
+    await this.successResponseJsonAsync(serverAddr, sessionId, {version: false})
   }
 
   // download (operation in a task)
