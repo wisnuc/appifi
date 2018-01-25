@@ -28,7 +28,7 @@ module.exports = {
   },
 
   reportMedia(fingerprint, metadata) {
-    this.mediaMap.set(fingerprint, metadata)
+    this.mediaMap.setMetadata(fingerprint, metadata)
   },
 
   userCanReadBlob(user, fingerprint) {
@@ -279,7 +279,9 @@ module.exports = {
     let tweets = await box.getTweetsAsync(props)
     if (metadata) {
       tweets.forEach(t => 
-        t.type === 'list' ? (t.list.forEach(l => this.mediaMap.has(l.sha256) ? l.metadata = this.mediaMap.get(l.sha256) : l)) :t
+        t.type === 'list' ? (t.list.forEach(l => this.mediaMap.hasMetadata(l.sha256) ? l.metadata = this.mediaMap.getMetadata(l.sha256) : l))
+                         : this.boxData.blobs.medias.has(l.sha256) ? l.metadata = this.boxData.blobs.medias.get(l.sha256)
+                          : t
       )
     }
     return tweets
