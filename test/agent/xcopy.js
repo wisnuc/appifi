@@ -991,3 +991,38 @@ describe(path.basename(__filename) + ' mv a -> b, read b concurrently', () => {
     expect(result_2.entries[0].uuid).to.equal(dirCUUID)
   })
 })
+
+describe(path.basename(__filename) + ' export a/[dir c, file d] -> external dir b', () => {
+  let alonzo = FILES.alonzo
+  let token, dirAUUID, fileDUUID
+
+  beforeEach(async () => {
+    await resetAsync()
+    await createUserAsync('alice')
+    token = await retrieveTokenAsync('alice')
+    dirAUUID = await createDirAsync(token, IDS.alice.home, IDS.alice.home, 'a')
+    dirCUUID = await createDirAsync(token, IDS.alice.home, dirAUUID, 'c')
+    fileDUUID = await createFileAsync(token, IDS.alice.home, dirAUUID, alonzo.name, alonzo.path, {
+      size: alonzo.size,
+      sha256: alonzo.hash
+    })
+  })
+
+  it.only('export vanilla, ', async () => {
+    let dstPath = path.join(process.cwd(), 'testExport')
+    await mkdirpAsync(dstPath)
+
+    let task = await createTaskAsync(token, {
+      type: 'export',
+      src: {drive: IDS.alice.home, dir: dirAUUID},
+      dst: {path: dstPath},
+      entries: [dirCUUID, fileDUUID]
+    })
+    console.log(task.nodes)
+    await Promise.delay(100)
+    task = await getTaskAsync(token, task.uuid)
+    console.log(task.nodes)
+
+
+  })
+})

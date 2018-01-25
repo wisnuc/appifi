@@ -937,6 +937,10 @@ class Fruitmix extends EventEmitter {
     this.vfs.mkfile(tmp, dst, policy, callback)
   }
 
+  clone (user, src, callback) {
+    this.vfs.clone(src, callback)
+  }
+
   readdir (user, driveUUID, dirUUID, callback) {
     this.vfs.readdir(driveUUID, dirUUID, callback)
   }
