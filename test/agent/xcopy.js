@@ -554,9 +554,10 @@ describe(path.basename(__filename) + ' mv a / [dir c, file d] -> dir b', () => {
       dst: { drive: IDS.alice.home, dir: dirBUUID },
       entries: [dirCUUID, fileDUUID]
     })
-
+    console.log(task.nodes)
     await Promise.delay(100)
     task = await getTaskAsync(token, task.uuid)
+    console.log(task.nodes)
     expect(task.nodes.length).to.equal(1)
     expect(task.nodes[0].state).to.equal('Finished')
   })
@@ -994,7 +995,8 @@ describe(path.basename(__filename) + ' mv a -> b, read b concurrently', () => {
 
 describe(path.basename(__filename) + ' export a/[dir c, file d] -> external dir b', () => {
   let alonzo = FILES.alonzo
-  let token, dirAUUID, fileDUUID
+  let bar = FILES.bar
+  let token, dirAUUID, fileDUUID, fileEUUID
 
   beforeEach(async () => {
     await resetAsync()
@@ -1006,9 +1008,13 @@ describe(path.basename(__filename) + ' export a/[dir c, file d] -> external dir 
       size: alonzo.size,
       sha256: alonzo.hash
     })
+    fileEUUID = await createFileAsync(token, IDS.alice.home, dirCUUID, bar.name, bar.path, {
+      size: bar.size,
+      sha256: bar.hash
+    })
   })
 
-  it.only('export vanilla, ', async () => {
+  it('export vanilla, eed4bcc7', async () => {
     let dstPath = path.join(process.cwd(), 'testExport')
     await mkdirpAsync(dstPath)
 
@@ -1022,7 +1028,11 @@ describe(path.basename(__filename) + ' export a/[dir c, file d] -> external dir 
     await Promise.delay(100)
     task = await getTaskAsync(token, task.uuid)
     console.log(task.nodes)
+    expect(task.nodes.length).to.equal(1)
+    expect(task.nodes[0].state).to.equal('Finished')
+  })
 
+  describe('dir conflict, target dir has dir c', async () => {
 
   })
 })
