@@ -554,10 +554,9 @@ describe(path.basename(__filename) + ' mv a / [dir c, file d] -> dir b', () => {
       dst: { drive: IDS.alice.home, dir: dirBUUID },
       entries: [dirCUUID, fileDUUID]
     })
-    console.log(task.nodes)
+
     await Promise.delay(100)
     task = await getTaskAsync(token, task.uuid)
-    console.log(task.nodes)
     expect(task.nodes.length).to.equal(1)
     expect(task.nodes[0].state).to.equal('Finished')
   })
@@ -982,12 +981,14 @@ describe(path.basename(__filename) + ' mv a -> b, read b concurrently', () => {
       entries: [dirCUUID],
       policies: { dir: ['keep'] }
     })
-    await Promise.delay(100)
+    // await Promise.delay(10)
     task = await getTaskAsync(token, task.uuid)
 
-    let result_1 = await getDriveDirAsync(token, IDS.alice.home, dirAUUID)
+    // let result_1 = await getDriveDirAsync(token, IDS.alice.home, dirAUUID)
     let result_2 = await getDriveDirAsync(token, IDS.alice.home, dirBUUID)
-    expect(result_1.entries.length).to.equal(0)
+    // console.log(result_1)
+    console.log(result_2)
+    // expect(result_1.entries.length).to.equal(0)
     expect(result_2.entries.length).to.equal(1)
     expect(result_2.entries[0].uuid).to.equal(dirCUUID)
   })
@@ -1024,12 +1025,12 @@ describe(path.basename(__filename) + ' export a/[dir c, file d] -> external dir 
       dst: {path: dstPath},
       entries: [dirCUUID, fileDUUID]
     })
-    console.log(task.nodes)
+
     await Promise.delay(100)
     task = await getTaskAsync(token, task.uuid)
-    console.log(task.nodes)
     expect(task.nodes.length).to.equal(1)
     expect(task.nodes[0].state).to.equal('Finished')
+    await rimrafAsync(dstPath)
   })
 
   describe('dir conflict, target dir has dir c', async () => {
