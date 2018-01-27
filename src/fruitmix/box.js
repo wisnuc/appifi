@@ -279,9 +279,9 @@ module.exports = {
     let tweets = await box.getTweetsAsync(props)
     if (metadata) {
       tweets.forEach(t => 
-        t.type === 'list' ? (t.list.forEach(l => this.mediaMap.hasMetadata(l.sha256) ? l.metadata = this.mediaMap.getMetadata(l.sha256) : l))
-                         : this.boxData.blobs.medias.has(l.sha256) ? l.metadata = this.boxData.blobs.medias.get(l.sha256)
-                          : t
+        t.type === 'list' ? (t.list.forEach(l => this.mediaMap.hasMetadata(l.sha256) ? l.metadata = this.mediaMap.getMetadata(l.sha256) 
+        : this.boxData.blobs.medias.has(l.sha256) ? l.metadata = this.boxData.blobs.medias.get(l.sha256): t))
+         : t
       )
     }
     return tweets

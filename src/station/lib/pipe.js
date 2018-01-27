@@ -926,9 +926,76 @@ class Pipe {
   }
 
   /********************************************************************************/
-  /******************************  HTTP Utils  ************************************/
+  /*********************************  Boxes API  **********************************/
   /********************************************************************************/
+ 
+  async getBoxesAsync(data) {
+    let { serverAddr, sessionId, user, body, paths } = data
+    let fruit = getFruit()
+    if (!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    let docList = fruit.getAllBoxes(user)
+    return await this.successResponseJsonAsync(serverAddr, sessionId, box)
+  }
+
+  async getBoxAsync(data) {
+    let { serverAddr, sessionId, user, body, paths } = data
+    let fruit = getFruit()
+    if (!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    let boxUUID = paths[1]
+    let doc = fruit.getBox(user, boxUUID)
+    return await this.successResponseJsonAsync(serverAddr, sessionId, doc)
+  }
+
+  async updateBoxAsync(data) {
+    let { serverAddr, sessionId, user, body, paths } = data
+    let fruit = getFruit()
+    if (!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    let boxUUID = paths[1]
+    let box = await fruit.updateBoxAsync(user, boxUUID, body)
+    return await this.successResponseJsonAsync(serverAddr, sessionId, box)
+  }
+
+  async deleteBoxAsync(data) {
+    let { serverAddr, sessionId, user, body, paths } = data
+    let fruit = getFruit()
+    if (!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    let boxUUID = paths[1]
+    await fruit.deleteBoxAsync(user, boxUUID)
+    return await this.successResponseJsonAsync(serverAddr, sessionId, {})
+  }
+
+  async createBoxAsync(data) {
+    let { serverAddr, sessionId, user, body, paths } = data
+    let fruit = getFruit()
+    if (!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    let doc = fruit.createBoxAsync(user, body)
+    return await this.successResponseJsonAsync(serverAddr, sessionId, doc)
+  }
+
+  async getTweetsAsync(data) {
+    let { serverAddr, sessionId, user, body, paths } = data
+    let fruit = getFruit()
+    if (!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    let boxUUID = paths[1]
+    let metadata = body.metadata === 'true' ? true : false
+    let { first, last, count, segments } = body
+    let props = { first, last, count, segments, metadata }
+    let data = fruit.getTweetsAsync(user, boxUUID, props)
+    return await this.successResponseJsonAsync(serverAddr, sessionId, data)
+  }
+
+  async createTweetAsync(data) {
+    
+  }
+
+  async getBoxFileAsync(data) {
   
+  }
+
+  /********************************************************************************/
+  /********************************  HTTP Utils  **********************************/
+  /********************************************************************************/
+
   //fetch file -- client download --> post file to cloud
   /**
    * 
@@ -1075,6 +1142,8 @@ class Pipe {
     this.handlers.set('addHttp', this.addHttpAsync.bind(this))
     this.handlers.set('getTorrentSwitch', this.getTorrentSwitchAsync.bind(this))
     this.handlers.set('patchTorrentSwitch', this.patchTorrentSwitchAsync.bind(this))
+    //boxes
+
   }
 }
 
