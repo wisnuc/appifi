@@ -34,6 +34,7 @@ class DlnaServer {
     }
     this.isStop = false
     let conf = confGen(mediaPath)
+    await child.execAsync('chown minidlna:minidlna /var/cache/minidlna')
     await fs.writeFileAsync(dlnaConfPath, conf)
     await this.restartAsync()
     debug('dlna start!')
