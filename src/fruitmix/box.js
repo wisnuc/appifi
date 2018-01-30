@@ -299,7 +299,7 @@ module.exports = {
       tweets.forEach(t => {
         if(t.type === 'list') {
           t.list.forEach(l => {
-            if(this.ctx.blobs.sizeMap.has(l.sha256)) l.size = this.ctx.blobs.sizeMap.get(l.sha256)
+            if(this.boxData.blobs.sizeMap.has(l.sha256)) l.size = this.boxData.blobs.sizeMap.get(l.sha256)
             if(this.mediaMap.hasMetadata(l.sha256)) l.metadata = this.mediaMap.getMetadata(l.sha256) 
             if(this.boxData.blobs.medias.has(l.sha256)) l.metadata = this.boxData.blobs.medias.get(l.sha256)
         })
