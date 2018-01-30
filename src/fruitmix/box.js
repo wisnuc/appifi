@@ -2,6 +2,24 @@ const { assert, isUUID, isSHA256, validateProps } = require('../common/assertion
 const fs = require('fs')
 /// ////////////// box api ///////////////////////
 module.exports = {
+  
+  // get user by guid if is local user, else return false
+  /**
+   * 
+   * @param {object} user
+   * {
+   *    global: {
+   *      id:xxx // guid
+   *      wx:[]
+   *    } 
+   * } 
+   */
+  isLocalUser(user) {
+    if(!user || !user.global || !user.global.id) return false
+    let u = this.findUserByGUID(user.global.id)
+    if(!user) return false
+    return u
+  },
 
   getBlobMediaThumbnail(user, fingerprint, query, callback) {
 

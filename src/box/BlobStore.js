@@ -81,7 +81,7 @@ class BlobCTX extends EventEmitter {
       }
     }
 
-    while (this.pendingBlobs.size > 0 && this.readingBlobs.size < 6) {
+    while (this.pendingBlobs.size > 0 && this.readingBlobs.size < 4) {
       let blobUUID = this.pendingBlobs[Symbol.iterator]().next().value
       this.blobExitPending(blobUUID)
       let blobPath = path.join(this.dir, blobUUID)

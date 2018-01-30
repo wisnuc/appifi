@@ -189,14 +189,15 @@ class Pipe {
     }
 
     let localUser = fruit.findUserByGUID(data.user.id)
+    if(localUser)
+      data.user = Object.assign({}, data.user, localUser)
+    // debug('fruit pipe user: ', data.user)
+    let messageType = this.decodeType(data)
 
-    if (!localUser)
+    if (data.needLocalUser && !localUser)
       return this.errorResponseAsync(data.serverAddr, data.sessionId, Object.assign(new Error('user not found'), { code: 400 }))
         .then(() => { }).catch(debug)
 
-    data.user = Object.assign({}, data.user, localUser)
-    // debug('fruit pipe user: ', data.user)
-    let messageType = this.decodeType(data)
     if (!messageType) {
       debug('resource error')
       return this.errorResponseAsync(data.serverAddr, data.sessionId, Object.assign(new Error('resource error'), { code: 400 }))
@@ -238,8 +239,8 @@ class Pipe {
     let resource = new Buffer(data.resource, 'base64').toString('utf8')
     let method = data.method
     let paths = resource.split('/').filter(p => p.length)
-    data.paths = [...paths]
-
+    data.paths = [...paths] // record paths
+    data.needLocalUser = true // middleware for check user
     if (!paths.length) return undefined
     let r1 = paths.shift()
     switch (r1) {
@@ -286,6 +287,22 @@ class Pipe {
         return paths.length === 0 && method === 'GET' ? 'getSummary' 
                   : paths.length === 1 ? (method === 'PATCH' ? 'patchTorrent' : (paths[0] === 'magnet' ? 'addMagnet' : 'addTorrent'))
                   : undefined
+        break
+      case 'boxes': {
+          data.needLocalUser = false
+          return paths.length === 0 ? (method === 'GET' ? 'GetBoxes' : 'CreateBox') 
+                  : (paths.length === 1 ? (method === 'GET' ? 'GetBox' : (method === 'PATCH' ? 'UpdateBox' : (method === 'DELETE' ? 'DeleteBox': undefined))) 
+                  : (paths.length === 2 ? (paths[1] === 'tweets' ? (method === 'Get' ? 'GetTweets' : (method === 'DELETE' ? 'DeleteTweets' : (method === 'POST' ? 'CreateTweet' : undefined))) : undefined)
+                  : (paths.length === 3 && paths[2] === 'files' ? 'GetBoxFile' 
+                  : undefined)))
+        }
+        break
+      case 'tasks' :
+        return paths.length === 0 ? (method === 'GET' ? 'GetTasks' : 'CreateTask')
+                : paths.length === 1 ? (method === 'GET' ? 'GetTask' : 'DeleteTask')
+                : paths.length === 3 ? (method === 'PATCH' ? 'UpdateSubTask' : 'DeleteSubTask')
+                : undefined 
+        break
       default:
         return undefined
         break
@@ -926,9 +943,97 @@ class Pipe {
   }
 
   /********************************************************************************/
+  /*********************************  Tasks API  **********************************/
+  /********************************************************************************/
+
+  async getTasksAsync(data) {
+    let { serverAddr, sessionId, user, body, paths } = data
+    let fruit = getFruit()
+    if (!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    let tasks = await new Promise((resolve, reject) => {
+      fruit.getTasks(user, (err, tasks) => {
+        if(err) return reject(err)
+        resolve(tasks)
+      })
+    })
+    await this.successResponseJsonAsync(serverAddr, sessionId, tasks)
+  }
+
+  async createTaskAsync(data) {
+    let { serverAddr, sessionId, user, body, paths } = data
+    let fruit = getFruit()
+    if (!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    let task = await new Promise((resolve, reject) => {
+      fruit.createTask(user, body, (err, task) => {
+        if(err) return reject(err)
+        resolve(task)
+      })
+    })
+    await this.successResponseJsonAsync(serverAddr, sessionId, task)
+  }
+
+  async getTaskAsync(data) {
+    let { serverAddr, sessionId, user, body, paths } = data
+    let fruit = getFruit()
+    if (!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    let taskId = paths[1]
+    let task = await new Promise((resolve, reject) => {
+      fruit.getTask(user, taskId, (err, task) => {
+        if(err) return reject(err)
+        resolve(task)
+      })
+    })
+    await this.successResponseJsonAsync(serverAddr, sessionId, task)
+  }
+
+  async deleteTaskAsync(data) {
+    let { serverAddr, sessionId, user, body, paths } = data
+    let fruit = getFruit()
+    if (!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    let taskId = paths[1]
+    await new Promise((resolve, reject) => {
+      fruit.deleteTask(user, taskId, err => {
+        if(err) return reject(err)
+        resolve()
+      })
+    })
+    await this.successResponseJsonAsync(serverAddr, sessionId, {})
+  }
+
+  async updateSubTaskAsync(data) {
+    let { serverAddr, sessionId, user, body, paths } = data
+    let fruit = getFruit()
+    if (!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    let taskId = paths[1]
+    let nodeId = paths[3]
+    let t = await new Promise((resolve, reject) => {
+      fruit.updateSubTask(user, taskId, nodeId, (err, t) => {
+        if(err) return reject(err)
+        resolve(t)
+      })
+    })
+    await this.successResponseJsonAsync(serverAddr, sessionId, t)
+  }
+
+  async deleteSubTaskAsync(data) {
+    let { serverAddr, sessionId, user, body, paths } = data
+    let fruit = getFruit()
+    if (!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    let taskId = paths[1]
+    let nodeId = paths[3]
+    await new Promise((resolve, reject) => {
+      fruit.deleteSubTask(user, taskId, nodeId, err => {
+        if(err) return reject(err)
+        resolve()
+      })
+    })
+    await this.successResponseJsonAsync(serverAddr, sessionId, t)
+  }
+
+  /********************************************************************************/
   /*********************************  Boxes API  **********************************/
   /********************************************************************************/
- /*
+  
   async getBoxesAsync(data) {
     let { serverAddr, sessionId, user, body, paths } = data
     let fruit = getFruit()
@@ -968,7 +1073,7 @@ class Pipe {
     let { serverAddr, sessionId, user, body, paths } = data
     let fruit = getFruit()
     if (!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
-    let doc = fruit.createBoxAsync(user, body)
+    let doc = await fruit.createBoxAsync(user, body)
     return await this.successResponseJsonAsync(serverAddr, sessionId, doc)
   }
 
@@ -980,8 +1085,8 @@ class Pipe {
     let metadata = body.metadata === 'true' ? true : false
     let { first, last, count, segments } = body
     let props = { first, last, count, segments, metadata }
-    let data = fruit.getTweetsAsync(user, boxUUID, props)
-    return await this.successResponseJsonAsync(serverAddr, sessionId, data)
+    let tweets = await fruit.getTweetsAsync(user, boxUUID, props)
+    return await this.successResponseJsonAsync(serverAddr, sessionId, tweets)
   }
 
   async createTweetAsync(data) {
@@ -989,9 +1094,28 @@ class Pipe {
   }
 
   async getBoxFileAsync(data) {
-  
+    let { serverAddr, sessionId, user, body, paths } = data
+    let fruit = getFruit()
+    if (!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    let boxUUID = paths[1]
+    let blobUUID = paths[3]
+    let fPath = fruit.getBoxFilepath(user, boxUUID, blobUUID)
+    if (fPath)
+      return await this.fetchFileResponseAsync(fpath, serverAddr, sessionId)
+    else 
+      return await this.errorFetchResponseAsync(serverAddr, sessionId, new Error('file not found'))   
   }
- */
+
+  async deleteBoxTweets(data) {
+    let { serverAddr, sessionId, user, body, paths } = data
+    let fruit = getFruit()
+    if (!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    let boxUUID = paths[1]
+    let indexArr = body.indexArr
+    await fruit.deleteTweetsAsync(req.user, boxUUID, indexArr)
+    return await this.successResponseJsonAsync(serverAddr, sessionId, {})
+  }
+
   /********************************************************************************/
   /********************************  HTTP Utils  **********************************/
   /********************************************************************************/
@@ -1143,7 +1267,22 @@ class Pipe {
     this.handlers.set('getTorrentSwitch', this.getTorrentSwitchAsync.bind(this))
     this.handlers.set('patchTorrentSwitch', this.patchTorrentSwitchAsync.bind(this))
     //boxes
-
+    this.handlers.set('GetBoxes', this.getBoxesAsync.bind(this))
+    this.handlers.set('CreateBox', this.createBoxAsync.bind(this))
+    this.handlers.set('GetBox', this.getBoxAsync.bind(this))
+    this.handlers.set('UpdateBox', this.updateBoxAsync.bind(this))
+    this.handlers.set('DeleteBox', this.deleteBoxAsync.bind(this))
+    this.handlers.set('GetTweets', this.getTweetsAsync.bind(this))
+    this.handlers.set('DeleteTweets', this.deleteBoxTweets.bind(this))
+    this.handlers.set('CreateTweet', this.createTweetAsync.bind(this))
+    this.handlers.set('GetBoxFile', this.getBoxFileAsync.bind(this))
+    //tasks
+    this.handlers.set('GetTasks', this.getTasksAsync.bind(this))
+    this.handlers.set('CreateTask',this.createTaskAsync.bind(this))
+    this.handlers.set('GetTask', this.getTaskAsync.bind(this))
+    this.handlers.set('DeleteTask', this.deleteTaskAsync.bind(this))
+    this.handlers.set('UpdateSubTask', this.updateSubTaskAsync.bind(this))
+    this.handlers.set('DeleteSubTask', this.deleteSubTaskAsync.bind(this))
   }
 }
 
