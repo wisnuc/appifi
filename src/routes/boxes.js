@@ -461,13 +461,14 @@ router.post('/:boxUUID/tweets/indrive', fruitless, auth, (req, res, next) => {
   if(type !== 'list') return res.status(400).json({ message: 'type error' })
   let error, count = list.length
   let user = getFruit().findUserByGUID(req.user.global.id)
+  if(!user) return res.status(400).json('local user not found')
   let src = []
   let finishHandle = (sha256, filepath) => {
     if(error) return
     src.push({ sha256, filepath })
     if(list.every(i => i.finished && (src.findIndex(s => s.sha256 === i.sha256)!== -1))) {
       let ls = list.map(l => { 
-        return {sha256, filename:l.filename }
+        return { sha256:l.sha256, filename:l.filename }
       })
       let props = { list:ls, src, comment, type, parent }
       getFruit().createTweetAsync(req.user, boxUUID, props)
