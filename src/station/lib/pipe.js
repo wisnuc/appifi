@@ -1034,7 +1034,7 @@ class Pipe {
     let taskId = paths[1]
     let nodeId = paths[3]
     let t = await new Promise((resolve, reject) => {
-      fruit.updateSubTask(user, taskId, nodeId, (err, t) => {
+      fruit.updateSubTask(user, taskId, nodeId, body, (err, t) => {
         if(err) return reject(err)
         resolve(t)
       })
