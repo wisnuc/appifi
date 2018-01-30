@@ -292,7 +292,7 @@ class Pipe {
           data.needLocalUser = false
           return paths.length === 0 ? (method === 'GET' ? 'GetBoxes' : 'CreateBox') 
                   : (paths.length === 1 ? (method === 'GET' ? 'GetBox' : (method === 'PATCH' ? 'UpdateBox' : (method === 'DELETE' ? 'DeleteBox': undefined))) 
-                  : (paths.length === 2 ? (paths[1] === 'tweets' ? (method === 'Get' ? 'GetTweets' : (method === 'DELETE' ? 'DeleteTweets' : (method === 'POST' ? 'CreateTweet' : undefined))) : undefined)
+                  : (paths.length === 2 ? (paths[1] === 'tweets' ? (method === 'GET' ? 'GetTweets' : (method === 'DELETE' ? 'DeleteTweets' : (method === 'POST' ? 'CreateTweet' : undefined))) : undefined)
                   : (paths.length === 3 && paths[2] === 'files' ? 'GetBoxFile' 
                   : undefined)))
         }
