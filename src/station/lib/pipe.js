@@ -657,12 +657,18 @@ class Pipe {
     }
     else if (body.alt === 'data') {
       data.subType = 'GetMediaFile'
-      let files = fruit.getFilesByFingerprint(user, fingerprint)
-      if (files.length) {
-        return await this.fetchFileResponseAsync(files[0], serverAddr, sessionId)
+      let file
+      if(body.boxUUID) {
+        file = getFruit().getBoxFilepath(user, query.boxUUID, fingerprint)
+        if (!file) 
+          return await this.errorFetchResponseAsync(serverAddr, sessionId, new Error('media not found'))
       } else {
-        return await this.errorFetchResponseAsync(serverAddr, sessionId, new Error('media not found'))
+        let files = fruit.getFilesByFingerprint(user, fingerprint)
+        if (!files.length) 
+          return await this.errorFetchResponseAsync(serverAddr, sessionId, new Error('media not found'))
+        file = files[0]
       }
+      return await this.fetchFileResponseAsync(file, serverAddr, sessionId)
     }
     else if (body.alt === 'thumbnail') {
       data.subType = 'GetMediaThumbnail'
@@ -682,17 +688,38 @@ class Pipe {
     //getMediaThumbnail
     let fruit = getFruit()
     if (!fruit) return callback(new Error('fruitmix not start'))
-    fruit.getThumbnail(user, fingerprint, query, (err, thumb) => {
-      if (err) return callback(err)
-      if (typeof thumb === 'string') {
-        return callback(null, thumb)
-      } else if (typeof thumb === 'function') {
-        let cancel = thumb((err, th) => {
+    if(query.boxUUID) {
+      try{
+        let fp = fruit.getBlobMediaThumbnail(user, fingerprint, query, (err, thumb) => {
           if (err) return callback(err)
-          return callback(null, th)
+          if (typeof thumb === 'string') {
+            callback(null, thumb)
+          } else if (typeof thumb === 'function') {
+            let cancel = thumb((err, th) => {
+              if (err) return callback(err)
+              callback(null, th)
+            })
+            // TODO cancel
+          } else {
+            callback(new Error(`unexpected thumb type ${typeof thumb}`))
+          }
         })
       }
-    })
+      catch(e) { return callback(e) }
+    }
+    else {
+      fruit.getThumbnail(user, fingerprint, query, (err, thumb) => {
+        if (err) return callback(err)
+        if (typeof thumb === 'string') {
+          return callback(null, thumb)
+        } else if (typeof thumb === 'function') {
+          let cancel = thumb((err, th) => {
+            if (err) return callback(err)
+            return callback(null, th)
+          })
+        }
+      })
+    }
   }
 
   async getMediaThumbnailAsync(user, fingerprint, query) {
