@@ -162,7 +162,7 @@ module.exports = {
    * @param {string} boxUUID 
    */
   async deleteBoxAsync (user, boxUUID) {
-    let u = this.findUserByUUID(user.uuid)
+    let u = this.findUserByGUID(user.global.id)
     if (!u || user.global.id !== u.global.id) { throw Object.assign(new Error('no permission'), { status: 403 }) }
 
     if (!isUUID(boxUUID)) throw Object.assign(new Error('invalid boxUUID'), { status: 400 })
