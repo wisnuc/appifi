@@ -104,7 +104,7 @@ module.exports = {
    * @return {Object} box description (doc)
    */
   async createBoxAsync (user, props) {
-    let u = this.findUserByUUID(user.uuid)
+    let u = this.findUserByGUID(user.global.id)
     if (!u || user.global.id !== u.global.id) { throw Object.assign(new Error('no permission'), { status: 403 }) }
     validateProps(props, ['name', 'users'])
     assert(typeof props.name === 'string', 'name should be a string')
@@ -296,11 +296,15 @@ module.exports = {
     let metadata = props.metadata
     let tweets = await box.getTweetsAsync(props)
     if (metadata) {
-      tweets.forEach(t => 
-        t.type === 'list' ? (t.list.forEach(l => this.mediaMap.hasMetadata(l.sha256) ? l.metadata = this.mediaMap.getMetadata(l.sha256) 
-        : this.boxData.blobs.medias.has(l.sha256) ? l.metadata = this.boxData.blobs.medias.get(l.sha256): t))
-         : t
-      )
+      tweets.forEach(t => {
+        if(t.type === 'list') {
+          t.list.forEach(l => {
+            if(this.ctx.blobs.sizeMap.has(l.sha256)) l.size = this.ctx.blobs.sizeMap.get(l.sha256)
+            if(this.mediaMap.hasMetadata(l.sha256)) l.metadata = this.mediaMap.getMetadata(l.sha256) 
+            if(this.boxData.blobs.medias.has(l.sha256)) l.metadata = this.boxData.blobs.medias.get(l.sha256)
+        })
+       }
+      })
     }
     return tweets
   },

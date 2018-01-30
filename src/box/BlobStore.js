@@ -22,6 +22,7 @@ class BlobCTX extends EventEmitter {
     this.readingBlobs = new Set()
     this.failedBlobs = new Set()
     this.medias = new Map()
+    this.sizeMap = new Map()
   }
 
   blobEnterPending(blobUUID) {
@@ -88,6 +89,7 @@ class BlobCTX extends EventEmitter {
       this.blobEnterReading(blobUUID)
       fs.lstat(blobPath, (err, stat) => {
         if (err) return finalized(blobUUID, err)
+        this.sizeMap.set(blobUUID, stat.size)
         fileMagic6(blobPath, (err, magic) => {
           if (err) return finalized(blobUUID, err)
           if (magic === 'JPEG') {
