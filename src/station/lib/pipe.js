@@ -1039,7 +1039,7 @@ class Pipe {
     let fruit = getFruit()
     if (!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
     let docList = fruit.getAllBoxes(user)
-    return await this.successResponseJsonAsync(serverAddr, sessionId, box)
+    return await this.successResponseJsonAsync(serverAddr, sessionId, docList)
   }
 
   async getBoxAsync(data) {
