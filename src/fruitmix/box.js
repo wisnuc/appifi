@@ -109,8 +109,7 @@ module.exports = {
     validateProps(props, ['name', 'users'])
     assert(typeof props.name === 'string', 'name should be a string')
     assert(Array.isArray(props.users), 'users should be an array')
-    // FIXME: check user global ID in props.users ?
-
+    if(!props.users.every(u => isUUID(u))) throw new Error('users item error, not guid')
     props.owner = user.global.id
     return this.boxData.createBoxAsync(props)
   },
