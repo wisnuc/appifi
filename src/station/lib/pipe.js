@@ -1128,7 +1128,7 @@ class Pipe {
     let blobUUID = paths[3]
     let fPath = fruit.getBoxFilepath(user, boxUUID, blobUUID)
     if (fPath)
-      return await this.fetchFileResponseAsync(fpath, serverAddr, sessionId)
+      return await this.fetchFileResponseAsync(fPath, serverAddr, sessionId)
     else 
       return await this.errorFetchResponseAsync(serverAddr, sessionId, new Error('file not found'))   
   }
