@@ -341,8 +341,8 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
       if(!dicerFinished) return
       if (arr.every(i => i.finish) && indrive.every(i => i.finish)) {
         let props
-        if (type === 'list') {
-          let list = obj.list.map(i => { return { sha256: i.sha256, filename: i.filename } })
+        if (type === 'list' ) {
+          let list =  arr.map(i => { return { sha256: i.sha256, filename: i.filename } })
           let ins = indrive.map(l => { return { sha256:l.sha256, filename:l.filename }})
           props = { parent, comment, type, list:[...list, ...ins], src: urls}
         }
