@@ -319,6 +319,19 @@ const dataHandler = (rs, callback) => {
   })
 }
 
+const copyDriveFile = (filePath, tmpPath, callback) => {
+  fs.lstat(filePath, err => {
+    if(err) return callback(err)
+    //TODO: read xstat
+    fs.copyFile(filePath, tmpPath, err => {
+      if(err) return callback(err)
+      fingerprintSimple(tmpPath, (err, fingerprint) => {
+        if(err) return callback(err)
+        callback(fingerprint)
+      }) 
+    })
+  })
+}
 /**
  * field : {
  *    
@@ -360,6 +373,7 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
     let errorComplete = err => {
       if(error) return
       error = err
+      console.log(err)
       errorHandler(dicer, req)
       return res.status(400).json(err)
     }
@@ -377,9 +391,9 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
           filecount += indrive.length
           let user = getFruit().findUserByGUID(req.user.global.id)
           if(!user) return errorComplete(new Error('user not found in drive'))
+          let tmpdir = getFruit().getTmpDir()
           indrive.forEach(l => {
             if(error) return
-            let tmpdir = getFruit().getTmpDir()
             let tmpPath = path.join(tmpdir, UUID.v4())
             if(l.type === 'media') {
               let files = getFruit().getFilesByFingerprint(user, l.sha256)
@@ -400,22 +414,13 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
                 return errorComplete(new Error('filename , dirUUID or driveUUID error'))
               let dirPath = getFruit().getDriveDirPath(user, driveUUID, dirUUID)
               let filePath = path.join(dirPath, filename)
-              fs.lstat(filePath, err => {
+              copyDriveFile(filePath, tmpPath, (err, fingerprint) => {
                 if(error) return
                 if(err) return errorComplete(err)
-                //TODO: read xstat
-                fs.copyFile(filePath, tmpPath, err => {
-                  if(error) return
-                  if(err) return errorComplete(err)
-                  fingerprintSimple(tmpPath, (err, fingerprint) => {
-                    if(error) return
-                    if(err) return errorComplete(err)
-                    l.sha256 = fingerprint
-                    l.finish = true
-                    urls.push({sha256: l.sha256, filepath: tmpPath})
-                    return partFinish()
-                  }) 
-                })
+                l.sha256 = fingerprint
+                l.finish = true
+                urls.push({sha256: l.sha256, filepath: tmpPath})
+                return partFinish()
               })
             } else return errorComplete(new Error('list item error'))
           })
