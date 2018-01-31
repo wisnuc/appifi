@@ -389,7 +389,7 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
                 fs.copyFile(mediaPath, tmpPath, err => {
                   if(error) return
                   if(err) return errorComplete(err)
-                  l.finished = true
+                  l.finish = true
                   urls.push({sha256: l.sha256, filepath: tmpPath})
                   return partFinish()
                 })
@@ -411,7 +411,7 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
                     if(error) return
                     if(err) return errorComplete(err)
                     l.sha256 = fingerprint
-                    l.finished = true
+                    l.finish = true
                     urls.push({sha256: l.sha256, filepath: tmpPath})
                     return partFinish()
                   }) 
