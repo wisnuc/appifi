@@ -327,7 +327,7 @@ const copyDriveFile = (filePath, tmpPath, callback) => {
       if(err) return callback(err)
       fingerprintSimple(tmpPath, (err, fingerprint) => {
         if(err) return callback(err)
-        callback(fingerprint)
+        callback(null, fingerprint)
       }) 
     })
   })
