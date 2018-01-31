@@ -370,7 +370,7 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
         if (typeof obj.comment === 'string') comment = obj.comment
         if (obj.parent) parent = obj.parent
         if (obj.type) type = obj.type
-        if (type === 'list') arr = obj.list
+        if (type === 'list'&& obj.list) arr = obj.list
         //TODO: schedule
         if (obj.indrive) {
           indrive = obj.indrive
