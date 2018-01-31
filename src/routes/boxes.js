@@ -375,6 +375,8 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
         if (obj.indrive) {
           indrive = obj.indrive
           filecount += indrive.length
+          let user = getFruit().findUserByGUID(req.user.global.id)
+          if(!user) return errorComplete(new Error('user not found in drive'))
           indrive.forEach(l => {
             if(error) return
             let tmpdir = getFruit().getTmpDir()
