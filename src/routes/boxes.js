@@ -361,7 +361,7 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
       if(error) return
       error = err
       errorHandler(dicer, req)
-      return res.status(e.status).json(e)
+      return res.status(400).json(err)
     }
 
     const onField = rs => {
