@@ -1218,7 +1218,7 @@ class Pipe {
     }
     let tweet = await fruit.createTweetAsync(user, boxUUID, props)
     if (list.length)
-      await this.successStoreResponseAsync(serverAddr, sessionId, tweet)
+      return await this.successStoreResponseAsync(serverAddr, sessionId, tweet)
     await this.successResponseJsonAsync(serverAddr, sessionId, tweet)
   }
 
