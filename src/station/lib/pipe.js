@@ -1125,7 +1125,7 @@ class Pipe {
       let finish = () => {
         if(error) return
         if(indrive.every(i => i.finish))
-          return resolve(files)
+          return resolve(indrive)
       }
       let errorHandle = (err) => {
         if(error) return
