@@ -1210,7 +1210,9 @@ class Pipe {
     let props
     if (type === 'list' ) {
       let li =  list.map(i => { return { sha256: i.sha256, filename: i.filename } })
-      let ins = indrive.map(l => { return { sha256:l.sha256, filename:l.filename }})
+      let ins = []
+      if(indrive)
+        ins = indrive.map(l => { return { sha256:l.sha256, filename:l.filename }})
       props = { parent, comment, type, list:[...li, ...ins], src }
     }
 
