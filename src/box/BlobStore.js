@@ -183,11 +183,9 @@ class BlobStore extends BlobCTX{
     let dst = this.dir
     debug('start store blob')
     let counter = src.length
-    
-    // move files into blobs
-    child.exec(`mv ${srcStr} -t ${dst}`, (err, stdout, stderr) => {
-      if (err) return callback(err)
-      if (stderr) return callback(stderr)
+    let error
+    let finishHandle = () => {
+      if(--counter) return
       let hashArr = src.map(s => path.basename(s))
       hashArr.forEach(x => this.blobEnterPending(x))
       let files = hashArr.map(i => path.join(dst, i)).join(' ')
@@ -197,7 +195,35 @@ class BlobStore extends BlobCTX{
         if (stderr) return callback(stderr)
         callback(null, stdout)
       })
+    }
+    let errorHandle = (err) => {
+      if (error) return
+      error = err
+      return callback(err)
+    }
+    
+    src.forEach(filepath => {
+      let sha256 = path.basename(filepath)
+      fs.rename(filepath, path.join(dst,sha256), err => {
+        if(err) return errorHandle(err)
+        finishHandle()
+      })
     })
+
+    // move files into blobs
+    // child.exec(`mv ${srcStr} -t ${dst}`, (err, stdout, stderr) => {
+    //   if (err) return callback(err)
+    //   if (stderr) return callback(stderr)
+    //   let hashArr = src.map(s => path.basename(s))
+    //   hashArr.forEach(x => this.blobEnterPending(x))
+    //   let files = hashArr.map(i => path.join(dst, i)).join(' ')
+    //   // modify permissions to read only
+    //   child.exec(`chmod 444 ${files}`, (err, stdout, stderr) => {
+    //     if (err) return callback(err)
+    //     if (stderr) return callback(stderr)
+    //     callback(null, stdout)
+    //   })
+    // })
   }
 
   /**

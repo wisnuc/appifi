@@ -18,6 +18,7 @@ const ioctl = require('ioctl')
 
 const requestAsync = require('./request').requestHelperAsync
 const broadcast = require('../../common/broadcast')
+const fingerprintSimple = require('../../utils/fingerprintSimple')
 // const boxData = require('../../box/boxData')
 
 const getFruit = require('../../fruitmix')
