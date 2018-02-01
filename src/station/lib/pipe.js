@@ -1195,7 +1195,7 @@ class Pipe {
     let src = []
     let boxUUID = paths[1]
     if (list && list.length > 1) return await this.errorResponseAsync(serverAddr, sessionId, new Error('list can only one item if use pipe'))
-    if(list.length) {
+    if(list && list.length) {
       let l = list[0]
       let store = new StoreFile(this.tmp, l.size, l.sha256)
       let filepath = await store.storeFileAsync(serverAddr, sessionId,  this.stationId, this.token)
@@ -1217,7 +1217,7 @@ class Pipe {
       props = { parent, comment, type, list:[...li, ...ins], src }
     }
     let tweet = await fruit.createTweetAsync(user, boxUUID, props)
-    if (list.length)
+    if (list && list.length)
       return await this.successStoreResponseAsync(serverAddr, sessionId, tweet)
     await this.successResponseJsonAsync(serverAddr, sessionId, tweet)
   }
