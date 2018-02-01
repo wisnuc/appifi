@@ -1149,7 +1149,7 @@ class Pipe {
 
       indrive.forEach(l => {
         if(error) return
-        let tmpPath = path.join(tmpdir, UUID.v4())
+        let tmpPath = path.join(tmpdir, uuid.v4())
         if(l.type === 'media') {
           let files = getFruit().getFilesByFingerprint(user, l.sha256)
           if(files.length) {
