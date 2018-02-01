@@ -1215,7 +1215,7 @@ class Pipe {
     }
 
     let tweet = await fruit.createTweetAsync(req.user, boxUUID, props)
-    return await this.successResponseJsonAsync(serverAddr, sessionId, tweet)
+    await this.successStoreResponseAsync(serverAddr, sessionId, tweet)
   }
 
   async getBoxFileAsync(data) {

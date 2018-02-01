@@ -182,6 +182,8 @@ class BlobStore extends BlobCTX{
     let srcStr = src.join(' ')
     let dst = this.dir
     debug('start store blob')
+    let counter = src.length
+    
     // move files into blobs
     child.exec(`mv ${srcStr} -t ${dst}`, (err, stdout, stderr) => {
       if (err) return callback(err)
