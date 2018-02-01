@@ -1198,7 +1198,7 @@ class Pipe {
     if(list.length) {
       let l = list[0]
       let store = new StoreFile(this.tmp, l.size, l.sha256)
-      let filepath = store.storeFileAsync(serverAddr, sessionId,  this.stationId, this.token)
+      let filepath = await store.storeFileAsync(serverAddr, sessionId,  this.stationId, this.token)
       src.push({ sha256:l.sha256, filepath })
     }
     if (indrive) {
@@ -1216,7 +1216,6 @@ class Pipe {
         ins = indrive.map(l => { return { sha256:l.sha256, filename:l.filename }})
       props = { parent, comment, type, list:[...li, ...ins], src }
     }
-
     let tweet = await fruit.createTweetAsync(user, boxUUID, props)
     if (list.length)
       await this.successStoreResponseAsync(serverAddr, sessionId, tweet)
