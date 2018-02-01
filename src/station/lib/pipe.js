@@ -1116,8 +1116,106 @@ class Pipe {
     return await this.successResponseJsonAsync(serverAddr, sessionId, tweets)
   }
 
+  async indriveFilesMoveAsync (user,  indrive) {
+    return new Promise((resolve, reject) => {
+      if(!indrive || !indrive.length) return resolve([])
+      let tmpdir = getFruit().getTmpDir()
+      let filecount = indrive.length
+      let error
+      let finish = () => {
+        if(error) return
+        if(indrive.every(i => i.finish))
+          return resolve(files)
+      }
+      let errorHandle = (err) => {
+        if(error) return
+        error = err
+        reject(error)
+      }
+
+      let copyDriveFile = (filePath, tmpPath, callback) => {
+        fs.lstat(filePath, err => {
+          if(err) return callback(err)
+          //TODO: read xstat
+          fs.copyFile(filePath, tmpPath, err => {
+            if(err) return callback(err)
+            fingerprintSimple(tmpPath, (err, fingerprint) => {
+              if(err) return callback(err)
+              callback(null, fingerprint)
+            }) 
+          })
+        })
+      }
+
+      indrive.forEach(l => {
+        if(error) return
+        let tmpPath = path.join(tmpdir, UUID.v4())
+        if(l.type === 'media') {
+          let files = getFruit().getFilesByFingerprint(user, l.sha256)
+          if(files.length) {
+            let mediaPath = files[0]
+            // TODO: check file xstat
+            fs.copyFile(mediaPath, tmpPath, err => {
+              if(error) return
+              if(err) return errorHandle(err)
+              l.finish = true
+              l.filepath = tmpPath
+              return finish()
+            })
+          } else return errorHandle(new Error(`media ${ l.sha256 } not found`))
+        } else if(l.type === 'file') {
+          let { filename, dirUUID, driveUUID } = l
+          if(!filename || !dirUUID || !driveUUID || !filename.length || !dirUUID.length || !driveUUID.length) 
+            return errorHandle(new Error('filename , dirUUID or driveUUID error'))
+          let dirPath
+          try {
+            dirPath = getFruit().getDriveDirPath(user, driveUUID, dirUUID)
+          } catch(e) {
+            return errorHandle(e)
+          }
+          let filePath = path.join(dirPath, filename)
+          copyDriveFile(filePath, tmpPath, (err, fingerprint) => {
+            if(error) return
+            if(err) return errorHandle(err)
+            l.sha256 = fingerprint
+            l.finish = true
+            l.filepath = tmpPath
+            return finish()
+          })
+        } else return errorHandle(new Error('list item error'))
+      })
+    })
+  }
+
   async createTweetAsync(data) {
-    
+    let { serverAddr, sessionId, user, body, paths } = data
+    let fruit = getFruit()
+    if (!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    let { parent, type, list, indrive, comment } = body
+    let src = []
+    if (list && list.length > 1) return await this.errorResponseAsync(serverAddr, sessionId, new Error('list can only one item if use pipe'))
+    if(list.length) {
+      let l = list[0]
+      let store = new StoreFile(this.tmp, l.size, l.sha256)
+      let filepath = store.storeFileAsync(serverAddr, sessionId,  this.stationId, this.token)
+      src.push({ sha256:l.sha256, filepath })
+    }
+    if (indrive) {
+      user = getFruit().findUserByGUID(user.global.id)
+      if(!user) return await this.errorResponseAsync(serverAddr, sessionId, new Error('indrive only use for local user'))
+      let files = await this.indriveFilesMoveAsync(user, indrive)
+      files.map(f => src.push({ sha256: f.sha256, filepath:f.filepath}))
+    }
+
+    let props
+    if (type === 'list' ) {
+      let li =  list.map(i => { return { sha256: i.sha256, filename: i.filename } })
+      let ins = indrive.map(l => { return { sha256:l.sha256, filename:l.filename }})
+      props = { parent, comment, type, list:[...li, ...ins], src }
+    }
+
+    let tweet = await fruit.createTweetAsync(req.user, boxUUID, props)
+    return await this.successResponseJsonAsync(serverAddr, sessionId, tweet)
   }
 
   async getBoxFileAsync(data) {
