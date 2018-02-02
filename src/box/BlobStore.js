@@ -8,6 +8,7 @@ const identify = require('../lib/identify')
 const mkdirp = require('mkdirp')
 const EventEmitter = require('events').EventEmitter 
 const debug = require('debug')('boxes')
+const exiftool = require('../lib/exiftool2')
 
 class BlobCTX extends EventEmitter {
   /**
@@ -93,6 +94,7 @@ class BlobCTX extends EventEmitter {
         fileMagic6(blobPath, (err, magic) => {
           if (err) return finalized(blobUUID, err)
           if (magic === 'JPEG') {
+            /*
             let worker = identify(blobPath, blobUUID)
             worker.on('finish', data => {
               this.medias.set(blobUUID, data)
@@ -101,6 +103,13 @@ class BlobCTX extends EventEmitter {
             })
             worker.on('error', err => finalized(blobUUID, err))
             worker.run()
+            */
+            let worker = exiftool(blobPath, magic, (err, data) => {
+              if(err) return (blobUUID, err)
+              this.medias.set(blobUUID, data)
+              this.ctx.reportMedia(blobUUID, data) // TODO: 
+              return finalized(blobUUID)
+            })
           } else return finalized(blobUUID)
         })
       })
