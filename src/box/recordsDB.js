@@ -212,7 +212,7 @@ class RecordsDB {
         return callback(null, result)
       }
       else if (!first && !last && count && !segments) {
-        let result = records.silce(-count)
+        let result = records.slice(-count)
                             .map(r => JSON.parse(r))
                             .filter(r => !blackList.includes(r.index))
         return callback(null, result)
@@ -253,6 +253,38 @@ class RecordsDB {
    */
   async getAsync(props) {
     return Promise.promisify(this.get).bind(this)(props)
+  }
+
+  getLastTweet(callback) {
+    let records = []
+    let lr = new lineByLineReader(this.filePath, {skipEmptyLines: true})
+
+    // read all lines
+    lr.on('line', line => records.push(line))
+
+    // check the last line and repair tweets DB if error exists
+    lr.on('end', () => {
+      // read blackList
+      let blackList = fs.readFileSync(this.blackList).toString()
+      blackList.length ? blackList = [...new Set(blackList.split(',').filter(x => x.length).map(i => parseInt(i)))]
+                       : blackList = []
+
+      // repair wrong content and filter contents in blackList
+      let size = fs.readFileSync(this.filePath).length
+      let end = records.pop()
+
+      try {
+        JSON.parse(end)
+        records.push(end)
+      } catch(e) {
+        return callback(e)
+      }
+
+      blackList.forEach(index => records = [...records.slice(0, index),...records.slice(index+1)])
+      if(records.length)
+        return callback(null, JSON.parse(records.pop()))
+      return callback(null)
+    })
   }
 
   /**

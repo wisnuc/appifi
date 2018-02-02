@@ -424,6 +424,10 @@ module.exports = {
     if (box.doc.owner !== guid && !box.doc.users.includes(guid)) { throw Object.assign(new Error('no permission'), { status: 403 }) }
 
     return box.getTreeListAsync(treeHash, true)
+  },
+
+  getBoxesSummary(callback) {
+    return this.boxData.getBoxesSummary(callback)
   }
 
 }

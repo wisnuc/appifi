@@ -183,11 +183,12 @@ class Boxes extends B {
       this.blobsInited = true
     })
     
-    this.loadBoxes(err => {
-      if(err) return console.log(err)
-      debug('boxes load success')
-      this.boxesInited = true
-    })
+    // this.loadBoxes(err => {
+    //   if(err) return console.log(err)
+    //   debug('boxes load success')
+    //   this.boxesInited = true
+    // })
+    this.loadBoxesSync()
   }
 
   loadBoxes (callback) {
@@ -212,6 +213,23 @@ class Boxes extends B {
         })
       })
     })
+  }
+
+  loadBoxesSync() {
+    debug('Box start Load Sync')
+    try {
+      let entries = fs.readdirSync(this.dir)
+      entries.forEach(ent => {
+        let target = path.join(this.dir, ent, 'manifest')
+        let data = fs.readFileSync(target)
+        let doc = JSON.parse(data.toString())
+        let box = createBox(this, this.dir, doc)
+        debug('load one box')
+        this.boxEnterInit(box)
+      })
+    }catch(e) {
+      console.log(e)
+    }
   }
 
   /**
@@ -331,6 +349,31 @@ class Boxes extends B {
     await rimrafAsync(path.join(this.dir, boxUUID))
     this.unindexBox(box)
     return
+  }
+
+  getBoxesSummary(callback) {
+    let boxes = [...this.boxes.values()]
+    let boxCount = boxes.length, error
+    if(!boxCount) return callback(null)
+    let boxSummary = []
+    let finishHandle = (box) => {
+      boxSummary.push(box)
+      if(--boxCount) return
+      callback(null, boxSummary)
+    }
+    let errorHandle = (err) => {
+      if(error) return
+      error = err
+      return callback(err)
+    }
+    boxes.forEach(b => {
+      b.DB.getLastTweet((err, last) => {
+        if(err) return errorHandle(err)
+        if(last) last.tweeter = last.tweeter.id
+        b.doc.tweet = last
+        finishHandle(b.doc)
+      })
+    })
   }
 }
 
