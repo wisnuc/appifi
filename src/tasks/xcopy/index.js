@@ -517,7 +517,6 @@ const entriesToXstats = (ctx, user, driveUUID, dirUUID, entries, callback) => {
   }
 
   if (user) {
-    console.log('1111112222223333333')
     ctx.readdir(user, driveUUID, dirUUID, handler)  
   } else {
     ctx.readdir(driveUUID, dirUUID, handler)
