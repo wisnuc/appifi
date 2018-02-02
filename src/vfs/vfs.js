@@ -629,11 +629,21 @@ class VFS extends Forest {
       if (!xstat) return callback(null, xstat, resolved)
       else {
         // console.log('===== state =====',srcDir.parent.state)
-        srcDir.parent.read(err => {
+        console.log('======= dstDir state ======', dstDir.state)
+        // srcDir.parent.read()
+        // dstDir.read()
+        srcDir.parent.read((err, xstats) => {
+          console.log('xstats',xstats)
           if (err) return callback(err)
-          dstDir.read()
+          console.log('++++++++++++++++')
+          dstDir.read((err, xstats2) => {
+            console.log(err)
+            console.log('----------------')
+            console.log(xstats2)
+            callback(null, xstat, resolved)
+          })
         })
-        callback(null, xstat, resolved)
+        // callback(null, xstat, resolved)
       }
     })
   }

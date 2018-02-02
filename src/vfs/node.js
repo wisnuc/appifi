@@ -19,6 +19,8 @@ class Node {
   Destroys the node
   */
   destroy (detach) { 
+    console.log('====== destroing ======', this.name)
+    console.log('====== detach ======', detach)
     this.ctx = null
     if (detach) this.detach()
   }
@@ -38,6 +40,7 @@ class Node {
   @throws When node is already attached
   */
   attach (parent) {
+    console.log('====== attaching ======')
     if (this.parent !== null) throw new Error('node.attach: node is already attached')
     if (parent) {
       this.parent = parent
@@ -53,9 +56,11 @@ class Node {
   detach () {
     if (this.parent === null) return 
     let index = this.parent.children.indexOf(this)
+    console.log('==== index ====', index)
     if (index === -1) throw new Error("node.detach: node is not in parent's children list")
     this.parent.children.splice(index, 1)
     this.parent = null
+    // console.log('after detach :', this)
   }
 
   isAttached () {

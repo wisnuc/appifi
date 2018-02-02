@@ -183,6 +183,7 @@ const rename = (oldPath, newPath, type, opt, callback) =>
     } else if (err) {                                     // failed
       callback(err)
     } else {                                              // successful
+      console.log('file system moving successfully')
       readXstat(newPath, (err, xstat) => {
         if (err) return callback(err)
         callback(null, xstat, [false, false])

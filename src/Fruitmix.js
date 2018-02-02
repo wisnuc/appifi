@@ -770,7 +770,7 @@ class Fruitmix extends EventEmitter {
       name: dir.name,
       mtime: Math.abs(dir.mtime)
     }))
-
+console.log(111111111111)
     let entries = await dir.readdirAsync()
     if (metadata) {
       entries.forEach(entry => {
@@ -1003,8 +1003,10 @@ class Fruitmix extends EventEmitter {
   }
 
   createTask (user, body, callback) {
+    console.log('create a task==============================================')
     let { type, policies, src, dst, entries } = body
     let task = xcopy(this, user, type, policies, src, dst, entries, (err, task) => {
+      console.log('task create success')
       if (err) {
         callback(err)
       } else {

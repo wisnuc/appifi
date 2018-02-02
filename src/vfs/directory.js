@@ -37,19 +37,24 @@ class Base {
   }
 
   setState (NextState, ...args) {
+    console.log('-------- exiting ----------')
     this.exit()
     new NextState(this.dir, ...args)
   }
 
   readi () {
+    console.log(this)
+    console.log('===== readi =====')
     this.setState(Reading)
   }
 
   readn (delay) {
+    console.log('===== readn =====')
     this.setState(Pending, delay)
   }
 
   readc (callback) {
+    console.log('===== readc =====')
     this.setState(Reading, [callback])
   }
 
@@ -126,6 +131,7 @@ class Pending extends Base {
 class Reading extends Base {
 
   enter (callbacks = []) {
+    console.log('enter reading', this.dir.name)
     this.dir.ctx.dirEnterReading(this.dir)
     this.callbacks = callbacks
     this.pending = undefined
@@ -138,6 +144,7 @@ class Reading extends Base {
   }
 
   restart () {
+    console.log(this.readdir)
     if (this.readdir) this.readdir.destroy()
 
     let dirPath = this.dir.abspath()
@@ -174,8 +181,9 @@ class Reading extends Base {
         /**
         Don't bypass update children! Do it anyway. Node.js fs timestamp resolution is not adequate.
         */
+        console.log('xstats_1',xstats)
         this.updateChildren(xstats)
-
+console.log('++++++++++-------------------')
         if (mtime !== this.dir.mtime && !transient) {
           this.dir.mtime = mtime
         }
@@ -187,7 +195,7 @@ class Reading extends Base {
       }
 
       this.callbacks.forEach(callback => callback(err, xstats))
-
+console.log('pending============',this.pending)
       if (Array.isArray(this.pending)) { // stay in working
         this.enter(this.pending)
       } else {
@@ -197,6 +205,8 @@ class Reading extends Base {
         } else if (xstats && transient) {
           new Pending(this.dir, 500)
         } else {
+          console.log('23232323213232323232323')
+          console.log(this.dir.name)
           new Idle(this.dir)
         }
       }
@@ -239,10 +249,11 @@ class Reading extends Base {
       }
       return arr
     }, [])
-
+console.log('lost',lost)
     lost.forEach(c => c.destroy(true))
 
     // create new 
+    console.log('new',map)
     map.forEach(x => x.type === 'file' ? 
       new File(this.dir.ctx, this.dir, x) : 
       new Directory(this.dir.ctx, this.dir, x))
@@ -346,7 +357,7 @@ class Directory extends Node {
   */
   destroy(detach) {
     debug('destroying', this.uuid, this.name, !!detach)
-
+    console.log('destroying======', this.uuid, this.name, !!detach)
     // why this does not work ???
     // [...this.children].forEach(child => child.destroy()) 
     Array.from(this.children).forEach(c => c.destroy())
@@ -374,6 +385,8 @@ class Directory extends Node {
   */
   read(x) {
     if (typeof x === 'function') {
+      console.log('======================================================')
+      // console.log(this.state)
       this.state.readc(x)
     } else if (typeof x === 'number') {
       this.state.readn(x)

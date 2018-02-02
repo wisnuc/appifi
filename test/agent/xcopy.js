@@ -957,9 +957,10 @@ describe(path.basename(__filename) + ' mv a / [dir c, file d] -> dir b', () => {
 })
 
 // move dir a into dir b, then read dir b rapidly --error--> dir a not found (not indexed in uuid map)
-describe(path.basename(__filename) + ' mv a -> b, read b concurrently', () => {
+describe(path.basename(__filename) + ' mv a -> b, read b concurrently', function () {
   let task, token, dirAUUID, dirBUUID, dirCUUID
-  // let bar = FILES.bar
+  let bar = FILES.bar
+  this.timeout(50000)
   beforeEach(async () => {
     await resetAsync()
     await createUserAsync('alice')
@@ -971,9 +972,16 @@ describe(path.basename(__filename) + ' mv a -> b, read b concurrently', () => {
     //     size: bar.size, 
     //     sha256: bar.hash 
     //   })
+    for(let i = 0; i < 80; i++) {
+      await createFileAsync(token, IDS.alice.home, dirCUUID, i, bar.path, {
+        size: bar.size,
+        sha256: bar.hash
+      })
+    }
   })
 
-  it('move dir c -> dir b, read b, 5add0cc8', async () => {
+  it.only('move dir c -> dir b, read b, 5add0cc8', async () => {
+    
     task = await createTaskAsync(token, {
       type: 'move',
       src: { drive: IDS.alice.home, dir: dirAUUID },
