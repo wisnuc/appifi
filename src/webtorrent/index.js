@@ -30,7 +30,7 @@ router.get('/switch', (req, res) => {
 })
 
 router.get('/version', (req, res) => {
-  res.status(200).json({version: true})
+  res.status(200).json({version: false})
 })
 
 router.patch('/switch', (req, res) => {

@@ -1,11 +1,54 @@
 const { assert, isUUID, isSHA256, validateProps } = require('../common/assertion')
+const fs = require('fs')
 /// ////////////// box api ///////////////////////
 module.exports = {
 
+  getBlobMediaThumbnail(user, fingerprint, query, callback) {
+
+    try {
+      this.userCanReadBlob(user, fingerprint)
+    } catch (e) {
+      return callback(e)
+    }
+
+    if (!this.mediaMap.has(fingerprint)) {
+      let err = new Error('media not found')
+      err.status = 404
+      process.nextTick(() => callback(err))
+    }
+
+    let fPath = this.getBoxFilepath(user, query.boxUUID, fingerprint)
+
+    let props = this.thumbnail.genProps(fingerprint, query)
+    fs.lstat(props.path, (err, stat) => {
+      if (!err) return callback(null, props.path)
+      if (err.code !== 'ENOENT') return callback(err)
+      callback(null, cb => this.thumbnail.convert(props, fPath, cb))
+    })
+  },
+
   reportMedia(fingerprint, metadata) {
-    this.mediaMap.set(fingerprint, metadata)
+    this.mediaMap.setMetadata(fingerprint, metadata)
+  },
+
+  userCanReadBlob(user, fingerprint) {
+    if(!user || !user.global || !user.global.id) return false
+    let guid = user.global.id
+    let boxes = [...this.boxData.boxes.values()].filter(box => 
+      box.doc.owner === guid ||
+      box.doc.users.includes(guid))
+    if(boxes.find(box => box.files.has(fingerprint))) return true
+    return false
   },
   
+  userCanReadBox(user, boxUUID) {
+    if(!user || !user.global.id) return false
+    let guid = user.global.id
+    let box = this.boxData.getBox(boxUUID)
+    if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
+    if (box.doc.owner !== guid && !box.doc.users.includes(guid)) return false
+    return true
+  },
   /**
    * get all box descriptions user can access
    * @param {Object} user
@@ -85,6 +128,14 @@ module.exports = {
     }
 
     return this.boxData.updateBoxAsync(props, boxUUID)
+  },
+
+  getBoxFilepath(user, boxUUID, fingerprint) {
+    if(!this.userCanReadBox(user, boxUUID)) throw Object.assign(new Error('permission denied'), { status: 403 })
+    let box = this.boxData.getBox(boxUUID)
+    let fPath = this.boxData.blobs.retrieve(fingerprint)
+    if(!box.files.has(fingerprint) || !fPath) throw Object.assign(new Error('file not found'), { status: 404 })
+    return fPath
   },
 
   /**
@@ -218,20 +269,22 @@ module.exports = {
    * @param {string} props.segments - optional, segments of records user want to get
    */
   async getTweetsAsync (user, boxUUID, props) {
-    if (!isUUID(boxUUID)) throw Object.assign(new Error('invalid boxUUID'), { status: 400 })
+    if (!this.userCanReadBox(user, boxUUID))  throw Object.assign(new Error('no permission'), { status: 403 }) 
     let box = this.boxData.getBox(boxUUID)
-    if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
-
-    let guid = user.global.id
-    if (box.doc.owner !== guid && !box.doc.users.includes(guid)) { throw Object.assign(new Error('no permission'), { status: 403 }) }
-
-    validateProps(props, [], ['first', 'last', 'count', 'segments'])
     if (props.first) assert(Number.isInteger(props.first), 'first should be an integer')
     if (props.last) assert(Number.isInteger(props.last), 'last should be an integer')
     if (props.count) assert(Number.isInteger(props.count), 'count should be an integer')
     if (props.last) assert(typeof props.segments === 'string', 'segments should be a string')
-
-    return box.getTweetsAsync(props)
+    let metadata = props.metadata
+    let tweets = await box.getTweetsAsync(props)
+    if (metadata) {
+      tweets.forEach(t => 
+        t.type === 'list' ? (t.list.forEach(l => this.mediaMap.hasMetadata(l.sha256) ? l.metadata = this.mediaMap.getMetadata(l.sha256) 
+        : this.boxData.blobs.medias.has(l.sha256) ? l.metadata = this.boxData.blobs.medias.get(l.sha256): t))
+         : t
+      )
+    }
+    return tweets
   },
 
   /**
@@ -244,7 +297,7 @@ module.exports = {
    * @param {string} props.id - sha256 or uuid, for blob, branch, commit, job, tag
    * @param {array} props.list - [{sha256, filename}], only for list
    * @param {Object} props.global - user global object
-   * @param {array} props.path - {sha256, filepath}, for blob and list
+   * @param {array} props.src - {sha256, filepath}, for blob and list
    * @return {Object} tweet object
    */
   async createTweetAsync (user, boxUUID, props) {
@@ -257,7 +310,7 @@ module.exports = {
 
     props.global = global
 
-    validateProps(props, ['global', 'comment'], ['type', 'id', 'list', 'src'])
+    validateProps(props, ['global', 'comment'], ['type', 'id', 'list', 'src', 'parent'])
     assert(typeof props.comment === 'string', 'comment should be a string')
     assert(typeof props.global === 'object', 'global should be an object')
     if (props.type) assert(typeof props.type === 'string', 'type should be a string')

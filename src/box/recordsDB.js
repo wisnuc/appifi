@@ -102,7 +102,7 @@ class RecordsDB {
       try {
         let Line = JSON.parse(line)
         // if (Line.type === 'blob') files.add(l.id)
-        if (Line.type === 'list') Line.forEach(l => files.add(l.sha256))
+        if (Line.type === 'list') Line.list.forEach(l => files.add(l.sha256))
         records.push(new Buffer(line).length)
       } catch(e) {
         if (e instanceof SyntaxError) { // only last line
@@ -126,7 +126,7 @@ class RecordsDB {
     lr.on('end', () => {
       if(error) return
       this.records = records // FIXME: ????
-      return callback(null, files)
+      return callback(null, [...files])
     })
 
     lr.on('error', err => {

@@ -13,7 +13,7 @@ const sanitize = require('sanitize-filename')
 const crypto = require('crypto')
 
 const secret = require('../config/passportJwt')
-const fingerprintSimpleAsync = Promise.promisify(require('../utils/fingerprintSimple'))
+const fingerprintSimple = require('../utils/fingerprintSimple')
 const { isSHA256 } = require('../lib/assertion')
 const getFruit = require('../fruitmix')
 
@@ -105,6 +105,18 @@ router.get('/:boxUUID', fruitless, auth, (req, res, next) => {
   try {
     let doc = getFruit().getBox(req.user, boxUUID)
     res.status(200).json(doc)
+  } catch(e) {
+    next(e)
+  }
+})
+
+router.get('/:boxUUID/files/:blobUUID', fruitless,auth, (req, res, next) => {
+  let user = req.user
+  let boxUUID = req.params.boxUUID
+  let blobUUID = req.params.blobUUID
+  try {
+    let fPath = getFruit().getBoxFilepath(user, boxUUID, blobUUID)
+    return res.status(200).sendFile(fPath)
   } catch(e) {
     next(e)
   }
@@ -298,14 +310,6 @@ const dataHandler = (rs, callback) => {
         }
       }
     }
-
-    // console.log('received-----------', fingerprint)
-    // let aaa = 'd4be8322a0978cf6398d9dce471104d38b7da95692d51403121ffe4f8e174485'
-    // if (fingerprint === aaa) {
-    //   console.log(fs.statSync(tmpPath).size)
-    //   let s = fs.readFileSync(tmpPath)
-    //   console.log('=-==========',s.toString())
-    // }
     let received = { total, fingerprint, tmpPath }
     callback(received)
   })
@@ -317,157 +321,41 @@ const dataHandler = (rs, callback) => {
 
 router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
   let boxUUID = req.params.boxUUID
-
-  /**
-  if (req.is('multipart/form-data')) {
-    // UPLOAD
-    let form = new formidable.IncomingForm()
-    form.hash = 'sha256'
-    let sha256, comment, type, size, error, data, arr, obj
-    let urls = []
-    let finished = false, formFinished = false, fileFinished = false
-
-    const finalize = () => {
-      if (finished) return
-      if (formFinished) {
-        finished = true
-        if (error)
-          return res.status(500).json({ code: error.code, message: error.message })
-        else 
-          return res.status(200).json(data)
-      }
-    }
-
-    const check = (size, sha256, file) => {
-      if (!Number.isInteger(size) || size !== file.size) 
-        return finished = true && res.status(409).end()
-
-      if (file.hash !== sha256) {
-        return rimraf(file.path, err => {
-          if (err) return finished = true && res.status(500).json({ code: err.code, message: err.message})
-          return finished = true && res.status(409).end()
-        })
-      }
-    }
-
-    form.on('field', (name, value) => {
-      if (finished) return
-
-      if (name === 'blob' || name === 'list') {
-        obj = JSON.parse(value)
-
-        if (typeof obj.comment === 'string') comment = obj.comment
-        if (obj.type) type = obj.type
-
-        if (type === 'blob') {
-          if (Number.isInteger(obj.size)) size = obj.size
-          if (isSHA256(obj.sha256)) sha256 = obj.sha256
-        }
-
-        if (type === 'list') arr = obj.list
-          // {
-          //   size,
-          //   sha256,
-          //   filename, (optional, for file)
-          //   id (uuid, identifier)
-          // }
-      }
-    })
-
-    form.on('fileBegin', (name, file) => {
-      if (finished) return
-      let tmpdir = getFruit().getTmpDir()
-      file.path = path.join(tmpdir, UUID.v4())
-    })
-
-    form.on('file', (name, file) => {
-      if (finished) return
-
-      // file.hash = await fingerprintSimpleAsync(file.path)
-
-      if (type === 'blob') {
-        check(size, sha256, file)
-        urls.push({sha256, filepath: file.path})
-      }
-
-      if (type === 'list') {
-        // let id = JSON.parse(file.name).id
-        // let index = arr.findIndex(i => i.id === id)
-        let index = arr.findIndex(i => i.sha256 === file.hash)
-
-        if (index !== -1) {
-          check(arr[index].size, arr[index].sha256, file)          
-          urls.push({sha256: file.hash, filepath: file.path})
-          arr[index].finish = true
-        } else {
-          rimraf(file.path, () => {})
-        }
-      }
-    })
-
-    form.on('error', err => {
-      if (finished) return
-      return finished = true && res.status(500).json({ code: err.code, message: err.message })
-    })
-    
-    form.on('aborted', () => {
-      if (finished) return
-      return finished = true && res.status(500).json({
-        code: 'EABORTED',
-        message: 'aborted'
-      })
-    })
-
-    form.on('end', () => {
-      formFinished = true
-
-      if (type === 'blob' || arr.every(i => i.finish)) {
-        let props
-        if(type === 'blob') props = { comment, type, id: sha256, src: urls}
-        else {
-          let list = obj.list.map(i => { return {sha256: i.sha256, filename: i.filename} })
-          props = {comment, type, list, src: urls}
-        }
-
-        getFruit().createTweetAsync(req.user, boxUUID, props)
-          .then(result => {
-            data = result
-            finalize()
-          })
-          .catch(err => {
-            error = err
-            finalize()
-          }) 
-      } else {
-        return finished = true && res.status(404).json({ 
-          code: 'EFILE',
-          message: 'necessary file not uploaded'
-        })
-      }
-    })
-
-    form.parse(req)
-
-  } else if (req.is('application/json')) {
-    getFruit().createTweetAsync(req.user, boxUUID, req.body)
-      .then(tweet => res.status(200).json(tweet))
-      .catch(next)
-  } else
-    return res.status(415).end()
-  **/
-
   if (req.is('multipart/form-data')) {
     const regex = /^multipart\/.+?(?:; boundary=(?:(?:"(.+)")|(?:([^\s]+))))$/i
     const m = regex.exec(req.headers['content-type'])
-    let obj, comment, type, size, sha256, arr
+    let obj, comment, parent, type, size, sha256, arr, dicerFinished
     let urls = []
 
     dicer = new Dicer({ boundary: m[1] || m[2] })
+    let filecount = 0
+    let partFinish = (noCount) => {
+      if(!noCount) filecount--
+      if(filecount !== 0) return
+      if(!dicerFinished) return
+      if (arr.every(i => i.finish)) {
+        let props
+        if (type === 'list') {
+          let list = obj.list.map(i => { return {sha256: i.sha256, filename: i.filename} })
+          props = { parent, comment, type, list, src: urls}
+        }
+
+        getFruit().createTweetAsync(req.user, boxUUID, props)
+          .then(tweet => res.status(200).json(tweet))
+          .catch(next) 
+      } else {
+        let e = new Error('necessary file not uploaded')
+        e.status = 404
+        errorHandler(dicer, req)
+        return next(e)
+      }
+    } 
 
     const onField = rs => {
       rs.on('data', data => {
         obj = JSON.parse(data)
         if (typeof obj.comment === 'string') comment = obj.comment
+        if (obj.parent) parent = obj.parent
         if (obj.type) type = obj.type
         if (type === 'blob') {
           if (Number.isInteger(obj.size)) size = obj.size
@@ -479,6 +367,7 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
     }
 
     const onFile = (rs, props) => {
+      filecount ++
       try {
         validate(props)
       } catch(e) {
@@ -503,6 +392,7 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
             rimraf(tmpPath, () => {})
           }
         }
+        partFinish()
       })
     }
 
@@ -533,29 +423,15 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
       })
     })
     
-    dicer.on('finish', () => {
-      if (type === 'blob' || arr.every(i => i.finish)) {
-        let props
-        if (type === 'blob') props = { comment, type, id: sha256, src: urls}
-        else {
-          let list = obj.list.map(i => { return {sha256: i.sha256, filename: i.filename} })
-          props = {comment, type, list, src: urls}
-        }
-
-        getFruit().createTweetAsync(req.user, boxUUID, props)
-          .then(tweet => res.status(200).json(tweet))
-          .catch(next) 
-      } else {
-        let e = new Error('necessary file not uploaded')
-        e.status = 404
-        errorHandler(dicer, req)
-        return res.status(e.status).json(e)
-      }
+    dicer.on('finish', () => { 
+      dicerFinished = true
+      partFinish(true)
     })
 
     req.pipe(dicer)
 
   } else if (req.is('application/json')) {
+    if(req.body.type) return next(Object.assign(new Error('request type error'), { status: 400 }))
     getFruit().createTweetAsync(req.user, boxUUID, req.body)
       .then(tweet => res.status(200).json(tweet))
       .catch(next)
@@ -563,10 +439,97 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
     return res.status(415).end()
 })
 
+/**
+ *  req body
+ * {
+ *    list: [{
+ *       type: 'media' or 'file'
+ *       sha256: 'xxxx' opt, if media require
+ *       driveUUID:
+ *       dirUUID:
+ *       filename: 'xxx' 
+ *    }],
+ *    comment:
+ *    type:
+ * }
+ */
+router.post('/:boxUUID/tweets/indrive', fruitless, auth, (req, res, next) => {
+  let boxUUID = req.params.boxUUID
+  let { list, comment, type, parent } = req.body
+  // props = {comment, type, list, src: urls}
+  if(!list || !list.length ) return res.status(400).json({ message: 'list error'})
+  if(type !== 'list') return res.status(400).json({ message: 'type error' })
+  let error, count = list.length
+  let user = getFruit().findUserByGUID(req.user.global.id)
+  let src = []
+  let finishHandle = (sha256, filepath) => {
+    if(error) return
+    src.push({ sha256, filepath })
+    if(list.every(i => i.finished && (src.findIndex(s => s.sha256 === i.sha256)!== -1))) {
+      let ls = list.map(l => { 
+        return {sha256, filename:l.filename }
+      })
+      let props = { list:ls, src, comment, type, parent }
+      getFruit().createTweetAsync(req.user, boxUUID, props)
+        .then(tweet => res.status(200).json(tweet))
+        .catch(next)
+    }
+  }
+
+  let errorHandler = err => {
+    if(error) return
+    error = err
+    return next(err)
+  }
+  list.forEach(l => {
+    if(error) return
+    let tmpdir = getFruit().getTmpDir()
+    let tmpPath = path.join(tmpdir, UUID.v4())
+    if(l.type === 'media') {
+      let files = getFruit().getFilesByFingerprint(user, l.sha256)
+      if(files.length) {
+        let mediaPath = files[0]
+        // TODO: check file xstat
+        fs.copyFile(mediaPath, tmpPath, err => {
+          if(error) return
+          if(err) return errorHandler(err)
+          l.finished = true
+          return finishHandle(l.sha256, tmpPath)
+        })
+      } else 
+        errorHandler(new Error(`media ${ l.hash } not found`))
+    } else if(l.type === 'file') {
+      let { filename, dirUUID, driveUUID } = l
+      if(!filename || !dirUUID || !driveUUID || !filename.length || !dirUUID.length || !driveUUID.length) 
+        return errorHandler(new Error('filename , dirUUID or driveUUID error'))
+      let dirPath = getFruit().getDriveDirPath(user, driveUUID, dirUUID)
+      let filePath = path.join(dirPath, filename)
+      fs.lstat(filePath, err => {
+        if(error) return
+        if(err) return errorHandler(err)
+        //TODO: read xstat
+        fs.copyFile(filePath, tmpPath, err => {
+          if(error) return
+          if(err) return errorHandler(err)
+          fingerprintSimple(tmpPath, (err, fingerprint) => {
+            if(error) return
+            if(err) return errorHandler(err)
+            l.sha256 = fingerprint
+            l.finished = true
+            return finishHandle(l.sha256, tmpPath)
+          }) 
+        })
+      })
+    } else 
+      errorHandler(new Error('list item error'))
+  })
+})
+
 router.get('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
   let boxUUID = req.params.boxUUID
+  let metadata = req.query.metadata === 'true' ? true : false
   let { first, last, count, segments } = req.query
-  let props = { first, last, count, segments }
+  let props = { first, last, count, segments, metadata }
   
   getFruit().getTweetsAsync(req.user, boxUUID, props)
     .then(data => res.status(200).json(data))

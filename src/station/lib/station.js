@@ -271,7 +271,7 @@ class Station {
       let opts = { 'Authorization': token }
       let params = props // TODO change ticket status
       try {
-        debug('发起update station info ')
+        debug('发起update station info ', props, url)
         let res = await requestAsync('PATCH', url, { params }, opts)
         if (res.status === 200)
           return res.body.data

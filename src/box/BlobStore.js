@@ -69,7 +69,7 @@ class BlobCTX extends EventEmitter {
     this.blobReadScheduled = false
     if (this.blobReadSettled()) {
       this.emit('BlobReadDone')
-      console.log('blob read finished')
+      debug('blob read finished')
       return
     }
 
@@ -176,8 +176,10 @@ class BlobStore extends BlobCTX{
    * @param {function} callback 
    */
   store(src, callback) {
+    if(!src || !src.length) return process.nextTick(() => callback(null))
     let srcStr = src.join(' ')
     let dst = this.dir
+    debug('start store blob')
     // move files into blobs
     child.exec(`mv ${srcStr} -t ${dst}`, (err, stdout, stderr) => {
       if (err) return callback(err)
@@ -212,7 +214,9 @@ class BlobStore extends BlobCTX{
    * @param {string} path
    */
   retrieve(hash) {
-    return path.join(this.dir, hash)
+    let bpath = path.join(this.dir, hash)
+    if(fs.existsSync(bpath)) return bpath
+    return false
   }
 }
 
