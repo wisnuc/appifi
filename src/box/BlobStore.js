@@ -199,6 +199,7 @@ class BlobStore extends BlobCTX{
       hashArr.forEach(x => this.blobEnterPending(x))
       let files = hashArr.map(i => path.join(dst, i)).join(' ')
       // modify permissions to read only
+      /*
       try{
         child.exec(`chmod 444 ${files}`, (err, stdout, stderr) => {
           if (err) return callback(err)
@@ -209,6 +210,8 @@ class BlobStore extends BlobCTX{
         console.log(e)
         callback(e)
       }
+      */
+      callback(null)
     }
     let errorHandle = (err) => {
       if (error) return
