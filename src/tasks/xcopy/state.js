@@ -23,7 +23,6 @@ class State {
   Destroy all state-specific resource
   */
   destroy () {
-    console.log('1111122222333333==========')
     this.exit()
   }
 

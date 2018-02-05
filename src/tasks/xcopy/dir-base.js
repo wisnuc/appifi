@@ -65,7 +65,6 @@ class Working extends State {
   }
 
   exit () {
-    console.log('======= exit dir working =========')
     this.ctx.ctx.unindexWorkingDir(this.ctx)
   } 
 
@@ -273,15 +272,9 @@ class Dir extends Node {
   }
 
   destroy () {
-    let children = [...this.children]
-    console.log('------ children---------', children)
-    console.log('children forEach start')
+    let children = [...this.children]    
     children.forEach(c => c.destroy())
-
-    console.log('children forEach end')
-    console.log('====== super destroy start ======')
-    if (this.src.name) super.destroy()
-    console.log('====== super destroy end ======')
+    super.destroy()
   }
 
   getPolicy () {

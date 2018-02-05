@@ -22,8 +22,6 @@ class Working extends State {
   }
 
   exit () {
-    console.log('working exit =====')
-    console.log('------------------this.ctx',this.ctx)
     this.ctx.ctx.unindexWorkingFile(this.ctx)
   }
 
@@ -62,7 +60,6 @@ class Failed extends State {
   }
 
   exit () {
-    console.log('failed=====')
     this.ctx.ctx.unindexWorkingFile(this.ctx)
   }
 
@@ -76,7 +73,6 @@ class Finished extends State {
   }
 
   exit () {
-    console.log('exit with finished')
     this.ctx.ctx.unindexFinishedFile(this.ctx)
   }
 
