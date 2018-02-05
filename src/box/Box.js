@@ -117,7 +117,7 @@ class Box {
       tweeter: props.global,
       comment: props.comment
     }
-    if(props.parent) //FIXME: check range
+    if(props.parent || props.parent === 0) //FIXME: check range
       tweet.parent = props.parent
 
     if (props.type) {
@@ -131,6 +131,9 @@ class Box {
 
     tweet.ctime = new Date().getTime()
     await this.DB.addAsync(tweet)
+
+    // emit
+    this.ctx.handleNewTweet({ boxUUID: this.doc.uuid, tweet })
 
     let stat = await fs.statAsync(this.DB.filePath)
     let mtime = stat.mtime.getTime()
@@ -417,7 +420,7 @@ class Box {
     else return await this.ctx.docStore.retrieveAsync(commitHash)
   }
 
-  /**
+/**
  * create a commit
  * @param {Object} props 
  * @param {string} props.root - required, hash string, root tree object

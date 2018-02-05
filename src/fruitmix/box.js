@@ -339,7 +339,8 @@ module.exports = {
     if (props.list) assert(Array.isArray(props.list), 'list should be an array')
     if (props.src) assert(Array.isArray(props.src), 'src should be an array')
     let result = await box.createTweetAsync(props)
-    await this.boxData.updateBoxAsync({mtime: result.mtime}, boxUUID)
+    //FIXME: tweets update, box update?
+    // await this.boxData.updateBoxAsync({mtime: result.mtime}, boxUUID) 
     return result.tweet
   },
 

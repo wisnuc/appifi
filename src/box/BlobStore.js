@@ -24,11 +24,13 @@ class BlobCTX extends EventEmitter {
     this.failedBlobs = new Set()
     this.medias = new Map()
     this.sizeMap = new Map()
+    this.needRetry = true // can retry failedBlobs
   }
 
   blobEnterPending(blobUUID) {
     debug(`blob ${blobUUID} enter pending`)
     this.pendingBlobs.add(blobUUID)
+    this.needRetry = true // refrush 
     this.reqSchedBlobRead()
   }
 
@@ -71,6 +73,11 @@ class BlobCTX extends EventEmitter {
     this.blobReadScheduled = false
     if (this.blobReadSettled()) {
       this.emit('BlobReadDone')
+      if(this.needRetry) { // retry failed blob
+        this.needRetry = false
+        this.failedBlobs.forEach(b => this.blobEnterPending(b))
+        this.failedBlobs.clear()
+      }
       debug('blob read finished')
       return
     }
@@ -132,53 +139,6 @@ class BlobStore extends BlobCTX{
       callback()
     })
   }
-  // register medias in MediaMap
-  /**
-   * register medias in MediaMap
-   * @param {array} hashArr - an array of media hash to be reported
-   * @param {function} callback
-   */
-  report(hashArr, callback) {
-    if (hashArr.length) {
-      let error = false
-      for (let i = 0; i < hashArr.length; i++) {
-        fileMagic6(path.join(this.dir, hashArr[i]), (err, magic) => {
-          if (error) return
-          if (err) {
-            error = true
-            return callback(err)
-          }
-          if (magic === 'JPEG') {
-            let fpath = path.join(this.dir, hashArr[i])
-            let worker = identify(fpath, hashArr[i])
-            worker.run()
-            worker.on('finish', data => {
-              this.ctx.reportMedia(hashArr[i], data)
-              if (++i === hashArr.length) return callback()
-            })
-            worker.on('error', err => callback(err))
-          } else return callback()
-        })
-      }
-    } else return callback()
-  }
-
-  /**
-   * async edition of report
-   * @param {*} hashArr - an array of media hash to be reported
-   */
-  async reportAsync(hashArr) {
-    return Promise.promisify(this.report).bind(this)(hashArr)
-  }
-
-  /**
-   * load all medias in blobs, register them in MediaMap
-   */
-  async loadAsync() {
-    let entries = await fs.readdirAsync(this.dir)
-    await this.reportAsync(entries)
-  }
-
   // store a list of files
   // src is an array of tmp filepath, file name is the sha256 of itself
   /**

@@ -272,7 +272,7 @@ class RecordsDB {
       // repair wrong content and filter contents in blackList
       let size = fs.readFileSync(this.filePath).length
       let end = records.pop()
-
+      if(!end) return callback()
       try {
         JSON.parse(end)
         records.push(end)

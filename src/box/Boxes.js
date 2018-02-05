@@ -19,6 +19,15 @@ const RecordsDB = require('./recordsDB')
 const Blobs = require('./BlobStore')
 const Docs = require('./docStore')
 
+
+/**
+ * Box notify
+ * 1, Box_CreateBox
+ * 2, Box_UpdateBox
+ * 3, Box_DeleteBox
+ * 4, Box_CreateTweet
+ */
+
 /**
  * @module Box
  */
@@ -151,6 +160,26 @@ class B extends EventEmitter {
       })
     }
   }
+
+  /**
+   * emit some message when box or tweet update 
+   */
+
+  handleNewTweet({boxUUID, tweet}) {
+    this.emit('Box_CreateTweet', { boxUUID, tweet })
+  }
+
+  handleNewBox(box) {
+    this.emit('Box_CreateBox', Object.assign({}, box.doc))
+  }
+
+  handleUpdateBox(box) {
+    this.emit('Box_UpdateBox', Object.assign({}, box.doc))
+  }
+
+  handleDeleteBox(boxUUID) {
+    this.emit('Box_DeleteBox', boxUUID)
+  }
 }
 
 /*
@@ -270,6 +299,7 @@ class Boxes extends B {
 
     let tmp = await fs.mkdtempAsync(path.join(this.ctx.getTmpDir(), 'tmp'))
     let time = new Date().getTime()
+    if(!props.users.includes(props.owner)) props.users.push(props.owner)
     let doc = {
       uuid: UUID.v4(),
       name: props.name,
@@ -290,6 +320,7 @@ class Boxes extends B {
     let box = createBox(this, this.dir, doc)
     this.indexBox(box)
     this.boxEnterInit(box)
+    this.handleNewBox(box)
     return doc
   }
 
@@ -336,6 +367,7 @@ class Boxes extends B {
     } else newDoc.mtime = new Date().getTime()
     await saveObjectAsync(path.join(this.dir, oldDoc.uuid, 'manifest'), this.ctx.getTmpDir(), newDoc)
     box.doc = newDoc
+    this.handleUpdateBox(box)
     return newDoc
   }
 
@@ -348,6 +380,7 @@ class Boxes extends B {
     if(!box) throw new Error('box not found')
     await rimrafAsync(path.join(this.dir, boxUUID))
     this.unindexBox(box)
+    this.handleDeleteBox(boxUUID)
     return
   }
 
@@ -370,9 +403,18 @@ class Boxes extends B {
       b.DB.getLastTweet((err, last) => {
         if(err) return errorHandle(err)
         if(last) last.tweeter = last.tweeter.id
-        b.doc.tweet = last
-        finishHandle(b.doc)
+        finishHandle(Object.assign(b.doc, { tweet: last }))
       })
+    })
+  }
+
+  getBoxSummary(boxUUID, callback) {
+    let box = this.boxes.get(boxUUID)
+    if(!box) return callback(new Error('box not found'))
+    box.DB.getLastTweet((err, last) => {
+      if(err) return callback(err)
+      if(last) last.tweeter = last.tweeter.id      
+      return callback(null, Object.assign(box.doc, { tweet: last }))
     })
   }
 }

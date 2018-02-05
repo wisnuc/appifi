@@ -20,7 +20,7 @@ const Pipe = require('./pipe')
 const { MQTT, CONNECT_STATE } = require('./mqtt')
 const Tickets = require('./tickets').Tickets
 const getFruit = require('../../fruitmix')
-// const BoxUpdater = require('./boxUpdater')
+const BoxUpdater = require('./boxUpdater')
 
 Promise.promisifyAll(fs)
 const mkdirpAsync = Promise.promisify(mkdirp)
@@ -92,15 +92,15 @@ class Station {
     // register 
     this.mqtt.register('pipe', pipe.handle.bind(pipe))
     this.mqtt.on('MQTTConnected', () => {
-      this.updateCloudUsersAsync()  //update users and lanIP
-        .then(() => { })
-        .catch(e => debug('update service users error', e))
+      // this.updateCloudUsersAsync()  //update users and lanIP
+      //   .then(() => { })
+      //   .catch(e => debug('update service users error', e))
     })
     this.mqtt.connect()
     
     this.tickets = new Tickets(this)
     this.initialized = true
-    // this.boxUpdater = new BoxUpdater(this)
+    this.boxUpdater = new BoxUpdater(this)
     
     await this.updateCloudUsersAsync()
   }
