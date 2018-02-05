@@ -48,6 +48,7 @@ class Base extends EventEmitter {
   }
 
   destroy () {
+    console.log('============== this.root: ',this.root)
     this.root.destroy()
   }
 
@@ -92,6 +93,7 @@ class Base extends EventEmitter {
   }
 
   unindexWorkingFile (file) {
+    console.log('===== unindexWorkingFile =====')
     debug(`${this.formatFile(file)} exit working`)
     this.workingFiles.delete(file)
     this.reqSched()
@@ -214,6 +216,7 @@ class Base extends EventEmitter {
     // schedule file job
     while (this.pendingFiles.size > 0 && this.workingFiles.size < 1) {
       let file = this.pendingFiles[Symbol.iterator]().next().value
+      console.log('new file enter working====================', file.src.name)
       file.setState('Working')
     }
 
@@ -221,6 +224,7 @@ class Base extends EventEmitter {
     while (this.pendingDirs.size > 0 && 
       this.activeParents().size + this.workingDirs.size + this.readingDirs.size < 2) { 
       let dir = this.pendingDirs[Symbol.iterator]().next().value
+      console.log('new dir enter working====================', dir.src.name)
       dir.setState('Working')  
     } 
 

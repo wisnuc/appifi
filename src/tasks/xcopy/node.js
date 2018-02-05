@@ -29,7 +29,9 @@ class Node extends EventEmitter {
   ctx is reset and could be used to determine if a node is destroyed.
   */
   destroy () {
+    console.log('=======================destroy node============================', this.src)
     this.state.destroy()
+    console.log('--------------------`112121212---------------------------')
     this.ctx = null
     if (this.parent) this.detach()
   }

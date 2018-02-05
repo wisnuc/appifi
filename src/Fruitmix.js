@@ -1017,7 +1017,9 @@ class Fruitmix extends EventEmitter {
   deleteTask (user, taskUUID, callback) {
     let index = this.tasks.findIndex(t => t.user.uuid === user.uuid && t.uuid === taskUUID) 
     if (index !== -1) {
+      console.log('======================',this.tasks[index])
       this.tasks[index].destroy()
+      console.log('======= task destroied =========')
       this.tasks.splice(index, 1)
     }
 
