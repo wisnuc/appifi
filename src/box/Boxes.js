@@ -146,7 +146,6 @@ class B extends EventEmitter {
       console.log('Box load finished')
       return
     }
-    console.log('start read box')
     while (this.initBoxes.size > 0 && this.readingBoxes.size < 6) {
       let uuid = this.initBoxes[Symbol.iterator]().next().value
       let box = this.boxes.get(uuid)

@@ -9,6 +9,7 @@ class BoxUpdater {
     this.ctx = ctx
     this.publishBoxes(err => {
       if(err) debug(err)
+      debug('publish boxes success')
     })
     this.initHandle(err => {
       if(err) debug(err)
@@ -31,16 +32,15 @@ class BoxUpdater {
     fruit.getBoxesSummary((err, boxes) => {
       if(err) return callback(err)
       if(!boxes || !boxes.length) return callback()
-      debug('start publish boxes')
       let url = CONFIG.CLOUD_PATH + 's/v1/boxes/batch'
       let token = this.ctx.token
       let opts = { 'Authorization': token }
       let params = { 'create': boxes } // TODO change ticket status
-      debug('发起update boxes', boxes, url)
+      debug('发起publish boxes', url)
       requestC('POST', url, { params }, opts, (err, res) => {
         if(err) {
           debug(err)
-          debug(res.error)
+          debug(res.body)
         }else
           return callback()
       })
@@ -70,7 +70,7 @@ class BoxUpdater {
     requestC('PATCH', url, { params }, opts, (err, res) => {
       if(err) {
         debug(err)
-        debug(res.error)
+        debug(res.body)
       }
     })
   }
