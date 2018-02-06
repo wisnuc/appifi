@@ -5,7 +5,7 @@ const rimrafAsync = Promise.promisify(require('rimraf'))
 const EventEmitter = require('events')
 const assert = require('assert')
 
-const debug = require('debug')('boxes')
+const debug = require('debug')('boxes:boxes')
 const mkdirp = require('mkdirp')
 const mkdirpAsync = Promise.promisify(mkdirp)
 const UUID = require('uuid')

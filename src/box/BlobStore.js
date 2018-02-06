@@ -7,7 +7,7 @@ const { fileMagic6 } = require('../lib/xstat')
 const identify = require('../lib/identify')
 const mkdirp = require('mkdirp')
 const EventEmitter = require('events').EventEmitter 
-const debug = require('debug')('boxes')
+const debug = require('debug')('boxes:boxes')
 const exiftool = require('../lib/exiftool2')
 
 class BlobCTX extends EventEmitter {

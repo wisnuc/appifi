@@ -1,18 +1,17 @@
 const requestC = require('./request').requestHelper
 const getFruit = require('../../fruitmix')
 const { FILE, CONFIG } = require('./const')
-const debug = require('debug')('boxes')
+const debug = require('debug')('boxes:updater')
 
 class BoxUpdater {
   
   constructor(ctx) {
     this.ctx = ctx
-    console.log('....==================')
     this.publishBoxes(err => {
-
+      if(err) debug(err)
     })
     this.initHandle(err => {
-      console.log(err)
+      if(err) debug(err)
     })
   }
 
@@ -31,6 +30,7 @@ class BoxUpdater {
     if(!fruit) callback(new Error('fruitmix not start'))
     fruit.getBoxesSummary((err, boxes) => {
       if(err) return callback(err)
+      if(!boxes || !boxes.length) return callback()
       debug('start publish boxes')
       let url = CONFIG.CLOUD_PATH + 's/v1/boxes/batch'
       let token = this.ctx.token
@@ -38,8 +38,11 @@ class BoxUpdater {
       let params = { 'create': boxes } // TODO change ticket status
       debug('发起update boxes', boxes, url)
       requestC('POST', url, { params }, opts, (err, res) => {
-        console.log(err)
-        console.log(res.body)
+        if(err) {
+          debug(err)
+          debug(res.error)
+        }else
+          return callback()
       })
     })    
   }
@@ -51,8 +54,10 @@ class BoxUpdater {
     let params = box // TODO change ticket status
     debug('发起 create box', box, url)
     requestC('POST', url, { params }, opts, (err, res) => {
-      console.log(err)
-      console.log(res.body)
+      if(err) {
+        debug(err)
+        debug(res.error)
+      }
     })
   }
 
@@ -63,8 +68,10 @@ class BoxUpdater {
     let params = Object.assign(box, { uuid:undefined, ctime:undefined }) // TODO change ticket status
     debug('发起 update box', box, url)
     requestC('PATCH', url, { params }, opts, (err, res) => {
-      console.log(err)
-      console.log(res.body)
+      if(err) {
+        debug(err)
+        debug(res.error)
+      }
     })
   }
 
@@ -74,8 +81,10 @@ class BoxUpdater {
     let opts = { 'Authorization': token }
     debug('发起 delete box', boxUUID, url)
     requestC('DELETE', url, {}, opts, (err, res) => {
-      console.log(err)
-      console.log(res.body)
+      if(err) {
+        debug(err)
+        debug(res.error)
+      }
     })
   }
 
@@ -88,8 +97,10 @@ class BoxUpdater {
     let params = tweet
     debug('发起 update last tweet', boxUUID, url)
     requestC('POST', url, { params }, opts, (err, res) => {
-      console.log(err)
-      console.log(res.body)
+      if(err) {
+        debug(err)
+        debug(res.error)
+      }
     })
   }
 }

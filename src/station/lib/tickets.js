@@ -165,6 +165,24 @@ class Tickets {
         })
       }
         break
+      case 'share': {
+        if(!ticket.data) throw new Error('ticket data error')
+        let boxUUID
+        try{
+          boxUUID = JSON.parse(ticket.data).boxId
+        }catch(e) {
+          debug(e)
+          throw e
+        }
+        let props = {
+          users: {
+            op: 'add',
+            value:[id]
+          }
+        }
+        return await fruit.updateBoxAsync(u, boxUUID, props)
+      }
+        break
       default:
         break
     }
