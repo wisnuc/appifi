@@ -857,7 +857,7 @@ class Pipe {
   async getSummaryAsync(data) {
     let { serverAddr, sessionId, user, body, paths } = data
     let { torrentId, type } = body
-    if (!getIpcMain()) return await await this.errorResponseAsync(serverAddr, sessionId, new Error('webtorrent is not started'))
+    if (!getIpcMain()) return await this.errorResponseAsync(serverAddr, sessionId, new Error('webtorrent is not started'))
     getIpcMain().call('getSummary', { torrentId, type, user }, async (error, summary) => {
       if (error) await this.errorResponseAsync(serverAddr, sessionId, error)
       else await this.successResponseJsonAsync(serverAddr, sessionId, summary)
@@ -867,7 +867,7 @@ class Pipe {
   async ppg3Async(data) {
     let { serverAddr, sessionId, user, body, paths } = data
     let { ppgId, type } = body
-    if (!getIpcMain()) return await await this.errorResponseAsync(serverAddr, sessionId, new Error('webtorrent is not started'))
+    if (!getIpcMain()) return await this.errorResponseAsync(serverAddr, sessionId, new Error('webtorrent is not started'))
     getIpcMain().call('getSummary', { torrentId: ppgId, type, user }, async (error, summary) => {
       if (error) await this.errorResponseAsync(serverAddr, sessionId, error)
       else {
@@ -891,7 +891,7 @@ class Pipe {
     let { op } = body
     let torrentId = paths[1]
     let ops = ['pause', 'resume', 'destroy']
-    if (!getIpcMain()) return await await this.errorResponseAsync(serverAddr, sessionId, new Error('webtorrent is not started'))
+    if (!getIpcMain()) return await this.errorResponseAsync(serverAddr, sessionId, new Error('webtorrent is not started'))
     if(!ops.includes(op)) return await this.errorResponseAsync(serverAddr, sessionId, new Error('unknow op'))
     let result = await getIpcMain().callAsync(op, { torrentId, user })
     this.successResponseJsonAsync(serverAddr, sessionId, result)
@@ -901,7 +901,7 @@ class Pipe {
   async addMagnetAsync(data) {
     let { serverAddr, sessionId, user, body, paths } = data
     let { dirUUID, magnetURL } = body
-    if (!getIpcMain()) return await await this.errorResponseAsync(serverAddr, sessionId, new Error('webtorrent is not started'))
+    if (!getIpcMain()) return await this.errorResponseAsync(serverAddr, sessionId, new Error('webtorrent is not started'))
     let result = await getIpcMain().callAsync('addMagnet', { magnetURL, dirUUID, user})
     this.successResponseJsonAsync(serverAddr, sessionId, result)
   }
@@ -909,7 +909,7 @@ class Pipe {
   async ppg1Async(data) {
     let { serverAddr, sessionId, user, body, paths } = data
     let { dirUUID, ppgURL } = body
-    if (!getIpcMain()) return await await this.errorResponseAsync(serverAddr, sessionId, new Error('webtorrent is not started'))
+    if (!getIpcMain()) return await this.errorResponseAsync(serverAddr, sessionId, new Error('webtorrent is not started'))
     let result = await getIpcMain().callAsync('addMagnet', { magnetURL:ppgURL, dirUUID, user})
     this.successResponseJsonAsync(serverAddr, sessionId, result)
   }
@@ -917,7 +917,7 @@ class Pipe {
   // download (create torrent task)
   async addTorrentAsync(data) {
     let { serverAddr, sessionId, user, body, paths } = data
-    if (!getIpcMain()) return await await this.errorResponseAsync(serverAddr, sessionId, new Error('webtorrent is not started'))
+    if (!getIpcMain()) return await this.errorStoreResponseAsync(serverAddr, sessionId, new Error('webtorrent is not started'))
     let { dirUUID } = body
     data.subType = 'WriteDirNewFile'
     let store = new StoreFile(this.tmp, body.size, body.sha256)
@@ -943,7 +943,7 @@ class Pipe {
   async addHttpAsync(data) {
     let { serverAddr, sessionId, user, body, paths } = data
     let { dirUUID, url } = body
-    if (!getIpcMain()) return await await this.errorResponseAsync(serverAddr, sessionId, new Error('webtorrent is not started'))
+    if (!getIpcMain()) return await this.errorResponseAsync(serverAddr, sessionId, new Error('webtorrent is not started'))
     getIpcMain().call('addHttp', { url, dirUUID, user}, async (error, result) => {
       if (error) console.log(error)
       else console.log('not error')	
