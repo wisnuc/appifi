@@ -215,7 +215,7 @@ class Pipe {
           if (['GetMediaThumbnail', 'GetMediaFile'].includes(data.subType))
             return this.errorFetchResponseAsync(data.serverAddr, data.sessionId, Object.assign(e, { code: 400 }))
               .then(() => { }).catch(debug)
-          else if (['WriteDirNewFile', 'WriteDirAppendFile'].includes(data.subType)) {
+          else if (['WriteDirNewFile', 'WriteDirAppendFile', 'CreateTweet'].includes(data.subType)) {
             let code = 400
             if (e.code === 'EEXIST') code = 403
             return this.errorStoreResponseAsync(data.serverAddr, data.sessionId, Object.assign(e, { code }))
@@ -1191,11 +1191,12 @@ class Pipe {
   async createTweetAsync(data) {
     let { serverAddr, sessionId, user, body, paths } = data
     let fruit = getFruit()
-    if (!fruit) return await this.errorResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
+    if (!fruit) return await this.errorStoreResponseAsync(serverAddr, sessionId, new Error('fruitmix not start'))
     let { parent, type, list, indrive, comment } = body
     let src = []
     let boxUUID = paths[1]
-    if (list && list.length > 1) return await this.errorResponseAsync(serverAddr, sessionId, new Error('list can only one item if use pipe'))
+    data.subType = 'CreateTweet'
+    if (list && list.length > 1) return await this.errorStoreResponseAsync(serverAddr, sessionId, new Error('list can only one item if use pipe'))
     if(list && list.length) {
       let l = list[0]
       let store = new StoreFile(this.tmp, l.size, l.sha256)
@@ -1204,7 +1205,7 @@ class Pipe {
     }
     if (indrive) {
       user = getFruit().findUserByGUID(user.global.id)
-      if(!user) return await this.errorResponseAsync(serverAddr, sessionId, new Error('indrive only use for local user'))
+      if(!user) return await this.errorStoreResponseAsync(serverAddr, sessionId, new Error('indrive only use for local user'))
       let files = await this.indriveFilesMoveAsync(user, indrive)
       files.map(f => src.push({ sha256: f.sha256, filepath:f.filepath}))
     }
