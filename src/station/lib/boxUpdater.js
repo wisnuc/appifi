@@ -95,7 +95,7 @@ class BoxUpdater {
     let token = this.ctx.token
     let opts = { 'Authorization': token }
     let params = tweet
-    debug('发起 update last tweet', boxUUID, url)
+    debug('发起 update last tweet', tweet, url)
     requestC('POST', url, { params }, opts, (err, res) => {
       if(err) {
         debug(err)

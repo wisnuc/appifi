@@ -74,9 +74,9 @@ class BlobCTX extends EventEmitter {
     if (this.blobReadSettled()) {
       this.emit('BlobReadDone')
       if(this.needRetry) { // retry failed blob
-        this.needRetry = false
         this.failedBlobs.forEach(b => this.blobEnterPending(b))
         this.failedBlobs.clear()
+        this.needRetry = false
       }
       debug('blob read finished')
       return
