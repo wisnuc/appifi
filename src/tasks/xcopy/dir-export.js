@@ -30,13 +30,13 @@ class Working extends Dir.prototype.Working {
   mkdir (policy, callback) {
     let name = this.ctx.src.name
     let dstPath = path.join(this.ctx.parent.dst.path, name)
-    mkdir(dstPath, policy, (err, _, resolved) => {
+    mkdir(dstPath, policy, (err, dst, resolved) => {
       if (err) {
         callback(err)
       } else {
         let dst2 = {
           name: this.ctx.src.name,
-          path: dstPath
+          path: dst || dstPath
         }
         callback(null, dst2, resolved)
       }
