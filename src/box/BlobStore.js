@@ -2,6 +2,8 @@ const path = require('path')
 const Promise = require('bluebird')
 const fs = Promise.promisifyAll(require('fs'))
 const child = require('child_process')
+const os = require('os')
+
 const broadcast = require('../common/broadcast')
 const { fileMagic6 } = require('../lib/xstat')
 const identify = require('../lib/identify')
@@ -91,7 +93,17 @@ class BlobCTX extends EventEmitter {
       }
     }
 
-    while (this.pendingBlobs.size > 0 && this.readingBlobs.size < 4) {
+    //FIXME: not need
+    let core = os.cpus().length
+    let load = os.loadavg()[0]
+    const shouldSpawn = () => {
+      if (this.pendingBlobs.size === 0) return false
+      if (this.readingBlobs.size === 0) return true
+      return (load + this.readingBlobs.size / 2 - 0.5) < core
+    }
+
+
+    while (shouldSpawn()) {
       let blobUUID = this.pendingBlobs[Symbol.iterator]().next().value
       this.blobExitPending(blobUUID)
       let blobPath = path.join(this.dir, blobUUID)
@@ -108,17 +120,7 @@ class BlobCTX extends EventEmitter {
         fileMagic6(blobPath, (err, magic) => {
           if (err) return finalized(blobUUID, err)
           if (Magic.isMedia(magic)) {
-            /*
-              let worker = identify(blobPath, blobUUID)
-              worker.on('finish', data => {
-                this.medias.set(blobUUID, data)
-                this.ctx.reportMedia(blobUUID, data) // TODO: 
-                return finalized(blobUUID)
-              })
-              worker.on('error', err => finalized(blobUUID, err))
-              worker.run()
-            */
-            let worker = exiftool(blobPath, magic, (err, data) => {
+            exiftool(blobPath, magic, (err, data) => {
               if(err) return finalized(blobUUID, err)
               this.medias.set(blobUUID, data)
               this.ctx.reportMedia(blobUUID, data) // TODO: 

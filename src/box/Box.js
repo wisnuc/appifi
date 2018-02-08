@@ -45,9 +45,9 @@ class Box {
 
   read(callback) {
     Promise.all([
-      new Promise((resolve, reject) => {
-        this.readTree((err, files) => err ? reject(err) : resolve(files))
-      }), 
+      // new Promise((resolve, reject) => {
+      //   this.readTree((err, files) => err ? reject(err) : resolve(files))
+      // }), 
       new Promise((resolve, reject) => this.DB.read((err, files) => err ? reject(err) : resolve(files)))
     ])
     .then(files => {

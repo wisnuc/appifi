@@ -44,6 +44,9 @@ class RecordsDB {
     lr.on('line', line => records.push(line))
 
     lr.on('end', () => {
+      lr.removeAllListeners()
+      lr.close()
+
       let size = fs.readFileSync(this.filePath).length
       let last = records.pop()
 
@@ -126,12 +129,16 @@ class RecordsDB {
     lr.on('end', () => {
       if(error) return
       this.records = records // FIXME: ????
+      lr.removeAllListeners()
+      lr.close()
       return callback(null, [...files])
     })
 
     lr.on('error', err => {
       if(error) return
       error = err
+      lr.removeAllListeners()
+      lr.close()
       return callback(error)
     })
   }
@@ -179,8 +186,16 @@ class RecordsDB {
     // read all lines
     lr.on('line', line => records.push(line))
 
+    lr.on('error', err => {
+      lr.removeAllListeners()
+      lr.close()
+      callback(err)
+    })
+
     // check the last line and repair tweets DB if error exists
     lr.on('end', () => {
+      lr.removeAllListeners()
+      lr.close()
       // read blackList
       let blackList = fs.readFileSync(this.blackList).toString()
       blackList.length ? blackList = [...new Set(blackList.split(',').filter(x => x.length).map(i => parseInt(i)))]
@@ -264,6 +279,8 @@ class RecordsDB {
 
     // check the last line and repair tweets DB if error exists
     lr.on('end', () => {
+      lr.removeAllListeners()
+      lr.close()
       // read blackList
       let blackList = fs.readFileSync(this.blackList).toString()
       blackList.length ? blackList = [...new Set(blackList.split(',').filter(x => x.length).map(i => parseInt(i)))]
