@@ -173,7 +173,7 @@ module.exports = {
       assert(typeof props.users === 'object', 'users should be an object')
       assert(props.users.op === 'add' || props.users.op === 'delete', 'operation should be add or delete')
       assert(Array.isArray(props.users.value), 'value should be an array')
-      if(!isOwner && (props.user.op === 'add' || props.value.length > 1 ||props.value[0] !== user.global.id))
+      if(!isOwner && (props.users.op === 'add' || props.users.value.length > 1 ||props.users.value[0] !== user.global.id))
         throw Object.assign(new Error('no permission'), { status: 403 })
     }
 
