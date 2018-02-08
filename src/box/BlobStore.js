@@ -74,7 +74,7 @@ class BlobCTX extends EventEmitter {
     this.blobReadScheduled = false
     if (this.blobReadSettled()) {
       this.emit('BlobReadDone')
-      if(this.needRetry) { // retry failed blob
+      if(this.needRetry && this.failedBlobs.size) { // retry failed blob
         this.failedBlobs.forEach(b => this.blobEnterPending(b))
         this.failedBlobs.clear()
         this.needRetry = false
@@ -99,6 +99,12 @@ class BlobCTX extends EventEmitter {
       fs.lstat(blobPath, (err, stat) => {
         if (err) return finalized(blobUUID, err)
         this.sizeMap.set(blobUUID, stat.size)
+        let metadata = this.ctx.mediaMap.getMetadata(blobUUID)
+        if (metadata) {
+          this.medias.set(blobUUID, metadata)
+          this.ctx.reportMedia(blobUUID, metadata) // TODO: 
+          return finalized(blobUUID)
+        }
         fileMagic6(blobPath, (err, magic) => {
           if (err) return finalized(blobUUID, err)
           if (Magic.isMedia(magic)) {
@@ -113,7 +119,7 @@ class BlobCTX extends EventEmitter {
               worker.run()
             */
             let worker = exiftool(blobPath, magic, (err, data) => {
-              if(err) return (blobUUID, err)
+              if(err) return finalized(blobUUID, err)
               this.medias.set(blobUUID, data)
               this.ctx.reportMedia(blobUUID, data) // TODO: 
               return finalized(blobUUID)

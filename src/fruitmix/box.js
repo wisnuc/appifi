@@ -46,7 +46,7 @@ module.exports = {
   },
 
   reportMedia(fingerprint, metadata) {
-    this.mediaMap.setMetadata(fingerprint, metadata)
+    // this.mediaMap.setMetadata(fingerprint, metadata)
   },
 
   userCanReadBlob(user, fingerprint) {

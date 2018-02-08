@@ -9,7 +9,7 @@ class BoxUpdater {
     this.ctx = ctx
     this.publishBoxes(err => {
       if(err) debug(err)
-      debug('publish boxes success')
+      else debug('publish boxes success')
     })
     this.initHandle(err => {
       if(err) debug(err)
@@ -35,7 +35,7 @@ class BoxUpdater {
       let url = CONFIG.CLOUD_PATH + 's/v1/boxes/batch'
       let token = this.ctx.token
       let opts = { 'Authorization': token }
-      let params = { 'create': boxes } // TODO change ticket status
+      let params = { create: boxes } // TODO change ticket status
       debug('发起publish boxes', url)
       requestC('POST', url, { params }, opts, (err, res) => {
         if(err) {

@@ -59,6 +59,7 @@ class HashTransform extends Transform {
 }
 
 class StoreFile {
+  //TODO: miniprogram no sha256
   constructor(tmp, size, sha256) {
     this.tmp = tmp
     this.size = size
