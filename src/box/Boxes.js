@@ -210,12 +210,6 @@ class Boxes extends B {
       debug('blob load success')
       this.blobsInited = true
     })
-    
-    // this.loadBoxes(err => {
-    //   if(err) return console.log(err)
-    //   debug('boxes load success')
-    //   this.boxesInited = true
-    // })
     this.loadBoxesSync()
   }
 

@@ -660,7 +660,7 @@ class Pipe {
       data.subType = 'GetMediaFile'
       let file
       if(body.boxUUID) {
-        file = getFruit().getBoxFilepath(user, query.boxUUID, fingerprint)
+        file = getFruit().getBoxFilepath(user, body.boxUUID, fingerprint)
         if (!file) 
           return await this.errorFetchResponseAsync(serverAddr, sessionId, new Error('media not found'))
       } else {
