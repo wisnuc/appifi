@@ -9,6 +9,7 @@ const mkdirp = require('mkdirp')
 const EventEmitter = require('events').EventEmitter 
 const debug = require('debug')('boxes:boxes')
 const exiftool = require('../lib/exiftool2')
+const Magic = require('../lib/magic')
 
 class BlobCTX extends EventEmitter {
   /**
@@ -100,16 +101,16 @@ class BlobCTX extends EventEmitter {
         this.sizeMap.set(blobUUID, stat.size)
         fileMagic6(blobPath, (err, magic) => {
           if (err) return finalized(blobUUID, err)
-          if (magic === 'JPEG') {
+          if (Magic.isMedia(magic)) {
             /*
-            let worker = identify(blobPath, blobUUID)
-            worker.on('finish', data => {
-              this.medias.set(blobUUID, data)
-              this.ctx.reportMedia(blobUUID, data) // TODO: 
-              return finalized(blobUUID)
-            })
-            worker.on('error', err => finalized(blobUUID, err))
-            worker.run()
+              let worker = identify(blobPath, blobUUID)
+              worker.on('finish', data => {
+                this.medias.set(blobUUID, data)
+                this.ctx.reportMedia(blobUUID, data) // TODO: 
+                return finalized(blobUUID)
+              })
+              worker.on('error', err => finalized(blobUUID, err))
+              worker.run()
             */
             let worker = exiftool(blobPath, magic, (err, data) => {
               if(err) return (blobUUID, err)

@@ -150,10 +150,6 @@ module.exports = {
   },*/
 
   async updateBoxAsync (user, boxUUID, props) {
-    // let u = this.findUserByUUID(user.uuid)
-    // if (!u || user.global.id !== u.global.id) { throw Object.assign(new Error('no permission'), { status: 403 }) }
-    
-
     let box = this.boxData.getBox(boxUUID)
     if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
     if(!user || !user.global || !user.global.id) throw Object.assign(new Error('no permission'), { status: 403 })
