@@ -29,7 +29,7 @@ module.exports = {
       return callback(e)
     }
 
-    if (!this.boxData.medias.has(fingerprint)) {
+    if (!this.boxData.blobs.medias.has(fingerprint)) {
       let err = new Error('media not found')
       err.status = 404
       process.nextTick(() => callback(err))
