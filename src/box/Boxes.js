@@ -155,7 +155,7 @@ class B extends EventEmitter {
       box.read((err, files) => {
         this.boxExitReading(box)
         if(err) return this.boxEnterFailed(box)
-        debug('box read finish')
+        debug('box read finish ' + box.doc.name)
       })
     }
   }
