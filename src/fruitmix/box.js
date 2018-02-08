@@ -126,7 +126,9 @@ module.exports = {
    * @param {number} props.mtime - optional
    * @return {Object} new description of box
    */
-  async updateBoxAsync (user, boxUUID, props) {
+  
+  /*
+   async updateBoxAsync (user, boxUUID, props) {
     let u = this.findUserByUUID(user.uuid)
     if (!u || user.global.id !== u.global.id) { throw Object.assign(new Error('no permission'), { status: 403 }) }
 
@@ -142,6 +144,37 @@ module.exports = {
       assert(typeof props.users === 'object', 'users should be an object')
       assert(props.users.op === 'add' || props.users.op === 'delete', 'operation should be add or delete')
       assert(Array.isArray(props.users.value), 'value should be an array')
+    }
+
+    return this.boxData.updateBoxAsync(props, boxUUID)
+  },*/
+
+  async updateBoxAsync (user, boxUUID, props) {
+    // let u = this.findUserByUUID(user.uuid)
+    // if (!u || user.global.id !== u.global.id) { throw Object.assign(new Error('no permission'), { status: 403 }) }
+    
+
+    let box = this.boxData.getBox(boxUUID)
+    if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
+    if(!user || !user.global || !user.global.id) throw Object.assign(new Error('no permission'), { status: 403 })
+    if(!box.doc.users.includes(user.global.id)) throw Object.assign(new Error('no permission'), { status: 403 })
+    
+    let isOwner = box.doc.owner === user.global.id
+    let isLocalUser = !!this.findUserByGUID(user.global.id)
+    // if (box.doc.owner !== user.global.id) { throw Object.assign(new Error('no permission'), { status: 403 }) }
+
+    validateProps(props, [], ['name', 'users', 'mtime'])
+
+    if (props.name) {
+      if(!isOwner || !isLocalUser) throw Object.assign(new Error('no permission'), { status: 403 })
+      assert(typeof props.name === 'string', 'name should be a string')
+    }
+    if (props.users) {
+      assert(typeof props.users === 'object', 'users should be an object')
+      assert(props.users.op === 'add' || props.users.op === 'delete', 'operation should be add or delete')
+      assert(Array.isArray(props.users.value), 'value should be an array')
+      if(!isOwner && (props.user.op === 'add' || props.value.length > 1 ||props.value[0] !== user.global.id))
+        throw Object.assign(new Error('no permission'), { status: 403 })
     }
 
     return this.boxData.updateBoxAsync(props, boxUUID)
