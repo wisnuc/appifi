@@ -154,10 +154,10 @@ class Box {
  * }
  * 
  */
-  async createDefaultTweetAsync(tweeter, commentObj) {
+  async createDefaultTweetAsync(global, commentObj) {
     
     let props = {
-      tweeter,
+      global,
       comment: JSON.stringify(commentObj),
       type: 'boxmessage',
     }
