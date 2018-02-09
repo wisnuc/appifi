@@ -92,9 +92,9 @@ class Station {
     // register 
     this.mqtt.register('pipe', pipe.handle.bind(pipe))
     this.mqtt.on('MQTTConnected', () => {
-      // this.updateCloudUsersAsync()  //update users and lanIP
-      //   .then(() => { })
-      //   .catch(e => debug('update service users error', e))
+      this.updateCloudUsersAsync()  //update users and lanIP
+        .then(() => { })
+        .catch(e => debug('update service users error', e))
     })
     this.mqtt.connect()
     
