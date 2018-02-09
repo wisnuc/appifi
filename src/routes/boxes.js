@@ -12,6 +12,7 @@ const Dicer = require('dicer')
 const sanitize = require('sanitize-filename')
 const crypto = require('crypto')
 
+const btrfs = require('../lib/btrfs')
 const secret = require('../config/passportJwt')
 const Fingerprint = require('../lib/fingerprint2')
 const { isSHA256 } = require('../lib/assertion')
@@ -323,7 +324,7 @@ const copyDriveFile = (filePath, tmpPath, callback) => {
   fs.lstat(filePath, err => {
     if(err) return callback(err)
     //TODO: read xstat
-    fs.copyFile(filePath, tmpPath, err => {
+    btrfs.clone(filePath, tmpPath, err => {
       if(err) return callback(err)
       let fp = new Fingerprint(filePath)
       fp.on('error', err => {
@@ -404,7 +405,7 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
               if(files.length) {
                 let mediaPath = files[0]
                 // TODO: check file xstat
-                fs.copyFile(mediaPath, tmpPath, err => {
+                btrfs.clone(mediaPath, tmpPath, err => {
                   if(error) return
                   if(err) return errorComplete(err)
                   l.finish = true

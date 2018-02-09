@@ -14,8 +14,8 @@ const mkdirpAsync = Promise.promisify(mkdirp)
 const rimraf = require('rimraf')
 const rimrafAsync = Promise.promisify(rimraf)
 const sanitize = require('sanitize-filename')
-const ioctl = require('ioctl')
 
+const btrfs = require('../../lib/btrfs')
 const requestAsync = require('./request').requestHelperAsync
 const broadcast = require('../../common/broadcast')
 const Fingerprint = require('../../lib/fingerprint2')
@@ -1144,7 +1144,7 @@ class Pipe {
         fs.lstat(filePath, err => {
           if(err) return callback(err)
           //TODO: read xstat
-          fs.copyFile(filePath, tmpPath, err => {
+          btrfs.clone(filePath, tmpPath, err => {
             if(err) return callback(err)
             let fp = new Fingerprint(filePath)
             fp.on('error', err => {
@@ -1170,7 +1170,7 @@ class Pipe {
           if(files.length) {
             let mediaPath = files[0]
             // TODO: check file xstat
-            fs.copyFile(mediaPath, tmpPath, err => {
+            btrfs.clone(mediaPath, tmpPath, err => {
               if(error) return
               if(err) return errorHandle(err)
               l.finish = true
