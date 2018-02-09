@@ -184,12 +184,12 @@ module.exports = {
       if(props.users.op === 'add')
         sysNameComment = {
           op: 'addUser',
-          value: box.users.value
+          value: props.users.value
         }
       else 
         sysNameComment = {
           op: 'deleteUser',
-          value: box.users.value
+          value: props.users.value
         }
     }
     let newBox = await this.boxData.updateBoxAsync(props, boxUUID)
