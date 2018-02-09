@@ -111,7 +111,15 @@ module.exports = {
     assert(Array.isArray(props.users), 'users should be an array')
     if(!props.users.every(u => isUUID(u))) throw new Error('users item error, not guid')
     props.owner = user.global.id
-    return this.boxData.createBoxAsync(props)
+    let doc = await this.boxData.createBoxAsync(props)
+    // createBox
+    let sysCreateComment = {
+      op: 'createBox',
+      value: doc.users
+    }
+    let box = this.boxData.getBox(doc.uuid)
+    await box.createDefaultTweetAsync(user.global, sysCreateComment)
+    return doc
   },
 
   // update name and users, only box owner is allowed

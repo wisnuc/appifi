@@ -149,7 +149,7 @@ class Box {
  * create system tweet
  * commentObj
  * {
- *   op: enum:'addUser', 'deleteUser', 'changeBoxName',
+ *   op: enum:'addUser', 'deleteUser', 'changeBoxName', 'createBox'
  *   value:[]
  * }
  * 
