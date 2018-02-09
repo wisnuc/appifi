@@ -2,6 +2,7 @@ const Promise = require('bluebird')
 const Stringify = require('canonical-json')
 const fs = Promise.promisifyAll(require('fs'))
 const lineByLineReader = require('line-by-line')
+const ReadLine = require('readline')
 
 const E = require('../lib/error')
 
@@ -17,6 +18,8 @@ class RecordsDB {
   constructor(filePath, blackList) {
     this.filePath = filePath
     this.blackList = blackList
+    this.records = []
+    this.lock = false
   }
 
   /**
@@ -30,6 +33,18 @@ class RecordsDB {
     let writeStream = fs.createWriteStream(this.filePath, { flags: 'r+', start: start })
     writeStream.write(`\n${text}`)
     writeStream.close()
+  }
+
+  add2(obj, callback) {
+    if(this.lock) return callback(new Error('wait for unlock'))
+    this.lock = true
+    //FIXME: can use after read finished 
+    let index = this.records.length + 1
+    //TODO: check last line if json parse error
+
+    obj.index = index
+    
+
   }
 
   /**

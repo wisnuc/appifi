@@ -93,7 +93,7 @@ class BlobCTX extends EventEmitter {
       }
     }
 
-    //FIXME: not need
+    //FIXME: no need
     let core = os.cpus().length
     let load = os.loadavg()[0]
     const shouldSpawn = () => {

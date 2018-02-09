@@ -173,7 +173,29 @@ module.exports = {
         throw Object.assign(new Error('no permission'), { status: 403 })
     }
 
-    return this.boxData.updateBoxAsync(props, boxUUID)
+    let sysUserComment, sysNameComment
+    if(props.name) {
+      sysUserComment = {
+        op: 'changeBoxName',
+        value:[box.doc.name, props.name]
+      }
+    }
+    if(props.users) {
+      if(props.users.op === 'add')
+        sysNameComment = {
+          op: 'addUser',
+          value: box.users.value
+        }
+      else 
+        sysNameComment = {
+          op: 'deleteUser',
+          value: box.users.value
+        }
+    }
+    let newBox = await this.boxData.updateBoxAsync(props, boxUUID)
+    if(sysUserComment) await box.createDefaultTweetAsync(user.global, sysUserComment)
+    if(sysNameComment) await box.createDefaultTweetAsync(user.global, sysNameComment)
+    return newBox
   },
 
   getBoxFilepath(user, boxUUID, fingerprint) {

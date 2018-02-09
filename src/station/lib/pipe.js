@@ -193,6 +193,11 @@ class Pipe {
     let localUser = fruit.findUserByGUID(data.user.id)
     if(localUser)
       data.user = Object.assign({}, data.user, localUser)
+    else 
+      data.user.global = {
+        id: data.user.id
+      }
+    
     // debug('fruit pipe user: ', data.user)
     let messageType = this.decodeType(data)
 

@@ -200,7 +200,7 @@ class Boxes extends B {
   constructor(ctx) {
     super(ctx.fruitmixPath)
     this.ctx = ctx
-    this.docStore = new Docs(ctx.fruitmixPath)
+    // this.docStore = new Docs(ctx.fruitmixPath)
     this.blobs = new Blobs(ctx)
     this.blobsInited = false
     this.boxesInited = false
@@ -311,7 +311,6 @@ class Boxes extends B {
     await fs.renameAsync(tmp, path.join(this.dir, doc.uuid))
 
     let box = createBox(this, this.dir, doc)
-    this.indexBox(box)
     this.boxEnterInit(box)
     this.handleNewBox(box)
     return doc
@@ -371,8 +370,8 @@ class Boxes extends B {
   async deleteBoxAsync(boxUUID) {
     let box = this.boxes.get(boxUUID)
     if(!box) throw new Error('box not found')
+    box.destory()
     await rimrafAsync(path.join(this.dir, boxUUID))
-    this.unindexBox(box)
     this.handleDeleteBox(boxUUID)
     return
   }

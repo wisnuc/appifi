@@ -40,6 +40,9 @@ class Box {
   }
 
   destory() {
+    this.files.clear()
+    this.files = undefined
+    this.DB = undefined
     this.ctx.unindexBox(this)
   }
 
@@ -58,6 +61,7 @@ class Box {
     .catch(callback)
   }
 
+/*
   readTree(callback) {
     this.retrieveAllBranches((err, branches) => {
       if(err) return callback(err)
@@ -81,6 +85,7 @@ class Box {
       })
     })
   }
+*/
 
   /**
    * create a tweet
@@ -138,6 +143,26 @@ class Box {
     let stat = await fs.statAsync(this.DB.filePath)
     let mtime = stat.mtime.getTime()
     return { tweet, mtime }
+  }
+
+  /**
+ * create system tweet
+ * commentObj
+ * {
+ *   op: enum:'addUser', 'deleteUser', 'changeBoxName',
+ *   value:[]
+ * }
+ * 
+ */
+  async createDefaultTweetAsync(tweeter, commentObj) {
+    
+    let props = {
+      tweeter,
+      comment: JSON.stringify(commentObj),
+      type: 'boxmessage',
+    }
+
+    await this.createTweetAsync(props)
   }
 
   /**
