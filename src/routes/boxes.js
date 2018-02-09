@@ -324,7 +324,7 @@ const copyDriveFile = (filePath, tmpPath, callback) => {
   fs.lstat(filePath, err => {
     if(err) return callback(err)
     //TODO: read xstat
-    btrfs.clone(filePath, tmpPath, err => {
+    fs.copyFile(filePath, tmpPath, err => {
       if(err) return callback(err)
       let fp = new Fingerprint(filePath)
       fp.on('error', err => {
@@ -405,7 +405,7 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
               if(files.length) {
                 let mediaPath = files[0]
                 // TODO: check file xstat
-                btrfs.clone(mediaPath, tmpPath, err => {
+                fs.copyFile(mediaPath, tmpPath, err => {
                   if(error) return
                   if(err) return errorComplete(err)
                   l.finish = true
