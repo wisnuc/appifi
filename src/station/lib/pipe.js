@@ -18,7 +18,7 @@ const ioctl = require('ioctl')
 
 const requestAsync = require('./request').requestHelperAsync
 const broadcast = require('../../common/broadcast')
-const fingerprintSimple = require('../../utils/fingerprintSimple')
+const Fingerprint = require('../../lib/fingerprint2')
 // const boxData = require('../../box/boxData')
 
 const getFruit = require('../../fruitmix')
@@ -1146,10 +1146,18 @@ class Pipe {
           //TODO: read xstat
           fs.copyFile(filePath, tmpPath, err => {
             if(err) return callback(err)
-            fingerprintSimple(tmpPath, (err, fingerprint) => {
-              if(err) return callback(err)
+            let fp = new Fingerprint(filePath)
+            fp.on('error', err => {
+              return callback(err)
+            })
+    
+            fp.on('data', fingerprint => {
               callback(null, fingerprint)
-            }) 
+            })
+            // fingerprintSimple(tmpPath, (err, fingerprint) => {
+            //   if(err) return callback(err)
+            //   callback(null, fingerprint)
+            // }) 
           })
         })
       }

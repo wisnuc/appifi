@@ -114,7 +114,7 @@ class BlobCTX extends EventEmitter {
         let metadata = this.ctx.mediaMap.getMetadata(blobUUID)
         if (metadata) {
           this.medias.set(blobUUID, metadata)
-          this.ctx.reportMedia(blobUUID, metadata) // TODO: 
+          // this.ctx.reportMedia(blobUUID, metadata) // TODO: 
           return finalized(blobUUID)
         }
         fileMagic6(blobPath, (err, magic) => {
@@ -123,7 +123,7 @@ class BlobCTX extends EventEmitter {
             exiftool(blobPath, magic, (err, data) => {
               if(err) return finalized(blobUUID, err)
               this.medias.set(blobUUID, data)
-              this.ctx.reportMedia(blobUUID, data) // TODO: 
+              // this.ctx.reportMedia(blobUUID, data) // TODO: 
               return finalized(blobUUID)
             })
           } else return finalized(blobUUID)

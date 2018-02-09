@@ -13,7 +13,7 @@ const sanitize = require('sanitize-filename')
 const crypto = require('crypto')
 
 const secret = require('../config/passportJwt')
-const fingerprintSimple = require('../utils/fingerprintSimple')
+const Fingerprint = require('../lib/fingerprint2')
 const { isSHA256 } = require('../lib/assertion')
 const getFruit = require('../fruitmix')
 
@@ -325,10 +325,14 @@ const copyDriveFile = (filePath, tmpPath, callback) => {
     //TODO: read xstat
     fs.copyFile(filePath, tmpPath, err => {
       if(err) return callback(err)
-      fingerprintSimple(tmpPath, (err, fingerprint) => {
-        if(err) return callback(err)
+      let fp = new Fingerprint(filePath)
+      fp.on('error', err => {
+        return callback(err)
+      })
+
+      fp.on('data', fingerprint => {
         callback(null, fingerprint)
-      }) 
+      })
     })
   })
 }
