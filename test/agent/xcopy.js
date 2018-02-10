@@ -150,7 +150,7 @@ describe(path.basename(__filename) + ' cp a / [dir c, file d] -> dir b', () => {
     })
   })
 
-  it('move parent dir into child dir, return EINVAL, db9b2c5d', async () => {
+  it('copy parent dir into child dir, return EINVAL, db9b2c5d', async () => {
     task = await createTaskAsync(token, {
       type: 'copy',
       src: { drive: IDS.alice.home, dir: IDS.alice.home},
@@ -555,7 +555,7 @@ describe(path.basename(__filename) + ' mv a / [dir c, file d] -> dir b', () => {
       dst: { drive: IDS.alice.home, dir: dirBUUID },
       entries: [dirCUUID, fileDUUID]
     })
-
+    
     await Promise.delay(100)
     task = await getTaskAsync(token, task.uuid)
     expect(task.nodes.length).to.equal(1)
