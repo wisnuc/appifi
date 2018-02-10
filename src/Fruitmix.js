@@ -930,7 +930,7 @@ class Fruitmix extends EventEmitter {
   } 
 
   mkdir2 (user, dst, policy, callback) {
-    this.vfs.mkdir(dst, policy, callbacl)
+    this.vfs.mkdir(dst, policy, callback)
   }
 
   mkfile (user, tmp, dst, policy, callback) {
@@ -960,6 +960,10 @@ class Fruitmix extends EventEmitter {
       err.status = 404
       callback(err)
     }
+  }
+
+  genTmpPath(user) {
+    return this.vfs.genTmpPath()
   }
 
   async createTaskAsync (user, props) {

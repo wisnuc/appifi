@@ -49,6 +49,7 @@ class Working extends Dir.prototype.Working {
       if (err) {
         callback(err)
       } else {
+        if (!xstat) return callback(null, null, resolved)
         let dst2 = { uuid: xstat.uuid, name: xstat.name }
         callback(null, dst2, resolved)
       }
@@ -118,7 +119,7 @@ class DirImport extends Dir {
     let src = {
       uuid: UUID.v4(),
       name: stat.name,
-      path: path.join(this.ctx.src.path, stat.name)
+      path: path.join(this.src.path, stat.name)
     }
 
     if (stat.type === 'directory') {

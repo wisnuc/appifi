@@ -1410,3 +1410,409 @@ describe(path.basename(__filename) + ' export a/[dir c, file d] -> external dir 
     })
   })
 })
+
+describe(path.basename(__filename) + ' import external dir testImport -> a', () => {
+  let alonzo = FILES.alonzo
+  let bar = FILES.bar
+  let token, dirAUUID, srcPath, dirCPath
+
+  beforeEach(async () => {
+    await resetAsync()
+    await createUserAsync('alice')
+    token = await retrieveTokenAsync('alice')
+    dirAUUID = await createDirAsync(token, IDS.alice.home, IDS.alice.home, 'a')
+
+    srcPath = path.join(process.cwd(), 'testImport')
+    await rimrafAsync(srcPath)
+    await mkdirpAsync(srcPath)
+    dirCPath = path.join(srcPath, 'c')
+    await mkdirpAsync(dirCPath)
+    let fileDPath = path.join(srcPath, alonzo.name)
+    fs.copyFileSync(alonzo.path, fileDPath)
+    let fileEPath = path.join(dirCPath, bar.name)
+    fs.copyFileSync(bar.path, fileEPath)
+  })
+
+  afterEach(async () => {
+    await rimrafAsync(srcPath)
+  })
+
+  it('import vanilla, d8e9d48b', async () => {
+    let task = await createTaskAsync(token, {
+      type: 'import',
+      src: {path: srcPath},
+      dst: {drive: IDS.alice.home, dir: dirAUUID},
+      entries: ['c', alonzo.name]
+    })
+
+    await Promise.delay(150)
+    task = await getTaskAsync(token, task.uuid)
+    expect(task.nodes.length).to.equal(1)
+    expect(task.nodes[0].state).to.equal('Finished')
+  })
+
+  describe('dir conflict, target dir has dir c', () => {
+    let task
+    let policyArr = ['skip', 'keep', 'rename', 'replace']
+    let id = ['e1b170a7', '97d10d25', '6598991d', '77442e36']
+
+    beforeEach(async () => {
+      await createDirAsync(token, IDS.alice.home, dirAUUID, 'c')
+
+      task = await createTaskAsync(token, {
+        type: 'import',
+        src: {path: srcPath},
+        dst: {drive: IDS.alice.home, dir: dirAUUID},
+        entries: ['c', alonzo.name]
+      })
+
+      await Promise.delay(150)
+      task = await getTaskAsync(token, task.uuid)
+    })
+
+    it('state should be conflict, debd458c', done =>{
+      expect(task.nodes.find(n => n.src.path === path.join(srcPath, 'c')).state).to.equal('Conflict')
+      expect(task.nodes.find(n => n.src.path === path.join(srcPath, 'c')).error.code).to.equal('EEXIST')
+      expect(task.nodes.find(n => n.src.path === path.join(srcPath, 'c')).error.xcode).to.equal('EISDIR')
+      done()
+    })
+
+    policyArr.forEach((value, index, array) => {
+      it(`resolve with ${value}, ${id[index]}`, async () => {
+        expect(task.nodes.find(n => n.src.path === path.join(srcPath, 'c')).state).to.equal('Conflict')
+        expect(task.nodes.find(n => n.src.path === path.join(srcPath, 'c')).error.code).to.equal('EEXIST')
+        expect(task.nodes.find(n => n.src.path === path.join(srcPath, 'c')).error.xcode).to.equal('EISDIR')
+
+        let dirCUUID = task.nodes.find(n => n.src.path === path.join(srcPath, 'c')).src.uuid
+        updateNodeByUUIDAsync(token, task.uuid, dirCUUID, { policy: [value, null] }, 200)
+        await Promise.delay(100)
+        task = await getTaskAsync(token, task.uuid)
+        expect(task.nodes.length).to.equal(1)
+        expect(task.nodes[0].state).to.equal('Finished')
+      })
+    })
+  })
+
+  describe('file conflict, target dir has file alonzo', () => {
+    let task
+    let policyArr = ['skip', 'rename', 'replace']
+    let id = ['8e952b15', '2ab7d9f2', '8e4c9991']
+
+    beforeEach(async () => {
+      await createFileAsync(token, IDS.alice.home, dirAUUID, alonzo.name, alonzo.path, {
+        size: alonzo.size,
+        sha256: alonzo.hash
+      })
+
+      task = await createTaskAsync(token, {
+        type: 'import',
+        src: {path: srcPath},
+        dst: {drive: IDS.alice.home, dir: dirAUUID},
+        entries: ['c', alonzo.name]
+      })
+
+      await Promise.delay(150)
+      task = await getTaskAsync(token, task.uuid)
+    })
+
+    it('state should be conflict, f9e2cbb0', done => {
+      expect(task.nodes.find(n => n.src.path === path.join(srcPath, alonzo.name)).state).to.equal('Conflict')
+      expect(task.nodes.find(n => n.src.path === path.join(srcPath, alonzo.name)).error.code).to.equal('EEXIST')
+      expect(task.nodes.find(n => n.src.path === path.join(srcPath, alonzo.name)).error.xcode).to.equal('EISFILE')
+      done()
+    })
+
+    policyArr.forEach((value, index, array) => {
+      it(`resolve with ${value}, ${id[index]}`, async () => {
+        expect(task.nodes.find(n => n.src.path === path.join(srcPath, alonzo.name)).state).to.equal('Conflict')
+        expect(task.nodes.find(n => n.src.path === path.join(srcPath, alonzo.name)).error.code).to.equal('EEXIST')
+        expect(task.nodes.find(n => n.src.path === path.join(srcPath, alonzo.name)).error.xcode).to.equal('EISFILE')
+
+        let fileDUUID = task.nodes.find(n => n.src.path === path.join(srcPath, alonzo.name)).src.uuid
+        updateNodeByUUIDAsync(token, task.uuid, fileDUUID, { policy: [value] }, 200)
+        await Promise.delay(100)
+        task = await getTaskAsync(token, task.uuid)
+        expect(task.nodes.length).to.equal(1)
+        expect(task.nodes[0].state).to.equal('Finished')
+      })
+    })
+  })
+
+  describe('dir conflict with file (diff), target dir has file c', () => {
+    let task
+    let policyArr = ['skip', 'rename', 'replace']
+    let id = ['267b3975', '928d29da', '85bad8e8']
+
+    beforeEach(async () => {
+      await createFileAsync(token, IDS.alice.home, dirAUUID, 'c', alonzo.path, {
+        size: alonzo.size,
+        sha256: alonzo.hash
+      })
+
+      task = await createTaskAsync(token, {
+        type: 'import',
+        src: {path: srcPath},
+        dst: {drive: IDS.alice.home, dir: dirAUUID},
+        entries: ['c', alonzo.name]
+      })
+
+      await Promise.delay(150)
+      task = await getTaskAsync(token, task.uuid)
+    })
+
+    it('state should be conflict', done => {
+      expect(task.nodes.find(n => n.src.path === path.join(srcPath, 'c')).state).to.equal('Conflict')
+      expect(task.nodes.find(n => n.src.path === path.join(srcPath, 'c')).error.code).to.equal('EEXIST')
+      expect(task.nodes.find(n => n.src.path === path.join(srcPath, 'c')).error.xcode).to.equal('EISFILE')
+      done()
+    })
+
+    policyArr.forEach((value, index, array) => {
+      it(`resolve with ${value}, ${id[index]}`, async () => {
+        expect(task.nodes.find(n => n.src.path === path.join(srcPath, 'c')).state).to.equal('Conflict')
+        expect(task.nodes.find(n => n.src.path === path.join(srcPath, 'c')).error.code).to.equal('EEXIST')
+        expect(task.nodes.find(n => n.src.path === path.join(srcPath, 'c')).error.xcode).to.equal('EISFILE')
+
+        let dirCUUID = task.nodes.find(n => n.src.path === path.join(srcPath, 'c')).src.uuid
+        updateNodeByUUIDAsync(token, task.uuid, dirCUUID, { policy: [null, value] }, 200)
+        await Promise.delay(100)
+        task = await getTaskAsync(token, task.uuid)
+        expect(task.nodes.length).to.equal(1)
+        expect(task.nodes[0].state).to.equal('Finished')
+      })
+    })
+  })
+
+  describe('file conflict with dir (diff), target dir has dir alonzo', () => {
+    let task
+    let policyArr = ['skip', 'rename', 'replace']
+    let id = ['c02dbf5e', '06ffcb54', '7d497a68']
+
+    beforeEach(async () => {
+      await createDirAsync(token, IDS.alice.home, dirAUUID, alonzo.name)
+
+      task = await createTaskAsync(token, {
+        type: 'import',
+        src: {path: srcPath},
+        dst: {drive: IDS.alice.home, dir: dirAUUID},
+        entries: ['c', alonzo.name]
+      })
+
+      await Promise.delay(100)
+      task = await getTaskAsync(token, task.uuid)
+    })
+
+    it('state should be conflict, c14dd823', done => {
+      expect(task.nodes.find(n => n.src.path === path.join(srcPath, alonzo.name)).state).to.equal('Conflict')
+      expect(task.nodes.find(n => n.src.path === path.join(srcPath, alonzo.name)).error.code).to.equal('EEXIST')
+      expect(task.nodes.find(n => n.src.path === path.join(srcPath, alonzo.name)).error.xcode).to.equal('EISDIR')
+      done()
+    })
+
+    policyArr.forEach((value, index, array) => {
+      it(`resolve with ${value}, ${id[index]}`, async () => {
+        expect(task.nodes.find(n => n.src.path === path.join(srcPath, alonzo.name)).state).to.equal('Conflict')
+        expect(task.nodes.find(n => n.src.path === path.join(srcPath, alonzo.name)).error.code).to.equal('EEXIST')
+        expect(task.nodes.find(n => n.src.path === path.join(srcPath, alonzo.name)).error.xcode).to.equal('EISDIR')
+
+        let fileDUUID = task.nodes.find(n => n.src.path === path.join(srcPath, alonzo.name)).src.uuid
+        updateNodeByUUIDAsync(token, task.uuid, fileDUUID, { policy: [null, value] }, 200)
+        await Promise.delay(100)
+        task = await getTaskAsync(token, task.uuid)
+        expect(task.nodes.length).to.equal(1)
+        expect(task.nodes[0].state).to.equal('Finished')
+      })
+    })
+  })
+
+  describe('no conflict, global policies: {dir:[keep]}', () => {
+    let task
+    
+    beforeEach(async () => {
+      task = await createTaskAsync(token, {
+        type: 'import',
+        src: {path: srcPath},
+        dst: {drive: IDS.alice.home, dir: dirAUUID},
+        entries: ['c', alonzo.name],
+        policies: {dir: ['keep']}
+      })
+
+      await Promise.delay(100)
+      task = await getTaskAsync(token, task.uuid)
+    })
+
+    it('import successfully, 73df85a8', done => {
+      expect(task.nodes.length).to.equal(1)
+      expect(task.nodes[0].state).to.equal('Finished')
+      done()
+    })
+  })
+
+  describe('dir conflict, global policies: {dir:[keep]}', () => {
+    let task
+
+    beforeEach(async () => {
+      await createDirAsync(token, IDS.alice.home, dirAUUID, 'c')
+
+      task = await createTaskAsync(token, {
+        type: 'import',
+        src: {path: srcPath},
+        dst: {drive: IDS.alice.home, dir: dirAUUID},
+        entries: ['c', alonzo.name],
+        policies: {dir: ['keep']}
+      })
+
+      await Promise.delay(100)
+      task = await getTaskAsync(token, task.uuid)
+    })
+
+    it('import successfully, d9a49722', done => {
+      expect(task.nodes.length).to.equal(1)
+      expect(task.nodes[0].state).to.equal('Finished')
+      done()
+    })
+  })
+
+  describe('golbal policies:{dir:[keep]}, file in dir conflict, apply to all', () => {
+    let task
+    let foo = FILES.foo
+
+    beforeEach(async () => {
+      let fileFPath = path.join(dirCPath, foo.name)
+      fs.copyFileSync(foo.path, fileFPath)
+      // import twice, make conflict
+      task = await createTaskAsync(token, {
+        type: 'import',
+        src: {path: srcPath},
+        dst: {drive: IDS.alice.home, dir: dirAUUID},
+        entries: ['c', alonzo.name],
+        policies: {dir: ['keep']}
+      })
+
+      await Promise.delay(100)
+      task = await createTaskAsync(token, {
+        type: 'import',
+        src: {path: srcPath},
+        dst: {drive: IDS.alice.home, dir: dirAUUID},
+        entries: ['c', alonzo.name],
+        policies: {dir: ['keep']}
+      })
+
+      await Promise.delay(100)
+      task = await getTaskAsync(token, task.uuid)
+    })
+
+    it('file {policy:[skip], applyToAll: true}, 8953ab8c', async () => {
+      expect(task.nodes.find(n => n.src.path === path.join(srcPath, alonzo.name)).state).to.equal('Conflict')
+      expect(task.nodes.find(n => n.src.path === path.join(srcPath, alonzo.name)).error.code).to.equal('EEXIST')
+      expect(task.nodes.find(n => n.src.path === path.join(srcPath, alonzo.name)).error.xcode).to.equal('EISFILE')
+      expect(task.nodes.find(n => n.src.path === path.join(dirCPath, bar.name)).state).to.equal('Conflict')
+      expect(task.nodes.find(n => n.src.path === path.join(dirCPath, bar.name)).error.code).to.equal('EEXIST')
+      expect(task.nodes.find(n => n.src.path === path.join(dirCPath, bar.name)).error.xcode).to.equal('EISFILE')
+
+      let fileDUUID = task.nodes.find(n => n.src.path === path.join(srcPath, alonzo.name)).src.uuid
+      updateNodeByUUIDAsync(token, task.uuid, fileDUUID, { policy: ['skip'], applyToAll: true }, 200)
+      await Promise.delay(100)
+      task = await getTaskAsync(token, task.uuid)
+      expect(task.nodes.length).to.equal(1)
+      expect(task.nodes[0].state).to.equal('Finished')
+    })
+  })
+
+  describe('multi file rename', () => {
+    let task
+
+    beforeEach(async () => {
+      await createFileAsync(token, IDS.alice.home, dirAUUID, alonzo.name, alonzo.path, { 
+        size: alonzo.size, 
+        sha256: alonzo.hash 
+      })
+      await createFileAsync(token, IDS.alice.home, dirAUUID, 'alonzo_church (2).jpg', alonzo.path, { 
+        size: alonzo.size, 
+        sha256: alonzo.hash 
+      })
+      await createFileAsync(token, IDS.alice.home, dirAUUID, 'alonzo_church (3).jpg', alonzo.path, { 
+        size: alonzo.size, 
+        sha256: alonzo.hash 
+      })
+      await createFileAsync(token, IDS.alice.home, dirAUUID, 'alonzo_church (4).jpg', alonzo.path, { 
+        size: alonzo.size, 
+        sha256: alonzo.hash 
+      })
+
+      let fileFPath = path.join(srcPath, 'alonzo_church (2).jpg')
+      fs.copyFileSync(alonzo.path, fileFPath)
+      let fileGPath = path.join(srcPath, 'alonzo_church (3).jpg')
+      fs.copyFileSync(alonzo.path, fileGPath)
+      let fileHPath = path.join(srcPath, 'alonzo_church (4).jpg')
+      fs.copyFileSync(alonzo.path, fileHPath)
+
+      task = await createTaskAsync(token, {
+        type: 'import',
+        src: {path: srcPath},
+        dst: {drive: IDS.alice.home, dir: dirAUUID},
+        entries: ['c', alonzo.name, 'alonzo_church (2).jpg', 'alonzo_church (3).jpg','alonzo_church (4).jpg'],
+        policies: {dir: ['keep']}
+      })
+      await Promise.delay(100)
+      task = await getTaskAsync(token, task.uuid)
+    })
+
+    it('the entries length of dir a should be 9, 5240bfd5', async () => {
+      let fileDUUID = task.nodes.find(n => n.src.path === path.join(srcPath, alonzo.name)).src.uuid
+      updateNodeByUUIDAsync(token, task.uuid, fileDUUID, { policy: ['rename'], applyToAll: true}, 200)
+
+      await Promise.delay(100)
+      task = await getTaskAsync(token, task.uuid)
+      expect(task.nodes.length).to.equal(1)
+      expect(task.nodes[0].state).to.equal('Finished')
+
+      let dirA = await getDriveDirAsync(token, IDS.alice.home, dirAUUID)
+      expect(dirA.entries.length).to.equal(9)
+    })
+  })
+
+  describe('multi file conflict in different sub-dir', () => {
+    let task, fileHPath, fileIPath
+    let foo = FILES.foo
+
+    beforeEach(async () => {
+      let dirFPath = path.join(dirCPath, 'f')
+      await mkdirpAsync(dirFPath)
+      let dirGPath = path.join(dirCPath, 'g')
+      await mkdirpAsync(dirGPath)
+      fileHPath = path.join(dirFPath, bar.name)
+      fs.copyFileSync(bar.path, fileHPath)
+      fileIPath = path.join(dirGPath, foo.name)
+      fs.copyFileSync(foo.path, fileIPath)
+
+      task = await createTaskAsync(token, {
+        type: 'import',
+        src: {path: srcPath},
+        dst: {drive: IDS.alice.home, dir: dirAUUID},
+        entries: ['c', alonzo.name],
+        policies: {dir: ['keep']}
+      })
+
+      await Promise.delay(100)
+      task = await createTaskAsync(token, {
+        type: 'import',
+        src: {path: srcPath},
+        dst: {drive: IDS.alice.home, dir: dirAUUID},
+        entries: ['c', alonzo.name],
+        policies: {dir: ['keep']}
+      })
+
+      await Promise.delay(100)
+      task = await getTaskAsync(token, task.uuid)
+    })
+
+    it('all conflict should be found, b8b6e1bd', done => {
+      expect(task.nodes.find(n => n.src.path === path.join(srcPath, alonzo.name)).state).to.equal('Conflict')
+      expect(task.nodes.find(n => n.src.path === path.join(dirCPath, bar.name)).state).to.equal('Conflict')
+      expect(task.nodes.find(n => n.src.path === fileHPath).state).to.equal('Conflict')
+      expect(task.nodes.find(n => n.src.path === fileIPath).state).to.equal('Conflict')
+      done()
+    })
+  })
+})
