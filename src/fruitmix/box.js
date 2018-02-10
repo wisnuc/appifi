@@ -347,10 +347,10 @@ module.exports = {
   async getTweetsAsync (user, boxUUID, props) {
     if (!this.userCanReadBox(user, boxUUID))  throw Object.assign(new Error('no permission'), { status: 403 }) 
     let box = this.boxData.getBox(boxUUID)
-    if (props.first) assert(Number.isInteger(props.first), 'first should be an integer')
-    if (props.last) assert(Number.isInteger(props.last), 'last should be an integer')
-    if (props.count) assert(Number.isInteger(props.count), 'count should be an integer')
-    if (props.last) assert(typeof props.segments === 'string', 'segments should be a string')
+    if (props.first) assert(Number.isInteger(Number(props.first)), 'first should be an integer')
+    if (props.last) assert(Number.isInteger(Number(props.last)), 'last should be an integer')
+    if (props.count) assert(Number.isInteger(Number(props.count)), 'count should be an integer')
+    if (props.segments) assert(typeof props.segments === 'string', 'segments should be a string')
     let metadata = props.metadata
     let tweets = await box.getTweetsAsync(props)
     if (metadata) {
