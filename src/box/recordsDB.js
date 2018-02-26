@@ -2,6 +2,7 @@ const Promise = require('bluebird')
 const Stringify = require('canonical-json')
 const fs = Promise.promisifyAll(require('fs'))
 const lineByLineReader = require('line-by-line')
+const ReadLine = require('readline')
 
 const E = require('../lib/error')
 
@@ -17,6 +18,8 @@ class RecordsDB {
   constructor(filePath, blackList) {
     this.filePath = filePath
     this.blackList = blackList
+    this.records = []
+    this.lock = false
   }
 
   /**
@@ -30,6 +33,18 @@ class RecordsDB {
     let writeStream = fs.createWriteStream(this.filePath, { flags: 'r+', start: start })
     writeStream.write(`\n${text}`)
     writeStream.close()
+  }
+
+  add2(obj, callback) {
+    if(this.lock) return callback(new Error('wait for unlock'))
+    this.lock = true
+    //FIXME: can use after read finished 
+    let index = this.records.length + 1
+    //TODO: check last line if json parse error
+
+    obj.index = index
+    
+
   }
 
   /**
@@ -132,6 +147,8 @@ class RecordsDB {
     lr.on('error', err => {
       if(error) return
       error = err
+      lr.removeAllListeners()
+      lr.close()
       return callback(error)
     })
   }
@@ -179,6 +196,12 @@ class RecordsDB {
     // read all lines
     lr.on('line', line => records.push(line))
 
+    lr.on('error', err => {
+      lr.removeAllListeners()
+      lr.close()
+      callback(err)
+    })
+
     // check the last line and repair tweets DB if error exists
     lr.on('end', () => {
       // read blackList
@@ -212,7 +235,7 @@ class RecordsDB {
         return callback(null, result)
       }
       else if (!first && !last && count && !segments) {
-        let result = records.silce(-count)
+        let result = records.slice(-count)
                             .map(r => JSON.parse(r))
                             .filter(r => !blackList.includes(r.index))
         return callback(null, result)
@@ -253,6 +276,38 @@ class RecordsDB {
    */
   async getAsync(props) {
     return Promise.promisify(this.get).bind(this)(props)
+  }
+
+  getLastTweet(callback) {
+    let records = []
+    let lr = new lineByLineReader(this.filePath, {skipEmptyLines: true})
+
+    // read all lines
+    lr.on('line', line => records.push(line))
+
+    // check the last line and repair tweets DB if error exists
+    lr.on('end', () => {
+      // read blackList
+      let blackList = fs.readFileSync(this.blackList).toString()
+      blackList.length ? blackList = [...new Set(blackList.split(',').filter(x => x.length).map(i => parseInt(i)))]
+                       : blackList = []
+
+      // repair wrong content and filter contents in blackList
+      let size = fs.readFileSync(this.filePath).length
+      let end = records.pop()
+      if(!end) return callback()
+      try {
+        JSON.parse(end)
+        records.push(end)
+      } catch(e) {
+        return callback(e)
+      }
+
+      blackList.forEach(index => records = [...records.slice(0, index),...records.slice(index+1)])
+      if(records.length)
+        return callback(null, JSON.parse(records.pop()))
+      return callback(null)
+    })
   }
 
   /**

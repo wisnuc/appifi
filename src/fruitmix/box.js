@@ -2,6 +2,24 @@ const { assert, isUUID, isSHA256, validateProps } = require('../common/assertion
 const fs = require('fs')
 /// ////////////// box api ///////////////////////
 module.exports = {
+  
+  // get user by guid if is local user, else return false
+  /**
+   * 
+   * @param {object} user
+   * {
+   *    global: {
+   *      id:xxx // guid
+   *      wx:[]
+   *    } 
+   * } 
+   */
+  isLocalUser(user) {
+    if(!user || !user.global || !user.global.id) return false
+    let u = this.findUserByGUID(user.global.id)
+    if(!user) return false
+    return u
+  },
 
   getBlobMediaThumbnail(user, fingerprint, query, callback) {
 
@@ -11,7 +29,7 @@ module.exports = {
       return callback(e)
     }
 
-    if (!this.mediaMap.has(fingerprint)) {
+    if (!this.boxData.blobs.medias.has(fingerprint)) {
       let err = new Error('media not found')
       err.status = 404
       process.nextTick(() => callback(err))
@@ -28,7 +46,7 @@ module.exports = {
   },
 
   reportMedia(fingerprint, metadata) {
-    this.mediaMap.setMetadata(fingerprint, metadata)
+    // this.mediaMap.setMetadata(fingerprint, metadata)
   },
 
   userCanReadBlob(user, fingerprint) {
@@ -86,15 +104,22 @@ module.exports = {
    * @return {Object} box description (doc)
    */
   async createBoxAsync (user, props) {
-    let u = this.findUserByUUID(user.uuid)
+    let u = this.findUserByGUID(user.global.id)
     if (!u || user.global.id !== u.global.id) { throw Object.assign(new Error('no permission'), { status: 403 }) }
     validateProps(props, ['name', 'users'])
     assert(typeof props.name === 'string', 'name should be a string')
     assert(Array.isArray(props.users), 'users should be an array')
-    // FIXME: check user global ID in props.users ?
-
+    if(!props.users.every(u => isUUID(u))) throw new Error('users item error, not guid')
     props.owner = user.global.id
-    return this.boxData.createBoxAsync(props)
+    let doc = await this.boxData.createBoxAsync(props)
+    // createBox
+    let sysCreateComment = {
+      op: 'createBox',
+      value: doc.users
+    }
+    let box = this.boxData.getBox(doc.uuid)
+    await box.createDefaultTweetAsync(user.global, sysCreateComment)
+    return doc
   },
 
   // update name and users, only box owner is allowed
@@ -109,7 +134,9 @@ module.exports = {
    * @param {number} props.mtime - optional
    * @return {Object} new description of box
    */
-  async updateBoxAsync (user, boxUUID, props) {
+  
+  /*
+   async updateBoxAsync (user, boxUUID, props) {
     let u = this.findUserByUUID(user.uuid)
     if (!u || user.global.id !== u.global.id) { throw Object.assign(new Error('no permission'), { status: 403 }) }
 
@@ -128,6 +155,55 @@ module.exports = {
     }
 
     return this.boxData.updateBoxAsync(props, boxUUID)
+  },*/
+
+  async updateBoxAsync (user, boxUUID, props) {
+    let box = this.boxData.getBox(boxUUID)
+    if (!box) throw Object.assign(new Error('box not found'), { status: 404 })
+    if(!user || !user.global || !user.global.id) throw Object.assign(new Error('no permission'), { status: 403 })
+    if(!box.doc.users.includes(user.global.id)) throw Object.assign(new Error('no permission'), { status: 403 })
+    
+    let isOwner = box.doc.owner === user.global.id
+    let isLocalUser = !!this.findUserByGUID(user.global.id)
+    // if (box.doc.owner !== user.global.id) { throw Object.assign(new Error('no permission'), { status: 403 }) }
+
+    validateProps(props, [], ['name', 'users', 'mtime'])
+
+    if (props.name) {
+      if(!isOwner || !isLocalUser) throw Object.assign(new Error('no permission'), { status: 403 })
+      assert(typeof props.name === 'string', 'name should be a string')
+    }
+    if (props.users) {
+      assert(typeof props.users === 'object', 'users should be an object')
+      assert(props.users.op === 'add' || props.users.op === 'delete', 'operation should be add or delete')
+      assert(Array.isArray(props.users.value), 'value should be an array')
+      if(!isOwner && (props.users.op === 'add' || props.users.value.length > 1 ||props.users.value[0] !== user.global.id))
+        throw Object.assign(new Error('no permission'), { status: 403 })
+    }
+
+    let sysUserComment, sysNameComment
+    if(props.name) {
+      sysUserComment = {
+        op: 'changeBoxName',
+        value:[box.doc.name, props.name]
+      }
+    }
+    if(props.users) {
+      if(props.users.op === 'add')
+        sysNameComment = {
+          op: 'addUser',
+          value: props.users.value
+        }
+      else 
+        sysNameComment = {
+          op: 'deleteUser',
+          value: props.users.value
+        }
+    }
+    let newBox = await this.boxData.updateBoxAsync(props, boxUUID)
+    if(sysUserComment) await box.createDefaultTweetAsync(user.global, sysUserComment)
+    if(sysNameComment) await box.createDefaultTweetAsync(user.global, sysNameComment)
+    return newBox
   },
 
   getBoxFilepath(user, boxUUID, fingerprint) {
@@ -144,7 +220,7 @@ module.exports = {
    * @param {string} boxUUID 
    */
   async deleteBoxAsync (user, boxUUID) {
-    let u = this.findUserByUUID(user.uuid)
+    let u = this.findUserByGUID(user.global.id)
     if (!u || user.global.id !== u.global.id) { throw Object.assign(new Error('no permission'), { status: 403 }) }
 
     if (!isUUID(boxUUID)) throw Object.assign(new Error('invalid boxUUID'), { status: 400 })
@@ -271,18 +347,21 @@ module.exports = {
   async getTweetsAsync (user, boxUUID, props) {
     if (!this.userCanReadBox(user, boxUUID))  throw Object.assign(new Error('no permission'), { status: 403 }) 
     let box = this.boxData.getBox(boxUUID)
-    if (props.first) assert(Number.isInteger(props.first), 'first should be an integer')
-    if (props.last) assert(Number.isInteger(props.last), 'last should be an integer')
-    if (props.count) assert(Number.isInteger(props.count), 'count should be an integer')
-    if (props.last) assert(typeof props.segments === 'string', 'segments should be a string')
+    if (props.first) assert(Number.isInteger(Number(props.first)), 'first should be an integer')
+    if (props.last) assert(Number.isInteger(Number(props.last)), 'last should be an integer')
+    if (props.count) assert(Number.isInteger(Number(props.count)), 'count should be an integer')
+    if (props.segments) assert(typeof props.segments === 'string', 'segments should be a string')
     let metadata = props.metadata
     let tweets = await box.getTweetsAsync(props)
     if (metadata) {
-      tweets.forEach(t => 
-        t.type === 'list' ? (t.list.forEach(l => this.mediaMap.hasMetadata(l.sha256) ? l.metadata = this.mediaMap.getMetadata(l.sha256) 
-        : this.boxData.blobs.medias.has(l.sha256) ? l.metadata = this.boxData.blobs.medias.get(l.sha256): t))
-         : t
-      )
+      tweets.forEach(t => {
+        if(t.type === 'list') {
+          t.list.forEach(l => {
+            if(this.boxData.blobs.sizeMap.has(l.sha256)) l.size = this.boxData.blobs.sizeMap.get(l.sha256)
+            if(this.boxData.blobs.medias.has(l.sha256)) l.metadata = this.boxData.blobs.medias.get(l.sha256)
+        })
+       }
+      })
     }
     return tweets
   },
@@ -318,7 +397,8 @@ module.exports = {
     if (props.list) assert(Array.isArray(props.list), 'list should be an array')
     if (props.src) assert(Array.isArray(props.src), 'src should be an array')
     let result = await box.createTweetAsync(props)
-    await this.boxData.updateBoxAsync({mtime: result.mtime}, boxUUID)
+    //FIXME: tweets update, box update?
+    // await this.boxData.updateBoxAsync({mtime: result.mtime}, boxUUID) 
     return result.tweet
   },
 
@@ -403,6 +483,10 @@ module.exports = {
     if (box.doc.owner !== guid && !box.doc.users.includes(guid)) { throw Object.assign(new Error('no permission'), { status: 403 }) }
 
     return box.getTreeListAsync(treeHash, true)
+  },
+
+  getBoxesSummary(callback) {
+    return this.boxData.getBoxesSummary(callback)
   }
 
 }

@@ -2,12 +2,16 @@ const path = require('path')
 const Promise = require('bluebird')
 const fs = Promise.promisifyAll(require('fs'))
 const child = require('child_process')
+const os = require('os')
+
 const broadcast = require('../common/broadcast')
 const { fileMagic6 } = require('../lib/xstat')
 const identify = require('../lib/identify')
 const mkdirp = require('mkdirp')
 const EventEmitter = require('events').EventEmitter 
-const debug = require('debug')('boxes')
+const debug = require('debug')('boxes:boxes')
+const exiftool = require('../lib/exiftool2')
+const Magic = require('../lib/magic')
 
 class BlobCTX extends EventEmitter {
   /**
@@ -22,11 +26,14 @@ class BlobCTX extends EventEmitter {
     this.readingBlobs = new Set()
     this.failedBlobs = new Set()
     this.medias = new Map()
+    this.sizeMap = new Map()
+    this.needRetry = true // can retry failedBlobs
   }
 
   blobEnterPending(blobUUID) {
     debug(`blob ${blobUUID} enter pending`)
     this.pendingBlobs.add(blobUUID)
+    this.needRetry = true // refrush 
     this.reqSchedBlobRead()
   }
 
@@ -69,6 +76,11 @@ class BlobCTX extends EventEmitter {
     this.blobReadScheduled = false
     if (this.blobReadSettled()) {
       this.emit('BlobReadDone')
+      if(this.needRetry && this.failedBlobs.size) { // retry failed blob
+        this.failedBlobs.forEach(b => this.blobEnterPending(b))
+        this.failedBlobs.clear()
+        this.needRetry = false
+      }
       debug('blob read finished')
       return
     }
@@ -81,24 +93,39 @@ class BlobCTX extends EventEmitter {
       }
     }
 
-    while (this.pendingBlobs.size > 0 && this.readingBlobs.size < 6) {
+    //FIXME: no need
+    let core = os.cpus().length
+    let load = os.loadavg()[0]
+    const shouldSpawn = () => {
+      if (this.pendingBlobs.size === 0) return false
+      if (this.readingBlobs.size === 0) return true
+      return (load + this.readingBlobs.size / 2 - 0.5) < core
+    }
+
+
+    while (shouldSpawn()) {
       let blobUUID = this.pendingBlobs[Symbol.iterator]().next().value
       this.blobExitPending(blobUUID)
       let blobPath = path.join(this.dir, blobUUID)
       this.blobEnterReading(blobUUID)
       fs.lstat(blobPath, (err, stat) => {
         if (err) return finalized(blobUUID, err)
+        this.sizeMap.set(blobUUID, stat.size)
+        let metadata = this.ctx.mediaMap.getMetadata(blobUUID)
+        if (metadata) {
+          this.medias.set(blobUUID, metadata)
+          // this.ctx.reportMedia(blobUUID, metadata) // TODO: 
+          return finalized(blobUUID)
+        }
         fileMagic6(blobPath, (err, magic) => {
           if (err) return finalized(blobUUID, err)
-          if (magic === 'JPEG') {
-            let worker = identify(blobPath, blobUUID)
-            worker.on('finish', data => {
+          if (Magic.isMedia(magic)) {
+            exiftool(blobPath, magic, (err, data) => {
+              if(err) return finalized(blobUUID, err)
               this.medias.set(blobUUID, data)
-              this.ctx.reportMedia(blobUUID, data) // TODO: 
+              // this.ctx.reportMedia(blobUUID, data) // TODO: 
               return finalized(blobUUID)
             })
-            worker.on('error', err => finalized(blobUUID, err))
-            worker.run()
           } else return finalized(blobUUID)
         })
       })
@@ -121,53 +148,6 @@ class BlobStore extends BlobCTX{
       callback()
     })
   }
-  // register medias in MediaMap
-  /**
-   * register medias in MediaMap
-   * @param {array} hashArr - an array of media hash to be reported
-   * @param {function} callback
-   */
-  report(hashArr, callback) {
-    if (hashArr.length) {
-      let error = false
-      for (let i = 0; i < hashArr.length; i++) {
-        fileMagic6(path.join(this.dir, hashArr[i]), (err, magic) => {
-          if (error) return
-          if (err) {
-            error = true
-            return callback(err)
-          }
-          if (magic === 'JPEG') {
-            let fpath = path.join(this.dir, hashArr[i])
-            let worker = identify(fpath, hashArr[i])
-            worker.run()
-            worker.on('finish', data => {
-              this.ctx.reportMedia(hashArr[i], data)
-              if (++i === hashArr.length) return callback()
-            })
-            worker.on('error', err => callback(err))
-          } else return callback()
-        })
-      }
-    } else return callback()
-  }
-
-  /**
-   * async edition of report
-   * @param {*} hashArr - an array of media hash to be reported
-   */
-  async reportAsync(hashArr) {
-    return Promise.promisify(this.report).bind(this)(hashArr)
-  }
-
-  /**
-   * load all medias in blobs, register them in MediaMap
-   */
-  async loadAsync() {
-    let entries = await fs.readdirAsync(this.dir)
-    await this.reportAsync(entries)
-  }
-
   // store a list of files
   // src is an array of tmp filepath, file name is the sha256 of itself
   /**
@@ -180,20 +160,56 @@ class BlobStore extends BlobCTX{
     let srcStr = src.join(' ')
     let dst = this.dir
     debug('start store blob')
-    // move files into blobs
-    child.exec(`mv ${srcStr} -t ${dst}`, (err, stdout, stderr) => {
-      if (err) return callback(err)
-      if (stderr) return callback(stderr)
+    let counter = src.length
+    let error
+    let finishHandle = () => {
+      if(--counter) return
       let hashArr = src.map(s => path.basename(s))
       hashArr.forEach(x => this.blobEnterPending(x))
       let files = hashArr.map(i => path.join(dst, i)).join(' ')
       // modify permissions to read only
-      child.exec(`chmod 444 ${files}`, (err, stdout, stderr) => {
-        if (err) return callback(err)
-        if (stderr) return callback(stderr)
-        callback(null, stdout)
+      /*
+      try{
+        child.exec(`chmod 444 ${files}`, (err, stdout, stderr) => {
+          if (err) return callback(err)
+          if (stderr) return callback(stderr)
+          callback(null, stdout)
+        })
+      }catch(e) {
+        console.log(e)
+        callback(e)
+      }
+      */
+      callback(null)
+    }
+    let errorHandle = (err) => {
+      if (error) return
+      error = err
+      return callback(err)
+    }
+    
+    src.forEach(filepath => {
+      let sha256 = path.basename(filepath)
+      fs.rename(filepath, path.join(dst,sha256), err => {
+        if(err) return errorHandle(err)
+        finishHandle()
       })
     })
+
+    // move files into blobs
+    // child.exec(`mv ${srcStr} -t ${dst}`, (err, stdout, stderr) => {
+    //   if (err) return callback(err)
+    //   if (stderr) return callback(stderr)
+    //   let hashArr = src.map(s => path.basename(s))
+    //   hashArr.forEach(x => this.blobEnterPending(x))
+    //   let files = hashArr.map(i => path.join(dst, i)).join(' ')
+    //   // modify permissions to read only
+    //   child.exec(`chmod 444 ${files}`, (err, stdout, stderr) => {
+    //     if (err) return callback(err)
+    //     if (stderr) return callback(stderr)
+    //     callback(null, stdout)
+    //   })
+    // })
   }
 
   /**

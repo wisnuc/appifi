@@ -5,7 +5,7 @@ const rimrafAsync = Promise.promisify(require('rimraf'))
 const EventEmitter = require('events')
 const assert = require('assert')
 
-const debug = require('debug')('boxes')
+const debug = require('debug')('boxes:boxes')
 const mkdirp = require('mkdirp')
 const mkdirpAsync = Promise.promisify(mkdirp)
 const UUID = require('uuid')
@@ -18,6 +18,15 @@ const Box = require('./Box')
 const RecordsDB = require('./recordsDB')
 const Blobs = require('./BlobStore')
 const Docs = require('./docStore')
+
+
+/**
+ * Box notify
+ * 1, Box_CreateBox
+ * 2, Box_UpdateBox
+ * 3, Box_DeleteBox
+ * 4, Box_CreateTweet
+ */
 
 /**
  * @module Box
@@ -137,7 +146,6 @@ class B extends EventEmitter {
       console.log('Box load finished')
       return
     }
-    console.log('start read box')
     while (this.initBoxes.size > 0 && this.readingBoxes.size < 6) {
       let uuid = this.initBoxes[Symbol.iterator]().next().value
       let box = this.boxes.get(uuid)
@@ -147,9 +155,29 @@ class B extends EventEmitter {
       box.read((err, files) => {
         this.boxExitReading(box)
         if(err) return this.boxEnterFailed(box)
-        debug('box read finish')
+        debug('box read finish ' + box.doc.name)
       })
     }
+  }
+
+  /**
+   * emit some message when box or tweet update 
+   */
+
+  handleNewTweet({boxUUID, tweet}) {
+    this.emit('Box_CreateTweet', { boxUUID, tweet })
+  }
+
+  handleNewBox(box) {
+    this.emit('Box_CreateBox', Object.assign({}, box.doc))
+  }
+
+  handleUpdateBox(box) {
+    this.emit('Box_UpdateBox', Object.assign({}, box.doc))
+  }
+
+  handleDeleteBox(boxUUID) {
+    this.emit('Box_DeleteBox', boxUUID)
   }
 }
 
@@ -172,7 +200,7 @@ class Boxes extends B {
   constructor(ctx) {
     super(ctx.fruitmixPath)
     this.ctx = ctx
-    this.docStore = new Docs(ctx.fruitmixPath)
+    // this.docStore = new Docs(ctx.fruitmixPath)
     this.blobs = new Blobs(ctx)
     this.blobsInited = false
     this.boxesInited = false
@@ -182,12 +210,7 @@ class Boxes extends B {
       debug('blob load success')
       this.blobsInited = true
     })
-    
-    this.loadBoxes(err => {
-      if(err) return console.log(err)
-      debug('boxes load success')
-      this.boxesInited = true
-    })
+    this.loadBoxesSync()
   }
 
   loadBoxes (callback) {
@@ -212,6 +235,23 @@ class Boxes extends B {
         })
       })
     })
+  }
+
+  loadBoxesSync() {
+    debug('Box start Load Sync')
+    try {
+      let entries = fs.readdirSync(this.dir)
+      entries.forEach(ent => {
+        let target = path.join(this.dir, ent, 'manifest')
+        let data = fs.readFileSync(target)
+        let doc = JSON.parse(data.toString())
+        let box = createBox(this, this.dir, doc)
+        debug('load one box')
+        this.boxEnterInit(box)
+      })
+    }catch(e) {
+      console.log(e)
+    }
   }
 
   /**
@@ -252,6 +292,7 @@ class Boxes extends B {
 
     let tmp = await fs.mkdtempAsync(path.join(this.ctx.getTmpDir(), 'tmp'))
     let time = new Date().getTime()
+    if(!props.users.includes(props.owner)) props.users.push(props.owner)
     let doc = {
       uuid: UUID.v4(),
       name: props.name,
@@ -270,8 +311,8 @@ class Boxes extends B {
     await fs.renameAsync(tmp, path.join(this.dir, doc.uuid))
 
     let box = createBox(this, this.dir, doc)
-    this.indexBox(box)
     this.boxEnterInit(box)
+    this.handleNewBox(box)
     return doc
   }
 
@@ -318,6 +359,7 @@ class Boxes extends B {
     } else newDoc.mtime = new Date().getTime()
     await saveObjectAsync(path.join(this.dir, oldDoc.uuid, 'manifest'), this.ctx.getTmpDir(), newDoc)
     box.doc = newDoc
+    this.handleUpdateBox(box)
     return newDoc
   }
 
@@ -328,9 +370,44 @@ class Boxes extends B {
   async deleteBoxAsync(boxUUID) {
     let box = this.boxes.get(boxUUID)
     if(!box) throw new Error('box not found')
+    box.destory()
     await rimrafAsync(path.join(this.dir, boxUUID))
-    this.unindexBox(box)
+    this.handleDeleteBox(boxUUID)
     return
+  }
+
+  getBoxesSummary(callback) {
+    let boxes = [...this.boxes.values()]
+    let boxCount = boxes.length, error
+    if(!boxCount) return callback(null)
+    let boxSummary = []
+    let finishHandle = (box) => {
+      boxSummary.push(box)
+      if(--boxCount) return
+      callback(null, boxSummary)
+    }
+    let errorHandle = (err) => {
+      if(error) return
+      error = err
+      return callback(err)
+    }
+    boxes.forEach(b => {
+      b.DB.getLastTweet((err, last) => {
+        if(err) return errorHandle(err)
+        if(last) last.tweeter = last.tweeter.id
+        finishHandle(Object.assign(b.doc, { tweet: last }))
+      })
+    })
+  }
+
+  getBoxSummary(boxUUID, callback) {
+    let box = this.boxes.get(boxUUID)
+    if(!box) return callback(new Error('box not found'))
+    box.DB.getLastTweet((err, last) => {
+      if(err) return callback(err)
+      if(last) last.tweeter = last.tweeter.id      
+      return callback(null, Object.assign(box.doc, { tweet: last }))
+    })
   }
 }
 
