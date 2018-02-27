@@ -384,8 +384,12 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
     }
 
     const onField = rs => {
+      let fieldBuf = []
       rs.on('data', data => {
-        obj = JSON.parse(data)
+        fieldBuf.push(data)
+      })
+      rs.on('end', () => {
+        obj = JSON.parse(fieldBuf.join(''))
         if (typeof obj.comment === 'string') comment = obj.comment
         if (obj.parent) parent = obj.parent
         if (obj.type) type = obj.type
