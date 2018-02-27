@@ -245,7 +245,7 @@ class RecordsDB {
       }
       else if (first <= last && count && !segments) {
         let tail = records.slice(Math.max(0, first - count), first)
-        let head = records.slice(last + 1)
+        let head = records.slice(Number(last) + 1)
         let result = [...tail, ...head]
                     .map(r => JSON.parse(r))
                     .filter(r => !blackList.includes(r.index))
