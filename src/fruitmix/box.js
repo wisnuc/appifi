@@ -339,17 +339,17 @@ module.exports = {
    * @param {Object} user 
    * @param {string} boxUUID 
    * @param {Object} props
-   * @param {number} props.first - optional, the first index of segment user hold 
-   * @param {number} props.last - optional, the last index of segment user hold
-   * @param {number} props.count - optional, number of records user want to get
+   * @param {string} props.first - optional, the first index of segment user hold 
+   * @param {string} props.last - optional, the last index of segment user hold
+   * @param {string} props.count - optional, number of records user want to get
    * @param {string} props.segments - optional, segments of records user want to get
    */
   async getTweetsAsync (user, boxUUID, props) {
     if (!this.userCanReadBox(user, boxUUID))  throw Object.assign(new Error('no permission'), { status: 403 }) 
     let box = this.boxData.getBox(boxUUID)
-    if (props.first) assert(Number.isInteger(Number(props.first)), 'first should be an integer')
-    if (props.last) assert(Number.isInteger(Number(props.last)), 'last should be an integer')
-    if (props.count) assert(Number.isInteger(Number(props.count)), 'count should be an integer')
+    if (props.first) assert(Number.isInteger(Number(props.first) && Number(props.first) > -1), 'first should be an nature nmuber')
+    if (props.last) assert(Number.isInteger(Number(props.last) && Number(props.first) > -1), 'last should be an nature nmuber')
+    if (props.count) assert(Number.isInteger(Number(props.count) && Number(props.first) > -1), 'count should be an nature nmuber')
     if (props.segments) assert(typeof props.segments === 'string', 'segments should be a string')
     let metadata = props.metadata
     let tweets = await box.getTweetsAsync(props)
