@@ -1,5 +1,7 @@
 # xstat
 
+version
+
 ## xattr
 
 fruitmix支持两种内容容器，一种是虚拟盘（Virtual Drive），另外一种是群（box）。
@@ -25,7 +27,26 @@ fruitmix会为虚拟磁盘内的每个文件和文件夹分配一个UUID，对�
 }
 ```
 
+```js
+/* js object representation */
+{
+  // mandatory, must be valid V4 UUID string
+  uuid: "d62bc065-233b-4ae4-82ec-969abdae87be",
+  // mandatory, file magic or version number
+  magic: "JPEG",
+  // optional, 
+  hash: "fingerprint", 
+}
+```
+
+
+
+
+
+
+
 文件必须需有`magic`属性，它可以是一个整数（>=0）或字符串。
+
 * 整数表示fruitmix对该文件类型不感兴趣，不会为其建立索引，也不会提取其文件内信息，例如exif；
 * 字符串是该文件magic，当作枚举类型使用；
 
