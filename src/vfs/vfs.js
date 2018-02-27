@@ -623,13 +623,20 @@ class VFS extends Forest {
     let newPath = path.join(this.absolutePath(dstDir), srcDir.name)
     mvdir(oldPath, newPath, policy, (err, xstat, resolved) => {
       // TODO 
+      // callback(err, xstat, resolved)
       if (err) return callback(err)
 
       if (!xstat) return callback(null, xstat, resolved)
       else {
-        srcDir.parent.read()
-        dstDir.read()
-        callback(null, xstat, resolved)
+        // srcDir.parent.read()
+        // dstDir.read()
+        srcDir.parent.read((err, xstats) => {
+          if (err) return callback(err)
+          dstDir.read((err, xstats2) => {
+            callback(null, xstat, resolved)
+          })
+        })
+        // callback(null, xstat, resolved)
       }
     })
   }

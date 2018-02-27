@@ -44,13 +44,13 @@ const mkdir = (target, policy, callback) => {
           }) 
         } else if (same && policy[0] === 'rename' || diff && policy[1] === 'rename') {
           let dirname = path.dirname(target)
-          let basename = path.basenmae(target)
+          let basename = path.basename(target)
           fs.readdir(dirname, (error, files) => {
             if (error) return callback(error)
             let target2 = path.join(dirname, autoname(basename, files))
             mkdir(target2, policy, (err, fd) => {
               if (err) return callback(err)
-              callback(null, fd, [same, diff])
+              callback(null, target2, [same, diff])
             })
           })
         } else {
@@ -88,7 +88,7 @@ const openwx = (target, policy, callback) => {
           })
         } else if (same && policy[0] === 'rename' || diff && policy[1] === 'rename') {
           let dirname = path.dirname(target)
-          let basename = path.basenmae(target)
+          let basename = path.basename(target)
           fs.readdir(dirname, (error, files) => {
             if (error) return callback(error)
             let target2 = path.join(dirname, autoname(basename, files))
@@ -98,7 +98,7 @@ const openwx = (target, policy, callback) => {
             })
           })
         } else {
-          err.xcode = xcode(stat)  
+          err.xcode = xcode(stat) 
           callback(err)
         }
       })

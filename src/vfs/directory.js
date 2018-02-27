@@ -175,7 +175,6 @@ class Reading extends Base {
         Don't bypass update children! Do it anyway. Node.js fs timestamp resolution is not adequate.
         */
         this.updateChildren(xstats)
-
         if (mtime !== this.dir.mtime && !transient) {
           this.dir.mtime = mtime
         }
@@ -187,7 +186,6 @@ class Reading extends Base {
       }
 
       this.callbacks.forEach(callback => callback(err, xstats))
-
       if (Array.isArray(this.pending)) { // stay in working
         this.enter(this.pending)
       } else {
@@ -239,7 +237,6 @@ class Reading extends Base {
       }
       return arr
     }, [])
-
     lost.forEach(c => c.destroy(true))
 
     // create new 
@@ -346,7 +343,6 @@ class Directory extends Node {
   */
   destroy(detach) {
     debug('destroying', this.uuid, this.name, !!detach)
-
     // why this does not work ???
     // [...this.children].forEach(child => child.destroy()) 
     Array.from(this.children).forEach(c => c.destroy())
@@ -374,6 +370,7 @@ class Directory extends Node {
   */
   read(x) {
     if (typeof x === 'function') {
+      // console.log(this.state)
       this.state.readc(x)
     } else if (typeof x === 'number') {
       this.state.readn(x)

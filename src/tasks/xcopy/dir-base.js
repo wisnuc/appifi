@@ -272,7 +272,7 @@ class Dir extends Node {
   }
 
   destroy () {
-    let children = [...this.children]
+    let children = [...this.children]    
     children.forEach(c => c.destroy())
     super.destroy()
   }

@@ -24,19 +24,26 @@ class Working extends File.prototype.Working {
         let dstFilePath = path.join(this.ctx.parent.dst.path, this.ctx.src.name)
         let policy = this.ctx.getPolicy()
 
-        openwx(dstFilePath, policy, (err, fd) => {
-          if (err) {
+        openwx(dstFilePath, policy, (err, fd, resolved) => {
+          if (err && err.code === 'EEXIST') {
             rimraf(tmpPath, () => {})
-            this.setState('Failed', err) 
+            this.setState('Conflict', err, policy) 
+          } else if (err) {
+            rimraf(tmpPath, () => {})
+            this.setState('Failed', err)
           } else {
-            this.rs = fs.createReadStream(tmpPath) 
-            this.ws = fs.createWriteStream(null, { fd })
-            this.rs.pipe(this.ws)
+            if (fd) {
+              this.rs = fs.createReadStream(tmpPath) 
+              this.ws = fs.createWriteStream(null, { fd })
+              this.rs.pipe(this.ws)
 
-            this.ws.on('finish', () => {
-              rimraf(tmpPath, () => {})
+              this.ws.on('finish', () => {
+                rimraf(tmpPath, () => {})
+                this.setState('Finished')
+              })
+            } else {
               this.setState('Finished')
-            })
+            }
           }
         })
       }

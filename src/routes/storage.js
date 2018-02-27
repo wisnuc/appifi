@@ -344,6 +344,15 @@ const rename = (req, res, next) => {
   })
 }
 
+// const storageRefresh = (req, res, next) => {
+//   refreshAsync()
+//   .then(newStorage => {
+//     if (!deepEqual(storage, newStorage)) broadcast.emit('StorageUpdate', null, newStorage)
+//     next()
+//   })
+//   .catch(e => next(e))
+// }
+
 router.get('/', avail, (req, res, next) => res.status(200).json(storage))
 
 // return blocks, no refresh
