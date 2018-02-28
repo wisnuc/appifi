@@ -110,6 +110,7 @@ module.exports = {
     assert(typeof props.name === 'string', 'name should be a string')
     assert(Array.isArray(props.users), 'users should be an array')
     if(!props.users.every(u => isUUID(u))) throw new Error('users item error, not guid')
+    props.users = Array.from(new Set(props.users))
     props.owner = user.global.id
     let doc = await this.boxData.createBoxAsync(props)
     // createBox
@@ -347,9 +348,9 @@ module.exports = {
   async getTweetsAsync (user, boxUUID, props) {
     if (!this.userCanReadBox(user, boxUUID))  throw Object.assign(new Error('no permission'), { status: 403 }) 
     let box = this.boxData.getBox(boxUUID)
-    if (props.first) assert(Number.isInteger(Number(props.first)) && Number(props.first) > -1, 'first should be an nature number')
-    if (props.last) assert(Number.isInteger(Number(props.last)) && Number(props.last) > -1, 'last should be an nature number')
-    if (props.count) assert(Number.isInteger(Number(props.count)) && Number(props.count) > -1, 'count should be an nature number')
+    if (props.first) assert(Number.isInteger(Number(props.first)) && Number(props.first) > -1, 'first should be a nature number')
+    if (props.last) assert(Number.isInteger(Number(props.last)) && Number(props.last) > -1, 'last should be a nature number')
+    if (props.count) assert(Number.isInteger(Number(props.count)) && Number(props.count) > -1, 'count should be a nature number')
     if (props.segments) assert(typeof props.segments === 'string', 'segments should be a string')
     let metadata = props.metadata
     let tweets = await box.getTweetsAsync(props)
