@@ -30,19 +30,19 @@ router.post('/', fruitless, auth.jwt(), (req, res, next) => {
 })
 
 router.get('/:tagId', fruitless, auth.jwt(), (req, res, next) => {
-  let tag = getFruit().getTag(req.user, req.params.tagId)
+  let tag = getFruit().getTag(req.user, parseInt(req.params.tagId))
   if(tag) return res.status(200).json(tag)
   res.status(404).end()
 })
 
 router.patch('/:tagId', fruitless, auth.jwt(), (req, res, next) => {
-  getFruit().updateTagAsync(req.user, req.params.tagId, req.body)
-    .then(tag => req.status(200).json(tag))
+  getFruit().updateTagAsync(req.user, parseInt(req.params.tagId), req.body)
+    .then(tag => res.status(200).json(tag))
     .catch(next)
 })
 
 router.delete('/:tagId', fruitless, auth.jwt(), (req, res, next) => {
-  getFruit().deleteTagAsync(req.user, req.params.tagId)
+  getFruit().deleteTagAsync(req.user, parseInt(req.params.tagId))
     .then(x => res.status(200).end())
     .catch(next)
 })

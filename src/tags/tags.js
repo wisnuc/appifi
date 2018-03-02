@@ -8,6 +8,9 @@ const E = require('../lib/error')
 const { saveObjectAsync } = require('../lib/utils')
 const { isUUID, isNonNullObject, isNonEmptyString } = require('../lib/assertion')
 
+const Debug = require('debug')
+const debug = Debug('Tags')
+
 let MAX_TAG_ID = 2048
 /**
  * Tags is provide flexible file classification for user files
@@ -32,9 +35,18 @@ class Tags {
   constructor(froot) {
     this.filePath = path.join(froot, 'tags.json')
     this.tmpDir = path.join(froot, 'tmp')
-
+    this.currMaxIndex = -1
     try {
-      this.tags = JSON.parse(fs.readFileSync(this.filePath))
+      let tagsObj = JSON.parse(fs.readFileSync(this.filePath))
+      this.tags = tagsObj.tags
+      // check index if not max
+      this.currMaxIndex = tagsObj.index
+      this.tags.forEach(t => {
+        if(t.id > this.currMaxIndex) {
+          debug('find tag index large then currMaxIndex,', t, currMaxIndex)
+          this.currMaxIndex = t.id
+        }
+      })
     } catch (e) {
       if (e.code !== 'ENOENT') throw e
       this.tags = []
@@ -51,13 +63,13 @@ class Tags {
   }
 
   findTag(tagId) {
-    return this.tags.find(t => t.id === parseInt(tagId))
+    return this.tags.find(t => t.id === tagId)
   }
 
   /**
   Save tags to file. This operation use opportunistic lock.
   */
-  async commitTagsAsync(currTags, nextTags) {
+  async commitTagsAsync(currTags, nextTags, index) {
 
     // referential equality check
     if (currTags !== this.tags) throw E.ECOMMITFAIL()
@@ -72,7 +84,7 @@ class Tags {
     this.lock = true
     try {
       // save to file
-      await saveObjectAsync(this.filePath, this.tmpDir, nextTags)
+      await saveObjectAsync(this.filePath, this.tmpDir, { tags:nextTags, index })
 
       // update in-memory object
       this.tags = nextTags
@@ -95,10 +107,10 @@ class Tags {
     let ctime = new Date().getTime()
 
     // get current max index
-    let currIndex = 0
-    this.tags.forEach(t => {
-      if(t.id > currIndex) currIndex = t.id
-    })
+    let currIndex = this.currMaxIndex
+    // this.tags.forEach(t => {
+    //   if(t.id > currIndex) currIndex = t.id
+    // })
 
     if(++currIndex > MAX_TAG_ID) throw new Error('too many tags')
 
@@ -113,7 +125,8 @@ class Tags {
     }
 
     let nextTags = [...currTags, newTag]
-    await this.commitTagsAsync(currTags, nextTags)
+    await this.commitTagsAsync(currTags, nextTags, currIndex)
+    this.currMaxIndex ++
     return newTag
   }
 
