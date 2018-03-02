@@ -8,6 +8,7 @@ const E = require('../lib/error')
 const { saveObjectAsync } = require('../lib/utils')
 const { isUUID, isNonNullObject, isNonEmptyString } = require('../lib/assertion')
 
+let MAX_TAG_ID = 2048
 /**
  * Tags is provide flexible file classification for user files
  * Name tags
@@ -50,7 +51,7 @@ class Tags {
   }
 
   findTag(tagId) {
-    return this.tags.find(t => t.id === tagId)
+    return this.tags.find(t => t.id === parseInt(tagId))
   }
 
   /**
@@ -93,9 +94,17 @@ class Tags {
     let currTags = this.tags
     let ctime = new Date().getTime()
 
+    // get current max index
+    let currIndex = 0
+    this.tags.forEach(t => {
+      if(t.id > currIndex) currIndex = t.id
+    })
+
+    if(++currIndex > MAX_TAG_ID) throw new Error('too many tags')
+
     let newTag = {
       name: props.name,
-      id: UUID.v4(),
+      id: currIndex,
       color: props.color ? props.color : null,
       group: props.group ? props.group : null,
       createor: props.createor,

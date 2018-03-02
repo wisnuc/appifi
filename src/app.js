@@ -29,6 +29,7 @@ const media = require('./routes/media')
 const tasks = require('./routes/tasks')
 const cloudToken = require('./routes/wxtoken')
 const station = require('./station')
+const tags = require('./routes/tags')
 
 /**
 This module is the entry point of the whole application.
@@ -57,6 +58,7 @@ app.use('/media', media)
 app.use('/tasks', tasks)
 app.use('/features', require('./routes/features'))
 app.use('/download', require('./webtorrent'))
+app.use('/tags', tags)
 
 let { NODE_ENV, NODE_PATH, LOGE } = process.env
 const isAutoTesting = NODE_ENV === 'test' && NODE_PATH !== undefined
