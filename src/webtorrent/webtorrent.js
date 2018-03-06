@@ -4,6 +4,7 @@ const webT = require('webtorrent')
 const webD = require('./webDownload')
 const mkdirpAsync = require('bluebird').promisify(require('mkdirp'))
 
+// 将promise转化为callback
 const asCallback = (fn) => {
   return (props, callback) => {
     fn(props)
@@ -12,6 +13,7 @@ const asCallback = (fn) => {
   }
 }
 
+// 将同步方法转为callback
 const syncCallback = (fn) => {
   return (props, callback) => {
     try{
