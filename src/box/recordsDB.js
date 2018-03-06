@@ -5,7 +5,7 @@ const lineByLineReader = require('line-by-line')
 const ReadLine = require('readline')
 
 const E = require('../lib/error')
-
+const debug = require('debug')('boxes:recordDB')
 /**
  * tweets DB
  */
@@ -147,8 +147,7 @@ class RecordsDB {
     lr.on('error', err => {
       if(error) return
       error = err
-      lr.removeAllListeners()
-      lr.close()
+      debug(err)
       return callback(error)
     })
   }
@@ -199,8 +198,7 @@ class RecordsDB {
     lr.on('line', line => records.push(line))
 
     lr.on('error', err => {
-      lr.removeAllListeners()
-      lr.close()
+      debug(err)
       callback(err)
     })
 

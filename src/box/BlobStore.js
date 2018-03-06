@@ -160,6 +160,7 @@ class BlobStore extends BlobCTX{
     let srcStr = src.join(' ')
     let dst = this.dir
     debug('start store blob')
+/*
     let counter = src.length
     let error
     let finishHandle = () => {
@@ -167,24 +168,12 @@ class BlobStore extends BlobCTX{
       let hashArr = src.map(s => path.basename(s))
       hashArr.forEach(x => this.blobEnterPending(x))
       let files = hashArr.map(i => path.join(dst, i)).join(' ')
-      // modify permissions to read only
-      /*
-      try{
-        child.exec(`chmod 444 ${files}`, (err, stdout, stderr) => {
-          if (err) return callback(err)
-          if (stderr) return callback(stderr)
-          callback(null, stdout)
-        })
-      }catch(e) {
-        console.log(e)
-        callback(e)
-      }
-      */
       callback(null)
     }
     let errorHandle = (err) => {
       if (error) return
       error = err
+      debug(err)
       return callback(err)
     }
     
@@ -195,21 +184,21 @@ class BlobStore extends BlobCTX{
         finishHandle()
       })
     })
-
+*/
     // move files into blobs
-    // child.exec(`mv ${srcStr} -t ${dst}`, (err, stdout, stderr) => {
-    //   if (err) return callback(err)
-    //   if (stderr) return callback(stderr)
-    //   let hashArr = src.map(s => path.basename(s))
-    //   hashArr.forEach(x => this.blobEnterPending(x))
-    //   let files = hashArr.map(i => path.join(dst, i)).join(' ')
-    //   // modify permissions to read only
-    //   child.exec(`chmod 444 ${files}`, (err, stdout, stderr) => {
-    //     if (err) return callback(err)
-    //     if (stderr) return callback(stderr)
-    //     callback(null, stdout)
-    //   })
-    // })
+    child.exec(`mv ${srcStr} -t ${dst}`, (err, stdout, stderr) => {
+      if (err) return callback(err)
+      if (stderr) return callback(stderr)
+      let hashArr = src.map(s => path.basename(s))
+      hashArr.forEach(x => this.blobEnterPending(x))
+      let files = hashArr.map(i => path.join(dst, i)).join(' ')
+      // modify permissions to read only
+      // child.exec(`chmod 444 ${files}`, (err, stdout, stderr) => {
+      //   if (err) return callback(err)
+      //   if (stderr) return callback(stderr)
+      callback(null, stdout)
+      // })
+    })
   }
 
   /**
