@@ -200,7 +200,7 @@ class Boxes extends B {
   constructor(ctx) {
     super(ctx.fruitmixPath)
     this.ctx = ctx
-    // this.docStore = new Docs(ctx.fruitmixPath)
+    this.docStore = new Docs(ctx.fruitmixPath)
     this.blobs = new Blobs(ctx)
     this.blobsInited = false
     this.boxesInited = false
@@ -213,6 +213,7 @@ class Boxes extends B {
     this.loadBoxesSync()
   }
 
+  /*
   loadBoxes (callback) {
     debug('Box start Load')
     fs.readdir(this.dir, (err, entries) => {
@@ -236,6 +237,7 @@ class Boxes extends B {
       })
     })
   }
+  */
 
   loadBoxesSync() {
     debug('Box start Load Sync')

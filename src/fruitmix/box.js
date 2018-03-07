@@ -398,9 +398,28 @@ module.exports = {
     if (props.list) assert(Array.isArray(props.list), 'list should be an array')
     if (props.src) assert(Array.isArray(props.src), 'src should be an array')
     let result = await box.createTweetAsync(props)
+
+    // read blobs , append to tweet if have metas
+    let tweet = result.tweet
+    //TODO: other type?
+    if(tweet.type === 'list') {
+      let blobUUIDs = tweet.list.map( l => l.sha256)
+      try {
+        let metaMap = await this.boxData.blobs.readBlobsAsync(blobUUIDs)
+        tweet.list.forEach(l => {
+          let meta = metaMap.get(l.sha256)
+          if(meta) Object.assign(l, meta)
+        })
+      }catch(e) {
+        console.log('==== read blobs error ======')
+        console.log(e)
+        console.log('============================')
+      }
+    }
+
     //FIXME: tweets update, box update?
     // await this.boxData.updateBoxAsync({mtime: result.mtime}, boxUUID) 
-    return result.tweet
+    return tweet
   },
 
   /**
