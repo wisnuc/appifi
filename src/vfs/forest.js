@@ -82,7 +82,7 @@ class Forest extends EventEmitter {
     /**
      * 
      */
-    this.filesMap = new Map()
+    this.fileMap = new Map()
     /**
     dirs in init state. (dir may or may not have a timer)
     */
@@ -116,13 +116,13 @@ class Forest extends EventEmitter {
 
   indexFile (file) {
     debug(`index file ${file.name}`)
-    if(this.filesMap.has(file.uuid)) throw new Error(`need index file ${file.name}, old filesMap ${this.filesMap.get(file.uuid)}`)
-    this.filesMap.set(file.uuid, file)
+    if(this.fileMap.has(file.uuid)) throw new Error(`need index file ${file.name}, old fileMap ${this.fileMap.get(file.uuid)}`)
+    this.fileMap.set(file.uuid, file)
   }
 
   unindexFile (file) {
     debug(`unindex file ${file.name}`)
-    this.filesMap.delete(file.uuid)
+    this.fileMap.delete(file.uuid)
   }
 
   fileEnterHashless (file) {

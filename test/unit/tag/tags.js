@@ -1,0 +1,71 @@
+const Promise = require('bluebird')
+const path = require('path')
+const fs = require('fs')
+
+const rimraf = require('rimraf')
+const rimrafAsync = Promise.promisify(rimraf)
+const mkdirp = require('mkdirp')
+const mkdirpAsync = Promise.promisify(mkdirp)
+
+const UUID = require('uuid')
+const xattr = require('fs-xattr')
+
+const chai = require('chai')
+const expect = chai.expect
+
+const Tag = require('src/tags/tags')
+
+const Debug = require('debug')
+const debug = process.env.hasOwnProperty('DEBUG') ? Debug('test') : () => {}
+
+const cwd = process.cwd()
+const tmptest = path.join(cwd, 'tmptest')
+
+describe(path.basename(__filename), () => {
+  beforeEach(async () => {
+    await rimrafAsync(tmptest)
+    await mkdirpAsync(tmptest)
+    await mkdirpAsync(path.join('tmptest/tmp'))
+  })
+
+  it('empty tag', done => {
+    let tag = new Tag(tmptest)
+    expect(tag.tags).to.deep.equal([])
+    expect(tag.currMaxIndex).to.deep.equal(-1)
+    done()
+  })
+
+  it('create new tag', done => {
+    let tag = new Tag(tmptest)
+    tag.createTagAsync({ name: 'test' })
+      .then(t => {
+        expect(tag.tags.length).to.equal(1)
+        expect(tag.currMaxIndex).to.equal(0)
+        let t1 = tag.tags[0]
+        expect(t1.name).to.deep.equal('test')
+        done()
+      })
+      .catch(done)
+  })
+
+  describe('after create new tag', async () => {
+    let t
+    beforeEach(async () => {
+      let tag = new Tag(tmptest)
+      t = await tag.createTagAsync({ name: 'test1' })
+      expect(t.name).to.equal('test1')
+      expect(t.id).to.equal(0)
+    })
+
+    it('update tag name to test2', done => {
+      let tag = new Tag(tmptest)
+      tag.updateTagAsync(t.id, { name:'test2' })
+        .then(t1 => {
+          expect(t1.id).to.deep.equal(t.id)
+          expect(t1.name).to.deep.equal('test2')
+          done()
+        })
+        .catch(done)
+    })
+  })
+})
