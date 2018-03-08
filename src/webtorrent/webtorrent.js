@@ -25,26 +25,29 @@ const syncCallback = (fn) => {
   }
 }
 
+// 子进程命令管理
 class IpcWorker {
 
   constructor() {
-    this.commandMap = new Map()
+    this.commandMap = new Map() 
   }
 
+  // 注册指令
   register(key, val) {
     this.commandMap.set(key, val)
   }
 
+  // 注册指令列表
   registerMap(map) {
     this.commandMap = new Map([...this.commandMap, ...map])
   }
 
-  // no id is illegal
+  // 处理父进程指令
   handleCommand(worker, msg) {
-
+    // 查找指令对应方法
     let { id, op, args } = msg
     let handler = this.commandMap.get(op)
-
+    // 指令不存在 返回错误
     if (!handler) {
       return worker.send({
         type: 'command',
@@ -58,10 +61,7 @@ class IpcWorker {
 
     // default data to null, otherwise it will be eliminated
     handler(msg.args, (err, data = null) => {
-
-      // change to debug TODO
-      // console.log('handler', err || data)
-
+      // 操作出现错误 返回错误
       if (err) {
         worker.send({
           type: 'command',
@@ -71,13 +71,11 @@ class IpcWorker {
             message: err.message
           }
         })
-      }
-      else {
-        worker.send({ type: 'command', id, data })
-      }
+      } else worker.send({ type: 'command', id, data })
     })
   }
 
+  // 处理父进程消息
   handle(worker, msg) {
     switch (msg.type) {
       case 'command':
@@ -89,34 +87,41 @@ class IpcWorker {
   }
 }
 
+// 创建子进程通信服务
 const createIpcWorker = () => new IpcWorker()
 
+// 任务信息打印方法
 var logA = function () {
   let { type, infoHash, timeRemaining, downloaded, downloadSpeed, progress, numPeers, path, name, url, torrentPath, magnetURL, dirUUID, state, userUUID, isPause, finishTime } = this
   return { type, infoHash, timeRemaining, downloaded, downloadSpeed, progress, numPeers, path, name, url, torrentPath, magnetURL, dirUUID, state, userUUID, isPause, finishTime }
 }
 
+// 下载管理服务
 class WebTorrentService {
   constructor(tempPath) {
-    this.tempPath = tempPath
-    this.catchPath = path.join(this.tempPath, 'storage.json')
-    this.client = new webD()
-    this.clients = []
-    this.downloading = []
-    this.downloaded = []
-    this.writing = false
-    this.lockNumber = 0
-    this.init()
+    this.tempPath = tempPath // 下载临时目录
+    this.catchPath = path.join(this.tempPath, 'storage.json') // 下载
+    this.client = new webD() // 所有下载任务同用一个HTTP下载实例
+    this.clients = [] // 不同用户使用不同BT下载实例
+    this.downloading = [] // 下载任务列表
+    this.downloaded = [] // 完成列表
+    this.writing = false // 是否正在更新记录文件
+    this.lockNumber = 0 // 等待更新数量
+    this.init() // 初始化
     console.log('WebTorrent Start!')
   }
 
-  //read storage & create tasksuuid:
+  // 查看任务缓存信息并创建任务
   init() {
+    // 不存在缓存文件 返回
     if (!fs.existsSync(this.catchPath)) return console.log('catch path not exist')
     try {
+
       let tasks = JSON.parse(fs.readFileSync(this.catchPath))
+      // 更新完成任务列表
       this.downloaded = tasks.downloaded
       this.downloaded.forEach(item => item.log = logA)
+      // 继续未完成任务
       tasks.downloading.forEach((file, index) => {
         if (file.type == 'http') {
           this.addHttp({url: file.url, dirUUID: file.dirUUID, user: {uuid: file.userUUID}, infor: {infoHash: file.infoHash, size: file.size} })
@@ -126,6 +131,7 @@ class WebTorrentService {
           this.addMagnet({ magnetURL: file.magnetURL, dirUUID: file.dirUUID, user: {uuid: file.userUUID} })
       })
     } catch (e) {
+      // 出现错误 移除整个临时目录 todo !
       console.log('Error in init ', e)
       fs.unlinkSync(this.catchPath)
       console.log('this catch file has been removed')
