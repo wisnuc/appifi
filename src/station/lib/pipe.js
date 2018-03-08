@@ -1154,10 +1154,6 @@ class Pipe {
             fp.on('data', fingerprint => {
               callback(null, fingerprint)
             })
-            // fingerprintSimple(tmpPath, (err, fingerprint) => {
-            //   if(err) return callback(err)
-            //   callback(null, fingerprint)
-            // }) 
           })
         })
       }
@@ -1232,9 +1228,7 @@ class Pipe {
       props = { parent, comment, type, list:[...li, ...ins], src }
     }
     let tweet = await fruit.createTweetAsync(user, boxUUID, props)
-    // if (list && list.length)
-      return await this.successStoreResponseAsync(serverAddr, sessionId, tweet)
-    // await this.successResponseJsonAsync(serverAddr, sessionId, tweet)
+    return await this.successStoreResponseAsync(serverAddr, sessionId, tweet)
   }
 
   async getBoxFileAsync(data) {
