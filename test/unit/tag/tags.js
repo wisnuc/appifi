@@ -13,7 +13,7 @@ const xattr = require('fs-xattr')
 const chai = require('chai')
 const expect = chai.expect
 
-const Tag = require('src/tags/tags')
+const createTag = require('src/tags/tags')
 
 const Debug = require('debug')
 const debug = process.env.hasOwnProperty('DEBUG') ? Debug('test') : () => {}
@@ -29,14 +29,14 @@ describe(path.basename(__filename), () => {
   })
 
   it('empty tag', done => {
-    let tag = new Tag(tmptest)
+    let tag = createTag(tmptest)
     expect(tag.tags).to.deep.equal([])
     expect(tag.currMaxIndex).to.deep.equal(-1)
     done()
   })
 
   it('create new tag', done => {
-    let tag = new Tag(tmptest)
+    let tag = createTag(tmptest)
     tag.createTagAsync({ name: 'test' })
       .then(t => {
         expect(tag.tags.length).to.equal(1)
@@ -51,14 +51,14 @@ describe(path.basename(__filename), () => {
   describe('after create new tag', async () => {
     let t , tagObj
     beforeEach(async () => {
-      tagObj = new Tag(tmptest)
+      tagObj = createTag(tmptest)
       t = await tagObj.createTagAsync({ name: 'test1' })
       expect(t.name).to.equal('test1')
       expect(t.id).to.equal(0)
     })
 
     it('update tag name to test2', done => {
-      let tag = new Tag(tmptest)
+      let tag = createTag(tmptest)
       tag.updateTagAsync(t.id, { name:'test2' })
         .then(t1 => {
           expect(t1.id).to.deep.equal(t.id)
@@ -68,7 +68,7 @@ describe(path.basename(__filename), () => {
         .catch(done)
     })
     it('delete tag', done => {
-      let tag = new Tag(tmptest)
+      let tag = createTag(tmptest)
       tag.deleteTagAsync(t.id)
         .then(x => {
           expect(tag.tags).to.deep.equal([])
@@ -84,7 +84,7 @@ describe(path.basename(__filename), () => {
       })
 
       it('create tag id should equal 1', done => {
-        let tag = new Tag(tmptest)
+        let tag = createTag(tmptest)
         tag.createTagAsync({ name: 'test' })
           .then(t => {
             expect(tag.tags.length).to.equal(1)

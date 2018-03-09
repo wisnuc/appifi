@@ -20,7 +20,7 @@ const BoxData = require('./box/Boxes')
 const DriveList = require('./vfs/vfs')
 const Thumbnail = require('./lib/thumbnail2')
 const File = require('./vfs/file')
-const Tags = require('./tags/tags')
+const createTag = require('./tags/tags')
 
 const Identifier = require('./lib/identifier')
 const { btrfsConcat, btrfsClone } = require('./lib/btrfs')
@@ -104,6 +104,8 @@ class Fruitmix extends EventEmitter {
     this.fruitmixPath = froot
 
     let metaPath = path.join(froot, 'metadataDB.json')
+    
+    this.tags = createTag(froot)
 
     // this is acturally a PersistentMediaMap
     this.mediaMap = new MediaMap(metaPath, tmpDir)
@@ -112,7 +114,6 @@ class Fruitmix extends EventEmitter {
     this.userList = new UserList(froot)
     this.driveList = new DriveList(froot, this.mediaMap)
     this.vfs = this.driveList
-    this.tags = new Tags(froot)
     this.tasks = []
 
     if (!nosmb) {

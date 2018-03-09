@@ -92,7 +92,11 @@ class Tags {
       // enforce immutability
       deepFreeze(this.tags)
     } finally {
-      // TODO: notify
+      // get all tagIds
+      let tagIds = this.tags.map(t => t.id).sort()
+      // add tagIds to global
+      global.validTagIds = tagIds
+
       // put lock
       this.lock = false
     }
@@ -161,4 +165,10 @@ class Tags {
   }
 }
 
-module.exports = Tags
+module.exports = (froot) => {
+  let tag = new Tags(froot)
+  let tagIds = tag.tags.map(t => t.id).sort()
+  // add tagIds to global
+  global.validTagIds = tagIds
+  return tag
+}
