@@ -49,10 +49,10 @@ describe(path.basename(__filename), () => {
   })
 
   describe('after create new tag', async () => {
-    let t
+    let t , tagObj
     beforeEach(async () => {
-      let tag = new Tag(tmptest)
-      t = await tag.createTagAsync({ name: 'test1' })
+      tagObj = new Tag(tmptest)
+      t = await tagObj.createTagAsync({ name: 'test1' })
       expect(t.name).to.equal('test1')
       expect(t.id).to.equal(0)
     })
@@ -66,6 +66,35 @@ describe(path.basename(__filename), () => {
           done()
         })
         .catch(done)
+    })
+    it('delete tag', done => {
+      let tag = new Tag(tmptest)
+      tag.deleteTagAsync(t.id)
+        .then(x => {
+          expect(tag.tags).to.deep.equal([])
+          expect(tag.currMaxIndex).to.deep.equal(0)
+          done()
+        })
+        .catch(done)
+    })
+
+    describe('after delete', () => {
+      beforeEach(async () => {
+        await tagObj.deleteTagAsync(t.id)
+      })
+
+      it('create tag id should equal 1', done => {
+        let tag = new Tag(tmptest)
+        tag.createTagAsync({ name: 'test' })
+          .then(t => {
+            expect(tag.tags.length).to.equal(1)
+            expect(tag.currMaxIndex).to.equal(1)
+            let t1 = tag.tags[0]
+            expect(t1.name).to.deep.equal('test')
+            done()
+          })
+          .catch(done)
+      })
     })
   })
 })

@@ -139,7 +139,7 @@ class Tags {
 
 
     let nextTags = [...currTags.slice(0, index), ...currTags.slice(index + 1)]
-    await this.commitTagsAsync(currTags, nextTags)
+    await this.commitTagsAsync(currTags, nextTags, this.currMaxIndex)
   }
 
   async updateTagAsync(tagId, props) {
@@ -156,7 +156,7 @@ class Tags {
       ...currTags.slice(index + 1)
     ] 
 
-    await this.commitTagsAsync(currTags, nextTags)
+    await this.commitTagsAsync(currTags, nextTags, this.currMaxIndex)
     return nextTag
   }
 }
