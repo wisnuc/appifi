@@ -10,9 +10,9 @@ class State {
   Fires new state event.
 
   @param {object} ctx - the node (sub-task)
-  @param {array} args - the rest arguments 
+  @param {array} args - the rest arguments
   */
-  constructor(ctx, ...args) {
+  constructor (ctx, ...args) {
     this.ctx = ctx
     this.ctx.state = this
     this.enter(...args)
@@ -42,7 +42,11 @@ class State {
   setState (state, ...args) {
     this.exit()
     let NextState = this.ctx[state]
-    new NextState(this.ctx, ...args)
+    // check whether task is exist
+    // eg: when copy a large dir, many files conflict, and then destroy this task, the last chlid maybe in working state
+    //     we destroy it while it is working, but it will setStaet to 'Conflict',
+    //     so before setSate, check whether context is exist.
+    if (this.ctx.ctx) new NextState(this.ctx, ...args)
   }
 
   /**
@@ -63,8 +67,7 @@ class State {
   view () {
     return null
   }
+
 }
 
 module.exports = State
-
-
