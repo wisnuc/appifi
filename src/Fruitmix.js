@@ -20,6 +20,8 @@ const BoxData = require('./box/Boxes')
 const DriveList = require('./vfs/vfs')
 const Thumbnail = require('./lib/thumbnail2')
 const File = require('./vfs/file')
+const createTag = require('./tags/tags')
+
 const Identifier = require('./lib/identifier')
 const { btrfsConcat, btrfsClone } = require('./lib/btrfs')
 const jwt = require('jwt-simple')
@@ -50,6 +52,7 @@ const mixin = require('./fruitmix/mixin')
 const driveapi = require('./fruitmix/drive')
 const ndriveapi = require('./fruitmix/ndrive')
 const boxapi = require('./fruitmix/box')
+const tagapi = require('./fruitmix/tag')
 
 const combineHash = (a, b) => {
   let a1 = typeof a === 'string' ? Buffer.from(a, 'hex') : a
@@ -101,6 +104,8 @@ class Fruitmix extends EventEmitter {
     this.fruitmixPath = froot
 
     let metaPath = path.join(froot, 'metadataDB.json')
+    
+    this.tags = createTag(froot)
 
     // this is acturally a PersistentMediaMap
     this.mediaMap = new MediaMap(metaPath, tmpDir)
@@ -1433,6 +1438,7 @@ Object.assign(Fruitmix.prototype, {})
 Object.assign(Fruitmix.prototype, driveapi)
 Object.assign(Fruitmix.prototype, ndriveapi)
 Object.assign(Fruitmix.prototype, boxapi)
+Object.assign(Fruitmix.prototype, tagapi)
 module.exports = Fruitmix
 
 

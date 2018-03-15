@@ -72,6 +72,7 @@ class BlobCTX extends EventEmitter {
       this.readingBlobs.size === 0
   }
 
+  // schedule blobs to read meta if blob has magic
   scheduleBlobRead() {
     this.blobReadScheduled = false
     if (this.blobReadSettled()) {
@@ -117,6 +118,9 @@ class BlobCTX extends EventEmitter {
           // this.ctx.reportMedia(blobUUID, metadata) // TODO: 
           return finalized(blobUUID)
         }
+
+        if(this.medias.has(blobUUID)) return finalized(blobUUID)
+
         fileMagic6(blobPath, (err, magic) => {
           if (err) return finalized(blobUUID, err)
           if (Magic.isMedia(magic)) {
@@ -160,6 +164,7 @@ class BlobStore extends BlobCTX{
     let srcStr = src.join(' ')
     let dst = this.dir
     debug('start store blob')
+/*
     let counter = src.length
     let error
     let finishHandle = () => {
@@ -167,24 +172,12 @@ class BlobStore extends BlobCTX{
       let hashArr = src.map(s => path.basename(s))
       hashArr.forEach(x => this.blobEnterPending(x))
       let files = hashArr.map(i => path.join(dst, i)).join(' ')
-      // modify permissions to read only
-      /*
-      try{
-        child.exec(`chmod 444 ${files}`, (err, stdout, stderr) => {
-          if (err) return callback(err)
-          if (stderr) return callback(stderr)
-          callback(null, stdout)
-        })
-      }catch(e) {
-        console.log(e)
-        callback(e)
-      }
-      */
       callback(null)
     }
     let errorHandle = (err) => {
       if (error) return
       error = err
+      debug(err)
       return callback(err)
     }
     
@@ -195,21 +188,21 @@ class BlobStore extends BlobCTX{
         finishHandle()
       })
     })
-
+*/
     // move files into blobs
-    // child.exec(`mv ${srcStr} -t ${dst}`, (err, stdout, stderr) => {
-    //   if (err) return callback(err)
-    //   if (stderr) return callback(stderr)
-    //   let hashArr = src.map(s => path.basename(s))
-    //   hashArr.forEach(x => this.blobEnterPending(x))
-    //   let files = hashArr.map(i => path.join(dst, i)).join(' ')
-    //   // modify permissions to read only
-    //   child.exec(`chmod 444 ${files}`, (err, stdout, stderr) => {
-    //     if (err) return callback(err)
-    //     if (stderr) return callback(stderr)
-    //     callback(null, stdout)
-    //   })
-    // })
+    child.exec(`mv ${srcStr} -t ${dst}`, (err, stdout, stderr) => {
+      if (err) return callback(err)
+      if (stderr) return callback(stderr)
+      let hashArr = src.map(s => path.basename(s))
+      hashArr.forEach(x => this.blobEnterPending(x))
+      let files = hashArr.map(i => path.join(dst, i)).join(' ')
+      // modify permissions to read only
+      // child.exec(`chmod 444 ${files}`, (err, stdout, stderr) => {
+      //   if (err) return callback(err)
+      //   if (stderr) return callback(stderr)
+      callback(null, stdout)
+      // })
+    })
   }
 
   /**
@@ -233,6 +226,56 @@ class BlobStore extends BlobCTX{
     let bpath = path.join(this.dir, hash)
     if(fs.existsSync(bpath)) return bpath
     return false
+  }
+
+  /**
+   * get metadatas for blobUUIDs items
+   * @param {Array} blobUUIDs - blob uuids array
+   * @param {Function} callback - callback metas map if blobs has , 
+   */
+  async readBlobsAsync(blobUUIDs) {
+    let metaMap = new Map()
+    // create promise array
+    let ps = blobUUIDs.map(blobUUID => 
+      new Promise((resolve, reject) => {
+        this.readBlob(blobUUID, (err, data) => {
+          if(err) return reject(err)
+          if(data) metaMap.set(blobUUID, data)
+          resolve()
+        })
+      })
+    )
+
+    await Promise.all(ps)
+    return metaMap
+  }
+
+  readBlob(blobUUID, callback) {
+    let blobPath = path.join(this.dir, blobUUID)
+    fs.lstat(blobPath, (err, stat) => {
+      if (err) return callback(err)
+      this.sizeMap.set(blobUUID, stat.size)
+      let metadata = this.ctx.mediaMap.getMetadata(blobUUID)
+      if (metadata) {
+        this.medias.set(blobUUID, metadata)
+        return callback(null, Object.assign({}, { metadata, size: stat.size }))
+      }
+
+      metadata = this.medias.get(blobUUID)
+      if(metadata) return callback(null, Object.assign({}, { metadata, size: stat.size }))
+      
+      fileMagic6(blobPath, (err, magic) => {
+        if (err) return callback(err)
+        if (Magic.isMedia(magic)) {
+          exiftool(blobPath, magic, (err, data) => {
+            if(err) return callback(err)
+
+            this.medias.set(blobUUID, data)
+            return callback(null, Object.assign({}, { metadata: data, size: stat.size }))
+          })
+        } else return callback(null)
+      })
+    })
   }
 }
 

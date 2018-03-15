@@ -200,7 +200,7 @@ class Boxes extends B {
   constructor(ctx) {
     super(ctx.fruitmixPath)
     this.ctx = ctx
-    // this.docStore = new Docs(ctx.fruitmixPath)
+    this.docStore = new Docs(ctx.fruitmixPath)
     this.blobs = new Blobs(ctx)
     this.blobsInited = false
     this.boxesInited = false
@@ -213,6 +213,7 @@ class Boxes extends B {
     this.loadBoxesSync()
   }
 
+  /*
   loadBoxes (callback) {
     debug('Box start Load')
     fs.readdir(this.dir, (err, entries) => {
@@ -236,6 +237,7 @@ class Boxes extends B {
       })
     })
   }
+  */
 
   loadBoxesSync() {
     debug('Box start Load Sync')
@@ -276,14 +278,14 @@ class Boxes extends B {
     return this.boxes.get(boxUUID)
   }
 
-/**
- * Create a box
- * @param {Object} props - props
- * @param {string} props.name - non-empty string, no conflict with existing box name
- * @param {string} props.owner - box owner, global id
- * @param {array} props.users - empty or global id array
- * @return {Object} box 
- */
+  /**
+   * Create a box
+   * @param {Object} props - props
+   * @param {string} props.name - non-empty string, no conflict with existing box name
+   * @param {string} props.owner - box owner, global id
+   * @param {array} props.users - empty or global id array
+   * @return {Object} box 
+   */
   async createBoxAsync(props) {
 
     // create temp dir  
@@ -316,12 +318,12 @@ class Boxes extends B {
     return doc
   }
 
-/**
- * update a box (rename, add or delete users)
- * @param {Object} props - properties to be updated
- * @param {Object} box - contents before update
- * @return {Object} newdoc
- */
+  /**
+   * update a box (rename, add or delete users)
+   * @param {Object} props - properties to be updated
+   * @param {Object} box - contents before update
+   * @return {Object} newdoc
+   */
   async updateBoxAsync(props, boxUUID) {
     let op
     let box = this.getBox(boxUUID)
@@ -363,10 +365,10 @@ class Boxes extends B {
     return newDoc
   }
 
-/**
- * delete a box
- * @param {string} boxUUID - uuid of box to be deleted
- */
+  /**
+   * delete a box
+   * @param {string} boxUUID - uuid of box to be deleted
+   */
   async deleteBoxAsync(boxUUID) {
     let box = this.boxes.get(boxUUID)
     if(!box) throw new Error('box not found')

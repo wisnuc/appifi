@@ -76,6 +76,10 @@ class Station {
         debug('station start error, about to restart', e)
         setTimeout(() => {
           if(this.deinited) return
+          if(this.mqtt) {
+            this.mqtt.destory()
+            this.mqtt = undefined
+          }
           this.init(froot)
         }, 5000)
       })
@@ -141,6 +145,7 @@ class Station {
     this.tickets = undefined
     this.lock = false
     if(this.mqtt) this.mqtt.destory()
+    this.mqtt = undefined
     debug('station deinit')
     broadcast.emit('StationStopDone', this)
   }
