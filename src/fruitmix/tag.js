@@ -7,7 +7,7 @@
  *    color
  *    id,
  *    group,  // opt? 
- *    createor,
+ *    creator,
  *    ctime,
  *    mtime,
  * }
@@ -30,8 +30,8 @@ module.exports = {
     let { name, color, group } = props
     if(!name || typeof name !== 'string' || !name.length) throw Object.assign(new Error('name is required'), { status: 400})
     if(this.hasSameNameTag(name)) throw Object.assign(new Error('tag name has already be used'), { status: 400 })
-    let createor = user.uuid
-    return await this.tags.createTagAsync({ name, color, group, createor })
+    let creator = user.uuid
+    return await this.tags.createTagAsync({ name, color, group, creator })
   },
 
   async updateTagAsync(user, tagId, props) {

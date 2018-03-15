@@ -21,7 +21,7 @@ let MAX_TAG_ID = 2048
  *    color
  *    id,
  *    group,  // opt? 
- *    createor,
+ *    creator,
  *    ctime,
  *    mtime,
  * }
@@ -105,7 +105,7 @@ class Tags {
   async createTagAsync(props) {
     if (!isNonNullObject(props)) throw E.EINVAL('props must be non-null object')
     if (!isNonEmptyString(props.name)) throw E.EINVAL('tag name must be non-empty string')
-    //TODO: check createor , group
+    //TODO: check creator , group
 
     let currTags = this.tags
     let ctime = new Date().getTime()
@@ -123,7 +123,7 @@ class Tags {
       id: currIndex,
       color: props.color ? props.color : null,
       group: props.group ? props.group : null,
-      createor: props.createor,
+      creator: props.creator,
       ctime,
       mtime: ctime
     }
