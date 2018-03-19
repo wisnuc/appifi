@@ -264,11 +264,12 @@ const readXattrAsync = async (target, stats) => {
       attr.dirty = undefined
     }
 
-    // read tags and clean drop tags
-    if(isArray(orig.tags)) {
-      attr.tags = orig.tags
-    } else {
-      attr.dirty = undefined
+     // read tags and clean dropped tags
+    if (orig.tags && Array.isArray(orig.tags)) {
+      let tagsArr = orig.tags
+      tagsArr = tagsArr.filter(tag => global.validTagIds.find(i => tag.id === i))
+      attr.tags = tagsArr
+      if (tagsArr.length !== orig.tags.length) attr.dirty = undefined
     }
   }
 
@@ -345,7 +346,7 @@ const readXattr = (target, stats, callback) =>
       }
 
       // read tags and clean dropped tags
-      if (orig.hasOwnProperty('tags') && Array.isArray(orig.tags)) {
+      if (orig.tags && Array.isArray(orig.tags)) {
         let tagsArr = orig.tags
         tagsArr = tagsArr.filter(tag => global.validTagIds.find(i => tag.id === i))
         attr.tags = tagsArr
