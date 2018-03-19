@@ -691,6 +691,38 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
             }
           })
           break
+        case 'addTags':
+          getFruit().addTagsAsync(user, driveUUID, dirUUID, x.fromName, x.tags)
+            .then(xstat => {
+              executions.splice(executions.indexOf(x), 1)
+              success(x, xstat)
+            })
+            .catch(e => error(x, e))
+            break
+        case 'removeTags':
+          getFruit().removeTagsAsync(user, driveUUID, dirUUID, x.fromName, x.tags)
+            .then(xstat => {
+              executions.splice(executions.indexOf(x), 1)
+                success(x, xstat)
+            })
+            .catch(e => error(x, e))
+            break
+        case 'resetTags':
+          getFruit().resetTagsAsync(user, driveUUID, dirUUID, x.fromName)
+            .then(xstat => {
+              executions.splice(executions.indexOf(x), 1)
+              success(x, xstat)
+            })
+            .catch(e => error(x, e))
+          break  
+        case 'setTags':
+          getFruit().setTagsAsync(user, driveUUID, dirUUID, x.fromName, x.tags)
+            .then(xstat => {
+              executions.splice(executions.indexOf(x), 1)
+                success(x, xstat)
+            })
+            .catch(e => error(x, e))
+          break
         default: 
           break
       }
