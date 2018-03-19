@@ -13,6 +13,8 @@
  * }
  */
 
+const { readXstat, readXattr, updateXattr } = require('../lib/xstat')
+
 module.exports = {
   //get all tags  
   getTags(user) {
@@ -50,6 +52,83 @@ module.exports = {
 
   getTag(user, tagId) {
     return this.tags.findTag(tagId)
+  },
+
+  addTags(user, driveUUID, dirUUID, filename, tags, callback) {
+    let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
+    if (!dir) {
+      let err = new Error('drive or dir not found')
+      err.status = 404
+      return process.nextTick(() => callback(err))
+    }
+    let fromPath = path.join(dir.abspath(), filename)
+    fs.lstat(fromPath, (err, stat) => {
+      if (err) return callback(err)
+      if (!stat.isFile()) {
+        let e = new Error(`${filename} is not a file`)
+        return callback(e)
+      }
+      readXattr(fromPath, stat, (err, xattr) => {
+        if(err) return callback(err)
+        if(xattr.tags || isArray(xattr.tags)) {
+          
+        }
+      })
+    })
+  },
+
+  removeTags(user, driveUUID, dirUUID, filename, tags, callback) {
+    let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
+    if (!dir) {
+      let err = new Error('drive or dir not found')
+      err.status = 404
+      return process.nextTick(() => callback(err))
+    }
+    let fromPath = path.join(dir.abspath(), filename)
+    fs.lstat(fromPath, (err, stat) => {
+      if (err) return callback(err)
+      if (!stat.isFile()) {
+        let e = new Error(`${filename} is not a file`)
+        return callback(e)
+      }
+      readXattr()
+    })
+  },
+
+  resetTags(user, driveUUID, dirUUID, filename, callback) {
+    let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
+    if (!dir) {
+      let err = new Error('drive or dir not found')
+      err.status = 404
+      return process.nextTick(() => callback(err))
+    }
+    let fromPath = path.join(dir.abspath(), filename)
+    fs.lstat(fromPath, (err, stat) => {
+      if (err) return callback(err)
+      if (!stat.isFile()) {
+        let e = new Error(`${filename} is not a file`)
+        return callback(e)
+      }
+      readXattr()
+    })
+  },
+
+  setTags(user, driveUUID, dirUUID, filename, tags, callback) {
+    let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
+    if (!dir) {
+      let err = new Error('drive or dir not found')
+      err.status = 404
+      return process.nextTick(() => callback(err))
+    }
+    let fromPath = path.join(dir.abspath(), filename)
+    fs.lstat(fromPath, (err, stat) => {
+      if (err) return callback(err)
+      if (!stat.isFile()) {
+        let e = new Error(`${filename} is not a file`)
+        return callback(e)
+      }
+      readXattr()
+    })
   }
 
 }

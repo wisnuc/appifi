@@ -594,6 +594,20 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
             if (!isUUID(x.uuid)) throw new Error('invalid uuid')
             break
 
+          case 'addTags':
+            if(!Array.isArray(x.tags) || x.tags.every(t => isUUID(t))) throw new Error('invalid tagId')
+            break
+          
+          case 'removeTags':
+            if(!Array.isArray(x.tags) || x.tags.every(t => isUUID(t))) throw new Error('invalid tagId')
+            break
+          
+          case 'setTags':
+            if(!Array.isArray(x.tags) || x.tags.every(t => isUUID(t))) throw new Error('invalid tagId')
+            break
+
+          case 'resetTags':
+            break
           default:
             throw new Error('invalid op')
             break

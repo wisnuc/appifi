@@ -263,6 +263,13 @@ const readXattrAsync = async (target, stats) => {
     } else {
       attr.dirty = undefined
     }
+
+    // read tags and clean drop tags
+    if(isArray(orig.tags)) {
+      attr.tags = orig.tags
+    } else {
+      attr.dirty = undefined
+    }
   }
 
   // remove old data if any TODO remove this code after a few months
@@ -333,6 +340,13 @@ const readXattr = (target, stats, callback) =>
       // drop magic if version bumped
       if (Magic.isValidMagic(orig.magic)) {
         attr.magic = orig.magic
+      } else {
+        attr.dirty = undefined
+      }
+
+      // read tags and clean drop tags
+      if(isArray(orig.tags)) {
+        attr.tags = orig.tags
       } else {
         attr.dirty = undefined
       }
@@ -675,6 +689,8 @@ module.exports = {
   fileMagic6,
   assertDirXstatSync,
   assertFileXstatSync,
+  readXattr,
+  updateXattr
 }
 
 
