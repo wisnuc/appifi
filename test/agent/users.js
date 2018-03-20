@@ -102,7 +102,7 @@ describe(path.basename(__filename), () => {
         .end(done)
     })
 
-    it('GET /token should return token with correct password', done => {
+    it('GET /token should return token with correct password, fbb09005', done => {
       request(app)
         .get('/token')
         .auth(IDS.alice.uuid, 'alice')
