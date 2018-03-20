@@ -267,7 +267,7 @@ const readXattrAsync = async (target, stats) => {
      // read tags and clean dropped tags
     if (orig.tags && Array.isArray(orig.tags)) {
       let tagsArr = orig.tags
-      tagsArr = tagsArr.filter(tag => global.validTagIds.find(i => tag.id === i))
+      tagsArr = tagsArr.filter(tag => global.validTagIds.includes(tag))
       attr.tags = tagsArr
       if (tagsArr.length !== orig.tags.length) attr.dirty = undefined
     }
@@ -348,7 +348,7 @@ const readXattr = (target, stats, callback) =>
       // read tags and clean dropped tags
       if (orig.tags && Array.isArray(orig.tags)) {
         let tagsArr = orig.tags
-        tagsArr = tagsArr.filter(tag => global.validTagIds.find(i => tag.id === i))
+        tagsArr = tagsArr.filter(tag => global.validTagIds.includes(tag))
         attr.tags = tagsArr
         if (tagsArr.length !== orig.tags.length) attr.dirty = undefined
       }
@@ -412,7 +412,6 @@ Create a xstat object.
 const createXstat = (target, stats, attr) => {
   let name = path.basename(target)
   let xstat
-
   if (stats.isDirectory()) {
     xstat = {
       uuid: attr.uuid,
@@ -429,10 +428,10 @@ const createXstat = (target, stats, attr) => {
       name,
       mtime: stats.mtime.getTime(),
       size: stats.size,
-      magic: attr.magic,
-      tags: attr.tags
+      magic: attr.magic
     } 
     if (attr.hash) xstat.hash = attr.hash
+    if (attr.tags) xstat.tags = attr.tags
   }
 
   return xstat
@@ -692,9 +691,8 @@ Update file Tags
 @returns {object} updated xstat
 */
 const updateFileTagsAsync = async (target, uuid, tags, time) => {
-  
-  if ((!Array.isArray(tags) || tags !== undefined) || !Number.isInteger(time)) throw new E.EINVAL()
 
+  if (!Array.isArray(tags) && tags !== undefined || !Number.isInteger(time)) throw new E.EINVAL()
   let stats = await fs.lstatAsync(target)
   if (!stats.isFile()) throw new E.ENOTFILE()
   if (time !== stats.mtime.getTime()) throw new E.ETIMESTAMP()

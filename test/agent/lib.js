@@ -549,6 +549,16 @@ const createCommitAsync = async (dir, boxUUID, username, props) => {
   return commit
 }
 
+const createTagAsync = async (props, username) => {
+  let token = await retrieveTokenAsync(username)
+  let rs = await request(app)
+    .post('/tags')
+    .set('Authorization', 'JWT ' + token)
+    .send(props)
+    .expect(200)
+  return rs.body
+}
+
 
 module.exports = {
   IDS,
@@ -566,6 +576,7 @@ module.exports = {
   createTreeObjectAsync,
   getCommitAsync,
   getTreeListAsync,
-  createCommitAsync
+  createCommitAsync,
+  createTagAsync
 }
 

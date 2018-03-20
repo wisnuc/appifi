@@ -13,7 +13,8 @@
  * }
  */
 
-const { readXstatAsync, updateFileTagsAsync } = require('../lib/xstat')
+const { readXstat, updateFileTagsAsync } = require('../lib/xstat')
+const path = require('path')
 
 module.exports = {
   //get all tags  
@@ -54,112 +55,117 @@ module.exports = {
     return this.tags.findTag(tagId)
   },
 
-  async addTagsAsync(user, driveUUID, dirUUID, filename, tags) {
+  fileAddTags(user, driveUUID, dirUUID, filename, tags, cb) {
     let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
     if (!dir) {
       let err = new Error('drive or dir not found')
       err.status = 404
-      throw err
+      return cb(err)
     }
     let fromPath = path.join(dir.abspath(), filename)
+    if(!tags.every(t => global.validTagIds.includes(t))) return cb(Object.assign(new Error('tags error, tagId not found'), { status:400 }))
 
-    if(!tags.every(t => global.validTagIds.includes())) throw new Error('tags error, tagId not found')
-
-    let xstat = await readXstatAsync(fromPath)
-
-    if (xstat.type !== 'file') {
-      let e = new Error(`${filename} is not a file`)
-      e.status = 404
-      throw e
-    }
-
-    let xtags = xstat.tags
-    if(xtags || Array.isArray(xtags)) {
-      tags = [...xtags, ...tags].sort()
-      xtags = tags.reduce((acc, c) => acc.includes(c) ? acc : [...acc, c], [])
-    }else {
-      xtags = tags
-    }
-
-    return await updateFileTagsAsync(fromPath, xstat.uuid, xtags, xstat.mtime)
+    readXstat(fromPath, (err, xstat) => {
+      if (xstat.type !== 'file') {
+        let e = new Error(`${filename} is not a file`)
+        e.status = 404
+        return cb(e)
+      }
+  
+      let xtags = xstat.tags
+      if(xtags || Array.isArray(xtags)) {
+        tags = [...xtags, ...tags].sort()
+        xtags = tags.reduce((acc, c) => acc.includes(c) ? acc : [...acc, c], [])
+      }else {
+        xtags = tags
+      }
+  
+      updateFileTagsAsync(fromPath, xstat.uuid, xtags, xstat.mtime)
+        .then(xs => cb(null, xs))
+        .catch(cb)
+    })
   },
 
-  async removeTagsAsync(user, driveUUID, dirUUID, filename, tags) {
+  fileRemoveTags(user, driveUUID, dirUUID, filename, tags, cb) {
     let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
     if (!dir) {
       let err = new Error('drive or dir not found')
       err.status = 404
-      throw err
+      return cb(err)
     }
     let fromPath = path.join(dir.abspath(), filename)
 
-    if(!tags.every(t => global.validTagIds.includes())) throw new Error('tags error, tagId not found')
+    if(!tags.every(t => global.validTagIds.includes(t))) return cb(new Error('tags error, tagId not found'))
 
-    let xstat = await readXstatAsync(fromPath)
-
-    if (xstat.type !== 'file') {
-      let e = new Error(`${filename} is not a file`)
-      e.status = 404
-      throw e
-    }
-
-    let xtags = xstat.tags
-    if(xtags || Array.isArray(xtags)) {
-      tags = [...xtags, ...tags].sort()
-      xtags = tags.filter(x => !tags.includes(x))
-    }else {
-      xtags = undefined
-    }
-
-    return await updateFileTagsAsync(fromPath, xstat.uuid, xtags, xstat.mtime)
+    readXstat(fromPath, (err, xstat) => {
+      if (xstat.type !== 'file') {
+        let e = new Error(`${filename} is not a file`)
+        e.status = 404
+        return cb(e)
+      }
+  
+      let xtags = xstat.tags
+      if(xtags || Array.isArray(xtags)) {
+        xtags = xtags.filter(x => !tags.includes(x))
+      }else {
+        xtags = undefined
+      }
+      updateFileTagsAsync(fromPath, xstat.uuid, xtags, xstat.mtime)
+        .then(xs => cb(null, xs))
+        .catch(cb)
+    })
   },
 
-  async resetTagsAsync(user, driveUUID, dirUUID, filename) {
+  fileResetTags(user, driveUUID, dirUUID, filename, cb) {
     let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
     if (!dir) {
       let err = new Error('drive or dir not found')
       err.status = 404
-      throw err
+      return  cb(err)
     }
     let fromPath = path.join(dir.abspath(), filename)
 
-    if(!tags.every(t => global.validTagIds.includes())) throw new Error('tags error, tagId not found')
+    readXstat(fromPath, (err, xstat) => {
 
-    let xstat = await readXstatAsync(fromPath)
+      if (xstat.type !== 'file') {
+        let e = new Error(`${filename} is not a file`)
+        e.status = 404
+        return cb(e)
+      }
 
-    if (xstat.type !== 'file') {
-      let e = new Error(`${filename} is not a file`)
-      e.status = 404
-      throw e
-    }
+      let xtags = undefined
 
-    let xtags = undefined
+      updateFileTagsAsync(fromPath, xstat.uuid, xtags, xstat.mtime)
+        .then(xs => cb(null, xs))
+        .catch(cb)
+    })
 
-    return await updateFileTagsAsync(fromPath, xstat.uuid, xtags, xstat.mtime)
   },
 
-  async setTagsAsync(user, driveUUID, dirUUID, filename, tags) {
+  fileSetTags(user, driveUUID, dirUUID, filename, tags, cb) {
     let dir = this.driveList.getDriveDir(driveUUID, dirUUID)
     if (!dir) {
       let err = new Error('drive or dir not found')
       err.status = 404
-      throw err
+      return cb(err)
     }
     let fromPath = path.join(dir.abspath(), filename)
 
-    if(!tags.every(t => global.validTagIds.includes())) throw new Error('tags error, tagId not found')
+    if(!tags.every(t => global.validTagIds.includes(t))) return cb(new Error('tags error, tagId not found'))
 
-    let xstat = await readXstatAsync(fromPath)
-
-    if (xstat.type !== 'file') {
-      let e = new Error(`${filename} is not a file`)
-      e.status = 404
-      throw e
-    }
-
-    let xtags = tags
-
-    return await updateFileTagsAsync(fromPath, xstat.uuid, xtags, xstat.mtime)
+    readXstat(fromPath, (err, xstat) => {
+      if (xstat.type !== 'file') {
+        let e = new Error(`${filename} is not a file`)
+        e.status = 404
+        return cb(e)
+      }
+  
+      let xtags = tags
+  
+      updateFileTagsAsync(fromPath, xstat.uuid, xtags, xstat.mtime)
+        .then(xs => cb(null, xs))
+        .catch(cb)
+    })
   }
 
 }
