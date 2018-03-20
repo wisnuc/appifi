@@ -259,6 +259,6 @@ describe(path.basename(__filename), () => {
       })
   })
 
-}) // end of test mkdir
+})
 
 

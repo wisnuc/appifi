@@ -24,7 +24,7 @@ router.get('/', auth.jwt(), fruitless, (req, res, next) => {
                 if(Number.isInteger(tId)) return tId
                 return null
               })
-              .filter(t => !!t)
+              .filter(t => t !== null)
   if(!Array.isArray(tags) || !tags.length) return res.status(400).json({ message:'tag not found'})
   getFruit().getTagedFiles(user, tags, (err, data) => {
     if(err) return next(err)
