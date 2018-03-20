@@ -116,7 +116,6 @@ class Forest extends EventEmitter {
 
   indexFile (file) {
     debug(`index file ${file.name}`)
-    if(this.fileMap.has(file.uuid)) throw new Error(`need index file ${file.name}, old fileMap ${this.fileMap.get(file.uuid)}`)
     this.fileMap.set(file.uuid, file)
   }
 
