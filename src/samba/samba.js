@@ -52,7 +52,7 @@ const retrieveSysUsersAsync = async () => {
 }
 
 const retrieveSmbUsersAsync = async () => {
-  let stdout = await child.exec('pdbedit -Lw')
+  let stdout = await child.execAsync('pdbedit -Lw')
   return stdout.toString().split('\n')
     .map(l => l.trim())
     .filter(l => l.length)
