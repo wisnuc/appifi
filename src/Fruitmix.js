@@ -1454,6 +1454,14 @@ class Fruitmix extends EventEmitter {
     return callback(null, m)
   }
 
+  getFilePathByUUID(user, fileUUID) {
+    let fileNode = this.driveList.fileMap.get(fileUUID)
+    if(!fileNode) return
+    let root = fileNode.root()
+    if(this.userCanRead(user, root.uuid)) return fileNode.abspath()
+    return 
+  }
+
 }
 
 Object.assign(Fruitmix.prototype, {})

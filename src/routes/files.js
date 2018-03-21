@@ -33,7 +33,9 @@ router.get('/', auth.jwt(), fruitless, (req, res, next) => {
 })
 
 router.get('/:fileUUID', auth.jwt(), fruitless, (req, res, next) => {
-  
+  let filepath = getFruit().getFilePathByUUID(req.user, req.params.fileUUID)
+  if(filepath) return res.status(200).sendFile(filepath)
+  res.status(404).json({ message: 'file not found' })
 })
 
 module.exports = router
