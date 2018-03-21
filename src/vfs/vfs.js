@@ -618,7 +618,7 @@ class VFS extends Forest {
             }
           }
         }
-        // callback(err)
+        callback(null)
       })
     })
   }

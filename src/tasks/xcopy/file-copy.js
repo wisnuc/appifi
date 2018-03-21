@@ -23,7 +23,7 @@ class Working extends File.prototype.Working {
       } else {
         if (!this.ctx.isDestroyed()) this.setState('Finished')
       }
-    }) 
+    })
   }
 
 }
@@ -37,6 +37,3 @@ class FileCopy extends File {}
 FileCopy.prototype.Working = Working
 
 module.exports = FileCopy
-
-
-
