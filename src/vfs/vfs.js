@@ -608,14 +608,12 @@ class VFS extends Forest {
 
         if (!xstat || (policy[0] === 'skip' && xstat && resolved[0])) return
         else {
-          if (src.dirve === dst.drive) {
-            try {
-              let attr = JSON.parse(xattr.getSync(srcFilePath, 'user.fruitmix'))
-              attr.uuid = xstats.uuid
-              xattr.setSync(dstFilePath, 'user.fruitmix', JSON.stringify(attr))
-            } catch (e) {
-              if (e.code !== 'ENODATA') return callback(e)
-            }
+          try {
+            let attr = JSON.parse(xattr.getSync(srcFilePath, 'user.fruitmix'))
+            attr.uuid = xstats.uuid
+            xattr.setSync(dstFilePath, 'user.fruitmix', JSON.stringify(attr))
+          } catch (e) {
+            if (e.code !== 'ENODATA') return callback(e)
           }
         }
         callback(null)
