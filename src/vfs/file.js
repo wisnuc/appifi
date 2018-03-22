@@ -175,6 +175,12 @@ class File extends Node {
     */
     this.hash = xstat.hash
 
+    /**
+    file tags. 
+    @type {(array|undefined)}
+    */
+    this.tags = xstat.tags
+
     this.ctx.indexFile(this)
 
     if (!this.hash) {

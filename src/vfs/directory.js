@@ -209,7 +209,7 @@ class Reading extends Base {
     this.dir.fileSize = files.reduce((acc, f) => acc + f.size, 0)
     
     // remove non-interested files
-    xstats = xstats.filter(x => x.type === 'directory' || (x.type === 'file' && typeof x.magic === 'string'))
+    xstats = xstats.filter(x => x.type === 'directory' || (x.type === 'file' && (typeof x.magic === 'string' || (Array.isArray(x.tags) && x.tags.length !== 0))))
 
     // convert to a map
     let map = new Map(xstats.map(x => [x.uuid, x]))

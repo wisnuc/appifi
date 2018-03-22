@@ -1432,6 +1432,28 @@ class Fruitmix extends EventEmitter {
     this.driveList.assertDirUUIDsIndexed (uuids)
   }
 
+  getTagedFiles (user, tags, callback) {
+    if (!user) return process.nextTick(() => callback(Object.assign(new Error('Invaild user'), { status: 400 })))
+    if (!tags || !Array.isArray(tags) || !tags.length) return process.nextTick(() => callback(Object.assign(new Error('Invaild tags'), { status: 400 })))
+    let drives = this.getDrives(user)
+    let m = []
+    drives.forEach(drive => {
+      let root = this.driveList.roots.get(drive.uuid)
+      // if (!root) return []
+      root.preVisit(node => {
+        if (node instanceof File && node.tags && tags.findIndex(t => node.tags.includes(t)) !== -1) { 
+          m.push({
+            uuid: node.uuid,
+            name: node.name,
+            driveUUID: drive.uuid,
+            dirUUID: node.parent.uuid
+          })
+        }
+      })
+    })
+    return callback(null, m)
+  }
+
 }
 
 Object.assign(Fruitmix.prototype, {})

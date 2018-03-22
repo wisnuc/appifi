@@ -1,19 +1,39 @@
 const Promise = require('bluebird')
 const path = require('path')
 const fs = require('fs')
-const stream = require('stream')
-const crypto = require('crypto')
-const rimraf = require('rimraf')
-const mkdirp = require('mkdirp')
 const router = require('express').Router()
 const auth = require('../middleware/auth')
-const sanitize = require('sanitize-filename')
 const UUID = require('uuid')
 const { isSHA256, isUUID } = require('../lib/assertion')
 const getFruit = require('../fruitmix')
 const Debug = require('debug')
 const debug = Debug('Tags')
 
-router.get('/', auth.jwt(), (req, res, next) => {
+const EFruitUnavail = Object.assign(new Error('fruitmix unavailable'), { status: 503 })
+const fruitless = (req, res, next) => getFruit() ? next() : next(EFruitUnavail) 
 
+// only support tag
+router.get('/', auth.jwt(), fruitless, (req, res, next) => {
+  let user = req.user
+  if(typeof req.query.tag !== 'string' || !req.query.tag.length) return res.status(400).json({ message:'tag not found'})
+  let tags = req.query.tag
+              .split('+')
+              .filter(t => t.length)
+              .map(t => {
+                let tId = parseInt(t)
+                if(Number.isInteger(tId)) return tId
+                return null
+              })
+              .filter(t => t !== null)
+  if(!Array.isArray(tags) || !tags.length) return res.status(400).json({ message:'tag not found'})
+  getFruit().getTagedFiles(user, tags, (err, data) => {
+    if(err) return next(err)
+    res.status(200).json(data)
+  })
 })
+
+router.get('/:fileUUID', auth.jwt(), fruitless, (req, res, next) => {
+  
+})
+
+module.exports = router
