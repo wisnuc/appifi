@@ -18,6 +18,8 @@ const Fingerprint = require('../lib/fingerprint2')
 const { isSHA256 } = require('../lib/assertion')
 const getFruit = require('../fruitmix')
 
+const debug = require('debug')('boxes:router')
+
 const EUnavail = Object.assign(new Error('fruitmix unavailable'), { status: 503 })
 const fruitless = (req, res, next) => getFruit() ? next() : next(EUnavail)
 const SIZE_1G = 1024 * 1024 * 1024
@@ -378,14 +380,24 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
     let errorComplete = err => {
       if(error) return
       error = err
-      console.log(err)
+      debug(err)
       errorHandler(dicer, req)
-      return res.status(400).json(err)
+      return next(err)
     }
 
     const onField = rs => {
+      let fieldBuffers = []
       rs.on('data', data => {
-        obj = JSON.parse(data)
+        fieldBuffers.push(data)
+      })
+      rs.on('end', () => {
+        let obj
+        try {
+          obj = JSON.parse(Buffer.concat(fieldBuffers))
+        } catch (e) {
+          e.status = 400
+          return errorComplete(e)
+        }
         if (typeof obj.comment === 'string') comment = obj.comment
         if (obj.parent) parent = obj.parent
         if (obj.type) type = obj.type

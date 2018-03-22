@@ -22,7 +22,7 @@ class Working extends State {
   }
 
   exit () {
-    this.ctx.ctx.unindexWorkingFile(this.ctx)
+    if (this.ctx.ctx) this.ctx.ctx.unindexWorkingFile(this.ctx)
   }
 
 }
@@ -85,7 +85,7 @@ A file sub-tasks, base class
 */
 class File extends Node {
 
-  constructor(ctx, parent, src) {
+  constructor (ctx, parent, src) {
     super(ctx, parent)
     this.src = src
     this.state = new this.Pending(this)
@@ -99,13 +99,13 @@ class File extends Node {
     return [
       this.policy[0] || this.ctx.policies.file[0] || null,
       this.policy[1] || this.ctx.policies.file[1] || null
-    ]  
+    ]
   }
-  
+
 }
 
 File.prototype.Pending = Pending
-File.prototype.Working = Working      // <- this will be overridden
+File.prototype.Working = Working // <- this will be overridden
 File.prototype.Conflict = Conflict
 File.prototype.Finished = Finished
 File.prototype.Failed = Failed

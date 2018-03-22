@@ -110,6 +110,7 @@ module.exports = {
     assert(typeof props.name === 'string', 'name should be a string')
     assert(Array.isArray(props.users), 'users should be an array')
     if(!props.users.every(u => isUUID(u))) throw new Error('users item error, not guid')
+    props.users = Array.from(new Set(props.users))
     props.owner = user.global.id
     let doc = await this.boxData.createBoxAsync(props)
     // createBox
@@ -339,17 +340,17 @@ module.exports = {
    * @param {Object} user 
    * @param {string} boxUUID 
    * @param {Object} props
-   * @param {number} props.first - optional, the first index of segment user hold 
-   * @param {number} props.last - optional, the last index of segment user hold
-   * @param {number} props.count - optional, number of records user want to get
+   * @param {string} props.first - optional, the first index of segment user hold 
+   * @param {string} props.last - optional, the last index of segment user hold
+   * @param {string} props.count - optional, number of records user want to get
    * @param {string} props.segments - optional, segments of records user want to get
    */
   async getTweetsAsync (user, boxUUID, props) {
     if (!this.userCanReadBox(user, boxUUID))  throw Object.assign(new Error('no permission'), { status: 403 }) 
     let box = this.boxData.getBox(boxUUID)
-    if (props.first) assert(Number.isInteger(Number(props.first)), 'first should be an integer')
-    if (props.last) assert(Number.isInteger(Number(props.last)), 'last should be an integer')
-    if (props.count) assert(Number.isInteger(Number(props.count)), 'count should be an integer')
+    if (props.first) assert(Number.isInteger(Number(props.first)) && Number(props.first) > -1, 'first should be a nature number')
+    if (props.last) assert(Number.isInteger(Number(props.last)) && Number(props.last) > -1, 'last should be a nature number')
+    if (props.count) assert(Number.isInteger(Number(props.count)) && Number(props.count) > -1, 'count should be a nature number')
     if (props.segments) assert(typeof props.segments === 'string', 'segments should be a string')
     let metadata = props.metadata
     let tweets = await box.getTweetsAsync(props)
@@ -397,9 +398,28 @@ module.exports = {
     if (props.list) assert(Array.isArray(props.list), 'list should be an array')
     if (props.src) assert(Array.isArray(props.src), 'src should be an array')
     let result = await box.createTweetAsync(props)
+
+    // read blobs , append to tweet if have metas
+    let tweet = result.tweet
+    //TODO: other type?
+    if(tweet.type === 'list') {
+      let blobUUIDs = tweet.list.map( l => l.sha256)
+      try {
+        let metaMap = await this.boxData.blobs.readBlobsAsync(blobUUIDs)
+        tweet.list.forEach(l => {
+          let meta = metaMap.get(l.sha256)
+          if(meta) Object.assign(l, meta)
+        })
+      }catch(e) {
+        console.log('==== read blobs error ======')
+        console.log(e)
+        console.log('============================')
+      }
+    }
+
     //FIXME: tweets update, box update?
     // await this.boxData.updateBoxAsync({mtime: result.mtime}, boxUUID) 
-    return result.tweet
+    return tweet
   },
 
   /**

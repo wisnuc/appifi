@@ -40,7 +40,6 @@ class BoxUpdater {
       requestC('POST', url, { params }, opts, (err, res) => {
         if(err) {
           debug(err)
-          debug(res.body)
         }else
           return callback()
       })
@@ -54,10 +53,7 @@ class BoxUpdater {
     let params = box // TODO change ticket status
     debug('发起 create box', box, url)
     requestC('POST', url, { params }, opts, (err, res) => {
-      if(err) {
-        debug(err)
-        debug(res.error)
-      }
+      if(err) debug(err)
     })
   }
 
@@ -68,10 +64,7 @@ class BoxUpdater {
     let params = Object.assign(box, { uuid:undefined, ctime:undefined }) // TODO change ticket status
     debug('发起 update box', box, url)
     requestC('PATCH', url, { params }, opts, (err, res) => {
-      if(err) {
-        debug(err)
-        debug(res.body)
-      }
+      if(err) debug(err)
     })
   }
 
@@ -81,10 +74,7 @@ class BoxUpdater {
     let opts = { 'Authorization': token }
     debug('发起 delete box', boxUUID, url)
     requestC('DELETE', url, {}, opts, (err, res) => {
-      if(err) {
-        debug(err)
-        debug(res.error)
-      }
+      if(err) debug(err)
     })
   }
 
@@ -97,10 +87,7 @@ class BoxUpdater {
     let params = tweet
     debug('发起 update last tweet', tweet, url)
     requestC('POST', url, { params }, opts, (err, res) => {
-      if(err) {
-        debug(err)
-        debug(res.error)
-      }
+      if(err) debug(err)
     })
   }
 }

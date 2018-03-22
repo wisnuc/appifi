@@ -108,13 +108,18 @@ class Box {
         if (target) rimraf(s.filepath, () => { })  
         else return true
       })
+      // urls = urls.map(u => {
+      //   let dirname = path.dirname(u.filepath)
+      //   let newpath = path.join(dirname, u.sha256)
+      //   fs.renameSync(u.filepath, newpath)
+      //   return newpath
+      // })
 
-      urls = urls.map(u => {
+      urls =  await Promise.all(urls.map(u => new Promise((resolve, reject) => {
         let dirname = path.dirname(u.filepath)
         let newpath = path.join(dirname, u.sha256)
-        fs.renameSync(u.filepath, newpath)
-        return newpath
-      })
+        fs.rename(u.filepath, newpath, err => err ? reject(err) : resolve(newpath))
+      })))
       if(urls && urls.length) await this.ctx.blobs.storeAsync(urls)
     }
     let tweet = {

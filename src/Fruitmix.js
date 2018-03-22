@@ -20,6 +20,8 @@ const BoxData = require('./box/Boxes')
 const DriveList = require('./vfs/vfs')
 const Thumbnail = require('./lib/thumbnail2')
 const File = require('./vfs/file')
+const createTag = require('./tags/tags')
+
 const Identifier = require('./lib/identifier')
 const { btrfsConcat, btrfsClone } = require('./lib/btrfs')
 const jwt = require('jwt-simple')
@@ -50,6 +52,7 @@ const mixin = require('./fruitmix/mixin')
 const driveapi = require('./fruitmix/drive')
 const ndriveapi = require('./fruitmix/ndrive')
 const boxapi = require('./fruitmix/box')
+const tagapi = require('./fruitmix/tag')
 
 const combineHash = (a, b) => {
   let a1 = typeof a === 'string' ? Buffer.from(a, 'hex') : a
@@ -101,6 +104,8 @@ class Fruitmix extends EventEmitter {
     this.fruitmixPath = froot
 
     let metaPath = path.join(froot, 'metadataDB.json')
+    
+    this.tags = createTag(froot)
 
     // this is acturally a PersistentMediaMap
     this.mediaMap = new MediaMap(metaPath, tmpDir)
@@ -930,11 +935,15 @@ class Fruitmix extends EventEmitter {
   } 
 
   mkdir2 (user, dst, policy, callback) {
-    this.vfs.mkdir(dst, policy, callbacl)
+    this.vfs.mkdir(dst, policy, callback)
   }
 
   mkfile (user, tmp, dst, policy, callback) {
     this.vfs.mkfile(tmp, dst, policy, callback)
+  }
+
+  clone (user, src, callback) {
+    this.vfs.clone(src, callback)
   }
 
   readdir (user, driveUUID, dirUUID, callback) {
@@ -956,6 +965,10 @@ class Fruitmix extends EventEmitter {
       err.status = 404
       callback(err)
     }
+  }
+
+  genTmpPath(user) {
+    return this.vfs.genTmpPath()
   }
 
   async createTaskAsync (user, props) {
@@ -1419,12 +1432,43 @@ class Fruitmix extends EventEmitter {
     this.driveList.assertDirUUIDsIndexed (uuids)
   }
 
+  getTagedFiles (user, tags, callback) {
+    if (!user) return process.nextTick(() => callback(Object.assign(new Error('Invaild user'), { status: 400 })))
+    if (!tags || !Array.isArray(tags) || !tags.length) return process.nextTick(() => callback(Object.assign(new Error('Invaild tags'), { status: 400 })))
+    let drives = this.getDrives(user)
+    let m = []
+    drives.forEach(drive => {
+      let root = this.driveList.roots.get(drive.uuid)
+      // if (!root) return []
+      root.preVisit(node => {
+        if (node instanceof File && node.tags && tags.findIndex(t => node.tags.includes(t)) !== -1) { 
+          m.push({
+            uuid: node.uuid,
+            name: node.name,
+            driveUUID: drive.uuid,
+            dirUUID: node.parent.uuid
+          })
+        }
+      })
+    })
+    return callback(null, m)
+  }
+
+  getFilePathByUUID(user, fileUUID) {
+    let fileNode = this.driveList.fileMap.get(fileUUID)
+    if(!fileNode) return
+    let root = fileNode.root()
+    if(this.userCanRead(user, root.uuid)) return fileNode.abspath()
+    return 
+  }
+
 }
 
 Object.assign(Fruitmix.prototype, {})
 Object.assign(Fruitmix.prototype, driveapi)
 Object.assign(Fruitmix.prototype, ndriveapi)
 Object.assign(Fruitmix.prototype, boxapi)
+Object.assign(Fruitmix.prototype, tagapi)
 module.exports = Fruitmix
 
 

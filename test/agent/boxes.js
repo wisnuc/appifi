@@ -186,7 +186,7 @@ describe(path.basename(__filename), function() {
           expect(res.body.uuid).to.deep.equal(boxUUID)
           expect(res.body.name).to.deep.equal('hello')
           expect(res.body.owner).to.deep.equal(IDS.alice.global.id)
-          expect(res.body.users).to.deep.equal([])
+          expect(res.body.users).to.deep.equal([IDS.alice.global.id])
           done()
         })
     })
@@ -262,7 +262,7 @@ describe(path.basename(__filename), function() {
           expect(res.body.uuid).to.deep.equal(boxUUID)
           expect(res.body.name).to.deep.equal('world')
           expect(res.body.owner).to.deep.equal(IDS.alice.global.id)
-          expect(res.body.users).to.deep.equal([IDS.bob.global.id, IDS.charlie.global.id])
+          expect(res.body.users).to.deep.equal([IDS.bob.global.id, IDS.alice.global.id, IDS.charlie.global.id])
           done()
         })
     })
@@ -340,25 +340,33 @@ describe(path.basename(__filename), function() {
         })
     })
 
-    it('POST /boxes/{uuid}/tweets alice should upload a blob', done => {
+    it('POST /boxes/{uuid}/tweets alice should upload a [blob]', done => {
       let obj = {
         comment: 'hello',
-        type: 'blob',
-        size: FILES.alonzo.size,
-        sha256: FILES.alonzo.hash
+        type: 'list',
+        list: [{
+          size: FILES.alonzo.size,
+          sha256: FILES.alonzo.hash
+        }]
       }
       request(app)
         .post(`/boxes/${boxUUID}/tweets`)
         .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
-        .field('blob', JSON.stringify(obj))
-        .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', JSON.stringify({size: obj.size, sha256: obj.sha256}))
+        .field('list', JSON.stringify(obj))
+        .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', JSON.stringify({size: FILES.alonzo.size, sha256: FILES.alonzo.hash}))
         .expect(200)
         .end((err, res) => {
           if (err) return done(err)
           expect(res.body.tweeter.id).to.equal(IDS.alice.global.id)
           expect(res.body.comment).to.equal('hello')
-          expect(res.body.type).to.equal('blob')
-          expect(res.body.id).to.equal(FILES.alonzo.hash)
+          expect(res.body.type).to.equal('list')
+          expect(res.body.list[0].sha256).to.equal(obj.list[0].sha256)
+          expect(res.body.list[0].metadata).to.deep.equal({
+            h: 314,
+            m: "JPEG",
+            size: 39499,
+            w: 235
+          })
           done()
         })
     })
@@ -445,9 +453,11 @@ describe(path.basename(__filename), function() {
             .expect(200)
             .end((err, res) => {
               if (err) return done(err)
-              expect(res.body.length).to.equal(1)
-              expect(res.body[0].comment).to.equal('hello')
+              expect(res.body.length).to.equal(2)
+              expect(res.body[0].type).to.equal('boxmessage')
               expect(res.body[0].index).to.equal(0)
+              expect(res.body[1].comment).to.equal('hello')
+              expect(res.body[1].index).to.equal(1)
               done()
             })
         })
@@ -461,7 +471,7 @@ describe(path.basename(__filename), function() {
             .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
             .expect(200)
             .end((err, res) => {
-              expect(res.body.length).to.equal(10)
+              expect(res.body.length).to.equal(11) //after create box , index 0  is a type of boxmessage tweet
               done()
             })
         })
@@ -484,7 +494,7 @@ describe(path.basename(__filename), function() {
             .set('Authorization', 'JWT ' + aliceCloudToken + ' ' + aliceToken)
             .expect(200)
             .end((err, res) => {
-              expect(res.body.length).to.equal(10)
+              expect(res.body.length).to.equal(11)
               done()
             })
         })
@@ -509,7 +519,7 @@ describe(path.basename(__filename), function() {
                 .end((err, res) => {
                   if (err) return done(err)
                   let arr = res.body.map(r => r.index)
-                  expect(res.body.length).to.equal(9)
+                  expect(res.body.length).to.equal(10)
                   expect(arr.includes(2)).to.be.false
                   done()
                 })
@@ -532,7 +542,7 @@ describe(path.basename(__filename), function() {
           done()
         })
     })
-
+    /*
     it('POST /boxes/{uuid}/branches alice create a new branch successfully', done => {
       request(app)
         .post(`/boxes/${boxUUID}/branches`)
@@ -588,8 +598,9 @@ describe(path.basename(__filename), function() {
             })
         })
     })
+    */
   })
-
+  /*
   describe('box created, test create a commit(no parent and no branch)', () => {
     let aliceToken, aliceCloudToken, result
     let boxUUID = 'a96241c5-bfe2-458f-90a0-46ccd1c2fa9a'
@@ -834,4 +845,5 @@ describe(path.basename(__filename), function() {
         .end(done)
     })   
   })
+  */
 })

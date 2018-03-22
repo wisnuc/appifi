@@ -1154,10 +1154,6 @@ class Pipe {
             fp.on('data', fingerprint => {
               callback(null, fingerprint)
             })
-            // fingerprintSimple(tmpPath, (err, fingerprint) => {
-            //   if(err) return callback(err)
-            //   callback(null, fingerprint)
-            // }) 
           })
         })
       }
@@ -1232,9 +1228,7 @@ class Pipe {
       props = { parent, comment, type, list:[...li, ...ins], src }
     }
     let tweet = await fruit.createTweetAsync(user, boxUUID, props)
-    // if (list && list.length)
-      return await this.successStoreResponseAsync(serverAddr, sessionId, tweet)
-    // await this.successResponseJsonAsync(serverAddr, sessionId, tweet)
+    return await this.successStoreResponseAsync(serverAddr, sessionId, tweet)
   }
 
   async getBoxFileAsync(data) {
@@ -1322,7 +1316,7 @@ class Pipe {
   async errorFetchResponseAsync(cloudAddr, sessionId, err) {
     let url = cloudAddr + '/s/v1/stations/' + this.stationId + '/response/' + sessionId + '/pipe/fetch'
     let error = { code: 400, message: err.message }
-    let params = error
+    let params = { error }
     debug('pipe handle error', params)
     await requestAsync('POST', url, { params }, { 'Authorization': this.token })
   }
@@ -1330,7 +1324,7 @@ class Pipe {
   async errorResponseAsync(cloudAddr, sessionId, err) {
     let url = cloudAddr + '/s/v1/stations/' + this.stationId + '/response/' + sessionId + '/json'
     let error = { code: 400, message: err.message }
-    let params = error 
+    let params = { error } 
     debug('pipe handle error', params)
     await requestAsync('POST', url, { params }, { 'Authorization': this.token })
   }
@@ -1360,7 +1354,7 @@ class Pipe {
 
   async successResponseJsonAsync(cloudAddr, sessionId, data) {
     let url = cloudAddr + '/s/v1/stations/' + this.stationId + '/response/' + sessionId + '/json'
-    let params = data
+    let params = { data }
     debug('aaaaaaa', params)
     await requestAsync('POST', url, { params }, { 'Authorization': this.token })
     debug('request success')

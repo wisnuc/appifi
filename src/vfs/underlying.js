@@ -1,12 +1,10 @@
 const path = require('path')
 const fs = require('fs')
-const mkdirp = require('mkdirp')
 const rimraf = require('rimraf')
 
 const { readXstat, forceXstat } = require('../lib/xstat')
 const btrfs = require('../lib/btrfs')
-const autoname = require('../lib/autoname') 
-
+const autoname = require('../lib/autoname')
 
 /**
 opt is a 2-tuple, [same, diff]
@@ -16,9 +14,9 @@ diff can be (null | undefined), skip, replace, rename
 
 callback has (err, xstat, resolved)
 
-resolved is also a 2-tuple of boolean value. 
+resolved is also a 2-tuple of boolean value.
 
-If the file exists and is resolved by the first rule, 
+If the file exists and is resolved by the first rule,
 
 */
 const link = (target, tmp, uuid, hash, opt, callback) => {
@@ -28,24 +26,23 @@ const link = (target, tmp, uuid, hash, opt, callback) => {
     : cb => fs.mkdir(target, cb)
 
   f(err => {
-
-    if (err && err.code === 'EEXIST') {                   // conflict
+    if (err && err.code === 'EEXIST') { // conflict
       readXstat(target, (xerr, xstat) => {
         // return the error we cannot handle
         if (xerr && xerr.xcode !== 'EUNSUPPORTED') return callback(xerr)
 
-        const diff = () => !!xerr || xstat.type !== type  // !!xerr makes sure boolean value
+        const diff = () => !!xerr || xstat.type !== type // !!xerr makes sure boolean value
         const same = () => !xerr && xstat.type === type
 
         if (same() && opt[0] === 'skip') {
           callback(null, xstat, [true, false])
         } else if (diff() && opt[1] === 'skip') {
           // there is no use for xstat when skipping diff
-          callback(null, null, [false, true]) 
-        } else if (same() && opt[0] === 'rename' || diff() && opt[1] === 'rename') {
+          callback(null, null, [false, true])
+        } else if ((same() && opt[0] === 'rename') || (diff() && opt[1] === 'rename')) {
           let dirname = path.dirname(target)
           let basename = path.basename(target)
-          fs.readdir(dirname, (error, files) => { 
+          fs.readdir(dirname, (error, files) => {
             if (error) return callback(error)
             let target2 = path.join(dirname, autoname(basename, files))
             link(target2, tmp, uuid, hash, opt, (error, xstat) => {
@@ -53,7 +50,7 @@ const link = (target, tmp, uuid, hash, opt, callback) => {
               callback(null, xstat, [same(), diff()])
             })
           })
-        } else if (same() && opt[0] === 'replace' || diff() && opt[1] === 'replace') {
+        } else if ((same() && opt[0] === 'replace') || (diff() && opt[1] === 'replace')) {
           // fs.unlink does not work on directory
           rimraf(target, error => {
             if (error) return callback(error)
@@ -73,28 +70,26 @@ const link = (target, tmp, uuid, hash, opt, callback) => {
           }
           callback(err)
         }
-
       })
-    } else if (err) {                                     // failed
+    } else if (err) { // failed
       callback(err)
-    } else {                                              // successful
+    } else { // successful
       if (type === 'directory' && uuid) {
-        forceXstat(target, { uuid }, (err, xstat) => 
+        forceXstat(target, { uuid }, (err, xstat) =>
           err ? callback(err) : callback(null, xstat, [false, false]))
       } else {
-        readXstat(target, (err, xstat) => 
+        readXstat(target, (err, xstat) =>
           err ? callback(err) : callback(null, xstat, [false, false]))
       }
     }
-
   })
 }
 
-const renameNoReplace = (oldPath, newPath, callback) => 
+const renameNoReplace = (oldPath, newPath, callback) =>
   // stat parent directory
   fs.lstat(path.dirname(newPath), (err, stat) => {
     if (err) {
-      callback(err) 
+      callback(err)
     } else if (!stat.isDirectory()) {
       let err = new Error('parent is not a directory')
       err.code = 'ENOTDIR'
@@ -118,25 +113,25 @@ const renameNoReplace = (oldPath, newPath, callback) =>
 let working = false
 const rename = (oldPath, newPath, type, opt, callback) =>
   renameNoReplace(oldPath, newPath, err => {
-    if (err && err.code === 'EEXIST') {                   // conflict
+    if (err && err.code === 'EEXIST') { // conflict
       working = false
       readXstat(newPath, (xerr, xstat) => {
         // return the error we cannot handle
         if (xerr && xerr.xcode !== 'EUNSUPPORTED') return callback(xerr)
 
-        const diff = () => !!xerr || xstat.type !== type  // !!xerr makes sure boolean value
+        const diff = () => !!xerr || xstat.type !== type // !!xerr makes sure boolean value
         const same = () => !xerr && xstat.type === type
 
         if (same() && opt[0] === 'skip') {
           callback(null, xstat, [true, false])
         } else if (diff() && opt[1] === 'skip') {
           // there is no use for xstat when skipping diff (???)
-          callback(null, null, [false, true]) 
-        } else if (same() && opt[0] === 'rename' || diff() && opt[1] === 'rename') {
+          callback(null, null, [false, true])
+        } else if ((same() && opt[0] === 'rename') || (diff() && opt[1] === 'rename')) {
           let dirname = path.dirname(newPath)
           let basename = path.basename(newPath)
 
-          fs.readdir(dirname, (error, files) => { 
+          fs.readdir(dirname, (error, files) => {
             if (error) return callback(error)
             let newPath2 = path.join(dirname, autoname(basename, files))
 
@@ -162,7 +157,7 @@ const rename = (oldPath, newPath, type, opt, callback) =>
             //   callback(null, xstat, [same(), diff()])
             // })
           })
-        } else if (same() && opt[0] === 'replace' || diff() && opt[1] === 'replace') {
+        } else if ((same() && opt[0] === 'replace') || (diff() && opt[1] === 'replace')) {
           rimraf(newPath, error => {
             if (error) return callback(error)
             rename(oldPath, newPath, type, opt, (error, xstat) => {
@@ -178,11 +173,10 @@ const rename = (oldPath, newPath, type, opt, callback) =>
           }
           callback(err)
         }
-
       })
-    } else if (err) {                                     // failed
+    } else if (err) { // failed
       callback(err)
-    } else {                                              // successful
+    } else { // successful
       readXstat(newPath, (err, xstat) => {
         if (err) return callback(err)
         callback(null, xstat, [false, false])
@@ -195,7 +189,7 @@ Clone a file from fruitmix to tmp dir.
 
 file uuid and timestamp are verified. xattr are stripped.
 */
-const clone = (filePath, fileUUID, tmp, callback) => 
+const clone = (filePath, fileUUID, tmp, callback) =>
   readXstat(filePath, (err, xstat) => {
     if (err) return callback(err)
     if (xstat.type !== 'file') {
@@ -226,14 +220,12 @@ const clone = (filePath, fileUUID, tmp, callback) =>
     })
   })
 
-
-
 /**
 Send tmp file to (external) target
 */
 const send = (tmp, target, opt, callback) => {
-
-  let size, rs, ws, destroyed = false
+  let size, rs, ws
+  let destroyed = false
   const destroy = () => {
     if (destroyed) return
     destroyed = true
@@ -252,13 +244,13 @@ const send = (tmp, target, opt, callback) => {
   // retrieve tmp size
   fs.lstat(tmp, (err, stat) => {
     if (destroyed) return
-    if (err) return callback(err) 
+    if (err) return callback(err)
     size = stat.size
     createExWriteStream(target, opt, (err, _ws, resolved) => {
       if (destroyed) return
-      if (err) return callback(err) 
+      if (err) return callback(err)
       ws = _ws
-      rs = fs.createReadStream(tmp)       
+      rs = fs.createReadStream(tmp)   
       rs.on('error', err => (destroy(), callback(err)))
       ws.on('error', err => (destroy(), callback(err)))
       ws.on('finish', () => {
@@ -269,7 +261,7 @@ const send = (tmp, target, opt, callback) => {
     })
   })
 
-  let obj = { destroy } 
+  let obj = { destroy }
   Object.defineProperty(obj, 'size', { get: () => size })
   Object.defineProperty(obj, 'bytesWritten', { get: () => ws ? ws.bytesWritten : 0 })
   return obj
@@ -321,21 +313,17 @@ const receive = (target, tmp, callback) => {
     rs.on('error', err => (destroy(), callback(err)))
     ws.on('error', err => (destroy(), callback(err)))
     ws.on('finish', () => {
-        
     })
   })
 }
 
 module.exports = {
-  link,                   // internal
+  link, // internal
   mkdir: (target, opt, callback) => link(target, null, null, null, opt, callback),
   mkfile: (target, tmp, hash, opt, callback) => link(target, tmp, null, hash, opt, callback),
   mvdir: (oldPath, newPath, opt, callback) => rename(oldPath, newPath, 'directory', opt, callback),
   mvfile: (oldPath, newPath, opt, callback) => rename(oldPath, newPath, 'file', opt, callback),
   clone,
   send,
-  receive,
+  receive
 }
-
-
-
