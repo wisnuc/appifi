@@ -56,6 +56,7 @@ class Node {
     if (index === -1) throw new Error("node.detach: node is not in parent's children list")
     this.parent.children.splice(index, 1)
     this.parent = null
+    // console.log('after detach :', this)
   }
 
   isAttached () {

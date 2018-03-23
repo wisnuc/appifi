@@ -175,7 +175,6 @@ class Reading extends Base {
         Don't bypass update children! Do it anyway. Node.js fs timestamp resolution is not adequate.
         */
         this.updateChildren(xstats)
-
         if (mtime !== this.dir.mtime && !transient) {
           this.dir.mtime = mtime
         }
@@ -187,7 +186,6 @@ class Reading extends Base {
       }
 
       this.callbacks.forEach(callback => callback(err, xstats))
-
       if (Array.isArray(this.pending)) { // stay in working
         this.enter(this.pending)
       } else {
@@ -211,18 +209,26 @@ class Reading extends Base {
     this.dir.fileSize = files.reduce((acc, f) => acc + f.size, 0)
     
     // remove non-interested files
-    xstats = xstats.filter(x => x.type === 'directory' || (x.type === 'file' && typeof x.magic === 'string'))
+    xstats = xstats.filter(x => x.type === 'directory' || (x.type === 'file' && (typeof x.magic === 'string' || (Array.isArray(x.tags) && x.tags.length !== 0))))
 
     // convert to a map
     let map = new Map(xstats.map(x => [x.uuid, x]))
 
     // update found child, remove found out of map, then destroy lost
     let dup = Array.from(this.dir.children)
+    let isEqualTags = (tags1, tags2) => {
+      if(tags1 === tags2) return true
+      if(tags1 === undefined || tags2 === undefined) return false
+      if(tags1.reduce((acc, c) => tags2.includes(c) ? acc : [...acc, c], []).length) return false
+      if(tags2.reduce((acc, c) => tags1.includes(c) ? acc : [...acc, c], []).length) return false
+      return true
+    }
+
     let lost = dup.reduce((arr, child) => {
       let xstat = map.get(child.uuid)
       if (xstat) {
         if (child instanceof File) {
-          if (child.magic === xstat.magic && child.name === xstat.name && child.hash === xstat.hash) {
+          if (child.magic === xstat.magic && child.name === xstat.name && child.hash === xstat.hash && isEqualTags(child.tags, xstat.tags)) {
             // skip
           } else {
             // file update is too complex when magic/name/hash changed
@@ -239,7 +245,6 @@ class Reading extends Base {
       }
       return arr
     }, [])
-
     lost.forEach(c => c.destroy(true))
 
     // create new 
@@ -346,7 +351,6 @@ class Directory extends Node {
   */
   destroy(detach) {
     debug('destroying', this.uuid, this.name, !!detach)
-
     // why this does not work ???
     // [...this.children].forEach(child => child.destroy()) 
     Array.from(this.children).forEach(c => c.destroy())
@@ -374,6 +378,7 @@ class Directory extends Node {
   */
   read(x) {
     if (typeof x === 'function') {
+      // console.log(this.state)
       this.state.readc(x)
     } else if (typeof x === 'number') {
       this.state.readn(x)

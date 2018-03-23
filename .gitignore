@@ -71,7 +71,7 @@ tmp/
 
 _docpress/
 
-
+.eslintrc.js
 .nyc_output/
 
 # IDE webstorm

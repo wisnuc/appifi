@@ -17,21 +17,21 @@ const IDS = {
   alice: {
     uuid:'9f93db43-02e6-4b26-8fae-7d6f51da12af',
     home: 'e2adb5d0-c3c7-4f2a-bd64-3320a1ed0dee',
-    global: {id: "ocMvos6NjeKLIBqg5Mr9QjxrP1FA",
+    global: {id: "9f93db43-02e6-4b26-8fae-7d6f51da12fa",
              wx: ["ocMvos6NjeKLIBqg5Mr9QjxrP1FA"]}
   },
 
   bob: {
     uuid: 'a278930c-261b-4a9c-a296-f99ed00ac089',
     home: 'b7566c69-91f5-4299-b4f4-194df92b01a9',
-    global: {id: "ocMvos6NjeKLIBqg5Mr9QjxrP1FB",
+    global: {id: "a278930c-261b-4a9c-a296-f99ed00ac980",
              wx: ["ocMvos6NjeKLIBqg5Mr9QjxrP1FB"]}
   },
 
   charlie: {
     uuid: 'c12f1332-be48-488b-a3ae-d5f7636c42d6',
     home: '1da855c5-33a9-43b2-a93a-279c6c17ab58',
-    global: {id: "ocMvos6NjeKLIBqg5Mr9QjxrP1FC",
+    global: {id: "c12f1332-be48-488b-a3ae-d5f7636c462d",
              wx: ["ocMvos6NjeKLIBqg5Mr9QjxrP1FC"]}
   },
 
@@ -549,6 +549,16 @@ const createCommitAsync = async (dir, boxUUID, username, props) => {
   return commit
 }
 
+const createTagAsync = async (props, username) => {
+  let token = await retrieveTokenAsync(username)
+  let rs = await request(app)
+    .post('/tags')
+    .set('Authorization', 'JWT ' + token)
+    .send(props)
+    .expect(200)
+  return rs.body
+}
+
 
 module.exports = {
   IDS,
@@ -566,6 +576,7 @@ module.exports = {
   createTreeObjectAsync,
   getCommitAsync,
   getTreeListAsync,
-  createCommitAsync
+  createCommitAsync,
+  createTagAsync
 }
 

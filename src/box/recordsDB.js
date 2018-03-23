@@ -5,7 +5,7 @@ const lineByLineReader = require('line-by-line')
 const ReadLine = require('readline')
 
 const E = require('../lib/error')
-
+const debug = require('debug')('boxes:recordDB')
 /**
  * tweets DB
  */
@@ -147,8 +147,7 @@ class RecordsDB {
     lr.on('error', err => {
       if(error) return
       error = err
-      lr.removeAllListeners()
-      lr.close()
+      debug(err)
       return callback(error)
     })
   }
@@ -181,10 +180,12 @@ class RecordsDB {
 
   /**
    * get tweets
+   * first, last, count are not transfered to number
+   * in order to distinguish 'undefined' and 0
    * @param {Object} props
-   * @param {number} props.first -optional
-   * @param {number} props.last - optional
-   * @param {number} props.count - optional
+   * @param {string} props.first -optional, when transfered to number, it is an integer larger than -1
+   * @param {string} props.last - optional
+   * @param {string} props.count - optional
    * @param {string} props.segments - optional
    * @return {array} a collection of tweet objects
    */
@@ -197,8 +198,7 @@ class RecordsDB {
     lr.on('line', line => records.push(line))
 
     lr.on('error', err => {
-      lr.removeAllListeners()
-      lr.close()
+      debug(err)
       callback(err)
     })
 
@@ -235,14 +235,15 @@ class RecordsDB {
         return callback(null, result)
       }
       else if (!first && !last && count && !segments) {
+        if (count === '0') return callback(null, [])
         let result = records.slice(-count)
                             .map(r => JSON.parse(r))
                             .filter(r => !blackList.includes(r.index))
         return callback(null, result)
       }
       else if (first <= last && count && !segments) {
-        let tail = records.slice(first - count, first)
-        let head = records.slice(last + 1)
+        let tail = records.slice(Math.max(0, first - count), first)
+        let head = records.slice(Number(last) + 1)
         let result = [...tail, ...head]
                     .map(r => JSON.parse(r))
                     .filter(r => !blackList.includes(r.index))
@@ -264,13 +265,13 @@ class RecordsDB {
         return callback(new E.EINVAL())
     })
   }
-
+  
   /**
    * async edition of get
    * @param {Object} props 
-   * @param {number} props.first -optional
-   * @param {number} props.last - optional
-   * @param {number} props.count - optional
+   * @param {string} props.first -optional
+   * @param {string} props.last - optional
+   * @param {string} props.count - optional
    * @param {string} props.segments - optional
    * @return {array} each item in array is an tweet object
    */

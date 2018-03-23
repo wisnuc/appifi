@@ -594,6 +594,20 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
             if (!isUUID(x.uuid)) throw new Error('invalid uuid')
             break
 
+          case 'addTags':
+            if(!Array.isArray(x.tags) || x.tags.every(t => isUUID(t))) throw new Error('invalid tagId')
+            break
+          
+          case 'removeTags':
+            if(!Array.isArray(x.tags) || x.tags.every(t => isUUID(t))) throw new Error('invalid tagId')
+            break
+          
+          case 'setTags':
+            if(!Array.isArray(x.tags) || x.tags.every(t => isUUID(t))) throw new Error('invalid tagId')
+            break
+
+          case 'resetTags':
+            break
           default:
             throw new Error('invalid op')
             break
@@ -669,6 +683,46 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
           break
         case 'dup':
           getFruit().dup(user, driveUUID, dirUUID, x.fromName, x.toName, x.overwrite, (err, xstat) => {
+            executions.splice(executions.indexOf(x), 1)
+            if (err) {
+              error(x, err)
+            } else {
+              success(x, xstat)
+            }
+          })
+          break
+        case 'addTags':
+          getFruit().fileAddTags(user, driveUUID, dirUUID, x.fromName, x.tags.map(t => parseInt(t)), (err, xstat) => {
+            executions.splice(executions.indexOf(x), 1)
+            if (err) {
+              error(x, err)
+            } else {
+              success(x, xstat)
+            }
+          })
+          break
+        case 'removeTags':
+          getFruit().fileRemoveTags(user, driveUUID, dirUUID, x.fromName, x.tags.map(t => parseInt(t)), (err, xstat) => {
+            executions.splice(executions.indexOf(x), 1)
+            if (err) {
+              error(x, err)
+            } else {
+              success(x, xstat)
+            }
+          })
+          break
+        case 'resetTags':
+          getFruit().fileResetTags(user, driveUUID, dirUUID, x.fromName, (err, xstat) => {
+            executions.splice(executions.indexOf(x), 1)
+            if (err) {
+              error(x, err)
+            } else {
+              success(x, xstat)
+            }
+          })
+          break  
+        case 'setTags':
+          getFruit().fileSetTags(user, driveUUID, dirUUID, x.fromName, x.tags.map(t => parseInt(t)), (err, xstat) => {
             executions.splice(executions.indexOf(x), 1)
             if (err) {
               error(x, err)

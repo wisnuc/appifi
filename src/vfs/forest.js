@@ -80,6 +80,10 @@ class Forest extends EventEmitter {
     this.uuidMap = new Map()
     
     /**
+     * 
+     */
+    this.fileMap = new Map()
+    /**
     dirs in init state. (dir may or may not have a timer)
     */
     this.initDirs = new Set()
@@ -108,6 +112,16 @@ class Forest extends EventEmitter {
     files that failed too many times in calcuating hash/fingerprint
     */
     this.hashFailedFiles = new Set()
+  }
+
+  indexFile (file) {
+    debug(`index file ${file.name}`)
+    this.fileMap.set(file.uuid, file)
+  }
+
+  unindexFile (file) {
+    debug(`unindex file ${file.name}`)
+    this.fileMap.delete(file.uuid)
   }
 
   fileEnterHashless (file) {

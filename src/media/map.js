@@ -163,7 +163,7 @@ class Running extends NoMetadata {
       delete this.file.metaWorker 
       delete this.file.meta
       delete this.file
-
+      
       if (err) {
         file.metaFail = (file.metaFail || 0) + 1
         this.nextState()
@@ -181,7 +181,7 @@ class Running extends NoMetadata {
 
   removeFile (file) {
     if (this.file === file) {         // removing working file
-      super.removeFile()
+      super.removeFile(file)
       delete this.file.metaFail
       this.nextState()
     } else {                          // removing non-working file, no state change

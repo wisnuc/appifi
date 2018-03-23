@@ -18,7 +18,7 @@ class Pending extends State {
 
   exit () {
     this.ctx.ctx.unindexPendingDir(this.ctx)
-  } 
+  }
 
 }
 
@@ -47,9 +47,9 @@ class Working extends State {
         // global keep, no conflict, resolved: [false, false], dirmove should finished
         let action = this.ctx.constructor.name
         let p = ['rename', 'replace']
-        if ((policy[0] === 'skip' && resolved[0]) 
-            || (policy[1] === 'skip' && resolved[1])  // for dir-copy diff skip
-            || (action === 'DirMove' && (!resolved[0] || p.includes(policy[0])))) { // in DirMove rename and replace move the whole directory once
+        if ((policy[0] === 'skip' && resolved[0]) ||
+        (policy[1] === 'skip' && resolved[1]) ||// for dir-copy diff skip
+         (action === 'DirMove' && (!resolved[0] || p.includes(policy[0])))) { // in DirMove rename and replace move the whole directory once
           this.setState('Finished')
         } else {
           this.ctx.dst = dst
@@ -61,12 +61,12 @@ class Working extends State {
 
   // abstract
   mkdir (policy, callback) {
-    process.nextTick(() => callback(new Error('this function must be implemented by inherited class'))) 
+    process.nextTick(() => callback(new Error('this function must be implemented by inherited class')))
   }
 
   exit () {
     this.ctx.ctx.unindexWorkingDir(this.ctx)
-  } 
+  }
 
 }
 
@@ -119,7 +119,7 @@ class Reading extends State {
         this.setState('Read', xstats)
       }
     })
-  } 
+  }
 
   read (callback) {
     this.ctx.ctx.readdir(this.ctx.src.uuid, callback)
@@ -148,9 +148,11 @@ class Read extends State {
   }
 
   next () {
+    // if task is distroied, the rest files won't enter task queue
+    if (!this.ctx.ctx) return
     if (this.fstats.length) {
       let stat = this.fstats.shift()
-      let sub = this.ctx.createSubTask(stat) 
+      let sub = this.ctx.createSubTask(stat)
       sub.once('Conflict', () => this.next())
       sub.once('Failed', () => this.next())
       sub.once('Finished', () => (sub.destroy(), this.next()))
@@ -159,7 +161,7 @@ class Read extends State {
 
     if (this.dstats.length) {
       let stat = this.dstats.shift()
-      let sub = this.ctx.createSubTask(stat) 
+      let sub = this.ctx.createSubTask(stat)
       sub.once('Conflict', () => this.next())
       sub.once('Failed', () => this.next())
       sub.once('Finished', () => (sub.destroy(), this.next()))
@@ -188,7 +190,8 @@ class Read extends State {
 @extends XCopy.State
 */
 class Failed extends State {
-  // when directory enter failed 
+
+  // when directory enter failed
   // all descendant node are destroyed (but not removed)
   enter (err) {
     this.ctx.ctx.indexFailedDir(this.ctx)
@@ -209,8 +212,9 @@ class Failed extends State {
         code: this.err.code,
         message: this.err.message
       }
-    } 
+    }
   }
+
 }
 
 /**
@@ -224,7 +228,7 @@ class Finished extends State {
   enter () {
     // let p = ['keep', 'skip']
     // delete the dir which is keep or skip in DirMove
-    if (this.ctx.constructor.name === 'DirMove') {// && (p.includes(this.ctx.policy[0]) || p.includes(this.ctx.ctx.policies.dir[0]))) {
+    if (this.ctx.constructor.name === 'DirMove') { // && (p.includes(this.ctx.policy[0]) || p.includes(this.ctx.ctx.policies.dir[0]))) {
       let dirveUUID = this.ctx.ctx.srcDriveUUID
       let dir = this.ctx.ctx.ctx.vfs.getDriveDirSync(dirveUUID, this.ctx.src.uuid)
       let dirPath = this.ctx.ctx.ctx.vfs.absolutePath(dir)
@@ -255,7 +259,7 @@ The base class of sub-task for directory.
 */
 class Dir extends Node {
 
-  constructor(ctx, parent, src, dst, entries) {
+  constructor (ctx, parent, src, dst, entries) {
     super(ctx, parent)
     this.children = []
     this.src = src
@@ -281,12 +285,12 @@ class Dir extends Node {
     return [
       this.policy[0] || this.ctx.policies.dir[0] || null,
       this.policy[1] || this.ctx.policies.dir[1] || null
-    ]  
+    ]
   }
 
   // virtual
-  createSubTask (xstat) { 
-    let src = { uuid: xstat.uuid, name: xstat.name } 
+  createSubTask (xstat) {
+    let src = { uuid: xstat.uuid, name: xstat.name }
     if (xstat.type === 'directory') {
       return new this.constructor(this.ctx, this, src)
     } else {
@@ -305,8 +309,3 @@ Dir.prototype.Finished = Finished
 Dir.prototype.Failed = Failed
 
 module.exports = Dir
-
-
-
-
-

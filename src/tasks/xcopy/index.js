@@ -413,7 +413,7 @@ class Import extends Base {
     dst.drive = this.dstDriveUUID
 
     if (this.user) {
-      this.ctx.mkdir(this.user, dst, policy, callback)
+      this.ctx.mkdir2(this.user, dst, policy, callback)
     } else {
       this.ctx.mkdir(dst, policy, callback)
     }

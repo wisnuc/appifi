@@ -263,6 +263,14 @@ const readXattrAsync = async (target, stats) => {
     } else {
       attr.dirty = undefined
     }
+
+     // read tags and clean dropped tags
+    if (orig.tags && Array.isArray(orig.tags)) {
+      let tagsArr = orig.tags
+      tagsArr = tagsArr.filter(tag => global.validTagIds.includes(tag))
+      attr.tags = tagsArr
+      if (tagsArr.length !== orig.tags.length) attr.dirty = undefined
+    }
   }
 
   // remove old data if any TODO remove this code after a few months
@@ -336,6 +344,14 @@ const readXattr = (target, stats, callback) =>
       } else {
         attr.dirty = undefined
       }
+
+      // read tags and clean dropped tags
+      if (orig.tags && Array.isArray(orig.tags)) {
+        let tagsArr = orig.tags
+        tagsArr = tagsArr.filter(tag => global.validTagIds.includes(tag))
+        attr.tags = tagsArr
+        if (tagsArr.length !== orig.tags.length) attr.dirty = undefined
+      }
     }
 
     // remove old data if any TODO remove this code after a few months
@@ -396,7 +412,6 @@ Create a xstat object.
 const createXstat = (target, stats, attr) => {
   let name = path.basename(target)
   let xstat
-
   if (stats.isDirectory()) {
     xstat = {
       uuid: attr.uuid,
@@ -413,9 +428,10 @@ const createXstat = (target, stats, attr) => {
       name,
       mtime: stats.mtime.getTime(),
       size: stats.size,
-      magic: attr.magic,
+      magic: attr.magic
     } 
     if (attr.hash) xstat.hash = attr.hash
+    if (attr.tags) xstat.tags = attr.tags
   }
 
   return xstat
@@ -665,11 +681,37 @@ const assertFileXstatSync = (target, uuid) => {
   }
 }
 
+/**
+Update file Tags
+@func updateFileHashAsync
+@param {string} target - absolute file path
+@param {string} uuid - file uuid
+@param {array} tags - file tags
+@param {number} time - timestamp before calculating file fingerprint
+@returns {object} updated xstat
+*/
+const updateFileTagsAsync = async (target, uuid, tags, time) => {
+
+  if (!Array.isArray(tags) && tags !== undefined || !Number.isInteger(time)) throw new E.EINVAL()
+  let stats = await fs.lstatAsync(target)
+  if (!stats.isFile()) throw new E.ENOTFILE()
+  if (time !== stats.mtime.getTime()) throw new E.ETIMESTAMP()
+
+  let attr = await readXattrAsync(target, stats)
+  if (!attr) throw new E.EINSTANCE() // TODO
+  if (uuid !== attr.uuid) throw new E.EINSTANCE()
+
+  Object.assign(attr, { tags, time })
+  await xattr.setAsync(target, FRUITMIX, JSON.stringify(attr))
+  return createXstat(target, stats, attr)
+}
+
 module.exports = { 
   readXstat,
   readXstatAsync,
   updateFileHash,
   updateFileHashAsync,
+  updateFileTagsAsync,
   forceXstat,
   forceXstatAsync,
   fileMagic6,
