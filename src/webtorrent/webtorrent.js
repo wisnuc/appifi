@@ -74,7 +74,7 @@ class IpcWorker {
       } else worker.send({ type: 'command', id, data })
     })
   }
-
+  mulu
   // 处理父进程消息
   handle(worker, msg) {
     switch (msg.type) {
@@ -100,7 +100,7 @@ var logA = function () {
 class WebTorrentService {
   constructor(tempPath) {
     this.tempPath = tempPath // 下载临时目录
-    this.catchPath = path.join(this.tempPath, 'storage.json') // 下载
+    this.catchPath = path.join(this.tempPath, 'storage.json') // 下载信息存储
     this.client = new webD() // 所有下载任务同用一个HTTP下载实例
     this.clients = [] // 不同用户使用不同BT下载实例
     this.downloading = [] // 下载任务列表
@@ -138,68 +138,66 @@ class WebTorrentService {
     }
   }
 
-  // each user has own client will be created in first request
+  // 获取用户BT下载实例
   getClient(userUUID) {
     let client = this.clients.find(item => item.userUUID == userUUID)
     if (client) return client
     let newClient = new webT()
     newClient.userUUID = userUUID
-    newClient.on('error', err => {
+    newClient.on('error', err => { // todo
       console.log('client error : ' + err.message)
     })
     this.clients.push(newClient)
     return newClient
   }
 
-  //add task with torrent file
+  // 添加种子下载任务
   async addTorrent({ torrentPath, dirUUID, user }) {
     if (!fs.existsSync(torrentPath)) throw new Error('torrent file not exist')
     let torrentBuffer = fs.readFileSync(torrentPath)
     return await this.createTorrent({ torrentSource: torrentBuffer, dirUUID, torrentPath, user })
   }
 
-  //add task with magnet url
+  // 添加磁链下载任务
   async addMagnet({ magnetURL, dirUUID, user, infor }) {
     if (typeof magnetURL !== 'string' || magnetURL.indexOf('magnet') == -1) 
       throw new Error('magnetURL is not a legal magnetURL')
     return await this.createTorrent({ torrentSource: magnetURL, dirUUID, user })
   }
 
-  // add task with http url
+  // 创建HTTP下载任务
   async addHttp({url, dirUUID, user, infor}) {
     if (typeof url !== 'string') throw new Error('url is not legal')
     return await this.createHttpDownload({ url, dirUUID, user, infor})
   }
 
+  // http & 存储
   async createHttpDownload({ url, dirUUID, user, infor}) {
-    
     let obj = this.client.add(this.tempPath, url, dirUUID, user, infor)
-    obj.on('done', () => {
-      console.log('http download done')
-      this.enterMove(obj)
-    })
+    obj.on('done', () => this.enterMove(obj))
     this.downloading.push(obj)
     await this.cache()
     return {}
   }
 
-  // create torrent & storage
+  // 种子/磁链 & 存储
   async createTorrent({ torrentSource, dirUUID, torrentPath, user }) {
-    // create client(not necessary) & create torrent
+    // 每个用户拥有的种子下载目录(临时目录名 + 用户UUID 组成)
     let userTmpPath = path.join(this.tempPath, user.uuid)
+    // 获取种子下载实例（不存在则创建）
     let torrent = this.getClient(user.uuid).add(torrentSource, { path: userTmpPath })
     if (!torrent.infoHash) throw new Error('unknow torrent')
-
-    // add property to torrent object & add object to downloading list
+    // 
     if (this.downloading.findIndex(item => item.infoHash == torrent.infoHash && item.userUUID == user.uuid) !== -1) throw new Error('torrent exist')
-    torrent.type = 'torrent'
-    torrent.dirUUID = dirUUID
-    torrent.log = logA
-    torrent.state = 'downloading'
-    torrent.torrentPath = torrentPath ? torrentPath : null
-    torrent.magnetURL = torrentPath ? null : torrentSource
-    torrent.userUUID = user.uuid
-    torrent.isPause = false
+    // 为下载任务对象添加必要属性
+    torrent.type = 'torrent' // 下载类型
+    torrent.dirUUID = dirUUID // 下载目标目录UUID
+    torrent.log = logA // 打印方法
+    torrent.state = 'downloading' // 任务状态
+    torrent.torrentPath = torrentPath ? torrentPath : null // 种子路径（magenet没有种子路径）
+    torrent.magnetURL = torrentPath ? null : torrentSource // 磁链地址 （torrent没有磁链地址）
+    torrent.userUUID = user.uuid //  
+    torrent.isPause = false // 是否暂停
     torrent.on('done', () => {//todo 
       console.log('torrent done trigger ' + torrent.progress)
       if (torrent.progress !== 1) return
@@ -314,6 +312,7 @@ class WebTorrentService {
     })
   }
 
+  // 通知父进程移动下载文件 & 刷新目录
   enterMove(torrent) {
     process.send({type: 'move', torrent: torrent.log()})
   }
