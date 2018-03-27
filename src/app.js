@@ -31,9 +31,10 @@ const cloudToken = require('./routes/wxtoken')
 const station = require('./station')
 const tags = require('./routes/tags')
 const files = require('./routes/files')
+const transmission = require('./transmission')
 
 /**
-This module is the entry point of the whole application.
+This module is the entry point of the whole application.
 
 @module App
 */
@@ -61,6 +62,7 @@ app.use('/features', require('./routes/features'))
 app.use('/download', require('./webtorrent'))
 app.use('/tags', tags)
 app.use('/files', files)
+app.use('/transmission', transmission)
 
 let { NODE_ENV, NODE_PATH, LOGE } = process.env
 const isAutoTesting = NODE_ENV === 'test' && NODE_PATH !== undefined
