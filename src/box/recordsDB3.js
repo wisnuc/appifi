@@ -6,146 +6,6 @@ const ReadLine = require('readline')
 
 const E = require('../lib/error')
 const debug = require('debug')('boxes:recordDB')
-
-class Base {
-  constructor(db, ...args) {
-    this.db = db
-    db.state = this
-    this.enter(...args)
-  }
-
-  ener() {
-
-  }
-
-  exit() {
-
-  }
-
-  setState (NextState, ...args) {
-    this.exit()
-    new NextState(this.db, ...args)
-  }
-
-  add (obj, callback) {
-    this.setState(Working, [{ obj, callback}])
-  }
-}
-
-// Do nothing, just for log
-class Idle extends Base {
-
-  enter () {
-    debug(this.db.filePath, ' enter Idle')
-  }
-
-  exit () {
-    debug(this.db.filePath, ' exit Idle')
-  }
-
-}
-
-class Working extends Base {
-
-  enter (callbacks = []) {
-    debug(' enter Working')
-    this.callbacks = callbacks
-    this.pending = undefined
-    this.lineReader = undefined
-    this.save()
-  }
-
-  exit () {
-    debug(' exit Working')
-  }
-
-  save() {
-    let records = []
-    let lr = new lineByLineReader(this.db.filePath, {skipEmptyLines: true})
-    this.lineReader = lr
-    
-    let doCallback = err => {
-      this.callbacks.forEach(obj => obj.callback(err, obj.obj))
-      if (Array.isArray(this.pending)) { // stay in working
-        this.enter(this.pending)
-      } else {
-        this.setState(Idle, this.db)
-      }
-    }
-
-    lr.on('line', line => records.push(line))
-    lr.on('end', () => {
-      let size = fs.readFileSync(this.db.filePath).length
-      let last = records.pop()
-      let currIndex = -1
-
-      try {
-        let lastObj = JSON.parse(last)
-        currIndex = lastObj.index
-        this.writeFile(currIndex, size, err => doCallback(err))
-      } catch(err) {
-        if (err instanceof SyntaxError) {
-          let start
-          if (last) start = size - last.length - 1
-          else start = size - 1
-
-          if (start === -1) {
-            this.writeFile(-1, 0, err => doCallback(err))
-          } else {
-            let second = records.pop()
-            this.writeFile(JSON.parse(second).index, start, err => doCallback(err))
-          }
-        } else return doCallback(err)
-      }     
-    })
-  }
-
-  writeFile(currentIndex, start, cb) {
-    let curr = currentIndex
-    let saveObjs
-    try{
-      saveObjs = this.callbacks.map(obj => {
-        obj.obj.index = ++ currentIndex
-        return JSON.stringify(obj.obj)
-      })
-    } catch(e) {
-      console.log(e)
-      return cb(e)
-    }
-    let text = saveObjs.join('\n')
-    if(curr === -1) {
-      fs.truncate(this.db.filePath, err => {
-        if (err) return cb(err)
-        let writeStream = fs.createWriteStream(this.db.filePath)
-        writeStream.write(text)
-        writeStream.end()
-        return cb()
-      })  
-    }
-    else {
-      fs.truncate(this.db.filePath, start, err => {
-        if (err) return cb(err)
-        let writeStream = fs.createWriteStream(this.db.filePath, { flags: 'r+', start: start })
-        writeStream.write(`\n${text}`)
-        writeStream.end()
-        return cb()
-      })
-    }
-  } 
-
-  add (obj, callback) {
-    if (Array.isArray(this.pending)) {
-      this.pending.push({ obj, callback})
-    } else {
-      this.pending = [{ obj, callback}]
-    }
-  }
-
-}
-
-
-
-
 /**
  * tweets DB
  */
@@ -160,7 +20,89 @@ class RecordsDB {
     this.blackList = blackList
     this.records = []
     this.lock = false
-    new Idle(this)
+  }
+
+  /**
+   * save data to tweets DB
+   * @param {Object} obj - object to be stored to tweets DB 
+   * @param {number} start - position to start writing data
+   * @private
+   */
+  save(obj, start) {
+    let text = Stringify(obj)
+    let writeStream = fs.createWriteStream(this.filePath, { flags: 'r+', start: start })
+    writeStream.write(`\n${text}`)
+    writeStream.close()
+  }
+
+  add2(obj, callback) {
+    if(this.lock) return callback(new Error('wait for unlock'))
+    this.lock = true
+    //FIXME: can use after read finished 
+    let index = this.records.length + 1
+    //TODO: check last line if json parse error
+
+    obj.index = index
+    
+
+  }
+
+  /**
+   * add new data to tweets DB
+   * before adding, check the last record, if incorrect, delete it
+   * @param {Object} obj - object to be stored
+   */
+  add(obj, callback) {
+    let records = []
+    let lr = new lineByLineReader(this.filePath, {skipEmptyLines: true})
+
+    lr.on('line', line => records.push(line))
+
+    lr.on('end', () => {
+      let size = fs.readFileSync(this.filePath).length
+      let last = records.pop()
+
+      try {
+        let lastObj = JSON.parse(last)
+        obj.index = lastObj.index + 1
+        this.save(obj, size)
+        return callback(null)
+      } catch(err) {
+        if (err instanceof SyntaxError) {
+          let start
+          if (last) start = size - last.length - 1
+          else start = size - 1
+
+          if (start === -1) {
+            obj.index = 0
+            fs.truncate(this.filePath, err => {
+              if (err) return callback(err)
+              let text = Stringify(obj)
+              let writeStream = fs.createWriteStream(this.filePath)
+              writeStream.write(text)
+              writeStream.close()
+              return callback(null)
+            })
+          } else {
+            let second = records.pop()
+            obj.index = JSON.parse(second).index + 1
+            fs.truncate(this.filePath, start, err => {
+              if (err) return callback(err)
+              this.save(obj, start)
+              return callback(null)
+            })
+          }
+        } else return callback(err)
+      }     
+    }) 
+  }
+
+  /**
+   * async edition of add
+   * @param {Object} obj - object to be stored
+   */
+  async addAsync(obj) {
+    return await Promise.promisify(this.add).bind(this)(obj)
   }
 
   /**
@@ -174,6 +116,7 @@ class RecordsDB {
       if(error) return
       try {
         let Line = JSON.parse(line)
+        // if (Line.type === 'blob') files.add(l.id)
         if (Line.type === 'list') Line.list.forEach(l => files.add(l.sha256))
         records.push(new Buffer(line).length)
       } catch(e) {
@@ -209,49 +152,6 @@ class RecordsDB {
     })
   }
 
-
-  /**
-   * save data to tweets DB
-   * @param {Object} obj - object to be stored to tweets DB 
-   * @param {number} start - position to start writing data
-   * @private
-   */
-  save(obj, start) {
-    let text = Stringify(obj)
-    let writeStream = fs.createWriteStream(this.filePath, { flags: 'r+', start: start })
-    writeStream.write(`\n${text}`)
-    writeStream.close()
-  }
-
-  add2(obj, callback) {
-    if(this.lock) return callback(new Error('wait for unlock'))
-    this.lock = true
-    //FIXME: can use after read finished 
-    let index = this.records.length + 1
-    //TODO: check last line if json parse error
-
-    obj.index = index
-    
-
-  }
-
-  /**
-   * add new data to tweets DB
-   * before adding, check the last record, if incorrect, delete it
-   * @param {Object} obj - object to be stored
-   */
-  add(obj, callback) {
-    this.state.add(obj, callback)
-  }
-
-  /**
-   * async edition of add
-   * @param {Object} obj - object to be stored
-   */
-  async addAsync(obj) {
-    return await Promise.promisify(this.add).bind(this)(obj)
-  }
-
   // delete last line if error
   /**
    * @param {Buffer} line - last line in db
@@ -260,7 +160,7 @@ class RecordsDB {
   fixLine(line, callback) {
     try {
       JSON.parse(line)
-      process.nextTick(() => callback(null, false))
+      process.nextTick(() => callback(null, NO))
     } catch(e) {
       if (e instanceof SyntaxError) {
         fs.readFile(this.filePath, (err, data) => {
@@ -271,7 +171,7 @@ class RecordsDB {
           start = (start === -1) ? 0 : start
           fs.truncate(this.filePath, start, err => {
             if (err) return callback(err)
-            return callback(null, true)
+            return callback(null, YES)
           })
         })
       } else return callback(e)
