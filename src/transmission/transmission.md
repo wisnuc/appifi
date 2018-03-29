@@ -2,7 +2,7 @@
 ##Definition
 ### torrent object
 ```
-"id": 4,
+"id": Id of task,
 "name": Name of task,
 "dirUUID": Target directory uuid,
 "rateDownload": Download rate in bps,
@@ -24,32 +24,34 @@ transmission.status =
   ISOLATED      : 7  # Torrent can't find peers
 ```
 ## Apis
-
-### Get  /transmission
 ___ 
+### Get &nbsp; /transmission
+
 Get torrents info
 
 ####    Header 
 >Authorization: token
+___ 
+###Post &nbsp; /transmission/magnet
+Add torrents to transmission with `magnet` url
+####    Header 
+>Authorization: token
+####    Body(application/json)
+>magnetURL
+>dirUUID
+___ 
+###Post &nbsp; /transmission/torrent
 
-###Post  /transmission/magnet
-
->aaa
->
->bbb
-
-    var a = new Date()
-
-***
----
-___
-
-this is an [example](http://www.baidu.com)
-
-*this is ?*
-
-`this is ?`
-
-### a a 
-#### a a
-##### a
+Add torrents to transmission with `torrent` file
+####    Header 
+>Authorization: token
+####    Body(form-data)
+>torrent: torrent file
+>dirUUID
+___ 
+###Patch &nbsp; /transmission/:id 
+Operation on task (pause/resume/remove)
+####    Header 
+>Authorization: token
+####    Body(application/json)
+>op : [pause, resume, remove]
