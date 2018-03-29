@@ -8,7 +8,7 @@ const getFruit = require('../fruitmix')
 
 bluebird.promisifyAll(fs)
 
-class Manager extends EventEmitter{
+class Manager extends EventEmitter {
   constructor(tempPath) {
     super()
     this.tempPath = tempPath // 下载缓存目录
@@ -16,7 +16,7 @@ class Manager extends EventEmitter{
     this.client = null // 所有下载任务同用一个下载实例
     this.downloading = [] // 下载任务列表
     this.downloaded = [] // 完成列表
-    this.moveReadyQueue = [] 
+    this.moveReadyQueue = []
     this.movingQueue = []
     this.writing = false // 是否正在更新记录文件
     this.lockNumber = 0 // 等待更新数量
@@ -39,10 +39,10 @@ class Manager extends EventEmitter{
       if (enableResult.indexOf('enabled') === -1) this.error(enableResult.stderr.toString())
       if (activeResult.indexOf('active') === -1) return this.error(enableResult.stderr.toString())
       console.log('transmission init')
-    } catch (error) { 
+    } catch (error) {
       console.log(error)
       this.error(error)
-     }
+    }
     // 实例化Transmission
     this.client = new Transmission({
       host: 'localhost',
@@ -59,7 +59,7 @@ class Manager extends EventEmitter{
       'idle-seeding-limit-enabled': false,
       'speed-limit-up-enabled': false,
       'speed-limit-down-enabled': false
-    }, () =>{})
+    }, () => { })
     // 读取缓存文件， 创建未完成任务
     if (!fs.existsSync(this.storagePath)) return
     let tasks = JSON.parse(fs.readFileSync(this.storagePath))
@@ -68,7 +68,7 @@ class Manager extends EventEmitter{
       let { id, dirUUID, userUUID, name, finishTime } = task
       return new Task(id, dirUUID, userUUID, name, this, finishTime)
     })
-    
+
     this.downloading = tasks.downloading.map(task => {
       let { id, dirUUID, userUUID } = task
       return new Task(id, dirUUID, userUUID, null, this)
@@ -77,9 +77,9 @@ class Manager extends EventEmitter{
 
   // 错误处理
   error(arg) {
-    let err = typeof arg === 'object'? arg: new Error(arg)
+    let err = typeof arg === 'object' ? arg : new Error(arg)
     this.errors.push(err)
-    this.emit('error', err) 
+    this.emit('error', err)
   }
 
   // 同步transmission 任务数据
@@ -97,11 +97,39 @@ class Manager extends EventEmitter{
         // 从队列中移除错误任务
         errArr.forEach(async item => {
           let index = this.downloading.indexOf(item)
-          this.downloading.splice(index,1)
+          this.downloading.splice(index, 1)
           await this.cache()
         })
       })
-    },1000)
+    }, 1000)
+  }
+
+  scaner() {
+    setInterval(async () => {
+      try {
+        // 获取transmission 列表
+        let tasks = (await this.client.getAsync()).torrents
+        // 遍历已完成任务
+        this.downloaded.forEach((task, index) => {
+          if (!tasks.find(item => item.id === task.id)) return // 没有在transmission任务中找到对于ID 返回
+          // 检查下载中任务是否有相同ID
+          let indexOfDownloading = this.downloading.findIndex(item => item.id == task.id)
+          // 检查完成任务中是否有相同ID且序号比当前任务大
+          let indexOfDownloaded = this.downloaded.findIndex((item, itemIndex) => item.id == task.id && itemIndex > index)
+          if (indexOfDownloading !== -1) return // 在下载进行任务中找到任务 返回
+          if (indexOfDownloaded !== -1) return  // 在完成列表中找到相同任务 返回
+          let timeStart = task.finishTime
+          let timeEnd = (new Date()).getTime()
+          // 任务已完成超过2小时 删除transmission 对于任务以及文件
+          if ((timeEnd - timeStart) / 1000 / 60 / 60 > 12) {
+            // console.log('', (timeEnd - timeStart) / 1000 / 60 / 60)
+            this.client.removeAsync(task.id, true, (err, result) => {
+              console.log(err, result)
+            })
+          }
+        })
+      } catch (e) { console.log(`error in scaner`, e) }
+    }, 3000)
   }
 
   /* task object
@@ -119,15 +147,13 @@ class Manager extends EventEmitter{
       else result = await this.client.addFileAsync(source, options)
       // 检查当前用户是否已创建过相同任务
       let resultInDownloading = this.downloading.find(item => item.id == result.id && item.userUUID == userUUID)
-      // let resultInDownloaded = this.downloaded.find(item => item.id == result.id && item.userUUID == userUUID)
-      if (resultInDownloading) return console.log('exist same task')
+      let resultInDownloaded = this.downloaded.find(item => item.id == result.id && item.userUUID == userUUID)
+      if (resultInDownloading) throw new Error('exist same task in download task')
+      if (resultInDownloaded) throw new Error('exist same task in downloaded task')
       // 创建本地任务
       else await this.taskFactory(result.id, dirUUID, userUUID, this)
       return result
-    } catch (e) {
-      let errMessage = e.message
-      console.log(e)
-    }
+    } catch (e) { throw e }
   }
 
   // 创建任务对象(创建、存储、监听)
@@ -169,7 +195,7 @@ class Manager extends EventEmitter{
   // 查询所有任务
   getList() {
     return {
-      downloading: this.downloading.map(item => item.getSummary()), 
+      downloading: this.downloading.map(item => item.getSummary()),
       downloaded: this.downloaded.map(item => item.getFinishInfor())
     }
   }
@@ -179,7 +205,7 @@ class Manager extends EventEmitter{
     try {
       if (id) return await this.client.getAsync(id)
       else return await this.client.getAsync()
-    }catch (e) {
+    } catch (e) {
       // todo
       console.log(e)
     }
@@ -189,7 +215,7 @@ class Manager extends EventEmitter{
   op(id, userUUID, op, callback) {
     // 检查参数op
     let ops = ['pause', 'resume', 'destroy']
-    if(!ops.includes(op)) callback(new Error('unknow error'))
+    if (!ops.includes(op)) callback(new Error('unknow error'))
     // 检查对应任务是否存在
     let indexCallback = item => item.id == id && item.userUUID == userUUID
     let indexOfDownloading = this.downloading.findIndex(indexCallback)
@@ -197,10 +223,10 @@ class Manager extends EventEmitter{
     let notFoundErr = new Error('can not found task')
     let opCallback = (err, data) => {
       if (err) callback(err)
-      else callback(data)
+      else callback(null, data)
     }
     console.log(indexOfDownloading, indexOfDownloaded)
-    switch(op) {
+    switch (op) {
       // 暂停任务
       case 'pause':
         if (indexOfDownloading == -1) return callback(notFoundErr)
@@ -208,7 +234,7 @@ class Manager extends EventEmitter{
         break
       // 开始任务
       case 'resume':
-      if (indexOfDownloading == -1) callback(notFoundErr)
+        if (indexOfDownloading == -1) callback(notFoundErr)
         this.client.start(id, opCallback)
         break
       // 删除任务
@@ -219,15 +245,15 @@ class Manager extends EventEmitter{
             // 删除内存中对象
             this.downloading.splice(indexOfDownloading, 1)
             // 保存
-            this.cache().then(() => {callback()})
-            .catch(err => callback(err))
+            this.cache().then(() => { callback() })
+              .catch(err => callback(err))
           })
-        }else if (indexOfDownloaded !== -1) {
+        } else if (indexOfDownloaded !== -1) {
           // 删除内存中对象
           this.downloaded.splice(indexOfDownloaded, 1)
           // 保存
-          this.cache().then(() => {callback()})
-          .catch(err => callback(err))
+          this.cache().then(() => { callback() })
+            .catch(err => callback(err))
         } else callback(notFoundErr)
         break
       default:
@@ -237,7 +263,7 @@ class Manager extends EventEmitter{
 
   enterFinishState(task) {
     let index = this.downloading.indexOf(task)
-    let result = this.downloading.splice(index,1)[0]
+    let result = this.downloading.splice(index, 1)[0]
     result.finishTime = (new Date()).getTime()
     this.downloaded.push(result)
     this.cache()
@@ -265,9 +291,9 @@ class Manager extends EventEmitter{
 
   // 调度拷贝任务
   scheduleMove() {
-    while( this.moveReadyQueue.length > 0 && this.movingQueue.length == 0) {
+    while (this.moveReadyQueue.length > 0 && this.movingQueue.length == 0) {
       let task = this.moveReadyQueue.shift()
-      if (!task ) return
+      if (!task) return
       this.movingQueue.push(task)
       task.move()
     }
@@ -280,7 +306,7 @@ class Task {
     this.dirUUID = dirUUID // 下载目标目录
     this.userUUID = userUUID // 用户uuid
     this.downloadDir = '' // 下载临时目录
-    this.name = name? name: '' // 任务名称
+    this.name = name ? name : '' // 任务名称
     this.rateDownload = null //下载速率
     this.rateUpload = null // 上传速率
     this.percentDone = 0 // 完成比例
@@ -288,7 +314,7 @@ class Task {
     this.status = null // 当前状态(in transmission)
     this.manager = manager // 容器
     this.state = 'downloading' // 本地状态(downloading/moving/finish)
-    this.finishTime = finishTime? finishTime: null // 任务完成时间
+    this.finishTime = finishTime ? finishTime : null // 任务完成时间
   }
 
   // 与transmission中对应任务进行同步，判断是否完成
@@ -298,7 +324,7 @@ class Task {
     Object.assign(this, nextState)
     this.judeProgress(task)
   }
-  
+
   // 判断下载任务是否完成
   judeProgress(task) {
     // 本地任务处于移动或完成状态，跳过
@@ -306,7 +332,7 @@ class Task {
     // 完成条件1 任务标记为完成
     let conditionA = task.isFinished
     // 完成条件2 任务进入了seed状态
-    let conditionB = [5,6].includes(task.status)
+    let conditionB = [5, 6].includes(task.status)
     // 完成条件3 任务处于暂停状态、完成度为100%
     let conditionC = task.status == 0 && task.percentDone == 1
     // 进行移动等操作
@@ -321,14 +347,14 @@ class Task {
 
   // 获取任务基本信息， 查询用
   getSummary() {
-    let { name, dirUUID, rateDownload, percentDone, eta, status } = this
-    return { name, dirUUID, rateDownload, percentDone, eta, status }
+    let { id, name, dirUUID, rateDownload, percentDone, eta, status } = this
+    return { id, name, dirUUID, rateDownload, percentDone, eta, status }
   }
 
   // 获取完成任务的基本信息， 查询用
   getFinishInfor() {
-    let { name, dirUUID, finishTime } = this
-    return { name, dirUUID, finishTime }
+    let { name, dirUUID, finishTime, id } = this
+    return { name, dirUUID, finishTime, id }
   }
 
   move() {
@@ -360,10 +386,10 @@ class Task {
       try {
         let nameArr = fileName.split('.')
         if (nameArr.length > 1) {
-          nameArr[nameArr.length - 2] += (index==0?'':'(' + (index + 1) + ')')
+          nameArr[nameArr.length - 2] += (index == 0 ? '' : '(' + (index + 1) + ')')
           newName = path.join(dirPath, nameArr.join('.'))
-        }else {
-          newName = path.join(dirPath, nameArr[0] + (index==0?'':'(' + (index + 1) + ')'))
+        } else {
+          newName = path.join(dirPath, nameArr[0] + (index == 0 ? '' : '(' + (index + 1) + ')'))
         }
         let exist = fs.existsSync(newName)
         if (!exist) return newName
@@ -372,7 +398,7 @@ class Task {
           index++
           return isFIleExist()
         }
-      }catch(e) {console.log(e)}
+      } catch (e) { console.log(e) }
     }
     return isFIleExist()
   }

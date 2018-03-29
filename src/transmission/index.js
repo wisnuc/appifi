@@ -15,9 +15,11 @@ broadcast.on('FruitmixStarted', () => {
   // create torrentTmp if it has not been created
   let transmissionTmp = path.join(getFruit().fruitmixPath, 'transmissionTmp')
   mkdirp.sync(transmissionTmp)
+  mkdirp.sync(path.join(transmissionTmp, 'torrents'))
   manager = new Manager(transmissionTmp)
   manager.init()
   manager.syncList()
+  manager.scaner()
 })
 
 // 检查初始化结果
@@ -39,7 +41,26 @@ router.post('/magnet', (req,res) => {
   manager.createTransmissionTask('magnet', magnetURL, dirUUID, req.user.uuid).then((data) => {
     res.status(200).end()
   }).catch(err => {
-    res.status(400).json(err)
+    res.status(400).json({ message: err.message})
+  })
+})
+
+// 种子下载任务
+router.post('/torrent', (req, res) => {
+  let transmissionTmp = path.join(getFruit().fruitmixPath, 'transmissionTmp', 'torrents')
+  let form = new formidable.IncomingForm()
+  form.uploadDir = transmissionTmp
+  form.keepExtensions = true
+  form.parse(req, (err, fields, files) => {
+    if (err) return res.status(500).json(err)
+    let dirUUID = fields.dirUUID
+    let torrentPath = files.torrent.path
+    if (!dirUUID || !torrentPath) return res.status(400).end('parameter error')
+    manager.createTransmissionTask('torrent', torrentPath, dirUUID, req.user.uuid).then(data => {
+      res.status(200).end()
+    }).catch(err => {
+      res.status(400).json({ message: err.message})
+    })
   })
 })
 
