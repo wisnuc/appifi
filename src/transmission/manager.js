@@ -25,7 +25,7 @@ class Manager extends EventEmitter {
   }
 
   // 初始化
-  init() {
+  async init() {
     // 检查transmission-daemon 
     try {
       let command = 'systemctl'
@@ -38,28 +38,23 @@ class Manager extends EventEmitter {
       let activeResult = spawnSync(command, ['is-active', serviceName]).stdout.toString()
       if (enableResult.indexOf('enabled') === -1) this.error(enableResult.stderr.toString())
       if (activeResult.indexOf('active') === -1) return this.error(enableResult.stderr.toString())
-      console.log('transmission init')
-    } catch (error) {
-      console.log(error)
-      this.error(error)
-    }
-    // 实例化Transmission
-    this.client = new Transmission({
-      host: 'localhost',
-      port: 9091,
-      username: 'transmission',
-      password: '123456'
-    })
-    bluebird.promisifyAll(this.client)
-    // 设置transmission属性
-    this.client.session({
-      seedRatioLimit: 1,
-      seedRatioLimited: true,
-      'idle-seeding-limit': 30,
-      'idle-seeding-limit-enabled': false,
-      'speed-limit-up-enabled': false,
-      'speed-limit-down-enabled': false
-    }, () => { })
+      // 实例化Transmission
+      this.client = new Transmission({
+        host: 'localhost',
+        port: 9091,
+        username: 'transmission',
+        password: '123456'
+      })
+      bluebird.promisifyAll(this.client)
+      // 设置transmission属性
+      await this.client.sessionAsync({
+        seedRatioLimit: 5,
+        seedRatioLimited: false,
+        'speed-limit-up-enabled': false,
+        'speed-limit-down-enabled': false
+      })
+    } catch (error) { this.error(error) }
+    
     // 读取缓存文件， 创建未完成任务
     if (!fs.existsSync(this.storagePath)) return
     let tasks = JSON.parse(fs.readFileSync(this.storagePath))
@@ -78,13 +73,14 @@ class Manager extends EventEmitter {
   // 错误处理
   error(arg) {
     let err = typeof arg === 'object' ? arg : new Error(arg)
+    this.client = null
     this.errors.push(err)
-    this.emit('error', err)
   }
 
   // 同步transmission 任务数据
   syncList() {
-    setInterval(() => {
+    if (this.sync) return
+    this.sync = setInterval(() => {
       this.client.get((err, arg) => {
         let tasks = arg.torrents
         let errArr = []
@@ -104,8 +100,13 @@ class Manager extends EventEmitter {
     }, 1000)
   }
 
+  clearSync() {
+    clearInterval(this.sync)
+  }
+
   scaner() {
-    setInterval(async () => {
+    if (this.scan) return
+    this.scan = setInterval(async () => {
       try {
         // 获取transmission 列表
         let tasks = (await this.client.getAsync()).torrents
@@ -124,7 +125,7 @@ class Manager extends EventEmitter {
           if ((timeEnd - timeStart) / 1000 / 60 / 60 > 12) {
             // console.log('', (timeEnd - timeStart) / 1000 / 60 / 60)
             this.client.removeAsync(task.id, true, (err, result) => {
-              console.log(err, result)
+              if (err) throw err
             })
           }
         })
@@ -225,7 +226,7 @@ class Manager extends EventEmitter {
       if (err) callback(err)
       else callback(null, data)
     }
-    console.log(indexOfDownloading, indexOfDownloaded)
+    // console.log(indexOfDownloading, indexOfDownloaded)
     switch (op) {
       // 暂停任务
       case 'pause':
@@ -303,7 +304,7 @@ class Manager extends EventEmitter {
 class Task {
   constructor(id, dirUUID, userUUID, name, manager, finishTime) {
     this.id = id // 任务id
-    this.dirUUID = dirUUID // 下载目标目录
+    this.dirUUID = dirUUID // 下载目标目录500
     this.userUUID = userUUID // 用户uuid
     this.downloadDir = '' // 下载临时目录
     this.name = name ? name : '' // 任务名称
@@ -402,7 +403,6 @@ class Task {
     }
     return isFIleExist()
   }
-
 }
 
 module.exports = Manager

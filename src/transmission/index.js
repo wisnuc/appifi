@@ -11,20 +11,24 @@ var router = Router()
 
 var manager = null
 
-broadcast.on('FruitmixStarted', () => {
+broadcast.on('FruitmixStarted', async () => {
   // create torrentTmp if it has not been created
   let transmissionTmp = path.join(getFruit().fruitmixPath, 'transmissionTmp')
   mkdirp.sync(transmissionTmp)
   mkdirp.sync(path.join(transmissionTmp, 'torrents'))
   manager = new Manager(transmissionTmp)
-  manager.init()
-  manager.syncList()
-  manager.scaner()
+  await manager.init()
+  if (manager && manager.client) {
+    manager.syncList()
+    manager.scaner()
+  }else {
+    console.log('manage 或者 client 不存在， 在初始化之后')
+  }
 })
 
 // 检查初始化结果
 router.use((req, res, next) => {
-  if (!manager) return res.status(500).end('transmission init failed')
+  if (!manager || !manager.client) return res.status(500).end('transmission init failed')
   else next()
 })
 
