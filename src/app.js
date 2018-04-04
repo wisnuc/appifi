@@ -8,7 +8,7 @@ const fs = require('fs')
 
 // detect phi directory and set global variable accordingly
 try {
-  fs.readdir(path.join(__dirname, 'phi'))
+  fs.readdirSync(path.join(__dirname, 'phi'))
   global.phi = true
 } catch (e) {
   global.phi = false
