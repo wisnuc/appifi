@@ -841,6 +841,7 @@ class Fruitmix extends EventEmitter {
     return Array.from(m.values())
   }
 
+  //FIXME: mediacount error because of taged files
   getDirCounter (user, driveUUID, dirUUID) {
     if (!this.userCanRead(user, driveUUID)) throw Object.assign(new Error('Permission Denied'), { status: 401 })
     let dir = this.driveList.getDriveDir(driveUUID, dirUUID)

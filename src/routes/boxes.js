@@ -453,16 +453,21 @@ router.post('/:boxUUID/tweets', fruitless, auth, (req, res, next) => {
         return errorComplete(e)
       }
       dataHandler(rs, received => {
-        check(props.size, props.sha256, received)
-        if (type === 'list') {
-          let index = arr.findIndex(i => i.sha256 === received.fingerprint)
-          if (index !== -1) {
-            check(arr[index].size, arr[index].sha256, received)
-            urls.push({sha256: arr[index].sha256, filepath: received.tmpPath})
-            arr[index].finish = true
-          } else {
-            rimraf(tmpPath, () => {})
+        try {
+          check(props.size, props.sha256, received)
+          if (type === 'list') {
+            let index = arr.findIndex(i => i.sha256 === received.fingerprint)
+            if (index !== -1) {
+              check(arr[index].size, arr[index].sha256, received)
+              urls.push({ sha256: arr[index].sha256, filepath: received.tmpPath })
+              arr[index].finish = true
+            } else {
+              rimraf(tmpPath, () => { })
+            }
           }
+        } catch (e) {
+          e.status = 400
+          return errorComplete(e)
         }
         partFinish()
       })

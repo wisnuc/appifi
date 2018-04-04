@@ -260,6 +260,7 @@ class Pipe {
                   : paths.length === 5 && method === 'GET' ? 'DownloadFile' : undefined
         break
       case 'media':
+        if (data.body && data.body.boxUUID) data.needLocalUser = false  // service  box user
         return paths.length === 0 && method === 'GET' ? 'GetMetadatas'
           : paths.length === 1 && method === 'GET' ? 'GetMetadata'
             : undefined
