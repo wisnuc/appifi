@@ -1,8 +1,19 @@
+// must be executed before anything else in the whole app
+// qiaoyun has tested that this value does not affect
+// readdir performance significantly, at least for HDD (not SSD)
 process.env['UV_THREADPOOL_SIZE'] = 64
-require('./prerequisite')
 
 const path = require('path')
 const fs = require('fs')
+
+// detect phi directory and set global variable accordingly
+try {
+  fs.readdir(path.join(__dirname, 'phi'))
+  global.phi = true
+} catch (e) {
+  global.phi = false
+}
+
 const express = require('express')
 const logger = require('morgan')
 const bodyParser = require('body-parser')
