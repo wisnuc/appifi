@@ -5,7 +5,8 @@ const chai = require('chai').use(require('chai-as-promised'))
 const expect = chai.expect
 
 const Auth = require('src/middleware/Auth')
-const createTokenRouter = require('src/routes/Token')
+const Token = require('src/routes/Token')
+const TimeDate = require('src/routes/TimeDate')
 const createApp = require('src/system/express')
 
 const alice = {
@@ -33,7 +34,8 @@ const createApp1 = () => {
     setttings: { json: { spaces: 2 } },
     log: { skip: 'all', error: 'all' },
     routers: [
-      ['/token', createTokenRouter(auth)]
+      ['/token', Token(auth)],
+      ['/control/timedate', TimeDate(auth)] 
     ]
   }
 
@@ -44,14 +46,14 @@ describe(path.basename(__filename), () => {
   describe('alice and bob (disabled)', () => {
     it('should return 401 if no auth', done => {
       request(createApp1())
-        .get('/token')
+        .get('/control/timedate')
         .expect(401)
         .end(done)
     })
 
     it('should return 401 if bob (disabled) ', done => {
       request(createApp1())
-        .get('/token')
+        .get('/control/timedate')
         .auth(bob.uuid, 'bob')
         .expect(401)
         .end(done)
@@ -59,34 +61,13 @@ describe(path.basename(__filename), () => {
 
     it('should return 401 if charlie (nonexist)', done => {
       request(createApp1())
-        .get('/token')
+        .get('/control/timedate')
         .auth(charlie.uuid, 'charlie')
         .expect(401)
         .end(done)
     })
 
-    it('should return 401 if incorrect password', done => {
-      request(createApp1())
-        .get('/token')
-        .auth(alice.uuid, 'incorrect')
-        .expect(401)
-        .end(done)
-    })
-
-    it("should return alice's token", done => {
-      request(createApp1())
-        .get('/token')
-        .auth(alice.uuid, 'alice')
-        .expect(200)
-        .end((err, res) => {
-          if (err) return done(err)
-          expect(res.body.type).to.equal('JWT')
-          expect(res.body.token).to.be.a('string')
-          done()
-        })
-    })
-
-    it("should verify alice's token", done => {
+    it("should return timedate for alice, print", done => {
       let app = createApp1()
       request(app)
         .get('/token')
@@ -95,21 +76,15 @@ describe(path.basename(__filename), () => {
         .end((err, res) => {
           if (err) return done(err)
           let token = res.body.token
-
           request(app)
-            .get('/token/verify')
+            .get('/control/timedate')
             .set('Authorization', 'JWT ' + token)
             .expect(200)
-            .end(done)
+            .end((err, res) => {
+              console.log(err || res.body)
+              done(err)
+            })
         })
-    })
-
-    it('should NOT verify faked token string', done => {
-      request(createApp1())
-        .get('/token/verify')
-        .set('Authorization', 'JWT ' + 'FAKED_TOKEN_STRING')
-        .expect(401)
-        .end(done)
     })
   })
 })

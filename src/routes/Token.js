@@ -9,7 +9,7 @@ Creates a token router.
 
 An Auth object is required for basic/jwt authentication and generating token for authenticated user.
 
-@param {Auth} auth - Auth object
+@param {Auth} auth - authentication
 @returns {object} express router
 */
 module.exports = auth => {
