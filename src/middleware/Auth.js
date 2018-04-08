@@ -5,14 +5,14 @@ const JwtStrategy = require('passport-jwt').Strategy
 const ExtractJwt = require('passport-jwt').ExtractJwt
 const jwt = require('jwt-simple')
 
-/** 
+/**
 Auth is an authentication middleware for node/express.
 
-The popular passport module for node/express is mostly used as singleton. This is inconvenient for testing. Instead, this class encapsulates pp as instance of class object. 
+The popular passport module for node/express is mostly used as singleton. This is inconvenient for testing. Instead, this class encapsulates pp as instance of class object.
 
 An Auth object requires a user list and a secret string to work. The user list can be provided during object construction or updated later. The Auth object has no knowledge of whether the admin is specially treated (such as in N2) or not. It just uses the provided user list to work.
 
-@class 
+@class
 */
 class Auth {
 
@@ -38,8 +38,7 @@ class Auth {
   }
 
   /**
-  Authenticate user via http basic authentication.
-  This is a internal function.
+  Authenticate user via http basic authentication. Callback for BasicStrategy.
 
   @param {string} userUUID
   @param {string} password
@@ -69,8 +68,7 @@ class Auth {
   }
 
   /**
-  Authenticate user via JWT token.
-  This is a internal function.
+  Authenticate user via JWT token. Callback for JwtStrategy.
 
   @param {object} payload - jwt token payload
   @param {function} done - `(err, user|false, info) => {}` callback
@@ -85,7 +83,7 @@ class Auth {
       } else if (user.disabled) {
         done(null, false, { message: 'user disabled' })
       } else {
-        done(null, this.strip(user)) 
+        done(null, this.strip(user))
       }
     }
   }
@@ -95,22 +93,23 @@ class Auth {
   strip (user) {
     // TODO
     return {
-      uuid: user.uuid,
+      uuid: user.uuid
     }
   }
 
   /**
-  Update user list  
+  Update user list
   */
   setUsers (users) {
     this.users = users
-  } 
+  }
 
   /**
-  This is a higher-order function,  returning a express router that authenticates request via http basic authentication
+  A higher-order function returning a express router that authenticates request via http basic authentication
+
+  `passport-http` does NOT handle info correctly. So the custom callback version won't work.
   */
   basic () {
-
     /* useless, passport http does not support info
     return (req, res, next) => {
       this.pp.authenticate('basic', { session: false }, (err, user, info1, info2) => {
@@ -133,20 +132,24 @@ class Auth {
   }
 
   /**
-  Authenticate request via JWT token 
+  Authenticate request via JWT token
   */
   jwt () {
     return this.pp.authenticate('jwt', { session: false })
   }
 
+  /**
+  Generate jwt token for given user
+  */
   token (user) {
     return {
       type: 'JWT',
       token: jwt.encode({
-        uuid: user.uuid 
+        uuid: user.uuid
       }, this.secret)
     }
   }
+
 }
 
 module.exports = Auth
