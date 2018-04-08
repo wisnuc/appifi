@@ -36,7 +36,7 @@ router.use(auth.jwt())
 
 // 获取下载任务列表
 router.get('/', (req, res) => {
-  res.status(200).json(manager.getList())
+  res.status(200).json(manager.getList(req.user.uuid))
 })
 
 // 提交磁链任务
