@@ -4,6 +4,7 @@ const fs = require('fs')
 const EventEmitter = require('events')
 const Transmission = require('transmission')
 const bluebird = require('bluebird')
+const UUID = require('uuid')
 const getFruit = require('../fruitmix')
 
 bluebird.promisifyAll(fs)
@@ -24,7 +25,7 @@ class Manager extends EventEmitter {
     this.errors = [] // 错误列表
   }
 
-  // 初始化
+  // 初始化 ---
   async init() {
     // 检查transmission-daemon 
     try {
@@ -59,15 +60,15 @@ class Manager extends EventEmitter {
     if (!fs.existsSync(this.storagePath)) return
     let tasks = JSON.parse(fs.readFileSync(this.storagePath))
 
-    // this.downloaded = tasks.downloaded.map(task => {
-    //   let { id, dirUUID, userUUID, name, finishTime } = task
-    //   return new Task(id, dirUUID, userUUID, name, this, finishTime)
-    // })
+    this.downloaded = tasks.downloaded.map(task => {
+      let { uuid, id, users, name, finishTime, originExist } = task
+      return new Task(uuid, id, users, name, this, finishTime)
+    })
 
-    // this.downloading = tasks.downloading.map(task => {
-    //   let { id, dirUUID, userUUID } = task
-    //   return new Task(id, dirUUID, userUUID, null, this)
-    // })
+    this.downloading = tasks.downloading.map(task => {
+      let { uuid, id, users } = task
+      return new Task(uuid, id, users, null, this)
+    })
   }
 
   // 错误处理
@@ -176,7 +177,7 @@ class Manager extends EventEmitter {
       // 检查是否有其他用户创建过相同任务
       let sameIdTask = this.downloading.find(item => item.id == id)
       if (sameIdTask) sameIdTask.users.push({dirUUID, userUUID})
-      else this.downloading.push(new Task(id, {dirUUID, userUUID}, null, this))
+      else this.downloading.push(new Task(UUID.v4(), id, {dirUUID, userUUID}, null, this))
       // 存储
       await this.cache()
     } catch (err) { throw err }
@@ -217,7 +218,7 @@ class Manager extends EventEmitter {
     return { downloading, downloaded }
   }
 
-  // 查询任务
+  // 查询任务 ---
   async get(id) {
     try {
       if (id) return await this.client.getAsync(id)
@@ -228,7 +229,7 @@ class Manager extends EventEmitter {
     }
   }
 
-  // 暂停、开始、删除任务
+  // 暂停、开始、删除任务 ---
   op(id, userUUID, op, callback) {
     // 检查参数op
     let ops = ['pause', 'resume', 'destroy']
@@ -257,18 +258,36 @@ class Manager extends EventEmitter {
         break
       // 删除任务
       case 'destroy':
+        // 任务对象
+        let taskObj = indexOfDownloaded === -1? this.downloaded[indexOfDownloaded]:
+          this.downloading[indexOfDownloading]
+        // 任务对象是否包含当前用户
+        let index = taskObj.users.findIndex(item => item.userUUID == userUUID)
+        if (index == -1) callback(new Error('task not include user'))
+        // 删除任务对象中的当前用户
+        else taskObj.users.splice(index,1)
+
         if (indexOfDownloading !== -1) {
-          this.client.remove(id, true, (err, data) => {
-            if (err) return callback(err)
-            // 删除内存中对象
-            this.downloading.splice(indexOfDownloading, 1)
-            // 保存
+          // 用户数为0 删除任务
+          if (taskObj.users.length == 0 ) {
+            this.client.remove(id, false, (err, data) => {
+              if (err) return callback(err)
+              // 删除内存中任务对象
+              this.downloading.splice(indexOfDownloading, 1)
+              // 保存
+              this.cache().then(() => { callback() })
+                .catch(err => callback(err))
+            })
+          // 用户数不为0 保存
+          } else {
             this.cache().then(() => { callback() })
-              .catch(err => callback(err))
-          })
+                .catch(err => callback(err))
+          }
         } else if (indexOfDownloaded !== -1) {
-          // 删除内存中对象
-          this.downloaded.splice(indexOfDownloaded, 1)
+          // 用户数为0 删除内存中对象
+          if (taskObj.users.length == 0) {
+            this.downloaded.splice(indexOfDownloaded, 1)
+          }
           // 保存
           this.cache().then(() => { callback() })
             .catch(err => callback(err))
@@ -319,11 +338,12 @@ class Manager extends EventEmitter {
 }
 
 class Task {
-  constructor(id, user, name, manager, finishTime) {
+  constructor(uuid, id, users, name, manager, finishTime) {
+    this.uuid = uuid
     this.id = id // 任务id
     //this.dirUUID = dirUUID // 下载目标目录
     //this.userUUID = userUUID // 用户uuid
-    this.users = [user]
+    this.users = Array.isArray(users)?users:[users]
     this.downloadDir = '' // 下载临时目录
     this.name = name ? name : '' // 任务名称
     this.rateDownload = null //下载速率
@@ -361,20 +381,20 @@ class Task {
 
   // 获取任务关键信息， 存储用 ---
   getInfor() {
-    let { id, users, finishTime, name, originExist } = this
-    return { id, users, finishTime, name, originExist }
+    let { uuid, id, users, finishTime, name, originExist } = this
+    return { uuid, id, users, finishTime, name, originExist }
   }
 
   // 获取任务基本信息， 查询用 ---
   getSummary() {
-    let { id, name, rateDownload, percentDone, eta, status } = this
-    return { id, name, rateDownload, percentDone, eta, status }
+    let { uuid, id, name, rateDownload, percentDone, eta, status } = this
+    return { uuid, id, name, rateDownload, percentDone, eta, status }
   }
 
-  // 获取完成任务的基本信息， 查询用
+  // 获取完成任务的基本信息， 查询用 ---
   getFinishInfor() {
-    let { name, users, finishTime, id } = this
-    return { name, users, finishTime, id }
+    let { uuid, name, finishTime, id } = this
+    return { uuid, name, finishTime, id }
   }
 
   move() {
