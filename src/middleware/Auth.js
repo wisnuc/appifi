@@ -108,6 +108,8 @@ class Auth {
   A higher-order function returning a express router that authenticates request via http basic authentication
 
   `passport-http` does NOT handle info correctly. So the custom callback version won't work.
+
+  http://www.passportjs.org/docs/authenticate/
   */
   basic () {
     /* useless, passport http does not support info
