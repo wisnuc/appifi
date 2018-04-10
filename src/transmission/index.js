@@ -19,7 +19,8 @@ broadcast.on('FruitmixStarted', async () => {
   manager = new Manager(transmissionTmp)
   await manager.init()
   if (manager && manager.client) {
-    manager.syncList()
+    // manager.syncList()
+    manager.startObserver()
     manager.scaner()
   }else {
     console.log('manage 或者 client 不存在， 在初始化之后')
@@ -42,10 +43,15 @@ router.get('/', (req, res) => {
 // 提交磁链任务
 router.post('/magnet', (req,res) => {
   let { magnetURL, dirUUID } = req.body
-  manager.createTransmissionTask('magnet', magnetURL, dirUUID, req.user.uuid).then((data) => {
-    res.status(200).end()
-  }).catch(err => {
-    res.status(400).json({ message: err.message})
+  // manager.createTransmissionTask('magnet', magnetURL, dirUUID, req.user.uuid).then((data) => {
+  //   res.status(200).end()
+  // }).catch(err => {
+  //   res.status(400).json({ message: err.message})
+  // })
+
+  manager.createTransmissionTask('magnet', magnetURL, dirUUID, req.user.uuid, (err, data) => {
+    if (err) res.status(400).json({ message: err.message})
+    else res.status(200).end()
   })
 })
 
