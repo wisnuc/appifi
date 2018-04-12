@@ -606,7 +606,7 @@ class VFS extends Forest {
         rimraf(tmp, () => {})
         if (err) return callback(err)
 
-        if (!xstat || (policy[0] === 'skip' && xstat && resolved[0])) return
+        if (!xstats || (policy[0] === 'skip' && resolved[0])) return callback(null)
         else {
           try {
             let attr = JSON.parse(xattr.getSync(srcFilePath, 'user.fruitmix'))
