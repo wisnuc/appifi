@@ -6,7 +6,7 @@ const express = require('express')
 */
 
 /**
-Creates a timedate router
+Creates a timedate router, which simply returns the formatted output from `timedatectl` command.
 
 An Auth object is required for jwt authentication. All authenticated user can access this resource.
 

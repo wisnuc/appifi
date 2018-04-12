@@ -16,7 +16,7 @@ try {
   global.phi = false
 }
 
-// fake bootstrap
+// fake bootstrap, drop settings.js
 process.argv.forEach((val, index, arr) => {
   if (val === '--fake-bootstrap') {
     console.log('fake bootstrap advertising using avahi')
@@ -28,12 +28,11 @@ process.argv.forEach((val, index, arr) => {
 
 const broadcast = require('./common/broadcast')
 
-
 const config = require('./system/config')
 const barcelona = require('./system/barcelona')
 const system = require('./system/system')
 const net = require('./system/net')
-const timedate = require('./system/timedate')
+const TimeDate = require('./system/timedate')
 const boot = require('./system/boot')
 const storage = require('./routes/storage')
 const auth = require('./middleware/auth')
@@ -54,11 +53,6 @@ This module is the entry point of the whole application.
 
 @module App
 */
-app.set('json spaces', 0)
-app.use(logger('dev', { skip: (req, res) => res.nolog === true || app.nolog === true }))
-app.use(bodyParser.json())
-app.use(bodyParser.urlencoded({ extended: false }))
-app.use(auth.init())
 app.use('/boot', boot)
 app.use('/storage', storage)
 app.use('/control/system', system) 
@@ -81,14 +75,14 @@ app.use('/files', files)
 
 const createApp = require('./system/express')
 
-let auth = new Auth('some secret')
+const auth = new Auth('some secret')
 
-let routers = [
+const routers = [
   ['/boot', boot],
   ['/storage', storage],
   ['/control/system', system],
   ['/control/net/interfaces', net],
-  ['/control/timedate', timedate],
+  ['/control/timedate', TimeDate(auth)],
   ['/token', require('./routes/Token')(auth)],
   ['/station', require('./station')],
   ['/cloudToken', require('./routes/wxtoken')],
@@ -108,10 +102,19 @@ let opts = {
   auth: auth.middleware,
   settings: { json: { spaces: 2 } },
   log: { error: 'all' },
-  routers: [
-    ['/boot', boot],
-  ]
+  routers
 }
+
+const app = createApp(opts)
+
+const server = app.listen(3000, err => {
+})
+
+server.on('error', err => console.log('Http Server Error', err))
+server.on('timeout', () => console.log('Http Servr Timeout'))
+server.setTimeout(600 * 1000)
+
+/**
 
 let { NODE_ENV, NODE_PATH, LOGE } = process.env
 const isAutoTesting = NODE_ENV === 'test' && NODE_PATH !== undefined
@@ -162,5 +165,4 @@ if (!isAutoTesting) {
   server.setTimeout(600 * 1000) // 10 minutes
 }
 
-module.exports = app
-
+**/
