@@ -17,19 +17,13 @@ broadcast.on('FruitmixStarted', async () => {
   mkdirp.sync(transmissionTmp)
   mkdirp.sync(path.join(transmissionTmp, 'torrents'))
   manager = new Manager(transmissionTmp)
-  await manager.init()
-  if (manager && manager.client) {
-    // manager.syncList()
-    manager.startObserver()
-    manager.scaner()
-  }else {
-    console.log('manage 或者 client 不存在， 在初始化之后')
-  }
+  // if (manager && manager.client) manager.startObserver()
+  // else console.log('manage 或者 client 不存在， 在初始化之后')
 })
 
 // 检查初始化结果
 router.use((req, res, next) => {
-  if (!manager || !manager.client) return res.status(500).end('transmission init failed')
+  if (!manager || !manager.client) return res.status(503).end('transmission init failed')
   else next()
 })
 
@@ -43,6 +37,7 @@ router.get('/', (req, res) => {
 // 提交磁链任务
 router.post('/magnet', (req,res) => {
   let { magnetURL, dirUUID } = req.body
+  if (!magnetURL || !dirUUID) res.status(400).json({message: 'parameter error'})
   // manager.createTransmissionTask('magnet', magnetURL, dirUUID, req.user.uuid).then((data) => {
   //   res.status(200).end()
   // }).catch(err => {
@@ -76,8 +71,8 @@ router.post('/torrent', (req, res) => {
 
 // 暂停、开始、删除
 router.patch('/:id', (req, res) => { 
-  let { op } = req.body
-  manager.op(Number(req.params.id), req.user.uuid ,op, (err, data) => {
+  let { op, uuid } = req.body
+  manager.op(Number(req.params.id), uuid, req.user.uuid ,op, (err, data) => {
     if (err) res.status(400).json({error: err.message})
     else res.status(200).json(data)
   })

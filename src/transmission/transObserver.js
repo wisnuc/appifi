@@ -33,7 +33,6 @@ class Pending extends State {
 
   // 主动进入working状态
   get(id, callback) {
-    console.log('get in pending')
     this.setState(Working, [{ id, callback }], 222)
   }
 }
@@ -58,7 +57,6 @@ class Working extends State {
   }
 
   get(id, callback) {
-    console.log('get in working')
     this.next.push({ id, callback })
   }
 }
