@@ -1,8 +1,6 @@
 const Promise = require('bluebird')
 const EventEmitter = require('events')
 
-const m
-
 const { probe, umountBlocks } = require('./storage') 
 
 /**
@@ -164,7 +162,7 @@ class Initializing extends State {
                     })
 
                     let fruitmixDir = path.join(volume.mountpoint, `???`)
-                    mkdirp((fruitmixDir, err => {
+                    mkdirp(fruitmixDir, err => {
                       if (err) {
                         callback(err)
                         this.setState(Probing)
@@ -244,7 +242,7 @@ class Boot extends EventEmitter {
       await mkdirpAsync(this.chassisTmpDir)
     })()
       .then(() => callback())
-      .catch(e => callback(e)
+      .catch(e => callback(e))
   }
 
   bootable () {

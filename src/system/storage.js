@@ -703,7 +703,7 @@ const probeAsync = async configs => {
 const probe = (configs, callback) => 
   probeAsync(configs)
     .then(storage => callback(null, storage))
-    .catch(e => callback(e)
+    .catch(e => callback(e))
 
 /**
  * unmount all blocks contained by target, target may be
