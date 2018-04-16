@@ -10,12 +10,22 @@ const { isUUID, isNonNullObject, isNonEmptyString } = require('../lib/assertion'
 const DataStore = require('../lib/DataStore')
 
 /**
+
+The corresponding test file is test/unit/fruitmix/user.js
+
 Using composition instead of inheritance.
 */
 class User extends EventEmitter {
 
   /**
   Create a User 
+
+  Add other properties to opts if required.
+
+  @param {object} opts
+  @param {string} opts.file - path of users.json
+  @param {string} opts.tmpDir - path of tmpDir (should be suffixed by `users`)
+  @param {boolean} opts.isArray - should be true since users.json is an array
   */  
   constructor(opts) {
     super()
