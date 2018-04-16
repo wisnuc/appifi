@@ -29,7 +29,6 @@ const secret = require('./config/passportJwt')
 const extract = require('./lib/metadata')
 
 const MediaMap = require('./media/persistent')
-const PersistentMap = require('./lib/persistent-map')
 
 const { assert, isUUID, isSHA256, validateProps } = require('./common/assertion')
 

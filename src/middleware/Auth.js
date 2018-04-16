@@ -19,9 +19,21 @@ class Auth {
   /**
   Create an Auth middleware
   @param {string} secret - secret string for JWT token
+  @param {object[]|function} users - a user list or a function evaluates to a user list
   */
   constructor (secret, users = []) {
-    this.users = users
+    this._users = users
+    Object.defineProperty(this, 'users', {
+      get () {
+        let value = typeof this._users === 'function'
+          ? this._users()
+          : this._users
+
+        return Array.isArray(value) ? value : []
+      }
+    })
+
+    // this.users = users
     this.secret = secret
 
     let jwtOpts = {
@@ -93,7 +105,10 @@ class Auth {
   strip (user) {
     // TODO
     return {
-      uuid: user.uuid
+      uuid: user.uuid,
+      username: user.username,
+      isFirstUser: user.isFirstUser,
+      phicommUserId: user.phicommUserId
     }
   }
 

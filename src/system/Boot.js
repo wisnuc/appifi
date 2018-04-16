@@ -12,7 +12,7 @@ const UUID = require('uuid')
 const debug = require('debug')('Boot')
 
 const DataStore = require('../lib/DataStore')
-const Fruitmix = require('../Fruitmix')
+const Fruitmix = require('../fruitmix/Fruitmix')
 const { probe, probeAsync, umountBlocks, umountBlocksAsync } = require('./storage')
 
 /**
@@ -164,10 +164,10 @@ class Starting extends State {
   enter () {
     let boundVolumeUUID = this.ctx.volumeStore.data.uuid 
     let volume = this.ctx.storage.volumes.find(v => v.uuid === boundVolumeUUID)
-    let froot = path.join(volume.mountpoint, this.ctx.conf.storage.fruitmixDir)
-    let fruitmix = new Fruitmix(froot)
-    fruitmix.once('StateEntered', () => {
-      this.state
+    let fruitmixDir = path.join(volume.mountpoint, this.ctx.conf.storage.fruitmixDir)
+    let fruitmix = new Fruitmix({ fruitmixDir })
+    fruitmix.once('FruitmixStarted', () => {
+      this.setState(Started)
     })
   }
 

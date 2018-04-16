@@ -29,6 +29,8 @@ class User extends EventEmitter {
   */  
   constructor(opts) {
     super()
+    this.conf = opts.configuration
+    this.fruitmixDir = opts.fruitmixDir
 
     this.store = new DataStore({
       file: opts.file,
@@ -70,7 +72,6 @@ class User extends EventEmitter {
       return [...users.slice(0, index), ...users.slice(index + 1)]
     }, callback)
   }
-
 
   /** 
 

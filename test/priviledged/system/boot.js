@@ -114,6 +114,7 @@ describe(path.basename(__filename), () => {
 
     boot.on('StateEntered', state => {
       console.log(':: ', state)
+      if (state === 'Started') done()
     })
 
   })
