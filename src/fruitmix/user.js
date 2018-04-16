@@ -7,8 +7,6 @@ const UUID = require('uuid')
 const deepFreeze = require('deep-freeze')
 const E = require('../lib/error')
 
-const broadcast = require('../common/broadcast')
-
 const { isUUID, isNonNullObject, isNonEmptyString, isSHA256 } = require('../lib/assertion')
 const { saveObjectAsync, passwordEncrypt, unixPasswordEncrypt, md4Encrypt } = require('../lib/utils')
 
@@ -167,6 +165,23 @@ const validateUsers = users => {
   assert(users.find(u => u.isFirstUser).isAdmin === true, 'first user must be admin')
 }
 
+class State {
+  
+  constructor (ctx, ...args) {
+    this.ctx = ctx
+    this.ctx.state = this
+
+    debug('=== entering ===', this.constructor.name)
+    this.enter(...args)
+    debug('=== entered ===', this.constructor.name)
+
+    this.ctx.emit('StateEntered', this.constructor.name)
+  }
+
+  setState (State, ...args) {
+  }
+}
+
 /**
 @event UserInitDone
 @global
@@ -217,7 +232,6 @@ class UserList extends EventEmitter {
   @param {UserEntry} user
   */
   stripUser(user) {
-
     return {
       uuid: user.uuid,
       username: user.username,
@@ -375,30 +389,7 @@ class UserList extends EventEmitter {
     await this.commitUsersAsync(currUsers, nextUsers)
   } 
 
-  /**
-  update a user's union
-  */
-  async updateWeChatBinding(user, unionId) {
-  }
 
-  /**
-  static function
-  */
-  async retriveNewUsersAsync(froot) {
-  }
-
-  /**
-  static function
-  */
-  async retrieveOldUsersAsync(froot) {
-  }
-
-  /**
-  static function
-  */
-  retrieveUsersAsync(froot) {
-   
-  }
 }
 
 module.exports = UserList

@@ -3,7 +3,6 @@ const path = require('path')
 const fs = Promise.promisifyAll(require('fs'))
 const EventEmitter = require('events')
 const crypto = require('crypto')
-// const dgram = require('dgram')
 
 const rimraf = require('rimraf')
 const mkdirp = require('mkdirp')
@@ -1464,11 +1463,12 @@ class Fruitmix extends EventEmitter {
 
 }
 
-Object.assign(Fruitmix.prototype, {})
+// Object.assign(Fruitmix.prototype, {})
 Object.assign(Fruitmix.prototype, driveapi)
 Object.assign(Fruitmix.prototype, ndriveapi)
 Object.assign(Fruitmix.prototype, boxapi)
 Object.assign(Fruitmix.prototype, tagapi)
+
 module.exports = Fruitmix
 
 

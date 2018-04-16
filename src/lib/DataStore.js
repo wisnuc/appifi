@@ -34,7 +34,23 @@ class State {
     }
   }
 
-  save () {}
+  save (data, callback) {
+    if (this.destroying) return callback(new Error('store being destroyed'))
+
+    if (typeof data !== 'function') {
+      if (this.ctx.isArray && !Array.isArray(data)) {
+        return process.nextTick(() => callback(new Error('not an array')))
+      } else if (!this.ctx.isArray && typeof data !== 'object') {
+        return process.nextTick(() => callback(new Error('not an object')))
+      } 
+    }
+
+    this.ctx.queue.push({ data, callback })
+  }
+
+  destroy (callback) {
+    this.setState(Destroyed, [callback])
+  }
 }
 
 
@@ -50,6 +66,10 @@ class Failed extends State {
   enter (err) {
     this.err = err
   }
+
+  save (data, callback) {
+    process.nextTick(() => callback(new Error('store is failed')))
+  }
 }
 
 
@@ -60,8 +80,10 @@ class Loading extends State {
 
   enter () {
     this.prepareDirs(err => {
+      if (this.destroying) return this.setState(Destroyed, this.destroyCallback)
       if (err) return this.setState(Failed, err)
       fs.readFile(this.ctx.file, (err, buffer) => {
+        if (this.destroying) return this.setState(Destroyed, this.destroyCallback)
         if (err && err.code !== 'ENOENT') {
           this.setState(Failed, err)
         } else {
@@ -98,6 +120,15 @@ class Loading extends State {
       .then(() => callback())
       .catch(e => callback(e))
   }
+
+  destroy (callback) {
+    if (this.destroying) {
+      this.destroyCallbacks.push(callback) 
+    } else {
+      this.destroying = true
+      this.destroyCallbacks = [callback]
+    }
+  }
 }
 
 /**
@@ -105,7 +136,8 @@ Idle state
 */
 class Idle extends State {
   
-  save () {
+  save (data, callback) {
+    super.save(data, callback)
     this.setState(Saving)
   }
 }
@@ -131,6 +163,7 @@ The ds has asynchronous nature and decides the action on its own, as long as the
 
 So we adopt an aggressive policy as most node.js codes do.
 
+0. the value must be updated first, since in the following step this value may be used.
 1. the ds object takes action as early as possible, aka, go to next state (which may also fire syscall)
 2. the caller is serviced, since it is the reason!
 3. the observer is serviced. This is guaranteed by using nextTick when emitting Update.
@@ -139,24 +172,70 @@ So we adopt an aggressive policy as most node.js codes do.
 class Saving extends State {
   
   enter () {
-    let { file, tmpDir, queue } = this.ctx
-    let { data, callback } = queue.shift()
-    let tmpFile = path.join(tmpDir, UUID.v4())
+    this.job = this.ctx.queue.shift()
 
-    fs.writeFile(tmpFile, JSON.stringify(data, null, '  '), err => {
+    if (typeof this.job.data === 'function') {
+      try {
+        this.job.data = this.job.data(this.ctx.data)
+      } catch (e) {
+        this.next()
+        this.job.callback(err)
+        return
+      }
+    }
+
+    this.write(this.job.data, err => {
+      if (this.destroying) return this.setState(Destroyed, this.destroyCallback)
       if (err) {
         this.next()
-        callback(err)         
+        this.job.callback(err)
       } else {
-        fs.rename(tmpFile, file, err => {
-          this.next()
-          if (!err) this.ctx.data = data
-          callback(err)
-        })
+        this.ctx.data = this.job.data 
+        this.next()
+        this.job.callback(err)
       }
-    }) 
+    })
   }
 
+  // utility function
+  write (data, callback) {
+    let { file, tmpDir } = this.ctx
+    let tmpFile = path.join(tmpDir, UUID.v4())
+    fs.writeFile(tmpFile, JSON.stringify(data, null, '  '), err => err
+      ? callback(err)
+      : fs.rename(tmpFile, file, callback))
+  }
+
+  destroy (callback) {
+    if (this.destroying) {
+      this.destroyCallbacks.push(callback)
+    } else {
+      let err = new Error('store being destroyed')
+      this.job.callback(err)
+      this.ctx.queue.forEach(j => j.callback(err))
+      this.ctx.queue = []
+      this.destroying = true
+      this.destroyCallback = callback
+    }
+  }
+}
+
+/**
+Destroyed state
+*/
+class Destroyed extends State {
+
+  enter (callbacks) {
+    process.nextTick(() => callbacks.forEach(cb => cb && cb()))
+  }
+
+  save (data, callback) {
+    process.nextTick(() => callback(new Error('store is destroyed')))
+  }
+
+  destroy (callback) {
+    process.nextTick(() => callback())
+  }
 }
 
 /**
@@ -216,14 +295,12 @@ class DataStore extends EventEmitter {
   }
 
   save (data, callback) {
-    if (this.isArray && !Array.isArray(data)) {
-      process.nextTick(() => callback(new Error('not an array')))
-    } else if (!this.isArray && typeof data !== 'object') {
-      process.nextTick(() => callback(new Error('not an object')))
-    } else {
-      this.queue.push({ data, callback })
-      this.state.save()
-    }
+    this.state.save(data, callback)
+  }
+
+  // callback is optional
+  destroy (callback) {
+    this.state.destroy(callback)
   }
 } 
 

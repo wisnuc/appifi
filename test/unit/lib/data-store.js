@@ -20,7 +20,7 @@ describe(path.basename(__filename), () => {
     isArray: false
   })
 
-  it('should arrive @ Idle with null if file does not exist, object', done => {
+  it('should arrive @ Idle with null if file does not exist, object, 33a7b921', done => {
     let ds = new DataStore(opts)
     ds.once('Update', (data, oldData) => {
       expect(data).to.be.null

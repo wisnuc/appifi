@@ -12,6 +12,7 @@ const UUID = require('uuid')
 const debug = require('debug')('Boot')
 
 const DataStore = require('../lib/DataStore')
+const Fruitmix = require('../Fruitmix')
 const { probe, probeAsync, umountBlocks, umountBlocksAsync } = require('./storage')
 
 /**
@@ -94,7 +95,7 @@ class Probing extends State {
   enter () {
     probe(this.ctx.conf.storage, (err, storage) => {
       if (err) {
-        this.setState(ProbeFailed)
+        this.setState(ProbeFailed, err)
       } else {
         this.ctx.storage = storage
         if (this.continuable()) {
@@ -113,8 +114,10 @@ ProbeFailed
 */
 class ProbeFailed extends State {
 
-  enter () {
+  enter (err) {
+    this.err = err 
     this.timer = setTimeout(() => this.setState(Probing), 10000)
+    console.log('ProbeFailed', err)
   }
 
   exit () {
@@ -158,6 +161,16 @@ class Presetting extends State {
 
 class Starting extends State {
 
+  enter () {
+    let boundVolumeUUID = this.ctx.volumeStore.data.uuid 
+    let volume = this.ctx.storage.volumes.find(v => v.uuid === boundVolumeUUID)
+    let froot = path.join(volume.mountpoint, this.ctx.conf.storage.fruitmixDir)
+    let fruitmix = new Fruitmix(froot)
+    fruitmix.once('StateEntered', () => {
+      this.state
+    })
+  }
+
 }
 
 class Started extends State {
@@ -167,7 +180,6 @@ class Started extends State {
 class Unavailable extends State {
 
   init (target, mode, callback) {
-
     let storage = this.ctx.storage
     if (!storage) return process.nextTick(() => callback(new Error('storage not available')))
 
