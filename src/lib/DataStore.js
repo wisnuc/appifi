@@ -185,7 +185,7 @@ class Saving extends State {
     }
 
     this.write(this.job.data, err => {
-      if (this.destroying) return this.setState(Destroyed, this.destroyCallback)
+      if (this.destroying) return this.setState(Destroyed, this.destroyCallbacks)
       if (err) {
         this.next()
         this.job.callback(err)
@@ -215,7 +215,7 @@ class Saving extends State {
       this.ctx.queue.forEach(j => j.callback(err))
       this.ctx.queue = []
       this.destroying = true
-      this.destroyCallback = callback
+      this.destroyCallbacks = [callback]
     }
   }
 }
