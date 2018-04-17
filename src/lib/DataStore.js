@@ -11,16 +11,22 @@ const rimrafAsync = Promise.promisify(rimraf)
 const UUID = require('uuid')
 
 class State {
+
   constructor (ctx, ...args) {
     this.ctx = ctx
     this.ctx.state = this
     this.enter(...args)
-    this.ctx.emit('StateEntered', this.constructor.name)
+
+    // Emitting StateEntered in nextTick guarantees
+    // 1. the first event won't miss
+    // 2. for synchronous and continuous state transition, the order is in calling order rather than
+    // the order of unwinding stack.
+    process.nextTick(() => this.ctx.emit('StateEntered', this.constructor.name))
   }
 
   setState (NextState, ...args) {
     this.exit()
-    new NextState(this.ctx, ...args) 
+    new NextState(this.ctx, ...args)
   }
 
   enter () {}
@@ -42,7 +48,7 @@ class State {
         return process.nextTick(() => callback(new Error('not an array')))
       } else if (!this.ctx.isArray && typeof data !== 'object') {
         return process.nextTick(() => callback(new Error('not an object')))
-      } 
+      }
     }
 
     this.ctx.queue.push({ data, callback })
@@ -51,11 +57,11 @@ class State {
   destroy (callback) {
     this.setState(Destroyed, [callback])
   }
+
 }
 
-
 /**
-Failed state 
+Failed state
 */
 class Failed extends State {
 
@@ -70,8 +76,8 @@ class Failed extends State {
   save (data, callback) {
     process.nextTick(() => callback(new Error('store is failed')))
   }
-}
 
+}
 
 /**
 Load data from file
@@ -95,7 +101,7 @@ class Loading extends State {
               if (this.ctx.isArray) {
                 if (!Array.isArray(data)) throw new Error()
               } else {
-                if (typeof data !== object) throw new Error()
+                if (typeof data !== 'object') throw new Error()
               }
               this.ctx.data = data
             } catch (e) {
@@ -109,7 +115,7 @@ class Loading extends State {
   }
 
   async prepareDirsAsync () {
-    let { file, dir, tmpDir } = this.ctx
+    let { dir, tmpDir } = this.ctx
     await mkdirpAsync(dir)
     await rimrafAsync(tmpDir)
     await mkdirpAsync(tmpDir)
@@ -123,28 +129,29 @@ class Loading extends State {
 
   destroy (callback) {
     if (this.destroying) {
-      this.destroyCallbacks.push(callback) 
+      this.destroyCallbacks.push(callback)
     } else {
       this.destroying = true
       this.destroyCallbacks = [callback]
     }
   }
+
 }
 
 /**
 Idle state
 */
 class Idle extends State {
-  
+
   save (data, callback) {
     super.save(data, callback)
     this.setState(Saving)
   }
+
 }
 
 /**
 Save data to file, update data prop if succeeded
-
 
 This state proposes an interesting problem of sequence.
 
@@ -152,7 +159,6 @@ When a data is successfully updated:
 1. the ds object should enter next state;
 2. the save callback should be returned;
 3. the observer should be notified if any;
-
 
 Note that the saver and observer are blackbox user, there is no state protocol to them.
 The promises to them are:
@@ -170,16 +176,23 @@ So we adopt an aggressive policy as most node.js codes do.
 
 */
 class Saving extends State {
-  
+
   enter () {
     this.job = this.ctx.queue.shift()
 
     if (typeof this.job.data === 'function') {
       try {
         this.job.data = this.job.data(this.ctx.data)
+
+        // if the function returns the same data, this is a retrieve/save job
+        if (this.job.data === this.ctx.data) {
+          this.job.callback(null, this.ctx.data)
+          this.next()
+          return
+        }
       } catch (e) {
+        this.job.callback(e)
         this.next()
-        this.job.callback(err)
         return
       }
     }
@@ -187,12 +200,12 @@ class Saving extends State {
     this.write(this.job.data, err => {
       if (this.destroying) return this.setState(Destroyed, this.destroyCallbacks)
       if (err) {
-        this.next()
         this.job.callback(err)
+        this.next()
       } else {
-        this.ctx.data = this.job.data 
+        this.ctx.data = this.job.data
+        this.job.callback(null, this.ctx.data)
         this.next()
-        this.job.callback(err)
       }
     })
   }
@@ -218,6 +231,7 @@ class Saving extends State {
       this.destroyCallbacks = [callback]
     }
   }
+
 }
 
 /**
@@ -236,6 +250,7 @@ class Destroyed extends State {
   destroy (callback) {
     process.nextTick(() => callback())
   }
+
 }
 
 /**
@@ -255,12 +270,12 @@ class DataStore extends EventEmitter {
   /**
   Creates an data store
 
-  @param {object} opts 
+  @param {object} opts
   @param {string} opts.file - file to store the object
   @param {string} opts.tmpDir - directory to creat tmp file
   @param {boolean} opts.isArray - treat the object as an array
   */
-  constructor(opts) {
+  constructor (opts) {
     super()
 
     let { file, tmpDir, isArray } = opts
@@ -302,6 +317,7 @@ class DataStore extends EventEmitter {
   destroy (callback) {
     this.state.destroy(callback)
   }
-} 
+
+}
 
 module.exports = DataStore
