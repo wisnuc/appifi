@@ -1,16 +1,66 @@
 const fs = require('fs')
 const path = require('path')
+const EventEmitter = require('events')
 const { spawn, spawnSync } = require('child_process')
 const { expect } = require('chai')
+const sinon = require('sinon')
 const mkdirp = require('mkdirp')
 const rimraf = require('rimraf')
 const Manager = require('../../src/transmission/manager')
+const { Init, Working, Failed } = require('../../src/transmission/transStateMachine')
+const TransmissionMethod = require('../../src/lib/transmission')
 
 const testPath = path.join('/home/liu/Downloads/transmissionTest')
 const taskObj1 = { id: '1', dirUUID: '1', userUUID: '1'}
 const taskObj2 = { id: '2', dirUUID: '2', userUUID: '2', name: '2', finishTime: (new Date()).getTime()}
 const magnetUrl = 'magnet:?xt=urn:btih:61cf2a75570474bb3ac4894cdbc8f79917335009&dn=%e9%98%b3%e5%85%89%e7%94%b5%e5%bd%b1www.ygdy8.com.%e7%8e%8b%e7%89%8c%e7%89%b9%e5%b7%a52%ef%bc%9a%e9%bb%84%e9%87%91%e5%9c%88.BD.720p.%e5%9b%bd%e8%8b%b1%e5%8f%8c%e8%af%ad%e5%8f%8c%e5%ad%97.mkv&tr=udp%3a%2f%2ftracker.leechers-paradise.org%3a6969%2fannounce&tr=udp%3a%2f%2feddie4.nl%3a6969%2fannounce&tr=udp%3a%2f%2fshadowshq.eddie4.nl%3a6969%2fannounce&tr=udp%3a%2f%2ftracker.opentrackr.org%3a1337%2fannounce'
 
+describe('初始化状态测试', () => {
+  class FakeManager extends EventEmitter {
+    constructor() {
+      super()
+      this.downloaded = []
+      this.downloading = []
+    }
+  }
+
+  let instance = null
+
+  beforeEach(() => {
+    instance = new FakeManager()
+  })
+
+  
+  it('初始化成功', (done) => {
+    instance.on('stateChange', () => {
+      expect(instance.state.name).to.be.equal('working')
+      done()
+    })
+
+    new Init(instance)
+  })
+
+  it('transmission 进程获取错误', (done) => {
+    let stub = sinon.stub(TransmissionMethod, 'getEnableState').returns('test error result')
+    instance.on('stateChange', () => {
+      expect(instance.state.name).to.be.equal('failed')
+      stub.restore()
+      done()
+    })
+
+    new Init(instance)
+  })
+
+  it('transmission 实例错误', (done) => {
+    
+  })
+})
+
+
+
+
+
+return
 describe('初始化测试', () => {
   before(() => {
     mkdirp(testPath)
@@ -45,7 +95,7 @@ describe('初始化测试', () => {
       expect(manager.tempPath).to.be.equal(testPath)
     })
   })
-
+  
   describe('带有存储记录的初始化', () => {
     let manager
     let downloading = [taskObj1]
@@ -70,7 +120,7 @@ describe('初始化测试', () => {
     })
   })
 })
-
+return
 describe('任务测试', () => {
   let manager, id
   before(() => {

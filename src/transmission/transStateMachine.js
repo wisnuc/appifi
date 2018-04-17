@@ -3,6 +3,7 @@ const { spawn, spawnSync } = require('child_process')
 const Transmission = require('transmission')
 const bluebird = require('bluebird')
 const Task = require('./task')
+const lib = require('../lib/transmission')
 bluebird.promisifyAll(fs)
 
 
@@ -18,6 +19,7 @@ class State {
   setState(NextState, ...args) {
     this.exit()
     new NextState(this.ctx, ...args)
+    this.ctx.emit('stateChange')
   }
 
   enter() { }
@@ -38,19 +40,13 @@ class Init extends State {
       // 尝试启动服务
       spawnSync(command, ['enable', serviceName])
       spawnSync(command, ['start', serviceName])
-      throw new Error('test err')
       // 检查服务状态
-      let enableResult = spawnSync(command, ['is-enabled', serviceName]).stdout.toString()
-      let activeResult = spawnSync(command, ['is-active', serviceName]).stdout.toString()
-      if (enableResult.indexOf('enabled') === -1) return this.setState(Failed, this.ctx, enableResult.stderr.toString())
-      if (activeResult.indexOf('active') === -1) return this.setState(Failed, this.ctx, enableResult.stderr.toString())
+      let enableResult = lib.getEnableState()
+      let activeResult = lib.getActiveState()
+      if (enableResult.indexOf('enabled') === -1) return this.setState(Failed, this.ctx, enableResult.toString())
+      if (activeResult.indexOf('active') === -1) return this.setState(Failed, this.ctx, enableResult.toString())
       // 实例化Transmission
-      this.ctx.client = new Transmission({
-        host: 'localhost',
-        port: 9091,
-        username: 'transmission',
-        password: '123456'
-      })
+      this.ctx.client = lib.getTransmission('localhost', 9091, 'transmission', '123456')
       bluebird.promisifyAll(this.ctx.client)
       // 设置transmission属性
       await this.ctx.client.sessionAsync({
@@ -75,7 +71,7 @@ class Init extends State {
       })
 
       this.setState(Working, this.ctx, Working)
-    } catch (error) { this.setState(Failed, error, 1, 2, 3) }
+    } catch (error) { this.setState(Failed, error) }
   }
 }
 
@@ -86,7 +82,7 @@ class Working extends State {
   }
 
   enter() {
-    console.log('enter work state')
+    
   }
 }
 

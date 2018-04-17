@@ -1,5 +1,6 @@
 const path = require('path')
 const fs = require('fs')
+const EventEmitter = require('events')
 const bluebird = require('bluebird')
 const UUID = require('uuid')
 const { Init, Working, Failed } = require('./transStateMachine')
@@ -8,8 +9,9 @@ const Task = require('./task')
 
 bluebird.promisifyAll(fs)
 
-class Manager {
+class Manager extends EventEmitter{
   constructor(tempPath) {
+    super()
     this.tempPath = tempPath // 下载缓存目录
     this.storagePath = path.join(this.tempPath, 'storage.json') // 下载信息存储
     this.client = null // 所有下载任务同用一个下载实例
