@@ -38,7 +38,8 @@ class Fruitmix2 extends EventEmitter {
     this.tmpDir = path.join(this.fruitmixDir, 'tmp')
     rimraf.sync(this.tmpDir)
     mkdirp.sync(this.tmpDir)
- 
+
+    // setup user module
     this.user = new User({
       file: path.join(this.fruitmixDir, 'users.json'),
       tmpDir: path.join(this.fruitmixDir, 'tmp', 'users'),

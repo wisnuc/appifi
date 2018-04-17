@@ -409,7 +409,6 @@ class VFS extends Forest {
   // the following code are experimental
   //                                                                          //
   //////////////////////////////////////////////////////////////////////////////
-
   genTmpPath () {
     return path.join(this.tmpDir, UUID.v4())
   }

@@ -3,6 +3,9 @@ const router = require('express').Router()
 const auth = require('../middleware/auth')
 const UUID = require('uuid')
 
+/**
+@module UserRouter
+*/
 module.exports = (auth, fruit) => {
 
   const EFruitless = new Error('fruitmix service unavailable')
