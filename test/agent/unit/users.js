@@ -198,8 +198,143 @@ describe(path.basename(__filename), () => {
       })
     })
 
-    it('POST /users should fail', done => {
-      done(new Error('TBD'))
+    it('alice POST /users should success', done => {
+      let app = createApp()
+      fruitmix.once('FruitmixStarted', () => {
+        requestToken(app, alice.uuid, 'alice', (err, token) => {
+          if (err) return done(err)
+          request(app)
+            .post('/users')
+            .set('Authorization', 'JWT ' + token)
+            .send({
+              username: 'Jack',
+              phicommUserId: 'Jack'
+            })
+            .expect(200)
+            .end((err, res) => {
+              if (err) return done(err)
+              expect(res.body.username).to.equal('Jack')
+              expect(res.body.phicommUserId).to.equal('Jack')
+              expect(fruitmix.users.length).to.equal(3)
+              expect(fruitmix.users[2].username).to.equal('Jack')
+              done()
+            })
+        })
+      })
+    })
+
+    it('bob POST /users should fail', done => {
+      let app = createApp()
+      fruitmix.once('FruitmixStarted', () => {
+        requestToken(app, bob.uuid, 'bob', (err, token) => {
+          if (err) return done(err)
+          request(app)
+            .post('/users')
+            .set('Authorization', 'JWT ' + token)
+            .send({
+              username: 'Jack',
+              phicommUserId: 'Jack'
+            })
+            .expect(401)
+            .end(done)
+        })
+      })
+    })
+
+    it('bob update himself username should success', done => {
+      let app = createApp()
+      fruitmix.once('FruitmixStarted', () => {
+        requestToken(app, bob.uuid, 'bob', (err, token) => {
+          if (err) return done(err)
+          request(app)
+            .patch(`/users/${bob.uuid}`)
+            .set('Authorization', 'JWT ' + token)
+            .send({
+              username: 'Jack'
+            })
+            .expect(200)
+            .end((err, res) => {
+              expect(res.body.username).to.equal('Jack')
+              expect(fruitmix.users.find(x => x.uuid === bob.uuid).username).to.equal('Jack')
+              done()
+            })
+        })
+      })
+    })
+
+    it('bob update alice`s username should fail', done => {
+      let app = createApp()
+      fruitmix.once('FruitmixStarted', () => {
+        requestToken(app, bob.uuid, 'bob', (err, token) => {
+          if (err) return done(err)
+          request(app)
+            .patch(`/users/${alice.uuid}`)
+            .set('Authorization', 'JWT ' + token)
+            .send({
+              username: 'Jack'
+            })
+            .expect(403)
+            .end(done)
+        })
+      })
+    })
+
+
+
+    it('bob update himself password should success', done => {
+      let app = createApp()
+      fruitmix.once('FruitmixStarted', () => {
+        request(app)
+          .put(`/users/${bob.uuid}/password`)
+          .auth(bob.uuid, 'bob')
+          .send({
+            password: alice.password,
+            encrypted: true
+          })
+          .expect(200)
+          .end((err, res) => {
+            if(err) return done(err)
+            expect(res.body.username).to.equal('bob')
+            expect(fruitmix.users.find(x => x.uuid === bob.uuid).password).to.equal(alice.password)
+            done()
+          })
+      })
+    })
+
+    it('bob update alice`s password should fail', done => {
+      let app = createApp()
+      fruitmix.once('FruitmixStarted', () => {
+        request(app)
+          .put(`/users/${alice.uuid}/password`)
+          .auth(bob.uuid, 'bob')
+          .send({
+            password: bob.password,
+            encrypted: true
+          })
+          .expect(403)
+          .end(done)
+      })
+    })
+
+    it('alice update bob`s username should success', done => {
+      let app = createApp()
+      fruitmix.once('FruitmixStarted', () => {
+        requestToken(app, alice.uuid, 'alice', (err, token) => {
+          if (err) return done(err)
+          request(app)
+            .patch(`/users/${bob.uuid}`)
+            .set('Authorization', 'JWT ' + token)
+            .send({
+              username: 'Jack'
+            })
+            .expect(200)
+            .end((err, res) => {
+              expect(res.body.username).to.equal('Jack')
+              expect(fruitmix.users.find(x => x.uuid === bob.uuid).username).to.equal('Jack')
+              done()
+            })
+        })
+      })
     })
 
     it('anonymous GET /users/:alice.uuid should 401', done => {

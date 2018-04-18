@@ -192,7 +192,7 @@ class Saving extends State {
       } else {
         this.ctx.data = this.job.data 
         this.next()
-        this.job.callback(err)
+        this.job.callback(null, this.job.data)
       }
     })
   }
