@@ -2,6 +2,7 @@ const Promise = require('bluebird')
 const path = require('path')
 const fs = Promise.promisifyAll(require('fs'))
 const EventEmitter = require('events')
+const UUID = require('uuid')
 
 const bcrypt = require('bcrypt')
 const deepFreeze = require('deep-freeze')
@@ -52,17 +53,46 @@ class User extends EventEmitter {
   }
 
   createUser (props, callback) {
+    try {
+      if (!isNonNullObject(props)) throw new Error('props must be non-null object')
+      if (!isNonEmptyString(props.username)) throw new Error('username must be non-empty string')
+      if (!isNonEmptyString(props.phicommUserId)) throw new Error('phicommUserId must be non-empty string')
+    } catch(e) {
+      return process.nextTick(callback, e)
+    }
+    let uuid = UUID.v4()
     this.store.save(users => {
-    }, callback)
+      let isFirstUser = users.length === 0 ? true : false
+      let newUser = {
+        uuid,
+        username: props.username,
+        isFirstUser,
+        phicommUserId: props.phicommUserId,
+        password: props.password,
+        smbPassword : props.smbPassword
+      }
+      users.push(newUser)
+      return users
+    }, (err, data) => {
+      if(err) return callback(err)
+      return callback(null, data.find(x => x.uuid === uuid))
+    })
   }
 
   updateUser (userUUID, props, callback) {
+    let { username, disabled } = props
+    
     this.store.save(users => {
       let index = users.findIndex(u => u.uuid === userUUID)
       if (index === -1) throw new Error('user not found')
-      let nextUser = Object.assign({}, users[index], props)
+      let nextUser = Object.assign({}, users[index])
+      if (username) nextUser.username = username
+      if (typeof disabled === 'boolean') nextUser.disabled = username
       return [...users.slice(0, index), nextUser, ...users.slice(index + 1)]
-    }, callback)
+    }, (err, data) => {
+      if(err) return callback(err)
+      return callback(null, data.find(x => x.uuid === userUUID))
+    })
   }
 
   deleteUser (userUUID, callback) {
@@ -86,7 +116,7 @@ class User extends EventEmitter {
       if (!isNonNullObject(props)) throw new Error('props is not a non-null object')
       if (props.password !== undefined && !isNonEmptyString(props.password)) 
         throw new Error('password must be a non-empty string if provided') 
-      if (props.smbPassworld !== undefined && !isNonEmptyString(props.smbPassword))
+      if (props.smbPassword !== undefined && !isNonEmptyString(props.smbPassword))
         throw new Error('smbPassword must be a non-empty string if provided')
       if (!props.password && !props.smbPassword) throw new Error('both password and smbPassword undefined')
       if (props.encrypted !== undefined && typeof props.encrypted !== 'boolean')
@@ -95,12 +125,11 @@ class User extends EventEmitter {
       // TODO props validation should be in router, I guess
 
     } catch (e) {
-      return process.nextTick(callback(e))
+      return process.nextTick(() => callback(e))
     }
     // props.encrypted = !!props.encrypted
 
     let { password, smbPassword, encrypted } = props
-
     this.store.save(users => {
       let index = users.findIndex(u => u.uuid === userUUID) 
       if (index === -1) throw new Error('user not found')  
@@ -108,7 +137,10 @@ class User extends EventEmitter {
       if (password) nextUser.password = encrypted ? password : passwordEncrypt(password, 10)
       if (smbPassword) nextUser.smbPassword = encrypted ? smbPassword : md4Encrypt(smbPassword)
       return [...users.slice(0, index), nextUser, ...users.slice(index + 1)]
-    }, callback)
+    }, (err, data) => {
+      if(err) return callback(err)
+      return callback(null, data.find(x => x.uuid === userUUID))
+    })
   }
 
   destory (callback) {
