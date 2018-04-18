@@ -32,8 +32,8 @@ class Pending extends State {
   }
 
   // 主动进入working状态
-  get(id, callback) {
-    this.setState(Working, [{ id, callback }], 222)
+  get(task, callback) {
+    this.setState(Working, [{ task, callback }], 222)
   }
 }
 
@@ -43,21 +43,35 @@ class Working extends State {
     this.queue = queue
     this.next = []
     this.ctx.container.client.get((err,arg) => {
-      if (err) this.queue.forEach(({ id, callback }) => callback(err) )
+      if (err) this.queue.forEach(({ task, callback }) => callback(err) )
       else {
         // 同步transmission 列表
         this.ctx.emit('update', arg)
-        this.queue.forEach(({ id, callback }) => callback())
+        this.queue.forEach(({ task, callback }) => {
+          let taskObject = arg.torrents.find(item => item.id == task.id)
+          if (!taskObject) return callback(new Error('can not found task after operation'))
+          if (!task.limit) callback(null, task)
+          else {
+            // console.log('task should observe status')
+            // console.log(`task id is ${task.id} status should be ${task.status}  status is ${taskObject.status} limit is ${task.limit} times is ${task.times}`)
+            if (taskObject.status == task.status) callback(null, task)
+            else {
+              task.times++
+              if (task.times == task.limit) return callback(new Error('task status error after limit querys'))
+              this.next.push({ task, callback })
+            }
+          }
+        })
       }
 
       if (this.next.length) {
-        this.setState(Working, this.next)
+        setTimeout(() => { this.setState(Working, this.next) }, 150)
       } else this.setState(Pending)
     })
   }
 
-  get(id, callback) {
-    this.next.push({ id, callback })
+  get(task, callback) {
+    this.next.push({ task, callback })
   }
 }
 

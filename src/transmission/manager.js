@@ -68,7 +68,7 @@ class Manager extends EventEmitter{
       // 创建本地任务
       else {
         await this.taskFactory(result.id, dirUUID, userUUID)
-        this.observer.get(result.id, callback)
+        this.observer.get(result, callback)
       }
     } catch (e) { callback(e) }
   }
@@ -101,15 +101,22 @@ class Manager extends EventEmitter{
     let indexOfDownloaded = this.downloaded.findIndex(indexCallback)
     let notFoundErr = new Error('can not found task')
     if (indexOfDownloaded == -1 && indexOfDownloading == -1) return callback(notFoundErr)
-    console.log(indexOfDownloading, indexOfDownloaded) 
+    // console.log(indexOfDownloading, indexOfDownloaded) 
     switch (op) {
       // 暂停任务
       case 'pause':
-        this.client.stop(id, callback)
+        this.client.stop(id, err => {
+          if (err) callback(err)
+          else this.observer.get({id, limit:5000, status: 0, times:0}, callback)
+          
+        })
         break
       // 开始任务
       case 'resume':
-        this.client.start(id, callback)
+        this.client.start(id, err => {
+          if (err) callback(err)
+          else this.observer.get({id, limit:5000, status: 4, times:0}, callback)
+        })
         break
       // 删除任务
       case 'destroy':

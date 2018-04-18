@@ -27,6 +27,10 @@ Test if given variable is a valid uuid string (lowercase only).
 */
 const isUUID = uuid => typeof uuid === 'string' && /[a-f0-9\-]/.test(uuid) && validator.isUUID(uuid)
 
+const assertUUID = (uuid, name) => {
+  if (!isUUID(uuid)) throw new Error(`${name} is not a valid uuid string`)
+}
+
 /**
 Test if given variable is a valid sha256 string by regex (lowercase only).
 
