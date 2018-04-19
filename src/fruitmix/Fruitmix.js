@@ -15,6 +15,7 @@ const User = require('./User')
 const MediaMap = require('../media/persistent')
 const Thumbnail = require('../lib/thumbnail2')
 const VFS = require('../vfs/vfs')
+const Tag = require('../tags/Tag')
 
 /**
 Fruitmix is the facade of all fruitmix modules.
@@ -51,6 +52,12 @@ class Fruitmix2 extends EventEmitter {
       get () {
         return this.user.users || [] // TODO can this be undefined?
       }
+    })
+
+    this.tag = new Tag({
+      file: path.join(this.fruitmixDir, 'tags.json'),
+      tmpDir: path.join(this.fruitmixDir, 'tmp', 'tags'),
+      isArray: false
     })
 
     let metaPath = path.join(this.fruitmixDir, 'metadataDB.json')

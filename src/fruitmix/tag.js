@@ -19,40 +19,40 @@ const path = require('path')
 module.exports = {
   //get all tags  
   getTags(user) {
-    return this.tags.tags
+    return this.tag.tags
   },
 
   hasSameNameTag(tagName) {
-    let tag =  this.tags.tags.find(t => t.name === tagName)
+    let tag =  this.tag.tags.find(t => t.name === tagName)
     if(tag) return true
     return false
   },
 
-  async createTagAsync(user, props) {
+  createTag(user, props, callback) {
     if(!user || !user.uuid) throw Object.assign(new Error('user not found'))
     let { name, color, group } = props
     if(!name || typeof name !== 'string' || !name.length) throw Object.assign(new Error('name is required'), { status: 400})
     if(this.hasSameNameTag(name)) throw Object.assign(new Error('tag name has already be used'), { status: 400 })
     let creator = user.uuid
-    return await this.tags.createTagAsync({ name, color, group, creator })
+    this.tag.createTag({ name, color, group, creator }, callback)
   },
 
-  async updateTagAsync(user, tagId, props) {
+  updateTag(user, tagId, props, callback) {
     if(!user || !user.uuid) throw Object.assign(new Error('user not found'))
     let { name, color, group } = props
     if(this.hasSameNameTag(name)) throw Object.assign(new Error('tag name has already be used'), { status: 400 })
-    return await this.tags.updateTagAsync(tagId, { name, color, group })
+    this.tag.updateTag(tagId, { name, color, group }, callback)
   },
 
-  async deleteTagAsync(user, tagId) {
+  deleteTag(user, tagId, callback) {
     if(!user || !user.uuid) throw Object.assign(new Error('user not found'), { status:400 })
     let tag = this.getTag(user, tagId)
     if(!tag) throw Object.assign(new Error('tag not found'), { status: 400})
-    return await this.tags.deleteTagAsync(tagId)
+    this.tag.deleteTag(tagId, callback)
   },
 
   getTag(user, tagId) {
-    return this.tags.findTag(tagId)
+    return this.tag.findTag(tagId)
   },
 
   fileAddTags(user, driveUUID, dirUUID, filename, tags, cb) {
