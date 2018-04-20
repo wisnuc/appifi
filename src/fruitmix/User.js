@@ -146,6 +146,28 @@ class User extends EventEmitter {
   destory (callback) {
     this.store.destroy(callback)
   }
+
+  /**
+  Implement LIST method
+  */
+  LIST (user, props, callback) {
+    if (!user) {
+      return 
+    } else if (user.isFirstUse) {
+      // returns full info
+    }
+  }
+
+  /**
+  Implement POST method
+  */
+
+  /**
+  Implement GET method
+  */
+  GET(user, props, callback) {
+  }
+ 
 }
 
 module.exports = User
