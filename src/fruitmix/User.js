@@ -27,7 +27,7 @@ class User extends EventEmitter {
   @param {string} opts.file - path of users.json
   @param {string} opts.tmpDir - path of tmpDir (should be suffixed by `users`)
   @param {boolean} opts.isArray - should be true since users.json is an array
-  */  
+  */
   constructor(opts) {
     super()
     this.conf = opts.configuration
@@ -37,7 +37,7 @@ class User extends EventEmitter {
       file: opts.file,
       tmpDir: opts.tmpDir,
       isArray: true
-    }) 
+    })
 
     this.store.on('Update', (...args) => this.emit('Update', ...args))
 
@@ -57,7 +57,7 @@ class User extends EventEmitter {
       if (!isNonNullObject(props)) throw new Error('props must be non-null object')
       if (!isNonEmptyString(props.username)) throw new Error('username must be non-empty string')
       if (!isNonEmptyString(props.phicommUserId)) throw new Error('phicommUserId must be non-empty string')
-    } catch(e) {
+    } catch (e) {
       return process.nextTick(callback, e)
     }
     let uuid = UUID.v4()
@@ -69,19 +69,19 @@ class User extends EventEmitter {
         isFirstUser,
         phicommUserId: props.phicommUserId,
         password: props.password,
-        smbPassword : props.smbPassword
+        smbPassword: props.smbPassword
       }
       users.push(newUser)
       return users
     }, (err, data) => {
-      if(err) return callback(err)
+      if (err) return callback(err)
       return callback(null, data.find(x => x.uuid === uuid))
     })
   }
 
   updateUser (userUUID, props, callback) {
     let { username, disabled } = props
-    
+
     this.store.save(users => {
       let index = users.findIndex(u => u.uuid === userUUID)
       if (index === -1) throw new Error('user not found')
@@ -90,7 +90,7 @@ class User extends EventEmitter {
       if (typeof disabled === 'boolean') nextUser.disabled = username
       return [...users.slice(0, index), nextUser, ...users.slice(index + 1)]
     }, (err, data) => {
-      if(err) return callback(err)
+      if (err) return callback(err)
       return callback(null, data.find(x => x.uuid === userUUID))
     })
   }
@@ -114,8 +114,8 @@ class User extends EventEmitter {
     try {
       if (!isUUID(userUUID)) throw new Error(`userUUID ${userUUID} is not a valid uuid`)
       if (!isNonNullObject(props)) throw new Error('props is not a non-null object')
-      if (props.password !== undefined && !isNonEmptyString(props.password)) 
-        throw new Error('password must be a non-empty string if provided') 
+      if (props.password !== undefined && !isNonEmptyString(props.password))
+        throw new Error('password must be a non-empty string if provided')
       if (props.smbPassword !== undefined && !isNonEmptyString(props.smbPassword))
         throw new Error('smbPassword must be a non-empty string if provided')
       if (!props.password && !props.smbPassword) throw new Error('both password and smbPassword undefined')
@@ -131,14 +131,14 @@ class User extends EventEmitter {
 
     let { password, smbPassword, encrypted } = props
     this.store.save(users => {
-      let index = users.findIndex(u => u.uuid === userUUID) 
-      if (index === -1) throw new Error('user not found')  
+      let index = users.findIndex(u => u.uuid === userUUID)
+      if (index === -1) throw new Error('user not found')
       let nextUser = Object.assign({}, users[index])
       if (password) nextUser.password = encrypted ? password : passwordEncrypt(password, 10)
       if (smbPassword) nextUser.smbPassword = encrypted ? smbPassword : md4Encrypt(smbPassword)
       return [...users.slice(0, index), nextUser, ...users.slice(index + 1)]
     }, (err, data) => {
-      if(err) return callback(err)
+      if (err) return callback(err)
       return callback(null, data.find(x => x.uuid === userUUID))
     })
   }
@@ -148,26 +148,79 @@ class User extends EventEmitter {
   }
 
   /**
+  
+  */
+  getUsers() {
+    return this.users.map(u => ({
+      uuid: u.uuid,
+      username: u.username,
+      isFirstUser: u.isFirstUser,
+      phicommUserId: u.phicommUserId,
+      password: !!u.password,
+      smbPassword: !!u.smbPassword
+    }))
+  }
+
+  /**
+  This function returns a list of users with minimal attributes.
+  */
+  displayUsers() {
+    return this.users.map(u => ({
+      uuid: u.uuid,
+      username: u.username,
+      isFirstUser: u.isFirstUser,
+      phicommUserId: u.phicommUserId
+    }))
+  }
+
+  /**
   Implement LIST method
   */
   LIST (user, props, callback) {
     if (!user) {
-      return 
-    } else if (user.isFirstUse) {
+      return process.nextTick(() => callback(null, this.displayUsers()))
+    } else if (user.isFirstUser) {
       // returns full info
-    }
+      return process.nextTick(() => callback(null, this.getUsers()))
+    } 
+    // TODO: only return himself?
+    return process.nextTick(() => callback(null, this.displayUsers())) 
   }
 
   /**
   Implement POST method
+  create new user
   */
+  POST (user, props, callback) {
+    if (this.users.length && (!user || !user.isFirstUser))
+      return process.nextTick(() => callback(Object.assign(new Error('Permission Denied'), { status: 403 })))
+    this.createUser(props, callback)
+  }
 
   /**
   Implement GET method
   */
-  GET(user, props, callback) {
+  GET (user, props, callback) {
+    let u = this.getUser(props.uuid)
+    if (!u) 
+      return process.nextTick(() => callback(Object.assign(new Error('user not found'), { status: 404 })))
+    if (user.isFirstUser || user.uuid === u.uuid)
+      return process.nextTick(() => callback(null, user))
+    return process.nextTick(Object.assign(new Error('Permission Denied'), { status: 403 }))
   }
- 
+
+  PATCH (user, props, callback) {
+    if(props.password) {
+      if (user.uuid !== props.uuid) return process.nextTick(() => callback(Object.assign(new Error('Permission Denied'), { status: 403 })))
+      this.updatePassword(props.uuid, props, callback)
+    } else {
+      if (!user.isFirstUser && user.uuid !== props.userUUID)
+        return process.nextTick(() => callback(Object.assign(new Error('Permission Denied'), { status: 403 })))
+      //TODO: check permission for disabled
+      this.updateUser(props.userUUID, props, callback)
+    }
+  }
+  
 }
 
 module.exports = User

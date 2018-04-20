@@ -106,6 +106,10 @@ class Fruitmix2 extends EventEmitter {
     this.user.on('Update', () => {
       this.emit('FruitmixStarted')
     })
+
+    this.apis = {
+      user: this.user
+    }
   }
 
   init (opts) {
