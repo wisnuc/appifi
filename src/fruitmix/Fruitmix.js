@@ -17,7 +17,44 @@ const Thumbnail = require('../lib/thumbnail2')
 const VFS = require('../vfs/vfs')
 
 /**
-Fruitmix is the facade of all fruitmix modules.
+Fruitmix has the following structure:
+
+```
+{
+  user,
+  drive,
+  tag,
+
+  xstat,
+  mediaMap,
+  forest,
+  vfs, 
+
+  xcopy,
+  search, 
+
+  transmission,
+  samba,
+  dlna,
+
+  apis: {
+    user,
+    drive,
+    ...
+  }
+}
+```
+
+1. we define a set of standard api methods.
+2. developer can write a separate api module, or just implements those apis on the resource model module.
+
+For example: user module provides apis. so fruitmix.user and fruitmix.apis.user are the same instance.
+
+but for directories and files api, it is obviously that the separate api module should be created. Both depends on VFS module.
+
+
+
+
 
 Fruitmix has no knowledge of chassis, storage, etc.
 */
@@ -64,6 +101,10 @@ class Fruitmix2 extends EventEmitter {
     })
   }
 
+  init (opts) {
+    this.emit('initialized')
+  }
+
 
   /**
   
@@ -89,9 +130,8 @@ class Fruitmix2 extends EventEmitter {
       isFirstUser: u.isFirstUser,
       phicommUserId: u.phicommUserId 
     }))
-  }
+  }   
 
-   
 }
 
 module.exports = Fruitmix2
