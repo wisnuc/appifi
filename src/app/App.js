@@ -1,15 +1,16 @@
-const Boot = require('./system/Boot')
+const EventEmitter = require('events')
 
-const Auth = require('./middleware/Auth')
-const createTokenRouter = require('./routes/Token')
-const createUserRouter = require('./routes/users')
-const createTimeDateRouter = require('./routes/TimeDate')
-const createExpress = require('./system/express')
+const Boot = require('../system/Boot')
+const Auth = require('../middleware/Auth')
+const createTokenRouter = require('../routes/Token')
+const createUserRouter = require('../routes/users')
+const createTimeDateRouter = require('../routes/TimeDate')
+const createExpress = require('../system/express')
 
 /**
 Create An Application
 
-An application is something like:
+An application is the top level container.
 
 ```js
 App {
@@ -41,26 +42,31 @@ class App extends EventEmitter {
   /**
   Creates an App instance
 
+  If fruitmix is provided, the App works in fruitmix only mode.
+  Otherwise, the App will create boot and the later is responsible for constructing the fruitmix instance. In this case, `fruitmixOpts` must be provided.  
+
   @param {object} opts
   @param {string} opts.secret - secret for auth middleware to encode/decode token
-  @param {boolean} opts.useBoot - if true, create boot and boot is responsible for creating fruitmix.
-  @param {object} fruitmixOpts - if useBoot is false, this opts is used to create fruitmix immediately
+  @param {Fruitmix} opts.fruitmix - injected fruitmix instance, the App works in fruitmix-only mode
+  @param {object} opts.fruitmixOpts - if provided, it is passed to boot for constructing fruitmix
   @param {boolean} opts.useServer - if true, server will be created.
   */
   constructor (opts) {
     super()
 
-    // create boot or fruitmix
-    if (opts.useBoot) {
-      this.boot = new Boot(' happened, lord') // TODO
-      this.fruitmix = null 
+    // create express
+    this.secret = opts.secret || 'Lord, we need a secret'
+
+    if (opts.fruitmix) {
+      this.fruitmix = opts.fruitmix
+    } else if (opts.fruitmixOpts) {
+      this.boot = new Boot('something')
     } else {
-      this.fruitmix = new Fruitmix(opts.fruitmixOpts)
+      throw new Error('either fruitmix or fruitmixOpts must be provided')
     }
 
-    // create express
-    this.secret = opts.secret || 'Lord, I need something secret'
-    this.express = this.createExpress()
+    // create express instance
+    this.createExpress()
 
     // create server if required
     if (opts.useServer) {
@@ -86,15 +92,25 @@ class App extends EventEmitter {
   }
 
   createExpress () {
-    this.auth = new Auth(this.secret)
+    this.auth = new Auth(this.secret, () => 
+      this.fruitmix ? this.fruitmix.user.users : [])
+
     let routers = []
+
+    routers.push(['/token', createTokenRouter(this.auth)]) 
+
     if (this.fruitmix) {
       // if fruitmix is created, use fruitmix apis to decide which router should be created
+
       let apis = Object.keys(this.fruitmix.apis)
       if (apis.includes('user')) 
-        routers.push(['/users', createUserRouter(auth, this.stub('user'))])
+        routers.push(['/users', createUserRouter(this.auth, this.stub('user'))])
       if (apis.includes('drive')) 
-        routers.push(['/drives', createDriveRouter(auth, this.stub('drive'))])
+        routers.push(['/drives', createDriveRouter(this.auth, this.stub('drive'))])
+      if (apis.includes('dir'))
+        routers.push(['/dirs', createDirRouter(this.auth, this.stub('dir'))])
+      if (apis.includes('file'))
+        routers.push(['/files', createFileRouter(this.auth, this.stub('file'))])
 
     } else {
       // TODO create all routers

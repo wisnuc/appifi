@@ -16,10 +16,12 @@ const Auth = require('src/middleware/Auth')
 const createTokenRouter = require('src/routes/Token')
 const createUserRouter = require('src/routes/users')
 const createExpress = require('src/system/express')
+const App = require('src/app/App')
 
 const cwd = process.cwd()
 const tmptest = path.join(cwd, 'tmptest')
 const fruitmixDir = path.join(tmptest, 'fruitmix')
+
 
 // node src/utils/md4Encrypt.js alice
 
@@ -56,6 +58,7 @@ const charlie = {
 
 describe(path.basename(__filename), () => {
   let fruitmix
+  let app
 
   const createApp = () => {
     fruitmix = new Fruitmix({ fruitmixDir })
@@ -74,6 +77,11 @@ describe(path.basename(__filename), () => {
     }
 
     return createExpress(opts)
+  }
+
+  const createApp2 = () => {
+    let fruitmix = new Fruitmix({ fruitmixDir }) 
+    app = new App({ fruitmix })
   }
 
   const requestToken = (app, userUUID, password, callback) => {
@@ -95,16 +103,20 @@ describe(path.basename(__filename), () => {
       await fs.writeFileAsync(usersFile, JSON.stringify([alice, bob], null, '  '))
     })
 
-    it('should retrieve toke (no assert)', done => {
-      let app = createApp()
+    it('should retrieve token (no assert), 95971542', done => {
+      let secret = 'secret'
+      let fruitmix = new Fruitmix({ fruitmixDir })
+      let app = new App({ secret, fruitmix }) 
       fruitmix.once('FruitmixStarted', () =>
-        request(app)
+        request(app.express)
           .get('/token')
           .auth(alice.uuid, 'alice')
           .expect(200)
           .end((err, res) => {
             if (err) return done(err)
-            // console.log(res.body)
+            expect(res.body).to.deep.equal({ 
+              type: 'JWT',
+              token: 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1dWlkIjoiY2IzM2I1YjMtZGQ1OC00NzBmLThjY2MtOTJhYTA0ZDc1NTkwIn0.0lp4tfIyz4kn1QDJqmZ4pYp0Y5oh-W9ta26yS34qVok' })
             done()
           }))
     })
@@ -118,10 +130,11 @@ describe(path.basename(__filename), () => {
       await fs.writeFileAsync(usersFile, JSON.stringify([alice, bob], null, '  '))
     })
 
-    it('anonymous user GET /users should return [alice, bob] basic info', done => {
-      let app = createApp()
+    it('anonymous user GET /users should return [alice, bob] basic info, aa6f1f06', done => {
+      let fruitmix = new Fruitmix({ fruitmixDir })
+      let app = new App({ fruitmix })
       fruitmix.once('FruitmixStarted', () => {
-        request(app)
+        request(app.express)
           .get('/users')
           .expect(200)
           .end((err, res) => {
@@ -141,12 +154,13 @@ describe(path.basename(__filename), () => {
       })
     })
 
-    it('alice GET /users should return [alice, bob] full info', done => {
-      let app = createApp()
+    it('alice GET /users should return [alice, bob] full info, 7ce85fa9', done => {
+      let fruitmix = new Fruitmix({ fruitmixDir })
+      let app = new App({ fruitmix })
       fruitmix.once('FruitmixStarted', () => {
-        requestToken(app, alice.uuid, 'alice', (err, token) => {
+        requestToken(app.express, alice.uuid, 'alice', (err, token) => {
           if (err) return done(err)
-          request(app)
+          request(app.express)
             .get('/users')
             .set('Authorization', 'JWT ' + token)
             .expect(200)
@@ -171,26 +185,27 @@ describe(path.basename(__filename), () => {
       })
     })
 
-    it('bob GET /users should return [alice, bob] basic info', done => {
-      let app = createApp()
+    it('bob GET /users should return [bob] full info, 911b416e', done => {
+      let fruitmix = new Fruitmix({ fruitmixDir })
+      let app = new App({ fruitmix })
       fruitmix.once('FruitmixStarted', () => {
-        requestToken(app, bob.uuid, 'bob', (err, token) => {
+        requestToken(app.express, bob.uuid, 'bob', (err, token) => {
           if (err) return done(err)
-          request(app)
+          request(app.express)
             .get('/users')
             .set('Authorization', 'JWT ' + token)
             .expect(200)
             .end((err, res) => {
               if (err) return done(err)
               expect(res.body).to.deep.equal([
-                { uuid: 'cb33b5b3-dd58-470f-8ccc-92aa04d75590',
-                  username: 'alice',
-                  isFirstUser: true,
-                  phicommUserId: 'alice' },
-                { uuid: '844921ed-bdfd-4bb2-891e-78e358b54869',
+                { 
+                  uuid: '844921ed-bdfd-4bb2-891e-78e358b54869',
                   username: 'bob',
                   isFirstUser: false,
-                  phicommUserId: 'bob' }
+                  phicommUserId: 'bob',
+                  password: true,
+                  smbPassword: true 
+                } 
               ])
               done()
             })
@@ -198,12 +213,13 @@ describe(path.basename(__filename), () => {
       })
     })
 
-    it('alice POST /users should success', done => {
-      let app = createApp()
+    it('alice POST /users should create charlie, fd7e7872', done => {
+      let fruitmix = new Fruitmix({ fruitmixDir })
+      let app = new App({ fruitmix })
       fruitmix.once('FruitmixStarted', () => {
-        requestToken(app, alice.uuid, 'alice', (err, token) => {
+        requestToken(app.express, alice.uuid, 'alice', (err, token) => {
           if (err) return done(err)
-          request(app)
+          request(app.express)
             .post('/users')
             .set('Authorization', 'JWT ' + token)
             .send({
@@ -217,13 +233,16 @@ describe(path.basename(__filename), () => {
               expect(res.body.phicommUserId).to.equal('Jack')
               expect(fruitmix.users.length).to.equal(3)
               expect(fruitmix.users[2].username).to.equal('Jack')
+
+              console.log(res.body)
+
               done()
             })
         })
       })
     })
 
-    it('bob POST /users should fail', done => {
+    it('bob POST /users should fail, 5ebc3100', done => {
       let app = createApp()
       fruitmix.once('FruitmixStarted', () => {
         requestToken(app, bob.uuid, 'bob', (err, token) => {

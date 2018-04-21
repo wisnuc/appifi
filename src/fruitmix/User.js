@@ -60,6 +60,7 @@ class User extends EventEmitter {
     } catch (e) {
       return process.nextTick(callback, e)
     }
+
     let uuid = UUID.v4()
     this.store.save(users => {
       let isFirstUser = users.length === 0 ? true : false
@@ -71,8 +72,7 @@ class User extends EventEmitter {
         password: props.password,
         smbPassword: props.smbPassword
       }
-      users.push(newUser)
-      return users
+      return [...users, newUser]
     }, (err, data) => {
       if (err) return callback(err)
       return callback(null, data.find(x => x.uuid === uuid))
@@ -173,23 +173,56 @@ class User extends EventEmitter {
     }))
   }
 
+  basicInfo (user) {
+    return {
+      uuid: user.uuid,
+      username: user.username,
+      isFirstUser: user.isFirstUser,
+      phicommUserId: user.phicommUserId,
+    }
+  }
+
+  fullInfo (user) {
+    return {
+      uuid: user.uuid,
+      username: user.username,
+      isFirstUser: user.isFirstUser,
+      phicommUserId: user.phicommUserId,
+      password: !!user.password,
+      smbPassword: !!user.smbPassword
+    }
+  }
+
   /**
   Implement LIST method
   */
   LIST (user, props, callback) {
     if (!user) {
-      return process.nextTick(() => callback(null, this.displayUsers()))
+      // basic info of all users
+      return process.nextTick(() => callback(null, this.users.map(u => this.basicInfo(u))))
     } else if (user.isFirstUser) {
-      // returns full info
-      return process.nextTick(() => callback(null, this.getUsers()))
-    } 
-    // TODO: only return himself?
-    return process.nextTick(() => callback(null, this.displayUsers())) 
+      // full info of all users
+      return process.nextTick(() => callback(null, this.users.map(u => this.fullInfo(u))))
+    } else {
+      // full info of the user
+      return process.nextTick(() => {
+        let u = this.users.find(u => u.uuid === user.uuid)
+        if (!u) {
+          let err = new Error('authenticated user not found in user resource')
+          err.status = 500
+          callback(err)
+        } else {
+          callback(null, [this.fullInfo(u)])
+        }
+      })
+    }
   }
 
   /**
   Implement POST method
-  create new user
+
+  wisnuc: the first user can be created by anonymous user
+  phicomm: the first user cannot be created by api. It must be injected.
   */
   POST (user, props, callback) {
     if (this.users.length && (!user || !user.isFirstUser))
@@ -209,6 +242,9 @@ class User extends EventEmitter {
     return process.nextTick(Object.assign(new Error('Permission Denied'), { status: 403 }))
   }
 
+  /**
+  Implement PATCH
+  */ 
   PATCH (user, props, callback) {
     if(props.password) {
       if (user.uuid !== props.uuid) return process.nextTick(() => callback(Object.assign(new Error('Permission Denied'), { status: 403 })))
@@ -220,7 +256,9 @@ class User extends EventEmitter {
       this.updateUser(props.userUUID, props, callback)
     }
   }
-  
+ 
+  DELETE (user, props, callback) {
+  } 
 }
 
 module.exports = User

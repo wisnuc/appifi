@@ -54,9 +54,6 @@ For example: user module provides apis. so fruitmix.user and fruitmix.apis.user 
 but for directories and files api, it is obviously that the separate api module should be created. Both depends on VFS module.
 
 
-
-
-
 Fruitmix has no knowledge of chassis, storage, etc.
 */
 class Fruitmix2 extends EventEmitter {

@@ -1,88 +1,40 @@
-const Promise = require('bluebird')
-const router = require('express').Router()
-const auth = require('../middleware/auth')
-const UUID = require('uuid')
+const express = require('express')
 
 /**
 @module UserRouter
 */
-module.exports = (auth, fruit) => {
+module.exports = (auth, { LIST, POST, GET, PATCH, DELETE }) => {
 
-  const EFruitless = new Error('fruitmix service unavailable')
-  EFruitless.status = 503
+  const f = (res, next) => (err, data) => 
+    err ? next(err) : data ? res.status(200).json(data) : res.status(200).end
 
-  const fruitless = (req, res, next) => fruit() ? next() : next(EFruitless)
+  let router = express.Router()
 
-  // User List, GET
-  router.get('/', fruitless, 
-    // for display users 
-    (req, res, next) => {
-      if (req.get('Authorization')) return next()   
-      res.status(200).json(fruit().displayUsers())
-    }, 
+  // List
+  router.get('/', 
+    (req, res, next) => req.get('Authorization') ? next() : LIST(null, {}, f(res, next)),
     auth.jwt(), 
-    // for authorized users
-    (req, res) => {
-      if (req.user.isFirstUser) {
-        res.status(200).json(fruit().getUsers())
-      } else {
-        res.status(200).json(fruit().displayUsers())
-      }
-    })
+    (req, res, next) => LIST(req.user, {}, f(res, next)))
 
-  // User List, POST
-  router.post('/', fruitless, 
-    (req, res, next) => {
-      if (fruit().users.length) return next()
-      fruit().user.createUser(req.body, (err, user) => {
-        if(err) return next(err)
-        res.status(200).json(auth.strip(user))
-      })
-    }, 
-    auth.jwt(), 
-    (req, res, next) => {
-      if (!req.user.isFirstUser) return next(Object.assign(new Error('only admin can create user'), { status: 401 }))
-      fruit().user.createUser(req.body, (err, user) => {
-        if(err) return next(err)
-        res.status(200).json(user)
-      })
-    })
+  // POST
+  router.post('/',
+    (req, res, next) => req.get('Authorization') ? next() : POST(null, req.body, f(res, next)),
+    auth.jwt(),
+    (req, res, next) => POST(req.user, req.body, f(res, next)))
 
-  // get single user 
-  router.get('/:uuid', auth.jwt(), (req, res) => {
-    let user = fruit().getUsers().find(u => u.uuid === req.params.uuid)
-    if (!user) {
-      res.status(404).end()
-    } else if (req.user.isFirstUser || req.user.uuid === req.params.uuid) {
-      res.status(200).json(user)
-    } else {
-      res.status(403).end()
-    }
-  })
+  // GET
+  router.get('/:userUUID', auth.jwt(), (req, res) =>
+    GET(req.user, { userUUID: req.params.userUUID }, f(res, next)))
 
-  // update name, disabled 
-  router.patch('/:userUUID', fruitless, auth.jwt(), (req, res, next) => {
-    let { userUUID } = req.params
-    if (!req.user.isFirstUser && req.user.uuid !== userUUID) 
-      return next(Object.assign(new Error('only first user can update others'), { status: 403 }))
-    if (!req.user.isFirstUser && req.body.disabled)
-      return next(Object.assign(new Error('only first user can update disabled'), { status: 403 }))
-    fruit().user.updateUser(userUUID, req.body, (err, user) => {
-      if (err) return next(err)
-      res.status(200).json(auth.strip(user))
-    })
-  })
+  // PATCH
+  router.patch('/:userUUID', auth.jwt(), (req, res) =>
+    PATCH(req.user, Object.assign({}, req.body, { userUUID: req.params.userUUID }), f(res, next)))
 
-  // update (own) password
-  router.put('/:uuid/password', auth.basic(), (req, res, next) => {
-    if (req.user.uuid !== req.params.uuid) 
-      return next(Object.assign(new Error('only can update yourself'), { status: 403 }))
-    fruit().user.updatePassword(req.params.uuid, req.body, (err, user) => {
-      if (err) return next(err)
-      res.status(200).json(auth.strip(user))
-    })
-  })
+  // DELETE
+  router.delete('/:userUUID', auth.jwt(), (req, res) => 
+    DELETE(req.user, { userUUID: req.params.userUUID }, f(res, next)))
 
   return router
 }
+
 
