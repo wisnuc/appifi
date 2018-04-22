@@ -17,9 +17,9 @@ const xattr = require('fs-xattr')       // TODO remove
 const { saveObjectAsync } = require('../lib/utils')
 const autoname = require('../lib/autoname')
 
-const Node = require('./node')
-const File = require('./file')
-const Directory = require('./directory')
+const Node = require('./vfs/node')
+const File = require('./vfs/file')
+const Directory = require('./vfs/directory')
 
 const { btrfsConcat, btrfsClone, btrfsClone2 } = require('../lib/btrfs')
 
@@ -31,8 +31,8 @@ const debugi = require('debug')('fruitmix:indexing')
 
 const debug = Debug('vfs')
 
-const Forest = require('./forest')
-const { mkdir, mkfile, mvdir, mvfile, clone, send } = require('./underlying')
+const Forest = require('./vfs/forest')
+const { mkdir, mkfile, mvdir, mvfile, clone, send } = require('./vfs/underlying')
 
 // TODO move to lib
 const Throw = (err, code, status) => {
@@ -91,56 +91,162 @@ class VFS extends EventEmitter {
     super()
 
     this.fruitmixDir = opts.fruitmixDir
-    this.tmpDir = path.join(fruitmixDir, 'tmp')
+    this.tmpDir = path.join(this.fruitmixDir, 'tmp')
     mkdirp.sync(this.tmpDir)
 
-    this.user = opts.user
-    Object.defineProperty(this, 'users', {
-      get () {
-        return this.user.users
-      }
-    })
+    // observer user
+    this.user = user
+    Object.defineProperty(this, 'users', { get () { return this.user.users } })
     this.user.on('Update', () => this.handleUserDriveUpdate())
 
-    this.drive = opts.drive
-    Object.defineProperty(this, 'drives', {
-      get () {
-        return this.drive.drives
-      }
-    })
+    // observe drive
+    this.drive = drive
+    Object.defineProperty(this, 'drives', { get () { return this.drive.drives } })
     this.drive.on('Update', () => this.handleUserDriveUpdate())
     
     this.forest = new Forest(this.fruitmixDir, opts.mediaMap)
+  }
 
-/**
-    //
-    let bid = this.drives.find(drv => drv.type === 'public' && drv.tag === 'built-in')
-    if (!bid) {
-      this.drives.push({
-        uuid: UUID.v4(),
-        type: 'public',
-        writelist: '*',
-        readlist: '*',
-        label: '',
-        tag: 'built-in' 
-      })
+  /**
+  React to user and drive change, update forest.roots accordingly
 
-      let tmpPath = path.join(this.tmpDir, UUID.v4())
-      fs.writeFileSync(tmpPath, JSON.stringify(this.drives, null, '  '))
-      fs.renameSync(tmpPath, this.filePath)
+  TODO doc fires
+  */
+  handleUserDriveUpdate () {
+    let users = this.users || []
+    let drives = this.drives || []
+
+    // figure out valid drive
+    let valids = drives.filter(drv => {
+      if (drv.type === 'private') {
+        let owner = users.find(u => u.uuid === drv.owner) 
+        if (!owner) return false
+        return true
+      } else if (drv.type === 'public') {
+        return true 
+      } else {
+        return false
+      }
+    }) 
+
+    // all valid drive uuids that are not root
+    let toBeCreated = valids
+      .map(d => d.uuid)
+      .filter(uuid => !this.forest.roots.has(uuid))
+
+    // all root uuids that are not in valids
+
+
+    let toBeDeleted = Array.from(this.forest.roots.keys())
+      .filter(uuid => !valids.find(d => d.uuid === uuid))
+
+    if (toBeCreated.length === 0 && toBeDeleted.length === 0) return
+
+    let oldKeys = Array.from(this.forest.roots.keys())
+    toBeDeleted.forEach(uuid => this.forest.deleteRoot(uuid))
+
+    if (!toBeCreated.length) return this.emit('ForestUpdate', Array.from(this.forest.root.keys()))
+
+    let count = toBeCreated.length
+    toBeCreated.forEach(uuid => this.forest.createRoot(uuid, () => {
+      if (!--count) {
+        this.emit('ForestUpdate', Array.from(this.forest.roots.keys()), oldKeys)
+      }
+    }))
+  }
+
+  userCanWriteDrive (user, drive) {
+    if (drive.type === 'private') {
+      return user.uuid === drive.owner
+    } else if (drive.type === 'public') {
+      if (Array.isArray(drive.writelist)) {
+        return drive.writelist.includes(user.uuid)
+      } else {
+        return true
+      }
+    } else {
+      return false
+    }
+  }
+
+
+  /**
+  @param {object} user - user
+  @param {object} props 
+  @param {string} [driveUUID] - drive uuid
+  @param {string} dirUUID - dir uuid
+  @param {string} metadata - true or falsy
+  @param {string} counter - true or falsy
+  */
+  get (user, props, callback) {
+    let dir, root, drive
+
+    // find dir
+    dir = this.forest.uuidMap.get(props.dirUUID)
+    if (!dir) {
+      let err = new Error('dir not found')
+      err.status = 404
+      return process.nextTick(() => callback(err))
     }
 
-    // TODO validate
-    deepFreeze(this.drives)
-    this.lock = false
+    // find root
+    root = dir.root()
+   
+    // find drive 
+    drive = this.drives.find(d => d.uuid === root.uuid)
 
-    this.drives.forEach(drive => this.createDriveAsync(drive).then(x => x))
-**/
+    /**
+    If driveUUID is provided, the corresponding drive must contains dir.
+    */
+    if (props.driveUUID && props.driveUUID !== drive.uuid) {
+      let err = new Error('drive does not contain dir')
+      err.status = 403
+      return process.nextTick(() => callback(err))
+    }
+
+    if (!this.userCanWriteDrive(user, drive)) {
+      let err = new Error('permission denied') 
+      err.status = 403      // TODO 404?
+      return process.nextTick(() => callback(err))
+    }
+     
+    // TODO it is possible that dir root is changed during read 
+    dir.read((err, entries) => {
+      if (err) {
+        err.status = 500
+        callback(err)
+      } else {
+
+        let path = dir.nodepath().map(dir => ({
+          uuid: dir.uuid,
+          name: dir.name,
+          mtime: Math.abs(dir.mtime)
+        })) 
+
+        if (props.metadata === 'true') {
+          const hasMetadata = entry => 
+            entry.type === 'file' 
+            && Magic.isMedia(entry.magic) 
+            && entry.hash 
+            && this.mediaMap.hasMetadata(entry.hash)
+
+          entries.forEach(entry => {
+            if (hasMetadata(entry))
+            entry.metadata = this.mediaMap.getMetadata(entry.hash)
+          })
+        }
+
+        if (props.counter === 'true') {
+          // TODO
+        }
+
+        callback(null, { path, entries })
+      }
+    })
+
   }
 
-  handleUserDriveUpdate () {
-    if (Array.isArray(this.users) && this.users.length && 
-  }
+
 
   // are we using this function ? TODO
   isDriveUUID (driveUUID) {
@@ -165,50 +271,6 @@ class VFS extends EventEmitter {
     if (!drive || !dir || dir.root() !== drive) return
 
     return dir
-  }
-
-  /**
-  Create the file system cache for given `Drive` 
-
-  @param {Drive}
-  */
-  async createDriveAsync (drive) {
-
-    debug('vfs.createDriveAsync', drive)
-
-    let dirPath = path.join(this.dir, drive.uuid)
-    await mkdirpAsync(dirPath)
-
-    let xstat = await forceXstatAsync(dirPath, { uuid: drive.uuid })
-    let root = new Directory(this, null, xstat)
-    this.roots.set(root.uuid, root)
-  }
-
-  // 
-  createDrive (drive, callback) {
-    let dirPath = path.join(this.dir, drive.uuid)
-    mkdirp(dirPath, err => {
-      if (err) return callback(err)
-      forceXstat(dirPath, { uuid: drive.uuid }, (err, xstat) => {
-        if (err) return callback(err)
-        let root = new Directory(this, null, xstat)
-        this.roots.set(root.uuid, root)
-        callback()
-      })
-    }) 
-  }
-
-  /**
-  Delete the file system cache for the drive identified by given uuid
-
-  @param {string} driveUUID
-  */
-  deleteDrive (driveUUID) {
-    let index = this.roots.findIndex(d => d.uuid === driveUUID)
-    if (index === -1) return
-
-    this.roots[index].destroy()
-    this.roots.splice(index, 1)
   }
 
   /**

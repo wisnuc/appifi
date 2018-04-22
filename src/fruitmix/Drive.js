@@ -20,7 +20,7 @@ class Drive extends EventEmitter {
   @param {string} opts.file - path of drives.json
   @param {string} opts.tmpDir - path of tmpDir (should be suffixed by 'drives')
   */
-  constructor(opts, user) {
+  constructor (opts, user) {
     super()
     this.conf = opts.configuration // is this required ??? TODO
 
@@ -43,27 +43,43 @@ class Drive extends EventEmitter {
   }
 
   /**
-  This 
+  This
   */
   retrieveDrives (userUUID, callback) {
     this.store.save(drives => {
       let priv = drives.find(drv => drv.type === 'private' && drv.owner === userUUID)
-      if (priv) {
+      let builtIn = drives.find(drv => drv.type === 'public' && drv.tag === 'built-in')
+
+      if (priv && builtIn) {
         return drives
       } else {
-        let drive = {
-          uuid: UUID.v4(),
-          type: 'private',
-          owner: userUUID,
-          tag: 'home'
+        let newDrives = [...drives]
+        if (!priv) {
+          newDrives.push({
+            uuid: UUID.v4(),
+            type: 'private',
+            owner: userUUID,
+            tag: 'home'
+          })
         }
-        return [...drives, drive]
+
+        if (!builtIn) {
+          newDrives.push({
+            uuid: UUID.v4(),
+            type: 'public',
+            writelist: '*',
+            readlist: '*',
+            label: '',
+            tag: 'built-in'
+          })
+        }
+        return newDrives
       }
     }, (err, drives) => {
-      err ? callback(err) :
-        callback(null, [
+      err ? callback(err)
+        : callback(null, [
           ...drives.filter(drv => drv.type === 'private' && drv.owner === userUUID),
-          ...drives.filter(drv => drv.type === 'public' && (drv.writelist === '*' ||drv.writelist.includes(userUUID)))
+          ...drives.filter(drv => drv.type === 'public' && (drv.writelist === '*' || drv.writelist.includes(userUUID)))
         ])
     })
   }
@@ -100,7 +116,7 @@ class Drive extends EventEmitter {
       if (props.writelist) priv.writelist = props.writelist
       if (props.readlist) priv.readlist = props.readlist
       if (props.label) priv.label = props.label
-      //TODO: can change type ?
+      // TODO: can change type ?
 
       return [...drives.slice(0, index), priv, ...drives.slice(index + 1)]
     }, (err, data) => err ? callback(err) : callback(null, data.find(d => d.uuid === driveUUID)))
@@ -119,8 +135,7 @@ class Drive extends EventEmitter {
   }
 
   GET (user, props, callback) {
-    if (!this.userCanReadDrive(user.uuid, props.driveUUID))
-      return process.nextTick(() => callback(Object.assign(new Error('Permission Denied'), { status: 403 })))
+    if (!this.userCanReadDrive(user.uuid, props.driveUUID)) { return process.nextTick(() => callback(Object.assign(new Error('Permission Denied'), { status: 403 }))) }
     this.getDrive(props.driveUUID, callback)
   }
 
@@ -136,7 +151,7 @@ class Drive extends EventEmitter {
       }
       let drive = this.drives.find(drv => drv.uuid === props.driveUUID)
       if (!drive) {
-        throw Object.assign(new Error(`drive ${driveUUID} not found`), { status: 404 })
+        throw Object.assign(new Error(`drive ${props.driveUUID} not found`), { status: 404 })
       }
       if (drive.type === 'pirvate') {
         // private drive is not allowed to update
@@ -144,7 +159,7 @@ class Drive extends EventEmitter {
       } else if (drive.type === 'public' && drive.tag === 'built-in') {
         // built-in public drive, only label can be updated
         if (!Object.getOwnPropertyNames(props).every(name => name === 'label')) {
-          let err = new Error('Only label is allowed to update for built-in public drive')     
+          let err = new Error('Only label is allowed to update for built-in public drive')
           err.code = 'EBADREQUEST'
           err.status = 400
           throw err

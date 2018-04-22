@@ -12,9 +12,7 @@ class DirApi {
   }
 
   GET(user, props, callback) {
-    let err = new Error('not implemented yet')
-    err.status = 500
-    process.nextTick(() => callback(err))
+    this.vfs.get(user, props, callback)
   }
 }
 

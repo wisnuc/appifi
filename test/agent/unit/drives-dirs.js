@@ -105,7 +105,9 @@ describe(path.basename(__filename), () => {
             .expect(200)
             .end((err, res) => {
               if (err) return done(err)
+
               let drives = res.body
+              console.log(drives)
               expect(drives).to.be.an('array')
               expect(drives.length).to.equal(2)
 
@@ -145,7 +147,7 @@ describe(path.basename(__filename), () => {
       await fs.writeFileAsync(userFile, JSON.stringify([alice, bob], null, '  '))
     })
 
-    it('alice GET home should return root path and empty entries', done => {
+    it('alice GET home should return root path and empty entries, 67fe6ab9', done => {
       let fruitmix = new Fruitmix({ fruitmixDir })
       let app = new App({ fruitmix })
       fruitmix.once('FruitmixStarted', () => {
@@ -156,9 +158,17 @@ describe(path.basename(__filename), () => {
             request(app.express)
               .get(`/drives/${home.uuid}/dirs/${home.uuid}`)
               .set('Authorization', 'JWT ' + token)
-              // .expect(200)
+              .expect(200)
               .end((err, res) => {
-                console.log(err, res.body)
+                if (err) return done(err)    
+                expect(res.body).to.deep.equal({
+                  path: [{
+                    uuid: home.uuid,
+                    name: home.uuid,
+                    mtime: res.body.path[0].mtime,
+                  }],
+                  entries: []
+                })
                 done()
               })
           })

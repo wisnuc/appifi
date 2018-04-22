@@ -3,7 +3,7 @@ const assert = require('assert')
 const debug = require('debug')('fruitmix:file')
 
 const Node = require('./node')
-const xfingerprint = require('../lib/xfingerprint')
+const xfingerprint = require('../../lib/xfingerprint')
 
 const debugi = require('debug')('fruitmix:indexing')
 

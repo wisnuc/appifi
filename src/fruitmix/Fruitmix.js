@@ -15,7 +15,7 @@ const User = require('./User')
 const Drive = require('./Drive')
 const MediaMap = require('../media/persistent')
 const Thumbnail = require('../lib/thumbnail2')
-const VFS = require('./vfs/vfs')
+const VFS = require('./VFS')
 const Tag = require('../tags/Tag')
 const DirApi = require('./apis/dir')
 const DirEntryApi = require('./apis/dirEntry')
@@ -111,7 +111,11 @@ class Fruitmix2 extends EventEmitter {
     let metaPath = path.join(this.fruitmixDir, 'metadataDB.json')
     this.mediaMap = new MediaMap(metaPath, this.tmpDir) // TODO suffix ?
 
-    this.vfs = new VFS(this.fruitmixDir, this.mediaMap)
+    let vfsOpts = {
+      fruitmixDir: this.fruitmixDir,
+      mediaMap: this.mediaMap
+    }
+    this.vfs = new VFS(vfsOpts, this.user, this.drive)
     
     this.dirApi = new DirApi(this.vfs)
     this.dirEntryApi = new DirEntryApi(this.vfs)

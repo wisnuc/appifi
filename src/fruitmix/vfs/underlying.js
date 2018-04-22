@@ -2,9 +2,9 @@ const path = require('path')
 const fs = require('fs')
 const rimraf = require('rimraf')
 
-const { readXstat, forceXstat } = require('../lib/xstat')
-const btrfs = require('../lib/btrfs')
-const autoname = require('../lib/autoname')
+const { readXstat, forceXstat } = require('../../lib/xstat')
+const btrfs = require('../../lib/btrfs')
+const autoname = require('../../lib/autoname')
 
 /**
 opt is a 2-tuple, [same, diff]
