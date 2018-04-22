@@ -4,6 +4,7 @@ const Boot = require('../system/Boot')
 const Auth = require('../middleware/Auth')
 const createTokenRouter = require('../routes/Token')
 const createUserRouter = require('../routes/users')
+const createDriveRouter = require('../routes/drives2')
 const createTimeDateRouter = require('../routes/TimeDate')
 const createExpress = require('../system/express')
 
@@ -106,9 +107,12 @@ class App extends EventEmitter {
       if (apis.includes('user')) 
         routers.push(['/users', createUserRouter(this.auth, this.stub('user'))])
       if (apis.includes('drive')) 
-        routers.push(['/drives', createDriveRouter(this.auth, this.stub('drive'))])
+        routers.push(['/drives', createDriveRouter(this.auth, 
+          this.stub('drive'), this.stub('dir'), this.stub('dirEntry'))])
+/**
       if (apis.includes('dir'))
         routers.push(['/dirs', createDirRouter(this.auth, this.stub('dir'))])
+**/
       if (apis.includes('file'))
         routers.push(['/files', createFileRouter(this.auth, this.stub('file'))])
 
@@ -166,7 +170,7 @@ class App extends EventEmitter {
             err.status = 404
             process.nextTick(() => callback(err))
           } else if (!this.fruitmix.apis[resource][verb]) {
-            let err = new Error('method not supported')
+            let err = new Error(`method ${verb} not supported`)
             err.status = 405
             process.nextTick(() => callback(err))
           } else {

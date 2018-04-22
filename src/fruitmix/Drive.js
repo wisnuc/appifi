@@ -7,6 +7,7 @@ const mkdirp = require('mkdirp')
 const mkdirpAsync = Promise.promisify(mkdirp)
 const rimraf = require('rimraf')
 const rimrafAsync = Promise.promisify(rimraf)
+const UUID = require('uuid')
 
 const DataStore = require('../lib/DataStore')
 

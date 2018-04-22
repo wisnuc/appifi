@@ -7,13 +7,13 @@ const mkdirp = require('mkdirp')
 const mkdirpAsync = Promise.promisify(mkdirp)
 const rimraf = require('rimraf')
 const rimrafAsync = Promise.promisify(rimraf)
-
 const UUID = require('uuid')
+const deepFreeze = require('deep-freeze')
 
 const E = require('../lib/error')
+
 const log = require('winston')
-const deepFreeze = require('deep-freeze')
-const xattr = require('fs-xattr')
+const xattr = require('fs-xattr')       // TODO remove
 const { saveObjectAsync } = require('../lib/utils')
 const autoname = require('../lib/autoname')
 
@@ -47,16 +47,19 @@ const EINCONSISTENCE = err => { throw Object.assign(err, 'EINCONSISTENCE', 503) 
 /**
 VFS is the core module encapsulating all virtual file system operations.
 
-Upload, Search, and XCopy use VFS to serve user request.
+It provides three interfaces:
+1. file system interface for retrieving file system information and file operations, servicing Upload  module
+2. xcopy interface for copy or move files around, servicing XCopy module. 
+
 
 VFS observes/reacts to User and Drive module, which is conceptually equivalent to value props in React.
 
 VFS requires the following modules:
 
-1. Forest, which is an internal module
-2. MediaMap, which is synchronously coupled with Forest
-3. Xstat, which is a stateful lib
-4. Underlying (lib)
+1. Forest, internal module for indexing
+2. MediaMap, injected, which is synchronously coupled with Forest
+3. Xstat, injected, which is a stateful lib
+4. Underlying, internal module for operation
 
 @module VFS
 */
@@ -79,22 +82,35 @@ class VFS extends EventEmitter {
   Create a VFS module
 
   @param {object} opts
-  @param {string} opts.froot - fruitmix root directory
-  @param {User} opts.user - user module
-  @param {Drive} opts.drive - drive module
+  @param {string} opts.fruitmixDir - fruitmix root directory
   @param {MediaMap} opts.mediaMap - mediamap module
+  @param {User} user - user module
+  @param {Drive} drive - drive module
   */
-  constructor (opts) {
+  constructor (opts, user, drive) {
     super()
 
-    this.froot = opts.froot
-    this.tmpDir = path.join(froot, 'tmp')
+    this.fruitmixDir = opts.fruitmixDir
+    this.tmpDir = path.join(fruitmixDir, 'tmp')
     mkdirp.sync(this.tmpDir)
 
     this.user = opts.user
-    this.drive = opts.drive
+    Object.defineProperty(this, 'users', {
+      get () {
+        return this.user.users
+      }
+    })
+    this.user.on('Update', () => this.handleUserDriveUpdate())
 
-    this.forest = new Forest(this.froot, opts.mediaMap)
+    this.drive = opts.drive
+    Object.defineProperty(this, 'drives', {
+      get () {
+        return this.drive.drives
+      }
+    })
+    this.drive.on('Update', () => this.handleUserDriveUpdate())
+    
+    this.forest = new Forest(this.fruitmixDir, opts.mediaMap)
 
 /**
     //
@@ -122,83 +138,8 @@ class VFS extends EventEmitter {
 **/
   }
 
-  async commitDrivesAsync (currDrives, nextDrives) {
-    if (currDrives !== this.drives) throw E.ECOMMITFAIL()
-    if (this.lock === true) throw E.ECOMMITFAIL()
-
-    this.lock = true
-    try {
-      await saveObjectAsync(this.filePath, this.tmpDir, nextDrives)
-      this.drives = nextDrives
-      deepFreeze(this.drives)
-    } finally {
-      this.lock = false
-    }
-  }
-
-  async createPrivateDriveAsync (owner, tag) {
-    let drive = {
-      uuid: UUID.v4(),
-      type: 'private',
-      owner,
-      tag
-      // label: '' // FIXME
-    }
-
-    let nextDrives = [...this.drives, drive]
-    await this.commitDrivesAsync(this.drives, nextDrives)
-    this.drives = nextDrives
-    deepFreeze(this.drives)
-
-    // broadcast.emit('DriveCreated', drive)    
-    await this.createDriveAsync(drive)
-    return drive
-  }
-
-  // TODO
-  createPublicDrive (props, callback) {
-    let drive = {
-      uuid: UUID.v4(),
-      type: 'public',
-      writelist: props.writelist || [],
-      readlist: props.readlist || [],
-      label: props.label || ''
-    }
-  }
-
-  async createPublicDriveAsync (props) {
-    let drive = {
-      uuid: UUID.v4(),
-      type: 'public',
-      writelist: props.writelist || [],
-      readlist: props.readlist || [],
-      label: props.label || ''
-    }
-
-    let nextDrives = [...this.drives, drive]
-    await this.commitDrivesAsync(this.drives, nextDrives)
-    this.drives = nextDrives
-    deepFreeze(this.drives)
-
-    await this.createDriveAsync(drive)
-    return drive
-  }
-
-  async updatePublicDriveAsync (driveUUID, props) {
-    let currDrives = this.drives
-
-    let index = this.drives.findIndex(drv => drv.uuid === driveUUID)
-    if (index === -1) throw new Error('drive not found') // TODO
-
-    let nextDrive = Object.assign({}, this.drives[index], props)
-    let nextDrives = [
-      ...currDrives.slice(0, index),
-      nextDrive,
-      ...currDrives.slice(index + 1)
-    ]
-
-    await this.commitDrivesAsync(currDrives, nextDrives)
-    return nextDrive
+  handleUserDriveUpdate () {
+    if (Array.isArray(this.users) && this.users.length && 
   }
 
   // are we using this function ? TODO

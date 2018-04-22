@@ -704,6 +704,12 @@ class VFS extends Forest {
     dir.read(callback)
   }
 
+
+  /************************
+  new methods
+  *************************/
+
+
 }
 
 module.exports = VFS
