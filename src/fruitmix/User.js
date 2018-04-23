@@ -49,7 +49,7 @@ class User extends EventEmitter {
   }
 
   getUser (userUUID) {
-    return this.users.find(u => uuid === userUUID)
+    return this.users.find(u => u.uuid === userUUID)
   }
 
   createUser (props, callback) {
@@ -208,11 +208,11 @@ class User extends EventEmitter {
   Implement GET method
   */
   GET (user, props, callback) {
-    let u = this.getUser(props.uuid)
+    let u = this.getUser(props.userUUID)
     if (!u) 
       return process.nextTick(() => callback(Object.assign(new Error('user not found'), { status: 404 })))
     if (user.isFirstUser || user.uuid === u.uuid)
-      return process.nextTick(() => callback(null, user))
+      return process.nextTick(() => callback(null, this.fullInfo(u)))
     return process.nextTick(Object.assign(new Error('Permission Denied'), { status: 403 }))
   }
 
@@ -221,8 +221,8 @@ class User extends EventEmitter {
   */ 
   PATCH (user, props, callback) {
     if(props.password) {
-      if (user.uuid !== props.uuid) return process.nextTick(() => callback(Object.assign(new Error('Permission Denied'), { status: 403 })))
-      this.updatePassword(props.uuid, props, callback)
+      if (user.uuid !== props.userUUID) return process.nextTick(() => callback(Object.assign(new Error('Permission Denied'), { status: 403 })))
+      this.updatePassword(props.userUUID, props, callback)
     } else {
       if (!user.isFirstUser && user.uuid !== props.userUUID)
         return process.nextTick(() => callback(Object.assign(new Error('Permission Denied'), { status: 403 })))

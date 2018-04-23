@@ -242,29 +242,31 @@ describe(path.basename(__filename), () => {
     })
 
     it('bob POST /users should fail, 5ebc3100', done => {
-      let app = createApp()
+      let fruitmix = new Fruitmix({ fruitmixDir })
+      let app = new App({ fruitmix })
       fruitmix.once('FruitmixStarted', () => {
-        requestToken(app, bob.uuid, 'bob', (err, token) => {
+        requestToken(app.express, bob.uuid, 'bob', (err, token) => {
           if (err) return done(err)
-          request(app)
+          request(app.express)
             .post('/users')
             .set('Authorization', 'JWT ' + token)
             .send({
               username: 'Jack',
               phicommUserId: 'Jack'
             })
-            .expect(401)
+            .expect(403)
             .end(done)
         })
       })
     })
 
     it('bob update himself username should success', done => {
-      let app = createApp()
+      let fruitmix = new Fruitmix({ fruitmixDir })
+      let app = new App({ fruitmix })
       fruitmix.once('FruitmixStarted', () => {
-        requestToken(app, bob.uuid, 'bob', (err, token) => {
+        requestToken(app.express, bob.uuid, 'bob', (err, token) => {
           if (err) return done(err)
-          request(app)
+          request(app.express)
             .patch(`/users/${bob.uuid}`)
             .set('Authorization', 'JWT ' + token)
             .send({
@@ -281,11 +283,12 @@ describe(path.basename(__filename), () => {
     })
 
     it('bob update alice`s username should fail', done => {
-      let app = createApp()
+      let fruitmix = new Fruitmix({ fruitmixDir })
+      let app = new App({ fruitmix })
       fruitmix.once('FruitmixStarted', () => {
-        requestToken(app, bob.uuid, 'bob', (err, token) => {
+        requestToken(app.express, bob.uuid, 'bob', (err, token) => {
           if (err) return done(err)
-          request(app)
+          request(app.express)
             .patch(`/users/${alice.uuid}`)
             .set('Authorization', 'JWT ' + token)
             .send({
@@ -300,10 +303,11 @@ describe(path.basename(__filename), () => {
 
 
     it('bob update himself password should success', done => {
-      let app = createApp()
+      let fruitmix = new Fruitmix({ fruitmixDir })
+      let app = new App({ fruitmix })
       fruitmix.once('FruitmixStarted', () => {
-        request(app)
-          .put(`/users/${bob.uuid}/password`)
+        request(app.express)
+          .patch(`/users/${bob.uuid}`)
           .auth(bob.uuid, 'bob')
           .send({
             password: alice.password,
@@ -320,10 +324,11 @@ describe(path.basename(__filename), () => {
     })
 
     it('bob update alice`s password should fail', done => {
-      let app = createApp()
+      let fruitmix = new Fruitmix({ fruitmixDir })
+      let app = new App({ fruitmix })
       fruitmix.once('FruitmixStarted', () => {
-        request(app)
-          .put(`/users/${alice.uuid}/password`)
+        request(app.express)
+          .patch(`/users/${alice.uuid}`)
           .auth(bob.uuid, 'bob')
           .send({
             password: bob.password,
@@ -335,11 +340,12 @@ describe(path.basename(__filename), () => {
     })
 
     it('alice update bob`s username should success', done => {
-      let app = createApp()
+      let fruitmix = new Fruitmix({ fruitmixDir })
+      let app = new App({ fruitmix })
       fruitmix.once('FruitmixStarted', () => {
-        requestToken(app, alice.uuid, 'alice', (err, token) => {
+        requestToken(app.express, alice.uuid, 'alice', (err, token) => {
           if (err) return done(err)
-          request(app)
+          request(app.express)
             .patch(`/users/${bob.uuid}`)
             .set('Authorization', 'JWT ' + token)
             .send({
@@ -356,9 +362,10 @@ describe(path.basename(__filename), () => {
     })
 
     it('anonymous GET /users/:alice.uuid should 401', done => {
-      let app = createApp()
+      let fruitmix = new Fruitmix({ fruitmixDir })
+      let app = new App({ fruitmix })
       fruitmix.once('FruitmixStarted', () => {
-        request(app)
+        request(app.express)
           .get(`/users/${alice.uuid}`)
           .expect(401)
           .end(done)
@@ -366,13 +373,14 @@ describe(path.basename(__filename), () => {
     })
 
     it('alice GET /users/:alice.uuid should get her full info', done => {
-      let app = createApp()
+      let fruitmix = new Fruitmix({ fruitmixDir })
+      let app = new App({ fruitmix })
       fruitmix.once('FruitmixStarted', () => {
-        requestToken(app, alice.uuid, 'alice', (err, token) => {
+        requestToken(app.express, alice.uuid, 'alice', (err, token) => {
           if (err) return done(err)
-          request(app)
+          request(app.express)
             .get(`/users/${alice.uuid}`)
-            .set('Authorization', 'JWT ' + token) 
+            .set('Authorization', 'JWT ' + token)
             .expect(200)
             .end((err, res) => {
               if (err) return done(err)
@@ -390,6 +398,5 @@ describe(path.basename(__filename), () => {
       })
     })
 
-    
   })
 })

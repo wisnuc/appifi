@@ -27,7 +27,10 @@ module.exports = (auth, { LIST, POST, GET, PATCH, DELETE }) => {
     GET(req.user, { userUUID: req.params.userUUID }, f(res, next)))
 
   // PATCH
-  router.patch('/:userUUID', auth.jwt(), (req, res, next) =>
+  router.patch('/:userUUID', (req, res, next) => {
+    if (req.body.password) return auth.basic()(req, res, next)
+    auth.jwt()(req, res, next)
+  }, (req, res, next) =>
     PATCH(req.user, Object.assign({}, req.body, { userUUID: req.params.userUUID }), f(res, next)))
 
   // DELETE
