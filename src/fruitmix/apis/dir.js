@@ -12,7 +12,7 @@ class DirApi {
   }
 
   GET(user, props, callback) {
-    this.vfs.get(user, props, callback)
+    this.vfs.dirGET(user, props, callback)
   }
 }
 

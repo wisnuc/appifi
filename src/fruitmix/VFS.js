@@ -178,7 +178,7 @@ class VFS extends EventEmitter {
   @param {string} metadata - true or falsy
   @param {string} counter - true or falsy
   */
-  get (user, props, callback) {
+  dirGET (user, props, callback) {
     let dir, root, drive
 
     // find dir

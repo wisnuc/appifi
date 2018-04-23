@@ -36,10 +36,6 @@ module.exports = (auth, DRIVE, DIR, DIRENTRY) => {
   })
 
   // dir entry apis (nested)
-
-  // this should be supported
-  // router.get('/:driveUUID/dirs/:dirUUID/entries', auth.jwt(), (req, res, next) =>
-
   router.post('/:driveUUID/dirs/:dirUUID/entries', auth.jwt(), (req, res, next) => {
     if (!req.is('multipart/form-data')) {
       let err = new Error('only multipart/form-data type supported')
