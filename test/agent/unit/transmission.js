@@ -108,6 +108,7 @@ describe(__filename, () => {
     })
   })
 
+  // 测试查询API
   describe('test get transmission', () => {
     beforeEach(init)
 
@@ -125,10 +126,12 @@ describe(__filename, () => {
     })
   })
 
+  // 测试创建API
   describe('test create magnet task', () => {
     let app, token, id
     before(init)
 
+    // 创建 返回 code 200
     it('should get 200', done => {
       app = createApp()
       fruitmix.once('FruitmixStarted', () => {
@@ -144,6 +147,7 @@ describe(__filename, () => {
       })
     })
 
+    // 检查任务列表中是否包含 刚才创建的任务ID
     it('task list should incluede task own id', done => {
       requestTransmission(app, token, (err, result) => {
         if (err) return done(err)
@@ -154,8 +158,10 @@ describe(__filename, () => {
     })
   })
   
+  // 测试操作API
   describe('test task operation', () => {
     let app, token, id
+    // 创建一个被操作任务
     before((done) => {
       init().then(() => {
         app = createApp()
@@ -174,6 +180,7 @@ describe(__filename, () => {
       
     })
 
+    // 暂停 返回 code 200
     it('pause task should return 200', done => {
       request(app)
         .patch(`/transmission/${id}`)
@@ -186,6 +193,7 @@ describe(__filename, () => {
         })
     })
 
+    // 检查任务status 是否为0
     it('task status should be 0', done => {
       requestTransmission(app, token, (err, result) => {
         if (err) return done(err)
@@ -196,6 +204,7 @@ describe(__filename, () => {
       })
     })
 
+    // 续传 返回 code 200
     it('resume task should return 200', done => {
       request(app)
         .patch(`/transmission/${id}`)
@@ -208,6 +217,7 @@ describe(__filename, () => {
         })
     })
 
+    // 检查任务status 是否为4
     it('task status should be 4', done => {
       requestTransmission(app, token, (err, result) => {
         if (err) return done(err)
@@ -218,6 +228,7 @@ describe(__filename, () => {
       })
     })
 
+    // 删除 返回 code 200
     it('delete task should return 200', done => {
       requestTransmission(app, token, (err, result) => {
         if (err) return done(err)
@@ -235,6 +246,7 @@ describe(__filename, () => {
       })
     })
 
+    // 检查任务列表是否为空
     it('task list length should be 0', done => {
       requestTransmission(app, token, (err, result) => {
         if (err) return done(err)

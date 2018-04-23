@@ -15,10 +15,10 @@ var manager = null
 module.exports = (auth, fruit) => {
 
   fruit.on('FruitmixStarted', () => {
-    // create torrentTmp if it has not been created
     let transmissionTmp = path.join(fruit.fruitmixDir, 'transmissionTmp')
+    let torrentTmp = path.join(transmissionTmp, 'torrents')
     mkdirp.sync(transmissionTmp)
-    mkdirp.sync(path.join(transmissionTmp, 'torrents'))
+    mkdirp.sync(torrentTmp)
     manager = new Manager(transmissionTmp)
     if (manager && manager.client) manager.startObserver()
     else console.log('manage 或者 client 不存在， 在初始化之后')
@@ -26,7 +26,7 @@ module.exports = (auth, fruit) => {
 
   // 检查初始化结果
   router.use((req, res, next) => {
-    if (!manager || !manager.client) return res.status(503).end('transmission init failed')
+    if (!manager || !manager.client) return res.status(503).end('transmission not available')
     else next()
   })
 
@@ -59,10 +59,10 @@ module.exports = (auth, fruit) => {
       let dirUUID = fields.dirUUID
       let torrentPath = files.torrent.path
       if (!dirUUID || !torrentPath) return res.status(400).end('parameter error')
-      manager.createTransmissionTask('torrent', torrentPath, dirUUID, req.user.uuid).then(data => {
-        res.status(200).json(data)
-      }).catch(err => {
-        res.status(400).json({ message: err.message})
+
+      manager.createTransmissionTask('torrent', torrentPath, dirUUID, req.user.uuid, (err, data) => {
+        if (err) {console.log(err);res.status(400).json({ message: err.message})}
+        else res.status(200).json(data)
       })
     })
   })
