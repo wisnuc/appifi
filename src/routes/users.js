@@ -6,7 +6,7 @@ const express = require('express')
 module.exports = (auth, { LIST, POST, GET, PATCH, DELETE }) => {
 
   const f = (res, next) => (err, data) => 
-    err ? next(err) : data ? res.status(200).json(data) : res.status(200).end
+    err ? next(err) : data ? res.status(200).json(data) : res.status(200).end()
 
   let router = express.Router()
 

@@ -147,32 +147,6 @@ class User extends EventEmitter {
     this.store.destroy(callback)
   }
 
-  /**
-  
-  */
-  getUsers() {
-    return this.users.map(u => ({
-      uuid: u.uuid,
-      username: u.username,
-      isFirstUser: u.isFirstUser,
-      phicommUserId: u.phicommUserId,
-      password: !!u.password,
-      smbPassword: !!u.smbPassword
-    }))
-  }
-
-  /**
-  This function returns a list of users with minimal attributes.
-  */
-  displayUsers() {
-    return this.users.map(u => ({
-      uuid: u.uuid,
-      username: u.username,
-      isFirstUser: u.isFirstUser,
-      phicommUserId: u.phicommUserId
-    }))
-  }
-
   basicInfo (user) {
     return {
       uuid: user.uuid,

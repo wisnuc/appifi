@@ -24,6 +24,7 @@ class Drive extends EventEmitter {
     this.conf = opts.configuration // is this required ??? TODO
 
     this.fruitmixDir = opts.fruitmixDir
+    this.user = user
 
     this.store = new DataStore({
       file: opts.file,
@@ -37,6 +38,12 @@ class Drive extends EventEmitter {
     Object.defineProperty(this, 'drives', {
       get () {
         return this.store.data
+      }
+    })
+
+    Object.defineProperty(this, 'users', {
+      get () {
+        return this.user.users || []
       }
     })
   }
@@ -130,7 +137,7 @@ class Drive extends EventEmitter {
 
   PATCH (user, props, callback) {
     try {
-      if (!user.isAdmin) {
+      if (!user.isFirstUser) {
         throw Object.assign(new Error(`requires admin priviledge`), { status: 403 })
       }
       let drive = this.drives.find(drv => drv.uuid === props.driveUUID)
@@ -170,7 +177,7 @@ class Drive extends EventEmitter {
         let wl = props.writelist
         if (wl === '*') {
         } else if (Array.isArray(wl)) {
-          if (!wl.every(uuid => !!this.userList.users.find(u => u.uuid === uuid))) {
+          if (!wl.every(uuid => !!this.users.find(u => u.uuid === uuid))) {
             let err = new Error(`not all user uuid found`) // TODO
             err.code = 'EBADREQUEST'
             err.status = 400
