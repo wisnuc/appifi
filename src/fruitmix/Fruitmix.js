@@ -12,10 +12,13 @@ const rimrafAsync = Promise.promisify(rimraf)
 const UUID = require('uuid')
 
 const User = require('./User')
+const Drive = require('./Drive')
 const MediaMap = require('../media/persistent')
 const Thumbnail = require('../lib/thumbnail2')
-const VFS = require('../vfs/vfs')
+const VFS = require('./VFS')
 const Tag = require('../tags/Tag')
+const DirApi = require('./apis/dir')
+const DirEntryApi = require('./apis/dirEntry')
 
 /**
 Fruitmix has the following structure:
@@ -84,7 +87,18 @@ class Fruitmix2 extends EventEmitter {
     // set a getter method for this.users
     Object.defineProperty(this, 'users', {
       get () {
-        return this.user.users || [] // TODO can this be undefined?
+        return this.user.users || []      // TODO can this be undefined?
+      }
+    })
+
+    this.drive = new Drive({
+      file: path.join(this.fruitmixDir, 'drives.json'),
+      tmpDir: path.join(this.fruitmixDir, 'tmp', 'drives'),
+    }, this.user)
+
+    Object.defineProperty(this, 'drives', {
+      get () {
+        return this.drive.drives || []    // TODO can this be undefined?
       }
     })
 
@@ -95,8 +109,16 @@ class Fruitmix2 extends EventEmitter {
     })
 
     let metaPath = path.join(this.fruitmixDir, 'metadataDB.json')
-    this.mediaMap = new MediaMap(metaPath, this.tmpDir)
-    this.vfs = new VFS(this.fruitmixDir, this.mediaMap)
+    this.mediaMap = new MediaMap(metaPath, this.tmpDir) // TODO suffix ?
+
+    let vfsOpts = {
+      fruitmixDir: this.fruitmixDir,
+      mediaMap: this.mediaMap
+    }
+    this.vfs = new VFS(vfsOpts, this.user, this.drive)
+    
+    this.dirApi = new DirApi(this.vfs)
+    this.dirEntryApi = new DirEntryApi(this.vfs)
 
     this.thumbnail = new Thumbnail(path.join(this.fruitmixDir, 'thumbnail'), this.tmpDir)
 
@@ -105,7 +127,10 @@ class Fruitmix2 extends EventEmitter {
     })
 
     this.apis = {
-      user: this.user
+      user: this.user,
+      drive: this.drive,
+      dir: this.dirApi,
+      dirEntry: this.dirEntryApi,
     }
   }
 

@@ -23,15 +23,15 @@ module.exports = (auth, { LIST, POST, GET, PATCH, DELETE }) => {
     (req, res, next) => POST(req.user, req.body, f(res, next)))
 
   // GET
-  router.get('/:userUUID', auth.jwt(), (req, res) =>
+  router.get('/:userUUID', auth.jwt(), (req, res, next) =>
     GET(req.user, { userUUID: req.params.userUUID }, f(res, next)))
 
   // PATCH
-  router.patch('/:userUUID', auth.jwt(), (req, res) =>
+  router.patch('/:userUUID', auth.jwt(), (req, res, next) =>
     PATCH(req.user, Object.assign({}, req.body, { userUUID: req.params.userUUID }), f(res, next)))
 
   // DELETE
-  router.delete('/:userUUID', auth.jwt(), (req, res) => 
+  router.delete('/:userUUID', auth.jwt(), (req, res, next) => 
     DELETE(req.user, { userUUID: req.params.userUUID }, f(res, next)))
 
   return router

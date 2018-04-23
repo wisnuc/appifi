@@ -22,7 +22,6 @@ const cwd = process.cwd()
 const tmptest = path.join(cwd, 'tmptest')
 const fruitmixDir = path.join(tmptest, 'fruitmix')
 
-
 // node src/utils/md4Encrypt.js alice
 
 const alice = {
