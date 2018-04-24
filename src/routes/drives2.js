@@ -13,7 +13,7 @@ module.exports = (auth, DRIVE, DIR, DIRENTRY) => {
 
   router.get('/', auth.jwt(), (req, res, next) => DRIVE.LIST(req.user, {}, f(res, next)))
 
-  router.post('/', auth.jwt(), (req, res, next) => DRIVE.POST(req.user, {}, f(res, next)))
+  router.post('/', auth.jwt(), (req, res, next) => DRIVE.POST(req.user, req.body, f(res, next)))
 
   router.get('/:driveUUID', auth.jwt(), (req, res, next) =>
     DRIVE.GET(req.user, { driveUUID: req.params.driveUUID }, f(res, next)))

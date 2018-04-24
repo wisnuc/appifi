@@ -7,6 +7,7 @@ const rimraf = require('rimraf')
 const rimrafAsync = Promise.promisify(rimraf)
 const request = require('supertest')
 
+// node src/utils/md4Encrypt.js alice
 const USERS = {
   alice : {
     uuid: 'cb33b5b3-dd58-470f-8ccc-92aa04d75590',

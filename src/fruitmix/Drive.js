@@ -27,6 +27,8 @@ class Drive extends EventEmitter {
     this.fruitmixDir = opts.fruitmixDir
     this.user = user
 
+    this.user.on('Update', this.handleUserUpdate.bind(this))
+
     this.store = new DataStore({
       file: opts.file,
       tmpDir: opts.tmpDir,
@@ -47,6 +49,12 @@ class Drive extends EventEmitter {
         return this.user.users || []
       }
     })
+  }
+
+  handleUserUpdate (users) {
+    let deletedUsers = users.filter(u => !!u.isDeleted)
+    if (!deletedUsers.length) return
+
   }
 
   /**
@@ -106,7 +114,7 @@ class Drive extends EventEmitter {
       (err, drives) => err ? callback(err) : callback(null, drive))
   }
 
-  getDrive (driveUUID, callback) {
+  getDrive (driveUUID) {
     return this.drives.find(d => d.uuid === driveUUID)
   }
 
@@ -120,8 +128,9 @@ class Drive extends EventEmitter {
         return drives
       }
 
-      if (props.writelist) priv.writelist = props.writelist
-      if (props.readlist) priv.readlist = props.readlist
+      if (props.writelist && props.writelist.every(uuid => !!this.users.find(u => u.uuid === uuid))) priv.writelist = props.writelist
+      if (props.readlist && props.readlist.every(uuid => !!this.users.find(u => u.uuid === uuid))) priv.readlist = props.readlist
+      // TODO: check label has allready been use
       if (props.label) priv.label = props.label
       // TODO: can change type ?
 
@@ -133,21 +142,48 @@ class Drive extends EventEmitter {
 
   }
 
+  /**
+   * @argument userUUID - user uuid
+   * @argument driveUUID - drive uuid
+   */
   userCanReadDrive (userUUID, driveUUID) {
-
+    let drv = this.getDrive(driveUUID)
+    if (!drv) return false
+    if (drv.type === 'private'　&& drv.owner === userUUID) return true
+    if (drv.type === 'public' && (drv.writelist === '*' || drv.writelist.includes(userUUID))) return true
+    return false
   }
 
   LIST (user, props, callback) {
     this.retrieveDrives(user.uuid, callback)
   }
 
+  /**
+   * 
+   * @param {object} user 
+   * @param {object} props 
+   * @param {string} props.driveUUID
+   * @param {function} callback 
+   */
   GET (user, props, callback) {
-    if (!this.userCanReadDrive(user.uuid, props.driveUUID)) { return process.nextTick(() => callback(Object.assign(new Error('Permission Denied'), { status: 403 }))) }
-    this.getDrive(props.driveUUID, callback)
+    if (!this.userCanReadDrive(user.uuid, props.driveUUID)) 
+      return process.nextTick(() => callback(Object.assign(new Error('Permission Denied'), { status: 403 })))
+    let drv = this.getDrive(props.driveUUID)
+    if (!drv) 
+      return process.nextTick(() => callback(Object.assign(new Error('drive not found'), { status: 403 })))
+    process.nextTick(() => callback(null, drv))
   }
 
+  /**
+   * @param {object} user 
+   * @param {object} props 
+   * @param {array} props.writelist
+   * @param {array} props.readlist
+   * @param {string} props.label
+   * @param {Function} callback 
+   */
   POST (user, props, callback) {
-    if (!user.isFirstUser) return callback(null, Object.assign(new Error(`requires admin priviledge`), { status: 403 }))
+    if (!user.isFirstUser) return callback(Object.assign(new Error(`requires admin priviledge`), { status: 403 }))
     this.createPublicDrive(props, callback)
   }
 
