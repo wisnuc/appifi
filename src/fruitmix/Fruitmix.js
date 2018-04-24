@@ -131,6 +131,7 @@ class Fruitmix2 extends EventEmitter {
       drive: this.drive,
       dir: this.dirApi,
       dirEntry: this.dirEntryApi,
+      tag: this.tag
     }
   }
 

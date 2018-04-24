@@ -65,7 +65,7 @@ let MAX_TAG_ID = 2048
       let index = data ? data.index + 1 : 0
       
       if (!data) data = {} // create enpty data object
-      if (Array.isArray(data.tags) && !data.tags.every(t => t.name === props.name))
+      if (Array.isArray(data.tags) && !data.tags.every(t => t.name !== props.name))
         throw new Error('name has already been used')
       if(index > MAX_TAG_ID) throw new Error('too many tags')
       let ctime = new Date().getTime()
@@ -102,7 +102,7 @@ let MAX_TAG_ID = 2048
       let index = data.tags.findIndex(t => t.id === tagId) 
       if (index === -1) throw new Error('tag not found')
 
-      if (isNonEmptyString(props.name) && !data.tags.every(t => t.name === name))
+      if (isNonEmptyString(props.name) && !data.tags.every(t => t.name !== props.name))
         throw new Error('name has already been used')
 
       nextTag = Object.assign({}, data.tags[index])
@@ -167,7 +167,7 @@ let MAX_TAG_ID = 2048
       return callback(Object.assign(new Error('user not found'), { status:404 }))
     let tagId = parseInt(props.tagId)
     if (!Number.isInteger(tagId)) return callback(Object.assign(new Error('tagId error'), { status: 400 }))
-    let tag = this.getTag(user, tagId)
+    let tag = this.findTag(tagId)
     if(!tag) return callback(Object.assign(new Error('tag not found'), { status: 400}))
     this.deleteTag(tag.id, callback)
   }

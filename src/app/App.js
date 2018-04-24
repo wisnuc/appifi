@@ -7,6 +7,7 @@ const createUserRouter = require('../routes/users')
 const createDriveRouter = require('../routes/drives2')
 const createTimeDateRouter = require('../routes/TimeDate')
 const createExpress = require('../system/express')
+const createTagRouter = require('../routes/tags')
 
 /**
 Create An Application
@@ -115,6 +116,9 @@ class App extends EventEmitter {
 **/
       if (apis.includes('file'))
         routers.push(['/files', createFileRouter(this.auth, this.stub('file'))])
+      
+      if (apis.includes('tag'))
+        routers.push(['/tags', createTagRouter(this.auth, this.stub('tag'))])
 
     } else {
       // TODO create all routers
