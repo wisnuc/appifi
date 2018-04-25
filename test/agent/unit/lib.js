@@ -38,6 +38,45 @@ const USERS = {
   }
 }
 
+const DRIVES = {
+  alicePrivate: {
+    uuid: '778d6f5b-624d-4885-ae86-145180893d83',
+    type: 'private',
+    owner: 'cb33b5b3-dd58-470f-8ccc-92aa04d75590',
+    tag: 'home',
+    label: ''
+  },
+  bobPrivate: {
+    uuid: '877d6f5b-624d-4885-ae86-145180893d83',
+    type: 'private',
+    owner: '844921ed-bdfd-4bb2-891e-78e358b54869',
+    tag: 'home',
+    label: ''
+  },
+  charliePrivate: {
+    uuid: '866d6f5b-624d-4885-ae86-145180893d83',
+    type: 'private',
+    owner: '7805388f-a4fd-441f-81c0-4057c3c7004a',
+    tag: 'home',
+    label: ''
+  },
+  buildIn: {
+    uuid: 'd9d2acf2-e380-45a8-a47d-bada96b4d3f6',
+    type: 'public',
+    writelist: '*',
+    readlist: '*',
+    label: '',
+    tag: 'built-in'
+  },
+  public1: {
+    uuid: '9992acf2-e380-45a8-a47d-bada96b4d3f6',
+    type: 'public',
+    writelist: ['877d6f5b-624d-4885-ae86-145180893d83'],
+    readlist: [],
+    label: 'public1'
+  }
+}
+
 const requestToken = (app, userUUID, password, callback) => {
   request(app)
     .get('/token')
@@ -59,7 +98,28 @@ const initUsersAsync = async (fruitmixDir, users) => {
   await fs.writeFileAsync(usersFile, JSON.stringify(users, null, '  '))
 }
 
-module.exports.USERS = USERS
-module.exports.requestToken = requestToken
-module.exports.requestTokenAsync = requestTokenAsync
-module.exports.initUsersAsync = initUsersAsync
+/**
+ * 
+ * @param {string} fruitmixDir - path string
+ * @param {object} opts 
+ * @param {array} opt.users
+ * @param {array} opt.drives
+ * @param {object} opt.tags
+ * @param {array} opt.tags.tags
+ * @param {number} opt.tags.index 
+ */
+const initFruitFilesAsync = async (fruitmixDir, opts) => {
+  await rimrafAsync(fruitmixDir)
+  await mkdirpAsync(fruitmixDir)
+  if (opts.users) await fs.writeFileAsync(path.join(fruitmixDir, 'users.json'), JSON.stringify(opts.users, null, '  '))
+  if (opts.drives) await fs.writeFileAsync(path.join(fruitmixDir, 'drives.json'), JSON.stringify(opts.drives, null, '  '))
+  if (opts.tags) await fs.writeFileAsync(path.join(fruitmixDir, 'tags.json'), JSON.stringify(opts.tags, null, '  '))
+}
+
+module.exports = {
+  USERS,
+  DRIVES,
+  requestToken,
+  initFruitFilesAsync,
+  initUsersAsync
+}
