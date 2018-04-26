@@ -180,7 +180,7 @@ class Reading extends Base {
         }
 
         if (transient) {
-          console.log('readdir: transient state detected')
+          // console.log('readdir: transient state detected')
           this.readn(1000)
         }
       }

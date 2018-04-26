@@ -145,8 +145,6 @@ class VFS extends EventEmitter {
       .filter(uuid => !this.forest.roots.has(uuid))
 
     // all root uuids that are not in valids
-
-
     let toBeDeleted = Array.from(this.forest.roots.keys())
       .filter(uuid => !valids.find(d => d.uuid === uuid))
     
@@ -208,6 +206,21 @@ class VFS extends EventEmitter {
       }
     } else {
       return false
+    }
+  }
+
+
+  /**
+  Try to read the dir with given dir uuid. No permission check.
+
+  This is a best-effort function. It may be used in api layer when error is encountered.
+  */
+  tryDirRead (dirUUID, callback) {
+    let dir = this.forest.uuidMap.get(dirUUID)
+    if (dir) {
+      dir.read(callback)
+    } else {
+      process.nextTick(() => callback(new Error('dir not found')))
     }
   }
 
@@ -288,7 +301,144 @@ class VFS extends EventEmitter {
 
   }
 
+  /**
+  Get a directory (asynchronized with nextTick)
 
+  This function is API, which means it implements http resource model and provides status code.
+
+  without drive:
+
+  - If dir not found, 404
+  - If dir.root not accessible, 404
+
+  with drive:
+
+  - if sdrive is not found, 404
+  - if drive is deleted, 404
+  - if drive is not accessible, 404 
+  - if dir not found, 404 (same as w/o drive)
+  - if dir.root not accessible, 404 (same as w/o drive)
+  - if dir.root !== drive, 301
+
+  @param {object} user
+  @param {object} props
+  @param {string} [driveUUID] - drive uuid, if provided the containing relationship is checked
+  @param {string} dirUUID - directory uuid
+  @returns directory object
+  */
+  DIR (user, props, callback) {
+    let { driveUUID, dirUUID } = props
+  
+    // specified is the drive specified by driveUUID 
+    let specified, dir, drive
+
+    if (driveUUID) {
+      specified = this.drives.find(d => d.uuid === driveUUID)
+      if (!specified || specified.isDeleted || !this.userCanWriteDrive(user, specified)) {
+        let err = new Error('drive not found')
+        err.status = 404
+        return process.nextTick(() => callback(err))
+      }
+    }
+    
+    dir = this.forest.uuidMap.get(props.dirUUID)
+    if (!dir) {
+      let err = new Error('dir not found')
+      err.status = 404
+      return callback(err)
+    }
+
+    drive = this.drives.find(d => d.uuid === dir.root().uuid)
+    if (!drive || drive.isDeleted || !this.userCanWriteDrive(user, drive)) {
+      let err = new Error('dir not found') 
+      err.status = 404
+      return callback(err)
+    }
+
+    if (driveUUID) {
+      if (drive.uuid !== driveUUID) {
+        let err = new Error('dir moved elsewhere')
+        err.status = 301
+        return callback(err)
+      } 
+    }
+
+    callback(null, dir) 
+  }
+
+  /**
+  Make a directory
+
+  @param {object} user
+  @param {object} props
+  @param {string} [driveUUID] - drive uuid
+  @param {string} dirUUID - dir uuid
+  @param {string} name - dir name
+  @param {Policy} policy - policy to resolve name conflict 
+  @parma {boolean} read - true to read dir immediately (for indexing)
+  */
+  MKDIR (user, props, callback) {
+    this.DIR(user, props, (err, dir) => {
+      if (err) return callback(err)
+
+      if (!props.policy) props.policy = [null, null]
+ 
+      let target = path.join(this.absolutePath(dir), props.name)
+      mkdir(target, props.policy, (err, xstat, resolved) => {
+        if (err) return callback(err)
+
+        // this only happens when skip diff policy taking effect
+        if (!xstat) return callback(null, null, resolved)
+        if (!props.read) return callback(null, xstat, resolved)
+
+        dir.read((err, xstats) => {
+          if (err) return callback(err)
+
+          let found = xstats.find(x => x.uuid === xstat.uuid)
+          if (!found) {
+            let err = new Error(`failed to find newly created directory`)
+            err.code = 'ENOENT'
+            err.xcode = 'EDIRTY'
+            callback(err)
+          } else {
+            callback(null, found, resolved)
+          }
+        })
+      })
+    })
+  }
+
+  /**
+  Rename a file or directory
+
+  @param {object} user
+  @param {object} props
+  @param {string} 
+  */
+  RENAME (user, props, callback) {
+  }
+
+  /**
+  Remove a file or directory
+  */
+  REMOVE (user, props, callback) {
+  }
+
+  CREATE_FILE (user, props, callback) {
+  }
+
+  APPEND_FILE (user, props, callback) {
+  }
+
+  DUP_FILE (user, props, callback) {
+  }
+
+  /**
+    
+  */
+  createFile (user, props, callback) {
+    
+  }
 
   // are we using this function ? TODO
   isDriveUUID (driveUUID) {
