@@ -107,11 +107,21 @@ policies:
 
 + 目标不存在，所有合法policy成功，resolved [false, false]
 + 目标存在同名文件夹，same生效
-  + same === null，failed，EEXIST
-  + same === skip，success，resolved [true, false] name不变，uuid不变
-  + same === replace, success, resolved [true, false] name不变，uuid变化
-  + same === rename, success, resolved [true, false] name变化，新uuid，原文件夹不变
+  + same === null，403, EEXIST, EISDIR
+  + same === skip，200，resolved [true, false] name/uuid不变
+  + same === replace, success, resolved [true, false] name/uuid变化（underlying层定义的replace保留uuid）
+  + same === rename, success, resolved [true, false] 原dir不变，新建一个dir
 + 目标存在同名文件，diff生效
-  + diff === null, fail，EEXIST
-  + diff === skip, success, resolved [true, false], name, 
-  + diff === replace, success, resolved [true, false],  
+  + diff === null, 403，EEXIST, EISFILE
+  + diff === skip, 200, resolved [false, true], name/uuid不变 (*)
+  + diff === replace, 200, resolved [false, true], file replaced by dir (*)
+  + diff === rename, 200, resolved [false, true], file kept, new dir (*)
+
+**进度**
+
+1. (*)内容需要用api创建测试文件
+2. 所有测例均未验证磁盘内容
+3. it描述格式混乱
+
+
+

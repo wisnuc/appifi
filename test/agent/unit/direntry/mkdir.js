@@ -127,7 +127,7 @@ describe(path.basename(__filename), () => {
     target does not exists, all policies succeed. resolved is [false, false]
     */
     policies.forEach(policy => {
-      it(`200 if no hello, resolved [false, false], policy: ${String(policy)}`, done => {
+      it(`200 if no hello, [${String(policy)}] resolved [false, false]`, done => {
         request(app.express)
           .post(`/drives/${home.uuid}/dirs/${home.uuid}/entries`)
           .set('Authorization', 'JWT ' + token)
@@ -196,10 +196,12 @@ describe(path.basename(__filename), () => {
     })
 
     /**
-    target is dir, same replace 200, resolved [true, false], uuid changed, name unchanged
+    target is dir, same replace 200, resolved [true, false], uuid and name unchanged
+
+    In underlying, replace keeping uuid, which means overwrite. This is non-sense for dir.
     */
     policies.filter(p => p && p[0] === 'replace').forEach(policy => {
-      it(`200 if hello is dir, [${String(policy)}] resolved [true, false], uuid unchanged 987580b4`, done => {  
+      it(`200 if hello is dir, [${String(policy)}] resolved [true, false], unchanged 987580b4`, done => {  
         request(app.express)
           .post(`/drives/${home.uuid}/dirs/${home.uuid}/entries`)
           .set('Authorization', 'JWT ' + token)
@@ -216,9 +218,9 @@ describe(path.basename(__filename), () => {
               .expect(200)
               .end((err, res) => {
                 if (err) return done(err)
-                expect(res.body[0].resolved).to.deep.equal([true, false])
-                expect(res.body[0].data.name).to.equal(xstat.name)
-                expect(res.body[0].data.uuid).to.not.equal(xstat.uuid)
+                expect(res.body[0].resolved).to.deep.equal([true, false]) // resolved
+                expect(res.body[0].data.name).to.equal(xstat.name)        // same name
+                expect(res.body[0].data.uuid).to.equal(xstat.uuid)        // same instance
                 done()
               })
           })
@@ -227,11 +229,77 @@ describe(path.basename(__filename), () => {
     })
 
     /**
-    target is dir, same skip succeed. resolved is [true, false]
+    target is dir, same rename 200, resolved [true, false], left two dirs'
     */
-    policies.filter(p => p && p[0] === 'skip').forEach(policy => {
-      it.skip(`200 if hello exists, resolved [true, false], policy: ${String(policy)}`, done => {  
-        mkdirp(path.join(tmptest, 'fruitmix', 'drives', home.uuid, 'hello'), err => {
+    policies.filter(p => p && p[0] === 'rename').forEach(policy => {
+      it(`200 if hello is dir, [${String(policy)}] resolved [true, false], left two dirs, 085b25a6`, done => {  
+        request(app.express)
+          .post(`/drives/${home.uuid}/dirs/${home.uuid}/entries`)
+          .set('Authorization', 'JWT ' + token)
+          .field('hello', JSON.stringify({ op: 'mkdir' }))
+          .expect(200)
+          .end((err, res) => {
+            if (err) return done(err)
+            let xstat = res.body[0].data
+
+            request(app.express)
+              .post(`/drives/${home.uuid}/dirs/${home.uuid}/entries`)
+              .set('Authorization', 'JWT ' + token)
+              .field('hello', JSON.stringify({ op: 'mkdir', policy }))
+              .expect(200)
+              .end((err, res) => {
+                if (err) return done(err)
+                expect(res.body[0].resolved).to.deep.equal([true, false]) // resolved
+                let xstat2 = res.body[0].data
+
+                request(app.express)
+                  .get(`/drives/${home.uuid}/dirs/${home.uuid}`)
+                  .set('Authorization', 'JWT ' + token)
+                  .expect(200)
+                  .end((err, res) => {
+                    if (err) return done(err)
+                    expect(res.body.entries.sort((a, b) => a.name.localeCompare(b.name))).to.deep.equal([xstat, xstat2])
+                    done()
+                  })
+              })
+          })
+
+      })
+    })
+
+    /**
+    target is file, diff null 403. EEXIST/EISFILE
+    */
+    policies.filter(p => !p || !p[1]).forEach(policy => {
+      it(`403 if hello is file, [${String(policy)}], EEXIST/EISFILE`, done => {  
+        fs.writeFile(path.join(tmptest, 'fruitmix', 'drives', home.uuid, 'hello'), 'hello', err => {
+          if (err) return done(err)
+          request(app.express)
+            .post(`/drives/${home.uuid}/dirs/${home.uuid}/entries`)
+            .set('Authorization', 'JWT ' + token)
+            .field('hello', JSON.stringify({ op: 'mkdir' , policy }))
+            .expect(403)
+            .end((err, res) => {
+              if (err) return done(err)
+              expect(res.body.code).to.equal('EEXIST')
+              expect(res.body.xcode).to.equal('EISFILE')
+              expect(res.body.result[0].error.code).to.equal('EEXIST')
+              expect(res.body.result[0].error.xcode).to.equal('EISFILE')
+              done()
+            })
+        })
+      })
+    })
+
+
+    /**
+    target is file, diff skip 200. resolved is [true, false], data is null, file unchanged
+
+    TODO use api to create file
+    */
+    policies.filter(p => p && p[1] === 'skip').forEach(policy => {
+      it(`200 if hello is file, ${String(policy)} resolved [false, true], file unchanged, b3cd5d6a`, done => {  
+        fs.writeFile(path.join(tmptest, 'fruitmix', 'drives', home.uuid, 'hello'), 'hello', err => {
           if (err) return done(err)
           request(app.express)
             .post(`/drives/${home.uuid}/dirs/${home.uuid}/entries`)
@@ -240,16 +308,23 @@ describe(path.basename(__filename), () => {
             .expect(200)
             .end((err, res) => {
               if (err) return done(err)
-              expect(res.body[0].resolved).to.deep.equal([true, false])
+              expect(res.body[0].resolved).to.deep.equal([false, true])
+              expect(res.body[0].data).to.equal(null)
               done()
             })
         })
       })
     })
 
-    policies.filter(p => !p || p[0] !== 'skip').forEach(policy => {
-      it.skip(`200 if hello exists, resolved [true, false], policy: ${String(policy)}`, done => {  
-        mkdirp(path.join(tmptest, 'fruitmix', 'drives', home.uuid, 'hello'), err => {
+
+    /**
+    target is file, diff replace 200. resolved is [false, true], 
+
+    TODO use api to create file, assert uuid change
+    */
+    policies.filter(p => p && p[1] === 'replace').forEach(policy => {
+      it(`200 if hello is file, ${String(policy)} resolved [false, true], x file + dir`, done => {  
+        fs.writeFile(path.join(tmptest, 'fruitmix', 'drives', home.uuid, 'hello'), 'hello', err => {
           if (err) return done(err)
           request(app.express)
             .post(`/drives/${home.uuid}/dirs/${home.uuid}/entries`)
@@ -258,30 +333,38 @@ describe(path.basename(__filename), () => {
             .expect(200)
             .end((err, res) => {
               if (err) return done(err)
-              expect(res.body[0].resolved).to.deep.equal([true, false])
+              expect(res.body[0].resolved).to.deep.equal([false, true])
+              expect(res.body[0].data.type).to.equal('directory')
               done()
             })
         })
       })
     })
 
-      it.skip(`ad hoc`, done => {  
-        mkdirp(path.join(tmptest, 'fruitmix', 'drives', home.uuid, 'hello'), err => {
+    /**
+    target is file, diff rename 200. resolved is [false, true], 
+
+    TODO use api to create file, assert uuid change
+    */
+    policies.filter(p => p && p[1] === 'rename').forEach(policy => {
+      it(`200 if hello is file, ${String(policy)} resolved [false, true], keep file + dir`, done => {  
+        fs.writeFile(path.join(tmptest, 'fruitmix', 'drives', home.uuid, 'hello'), 'hello', err => {
           if (err) return done(err)
           request(app.express)
             .post(`/drives/${home.uuid}/dirs/${home.uuid}/entries`)
             .set('Authorization', 'JWT ' + token)
-            .field('hello', JSON.stringify({ op: 'mkdir' , policy: [null, null] }))
+            .field('hello', JSON.stringify({ op: 'mkdir' , policy }))
             .expect(200)
             .end((err, res) => {
               if (err) return done(err)
-              // console.log(res.body)
-              expect(res.body[0].resolved).to.deep.equal([true, false])
+              expect(res.body[0].resolved).to.deep.equal([false, true])
+              expect(res.body[0].data.type).to.equal('directory')
               done()
             })
         })
       })
+    })
 
-   })
+  })
  
 })
