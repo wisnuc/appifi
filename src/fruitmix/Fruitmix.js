@@ -18,7 +18,7 @@ const Thumbnail = require('../lib/thumbnail2')
 const VFS = require('./VFS')
 const Tag = require('../tags/Tag')
 const DirApi = require('./apis/dir')
-const DirEntryApi = require('./apis/dirEntry')
+const DirEntryApi = require('./apis/dir-entry')
 
 /**
 Fruitmix has the following structure:

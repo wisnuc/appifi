@@ -80,7 +80,9 @@ const createApp = opts => {
     // TODO check nodejs doc for more error properties such as syscall.
     res.status(err.status || 500).json({
       code: err.code,
+      xcode: err.xcode,
       message: err.message,
+      result: err.result,
       where: err.where
     })
   })

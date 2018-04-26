@@ -129,8 +129,6 @@ describe(path.basename(__filename), () => {
       .expect(200)
       .end((err, res) => {
 
-        debug(res.body)
-
         expect(res.body.length).to.equal(2)
         let x = res.body[0]
         expect(x.number).to.equal(0)

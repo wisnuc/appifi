@@ -26,7 +26,7 @@ const link = (target, tmp, uuid, hash, opt, callback) => {
     : cb => fs.mkdir(target, cb)
 
   f(err => {
-    if (err && err.code === 'EEXIST') { // conflict
+    if (err && err.code === 'EEXIST') {           // conflict
       readXstat(target, (xerr, xstat) => {
         // return the error we cannot handle
         if (xerr && xerr.xcode !== 'EUNSUPPORTED') return callback(xerr)
@@ -62,12 +62,13 @@ const link = (target, tmp, uuid, hash, opt, callback) => {
               callback(null, xstat, [same(), diff()])
             })
           })
-        } else {
+        } else { 
           if (xerr) {
             err.xcode = xerr.code
           } else {
             err.xcode = xstat.type === 'directory' ? 'EISDIR' : 'EISFILE'
           }
+          err.status = 403
           callback(err)
         }
       })

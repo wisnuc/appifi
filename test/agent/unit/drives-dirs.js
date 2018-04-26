@@ -175,7 +175,58 @@ describe(path.basename(__filename), () => {
         })
       })
     })
-  })
 
+    it('200 if hello not exist, 7ab3c59f', done => {
+      let fruitmix = new Fruitmix({ fruitmixDir })
+      let app = new App({ fruitmix })
+      fruitmix.once('FruitmixStarted', () => {
+        requestToken(app.express, alice.uuid, 'alice', (err, token) => {
+          if (err) return done(err)
+          requestHome(app.express, alice.uuid, token, (err, home) => {
+            if (err) return done(err)
+            request(app.express)
+              .post(`/drives/${home.uuid}/dirs/${home.uuid}/entries`)
+              .set('Authorization', 'JWT ' + token)
+              .field('hello', JSON.stringify({ op: 'mkdir' }))
+              .expect(200)
+              .end((err, res) => {
+                if (err) return done(err)
+                console.log(res.body)
+                done()
+              })
+          })
+        })
+      })
+    })
+
+    it('200 if hello not exist, 7ab3c59f', done => {
+      let fruitmix = new Fruitmix({ fruitmixDir })
+      let app = new App({ fruitmix })
+      fruitmix.once('FruitmixStarted', () => {
+        requestToken(app.express, alice.uuid, 'alice', (err, token) => {
+          if (err) return done(err)
+          requestHome(app.express, alice.uuid, token, (err, home) => {
+            if (err) return done(err)
+            let req = request(app.express)
+              .post(`/drives/${home.uuid}/dirs/${home.uuid}/entries`)
+              .set('Authorization', 'JWT ' + token)
+              .field('hello', JSON.stringify({ op: 'mkdir' }))
+
+            for (let i = 0; i < 256; i++)
+              req.field('hello', JSON.stringify({ op: 'mkdir', policy: ['skip', null] }))
+
+
+             req.expect(200)
+              .end((err, res) => {
+                if (err) return done(err)
+                console.log(JSON.stringify(res.body, null, '  '))
+                done()
+              })
+          })
+        })
+      })
+    })
+  
+  })
 
 })

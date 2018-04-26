@@ -43,15 +43,18 @@ module.exports = (auth, DRIVE, DIR, DIRENTRY) => {
       return next(err)
     }
 
-    let boundary
-    let length
+    const regex = /^multipart\/.+?(?:; boundary=(?:(?:"(.+)")|(?:([^\s]+))))$/i
+    const m = regex.exec(req.headers['content-type'])
+
+    let boundary = m[1] || m[2]
+    let length = parseInt(req.headers['content-length'])
 
     let props = {
       driveUUID: req.params.driveUUID,
       dirUUID: req.params.dirUUID,
-      form: req, // should only be used as incoming stream
       boundary,
-      length
+      length,
+      formdata: req,
     }
 
     DIRENTRY.POSTFORM(req.user, props, f(res, next))
