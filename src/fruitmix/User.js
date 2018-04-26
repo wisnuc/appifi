@@ -109,17 +109,17 @@ class User extends EventEmitter {
   }
 
   deleteUser (userUUID, callback) {
-    this.store.save(data => {
+    this.store.save(users => {
       let index = users.findIndex(u => u.uuid === userUUID)
       if (index === -1) throw new Error('user not found')
-      let user = Object.assign({}, data[index])
+      let user = Object.assign({}, users[index])
       user.status = USER_STATUS.DELETED
       return [...users.slice(0, index), user, ...users.slice(index + 1)]
     }, callback)
   }
 
   removeUser (userUUID, callback) {
-    this.store.save(data => {
+    this.store.save(users => {
       let index = users.findIndex(u => u.uuid === userUUID)
       if (index === -1) throw new Error('user not found')
       return [...users.slice(0, index), ...users.slice(index + 1)]
@@ -255,7 +255,10 @@ class User extends EventEmitter {
   }
  
   DELETE (user, props, callback) {
-  } 
+    if (!isUUID(props.userUUID) || this.users.findIndex(u => u.uuid === props.userUUID) === -1) return callback(Object.assign(new Error('userUUID error'), { status: 400 }))
+    if (!user.isFirstUser) return callback(Object.assign(new Error('Permission Denied'), { status: 403 }))
+    this.deleteUser(props.userUUID, callback)
+  }
 }
 
 User.prototype.USER_STATUS = USER_STATUS

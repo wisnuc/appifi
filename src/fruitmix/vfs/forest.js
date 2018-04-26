@@ -278,17 +278,10 @@ class Forest extends EventEmitter {
     }
   }
 
-  createRoot (uuid, callback) {
-    let dirPath = path.join(this.dir, uuid)
-    mkdirp(dirPath, err => {
-      if (err) return callback(err)
-      forceXstat(dirPath, { uuid }, (err, xstat) => {
-        if (err) return callback(err)
-        let root = new Directory(this, null, xstat)
-        this.roots.set(uuid, root)
-        callback(null, root) 
-      })
-    })
+  createRoot (uuid, xstat) {
+    let root = new Directory(this, null, xstat)
+    this.roots.set(uuid, root)
+    return root
   }
 
   /**
@@ -298,7 +291,10 @@ class Forest extends EventEmitter {
   */
   deleteRoot (uuid) {
     let dir = this.roots.get(uuid)
-    if (dir) dir.destroy(true)
+    if (dir) {
+      dir.destroy(true)
+      this.roots.delete(uuid)
+    }
   }
 
 

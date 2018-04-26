@@ -52,13 +52,25 @@ class Drive extends EventEmitter {
   }
 
   handleVFSDeleted (driveUUID) {
-    
+    let drv = this.drives.find(drv => drv.uuid === driveUUID)
+    if (!drv) return // ignore
+    this.removeDrive(driveUUID, {}, err => {
+      if (err) return // skip, unknown error when remove drive
+      this.user.handleDriveDeleted(drv.owner)
+    })
   }
 
   handleUserUpdate (users) {
-    let deletedUsers = users.filter(u => this.user.USER_STATUS.DELETED)
+    let deletedUsers = users.filter(u => u.status === this.user.USER_STATUS.DELETED).map(u => u.uuid)
     if (!deletedUsers.length) return
-
+    this.store.save(drives => {
+      deletedUsers.forEach(userUUID => {
+        let drv = drives.find(drv => drv.owner === userUUID && drv.type === 'private')
+        if (!drv) this.user.handleDriveDeleted(userUUID) // report user module
+        else this.deleteDrive(drv.uuid, {}, () => {}) // update drive isDeleted
+      })      
+      return drives
+    }, () => {})
   }
 
   /**
@@ -162,7 +174,7 @@ class Drive extends EventEmitter {
   removeDrive (driveUUID, props, callback) {
     this.store.save(drives => {
       let index = drives.findIndex(drv => drv.uuid === driveUUID)
-      if (index === -1) throw new Error('drive not found')
+      if (index === -1) throw Object.assign(new Error('drive not found'), { code: 'ENOENT' })
       return [...drives.slice(0, index), ...drives.slice(index + 1)]
     }, callback)
   }
