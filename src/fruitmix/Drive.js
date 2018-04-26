@@ -49,12 +49,6 @@ class Drive extends EventEmitter {
         return this.store.data
       }
     })
-
-    Object.defineProperty(this, 'users', {
-      get () {
-        return this.user.users || []
-      }
-    })
   }
 
   handleVFSDeleted (driveUUID) {
