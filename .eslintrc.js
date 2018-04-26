@@ -1,10 +1,8 @@
 module.exports = {
   "env": {
-    "browser": true,
     "node": true,
     "es6": true,
-    "jest": true,
-    "jquery": true
+    "mocha": true
   },
   "extends": "standard",
   "plugins": [
@@ -16,11 +14,6 @@ module.exports = {
     "sourceType": "module"
   },
   "rules": {
-    "padded-blocks": ["error", { 
-      "blocks": "never",
-      "classes": "always",
-      "switches": "never"
-    }],
-    "no-new": 0
+   
   }
 };

@@ -13,10 +13,7 @@ const expect = chai.expect
 
 const Fruitmix = require('src/fruitmix/Fruitmix')
 const Auth = require('src/middleware/Auth')
-const createTokenRouter = require('src/routes/Token')
-const createTagsRouter = require('src/routes/tags')
-const createExpress = require('src/system/express')
-const tagsapi = require('src/fruitmix/tag')
+const App = require('src/app/App')
 
 const cwd = process.cwd()
 const tmptest = path.join(cwd, 'tmptest')
@@ -27,39 +24,18 @@ const requestToken = require('./lib').requestToken
 const initUsersAsync = require('./lib').initUsersAsync
 
 describe(path.basename(__filename), () => {
-  let fruitmix
-
-  const createApp = () => {
-    fruitmix = new Fruitmix({ fruitmixDir })
-    Object.assign(fruitmix, tagsapi)
-
-    let auth = new Auth('some secret', () => fruitmix.users)
-    let token = createTokenRouter(auth)
-    let tags = createTagsRouter(auth, () => fruitmix)
-
-    let opts = {
-      auth: auth.middleware,
-      settings: { json: { spaces: 2 } },
-      log: { skip: 'all', error: 'all' },
-      routers: [
-        ['/token', token],
-        ['/tags', tags]
-      ]
-    }
-
-    return createExpress(opts)
-  }
 
   beforeEach(async () => {
     await initUsersAsync(fruitmixDir, [USERS.alice])
   })
 
   it('should get [] for /tags', done => {
-    let app = createApp()
+    let fruitmix = new Fruitmix({ fruitmixDir })
+    let app = new App({ fruitmix })
     fruitmix.once('FruitmixStarted', () => {
-      requestToken(app, USERS.alice.uuid, 'alice', (err, token) => {
+      requestToken(app.express, USERS.alice.uuid, 'alice', (err, token) => {
         if (err) return done(err)
-        request(app)
+        request(app.express)
           .get('/tags')
           .set('Authorization', 'JWT ' + token)
           .expect(200)
@@ -73,11 +49,12 @@ describe(path.basename(__filename), () => {
   })
 
   it('should create tag named test', done => {
-    let app = createApp()
+    let fruitmix = new Fruitmix({ fruitmixDir })
+    let app = new App({ fruitmix })
     fruitmix.once('FruitmixStarted', () => {
-      requestToken(app, USERS.alice.uuid, 'alice', (err, token) => {
+      requestToken(app.express, USERS.alice.uuid, 'alice', (err, token) => {
         if (err) return done(err)
-        request(app)
+        request(app.express)
           .post('/tags')
           .set('Authorization', 'JWT ' + token)
           .send({ name: 'test' })
@@ -93,11 +70,12 @@ describe(path.basename(__filename), () => {
   })
 
   it('should return 400 to create tag name test if already has a tag named test', done => {
-    let app = createApp()
+    let fruitmix = new Fruitmix({ fruitmixDir })
+    let app = new App({ fruitmix })
     fruitmix.once('FruitmixStarted', () => {
-      requestToken(app, USERS.alice.uuid, 'alice', (err, token) => {
+      requestToken(app.express, USERS.alice.uuid, 'alice', (err, token) => {
         if (err) return done(err)
-        request(app)
+        request(app.express)
           .post('/tags')
           .set('Authorization', 'JWT ' + token)
           .send({ name: 'test' })
@@ -106,7 +84,7 @@ describe(path.basename(__filename), () => {
             if (err) return done(err)
             expect(res.body.name).to.deep.equal('test')
             expect(res.body.id).to.deep.equal(0)
-            request(app)
+            request(app.express)
               .post('/tags')
               .set('Authorization', 'JWT ' + token)
               .send({ name: 'test' })
@@ -138,11 +116,12 @@ describe(path.basename(__filename), () => {
     })
 
     it('should return 200 delete tag id 0', done => {
-      let app = createApp()
+      let fruitmix = new Fruitmix({ fruitmixDir })
+      let app = new App({ fruitmix })
       fruitmix.once('FruitmixStarted', () => {
-        requestToken(app, USERS.alice.uuid, 'alice', (err, token) => {
+        requestToken(app.express, USERS.alice.uuid, 'alice', (err, token) => {
           if (err) return done(err)
-          request(app)
+          request(app.express)
             .delete('/tags/0')
             .set('Authorization', 'JWT ' + token)
             .expect(200)
@@ -152,17 +131,18 @@ describe(path.basename(__filename), () => {
     })
 
     it('tag id should be 1 , even if 0 has be deleted', done => {
-      let app = createApp()
+      let fruitmix = new Fruitmix({ fruitmixDir })
+      let app = new App({ fruitmix })
       fruitmix.once('FruitmixStarted', () => {
-        requestToken(app, USERS.alice.uuid, 'alice', (err, token) => {
+        requestToken(app.express, USERS.alice.uuid, 'alice', (err, token) => {
           if (err) return done(err)
-          request(app)
+          request(app.express)
             .delete('/tags/0')
             .set('Authorization', 'JWT ' + token)
             .expect(200)
             .end(err => {
               if (err) return done(err)
-              request(app)
+              request(app.express)
                 .post('/tags')
                 .set('Authorization', 'JWT ' + token)
                 .send({ name: 'test' })
@@ -179,11 +159,12 @@ describe(path.basename(__filename), () => {
     })
 
     it('should return 200 if change tag name', done => {
-      let app = createApp()
+      let fruitmix = new Fruitmix({ fruitmixDir })
+      let app = new App({ fruitmix })
       fruitmix.once('FruitmixStarted', () => {
-        requestToken(app, USERS.alice.uuid, 'alice', (err, token) => {
+        requestToken(app.express, USERS.alice.uuid, 'alice', (err, token) => {
           if (err) return done(err)
-          request(app)
+          request(app.express)
             .patch('/tags/0')
             .set('Authorization', 'JWT ' + token)
             .send({ name: 'test2' })

@@ -14,68 +14,19 @@ const expect = chai.expect
 
 const Fruitmix = require('src/fruitmix/Fruitmix')
 const Auth = require('src/middleware/Auth')
-const createTokenRouter = require('src/routes/Token')
-const createUserRouter = require('src/routes/users')
-const createExpress = require('src/system/express')
 const App = require('src/app/App')
+const { USERS, DRIVES, requestToken, initUsersAsync, initFruitFilesAsync } = require('./lib')
 
 const cwd = process.cwd()
 const tmptest = path.join(cwd, 'tmptest')
 const fruitmixDir = path.join(tmptest, 'fruitmix')
-
-// node src/utils/md4Encrypt.js alice
-
-const alice = {
-  uuid: 'cb33b5b3-dd58-470f-8ccc-92aa04d75590',
-  username: 'alice',
-  password: '$2a$10$nUmDoy9SDdkPlj9yuYf2HulnbtvbF0Ei6rGF1G1UKUkJcldINaJVy',
-  smbPassword: '4039730E1BF6E10DD01EAAC983DB4D7C',
-  lastChangeTime: 1523867673407,
-  isFirstUser: true,
-  phicommUserId: 'alice'
-}
-
-const bob = {
-  uuid: '844921ed-bdfd-4bb2-891e-78e358b54869',
-  username: 'bob',
-  isFirstUser: false,
-  password: '$2a$10$OhlvXzpOyV5onhi5pMacvuDLwHCyLZbgIV1201MjwpJ.XtsslT3FK',
-  smbPassword: 'B7C899154197E8A2A33121D76A240AB5',
-  lastChangeTime: 1523867673407,
-  isFirstUser: false,
-  phicommUserId: 'bob'
-}
-
-const charlie = {
-  uuid: '7805388f-a4fd-441f-81c0-4057c3c7004a',
-  username: 'charlie',
-  password: '$2a$10$TJdJ4L7Nqnnw1A9cyOlJuu658nmpSFklBoodiCLkQeso1m0mmkU6e',
-  smbPassword: '8D44C8FF3A4D1979B24BFE29257173AD',
-  lastChangeTime: 1523867673407,
-  isFirstUser: false,
-  phicommUserId: 'charlie'
-}
-
+const { alice, bob, charlie } = USERS
+const { alicePrivate, buildIn, public1 } = DRIVES
 
 describe(path.basename(__filename), () => {
-
-  const requestToken = (express, userUUID, password, callback) =>
-    request(express)
-      .get('/token')
-      .auth(userUUID, password)
-      .expect(200)
-      .end((err, res) => {
-        if (err) return callback(err)
-        callback(null, res.body.token)
-      })
-
   describe('ad hoc test', () => {
-    
     beforeEach(async () => {
-      await rimrafAsync(tmptest)
-      await mkdirpAsync(fruitmixDir)
-      let userFile = path.join(fruitmixDir, 'users.json')
-      await fs.writeFileAsync(userFile, JSON.stringify([alice, bob], null, '  '))
+      await initFruitFilesAsync(fruitmixDir, { users: [alice, bob] })
     })
 
     it('alice GET /drives should return built-in and her private drives', done => {
@@ -83,6 +34,7 @@ describe(path.basename(__filename), () => {
       let app = new App({ fruitmix })
       fruitmix.once('FruitmixStarted', () => {
         requestToken(app.express, alice.uuid, 'alice', (err, token) => {
+          if (err) return done(err)
           request(app.express)
             .get('/drives')
             .set('Authorization', 'JWT ' + token)
@@ -94,16 +46,16 @@ describe(path.basename(__filename), () => {
               expect(drives.length).to.equal(2)
 
               let priv = drives.find(d => d.type === 'private')
-              expect(isUUID(priv.uuid, 4)).to.be.true
+              // expect(isUUID(priv.uuid, 4)).to.be.true
               expect(priv).to.deep.equal({
                 uuid: priv.uuid,
                 type: 'private',
                 owner: alice.uuid,
-                tag: 'home' 
+                tag: 'home',
+                label: ''
               })
 
               let builtIn = drives.find(d => d.type === 'public')
-              expect(isUUID(builtIn.uuid, 4)).to.be.true
               expect(builtIn).to.deep.equal({
                 uuid: builtIn.uuid,
                 type: 'public',
@@ -119,5 +71,172 @@ describe(path.basename(__filename), () => {
       })
     })
 
+    it('alice GET /drives/:driveUUID should return []', done => {
+      let fruitmix = new Fruitmix({ fruitmixDir })
+      let app = new App({ fruitmix })
+      fruitmix.once('FruitmixStarted', () => {
+        requestToken(app.express, alice.uuid, 'alice', (err, token) => {
+          if (err) return done(err)
+          request(app.express)
+            .get('/drives')
+            .set('Authorization', 'JWT ' + token)
+            .expect(200)
+            .end((err, res) => {
+              if (err) return done(err)
+              let drives = res.body
+              let priv = drives.find(d => d.type === 'private')
+              request(app.express)
+                .get(`/drives/${priv.uuid}`)
+                .set('Authorization', 'JWT ' + token)
+                .expect(200)
+                .end((err, res) => {
+                  if (err) return done(err)
+                  expect(res.body).to.deep.equal(priv)
+                  done()
+                })
+            })
+        })
+      })
+    })
+
+    it('alice POST /drives should create a public drive', done => {
+      let fruitmix = new Fruitmix({ fruitmixDir })
+      let app = new App({ fruitmix })
+      fruitmix.once('FruitmixStarted', () => {
+        requestToken(app.express, alice.uuid, 'alice', (err, token) => {
+          if (err) return done(err)
+          request(app.express)
+            .post('/drives')
+            .set('Authorization', 'JWT ' + token)
+            .send({
+              writelist: [bob.uuid],
+              label: bob.username
+            })
+            .expect(200)
+            .end((err, res) => {
+              if (err) return done(err)
+              let priv = res.body
+              expect(res.body).to.deep.equal({
+                uuid: priv.uuid,
+                type: 'public',
+                writelist: [bob.uuid],
+                readlist: [],
+                label: 'bob'
+              })
+              done()
+            })
+        })
+      })
+    })
+
+    it('bob POST /drives should return 403', done => {
+      let fruitmix = new Fruitmix({ fruitmixDir })
+      let app = new App({ fruitmix })
+      fruitmix.once('FruitmixStarted', () => {
+        requestToken(app.express, bob.uuid, 'bob', (err, token) => {
+          if (err) return done(err)
+          request(app.express)
+            .post('/drives')
+            .set('Authorization', 'JWT ' + token)
+            .send({
+              writelist: [alice.uuid],
+              label: bob.username
+            })
+            .expect(403)
+            .end(done)
+        })
+      })
+    })
+
+    it('alice PATCH /drives/:driveUUID update private drives`s label should success', done => {
+      let fruitmix = new Fruitmix({ fruitmixDir })
+      let app = new App({ fruitmix })
+      fruitmix.once('FruitmixStarted', () => {
+        requestToken(app.express, alice.uuid, 'alice', (err, token) => {
+          if (err) return done(err)
+          request(app.express)
+            .get('/drives')
+            .set('Authorization', 'JWT ' + token)
+            .expect(200)
+            .end((err, res) => {
+              if (err) return done(err)
+              let drives = res.body
+              let priv = drives.find(d => d.type === 'private')
+              request(app.express)
+                .patch(`/drives/${priv.uuid}`)
+                .set('Authorization', 'JWT ' + token)
+                .send({
+                  label: 'alice`s home'
+                })
+                .expect(200)
+                .end((err, res) => {
+                  if (err) return done(err)
+                  priv.label = 'alice`s home'
+                  expect(res.body).to.deep.equal(priv)
+                  done()
+                })
+            })
+        })
+      })
+    })
+  })
+
+  describe('alice create a public drive', () => {
+    beforeEach(async () => {
+      await initFruitFilesAsync(fruitmixDir, { users: [alice, bob, charlie], drives: [public1] })
+    })
+
+    it('alice PATCH /drives/:driveUUID should success', done => {
+      let start = () => {
+        if (++count !== 2) return
+        requestToken(app.express, alice.uuid, 'alice', (err, token) => {
+          if (err) return done(err)
+          request(app.express)
+            .patch(`/drives/${public1.uuid}`)
+            .set('Authorization', 'JWT ' + token)
+            .send({
+              writelist: [alice.uuid, bob.uuid, charlie.uuid],
+              label: bob.username
+            })
+            .expect(200)
+            .end((err, res) => {
+              if (err) return done(err)
+              let pub = Object.assign({}, public1)
+              pub.writelist = [alice.uuid, bob.uuid, charlie.uuid].sort()
+              pub.label = bob.username
+              expect(res.body).to.deep.equal(pub)
+              done()
+            })
+        })
+      }
+      let fruitmix = new Fruitmix({ fruitmixDir })
+      let app = new App({ fruitmix })
+      let count = 0
+      fruitmix.drive.once('Update', start)
+      fruitmix.user.once('Update', start)
+    })
+
+    it('bob PATCH /drives/:driveUUID should return 403', done => {
+      let start = () => {
+        if (++count !== 2) return
+        requestToken(app.express, bob.uuid, 'bob', (err, token) => {
+          if (err) return done(err)
+          request(app.express)
+            .patch(`/drives/${public1.uuid}`)
+            .set('Authorization', 'JWT ' + token)
+            .send({
+              writelist: [alice.uuid, bob.uuid, charlie.uuid],
+              label: bob.username
+            })
+            .expect(403)
+            .end(done)
+        })
+      }
+      let fruitmix = new Fruitmix({ fruitmixDir })
+      let app = new App({ fruitmix })
+      let count = 0
+      fruitmix.drive.once('Update', start)
+      fruitmix.user.once('Update', start)
+    })
   })
 })
