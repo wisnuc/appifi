@@ -54,6 +54,7 @@ class App extends EventEmitter {
   */
   constructor (opts) {
     super()
+    this.opts = opts
 
     // create express
     this.secret = opts.secret || 'Lord, we need a secret'
@@ -93,11 +94,9 @@ class App extends EventEmitter {
   }
 
   createExpress () {
-    this.auth = new Auth(this.secret, () => 
-      this.fruitmix ? this.fruitmix.user.users : [])
+    this.auth = new Auth(this.secret, () => this.fruitmix ? this.fruitmix.user.users : [])
 
     let routers = []
-
     routers.push(['/token', createTokenRouter(this.auth)]) 
 
     if (this.fruitmix) {
@@ -126,13 +125,14 @@ class App extends EventEmitter {
     let opts = {
       auth: this.auth.middleware,
       settings: { json: { spaces: 2 } },
-      log: { skip: 'all', error: 'all' },
+      log: this.opts.log || { skip: 'all', error: 'all' },
       routers
     }
 
     this.express = createExpress(opts)
   }
 
+  // is this function used ??? TODO
   createServer (secret) {
     this.auth = new Auth(secret)
     this.token = TokenRouter(this.auth)
@@ -141,7 +141,7 @@ class App extends EventEmitter {
     let opts = {
       auth: this.auth.middleware,
       settings: { json: { spaces: 2 } },
-      log: { skip: 'all', error: 'all' },
+      log: this.opts.log || { skip: 'all', error: 'all' },
       routers: [
         ['/token', this.token],
       ]

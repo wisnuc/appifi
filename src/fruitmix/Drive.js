@@ -34,6 +34,12 @@ class Drive extends EventEmitter {
 
     this.store.on('Update', (...args) => this.emit('Update', ...args))
 
+    Object.defineProperty(this, 'users', {
+      get () {
+        return this.user.users || []
+      }
+    })
+
     // effective drive?
     Object.defineProperty(this, 'drives', {
       get () {
