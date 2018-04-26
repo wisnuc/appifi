@@ -51,8 +51,12 @@ class Drive extends EventEmitter {
     })
   }
 
+  handleVFSDeleted (driveUUID) {
+    
+  }
+
   handleUserUpdate (users) {
-    let deletedUsers = users.filter(u => !!u.isDeleted)
+    let deletedUsers = users.filter(u => this.user.USER_STATUS.DELETED)
     if (!deletedUsers.length) return
 
   }
@@ -75,7 +79,8 @@ class Drive extends EventEmitter {
             type: 'private',
             owner: userUUID,
             tag: 'home',
-            label: ''
+            label: '',
+            isDeleted: false
           })
         }
 
@@ -145,7 +150,21 @@ class Drive extends EventEmitter {
   }
 
   deleteDrive (driveUUID, props, callback) {
+    this.store.save(drives => {
+      let index = drives.findIndex(drv => drv.uuid === driveUUID)
+      if (index === -1) throw new Error('drive not found')
+      let drv = Object.assign({}, drives[index])
+      drv.isDeleted = true
+      return [...drives.slice(0, index), drv, ...drives.slice(index + 1)]
+    }, callback)
+  }
 
+  removeDrive (driveUUID, props, callback) {
+    this.store.save(drives => {
+      let index = drives.findIndex(drv => drv.uuid === driveUUID)
+      if (index === -1) throw new Error('drive not found')
+      return [...drives.slice(0, index), ...drives.slice(index + 1)]
+    }, callback)
   }
 
   /**

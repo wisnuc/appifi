@@ -129,6 +129,15 @@ class VFS extends EventEmitter {
       }
     }) 
 
+    let toBeRemoved = drives.filter(drv => {
+      if (drv.type === 'private' && drv.isDeleted) {
+        let owner = users.find(u => u.uuid === drv.owner) 
+        if (!owner || owner.statue !== this.user.USER_STATUS.DELETED) return false
+        return true
+      }
+      return false
+    })
+
     // all valid drive uuids that are not root
     let toBeCreated = valids
       .map(d => d.uuid)
