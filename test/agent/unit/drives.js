@@ -21,7 +21,7 @@ const cwd = process.cwd()
 const tmptest = path.join(cwd, 'tmptest')
 const fruitmixDir = path.join(tmptest, 'fruitmix')
 const { alice, bob, charlie } = USERS
-const { alicePrivate, buildIn, public1 } = DRIVES
+const { alicePrivate, bobPrivate, buildIn, public1 } = DRIVES
 
 describe(path.basename(__filename), () => {
   describe('ad hoc test', () => {
@@ -52,7 +52,8 @@ describe(path.basename(__filename), () => {
                 type: 'private',
                 owner: alice.uuid,
                 tag: 'home',
-                label: ''
+                label: '',
+                isDeleted: false
               })
 
               let builtIn = drives.find(d => d.type === 'public')
@@ -183,7 +184,7 @@ describe(path.basename(__filename), () => {
 
   describe('alice create a public drive', () => {
     beforeEach(async () => {
-      await initFruitFilesAsync(fruitmixDir, { users: [alice, bob, charlie], drives: [public1] })
+      await initFruitFilesAsync(fruitmixDir, { users: [alice, bob, charlie], drives: [alicePrivate, bobPrivate, public1] })
     })
 
     it('alice PATCH /drives/:driveUUID should success', done => {
@@ -230,6 +231,33 @@ describe(path.basename(__filename), () => {
             })
             .expect(403)
             .end(done)
+        })
+      }
+      let fruitmix = new Fruitmix({ fruitmixDir })
+      let app = new App({ fruitmix })
+      let count = 0
+      fruitmix.drive.once('Update', start)
+      fruitmix.user.once('Update', start)
+    })
+
+    it('alice DELETE bob drive should be deleted', function(done) {
+      this.timeout(0)
+      let start = () => {
+        if (++count !== 2) return
+        requestToken(app.express, alice.uuid, 'alice', (err, token) => {
+          if (err) return done(err)
+          request(app.express)
+            .delete(`/users/${bob.uuid}`)
+            .set('Authorization', 'JWT ' + token)
+            .expect(200)
+            .end((err, res) => {
+              if(err) return done(err)
+              setTimeout(() => {
+                expect(fruitmix.drive.drives).to.deep.equal([alicePrivate, public1])
+                expect(fruitmix.user.users).to.deep.equal([alice, charlie])
+                done()
+              }, 500)
+            })
         })
       }
       let fruitmix = new Fruitmix({ fruitmixDir })

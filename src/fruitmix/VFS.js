@@ -92,6 +92,7 @@ class VFS extends EventEmitter {
 
     this.fruitmixDir = opts.fruitmixDir
     this.tmpDir = path.join(this.fruitmixDir, 'tmp')
+    this.driveDir = path.join(this.fruitmixDir, 'drives')
     mkdirp.sync(this.tmpDir)
 
     // observer user
@@ -129,6 +130,15 @@ class VFS extends EventEmitter {
       }
     }) 
 
+    let toBeRemoved = valids.filter(drv => {
+      if (drv.type === 'private' && drv.isDeleted) {
+        let owner = users.find(u => u.uuid === drv.owner) 
+        if (!owner || owner.status !== this.user.USER_STATUS.DELETED) return false
+        return true
+      }
+      return false
+    }).map(drv => drv.uuid)
+
     // all valid drive uuids that are not root
     let toBeCreated = valids
       .map(d => d.uuid)
@@ -137,20 +147,52 @@ class VFS extends EventEmitter {
     // all root uuids that are not in valids
     let toBeDeleted = Array.from(this.forest.roots.keys())
       .filter(uuid => !valids.find(d => d.uuid === uuid))
-
-    if (toBeCreated.length === 0 && toBeDeleted.length === 0) return
-
+    
+    if (toBeCreated.length === 0 && toBeDeleted.length === 0 && toBeRemoved.length === 0) return
     let oldKeys = Array.from(this.forest.roots.keys())
     toBeDeleted.forEach(uuid => this.forest.deleteRoot(uuid))
 
-    if (!toBeCreated.length) return this.emit('ForestUpdate', Array.from(this.forest.root.keys()))
+    // report drive
+    if (toBeRemoved.length) toBeRemoved.forEach(uuid => this.removeRoot(uuid) ? this.drive.handleVFSDeleted(uuid) : false)
 
-    let count = toBeCreated.length
-    toBeCreated.forEach(uuid => this.forest.createRoot(uuid, () => {
-      if (!--count) {
-        this.emit('ForestUpdate', Array.from(this.forest.roots.keys()), oldKeys)
-      }
-    }))
+    if (!toBeCreated.length) return this.emit('ForestUpdate', Array.from(this.forest.roots.keys()))
+
+    toBeCreated.forEach(uuid => this.createRoot(uuid))
+    this.emit('ForestUpdate', Array.from(this.forest.roots.keys()), oldKeys)
+  }
+
+  createRoot(uuid) {
+    let dirPath = path.join(this.driveDir, uuid)
+    let stats, attr = { uuid }
+    try {
+      mkdirp.sync(dirPath)
+      stats = fs.lstatSync(dirPath)
+      xattr.setSync(dirPath, 'user.fruitmix', JSON.stringify(attr))
+    } catch (e) {
+      console.log(e)
+      return
+    }
+    let name = path.basename(dirPath)
+    let xstat = {
+      uuid: attr.uuid,
+      type: 'directory',
+      name,
+      mtime: stats.mtime.getTime()
+    }
+    return this.forest.createRoot(uuid, xstat)
+  }
+
+  removeRoot (uuid) {
+    let dirPath = path.join(this.driveDir, uuid)
+    let success
+    try {
+      rimraf.sync(dirPath)
+      success = true
+    } catch (e) {
+      console.log(e)
+      success = false
+    }
+    return success
   }
 
   userCanWriteDrive (user, drive) {

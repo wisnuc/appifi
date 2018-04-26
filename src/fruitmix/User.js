@@ -10,6 +10,12 @@ const deepFreeze = require('deep-freeze')
 const { isUUID, isNonNullObject, isNonEmptyString } = require('../lib/assertion')
 const DataStore = require('../lib/DataStore')
 
+const USER_STATUS = {
+  ACTIVE: 'ACTIVE',
+  INACTIVE: 'INACTIVE',
+  DELETED: 'DELETED'
+}
+
 /**
 
 The corresponding test file is test/unit/fruitmix/user.js
@@ -48,6 +54,13 @@ class User extends EventEmitter {
     })
   }
 
+  handleDriveDeleted(userUUID) {
+    this.removeUser(userUUID, err => {
+      console.log('user deleted: ', userUUID)
+      if (err) console.log('user delete failed: ', err)
+    })
+  }
+
   getUser (userUUID) {
     return this.users.find(u => u.uuid === userUUID)
   }
@@ -70,7 +83,8 @@ class User extends EventEmitter {
         isFirstUser,
         phicommUserId: props.phicommUserId,
         password: props.password,
-        smbPassword: props.smbPassword
+        smbPassword: props.smbPassword,
+        status: USER_STATUS.ACTIVE
       }
       return [...users, newUser]
     }, (err, data) => {
@@ -80,14 +94,13 @@ class User extends EventEmitter {
   }
 
   updateUser (userUUID, props, callback) {
-    let { username, disabled } = props
-
+    let { username, status } = props
     this.store.save(users => {
       let index = users.findIndex(u => u.uuid === userUUID)
       if (index === -1) throw new Error('user not found')
       let nextUser = Object.assign({}, users[index])
       if (username) nextUser.username = username
-      if (typeof disabled === 'boolean') nextUser.disabled = username
+      if (status) nextUser.status = status
       return [...users.slice(0, index), nextUser, ...users.slice(index + 1)]
     }, (err, data) => {
       if (err) return callback(err)
@@ -96,7 +109,17 @@ class User extends EventEmitter {
   }
 
   deleteUser (userUUID, callback) {
-    this.store.save(data => {
+    this.store.save(users => {
+      let index = users.findIndex(u => u.uuid === userUUID)
+      if (index === -1) throw new Error('user not found')
+      let user = Object.assign({}, users[index])
+      user.status = USER_STATUS.DELETED
+      return [...users.slice(0, index), user, ...users.slice(index + 1)]
+    }, callback)
+  }
+
+  removeUser (userUUID, callback) {
+    this.store.save(users => {
       let index = users.findIndex(u => u.uuid === userUUID)
       if (index === -1) throw new Error('user not found')
       return [...users.slice(0, index), ...users.slice(index + 1)]
@@ -232,7 +255,12 @@ class User extends EventEmitter {
   }
  
   DELETE (user, props, callback) {
-  } 
+    if (!isUUID(props.userUUID) || this.users.findIndex(u => u.uuid === props.userUUID) === -1) return callback(Object.assign(new Error('userUUID error'), { status: 400 }))
+    if (!user.isFirstUser) return callback(Object.assign(new Error('Permission Denied'), { status: 403 }))
+    this.deleteUser(props.userUUID, callback)
+  }
 }
+
+User.prototype.USER_STATUS = USER_STATUS
 
 module.exports = User
