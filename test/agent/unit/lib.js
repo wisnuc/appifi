@@ -9,7 +9,7 @@ const request = require('supertest')
 
 // node src/utils/md4Encrypt.js alice
 const USERS = {
-  alice : {
+  alice: {
     uuid: 'cb33b5b3-dd58-470f-8ccc-92aa04d75590',
     username: 'alice',
     password: '$2a$10$nUmDoy9SDdkPlj9yuYf2HulnbtvbF0Ei6rGF1G1UKUkJcldINaJVy',
@@ -18,17 +18,16 @@ const USERS = {
     isFirstUser: true,
     phicommUserId: 'alice'
   },
-  bob : {
+  bob: {
     uuid: '844921ed-bdfd-4bb2-891e-78e358b54869',
     username: 'bob',
-    isFirstUser: false,
     password: '$2a$10$OhlvXzpOyV5onhi5pMacvuDLwHCyLZbgIV1201MjwpJ.XtsslT3FK',
     smbPassword: 'B7C899154197E8A2A33121D76A240AB5',
     lastChangeTime: 1523867673407,
     isFirstUser: false,
     phicommUserId: 'bob'
   },
-  charlie : {
+  charlie: {
     uuid: '7805388f-a4fd-441f-81c0-4057c3c7004a',
     username: 'charlie',
     password: '$2a$10$TJdJ4L7Nqnnw1A9cyOlJuu658nmpSFklBoodiCLkQeso1m0mmkU6e',
@@ -41,43 +40,42 @@ const USERS = {
 
 const DRIVES = {
   alicePrivate: {
-    uuid: "778d6f5b-624d-4885-ae86-145180893d83",
-    type: "private",
-    owner: "cb33b5b3-dd58-470f-8ccc-92aa04d75590",
-    tag: "home",
-    label: ""
+    uuid: '778d6f5b-624d-4885-ae86-145180893d83',
+    type: 'private',
+    owner: 'cb33b5b3-dd58-470f-8ccc-92aa04d75590',
+    tag: 'home',
+    label: ''
   },
   bobPrivate: {
-    uuid: "877d6f5b-624d-4885-ae86-145180893d83",
-    type: "private",
-    owner: "844921ed-bdfd-4bb2-891e-78e358b54869",
-    tag: "home",
-    label: ""
+    uuid: '877d6f5b-624d-4885-ae86-145180893d83',
+    type: 'private',
+    owner: '844921ed-bdfd-4bb2-891e-78e358b54869',
+    tag: 'home',
+    label: ''
   },
   charliePrivate: {
-    uuid: "866d6f5b-624d-4885-ae86-145180893d83",
-    type: "private",
-    owner: "7805388f-a4fd-441f-81c0-4057c3c7004a",
-    tag: "home",
-    label: ""
+    uuid: '866d6f5b-624d-4885-ae86-145180893d83',
+    type: 'private',
+    owner: '7805388f-a4fd-441f-81c0-4057c3c7004a',
+    tag: 'home',
+    label: ''
   },
   buildIn: {
-    uuid: "d9d2acf2-e380-45a8-a47d-bada96b4d3f6",
-    type: "public",
-    writelist: "*",
-    readlist: "*",
-    label: "",
-    tag: "built-in"
+    uuid: 'd9d2acf2-e380-45a8-a47d-bada96b4d3f6',
+    type: 'public',
+    writelist: '*',
+    readlist: '*',
+    label: '',
+    tag: 'built-in'
   },
-  public1:{
-    uuid: "9992acf2-e380-45a8-a47d-bada96b4d3f6",
-    type: "public",
+  public1: {
+    uuid: '9992acf2-e380-45a8-a47d-bada96b4d3f6',
+    type: 'public',
     writelist: ['877d6f5b-624d-4885-ae86-145180893d83'],
     readlist: [],
-    label: "public1"
+    label: 'public1'
   }
 }
-
 
 const requestToken = (app, userUUID, password, callback) => {
   request(app)
@@ -113,12 +111,9 @@ const initUsersAsync = async (fruitmixDir, users) => {
 const initFruitFilesAsync = async (fruitmixDir, opts) => {
   await rimrafAsync(fruitmixDir)
   await mkdirpAsync(fruitmixDir)
-  if (opts.users) 
-    await fs.writeFileAsync(path.join(fruitmixDir, 'users.json'), JSON.stringify(opts.users, null, '  '))
-  if (opts.drives)
-    await fs.writeFileAsync(path.join(fruitmixDir, 'drives.json'), JSON.stringify(opts.drives, null, '  '))
-  if (opts.tags)
-    await fs.writeFileAsync(path.join(fruitmixDir, 'tags.json'), JSON.stringify(opts.tags, null, '  '))
+  if (opts.users) await fs.writeFileAsync(path.join(fruitmixDir, 'users.json'), JSON.stringify(opts.users, null, '  '))
+  if (opts.drives) await fs.writeFileAsync(path.join(fruitmixDir, 'drives.json'), JSON.stringify(opts.drives, null, '  '))
+  if (opts.tags) await fs.writeFileAsync(path.join(fruitmixDir, 'tags.json'), JSON.stringify(opts.tags, null, '  '))
 }
 
 module.exports = {
