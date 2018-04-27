@@ -251,7 +251,7 @@ describe(path.basename(__filename) + ' mkdir, [replace], 23f3a1e2', () => {
     })
   })
 
-  it('OK if target is dir', done => {
+  it('OK if target is dir, 3c57baad', done => {
     mkdirp.sync('tmptest/a/b')
     readXstat('tmptest/a/b', (err, orig) => {
       if (err) return done(err)
