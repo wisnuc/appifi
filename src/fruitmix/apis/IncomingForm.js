@@ -3,6 +3,8 @@ const crypto = require('crypto')
 const stream = require('stream')
 // const IncomingMessage = require('http').IncomingMessage
 
+// const rimraf
+
 const Dicer = require('dicer')
 const sanitize = require('sanitize-filename')
 
@@ -227,8 +229,15 @@ class Parsing extends State {
 
       Object.assign(this.ctx.args, args)
 
-      if (this.ctx.predecessor && !this.ctx.predecessor.isFinished()) {
-        this.setState(Pending)
+      let pred = this.ctx.predecessor
+      if (pred) {
+        if (pred.isFailed()) {
+          this.setState(Failed, new Error('predecessor failed'))
+        } else if (pred.isSucceeded()) {
+          this.setState(Executing)
+        } else {
+          this.setState(Pending)
+        }
       } else {
         this.setState(Executing)
       }
@@ -297,6 +306,53 @@ class Parsing extends State {
   }
 }
 
+class Piping extends State {
+  
+  enter (part, args) {
+    this.ctx.args = args
+
+    args.data = this.ctx.ctx.apis.tmpfile()
+
+    this.hs = HashStream.createStream(part, args.data, args.size, args.sha256, false)
+    this.hs.on('finish', err => {
+
+      console.log('hash stream finish', this.hs.digest)
+
+      if (err) {
+        if (err.code === 'EOVERSIZE' || err.code === 'EUNDERSIZE' || err.code === 'ESHA256MISMATCH') {
+          err.status = 400
+        } else {
+          console.log('hash stream error code', err.code, this.hs)
+        }
+        this.setState(Failed, err)
+      } else {
+        // hash stream should guarantee this prop
+        args.sha256 = this.hs.digest
+        let pred = this.ctx.predecessor
+        if (pred) {
+          if (pred.isFailed()) {
+            this.setState(Failed, new Error('predecessor failed'))
+          } else if (pred.isSucceeded()) {
+            this.setState(Executing)
+          } else {
+            this.setState(Pending)
+          }
+        } else {
+          this.setState(Executing)
+        }
+      }
+    })
+
+    this.part = part 
+  } 
+
+  destroy () {
+    this.hs.removeAllListeners()
+    this.hs.destroy()
+    this._destroy()
+  }
+}
+
 /**
 Pending field or file job
 
@@ -322,27 +378,60 @@ Ignore all events
 class Executing extends State {
 
   enter () {
-    let job = this.ctx
-    if (job.type === 'file') {
+    let args = this.ctx.args
 
+    if (args.type === 'file') {
+      if (args.append) {
+        this.ctx.ctx.apis.append({
+          name: args.toName,
+          hash: args.hash,
+          data: args.data,
+          size: args.size,
+          sha256: args.sha256 
+        }, (err, xstat) => {
+          if (err) {
+            this.setState(Failed, err)
+          } else {
+            this.setState(Succeeded, xstat)
+          }
+        })
+      } else {
+
+        console.log('IncomingForm, executing', args)
+
+        this.ctx.ctx.apis.newfile({
+          data: args.data,
+          name: args.toName,
+          sha256: args.sha256,
+          policy: args.policy
+        }, (err, xstat, resolved) => {
+          if (err) {
+            this.setState(Failed, err)
+          } else {
+            args.resolved = resolved // record resolved
+            this.setState(Succeeded, xstat)
+          }
+        })
+      }
     } else {
-      switch (job.args.op) {
+      switch (args.op) {
         case 'mkdir':
           this.ctx.ctx.apis.mkdir({ 
-            name: job.args.toName,
-            policy: job.args.policy
+            name: args.toName,
+            policy: args.policy
           }, (err, xstat, resolved) => {
             if (err) {
               this.setState(Failed, err)
             } else {
-              job.args.resolved = resolved
+              args.resolved = resolved
               this.setState(Succeeded, xstat)
             }
           })
           break
 
+
         default:
-          console.log('invalid job op', job.op)
+          console.log('invalid job op', args.op)
           break
       }
     }

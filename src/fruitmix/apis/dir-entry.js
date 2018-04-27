@@ -9,23 +9,27 @@ class DirEntryApi {
     this.posts = []
   }
 
-  createFile (props, callback) {
+  newfile (user, dirProps, dataProps, callback) {
+    let props = Object.assign({}, dataProps, dirProps)
+    this.vfs.NEWFILE(user, props, callback)
   }
 
-  appendFile (props, callback) {
+  append (user, dirProps, dataProps, callback) {
+    let props = Object.assign({}, dataProps, dirProps) 
+    this.vfs.APPEND(user, props, callback)
   }
 
-  /**
-  
-  */
-  mkdir (user, dirProps, formProps, callback) {
-    let props = Object.assign({}, formProps, dirProps)
+  mkdir (user, dirProps, dataProps, callback) {
+    let props = Object.assign({}, dataProps, dirProps)
     this.vfs.MKDIR(user, props, callback) 
   }
 
   bindApis (user, dirProps) {
     return {
+      tmpfile: this.vfs.TMPFILE.bind(this.vfs),
       mkdir: this.mkdir.bind(this, user, dirProps),
+      newfile: this.newfile.bind(this, user, dirProps),    
+      append: this.append.bind(this, user, dirProps)
     }
   }
 
