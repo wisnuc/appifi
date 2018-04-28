@@ -470,7 +470,7 @@ class VFS extends EventEmitter {
       let { toName } = props 
       let target = path.join(this.absolutePath(dir), toName)
       rimraf(target, err => callback(err))  
-    }
+    })
   }
 
   /**
