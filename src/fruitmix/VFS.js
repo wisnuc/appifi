@@ -414,6 +414,8 @@ class VFS extends EventEmitter {
   /**
   Rename a file or directory
 
+  TODO this function should be merged with xcopy version, in future
+
   @param {object} user
   @param {object} props
   @param {string} props.fromName - fromName
@@ -458,6 +460,10 @@ class VFS extends EventEmitter {
 
   /**
   Remove a file or directory
+
+  @param {object} user
+  @param {object} props
+  @param {string} props.name
   */
   REMOVE (user, props, callback) {
     this.DIR(user, props, (err, dir) => {
@@ -573,6 +579,11 @@ class VFS extends EventEmitter {
     })
   }
 
+  /**
+  Duplicate a file
+
+  
+  */
   DUP (user, props, callback) {
   }
 
@@ -779,6 +790,7 @@ class VFS extends EventEmitter {
     return path.join(this.tmpDir, UUID.v4())
   }
 
+  /** retrieve absolute path **/
   absolutePath (node) {
     return node.abspath()
   }
