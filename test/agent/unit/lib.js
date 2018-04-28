@@ -254,6 +254,53 @@ const createUserAsync = async (username, token, isAdmin) => {
   }
 }
 
+const DRIVES = {
+  alicePrivate: {
+    uuid: '778d6f5b-624d-4885-ae86-145180893d83',
+    type: 'private',
+    owner: 'cb33b5b3-dd58-470f-8ccc-92aa04d75590',
+    tag: 'home',
+    label: '',
+    isDeleted: false,
+    smb: true
+  },
+  bobPrivate: {
+    uuid: '877d6f5b-624d-4885-ae86-145180893d83',
+    type: 'private',
+    owner: '844921ed-bdfd-4bb2-891e-78e358b54869',
+    tag: 'home',
+    label: '',
+    isDeleted: false,
+    smb: true
+  },
+  charliePrivate: {
+    uuid: '866d6f5b-624d-4885-ae86-145180893d83',
+    type: 'private',
+    owner: '7805388f-a4fd-441f-81c0-4057c3c7004a',
+    tag: 'home',
+    label: '',
+    isDeleted: false,
+    smb: true
+  },
+  buildIn: {
+    uuid: 'd9d2acf2-e380-45a8-a47d-bada96b4d3f6',
+    type: 'public',
+    writelist: '*',
+    readlist: '*',
+    label: '',
+    tag: 'built-in',
+    smb: true
+  },
+  public1: {
+    uuid: '9992acf2-e380-45a8-a47d-bada96b4d3f6',
+    type: 'public',
+    writelist: ['844921ed-bdfd-4bb2-891e-78e358b54869'],
+    readlist: [],
+    label: 'public1',
+    smb: true
+  }
+}
+
 /**
 Retrieve test user's token
 */
