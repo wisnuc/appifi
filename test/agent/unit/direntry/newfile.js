@@ -139,6 +139,7 @@ describe(path.basename(__filename), () => {
         .post(`/drives/${home.uuid}/dirs/${home.uuid}/entries`)
         .set('Authorization', 'JWT ' + token)
         .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', JSON.stringify({
+          op: 'newfile',
           size: FILES.alonzo.size,
           sha256: FILES.alonzo.hash
         }))

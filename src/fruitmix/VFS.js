@@ -2,6 +2,7 @@ const Promise = require('bluebird')
 const path = require('path')
 const fs = Promise.promisifyAll(require('fs'))
 const EventEmitter = require('events')
+const crypto = require('crypto')
 
 const mkdirp = require('mkdirp')
 const mkdirpAsync = Promise.promisify(mkdirp)
@@ -23,7 +24,7 @@ const Directory = require('./vfs/directory')
 
 const { btrfsConcat, btrfsClone, btrfsClone2 } = require('../lib/btrfs')
 
-const { readXstatAsync, forceXstatAsync, forceXstat, assertDirXstatSync, assertFileXstatSync } = require('../lib/xstat')
+const { readXstat, readXstatAsync, forceXstatAsync, forceXstat, assertDirXstatSync, assertFileXstatSync } = require('../lib/xstat')
 
 const Debug = require('debug')
 const smbDebug = Debug('samba')
@@ -415,15 +416,55 @@ class VFS extends EventEmitter {
 
   @param {object} user
   @param {object} props
-  @param {string} 
+  @param {string} props.fromName - fromName
+  @param {string} props.toName - toName
+  @param {Policy} [props.policy]
   */
   RENAME (user, props, callback) {
+    this.DIR(user, props, (err, dir) => {
+      if (err) return callback(err)
+      
+      let { fromName, toName, policy } = props
+      policy = policy || [null, null]
+      
+      let src = path.join(this.absolutePath(dir), fromName) 
+      let dst = path.join(this.absolutePath(dir), toName)
+      readXstat(src, (err, srcXstat) => {
+        if (err) return callback(err)
+        if (srcXstat.type === 'directory') {
+          mvdir(src, dst, policy, (err, xstat, resolved) => {
+            if (err) return callback(err)
+            // race if dir changed FIXME
+            // update forest 
+            dir.read((err, xstats) => {
+              if (err) return callback(err)
+              return callback(null, xstat, resolved) 
+            })
+          })
+        } else {
+          mvfile(src, dst, policy, (err, xstat, resolved) => {
+            if (err) return callback(err)
+            // race if dir changed FIXME
+            // update forest 
+            dir.read((err, xstats) => {
+              if (err) return callback(err)
+              return callback(null, xstat, resolved) 
+            })
+          })
+        }
+      })
+    }) 
   }
 
   /**
   Remove a file or directory
   */
   REMOVE (user, props, callback) {
+    this.DIR(user, props, (err, dir) => {
+      let { toName } = props 
+      let target = path.join(this.absolutePath(dir), toName)
+      rimraf(target, err => callback(err))  
+    }
   }
 
   /**
@@ -437,9 +478,6 @@ class VFS extends EventEmitter {
   @param {object} props.sha256 - file hash
   */
   NEWFILE (user, props, callback) {
-
-    console.log('vfs.newfile', props)
-
     let { name, data, size, sha256 } = props
 
     this.DIR(user, props, (err, dir) => {
@@ -538,12 +576,7 @@ class VFS extends EventEmitter {
   DUP (user, props, callback) {
   }
 
-  /**
-    
-  */
-  createFile (user, props, callback) {
-    
-  }
+  /** end of new api for upload module **/
 
   // are we using this function ? TODO
   isDriveUUID (driveUUID) {

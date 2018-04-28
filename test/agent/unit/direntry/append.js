@@ -152,6 +152,7 @@ describe(path.basename(__filename), () => {
         .post(`/drives/${home.uuid}/dirs/${home.uuid}/entries`)
         .set('Authorization', 'JWT ' + token)
         .attach(FILES.oneGiga.name, FILES.oneGiga.path, JSON.stringify({
+          op: 'newfile',
           size: FILES.oneGiga.size,
           sha256: FILES.oneGiga.hash
         }))
@@ -165,6 +166,8 @@ describe(path.basename(__filename), () => {
             .post(`/drives/${home.uuid}/dirs/${home.uuid}/entries`)
             .set('Authorization', 'JWT ' + token)
             .attach(FILES.oneGiga.name, FILES.oneGiga.path, JSON.stringify({
+              op: 'append',
+              hash: FILES.oneGiga.hash,
               size: FILES.oneGiga.size,
               sha256: FILES.oneGiga.hash
             }))
