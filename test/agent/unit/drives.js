@@ -53,7 +53,8 @@ describe(path.basename(__filename), () => {
                 owner: alice.uuid,
                 tag: 'home',
                 label: '',
-                isDeleted: false
+                isDeleted: false,
+                smb: true
               })
 
               let builtIn = drives.find(d => d.type === 'public')
@@ -63,7 +64,8 @@ describe(path.basename(__filename), () => {
                 writelist: '*',
                 readlist: '*',
                 label: '',
-                tag: 'built-in'
+                tag: 'built-in',
+                smb: true
               })
 
               done()
@@ -122,7 +124,8 @@ describe(path.basename(__filename), () => {
                 type: 'public',
                 writelist: [bob.uuid],
                 readlist: [],
-                label: 'bob'
+                label: 'bob',
+                smb: true
               })
               done()
             })
@@ -253,10 +256,12 @@ describe(path.basename(__filename), () => {
             .end((err, res) => {
               if(err) return done(err)
               setTimeout(() => {
-                expect(fruitmix.drive.drives).to.deep.equal([alicePrivate, public1])
+                let pud = Object.assign({}, public1)
+                pud.writelist = []
+                expect(fruitmix.drive.drives).to.deep.equal([alicePrivate, pud])
                 expect(fruitmix.user.users).to.deep.equal([alice, charlie])
                 done()
-              }, 500)
+              }, 200)
             })
         })
       }
