@@ -66,7 +66,8 @@ class App extends EventEmitter {
       this.fruitmix = opts.fruitmix
     } else if (opts.fruitmixOpts) {
       let configuration = opts.configuration
-      this.boot = new Boot({ configuration })
+      let fruitmixOpts = opts.fruitmixOpts
+      this.boot = new Boot({ configuration, fruitmixOpts })
     } else {
       throw new Error('either fruitmix or fruitmixOpts must be provided')
     }
