@@ -23,6 +23,8 @@ const Task = require('./Task')
 
 
 /**
+Fruitmix is the top-level container for all modules inside fruitmix fs service.
+
 Fruitmix has the following structure:
 
 ```
@@ -66,9 +68,9 @@ class Fruitmix2 extends EventEmitter {
   /**
   @param {object} opts
   @param {string} opts.fruitmixDir - absolute path
-  @param {boolean} opts.enableSmb - use samba module
-  @param {boolean} opts.enableDlna - use dlna module
-  @param {boolean} opts.enableTransmission - use transmission module
+  @param {boolean} opts.useSmb - use samba module
+  @param {boolean} opts.useDlna - use dlna module
+  @param {boolean} opts.useTransmission - use transmission module
   */
   constructor (opts) {
     super()
@@ -123,7 +125,6 @@ class Fruitmix2 extends EventEmitter {
     this.dirEntryApi = new DirEntryApi(this.vfs)
 
     this.task = new Task(this.vfs)
-    
 
     this.thumbnail = new Thumbnail(path.join(this.fruitmixDir, 'thumbnail'), this.tmpDir)
 
