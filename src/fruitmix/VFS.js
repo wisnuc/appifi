@@ -1085,6 +1085,36 @@ class VFS extends EventEmitter {
     dir.read(callback)
   }
 
+  /** new apis **/
+  
+  /**
+  
+
+  @param {object} user
+  @param {object} opts
+  @param {string[]} opts.drives
+  @param {string[]} opts.tags
+  @param {string[]} opts.magics
+  */
+  visit(user, opts, callback) {
+    let drives = []    
+    let tags = []
+    let magics = []
+
+    // drives.forEach(
+  }
+
+  /**
+  */
+  iterateMedia (user, opts, callback) {
+    // this.mediaMap. 
+  } 
+
+  /**
+  */
+  iterateFile (user, opts, callback) {
+    
+  }
 }
 
 module.exports = VFS

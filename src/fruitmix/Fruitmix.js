@@ -114,7 +114,7 @@ class Fruitmix2 extends EventEmitter {
     })
 
     let metaPath = path.join(this.fruitmixDir, 'metadataDB.json')
-    this.mediaMap = new MediaMap(metaPath, this.tmpDir) // TODO suffix ?
+    this.mediaMap = new MediaMap(metaPath, this.tmpDir) // TODO suffix tmpdir ?
 
     let vfsOpts = {
       fruitmixDir: this.fruitmixDir,

@@ -16,58 +16,54 @@ let MAX_TAG_ID = 2048
 /**
  * Tags is provide flexible file classification for user files
  * Name tags
- * 
+ *
  * Tag : {
  *    name
  *    color
  *    id,
- *    group,  // opt? 
+ *    group,  // opt?
  *    creator,
  *    ctime,
  *    mtime,
  * }
  */
 
- class Tag extends require('events') {
-
-  constructor(opts) {
+class Tag extends require('events') {
+  constructor (opts) {
     super()
 
     this.conf = opts.configuration
     this.fruitmixDir = opts.fruitmixDir
 
-
     this.store = new DataStore({
       file: opts.file,
       tmpDir: opts.tmpDir,
       isArray: false
-    }) 
+    })
 
     this.store.on('Update', (...args) => this.emit('Update', ...args))
 
     Object.defineProperty(this, 'tags', {
       get () {
-        return this.store.data ? (this.store.data.tags ? this.store.data.tags : []) : [] 
+        return this.store.data ? (this.store.data.tags ? this.store.data.tags : []) : []
       }
     })
-
   }
 
-  findTag(tagId) {
+  findTag (tagId) {
     return this.tags.find(t => t.id === tagId)
   }
 
-  createTag(props, callback) {
+  createTag (props, callback) {
     if (!isNonNullObject(props)) throw E.EINVAL('props must be non-null object')
     if (!isNonEmptyString(props.name)) throw E.EINVAL('tag name must be non-empty string')
     let newTag
     this.store.save(data => {
       let index = data ? data.index + 1 : 0
-      
+
       if (!data) data = {} // create enpty data object
-      if (Array.isArray(data.tags) && !data.tags.every(t => t.name !== props.name))
-        throw new Error('name has already been used')
-      if(index > MAX_TAG_ID) throw new Error('too many tags')
+      if (Array.isArray(data.tags) && !data.tags.every(t => t.name !== props.name)) { throw new Error('name has already been used') }
+      if (index > MAX_TAG_ID) throw new Error('too many tags')
       let ctime = new Date().getTime()
       newTag = {
         name: props.name,
@@ -82,7 +78,7 @@ let MAX_TAG_ID = 2048
       data.index = index
       return data
     }, (err, data) => {
-      if(err) return callback(err)
+      if (err) return callback(err)
       callback(null, newTag)
     })
   }
@@ -96,14 +92,13 @@ let MAX_TAG_ID = 2048
     }, callback)
   }
 
-  updateTag(tagId, props, callback) {
+  updateTag (tagId, props, callback) {
     let nextTag
     this.store.save(data => {
-      let index = data.tags.findIndex(t => t.id === tagId) 
+      let index = data.tags.findIndex(t => t.id === tagId)
       if (index === -1) throw new Error('tag not found')
 
-      if (isNonEmptyString(props.name) && !data.tags.every(t => t.name !== props.name))
-        throw new Error('name has already been used')
+      if (isNonEmptyString(props.name) && !data.tags.every(t => t.name !== props.name)) { throw new Error('name has already been used') }
 
       nextTag = Object.assign({}, data.tags[index])
       if (props.name) nextTag.name = props.name
@@ -113,7 +108,7 @@ let MAX_TAG_ID = 2048
       data.tags = [...data.tags.slice(0, index), nextTag, ...data.tags.slice(index + 1)]
       return data
     }, err => {
-      if(err) return callback(err)
+      if (err) return callback(err)
       callback(null, nextTag)
     })
   }
@@ -123,55 +118,46 @@ let MAX_TAG_ID = 2048
   }
 
   /**
-   * 
-   * @param {*} user 
+   *
+   * @param {*} user
    * @param {object} props
-   *  tagId - number string 
-   * @param {*} callback 
+   *  tagId - number string
+   * @param {*} callback
    */
   GET (user, props, callback) {
     let tagId = parseInt(props.tagId)
-    if (!Number.isInteger(tagId)) 
-      return callback(Object.assign(new Error('tagId error'), { status: 400 }))
+    if (!Number.isInteger(tagId)) { return callback(Object.assign(new Error('tagId error'), { status: 400 })) }
     let tag = this.findTag(tagId)
-    if (!tag) 
-      return process.nextTick(() => callback(Object.assign(new Error('tag not found'), { status: 404 })))
+    if (!tag) { return process.nextTick(() => callback(Object.assign(new Error('tag not found'), { status: 404 }))) }
     process.nextTick(() => callback(null, tag))
   }
 
   POST (user, props, callback) {
-    if(!user || !user.uuid) 
-      return callback(Object.assign(new Error('user not found'), { status:404 }))
+    if (!user || !user.uuid) { return callback(Object.assign(new Error('user not found'), { status: 404 })) }
     let { name, color, group } = props
-    if(!name || typeof name !== 'string' || !name.length) 
-      return callback(Object.assign(new Error('name is required'), { status: 400}))
-    if (!this.tags.every(t => t.name !== name))
-      return callback(Object.assign(new Error('tag name has already be used'), { status: 400 }))
+    if (!name || typeof name !== 'string' || !name.length) { return callback(Object.assign(new Error('name is required'), { status: 400})) }
+    if (!this.tags.every(t => t.name !== name)) { return callback(Object.assign(new Error('tag name has already be used'), { status: 400 })) }
     let creator = user.uuid
     this.createTag({ name, color, group, creator }, callback)
   }
 
   PATCH (user, props, callback) {
-    if(!user || !user.uuid) 
-      return callback(Object.assign(new Error('user not found'), { status:404 }))
+    if (!user || !user.uuid) { return callback(Object.assign(new Error('user not found'), { status: 404 })) }
     let { tagId, name, color, group } = props
     tagId = parseInt(tagId)
     if (!Number.isInteger(tagId)) return callback(Object.assign(new Error('tagId error'), { status: 400 }))
-    if(!this.tags.every(t => t.name !== name)) 
-      return callback(Object.assign(new Error('tag name has already be used'), { status: 400 }))
+    if (!this.tags.every(t => t.name !== name)) { return callback(Object.assign(new Error('tag name has already be used'), { status: 400 })) }
     this.updateTag(tagId, { name, color, group }, callback)
   }
 
   DELETE (user, props, callback) {
-    if(!user || !user.uuid)
-      return callback(Object.assign(new Error('user not found'), { status:404 }))
+    if (!user || !user.uuid) { return callback(Object.assign(new Error('user not found'), { status: 404 })) }
     let tagId = parseInt(props.tagId)
     if (!Number.isInteger(tagId)) return callback(Object.assign(new Error('tagId error'), { status: 400 }))
     let tag = this.findTag(tagId)
-    if(!tag) return callback(Object.assign(new Error('tag not found'), { status: 400}))
+    if (!tag) return callback(Object.assign(new Error('tag not found'), { status: 400}))
     this.deleteTag(tag.id, callback)
   }
+}
 
- }
-
- module.exports = Tag
+module.exports = Tag
