@@ -1,4 +1,4 @@
-class createTask = require('./xcopy')
+const createTask = require('./xcopy')
 
 class Task {
 

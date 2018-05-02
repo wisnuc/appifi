@@ -45,7 +45,7 @@ class Node extends EventEmitter {
   @param {object} parent - parent directory
   */
   attach (parent) {
-    if (this.parent)
+    if (this.parent) {
       let err = new Error('not already attached')
       console.log(err)
       throw err

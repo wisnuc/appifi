@@ -5,7 +5,7 @@ const UUID = require('uuid')
 
 const Node = require('./node')
 
-const { FileCopy, FileMove, FileImport, FileExport } = require('./file2')
+const { FileCopy, FileMove, FileImport, FileExport } = require('./files')
 const mkdir = require('./lib').mkdir
 
 

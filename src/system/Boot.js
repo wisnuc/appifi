@@ -347,6 +347,8 @@ class Repairing extends State {
 }
 
 /**
+
+
 */
 class Boot extends EventEmitter {
 
@@ -355,12 +357,14 @@ class Boot extends EventEmitter {
 
   @param {object} opts - options
   @param {Configuration} opts.conf - application-wide configuration
+  @param {object} opts.fruitmixOpts - fruitmix options 
   */
   constructor (opts) {
     super()
 
-    this.conf = opts.configuration
+    if (!opts.configuration) throw new Error(`boot requires a configuration`)
 
+    this.conf = opts.configuration
     this.error = null
 
     this.preset = undefined
@@ -376,7 +380,6 @@ class Boot extends EventEmitter {
         process.nextTick(() => this.emit('StorageUpdate', value, oldValue))
       }
     })
-
 
     this.prepareChassisDirs(err => {
       if (err) {

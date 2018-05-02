@@ -138,7 +138,7 @@ class Fruitmix2 extends EventEmitter {
       dir: this.dirApi,
       dirEntry: this.dirEntryApi,
       task: this.task,
-      taskNode: this.task.nodeApi(),
+      taskNode: this.task.nodeApi,
     }
   }
 

@@ -8,6 +8,7 @@ const createDriveRouter = require('../routes/drives2')
 const createTimeDateRouter = require('../routes/TimeDate')
 const createExpress = require('../system/express')
 const createTagRouter = require('../routes/tags')
+const createTaskRouter = require('../routes/tasks2')
 
 /**
 Create An Application
@@ -51,6 +52,7 @@ class App extends EventEmitter {
   @param {string} opts.secret - secret for auth middleware to encode/decode token
   @param {Fruitmix} opts.fruitmix - injected fruitmix instance, the App works in fruitmix-only mode
   @param {object} opts.fruitmixOpts - if provided, it is passed to boot for constructing fruitmix
+  @param {Configuration} opts.configuration - application wide configuration passed to boot
   @param {boolean} opts.useServer - if true, server will be created.
   */
   constructor (opts) {
@@ -63,7 +65,8 @@ class App extends EventEmitter {
     if (opts.fruitmix) {
       this.fruitmix = opts.fruitmix
     } else if (opts.fruitmixOpts) {
-      this.boot = new Boot('something')
+      let configuration = opts.configuration
+      this.boot = new Boot({ configuration })
     } else {
       throw new Error('either fruitmix or fruitmixOpts must be provided')
     }
@@ -120,7 +123,7 @@ class App extends EventEmitter {
         routers.push(['/tags', createTagRouter(this.auth, this.stub('tag'))])
 
       if (apis.includes('task'))
-        routers.push(['/tasks', createTaskRouter(this.auth, this.stub('task'), this.stub('taskNode')])
+        routers.push(['/tasks', createTaskRouter(this.auth, this.stub('task'), this.stub('taskNode'))])
 
     } else {
       // TODO create all routers

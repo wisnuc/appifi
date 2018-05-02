@@ -20,8 +20,10 @@ module.exports = (auth, TASK, TASKNODE) => {
   router.patch('/:taskUUID/nodes/:nodeUUID', auth.jwt(), (req, res, next) =>
     TASKNODE.PATCH(req.user, { taskUUID: req.params.taskUUID, nodeUUID: req.params.nodeUUID }, f(res, next)))
 
-  router.delete('/:taskUUID/nodes/:nodeUUID', auth.jwt(), (req, res.next) => 
-    TASKNODE.DELETE(req.user, { taskUUID: req.params.taskUUID, nodeUUID: req.params.nodeUUID }, f(res, next))) }
+  router.delete('/:taskUUID/nodes/:nodeUUID', auth.jwt(), (req, res, next) => 
+    TASKNODE.DELETE(req.user, { taskUUID: req.params.taskUUID, nodeUUID: req.params.nodeUUID }, f(res, next))) 
 
-module.exprots = router
+  return router
+}
+
 

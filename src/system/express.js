@@ -64,7 +64,15 @@ const createApp = opts => {
   app.use(opts.auth)
 
   // install all routers
-  opts.routers.forEach(r => app.use(r[0], r[1]))
+  opts.routers.forEach(r => {
+    try {
+      app.use(r[0], r[1])
+    } catch (e) {
+      // FIXME
+      console.log(r)
+      throw e
+    }
+  })
 
   // 404 handler
   app.use((req, res, next) => next(Object.assign(new Error('Not Found'), { status: 404 })))

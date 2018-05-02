@@ -34,4 +34,4 @@ router.delete('/:taskUUID/nodes/:nodeUUID', auth.jwt(), (req, res) =>
     err ? next(err) : res.status(200).end()))
 
 module.exports = router
-
+ 
