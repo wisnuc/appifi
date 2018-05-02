@@ -42,9 +42,9 @@ if (args.transmission && !isRoot) throw new Error('transmission feature requires
 
 
 let fruitmixOpts = {
-  smb: !!args.smb, 
-  dlna: !!args.dlna,
-  transmission: !!args.transmission
+  useSmb: !!args.smb, 
+  useDlna: !!args.dlna,
+  useTransmission: !!args.transmission
 }
 
 let fruitmixDir = path.join(process.cwd(), 'tmptest')
