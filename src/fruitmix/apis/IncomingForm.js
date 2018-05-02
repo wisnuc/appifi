@@ -580,7 +580,7 @@ class Party extends EventEmitter {
           this.error = job.state.error
           this.emit('error', this.error)
         } else {
-          this.jobs.forEach(j => j.onJobSucceeded())
+          this.jobs.forEach(j => j.onJobSucceeded(job))
         }
       }
 
