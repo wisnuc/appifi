@@ -5,7 +5,7 @@
   "scripts": {
     "start": "node build/app.js",
     "build": "babel src --out-dir build",
-    "devel": "NODE_ENV=test nodemon --ignore out --ignore tmptest --ignore remote src/app.js --disable-smb",
+    "devel": "NODE_ENV=test nodemon --ignore out --ignore tmptest --ignore remote src/app.js --standalone --fruitmix-only --mdns",
     "devel-cloud": "nodemon --ignore out --ignore tmptest src/app.js --fake-bootstrap --disable-smb",
     "devel-dev": "NODE_ENV=dev nodemon --ignore out --ignore tmptest --ignore remote src/app.js --fake-bootstrap --disable-smb",
     "devel-bootstrap": "NODE_ENV=test nodemon --ignore out --ignore tmptest --ignore remote src/app.js --fake-bootstrap --disable-smb",
