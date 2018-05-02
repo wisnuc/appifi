@@ -14,8 +14,9 @@ const UUID = require('uuid')
 const User = require('./User')
 const Drive = require('./Drive')
 const MediaMap = require('../media/persistent')
-const Thumbnail = require('../lib/thumbnail2')
+const Thumbnail = require('./Thumbnail')
 const VFS = require('./VFS')
+const NFS = require('./NFS')
 const Tag = require('../tags/Tag')
 const DirApi = require('./apis/dir')
 const DirEntryApi = require('./apis/dir-entry')
@@ -23,6 +24,8 @@ const Task = require('./Task')
 
 
 /**
+Fruitmix is the top-level container for all modules inside fruitmix fs service.
+
 Fruitmix has the following structure:
 
 ```
@@ -66,9 +69,9 @@ class Fruitmix2 extends EventEmitter {
   /**
   @param {object} opts
   @param {string} opts.fruitmixDir - absolute path
-  @param {boolean} opts.enableSmb - use samba module
-  @param {boolean} opts.enableDlna - use dlna module
-  @param {boolean} opts.enableTransmission - use transmission module
+  @param {boolean} opts.useSmb - use samba module
+  @param {boolean} opts.useDlna - use dlna module
+  @param {boolean} opts.useTransmission - use transmission module
   */
   constructor (opts) {
     super()
@@ -123,7 +126,6 @@ class Fruitmix2 extends EventEmitter {
     this.dirEntryApi = new DirEntryApi(this.vfs)
 
     this.task = new Task(this.vfs)
-    
 
     this.thumbnail = new Thumbnail(path.join(this.fruitmixDir, 'thumbnail'), this.tmpDir)
 

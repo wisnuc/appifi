@@ -10,7 +10,7 @@ const mkdirp = require('mkdirp')
 
 const debug = require('debug')('thumbnail')
 
-const { isSHA256, isNonNullObject, isNormalizedAbsolutePath } = require('./assertion')
+const { isSHA256, isNonNullObject, isNormalizedAbsolutePath } = require('../lib/assertion')
 
 /**
 Thumbnail is an independent module for retrieving a thumbnail.
