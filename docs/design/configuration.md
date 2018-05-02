@@ -30,9 +30,24 @@ appifi/fruitmix项目为针对平台、部署、和开发可配置的。
 }
 ```
 
-
 # Boot配置
 
+```js
+{
+  configuration: {},        // appifi global configuration
+  fruitmixOpts: {}          // fruitmix option
+}
+```
+
+使用Boot启动fruitmix时，fruitmixOpts无须提供fruitmixDir，Boot自己决定该参数。
 
 # Fruitmix配置
 
+```js
+{
+  fruitmixDir: "absolute path of fruitmix root",
+  useSmb: false,            // 使用Samba
+  useDlna: false,
+  useTransmision: false
+}
+```

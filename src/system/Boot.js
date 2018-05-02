@@ -375,7 +375,7 @@ class Boot extends EventEmitter {
   Creates a Boot object
 
   @param {object} opts - options
-  @param {Configuration} opts.conf - application-wide configuration
+  @param {Configuration} opts.configuration - application-wide configuration
   @param {object} opts.fruitmixOpts - fruitmix options 
   */
   constructor (opts) {
