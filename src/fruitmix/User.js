@@ -66,14 +66,6 @@ class User extends EventEmitter {
   }
 
   createUser (props, callback) {
-    try {
-      if (!isNonNullObject(props)) throw new Error('props must be non-null object')
-      if (!isNonEmptyString(props.username)) throw new Error('username must be non-empty string')
-      if (!isNonEmptyString(props.phicommUserId)) throw new Error('phicommUserId must be non-empty string')
-    } catch (e) {
-      return process.nextTick(callback, e)
-    }
-
     let uuid = UUID.v4()
     this.store.save(users => {
       let isFirstUser = users.length === 0 ? true : false
@@ -222,8 +214,16 @@ class User extends EventEmitter {
   phicomm: the first user cannot be created by api. It must be injected.
   */
   POST (user, props, callback) {
-    if (this.users.length && (!user || !user.isFirstUser))
-      return process.nextTick(() => callback(Object.assign(new Error('Permission Denied'), { status: 403 })))
+    if (!isNonNullObject(props)) return callback(Object.assign(new Error('props must be non-null object'), { status: 400 }))
+    let recognized = ['username', 'password', 'smbPassword', 'phicommUserId']
+    Object.getOwnPropertyNames(props).forEach(key => {
+      if (!recognized.includes(key)) throw Object.assign(new Error(`unrecognized prop name ${key}`), { status: 400 })
+      
+    })
+    if (!isNonEmptyString(props.username)) return callback(Object.assign(new Error('username must be non-empty string'), { status: 400 }))
+    if (!isNonEmptyString(props.phicommUserId)) return callback(Object.assign(new Error('phicommUserId must be non-empty string'), { status: 400 }))
+    if (props.password && !isNonEmptyString(password)) return callback(Object.assign(new Error('password must be non-empty string'), { status: 400 }))
+    if (this.users.length && (!user || !user.isFirstUser)) return process.nextTick(() => callback(Object.assign(new Error('Permission Denied'), { status: 403 })))
     this.createUser(props, callback)
   }
 

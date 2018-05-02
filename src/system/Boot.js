@@ -203,6 +203,25 @@ class Unavailable extends State {
 }
 
 /**
+for wisnuc legacy, single '/etc/wisnuc.json' file is used.
+for wisnuc/phicomm
+  <chassisDir>    // located on emmc
+    user.json     // single file in json format, maintained by bootstrap, not appifi; for wisnuc, this file 
+                  // does NOT exist
+    volume        // single file containing volume UUID
+    <volumeUUID>
+      storage.json 
+      users.json
+      drives.json
+      tags.json 
+
+for tmp
+  <chassisDir>
+    atmp          // used by appifi
+    btmp          // used by bootstrap
+*/
+
+/**
 `Initialization` is an exclusive process to create the bound volume through the following steps:
 
 1. probe and get the latest storage status.
@@ -347,6 +366,8 @@ class Repairing extends State {
 }
 
 /**
+
+
 */
 class Boot extends EventEmitter {
 
@@ -355,12 +376,14 @@ class Boot extends EventEmitter {
 
   @param {object} opts - options
   @param {Configuration} opts.conf - application-wide configuration
+  @param {object} opts.fruitmixOpts - fruitmix options 
   */
   constructor (opts) {
     super()
 
-    this.conf = opts.configuration
+    if (!opts.configuration) throw new Error(`boot requires a configuration`)
 
+    this.conf = opts.configuration
     this.error = null
 
     this.preset = undefined
@@ -376,7 +399,6 @@ class Boot extends EventEmitter {
         process.nextTick(() => this.emit('StorageUpdate', value, oldValue))
       }
     })
-
 
     this.prepareChassisDirs(err => {
       if (err) {

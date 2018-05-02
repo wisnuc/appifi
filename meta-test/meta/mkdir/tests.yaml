@@ -1,0 +1,24 @@
+users: 
+- alice
+
+groups:
+
+- desc: target dir does not exist.
+  tests:
+  - it: hello
+    actions:
+    - name: mkdir
+        
+
+- desc: target is a dir.
+
+- desc: target is a file.
+
+
+
+
+
+
+- desc: target is a symlink.
+
+

@@ -18,6 +18,8 @@ resolved is also a 2-tuple of boolean value.
 
 If the file exists and is resolved by the first rule,
 
+@param {string} target - target path
+@param {string} tmp - tmp file path, if provided, it is linking a file, otherwise, creating a directory
 */
 const link = (target, tmp, uuid, hash, opt, callback) => {
   const type = tmp ? 'file' : 'directory'

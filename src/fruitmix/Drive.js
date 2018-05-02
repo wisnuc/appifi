@@ -248,7 +248,7 @@ class Drive extends EventEmitter {
             throw Object.assign(new Error(`${name} must be either wildcard or an uuid array`), { status: 400 })
           } else {
             if (!props[name].every(uuid => !!this.users.find(u => u.uuid === uuid))) {
-              let err = new Error(`${key} not all user uuid found`) // TODO
+              let err = new Error(`${name} not all user uuid found`) // TODO
               err.code = 'EBADREQUEST'
               err.status = 400
               throw err
@@ -274,41 +274,37 @@ class Drive extends EventEmitter {
       if (!drive) {
         throw Object.assign(new Error(`drive ${driveUUID} not found`), { status: 404 })
       }
-      if (drive.type === 'private' || (drive.type === 'public' && drive.tag === 'built-in')) {
-        let recognized = ['label', 'smb']
-        Object.getOwnPropertyNames(props).forEach(key => {
-          if (!recognized.includes(key)) throw Object.assign(new Error(`unrecognized prop ${key}`), { status: 400 })
-          if (key === 'label' && !isNonEmptyString(props[key])) throw Object.assign(new Error(`label must be non empty string`), { status: 400 })
-          if (key === 'smb' && typeof props[key] !== 'boolean') throw Object.assign(new Error(`smb must be boolean`), { status: 400 })
-        })
-      } else {
-        // public drive other than built-in one 
-        let recognized = ['writelist', 'readlist', 'label', 'smb']
-        Object.getOwnPropertyNames(props).forEach(name => {
-          if (!recognized.includes(name)) {
-            throw Object.assign(new Error(`unrecognized prop name ${name}`), { status: 400 })
-          }
-        })
-      }
+      let recognized
 
-      // validate writelist, readlist
-      Object.keys(props).forEach(key => {
-        if (key !== 'writelist' && key !== 'readlist') return
-        let list = props[key]
-        if (list === '*') return
-        if (!Array.isArray(list)) {
-          let err = new Error(`${key} must be either wildcard or an uuid array`)
-          err.code = 'EBADREQUEST'
-          err.status = 400
-          throw err
+      if (drive.type === 'private' || (drive.type === 'public' && drive.tag === 'built-in'))  recognized = ['label', 'smb']
+      else recognized = ['writelist', 'readlist', 'label', 'smb']      
+
+      Object.getOwnPropertyNames(props).forEach(key => {
+        if (!recognized.includes(key)) {
+          throw Object.assign(new Error(`unrecognized prop name ${key}`), { status: 400 })
         }
-        if (!list.every(uuid => !!this.users.find(u => u.uuid === uuid))) {
-          let err = new Error(`${key} not all user uuid found`) // TODO
-          err.code = 'EBADREQUEST'
-          err.status = 400
-          throw err
+
+        if (key === 'label' && !isNonEmptyString(props[key])) throw Object.assign(new Error(`label must be non empty string`), { status: 400 })
+        if (key === 'smb' && typeof props[key] !== 'boolean') throw Object.assign(new Error(`smb must be boolean`), { status: 400 })
+
+        // validate writelist, readlist
+        if (key === 'writelist' || key === 'readlist') {
+          let list = props[key]
+          if (list === '*') return
+          if (!Array.isArray(list) || !list.every(x => isUUID(x))) {
+            let err = new Error(`${key} must be either wildcard or an uuid array`)
+            err.code = 'EBADREQUEST'
+            err.status = 400
+            throw err
+          }
+          if (!list.every(uuid => !!this.users.find(u => u.uuid === uuid))) {
+            let err = new Error(`${key} not all user uuid found`) // TODO
+            err.code = 'EBADREQUEST'
+            err.status = 400
+            throw err
+          }
+          props[key] = Array.from(new Set(list)).sort()
         }
-        props[key] = Array.from(new Set(list)).sort()
       })
     } catch (e) {
       return process.nextTick(() => callback(e))

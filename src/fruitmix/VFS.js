@@ -2,6 +2,7 @@ const Promise = require('bluebird')
 const path = require('path')
 const fs = Promise.promisifyAll(require('fs'))
 const EventEmitter = require('events')
+const crypto = require('crypto')
 
 const mkdirp = require('mkdirp')
 const mkdirpAsync = Promise.promisify(mkdirp)
@@ -23,7 +24,7 @@ const Directory = require('./vfs/directory')
 
 const { btrfsConcat, btrfsClone, btrfsClone2 } = require('../lib/btrfs')
 
-const { readXstatAsync, forceXstatAsync, forceXstat, assertDirXstatSync, assertFileXstatSync } = require('../lib/xstat')
+const { readXstat, readXstatAsync, forceXstatAsync, forceXstat, assertDirXstatSync, assertFileXstatSync } = require('../lib/xstat')
 
 const Debug = require('debug')
 const smbDebug = Debug('samba')
@@ -209,6 +210,9 @@ class VFS extends EventEmitter {
     }
   }
 
+  TMPFILE () {
+    return path.join(this.tmpDir, UUID.v4())
+  }
 
   /**
   Try to read the dir with given dir uuid. No permission check.
@@ -380,7 +384,6 @@ class VFS extends EventEmitter {
   MKDIR (user, props, callback) {
     this.DIR(user, props, (err, dir) => {
       if (err) return callback(err)
-
       if (!props.policy) props.policy = [null, null]
  
       let target = path.join(this.absolutePath(dir), props.name)
@@ -411,34 +414,180 @@ class VFS extends EventEmitter {
   /**
   Rename a file or directory
 
+  TODO this function should be merged with xcopy version, in future
+
   @param {object} user
   @param {object} props
-  @param {string} 
+  @param {string} props.fromName - fromName
+  @param {string} props.toName - toName
+  @param {Policy} [props.policy]
   */
   RENAME (user, props, callback) {
+    this.DIR(user, props, (err, dir) => {
+      if (err) return callback(err)
+      
+      let { fromName, toName, policy } = props
+      policy = policy || [null, null]
+      
+      let src = path.join(this.absolutePath(dir), fromName) 
+      let dst = path.join(this.absolutePath(dir), toName)
+      readXstat(src, (err, srcXstat) => {
+        if (err) return callback(err)
+        if (srcXstat.type === 'directory') {
+          mvdir(src, dst, policy, (err, xstat, resolved) => {
+            if (err) return callback(err)
+            // race if dir changed FIXME
+            // update forest 
+            dir.read((err, xstats) => {
+              if (err) return callback(err)
+              return callback(null, xstat, resolved) 
+            })
+          })
+        } else {
+          mvfile(src, dst, policy, (err, xstat, resolved) => {
+            if (err) return callback(err)
+            // race if dir changed FIXME
+            // update forest 
+            dir.read((err, xstats) => {
+              if (err) return callback(err)
+              return callback(null, xstat, resolved) 
+            })
+          })
+        }
+      })
+    }) 
   }
 
   /**
   Remove a file or directory
+
+  @param {object} user
+  @param {object} props
+  @param {string} props.name
   */
   REMOVE (user, props, callback) {
-  }
-
-  CREATE_FILE (user, props, callback) {
-  }
-
-  APPEND_FILE (user, props, callback) {
-  }
-
-  DUP_FILE (user, props, callback) {
+    this.DIR(user, props, (err, dir) => {
+      let { toName } = props 
+      let target = path.join(this.absolutePath(dir), toName)
+      rimraf(target, err => callback(err))  
+    })
   }
 
   /**
-    
+  NEWFILE create a new file in vfs from a tmp file.
+
+  @param {object} user
+  @param {object} props
+  @param {object} props.name - file name
+  @param {object} props.data - tmp data file
+  @param {object} props.size - file size (not used)
+  @param {object} props.sha256 - file hash
   */
-  createFile (user, props, callback) {
-    
+  NEWFILE (user, props, callback) {
+    let { name, data, size, sha256 } = props
+
+    this.DIR(user, props, (err, dir) => {
+      if (err) return callback(err)
+      if (!props.policy) props.policy = [null, null]
+      let target = path.join(this.absolutePath(dir), props.name)
+      mkfile(target, props.data, props.sha256 || null, props.policy, callback)
+    }) 
   }
+
+  /**
+  APPEND data after an existing file
+
+  @param {object} user
+  @param {object} props
+  @param {object} props.name - file name
+  @param {object} props.hash - fingerprint of existing file (before appending)
+  @param {object} props.data - data file
+  @param {object} props.size - data size (not used?)
+  @param {object} props.sha256 -data sha256
+  */
+  APPEND (user, props, callback) {
+    console.log('vfs.append', props)
+
+    this.DIR(user, props, (err, dir) => {
+      if (err) return callback(err) 
+
+      let { name, hash, data, size, sha256 } = props
+
+      let target = path.join(this.absolutePath(dir), name)  
+      readXstat(target, (err, xstat) => {
+        if (err) return callback(err)
+        if (xstat.type !== 'file') {
+          let err = new Error('not a file')
+          err.code = 'EISDIR'
+          err.status = 403
+          return callback(err)
+        }
+
+        if (xstat.size % (1024 * 1024 * 1024) !== 0) {
+          let err = new Error('not a multiple of 1G')
+          err.code = 'EALIGN' // kernel use EINVAL for non-alignment of sector size
+          err.status = 403
+          return callback(err)
+        }
+
+        if (xstat.hash !== hash) {
+          let err = new Error(`hash mismatch, actual: ${xstat.hash}`)
+          err.code = 'EHASHMISMATCH' 
+          err.status = 403
+          return callback(err)
+        }
+
+        let tmp = this.TMPFILE() 
+
+        // concat target and data to a tmp file
+        // TODO sync before op
+        btrfsConcat(tmp, [target, data], err => {
+          if (err) return callback(err)
+
+          fs.lstat(target, (err, stat) => {
+            if (err) return callback(err)
+            if (stat.mtime.getTime() !== xstat.mtime) {
+              let err = new Error('race detected')
+              err.code = 'ERACE'
+              err.status = 403
+              return callback(err)
+            }
+
+            const combineHash = (a, b) => {
+              let a1 = typeof a === 'string' ? Buffer.from(a, 'hex') : a
+              let b1 = typeof b === 'string' ? Buffer.from(b, 'hex') : b
+              let hash = crypto.createHash('sha256')
+              hash.update(Buffer.concat([a1, b1]))
+              let digest = hash.digest('hex')
+              return digest
+            }
+
+            // TODO preserve tags
+            forceXstat(tmp, { 
+              uuid: xstat.uuid, 
+              hash: xstat.size === 0 ? sha256 : combineHash(hash, sha256)
+            }, (err, xstat2) => {
+              if (err) return callback(err)
+
+              // TODO dirty
+              xstat2.name = name
+              fs.rename(tmp, target, err => err ? callback(err) : callback(null, xstat2))
+            })
+          })
+        })
+      })
+    })
+  }
+
+  /**
+  Duplicate a file
+
+  
+  */
+  DUP (user, props, callback) {
+  }
+
+  /** end of new api for upload module **/
 
   // are we using this function ? TODO
   isDriveUUID (driveUUID) {
@@ -641,6 +790,7 @@ class VFS extends EventEmitter {
     return path.join(this.tmpDir, UUID.v4())
   }
 
+  /** retrieve absolute path **/
   absolutePath (node) {
     return node.abspath()
   }
@@ -725,7 +875,10 @@ class VFS extends EventEmitter {
   /**
   !!! Important !!!
   This is the only place to read dir after making new dir
-  
+
+  this function is going to be replaced by MKDIR, DO COMPARE THEM! TODO
+ 
+  @obsolete  
   @param {string} driveUUID - drive uuid
   @param {string} dirUUID - directory uuid
   @param {string} name - new directory name

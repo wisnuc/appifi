@@ -1,13 +1,13 @@
 const EventEmitter = require('events')
 const crypto = require('crypto')
 const stream = require('stream')
-// const IncomingMessage = require('http').IncomingMessage
 
 const Dicer = require('dicer')
 const sanitize = require('sanitize-filename')
 
 const HashStream = require('../../lib/hash-stream')
 const { isUUID, isSHA256 } = require('../../lib/assertion')
+
 
 /**
 Incoming form parses an incomming formdata and execute vfs operations accordingly.
@@ -52,7 +52,6 @@ class State {
   }
 
   destroy () {}
-
 }
 
 /**
@@ -96,16 +95,8 @@ class Heading extends State {
         args = this.parseHeader(header)
       } catch (e) {
         e.status = 400
+        console.log('parseHeader failed', e)
         return this.setState(Failed, e)
-      }
-
-      if (args.type === 'file') {
-        try {
-          this.validateFileArgs(args)
-        } catch (e) {
-          e.status = 400
-          return this.setState(Failed, e)
-        }
       }
 
       /**
@@ -131,6 +122,18 @@ class Heading extends State {
   Parse name and filename directive according to protocol
   */
   parseHeader (header) {
+
+    const isPolicy = policy => {
+      if (!Array.isArray(policy)) return false
+      if (policy.size !== 2) return false
+
+      let values = [null, 'skip', 'replace', 'rename'] 
+      if (!values.include(policy[0])) return false
+      if (!values.include(policy[1])) return false
+
+      return true
+    } 
+
     let name, filename, fromName, toName
 
     // fix %22
@@ -156,15 +159,42 @@ class Heading extends State {
       filename = x[2].slice(10, -1)
 
       // validate part.filename and generate part.opts
-      let { size, sha256, append, overwrite } = JSON.parse(filename)
-      let op = append ? 'append' : 'newfile'
-      return { type: 'file', op, name, fromName, toName, size, sha256, append, overwrite }
+      // for newfile { op, size, sha256, [policy] }
+      // for append { op, hash, size, sha256 }
+      let { op, hash, size, sha256, policy } = JSON.parse(filename)
+      if (op === 'newfile') {
+        // op, size, sha256, policy
+        if (!Number.isInteger(size)) throw new Error('invalid size')
+        if (size < 0 || size > 1024 * 1024 * 1024) throw new Error('size out of range')
+        if (!isSHA256(sha256)) throw new Error('invalid sha256')
+        if (policy && !isPolicy(policy)) throw new Error('invalid policy')
+      
+        return { type: 'file', op, name, fromName, toName, size, sha256, policy }
+      } else if (op === 'append') {
+        // op, hash, size, sha256     
+        if (!isSHA256(hash)) throw new Error('invalid hash')
+        if (!Number.isInteger(size)) throw new Error('invalid size')
+        if (size <= 0 || size > 1024 * 1024 * 1024) throw new Error('size out of range')
+        if (!isSHA256(sha256)) throw new Error('invalid sha256')
+
+        return { type: 'file', op, name, fromName, toName, hash, size, sha256 }
+      } else {
+        throw new Error('invalid op in filename data')
+      }
     } else {
       return { type: 'field', name, fromName, toName }
     }
   }
 
+
+  /**
+  */
   validateFileArgs (args) {
+
+    let { op, hash, size, sha256, policy } = args
+
+   
+/**
     if (args.append !== undefined && !isSHA256(args.append)) {
       throw new Error('append is not a valid fingerprint string')
     }
@@ -189,6 +219,7 @@ class Heading extends State {
     } else {
       if (!isSHA256(args.sha256)) throw new Error('invalid sha256')
     }
+**/
   }
 
   exit () {
@@ -227,8 +258,15 @@ class Parsing extends State {
 
       Object.assign(this.ctx.args, args)
 
-      if (this.ctx.predecessor && !this.ctx.predecessor.isFinished()) {
-        this.setState(Pending)
+      let pred = this.ctx.predecessor
+      if (pred) {
+        if (pred.isFailed()) {
+          this.setState(Failed, new Error('predecessor failed'))
+        } else if (pred.isSucceeded()) {
+          this.setState(Executing)
+        } else {
+          this.setState(Pending)
+        }
       } else {
         this.setState(Executing)
       }
@@ -297,6 +335,53 @@ class Parsing extends State {
   }
 }
 
+class Piping extends State {
+  
+  enter (part, args) {
+    this.ctx.args = args
+
+    args.data = this.ctx.ctx.apis.tmpfile()
+
+    this.hs = HashStream.createStream(part, args.data, args.size, args.sha256, false)
+    this.hs.on('finish', err => {
+
+      console.log('hash stream finish', this.hs.digest)
+
+      if (err) {
+        if (err.code === 'EOVERSIZE' || err.code === 'EUNDERSIZE' || err.code === 'ESHA256MISMATCH') {
+          err.status = 400
+        } else {
+          console.log('hash stream error code', err.code, this.hs)
+        }
+        this.setState(Failed, err)
+      } else {
+        // hash stream should guarantee this prop
+        args.sha256 = this.hs.digest
+        let pred = this.ctx.predecessor
+        if (pred) {
+          if (pred.isFailed()) {
+            this.setState(Failed, new Error('predecessor failed'))
+          } else if (pred.isSucceeded()) {
+            this.setState(Executing)
+          } else {
+            this.setState(Pending)
+          }
+        } else {
+          this.setState(Executing)
+        }
+      }
+    })
+
+    this.part = part 
+  } 
+
+  destroy () {
+    this.hs.removeAllListeners()
+    this.hs.destroy()
+    this._destroy()
+  }
+}
+
 /**
 Pending field or file job
 
@@ -322,27 +407,68 @@ Ignore all events
 class Executing extends State {
 
   enter () {
-    let job = this.ctx
-    if (job.type === 'file') {
+    let args = this.ctx.args
 
-    } else {
-      switch (job.args.op) {
-        case 'mkdir':
-          this.ctx.ctx.apis.mkdir({ 
-            name: job.args.toName,
-            policy: job.args.policy
+    if (args.type === 'file') {
+
+      console.log(args)
+
+      switch (args.op) {
+        case 'newfile':
+          this.ctx.ctx.apis.newfile({
+            name: args.toName,
+            data: args.data,
+            size: args.size,
+            sha256: args.sha256,
+            policy: args.policy
           }, (err, xstat, resolved) => {
             if (err) {
               this.setState(Failed, err)
             } else {
-              job.args.resolved = resolved
+              args.resolved = resolved // record resolved
+              this.setState(Succeeded, xstat)
+            }
+          })
+          break
+
+        case 'append':
+          this.ctx.ctx.apis.append({
+            name: args.toName,
+            hash: args.hash,
+            data: args.data,
+            size: args.size,
+            sha256: args.sha256 
+          }, (err, xstat) => {
+            if (err) {
+              this.setState(Failed, err)
+            } else {
               this.setState(Succeeded, xstat)
             }
           })
           break
 
         default:
-          console.log('invalid job op', job.op)
+          break 
+      }
+    } else {
+      switch (args.op) {
+        case 'mkdir':
+          this.ctx.ctx.apis.mkdir({ 
+            name: args.toName,
+            policy: args.policy
+          }, (err, xstat, resolved) => {
+            if (err) {
+              this.setState(Failed, err)
+            } else {
+              args.resolved = resolved
+              this.setState(Succeeded, xstat)
+            }
+          })
+          break
+
+
+        default:
+          console.log('invalid job op', args.op)
           break
       }
     }
@@ -432,7 +558,10 @@ class Party extends EventEmitter {
 
     let job = new Job(this, part) 
     job.on('StateEntered', state => {
+
       if (!job.isFinished()) return
+
+      console.log(state, this.ended)
 
       if (this.ended && this.jobs.every(j => j.isFinished())) {
         // mute , due to asynchrony of state event
@@ -448,7 +577,7 @@ class Party extends EventEmitter {
         if (job.isFailed()) { // first error
           this.jobs.forEach(j => j.onJobFailed())
           this.jobs.forEach(j => j.destroy())
-          this.error = jobs.state.error
+          this.error = job.state.error
           this.emit('error', this.error)
         } else {
           this.jobs.forEach(j => j.onJobSucceeded())
@@ -506,6 +635,10 @@ class IncomingForm extends EventEmitter {
 
       this.party.removeListener('error', this.errorHandler)
       this.party.on('error', () => {})
+
+      // this must be called 
+      // case: when parsing header errored, part is not ended but all jobs finished.
+      this.party.end()
     }
 
     this.party = new Party(apis)

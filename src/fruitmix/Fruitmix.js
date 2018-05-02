@@ -19,6 +19,8 @@ const VFS = require('./VFS')
 const Tag = require('../tags/Tag')
 const DirApi = require('./apis/dir')
 const DirEntryApi = require('./apis/dir-entry')
+const Task = require('./Task')
+
 
 /**
 Fruitmix has the following structure:
@@ -120,6 +122,9 @@ class Fruitmix2 extends EventEmitter {
     this.dirApi = new DirApi(this.vfs)
     this.dirEntryApi = new DirEntryApi(this.vfs)
 
+    this.task = new Task(this.vfs)
+    
+
     this.thumbnail = new Thumbnail(path.join(this.fruitmixDir, 'thumbnail'), this.tmpDir)
 
     this.user.on('Update', () => {
@@ -129,9 +134,11 @@ class Fruitmix2 extends EventEmitter {
     this.apis = {
       user: this.user,
       drive: this.drive,
+      tag: this.tag,
       dir: this.dirApi,
       dirEntry: this.dirEntryApi,
-      tag: this.tag
+      task: this.task,
+      taskNode: this.task.nodeApi,
     }
   }
 

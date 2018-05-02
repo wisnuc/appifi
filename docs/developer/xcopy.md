@@ -1,6 +1,6 @@
 # xcopy
 
-`xcopy`  module provides the functionality of copying/moving a collection of files and directories from a source directory to a destination directory.
+`xcopy` module provides the functionality of copying/moving a collection of files and directories from a source directory to a destination directory.
 
 
 
@@ -62,9 +62,6 @@ xcopy provides the following policy to resolve name conflict:
 3. `merge`, only applicable when both source and target are directories. The target is intact, but xcopy will continue to copy/move contents inside source directory.
 4. `replace`, remove target and continue copy/move operation.
 5. `rename`, automatically allocate a new name.
-
-
-
 
 ### Policy Object
 
