@@ -34,14 +34,9 @@ console.log(args)
 if (!(args.standalone && args["fruitmix-only"]) && !isRoot) 
   throw new Error('boot module requires root priviledge')
 
-if (args.smb && !isRoot) 
-  throw new Error('smb feature requires root priviledge')
-
-if (args.dlna && !isRoot) 
-  throw new Error('dlna feature requires root priviledge')
-
-if (args.transmission && !isRoot) 
-  throw new Error('transmission feature requires root priviledge')
+if (args.smb && !isRoot) throw new Error('smb feature requires root priviledge')
+if (args.dlna && !isRoot) throw new Error('dlna feature requires root priviledge')
+if (args.transmission && !isRoot) throw new Error('transmission feature requires root priviledge')
 
 let fruitmixOpts = {
   smb: !!args.smb, 
@@ -69,5 +64,3 @@ if (args.standalone) {
     let app = new App({ fruitmix, useServer: true })
   }
 }
-
-

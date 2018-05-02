@@ -119,6 +119,9 @@ class App extends EventEmitter {
       if (apis.includes('tag'))
         routers.push(['/tags', createTagRouter(this.auth, this.stub('tag'))])
 
+      if (apis.includes('task'))
+        routers.push(['/tasks', createTaskRouter(this.auth, this.stub('task'), this.stub('taskNode')])
+
     } else {
       // TODO create all routers
       // if fruitmix is not created, blindly create all? or even if 
@@ -156,6 +159,8 @@ class App extends EventEmitter {
 
   /**
   Creates api stub for given resource name 
+
+  This design does NOT work well if there are too many sub resources. TODO
 
   @param {string} resource - resource name (singular, such as user, drive, etc)
   @returns an object with api methods. 

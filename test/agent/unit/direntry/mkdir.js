@@ -15,13 +15,6 @@ const expect = chai.expect
 const Fruitmix = require('src/fruitmix/Fruitmix')
 const App = require('src/app/App')
 
-/**
-const Auth = require('src/middleware/Auth')
-const createTokenRouter = require('src/routes/Token')
-const createUserRouter = require('src/routes/users')
-const createExpress = require('src/system/express')
-*/
-
 const cwd = process.cwd()
 const tmptest = path.join(cwd, 'tmptest')
 const fruitmixDir = path.join(tmptest, 'fruitmix')
