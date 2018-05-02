@@ -15,7 +15,7 @@ const expect = chai.expect
 const Fruitmix = require('src/fruitmix/Fruitmix')
 const Auth = require('src/middleware/Auth')
 const App = require('src/app/App')
-const { USERS, DRIVES, requestToken, initUsersAsync, initFruitFilesAsync } = require('./lib')
+const { USERS, DRIVES, requestToken, initUsersAsync, initFruitFilesAsync } = require('./tmplib')
 
 const cwd = process.cwd()
 const tmptest = path.join(cwd, 'tmptest')
@@ -261,7 +261,7 @@ describe(path.basename(__filename), () => {
                 expect(fruitmix.drive.drives).to.deep.equal([alicePrivate, pud])
                 expect(fruitmix.user.users).to.deep.equal([alice, charlie])
                 done()
-              }, 200)
+              }, 500)
             })
         })
       }
