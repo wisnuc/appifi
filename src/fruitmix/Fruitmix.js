@@ -120,7 +120,7 @@ class Fruitmix2 extends EventEmitter {
       fruitmixDir: this.fruitmixDir,
       mediaMap: this.mediaMap
     }
-    this.vfs = new VFS(vfsOpts, this.user, this.drive)
+    this.vfs = new VFS(vfsOpts, this.user, this.drive, this.tag)
     
     this.dirApi = new DirApi(this.vfs)
     this.dirEntryApi = new DirEntryApi(this.vfs)

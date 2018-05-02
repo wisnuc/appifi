@@ -88,7 +88,7 @@ class VFS extends EventEmitter {
   @param {User} user - user module
   @param {Drive} drive - drive module
   */
-  constructor (opts, user, drive) {
+  constructor (opts, user, drive, tag) {
     super()
 
     this.fruitmixDir = opts.fruitmixDir
@@ -105,6 +105,9 @@ class VFS extends EventEmitter {
     this.drive = drive
     Object.defineProperty(this, 'drives', { get () { return this.drive.drives } })
     this.drive.on('Update', () => this.handleUserDriveUpdate())
+
+    this.tag = tag
+    Object.defineProperty(this, 'tags', { get () { return this.tag.tags } })
     
     this.forest = new Forest(this.fruitmixDir, opts.mediaMap)
   }
@@ -209,6 +212,12 @@ class VFS extends EventEmitter {
       return false
     }
   }
+
+  userCanWriteDir (user, dir) {
+    let drive = this.drives.find(drv => drv.uuid === dir.root().uuid)
+    return drive && userCanWriteDrive(user, drive)
+  }
+
 
   TMPFILE () {
     return path.join(this.tmpDir, UUID.v4())
@@ -1087,21 +1096,81 @@ class VFS extends EventEmitter {
 
   /** new apis **/
   
-  /**
-  
+  /**  
+  Visiting tree nodes is better than iterating map/list in most cases, 
+  providing that all directories are annotated with sums of file inside.
 
   @param {object} user
   @param {object} opts
-  @param {string[]} opts.drives
+  @param {string[]} opts.places - concatenated uuid
   @param {string[]} opts.tags
   @param {string[]} opts.magics
+  @param {boolean} metadata - attach metadata if any
+  @param {boolean} namepath - attach namepath, if provided, places must be an array
   */
-  visit(user, opts, callback) {
-    let drives = []    
-    let tags = []
-    let magics = []
+  visitFilesSync(user, opts) {
+    const Throw = (status, message) => { throw Object.assign(new Error(message), { status }) }
 
-    // drives.forEach(
+    if (opts.namepath === 'true' && !opts.places) 
+      Throw(400, 'places must be provided if namepath is true')
+
+    let dirs, tags, magics 
+    if (opts.places) {
+      // split into multiple uuids
+      let split = opts.places.split('.') 
+      if (!split.every(str => isUUID(str))) Throw(400, 'invalid place')
+     
+      dirs = split.map(uuid => this.forest.uuidMap.get(uuid))
+      if (!dirs.every(dir => !!dir)) Throw(403, 'some places not found')
+      if (!dirs.every(dir => this.userCanWriteDir())) Throw(403, 'some places not accessible')
+    } else {
+      dirs = this.drives
+        .filter(drv => this.userCanWriteDrive(user, drv))
+        .map(drv => this.forest.uuidMap.get(drv.uuid))
+    }
+
+    if (opts.tags) {
+      // split into multiple uuids
+      tags = opts.places.split('.')
+      if (!tags.every(str => isUUID(str))) Throw(400, 'invalid tag')
+      if (!tags.every(id => !!this.tags.find(tag => tag.uuid === id && tag.creator === user.uuid))) 
+        Throw(403, 'some tags not found or not accessible')
+    }
+
+    if (opts.magics) {
+      // split, dedup, sort, and uppercase
+      magics = Array.from(new Set(opts.magics.split('.').filter(x => !!x))).sort().toUpperCase()
+    }
+    
+    let acc = []
+    dirs.forEach((dir, index) => dir.preVisit(node => {
+      if (!(node instanceof File)) return
+      if (tags) {
+        if (!node.tags) return
+        if (!tags.some(tag => node.tags.includes(tag))) return
+      }
+
+      if (magics) {
+        if (typeof node.magic !== 'string') return
+        if (!magics.includes(node.magic)) return
+      }
+
+      let file = {
+        uuid: node.uuid,
+        name: node.name,
+        mtime: node.mtime,
+        size: node.size,
+        hash: node.hash,
+        magic: node.magic,
+        tags: node.tags
+      }
+
+      if (metadata) file.metadata = this.mediaMap.getMetadata(node.hash)
+      if (namepath) file.namepath = [index, ...node.relpath(dir).map(n => n.name)]
+      acc.push(file)
+    }))
+
+    return acc
   }
 
   /**
