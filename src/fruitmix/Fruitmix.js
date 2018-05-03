@@ -21,7 +21,7 @@ const Tag = require('../tags/Tag')
 const DirApi = require('./apis/dir')
 const DirEntryApi = require('./apis/dir-entry')
 const Task = require('./Task')
-
+const Samba = require('../samba/smbState')
 
 /**
 Fruitmix is the top-level container for all modules inside fruitmix fs service.
@@ -141,6 +141,20 @@ class Fruitmix2 extends EventEmitter {
       dirEntry: this.dirEntryApi,
       task: this.task,
       taskNode: this.task.nodeApi,
+    }
+
+    if (opts.useSmb) {
+      this.samba = new Samba({
+        fruitmixDir: this.fruitmixDir
+      }, this.user, this.drive)
+    }
+
+    if (opts.useDlna) {
+
+    }
+
+    if (opts.useTransmission) {
+      
     }
   }
 
