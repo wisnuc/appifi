@@ -147,6 +147,8 @@ class Fruitmix2 extends EventEmitter {
       this.samba = new Samba({
         fruitmixDir: this.fruitmixDir
       }, this.user, this.drive)
+
+      this.apis.samba = this.samba
     }
 
     if (opts.useDlna) {

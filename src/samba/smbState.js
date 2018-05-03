@@ -25,9 +25,12 @@ class SambaServer extends events.EventEmitter {
     this.udpServer = undefined
     new Pending(this)
     this.user.on('Update', (data) => {
-      console.log(data)
+      this.update()
     })
-    // console.log(user.LIST())
+
+    this.drive.on('Update', (data) => {
+      this.update()
+    })
 
   }
 
@@ -110,12 +113,29 @@ class SambaServer extends events.EventEmitter {
     udp.bind('3721', '127.0.0.1', ()=>{})
   }
 
-  start(users, drives) {
-    this.state.setState(Initialize, users, drives)
+  update() {
+    let status = child.spawnSync('systemctl', ['is-active', 'smbd'])
+      .stdout.toString().split('\n').join('')
+
+    if (status === 'active') this.state.start(this.user, this.drive)
   }
 
   stop() {
     this.state.setState(Pending)
+  }
+
+  GET(callback) {
+    let status = child.spawnSync('systemctl', ['is-active', 'smbd'])
+      .stdout.toString().split('\n').join('')
+
+    callback(null, { status })
+  }
+
+  PATCH (user, props, callback) {
+    let ops = ['close', "start"]
+    if (!ops.includes(props.op)) callback(new Error('unkonw operation'))
+    else if (props.op === 'close') this.state.setState(Pending, callback)
+    else this.state.start(this.user, this.drive, callback)
   }
 }
 
@@ -128,16 +148,24 @@ class State {
 
   setState(NextState, ...args) {
     this.exit()
+    debug(`enter ${NextState.valueOf().name} state`)
     new NextState(this.ctx, ...args)
   }
 
   enter() {}
   
   exit() {}
+
+  start(user, drive, callback) {
+    this.setState(Initialize, user, drive, callback)
+  }
 }
 
 class Pending extends State {
-  enter() { this.name = 'pending' }
+  enter(callback) { 
+    this.name = 'pending'
+    if (callback) process.nextTick(() => callback(null))
+  }
 }
 
 class Working extends State {
@@ -151,10 +179,12 @@ class Working extends State {
 
 class Initialize extends State {
   // 启动samba服务
-  async enter(users, drives) {
+  async enter(user, drive, callback) {
     this.name = 'initialize'
+    this.next = false
     await rsyslogAsync()
-    let x = transfer(users, drives)
+    
+    let x = transfer(user.users, drive.drives)
     let userArr = await processUsersAsync(x.users)
     let driveArr = await processDrivesAsync(x.users, x.drives)
     await genSmbConfAsync(this.ctx.froot, userArr, driveArr)
@@ -162,7 +192,14 @@ class Initialize extends State {
     await child.execAsync('systemctl enable smbd')
     await child.execAsync('systemctl restart smbd')
     await child.execAsync('systemctl restart nmbd')
-    this.setState(Working)
+    
+    if (callback) process.nextTick(() => callback(null))
+    if (this.next) this.setState(Initialize, user, drive)
+    else this.setState(Working)
+  }
+
+  start() {
+    this.next = true
   }
 }
 

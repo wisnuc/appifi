@@ -48,7 +48,7 @@ const transfer = (users, drives) => {
 // returns users
 const processUsersAsync = async users => {
   // 将disable用户从数组中移除
-  users = users.filter(u => !u.disabled)
+  users = users.filter(u => u.status === 'ACTIVE')
 
   // 生成系统用户名
   users.forEach(u => 
@@ -181,7 +181,8 @@ const retrieveSmbUsersAsync = async () => {
 
 const processDrivesAsync = async (users, drives) => {
   // TODO check names
-  return drives
+  return drives.filter(drive => drive.smb)
+  
 }
 
 // samba 配置文件 头部信息

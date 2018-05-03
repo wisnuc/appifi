@@ -9,6 +9,7 @@ const createTimeDateRouter = require('../routes/TimeDate')
 const createExpress = require('../system/express')
 const createTagRouter = require('../routes/tags')
 const createTaskRouter = require('../routes/tasks2')
+const createSambaRouter = require('../routes/samba')
 
 /**
 Create An Application
@@ -125,7 +126,9 @@ class App extends EventEmitter {
 
       if (apis.includes('task'))
         routers.push(['/tasks', createTaskRouter(this.auth, this.stub('task'), this.stub('taskNode'))])
-
+      
+      if (apis.includes('samba'))
+        routers.push(['/samba', createSambaRouter(this.auth, this.stub('samba'))])
     } else {
       // TODO create all routers
       // if fruitmix is not created, blindly create all? or even if 
