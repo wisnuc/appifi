@@ -32,6 +32,8 @@ class SambaServer extends events.EventEmitter {
       this.update()
     })
 
+    this.startUdpServer()
+
   }
 
   startUdpServer() {
