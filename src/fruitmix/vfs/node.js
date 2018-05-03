@@ -126,6 +126,18 @@ class Node {
     for (let n = this; n !== null; n = n.parent) q.unshift(n)
     return path.join(this.ctx.dir, ...q.map(n => n.name))
   }
+
+  /**
+  Return the relative node path from ancestor to this node
+  */
+  relpath(ancestor) {
+    let q = [] 
+    for (let n = this; n !== ancestor; n = n.parent) {
+      if (n === null) return
+      q.unshift(n)
+    }
+    return q
+  }
 }
 
 module.exports = Node
