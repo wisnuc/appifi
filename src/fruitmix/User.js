@@ -1,14 +1,8 @@
-const Promise = require('bluebird')
-const path = require('path')
-const fs = Promise.promisifyAll(require('fs'))
 const EventEmitter = require('events')
 const UUID = require('uuid')
-
-const bcrypt = require('bcrypt')
-const deepFreeze = require('deep-freeze')
-
 const { isUUID, isNonNullObject, isNonEmptyString } = require('../lib/assertion')
 const DataStore = require('../lib/DataStore')
+const { passwordEncrypt, md4Encrypt } = require('../lib/utils')
 
 const USER_STATUS = {
   ACTIVE: 'ACTIVE',
@@ -23,9 +17,8 @@ The corresponding test file is test/unit/fruitmix/user.js
 Using composition instead of inheritance.
 */
 class User extends EventEmitter {
-
   /**
-  Create a User 
+  Create a User
 
   Add other properties to opts if required.
 
@@ -34,7 +27,7 @@ class User extends EventEmitter {
   @param {string} opts.tmpDir - path of tmpDir (should be suffixed by `users`)
   @param {boolean} opts.isArray - should be true since users.json is an array
   */
-  constructor(opts) {
+  constructor (opts) {
     super()
     this.conf = opts.configuration
     this.fruitmixDir = opts.fruitmixDir
@@ -54,7 +47,7 @@ class User extends EventEmitter {
     })
   }
 
-  handleDriveDeleted(userUUID) {
+  handleDriveDeleted (userUUID) {
     this.removeUser(userUUID, err => {
       console.log('user deleted: ', userUUID)
       if (err) console.log('user delete failed: ', err)
@@ -68,7 +61,7 @@ class User extends EventEmitter {
   createUser (props, callback) {
     let uuid = UUID.v4()
     this.store.save(users => {
-      let isFirstUser = users.length === 0 ? true : false
+      let isFirstUser = users.length === 0
       let newUser = {
         uuid,
         username: props.username,
@@ -118,10 +111,10 @@ class User extends EventEmitter {
     }, callback)
   }
 
-  /** 
+  /**
 
   @param {object} props
-  @param {string} props.password - password 
+  @param {string} props.password - password
   @param {string} props.smbPassword - smb password
   @param {boolean} [props.encrypted] - if true, both passwords are considered to be encrypted
   */
@@ -129,16 +122,12 @@ class User extends EventEmitter {
     try {
       if (!isUUID(userUUID)) throw new Error(`userUUID ${userUUID} is not a valid uuid`)
       if (!isNonNullObject(props)) throw new Error('props is not a non-null object')
-      if (props.password !== undefined && !isNonEmptyString(props.password))
-        throw new Error('password must be a non-empty string if provided')
-      if (props.smbPassword !== undefined && !isNonEmptyString(props.smbPassword))
-        throw new Error('smbPassword must be a non-empty string if provided')
+      if (props.password !== undefined && !isNonEmptyString(props.password)) throw new Error('password must be a non-empty string if provided')
+      if (props.smbPassword !== undefined && !isNonEmptyString(props.smbPassword)) throw new Error('smbPassword must be a non-empty string if provided')
       if (!props.password && !props.smbPassword) throw new Error('both password and smbPassword undefined')
-      if (props.encrypted !== undefined && typeof props.encrypted !== 'boolean')
-        throw new Error('encrypted must be either true or false')
+      if (props.encrypted !== undefined && typeof props.encrypted !== 'boolean') throw new Error('encrypted must be either true or false')
 
       // TODO props validation should be in router, I guess
-
     } catch (e) {
       return process.nextTick(() => callback(e))
     }
@@ -167,7 +156,7 @@ class User extends EventEmitter {
       uuid: user.uuid,
       username: user.username,
       isFirstUser: user.isFirstUser,
-      phicommUserId: user.phicommUserId,
+      phicommUserId: user.phicommUserId
     }
   }
 
@@ -218,11 +207,10 @@ class User extends EventEmitter {
     let recognized = ['username', 'password', 'smbPassword', 'phicommUserId']
     Object.getOwnPropertyNames(props).forEach(key => {
       if (!recognized.includes(key)) throw Object.assign(new Error(`unrecognized prop name ${key}`), { status: 400 })
-      
     })
     if (!isNonEmptyString(props.username)) return callback(Object.assign(new Error('username must be non-empty string'), { status: 400 }))
     if (!isNonEmptyString(props.phicommUserId)) return callback(Object.assign(new Error('phicommUserId must be non-empty string'), { status: 400 }))
-    if (props.password && !isNonEmptyString(password)) return callback(Object.assign(new Error('password must be non-empty string'), { status: 400 }))
+    if (props.password && !isNonEmptyString(props.password)) return callback(Object.assign(new Error('password must be non-empty string'), { status: 400 }))
     if (this.users.length && (!user || !user.isFirstUser)) return process.nextTick(() => callback(Object.assign(new Error('Permission Denied'), { status: 403 })))
     this.createUser(props, callback)
   }
@@ -232,28 +220,25 @@ class User extends EventEmitter {
   */
   GET (user, props, callback) {
     let u = this.getUser(props.userUUID)
-    if (!u) 
-      return process.nextTick(() => callback(Object.assign(new Error('user not found'), { status: 404 })))
-    if (user.isFirstUser || user.uuid === u.uuid)
-      return process.nextTick(() => callback(null, this.fullInfo(u)))
+    if (!u) return process.nextTick(() => callback(Object.assign(new Error('user not found'), { status: 404 })))
+    if (user.isFirstUser || user.uuid === u.uuid) return process.nextTick(() => callback(null, this.fullInfo(u)))
     return process.nextTick(Object.assign(new Error('Permission Denied'), { status: 403 }))
   }
 
   /**
   Implement PATCH
-  */ 
+  */
   PATCH (user, props, callback) {
-    if(props.password) {
+    if (props.password) {
       if (user.uuid !== props.userUUID) return process.nextTick(() => callback(Object.assign(new Error('Permission Denied'), { status: 403 })))
       this.updatePassword(props.userUUID, props, callback)
     } else {
-      if (!user.isFirstUser && user.uuid !== props.userUUID)
-        return process.nextTick(() => callback(Object.assign(new Error('Permission Denied'), { status: 403 })))
-      //TODO: check permission for disabled
+      if (!user.isFirstUser && user.uuid !== props.userUUID) return process.nextTick(() => callback(Object.assign(new Error('Permission Denied'), { status: 403 })))
+      // TODO: check permission for disabled
       this.updateUser(props.userUUID, props, callback)
     }
   }
- 
+
   DELETE (user, props, callback) {
     if (!isUUID(props.userUUID) || this.users.findIndex(u => u.uuid === props.userUUID) === -1) return callback(Object.assign(new Error('userUUID error'), { status: 400 }))
     if (!user.isFirstUser) return callback(Object.assign(new Error('Permission Denied'), { status: 403 }))

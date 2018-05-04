@@ -65,7 +65,6 @@ but for directories and files api, it is obviously that the separate api module 
 Fruitmix has no knowledge of chassis, storage, etc.
 */
 class Fruitmix2 extends EventEmitter {
-
   /**
   @param {object} opts
   @param {string} opts.fruitmixDir - absolute path
@@ -77,7 +76,7 @@ class Fruitmix2 extends EventEmitter {
     super()
     this.fruitmixDir = opts.fruitmixDir
     mkdirp.sync(this.fruitmixDir)
-    
+
     this.tmpDir = path.join(this.fruitmixDir, 'tmp')
     rimraf.sync(this.tmpDir)
     mkdirp.sync(this.tmpDir)
@@ -92,18 +91,18 @@ class Fruitmix2 extends EventEmitter {
     // set a getter method for this.users
     Object.defineProperty(this, 'users', {
       get () {
-        return this.user.users || []      // TODO can this be undefined?
+        return this.user.users || [] // TODO can this be undefined?
       }
     })
 
     this.drive = new Drive({
       file: path.join(this.fruitmixDir, 'drives.json'),
-      tmpDir: path.join(this.fruitmixDir, 'tmp', 'drives'),
+      tmpDir: path.join(this.fruitmixDir, 'tmp', 'drives')
     }, this.user)
 
     Object.defineProperty(this, 'drives', {
       get () {
-        return this.drive.drives || []    // TODO can this be undefined?
+        return this.drive.drives || [] // TODO can this be undefined?
       }
     })
 
@@ -121,7 +120,7 @@ class Fruitmix2 extends EventEmitter {
       mediaMap: this.mediaMap
     }
     this.vfs = new VFS(vfsOpts, this.user, this.drive, this.tag)
-    
+
     this.dirApi = new DirApi(this.vfs)
     this.dirEntryApi = new DirEntryApi(this.vfs)
 
@@ -140,7 +139,7 @@ class Fruitmix2 extends EventEmitter {
       dir: this.dirApi,
       dirEntry: this.dirEntryApi,
       task: this.task,
-      taskNode: this.task.nodeApi,
+      taskNode: this.task.nodeApi
     }
   }
 
@@ -148,9 +147,7 @@ class Fruitmix2 extends EventEmitter {
     this.emit('initialized')
   }
 
-
   /**
-  
   */
   getUsers () {
     return this.users.map(u => ({
@@ -171,10 +168,9 @@ class Fruitmix2 extends EventEmitter {
       uuid: u.uuid,
       username: u.username,
       isFirstUser: u.isFirstUser,
-      phicommUserId: u.phicommUserId 
+      phicommUserId: u.phicommUserId
     }))
-  }   
-
+  }
 }
 
 module.exports = Fruitmix2

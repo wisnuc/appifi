@@ -21,7 +21,7 @@ const driveapi = {
   @param {driveapi~getDriveListCallback} callback 
   */
   getDriveList2 (user, callback) {
-    let list = this.driveList.drives .filter(drv => this.userCanReadDriveMetadata(user, drv))
+    let list = this.driveList.drives.filter(drv => this.userCanReadDriveMetadata(user, drv))
     process.nextTick(() => callback(null, list))
   },
 

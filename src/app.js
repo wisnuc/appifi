@@ -75,13 +75,12 @@ if (args.standalone) {
     let fruitmix = new Fruitmix(fruitmixOpts)
     let app = new App({ fruitmix, useServer: true })
   } else {
-
     let configuration = configurations.phicomm.n2
     console.log('configuration', configuration)
 
     let app = new App({
       fruitmixOpts,
-      configuration, 
+      configuration,
       useServer: true
     })
   }
