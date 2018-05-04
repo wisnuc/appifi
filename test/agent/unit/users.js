@@ -13,11 +13,11 @@ const expect = chai.expect
 
 const Fruitmix = require('src/fruitmix/Fruitmix')
 const App = require('src/app/App')
-const { USERS, requestToken, initUsersAsync } = require('./lib')
+const { USERS, requestToken, initUsersAsync } = require('./tmplib')
 
 const cwd = process.cwd()
 const tmptest = path.join(cwd, 'tmptest')
-const fruitmixDir = path.join(tmptest, 'fruitmix')
+const fruitmixDir = tmptest
 
 const { alice, bob, charlie } = USERS
 

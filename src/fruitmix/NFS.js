@@ -1,3 +1,4 @@
+const EventEmitter = require('events')
 
 /**
 NFS provides native file system access to users.

@@ -3,8 +3,7 @@ const EventEmitter = require('events')
 const IncomingForm = require('./IncomingForm')
 
 class DirEntryApi {
-  
-  constructor(vfs) {
+  constructor (vfs) {
     this.vfs = vfs
     this.posts = []
   }
@@ -28,7 +27,7 @@ class DirEntryApi {
     return {
       tmpfile: this.vfs.TMPFILE.bind(this.vfs),
       mkdir: this.mkdir.bind(this, user, dirProps),
-      newfile: this.newfile.bind(this, user, dirProps),    
+      newfile: this.newfile.bind(this, user, dirProps),
       append: this.append.bind(this, user, dirProps)
     }
   }

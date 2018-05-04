@@ -1,19 +1,11 @@
-const Promise = require('bluebird')
-const path = require('path')
-const fs = Promise.promisifyAll(require('fs'))
 const EventEmitter = require('events')
 
-const mkdirp = require('mkdirp')
-const mkdirpAsync = Promise.promisify(mkdirp)
-const rimraf = require('rimraf')
-const rimrafAsync = Promise.promisify(rimraf)
 const UUID = require('uuid')
-const { isUUID, isNonNullObject, isNonEmptyString } = require('../lib/assertion')
+const { isUUID, isNonEmptyString } = require('../lib/assertion')
 
 const DataStore = require('../lib/DataStore')
 
 class Drive extends EventEmitter {
-
   /**
   Create a Drive
 
@@ -69,7 +61,7 @@ class Drive extends EventEmitter {
         let drv = drives.find(drv => drv.owner === userUUID && drv.type === 'private')
         if (!drv) this.user.handleDriveDeleted(userUUID) // report user module
         else this.deleteDrive(drv.uuid, {}, () => {}) // update drive isDeleted
-      })      
+      })
       return drives
     }, () => {})
   }
@@ -146,20 +138,23 @@ class Drive extends EventEmitter {
       if (index === -1) throw new Error('drive not found')
       let priv = Object.assign({}, drives[index])
       if (priv.type === 'private') {
-        if (props.label) 
+        if (props.label) {
           if (drives.every(d => d.label !== props.label)) priv.label = props.label
           else throw new Error('label has already been used')
+        }
       } else {
-
-        if (props.writelist)
+        if (props.writelist) {
           if (props.writelist === '*' || props.writelist.every(uuid => !!this.users.find(u => u.uuid === uuid))) priv.writelist = props.writelist
           else throw new Error('writelist not all user uuid found')
-        if (props.readlist)
+        }
+        if (props.readlist) {
           if (props.readlist === '*' || props.readlist.every(uuid => !!this.users.find(u => u.uuid === uuid))) priv.readlist = props.readlist
           else throw new Error('readlist not all user uuid found')
-        if (props.label) 
+        }
+        if (props.label) {
           if (drives.every(d => d.label !== props.label))priv.label = props.label
           else throw new Error('label has already been used')
+        }
       }
       return [...drives.slice(0, index), priv, ...drives.slice(index + 1)]
     }, (err, data) => err ? callback(err) : callback(null, data.find(d => d.uuid === driveUUID)))
@@ -203,7 +198,7 @@ class Drive extends EventEmitter {
   userCanReadDrive (userUUID, driveUUID) {
     let drv = this.getDrive(driveUUID)
     if (!drv) return false
-    if (drv.type === 'private'　&& drv.owner === userUUID) return true
+    if (drv.type === 'private' && drv.owner === userUUID) return true
     if (drv.type === 'public' && (drv.writelist === '*' || drv.writelist.includes(userUUID))) return true
     return false
   }
@@ -213,28 +208,26 @@ class Drive extends EventEmitter {
   }
 
   /**
-   * 
-   * @param {object} user 
-   * @param {object} props 
+   *
+   * @param {object} user
+   * @param {object} props
    * @param {string} props.driveUUID
-   * @param {function} callback 
+   * @param {function} callback
    */
   GET (user, props, callback) {
-    if (!this.userCanReadDrive(user.uuid, props.driveUUID)) 
-      return process.nextTick(() => callback(Object.assign(new Error('Permission Denied'), { status: 403 })))
+    if (!this.userCanReadDrive(user.uuid, props.driveUUID)) return process.nextTick(() => callback(Object.assign(new Error('Permission Denied'), { status: 403 })))
     let drv = this.getDrive(props.driveUUID)
-    if (!drv) 
-      return process.nextTick(() => callback(Object.assign(new Error('drive not found'), { status: 403 })))
+    if (!drv) return process.nextTick(() => callback(Object.assign(new Error('drive not found'), { status: 403 })))
     process.nextTick(() => callback(null, drv))
   }
 
   /**
-   * @param {object} user 
-   * @param {object} props 
+   * @param {object} user
+   * @param {object} props
    * @param {array} props.writelist
    * @param {array} props.readlist
    * @param {string} props.label
-   * @param {Function} callback 
+   * @param {Function} callback
    */
   POST (user, props, callback) {
     let recognized = ['writelist', 'readlist', 'label']
@@ -256,8 +249,7 @@ class Drive extends EventEmitter {
             props[name] = Array.from(new Set(props[name])).sort()
           }
         }
-        if (name === 'label' && typeof props[name] !== 'string') 
-          throw Object.assign(new Error(`label must be string`), { status: 400 })
+        if (name === 'label' && typeof props[name] !== 'string') throw Object.assign(new Error(`label must be string`), { status: 400 })
       })
     } catch (e) {
       return callback(e)
@@ -276,8 +268,8 @@ class Drive extends EventEmitter {
       }
       let recognized
 
-      if (drive.type === 'private' || (drive.type === 'public' && drive.tag === 'built-in'))  recognized = ['label', 'smb']
-      else recognized = ['writelist', 'readlist', 'label', 'smb']      
+      if (drive.type === 'private' || (drive.type === 'public' && drive.tag === 'built-in')) recognized = ['label', 'smb']
+      else recognized = ['writelist', 'readlist', 'label', 'smb']
 
       Object.getOwnPropertyNames(props).forEach(key => {
         if (!recognized.includes(key)) {
@@ -314,7 +306,6 @@ class Drive extends EventEmitter {
     }
     this.updateDrive(driveUUID, props, callback)
   }
-
 }
 
 module.exports = Drive

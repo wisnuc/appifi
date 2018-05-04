@@ -19,9 +19,9 @@ const cwd = process.cwd()
 const tmptest = path.join(cwd, 'tmptest')
 const fruitmixDir = path.join(tmptest, 'fruitmix')
 
-const USERS = require('./lib').USERS
-const requestToken = require('./lib').requestToken
-const initUsersAsync = require('./lib').initUsersAsync
+const USERS = require('./tmplib').USERS
+const requestToken = require('./tmplib').requestToken
+const initUsersAsync = require('./tmplib').initUsersAsync
 
 describe(path.basename(__filename), () => {
 

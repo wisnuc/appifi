@@ -14,8 +14,9 @@ const UUID = require('uuid')
 const User = require('./User')
 const Drive = require('./Drive')
 const MediaMap = require('../media/persistent')
-const Thumbnail = require('../lib/thumbnail2')
+const Thumbnail = require('./Thumbnail')
 const VFS = require('./VFS')
+const NFS = require('./NFS')
 const Tag = require('../tags/Tag')
 const DirApi = require('./apis/dir')
 const DirEntryApi = require('./apis/dir-entry')
@@ -23,6 +24,8 @@ const Task = require('./Task')
 
 
 /**
+Fruitmix is the top-level container for all modules inside fruitmix fs service.
+
 Fruitmix has the following structure:
 
 ```
@@ -62,19 +65,18 @@ but for directories and files api, it is obviously that the separate api module 
 Fruitmix has no knowledge of chassis, storage, etc.
 */
 class Fruitmix2 extends EventEmitter {
-
   /**
   @param {object} opts
   @param {string} opts.fruitmixDir - absolute path
-  @param {boolean} opts.enableSmb - use samba module
-  @param {boolean} opts.enableDlna - use dlna module
-  @param {boolean} opts.enableTransmission - use transmission module
+  @param {boolean} opts.useSmb - use samba module
+  @param {boolean} opts.useDlna - use dlna module
+  @param {boolean} opts.useTransmission - use transmission module
   */
   constructor (opts) {
     super()
     this.fruitmixDir = opts.fruitmixDir
     mkdirp.sync(this.fruitmixDir)
-    
+
     this.tmpDir = path.join(this.fruitmixDir, 'tmp')
     rimraf.sync(this.tmpDir)
     mkdirp.sync(this.tmpDir)
@@ -89,18 +91,18 @@ class Fruitmix2 extends EventEmitter {
     // set a getter method for this.users
     Object.defineProperty(this, 'users', {
       get () {
-        return this.user.users || []      // TODO can this be undefined?
+        return this.user.users || [] // TODO can this be undefined?
       }
     })
 
     this.drive = new Drive({
       file: path.join(this.fruitmixDir, 'drives.json'),
-      tmpDir: path.join(this.fruitmixDir, 'tmp', 'drives'),
+      tmpDir: path.join(this.fruitmixDir, 'tmp', 'drives')
     }, this.user)
 
     Object.defineProperty(this, 'drives', {
       get () {
-        return this.drive.drives || []    // TODO can this be undefined?
+        return this.drive.drives || [] // TODO can this be undefined?
       }
     })
 
@@ -111,19 +113,18 @@ class Fruitmix2 extends EventEmitter {
     })
 
     let metaPath = path.join(this.fruitmixDir, 'metadataDB.json')
-    this.mediaMap = new MediaMap(metaPath, this.tmpDir) // TODO suffix ?
+    this.mediaMap = new MediaMap(metaPath, this.tmpDir) // TODO suffix tmpdir ?
 
     let vfsOpts = {
       fruitmixDir: this.fruitmixDir,
       mediaMap: this.mediaMap
     }
-    this.vfs = new VFS(vfsOpts, this.user, this.drive)
-    
+    this.vfs = new VFS(vfsOpts, this.user, this.drive, this.tag)
+
     this.dirApi = new DirApi(this.vfs)
     this.dirEntryApi = new DirEntryApi(this.vfs)
 
     this.task = new Task(this.vfs)
-    
 
     this.thumbnail = new Thumbnail(path.join(this.fruitmixDir, 'thumbnail'), this.tmpDir)
 
@@ -138,7 +139,7 @@ class Fruitmix2 extends EventEmitter {
       dir: this.dirApi,
       dirEntry: this.dirEntryApi,
       task: this.task,
-      taskNode: this.task.nodeApi,
+      taskNode: this.task.nodeApi
     }
   }
 
@@ -146,9 +147,7 @@ class Fruitmix2 extends EventEmitter {
     this.emit('initialized')
   }
 
-
   /**
-  
   */
   getUsers () {
     return this.users.map(u => ({
@@ -169,10 +168,9 @@ class Fruitmix2 extends EventEmitter {
       uuid: u.uuid,
       username: u.username,
       isFirstUser: u.isFirstUser,
-      phicommUserId: u.phicommUserId 
+      phicommUserId: u.phicommUserId
     }))
-  }   
-
+  }
 }
 
 module.exports = Fruitmix2

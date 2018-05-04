@@ -21,7 +21,6 @@ Boot is the top-level container
 @module Boot
 */
 class State {
-
   constructor (ctx, ...args) {
     this.ctx = ctx
     this.ctx.state = this
@@ -51,7 +50,7 @@ class State {
   }
 
   presetLoaded () {
-  } 
+  }
 
   continuable () {
     if (!this.ctx.boundUser) return false
@@ -81,17 +80,15 @@ class State {
 Failed
 */
 class Failed extends State {
-
   enter (err) {
     this.err = err
-  } 
+  }
 }
 
 /**
 Probing the storage
 */
 class Probing extends State {
-
   enter () {
     probe(this.ctx.conf.storage, (err, storage) => {
       if (err) {
@@ -106,7 +103,6 @@ class Probing extends State {
       }
     })
   }
-
 }
 
 /**
@@ -115,7 +111,7 @@ ProbeFailed
 class ProbeFailed extends State {
 
   enter (err) {
-    this.err = err 
+    this.err = err
     this.timer = setTimeout(() => this.setState(Probing), 10000)
     console.log('ProbeFailed', err)
   }
@@ -162,7 +158,7 @@ class Presetting extends State {
 class Starting extends State {
 
   enter () {
-    let boundVolumeUUID = this.ctx.volumeStore.data.uuid 
+    let boundVolumeUUID = this.ctx.volumeStore.data.uuid
     let volume = this.ctx.storage.volumes.find(v => v.uuid === boundVolumeUUID)
     let fruitmixDir = path.join(volume.mountpoint, this.ctx.conf.storage.fruitmixDir)
     let fruitmix = new Fruitmix({ fruitmixDir })
@@ -188,10 +184,10 @@ class Unavailable extends State {
     }
 
     // target must be non-empty string array with sd? pattern
-    if (!Array.isArray(target) 
-      || target.length === 0 
+    if (!Array.isArray(target)
+      || target.length === 0
       || !target.every(name => typeof name === 'string')
-      || !target.every(name => /^sd[a-z]$/.test(name))) { 
+      || !target.every(name => /^sd[a-z]$/.test(name))) {
       return process.nextTick(() => callback(new Error('invalid target names')))
     }
 
@@ -257,7 +253,6 @@ class Initializing extends State {
     // step 1: probe
     storage = await probeAsync(this.ctx.conf.storage)
 
-
     // target name and translate to devname (devpath acturally)
     for (let i = 0; i < target.length; i++) {
       let block = storage.blocks.find(blk => blk.name === target[i])
@@ -290,9 +285,9 @@ class Initializing extends State {
 
     let mp = volume.mountpoint
     let fruitmixDir = this.ctx.conf.storage.fruitmixDir
-   
+
     // replacing the top dirname, such as <mp>/<uuid>/fruitmix or <mp>/<uuid>
-    let rand = UUID.v4() 
+    let rand = UUID.v4()
     let tmpDir = path.join(mp, rand, ...fruitmixDir.split(path.sep).slice(1))
 
     // such as <mp>/<uuid>
@@ -310,7 +305,7 @@ class Initializing extends State {
     await mkdirpAsync(tmpDir)
     await fs.writeFileAsync(path.join(tmpDir, 'users.json'), JSON.stringify(users, null, '  '))
     await fs.renameAsync(src, dst)
- 
+
     let boundVolume = this.createBoundVolume(storage, volume)
 
     return new Promise((resolve, reject) => {
@@ -346,8 +341,8 @@ class Initializing extends State {
         system: { mode: volume.usage.system.mode },
         metadata: { mode: volume.usage.metadata.mode },
         data: { mode: volume.usage.data.mode }
-      } 
-    } 
+      }
+    }
   }
 }
 
@@ -370,13 +365,12 @@ class Repairing extends State {
 
 */
 class Boot extends EventEmitter {
-
   /**
   Creates a Boot object
 
   @param {object} opts - options
-  @param {Configuration} opts.conf - application-wide configuration
-  @param {object} opts.fruitmixOpts - fruitmix options 
+  @param {Configuration} opts.configuration - application-wide configuration
+  @param {object} opts.fruitmixOpts - fruitmix options
   */
   constructor (opts) {
     super()
@@ -426,7 +420,7 @@ class Boot extends EventEmitter {
   }
 
   stateName () {
-    this.state.constructor.name
+    return this.state.constructor.name
   }
 
   storeOpts (name) {
@@ -466,14 +460,14 @@ class Boot extends EventEmitter {
   setBoundUser (user) {
     this.boundUser = user
     this.state.boundUserUpdated()
-  } 
+  }
 
   view () {
     return {
       state: this.state.constructor.name.toUpperCase(),
       boundUser: this.boundUser,
       boundVolume: this.volumeStore.data,
-      preset: this.preset,
+      preset: this.preset
     }
   }
 
