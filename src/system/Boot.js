@@ -474,6 +474,12 @@ class Boot extends EventEmitter {
   init (target, mode, callback) {
     this.state.init(target, mode, callback)
   }
+
+  import () {
+  }
+
+  getStorage () {
+  }
 }
 
 module.exports = Boot
