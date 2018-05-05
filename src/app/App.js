@@ -44,12 +44,11 @@ The combination is configurable.
 App is the top-level container for the application.
 */
 class App extends EventEmitter {
-
   /**
   Creates an App instance
 
   If fruitmix is provided, the App works in fruitmix only mode.
-  Otherwise, the App will create boot and the later is responsible for constructing the fruitmix instance. In this case, `fruitmixOpts` must be provided.  
+  Otherwise, the App will create boot and the later is responsible for constructing the fruitmix instance. In this case, `fruitmixOpts` must be provided.
 
   @param {object} opts
   @param {string} opts.secret - secret for auth middleware to encode/decode token
@@ -70,7 +69,10 @@ class App extends EventEmitter {
     } else if (opts.fruitmixOpts) {
       let configuration = opts.configuration
       let fruitmixOpts = opts.fruitmixOpts
+
       this.boot = new Boot({ configuration, fruitmixOpts })
+
+      Object.defineProperty(this, 'fruitmix', { get () { return this.boot.fruitmix } })
 
       if (opts.useAlice) {
         this.boot.setBoundUser({
@@ -95,13 +97,12 @@ class App extends EventEmitter {
           console.log('server started on port 3000')
         }
       })
-    } 
-
+    }
   }
 
   handleMessage (message) {
     switch (message.type) {
-      case 'hello': 
+      case 'hello':
         break
       default:
         break
@@ -114,42 +115,39 @@ class App extends EventEmitter {
     let routers = []
     let bootr = express.Router()
     bootr.get('/', (req, res) => res.status(200).json(this.boot.view()))
-    bootr.post('/boundVolume', (req, res, next) => 
-      this.boot.init(req.body.target, req.body.mode, (err, data) => 
+    bootr.post('/boundVolume', (req, res, next) =>
+      this.boot.init(req.body.target, req.body.mode, (err, data) =>
         err ? next(err) : res.status(200).json(data)))
 
-    routers.push(['/boot', bootr]) 
+    routers.push(['/boot', bootr])
 
     let tokenr = createTokenRouter(this.auth)
-    routers.push(['/token', tokenr]) 
+    routers.push(['/token', tokenr])
 
     if (this.fruitmix) {
       // if fruitmix is created, use fruitmix apis to decide which router should be created
 
       let apis = Object.keys(this.fruitmix.apis)
 
-      if (apis.includes('user')) 
-        routers.push(['/users', createUserRouter(this.auth, this.stub('user'))])
+      if (apis.includes('user')) { routers.push(['/users', createUserRouter(this.auth, this.stub('user'))]) }
 
-      if (apis.includes('drive')) 
-        routers.push(['/drives', createDriveRouter(this.auth, 
+      if (apis.includes('drive')) {
+        routers.push(['/drives', createDriveRouter(this.auth,
           this.stub('drive'), this.stub('dir'), this.stub('dirEntry'))])
+      }
 
-      if (apis.includes('file'))
-        routers.push(['/files', createFileRouter(this.auth, this.stub('file'))])
-      
-      if (apis.includes('tag'))
-        routers.push(['/tags', createTagRouter(this.auth, this.stub('tag'))])
+      if (apis.includes('file')) { routers.push(['/files', createFileRouter(this.auth, this.stub('file'))]) }
 
-      if (apis.includes('task'))
-        routers.push(['/tasks', createTaskRouter(this.auth, this.stub('task'), this.stub('taskNode'))])
+      if (apis.includes('tag')) { routers.push(['/tags', createTagRouter(this.auth, this.stub('tag'))]) }
 
+      if (apis.includes('task')) { routers.push(['/tasks', createTaskRouter(this.auth, this.stub('task'), this.stub('taskNode'))]) }
     } else {
-      // TODO create all routers
-      // if fruitmix is not created, blindly create all? or even if 
-      // fruitmix is not created immediately, the fruitmixOpts should be passed to 
-      // boot and we can still use it to select which router to be started?
-    } 
+      // let userr = express.Router()
+      // userr.get('/', (req, res) => res.status(200).json({ hello: 'world' }))
+      // routers.push(['/users', userr])
+
+      routers.push(['/users', createUserRouter(this.auth, this.stub('user'))])
+    }
 
     let opts = {
       auth: this.auth.middleware,
@@ -162,17 +160,17 @@ class App extends EventEmitter {
   }
 
   /**
-  Creates api stub for given resource name 
+  Creates api stub for given resource name
 
   This design does NOT work well if there are too many sub resources. TODO
 
   @param {string} resource - resource name (singular, such as user, drive, etc)
-  @returns an object with api methods. 
-  */ 
+  @returns an object with api methods.
+  */
   stub (resource) {
     let verbs = ['LIST', 'POST', 'POSTFORM', 'GET', 'PATCH', 'PUT', 'DELETE']
-    return verbs.reduce((stub, verb) => 
-      Object.assign(stub, { 
+    return verbs.reduce((stub, verb) =>
+      Object.assign(stub, {
         [verb]: (user, props, callback) => {
           if (!this.fruitmix) {
             let err = new Error('service unavailable')
@@ -189,10 +187,9 @@ class App extends EventEmitter {
           } else {
             this.fruitmix.apis[resource][verb](user, props, callback)
           }
-        } 
+        }
       }), {})
   }
-
 }
 
 module.exports = App

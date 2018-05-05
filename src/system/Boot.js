@@ -155,14 +155,22 @@ class Starting extends State {
     let volume = this.ctx.storage.volumes.find(v => v.uuid === boundVolumeUUID)
     let fruitmixDir = path.join(volume.mountpoint, this.ctx.conf.storage.fruitmixDir)
     let fruitmix = new Fruitmix({ fruitmixDir })
-    fruitmix.once('FruitmixStarted', () => {
-      this.setState(Started)
-    })
+    fruitmix.once('FruitmixStarted', () => this.setState(Started, fruitmix))
   }
 }
 
 class Started extends State {
+  enter (fruitmix) {
+    this.ctx.fruitmix = fruitmix
+  }
 
+  exit () {
+    this.ctx.fruitmix = null
+  }
+
+  boundUserUpdated () {
+    // FIXME
+  }
 }
 
 class Unavailable extends State {
@@ -184,7 +192,6 @@ class Unavailable extends State {
 
     // undup and sort
     let target2 = Array.from(new Set(target)).sort()
-
     this.setState(Initializing, target2, mode, callback)
   }
 }
@@ -291,7 +298,9 @@ class Initializing extends State {
       uuid: UUID.v4(),
       username: 'admin',
       isFirstUser: true,
-      isAdmin: true
+      isAdmin: true,
+      phicommUserId: this.ctx.boundUser.phicommUserId,
+      password: this.ctx.boundUser.password
     }]
 
     await mkdirpAsync(tmpDir)
@@ -370,6 +379,7 @@ class Boot extends EventEmitter {
 
     this.conf = opts.configuration
     this.error = null
+    this.fruitmix = null
 
     this.preset = undefined
 
@@ -443,7 +453,9 @@ class Boot extends EventEmitter {
     if (vol.missing) return false // bound volume has missing device
     if (!Array.isArray(vol.users)) return false // users.json not ready
 
-    // FIXME check phicommUserId
+    let firstUser = vol.users.find(u => u.isFirstUser === true)
+    if (!firstUser) return false // firstUser not found
+    if (firstUser.phicommUserId !== this.boundUser.phicommUserId) return false
 
     return true
   }

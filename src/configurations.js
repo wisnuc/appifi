@@ -53,7 +53,7 @@ const n2 = {
     fruitmixDir: 'phicomm/n2',
     volumeDir: '/run/phicomm/volumes',
     nonVolumeDir: '/run/phicomm/blocks',
-    userProps: ['uuid', 'username']
+    userProps: ['uuid', 'username', 'isFirstUser', 'phicommUserId']
   }
 }
 

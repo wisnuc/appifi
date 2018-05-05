@@ -71,6 +71,7 @@ class Fruitmix2 extends EventEmitter {
   @param {boolean} opts.useSmb - use samba module
   @param {boolean} opts.useDlna - use dlna module
   @param {boolean} opts.useTransmission - use transmission module
+  @param {object} opts.boundUser - if provided, the admin is forcefully updated
   */
   constructor (opts) {
     super()
