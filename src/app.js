@@ -20,6 +20,7 @@ CreateApp parses args and create the App accordingly.
   --mdns                      fake mdns broadcasting
   --fruitmix-only             start fruitmix without boot
   --fruitmix-dir path/to/dir  use the given path as fruitmix root directory.
+  --alice                     use alice as bound user
 --smb                         use smb
 --dlna                        use dlna
 --transmission                use transmission
@@ -81,6 +82,7 @@ if (args.standalone) {
     let app = new App({
       fruitmixOpts,
       configuration,
+      useAlice: true,
       useServer: true
     })
   }

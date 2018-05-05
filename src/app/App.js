@@ -10,6 +10,9 @@ const createExpress = require('../system/express')
 const createTagRouter = require('../routes/tags')
 const createTaskRouter = require('../routes/tasks2')
 
+const express = require('express') // TODO
+const { passwordEncrypt } = require('../lib/utils')
+
 /**
 Create An Application
 
@@ -68,6 +71,13 @@ class App extends EventEmitter {
       let configuration = opts.configuration
       let fruitmixOpts = opts.fruitmixOpts
       this.boot = new Boot({ configuration, fruitmixOpts })
+
+      if (opts.useAlice) {
+        this.boot.setBoundUser({
+          phicommUserId: 'alice',
+          password: passwordEncrypt('alice', 10)
+        })
+      }
     } else {
       throw new Error('either fruitmix or fruitmixOpts must be provided')
     }
@@ -102,21 +112,29 @@ class App extends EventEmitter {
     this.auth = new Auth(this.secret, () => this.fruitmix ? this.fruitmix.user.users : [])
 
     let routers = []
-    routers.push(['/token', createTokenRouter(this.auth)]) 
+    let bootr = express.Router()
+    bootr.get('/', (req, res) => res.status(200).json(this.boot.view()))
+    bootr.post('/boundVolume', (req, res, next) => 
+      this.boot.init(req.body.target, req.body.mode, (err, data) => 
+        err ? next(err) : res.status(200).json(data)))
+
+    routers.push(['/boot', bootr]) 
+
+    let tokenr = createTokenRouter(this.auth)
+    routers.push(['/token', tokenr]) 
 
     if (this.fruitmix) {
       // if fruitmix is created, use fruitmix apis to decide which router should be created
 
       let apis = Object.keys(this.fruitmix.apis)
+
       if (apis.includes('user')) 
         routers.push(['/users', createUserRouter(this.auth, this.stub('user'))])
+
       if (apis.includes('drive')) 
         routers.push(['/drives', createDriveRouter(this.auth, 
           this.stub('drive'), this.stub('dir'), this.stub('dirEntry'))])
-/**
-      if (apis.includes('dir'))
-        routers.push(['/dirs', createDirRouter(this.auth, this.stub('dir'))])
-**/
+
       if (apis.includes('file'))
         routers.push(['/files', createFileRouter(this.auth, this.stub('file'))])
       
@@ -138,24 +156,6 @@ class App extends EventEmitter {
       settings: { json: { spaces: 2 } },
       log: this.opts.log || { skip: 'all', error: 'all' },
       routers
-    }
-
-    this.express = createExpress(opts)
-  }
-
-  // is this function used ??? TODO
-  createServer (secret) {
-    this.auth = new Auth(secret)
-    this.token = TokenRouter(this.auth)
-    this.timedate = TimeDateRouter(this.auth)
-
-    let opts = {
-      auth: this.auth.middleware,
-      settings: { json: { spaces: 2 } },
-      log: this.opts.log || { skip: 'all', error: 'all' },
-      routers: [
-        ['/token', this.token],
-      ]
     }
 
     this.express = createExpress(opts)

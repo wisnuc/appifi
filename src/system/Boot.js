@@ -13,7 +13,7 @@ const debug = require('debug')('Boot')
 
 const DataStore = require('../lib/DataStore')
 const Fruitmix = require('../fruitmix/Fruitmix')
-const { probe, probeAsync, umountBlocks, umountBlocksAsync } = require('./storage')
+const { probe, probeAsync, umountBlocksAsync } = require('./storage')
 
 /**
 Boot is the top-level container
@@ -109,7 +109,6 @@ class Probing extends State {
 ProbeFailed
 */
 class ProbeFailed extends State {
-
   enter (err) {
     this.err = err
     this.timer = setTimeout(() => this.setState(Probing), 10000)
@@ -119,7 +118,6 @@ class ProbeFailed extends State {
   exit () {
     clearTimeout(this.timer)
   }
-
 }
 
 /**
@@ -129,7 +127,6 @@ Pending is a joining state waiting for the following conditions are met.
 3. preset is loaded
 */
 class Pending extends State {
-
   enter () {
   }
 
@@ -144,19 +141,15 @@ class Pending extends State {
   presetUpdated () {
     if (this.continuable()) this.next()
   }
-
 }
 
 class Presetting extends State {
-
   enter () {
 
   }
-
 }
 
 class Starting extends State {
-
   enter () {
     let boundVolumeUUID = this.ctx.volumeStore.data.uuid
     let volume = this.ctx.storage.volumes.find(v => v.uuid === boundVolumeUUID)
@@ -166,7 +159,6 @@ class Starting extends State {
       this.setState(Started)
     })
   }
-
 }
 
 class Started extends State {
@@ -174,7 +166,6 @@ class Started extends State {
 }
 
 class Unavailable extends State {
-
   init (target, mode, callback) {
     let storage = this.ctx.storage
     if (!storage) return process.nextTick(() => callback(new Error('storage not available')))
@@ -184,32 +175,32 @@ class Unavailable extends State {
     }
 
     // target must be non-empty string array with sd? pattern
-    if (!Array.isArray(target)
-      || target.length === 0
-      || !target.every(name => typeof name === 'string')
-      || !target.every(name => /^sd[a-z]$/.test(name))) {
+    if (!Array.isArray(target) ||
+      target.length === 0 ||
+      !target.every(name => typeof name === 'string') ||
+      !target.every(name => /^sd[a-z]$/.test(name))) {
       return process.nextTick(() => callback(new Error('invalid target names')))
     }
 
     // undup and sort
-    let target2 = Array.from(new Set(target)).sort() 
+    let target2 = Array.from(new Set(target)).sort()
 
     this.setState(Initializing, target2, mode, callback)
-  }  
+  }
 }
 
 /**
 for wisnuc legacy, single '/etc/wisnuc.json' file is used.
 for wisnuc/phicomm
   <chassisDir>    // located on emmc
-    user.json     // single file in json format, maintained by bootstrap, not appifi; for wisnuc, this file 
+    user.json     // single file in json format, maintained by bootstrap, not appifi; for wisnuc, this file
                   // does NOT exist
     volume        // single file containing volume UUID
     <volumeUUID>
-      storage.json 
+      storage.json
       users.json
       drives.json
-      tags.json 
+      tags.json
 
 for tmp
   <chassisDir>
@@ -231,7 +222,6 @@ for tmp
 The callers shall validate arguments before state transition.
 */
 class Initializing extends State {
-
   // target should be valid!
   enter (target, mode, callback) {
     this.initAsync(target, mode)
@@ -247,8 +237,8 @@ class Initializing extends State {
   }
 
   async initAsync (target, mode) {
-
-    let storage, blocks, devnames = []
+    let storage, blocks
+    let devnames = []
 
     // step 1: probe
     storage = await probeAsync(this.ctx.conf.storage)
@@ -256,7 +246,7 @@ class Initializing extends State {
     // target name and translate to devname (devpath acturally)
     for (let i = 0; i < target.length; i++) {
       let block = storage.blocks.find(blk => blk.name === target[i])
-      if (!block) throw new Error(`device ${target[i]} not found`) 
+      if (!block) throw new Error(`device ${target[i]} not found`)
       if (!block.isDisk) throw new Error(`device ${target[i]} is not a disk`)
       if (block.unformattable) throw new Error(`device ${target[i]} is not formattable`)
       devnames.push(block.devname)
@@ -280,8 +270,10 @@ class Initializing extends State {
     if (!volume) throw new Error('cannot find a volume containing expected block name')
 
     // ensure bound volume data format
-    if (!volume.usage || !volume.usage.system || !volume.usage.metadata || !volume.usage.data)
+    if (!volume.usage || !volume.usage.system || !volume.usage.metadata || !volume.usage.data) {
+      console.log(volume)
       throw new Error('volume usage not properly detected')
+    }
 
     let mp = volume.mountpoint
     let fruitmixDir = this.ctx.conf.storage.fruitmixDir
@@ -316,7 +308,7 @@ class Initializing extends State {
           resolve(boundVolume)
         }
       })
-    }) 
+    })
   }
 
   createBoundVolume (storage, volume) {
@@ -328,7 +320,7 @@ class Initializing extends State {
         model: blk.model,
         serial: blk.serial,
         btrfsDevice: blk.btrfsDevice,
-        idBus: blk.idBus,
+        idBus: blk.idBus
       }
     })
 
@@ -361,7 +353,6 @@ class Repairing extends State {
 }
 
 /**
-
 
 */
 class Boot extends EventEmitter {
@@ -444,13 +435,13 @@ class Boot extends EventEmitter {
   }
 
   bootable () {
-    if (!this.boundUser) return false                       // no bound user
-    if (!this.volumeStore.data) return false                // no bound volume
+    if (!this.boundUser) return false // no bound user
+    if (!this.volumeStore.data) return false // no bound volume
 
     let vol = this.storage.volumes.find(v => v.uuid === this.volumeStore.data.uuid)
-    if (!vol) return false                                  // bound volume not found
-    if (vol.missing) return false                           // bound volume has missing device
-    if (!Array.isArray(vol.users)) return false             // users.json not ready
+    if (!vol) return false // bound volume not found
+    if (vol.missing) return false // bound volume has missing device
+    if (!Array.isArray(vol.users)) return false // users.json not ready
 
     // FIXME check phicommUserId
 
@@ -465,8 +456,9 @@ class Boot extends EventEmitter {
   view () {
     return {
       state: this.state.constructor.name.toUpperCase(),
-      boundUser: this.boundUser,
+      boundUser: this.boundUser ? { phicommUserId: this.boundUser.phicommUserId } : null,
       boundVolume: this.volumeStore.data,
+      storage: this.storage,
       preset: this.preset
     }
   }
