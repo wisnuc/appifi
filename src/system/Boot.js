@@ -417,7 +417,26 @@ class Boot extends EventEmitter {
       }
     })
 
+    process.on('message', this.handleBootstrapMessage.bind(this))
+
     new Probing(this)
+  }
+
+  handleBootstrapMessage (data) {
+    console.log(data)
+    let message
+    try {
+      message = JSON.parse(data)
+    } catch (e) {
+      console.log('Bootstrap Message -> JSON parse Error')
+      console.log(data)
+      return 
+    }
+
+    if (message.type === 'APPIFI_ACCOUNT_INFO_MESSAGE') {
+      this.setBoundUser(user)
+    }
+
   }
 
   stateName () {
@@ -484,6 +503,17 @@ class Boot extends EventEmitter {
 
   getStorage () {
   }
+
+  GET (user, props, callback) {
+    process.nextTick(() => callback(null, this.view()))
+  }
+
+  PATCH (user, props, callback) {
+    let target = props.target
+    let mode = props.mode
+    this.init(target, mode, callback)
+  }
+
 }
 
 module.exports = Boot
