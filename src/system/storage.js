@@ -464,13 +464,17 @@ const reformatStorage = storage => {
       delete mapped.stats
 
       mapped.devices = vol.devices.map(dev => { 
-        // it is observed that dev may simply be { id: 2 }, but why? TODO
-        let name = dev.path ? path.basename(dev.path) : undefined
-        return {
-          name,
-          path: dev.path,
-          id: dev.id,
-          used: dev.used
+        if (dev.path) {
+          return {
+            name: path.basename(dev.path),
+            path: dev.path,
+            id: dev.id,
+            used: dev.used
+          }
+        } else { // missing device
+          return {
+            id: dev.id
+          }
         }
       })
 
@@ -491,18 +495,24 @@ const reformatStorage = storage => {
     delete mapped.stats
 
     // copy level 2 (usage for each volume device) into devices
-    mapped.devices = vol.devices.map((dev) => {
-      const devUsage = usage.devices.find(ud => ud.name === dev.path)
-      return {
-        name: path.basename(dev.path), // tricky
-        path: dev.path,
-        id: dev.id,
-        used: dev.used,
-        size: devUsage.size,
-        unallocated: devUsage.unallocated,
-        system: devUsage.system,
-        metadata: devUsage.metadata,
-        data: devUsage.data
+    mapped.devices = vol.devices.map(dev => {
+      if (dev.path) {
+        const devUsage = usage.devices.find(ud => ud.name === dev.path)
+        return {
+          name: path.basename(dev.path), // tricky
+          path: dev.path,
+          id: dev.id,
+          used: dev.used,
+          size: devUsage.size,
+          unallocated: devUsage.unallocated,
+          system: devUsage.system,
+          metadata: devUsage.metadata,
+          data: devUsage.data
+        }
+      } else {
+        return {
+          id: dev.id
+        }
       }
     })
 
