@@ -1099,12 +1099,104 @@ describe(path.basename(__filename), () => {
 
     it('LIST / of sdbc', done => {
       nfs.LIST({}, {}, (err, data) => {
-        expect(data).to.deep.equal([])
+        // expect(data).to.deep.equal([])
         done()
       }) 
     })
 
+    it('GET / of sdde should return []', done => {
+      nfs.GET({}, { id: UUIDDE, path: '' }, (err, data) => {
+        if (err) return done(err)
+        expect(data).to.deep.equal([]) 
+        done()
+      })
+    })
 
+    // empty directory
+    it('GET / of sdde should return []', done => {
+      nfs.GET({}, { id: UUIDDE, path: '' }, (err, data) => {
+        if (err) return done(err)
+        expect(data).to.deep.equal([]) 
+        done()
+      })
+    })
+
+    it('GET / containing hello dir of sdde should return [ hello ]', done => {
+      mkdirp.sync(path.join(tmptest, 'sdde', 'hello'))
+      nfs.GET({}, { id: UUIDDE, path: '' }, (err, data) => {
+        if (err) return done(err)
+        expect(data).to.deep.equal([{
+          name: 'hello',
+          type: 'directory',
+          size: data[0].size,
+          ctime: data[0].ctime
+        }])
+        done()
+      }) 
+    })
+
+    it('GET / containing hello file of sdde should return [ hello ]', done => {
+      fs.writeFileSync(path.join(tmptest, 'sdde', 'hello'), 'hello')
+      nfs.GET({}, { id: UUIDDE, path: '' }, (err, data) => {
+        if (err) return done(err)
+        expect(data).to.deep.equal([{
+          name: 'hello',
+          type: 'file',
+          size: data[0].size,
+          ctime: data[0].ctime
+        }])
+        done()
+      }) 
+    })
+
+    it('GET /hello file of sdde should return hello path', done => {
+      let filepath = path.join(tmptest, 'sdde', 'hello')
+      fs.writeFileSync(filepath, '1234')
+      nfs.GET({}, { id: UUIDDE, path: 'hello' }, (err, data) => {
+        if (err) return done(err)
+        expect(data).to.equal(filepath)
+        done()
+      }) 
+    })
+
+    it('GET /hello dir of sdde should return []', done => {
+      mkdirp.sync(path.join(tmptest, 'sdde', 'hello'))
+      nfs.GET({}, { id: UUIDDE, path: 'hello' }, (err, data) => {
+        if (err) return done(err)
+        expect(data).to.deep.equal([])
+        done()
+      })
+    }) 
+
+    it('DELETE /hello file of sdde should delete file and return undefined', done => {
+      let filepath = path.join(tmptest, 'sdde', 'hello') 
+      fs.writeFileSync(filepath, '1234')
+      nfs.DELETE({}, { id: UUIDDE, path: 'hello' }, (err, data) => {
+        if (err) return done(err)
+        expect(data).to.equal(undefined)
+        try {
+          fs.readFileSync(filepath)
+        } catch (e) {
+          expect(e.code).to.equal('ENOENT')
+          done()
+        }
+      })
+    })
+
+    it('DELETE /hello dir of sdde should delete dir and return undefined', done => {
+      let dirpath = path.join(tmptest, 'sdde', 'hello') 
+      mkdirp.sync(dirpath)
+      nfs.DELETE({}, { id: UUIDDE, path: 'hello' }, (err, data) => {
+        if (err) return done(err)
+        expect(data).to.equal(undefined)
+        try {
+          fs.readdirSync(dirpath)
+        } catch (e) {
+          expect(e.code).to.equal('ENOENT')
+          done()
+        }
+      })
+    })
   }) 
 })
 
