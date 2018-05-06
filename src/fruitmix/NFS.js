@@ -9,22 +9,20 @@ const { isUUID, isNonNullObject } = require('../lib/assertion')
 /**
 NFS provides native file system access to users.
 
-@requires User 
+@requires User
 @module NFS
 */
-
 
 /**
 
 */
 class NFS extends EventEmitter {
-
   /**
   Create a NFS module
 
   @param {object} opts
   @param {object} volumeUUID
-  @param {object} opts.allowATA 
+  @param {object} opts.allowATA
   @param {object} opts.allowUSB
   */
   constructor (opts, user) {
@@ -45,7 +43,6 @@ class NFS extends EventEmitter {
   }
 
   update (storage) {
-
     let { blocks, volumes } = storage
 
     let vols = volumes.filter(vol => {
@@ -83,7 +80,7 @@ class NFS extends EventEmitter {
       process.nextTick(() => callback(null, abspath))
     } catch (e) {
       e.status = 400
-      process.nextTick(() => callback(e)) 
+      process.nextTick(() => callback(e))
     }
   }
 
@@ -93,9 +90,11 @@ class NFS extends EventEmitter {
   @param {object} props
   */
   LIST (user, props, callback) {
-    callback(null, this.drives)
+    let drives = this.drives.map(drv => drv.isVolume
+      ? { id: drv.uuid, type: drv.fileSystemType }
+      : { id: drv.name, type: drv.fileSystemType })
+    process.nextTick(() => callback(null, drives))
   }
-
 
   /**
   read a dir or download a file, path must be URI encoded string
@@ -113,7 +112,7 @@ class NFS extends EventEmitter {
           callback(err)
         } else if (stat.isDirectory()) {
           fs.readdir(target, (err, entries) => {
-            if (err) return next(err)
+            if (err) return callback(err)
             if (entries.length === 0) return callback(null, [])
             let count = entries.length
             let arr = []
@@ -145,14 +144,14 @@ class NFS extends EventEmitter {
           callback(err)
         }
       })
-    }) 
-  }    
+    })
+  }
 
   POSTFORM (user, props, callback) {
     let err = new Error('not implemented yet')
     err.status = 403
     process.nextTick(() => callback(err))
-  } 
+  }
 
   PATCH (user, props, callback) {
     let err = new Error('not implemented yet')
@@ -168,14 +167,14 @@ class NFS extends EventEmitter {
 
   DELETE (user, props, callback) {
     if (props.path === '') {
-      let err = new Error('root cannot be deleted') 
+      let err = new Error('root cannot be deleted')
       err.status = 400
       return process.nextTick(() => callback(err))
     }
 
-    this.resolvePath(user, props, (err, target) => rimraf(target, callback))
+    this.resolvePath(user, props, (err, target) =>
+      err ? callback(err) : rimraf(target, callback))
   }
 }
 
 module.exports = NFS
-

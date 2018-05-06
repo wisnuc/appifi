@@ -1100,6 +1100,7 @@ describe(path.basename(__filename), () => {
     it('LIST / of sdbc', done => {
       nfs.LIST({}, {}, (err, data) => {
         // expect(data).to.deep.equal([])
+        console.log(data)
         done()
       }) 
     })
