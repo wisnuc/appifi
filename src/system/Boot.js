@@ -423,7 +423,7 @@ class Boot extends EventEmitter {
   }
 
   handleBootstrapMessage (data) {
-    console.log(data)
+    console.log('Bootstrap send data: ', data)
     let message
     try {
       message = JSON.parse(data)
