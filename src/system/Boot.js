@@ -434,7 +434,7 @@ class Boot extends EventEmitter {
     }
 
     if (message.type === 'APPIFI_ACCOUNT_INFO_MESSAGE') {
-      this.setBoundUser(user)
+      this.setBoundUser(message.user)
     }
 
   }
