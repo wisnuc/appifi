@@ -13,6 +13,8 @@ const createTaskRouter = require('../routes/tasks2')
 const express = require('express') // TODO
 const { passwordEncrypt } = require('../lib/utils')
 
+const routing = require('./routing')
+
 /**
 Create An Application
 
@@ -146,7 +148,12 @@ class App extends EventEmitter {
       // userr.get('/', (req, res) => res.status(200).json({ hello: 'world' }))
       // routers.push(['/users', userr])
 
-      routers.push(['/users', createUserRouter(this.auth, this.stub('user'))])
+      // routers.push(['/users', createUserRouter(this.auth, this.stub('user'))])
+
+      Object.keys(routing).forEach(key =>
+        routers.push([routing[key].prefix, this.createRouter(this.auth, routing[key].routes)]))
+
+      // console.log(routers)
     }
 
     let opts = {
@@ -189,6 +196,89 @@ class App extends EventEmitter {
           }
         }
       }), {})
+  }
+
+  /**
+  Create router from routes (defined in routing map)
+  */
+  createRouter (auth, routes) {
+    let router = express.Router()
+    let verbs = ['LIST', 'POST', 'POSTFORM', 'GET', 'PATCH', 'PUT', 'DELETE']
+
+    routes.forEach(route => {
+      const rpath = route[0]
+      const verb = route[1]
+      const resource = route[2]
+      const opts = route[3]
+
+      if (!verbs.includes(verb)) throw new Error('invalid verb')
+      const method = verb === 'LIST' ? 'get' : verb === 'POSTFORM' ? 'post' : verb.toLowerCase()
+
+      const stub = (req, res, next) => {
+        if (!this.fruitmix) {
+          let err = new Error('service unavailable')
+          err.status = 503
+          next(err)
+        } else if (!this.fruitmix.apis[resource]) {
+          let err = new Error('resource not found')
+          err.status = 404
+          next(err)
+        } else if (!this.fruitmix.apis[resource][verb]) {
+          let err = new Error(`method ${verb} not supported`)
+          err.status = 405
+          next(err)
+        } else {
+          next()
+        }
+      }
+
+      const f = (res, next) => (err, data) => {
+        if (err) {
+          next(err)
+        } else if (!data) {
+          res.status(200).end()
+        } else if (typeof data === 'string') {
+          res.status(200).sendFile(data)
+        } else {
+          res.status(200).json(data)
+        }
+      }
+
+      const anonymous = (req, res, next) =>
+        this.fruitmix.apis[resource][verb](null,
+          Object.assign({}, req.query, req.body, req.params), f(res, next))
+
+      const authenticated = (req, res, next) =>
+        this.fruitmix.apis[resource][verb](req.user,
+          Object.assign({}, req.query, req.body, req.params), f(res, next))
+
+      if (opts && opts.auth === 'allowAnonymous') {
+        router[method](rpath, stub, anonymous, auth.jwt(), authenticated)
+      } else if (opts && typeof opts.auth === 'function') {
+        router[method](rpath, stub, opts.auth(auth), authenticated)
+      } else {
+        if (verb === 'POSTFORM') {
+          router[method](rpath, stub, auth.jwt(), (req, res, next) => {
+            if (!req.is('multipart/form-data')) {
+              let err = new Error('only multipart/form-data media type supported')
+              err.status = 415
+              next(err)
+            } else {
+              const regex = /^multipart\/.+?(?:; boundary=(?:(?:"(.+)")|(?:([^\s]+))))$/i
+              const m = regex.exec(req.headers['content-type'])
+              let boundary = m[1] || m[2]
+              let length = parseInt(req.headers['content-length'])
+              let props = Object.assign({}, req.params, { boundary, length, formdata: req })
+              this.fruitmix.apis[resource][verb](req.user, props, f(res, next))
+            }
+          })
+        } else {
+          router[method](rpath, stub, auth.jwt(), authenticated)
+        }
+      }
+    })
+
+    return router
   }
 }
 
