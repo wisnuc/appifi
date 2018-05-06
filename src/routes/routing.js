@@ -8,10 +8,6 @@ Each entry is defined as 4-tuple
 */
 const routing = {
 
-  timedate: {
-    
-  },
-
   user: {
     prefix: '/users',
     routes: [
@@ -85,6 +81,12 @@ const routing = {
   nfs: {
     prefix: '/phy-drives',
     routes: [
+      ['/', 'LIST', 'nfs'],
+      ['/:id', 'GET', 'nfs'],
+      ['/:id', 'POSTFORM', 'nfs'],
+      ['/:id', 'PATCH', 'nfs'],
+      ['/:id', 'PUT', 'nfs'], 
+      ['/:id', 'DELETE', 'nfs']
     ]
   }
 }

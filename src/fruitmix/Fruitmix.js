@@ -49,7 +49,14 @@ Fruitmix has the following structure:
   apis: {
     user,
     drive,
-    ...
+    tag,
+    dir,
+    dirEntry,
+    file,
+    media,
+    task,
+    taskNode,
+    nfs
   }
 }
 ```
