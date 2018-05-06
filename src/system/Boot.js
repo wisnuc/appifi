@@ -503,6 +503,17 @@ class Boot extends EventEmitter {
 
   getStorage () {
   }
+
+  GET (user, props, callback) {
+    process.nextTick(() => callback(null, this.view()))
+  }
+
+  PATCH (user, props, callback) {
+    let target = props.target
+    let mode = props.mode
+    this.init(target, mode, callback)
+  }
+
 }
 
 module.exports = Boot
