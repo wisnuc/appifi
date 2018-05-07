@@ -8,8 +8,8 @@
   - [3.1. Tests](#31-tests)
     - [3.1.1. 单例](#311-单例)
 - [4. RENAME](#4-rename)
-  - [Tests](#tests)
-    - [单例](#单例)
+  - [4.1. Tests](#41-tests)
+    - [4.1.1. 单例](#411-单例)
 - [5. NEWFILE](#5-newfile)
 - [6. APPEND](#6-append)
 - [7. DUP](#7-dup)
@@ -201,15 +201,48 @@ policies:
 
 `policy`为可选属性，如不提供，缺省为`[null, null]`。
 
-## Tests
+## 4.1. Tests
 
-### 单例
+### 4.1.1. 单例
 
+**文件**
+
+`direntry/rename.js`
+
+**测例**
+
++ oldname为文件，newName不存在，所有合法policy成功，resolved [false, false]
++ oldname为文件夹，newName不存在，所有合法policy成功，resolved [false, false]
+
++ old为文件，存在同名文件，same生效
+  + same === null，403, EEXIST, EISFILE
+  + same === skip，200，resolved [true, false]
+  + same === replace, 200, resolved [true, false]
+  + same === rename, 200, resolved [true, false] 
+
++ old为文件，存在同名文件夹，diff生效
+  + diff === null, 403，EEXIST, EISDIR
+  + diff === skip, 200, resolved [false, true]
+  + diff === replace, 200, resolved [false, true]
+  + diff === rename, 200, resolved [false, true]
+
++ old为文件夹，存在同名文件夹，same生效
+  + same === null，403, EEXIST, EISDIR
+  + same === skip，200，resolved [true, false]
+  + same === replace, 200, resolved [true, false]
+  + same === rename, 200, resolved [true, false] 
+
++ old为文件夹，存在同名文件，diff生效
+  + diff === null, 403，EEXIST, EISFILE
+  + diff === skip, 200, resolved [false, true]
+  + diff === replace, 200, resolved [false, true]
+  + diff === rename, 200, resolved [false, true]
 
 # 5. NEWFILE
 
 
 # 6. APPEND
+
 
 # 7. DUP
 

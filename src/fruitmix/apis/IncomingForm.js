@@ -249,14 +249,14 @@ class Parsing extends State {
     part.on('end', () => {
       let args
       try {
-        args = Object.assign({}, JSON.parse(Buffer.concat(this.buffers)))
+        args = Object.assign({}, this.ctx.args, JSON.parse(Buffer.concat(this.buffers)))
         this.validateFieldArgs(args)
       } catch (e) {
         e.status = 400
         return this.setState(Failed, e)
       }
 
-      Object.assign(this.ctx.args, args)
+      this.ctx.args = args
 
       let pred = this.ctx.predecessor
       if (pred) {
@@ -294,6 +294,7 @@ class Parsing extends State {
 
       case 'rename':
         if (args.fromName === args.toName) {
+          console.log(this.ctx.args, args)
           throw new Error('rename requires two distinct names')
         }
         if (args.hasOwnProperty('overwrite') && !isUUID(args.overwrite)) {
@@ -467,6 +468,21 @@ class Executing extends State {
           }, err => err 
             ? this.setState(Failed, err) 
             : this.setState(Succeeded, null))
+          break
+
+        case 'rename':
+          this.ctx.ctx.apis.rename({
+            fromName: args.fromName,
+            toName: args.toName,
+            policy: args.policy
+          }, (err, xstat, resolved) => {
+            if (err) {
+              this.setState(Failed, err)
+            } else {
+              args.resolved = resolved
+              this.setState(Succeeded, xstat)
+            }
+          })
           break
 
         default:
