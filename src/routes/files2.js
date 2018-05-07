@@ -9,7 +9,7 @@ module.exports = (auth, { LIST, GET }) => {
       places: req.query.places,
       tags: req.query.tags,
       magics: req.query.magics,
-      metadata; req.query.metadata,
+      metadata: req.query.metadata,
       namepath: req.query.namepath 
     }, (err, data) => err ? next(err) : res.status(200).json(data)))
 
