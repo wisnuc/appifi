@@ -80,7 +80,7 @@ class Fruitmix extends EventEmitter {
   @param {boolean} opts.useSmb - use samba module
   @param {boolean} opts.useDlna - use dlna module
   @param {boolean} opts.useTransmission - use transmission module
-  @param {object} opts.boundUser - if provided, the admin is forcefully updated
+  @param {object} [opts.boundUser] - if provided, the admin is forcefully updated
   @param {object} [opts.boundVolume] - required by nfs. If not provided, nfs is not constructed.
   */
   constructor (opts) {
@@ -93,6 +93,7 @@ class Fruitmix extends EventEmitter {
     rimraf.sync(this.tmpDir)
     mkdirp.sync(this.tmpDir)
 
+    this.boundUser = opts.boundUser
     this.boundVolume = opts.boundVolume
 
     // setup user module
@@ -108,6 +109,10 @@ class Fruitmix extends EventEmitter {
         return this.user.users || [] // TODO can this be undefined?
       }
     })
+
+    if (this.boundUser) {
+      this.user.bindFirstUser(this.boundUser)
+    }
 
     this.drive = new Drive({
       file: path.join(this.fruitmixDir, 'drives.json'),
@@ -204,6 +209,10 @@ class Fruitmix extends EventEmitter {
 
   setStorage (storage) {
     if (this.nfs) this.nfs.update(storage)
+  }
+
+  bindFirstUser (boundUser) {
+    this.user.bindFirstUser(boundUser)
   }
 }
 
