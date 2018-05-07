@@ -20,6 +20,8 @@ const NFS = require('./NFS')
 const Tag = require('../tags/Tag')
 const DirApi = require('./apis/dir')
 const DirEntryApi = require('./apis/dir-entry')
+const FileApi = require('./apis/file')
+// const MediaApi = require('./apis/media')
 const Task = require('./Task')
 
 
@@ -71,7 +73,7 @@ but for directories and files api, it is obviously that the separate api module 
 
 Fruitmix has no knowledge of chassis, storage, etc.
 */
-class Fruitmix2 extends EventEmitter {
+class Fruitmix extends EventEmitter {
   /**
   @param {object} opts
   @param {string} opts.fruitmixDir - absolute path
@@ -84,7 +86,6 @@ class Fruitmix2 extends EventEmitter {
   constructor (opts) {
     super()
 
-    if (!opts.boundVolume) throw new Error('boundVolume is required for constructing fruitmix')
     this.boundVolume = opts.boundVolume
 
     this.fruitmixDir = opts.fruitmixDir
@@ -137,15 +138,11 @@ class Fruitmix2 extends EventEmitter {
     this.dirApi = new DirApi(this.vfs)
     this.dirEntryApi = new DirEntryApi(this.vfs)
 
+    this.fileApi = new FileApi(this.vfs)
+
     this.thumbnail = new Thumbnail(path.join(this.fruitmixDir, 'thumbnail'), this.tmpDir)
 
     this.task = new Task(this.vfs)
-
-    this.nfs = new NFS({ volumeUUID: this.boundVolume.uuid }, this.user)
-
-    this.user.on('Update', () => {
-      this.emit('FruitmixStarted')
-    })
 
     this.apis = {
       user: this.user,
@@ -157,8 +154,17 @@ class Fruitmix2 extends EventEmitter {
       media: this.mediaApi,
       task: this.task,
       taskNode: this.task.nodeApi,
-      nfs: this.nfs
     }
+
+    if (this.boundVolume) {
+      this.nfs = new NFS({ volumeUUID: this.boundVolume.uuid }, this.user)
+      this.apis.nfs = this.nfs
+    }
+
+    this.user.on('Update', () => {
+      this.emit('FruitmixStarted')
+    })
+
   }
 
   init (opts) {
@@ -195,4 +201,4 @@ class Fruitmix2 extends EventEmitter {
   }
 }
 
-module.exports = Fruitmix2
+module.exports = Fruitmix
