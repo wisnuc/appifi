@@ -65,15 +65,15 @@ module.exports = {
     ]
   },
 
-  xcopy: {
+  task: {
     prefix: '/tasks',
     routes: [
-      ['/', 'LIST', 'xcopy'],
-      ['/', 'POST', 'xcopy'],
-      ['/:taskUUID', 'GET', 'xcopy'],
-      ['/:taskUUID', 'DELETE', 'xcopy'],
-      ['/:taskUUID/nodes/:nodeUUID', 'PATCH', 'xcopyNode'],
-      ['/:taskUUID/nodes/:nodeUUID', 'DELETE', 'xcopyNode']
+      ['/', 'LIST', 'task'],
+      ['/', 'POST', 'task'],
+      ['/:taskUUID', 'GET', 'task'],
+      ['/:taskUUID', 'DELETE', 'task'],
+      ['/:taskUUID/nodes/:nodeUUID', 'PATCH', 'taskNode'],
+      ['/:taskUUID/nodes/:nodeUUID', 'DELETE', 'taskNode']
     ]
   },
 

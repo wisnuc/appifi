@@ -132,9 +132,9 @@ class Fruitmix2 extends EventEmitter {
     this.dirApi = new DirApi(this.vfs)
     this.dirEntryApi = new DirEntryApi(this.vfs)
 
-    this.task = new Task(this.vfs)
-
     this.thumbnail = new Thumbnail(path.join(this.fruitmixDir, 'thumbnail'), this.tmpDir)
+
+    this.task = new Task(this.vfs)
 
     this.user.on('Update', () => {
       this.emit('FruitmixStarted')
@@ -146,8 +146,11 @@ class Fruitmix2 extends EventEmitter {
       tag: this.tag,
       dir: this.dirApi,
       dirEntry: this.dirEntryApi,
+      file: this.fileApi,
+      media: this.mediaApi,
       task: this.task,
-      taskNode: this.task.nodeApi
+      taskNode: this.task.nodeApi,
+      nfs: this.nfs
     }
   }
 
