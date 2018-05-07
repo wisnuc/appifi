@@ -126,6 +126,7 @@ class App extends EventEmitter {
     let tokenr = createTokenRouter(this.auth)
     routers.push(['/token', tokenr])
 
+/**
     if (this.fruitmix) {
       // if fruitmix is created, use fruitmix apis to decide which router should be created
 
@@ -144,6 +145,7 @@ class App extends EventEmitter {
 
       if (apis.includes('task')) { routers.push(['/tasks', createTaskRouter(this.auth, this.stub('task'), this.stub('taskNode'))]) }
     } else {
+*/
       // let userr = express.Router()
       // userr.get('/', (req, res) => res.status(200).json({ hello: 'world' }))
       // routers.push(['/users', userr])
@@ -154,7 +156,7 @@ class App extends EventEmitter {
         routers.push([routing[key].prefix, this.createRouter(this.auth, routing[key].routes)]))
 
       // console.log(routers)
-    }
+//    }
 
     let opts = {
       auth: this.auth.middleware,
