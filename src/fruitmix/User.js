@@ -147,6 +147,44 @@ class User extends EventEmitter {
     })
   }
 
+  bindFirstUser (boundUser) {
+    this.store.save(users => {
+      let index = users.findIndex(u => u.isFirstUser)
+      if (index === -1) {
+        return [{
+          uuid: UUID.v4(),
+          username: boundUser.name || 'admin',
+          isFirstUser: true,
+          phicommUserId: boundUser.phicommUserId,
+          password: boundUser.password,
+          smbPassword: '',
+          status: USER_STATUS.ACTIVE
+        }]
+      } else {
+        let firstUser = users[index]
+        if (firstUser.phicommUserId !== boundUser.phicommUserId) {
+          console.log('===================')
+          console.log('This is not an error, but fruitmix received a bound user')
+          console.log('different than the previous one, exit')
+          console.log('===================')
+          process.exit(67)
+        } else if (firstUser.password !== boundUser.password) {
+          let newFirstUser = Object.assign({}, firstUser, { password: boundUser.password })
+          return [
+            ...users.slice(0, index),
+            newFirstUser,
+            ...users.slice(index + 1)
+          ]
+        } else {
+          return users // no change
+        }
+      }
+    }, 
+    err => err 
+    ? console.log(`user module failed to bind first user to ${boundUser.phicommUserId}`)
+    : console.log(`user module bound first user to ${boundUser.phicommUserId} successfully`)) 
+  }
+
   destory (callback) {
     this.store.destroy(callback)
   }
