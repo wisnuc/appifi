@@ -49,7 +49,14 @@ Fruitmix has the following structure:
   apis: {
     user,
     drive,
-    ...
+    tag,
+    dir,
+    dirEntry,
+    file,
+    media,
+    task,
+    taskNode,
+    nfs
   }
 }
 ```
@@ -71,9 +78,15 @@ class Fruitmix2 extends EventEmitter {
   @param {boolean} opts.useSmb - use samba module
   @param {boolean} opts.useDlna - use dlna module
   @param {boolean} opts.useTransmission - use transmission module
+  @param {object} opts.boundUser - if provided, the admin is forcefully updated
+  @param {object} opts.boundVolume - passed to nfs
   */
   constructor (opts) {
     super()
+
+    if (!opts.boundVolume) throw new Error('boundVolume is required for constructing fruitmix')
+    this.boundVolume = opts.boundVolume
+
     this.fruitmixDir = opts.fruitmixDir
     mkdirp.sync(this.fruitmixDir)
 
@@ -124,9 +137,11 @@ class Fruitmix2 extends EventEmitter {
     this.dirApi = new DirApi(this.vfs)
     this.dirEntryApi = new DirEntryApi(this.vfs)
 
+    this.thumbnail = new Thumbnail(path.join(this.fruitmixDir, 'thumbnail'), this.tmpDir)
+
     this.task = new Task(this.vfs)
 
-    this.thumbnail = new Thumbnail(path.join(this.fruitmixDir, 'thumbnail'), this.tmpDir)
+    this.nfs = new NFS({ volumeUUID: this.boundVolume.uuid }, this.user)
 
     this.user.on('Update', () => {
       this.emit('FruitmixStarted')
@@ -138,8 +153,11 @@ class Fruitmix2 extends EventEmitter {
       tag: this.tag,
       dir: this.dirApi,
       dirEntry: this.dirEntryApi,
+      file: this.fileApi,
+      media: this.mediaApi,
       task: this.task,
-      taskNode: this.task.nodeApi
+      taskNode: this.task.nodeApi,
+      nfs: this.nfs
     }
   }
 
@@ -170,6 +188,10 @@ class Fruitmix2 extends EventEmitter {
       isFirstUser: u.isFirstUser,
       phicommUserId: u.phicommUserId
     }))
+  }
+
+  setStorage (storage) {
+    if (this.nfs) this.nfs.update(storage)
   }
 }
 

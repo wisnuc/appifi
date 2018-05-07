@@ -145,7 +145,7 @@ For non-usb device, `mount` is used. `/run/wisnuc/blocks/${blk.name}`
 */
 const mountNonVolumesAsync = async (nonVolumeDir, blocks, mounts) => {
   // only for known file system type on standalone disk or partition, whitelist policy
-  const unmounted = blocks.filter((blk) => {
+  const unmounted = blocks.filter(blk => {
     // if blk is disk
     //   blk is fs (and no partition table)
     //     && fs type is (ext4 or ntfs or vfat) && blk is not mounted
@@ -181,11 +181,12 @@ const mountNonVolumesAsync = async (nonVolumeDir, blocks, mounts) => {
 /**
 Probe btrfs volume usages
 
+@param {string} volumeDir - absolute path where volumes are mounted
 @param {mount[]} mounts
 */
-const probeUsages = async (mounts) => {
+const probeUsagesAsync = async (volumeDir, mounts) => {
   const filtered = mounts.filter(mnt => mnt.fs_type === 'btrfs' 
-    && (mnt.mountpoint.startsWith('/run/wisnuc/volumes/') || mnt.mountpoint.startsWith('/media/'))
+    && (mnt.mountpoint.startsWith(volumeDir) || mnt.mountpoint.startsWith('/media/'))
     && !mnt.mountpoint.endsWith('/graph/btrfs'))
   return Promise.all(filtered.map(mnt => probeUsageAsync(mnt.mountpoint)))
 }
@@ -463,13 +464,17 @@ const reformatStorage = storage => {
       delete mapped.stats
 
       mapped.devices = vol.devices.map(dev => { 
-        // it is observed that dev may simply be { id: 2 }, but why? TODO
-        let name = dev.path ? path.basename(dev.path) : undefined
-        return {
-          name,
-          path: dev.path,
-          id: dev.id,
-          used: dev.used
+        if (dev.path) {
+          return {
+            name: path.basename(dev.path),
+            path: dev.path,
+            id: dev.id,
+            used: dev.used
+          }
+        } else { // missing device
+          return {
+            id: dev.id
+          }
         }
       })
 
@@ -490,18 +495,24 @@ const reformatStorage = storage => {
     delete mapped.stats
 
     // copy level 2 (usage for each volume device) into devices
-    mapped.devices = vol.devices.map((dev) => {
-      const devUsage = usage.devices.find(ud => ud.name === dev.path)
-      return {
-        name: path.basename(dev.path), // tricky
-        path: dev.path,
-        id: dev.id,
-        used: dev.used,
-        size: devUsage.size,
-        unallocated: devUsage.unallocated,
-        system: devUsage.system,
-        metadata: devUsage.metadata,
-        data: devUsage.data
+    mapped.devices = vol.devices.map(dev => {
+      if (dev.path) {
+        const devUsage = usage.devices.find(ud => ud.name === dev.path)
+        return {
+          name: path.basename(dev.path), // tricky
+          path: dev.path,
+          id: dev.id,
+          used: dev.used,
+          size: devUsage.size,
+          unallocated: devUsage.unallocated,
+          system: devUsage.system,
+          metadata: devUsage.metadata,
+          data: devUsage.data
+        }
+      } else {
+        return {
+          id: dev.id
+        }
       }
     })
 
@@ -576,7 +587,7 @@ const probeUsersAsync = async (mountpoint, fruitmixDir, userProps) => {
   try {
     entries = await fs.readdirAsync(dirPath)
   } catch (e) {
-    debug(`${__filename} probeUser, error reading fruitmix dir`, e)
+    debug(`${__filename} probeUser, error reading fruitmix dir`, e.code)
 
     if (e.code === 'ENOENT') {
       throw error('fruitmix dir not found', 'ENOENT', e)
@@ -659,7 +670,32 @@ const probeAsync = async configs => {
     swaps: arr[4]
   }
 
-  debug('probe storage without usages', JSON.stringify(s0, null, '  '))
+  let output = {
+    ports: s0.ports.map(prt => prt.path.split('/').slice().pop()),
+    blocks: s0.blocks.map(blk => 
+      [
+        'devname', 
+        'devtype', 
+        'id_bus', 
+        'id_fs_type',
+        'id_fs_usage',
+        'id_fs_uuid',
+        'id_fs_uuid_sub',
+        'id_part_table_type', 
+        'id_part_table_uuid',
+        'id_model',
+        'id_serial_short', 
+      ].reduce((o, prop) => blk.props[prop] ? [...o, blk.props[prop]] : o, [
+        s0.ports
+          .map(prt => prt.path.split('/').slice().pop())
+          .find(prt => blk.props.devpath.includes(`/${prt}/`)) || '(n/a)'
+      ]).join(', ')),
+    volumes: s0.volumes.map(vol => vol.uuid),
+    mounts: s0.mounts.map(mnt => `${mnt.device} (${mnt.fs_type}) @ ${mnt.mountpoint}`),
+    swaps: s0.swaps.map(swp => `${swp.filename} (${swp.type})`)
+  }
+
+  debug('probe storage without usages', output)
 
   // mount all file systems
   await mountVolumesAsync(volumeDir, s0.volumes, s0.mounts)
@@ -671,7 +707,8 @@ const probeAsync = async configs => {
   await Promise.delay(200)
 
   // probe usages
-  const usages = await probeUsages(mounts)
+  const usages = await probeUsagesAsync(volumeDir, mounts)
+
   // merge to s1
   const s1 = Object.assign({}, s0, { mounts, usages })
 

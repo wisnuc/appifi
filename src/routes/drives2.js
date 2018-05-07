@@ -25,10 +25,10 @@ module.exports = (auth, DRIVE, DIR, DIRENTRY) => {
     DRIVE.DELETE(req.user, { driveUUID: req.params.driveUUID }, f(res, next)))
 
   // dir apis (nested)
-
+/**
   router.get('/:driveUUID/dirs', auth.jwt(), (req, res, next) =>
     DIR.LIST(req.user, { driveUUID: req.params.driveUUID }, f(res, next)))
-
+**/
   router.get('/:driveUUID/dirs/:dirUUID', auth.jwt(), (req, res, next) => {
     let { driveUUID, dirUUID } = req.params
     let { metadata, counter } = req.query
@@ -48,7 +48,6 @@ module.exports = (auth, DRIVE, DIR, DIRENTRY) => {
 
     let boundary = m[1] || m[2]
     let length = parseInt(req.headers['content-length'])
-
     let props = {
       driveUUID: req.params.driveUUID,
       dirUUID: req.params.dirUUID,

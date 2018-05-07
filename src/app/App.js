@@ -10,6 +10,11 @@ const createExpress = require('../system/express')
 const createTagRouter = require('../routes/tags')
 const createTaskRouter = require('../routes/tasks2')
 
+const express = require('express') // TODO
+const { passwordEncrypt } = require('../lib/utils')
+
+const routing = require('./routing')
+
 /**
 Create An Application
 
@@ -41,12 +46,11 @@ The combination is configurable.
 App is the top-level container for the application.
 */
 class App extends EventEmitter {
-
   /**
   Creates an App instance
 
   If fruitmix is provided, the App works in fruitmix only mode.
-  Otherwise, the App will create boot and the later is responsible for constructing the fruitmix instance. In this case, `fruitmixOpts` must be provided.  
+  Otherwise, the App will create boot and the later is responsible for constructing the fruitmix instance. In this case, `fruitmixOpts` must be provided.
 
   @param {object} opts
   @param {string} opts.secret - secret for auth middleware to encode/decode token
@@ -67,7 +71,17 @@ class App extends EventEmitter {
     } else if (opts.fruitmixOpts) {
       let configuration = opts.configuration
       let fruitmixOpts = opts.fruitmixOpts
+
       this.boot = new Boot({ configuration, fruitmixOpts })
+
+      Object.defineProperty(this, 'fruitmix', { get () { return this.boot.fruitmix } })
+
+      if (opts.useAlice) {
+        this.boot.setBoundUser({
+          phicommUserId: 'alice',
+          password: passwordEncrypt('alice', 10)
+        })
+      }
     } else {
       throw new Error('either fruitmix or fruitmixOpts must be provided')
     }
@@ -85,13 +99,12 @@ class App extends EventEmitter {
           console.log('server started on port 3000')
         }
       })
-    } 
-
+    }
   }
 
   handleMessage (message) {
     switch (message.type) {
-      case 'hello': 
+      case 'hello':
         break
       default:
         break
@@ -102,36 +115,46 @@ class App extends EventEmitter {
     this.auth = new Auth(this.secret, () => this.fruitmix ? this.fruitmix.user.users : [])
 
     let routers = []
-    routers.push(['/token', createTokenRouter(this.auth)]) 
+    let bootr = express.Router()
+    bootr.get('/', (req, res) => res.status(200).json(this.boot.view()))
+    bootr.post('/boundVolume', (req, res, next) =>
+      this.boot.init(req.body.target, req.body.mode, (err, data) =>
+        err ? next(err) : res.status(200).json(data)))
+
+    routers.push(['/boot', bootr])
+
+    let tokenr = createTokenRouter(this.auth)
+    routers.push(['/token', tokenr])
 
     if (this.fruitmix) {
       // if fruitmix is created, use fruitmix apis to decide which router should be created
 
       let apis = Object.keys(this.fruitmix.apis)
-      if (apis.includes('user')) 
-        routers.push(['/users', createUserRouter(this.auth, this.stub('user'))])
-      if (apis.includes('drive')) 
-        routers.push(['/drives', createDriveRouter(this.auth, 
+
+      if (apis.includes('user')) { routers.push(['/users', createUserRouter(this.auth, this.stub('user'))]) }
+
+      if (apis.includes('drive')) {
+        routers.push(['/drives', createDriveRouter(this.auth,
           this.stub('drive'), this.stub('dir'), this.stub('dirEntry'))])
-/**
-      if (apis.includes('dir'))
-        routers.push(['/dirs', createDirRouter(this.auth, this.stub('dir'))])
-**/
-      if (apis.includes('file'))
-        routers.push(['/files', createFileRouter(this.auth, this.stub('file'))])
-      
-      if (apis.includes('tag'))
-        routers.push(['/tags', createTagRouter(this.auth, this.stub('tag'))])
+      }
 
-      if (apis.includes('task'))
-        routers.push(['/tasks', createTaskRouter(this.auth, this.stub('task'), this.stub('taskNode'))])
+      if (apis.includes('file')) { routers.push(['/files', createFileRouter(this.auth, this.stub('file'))]) }
 
+      if (apis.includes('tag')) { routers.push(['/tags', createTagRouter(this.auth, this.stub('tag'))]) }
+
+      if (apis.includes('task')) { routers.push(['/tasks', createTaskRouter(this.auth, this.stub('task'), this.stub('taskNode'))]) }
     } else {
-      // TODO create all routers
-      // if fruitmix is not created, blindly create all? or even if 
-      // fruitmix is not created immediately, the fruitmixOpts should be passed to 
-      // boot and we can still use it to select which router to be started?
-    } 
+      // let userr = express.Router()
+      // userr.get('/', (req, res) => res.status(200).json({ hello: 'world' }))
+      // routers.push(['/users', userr])
+
+      // routers.push(['/users', createUserRouter(this.auth, this.stub('user'))])
+
+      Object.keys(routing).forEach(key =>
+        routers.push([routing[key].prefix, this.createRouter(this.auth, routing[key].routes)]))
+
+      // console.log(routers)
+    }
 
     let opts = {
       auth: this.auth.middleware,
@@ -143,36 +166,18 @@ class App extends EventEmitter {
     this.express = createExpress(opts)
   }
 
-  // is this function used ??? TODO
-  createServer (secret) {
-    this.auth = new Auth(secret)
-    this.token = TokenRouter(this.auth)
-    this.timedate = TimeDateRouter(this.auth)
-
-    let opts = {
-      auth: this.auth.middleware,
-      settings: { json: { spaces: 2 } },
-      log: this.opts.log || { skip: 'all', error: 'all' },
-      routers: [
-        ['/token', this.token],
-      ]
-    }
-
-    this.express = createExpress(opts)
-  }
-
   /**
-  Creates api stub for given resource name 
+  Creates api stub for given resource name
 
   This design does NOT work well if there are too many sub resources. TODO
 
   @param {string} resource - resource name (singular, such as user, drive, etc)
-  @returns an object with api methods. 
-  */ 
+  @returns an object with api methods.
+  */
   stub (resource) {
     let verbs = ['LIST', 'POST', 'POSTFORM', 'GET', 'PATCH', 'PUT', 'DELETE']
-    return verbs.reduce((stub, verb) => 
-      Object.assign(stub, { 
+    return verbs.reduce((stub, verb) =>
+      Object.assign(stub, {
         [verb]: (user, props, callback) => {
           if (!this.fruitmix) {
             let err = new Error('service unavailable')
@@ -189,10 +194,92 @@ class App extends EventEmitter {
           } else {
             this.fruitmix.apis[resource][verb](user, props, callback)
           }
-        } 
+        }
       }), {})
   }
 
+  /**
+  Create router from routes (defined in routing map)
+  */
+  createRouter (auth, routes) {
+    let router = express.Router()
+    let verbs = ['LIST', 'POST', 'POSTFORM', 'GET', 'PATCH', 'PUT', 'DELETE']
+
+    routes.forEach(route => {
+      const rpath = route[0]
+      const verb = route[1]
+      const resource = route[2]
+      const opts = route[3]
+
+      if (!verbs.includes(verb)) throw new Error('invalid verb')
+      const method = verb === 'LIST' ? 'get' : verb === 'POSTFORM' ? 'post' : verb.toLowerCase()
+
+      const stub = (req, res, next) => {
+        if (!this.fruitmix) {
+          let err = new Error('service unavailable')
+          err.status = 503
+          next(err)
+        } else if (!this.fruitmix.apis[resource]) {
+          let err = new Error(`resource ${resource} not found`)
+          err.status = 404
+          next(err)
+        } else if (!this.fruitmix.apis[resource][verb]) {
+          let err = new Error(`method ${verb} not supported`)
+          err.status = 405
+          next(err)
+        } else {
+          next()
+        }
+      }
+
+      const f = (res, next) => (err, data) => {
+        if (err) {
+          next(err)
+        } else if (!data) {
+          res.status(200).end()
+        } else if (typeof data === 'string') {
+          res.status(200).sendFile(data)
+        } else {
+          res.status(200).json(data)
+        }
+      }
+
+      const anonymous = (req, res, next) =>
+        this.fruitmix.apis[resource][verb](null,
+          Object.assign({}, req.query, req.body, req.params), f(res, next))
+
+      const authenticated = (req, res, next) =>
+        this.fruitmix.apis[resource][verb](req.user,
+          Object.assign({}, req.query, req.body, req.params), f(res, next))
+
+      if (opts && opts.auth === 'allowAnonymous') {
+        router[method](rpath, stub, anonymous, auth.jwt(), authenticated)
+      } else if (opts && typeof opts.auth === 'function') {
+        router[method](rpath, stub, opts.auth(auth), authenticated)
+      } else {
+        if (verb === 'POSTFORM') {
+          router[method](rpath, stub, auth.jwt(), (req, res, next) => {
+            if (!req.is('multipart/form-data')) {
+              let err = new Error('only multipart/form-data media type supported')
+              err.status = 415
+              next(err)
+            } else {
+              const regex = /^multipart\/.+?(?:; boundary=(?:(?:"(.+)")|(?:([^\s]+))))$/i
+              const m = regex.exec(req.headers['content-type'])
+              let boundary = m[1] || m[2]
+              let length = parseInt(req.headers['content-length'])
+              let props = Object.assign({}, req.params, { boundary, length, formdata: req })
+              this.fruitmix.apis[resource][verb](req.user, props, f(res, next))
+            }
+          })
+        } else {
+          router[method](rpath, stub, auth.jwt(), authenticated)
+        }
+      }
+    })
+
+    return router
+  }
 }
 
 module.exports = App
