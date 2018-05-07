@@ -15,6 +15,7 @@ const { passwordEncrypt } = require('../lib/utils')
 
 const routing = require('./routing')
 
+const Pipe = require('../fruitmix/Pipe')
 /**
 Create An Application
 
@@ -104,6 +105,8 @@ class App extends EventEmitter {
 
   handleMessage (message) {
     switch (message.type) {
+      case 'pip':
+        return new Pipe().handleMessage(message)
       case 'hello':
         break
       default:
