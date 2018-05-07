@@ -21,7 +21,7 @@ const Tag = require('../tags/Tag')
 const DirApi = require('./apis/dir')
 const DirEntryApi = require('./apis/dir-entry')
 const FileApi = require('./apis/file')
-// const MediaApi = require('./apis/media')
+const MediaApi = require('./apis/media')
 const Task = require('./Task')
 
 
@@ -81,12 +81,10 @@ class Fruitmix extends EventEmitter {
   @param {boolean} opts.useDlna - use dlna module
   @param {boolean} opts.useTransmission - use transmission module
   @param {object} opts.boundUser - if provided, the admin is forcefully updated
-  @param {object} opts.boundVolume - passed to nfs
+  @param {object} [opts.boundVolume] - required by nfs. If not provided, nfs is not constructed.
   */
   constructor (opts) {
     super()
-
-    this.boundVolume = opts.boundVolume
 
     this.fruitmixDir = opts.fruitmixDir
     mkdirp.sync(this.fruitmixDir)
@@ -94,6 +92,8 @@ class Fruitmix extends EventEmitter {
     this.tmpDir = path.join(this.fruitmixDir, 'tmp')
     rimraf.sync(this.tmpDir)
     mkdirp.sync(this.tmpDir)
+
+    this.boundVolume = opts.boundVolume
 
     // setup user module
     this.user = new User({
@@ -135,13 +135,18 @@ class Fruitmix extends EventEmitter {
     }
     this.vfs = new VFS(vfsOpts, this.user, this.drive, this.tag)
 
+    // dir & dirEntry api
     this.dirApi = new DirApi(this.vfs)
     this.dirEntryApi = new DirEntryApi(this.vfs)
 
+    // file api
     this.fileApi = new FileApi(this.vfs)
 
+    // media api
     this.thumbnail = new Thumbnail(path.join(this.fruitmixDir, 'thumbnail'), this.tmpDir)
+    this.mediaApi = new MediaApi(this.vfs, this.thumbnail)
 
+    // task
     this.task = new Task(this.vfs)
 
     this.apis = {
@@ -156,6 +161,7 @@ class Fruitmix extends EventEmitter {
       taskNode: this.task.nodeApi,
     }
 
+    // nfs api is optional
     if (this.boundVolume) {
       this.nfs = new NFS({ volumeUUID: this.boundVolume.uuid }, this.user)
       this.apis.nfs = this.nfs

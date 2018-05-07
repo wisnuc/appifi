@@ -5,7 +5,7 @@ class FileApi {
   }
 
   LIST (user, props, callback) {
-    process.nextTick(() => callback(new Error('not implemented yet'))) 
+    this.vfs.visitFiles(user, props, callback)
   }
 }
 
