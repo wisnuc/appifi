@@ -1,4 +1,22 @@
-# Overview
+<!-- TOC -->
+
+- [1. Overview](#1-overview)
+- [2. MKDIR](#2-mkdir)
+  - [2.1. Tests](#21-tests)
+    - [2.1.1. 单例](#211-单例)
+- [3. REMOVE](#3-remove)
+  - [3.1. Tests](#31-tests)
+    - [3.1.1. 单例](#311-单例)
+- [4. RENAME](#4-rename)
+  - [Tests](#tests)
+    - [单例](#单例)
+- [5. NEWFILE](#5-newfile)
+- [6. APPEND](#6-append)
+- [7. DUP](#7-dup)
+
+<!-- /TOC -->
+
+# 1. Overview
 
 测试操作：
 
@@ -68,11 +86,12 @@ Internal State
   + deleting user -> drive -> vfs -> drive -> user (ROBUST)
 
 
-# MKDIR
+# 2. MKDIR
 
-参数：
-+ `name` dir name, such as hello
-+ `body` object
+参数使用field格式：
+
++ `name` - 需要建立的文件夹名字
++ `body` - JSON对象
 
 ```json
 {
@@ -103,7 +122,9 @@ policies:
 + [rename, replace]
 + [rename, rename]
 
-# One Shot
+## 2.1. Tests
+
+### 2.1.1. 单例
 
 **文件**
 
@@ -132,8 +153,65 @@ policies:
 3. it描述格式混乱
 4. 覆盖不支持的文件格式，例如symlink，未测试
 
+# 3. REMOVE
 
-# NEWFILE
+参数使用field格式：
+
++ name: 文件或文件夹名称
++ body: JSON对象
+
+```json
+{
+  "op": "remove",
+  "uuid": "需要删除的文件或文件夹的uuid"
+}
+```
+
+在当前版本中，`uuid`属性无须提供，服务器也不会处理。未来该属性设计为可选属性，使用该属性可以应对一些race场景；但是对用户操作而言，使用`uuid`的意义不大。
+
+该操作使用幂等性设计，即如果目标不存在，视为成功。
+
+## 3.1. Tests
+
+### 3.1.1. 单例
+
+**文件**
+
+`direntry/remove.js`
+
+**测例**
+
++ /hello-dir/world-dir 删除 /hello-dir/world-dir 成功
++ /hello-dir/world-file 删除 /hello-dir/world-file 成功
++ /hello-dir 删除 /hello-dir/world 成功
+
+# 4. RENAME
+
+参数使用field格式：
+
++ name: 需要提供"oldname|newname"格式的两个名字
++ body: JSON对象
+
+```json
+{
+  "op": "rename",
+  "policy": [null, null]
+}
+```
+
+`policy`为可选属性，如不提供，缺省为`[null, null]`。
+
+## Tests
+
+### 单例
+
+
+# 5. NEWFILE
+
+
+# 6. APPEND
+
+# 7. DUP
 
 
 

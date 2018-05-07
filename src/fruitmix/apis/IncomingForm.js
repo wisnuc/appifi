@@ -302,7 +302,7 @@ class Parsing extends State {
         break
 
       case 'remove':
-        if (!isUUID(args.uuid)) throw new Error('invalid uuid')
+        if (args.uuid && !isUUID(args.uuid)) throw new Error('invalid uuid')
         break
 
       case 'addTags':
@@ -344,9 +344,6 @@ class Piping extends State {
 
     this.hs = HashStream.createStream(part, args.data, args.size, args.sha256, false)
     this.hs.on('finish', err => {
-
-      console.log('hash stream finish', this.hs.digest)
-
       if (err) {
         if (err.code === 'EOVERSIZE' || err.code === 'EUNDERSIZE' || err.code === 'ESHA256MISMATCH') {
           err.status = 400
@@ -410,9 +407,6 @@ class Executing extends State {
     let args = this.ctx.args
 
     if (args.type === 'file') {
-
-      console.log(args)
-
       switch (args.op) {
         case 'newfile':
           this.ctx.ctx.apis.newfile({
@@ -466,6 +460,14 @@ class Executing extends State {
           })
           break
 
+        case 'remove':
+          this.ctx.ctx.apis.remove({
+            name: args.toName,
+            uuid: args.uuid
+          }, err => err 
+            ? this.setState(Failed, err) 
+            : this.setState(Succeeded, null))
+          break
 
         default:
           console.log('invalid job op', args.op)
@@ -539,6 +541,7 @@ class Party extends EventEmitter {
     this.finished = false
     this.apis = apis
     this.jobs = [] 
+    this.jobCount = 0
   }
 
   result () {
@@ -558,11 +561,7 @@ class Party extends EventEmitter {
 
     let job = new Job(this, part) 
     job.on('StateEntered', state => {
-
       if (!job.isFinished()) return
-
-      console.log(state, this.ended)
-
       if (this.ended && this.jobs.every(j => j.isFinished())) {
         // mute , due to asynchrony of state event
         this.jobs.forEach(j => j.removeAllListeners()) 

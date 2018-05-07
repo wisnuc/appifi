@@ -479,8 +479,8 @@ class VFS extends EventEmitter {
   */
   REMOVE (user, props, callback) {
     this.DIR(user, props, (err, dir) => {
-      let { toName } = props 
-      let target = path.join(this.absolutePath(dir), toName)
+      let { name } = props 
+      let target = path.join(this.absolutePath(dir), name)
       rimraf(target, err => callback(err))  
     })
   }
@@ -518,8 +518,6 @@ class VFS extends EventEmitter {
   @param {object} props.sha256 -data sha256
   */
   APPEND (user, props, callback) {
-    console.log('vfs.append', props)
-
     this.DIR(user, props, (err, dir) => {
       if (err) return callback(err) 
 
@@ -1204,9 +1202,6 @@ class VFS extends EventEmitter {
   getMedia (user, props, callback) {
     let err, data
     let { fingerprint, file } = props
-
-    console.log(props)
-
     if (!isSHA256(fingerprint)) {
       err = Object.assign(new Error('invalid hash'), { status: 400 })
     } else if (!this.mediaMap.hasMetadata(fingerprint)) {
