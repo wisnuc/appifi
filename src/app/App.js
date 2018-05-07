@@ -220,7 +220,7 @@ class App extends EventEmitter {
           err.status = 503
           next(err)
         } else if (!this.fruitmix.apis[resource]) {
-          let err = new Error('resource not found')
+          let err = new Error(`resource ${resource} not found`)
           err.status = 404
           next(err)
         } else if (!this.fruitmix.apis[resource][verb]) {

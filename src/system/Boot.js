@@ -154,7 +154,14 @@ class Starting extends State {
     let boundVolumeUUID = this.ctx.volumeStore.data.uuid
     let volume = this.ctx.storage.volumes.find(v => v.uuid === boundVolumeUUID)
     let fruitmixDir = path.join(volume.mountpoint, this.ctx.conf.storage.fruitmixDir)
-    let fruitmix = new Fruitmix({ fruitmixDir })
+    let opts = Object.assign({}, this.ctx.fruitmixOpts, {
+      fruitmixDir,
+      boundVolume: this.ctx.volumeStore.data
+    })
+    let fruitmix = new Fruitmix(opts)
+
+    fruitmix.setStorage(this.ctx.storage)
+     
     fruitmix.once('FruitmixStarted', () => this.setState(Started, fruitmix))
   }
 }
@@ -378,6 +385,7 @@ class Boot extends EventEmitter {
     if (!opts.configuration) throw new Error(`boot requires a configuration`)
 
     this.conf = opts.configuration
+    this.fruitmixOpts = opts.fruitmixOpts
     this.error = null
     this.fruitmix = null
 

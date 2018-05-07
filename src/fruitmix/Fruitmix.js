@@ -79,9 +79,14 @@ class Fruitmix2 extends EventEmitter {
   @param {boolean} opts.useDlna - use dlna module
   @param {boolean} opts.useTransmission - use transmission module
   @param {object} opts.boundUser - if provided, the admin is forcefully updated
+  @param {object} opts.boundVolume - passed to nfs
   */
   constructor (opts) {
     super()
+
+    if (!opts.boundVolume) throw new Error('boundVolume is required for constructing fruitmix')
+    this.boundVolume = opts.boundVolume
+
     this.fruitmixDir = opts.fruitmixDir
     mkdirp.sync(this.fruitmixDir)
 
@@ -136,6 +141,8 @@ class Fruitmix2 extends EventEmitter {
 
     this.task = new Task(this.vfs)
 
+    this.nfs = new NFS({ volumeUUID: this.boundVolume.uuid }, this.user)
+
     this.user.on('Update', () => {
       this.emit('FruitmixStarted')
     })
@@ -181,6 +188,10 @@ class Fruitmix2 extends EventEmitter {
       isFirstUser: u.isFirstUser,
       phicommUserId: u.phicommUserId
     }))
+  }
+
+  setStorage (storage) {
+    if (this.nfs) this.nfs.update(storage)
   }
 }
 
