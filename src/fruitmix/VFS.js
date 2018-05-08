@@ -598,6 +598,20 @@ class VFS extends EventEmitter {
   DUP (user, props, callback) {
   }
 
+
+  DIRENTRY_GET (user, props, callback) {
+    this.DIR(user, props, (err, dir) => {
+      if (err) return callback(err)
+      let { name } = props
+
+      let filePath = path.join(this.absolutePath(dir), name)
+      fs.lstat(filePath, (err, stat) => {
+        if (err && (err.code === 'ENOENT' || err.code === 'ENOTDIR')) err.code = 404
+        callback(err, filePath)
+      })
+    })
+  }
+
   /** end of new api for upload module **/
 
   // are we using this function ? TODO

@@ -1,6 +1,8 @@
 const Promise = require('bluebird')
 const path = require('path')
 const fs = Promise.promisifyAll(require('fs'))
+const crypto = require('crypto')
+
 const mkdirp = require('mkdirp')
 const mkdirpAsync = Promise.promisify(mkdirp)
 const rimraf = require('rimraf')
@@ -11,8 +13,6 @@ const request = require('supertest')
 
 const chai = require('chai').use(require('chai-as-promised'))
 const expect = chai.expect
-
-const { createTestFilesAsync } = require('src/utils/createTestFiles')
 
 const Fruitmix = require('src/fruitmix/Fruitmix')
 const App = require('src/app/App')
@@ -53,18 +53,9 @@ const charlie = {
   phicommUserId: 'charlie'
 }
 
-const {
-  IDS,
-  FILES,
-  stubUserUUID,
-  createUserAsync,
-  retrieveTokenAsync,
-  createPublicDriveAsync,
-  setUserUnionIdAsync
-} = require('../lib')
+const FILES = require('../lib').FILES
 
 describe(path.basename(__filename), () => {
-
   const requestToken = (express, userUUID, password, callback) =>
     request(express)
       .get('/token')
@@ -91,66 +82,30 @@ describe(path.basename(__filename), () => {
 
   const requestHomeAsync = Promise.promisify(requestHome)
 
-  describe('alice home, invalid name', () => {
-
-    let fruitmix, app, token, home, url
-
-    beforeEach(async () => {
-      await rimrafAsync(tmptest)
-      await mkdirpAsync(fruitmixDir)
-
-      let userFile = path.join(fruitmixDir, 'users.json')
-      await fs.writeFileAsync(userFile, JSON.stringify([alice], null, '  '))
-
-      fruitmix = new Fruitmix({ fruitmixDir })
-      app = new App({ fruitmix, log: { skip: 'all', error: 'none' } })
-      await new Promise(resolve => fruitmix.once('FruitmixStarted', () => resolve()))
-      token = await requestTokenAsync(app.express, alice.uuid, 'alice')
-      home = await requestHomeAsync(app.express, alice.uuid, token)
-      url = `/drives/${home.uuid}/dirs/${home.uuid}/entries`
-    })
-
-   
-    it('400 if name is /hello', function (done) {
-      this.timeout(0)
-
-      request(app.express)
-        .post(url)
-        .set('Authorization', 'JWT ' + token)
-        .attach('hello', FILES.oneGiga.path, JSON.stringify({
-          op: 'newfile',
-          size: FILES.oneGiga.size,
-          sha256: FILES.oneGiga.hash
-        }))
-        .expect(400)
-        .end((err, res) => {
-          console.log('err', err)
-          console.log('body', res.body)
-          expect(res.body.code).to.equal('EINVAL')
-          done()
-        })
-
-    })
-  })
+  let policies = [
+    undefined,
+    [null, null],
+    [null, 'skip'],
+    [null, 'replace'],
+    [null, 'rename'],
+    ['skip', null],
+    ['skip', 'skip'],
+    ['skip', 'replace'],
+    ['skip', 'rename'],
+    ['replace', null],
+    ['replace', 'skip'],
+    ['replace', 'replace'],
+    ['replace', 'rename'],
+    ['rename', null],
+    ['rename', 'skip'],
+    ['rename', 'replace'],
+    ['rename', 'rename']
+  ]
 
   describe('alice home', () => {
     let fruitmix, app, token, home
 
-    before(async function () {
-      this.timeout(0)
-
-      try {
-        await fs.lstatAsync('test-files')
-      } catch (e) {
-        if (e.code !== 'ENOENT') throw e
-      }
-
-      // TODO
-      // await mkdirpAsync('test-files')
-      // process.stdout.write('      creating big files')
-      // await createTestFilesAsync()
-      // process.stdout.write('...done\n')
-    })
+    let { alonzo } = FILES
 
     beforeEach(async () => {
       await Promise.delay(100)
@@ -167,39 +122,38 @@ describe(path.basename(__filename), () => {
       home = await requestHomeAsync(app.express, alice.uuid, token)
     })
 
-    it.skip(`200 append OneGiga to OneGiga`, function (done) {
-      this.timeout(0)
-
+    it(`200 download alonzo`, done => {
       request(app.express)
-        .post(`/drives/${home.uuid}/dirs/${home.uuid}/entries`)
+        .post(`/drives/${home.uuid}/dirs/${home.uuid}/entries`)  
         .set('Authorization', 'JWT ' + token)
-        .attach(FILES.oneGiga.name, FILES.oneGiga.path, JSON.stringify({
+        .attach('hello', alonzo.path, JSON.stringify({
           op: 'newfile',
-          size: FILES.oneGiga.size,
-          sha256: FILES.oneGiga.hash
+          size: alonzo.size,
+          sha256: alonzo.hash
         }))
         .expect(200)
         .end((err, res) => {
           if (err) return done(err)
 
-          // console.log(res.body)
-          
-          request(app.express)          
-            .post(`/drives/${home.uuid}/dirs/${home.uuid}/entries`)
+          let file = res.body[0].data
+          let output = path.join(tmptest, 'output')
+          let ws = fs.createWriteStream(path.join(tmptest, 'output'))
+          let req = request(app.express)
+            .get(`/drives/${home.uuid}/dirs/${home.uuid}/entries/${file.uuid}`)
+            .query({ name: 'hello' })
             .set('Authorization', 'JWT ' + token)
-            .attach(FILES.oneGiga.name, FILES.oneGiga.path, JSON.stringify({
-              op: 'append',
-              hash: FILES.oneGiga.hash,
-              size: FILES.oneGiga.size,
-              sha256: FILES.oneGiga.hash
-            }))
-            // .expect(200)
-            .end((err, res) => {
-              // if (err) return done(err)
-              console.log(err, res.body)
-              done()
-            })
+            .expect(200) 
+
+          ws.on('finish', () => {
+            let buf = fs.readFileSync(output)
+            let hash = crypto.createHash('sha256').update(buf).digest('hex')
+            expect(hash).to.equal(alonzo.hash)
+            done()
+          })
+
+          req.pipe(ws)
         })
     })
+
   })
-}) 
+})

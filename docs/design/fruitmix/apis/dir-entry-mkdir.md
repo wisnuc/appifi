@@ -11,7 +11,13 @@
   - [4.1. Tests](#41-tests)
     - [4.1.1. 单例](#411-单例)
 - [5. NEWFILE](#5-newfile)
+  - [测试](#测试)
+    - [无Policy单例](#无policy单例)
+    - [使用Policy](#使用policy)
 - [6. APPEND](#6-append)
+  - [测试](#测试-1)
+    - [参数合法性](#参数合法性)
+    - [连续操作](#连续操作)
 - [7. DUP](#7-dup)
 
 <!-- /TOC -->
@@ -240,8 +246,102 @@ policies:
 
 # 5. NEWFILE
 
+参数使用file格式。
+
++ name: 需要创建的文件名称
++ body: 文件数据
++ filename: JSON对象
+
+```json
+{
+  "op": "newfile",
+  "size": 1234,
+  "sha256": "sha256 string",
+  "policy": [null, null]
+}
+```
+
+`op`, `size`, `sha256`为必须字段；`policy`可选；允许上传空文件。
+
+## 测试
+
+### 无Policy单例
+
++ 上传0字节文件成功
++ 上传1字节文件成功
++ 上传0.5G字节文件成功
++ 上传(1G - 1)字节文件成功
++ 上传1G字节文件成功
+
+- 上传(1G + 1)字节文件失败
+
+### 使用Policy
+
+
 
 # 6. APPEND
+
+参数使用file格式。
+
++ name: append的目标文件名称
++ body: append的数据
++ filename: JSON对象
+
+```json
+{
+  "op": "append",
+  "hash": "目标文件当前hash(fingerprint)",
+  "size": "append的文件块大小",
+  "sha256": "append的文件块的sha256"
+}
+```
+
++ 所有属性必须提供；
++ name必须是合法文件名，由sanitize检验；
++ name必须是文件；
++ hash必须是合法的sha256字符串；
++ size必须是大于0小于等于1G的整数；
++ sha256必须是合法的sha256字符串；
++ 目标文件的hash必须与参数提供的hash一致；
+
+## 测试
+
+### 参数合法性
+
+- name不合法
+  - 未提供 
+  - 非字符串 1
+  - 非法字符串 `/hello`
+  - 提供了两个 `hello|world`
+  - name不是文件
+
+- hash不合法
+  - 未提供
+  - 非字符串 1
+  - 格式非法 hello
+  - 与目标文件不一致
+
+- size不合法
+  - 未提供
+  - 非数字 hello
+  - 非证书 99.99
+  - 小于0 -1
+  - 等于0 
+  - 大于1G 1G + 1
+  - 实际传输大小比size大（oversize）
+  - 实际传输的大比size小（undersize）
+
+- sha256不合法
+  - 未提供
+  - 非字符串 1
+  - 非sha256字符串 hello
+  - 与传输文件不一致
+
+### 连续操作
+
+
+
+
 
 
 # 7. DUP

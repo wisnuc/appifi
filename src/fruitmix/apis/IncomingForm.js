@@ -8,6 +8,8 @@ const sanitize = require('sanitize-filename')
 const HashStream = require('../../lib/hash-stream')
 const { isUUID, isSHA256 } = require('../../lib/assertion')
 
+const debug = require('debug')('IncomingForm')
+
 
 /**
 Incoming form parses an incomming formdata and execute vfs operations accordingly.
@@ -94,8 +96,8 @@ class Heading extends State {
       try {
         args = this.parseHeader(header)
       } catch (e) {
+        e.code = 'EINVAL'
         e.status = 400
-        console.log('parseHeader failed', e)
         return this.setState(Failed, e)
       }
 

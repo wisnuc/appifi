@@ -1,5 +1,7 @@
 const EventEmitter = require('events')
 
+const debug = require('debug')('direntry')
+
 const IncomingForm = require('./IncomingForm')
 
 class DirEntryApi {
@@ -63,13 +65,23 @@ class DirEntryApi {
       let opts = { boundary, length, formdata }
       let form = new IncomingForm(opts, this.bindApis(user, dirProps)) 
 
-      form.once('finish', () => 
-        this.vfs.tryDirRead (dirUUID, () => callback(form.error, form.result)))
+      form.once('finish', () => {
+        let err = form.error 
+          ? { 
+              code: form.error.code,
+              message: form.error.message,
+              status: form.error.status
+            }
+          : null
+
+        debug('form finished', err, form.result)
+        this.vfs.tryDirRead (dirUUID, () => callback(form.error, form.result))
+      })
     }) 
   }
 
   GET (user, props, callback) {
-    this.vfs.dirEntryGET(user, props, callback)
+    this.vfs.DIRENTRY_GET(user, props, callback)
   }
 
 }
