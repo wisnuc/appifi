@@ -20,7 +20,7 @@ const debug = Debug('writedir')
 const f = af => (req, res, next) => af(req, res).then(x => x, next)
 
 const EFruitUnavail = Object.assign(new Error('fruitmix unavailable'), { status: 503 })
-const fruitless = (req, res, next) => getFruit() ? next() : next(EFruitUnavail) 
+const fruitless = (req, res, next) => getFruit() ? next() : next(EFruitUnavail)
 
 const EMPTY_SHA256_HEX = crypto.createHash('sha256').digest('hex')
 
@@ -37,17 +37,17 @@ const fruit = (req, res, next) => {
 DriveList GET
 */
 /**
-router.get('/', fruitless, auth.jwt(), (req, res) => 
+router.get('/', fruitless, auth.jwt(), (req, res) =>
   res.status(200).json(getFruit().getDriveList(req.user)))
 **/
-router.get('/', fruit, auth.jwt(), (req, res, next) => 
-  req.fruit.getDriveList2(req.user, (err, list) => 
+router.get('/', fruit, auth.jwt(), (req, res, next) =>
+  req.fruit.getDriveList2(req.user, (err, list) =>
     err ? next(err) : res.status(200).json(list)))
 
 /**
 DriveList POST TODO change to callback
 */
-router.post('/', fruitless, auth.jwt(), (req, res, next) => 
+router.post('/', fruitless, auth.jwt(), (req, res, next) =>
   getFruit().createPublicDriveAsync(req.user, req.body)
     .then(drive => res.status(200).json(drive))
     .catch(next))
@@ -55,8 +55,8 @@ router.post('/', fruitless, auth.jwt(), (req, res, next) =>
 /**
 Drive GET
 */
-router.get('/:driveUUID', fruit, auth.jwt(), (req, res, next) => 
-  req.fruit.getDrive2(req.user, req.params.driveUUID, (err, drive) => 
+router.get('/:driveUUID', fruit, auth.jwt(), (req, res, next) =>
+  req.fruit.getDrive2(req.user, req.params.driveUUID, (err, drive) =>
     err ? next(err) : res.status(200).json(drive)))
 
 /**
@@ -82,11 +82,11 @@ router.delete('/:driveUUID', fruitless, auth.jwt(), (req, res, next) => {
 */
 router.get('/:driveUUID/dirs', fruitless, auth.jwt(), (req, res, next) => {
 
-/**
-  let { driveUUID } = req.params
-  if (!Forest.roots.has(driveUUID)) { return res.status(404).end() }
-  res.status(200).json(Forest.getDriveDirs(driveUUID))
-**/
+  /**
+    let { driveUUID } = req.params
+    if (!Forest.roots.has(driveUUID)) { return res.status(404).end() }
+    res.status(200).json(Forest.getDriveDirs(driveUUID))
+  **/
 
   try {
     let dirs = getFruit().getDriveDirs(req.user, req.params.driveUUID)
@@ -99,7 +99,7 @@ router.get('/:driveUUID/dirs', fruitless, auth.jwt(), (req, res, next) => {
 /**
 020 GET single dir
 */
-router.get('/:driveUUID/dirs/:dirUUID', fruitless, auth.jwt(), f(async(req, res) => {
+router.get('/:driveUUID/dirs/:dirUUID', fruitless, auth.jwt(), f(async (req, res) => {
   let user = req.user
   let { driveUUID, dirUUID } = req.params
   let metadata = req.query.metadata === 'true' ? true : false
@@ -120,7 +120,7 @@ const parseHeader = header => {
 
   if (x[0] !== 'form-data') throw new Error('not form-data')
   if (!x[1].startsWith('name="') || !x[1].endsWith('"')) throw new Error('invalid name')
-  name = x[1].slice(6, -1) 
+  name = x[1].slice(6, -1)
 
   // validate name and generate part.fromName and .toName
   let split = name.split('|')
@@ -135,7 +135,7 @@ const parseHeader = header => {
 
     // validate part.filename and generate part.opts
     let { size, sha256, append, overwrite } = JSON.parse(filename)
-    let op = append ? 'append' : 'newfile' 
+    let op = append ? 'append' : 'newfile'
     return { type: 'file', op, name, fromName, toName, size, sha256, append, overwrite }
   } else {
     return { type: 'field', name, fromName, toName }
@@ -146,7 +146,7 @@ const parseHeader = header => {
 
 router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, res, next) => {
 
-  const EDestroyed = Object.assign(new Error('destroyed'), { 
+  const EDestroyed = Object.assign(new Error('destroyed'), {
     code: 'EDESTROYED',
     status: 403
   })
@@ -161,7 +161,7 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
     return res.status(404).end()
   }
 
-  // set dicer to null to indicate all parts have been generated. 
+  // set dicer to null to indicate all parts have been generated.
   let dicer
 
   /**
@@ -173,7 +173,7 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
 
   // enter: x { number, part }
   // do: part on ['error', 'header']
-  // exit: x { number, part } 
+  // exit: x { number, part }
   const parts = []
 
   // x { number, type, name, fromName, toName, part, buffers  }
@@ -201,7 +201,7 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
 
   // for debug
   const print = x => {
-    debug(x) 
+    debug(x)
     debug('  parts', num(parts))
     debug('  parsers_', num(parsers), num(parsers_))
     debug('  pipes, pipes_', num(pipes), num(pipes_))
@@ -214,7 +214,7 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
 
   const print2 = x => {
     try {
-      console.log(x) 
+      console.log(x)
       console.log('  parts', num(parts))
       console.log('  parsers_', num(parsers), num(parsers_))
       console.log('  pipes, pipes_', num(pipes), num(pipes_))
@@ -228,21 +228,21 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
     }
   }
 
-/**
-  const assertNoDup = () => {
-    const all = [
-      ...num(parts),
-      ...num(parsers),
-      ...num(parsers_),
-      ...num(pipes),
-      ...num(pipes_),
-      ...num(executions)
-    ]
+  /**
+    const assertNoDup = () => {
+      const all = [
+        ...num(parts),
+        ...num(parsers),
+        ...num(parsers_),
+        ...num(pipes),
+        ...num(pipes_),
+        ...num(executions)
+      ]
 
-    let set = new Set(all)
-    if (set.size !== all.length) throw new Error('duplicate found')
-  }
-**/
+      let set = new Set(all)
+      if (set.size !== all.length) throw new Error('duplicate found')
+    }
+  **/
 
   const guard = (message, f) => ((...args) => {
     // print(`--------------------- ${message} >>>> begin`)
@@ -254,16 +254,16 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
     // print(`--------------------- ${message} <<<< end`)
   })
 
-  const isFinished = x => x.hasOwnProperty('data') || x.hasOwnProperty('error') 
-  const settled = () => dicer === null && r.every(isFinished) 
+  const isFinished = x => x.hasOwnProperty('data') || x.hasOwnProperty('error')
+  const settled = () => dicer === null && r.every(isFinished)
 
   const statusCode = () => {
     let xs = r.filter(x => x.hasOwnProperty('error'))
-    if (xs.length === 0) return 200   
+    if (xs.length === 0) return 200
     if (xs.find(x => x.error.status === 400)) return 400
     return 403
   }
-  
+
   const response = () => {
     let body = r
       .map(x => {
@@ -285,11 +285,11 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
         }
 
         if (x.hasOwnProperty('data')) {
-          obj.data = x.data 
+          obj.data = x.data
         } else {
           let { status, errno, code, syscall, path, dest, message } = x.error
-          obj.error = { status, message, code, errno, syscall, path, dest } 
-        } 
+          obj.error = { status, message, code, errno, syscall, path, dest }
+        }
 
         return obj
       })
@@ -302,28 +302,28 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
         console.log('==== final refresh error end ====')
       } else {
 
-/**
-        let dirUUIDs = r
-          .filter(x => x.op === 'mkdir' && x.hasOwnProperty('data')) 
-          .map(x => x.data.uuid) 
+        /**
+                let dirUUIDs = r
+                  .filter(x => x.op === 'mkdir' && x.hasOwnProperty('data'))
+                  .map(x => x.data.uuid)
 
-        console.log('dirUUIDs', dirUUIDs)
+                console.log('dirUUIDs', dirUUIDs)
 
-        try {
-          getFruit().assertDirUUIDsIndexed(dirUUIDs)
-        } catch (e) {
-          console.log('========')
-          console.log('r', r)
-          console.log('xstats', xstats)
-          console.log(dirUUIDs)
-          console.log(e)
-          process.exit(1)
-        }
-**/
+                try {
+                  getFruit().assertDirUUIDsIndexed(dirUUIDs)
+                } catch (e) {
+                  console.log('========')
+                  console.log('r', r)
+                  console.log('xstats', xstats)
+                  console.log(dirUUIDs)
+                  console.log(e)
+                  process.exit(1)
+                }
+        **/
       }
 
       res.status(statusCode()).json(body)
-    }) 
+    })
   }
 
   const predecessorErrored = x => !!r
@@ -345,7 +345,7 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
     // clear parts
     parts.forEach(x => {
       x.part.removeAllListeners()
-      x.part.on('error', () => {})
+      x.part.on('error', () => { })
       x.error = x.error || EDestroyed
     })
     parts.splice(0)
@@ -358,7 +358,7 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
         x.hs.destroy()
         x.hs = null
         // rimraf(x.tmp, () => {}) TODO do this? or hash-stream will do it?
-        pipes.splice(index, 1) 
+        pipes.splice(index, 1)
         x.error = x.error || EDestroyed
       } else {
         break
@@ -367,7 +367,7 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
 
     parsers.forEach(x => {
       x.part.removeAllListeners()
-      x.part.on('error', () => {})
+      x.part.on('error', () => { })
       x.error = x.error || EDestroyed
     })
     parsers.splice(0)
@@ -384,11 +384,11 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
         index = pipes_.findIndex(predecessorErrored)
         if (index !== -1) {
           let x = pipes_[index]
-          rimraf(x.tmp, () => {})
+          rimraf(x.tmp, () => { })
           pipes_.splice(index, 1)
           x.error = x.error || EDestroyed
         } else {
-          index = parsers_.findIndex(predecessorErrored) 
+          index = parsers_.findIndex(predecessorErrored)
           if (index !== -1) {
             let x = parsers_[index]
             parsers_.splice(index, 1)
@@ -409,7 +409,7 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
 
     if (dicer) {
       dicer.removeAllListeners()
-      dicer.on('error', () => {})
+      dicer.on('error', () => { })
       req.unpipe(dicer)
       dicer.end()
       dicer = null
@@ -431,7 +431,7 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
   const success = (x, data) => {
     x.data = data
     if (settled()) {
-      // res.status(statusCode()).json(response()) 
+      // res.status(statusCode()).json(response())
       response()
     } else {
       schedule()
@@ -448,7 +448,7 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
   }
 
   let count = 0
-  const dicerOnPart = guard('on part', part => { 
+  const dicerOnPart = guard('on part', part => {
     let x = { number: count++, part }
     r.push(x)
 
@@ -456,7 +456,7 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
     part.on('error', err => {
       parts.splice(parts.indexOf(x), 1)
       x.part.removeAllListeners()
-      x.part.on('error', () => {})
+      x.part.on('error', () => { })
       delete x.part
       error(x, err)
     })
@@ -469,14 +469,14 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
       try {
         props = parseHeader(header)
       } catch (e) {
-        x.part.on('error', () => {})
+        x.part.on('error', () => { })
         e.status = 400
         return error(x, e)
       }
 
       Object.assign(x, props)
       if (x.type === 'file') {
-        onFile(x) 
+        onFile(x)
       } else {
         onField(x)
       }
@@ -489,20 +489,20 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
       if (x.append !== undefined && !isSHA256(x.append))
         throw new Error('append is not a valid fingerprint string')
 
-      if (x.overwrite !== undefined && !isUUID(x.overwrite)) 
+      if (x.overwrite !== undefined && !isUUID(x.overwrite))
         throw new Error('overwrite is not a valid uuid string')
 
-      if (!Number.isInteger(x.size)) 
+      if (!Number.isInteger(x.size))
         throw new Error('size must be an integer')
 
       if (x.size > 1024 * 1024 * 1024)
         throw new Error('size must be less than or equal to 1G')
 
       if (x.op === 'append') {
-        if (x.size < 1) 
+        if (x.size < 1)
           throw new Error(`data size must be a positive integer, got ${x.size}`)
       } else {
-        if (x.size < 0) 
+        if (x.size < 0)
           throw new Error(`data size must be a non-negative integer, got ${x.size}`)
       }
 
@@ -517,7 +517,7 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
       return error(x, e)
     }
 
-    pipes.push(x) 
+    pipes.push(x)
     x.tmp = path.join(getFruit().getTmpDir(), UUID.v4())
 
     let aggressive = !(req.socket.bytesRead + x.size > parseInt(req.header('content-length')))
@@ -525,11 +525,11 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
     x.hs.on('finish', err => {
       let digest = x.hs.digest
       delete x.part
-      delete x.hs 
-      pipes.splice(pipes.indexOf(x), 1)      
+      delete x.hs
+      pipes.splice(pipes.indexOf(x), 1)
 
       if (err) {
-        if (err.code === 'EOVERSIZE' || 
+        if (err.code === 'EOVERSIZE' ||
           err.code === 'EUNDERSIZE' ||
           err.code === 'ESHA256MISMATCH') {
           err.status = 400
@@ -538,7 +538,7 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
         }
         error(x, err)
       } else {
-        x.digest = digest 
+        x.digest = digest
         pipes_.push(x)
         schedule()
       }
@@ -572,7 +572,7 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
       try {
         switch (x.op) {
           case 'mkdir':
-            if (x.hasOwnProperty('parents') && x.parents !== true) 
+            if (x.hasOwnProperty('parents') && x.parents !== true)
               throw new Error('parents must be true if provided')
             break
 
@@ -595,15 +595,15 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
             break
 
           case 'addTags':
-            if(!Array.isArray(x.tags) || x.tags.every(t => isUUID(t))) throw new Error('invalid tagId')
+            if (!Array.isArray(x.tags) || x.tags.every(t => isUUID(t))) throw new Error('invalid tagId')
             break
-          
+
           case 'removeTags':
-            if(!Array.isArray(x.tags) || x.tags.every(t => isUUID(t))) throw new Error('invalid tagId')
+            if (!Array.isArray(x.tags) || x.tags.every(t => isUUID(t))) throw new Error('invalid tagId')
             break
-          
+
           case 'setTags':
-            if(!Array.isArray(x.tags) || x.tags.every(t => isUUID(t))) throw new Error('invalid tagId')
+            if (!Array.isArray(x.tags) || x.tags.every(t => isUUID(t))) throw new Error('invalid tagId')
             break
 
           case 'resetTags':
@@ -630,7 +630,7 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
         let tmp = { path: x.tmp, size: x.size, sha256: x.sha256 }
         getFruit().appendFile(user, driveUUID, dirUUID, x.toName, x.append, tmp, (err, xstat) => {
           executions.splice(executions.indexOf(x), 1)
-          rimraf(x.tmp, () => {})
+          rimraf(x.tmp, () => { })
           if (err) {
             error(x, err)
           } else {
@@ -638,15 +638,15 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
           }
         })
       } else {
-        getFruit().createNewFile(user, driveUUID, dirUUID, x.toName, x.tmp, x.digest, x.overwrite, 
+        getFruit().createNewFile(user, driveUUID, dirUUID, x.toName, x.tmp, x.digest, x.overwrite,
           guard('on new file return', (err, xstat) => {
             executions.splice(executions.indexOf(x), 1)
-            rimraf(x.tmp, () => {})
+            rimraf(x.tmp, () => { })
             if (err) {
               error(x, err)
             } else {
               success(x, xstat)
-            } 
+            }
           }))
       }
     } else { // field
@@ -720,7 +720,7 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
               success(x, xstat)
             }
           })
-          break  
+          break
         case 'setTags':
           getFruit().fileSetTags(user, driveUUID, dirUUID, x.fromName, x.tags.map(t => parseInt(t)), (err, xstat) => {
             executions.splice(executions.indexOf(x), 1)
@@ -731,7 +731,7 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
             }
           })
           break
-        default: 
+        default:
           break
       }
     }
@@ -761,7 +761,7 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
 
     // pipes_ && dryrun_ join
     while (true) {
-      let x = pipes_.find(x => !blocked(x.number) && !!dryrun_.find(y => y.number === x.number)) 
+      let x = pipes_.find(x => !blocked(x.number) && !!dryrun_.find(y => y.number === x.number))
       if (!x) break
       pipes_.splice(pipes_.indexOf(x), 1)
       let y = dryrun_.find(y => y.number === x.number)
@@ -786,7 +786,7 @@ router.post('/:driveUUID/dirs/:dirUUID/entries', fruitless, auth.jwt(), (req, re
 /**
 040 GET a single entry (download a file)
 */
-router.get('/:driveUUID/dirs/:dirUUID/entries/:entryUUID', fruitless, auth.jwt(), 
+router.get('/:driveUUID/dirs/:dirUUID/entries/:entryUUID', fruitless, auth.jwt(),
   (req, res) => {
     let user = req.user
     let { driveUUID, dirUUID } = req.params

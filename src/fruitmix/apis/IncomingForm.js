@@ -249,14 +249,14 @@ class Parsing extends State {
     part.on('end', () => {
       let args
       try {
-        args = Object.assign({}, JSON.parse(Buffer.concat(this.buffers)))
+        args = Object.assign({}, this.ctx.args, JSON.parse(Buffer.concat(this.buffers)))
         this.validateFieldArgs(args)
       } catch (e) {
         e.status = 400
         return this.setState(Failed, e)
       }
 
-      Object.assign(this.ctx.args, args)
+      this.ctx.args = args
 
       let pred = this.ctx.predecessor
       if (pred) {
@@ -294,6 +294,7 @@ class Parsing extends State {
 
       case 'rename':
         if (args.fromName === args.toName) {
+          console.log(this.ctx.args, args)
           throw new Error('rename requires two distinct names')
         }
         if (args.hasOwnProperty('overwrite') && !isUUID(args.overwrite)) {
@@ -302,7 +303,7 @@ class Parsing extends State {
         break
 
       case 'remove':
-        if (!isUUID(args.uuid)) throw new Error('invalid uuid')
+        if (args.uuid && !isUUID(args.uuid)) throw new Error('invalid uuid')
         break
 
       case 'addTags':
@@ -344,9 +345,6 @@ class Piping extends State {
 
     this.hs = HashStream.createStream(part, args.data, args.size, args.sha256, false)
     this.hs.on('finish', err => {
-
-      console.log('hash stream finish', this.hs.digest)
-
       if (err) {
         if (err.code === 'EOVERSIZE' || err.code === 'EUNDERSIZE' || err.code === 'ESHA256MISMATCH') {
           err.status = 400
@@ -410,9 +408,6 @@ class Executing extends State {
     let args = this.ctx.args
 
     if (args.type === 'file') {
-
-      console.log(args)
-
       switch (args.op) {
         case 'newfile':
           this.ctx.ctx.apis.newfile({
@@ -466,6 +461,29 @@ class Executing extends State {
           })
           break
 
+        case 'remove':
+          this.ctx.ctx.apis.remove({
+            name: args.toName,
+            uuid: args.uuid
+          }, err => err 
+            ? this.setState(Failed, err) 
+            : this.setState(Succeeded, null))
+          break
+
+        case 'rename':
+          this.ctx.ctx.apis.rename({
+            fromName: args.fromName,
+            toName: args.toName,
+            policy: args.policy
+          }, (err, xstat, resolved) => {
+            if (err) {
+              this.setState(Failed, err)
+            } else {
+              args.resolved = resolved
+              this.setState(Succeeded, xstat)
+            }
+          })
+          break
 
         default:
           console.log('invalid job op', args.op)
@@ -539,6 +557,7 @@ class Party extends EventEmitter {
     this.finished = false
     this.apis = apis
     this.jobs = [] 
+    this.jobCount = 0
   }
 
   result () {
@@ -558,11 +577,7 @@ class Party extends EventEmitter {
 
     let job = new Job(this, part) 
     job.on('StateEntered', state => {
-
       if (!job.isFinished()) return
-
-      console.log(state, this.ended)
-
       if (this.ended && this.jobs.every(j => j.isFinished())) {
         // mute , due to asynchrony of state event
         this.jobs.forEach(j => j.removeAllListeners()) 

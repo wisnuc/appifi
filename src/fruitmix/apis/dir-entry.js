@@ -8,6 +8,21 @@ class DirEntryApi {
     this.posts = []
   }
 
+  mkdir (user, dirProps, dataProps, callback) {
+    let props = Object.assign({}, dataProps, dirProps)
+    this.vfs.MKDIR(user, props, callback) 
+  }
+
+  remove (user, dirProps, dataProps, callback) {
+    let props = Object.assign({}, dataProps, dirProps)
+    this.vfs.REMOVE(user, props, callback)
+  }
+
+  rename (user, dirProps, dataProps, callback) {
+    let props = Object.assign({}, dataProps, dirProps)
+    this.vfs.RENAME(user, props, callback)
+  }
+
   newfile (user, dirProps, dataProps, callback) {
     let props = Object.assign({}, dataProps, dirProps)
     this.vfs.NEWFILE(user, props, callback)
@@ -18,15 +33,12 @@ class DirEntryApi {
     this.vfs.APPEND(user, props, callback)
   }
 
-  mkdir (user, dirProps, dataProps, callback) {
-    let props = Object.assign({}, dataProps, dirProps)
-    this.vfs.MKDIR(user, props, callback) 
-  }
-
   bindApis (user, dirProps) {
     return {
       tmpfile: this.vfs.TMPFILE.bind(this.vfs),
       mkdir: this.mkdir.bind(this, user, dirProps),
+      remove: this.remove.bind(this, user, dirProps),
+      rename: this.rename.bind(this, user, dirProps),
       newfile: this.newfile.bind(this, user, dirProps),
       append: this.append.bind(this, user, dirProps)
     }
