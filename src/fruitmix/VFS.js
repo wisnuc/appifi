@@ -12,6 +12,7 @@ const UUID = require('uuid')
 const deepFreeze = require('deep-freeze')
 
 const E = require('../lib/error')
+const Magic = require('../lib/magic')
 
 const log = require('winston')
 const xattr = require('fs-xattr')       // TODO remove

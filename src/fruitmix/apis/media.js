@@ -1,3 +1,5 @@
+const fs = require('fs')
+
 class MediaApi {
 
   constructor (vfs, thumbnail) {
