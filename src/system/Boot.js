@@ -387,10 +387,12 @@ class Importing extends State {
 
       let firstUser = volume.users.find(u => u.isFirstUser === true)
       if (!firstUser) throw new Error('volume admin not found')
-      if (firstUser.phicommUserId !== this.boundUser.phicommUserId) throw new Error('volume admin <-> boundUser mismatch')
+      if (firstUser.phicommUserId !== this.ctx.boundUser.phicommUserId) throw new Error('volume admin <-> boundUser mismatch')
     } catch (e) {
-      this.setState(Probing)
-      return callback(e)
+      return process.nextTick(() => {
+        this.setState(Probing)
+        callback(e)
+      })
     }
 
     let boundVolume = this.createBoundVolume(storage, volume)
