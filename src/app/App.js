@@ -122,7 +122,9 @@ class App extends EventEmitter {
     bootr.post('/boundVolume', (req, res, next) =>
       this.boot.init(req.body.target, req.body.mode, (err, data) =>
         err ? next(err) : res.status(200).json(data)))
-
+    bootr.put('/', (req, res, next) => 
+      this.boot.import(req.body.volumeUUID, (err, data) => 
+        err ? next(err) : res.status(200).json(data)))
     routers.push(['/boot', bootr])
 
     // token router
