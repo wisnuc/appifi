@@ -128,6 +128,14 @@ class App extends EventEmitter {
     bootr.put('/', (req, res, next) => 
       this.boot.import(req.body.volumeUUID, (err, data) => 
         err ? next(err) : res.status(200).json(data)))
+    bootr.patch('/', (req, res, next) => {
+      let arg = req.body.arg
+      if (arg.hasOwnProperty('state')) {
+        if (arg.state !== 'poweroff' && arg.state !== 'reboot') return next(Object.assign(new Error('invalid state'), { status: 400 }))
+        setTimeout(() => child.exec(arg.state), 4000)
+        res.status(200).end()
+      } else return next(Object.assign(new Error('invalid arg'), { status: 400 }))
+    })
     routers.push(['/boot', bootr])
 
     // token router
