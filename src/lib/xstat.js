@@ -567,7 +567,6 @@ const updateFileHash = (target, uuid, hash, time, callback) =>
     .catch(e => callback(e))
 
 const updateFileHashAlt = (target, uuid, hash, time, callback) => {
-
   fs.lstat(target, (err, stat) => {
     if (err) return callback(err)
     if (!stat.isFile()) return callback(something ) 
@@ -684,6 +683,7 @@ const assertFileXstatSync = (target, uuid) => {
 
 /**
 Update file Tags
+
 @func updateFileHashAsync
 @param {string} target - absolute file path
 @param {string} uuid - file uuid
