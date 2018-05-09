@@ -6,10 +6,19 @@ const Dicer = require('dicer')
 const sanitize = require('sanitize-filename')
 
 const HashStream = require('../../lib/hash-stream')
-const { isUUID, isSHA256 } = require('../../lib/assertion')
+const { isUUID, isSHA256, isNonNullObject } = require('../../lib/assertion')
 
 const debug = require('debug')('IncomingForm')
 
+const isValidPolicy = policy => {
+  if (policy === undefined) return true
+  if (!Array.isArray(policy)) return false
+  if (policy.length !== 2) return false
+  let values = [undefined, null, 'skip', 'replace', 'rename'] 
+  if (!values.includes(policy[0])) return false
+  if (!values.includes(policy[1])) return false
+  return true
+} 
 
 /**
 Incoming form parses an incomming formdata and execute vfs operations accordingly.
@@ -92,11 +101,9 @@ class Heading extends State {
     })
 
     part.on('header', header => {
-      let args
       try {
-        args = this.parseHeader(header)
+        this.parseHeader(header)
       } catch (e) {
-        e.code = 'EINVAL'
         e.status = 400
         return this.setState(Failed, e)
       }
@@ -110,10 +117,10 @@ class Heading extends State {
         .find(j => j.args.toName === args.fromName)
 
       // go to next state
-      if (args.type === 'file') {
-        this.setState(Piping, this.part, args)
+      if (this.ctx.args.type === 'file') {
+        this.setState(Piping, this.part)
       } else {
-        this.setState(Parsing, this.part, args)
+        this.setState(Parsing, this.part)
       }
     })
 
@@ -122,20 +129,10 @@ class Heading extends State {
 
   /**
   Parse name and filename directive according to protocol
+
+  This function installs args gradually. 
   */
   parseHeader (header) {
-
-    const isPolicy = policy => {
-      if (!Array.isArray(policy)) return false
-      if (policy.size !== 2) return false
-
-      let values = [null, 'skip', 'replace', 'rename'] 
-      if (!values.include(policy[0])) return false
-      if (!values.include(policy[1])) return false
-
-      return true
-    } 
-
     let name, filename, fromName, toName
 
     // fix %22
@@ -145,83 +142,69 @@ class Heading extends State {
       .replace(/%22/g, '"')
       .split('; ')
 
-    if (x[0] !== 'form-data') throw new Error('not form-data')
-    if (!x[1].startsWith('name="') || !x[1].endsWith('"')) throw new Error('invalid name')
-    name = x[1].slice(6, -1)
+    // check header is valid
+    if (x.length < 2 || x.length > 3 || x[0] !== 'form-data') 
+      throw new Error('invalid header')
+    if (x[1].length <= 'name=""'.length || !x[1].startsWith('name="') || !x[1].endsWith('"')) 
+      throw new Error('invalid name field')
 
+    // retrieve name
+    name = x[1].slice(6, -1)
+    this.ctx.args.name = name
+
+    // retrieve filename if any
+    if (x.length > 2) {
+      if (x[2].length <= 'filename=""'.length || !x[2].startsWith('filename="') || !x[2].endsWith('"')) 
+      throw new Error('invalid filename field')
+
+      try {
+        filename = JSON.parse(x[2].slice(10, -1))
+      } catch (e) {
+        throw new Error('invalid filename field')
+      }
+
+      if (!isNonNullObject(filename) || Array.isArray(filename)) throw new Error('invalid filename field')
+    }
+   
     // validate name and generate part.fromName and .toName
     let split = name.split('|')
     if (split.length === 0 || split.length > 2) throw new Error('invalid name')
     if (!split.every(name => name === sanitize(name))) throw new Error('invalid name')
     fromName = split.shift()
     toName = split.shift() || fromName
+    this.ctx.args.fromName = fromName
+    this.ctx.args.toName = toName
+
 
     if (x.length > 2) {
-      if (!x[2].startsWith('filename="') || !x[2].endsWith('"')) throw new Error('invalid filename')
-      filename = x[2].slice(10, -1)
-
-      // validate part.filename and generate part.opts
-      // for newfile { op, size, sha256, [policy] }
-      // for append { op, hash, size, sha256 }
-      let { op, hash, size, sha256, policy } = JSON.parse(filename)
-      if (op === 'newfile') {
-        // op, size, sha256, policy
+      this.ctx.args.type = 'file'
+      let { op, hash, size, sha256, policy } = filename
+      if (op === 'newfile') { // op, size, sha256, [policy]
+        Object.assign(this.ctx.args, { op, size, sha256, policy })
+        if (fromName !== toName) throw new Error('newfile requires single name')
         if (!Number.isInteger(size)) throw new Error('invalid size')
         if (size < 0 || size > 1024 * 1024 * 1024) throw new Error('size out of range')
         if (!isSHA256(sha256)) throw new Error('invalid sha256')
-        if (policy && !isPolicy(policy)) throw new Error('invalid policy')
-      
-        return { type: 'file', op, name, fromName, toName, size, sha256, policy }
-      } else if (op === 'append') {
-        // op, hash, size, sha256     
+        if (policy === undefined) {
+          this.ctx.args.policy = [null, null]
+        } else {
+          if (!isValidPolicy(policy)) throw new Error('invalid policy')
+        } 
+      } else if (op === 'append') { // { op, hash, size, sha256 }
+        Object.assign(this.ctx.args, { op, hash, size, sha256 })
+        if (fromName !== toName) throw new Error('append requires single name')
         if (!isSHA256(hash)) throw new Error('invalid hash')
         if (!Number.isInteger(size)) throw new Error('invalid size')
         if (size <= 0 || size > 1024 * 1024 * 1024) throw new Error('size out of range')
         if (!isSHA256(sha256)) throw new Error('invalid sha256')
-
-        return { type: 'file', op, name, fromName, toName, hash, size, sha256 }
       } else {
-        throw new Error('invalid op in filename data')
+        Object.assign(this.ctx.args, { op, hash, size, sha256, policy })
+        throw new Error('invalid op')
       }
     } else {
-      return { type: 'field', name, fromName, toName }
+      this.ctx.args.type = 'field'
+      Object.assign(this.ctx.args, { type: 'field', name, fromName, toName })
     }
-  }
-
-
-  /**
-  */
-  validateFileArgs (args) {
-
-    let { op, hash, size, sha256, policy } = args
-
-   
-/**
-    if (args.append !== undefined && !isSHA256(args.append)) {
-      throw new Error('append is not a valid fingerprint string')
-    }
-
-    if (args.overwrite !== undefined && !isUUID(args.overwrite)) {
-      throw new Error('overwrite is not a valid uuid string')
-    }
-
-    if (!Number.isInteger(args.size)) { throw new Error('size must be an integer') }
-
-    if (args.size > 1024 * 1024 * 1024) { throw new Error('size must be less than or equal to 1 Giga') }
-
-    if (args.op === 'append') {
-      if (args.size < 1) { throw new Error(`data size must be a positive integer, got ${args.size}`) }
-    } else {
-      if (args.size < 0) { throw new Error(`data size must be a non-negative integer, got ${args.size}`) }
-    }
-
-    if (args.size === 0) {
-      // forcefully do this, even if wrong value provided
-      args.sha256 = EMPTY_SHA256_HEX
-    } else {
-      if (!isSHA256(args.sha256)) throw new Error('invalid sha256')
-    }
-**/
   }
 
   exit () {
@@ -243,22 +226,46 @@ Streaming part body to buffer, in field job.
 */
 class Parsing extends State {
 
-  enter (part, args) {
-    this.ctx.args = args
+  enter (part) {
     this.buffers = []
-
     part.on('data', data => this.buffers.push(data))
     part.on('end', () => {
-      let args
+
+      let body
       try {
-        args = Object.assign({}, this.ctx.args, JSON.parse(Buffer.concat(this.buffers)))
-        this.validateFieldArgs(args)
-      } catch (e) {
+        body = JSON.parse(Buffer.concat(this.buffers))
+        if (!isNonNullObject(body) || Array.isArray(body)) throw new Error()
+      } catch (_) {
+        let e = new Error('invalid part body')
         e.status = 400
         return this.setState(Failed, e)
       }
 
-      this.ctx.args = args
+      let { op, policy, tags, uuid } = body
+
+      try {
+        if (op === 'mkdir' || op === 'rename' || op === 'dup') {
+          Object.assign(this.ctx.args, { op, policy })
+          if (!isValidPolicy(policy)) throw new Error(`invalid policy`)
+
+          // this check cannot be done when parsing header since op is unknown
+          if (op === 'rename' || op === 'dup') {
+            if (this.ctx.args.fromName === this.ctx.args.toName) throw new Error('two distinct names required')
+          }
+        } else if (op === 'remove') {
+          Object.assign(this.ctx.args, { op, uuid })
+          if (uuid && !isUUID(uuid)) throw new Error('invalid uuid')
+        } else if (op === 'addTags' || op === 'removeTags' || op === 'setTags') {
+          Object.assign(this.ctx.args, { op, tags })
+          if (!Array.isArray(tags) || !tags.every(id => Number.isInteger(id))) throw new Error('invalid tags')
+        } else {
+          Object.assign(this.ctx.args, { op, policy, uuid, tags })
+          throw new Error('invalid op')
+        }
+      } catch (e) {
+        e.status = 400
+        return this.setState(Failed, e)
+      }
 
       let pred = this.ctx.predecessor
       if (pred) {
@@ -277,57 +284,6 @@ class Parsing extends State {
     this.part = part
   }
 
-  validateFieldArgs (args) {
-    switch (args.op) {
-      case 'mkdir':
-        if (args.hasOwnProperty('parents') && args.parents !== true) {
-          throw new Error('parents must be true if provided')
-        }
-        break
-
-      case 'dup':
-        if (args.fromName === args.toName) {
-          throw new Error('dup requires two distinct names')
-        }
-        if (args.hasOwnProperty('overwrite') && !isUUID(args.overwrite)) {
-          throw new Error('overwrite must be valid uuid if provided')
-        }
-        break
-
-      case 'rename':
-        if (args.fromName === args.toName) {
-          console.log(this.ctx.args, args)
-          throw new Error('rename requires two distinct names')
-        }
-        if (args.hasOwnProperty('overwrite') && !isUUID(args.overwrite)) {
-          throw new Error('overwrite must be valid uuid if provided')
-        }
-        break
-
-      case 'remove':
-        if (args.uuid && !isUUID(args.uuid)) throw new Error('invalid uuid')
-        break
-
-      case 'addTags':
-        if (!Array.isArray(args.tags) || args.tags.every(t => isUUID(t))) throw new Error('invalid tagId')
-        break
-
-      case 'removeTags':
-        if (!Array.isArray(args.tags) || args.tags.every(t => isUUID(t))) throw new Error('invalid tagId')
-        break
-
-      case 'setTags':
-        if (!Array.isArray(args.tags) || args.tags.every(t => isUUID(t))) throw new Error('invalid tagId')
-        break
-
-      case 'resetTags':
-        break
-
-      default:
-        throw new Error('invalid op')
-    }
-  }
-
   exit () {
     this.part.removeAllListeners()
     this.part.on('error', () => {})
@@ -340,12 +296,13 @@ class Parsing extends State {
 
 class Piping extends State {
   
-  enter (part, args) {
-    this.ctx.args = args
+  enter (part) {
 
-    args.data = this.ctx.ctx.apis.tmpfile()
+    let data = this.ctx.ctx.apis.tmpfile()
+    this.ctx.args.data = data 
+    let { size, sha256 } = this.ctx.args 
 
-    this.hs = HashStream.createStream(part, args.data, args.size, args.sha256, false)
+    this.hs = HashStream.createStream(part, data, size, sha256, false)
     this.hs.on('finish', err => {
       if (err) {
         if (err.code === 'EOVERSIZE' || err.code === 'EUNDERSIZE' || err.code === 'ESHA256MISMATCH') {
@@ -356,7 +313,7 @@ class Piping extends State {
         this.setState(Failed, err)
       } else {
         // hash stream should guarantee this prop
-        args.sha256 = this.hs.digest
+        this.ctx.args.sha256 = this.hs.digest
         let pred = this.ctx.predecessor
         if (pred) {
           if (pred.isFailed()) {
@@ -515,6 +472,8 @@ class Job extends EventEmitter {
 
   constructor (ctx, part) {
     super()
+    // init this early
+    this.args = {}
     this.ctx = ctx
     new Heading(this, part)
   }
@@ -554,6 +513,7 @@ class Party extends EventEmitter {
 
   constructor(apis) {
     super()
+
     this.error = null
     this.ended = false
     this.finished = false

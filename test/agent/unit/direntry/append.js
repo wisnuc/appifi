@@ -94,6 +94,7 @@ describe(path.basename(__filename), () => {
   describe('alice home, invalid name', () => {
 
     let fruitmix, app, token, home, url
+    let alonzo = FILES.alonzo
 
     beforeEach(async () => {
       await rimrafAsync(tmptest)
@@ -109,28 +110,51 @@ describe(path.basename(__filename), () => {
       home = await requestHomeAsync(app.express, alice.uuid, token)
       url = `/drives/${home.uuid}/dirs/${home.uuid}/entries`
     })
-
    
-    it('400 if name is /hello', function (done) {
+    it('400 if name is hello/world', function (done) {
       this.timeout(0)
-
+      let badname = 'hello/world'
       request(app.express)
         .post(url)
         .set('Authorization', 'JWT ' + token)
-        .attach('hello', FILES.oneGiga.path, JSON.stringify({
+        .attach(badname, alonzo.path, JSON.stringify({
           op: 'newfile',
-          size: FILES.oneGiga.size,
-          sha256: FILES.oneGiga.hash
+          size: alonzo.size,
+          sha256: alonzo.hash
         }))
         .expect(400)
         .end((err, res) => {
-          console.log('err', err)
-          console.log('body', res.body)
-          expect(res.body.code).to.equal('EINVAL')
+          if (err) return done(err)
+          // assert result name && error.status
+          expect(res.body.result[0].name).to.equal(badname)
+          expect(res.body.result[0].error.status).to.equal(400)
           done()
         })
 
     })
+
+    it('400 if name is hello|world', function (done) {
+      this.timeout(0)
+      let badname = 'hello|world'
+      request(app.express)
+        .post(url)
+        .set('Authorization', 'JWT ' + token)
+        .attach(badname, alonzo.path, JSON.stringify({
+          op: 'newfile',
+          size: alonzo.size,
+          sha256: alonzo.hash
+        }))
+        .expect(400)
+        .end((err, res) => {
+          if (err) return done(err)
+          // assert result name && error.status
+          expect(res.body.result[0].name).to.equal(badname)
+          expect(res.body.result[0].error.status).to.equal(400)
+          done()
+        })
+
+    })
+
   })
 
   describe('alice home', () => {
@@ -150,7 +174,7 @@ describe(path.basename(__filename), () => {
       // process.stdout.write('      creating big files')
       // await createTestFilesAsync()
       // process.stdout.write('...done\n')
-    })
+      })
 
     beforeEach(async () => {
       await Promise.delay(100)
