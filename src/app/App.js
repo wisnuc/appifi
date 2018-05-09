@@ -102,13 +102,29 @@ class App extends EventEmitter {
         }
       })
     }
+
+    process.on('message', this.handleMessage.bind(this))
   }
 
-  handleMessage (message) {
+  handleMessage (msg) {
+    let message
+    try {
+      message = JSON.parse(msg)
+    } catch (e) {
+      console.log('Bootstrap Message -> JSON parse Error')
+      console.log(msg)
+      return 
+    }
     switch (message.type) {
       case 'pip':
         return new Pipe().handleMessage(message)
       case 'hello':
+        break
+      case 'bootstrap_token' :
+        this.cloudToken = message.data.token
+        break
+      case 'bootstrap_boundUser':
+        if (this.boot && message.data) this.boot.setBoundUser(message.data)
         break
       default:
         break
