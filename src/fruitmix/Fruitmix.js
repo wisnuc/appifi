@@ -20,6 +20,8 @@ const NFS = require('./NFS')
 const Tag = require('../tags/Tag')
 const DirApi = require('./apis/dir')
 const DirEntryApi = require('./apis/dir-entry')
+const FileApi = require('./apis/file')
+// const MediaApi = require('./apis/media')
 const Task = require('./Task')
 const Samba = require('../samba/smbState')
 const Transmission = require('../transmission/manager')
@@ -50,7 +52,14 @@ Fruitmix has the following structure:
   apis: {
     user,
     drive,
-    ...
+    tag,
+    dir,
+    dirEntry,
+    file,
+    media,
+    task,
+    taskNode,
+    nfs
   }
 }
 ```
@@ -65,20 +74,24 @@ but for directories and files api, it is obviously that the separate api module 
 
 Fruitmix has no knowledge of chassis, storage, etc.
 */
-class Fruitmix2 extends EventEmitter {
-
+class Fruitmix extends EventEmitter {
   /**
   @param {object} opts
   @param {string} opts.fruitmixDir - absolute path
   @param {boolean} opts.useSmb - use samba module
   @param {boolean} opts.useDlna - use dlna module
   @param {boolean} opts.useTransmission - use transmission module
+  @param {object} opts.boundUser - if provided, the admin is forcefully updated
+  @param {object} opts.boundVolume - passed to nfs
   */
   constructor (opts) {
     super()
+
+    this.boundVolume = opts.boundVolume
+
     this.fruitmixDir = opts.fruitmixDir
     mkdirp.sync(this.fruitmixDir)
-    
+
     this.tmpDir = path.join(this.fruitmixDir, 'tmp')
     rimraf.sync(this.tmpDir)
     mkdirp.sync(this.tmpDir)
@@ -93,18 +106,18 @@ class Fruitmix2 extends EventEmitter {
     // set a getter method for this.users
     Object.defineProperty(this, 'users', {
       get () {
-        return this.user.users || []      // TODO can this be undefined?
+        return this.user.users || [] // TODO can this be undefined?
       }
     })
 
     this.drive = new Drive({
       file: path.join(this.fruitmixDir, 'drives.json'),
-      tmpDir: path.join(this.fruitmixDir, 'tmp', 'drives'),
+      tmpDir: path.join(this.fruitmixDir, 'tmp', 'drives')
     }, this.user)
 
     Object.defineProperty(this, 'drives', {
       get () {
-        return this.drive.drives || []    // TODO can this be undefined?
+        return this.drive.drives || [] // TODO can this be undefined?
       }
     })
 
@@ -122,17 +135,15 @@ class Fruitmix2 extends EventEmitter {
       mediaMap: this.mediaMap
     }
     this.vfs = new VFS(vfsOpts, this.user, this.drive, this.tag)
-    
+
     this.dirApi = new DirApi(this.vfs)
     this.dirEntryApi = new DirEntryApi(this.vfs)
 
-    this.task = new Task(this.vfs)
+    this.fileApi = new FileApi(this.vfs)
 
     this.thumbnail = new Thumbnail(path.join(this.fruitmixDir, 'thumbnail'), this.tmpDir)
 
-    this.user.on('Update', () => {
-      this.emit('FruitmixStarted')
-    })
+    this.task = new Task(this.vfs)
 
     this.apis = {
       user: this.user,
@@ -140,6 +151,8 @@ class Fruitmix2 extends EventEmitter {
       tag: this.tag,
       dir: this.dirApi,
       dirEntry: this.dirEntryApi,
+      file: this.fileApi,
+      media: this.mediaApi,
       task: this.task,
       taskNode: this.task.nodeApi,
     }
@@ -147,7 +160,7 @@ class Fruitmix2 extends EventEmitter {
     if (opts.useSmb) {
       this.samba = new Samba({
         fruitmixDir: this.fruitmixDir
-      }, this.user, this.drive)
+      }, this.user, this.drive, this.vfs)
 
       this.apis.samba = this.samba
     }
@@ -165,19 +178,26 @@ class Fruitmix2 extends EventEmitter {
       
       this.transmission = new Transmission({
         path: transmissionPath
-      }, this.user, this.drive)
+      }, this.user, this.drive, this.vfs)
 
       this.apis.transmission = this.transmission
     }
+    if (this.boundVolume) {
+      this.nfs = new NFS({ volumeUUID: this.boundVolume.uuid }, this.user)
+      this.apis.nfs = this.nfs
+    }
+
+    this.user.on('Update', () => {
+      this.emit('FruitmixStarted')
+    })
+
   }
 
   init (opts) {
     this.emit('initialized')
   }
 
-
   /**
-  
   */
   getUsers () {
     return this.users.map(u => ({
@@ -198,10 +218,13 @@ class Fruitmix2 extends EventEmitter {
       uuid: u.uuid,
       username: u.username,
       isFirstUser: u.isFirstUser,
-      phicommUserId: u.phicommUserId 
+      phicommUserId: u.phicommUserId
     }))
-  }   
+  }
 
+  setStorage (storage) {
+    if (this.nfs) this.nfs.update(storage)
+  }
 }
 
-module.exports = Fruitmix2
+module.exports = Fruitmix

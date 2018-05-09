@@ -20,6 +20,7 @@ CreateApp parses args and create the App accordingly.
   --mdns                      fake mdns broadcasting
   --fruitmix-only             start fruitmix without boot
   --fruitmix-dir path/to/dir  use the given path as fruitmix root directory.
+  --alice                     use alice as bound user
 --smb                         use smb
 --dlna                        use dlna
 --transmission                use transmission
@@ -75,13 +76,13 @@ if (args.standalone) {
     let fruitmix = new Fruitmix(fruitmixOpts)
     let app = new App({ fruitmix, useServer: true })
   } else {
-
     let configuration = configurations.phicomm.n2
     console.log('configuration', configuration)
 
     let app = new App({
       fruitmixOpts,
-      configuration, 
+      configuration,
+      useAlice: true,
       useServer: true
     })
   }

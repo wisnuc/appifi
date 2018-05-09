@@ -12,7 +12,7 @@ const formidable = require('formidable')
 bluebird.promisifyAll(fs)
 
 class Manager extends EventEmitter{
-  constructor(opts, user, drive) {
+  constructor(opts, user, drive, vfs) {
     super()
     this.tempPath = opts.path // 下载缓存目录
     this.storagePath = path.join(this.tempPath, 'storage.json') // 下载信息存储
@@ -29,6 +29,10 @@ class Manager extends EventEmitter{
       if (this.observer) return
       this.startObserver()
     })
+
+    this.user = user
+    this.drive = drive
+    this.vfs = vfs
   }
 
   // 启用观察者
@@ -56,7 +60,7 @@ class Manager extends EventEmitter{
   }
 
   // 创建磁链、种子下载任务 ---
-  async createTransmissionTask(type, source, dirUUID, userUUID, callback) {
+  async createTransmissionTask(type, source, driveUUID, dirUUID, userUUID, callback) {
     try {
       // 创建transmission任务
       let result, options = { "download-dir": this.tempPath }
@@ -73,14 +77,14 @@ class Manager extends EventEmitter{
       if (resultInDownloaded) return resultInDownloaded.state.add(dirUUID, userUUID, UUID.v4(), callback)
       // 创建本地任务
       else {
-        await this.taskFactory(result.id, dirUUID, userUUID)
+        await this.taskFactory(result.id, driveUUID, dirUUID, userUUID)
         this.observer.get(result, callback)
       }
     } catch (e) { callback(e) }
   }
 
   // 创建任务对象(创建、存储、监听) ---
-  async taskFactory(id, dirUUID, userUUID) {
+  async taskFactory(id, driveUUID, dirUUID, userUUID) {
     try {
       // 创建
       let tasks = await this.get(id)
@@ -88,8 +92,8 @@ class Manager extends EventEmitter{
       // 检查是否有其他用户创建过相同任务
       let uuid = UUID.v4()
       let sameIdTask = this.downloading.find(item => item.id == id)
-      if (sameIdTask) sameIdTask.add({dirUUID, userUUID, uuid})
-      else new Task(id, [{dirUUID, userUUID, uuid}], null, this)
+      if (sameIdTask) sameIdTask.add({driveUUID, dirUUID, userUUID, uuid})
+      else new Task(id, [{driveUUID, dirUUID, userUUID, uuid}], null, this)
       // 存储
       await this.cache()
     } catch (err) { throw err }
@@ -237,10 +241,10 @@ class Manager extends EventEmitter{
   }
 
   POST({ uuid }, props, callback) {
-    let { magnetURL, dirUUID, type } = props
+    let { magnetURL, dirUUID, driveUUID, type } = props
     if (props.type === 'magnet') {
       if (!magnetURL || !dirUUID) return callback(new Error('parameter error'))
-      this.createTransmissionTask(type, magnetURL, dirUUID, uuid, callback)
+      this.createTransmissionTask(type, magnetURL, driveUUID, dirUUID, uuid, callback)
     } else {
       let { req, type } = props
       let transmissionTmp = path.join(this.tempPath, 'torrents')
@@ -252,9 +256,13 @@ class Manager extends EventEmitter{
         let dirUUID = fields.dirUUID
         let torrentPath = files.torrent.path
         if (!dirUUID || !torrentPath) return callback(new Error('parameter error'))
-        this.createTransmissionTask('torrent', torrentPath, dirUUID, uuid, callback)
+        this.createTransmissionTask('torrent', torrentPath, driveUUID, dirUUID, uuid, callback)
       })
     }
+  }
+
+  PATCH() {
+    
   }
 }
 

@@ -1,0 +1,274 @@
+{
+  "ports": [
+    {
+      "path": "/devices/pci0000:00/0000:00:01.1/ata1/ata_port/ata1",
+      "subsystem": "ata_port"
+    },
+    {
+      "path": "/devices/pci0000:00/0000:00:01.1/ata2/ata_port/ata2",
+      "subsystem": "ata_port"
+    },
+    {
+      "path": "/devices/pci0000:00/0000:00:0d.0/ata3/ata_port/ata3",
+      "subsystem": "ata_port"
+    },
+    {
+      "path": "/devices/pci0000:00/0000:00:0d.0/ata4/ata_port/ata4",
+      "subsystem": "ata_port"
+    },
+    {
+      "path": "/devices/pci0000:00/0000:00:0d.0/ata5/ata_port/ata5",
+      "subsystem": "ata_port"
+    },
+    {
+      "path": "/devices/pci0000:00/0000:00:0d.0/ata6/ata_port/ata6",
+      "subsystem": "ata_port"
+    },
+    {
+      "path": "/devices/pci0000:00/0000:00:0d.0/ata7/ata_port/ata7",
+      "subsystem": "ata_port"
+    }
+  ],
+  "blocks": [
+    {
+      "name": "sda",
+      "devname": "/dev/sda",
+      "path": "/devices/pci0000:00/0000:00:0d.0/ata3/host2/target2:0:0/2:0:0:0/block/sda",
+      "removable": false,
+      "size": 134217728,
+      "isDisk": true,
+      "model": "VBOX_HARDDISK",
+      "serial": "VBefabb17b-c1f7d538",
+      "isPartitioned": true,
+      "partitionTableType": "dos",
+      "partitionTableUUID": "e09e125a",
+      "idBus": "ata",
+      "isATA": true,
+      "unformattable": "ActiveSwap:RootFS"
+    },
+    {
+      "name": "sdb",
+      "devname": "/dev/sdb",
+      "path": "/devices/pci0000:00/0000:00:0d.0/ata4/host3/target3:0:0/3:0:0:0/block/sdb",
+      "removable": false,
+      "size": 16777216,
+      "isDisk": true,
+      "model": "VBOX_HARDDISK",
+      "serial": "VB0d8e84e1-04c12763",
+      "fsUsageDefined": true,
+      "idFsUsage": "filesystem",
+      "fileSystemType": "btrfs",
+      "fileSystemUUID": "771c2593-22f3-44bf-94ee-17c6b15ed90d",
+      "isFileSystem": true,
+      "isVolumeDevice": true,
+      "isBtrfs": true,
+      "btrfsVolume": "771c2593-22f3-44bf-94ee-17c6b15ed90d",
+      "btrfsDevice": "3a256a82-4a94-45d0-bea9-ef88707ead53",
+      "idBus": "ata",
+      "isATA": true,
+      "isMounted": true,
+      "mountpoint": "/run/phicomm/volumes/771c2593-22f3-44bf-94ee-17c6b15ed90d"
+    },
+    {
+      "name": "sdc",
+      "devname": "/dev/sdc",
+      "path": "/devices/pci0000:00/0000:00:0d.0/ata5/host4/target4:0:0/4:0:0:0/block/sdc",
+      "removable": false,
+      "size": 37748736,
+      "isDisk": true,
+      "model": "VBOX_HARDDISK",
+      "serial": "VB14d6ce6d-68ecf3a1",
+      "idBus": "ata",
+      "isATA": true
+    },
+    {
+      "name": "sdd",
+      "devname": "/dev/sdd",
+      "path": "/devices/pci0000:00/0000:00:0d.0/ata6/host5/target5:0:0/5:0:0:0/block/sdd",
+      "removable": false,
+      "size": 16777216,
+      "isDisk": true,
+      "model": "VBOX_HARDDISK",
+      "serial": "VB76550cf1-ab83ff23",
+      "idBus": "ata",
+      "isATA": true
+    },
+    {
+      "name": "sde",
+      "devname": "/dev/sde",
+      "path": "/devices/pci0000:00/0000:00:0d.0/ata7/host6/target6:0:0/6:0:0:0/block/sde",
+      "removable": false,
+      "size": 16777216,
+      "isDisk": true,
+      "model": "VBOX_HARDDISK",
+      "serial": "VBd32af44c-f28e5649",
+      "idBus": "ata",
+      "isATA": true
+    },
+    {
+      "name": "sda1",
+      "devname": "/dev/sda1",
+      "path": "/devices/pci0000:00/0000:00:0d.0/ata3/host2/target2:0:0/2:0:0:0/block/sda/sda1",
+      "removable": false,
+      "size": 125827072,
+      "isPartition": true,
+      "fsUsageDefined": true,
+      "idFsUsage": "filesystem",
+      "fileSystemType": "btrfs",
+      "fileSystemUUID": "13ca8877-d667-49d6-b9f0-811b167ab02a",
+      "isFileSystem": true,
+      "isVolumeDevice": true,
+      "isBtrfs": true,
+      "btrfsVolume": "13ca8877-d667-49d6-b9f0-811b167ab02a",
+      "btrfsDevice": "37d0256b-a05d-47a2-a81c-c590a11781bc",
+      "parentName": "sda",
+      "idBus": "ata",
+      "isATA": true,
+      "isMounted": true,
+      "mountpoint": "/",
+      "isRootFS": true,
+      "unformattable": "RootFS"
+    },
+    {
+      "name": "sda2",
+      "devname": "/dev/sda2",
+      "path": "/devices/pci0000:00/0000:00:0d.0/ata3/host2/target2:0:0/2:0:0:0/block/sda/sda2",
+      "removable": false,
+      "size": 0,
+      "isPartition": true,
+      "parentName": "sda",
+      "idBus": "ata",
+      "isATA": true
+    },
+    {
+      "name": "sda5",
+      "devname": "/dev/sda5",
+      "path": "/devices/pci0000:00/0000:00:0d.0/ata3/host2/target2:0:0/2:0:0:0/block/sda/sda5",
+      "removable": false,
+      "size": 8384512,
+      "isPartition": true,
+      "fsUsageDefined": true,
+      "idFsUsage": "other",
+      "fileSystemType": "swap",
+      "fileSystemUUID": "455eba82-746e-42bc-8b14-28c44b938254",
+      "isOtherFileSystem": true,
+      "isLinuxSwap": true,
+      "parentName": "sda",
+      "idBus": "ata",
+      "isATA": true,
+      "isActiveSwap": true,
+      "unformattable": "ActiveSwap"
+    }
+  ],
+  "volumes": [
+    {
+      "missing": false,
+      "devices": [
+        {
+          "name": "sda1",
+          "path": "/dev/sda1",
+          "id": 1,
+          "used": "42.02GiB"
+        }
+      ],
+      "label": "",
+      "uuid": "13ca8877-d667-49d6-b9f0-811b167ab02a",
+      "total": 1,
+      "used": "6.43GiB",
+      "isVolume": true,
+      "isMissing": false,
+      "isFileSystem": true,
+      "isBtrfs": true,
+      "fileSystemType": "btrfs",
+      "fileSystemUUID": "13ca8877-d667-49d6-b9f0-811b167ab02a",
+      "isMounted": true,
+      "mountpoint": "/",
+      "isRootFS": true,
+      "users": {
+        "code": "ENOENT",
+        "message": "fruitmix dir not found"
+      }
+    },
+    {
+      "missing": false,
+      "devices": [
+        {
+          "name": "sdb",
+          "path": "/dev/sdb",
+          "id": 1,
+          "used": "843.12MiB",
+          "size": 8589934592,
+          "unallocated": 7705853952,
+          "system": {
+            "mode": "DUP",
+            "size": 16777216
+          },
+          "metadata": {
+            "mode": "DUP",
+            "size": 858914816
+          },
+          "data": {
+            "mode": "single",
+            "size": 8388608
+          }
+        }
+      ],
+      "label": "",
+      "uuid": "771c2593-22f3-44bf-94ee-17c6b15ed90d",
+      "total": 1,
+      "used": "192.00KiB",
+      "isVolume": true,
+      "isMissing": false,
+      "isFileSystem": true,
+      "isBtrfs": true,
+      "fileSystemType": "btrfs",
+      "fileSystemUUID": "771c2593-22f3-44bf-94ee-17c6b15ed90d",
+      "isMounted": true,
+      "mountpoint": "/run/phicomm/volumes/771c2593-22f3-44bf-94ee-17c6b15ed90d",
+      "usage": {
+        "overall": {
+          "deviceSize": 8589934592,
+          "deviceAllocated": 884080640,
+          "deviceUnallocated": 7705853952,
+          "deviceMissing": 0,
+          "used": 327680,
+          "free": 7714177024,
+          "freeMin": 3861250048,
+          "dataRatio": "1.00",
+          "metadataRatio": "2.00",
+          "globalReserve": 16777216,
+          "globalReserveUsed": 0
+        },
+        "system": {
+          "devices": [],
+          "mode": "DUP",
+          "size": 8388608,
+          "used": 16384
+        },
+        "metadata": {
+          "devices": [],
+          "mode": "DUP",
+          "size": 429457408,
+          "used": 114688
+        },
+        "data": {
+          "devices": [],
+          "mode": "single",
+          "size": 8388608,
+          "used": 65536
+        },
+        "unallocated": {
+          "devices": []
+        }
+      },
+      "users": [
+        {
+          "uuid": "2677b6d7-121c-4b87-9abf-0bdbcc2f5168",
+          "username": "admin",
+          "isFirstUser": true,
+          "phicommUserId": "alice"
+        }
+      ]
+    }
+  ]
+}
