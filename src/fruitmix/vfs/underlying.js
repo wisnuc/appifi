@@ -78,6 +78,7 @@ const link = (target, tmp, uuid, hash, opt, callback) => {
       callback(err)
     } else { // successful
       if (type === 'directory' && uuid) {
+        // forceXstat is supposed to be used onto tmp file only TODO FIXME
         forceXstat(target, { uuid }, (err, xstat) => err ? callback(err) : callback(null, xstat, [false, false]))
       } else {
         readXstat(target, (err, xstat) => err ? callback(err) : callback(null, xstat, [false, false]))

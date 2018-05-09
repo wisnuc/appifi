@@ -175,6 +175,7 @@ class VFS extends EventEmitter {
     try {
       mkdirp.sync(dirPath)
       stats = fs.lstatSync(dirPath)
+      // this is tricky but works
       xattr.setSync(dirPath, 'user.fruitmix', JSON.stringify(attr))
     } catch (e) {
       console.log(e)

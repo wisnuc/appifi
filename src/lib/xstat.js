@@ -28,8 +28,14 @@ const UUID = require('uuid')
 const filetype = require('./file-type')
 
 const Magic = require('./magic')
-const E = require('./error')
 const { isUUID, isSHA256 } = require('./assertion')
+
+/**
+A valid tags is an array of sorted, unique, natural numbers (N0)
+*/
+const isValidTags = tags => Array.isArray(tags) &&
+  tags.every(id => Number.isInteger(id) && id >= 0) &&
+  tags.every((id, i, a) => i === 0 || a[i - 1] < id)
 
 /**
 xstat retrieves and stores persistent data in extended attributes.
@@ -39,9 +45,6 @@ xstat retrieves and stores persistent data in extended attributes.
 
 /** @constant {string} FRUITMIX - `user.fruitmix`, xattr key **/
 const FRUITMIX = 'user.fruitmix'
-
-/** @func isNonNullObject **/
-const isNonNullObject = obj => typeof obj === 'object' && obj !== null
 
 /**
 Generate an unsupported file type error from fs.Stats
@@ -93,66 +96,6 @@ const fileMagic1 = (target, callback) =>
     }
   })
 
-/**
-Return magic by fileType
-@func fileMagic2
-@param {string} target - absolute path
-@returns {(string|number)}
-*/
-const fileMagic2 = (target, callback) =>
-  filetype(target, (err, type) => {
-    if (err) return callback(err)
-    if (type && type.ext === 'jpg') {
-      return callback(null, 'JPEG')
-    } else {
-      return callback(null, MAGICVER)
-    }
-  })
-
-/**
-const fileMagic3 = (target, callback) =>
-  child.exec(`exiftool -S -FileType '${target}'`, (err, stdout, stderr) => {
-    console.log(stdout.toString())
-    if (err) {
-      callback(null, MAGICVER)
-    } else {
-      let str = stdout.toString().trim()
-      let pre = 'FileType: '
-      if (str.startsWith(pre)) {
-        let type = str.slice(pre.length)
-        if (type === 'JPEG') {
-          callback(null, 'JPEG')
-        } else if (type === 'PNG') {
-          callback(null, 'PNG')
-        } else {
-          callback(null, MAGICVER)
-        }
-      } else {
-        callback(null, MAGICVER)
-      }
-    }
-  })
-**/
-
-const fileMagic4 = (target, callback) =>
-  new mmm.Magic().detectFile(target, (err, str) => {
-    if (err) {
-      fileMagic1(target, callback)
-    } else {
-      callback(null, Magic.parse(str))
-    }
-  })
-
-const fileMagic5 = (target, callback) =>
-  filetype(target, (err, type) => {
-    if (err) return callback(err)
-    if (type && type.ext === 'jpg') {
-      callback(null, 'JPEG')
-    } else {
-      fileMagic4(target, callback)
-    }
-  })
-
 const fileMagic6 = (target, callback) =>
   filetype(target, (err, type) => {
     if (err) return callback(err)
@@ -164,14 +107,6 @@ const fileMagic6 = (target, callback) =>
   })
 
 const fileMagic = fileMagic6
-
-/**
-Return magic for a regular file. This function uses fileMagic2.
-@func fileMagicAsync
-@param {string} target - absolute path
-@returns {(string|number)}
-**/
-const fileMagicAsync = Promise.promisify(fileMagic)
 
 /**
 @callback readXattrCallback
@@ -199,14 +134,13 @@ const readXattr = (target, stats, callback) => {
     if (err && err.code === 'ENODATA') return callback(null, { uuid: UUID.v4(), dirty: undefined })
     if (err) return callback(err)
 
-    let orig, attr = {}
+    let orig
+    let attr = {}
     try {
       orig = JSON.parse(raw)
     } catch (e) {
       return callback(null, { uuid: UUID.v4(), dirty: undefined })
     }
-
-    let dirty = false
 
     // validate uuid
     if (typeof orig === 'object' && orig !== null && !Array.isArray(orig) && isUUID(orig.uuid)) {
@@ -224,6 +158,13 @@ const readXattr = (target, stats, callback) => {
         if (isSHA256(orig.hash) && orig.time === stats.mtime.getTime()) {
           attr.hash = orig.hash
           attr.time = orig.time
+        } else if (isSHA256(orig.hash) &&
+          !orig.hasOwnProperty('time') &&
+          orig.htime === stats.mtime.getTime() &&
+          stats.size <= 1024 * 1024 * 1024) {
+          attr.hash = orig.hash
+          attr.time = orig.htime
+          attr.dirty = undefined
         } else {
           attr.dirty = undefined
         }
@@ -358,115 +299,54 @@ const readXstat = (target, callback) =>
   })
 
 /**
-Update file hash
-@func updateFileHashAsync
-@param {string} target - absolute file path
-@param {string} uuid - file uuid
-@param {string} hash - file hash
-@param {number} time - timestamp before calculating file fingerprint
-@returns {object} updated xstat
+Set xattr forcefully
+
+This function is supposed to be used only for temporary file
+
+@param {string} target - target file path
+@param {object} props
+@param {string} [props.uuid] - preserve uuid
+@param {string} [props.hash] - preserve fingerprint
+@param {number[]} [props.tags] - preserve tags, accept empty array
 */
-const updateFileHashAsync = async (target, uuid, hash, time) => {
-  if (!isSHA256(hash) || !Number.isInteger(time)) throw new E.EINVAL()
-
-  let stats = await fs.lstatAsync(target)
-  if (!stats.isFile()) throw new E.ENOTFILE()
-  if (time !== stats.mtime.getTime()) throw new E.ETIMESTAMP()
-
-  let attr = await readXattrAsync(target, stats)
-  if (!attr) throw new E.EINSTANCE() // TODO
-  if (uuid !== attr.uuid) throw new E.EINSTANCE()
-
-  Object.assign(attr, { hash, time })
-  await xattr.setAsync(target, FRUITMIX, JSON.stringify(attr))
-  return createXstat(target, stats, attr)
-}
-
-/**
-callback version of updateFileHashAsync
-
-@param {string} target - absolute path
-@param {string} uuid - file uuid
-@param {string} hash - file hash
-@param {number} time - timestamp before calculating file hash
-@param {function} callback - `(err, xstat) => {}`
-*/
-const updateFileHash = (target, uuid, hash, time, callback) =>
-  updateFileHashAsync(target, uuid, hash, time)
-    .then(xstat => callback(null, xstat))
-    .catch(e => callback(e))
-
-const updateFileHashAlt = (target, uuid, hash, time, callback) => {
-  fs.lstat(target, (err, stat) => {
-    if (err) return callback(err)
-    if (!stat.isFile()) return callback(something)
-  })
-}
-
-/**
-Forcefully set xattr with given uuid and/or hash.
-
-This function should only be used for:
-1. drive dir
-2. temp file
-  1. preserve original uuid and hash for duplicated file
-  2. assign fingerprint to file saved from transmission
-
-@param {string} target - absolute path
-@param {string} uuid - target uuid
-@param {string} hash - file hash (optional)
-@returns {object} - xstat object
-*/
-const forceXstatAsync = async (target, { uuid, hash }) => {
-  if (uuid && !isUUID(uuid)) throw new E.EINVAL()
-  if (hash && !isSHA256(hash)) throw new E.EINVAL()
-
-  if (!uuid && !hash) return readXstatAsync(target)
-
-  let stats = await fs.lstatAsync(target)
-
-  // IS THIS NECESSARY? TODO
-  if (!stats.isFile() && hash) throw new Error('forceXstatAsync: not a file')
-
-  let attr = { uuid: uuid || UUID.v4() }
-  if (hash) Object.assign(attr, { hash, time: stats.mtime.getTime() })
-
-  attr = await updateXattrAsync(target, attr, stats.isFile())
-  let xstat = createXstat(target, stats, attr)
-  return xstat
-}
-
-const forceXstatOrig = (target, opts, callback) => {
-  forceXstatAsync(target, opts)
-    .then(xstat => callback(null, xstat))
-    .catch(e => callback(e))
-}
-
-// opt can be undefined, null, empty object
-// hash is silently discarded if target is a directory
-const forceXstatAlt = (target, opt, callback) => {
-  let { uuid, hash } = opt || {}
+const forceXstat = (target, props, callback) => {
+  let { uuid, hash, tags } = props || {}
 
   if (uuid && !isUUID(uuid)) {
     let err = new Error('invalid uuid')
     err.code = 'EINVAL'
-    return callback(err)
+    return process.nextTick(() => callback(err))
   }
+
+  uuid = uuid || UUID.v4()
 
   if (hash && !isSHA256(hash)) {
     let err = new Error('invalid hash/fingerprint')
     err.code = 'EINVAL'
-    return callback(err)
+    return process.nextTick(() => callback(err))
+  }
+
+  if (tags) {
+    if (!Array.isArray(tags) || !tags.every(id => Number.isInteger(id) && id >= 0)) {
+      let err = new Error('invalid tags')
+      err.code = 'EINVAL'
+      return process.nextTick(() => callback(err))
+    }
+
+    if (tags.length === 0) tags = undefined
   }
 
   fs.lstat(target, (err, stat) => {
     if (err) return callback(err)
     if (!stat.isDirectory() && !stat.isFile()) return callback(EUnsupported(stat))
 
-    let attr = { uuid: uuid || UUID.v4() }
-    if (stat.isFile() && hash) {
-      attr.hash = hash
-      attr.time = stat.mtime.getTime()
+    let attr = { uuid }
+    if (stat.isFile()) {
+      if (hash) {
+        attr.hash = hash
+        attr.time = stat.mtime.getTime()
+      }
+      if (tags) attr.tags = tags
     }
 
     updateXattr(target, attr, stat.isFile(), (err, attr) => {
@@ -476,7 +356,124 @@ const forceXstatAlt = (target, opt, callback) => {
   })
 }
 
-const forceXstat = forceXstatAlt
+/**
+async version of forceXstat
+
+@function
+*/
+const forceXstatAsync = Promise.promisify(forceXstat)
+
+/**
+Update file hash
+
+@param {string} target - absolute path
+@param {string} uuid - file uuid
+@param {string} hash - file hash
+@param {number} time - timestamp before calculating file hash
+@param {function} callback - `(err, xstat) => {}`
+*/
+const updateFileHash = (target, uuid, hash, time, callback) => {
+  // validate arguments
+  try {
+    if (!isUUID(uuid)) throw new Error('invalid uuid')
+    if (!isSHA256(hash)) throw new Error('invalid hash')
+    if (Number.isInteger(time)) throw new Error('invalid time')
+  } catch (err) {
+    err.code = 'EINVAL'
+    return process.nextTick(() => callback(err))
+  }
+
+  fs.lstat(target, (err, stats) => {
+    if (err) return callback(err)
+    if (!stats.isFile()) {
+      let err = new Error('not a file')
+      err.code = 'ENOTFILE'
+      return callback(err)
+    }
+
+    if (time !== stats.mtime.getTime()) {
+      let err = new Error('timestamp mismatch')
+      err.code = 'ETIMESTAMP'
+      return callback(err)
+    }
+
+    readXattr(target, stats, (err, attr) => {
+      if (err) return callback(err)
+      if (uuid !== attr.uuid) {
+        let err = new Error('uuid mismatch')
+        err.code = 'EINSTANCE'
+        return callback(err)
+      }
+
+      Object.assign(attr, { hash, time })
+      xattr.set(target, FRUITMIX, JSON.stringify(attr), err => {
+        if (err) {
+          callback(err)
+        } else {
+          callback(null, createXstat(target, stats, attr))
+        }
+      })
+    })
+  })
+}
+
+/**
+async version of updateFileHash
+
+@function
+*/
+const updateFileHashAsync = Promise.promisify(updateFileHash)
+
+/**
+Update file tags
+
+@param {string} target - absolute file path
+@param {string} uuid - file uuid
+@param {number[]} tags - file tags
+*/
+const updateFileTags = (target, uuid, tags, callback) => {
+  try {
+    if (!isUUID(uuid)) throw new Error('invalid uuid')
+    if (!isValidTags(tags)) throw new Error('invalid tags')
+  } catch (err) {
+    err.code = 'EINVAL'
+    return process.nextTick(() => callback(err))
+  }
+
+  fs.lstat(target, (err, stats) => {
+    if (err) return callback(err)
+    if (!stats.isFile()) {
+      let err = new Error('not a file')
+      err.code = 'ENOTFILE'
+      return callback(err)
+    }
+
+    readXattr(target, stats, (err, attr) => {
+      if (err) return callback(err)
+      if (uuid !== attr.uuid) {
+        let err = new Error('uuid mismatch')
+        err.code = 'EINSTANCE'
+        return callback(err)
+      }
+
+      Object.assign(attr, { tags: tags.length === 0 ? undefined : tags })
+      xattr.set(target, FRUITMIX, JSON.stringify(attr), err => {
+        if (err) {
+          callback(err)
+        } else {
+          callback(null, createXstat(target, stats, attr))
+        }
+      })
+    })
+  })
+}
+
+/**
+async version of updateFileTags
+
+@function
+*/
+const updateFileTagsAsync = Promise.promisify(updateFileTags)
 
 const assertDirXstatSync = (target, uuid) => {
   let stat = fs.lstatSync(target)
@@ -510,41 +507,15 @@ const assertFileXstatSync = (target, uuid) => {
   }
 }
 
-/**
-Update file Tags
-
-@func updateFileHashAsync
-@param {string} target - absolute file path
-@param {string} uuid - file uuid
-@param {array} tags - file tags
-@param {number} time - timestamp before calculating file fingerprint
-@returns {object} updated xstat
-*/
-const updateFileTagsAsync = async (target, uuid, tags, time) => {
-  if (!Array.isArray(tags) && tags !== undefined || !Number.isInteger(time)) throw new E.EINVAL()
-  let stats = await fs.lstatAsync(target)
-  if (!stats.isFile()) throw new E.ENOTFILE()
-  if (time !== stats.mtime.getTime()) throw new E.ETIMESTAMP()
-
-  let attr = await readXattrAsync(target, stats)
-  if (!attr) throw new E.EINSTANCE() // TODO
-  if (uuid !== attr.uuid) throw new E.EINSTANCE()
-
-  Object.assign(attr, { tags, time })
-  await xattr.setAsync(target, FRUITMIX, JSON.stringify(attr))
-  return createXstat(target, stats, attr)
-}
-
 module.exports = {
+  fileMagic6,
   readXstat,
-  updateFileHash,
-  updateFileHashAsync,
-  updateFileTagsAsync,
   forceXstat,
   forceXstatAsync,
-  fileMagic6,
-
-  // test purpose
+  updateFileHash,
+  updateFileHashAsync,
+  updateFileTags,
+  updateFileTagsAsync,
   assertDirXstatSync,
   assertFileXstatSync
 }
