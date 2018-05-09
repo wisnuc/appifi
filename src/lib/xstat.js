@@ -681,6 +681,7 @@ const assertFileXstatSync = (target, uuid) => {
   }
 }
 
+
 /**
 Update file Tags
 @func updateFileHashAsync
