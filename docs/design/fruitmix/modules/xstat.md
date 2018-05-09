@@ -10,8 +10,12 @@
   - [3.3. 文件夹](#33-文件夹)
 - [4. tag的处理逻辑](#4-tag的处理逻辑)
 - [5. 函数](#5-函数)
-  - [5.1. readXstat](#51-readxstat)
+  - [5.1. readXattr](#51-readxattr)
     - [5.1.1. 测试](#511-测试)
+  - [5.2. readXstat](#52-readxstat)
+    - [5.2.1. 实现](#521-实现)
+      - [5.2.1.1. EUnsupported错误](#5211-eunsupported错误)
+    - [5.2.2. 测试](#522-测试)
 
 <!-- /TOC -->
 
@@ -114,7 +118,7 @@ Fruitmix文件系统使用Linux文件系统的文件扩展属性（Extended Attr
 
 # 4. tag的处理逻辑
 
-`xstat`模块不负责清理失效的tag id；该设计考虑了如下因素：
+`xstat`模块不负责清理失效的tag id；该设计决策考虑了如下因素：
 
 1. 解除了`xstat`对`tag`模块的依赖；
 2. 即使`xstat`模块清理失效的tag id，vfs在向客户端返回xstat时仍然要filter；
@@ -123,7 +127,49 @@ Fruitmix文件系统使用Linux文件系统的文件扩展属性（Extended Attr
 
 # 5. 函数
 
-## 5.1. readXstat
+## 5.1. readXattr
+
+`readXattr`是一个内部函数，负责读取和修正目标文件的`xattr`；`readXattr`不会修改文件的`xattr`。
+
+**参数**
+
++ target - 目标文件路径
++ stats - 目标文件的`fs.Stats`对象
+
+**返回**
+
+`xattr`对象；如果`xattr.hasOwnProperty(dirty)`为`true`，该对象与磁盘上的`xattr`不同（新创建或者被修改过）。
+
+如果读取`xattr`操作遇到错误，`readXattr`返回该错误；但`ENODATA`不视为错误。
+
+在下述情况下`readXattr`返回新建的`xattr: { uuid, dirty }`
+
++ 如果目标文件没有`xattr`
++ 如果目标文件的`xattr`非JSON格式
++ 如果目标文件的`xattr`是合法JSON，但：
+  + `xattr`不是JS object
+  + `xattr`是null
+  + `xattr`是JS Array
+  + `xattr`的uuid属性非法
+
+对于文件夹，
+
+对于文件，在下述情况下`readXattr`会修正属性，在返回的attr中定义`dirty`属性为`undefined`：
+
++ 对于文件
+  + 有hash或者time，但hash不合法或time与mtime不一致，会抛弃hash和time
+  + magic不合法或过时（低于当前bump version）
+  + tags:
+      + 不是array会抛弃
+      + 是array，会过滤、去重、和排序出其中的自然数(ℕ<sup>0</sup>)
+        + 如果得到空array抛弃该属性
+        + 如果结果与原始读入结果不符，使用计算的结果
+
+### 5.1.1. 测试
+
+
+
+## 5.2. readXstat
 
 **参数**
 
@@ -133,10 +179,28 @@ Fruitmix文件系统使用Linux文件系统的文件扩展属性（Extended Attr
 
 错误或xstat数据结构
 
+### 5.2.1. 实现
+
+1. 使用`fs.lstat`获取`target`的`fs.Stats`数据结构，如果失败返回错误；
+2. 如果目标不是普通文件或文件夹，返回EUnsupported错误；
+3. 使用`readXattr`读取`xattr`；
+4. 如果未读入`xattr`或者`xattr`标为`dirty`，使用`updateXattr`更新`xattr`；
+5. 使用`createXstat`合成`xstat`数据结构返回；
 
 
+#### 5.2.1.1. EUnsupported错误
 
-### 5.1.1. 测试
+使用`new Error()`构造。
+
+```js
+Error {
+  message: 'target is not a regular file or directory',
+  code: 'EISBLOCKDEV' // or EISCHARDEV, EISSYMLINK, EISFIFO, EISSOCKET, EISUNKNOWN,
+  xcode: 'EUNSUPPORTED'
+}
+```
+
+### 5.2.2. 测试
 
 
 

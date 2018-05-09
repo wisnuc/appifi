@@ -78,11 +78,9 @@ const link = (target, tmp, uuid, hash, opt, callback) => {
       callback(err)
     } else { // successful
       if (type === 'directory' && uuid) {
-        forceXstat(target, { uuid }, (err, xstat) =>
-          err ? callback(err) : callback(null, xstat, [false, false]))
+        forceXstat(target, { uuid }, (err, xstat) => err ? callback(err) : callback(null, xstat, [false, false]))
       } else {
-        readXstat(target, (err, xstat) =>
-          err ? callback(err) : callback(null, xstat, [false, false]))
+        readXstat(target, (err, xstat) => err ? callback(err) : callback(null, xstat, [false, false]))
       }
     }
   })

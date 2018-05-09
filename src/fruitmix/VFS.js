@@ -26,7 +26,7 @@ const Directory = require('./vfs/directory')
 
 const { btrfsConcat, btrfsClone, btrfsClone2 } = require('../lib/btrfs')
 
-const { readXstat, readXstatAsync, forceXstatAsync, forceXstat, assertDirXstatSync, assertFileXstatSync } = require('../lib/xstat')
+const { readXstat, forceXstat, assertDirXstatSync, assertFileXstatSync } = require('../lib/xstat')
 
 const Debug = require('debug')
 const smbDebug = Debug('samba')
