@@ -16,7 +16,7 @@ const { passwordEncrypt } = require('../lib/utils')
 
 const routing = require('./routing')
 
-const Pipe = require('../fruitmix/Pipe')
+const Pipe = require('./Pipe')
 /**
 Create An Application
 
@@ -88,8 +88,13 @@ class App extends EventEmitter {
       throw new Error('either fruitmix or fruitmixOpts must be provided')
     }
 
+
+
     // create express instance
     this.createExpress()
+
+    // create a Pipe
+    this.pipe = new Pipe(opts.fruitmix, this.auth)
 
     // create server if required
     if (opts.useServer) {
@@ -102,13 +107,29 @@ class App extends EventEmitter {
         }
       })
     }
+
+    process.on('message', this.handleMessage.bind(this))
   }
 
-  handleMessage (message) {
+  handleMessage (msg) {
+    let message
+    try {
+      message = JSON.parse(msg)
+    } catch (e) {
+      console.log('Bootstrap Message -> JSON parse Error')
+      console.log(msg)
+      return 
+    }
     switch (message.type) {
       case 'pip':
-        return new Pipe().handleMessage(message)
+        return this.pipe.handleMessage(message)
       case 'hello':
+        break
+      case 'bootstrap_token' :
+        this.cloudToken = message.data.token
+        break
+      case 'bootstrap_boundUser':
+        if (this.boot && message.data) this.boot.setBoundUser(message.data)
         break
       default:
         break

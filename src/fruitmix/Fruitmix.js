@@ -39,10 +39,10 @@ Fruitmix has the following structure:
   xstat,
   mediaMap,
   forest,
-  vfs, 
+  vfs,
 
   xcopy,
-  search, 
+  search,
 
   transmission,
   samba,
@@ -173,6 +173,10 @@ class Fruitmix extends EventEmitter {
     }
 
     this.user.on('Update', () => {
+      process.send(JSON.stringify({
+        type: 'appifi_users',
+        users: this.users.filter(x => !x.isFirstUser).map(u => { return { uid: u.phicommUserId }})
+      }))
       this.emit('FruitmixStarted')
     })
 
@@ -180,6 +184,24 @@ class Fruitmix extends EventEmitter {
 
   init (opts) {
     this.emit('initialized')
+  }
+
+  /**
+   * get userinfo by phicommUserId
+   * @param {string} phicommUserId - uuid
+   * @return {object} user - return active user
+   */
+  getUserByPhicommUserId (phicommUserId) {
+    for (const u of this.users) {
+      if (phicommUserId === u.phicommUserId && u.status === 'ACTIVE') {
+        return {
+          uuid: u.uuid,
+          username: u.username,
+          isFirstUser: u.isFirstUser,
+          phicommUserId: u.phicommUserId
+        }
+      }
+    }
   }
 
   /**
