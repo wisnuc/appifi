@@ -12,11 +12,13 @@ const UUID = require('uuid')
 const deepFreeze = require('deep-freeze')
 
 const E = require('../lib/error')
+const Magic = require('../lib/magic')
 
 const log = require('winston')
 const xattr = require('fs-xattr')       // TODO remove
 const { saveObjectAsync } = require('../lib/utils')
 const autoname = require('../lib/autoname')
+const { isSHA256 } = require('../lib/assertion')
 
 const Node = require('./vfs/node')
 const File = require('./vfs/file')
@@ -95,6 +97,8 @@ class VFS extends EventEmitter {
     this.tmpDir = path.join(this.fruitmixDir, 'tmp')
     this.driveDir = path.join(this.fruitmixDir, 'drives')
     mkdirp.sync(this.tmpDir)
+
+    this.mediaMap = opts.mediaMap
 
     // observer user
     this.user = user
@@ -476,8 +480,8 @@ class VFS extends EventEmitter {
   */
   REMOVE (user, props, callback) {
     this.DIR(user, props, (err, dir) => {
-      let { toName } = props 
-      let target = path.join(this.absolutePath(dir), toName)
+      let { name } = props 
+      let target = path.join(this.absolutePath(dir), name)
       rimraf(target, err => callback(err))  
     })
   }
@@ -515,8 +519,6 @@ class VFS extends EventEmitter {
   @param {object} props.sha256 -data sha256
   */
   APPEND (user, props, callback) {
-    console.log('vfs.append', props)
-
     this.DIR(user, props, (err, dir) => {
       if (err) return callback(err) 
 
@@ -594,6 +596,20 @@ class VFS extends EventEmitter {
   
   */
   DUP (user, props, callback) {
+  }
+
+
+  DIRENTRY_GET (user, props, callback) {
+    this.DIR(user, props, (err, dir) => {
+      if (err) return callback(err)
+      let { name } = props
+
+      let filePath = path.join(this.absolutePath(dir), name)
+      fs.lstat(filePath, (err, stat) => {
+        if (err && (err.code === 'ENOENT' || err.code === 'ENOTDIR')) err.code = 404
+        callback(err, filePath)
+      })
+    })
   }
 
   /** end of new api for upload module **/
@@ -1101,23 +1117,24 @@ class VFS extends EventEmitter {
   providing that all directories are annotated with sums of file inside.
 
   @param {object} user
-  @param {object} opts
-  @param {string[]} opts.places - concatenated uuid
-  @param {string[]} opts.tags
-  @param {string[]} opts.magics
-  @param {boolean} metadata - attach metadata if any
-  @param {boolean} namepath - attach namepath, if provided, places must be an array
+  @param {object} props
+  @param {string[]} props.places - array of UUID
+  @param {string[]} props.tags - array of id
+  @param {string[]} props.magics - array of magic strings
+  @param {boolean} props.metadata - attach metadata if any
+  @param {boolean} props.namepath - attach namepath, if provided, places must be an array
+  @param {boolean} props.media - if true, returns metadata instead of file 
   */
-  visitFilesSync(user, opts) {
+  visitFilesSync(user, props) {
     const Throw = (status, message) => { throw Object.assign(new Error(message), { status }) }
 
-    if (opts.namepath === 'true' && !opts.places) 
+    if (props.namepath === 'true' && !props.places) 
       Throw(400, 'places must be provided if namepath is true')
 
     let dirs, tags, magics 
-    if (opts.places) {
+    if (props.places) {
       // split into multiple uuids
-      let split = opts.places.split('.') 
+      let split = props.places.split('.') 
       if (!split.every(str => isUUID(str))) Throw(400, 'invalid place')
      
       dirs = split.map(uuid => this.forest.uuidMap.get(uuid))
@@ -1129,20 +1146,21 @@ class VFS extends EventEmitter {
         .map(drv => this.forest.uuidMap.get(drv.uuid))
     }
 
-    if (opts.tags) {
+    if (props.tags) {
       // split into multiple uuids
-      tags = opts.places.split('.')
+      tags = props.places.split('.')
       if (!tags.every(str => isUUID(str))) Throw(400, 'invalid tag')
       if (!tags.every(id => !!this.tags.find(tag => tag.uuid === id && tag.creator === user.uuid))) 
         Throw(403, 'some tags not found or not accessible')
     }
 
-    if (opts.magics) {
+    if (props.magics) {
       // split, dedup, sort, and uppercase
-      magics = Array.from(new Set(opts.magics.split('.').filter(x => !!x))).sort().toUpperCase()
+      magics = Array.from(new Set(props.magics.split('.').filter(x => !!x))).sort().toUpperCase()
     }
-    
-    let acc = []
+   
+    let files = [] 
+    let mediaSet = new Set()
     dirs.forEach((dir, index) => dir.preVisit(node => {
       if (!(node instanceof File)) return
       if (tags) {
@@ -1155,35 +1173,68 @@ class VFS extends EventEmitter {
         if (!magics.includes(node.magic)) return
       }
 
-      let file = {
-        uuid: node.uuid,
-        name: node.name,
-        mtime: node.mtime,
-        size: node.size,
-        hash: node.hash,
-        magic: node.magic,
-        tags: node.tags
-      }
+      if (props.media) {
+        if (node.hash && this.mediaMap.hasMetadata(node.hash)) {
+          mediaSet.add(this.mediaMap.getMetadata(node.hash))
+        }
+      } else {
+        let file = {
+          uuid: node.uuid,
+          name: node.name,
+          mtime: node.mtime,
+          size: node.size,
+          hash: node.hash,
+          magic: node.magic,
+          tags: node.tags
+        }
 
-      if (metadata) file.metadata = this.mediaMap.getMetadata(node.hash)
-      if (namepath) file.namepath = [index, ...node.relpath(dir).map(n => n.name)]
-      acc.push(file)
+        if (props.metadata && file.hash && this.mediaMap.hasMetadata(file.hash)) 
+          file.metadata = this.mediaMap.getMetadata(file.hash)
+        if (props.namepath) 
+          file.namepath = [index, ...node.relpath(dir).map(n => n.name)]
+
+        files.push(file)
+      }
     }))
 
-    return acc
+    if (props.media) {
+      return Array.from(mediaSet) 
+    } else {
+      return files
+    }
   }
 
-  /**
-  */
-  iterateMedia (user, opts, callback) {
-    // this.mediaMap. 
+  visitFiles (user, props, callback) {
+    let r = []
+    try {
+      r = this.visitFilesSync(user, props)
+      process.nextTick(() => callback(null, r))
+    } catch (e) {
+      process.nextTick(() => callback(e))
+    }
   } 
 
-  /**
-  */
-  iterateFile (user, opts, callback) {
-    
-  }
+  getMedia (user, props, callback) {
+    let err, data
+    let { fingerprint, file } = props
+    if (!isSHA256(fingerprint)) {
+      err = Object.assign(new Error('invalid hash'), { status: 400 })
+    } else if (!this.mediaMap.hasMetadata(fingerprint)) {
+      err = Object.assign(new Error('media not found'), { status: 404 })
+    } else {
+      // drive uuids
+      let uuids = this.drives.filter(drv => this.userCanWriteDrive(user, drv)).map(drv => drv.uuid)
+      let meta = this.mediaMap.get(fingerprint)
+      if (meta.files.some(f => uuids.includes(f.root().uuid))) {
+        data = file ? this.absolutePath(meta.files[0]) : meta.metadata
+      } else {
+        err = Object.assign(new Error('permission denied'), { status: 403 })
+      }
+    }
+
+    process.nextTick(() => callback(err, data))
+  }  
+
 }
 
 module.exports = VFS

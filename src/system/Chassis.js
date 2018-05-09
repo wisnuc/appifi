@@ -119,12 +119,13 @@ for wisnuc/phicomm
   <chassisDir>    // located on emmc
     user.json     // single file in json format, maintained by bootstrap, not appifi; for wisnuc, this file 
                   // does NOT exist
-    volume        // single file containing volume UUID
+    volume.json        // single file containing volume UUID
     <volumeUUID>
-      storage.json 
+      // storage.json 
       users.json
       drives.json
       tags.json 
+    <volumeUUID>
 
 for tmp
   <chassisDir>

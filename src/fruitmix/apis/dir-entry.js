@@ -1,11 +1,28 @@
 const EventEmitter = require('events')
 
+const debug = require('debug')('direntry')
+
 const IncomingForm = require('./IncomingForm')
 
 class DirEntryApi {
   constructor (vfs) {
     this.vfs = vfs
     this.posts = []
+  }
+
+  mkdir (user, dirProps, dataProps, callback) {
+    let props = Object.assign({}, dataProps, dirProps)
+    this.vfs.MKDIR(user, props, callback) 
+  }
+
+  remove (user, dirProps, dataProps, callback) {
+    let props = Object.assign({}, dataProps, dirProps)
+    this.vfs.REMOVE(user, props, callback)
+  }
+
+  rename (user, dirProps, dataProps, callback) {
+    let props = Object.assign({}, dataProps, dirProps)
+    this.vfs.RENAME(user, props, callback)
   }
 
   newfile (user, dirProps, dataProps, callback) {
@@ -18,15 +35,12 @@ class DirEntryApi {
     this.vfs.APPEND(user, props, callback)
   }
 
-  mkdir (user, dirProps, dataProps, callback) {
-    let props = Object.assign({}, dataProps, dirProps)
-    this.vfs.MKDIR(user, props, callback) 
-  }
-
   bindApis (user, dirProps) {
     return {
       tmpfile: this.vfs.TMPFILE.bind(this.vfs),
       mkdir: this.mkdir.bind(this, user, dirProps),
+      remove: this.remove.bind(this, user, dirProps),
+      rename: this.rename.bind(this, user, dirProps),
       newfile: this.newfile.bind(this, user, dirProps),
       append: this.append.bind(this, user, dirProps)
     }
@@ -51,13 +65,23 @@ class DirEntryApi {
       let opts = { boundary, length, formdata }
       let form = new IncomingForm(opts, this.bindApis(user, dirProps)) 
 
-      form.once('finish', () => 
-        this.vfs.tryDirRead (dirUUID, () => callback(form.error, form.result)))
+      form.once('finish', () => {
+        let err = form.error 
+          ? { 
+              code: form.error.code,
+              message: form.error.message,
+              status: form.error.status
+            }
+          : null
+
+        debug('form finished', err, form.result)
+        this.vfs.tryDirRead (dirUUID, () => callback(form.error, form.result))
+      })
     }) 
   }
 
   GET (user, props, callback) {
-    this.vfs.dirEntryGET(user, props, callback)
+    this.vfs.DIRENTRY_GET(user, props, callback)
   }
 
 }

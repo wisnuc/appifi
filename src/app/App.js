@@ -1,4 +1,5 @@
 const EventEmitter = require('events')
+const child = require('child_process')
 
 const Boot = require('../system/Boot')
 const Auth = require('../middleware/Auth')
@@ -17,6 +18,7 @@ const { passwordEncrypt } = require('../lib/utils')
 
 const routing = require('./routing')
 
+const Pipe = require('../fruitmix/Pipe')
 /**
 Create An Application
 
@@ -106,6 +108,8 @@ class App extends EventEmitter {
 
   handleMessage (message) {
     switch (message.type) {
+      case 'pip':
+        return new Pipe().handleMessage(message)
       case 'hello':
         break
       default:
@@ -117,64 +121,33 @@ class App extends EventEmitter {
     this.auth = new Auth(this.secret, () => this.fruitmix ? this.fruitmix.user.users : [])
 
     let routers = []
+
+    // boot router
     let bootr = express.Router()
     bootr.get('/', (req, res) => res.status(200).json(this.boot.view()))
     bootr.post('/boundVolume', (req, res, next) =>
       this.boot.init(req.body.target, req.body.mode, (err, data) =>
         err ? next(err) : res.status(200).json(data)))
-
+    bootr.put('/', (req, res, next) => 
+      this.boot.import(req.body.volumeUUID, (err, data) => 
+        err ? next(err) : res.status(200).json(data)))
+    bootr.patch('/', (req, res, next) => {
+      let arg = req.body.arg
+      if (arg.hasOwnProperty('state')) {
+        if (arg.state !== 'poweroff' && arg.state !== 'reboot') return next(Object.assign(new Error('invalid state'), { status: 400 }))
+        setTimeout(() => child.exec(arg.state), 4000)
+        res.status(200).end()
+      } else return next(Object.assign(new Error('invalid arg'), { status: 400 }))
+    })
     routers.push(['/boot', bootr])
 
+    // token router
     let tokenr = createTokenRouter(this.auth)
     routers.push(['/token', tokenr])
 
-/**
-    if (this.fruitmix) {
-      // if fruitmix is created, use fruitmix apis to decide which router should be created
-
-      let apis = Object.keys(this.fruitmix.apis)
-
-      if (apis.includes('user')) { routers.push(['/users', createUserRouter(this.auth, this.stub('user'))]) }
-
-      if (apis.includes('drive')) {
-        routers.push(['/drives', createDriveRouter(this.auth,
-          this.stub('drive'), this.stub('dir'), this.stub('dirEntry'))])
-
-      if (apis.includes('file'))
-        routers.push(['/files', createFileRouter(this.auth, this.stub('file'))])
-      
-      if (apis.includes('tag'))
-        routers.push(['/tags', createTagRouter(this.auth, this.stub('tag'))])
-
-      if (apis.includes('task'))
-        routers.push(['/tasks', createTaskRouter(this.auth, this.stub('task'), this.stub('taskNode'))])
-      
-      if (apis.includes('samba'))
-        routers.push(['/samba', createSambaRouter(this.auth, this.stub('samba'))])
-
-      if (apis.includes('transmission'))
-        routers.push(['/transmission', createTransmissionRouter(this.auth, 
-          this.stub('transmission'))])
-      }
-
-      if (apis.includes('file')) { routers.push(['/files', createFileRouter(this.auth, this.stub('file'))]) }
-
-      if (apis.includes('tag')) { routers.push(['/tags', createTagRouter(this.auth, this.stub('tag'))]) }
-
-      if (apis.includes('task')) { routers.push(['/tasks', createTaskRouter(this.auth, this.stub('task'), this.stub('taskNode'))]) }
-    } else {
-*/
-      // let userr = express.Router()
-      // userr.get('/', (req, res) => res.status(200).json({ hello: 'world' }))
-      // routers.push(['/users', userr])
-
-      // routers.push(['/users', createUserRouter(this.auth, this.stub('user'))])
-
-      Object.keys(routing).forEach(key =>
-        routers.push([routing[key].prefix, this.createRouter(this.auth, routing[key].routes)]))
-
-      // console.log(routers)
-//    }
+    // all fruitmix router except token
+    Object.keys(routing).forEach(key =>
+      routers.push([routing[key].prefix, this.createRouter(this.auth, routing[key].routes)]))
 
     let opts = {
       auth: this.auth.middleware,

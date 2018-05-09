@@ -55,6 +55,7 @@
     "passport-http": "^0.3.0",
     "passport-jwt": "^3.0.0",
     "passport-strategy": "^1.0.0",
+    "path-to-regexp": "^2.2.1",
     "read-chunk": "^2.1.0",
     "rimraf": "^2.6.1",
     "sanitize-filename": "^1.6.1",

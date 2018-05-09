@@ -61,7 +61,7 @@ module.exports = {
     prefix: '/media',
     routes: [
       ['/', 'LIST', 'media'],
-      ['/:hash', 'GET', 'media']
+      ['/:fingerprint', 'GET', 'media']
     ]
   },
 

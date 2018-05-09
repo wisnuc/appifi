@@ -74,6 +74,36 @@ class State {
   init (target, mode, callback) {
     process.nextTick(() => callback(new Error('invalid state')))
   }
+
+  import (volumeUUID, callback) {
+    process.nextTick(() => callback(new Error('invalid state')))
+  }
+
+  createBoundVolume (storage, volume) {
+    let devices = volume.devices.map(dev => {
+      let blk = storage.blocks.find(blk => blk.name === dev.name)
+      return {
+        removable: blk.removable,
+        size: blk.size,
+        model: blk.model,
+        serial: blk.serial,
+        btrfsDevice: blk.btrfsDevice,
+        idBus: blk.idBus
+      }
+    })
+
+    return {
+      devices,
+      label: volume.label,
+      uuid: volume.uuid,
+      total: volume.total,
+      usage: {
+        system: { mode: volume.usage.system.mode },
+        metadata: { mode: volume.usage.metadata.mode },
+        data: { mode: volume.usage.data.mode }
+      }
+    }
+  }
 }
 
 /**
@@ -201,6 +231,10 @@ class Unavailable extends State {
     let target2 = Array.from(new Set(target)).sort()
     this.setState(Initializing, target2, mode, callback)
   }
+
+  import (volumeUUID, callback) {
+    this.setState(Importing, volumeUUID, callback)
+  }
 }
 
 /**
@@ -326,39 +360,48 @@ class Initializing extends State {
       })
     })
   }
-
-  createBoundVolume (storage, volume) {
-    let devices = volume.devices.map(dev => {
-      let blk = storage.blocks.find(blk => blk.name === dev.name)
-      return {
-        removable: blk.removable,
-        size: blk.size,
-        model: blk.model,
-        serial: blk.serial,
-        btrfsDevice: blk.btrfsDevice,
-        idBus: blk.idBus
-      }
-    })
-
-    return {
-      devices,
-      label: volume.label,
-      uuid: volume.uuid,
-      total: volume.total,
-      usage: {
-        system: { mode: volume.usage.system.mode },
-        metadata: { mode: volume.usage.metadata.mode },
-        data: { mode: volume.usage.data.mode }
-      }
-    }
-  }
 }
 
 /**
 for importing an existing volume
 */
 class Importing extends State {
+  // volumeUUID should be valid!
+  enter (volumeUUID, callback) {
+    let storage, volume
+    try {
+      storage = this.ctx.storage
+      if (!storage) throw new Error('storage not available')
+      if (!storage.volumes || !Array.isArray(storage.volumes) || storage.volumes.length === 0) throw new Error('storage.volumes not available')
+      volume = storage.volumes.find(v => v.uuid === volumeUUID)
+      if (!volume) throw new Error('volume not found')
 
+      if (volume.isMissing) throw new Error('volume is missing')
+
+      let supportMode = ['single', 'raid1']
+      if (!volume.usage || !volume.usage.data || typeof volume.usage.data.mode !== 'string') throw new Error('volume usage error')
+
+      if (!supportMode.includes(volume.usage.data.mode.toLowerCase())) throw new Error('volume mode not support')
+
+      if (!Array.isArray(volume.users)) throw new Error('volume users not found')
+
+      let firstUser = volume.users.find(u => u.isFirstUser === true)
+      if (!firstUser) throw new Error('volume admin not found')
+      if (firstUser.phicommUserId !== this.ctx.boundUser.phicommUserId) throw new Error('volume admin <-> boundUser mismatch')
+    } catch (e) {
+      return process.nextTick(() => {
+        this.setState(Probing)
+        callback(e)
+      })
+    }
+
+    let boundVolume = this.createBoundVolume(storage, volume)
+    this.ctx.volumeStore.save(boundVolume, err => {
+      this.setState(Probing)
+      if (err) return callback(err)
+      return callback(null, boundVolume)
+    })
+  }
 }
 
 /**
@@ -506,7 +549,8 @@ class Boot extends EventEmitter {
     this.state.init(target, mode, callback)
   }
 
-  import () {
+  import (volumeUUID, callback) {
+    this.state.import(volumeUUID, callback)
   }
 
   getStorage () {

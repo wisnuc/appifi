@@ -12,8 +12,6 @@ const request = require('supertest')
 const chai = require('chai').use(require('chai-as-promised'))
 const expect = chai.expect
 
-const { createTestFilesAsync } = require('src/utils/createTestFiles')
-
 const Fruitmix = require('src/fruitmix/Fruitmix')
 const App = require('src/app/App')
 
@@ -63,8 +61,8 @@ const {
   setUserUnionIdAsync
 } = require('../lib')
 
-describe(path.basename(__filename), () => {
 
+describe(path.basename(__filename), () => {
   const requestToken = (express, userUUID, password, callback) =>
     request(express)
       .get('/token')
@@ -91,66 +89,28 @@ describe(path.basename(__filename), () => {
 
   const requestHomeAsync = Promise.promisify(requestHome)
 
-  describe('alice home, invalid name', () => {
-
-    let fruitmix, app, token, home, url
-
-    beforeEach(async () => {
-      await rimrafAsync(tmptest)
-      await mkdirpAsync(fruitmixDir)
-
-      let userFile = path.join(fruitmixDir, 'users.json')
-      await fs.writeFileAsync(userFile, JSON.stringify([alice], null, '  '))
-
-      fruitmix = new Fruitmix({ fruitmixDir })
-      app = new App({ fruitmix, log: { skip: 'all', error: 'none' } })
-      await new Promise(resolve => fruitmix.once('FruitmixStarted', () => resolve()))
-      token = await requestTokenAsync(app.express, alice.uuid, 'alice')
-      home = await requestHomeAsync(app.express, alice.uuid, token)
-      url = `/drives/${home.uuid}/dirs/${home.uuid}/entries`
-    })
-
-   
-    it('400 if name is /hello', function (done) {
-      this.timeout(0)
-
-      request(app.express)
-        .post(url)
-        .set('Authorization', 'JWT ' + token)
-        .attach('hello', FILES.oneGiga.path, JSON.stringify({
-          op: 'newfile',
-          size: FILES.oneGiga.size,
-          sha256: FILES.oneGiga.hash
-        }))
-        .expect(400)
-        .end((err, res) => {
-          console.log('err', err)
-          console.log('body', res.body)
-          expect(res.body.code).to.equal('EINVAL')
-          done()
-        })
-
-    })
-  })
+  let policies = [
+    undefined,
+    [null, null],
+    [null, 'skip'],
+    [null, 'replace'],
+    [null, 'rename'],
+    ['skip', null],
+    ['skip', 'skip'],
+    ['skip', 'replace'],
+    ['skip', 'rename'],
+    ['replace', null],
+    ['replace', 'skip'],
+    ['replace', 'replace'],
+    ['replace', 'rename'],
+    ['rename', null],
+    ['rename', 'skip'],
+    ['rename', 'replace'],
+    ['rename', 'rename']
+  ]
 
   describe('alice home', () => {
     let fruitmix, app, token, home
-
-    before(async function () {
-      this.timeout(0)
-
-      try {
-        await fs.lstatAsync('test-files')
-      } catch (e) {
-        if (e.code !== 'ENOENT') throw e
-      }
-
-      // TODO
-      // await mkdirpAsync('test-files')
-      // process.stdout.write('      creating big files')
-      // await createTestFilesAsync()
-      // process.stdout.write('...done\n')
-    })
 
     beforeEach(async () => {
       await Promise.delay(100)
@@ -167,39 +127,55 @@ describe(path.basename(__filename), () => {
       home = await requestHomeAsync(app.express, alice.uuid, token)
     })
 
-    it.skip(`200 append OneGiga to OneGiga`, function (done) {
-      this.timeout(0)
+    policies.forEach(policy =>
+      it(`200 if no world-dir, hello-dir => world-dir, [${String(policy)}] resolved [false, false]`, done => {
+        request(app.express)
+          .post(`/drives/${home.uuid}/dirs/${home.uuid}/entries`)
+          .set('Authorization', 'JWT ' + token)
+          .field('hello-dir', JSON.stringify({ op: 'mkdir' }))
+          .expect(200)
+          .end((err, res) => {
+            if (err) return done(err)
+            
+            request(app.express)
+              .post(`/drives/${home.uuid}/dirs/${home.uuid}/entries`)
+              .set('Authorization', 'JWT ' + token)
+              .field('hello-dir|world-dir', JSON.stringify({ op: 'rename', policy }))
+              .expect(200)
+              .end((err, res) => {
+                if (err) return done(err)
+                expect(res.body[0].resolved).to.deep.equal([false, false])
+                done()
+              }) 
+          })
+      }))
 
-      request(app.express)
-        .post(`/drives/${home.uuid}/dirs/${home.uuid}/entries`)
-        .set('Authorization', 'JWT ' + token)
-        .attach(FILES.oneGiga.name, FILES.oneGiga.path, JSON.stringify({
-          op: 'newfile',
-          size: FILES.oneGiga.size,
-          sha256: FILES.oneGiga.hash
-        }))
-        .expect(200)
-        .end((err, res) => {
-          if (err) return done(err)
+    policies.forEach(policy =>
+      it(`200 if no world-file, hello-file => world-file, [${String(policy)}] resolved [false, false]`, done => {
+        request(app.express)
+          .post(`/drives/${home.uuid}/dirs/${home.uuid}/entries`)
+          .set('Authorization', 'JWT ' + token)
+          .attach('hello-file', FILES.alonzo.path, JSON.stringify({
+            op: 'newfile',
+            size: FILES.alonzo.size,
+            sha256: FILES.alonzo.hash
+          }))
+          .expect(200)
+          .end((err, res) => {
+            if (err) return done(err)
+            
+            request(app.express)
+              .post(`/drives/${home.uuid}/dirs/${home.uuid}/entries`)
+              .set('Authorization', 'JWT ' + token)
+              .field('hello-file|world-file', JSON.stringify({ op: 'rename', policy }))
+              .expect(200)
+              .end((err, res) => {
+                if (err) return done(err)
+                expect(res.body[0].resolved).to.deep.equal([false, false])
+                done()
+              }) 
+          })
+      }))
 
-          // console.log(res.body)
-          
-          request(app.express)          
-            .post(`/drives/${home.uuid}/dirs/${home.uuid}/entries`)
-            .set('Authorization', 'JWT ' + token)
-            .attach(FILES.oneGiga.name, FILES.oneGiga.path, JSON.stringify({
-              op: 'append',
-              hash: FILES.oneGiga.hash,
-              size: FILES.oneGiga.size,
-              sha256: FILES.oneGiga.hash
-            }))
-            // .expect(200)
-            .end((err, res) => {
-              // if (err) return done(err)
-              console.log(err, res.body)
-              done()
-            })
-        })
-    })
   })
-}) 
+})

@@ -6,6 +6,7 @@ const UUID = require('uuid')
 const mkdirp = require('mkdirp')
 const getArgs = require('get-args')
 
+const { passwordEncrypt } = require('./lib/utils')
 const configurations = require('./configurations')
 const Fruitmix = require('./fruitmix/Fruitmix')
 const App = require('./app/App')
@@ -54,7 +55,7 @@ else {
 let fruitmixOpts = {
   useSmb: !!args.smb, 
   useDlna: !!args.dlna,
-  useTransmission: !!args.transmission
+  useTransmission: !!args.transmission,
 }
 
 let fruitmixDir = path.join(process.cwd(), 'tmptest')
@@ -66,6 +67,7 @@ if (args.standalone) {
   if (args["fruitmix-only"]) {
     if (args["fruitmix-dir"]) {
       fruitmixOpts.fruitmixDir = args["fruitmix-dir"]
+
     } else {
       let cwd = process.cwd()
       let tmptest = path.join(cwd, 'tmptest')
@@ -73,16 +75,25 @@ if (args.standalone) {
       fruitmixOpts.fruitmixDir = tmptest
     }
 
+    if (!!args['alice']) {
+      fruitmixOpts.boundUser = {
+        phicommUserId: 'alice',
+        password: passwordEncrypt('alice', 10) 
+      }
+    }
+
     let fruitmix = new Fruitmix(fruitmixOpts)
-    let app = new App({ fruitmix, useServer: true })
+    let app = new App({ 
+      fruitmix, 
+      useServer: true,
+    })
   } else {
     let configuration = configurations.phicomm.n2
     console.log('configuration', configuration)
-
     let app = new App({
       fruitmixOpts,
       configuration,
-      useAlice: true,
+      useAlice: !!args["alice"],
       useServer: true
     })
   }
