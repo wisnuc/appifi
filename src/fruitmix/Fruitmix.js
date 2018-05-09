@@ -173,6 +173,10 @@ class Fruitmix extends EventEmitter {
     }
 
     this.user.on('Update', () => {
+      process.send(JSON.stringify({
+        type: 'appifi_users',
+        users: this.users.filter(x => !x.isFirstUser).map(u => { return { uid: u.phicommUserId }})
+      }))
       this.emit('FruitmixStarted')
     })
 

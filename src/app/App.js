@@ -1,4 +1,5 @@
 const EventEmitter = require('events')
+const child = require('child_process')
 
 const Boot = require('../system/Boot')
 const Auth = require('../middleware/Auth')
@@ -106,13 +107,29 @@ class App extends EventEmitter {
         }
       })
     }
+
+    process.on('message', this.handleMessage.bind(this))
   }
 
-  handleMessage (message) {
+  handleMessage (msg) {
+    let message
+    try {
+      message = JSON.parse(msg)
+    } catch (e) {
+      console.log('Bootstrap Message -> JSON parse Error')
+      console.log(msg)
+      return 
+    }
     switch (message.type) {
       case 'pip':
         return this.pipe.handleMessage(message)
       case 'hello':
+        break
+      case 'bootstrap_token' :
+        this.cloudToken = message.data.token
+        break
+      case 'bootstrap_boundUser':
+        if (this.boot && message.data) this.boot.setBoundUser(message.data)
         break
       default:
         break
@@ -130,7 +147,17 @@ class App extends EventEmitter {
     bootr.post('/boundVolume', (req, res, next) =>
       this.boot.init(req.body.target, req.body.mode, (err, data) =>
         err ? next(err) : res.status(200).json(data)))
-
+    bootr.put('/', (req, res, next) => 
+      this.boot.import(req.body.volumeUUID, (err, data) => 
+        err ? next(err) : res.status(200).json(data)))
+    bootr.patch('/', (req, res, next) => {
+      let arg = req.body.arg
+      if (arg.hasOwnProperty('state')) {
+        if (arg.state !== 'poweroff' && arg.state !== 'reboot') return next(Object.assign(new Error('invalid state'), { status: 400 }))
+        setTimeout(() => child.exec(arg.state), 4000)
+        res.status(200).end()
+      } else return next(Object.assign(new Error('invalid arg'), { status: 400 }))
+    })
     routers.push(['/boot', bootr])
 
     // token router

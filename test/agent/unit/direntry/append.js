@@ -91,25 +91,71 @@ describe(path.basename(__filename), () => {
 
   const requestHomeAsync = Promise.promisify(requestHome)
 
-  let policies = [
-    undefined,
-    [null, null],
-    [null, 'skip'],
-    [null, 'replace'],
-    [null, 'rename'],
-    ['skip', null],
-    ['skip', 'skip'],
-    ['skip', 'replace'],
-    ['skip', 'rename'],
-    ['replace', null],
-    ['replace', 'skip'],
-    ['replace', 'replace'],
-    ['replace', 'rename'],
-    ['rename', null],
-    ['rename', 'skip'],
-    ['rename', 'replace'],
-    ['rename', 'rename']
-  ]
+  describe('alice home, invalid name', () => {
+
+    let fruitmix, app, token, home, url
+    let alonzo = FILES.alonzo
+
+    beforeEach(async () => {
+      await rimrafAsync(tmptest)
+      await mkdirpAsync(fruitmixDir)
+
+      let userFile = path.join(fruitmixDir, 'users.json')
+      await fs.writeFileAsync(userFile, JSON.stringify([alice], null, '  '))
+
+      fruitmix = new Fruitmix({ fruitmixDir })
+      app = new App({ fruitmix, log: { skip: 'all', error: 'none' } })
+      await new Promise(resolve => fruitmix.once('FruitmixStarted', () => resolve()))
+      token = await requestTokenAsync(app.express, alice.uuid, 'alice')
+      home = await requestHomeAsync(app.express, alice.uuid, token)
+      url = `/drives/${home.uuid}/dirs/${home.uuid}/entries`
+    })
+   
+    it('400 if name is hello/world', function (done) {
+      this.timeout(0)
+      let badname = 'hello/world'
+      request(app.express)
+        .post(url)
+        .set('Authorization', 'JWT ' + token)
+        .attach(badname, alonzo.path, JSON.stringify({
+          op: 'newfile',
+          size: alonzo.size,
+          sha256: alonzo.hash
+        }))
+        .expect(400)
+        .end((err, res) => {
+          if (err) return done(err)
+          // assert result name && error.status
+          expect(res.body.result[0].name).to.equal(badname)
+          expect(res.body.result[0].error.status).to.equal(400)
+          done()
+        })
+
+    })
+
+    it('400 if name is hello|world', function (done) {
+      this.timeout(0)
+      let badname = 'hello|world'
+      request(app.express)
+        .post(url)
+        .set('Authorization', 'JWT ' + token)
+        .attach(badname, alonzo.path, JSON.stringify({
+          op: 'newfile',
+          size: alonzo.size,
+          sha256: alonzo.hash
+        }))
+        .expect(400)
+        .end((err, res) => {
+          if (err) return done(err)
+          // assert result name && error.status
+          expect(res.body.result[0].name).to.equal(badname)
+          expect(res.body.result[0].error.status).to.equal(400)
+          done()
+        })
+
+    })
+
+  })
 
   describe('alice home', () => {
     let fruitmix, app, token, home
@@ -128,7 +174,7 @@ describe(path.basename(__filename), () => {
       // process.stdout.write('      creating big files')
       // await createTestFilesAsync()
       // process.stdout.write('...done\n')
-    })
+      })
 
     beforeEach(async () => {
       await Promise.delay(100)
@@ -145,7 +191,7 @@ describe(path.basename(__filename), () => {
       home = await requestHomeAsync(app.express, alice.uuid, token)
     })
 
-    it(`200 append OneGiga to OneGiga`, function (done) {
+    it.skip(`200 append OneGiga to OneGiga`, function (done) {
       this.timeout(0)
 
       request(app.express)

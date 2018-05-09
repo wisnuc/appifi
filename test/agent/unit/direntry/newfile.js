@@ -15,13 +15,6 @@ const expect = chai.expect
 const Fruitmix = require('src/fruitmix/Fruitmix')
 const App = require('src/app/App')
 
-/**
-const Auth = require('src/middleware/Auth')
-const createTokenRouter = require('src/routes/Token')
-const createUserRouter = require('src/routes/users')
-const createExpress = require('src/system/express')
-*/
-
 const cwd = process.cwd()
 const tmptest = path.join(cwd, 'tmptest')
 const fruitmixDir = path.join(tmptest, 'fruitmix')
@@ -116,8 +109,9 @@ describe(path.basename(__filename), () => {
     ['rename', 'rename']
   ]
 
-  describe('alice home', () => {
-    let fruitmix, app, token, home
+  describe('alice home, invalid name, size, sha256, policy', () => {
+    let fruitmix, app, token, home, url
+    let alonzo = FILES.alonzo
 
     beforeEach(async () => {
       await Promise.delay(100)
@@ -132,9 +126,151 @@ describe(path.basename(__filename), () => {
       await new Promise(resolve => fruitmix.once('FruitmixStarted', () => resolve()))
       token = await requestTokenAsync(app.express, alice.uuid, 'alice')
       home = await requestHomeAsync(app.express, alice.uuid, token)
+      url = `/drives/${home.uuid}/dirs/${home.uuid}/entries`
     })
 
-    it(`200 if no hello`, done => {
+
+    ;['hello/world', 'hello|world'].forEach(badname => {
+      it(`400 if name ${badname}`, done => {
+        request(app.express)
+          .post(url)
+          .set('Authorization', 'JWT ' + token)
+          .attach(badname, alonzo.path, JSON.stringify({
+            op: 'newfile',
+            size: alonzo.size,
+            sha256: alonzo.hash
+          }))
+          .expect(400)
+          .end((err, res) => {
+            if (err) return done(err)
+            expect(res.body.result[0].name).to.equal(badname)
+            expect(res.body.result[0].error.status).to.equal(400)
+            done()
+          })
+      })
+    })
+
+    ;[undefined, 'hello', {}, [], 99.99, -1, 1024 * 1024 * 1024 + 1].forEach(badsize => {
+      it(`400 if size is ${badsize}`, done => {
+        request(app.express)
+          .post(url)
+          .set('Authorization', 'JWT ' + token)
+          .attach('hello', alonzo.path, JSON.stringify({
+            op: 'newfile',
+            size: badsize,
+            sha256: alonzo.hash
+          }))
+          .expect(400)
+          .end((err, res) => {
+            if (err) return done(err)
+            let r0 = res.body.result[0]
+            expect(r0.name).to.equal('hello')
+            expect(r0.fromName).to.equal('hello')
+            expect(r0.toName).to.equal('hello')
+            expect(r0.type).to.equal('file')
+            expect(r0.op).to.equal('newfile')
+            expect(r0.size).to.deep.equal(badsize)
+            expect(r0.sha256).to.equal(alonzo.hash)
+            expect(r0.error.status).to.equal(400)
+            done()
+          })
+      })
+    })
+
+    ;[undefined, 1, {}, [], 'hello'].forEach(sha256 => {
+      it(`400 if sha256 is ${sha256}`, done => {
+        request(app.express)
+          .post(url)
+          .set('Authorization', 'JWT ' + token)
+          .attach('hello', alonzo.path, JSON.stringify({
+            op: 'newfile',
+            size: alonzo.size,
+            sha256: sha256
+          }))
+          .expect(400)
+          .end((err, res) => {
+            if (err) return done(err)
+            let r0 = res.body.result[0]
+            expect(r0.name).to.equal('hello')
+            expect(r0.fromName).to.equal('hello')
+            expect(r0.toName).to.equal('hello')
+            expect(r0.type).to.equal('file')
+            expect(r0.op).to.equal('newfile')
+            expect(r0.size).to.equal(alonzo.size)
+            expect(r0.sha256).to.deep.equal(sha256)
+            expect(r0.error.status).to.equal(400)
+            done()
+          })
+      })
+    })
+
+    ;[1, 'hello', {}, [], [null, null, null], ['hello', null], [null, 'hello']].forEach(policy => {
+      it(`400 if policy is ${String(policy)}`, done => {
+        request(app.express)
+          .post(url)
+          .set('Authorization', 'JWT ' + token)
+          .attach('hello', alonzo.path, JSON.stringify({
+            op: 'newfile',
+            size: alonzo.size,
+            sha256: alonzo.hash,
+            policy,
+          }))
+          .expect(400)
+          .end((err, res) => {
+            if (err) return done(err)
+            let r0 = res.body.result[0]
+            expect(r0.name).to.equal('hello')
+            expect(r0.fromName).to.equal('hello')
+            expect(r0.toName).to.equal('hello')
+            expect(r0.type).to.equal('file')
+            expect(r0.op).to.equal('newfile')
+            expect(r0.size).to.equal(alonzo.size)
+            expect(r0.sha256).to.equal(alonzo.hash)
+            expect(r0.policy).to.deep.equal(policy)
+            expect(r0.error.status).to.equal(400)
+            done()
+          })
+      })
+    })
+  }) 
+
+  describe('alice home', () => {
+    let fruitmix, app, token, home, url
+    let alonzo = FILES.alonzo
+
+    beforeEach(async () => {
+      await Promise.delay(100)
+      await rimrafAsync(tmptest)
+      await mkdirpAsync(fruitmixDir)
+
+      let userFile = path.join(fruitmixDir, 'users.json')
+      await fs.writeFileAsync(userFile, JSON.stringify([alice], null, '  '))
+
+      fruitmix = new Fruitmix({ fruitmixDir })
+      app = new App({ fruitmix, log: { skip: 'all', error: 'none' } })
+      await new Promise(resolve => fruitmix.once('FruitmixStarted', () => resolve()))
+      token = await requestTokenAsync(app.express, alice.uuid, 'alice')
+      home = await requestHomeAsync(app.express, alice.uuid, token)
+      url = `/drives/${home.uuid}/dirs/${home.uuid}/entries`
+    })
+
+    it('400 if name is /hello', done => {
+      request(app.express)
+        .post(url)
+        .set('Authorization', 'JWT ' + token)
+        .attach('/hello', alonzo.path, JSON.stringify({
+          op: 'newfile',
+          size: alonzo.size,
+          sha256: alonzo.hash
+        }))
+        .expect(400)
+        .end((err, res) => {
+          done()
+        })
+    })
+    
+
+    it.skip(`200 if no hello`, done => {
       request(app.express)
         .post(`/drives/${home.uuid}/dirs/${home.uuid}/entries`)
         .set('Authorization', 'JWT ' + token)
