@@ -15,7 +15,7 @@ const { passwordEncrypt } = require('../lib/utils')
 
 const routing = require('./routing')
 
-const Pipe = require('../fruitmix/Pipe')
+const Pipe = require('./Pipe')
 /**
 Create An Application
 
@@ -87,8 +87,13 @@ class App extends EventEmitter {
       throw new Error('either fruitmix or fruitmixOpts must be provided')
     }
 
+
+
     // create express instance
     this.createExpress()
+
+    // create a Pipe
+    this.pipe = new Pipe(opts.fruitmix, this.auth)
 
     // create server if required
     if (opts.useServer) {
@@ -106,7 +111,7 @@ class App extends EventEmitter {
   handleMessage (message) {
     switch (message.type) {
       case 'pip':
-        return new Pipe().handleMessage(message)
+        return this.pipe.handleMessage(message)
       case 'hello':
         break
       default:

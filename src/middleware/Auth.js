@@ -161,6 +161,21 @@ class Auth {
   token (user) {
     return {
       type: 'JWT',
+      forRemote: false,
+      token: jwt.encode({
+        uuid: user.uuid
+      }, this.secret)
+    }
+  }
+
+  /**
+   * Generate jwt token for cloud
+   * @param {object} user
+   */
+  cloudToken (user) {
+    return {
+      type: 'JWT',
+      forRemote: true,
       token: jwt.encode({
         uuid: user.uuid
       }, this.secret)
