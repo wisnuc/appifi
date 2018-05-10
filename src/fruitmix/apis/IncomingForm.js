@@ -114,7 +114,7 @@ class Heading extends State {
       this.ctx.predecessor = this.ctx.ctx.jobs
         .slice(0, this.ctx.ctx.jobs.indexOf(this.ctx))
         .reverse()
-        .find(j => j.args.toName === args.fromName)
+        .find(j => j.args.toName === j.args.fromName)
 
       // go to next state
       if (this.ctx.args.type === 'file') {

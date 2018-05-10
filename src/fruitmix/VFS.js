@@ -1175,7 +1175,7 @@ class VFS extends EventEmitter {
     if (props.namepath === 'true' && !props.places) 
       Throw(400, 'places must be provided if namepath is true')
 
-    let dirs, tags, magics 
+    let dirs, tags, magics
     if (props.places) {
       // split into multiple uuids
       let split = props.places.split('.') 
@@ -1219,7 +1219,7 @@ class VFS extends EventEmitter {
 
       if (props.media) {
         if (node.hash && this.mediaMap.hasMetadata(node.hash)) {
-          mediaSet.add(this.mediaMap.getMetadata(node.hash))
+          mediaSet.add(Object.assign({}, this.mediaMap.getMetadata(node.hash), { hash: node.hash }))
         }
       } else {
         let file = {
