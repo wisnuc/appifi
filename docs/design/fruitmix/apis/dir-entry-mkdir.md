@@ -275,17 +275,19 @@ policies:
   - 两个字符串 `hello|world`
 + size不合法
   - 未提供
-  - 不是数字 {}
+  - 不是数字 hello, {}, []
   - 不是整数 99.99
   - 小于0 -1
   - 大于1G 1G + 1
 + sha256不合法
   - 未提供
-  - 非字符串 {}
+  - 非字符串 1, {}, []
   - 非SHA256字符串 hello
-  - 在size为0时不是空SHA256
+  - 在size为0时不是空SHA256 (TODO)
 + policy不合法
-  - 单个字符串 hello
+  - 非array 1, 'hello', {}, 
+  - 非size = 2 array [], [null, null, null]
+  - 包含非法字符串 ['hello', null], [null, 'hello']
 
 ### 无Policy单例
 

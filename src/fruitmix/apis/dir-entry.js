@@ -35,6 +35,11 @@ class DirEntryApi {
     this.vfs.APPEND(user, props, callback)
   }
 
+  addTags (user, dirProps, dataProps, callback) {
+    let props = Object.assign({}, dataProps, dirProps)
+    this.vfs.ADDTAGS(user, props, callback)
+  }
+
   bindApis (user, dirProps) {
     return {
       tmpfile: this.vfs.TMPFILE.bind(this.vfs),
@@ -42,7 +47,8 @@ class DirEntryApi {
       remove: this.remove.bind(this, user, dirProps),
       rename: this.rename.bind(this, user, dirProps),
       newfile: this.newfile.bind(this, user, dirProps),
-      append: this.append.bind(this, user, dirProps)
+      append: this.append.bind(this, user, dirProps),
+      addTags: this.addTags.bind(this, user, dirProps)
     }
   }
 

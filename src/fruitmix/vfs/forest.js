@@ -7,7 +7,6 @@ const Debug = require('debug')
 const debug = process.env.hasOwnProperty('DEBUG') ? Debug('forest') : () => {}
 
 const mkdirp = require('mkdirp')
-const { forceXstat } = require('../../lib/xstat') 
 const Directory = require('./directory')
 const File = require('./file')
 

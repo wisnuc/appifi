@@ -48,6 +48,7 @@
     "ioctl": "^2.0.1",
     "jwt-simple": "^0.5.1",
     "line-by-line": "^0.1.5",
+    "lodash": "^4.17.10",
     "mkdirp": "^0.5.1",
     "morgan": "~1.8.2",
     "mqtt": "^2.14.0",

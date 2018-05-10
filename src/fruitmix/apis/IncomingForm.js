@@ -444,13 +444,23 @@ class Executing extends State {
           })
           break
 
+        case 'addTags': 
+          this.ctx.ctx.apis.addTags({ 
+            name: args.name,
+            tags: [...args.tags] 
+          }, (err, xstat) => 
+            err ? this.setState(Failed, err) : this.setState(Succeeded, xstat))
+          break
+
         default:
           console.log('invalid job op', args.op)
+          let err = new Error('op not implemented yet')
+          err.status = 403
+          this.setState(Failed, err)
           break
       }
     }
   }
-
 }
 
 /**
