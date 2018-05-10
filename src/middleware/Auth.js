@@ -169,10 +169,10 @@ class Auth {
   }
 
   /**
-   * Generate jwt token for cloud
+   * Generate jwt token for remote
    * @param {object} user
    */
-  cloudToken (user) {
+  tokenForRemote (user) {
     return {
       type: 'JWT',
       forRemote: true,
