@@ -68,6 +68,19 @@ class App extends EventEmitter {
     // create express
     this.secret = opts.secret || 'Lord, we need a secret'
 
+    /**
+     * {
+     *    cloudToken,
+     *    device: {
+     *      deviceSN,
+     *      deviceModel
+     *    }
+     * }
+     */
+    this.cloudConf = {
+      auth: () => this.auth
+    }
+
     if (opts.fruitmix) {
       this.fruitmix = opts.fruitmix
     } else if (opts.fruitmixOpts) {
@@ -121,7 +134,10 @@ class App extends EventEmitter {
       case 'hello':
         break
       case 'bootstrap_token' :
-        this.cloudToken = message.data.token
+        this.cloudConf.cloudToken = message.data.token
+        break
+      case 'bootstrap_device' :
+        this.cloudConf.device = message.data
         break
       case 'bootstrap_boundUser':
         if (this.boot && message.data) this.boot.setBoundUser(message.data)
@@ -138,7 +154,7 @@ class App extends EventEmitter {
 
     // boot router
     let bootr = express.Router()
-    bootr.get('/', (req, res) => res.status(200).json(this.boot.view()))
+    bootr.get('/', (req, res) => res.status(200).json(Object.assign({}, this.boot.view(), { device: this.cloudConf.device })))
     bootr.post('/boundVolume', (req, res, next) =>
       this.boot.init(req.body.target, req.body.mode, (err, data) =>
         err ? next(err) : res.status(200).json(data)))
