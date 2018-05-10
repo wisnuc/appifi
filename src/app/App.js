@@ -1,5 +1,6 @@
 const EventEmitter = require('events')
 const child = require('child_process')
+const os = require('os')
 
 const Boot = require('../system/Boot')
 const Auth = require('../middleware/Auth')
@@ -159,7 +160,41 @@ class App extends EventEmitter {
 
     // boot router
     let bootr = express.Router()
-    bootr.get('/', (req, res) => res.status(200).json(Object.assign({}, this.boot.view(), { device: this.cloudConf.device })))
+    bootr.get('/', (req, res) => {
+      let total = os.totalmem(), speed, type
+      try {
+        total = child.execSync('free -b')
+          .toString().split('\n')
+          .find(x => x.startsWith('Mem:'))
+          .split(' ')
+          .map(x => x.trim())
+          .filter(x => x.length)
+          .pop()
+        type = child.execSync('dmidecode -t memory |grep -A16 "Memory Device$" |grep "Type: DD*"')
+          .toString().split('\n')
+          .shift()
+          .split(' ')
+          .map(x => x.trim())
+          .filter(x => x.length)
+          .pop()
+        speed = child.execSync('dmidecode -t memory |grep -A16 "Memory Device$" |grep "Speed:.*MHz"')
+          .toString().split('\n')
+          .shift()
+          .split(':')
+          .pop().trim()
+      } catch (e) { }
+      res.status(200).json(Object.assign({}, this.boot.view(), {
+        device: Object.assign({}, this.cloudConf.device, {
+          cpus: os.cpus(),
+          memory: {
+            free: os.freemem(),
+            total,
+            speed,
+            type
+          }
+        })
+      }))
+    })
     bootr.post('/boundVolume', (req, res, next) =>
       this.boot.init(req.body.target, req.body.mode, (err, data) =>
         err ? next(err) : res.status(200).json(data)))
@@ -187,7 +222,7 @@ class App extends EventEmitter {
     let opts = {
       auth: this.auth.middleware,
       settings: { json: { spaces: 2 } },
-      log: this.opts.log || { skip: 'all', error: 'all' },
+      log: this.opts.log || { skip: 'selected', error: 'selected' },
       routers
     }
 
