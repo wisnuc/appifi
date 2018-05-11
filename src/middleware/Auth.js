@@ -169,7 +169,7 @@ class Auth {
   }
 
   /**
-   * Generate jwt token for remote
+   * Generate jwt token for remote user
    * @param {object} user
    */
   tokenForRemote (user) {
@@ -177,11 +177,12 @@ class Auth {
       type: 'JWT',
       forRemote: true,
       token: jwt.encode({
-        uuid: user.uuid
+        uuid: user.uuid,
+        phicommUserId: user.phicommUserId,
+        timestamp: new Date().getTime()
       }, this.secret)
     }
   }
-
 }
 
 module.exports = Auth
