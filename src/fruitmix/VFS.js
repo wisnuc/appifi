@@ -605,6 +605,8 @@ class VFS extends EventEmitter {
   DUP (user, props, callback) {
   }
 
+
+
   /**
   @param {object} user
   @param {object} props
@@ -616,9 +618,8 @@ class VFS extends EventEmitter {
   ADDTAGS (user, props, callback) {
     try {
       let tags = props.tags
-      if (!Array.isArray(tags) || tags.length === 0 || !tags.every(id => Number.isInteger(id) && id >= 0)) {
+      if (!Array.isArray(tags) || tags.length === 0 || !tags.every(id => Number.isInteger(id) && id >= 0)) 
         throw new Error('invalid tags')
-      }
 
       tags.forEach(id => {
         let tag = this.tags.find(tag => tag.id === id)
@@ -646,26 +647,97 @@ class VFS extends EventEmitter {
         let oldTags = xstat.tags || []
         let newTags = Array.from(new Set([...oldTags, ...tags])).sort()
 
-        if (newTags.length === oldTags.length) { // can we prove this?
-          callback(null, xstat) 
+        if (newTags.length === oldTags.length) {
+          callback(null, xstat)
         } else {
-          updateFileTags(filePath, xstat.uuid, newTags, (err, xstat) => {
-            if (err) return callback(err)
-            callback(null, xstat)
-          })    
+          updateFileTags(filePath, xstat.uuid, newTags, callback)
         }
       })
     })  
   }
 
   REMOVETAGS (user, props, callback) {
+    try {
+      let tags = props.tags        
+      if (!Array.isArray(tags) || tags.length === 0 || !tags.every(id => Number.isInteger(id) && id >= 0))
+        throw new Error('invalid tags')
+
+      tags.forEach(id => {
+        let tag = this.tags.find(tag => tag.id === id)
+        if (!tag || tag.creator !== user.uuid) throw new Error(`tag id ${id} not found`)
+      })      
+    } catch (err) {
+      err.status = 400
+      process.nextTick(() => callback(err))
+    }
+
+    // normalize
+    let tags = Array.from(new Set(props.tags)).sort()
+
     this.DIR(user, props, (err, dir) => {
       if (err) return callback(err)
+
+      let filePath = path.join(this.absolutePath(dir), props.name)
+      readXstat(filePath, (err, xstat) => {
+        if (err) return callback(err)
+        if (xstat.type !== 'file') {
+          let err = new Error('not a file')
+          err.code = 'ENOTFILE'
+          return callback(err)
+        }
+
+        if (!xstat.tags) return callback(null, xstat) 
+        
+        // complementary set
+        let newTags = xstat.tags.reduce((acc, id) => tags.includes(id) ? acc : [...acc, id], [])
+        updateFileTags(filePath, xstat.uuid, newTags, callback)
+      }) 
     })
   }
 
+  // set tags accept empty array
   SETTAGS (user, props, callback) {
+    try {
+      let tags = props.tags        
+      if (!Array.isArray(tags) || tags.length === 0 || !tags.every(id => Number.isInteger(id) && id >= 0))
+        throw new Error('invalid tags')
+
+      tags.forEach(id => {
+        let tag = this.tags.find(tag => tag.id === id)
+        if (!tag || tag.creator !== user.uuid) throw new Error(`tag id ${id} not found`)
+      })      
+    } catch (err) {
+      err.status = 400
+      process.nextTick(() => callback(err))
+    }
+
+    let tags = Array.from(new Set(props.tags)).sort()
+
     this.DIR(user, props, (err, dir) => {
+      if (err) return callback(err)
+
+      let filePath = path.join(this.absolutePath(dir), props, name)
+      readXstat(filePath, (err, xstat) => {
+        if (err) return callback(err)  
+        if (xstat.type !== 'file') {
+          let err = new Error('not a file')
+          err.code = 'ENOTFILE'
+          return callback(err)
+        }
+
+        // user tag ids
+        let userTags = this.tags
+          .filter(tag => tag.creator === user.uuid)
+          .map(tag => tag.uuid)
+
+        // remove all user tags out of old tags
+        let oldTags = xstat.tags
+          ? xstat.tags.reduce((acc, id) => userTags.includes(id) ? acc : [...acc, id])
+          : []
+
+        let newTags = Array.from(new Set([...oldTags, tags]))
+        updateFileTags(filePath, xstat.uuid, newTags, callback)
+      })
     })
   }
 

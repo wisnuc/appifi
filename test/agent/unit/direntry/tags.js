@@ -98,7 +98,7 @@ describe(path.basename(__filename), () => {
       .expect(200)
       .end((err, res) => err ? callback(err) : callback(null, res.body))
 
-  describe('alice home', () => {
+  describe('alice home, add tags', () => {
     let fruitmix, app, token, home
 
     beforeEach(async () => {
@@ -157,6 +157,9 @@ describe(path.basename(__filename), () => {
         }) 
     })
 
+  })
+
+  describe('alice home, remove tags', () => {
   })
 })
 
