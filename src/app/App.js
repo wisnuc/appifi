@@ -108,7 +108,10 @@ class App extends EventEmitter {
     this.createExpress()
 
     // create a Pipe
-    this.pipe = new Pipe(opts.fruitmix, this.auth)
+    this.pipe = new Pipe({
+      fruitmix: opts.fruitmix,
+      config: this.cloudConf
+    })
 
     // create server if required
     if (opts.useServer) {
@@ -132,7 +135,7 @@ class App extends EventEmitter {
     } catch (e) {
       console.log('Bootstrap Message -> JSON parse Error')
       console.log(msg)
-      return 
+      return
     }
     switch (message.type) {
       case 'pip':
@@ -198,8 +201,8 @@ class App extends EventEmitter {
     bootr.post('/boundVolume', (req, res, next) =>
       this.boot.init(req.body.target, req.body.mode, (err, data) =>
         err ? next(err) : res.status(200).json(data)))
-    bootr.put('/', (req, res, next) => 
-      this.boot.import(req.body.volumeUUID, (err, data) => 
+    bootr.put('/', (req, res, next) =>
+      this.boot.import(req.body.volumeUUID, (err, data) =>
         err ? next(err) : res.status(200).json(data)))
     bootr.patch('/', (req, res, next) => {
       let arg = req.body.arg

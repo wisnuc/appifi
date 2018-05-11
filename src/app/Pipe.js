@@ -3,7 +3,6 @@ const pathToRegexp = require('path-to-regexp')
 const _ = require('lodash')
 const request = require('request')
 const path = require('path')
-const
 
 const routing = require('./routing')
 
@@ -71,7 +70,7 @@ class Pipe extends EventEmitter {
    * @param {object} user
    */
   getToken (user) {
-    return this.ctx.auth().tokenForRemote(user)
+    return this.ctx.config.auth().tokenForRemote(user)
   }
   /**
    *
@@ -154,7 +153,6 @@ class Pipe extends EventEmitter {
         })
       }
     }
-
 
     // apis
     if (matchRoute.verb === 'POSTFORM') {
@@ -247,14 +245,14 @@ class Pipe extends EventEmitter {
     request.post({
       url: RESOURCE_URL,
       formData: formData
-    }, function optionalCallback(err, httpResponse, body) {
+    }, function optionalCallback (err, httpResponse, body) {
       if (err) {
-        return console.error('upload failed:', err);
+        return console.error('upload failed:', err)
       }
-      console.log('Upload successful!  Server responded with:', body);
+      console.log('Upload successful!  Server responded with:', body)
     })
-
   }
+
   getResource () {
     return request({
       uri: RESOURCE_URL,
@@ -263,7 +261,7 @@ class Pipe extends EventEmitter {
       qs: {
         deviceSN: 'my_value',
         msgId: '',
-        data: {},
+        data: {}
       }
     })
   }
