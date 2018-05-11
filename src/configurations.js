@@ -34,7 +34,11 @@ const wisnuc = {
     fruitmixDir: 'wisnuc/fruitmix',
     volumeDir: '/run/wisnuc/volumes',
     nonVolumeDir: '/run/wisnuc/blocks',
-    userProps: ['uuid', 'username' ]
+    userProps: ['uuid', 'username', 'isFirstUser', 'global' ]
+  },
+  tag: {
+    tagIsPrivate: false,
+    preserveTagsInPublicDrive: true,
   }
 }
 
@@ -54,6 +58,10 @@ const n2 = {
     volumeDir: '/run/phicomm/volumes',
     nonVolumeDir: '/run/phicomm/blocks',
     userProps: ['uuid', 'username', 'isFirstUser', 'phicommUserId']
+  },
+  tag: {
+    tagIsPrivate: true,
+    preserveTagsInPublicDrive: false
   }
 }
 
