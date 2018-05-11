@@ -164,9 +164,9 @@ class App extends EventEmitter {
     // boot router
     let bootr = express.Router()
     bootr.get('/', (req, res) => {
-      let total = os.totalmem(), speed, type
+      let total = os.totalmem(), speed, type, free = os.freemem()
       try {
-        total = child.execSync('free -b')
+        free = child.execSync('free -b')
           .toString().split('\n')
           .find(x => x.startsWith('Mem:'))
           .split(' ')
@@ -190,7 +190,7 @@ class App extends EventEmitter {
         device: Object.assign({}, this.cloudConf.device, {
           cpus: os.cpus(),
           memory: {
-            free: os.freemem(),
+            free,
             total,
             speed,
             type
