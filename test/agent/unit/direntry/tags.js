@@ -90,7 +90,15 @@ describe(path.basename(__filename), () => {
 
   const requestHomeAsync = Promise.promisify(requestHome)
 
-  describe('alice home', () => {
+  const createTag = (express, token, props, callback) => 
+    request(express)
+      .get('/tags')
+      .set('Authorization', 'JWT ' + token)
+      .send(props)
+      .expect(200)
+      .end((err, res) => err ? callback(err) : callback(null, res.body))
+
+  describe('alice home, add tags', () => {
     let fruitmix, app, token, home
 
     beforeEach(async () => {
@@ -110,30 +118,48 @@ describe(path.basename(__filename), () => {
     })
 
     it('add tags to hello', done => {
-      request(app.express)  
-        .post(url)
+      // create tag 0
+      request(app.express)
+        .post('/tags')
         .set('Authorization', 'JWT ' + token)
-        .attach(alonzo.name, alonzo.path, JSON.stringify({
-          op: 'newfile',
-          size: alonzo.size,
-          sha256: alonzo.hash
-        }))
+        .send({ name: 'bug' })
         .expect(200)
         .end((err, res) => {
           if (err) return done(err)
-          
-          request(app.express)
+
+          let tag = res.body
+
+          // create a new file
+          request(app.express)  
             .post(url)
             .set('Authorization', 'JWT ' + token)
-            .field(alonzo.name, JSON.stringify({ op: 'addTags', tags: [1] }))
+            .attach(alonzo.name, alonzo.path, JSON.stringify({
+              op: 'newfile',
+              size: alonzo.size,
+              sha256: alonzo.hash
+            }))
             .expect(200)
             .end((err, res) => {
               if (err) return done(err)
-              console.log(JSON.stringify(res.body, null, '  '))
-              done()
+              
+              request(app.express)
+                .post(url)
+                .set('Authorization', 'JWT ' + token)
+                .field(alonzo.name, JSON.stringify({ op: 'addTags', tags: [tag.id] }))
+                .expect(200)
+                .end((err, res) => {
+                  if (err) return done(err)
+                  console.log(JSON.stringify(res.body, null, '  '))
+                  done()
+                })
             })
-        })
+
+        }) 
     })
+
+  })
+
+  describe('alice home, remove tags', () => {
   })
 })
 
