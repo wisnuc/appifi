@@ -1,12 +1,15 @@
 const EventEmitter = require('events')
 const pathToRegexp = require('path-to-regexp')
 const _ = require('lodash')
+const request = require('request')
+const path = require('path')
+const
 
 const routing = require('./routing')
 
 const BASE_URL = 'https://www.siyouqun.com'
-const COMMAND_URL = '/ResourceManager/nas/callback/command'
-const RESOURCE_URL = '/ResourceManager/nas/callback/resource'
+const COMMAND_URL = `${BASE_URL}/ResourceManager/nas/callback/command`
+const RESOURCE_URL = `${BASE_URL}/ResourceManager/nas/callback/resource`
 
 const routes = []
 // routing map
@@ -44,16 +47,16 @@ const WHITE_LIST = {
   'phy-drives': 'nfs'
 }
 
-
 class Pipe extends EventEmitter {
   /**
    * Create a Pipe
-   * @param {object} fruitmix
+   * @param {object} ctx
+   * @param {object} ctx.fruitmix
+   * @param {object} ctx.config
    */
-  constructor (fruitmix, auth) {
+  constructor (ctx) {
     super()
-    this.fruitmix = fruitmix
-    this.auth = auth
+    this.ctx = ctx
   }
   /**
    * check authorization
@@ -61,14 +64,14 @@ class Pipe extends EventEmitter {
    * @return {object} user
    */
   checkUser (phicommUserId) {
-    return this.fruitmix.getUserByPhicommUserId(phicommUserId)
+    return this.ctx.fruitmix.getUserByPhicommUserId(phicommUserId)
   }
   /**
    * get token for cloud
    * @param {object} user
    */
   getToken (user) {
-    return this.auth.cloudToken(user)
+    return this.ctx.auth().tokenForRemote(user)
   }
   /**
    *
@@ -100,7 +103,8 @@ class Pipe extends EventEmitter {
       verb: 'GET',
       path: '/drives/123/dirs/456',
       body: {},
-      params: {}
+      params: {},
+      manifest: {}
     } || message.data
 
     const { urlPath, verb, body, params } = data
@@ -114,6 +118,17 @@ class Pipe extends EventEmitter {
     // 单独处理 token
     if (resource === 'token') {
       // TODO: 加入标记， 区分与本地 token
+      const json = {
+        common: {
+          deviceSN: this.cofig.device.deviceSN,
+          msgId: message.msgId
+        },
+        data: {
+          err: {},
+          data: {}
+        }
+      }
+      this.reqCommand(json)
     }
 
     // match route path and generate query
@@ -124,6 +139,7 @@ class Pipe extends EventEmitter {
       const { pathToRegexp, pathParttens } = route
       // match route
       if (pathToRegexp.test(urlPath)) {
+        matchRoute = route
         if (verb === 'GET') {
           method = route.verb === 'GET' ? 'GET' : 'LIST'
         } else if (verb === 'POST') {
@@ -131,8 +147,6 @@ class Pipe extends EventEmitter {
         } else {
           method = verb
         }
-
-        matchRoute = route
         const unnamedParamters = pathToRegexp.exec(urlPath)
         // generate query
         pathParttens.map((v, index) => {
@@ -141,54 +155,119 @@ class Pipe extends EventEmitter {
       }
     }
 
-    const props = Object.assign({}, query, body, params)
+
     // apis
     if (matchRoute.verb === 'POSTFORM') {
-      this.reqResource()
+      const props = Object.assign({}, query, body, params)
+      // { driveUUID, dirUUID, boundary, length, formdata }
+      // let props = {
+      //   manifest: true
+      // }
+      this.getResource().pipe(this.fruitmix.apis[resource][method](user, props))
     } else {
-      this.reqCommand()
+      const props = Object.assign({}, query, body, params)
+      this.fruitmix.apis[resource][method](user, props, (err, data) => {
+        if (err) return
+        // stream
+        if (path.isAbsolute(data)) {
+          this.postResource(data)
+        } else {
+          // json
+          const json = {
+            common: {
+              deviceSN: this.cofig.device.deviceSN,
+              msgId: message.msgId
+            },
+            data: {
+              err: {
+                msg: err.message,
+                status: err.status || 403
+              },
+              data: data
+            }
+          }
+          this.reqCommand(json)
+        }
+      })
     }
-    this.fruitmix.apis[resource][method](user, props, (err, data) => {
-
-    })
-    // this.fruitmix.apis[resource][verb](req.user,
-    //   Object.assign({}, req.query, req.body, req.params), f(res, next))
   }
   /**
    * Except post file
+   * @param {object} json
    * @memberof Pipe
    */
-  reqCommand () {
-
+  reqCommand (json) {
+    // {
+    //   "common":{
+    //     "deviceSN":"设备SN号",
+    //     "msgId":"消息ID"
+    //   },
+    //   "data":""//设备返回给app的数据,字符串形式,base64或URLEncode,由APP和设备约定
+    // }
+    return request({
+      uri: COMMAND_URL,
+      method: 'POST',
+      headers: { Authorization: `JWT ${this.config.cloudToken}` },
+      body: true,
+      json: json
+    }, (error, response, body) => {
+      if (!error && response.statusCode === 200) {
+        var info = JSON.parse(body)
+        console.log(info)
+      }
+    })
   }
   /**
-   * Only when post file
+   * post resource
    * @memberof Pipe
    */
-  reqResource () {}
-  sucess () {}
-  error () {}
-}
+  postResource (absolutePath) {
+    var formData = {
+      // Pass a simple key-value pair
+      deviceSN: 'my_value',
+      msgId: '',
+      data: {},
+      file: fs.createReadStream(absolutePath),
+      // Pass multiple values /w an Array
+      attachments: [
+        fs.createReadStream(__dirname + '/attachment1.jpg'),
+        fs.createReadStream(__dirname + '/attachment2.jpg')
+      ],
+      // Pass optional meta-data with an 'options' object with style: {value: DATA, options: OPTIONS}
+      // Use case: for some types of streams, you'll need to provide "file"-related information manually.
+      // See the `form-data` README for more information about options: https://github.com/form-data/form-data
+      // custom_file: {
+      //   value:  fs.createReadStream('/dev/urandom'),
+      //   options: {
+      //     filename: 'topsecret.jpg',
+      //     contentType: 'image/jpeg'
+      //   }
+      // }
+    }
+    request.post({
+      url: RESOURCE_URL,
+      formData: formData
+    }, function optionalCallback(err, httpResponse, body) {
+      if (err) {
+        return console.error('upload failed:', err);
+      }
+      console.log('Upload successful!  Server responded with:', body);
+    })
 
-// const data = {
-//   verb: 'GET',
-//   path: '/drives/123/dirs/456',
-//   body: {},
-//   params: {}
-// }
-// // match path
-// for (let route of routes) {
-//   const { pathToRegexp, pathParttens } = route
-//   if (pathToRegexp.test(data.path)) {
-//     // get query
-//     // matchRoute = route
-//     const unnamedParamters = pathToRegexp.exec(data.path) // data.path.match(route.regexp)
-//     let query = {}
-//     pathParttens.map((v, index) => {
-//       query[v] = unnamedParamters[index + 1]
-//     })
-//     console.log(query)
-//   }
-// }
+  }
+  getResource () {
+    return request({
+      uri: RESOURCE_URL,
+      method: 'GET',
+      headers: { Authorization: `JWT ${this.config.cloudToken}` },
+      qs: {
+        deviceSN: 'my_value',
+        msgId: '',
+        data: {},
+      }
+    })
+  }
+
+}
 
 module.exports = Pipe
