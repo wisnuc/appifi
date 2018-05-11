@@ -86,7 +86,7 @@ class Tag extends require('events') {
   deleteTag (tagId, callback) {
     this.store.save(data => {
       let index = data.tags.findIndex(t => t.id === tagId)
-      if (index === -1) throw new throwError('tag not found')
+      if (index === -1) throw new Error('tag not found')
       data.tags = [...data.tags.slice(0, index), ...data.tags.slice(index + 1)]
       return data
     }, callback)
