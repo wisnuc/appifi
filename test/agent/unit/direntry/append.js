@@ -5,6 +5,8 @@ const mkdirp = require('mkdirp')
 const mkdirpAsync = Promise.promisify(mkdirp)
 const rimraf = require('rimraf')
 const rimrafAsync = Promise.promisify(rimraf)
+const ioctl = require('ioctl')
+const UUID = require('uuid')
 const { isUUID } = require('validator')
 
 const request = require('supertest')
@@ -23,6 +25,27 @@ const tmptest = path.join(cwd, 'tmptest')
 const fruitmixDir = path.join(tmptest, 'fruitmix')
 
 // node src/utils/md4Encrypt.js alice
+
+
+const generateAppendedFile = (src, hash) => {
+
+  let dst = path.join(tmptest, UUID.v4())
+
+  let srcFd = fs.openSync(src, 'r')
+  let dstFd = fs.openSync(dst, 'w')
+  ioctl(dstFd, 0x40049409, srcFd)      
+  fs.closeSync(dstFd)
+  fs.closeSync(srcFd)
+
+  dstFd = fs.openSync(dst, 'a')
+  let buf = Buffer.from(hash, 'hex')
+  if (buf.length !== 32) throw new Error('invalid hash string')
+  fs.writeSync(dstFd, buf)
+  fs.closeSync(dstFd)
+
+  return dst
+}
+
 
 const alice = {
   uuid: 'cb33b5b3-dd58-470f-8ccc-92aa04d75590',
@@ -321,6 +344,7 @@ describe(path.basename(__filename), () => {
     it(`200 append alonzo to empty, 141ef391`, function (done) {
       this.timeout(0)
 
+      // newfile empty
       request(app.express)
         .post(url)
         .set('Authorization', 'JWT ' + token)
@@ -331,12 +355,15 @@ describe(path.basename(__filename), () => {
         }))
         .expect(200)
         .end((err, res) => {
-
           if (err) return done(err)
+
+          let tmp = generateAppendedFile(alonzo.path, alonzo.hash) 
+
+          // append alonzo, post hash
           request(app.express)
             .post(url)
             .set('Authorization', 'JWT ' + token)
-            .attach(empty.name, alonzo.path, JSON.stringify({
+            .attach(empty.name, tmp, JSON.stringify({
               op: 'append',
               hash: empty.hash,
               size: alonzo.size,
@@ -353,9 +380,8 @@ describe(path.basename(__filename), () => {
                 op: 'append',
                 hash: empty.hash,
                 size: alonzo.size,
+                sha256: alonzo.hash
               })
-
-              expect(res.body[0].data.hash).to.equal(alonzo.hash)
 
               let filePath = path.join(fruitmixDir, 'drives', home.uuid, empty.name)
               fps(filePath, (err, hash) => {
