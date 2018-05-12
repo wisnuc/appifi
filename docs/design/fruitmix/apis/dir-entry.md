@@ -297,9 +297,11 @@ policies:
 + 上传(1G - 1)字节文件成功
 + 上传1G字节文件成功
 
-- 上传(1G + 1)字节文件失败
+以上6个测试pre和post各测一次，计12个测例。
 
 ### 5.1.3. 使用Policy
+
+TODO
 
 # 6. APPEND
 
@@ -373,9 +375,12 @@ policies:
   - 403 目标文件的大小不是1G的整数倍
   - 403 hash与目标文件不一致
 
-
-
 ### 6.2.2. 连续操作
+
+- 目标 empty
++ 200 append alonzo to empty
++ 200 append 1G to empty
+
 
 
 

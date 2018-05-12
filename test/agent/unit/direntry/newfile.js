@@ -5,6 +5,9 @@ const mkdirp = require('mkdirp')
 const mkdirpAsync = Promise.promisify(mkdirp)
 const rimraf = require('rimraf')
 const rimrafAsync = Promise.promisify(rimraf)
+const UUID = require('uuid')
+const ioctl = require('ioctl')
+const xattr = require('fs-xattr')
 const { isUUID } = require('validator')
 
 const request = require('supertest')
@@ -20,6 +23,52 @@ const tmptest = path.join(cwd, 'tmptest')
 const fruitmixDir = path.join(tmptest, 'fruitmix')
 
 // node src/utils/md4Encrypt.js alice
+
+const generateAppendedFile = (src, hash) => {
+
+  let dst = path.join(tmptest, UUID.v4())
+
+  let srcFd = fs.openSync(src, 'r')
+  let dstFd = fs.openSync(dst, 'w')
+  ioctl(dstFd, 0x40049409, srcFd)      
+  fs.closeSync(dstFd)
+  fs.closeSync(srcFd)
+
+  dstFd = fs.openSync(dst, 'a')
+  let buf = Buffer.from(hash, 'hex')
+  if (buf.length !== 32) throw new Error('invalid hash string')
+  fs.writeSync(dstFd, buf)
+  fs.closeSync(dstFd)
+
+  return dst
+}
+
+const retrieveXstat = target => {
+  let name = path.basename(target)
+  let attr = JSON.parse(xattr.getSync(target, 'user.fruitmix'))
+  let stat = fs.lstatSync(target)
+
+  if (stat.isFile()) {
+    return Object.keys(attr).reduce((obj, key) => {
+      if (key !== 'time') obj[key] = attr[key] 
+      return obj
+    }, { 
+      type: 'file', 
+      name, 
+      size: stat.size,
+      mtime: stat.mtime.getTime()
+    })
+  } else if (stat.isFile()) {
+    return {
+      type: 'directory',
+      name,
+      mtime: stat.mtime.getTime(),
+      uuid: attr.uuid 
+    }
+  } else {
+    throw new Error('target is neither a regular file nor a directory')
+  }
+}
 
 const alice = {
   uuid: 'cb33b5b3-dd58-470f-8ccc-92aa04d75590',
@@ -130,12 +179,12 @@ describe(path.basename(__filename), () => {
     })
 
 
-    ;['hello/world', 'hello|world'].forEach(badname => {
-      it(`400 if name ${badname}`, done => {
+    ;['hello/world', 'hello|world'].forEach(name => {
+      it(`400 if name ${name}`, done => {
         request(app.express)
           .post(url)
           .set('Authorization', 'JWT ' + token)
-          .attach(badname, alonzo.path, JSON.stringify({
+          .attach(name, alonzo.path, JSON.stringify({
             op: 'newfile',
             size: alonzo.size,
             sha256: alonzo.hash
@@ -143,21 +192,21 @@ describe(path.basename(__filename), () => {
           .expect(400)
           .end((err, res) => {
             if (err) return done(err)
-            expect(res.body.result[0].name).to.equal(badname)
+            expect(res.body.result[0].name).to.equal(name)
             expect(res.body.result[0].error.status).to.equal(400)
             done()
           })
       })
     })
 
-    ;[undefined, 'hello', {}, [], 99.99, -1, 1024 * 1024 * 1024 + 1].forEach(badsize => {
-      it(`400 if size is ${badsize}`, done => {
+    ;[undefined, 'hello', {}, [], 99.99, -1, 1024 * 1024 * 1024 + 1].forEach(size => {
+      it(`400 if size is ${size}`, done => {
         request(app.express)
           .post(url)
           .set('Authorization', 'JWT ' + token)
           .attach('hello', alonzo.path, JSON.stringify({
             op: 'newfile',
-            size: badsize,
+            size: size,
             sha256: alonzo.hash
           }))
           .expect(400)
@@ -169,7 +218,7 @@ describe(path.basename(__filename), () => {
             expect(r0.toName).to.equal('hello')
             expect(r0.type).to.equal('file')
             expect(r0.op).to.equal('newfile')
-            expect(r0.size).to.deep.equal(badsize)
+            expect(r0.size).to.deep.equal(size)
             expect(r0.sha256).to.equal(alonzo.hash)
             expect(r0.error.status).to.equal(400)
             done()
@@ -177,7 +226,12 @@ describe(path.basename(__filename), () => {
       })
     })
 
-    ;[undefined, 1, {}, [], 'hello'].forEach(sha256 => {
+    /**
+    undefined is allowed. Though the following case with undefined sha256 will pass,
+    it is not because undefined sha256 is invalid, it is because uploaded file
+    does not have the trailing hash.
+    */
+    ;[/* undefined,*/ 1, {}, [], 'hello'].forEach(sha256 => {
       it(`400 if sha256 is ${sha256}`, done => {
         request(app.express)
           .post(url)
@@ -234,9 +288,9 @@ describe(path.basename(__filename), () => {
     })
   }) 
 
-  describe('alice home', () => {
+  describe('alice home, upload 6 plain files, no policy, no conflict', () => {
     let fruitmix, app, token, home, url
-    let alonzo = FILES.alonzo
+    let { empty, oneByteX, halfGiga, oneGigaMinus1, oneGiga } = FILES
 
     beforeEach(async () => {
       await Promise.delay(100)
@@ -254,95 +308,66 @@ describe(path.basename(__filename), () => {
       url = `/drives/${home.uuid}/dirs/${home.uuid}/entries`
     })
 
-    it('400 if name is /hello', done => {
-      request(app.express)
-        .post(url)
-        .set('Authorization', 'JWT ' + token)
-        .attach('/hello', alonzo.path, JSON.stringify({
-          op: 'newfile',
-          size: alonzo.size,
-          sha256: alonzo.hash
-        }))
-        .expect(400)
-        .end((err, res) => {
-          done()
-        })
-    })
-    
+   
+    ;[empty, oneByteX, halfGiga, oneGigaMinus1, oneGiga].forEach(file => {
 
-    it.skip(`200 if no hello`, done => {
-      request(app.express)
-        .post(`/drives/${home.uuid}/dirs/${home.uuid}/entries`)
-        .set('Authorization', 'JWT ' + token)
-        .attach('alonzo.jpg', 'testdata/alonzo_church.jpg', JSON.stringify({
-          op: 'newfile',
-          size: FILES.alonzo.size,
-          sha256: FILES.alonzo.hash
-        }))
-        .expect(200)
-        .end((err, res) => {
-          if (err) return done(err)
-          console.log(res.body)
-          done()
-        })
-    })
-
-/**
-    it(`200 if no hello`, done => {
-      request(app.express)
-        .post(`/drives/${home.uuid}/dirs/${home.uuid}/entries`)
-        .set('Authorization', 'JWT ' + token)
-        .attach(FILES.alonzo.name, FILES.alonzo.path, JSON.stringify({
-          size: FILES.alonzo.size,
-          sha256: FILES.alonzo.hash
-        }))
-        .expect(200)
-        .end((err, res) => {
-          if (err) return done(err)
-          console.log(res.body)
-          done()
-        })
-    })
-*/
-
-/**
-    it(`200 if no hello`, function (done) {
-      this.timeout(0)
-      request(app.express)
-        .post(`/drives/${home.uuid}/dirs/${home.uuid}/entries`)
-        .set('Authorization', 'JWT ' + token)
-        .attach(FILES.oneGiga.name, FILES.oneGiga.path, JSON.stringify({
-          size: FILES.oneGiga.size,
-          sha256: FILES.oneGiga.hash
-        }))
-        .expect(200)
-        .end((err, res) => {
-          if (err) return done(err)
-          console.log(res.body)
-          done()
-        })
-    })
-**/
-
-    /**
-    target does not exists, all policies succeed. resolved is [false, false]
-    */
-/**
-    policies.forEach(policy => {
-      it(`200 if no hello, [${String(policy)}] resolved [false, false]`, done => {
-        request(app.express)
-          .post(`/drives/${home.uuid}/dirs/${home.uuid}/entries`)
+      it(`200 newfile ${file.name}, pre`, function (done) {
+        this.timeout(0)
+        request(app.express) 
+          .post(url)
           .set('Authorization', 'JWT ' + token)
-          .field('hello', JSON.stringify({ op: 'mkdir' , policy }))
+          .attach(file.name, file.path, JSON.stringify({
+            op: 'newfile',
+            size: file.size,
+            sha256: file.hash
+          }))
           .expect(200)
           .end((err, res) => {
             if (err) return done(err)
-            expect(res.body[0].resolved).to.deep.equal([false, false])
+            let target = path.join(fruitmixDir, 'drives', home.uuid, file.name)
+            expect(res.body[0]).to.deep.include({
+              type: 'file',
+              name: file.name,
+              op: 'newfile',
+              size: file.size,
+              sha256: file.hash,
+              policy: [null, null],
+              resolved: [false, false],
+              data: retrieveXstat(target)
+            })
+            done()
+          })
+      })
+
+      it(`200 newfile ${file.name}, post`, function (done) {
+        this.timeout(0)
+
+        let tmp = generateAppendedFile(file.path, file.hash)
+        request(app.express) 
+          .post(url)
+          .set('Authorization', 'JWT ' + token)
+          .attach(file.name, tmp, JSON.stringify({
+            op: 'newfile',
+            size: file.size,
+          }))
+          .expect(200)
+          .end((err, res) => {
+            if (err) return done(err)
+            let target = path.join(fruitmixDir, 'drives', home.uuid, file.name)
+            expect(res.body[0]).to.deep.include({
+              type: 'file',
+              name: file.name,
+              op: 'newfile',
+              size: file.size,
+              sha256: file.hash,
+              policy: [null, null],
+              resolved: [false, false],
+              data: retrieveXstat(target)
+            })
             done()
           })
       })
     })
-*/
   })
 
 })
