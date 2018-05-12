@@ -163,7 +163,7 @@ class Fruitmix extends EventEmitter {
       file: this.fileApi,
       media: this.mediaApi,
       task: this.task,
-      taskNode: this.task.nodeApi,
+      taskNode: this.task.nodeApi
     }
 
     // nfs api is optional
