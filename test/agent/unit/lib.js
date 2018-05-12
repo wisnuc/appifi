@@ -61,8 +61,8 @@ const IDS = {
 const FILES = {
 
   alonzo: {
-    name: 'alonzo_church.jpg',
-    path: 'testdata/alonzo_church.jpg',
+    name: 'alonzo.jpg',
+    path: 'testdata/alonzo.jpg',
     size: 39499, 
     hash: '8e28737e8cdf679e65714fe2bdbe461c80b2158746f4346b06af75b42f212408'
   },

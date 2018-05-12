@@ -533,7 +533,11 @@ class VFS extends EventEmitter {
 
       let target = path.join(this.absolutePath(dir), name)  
       readXstat(target, (err, xstat) => {
-        if (err) return callback(err)
+        if (err) {
+          if (err.code === 'ENOENT' || err.code === 'EISDIR' || err.xcode === 'EUNSUPPORTED') err.status = 403
+          return callback(err)
+        }
+
         if (xstat.type !== 'file') {
           let err = new Error('not a file')
           err.code = 'EISDIR'

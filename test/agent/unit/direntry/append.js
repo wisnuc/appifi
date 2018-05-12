@@ -13,6 +13,7 @@ const chai = require('chai').use(require('chai-as-promised'))
 const expect = chai.expect
 
 const { createTestFilesAsync } = require('src/utils/createTestFiles')
+const fps = require('src/utils/fingerprintSimple')
 
 const Fruitmix = require('src/fruitmix/Fruitmix')
 const App = require('src/app/App')
@@ -95,6 +96,7 @@ describe(path.basename(__filename), () => {
 
     let fruitmix, app, token, home, url
     let alonzo = FILES.alonzo
+    let empty = FILES.empty
 
     beforeEach(async () => {
       await rimrafAsync(tmptest)
@@ -110,52 +112,265 @@ describe(path.basename(__filename), () => {
       home = await requestHomeAsync(app.express, alice.uuid, token)
       url = `/drives/${home.uuid}/dirs/${home.uuid}/entries`
     })
-   
-    it('400 if name is hello/world', function (done) {
+
+    ;['hello/world', 'hello|world'].forEach(name => {
+      it(`400 if name is ${String(name)}`, function (done) {
+        this.timeout(0)
+        request(app.express)
+          .post(url)
+          .set('Authorization', 'JWT ' + token)
+          .attach(name, alonzo.path, JSON.stringify({
+            op: 'append',
+            hash: alonzo.hash, // same result with or without hash 
+            size: alonzo.size,
+            sha256: alonzo.hash
+          }))
+          .expect(400)
+          .end((err, res) => {
+            if (err) return done(err)
+            expect(res.body.result[0]).to.include(JSON.parse(JSON.stringify({
+              name,
+              type: 'file',
+              op: 'append',
+              hash: alonzo.hash,
+              size: alonzo.size,
+              sha256: alonzo.hash 
+            })))
+            expect(res.body.result[0].error.status).to.equal(400)
+            done()
+          })
+
+      })
+    })
+
+    ;[undefined, 1, 'hello', alonzo.hash.toUpperCase()].forEach(hash => {
+      it(`400 if hash is ${String(hash)}`, function (done) {
+        this.timeout(0)
+        request(app.express)
+          .post(url)
+          .set('Authorization', 'JWT ' + token)
+          .attach(alonzo.name, alonzo.path, JSON.stringify({
+            op: 'append',
+            hash,
+            size: alonzo.size,
+            sha256: alonzo.hash
+          }))
+          .expect(400)
+          .end((err, res) => {
+            if (err) return done(err)
+            expect(res.body.result[0]).to.include(JSON.parse(JSON.stringify({
+              name: alonzo.name,
+              type: 'file',
+              op: 'append',
+              hash,
+              size: alonzo.size,
+              sha256: alonzo.hash             
+            })))
+            expect(res.body.result[0].error.status).to.equal(400)
+            done()
+          })
+
+      })
+    })
+
+    ;[undefined, 'hello', 99.99, -1, 0, 1024 * 1024 * 1024 + 1].forEach(size => {
+      it(`400 if size is ${String(size)}`, function (done) {
+        this.timeout(0)
+        request(app.express)
+          .post(url)
+          .set('Authorization', 'JWT ' + token)
+          .attach(alonzo.name, alonzo.path, JSON.stringify({
+            op: 'append',
+            hash: alonzo.hash,
+            size,
+            sha256: alonzo.hash
+          }))
+          .expect(400)
+          .end((err, res) => {
+            if (err) return done(err)
+            expect(res.body.result[0]).to.include(JSON.parse(JSON.stringify({
+              name: alonzo.name,
+              type: 'file',
+              op: 'append',
+              size,
+              hash: alonzo.hash,
+              sha256: alonzo.hash
+            })))
+            expect(res.body.result[0].error.status).to.equal(400)
+            done()
+          })
+
+      })
+    })
+
+    ;[undefined, 1, 'hello'].forEach(sha256 => {
+      it(`400 if sha256 is ${String(sha256)}`, function (done) {
+        this.timeout(0)
+        request(app.express)
+          .post(url)
+          .set('Authorization', 'JWT ' + token)
+          .attach(alonzo.name, alonzo.path, JSON.stringify({
+            op: 'append',
+            hash: alonzo.hash,
+            size: alonzo.size,
+            sha256
+          }))
+          .expect(400)
+          .end((err, res) => {
+            if (err) return done(err)
+            expect(res.body.result[0]).to.include(JSON.parse(JSON.stringify({
+              name: alonzo.name,
+              type: 'file',
+              op: 'append',
+              size: alonzo.size,
+              hash: alonzo.hash,
+              sha256
+            })))
+            expect(res.body.result[0].error.status).to.equal(400)
+            done()
+          })
+
+      })
+    })
+
+
+    it(`* 403 if target does NOT exist`, function (done) {
       this.timeout(0)
-      let badname = 'hello/world'
+
+      request(app.express)
+        .post(url)
+        .set('Authorization', 'JWT' + token)
+        .attach(empty.name, empty.path, JSON.stringify({
+          op: 'newfile',
+          size: empty.size,
+          sha256: empty.sha256 
+        }))
+        .expect(200)
+        .end((err, res) => {
+          if (err) return done(err)
+        })
+
       request(app.express)
         .post(url)
         .set('Authorization', 'JWT ' + token)
-        .attach(badname, alonzo.path, JSON.stringify({
-          op: 'newfile',
+        .attach(alonzo.name, alonzo.path, JSON.stringify({
+          op: 'append',
+          hash: alonzo.hash,
           size: alonzo.size,
           sha256: alonzo.hash
         }))
-        .expect(400)
+        .expect(403)
         .end((err, res) => {
           if (err) return done(err)
-          // assert result name && error.status
-          expect(res.body.result[0].name).to.equal(badname)
-          expect(res.body.result[0].error.status).to.equal(400)
+          expect(res.body.result[0].name).to.equal(alonzo.name)
+          expect(res.body.result[0].hash).to.equal(alonzo.hash)
+          expect(res.body.result[0].error.status).to.equal(403)
           done()
+        })
+    })
+
+    it.skip(`200 append alonzo to empty, 141ef391`, function (done) {
+      this.timeout(0)
+
+      request(app.express)
+        .post(url)
+        .set('Authorization', 'JWT ' + token)
+        .attach(empty.name, empty.path, JSON.stringify({
+          op: 'newfile',
+          size: empty.size,
+          sha256: empty.hash
+        }))
+        .expect(200)
+        .end((err, res) => {
+
+          if (err) return done(err)
+          request(app.express)
+            .post(url)
+            .set('Authorization', 'JWT ' + token)
+            .attach(empty.name, alonzo.path, JSON.stringify({
+              op: 'append',
+              hash: empty.hash,
+              size: alonzo.size,
+              sha256: alonzo.hash
+            }))
+            .expect(200)
+            .end((err, res) => {
+              if (err) return done(err)
+              expect(res.body[0]).to.include({
+                type: 'file',
+                name: empty.name,
+                op: 'append',
+                hash: empty.hash,
+                size: alonzo.size,
+                sha256: alonzo.hash
+              })
+
+              expect(res.body[0].data.hash).to.equal(alonzo.hash)
+
+              let filePath = path.join(fruitmixDir, 'drives', home.uuid, empty.name)
+              fps(filePath, (err, hash) => {
+                expect(hash).to.equal(alonzo.hash)
+                done()
+              })
+
+            })
         })
 
     })
 
-    it('400 if name is hello|world', function (done) {
+    it(`200 append alonzo to empty, 141ef391`, function (done) {
       this.timeout(0)
-      let badname = 'hello|world'
+
       request(app.express)
         .post(url)
         .set('Authorization', 'JWT ' + token)
-        .attach(badname, alonzo.path, JSON.stringify({
+        .attach(empty.name, empty.path, JSON.stringify({
           op: 'newfile',
-          size: alonzo.size,
-          sha256: alonzo.hash
+          size: empty.size,
+          sha256: empty.hash
         }))
-        .expect(400)
+        .expect(200)
         .end((err, res) => {
+
           if (err) return done(err)
-          // assert result name && error.status
-          expect(res.body.result[0].name).to.equal(badname)
-          expect(res.body.result[0].error.status).to.equal(400)
-          done()
+          request(app.express)
+            .post(url)
+            .set('Authorization', 'JWT ' + token)
+            .attach(empty.name, alonzo.path, JSON.stringify({
+              op: 'append',
+              hash: empty.hash,
+              size: alonzo.size,
+            }))
+            .expect(200)
+            .end((err, res) => {
+
+              console.log(JSON.stringify(res.body, null, '  '))
+
+              if (err) return done(err)
+              expect(res.body[0]).to.include({
+                type: 'file',
+                name: empty.name,
+                op: 'append',
+                hash: empty.hash,
+                size: alonzo.size,
+              })
+
+              expect(res.body[0].data.hash).to.equal(alonzo.hash)
+
+              let filePath = path.join(fruitmixDir, 'drives', home.uuid, empty.name)
+              fps(filePath, (err, hash) => {
+                expect(hash).to.equal(alonzo.hash)
+                done()
+              })
+
+            })
         })
 
     })
 
   })
+
+
 
   describe('alice home', () => {
     let fruitmix, app, token, home
@@ -206,8 +421,6 @@ describe(path.basename(__filename), () => {
         .end((err, res) => {
           if (err) return done(err)
 
-          // console.log(res.body)
-          
           request(app.express)          
             .post(`/drives/${home.uuid}/dirs/${home.uuid}/entries`)
             .set('Authorization', 'JWT ' + token)
@@ -221,6 +434,8 @@ describe(path.basename(__filename), () => {
             .end((err, res) => {
               // if (err) return done(err)
               console.log(err, res.body)
+
+
               done()
             })
         })

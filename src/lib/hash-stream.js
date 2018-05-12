@@ -7,7 +7,7 @@ const crypto = require('crypto')
 const cryptoAsync = require('@ronomon/crypto-async')
 
 const rimraf = require('rimraf')
-const debug = require('debug')('hash-stream')
+const debug = require('debug')('hashstream')
 
 const script = `
 const fs = require('fs')
@@ -382,6 +382,8 @@ class IPost extends EventEmitter {
 
   constructor(rs, filePath, size) {
     super()
+
+    debug('constructing ipost')
     
     this.rs = rs
     this.path = filePath
