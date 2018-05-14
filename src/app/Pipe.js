@@ -64,7 +64,7 @@ class Pipe extends EventEmitter {
    * @return {object} user
    */
   checkUser (phicommUserId) {
-    return this.ctx.fruitmix.getUserByPhicommUserId(phicommUserId)
+    return this.ctx.fruitmix().getUserByPhicommUserId(phicommUserId)
   }
   /**
    * get token for cloud
@@ -91,7 +91,7 @@ class Pipe extends EventEmitter {
     //   msgId:消息ID,				// 接收方与应答方应保证msgId的一致性
     //   packageParams:{				// 当type==pip说传递，包括发送服务器地址，接收服务器地址，用户标识
     //     sendingServer:A.B.C.D,		// 发送服务器名称或者IP,比如:114.234.28.2
-    //     watingServer:E.F.G.H, 		// 消息接受服务器名称或IP地址,比如:211.152.34.2
+    //     waitingServer:E.F.G.H, 		// 消息接受服务器名称或IP地址,比如:211.152.34.2
     //     uid:用户ID号
     //   },
     //   data: { // 数据的详细参数,当type==pip时, 透传APP的请求数据，具体数据格式由设备和APP协商
@@ -108,7 +108,7 @@ class Pipe extends EventEmitter {
     if (!msgId) {
       throw new Error('message have no msgId')
     }
-    if (!packageParams || !packageParams.watingServer || !packageParams.uid) {
+    if (!packageParams || !packageParams.waitingServer || !packageParams.uid) {
       throw new Error('message have no packageParams')
     }
     if (!data || !data.verb || !data.urlPath) {
@@ -122,46 +122,51 @@ class Pipe extends EventEmitter {
    * @param {function} callback - optional
    */
   handleMessage (message) {
-    // firstly, check config
-    this.checkConfig()
-    this.checkMessage(message)
-    // reponse to cloud
-    const { urlPath, verb, body, params } = message.data
-    const user = this.checkUser(message.packageParams.uid)
-    if (!user) throw new Error('check user failed')
+    try {
+      // firstly, check config
+      this.checkConfig()
+      this.checkMessage(message)
+      // reponse to cloud
+      const { urlPath, verb, body, params } = message.data
+      const user = this.checkUser(message.packageParams.uid)
+      if (!user) throw new Error('check user failed')
 
-    const paths = urlPath.split('/') // ['', 'drives', '123', 'dirs', '456']
-    const resource = WHITE_LIST[paths[1]]
-    if (!resource) throw new Error('this source not support')
-    // 由于 token 没有 route， so 单独处理 token
-    if (resource === 'token') {
-      return this.reqCommand(null, this.getToken(user))
-    }
-    // match route path and generate query
-    let matchRoute
-    let method
-    let query = {}
-    for (let route of routes) {
-      const { pathToRegexp, pathParttens } = route
-      // match route
-      if (pathToRegexp.test(urlPath)) {
-        matchRoute = route
-        if (verb === 'GET') {
-          method = route.verb === 'GET' ? 'GET' : 'LIST'
-        } else if (verb === 'POST') {
-          method = route.verb === 'POST' ? 'POST' : 'POSTFORM'
-        } else {
-          method = verb
-        }
-        const unnamedParamters = pathToRegexp.exec(urlPath)
-        // generate query
-        pathParttens.map((v, index) => {
-          query[v] = unnamedParamters[index + 1]
-        })
+      const paths = urlPath.split('/') // ['', 'drives', '123', 'dirs', '456']
+      const resource = WHITE_LIST[paths[1]]
+      if (!resource) throw new Error('this source not support')
+      // 由于 token 没有 route， so 单独处理 token
+      if (resource === 'token') {
+        return this.reqCommand(null, this.getToken(user))
       }
+      // match route path and generate query
+      let matchRoute
+      let method
+      let query = {}
+      for (let route of routes) {
+        const { pathToRegexp, pathParttens } = route
+        // match route
+        if (pathToRegexp.test(urlPath)) {
+          matchRoute = route
+          if (verb === 'GET') {
+            method = route.verb === 'GET' ? 'GET' : 'LIST'
+          } else if (verb === 'POST') {
+            method = route.verb === 'POST' ? 'POST' : 'POSTFORM'
+          } else {
+            method = verb
+          }
+          const unnamedParamters = pathToRegexp.exec(urlPath)
+          // generate query
+          pathParttens.map((v, index) => {
+            query[v] = unnamedParamters[index + 1]
+          })
+        }
+      }
+      const opts = { user, matchRoute, method, query, body, params }
+      this.apis(opts)
+    } catch (err) {
+      debug(`pipe message error: ${err.massage}`)
+      return err
     }
-    const opts = { user, matchRoute, method, query, body, params }
-    this.apis(opts)
   }
   /**
    * local apis
@@ -178,10 +183,10 @@ class Pipe extends EventEmitter {
       // let props = {
       //   manifest: true
       // }
-      return this.getResource().pipe(this.ctx.fruitmix.apis[matchRoute.api][method](user, props))
+      return this.getResource().pipe(this.ctx.fruitmix().apis[matchRoute.api][method](user, props))
     } else {
       const props = Object.assign({}, query, body, params)
-      return this.ctx.fruitmix.apis[matchRoute.api][method](user, props, (err, data) => {
+      return this.ctx.fruitmix().apis[matchRoute.api][method](user, props, (err, data) => {
         if (err) return this.reqCommand(err, data)
         // stream
         if (typeof data === 'string' && path.isAbsolute(data)) {
@@ -219,7 +224,7 @@ class Pipe extends EventEmitter {
     const req = () => {
       if (++count > 2) return
       return request({
-        uri: 'http://sohon2test.phicomm.com' + COMMAND_URL, // this.message.packageParams.watingServer + COMMAND_URL,
+        uri: 'http://sohon2test.phicomm.com' + COMMAND_URL, // this.message.packageParams.waitingServer + COMMAND_URL,
         method: 'POST',
         headers: { Authorization: `JWT ${this.ctx.config.cloudToken}` },
         body: true,
@@ -260,7 +265,7 @@ class Pipe extends EventEmitter {
       file: fs.createReadStream(absolutePath)
     }
     request.post({
-      url: this.message.packageParams.watingServer + RESOURCE_URL,
+      url: this.message.packageParams.waitingServer + RESOURCE_URL,
       headers: { Authorization: `JWT ${this.ctx.config.cloudToken}` },
       formData: formData
     }, function optionalCallback (err, httpResponse, body) {
@@ -278,7 +283,7 @@ class Pipe extends EventEmitter {
    */
   getResource (res) {
     return request({
-      uri: this.message.packageParams.watingServer + RESOURCE_URL,
+      uri: this.message.packageParams.waitingServer + RESOURCE_URL,
       method: 'GET',
       headers: { Authorization: `JWT ${this.ctx.config.cloudToken}` },
       qs: {
