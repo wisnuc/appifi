@@ -58,6 +58,11 @@ class User extends EventEmitter {
     return this.users.find(u => u.uuid === userUUID)
   }
 
+  /**
+
+  TODO lastChangeTime is required by smb
+  TODO createTime is required by spec
+  */
   createUser (props, callback) {
     let uuid = UUID.v4()
     this.store.save(users => {

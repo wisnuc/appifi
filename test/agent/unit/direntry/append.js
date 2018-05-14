@@ -1,6 +1,7 @@
 const Promise = require('bluebird')
 const path = require('path')
 const fs = Promise.promisifyAll(require('fs'))
+const crypto = require('crypto')
 const mkdirp = require('mkdirp')
 const mkdirpAsync = Promise.promisify(mkdirp)
 const rimraf = require('rimraf')
@@ -8,7 +9,6 @@ const rimrafAsync = Promise.promisify(rimraf)
 const xattr = require('fs-xattr')
 const ioctl = require('ioctl')
 const UUID = require('uuid')
-const { isUUID } = require('validator')
 
 const request = require('supertest')
 
@@ -28,12 +28,11 @@ const fruitmixDir = path.join(tmptest, 'fruitmix')
 // node src/utils/md4Encrypt.js alice
 
 const generateAppendedFile = (src, hash) => {
-
   let dst = path.join(tmptest, UUID.v4())
 
   let srcFd = fs.openSync(src, 'r')
   let dstFd = fs.openSync(dst, 'w')
-  ioctl(dstFd, 0x40049409, srcFd)      
+  ioctl(dstFd, 0x40049409, srcFd)
   fs.closeSync(dstFd)
   fs.closeSync(srcFd)
 
@@ -53,11 +52,11 @@ const retrieveXstat = target => {
 
   if (stat.isFile()) {
     return Object.keys(attr).reduce((obj, key) => {
-      if (key !== 'time') obj[key] = attr[key] 
+      if (key !== 'time') obj[key] = attr[key]
       return obj
-    }, { 
-      type: 'file', 
-      name, 
+    }, {
+      type: 'file',
+      name,
       size: stat.size,
       mtime: stat.mtime.getTime()
     })
@@ -66,14 +65,12 @@ const retrieveXstat = target => {
       type: 'directory',
       name,
       mtime: stat.mtime.getTime(),
-      uuid: attr.uuid 
+      uuid: attr.uuid
     }
   } else {
     throw new Error('target is neither a regular file nor a directory')
   }
 }
-
-
 
 const alice = {
   uuid: 'cb33b5b3-dd58-470f-8ccc-92aa04d75590',
@@ -105,18 +102,9 @@ const charlie = {
   phicommUserId: 'charlie'
 }
 
-const {
-  IDS,
-  FILES,
-  stubUserUUID,
-  createUserAsync,
-  retrieveTokenAsync,
-  createPublicDriveAsync,
-  setUserUnionIdAsync
-} = require('../lib')
+const FILES = require('../lib').FILES
 
 describe(path.basename(__filename), () => {
-
   const requestToken = (express, userUUID, password, callback) =>
     request(express)
       .get('/token')
@@ -144,9 +132,8 @@ describe(path.basename(__filename), () => {
   const requestHomeAsync = Promise.promisify(requestHome)
 
   describe('alice home, invalid name', () => {
-
     let fruitmix, app, token, home, url
-    let { alonzo, empty, oneByteX, halfGiga, oneGigaMinus1, 
+    let { alonzo, empty, oneByteX, halfGiga, oneGigaMinus1,
       oneGiga, twoGiga, threeGiga, fourGiga, fiveGiga } = FILES
 
     beforeEach(async () => {
@@ -172,7 +159,7 @@ describe(path.basename(__filename), () => {
           .set('Authorization', 'JWT ' + token)
           .attach(name, alonzo.path, JSON.stringify({
             op: 'append',
-            hash: alonzo.hash, // same result with or without hash 
+            hash: alonzo.hash, // same result with or without hash
             size: alonzo.size,
             sha256: alonzo.hash
           }))
@@ -185,12 +172,11 @@ describe(path.basename(__filename), () => {
               op: 'append',
               hash: alonzo.hash,
               size: alonzo.size,
-              sha256: alonzo.hash 
+              sha256: alonzo.hash
             })))
             expect(res.body.result[0].error.status).to.equal(400)
             done()
           })
-
       })
     })
 
@@ -215,12 +201,11 @@ describe(path.basename(__filename), () => {
               op: 'append',
               hash,
               size: alonzo.size,
-              sha256: alonzo.hash             
+              sha256: alonzo.hash
             })))
             expect(res.body.result[0].error.status).to.equal(400)
             done()
           })
-
       })
     })
 
@@ -250,12 +235,11 @@ describe(path.basename(__filename), () => {
             expect(res.body.result[0].error.status).to.equal(400)
             done()
           })
-
       })
     })
 
     /** undefined is allowed **/
-    ;[/** undefined, **/, 1, 'hello'].forEach(sha256 => {
+    ;[1, 'hello'].forEach(sha256 => {
       it(`400 if sha256 is ${String(sha256)}`, function (done) {
         this.timeout(0)
         request(app.express)
@@ -281,11 +265,10 @@ describe(path.basename(__filename), () => {
             expect(res.body.result[0].error.status).to.equal(400)
             done()
           })
-
       })
     })
 
-/**
+    /**
     it(`* 403 if target does NOT exist`, function (done) {
       this.timeout(0)
       request(app.express)
@@ -294,7 +277,7 @@ describe(path.basename(__filename), () => {
         .attach(empty.name, empty.path, JSON.stringify({
           op: 'newfile',
           size: empty.size,
-          sha256: empty.sha256 
+          sha256: empty.sha256
         }))
         .expect(200)
         .end((err, res) => {
@@ -318,159 +301,118 @@ describe(path.basename(__filename), () => {
           expect(res.body.result[0].error.status).to.equal(403)
           done()
         })
-    })
-**/
-
+    }) **/
 
     let appendices = [oneByteX, halfGiga, oneGigaMinus1, oneGiga]
-    let appendees = [empty] 
- 
+    let appendees = [empty, oneGiga, twoGiga, threeGiga, fourGiga, fiveGiga]
 
-appendees.forEach(appendee => {
-    appendices.forEach(file => { 
-
-      it(`200 append ${file.name} to empty, pre, c29d37ea`, function (done) {
-        this.timeout(0)
-        request(app.express)
-          .post(url)
-          .set('Authorization', 'JWT ' + token)
-          .attach(empty.name, empty.path, JSON.stringify({
-            op: 'newfile',
-            size: empty.size,
-            sha256: empty.hash
-          }))
-          .expect(200)
-          .end((err, res) => {
-            if (err) return done(err)
-            request(app.express)
-              .post(url)
-              .set('Authorization', 'JWT ' + token)
-              .attach(empty.name, file.path, JSON.stringify({
-                op: 'append',
-                hash: empty.hash,
-                size: file.size,
-                sha256: file.hash
-              }))
-              .expect(200)
-              .end((err, res) => {
-                if (err) return done(err)
-
-                let target = path.join(fruitmixDir, 'drives', home.uuid, empty.name)
-                expect(res.body[0]).to.deep.include({
-                  type: 'file',
-                  name: empty.name,
-                  op: 'append',
-                  hash: empty.hash,
-                  size: file.size,
-                  sha256: file.hash,
-                  data: retrieveXstat(target)
-                })
-
-                expect(fps.sync(target)).to.equal(file.hash)
-                done()
-              })
-          })
-      })
-
-      it(`200 append ${file.name} to empty, post, 30c43eb8`, function (done) {
-        this.timeout(0)
-        request(app.express)
-          .post(url)
-          .set('Authorization', 'JWT ' + token)
-          .attach(empty.name, empty.path, JSON.stringify({
-            op: 'newfile',
-            size: empty.size,
-            sha256: empty.hash
-          }))
-          .expect(200)
-          .end((err, res) => {
-            if (err) return done(err)
-
-            let tmp = generateAppendedFile(file.path, file.hash) 
-            request(app.express)
-              .post(url)
-              .set('Authorization', 'JWT ' + token)
-              .attach(empty.name, tmp, JSON.stringify({
-                op: 'append',
-                hash: empty.hash,
-                size: file.size
-              }))
-              .expect(200)
-              .end((err, res) => {
-                if (err) return done(err)
-
-                let target = path.join(fruitmixDir, 'drives', home.uuid, empty.name)      
-                expect(res.body[0]).to.deep.include({
-                  type: 'file',
-                  name: empty.name,
-                  op: 'append',
-                  hash: empty.hash,
-                  size: file.size,
-                  sha256: file.hash,
-                  data: retrieveXstat(target)
-                })
-                expect(fps.sync(target)).to.equal(file.hash)
-                done()
-              })
-          })
-      })
-    })
-})
-
-  })
-
-
-  describe('alice home', () => {
-    let fruitmix, app, token, home
-
-    beforeEach(async () => {
-      await Promise.delay(100)
-      await rimrafAsync(tmptest)
-      await mkdirpAsync(fruitmixDir)
-
-      let userFile = path.join(fruitmixDir, 'users.json')
-      await fs.writeFileAsync(userFile, JSON.stringify([alice], null, '  '))
-
-      fruitmix = new Fruitmix({ fruitmixDir })
-      app = new App({ fruitmix, log: { skip: 'all', error: 'none' } })
-      await new Promise(resolve => fruitmix.once('FruitmixStarted', () => resolve()))
-      token = await requestTokenAsync(app.express, alice.uuid, 'alice')
-      home = await requestHomeAsync(app.express, alice.uuid, token)
-    })
-
-    it.skip(`200 append OneGiga to OneGiga`, function (done) {
-      this.timeout(0)
-
-      request(app.express)
-        .post(`/drives/${home.uuid}/dirs/${home.uuid}/entries`)
-        .set('Authorization', 'JWT ' + token)
-        .attach(FILES.oneGiga.name, FILES.oneGiga.path, JSON.stringify({
-          op: 'newfile',
-          size: FILES.oneGiga.size,
-          sha256: FILES.oneGiga.hash
-        }))
-        .expect(200)
-        .end((err, res) => {
-          if (err) return done(err)
-
-          request(app.express)          
-            .post(`/drives/${home.uuid}/dirs/${home.uuid}/entries`)
+    appendees.forEach(appendee => {
+      appendices.forEach(file => {
+        it(`200 append ${file.name} to ${appendee.name}, pre, c29d37ea`, function (done) {
+          this.timeout(0)
+          request(app.express)
+            .post(url)
             .set('Authorization', 'JWT ' + token)
-            .attach(FILES.oneGiga.name, FILES.oneGiga.path, JSON.stringify({
-              op: 'append',
-              hash: FILES.oneGiga.hash,
-              size: FILES.oneGiga.size,
-              sha256: FILES.oneGiga.hash
+            .attach(appendee.name, appendee.path, JSON.stringify({
+              op: 'newfile',
+              size: appendee.size,
+              sha256: appendee.hash
             }))
-            // .expect(200)
+            .expect(200)
             .end((err, res) => {
-              // if (err) return done(err)
-              console.log(err, res.body)
+              if (err) return done(err)
+              request(app.express)
+                .post(url)
+                .set('Authorization', 'JWT ' + token)
+                .attach(appendee.name, file.path, JSON.stringify({
+                  op: 'append',
+                  hash: appendee.hash,
+                  size: file.size,
+                  sha256: file.hash
+                }))
+                .expect(200)
+                .end((err, res) => {
+                  if (err) return done(err)
 
+                  let target = path.join(fruitmixDir, 'drives', home.uuid, appendee.name)
+                  let data = retrieveXstat(target)
+                  expect(res.body[0]).to.deep.include({
+                    type: 'file',
+                    name: appendee.name,
+                    op: 'append',
+                    hash: appendee.hash,
+                    size: file.size,
+                    sha256: file.hash,
+                    data
+                  })
 
-              done()
+                  let hash = appendee.size === 0
+                    ? file.hash
+                    : crypto.createHash('sha256')
+                      .update(Buffer.from(appendee.hash, 'hex'))
+                      .update(Buffer.from(file.hash, 'hex'))
+                      .digest('hex')
+
+                  expect(data.hash).to.equal(hash)
+                  expect(fps.sync(target)).to.equal(data.hash)
+                  done()
+                })
             })
         })
+
+        it(`200 append ${file.name} to ${appendee.name}, post, 30c43eb8`, function (done) {
+          this.timeout(0)
+          request(app.express)
+            .post(url)
+            .set('Authorization', 'JWT ' + token)
+            .attach(appendee.name, appendee.path, JSON.stringify({
+              op: 'newfile',
+              size: appendee.size,
+              sha256: appendee.hash
+            }))
+            .expect(200)
+            .end((err, res) => {
+              if (err) return done(err)
+
+              let tmp = generateAppendedFile(file.path, file.hash)
+              request(app.express)
+                .post(url)
+                .set('Authorization', 'JWT ' + token)
+                .attach(appendee.name, tmp, JSON.stringify({
+                  op: 'append',
+                  hash: appendee.hash,
+                  size: file.size
+                }))
+                .expect(200)
+                .end((err, res) => {
+                  if (err) return done(err)
+
+                  let target = path.join(fruitmixDir, 'drives', home.uuid, appendee.name)
+                  let data = retrieveXstat(target)
+                  expect(res.body[0]).to.deep.include({
+                    type: 'file',
+                    name: appendee.name,
+                    op: 'append',
+                    hash: appendee.hash,
+                    size: file.size,
+                    sha256: file.hash,
+                    data
+                  })
+
+                  let hash = appendee.size === 0
+                    ? file.hash
+                    : crypto.createHash('sha256')
+                      .update(Buffer.from(appendee.hash, 'hex'))
+                      .update(Buffer.from(file.hash, 'hex'))
+                      .digest('hex')
+
+                  expect(data.hash).to.equal(hash)
+                  expect(fps.sync(target)).to.equal(data.hash)
+                  done()
+                })
+            })
+        })
+      })
     })
   })
-}) 
+})
