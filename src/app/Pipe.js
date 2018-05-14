@@ -64,7 +64,7 @@ class Pipe extends EventEmitter {
    * @return {object} user
    */
   checkUser (phicommUserId) {
-    return this.ctx.fruitmix().getUserByPhicommUserId(phicommUserId)
+    return this.ctx.fruitmix.getUserByPhicommUserId(phicommUserId)
   }
   /**
    * get token for cloud
@@ -183,10 +183,10 @@ class Pipe extends EventEmitter {
       // let props = {
       //   manifest: true
       // }
-      return this.getResource().pipe(this.ctx.fruitmix().apis[matchRoute.api][method](user, props))
+      return this.getResource().pipe(this.ctx.fruitmix.apis[matchRoute.api][method](user, props))
     } else {
       const props = Object.assign({}, query, body, params)
-      return this.ctx.fruitmix().apis[matchRoute.api][method](user, props, (err, data) => {
+      return this.ctx.fruitmix.apis[matchRoute.api][method](user, props, (err, data) => {
         if (err) return this.reqCommand(err, data)
         // stream
         if (typeof data === 'string' && path.isAbsolute(data)) {
