@@ -468,8 +468,6 @@ class Boot extends EventEmitter {
       }
     })
 
-    process.on('message', this.handleBootstrapMessage.bind(this))
-
     new Probing(this)
   }
 

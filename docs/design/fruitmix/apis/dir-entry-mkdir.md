@@ -12,11 +12,12 @@
     - [4.1.1. 单例](#411-单例)
 - [5. NEWFILE](#5-newfile)
   - [测试](#测试)
+    - [参数合法性](#参数合法性)
     - [无Policy单例](#无policy单例)
     - [使用Policy](#使用policy)
 - [6. APPEND](#6-append)
   - [测试](#测试-1)
-    - [参数合法性](#参数合法性)
+    - [参数合法性](#参数合法性-1)
     - [连续操作](#连续操作)
 - [7. DUP](#7-dup)
 
@@ -265,6 +266,29 @@ policies:
 
 ## 测试
 
+### 参数合法性
+
++ name不合法
+  - 未提供 (x)
+  - 非字符串 (x)
+  - 非法字符串 `hello/world`
+  - 两个字符串 `hello|world`
++ size不合法
+  - 未提供
+  - 不是数字 hello, {}, []
+  - 不是整数 99.99
+  - 小于0 -1
+  - 大于1G 1G + 1
++ sha256不合法
+  - 未提供
+  - 非字符串 1, {}, []
+  - 非SHA256字符串 hello
+  - 在size为0时不是空SHA256 (TODO)
++ policy不合法
+  - 非array 1, 'hello', {}, 
+  - 非size = 2 array [], [null, null, null]
+  - 包含非法字符串 ['hello', null], [null, 'hello']
+
 ### 无Policy单例
 
 + 上传0字节文件成功
@@ -276,8 +300,6 @@ policies:
 - 上传(1G + 1)字节文件失败
 
 ### 使用Policy
-
-
 
 # 6. APPEND
 
@@ -308,10 +330,12 @@ policies:
 
 ### 参数合法性
 
+以下标注x的客户端库或协议无法实现
+
 - name不合法
-  - 未提供 
-  - 非字符串 1
-  - 非法字符串 `/hello`
+  - 未提供 (x)
+  - 非字符串 1 (x)
+  - 非法字符串 `hello/world`
   - 提供了两个 `hello|world`
   - name不是文件
 

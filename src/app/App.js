@@ -1,5 +1,6 @@
 const EventEmitter = require('events')
 const child = require('child_process')
+const os = require('os')
 
 const Boot = require('../system/Boot')
 const Auth = require('../middleware/Auth')
@@ -18,7 +19,7 @@ const { passwordEncrypt } = require('../lib/utils')
 
 const routing = require('./routing')
 
-const Pipe = require('../fruitmix/Pipe')
+const Pipe = require('./Pipe')
 /**
 Create An Application
 
@@ -70,6 +71,19 @@ class App extends EventEmitter {
     // create express
     this.secret = opts.secret || 'Lord, we need a secret'
 
+    /**
+     * {
+     *    cloudToken,
+     *    device: {
+     *      deviceSN,
+     *      deviceModel
+     *    }
+     * }
+     */
+    this.cloudConf = {
+      auth: () => this.auth
+    }
+
     if (opts.fruitmix) {
       this.fruitmix = opts.fruitmix
     } else if (opts.fruitmixOpts) {
@@ -93,6 +107,12 @@ class App extends EventEmitter {
     // create express instance
     this.createExpress()
 
+    // create a Pipe
+    this.pipe = new Pipe({
+      fruitmix: this.fruitmix,
+      config: this.cloudConf
+    })
+
     // create server if required
     if (opts.useServer) {
       this.server = this.express.listen(3000, err => {
@@ -104,13 +124,33 @@ class App extends EventEmitter {
         }
       })
     }
+
+    process.on('message', this.handleMessage.bind(this))
   }
 
-  handleMessage (message) {
+  handleMessage (msg) {
+    let message
+    try {
+      message = JSON.parse(msg)
+    } catch (e) {
+      console.log('Bootstrap Message -> JSON parse Error')
+      console.log(msg)
+      return
+    }
     switch (message.type) {
       case 'pip':
-        return new Pipe().handleMessage(message)
+        this.pipe.handleMessage(message)
+        break
       case 'hello':
+        break
+      case 'bootstrap_token' :
+        this.cloudConf.cloudToken = message.data.token
+        break
+      case 'bootstrap_device' :
+        this.cloudConf.device = message.data
+        break
+      case 'bootstrap_boundUser':
+        if (this.boot && message.data) this.boot.setBoundUser(message.data)
         break
       default:
         break
@@ -124,12 +164,46 @@ class App extends EventEmitter {
 
     // boot router
     let bootr = express.Router()
-    bootr.get('/', (req, res) => res.status(200).json(this.boot.view()))
+    bootr.get('/', (req, res) => {
+      let total = os.totalmem(), speed, type, free = os.freemem()
+      try {
+        free = child.execSync('free -b')
+          .toString().split('\n')
+          .find(x => x.startsWith('Mem:'))
+          .split(' ')
+          .map(x => x.trim())
+          .filter(x => x.length)
+          .pop()
+        type = child.execSync('dmidecode -t memory |grep -A16 "Memory Device$" |grep "Type: DD*"')
+          .toString().split('\n')
+          .shift()
+          .split(' ')
+          .map(x => x.trim())
+          .filter(x => x.length)
+          .pop()
+        speed = child.execSync('dmidecode -t memory |grep -A16 "Memory Device$" |grep "Speed:.*MHz"')
+          .toString().split('\n')
+          .shift()
+          .split(':')
+          .pop().trim()
+      } catch (e) { }
+      res.status(200).json(Object.assign({}, this.boot.view(), {
+        device: Object.assign({}, this.cloudConf.device, {
+          cpus: os.cpus(),
+          memory: {
+            free,
+            total,
+            speed,
+            type
+          }
+        })
+      }))
+    })
     bootr.post('/boundVolume', (req, res, next) =>
       this.boot.init(req.body.target, req.body.mode, (err, data) =>
         err ? next(err) : res.status(200).json(data)))
-    bootr.put('/', (req, res, next) => 
-      this.boot.import(req.body.volumeUUID, (err, data) => 
+    bootr.put('/', (req, res, next) =>
+      this.boot.import(req.body.volumeUUID, (err, data) =>
         err ? next(err) : res.status(200).json(data)))
     bootr.patch('/', (req, res, next) => {
       let arg = req.body.arg
@@ -152,7 +226,7 @@ class App extends EventEmitter {
     let opts = {
       auth: this.auth.middleware,
       settings: { json: { spaces: 2 } },
-      log: this.opts.log || { skip: 'all', error: 'all' },
+      log: this.opts.log || { skip: 'selected', error: 'selected' },
       routers
     }
 

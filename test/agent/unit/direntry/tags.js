@@ -12,8 +12,6 @@ const request = require('supertest')
 const chai = require('chai').use(require('chai-as-promised'))
 const expect = chai.expect
 
-const { createTestFilesAsync } = require('src/utils/createTestFiles')
-
 const Fruitmix = require('src/fruitmix/Fruitmix')
 const App = require('src/app/App')
 
@@ -63,8 +61,9 @@ const {
   setUserUnionIdAsync
 } = require('../lib')
 
-describe(path.basename(__filename), () => {
+const alonzo = FILES.alonzo
 
+describe(path.basename(__filename), () => {
   const requestToken = (express, userUUID, password, callback) =>
     request(express)
       .get('/token')
@@ -91,90 +90,16 @@ describe(path.basename(__filename), () => {
 
   const requestHomeAsync = Promise.promisify(requestHome)
 
-  describe('alice home, invalid name', () => {
+  const createTag = (express, token, props, callback) => 
+    request(express)
+      .get('/tags')
+      .set('Authorization', 'JWT ' + token)
+      .send(props)
+      .expect(200)
+      .end((err, res) => err ? callback(err) : callback(null, res.body))
 
-    let fruitmix, app, token, home, url
-    let alonzo = FILES.alonzo
-
-    beforeEach(async () => {
-      await rimrafAsync(tmptest)
-      await mkdirpAsync(fruitmixDir)
-
-      let userFile = path.join(fruitmixDir, 'users.json')
-      await fs.writeFileAsync(userFile, JSON.stringify([alice], null, '  '))
-
-      fruitmix = new Fruitmix({ fruitmixDir })
-      app = new App({ fruitmix, log: { skip: 'all', error: 'none' } })
-      await new Promise(resolve => fruitmix.once('FruitmixStarted', () => resolve()))
-      token = await requestTokenAsync(app.express, alice.uuid, 'alice')
-      home = await requestHomeAsync(app.express, alice.uuid, token)
-      url = `/drives/${home.uuid}/dirs/${home.uuid}/entries`
-    })
-   
-    it('400 if name is hello/world', function (done) {
-      this.timeout(0)
-      let badname = 'hello/world'
-      request(app.express)
-        .post(url)
-        .set('Authorization', 'JWT ' + token)
-        .attach(badname, alonzo.path, JSON.stringify({
-          op: 'newfile',
-          size: alonzo.size,
-          sha256: alonzo.hash
-        }))
-        .expect(400)
-        .end((err, res) => {
-          if (err) return done(err)
-          // assert result name && error.status
-          expect(res.body.result[0].name).to.equal(badname)
-          expect(res.body.result[0].error.status).to.equal(400)
-          done()
-        })
-
-    })
-
-    it('400 if name is hello|world', function (done) {
-      this.timeout(0)
-      let badname = 'hello|world'
-      request(app.express)
-        .post(url)
-        .set('Authorization', 'JWT ' + token)
-        .attach(badname, alonzo.path, JSON.stringify({
-          op: 'newfile',
-          size: alonzo.size,
-          sha256: alonzo.hash
-        }))
-        .expect(400)
-        .end((err, res) => {
-          if (err) return done(err)
-          // assert result name && error.status
-          expect(res.body.result[0].name).to.equal(badname)
-          expect(res.body.result[0].error.status).to.equal(400)
-          done()
-        })
-
-    })
-
-  })
-
-  describe('alice home', () => {
+  describe('alice home, add tags', () => {
     let fruitmix, app, token, home
-
-    before(async function () {
-      this.timeout(0)
-
-      try {
-        await fs.lstatAsync('test-files')
-      } catch (e) {
-        if (e.code !== 'ENOENT') throw e
-      }
-
-      // TODO
-      // await mkdirpAsync('test-files')
-      // process.stdout.write('      creating big files')
-      // await createTestFilesAsync()
-      // process.stdout.write('...done\n')
-      })
 
     beforeEach(async () => {
       await Promise.delay(100)
@@ -189,41 +114,53 @@ describe(path.basename(__filename), () => {
       await new Promise(resolve => fruitmix.once('FruitmixStarted', () => resolve()))
       token = await requestTokenAsync(app.express, alice.uuid, 'alice')
       home = await requestHomeAsync(app.express, alice.uuid, token)
+      url = `/drives/${home.uuid}/dirs/${home.uuid}/entries`
     })
 
-    it.skip(`200 append OneGiga to OneGiga`, function (done) {
-      this.timeout(0)
-
+    it('add tags to hello', done => {
+      // create tag 0
       request(app.express)
-        .post(`/drives/${home.uuid}/dirs/${home.uuid}/entries`)
+        .post('/tags')
         .set('Authorization', 'JWT ' + token)
-        .attach(FILES.oneGiga.name, FILES.oneGiga.path, JSON.stringify({
-          op: 'newfile',
-          size: FILES.oneGiga.size,
-          sha256: FILES.oneGiga.hash
-        }))
+        .send({ name: 'bug' })
         .expect(200)
         .end((err, res) => {
           if (err) return done(err)
 
-          // console.log(res.body)
-          
-          request(app.express)          
-            .post(`/drives/${home.uuid}/dirs/${home.uuid}/entries`)
+          let tag = res.body
+
+          // create a new file
+          request(app.express)  
+            .post(url)
             .set('Authorization', 'JWT ' + token)
-            .attach(FILES.oneGiga.name, FILES.oneGiga.path, JSON.stringify({
-              op: 'append',
-              hash: FILES.oneGiga.hash,
-              size: FILES.oneGiga.size,
-              sha256: FILES.oneGiga.hash
+            .attach(alonzo.name, alonzo.path, JSON.stringify({
+              op: 'newfile',
+              size: alonzo.size,
+              sha256: alonzo.hash
             }))
-            // .expect(200)
+            .expect(200)
             .end((err, res) => {
-              // if (err) return done(err)
-              console.log(err, res.body)
-              done()
+              if (err) return done(err)
+              
+              request(app.express)
+                .post(url)
+                .set('Authorization', 'JWT ' + token)
+                .field(alonzo.name, JSON.stringify({ op: 'addTags', tags: [tag.id] }))
+                .expect(200)
+                .end((err, res) => {
+                  if (err) return done(err)
+                  console.log(JSON.stringify(res.body, null, '  '))
+                  done()
+                })
             })
-        })
+
+        }) 
     })
+
   })
-}) 
+
+  describe('alice home, remove tags', () => {
+  })
+})
+
+

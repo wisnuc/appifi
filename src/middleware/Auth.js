@@ -161,12 +161,28 @@ class Auth {
   token (user) {
     return {
       type: 'JWT',
+      forRemote: false,
       token: jwt.encode({
         uuid: user.uuid
       }, this.secret)
     }
   }
 
+  /**
+   * Generate jwt token for remote user
+   * @param {object} user
+   */
+  tokenForRemote (user) {
+    return {
+      type: 'JWT',
+      forRemote: true,
+      token: jwt.encode({
+        uuid: user.uuid,
+        phicommUserId: user.phicommUserId,
+        timestamp: new Date().getTime()
+      }, this.secret)
+    }
+  }
 }
 
 module.exports = Auth

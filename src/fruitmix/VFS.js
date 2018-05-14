@@ -26,7 +26,13 @@ const Directory = require('./vfs/directory')
 
 const { btrfsConcat, btrfsClone, btrfsClone2 } = require('../lib/btrfs')
 
-const { readXstat, readXstatAsync, forceXstatAsync, forceXstat, assertDirXstatSync, assertFileXstatSync } = require('../lib/xstat')
+const { 
+  readXstat, 
+  forceXstat, 
+  updateFileTags,
+  assertDirXstatSync, 
+  assertFileXstatSync,  
+} = require('../lib/xstat')
 
 const Debug = require('debug')
 const smbDebug = Debug('samba')
@@ -175,6 +181,7 @@ class VFS extends EventEmitter {
     try {
       mkdirp.sync(dirPath)
       stats = fs.lstatSync(dirPath)
+      // this is tricky but works
       xattr.setSync(dirPath, 'user.fruitmix', JSON.stringify(attr))
     } catch (e) {
       console.log(e)
@@ -596,6 +603,142 @@ class VFS extends EventEmitter {
   
   */
   DUP (user, props, callback) {
+  }
+
+
+
+  /**
+  @param {object} user
+  @param {object} props
+  @param {string} props.driveUUID
+  @param {string} props.dirUUID
+  @param {string} props.name
+  @param {string} props.tags
+  */
+  ADDTAGS (user, props, callback) {
+    try {
+      let tags = props.tags
+      if (!Array.isArray(tags) || tags.length === 0 || !tags.every(id => Number.isInteger(id) && id >= 0)) 
+        throw new Error('invalid tags')
+
+      tags.forEach(id => {
+        let tag = this.tags.find(tag => tag.id === id)
+        if (!tag || tag.creator !== user.uuid) throw new Error(`tag id ${id} not found`)
+      })
+    } catch (err) {
+      err.status = 400
+      process.nextTick(() => callback(err))
+    }
+
+    this.DIR(user, props, (err, dir) => {
+      if (err) return callback(err)
+
+      let tags = Array.from(new Set(props.tags)).sort()   
+      let filePath = path.join(this.absolutePath(dir), props.name)   
+
+      readXstat(filePath, (err, xstat) => {
+        if (err) return callback(err)
+        if (xstat.type !== 'file') {
+          let err = new Error('not a file')
+          err.code = 'ENOTFILE'
+          return callback(err)
+        }
+
+        let oldTags = xstat.tags || []
+        let newTags = Array.from(new Set([...oldTags, ...tags])).sort()
+
+        if (newTags.length === oldTags.length) {
+          callback(null, xstat)
+        } else {
+          updateFileTags(filePath, xstat.uuid, newTags, callback)
+        }
+      })
+    })  
+  }
+
+  REMOVETAGS (user, props, callback) {
+    try {
+      let tags = props.tags        
+      if (!Array.isArray(tags) || tags.length === 0 || !tags.every(id => Number.isInteger(id) && id >= 0))
+        throw new Error('invalid tags')
+
+      tags.forEach(id => {
+        let tag = this.tags.find(tag => tag.id === id)
+        if (!tag || tag.creator !== user.uuid) throw new Error(`tag id ${id} not found`)
+      })      
+    } catch (err) {
+      err.status = 400
+      process.nextTick(() => callback(err))
+    }
+
+    // normalize
+    let tags = Array.from(new Set(props.tags)).sort()
+
+    this.DIR(user, props, (err, dir) => {
+      if (err) return callback(err)
+
+      let filePath = path.join(this.absolutePath(dir), props.name)
+      readXstat(filePath, (err, xstat) => {
+        if (err) return callback(err)
+        if (xstat.type !== 'file') {
+          let err = new Error('not a file')
+          err.code = 'ENOTFILE'
+          return callback(err)
+        }
+
+        if (!xstat.tags) return callback(null, xstat) 
+        
+        // complementary set
+        let newTags = xstat.tags.reduce((acc, id) => tags.includes(id) ? acc : [...acc, id], [])
+        updateFileTags(filePath, xstat.uuid, newTags, callback)
+      }) 
+    })
+  }
+
+  // set tags accept empty array
+  SETTAGS (user, props, callback) {
+    try {
+      let tags = props.tags        
+      if (!Array.isArray(tags) || tags.length === 0 || !tags.every(id => Number.isInteger(id) && id >= 0))
+        throw new Error('invalid tags')
+
+      tags.forEach(id => {
+        let tag = this.tags.find(tag => tag.id === id)
+        if (!tag || tag.creator !== user.uuid) throw new Error(`tag id ${id} not found`)
+      })      
+    } catch (err) {
+      err.status = 400
+      process.nextTick(() => callback(err))
+    }
+
+    let tags = Array.from(new Set(props.tags)).sort()
+
+    this.DIR(user, props, (err, dir) => {
+      if (err) return callback(err)
+
+      let filePath = path.join(this.absolutePath(dir), props, name)
+      readXstat(filePath, (err, xstat) => {
+        if (err) return callback(err)  
+        if (xstat.type !== 'file') {
+          let err = new Error('not a file')
+          err.code = 'ENOTFILE'
+          return callback(err)
+        }
+
+        // user tag ids
+        let userTags = this.tags
+          .filter(tag => tag.creator === user.uuid)
+          .map(tag => tag.uuid)
+
+        // remove all user tags out of old tags
+        let oldTags = xstat.tags
+          ? xstat.tags.reduce((acc, id) => userTags.includes(id) ? acc : [...acc, id])
+          : []
+
+        let newTags = Array.from(new Set([...oldTags, tags]))
+        updateFileTags(filePath, xstat.uuid, newTags, callback)
+      })
+    })
   }
 
 
@@ -1110,8 +1253,6 @@ class VFS extends EventEmitter {
     dir.read(callback)
   }
 
-  /** new apis **/
-  
   /**  
   Visiting tree nodes is better than iterating map/list in most cases, 
   providing that all directories are annotated with sums of file inside.
@@ -1131,7 +1272,7 @@ class VFS extends EventEmitter {
     if (props.namepath === 'true' && !props.places) 
       Throw(400, 'places must be provided if namepath is true')
 
-    let dirs, tags, magics 
+    let dirs, tags, magics
     if (props.places) {
       // split into multiple uuids
       let split = props.places.split('.') 
@@ -1175,7 +1316,7 @@ class VFS extends EventEmitter {
 
       if (props.media) {
         if (node.hash && this.mediaMap.hasMetadata(node.hash)) {
-          mediaSet.add(this.mediaMap.getMetadata(node.hash))
+          mediaSet.add(Object.assign({}, this.mediaMap.getMetadata(node.hash), { hash: node.hash }))
         }
       } else {
         let file = {
