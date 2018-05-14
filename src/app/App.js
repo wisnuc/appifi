@@ -102,14 +102,12 @@ class App extends EventEmitter {
       throw new Error('either fruitmix or fruitmixOpts must be provided')
     }
 
-
-
     // create express instance
     this.createExpress()
 
     // create a Pipe
     this.pipe = new Pipe({
-      fruitmix: opts.fruitmix,
+      fruitmix: this.fruitmix,
       config: this.cloudConf
     })
 
@@ -139,7 +137,8 @@ class App extends EventEmitter {
     }
     switch (message.type) {
       case 'pip':
-        return this.pipe.handleMessage(message)
+        this.pipe.handleMessage(message)
+        break
       case 'hello':
         break
       case 'bootstrap_token' :

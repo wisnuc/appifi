@@ -37,8 +37,8 @@ const wisnuc = {
     userProps: ['uuid', 'username', 'isFirstUser', 'global' ]
   },
   tag: {
-    tagIsPrivate: false,
-    preserveTagsInPublicDrive: true,
+    isPrivate: false,
+    visibleInPublicDrive: true,
   }
 }
 
@@ -60,8 +60,8 @@ const n2 = {
     userProps: ['uuid', 'username', 'isFirstUser', 'phicommUserId']
   },
   tag: {
-    tagIsPrivate: true,
-    preserveTagsInPublicDrive: false
+    isPrivate: true,
+    visibleInPublicDrive: false
   }
 }
 
