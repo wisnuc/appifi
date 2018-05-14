@@ -219,7 +219,7 @@ class Pipe extends EventEmitter {
     const req = () => {
       if (++count > 2) return
       return request({
-        uri: this.message.packageParams.watingServer + COMMAND_URL,
+        uri: 'http://sohon2test.phicomm.com' + COMMAND_URL, // this.message.packageParams.watingServer + COMMAND_URL,
         method: 'POST',
         headers: { Authorization: `JWT ${this.ctx.config.cloudToken}` },
         body: true,
