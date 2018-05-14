@@ -64,7 +64,12 @@ class Pipe extends EventEmitter {
    * @return {object} user
    */
   checkUser (phicommUserId) {
+    // throw 503 unavailable if fruitmix === null
     return this.ctx.fruitmix().getUserByPhicommUserId(phicommUserId)
+
+    // users = fruitmix 
+    //  ? fruitmix.users 
+    //  : [{ phicommUserId: xxxx }]
   }
   /**
    * get token for cloud
