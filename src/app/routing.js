@@ -87,5 +87,22 @@ module.exports = {
       ['/:id', 'PUT', 'nfs'],
       ['/:id', 'DELETE', 'nfs']
     ]
+  },
+
+  transmission: {
+    prefix: '/transmission',
+    routes: [
+      ['/', 'LIST', 'transmission'],
+      ['/:type', 'POST', 'transmission', { needReq: true }],
+      ['/:id', 'PATCH', 'transmission']
+    ]
+  },
+
+  samba: {
+    prefix: '/samba',
+    routes: [
+      ['/', 'GET', 'samba'],
+      ['/', 'PATCH', 'samba']
+    ]
   }
 }
