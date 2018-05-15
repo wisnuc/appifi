@@ -537,7 +537,7 @@ class Boot extends EventEmitter {
   view () {
     return {
       state: this.state.constructor.name.toUpperCase(),
-      boundUser: this.boundUser ? { phicommUserId: this.boundUser.phicommUserId } : null,
+      boundUser: this.boundUser ? { phicommUserId: this.boundUser.phicommUserId } : this.boundUser,
       boundVolume: this.volumeStore.data,
       storage: this.storage,
       preset: this.preset
