@@ -16,8 +16,8 @@ module.exports = {
       ['/:userUUID', 'GET', 'user'],
       ['/:userUUID', 'PATCH', 'user', {
         auth: auth => (req, res, next) =>
-          req.body.password === undefined 
-            ? auth.jwt()(req, res, next) 
+          req.body.password === undefined
+            ? auth.jwt()(req, res, next)
             : auth.basic()(req, res, next)
       }],
       ['/:userUUID', 'DELETE', 'user']
