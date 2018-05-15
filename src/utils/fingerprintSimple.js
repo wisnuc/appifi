@@ -61,6 +61,31 @@ const fingerprintSimple = (filePath, callback) => {
   Loop()
 }
 
+const fingerprintSimpleSync = filePath => {
+  let fd = fs.openSync(filePath, 'r') 
+  let stat = fs.fstatSync(fd)
+
+  if (stat.size === 0) return crypto.createHash('sha256').digest('hex') 
+
+  const buffer = Buffer.alloc(1024 * 1024 * 1024)
+  let totalRead = 0 
+  let fingerprint 
+  while (true) {
+    let bytesRead = fs.readSync(fd, buffer, 0, 1024 * 1024 * 1024, totalRead)
+    if (bytesRead === 0) throw new Error('zero bytes read')
+
+    let digest = crypto.createHash('sha256').update(buffer.slice(0, bytesRead)).digest()
+    fingerprint = fingerprint 
+      ? crypto.createHash('sha256').update(fingerprint).update(digest).digest()
+      : digest
+      
+    totalRead += bytesRead
+    if (totalRead === stat.size) return fingerprint.toString('hex')
+  }
+}
+
+fingerprintSimple.sync = fingerprintSimpleSync
+
 module.exports = fingerprintSimple
 
 if (process.argv.includes('--standalone')) {

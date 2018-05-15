@@ -45,6 +45,10 @@ class State {
     process.nextTick(() => this.ctx.emit('StateEntered', this.constructor.name))
   }
 
+  emitState() {
+    this.ctx.emit('StateEntered', this.constructor.name)
+  }
+
   setState (NextState, ...args) {
     this.exit()
     new NextState(this.ctx, ...args)
@@ -72,6 +76,7 @@ class Failed extends State {
 
   enter (err) {
     this.error = err
+    debug('failed', err.message)
   }
 
 }
@@ -130,7 +135,7 @@ class Heading extends State {
   /**
   Parse name and filename directive according to protocol
 
-  This function installs args gradually. 
+  This function installs args gradually, conforming to api specs.
   */
   parseHeader (header) {
     let name, filename, fromName, toName
@@ -145,6 +150,14 @@ class Heading extends State {
     // check header is valid
     if (x.length < 2 || x.length > 3 || x[0] !== 'form-data') 
       throw new Error('invalid header')
+
+    // install basic args as early as possible
+    if (x.length === 2) {
+      this.ctx.args.type = 'field'
+    } else {
+      this.ctx.args.type = 'file'
+    }
+
     if (x[1].length <= 'name=""'.length || !x[1].startsWith('name="') || !x[1].endsWith('"')) 
       throw new Error('invalid name field')
 
@@ -164,6 +177,14 @@ class Heading extends State {
       }
 
       if (!isNonNullObject(filename) || Array.isArray(filename)) throw new Error('invalid filename field')
+      let { op, hash, size, sha256, policy } = filename 
+      if (op === 'newfile') {
+        Object.assign(this.ctx.args, { op, size, sha256, policy })
+      } else if (op = 'append') {
+        Object.assign(this.ctx.args, { op, hash, size, sha256 })
+      } else {
+        Object.assign(this.ctx.args, { op, hash, size, sha256, policy })
+      }
     }
    
     // validate name and generate part.fromName and .toName
@@ -175,36 +196,28 @@ class Heading extends State {
     this.ctx.args.fromName = fromName
     this.ctx.args.toName = toName
 
-
     if (x.length > 2) {
-      this.ctx.args.type = 'file'
       let { op, hash, size, sha256, policy } = filename
       if (op === 'newfile') { // op, size, sha256, [policy]
-        Object.assign(this.ctx.args, { op, size, sha256, policy })
         if (fromName !== toName) throw new Error('newfile requires single name')
         if (!Number.isInteger(size)) throw new Error('invalid size')
         if (size < 0 || size > 1024 * 1024 * 1024) throw new Error('size out of range')
-        if (!isSHA256(sha256)) throw new Error('invalid sha256')
+        if (sha256 !== undefined && !isSHA256(sha256)) throw new Error('invalid sha256')
         if (policy === undefined) {
           this.ctx.args.policy = [null, null]
         } else {
           if (!isValidPolicy(policy)) throw new Error('invalid policy')
         } 
       } else if (op === 'append') { // { op, hash, size, sha256 }
-        Object.assign(this.ctx.args, { op, hash, size, sha256 })
         if (fromName !== toName) throw new Error('append requires single name')
         if (!isSHA256(hash)) throw new Error('invalid hash')
         if (!Number.isInteger(size)) throw new Error('invalid size')
         if (size <= 0 || size > 1024 * 1024 * 1024) throw new Error('size out of range')
-        if (!isSHA256(sha256)) throw new Error('invalid sha256')
+        if (sha256 !== undefined && !isSHA256(sha256)) throw new Error('invalid sha256')
       } else {
-        Object.assign(this.ctx.args, { op, hash, size, sha256, policy })
         throw new Error('invalid op')
       }
-    } else {
-      this.ctx.args.type = 'field'
-      Object.assign(this.ctx.args, { type: 'field', name, fromName, toName })
-    }
+    } 
   }
 
   exit () {
@@ -550,7 +563,9 @@ class Party extends EventEmitter {
     let job = new Job(this, part) 
     job.on('StateEntered', state => {
       if (!job.isFinished()) return
-      if (this.ended && this.jobs.every(j => j.isFinished())) {
+      this.jobCount--
+      //if (this.ended && this.jobs.every(j => j.isFinished())) {
+      if (!this.jobCount && this.ended) {
         // mute , due to asynchrony of state event
         this.jobs.forEach(j => j.removeAllListeners()) 
         if (!this.error && job.isFailed()) this.error = job.state.error
@@ -574,19 +589,18 @@ class Party extends EventEmitter {
     })
 
     this.jobs.push(job)
+    this.jobCount++
   } 
 
   end () {
     if (this.finished || this.ended) return
-
-    if (this.jobs.every(j => j.isFinished())) {
+    this.ended = true
+    if (this.ended && !this.jobCount) {
       // mute
       this.jobs.forEach(j => j.removeAllListeners())
       this.finished = true 
-      process.nextTick(() => this.emit('finish'))
-    } else {
-      this.ended = true
-    }
+      this.emit('finish')
+    } 
   }
 
   destroy () {
@@ -632,11 +646,14 @@ class IncomingForm extends EventEmitter {
     this.party.on('error', this.errorHandler)
     this.party.on('finish', () => {
       // Noting that party may finish in error
+
       this.error = this.error || this.party.error
       if (this.error) {
         this.error.result = this.party.result()
+        debug('party finished with error', JSON.stringify(this.error, null, '  '))
       } else {
         this.result = this.party.result()
+        debug('party finished with result', JSON.stringify(this.result, null, '  '))
       }
 
       this.emit('finish')

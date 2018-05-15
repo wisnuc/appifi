@@ -51,7 +51,7 @@ class Pipe extends EventEmitter {
   /**
    * Create a Pipe
    * @param {object} ctx
-   * @param {object} ctx.fruitmix
+   * @param {object} ctx.fruitmix()
    * @param {object} ctx.config
    */
   constructor (ctx) {
@@ -64,7 +64,12 @@ class Pipe extends EventEmitter {
    * @return {object} user
    */
   checkUser (phicommUserId) {
-    return this.ctx.fruitmix.getUserByPhicommUserId(phicommUserId)
+    // throw 503 unavailable if fruitmix === null
+    return this.ctx.fruitmix().getUserByPhicommUserId(phicommUserId)
+
+    // users = fruitmix 
+    //  ? fruitmix.users 
+    //  : [{ phicommUserId: xxxx }]
   }
   /**
    * get token for cloud
@@ -164,7 +169,7 @@ class Pipe extends EventEmitter {
       const opts = { user, matchRoute, method, query, body, params }
       this.apis(opts)
     } catch (err) {
-      debug(`pipe message error: ${err.massage}`)
+      debug(`pipe message error: `, err)
       return err
     }
   }
@@ -183,10 +188,10 @@ class Pipe extends EventEmitter {
       // let props = {
       //   manifest: true
       // }
-      return this.getResource().pipe(this.ctx.fruitmix.apis[matchRoute.api][method](user, props))
+      return this.getResource().pipe(this.ctx.fruitmix().apis[matchRoute.api][method](user, props))
     } else {
       const props = Object.assign({}, query, body, params)
-      return this.ctx.fruitmix.apis[matchRoute.api][method](user, props, (err, data) => {
+      return this.ctx.fruitmix().apis[matchRoute.api][method](user, props, (err, data) => {
         if (err) return this.reqCommand(err, data)
         // stream
         if (typeof data === 'string' && path.isAbsolute(data)) {
@@ -226,7 +231,7 @@ class Pipe extends EventEmitter {
       return request({
         uri: 'http://sohon2test.phicomm.com' + COMMAND_URL, // this.message.packageParams.waitingServer + COMMAND_URL,
         method: 'POST',
-        headers: { Authorization: `JWT ${this.ctx.config.cloudToken}` },
+        headers: { Authorization: this.ctx.config.cloudToken },
         body: true,
         json: {
           common: {
@@ -240,12 +245,7 @@ class Pipe extends EventEmitter {
         }
       }, (error, response, body) => {
         if (!error && response.statusCode === 200) {
-          var info = JSON.parse(body)
-          debug(info)
-          // return info
-        } else {
-          debug('request cammand failed')
-          // return new Error('request cammand failed')
+          debug(`command resposne body: ${body}`)
         }
       })
     }
@@ -266,13 +266,12 @@ class Pipe extends EventEmitter {
     }
     request.post({
       url: this.message.packageParams.waitingServer + RESOURCE_URL,
-      headers: { Authorization: `JWT ${this.ctx.config.cloudToken}` },
+      headers: { Authorization: this.ctx.config.cloudToken },
       formData: formData
-    }, function optionalCallback (err, httpResponse, body) {
-      if (err) {
-        debug('upload failed:', err)
+    }, (error, response, body) => {
+      if (!error && response.statusCode === 200) {
+        debug(`command resposne body: ${body}`)
       }
-      debug('Upload successful!  Server responded with:', body)
     })
   }
   /**
@@ -285,7 +284,7 @@ class Pipe extends EventEmitter {
     return request({
       uri: this.message.packageParams.waitingServer + RESOURCE_URL,
       method: 'GET',
-      headers: { Authorization: `JWT ${this.ctx.config.cloudToken}` },
+      headers: { Authorization: this.ctx.config.cloudToken },
       qs: {
         deviceSN: this.ctx.config.device.deviceSN,
         msgId: this.message.msgId,
