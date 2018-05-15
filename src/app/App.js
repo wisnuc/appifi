@@ -119,6 +119,10 @@ class App extends EventEmitter {
           process.exit(1) // TODO
         } else {
           console.log('server started on port 3000')
+          process.send && process.send({ 
+            type: 'appifi_started',
+            data: {}
+          })
         }
       })
     }
