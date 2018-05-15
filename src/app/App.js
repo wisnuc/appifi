@@ -152,7 +152,7 @@ class App extends EventEmitter {
         this.cloudConf.device = message.data
         break
       case 'bootstrap_boundUser':
-        if (this.boot && message.data) this.boot.setBoundUser(message.data)
+        if (this.boot && message.hasOwnProperty('data')) this.boot.setBoundUser(message.data)
         break
       default:
         break
