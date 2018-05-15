@@ -341,7 +341,8 @@ class Initializing extends State {
       isFirstUser: true,
       isAdmin: true,
       phicommUserId: this.ctx.boundUser.phicommUserId,
-      password: this.ctx.boundUser.password
+      password: this.ctx.boundUser.password,
+      status: 'ACTIVE'
     }]
 
     await mkdirpAsync(tmpDir)

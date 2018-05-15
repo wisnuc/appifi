@@ -70,7 +70,6 @@ class DirEntryApi {
 
       let opts = { boundary, length, formdata }
       let form = new IncomingForm(opts, this.bindApis(user, dirProps)) 
-
       form.once('finish', () => {
         let err = form.error 
           ? { 

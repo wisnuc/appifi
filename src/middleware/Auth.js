@@ -63,8 +63,8 @@ class Auth {
       let user = this.users.find(u => u.uuid === userUUID)
       if (!user) {
         done(null, false, { message: 'user not found' })
-      } else if (user.disabled) {
-        done(null, false, { message: 'user disabled' })
+      } else if (user.status !== 'ACTIVE') {
+        done(null, false, { message: 'user not active' })
       } else {
         bcrypt.compare(password, user.password, (err, match) => {
           if (err) {
@@ -92,8 +92,8 @@ class Auth {
       let user = this.users.find(u => u.uuid === payload.uuid)
       if (!user) {
         done(null, false, { message: 'user not found' })
-      } else if (user.disabled) {
-        done(null, false, { message: 'user disabled' })
+      } else if (user.status !== 'ACTIVE') {
+        done(null, false, { message: 'user not active' })
       } else {
         done(null, this.strip(user))
       }
@@ -103,7 +103,7 @@ class Auth {
   /**
   */
   strip (user) {
-    // TODO
+    // TODO FIXME
     return {
       uuid: user.uuid,
       username: user.username,
@@ -175,6 +175,7 @@ class Auth {
   tokenForRemote (user) {
     return {
       type: 'JWT',
+      uuid: user.uuid,
       forRemote: true,
       token: jwt.encode({
         uuid: user.uuid,

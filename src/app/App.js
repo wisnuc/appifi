@@ -109,8 +109,9 @@ class App extends EventEmitter {
 
     // create a Pipe
     this.pipe = new Pipe({
-      fruitmix: this.fruitmix,
-      config: this.cloudConf
+      fruitmix: () => this.fruitmix,
+      config: this.cloudConf,
+      boot: this.boot
     })
 
     // create server if required
@@ -121,6 +122,10 @@ class App extends EventEmitter {
           process.exit(1) // TODO
         } else {
           console.log('server started on port 3000')
+          process.send && process.send(JSON.stringify({ 
+            type: 'appifi_started',
+            data: {}
+          }))
         }
       })
     }
@@ -150,7 +155,7 @@ class App extends EventEmitter {
         this.cloudConf.device = message.data
         break
       case 'bootstrap_boundUser':
-        if (this.boot && message.data) this.boot.setBoundUser(message.data)
+        if (this.boot && message.hasOwnProperty('data')) this.boot.setBoundUser(message.data)
         break
       default:
         break

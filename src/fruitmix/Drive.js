@@ -17,7 +17,9 @@ class Drive extends EventEmitter {
     super()
     this.conf = opts.configuration // is this required ??? TODO
 
-    this.fruitmixDir = opts.fruitmixDir
+    // fruitmixDir is not used ??? TODO
+    // this.fruitmixDir = opts.fruitmixDir
+
     this.user = user
 
     this.user.on('Update', this.handleUserUpdate.bind(this))

@@ -167,18 +167,6 @@ class Fruitmix extends EventEmitter {
       taskNode: this.task.nodeApi
     }
 
-    if (opts.useSmb) {
-      this.samba = new Samba({
-        fruitmixDir: this.fruitmixDir
-      }, this.user, this.drive, this.vfs)
-
-      this.apis.samba = this.samba
-    }
-
-    if (opts.useDlna) {
-
-    }
-
     if (opts.useTransmission) {
       // 创建transmisson目录
       let transmissionPath = path.join(this.fruitmixDir, 'transmission')

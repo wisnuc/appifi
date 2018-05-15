@@ -7,7 +7,7 @@ const crypto = require('crypto')
 const cryptoAsync = require('@ronomon/crypto-async')
 
 const rimraf = require('rimraf')
-const debug = require('debug')('hash-stream')
+const debug = require('debug')('HashStream')
 
 const script = `
 const fs = require('fs')
@@ -135,6 +135,8 @@ class IPre extends EventEmitter {
 
   constructor(rs, filePath, size, sha256) {
     super() 
+
+    debug('constructing ipre')
     
     this.rs = rs
     this.path = filePath
@@ -248,6 +250,8 @@ class IPre2 extends EventEmitter {
   constructor(rs, filePath, size, sha256) {
     super()
 
+    debug('constructing ipre2')
+
     this.rs = rs
     this.filePath = filePath
     this.size = size
@@ -285,6 +289,8 @@ class IPre3 extends EventEmitter {
 
   constructor(rs, filePath, size, sha256) {
     super()
+
+    debug('constructing ipre3')
 
     this.rs = rs
     this.filePath = filePath
@@ -328,6 +334,8 @@ class IPre4 extends EventEmitter {
 
   constructor(rs, filePath, size, sha256) {
     super()
+
+    debug('constructing ipre4')
 
     this.rs = rs
     this.filePath = filePath
@@ -382,6 +390,8 @@ class IPost extends EventEmitter {
 
   constructor(rs, filePath, size) {
     super()
+
+    debug('constructing ipost')
     
     this.rs = rs
     this.path = filePath
@@ -938,13 +948,14 @@ class CPost extends EventEmitter {
 }
 
 module.exports = {
+
   thresh: 16 * 1024 * 1024,
 
-  createStream: function(rs, filePath, size, sha256, aggressive) {
+/**
+  createStream: function (rs, filePath, size, sha256, aggressive) {
     if (sha256) {
 
       // return new IPre4(rs, filePath, size, sha256)
-
       if (size > this.thresh) {
         debug('create child-process pre')
         if (!!aggressive) {
@@ -966,6 +977,13 @@ module.exports = {
       }
     }
   },
+**/
+
+  createStream: function (rs, filePath, size, sha256) {
+    return sha256 
+      ? new IPre2(rs, filePath, size, sha256)
+      : new IPost(rs, filePath, size)
+  }, 
 
   IPre, 
   IPost,
