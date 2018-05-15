@@ -49,7 +49,7 @@ describe(path.basename(__filename), () => {
         msgId: 'xxxx',
         packageParams: {
           sendingServer: '127.0.0.1',
-          watingServer: '127.0.0.1',
+          waitingServer: '127.0.0.1',
           uid: alice['phicommUserId']
         },
         data: {
@@ -78,7 +78,7 @@ describe(path.basename(__filename), () => {
         msgId: 'xxxx',
         packageParams: {
           sendingServer: '127.0.0.1',
-          watingServer: '127.0.0.1',
+          waitingServer: '127.0.0.1',
           uid: alice['phicommUserId']
         },
         data: {
@@ -108,7 +108,7 @@ describe(path.basename(__filename), () => {
   //         msgId: 'xxxx',
   //         packageParams: {
   //           sendingServer: '127.0.0.1',
-  //           watingServer: '127.0.0.1',
+  //           waitingServer: '127.0.0.1',
   //           uid: alice['phicommUserId']
   //         },
   //         data: {
@@ -143,7 +143,7 @@ describe(path.basename(__filename), () => {
   //         msgId: 'xxxx',
   //         packageParams: {
   //           sendingServer: '127.0.0.1',
-  //           watingServer: '127.0.0.1',
+  //           waitingServer: '127.0.0.1',
   //           uid: alice['phicommUserId']
   //         },
   //         data: {
