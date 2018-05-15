@@ -108,7 +108,8 @@ class App extends EventEmitter {
     // create a Pipe
     this.pipe = new Pipe({
       fruitmix: () => this.fruitmix,
-      config: this.cloudConf
+      config: this.cloudConf,
+      boot: this.boot
     })
 
     // create server if required
