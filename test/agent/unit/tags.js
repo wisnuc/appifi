@@ -18,137 +18,83 @@ const requestTokenAsync = require('./tmplib').requestTokenAsync
 const initUsersAsync = require('./tmplib').initUsersAsync
 
 describe(path.basename(__filename), () => {
-  let fruitmix, app, token
+  let fruitmix, app, tokenAlice, tokenBob
 
   // 初始化APP
   const initApp = done => {
     fruitmix = new Fruitmix({ fruitmixDir })
     app = new App({ fruitmix })
     fruitmix.on('FruitmixStarted', async () => {
-      token = await requestTokenAsync(app.express, USERS.alice.uuid, 'alice')
+      tokenAlice = await requestTokenAsync(app.express, USERS.alice.uuid, 'alice')
+      tokenBob = await requestTokenAsync(app.express, USERS.bob.uuid, 'bob')
       done()
     })
   }
 
-  describe('base test', () => {
-    beforeEach(done => {
+  describe('创建 tag', () => {
+    let recordId 
+    before(done => {
       // 创建fruitmix 相关文件
-      initUsersAsync(fruitmixDir, [USERS.alice]).then(() => {
+      initUsersAsync(fruitmixDir, [USERS.alice, USERS.bob]).then(() => {
         initApp(done)
       })
     })
 
-    it('should get [] for /tags', done => {
-      request(app.express)
-        .get('/tags')
-        .set('Authorization', 'JWT ' + token)
-        .expect(200)
-        .end((err, res) => {
-          if (err) return done(err)
-          expect(res.body).to.deep.equal([])
-          done()
-        })
-    })
+    let arr = [
+      { it: 'name为空字符串', type: 'post', url:'/tags', args: {name:'', color: '#333'}, expectCode: 400, 
+        expected: 'expect(res.body.message).to.equal("name is required")' },
+      { it: 'name为数字', type: 'post', url:'/tags', args: {name:123, color: '#333'}, expectCode: 400, 
+        expected: "expect(res.body.message).to.equal('name should be string')" },
+      { it: 'name为特殊字符', type: 'post', url:'/tags', args: {name:'\t', color: '#333'}, expectCode: 400, 
+        expected: "expect(res.body.message).to.equal('exist llegal characters')" },
+      { it: 'color为空', type: 'post', url:'/tags', args: {name:'tag', color: ''}, expectCode: 400, 
+        expected: "expect(res.body.message).to.equal('color is required')" },
+      { it: 'color为非法格式', type: 'post', url:'/tags', args: {name:'tag', color: '#3'}, expectCode: 400, 
+        expected: "expect(res.body.message).to.equal('color is llegal')" },
+      { it: 'color为非法格式', type: 'post', url:'/tags', args: {name:'tag', color: '#33'}, expectCode: 400, 
+        expected: "expect(res.body.message).to.equal('color is llegal')" },
+      { it: 'color为小写', type: 'post', url:'/tags', args: {name:'tag', color: '#a3b3c3'}, expectCode: 400, 
+        expected: "expect(res.body.message).to.equal('color is llegal')" },
+      { it: 'alice创建Tag 0', type: 'post', url:'/tags', args: {name:'tag0', color: '#333'}, expectCode: 200, 
+        expected: "expect(res.body.id).to.deep.equal(0);expect(res.body.name).to.deep.equal('tag0')" },
+      { it: '查询Alice Tag', type: 'get', url:'/tags', args: {}, expectCode: 200, 
+        expected: "expect(res.body.length).to.deep.equal(1)"},
+      { it: 'alice创建第二个Tag 1', type: 'post', url:'/tags', args: {name:'tag1', color: '#666'}, expectCode: 200, 
+        expected: "expect(res.body.id).to.deep.equal(1);expect(res.body.name).to.deep.equal('tag1')" },
+      { it: 'bob创建第一个Tag 2', type: 'post', url:'/tags', args: {name:'tag2', color: '#666'}, expectCode: 200, token: 'bob', 
+        expected: "expect(res.body.id).to.deep.equal(2);expect(res.body.name).to.deep.equal('tag2')" },
+      { it: '查询Alice Tag', type: 'get', url:'/tags', args: {}, expectCode: 200, 
+        expected: "expect(res.body.length).to.deep.equal(2)"},
+      { it: '查询BobTag', type: 'get', url:'/tags', args: {}, expectCode: 200,  token: 'bob',
+        expected: "expect(res.body.length).to.deep.equal(1)"},
+      { it: '更新Bob Tag 2', type: 'patch', url:'/tags/2', args: {name:'tag22', color: '#999'}, expectCode: 200, token: 'bob',
+        expected: "expect(res.body.id).to.deep.equal(2);expect(res.body.name).to.deep.equal('tag22')" },
+      { it: '删除不属于Bob Tag 0', type: 'delete', url:'/tags/0', expectCode: 404, token: 'bob', 
+        expected: "expect(res.body.message).to.deep.equal('tag not found')" },
+      { it: '删除不存在Tag 3', type: 'delete', url:'/tags/3', expectCode: 404, token: 'bob', 
+        expected: "expect(res.body.message).to.deep.equal('tag not found')" },  
+      { it: '删除Bob Tag 2', type: 'delete', url:'/tags/2', expectCode: 200, token: 'bob', 
+        expected: "expect(res.body.length).to.deep.equal(0)" },
+      { it: '查询BobTag', type: 'get', url:'/tags', args: {}, expectCode: 200,  token: 'bob',
+        expected: "expect(res.body.length).to.deep.equal(0)"},
+      { it: '新创建Bob Tag id应该为3', type: 'post', url:'/tags', args: {name:'tag3', color: '#666'}, expectCode: 200, token: 'bob', 
+        expected: "expect(res.body.id).to.deep.equal(3);expect(res.body.name).to.deep.equal('tag3')" },
+    ]
 
-    it('should create tag named test', done => {
-      request(app.express)
-        .post('/tags')
-        .set('Authorization', 'JWT ' + token)
-        .send({ name: 'test' })
-        .expect(200)
-        .end((err, res) => {
-          if (err) return done(err)
-          expect(res.body.name).to.deep.equal('test')
-          expect(res.body.id).to.deep.equal(0)
-          done()
-        })
-    })
-
-    it('should return 400 to create tag name test if already has a tag named test', done => {
-      request(app.express)
-        .post('/tags')
-        .set('Authorization', 'JWT ' + token)
-        .send({ name: 'test' })
-        .expect(200)
-        .end((err, res) => {
-          if (err) return done(err)
-          expect(res.body.name).to.deep.equal('test')
-          expect(res.body.id).to.deep.equal(0)
-          request(app.express)
-            .post('/tags')
-            .set('Authorization', 'JWT ' + token)
-            .send({ name: 'test' })
-            .expect(400)
-            .end((err, res) => done(err, res))
-        })
-    })
-  })
-
-  describe('has a tag id 0, name test', () => {
-
-    beforeEach((done) => {
-      let tags = {
-        tags: [
-          {
-            name: 'test',
-            id: 0,
-            color: null,
-            group: null,
-            creator: USERS.alice.uuid,
-            ctime: 1524123527980,
-            mtime: 1524123527980
-          }
-        ],
-        index: 0
-      }
-
-      initUsersAsync(fruitmixDir, [USERS.alice]).then(async () => {
-        await fs.writeFileAsync(path.join(fruitmixDir, 'tags.json'), JSON.stringify(tags, null, '  '))
-        initApp(done)
+    arr.forEach(item => {
+      it(item.it, done => {
+        let token = item.token? tokenBob: tokenAlice
+        request(app.express)[item.type](item.url)
+          .set('Authorization', 'JWT ' + token)
+          .send(item.args)
+          .expect(item.expectCode)
+          .end((err, res) => {
+            if (err) console.log(err)
+            eval(item.expected)
+            done()
+          })
       })
     })
-
-    it('should return 200 delete tag id 0', done => {
-      request(app.express)
-        .delete('/tags/0')
-        .set('Authorization', 'JWT ' + token)
-        .expect(200)
-        .end(err => err ? done(err) : done())
-    })
-
-    it('tag id should be 1 , even if 0 has be deleted', done => {
-      request(app.express)
-        .delete('/tags/0')
-        .set('Authorization', 'JWT ' + token)
-        .expect(200)
-        .end(err => {
-          if (err) return done(err)
-          request(app.express)
-            .post('/tags')
-            .set('Authorization', 'JWT ' + token)
-            .send({ name: 'test' })
-            .expect(200)
-            .end((err, res) => {
-              if (err) return done(err)
-              expect(res.body.name).to.deep.equal('test')
-              expect(res.body.id).to.deep.equal(1)
-              done()
-            })
-        })
-    })
-
-    it('should return 200 if change tag name', done => {
-      request(app.express)
-        .patch('/tags/0')
-        .set('Authorization', 'JWT ' + token)
-        .send({ name: 'test2' })
-        .expect(200)
-        .end((err, res) => {
-          if (err) return done(err)
-          expect(res.body.name).to.deep.equal('test2')
-          expect(res.body.id).to.deep.equal(0)
-          done()
-        })
-    })
   })
+
 })

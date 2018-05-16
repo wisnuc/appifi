@@ -174,8 +174,8 @@ class Tag extends require('events') {
     if (!user || !user.uuid) { return callback(Object.assign(new Error('user not found'), { status: 404 })) }
     let tagId = parseInt(props.tagId)
     if (!Number.isInteger(tagId)) return callback(Object.assign(new Error('tagId error'), { status: 400 }))
-    let tag = this.findTag(tagId)
-    if (!tag) return callback(Object.assign(new Error('tag not found'), { status: 400}))
+    let tag = this.tags.find(item => item.id == tagId && item.creator == user.uuid)
+    if (!tag) return callback(Object.assign(new Error('tag not found'), { status: 404}))
     let result = []
     // this.deleteTag(tag.id, callback)
     this.store.save(tags => {
@@ -199,7 +199,7 @@ class Tag extends require('events') {
 const validateName = (name) => {
   let forbidCode = []
   let error = []
-  if (!name || !name.length)
+  if (!name || name == '')
     error.push(new Error('name is required'))
 
   if (typeof name !== 'string')
@@ -220,7 +220,7 @@ const validateName = (name) => {
 
 const validateColor = (color) => {
   let error = []
-  let pat = new RegExp('^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$')
+  let pat = new RegExp('^#([0-9A-F]{6}|[0-9A-F]{3})$')
   if (!color || !color.length)
     error.push(new Error('color is required'))
 
