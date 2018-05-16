@@ -5,14 +5,14 @@ const os = require('os')
 const Boot = require('../system/Boot')
 const Auth = require('../middleware/Auth')
 const createTokenRouter = require('../routes/Token')
-const createUserRouter = require('../routes/users')
-const createDriveRouter = require('../routes/drives2')
-const createTimeDateRouter = require('../routes/TimeDate')
+// const createUserRouter = require('../routes/users')
+// const createDriveRouter = require('../routes/drives2')
+// const createTimeDateRouter = require('../routes/TimeDate')
 const createExpress = require('../system/express')
-const createTagRouter = require('../routes/tags')
-const createTaskRouter = require('../routes/tasks2')
-const createSambaRouter = require('../routes/samba')
-const createTransmissionRouter = require('../routes/transmission')
+// const createTagRouter = require('../routes/tags')
+// const createTaskRouter = require('../routes/tasks2')
+// const createSambaRouter = require('../routes/samba')
+// const createTransmissionRouter = require('../routes/transmission')
 
 const express = require('express') // TODO
 const { passwordEncrypt } = require('../lib/utils')
@@ -122,7 +122,7 @@ class App extends EventEmitter {
           process.exit(1) // TODO
         } else {
           console.log('server started on port 3000')
-          process.send && process.send(JSON.stringify({ 
+          process.send && process.send(JSON.stringify({
             type: 'appifi_started',
             data: {}
           }))
@@ -323,8 +323,8 @@ class App extends EventEmitter {
       const authenticated = (req, res, next) =>
         this.fruitmix.apis[resource][verb](req.user,
           Object.assign({}, req.query, req.body, req.params), f(res, next))
-      
-      const needReq = (req, res, next) => 
+
+      const needReq = (req, res, next) =>
         this.fruitmix.apis[resource][verb](req.user,
           Object.assign({}, req.query, req.body, req.params, { req }), f(res, next))
 

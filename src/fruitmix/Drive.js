@@ -15,7 +15,7 @@ class Drive extends EventEmitter {
   */
   constructor (opts, user) {
     super()
-    this.conf = opts.configuration // is this required ??? TODO
+    this.conf = opts.configuration // is this required ??? TODO:
 
     // fruitmixDir is not used ??? TODO
     // this.fruitmixDir = opts.fruitmixDir
