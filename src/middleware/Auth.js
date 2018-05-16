@@ -4,6 +4,7 @@ const BasicStrategy = require('passport-http').BasicStrategy
 const JwtStrategy = require('passport-jwt').Strategy
 const ExtractJwt = require('passport-jwt').ExtractJwt
 const jwt = require('jwt-simple')
+const debug = require('debug')('auth')
 
 /**
 Auth is an authentication middleware for node/express.
@@ -57,6 +58,9 @@ class Auth {
   @param {function} done - `(err, user|false, info) => {}` callback
   */
   handleBasicAuth (userUUID, password, done) {
+
+    debug('handleBasicAuth', userUUID, '******')
+
     if (this.users.length === 0) {
       done(null, false, { message: 'not available' })
     } else {

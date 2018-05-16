@@ -333,7 +333,7 @@ class App extends EventEmitter {
               const m = regex.exec(req.headers['content-type'])
               let boundary = m[1] || m[2]
               let length = parseInt(req.headers['content-length'])
-              let props = Object.assign({}, req.params, { boundary, length, formdata: req })
+              let props = Object.assign({}, req.params, req.query, { boundary, length, formdata: req })
               this.fruitmix.apis[resource][verb](req.user, props, f(res, next))
             }
           })

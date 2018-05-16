@@ -91,6 +91,8 @@ const createApp = opts => {
       xcode: err.xcode,
       message: err.message,
       result: err.result,
+      index: err.index,
+      reason: err.reason,
       where: err.where
     })
   })
