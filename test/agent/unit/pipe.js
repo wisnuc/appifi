@@ -15,6 +15,9 @@ const fruitmixDir = path.join(tmptest, 'fruitmix')
 const { USERS, initUsersAsync, initFruitFilesAsync } = require('./tmplib')
 const { alice, bob, charlie } = USERS
 
+/**
+ * TODO: mock cloud server in oder to test request result from NAS to cloud.
+ */
 describe(path.basename(__filename), () => {
   beforeEach(async () => {
     await initUsersAsync(fruitmixDir, [alice])
@@ -46,7 +49,7 @@ describe(path.basename(__filename), () => {
         msgId: 'xxxx',
         packageParams: {
           sendingServer: '127.0.0.1',
-          watingServer: '127.0.0.1',
+          waitingServer: '127.0.0.1',
           uid: alice['phicommUserId']
         },
         data: {
@@ -75,7 +78,7 @@ describe(path.basename(__filename), () => {
         msgId: 'xxxx',
         packageParams: {
           sendingServer: '127.0.0.1',
-          watingServer: '127.0.0.1',
+          waitingServer: '127.0.0.1',
           uid: alice['phicommUserId']
         },
         data: {
@@ -105,7 +108,7 @@ describe(path.basename(__filename), () => {
   //         msgId: 'xxxx',
   //         packageParams: {
   //           sendingServer: '127.0.0.1',
-  //           watingServer: '127.0.0.1',
+  //           waitingServer: '127.0.0.1',
   //           uid: alice['phicommUserId']
   //         },
   //         data: {
@@ -140,7 +143,7 @@ describe(path.basename(__filename), () => {
   //         msgId: 'xxxx',
   //         packageParams: {
   //           sendingServer: '127.0.0.1',
-  //           watingServer: '127.0.0.1',
+  //           waitingServer: '127.0.0.1',
   //           uid: alice['phicommUserId']
   //         },
   //         data: {

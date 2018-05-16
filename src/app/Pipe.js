@@ -125,7 +125,7 @@ class Pipe extends EventEmitter {
     //   msgId: 'xxxx',
     //   packageParams: {
     //     sendingServer: '127.0.0.1',
-    //     watingServer: '127.0.0.1',
+    //     waitingServer: '127.0.0.1',
     //     uid: 123456789
     //   },
     //   data: {
