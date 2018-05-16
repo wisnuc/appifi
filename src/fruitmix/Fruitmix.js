@@ -23,7 +23,8 @@ const DirEntryApi = require('./apis/dir-entry')
 const FileApi = require('./apis/file')
 const MediaApi = require('./apis/media')
 const Task = require('./Task')
-
+const Samba = require('../samba/smbState')
+const Transmission = require('../transmission/manager')
 
 /**
 Fruitmix is the top-level container for all modules inside fruitmix fs service.
@@ -166,6 +167,19 @@ class Fruitmix extends EventEmitter {
       taskNode: this.task.nodeApi
     }
 
+    if (opts.useTransmission) {
+      // 创建transmisson目录
+      let transmissionPath = path.join(this.fruitmixDir, 'transmission')
+      let torrentTmp = path.join(transmissionPath, 'torrents')
+      mkdirp.sync(transmissionPath)
+      mkdirp.sync(torrentTmp)
+      
+      this.transmission = new Transmission({
+        path: transmissionPath
+      }, this.user, this.drive, this.vfs)
+
+      this.apis.transmission = this.transmission
+    }
     // nfs api is optional
     if (this.boundVolume) {
       this.nfs = new NFS({ volumeUUID: this.boundVolume.uuid }, this.user)

@@ -16,7 +16,6 @@ An Auth object requires a user list and a secret string to work. The user list c
 @class
 */
 class Auth {
-
   /**
   Create an Auth middleware
   @param {string} secret - secret string for JWT token

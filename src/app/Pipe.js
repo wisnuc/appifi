@@ -47,6 +47,25 @@ const WHITE_LIST = {
   'phy-drives': 'nfs'
 }
 
+/**
+ * format error
+ * @param {object} error
+ * @param {number} status - http code
+ * @return {object} formatError
+ */
+const formatError = (error, status) => {
+  status = status || 403
+  let formatError
+  if (error instanceof Error) {
+    formatError = error
+    formatError.status = error.status ? error.status : status
+  } else if (typeof err === 'string') {
+    formatError = new Error(error)
+    formatError.status = status
+  }
+  return formatError
+}
+
 class Pipe extends EventEmitter {
   /**
    * Create a Pipe
@@ -64,16 +83,24 @@ class Pipe extends EventEmitter {
    * @return {object} user
    */
   checkUser (phicommUserId) {
+    let user
+    if (!this.ctx.fruitmix()) {
+      user = this.boot.view().boundUser
+    } else {
+      user = this.ctx.fruitmix().getUserByPhicommUserId(phicommUserId)
+    }
+    if (!user) throw formatError(new Error(`uid: ${phicommUserId}, check user failed`), 401)
     // throw 503 unavailable if fruitmix === null
-    return this.ctx.fruitmix().getUserByPhicommUserId(phicommUserId)
+    return user
 
-    // users = fruitmix 
-    //  ? fruitmix.users 
+    // users = fruitmix
+    //  ? fruitmix.users
     //  : [{ phicommUserId: xxxx }]
   }
   /**
    * get token for cloud
    * @param {object} user
+   * @return {object} token
    */
   getToken (user) {
     return this.ctx.config.auth().tokenForRemote(user)
@@ -84,7 +111,9 @@ class Pipe extends EventEmitter {
    */
   checkConfig () {
     const config = this.ctx.config
-    if (!config.device || !config.cloudToken) throw new Error('Pipe have no cloudConf')
+    if (!config || !config.device || !config.cloudToken) {
+      throw formatError(new Error('pipe have no cloudConf'), 400)
+    }
   }
   /**
    * check message properties
@@ -92,53 +121,63 @@ class Pipe extends EventEmitter {
    */
   checkMessage (message) {
     // {
-    //   type:动作类型,取值[pip,req,ack，notice],	// 1. pip:透传APP消息; 2. req:服务器发送给设备的请求; 3. ack:表示应答设备的请求; 4. notice:服务器通知
-    //   msgId:消息ID,				// 接收方与应答方应保证msgId的一致性
-    //   packageParams:{				// 当type==pip说传递，包括发送服务器地址，接收服务器地址，用户标识
-    //     sendingServer:A.B.C.D,		// 发送服务器名称或者IP,比如:114.234.28.2
-    //     waitingServer:E.F.G.H, 		// 消息接受服务器名称或IP地址,比如:211.152.34.2
-    //     uid:用户ID号
+    //   type: 'pip',
+    //   msgId: 'xxxx',
+    //   packageParams: {
+    //     sendingServer: '127.0.0.1',
+    //     waitingServer: '127.0.0.1',
+    //     uid: 123456789
     //   },
-    //   data: { // 数据的详细参数,当type==pip时, 透传APP的请求数据，具体数据格式由设备和APP协商
-    //     verb: GET, // 'LIST', 'POST', 'POSTFORM', 'GET', 'PATCH', 'PUT', 'DELETE'
-    //     urlPath: /drives/:driveUUID, // router path
+    //   data: {
+    //     verb: 'GET',
+    //     urlPath: '/token',
     //     body: {},
     //     params: {}
     //   }
     // }
-    if (!message) {
-      throw new Error('pipe have no message')
-    }
+    if (!message) throw formatError(new Error('pipe have no message'), 400)
+
     const { msgId, packageParams, data } = message
     if (!msgId) {
-      throw new Error('message have no msgId')
+      throw formatError(new Error(`message have no msgId`), 400)
     }
-    if (!packageParams || !packageParams.waitingServer || !packageParams.uid) {
-      throw new Error('message have no packageParams')
+    if (!packageParams) {
+      throw formatError(new Error(`this msgId: ${msgId}, message have no packageParams`), 400)
     }
-    if (!data || !data.verb || !data.urlPath) {
-      throw new Error('message have no data')
+    if (!packageParams.waitingServer) {
+      throw formatError(new Error(`this msgId: ${msgId}, packageParams have no waitingServer`), 400)
+    }
+    if (!packageParams.uid) {
+      throw formatError(new Error(`this msgId: ${msgId}, packageParams have no uid`), 400)
+    }
+    if (!data) {
+      throw formatError(new Error(`this msgId: ${msgId}, message have no data`), 400)
+    }
+    if (!data.verb) {
+      throw formatError(new Error(`this msgId: ${msgId}, data have no verb`), 400)
+    }
+    if (!data.urlPath) {
+      throw formatError(new Error(`this msgId: ${msgId}, data have no urlPath`), 400)
     }
     this.message = message
   }
   /**
    * handle message from pipe
    * @param {object} message
-   * @param {function} callback - optional
    */
   handleMessage (message) {
     try {
       // firstly, check config
       this.checkConfig()
       this.checkMessage(message)
+      const user = this.checkUser(message.packageParams.uid)
       // reponse to cloud
       const { urlPath, verb, body, params } = message.data
-      const user = this.checkUser(message.packageParams.uid)
-      if (!user) throw new Error('check user failed')
-
       const paths = urlPath.split('/') // ['', 'drives', '123', 'dirs', '456']
       const resource = WHITE_LIST[paths[1]]
-      if (!resource) throw new Error('this source not support')
+      if (!resource) {
+        throw formatError(new Error(`this resource: ${resource}, not support`), 400)
+      }
       // 由于 token 没有 route， so 单独处理 token
       if (resource === 'token') {
         return this.reqCommand(null, this.getToken(user))
@@ -170,7 +209,9 @@ class Pipe extends EventEmitter {
       this.apis(opts)
     } catch (err) {
       debug(`pipe message error: `, err)
-      return err
+      if (this.message && this.message.msgId && this.packageParams && this.packageParams.waitingServer) {
+        this.reqCommand(err)
+      }
     }
   }
   /**
@@ -192,13 +233,12 @@ class Pipe extends EventEmitter {
     } else {
       const props = Object.assign({}, query, body, params)
       return this.ctx.fruitmix().apis[matchRoute.api][method](user, props, (err, data) => {
-        if (err) return this.reqCommand(err, data)
+        if (err) return this.reqCommand(err)
         // stream
         if (typeof data === 'string' && path.isAbsolute(data)) {
           this.postResource(data)
         } else {
           // json
-          debug(data)
           this.reqCommand(null, data)
         }
       })
@@ -213,16 +253,10 @@ class Pipe extends EventEmitter {
   reqCommand (error, res) {
     let resErr
     if (error) {
-      if (error instanceof Error) {
-        resErr = {
-          msg: error.message,
-          status: error.status || 403
-        }
-      } else if (typeof err === 'string') {
-        resErr = {
-          msg: error,
-          status: 403
-        }
+      error = formatError(error)
+      resErr = {
+        msg: error.message,
+        status: error.status
       }
     }
     let count = 0

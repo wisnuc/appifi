@@ -126,6 +126,7 @@ module.exports = {
   USERS,
   DRIVES,
   requestToken,
+  requestTokenAsync,
   initFruitFilesAsync,
   initUsersAsync
 }

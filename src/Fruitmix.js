@@ -40,6 +40,7 @@ const xcopyAsync = Promise.promisify(xcopy)
 
 const { readXstat, forceXstat } = require('./lib/xstat')
 const SambaServer = require('./samba/samba')
+const SambaServer2 = require('./samba/smbState')
 const DlnaServer = require('./samba/dlna')
 
 const Debug = require('debug')
@@ -115,13 +116,12 @@ class Fruitmix extends EventEmitter {
     this.tasks = []
 
     if (!nosmb) {
-      this.smbServer = new SambaServer(froot)
+      // this.smbServer = new SambaServer(froot)
+      this.smbServer = new SambaServer2(froot)
       this.smbServer.on('SambaServerNewAudit', audit => {
         this.driveList.audit(audit.abspath, audit.arg0, audit.arg1)
       })
-      this.smbServer.startAsync(this.userList.users, this.driveList.drives)
-        .then(() => {})
-        .catch(console.error.bind(console,'smb start error'))
+      this.smbServer.start(this.userList.users, this.driveList.drives)
     }
     this.dlnaServer = new DlnaServer(froot)
     this.dlnaServer.startAsync(this.getBuiltInDrivePath())
