@@ -9,6 +9,10 @@
 
 # 1. Overview
 
+basic
+
+full
+
 测试操作
 
 + create user
@@ -28,6 +32,11 @@
   + 测试password/smbPassword参数组合
   + 测试混合参数
 
+# Perspective
+
+1. 从api角度说，资源模块之间的关系也存在
+2. 这部分spec属于集成测试的范畴
+
 # 2. Create User
 
 参数使用json格式
@@ -42,6 +51,34 @@
   "phicommUserId": "number string", //required
 }
 ```
+
+name
+status: active/inactive/deleted
+
+InvalidPhicommUserId [undefined, null, {}, [], 'hello', 'number out of range']
+InvalidNames [undefined, null, {}, [], 'invalid']
+
++ permission (只有admin可以) red [anonymous, bob], green [alice]
+  + phicommUserId (格式fei法，值冲突) red [par], existing active 403, inactive 403, green [=deletedUser, no conflict]
+    + username （格式fei法，值冲突）red [par], existing active 403, inactive 403, green [=deletedUser, no conflict]
+      + success
+
+f(createUser)(a, b) => (c, d)
+```
+c1 200 {}
+c2 400 {}
+c3 403 {}
+```
+
+```
+a 
+d 
+```
+
+f
+
+
+
 
 **测例**
 
