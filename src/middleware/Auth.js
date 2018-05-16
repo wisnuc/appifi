@@ -170,6 +170,7 @@ class Auth {
   /**
    * Generate jwt token for remote user
    * @param {object} user
+   * @return {object} token
    */
   tokenForRemote (user) {
     return {
