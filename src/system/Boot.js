@@ -79,6 +79,7 @@ class State {
     process.nextTick(() => callback(new Error('invalid state')))
   }
 
+  // TODO this is a pure function, or maybe static
   createBoundVolume (storage, volume) {
     let devices = volume.devices.map(dev => {
       let blk = storage.blocks.find(blk => blk.name === dev.name)
