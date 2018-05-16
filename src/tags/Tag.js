@@ -36,7 +36,7 @@ class Tag extends require('events') {
     this.store = new DataStore({
       file: opts.file,
       tmpDir: opts.tmpDir,
-      isArray: false
+      isArray: true
     })
 
     this.store.on('Update', (...args) => this.emit('Update', ...args))
