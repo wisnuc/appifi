@@ -12,6 +12,7 @@
   - [5.1. 测试](#51-测试)
 - [6. 创建文件夹或文件](#6-创建文件夹或文件)
   - [6.1. 测试](#61-测试)
+    - [qs path](#qs-path)
 - [7. 重命名](#7-重命名)
 - [8. 删除](#8-删除)
   - [8.1. 测试](#81-测试)
@@ -120,12 +121,45 @@ file part，name为`file`，filename包含的字符串为新建文件名称，bo
 
 ## 6.1. 测试
 
-SPEC空间
+该api支持两种工作模式：通过query string和通过prelude提供path参数，该不同会导致API的执行序有差异。所以我们把SPEC空间分开描述，其中可能有重复测试。
 
-qs path
-+ id
-  + path
-    + list [directory | file]
+### qs path
+
++ id red (hello, uuid)
++ id green (uuidde)
+  + path red 
+    + invalid name, 
+    + non-existent 
+      + hello on /
+      + hello/world on /hello (dir)
+      + hello/world on /hello (file)
+    + not a directory
+      + hello on /hello (file)
+      + hello/world on /hello/world (file)
+  + path green (empty string, existent hello)
+    + part red
+      + 400 invalid part name
+      + 400 invalid dir name
+      + 400 invalid file name
+    + part green
+      + 200 file, no conflict
+        + hello on /
+        + world on /hello
+      + 200 directory no conflict
+        + hello on /
+        + world on /hello
+      + 403 file conflict
+        + hello on /, /hello is file
+        + hello on /, /hello is dir
+        + world on /hello/world (file)
+        + world on /hello/world (dir)
+      + directory conflict
+        + 403 hello on /hello (file)
+        + 200 hello on /hello (dir)
+        + 403 world on /hello/world (file)
+        + 200 world on /hello/world (dir)
+
+以上part/op部分为手工代码，只能pick one。未来需要实现agent test，测试组合。
 
 prelude path
 + id
