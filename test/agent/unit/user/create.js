@@ -92,13 +92,26 @@ let createUserSpecFunc = (users, props) => {
 
   let newUser = {
     uuid: UUID.v4(),
-    username: props.username,
+    username: data.username,
     isFirstUser,
-    phicommUserId: props.phicommUserId,
-    password: props.password,
-    smbPassword: props.smbPassword,
+    phicommUserId: data.phicommUserId,
+    password: data.password,
+    smbPassword: data.smbPassword,
     status: 'ACTIVE'
   }
 
   return response(200, fullInfo(newUser), [...users, Object.assign({}, newUser)])
 }
+
+
+it('xxxx', done => {
+  //a, b
+  let data = createUserSpecFunc(a, b)
+
+  request(app).post(xxx)
+    .send(b)
+    .expect(data.status)
+    .end( err
+      
+    )
+})
