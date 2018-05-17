@@ -131,18 +131,19 @@ groups.forEach(group => {
 
 const generateIt = () => {
   it('bob update alice`s username should fail', done => {
-    let data = craeteUserSpecSync(a,b)
+    let data = createUserSpecFunc(users, props)
     request(app.express)
       .post(`/users`)
       .set('Authorization', 'JWT ' + token)
       .send({
-        username: 'Jack',
-        phicommUserId: 'Jack'
+        username: props.username,
+        phicommUserId: props.phicommUserId
       })
       .expect(data.status)
-      .end((err, data) => {
-        if (err) done(err === data.err)
-        done(data === data)
+      .end((err, res) => {
+        if (err) return done(err===res.response.status)
+        expect(res).to.deep.equal(res.system)
+        done()
       })
   })
 }
