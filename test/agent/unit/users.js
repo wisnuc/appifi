@@ -30,7 +30,7 @@ describe(path.basename(__filename), () => {
     it('should retrieve token (no assert), 95971542', done => {
       let secret = 'secret'
       let fruitmix = new Fruitmix({ fruitmixDir })
-      let app = new App({ secret, fruitmix }) 
+      let app = new App({ secret, fruitmix })
       fruitmix.once('FruitmixStarted', () =>
         request(app.express)
           .get('/token')
@@ -38,9 +38,10 @@ describe(path.basename(__filename), () => {
           .expect(200)
           .end((err, res) => {
             if (err) return done(err)
-            expect(res.body).to.deep.equal({ 
+            expect(res.body).to.deep.equal({
               type: 'JWT',
-              token: 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1dWlkIjoiY2IzM2I1YjMtZGQ1OC00NzBmLThjY2MtOTJhYTA0ZDc1NTkwIn0.0lp4tfIyz4kn1QDJqmZ4pYp0Y5oh-W9ta26yS34qVok' })
+              token: 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1dWlkIjoiY2IzM2I1YjMtZGQ1OC00NzBmLThjY2MtOTJhYTA0ZDc1NTkwIn0.0lp4tfIyz4kn1QDJqmZ4pYp0Y5oh-W9ta26yS34qVok'
+            })
             done()
           }))
     })
@@ -64,14 +65,18 @@ describe(path.basename(__filename), () => {
           .end((err, res) => {
             if (err) return done(err)
             expect(res.body).to.deep.equal([
-              { uuid: 'cb33b5b3-dd58-470f-8ccc-92aa04d75590',
+              {
+                uuid: 'cb33b5b3-dd58-470f-8ccc-92aa04d75590',
                 username: 'alice',
                 isFirstUser: true,
-                phicommUserId: 'alice' },
-              { uuid: '844921ed-bdfd-4bb2-891e-78e358b54869',
+                phicommUserId: 'alice'
+              },
+              {
+                uuid: '844921ed-bdfd-4bb2-891e-78e358b54869',
                 username: 'bob',
                 isFirstUser: false,
-                phicommUserId: 'bob' }
+                phicommUserId: 'bob'
+              }
             ])
             done()
           })
@@ -91,18 +96,22 @@ describe(path.basename(__filename), () => {
             .end((err, res) => {
               if (err) return done(err)
               expect(res.body).to.deep.equal(
-                [ { uuid: 'cb33b5b3-dd58-470f-8ccc-92aa04d75590',
+                [{
+                  uuid: 'cb33b5b3-dd58-470f-8ccc-92aa04d75590',
                   username: 'alice',
                   isFirstUser: true,
                   phicommUserId: 'alice',
                   password: true,
-                  smbPassword: true },
-                { uuid: '844921ed-bdfd-4bb2-891e-78e358b54869',
+                  smbPassword: true
+                },
+                {
+                  uuid: '844921ed-bdfd-4bb2-891e-78e358b54869',
                   username: 'bob',
                   isFirstUser: false,
                   phicommUserId: 'bob',
                   password: true,
-                  smbPassword: true } ])
+                  smbPassword: true
+                }])
               done(err)
             })
         })
@@ -122,14 +131,14 @@ describe(path.basename(__filename), () => {
             .end((err, res) => {
               if (err) return done(err)
               expect(res.body).to.deep.equal([
-                { 
+                {
                   uuid: '844921ed-bdfd-4bb2-891e-78e358b54869',
                   username: 'bob',
                   isFirstUser: false,
                   phicommUserId: 'bob',
                   password: true,
-                  smbPassword: true 
-                } 
+                  smbPassword: true
+                }
               ])
               done()
             })
@@ -199,6 +208,7 @@ describe(path.basename(__filename), () => {
             })
             .expect(200)
             .end((err, res) => {
+              if (err) return done(err)
               expect(res.body.username).to.equal('Jack')
               expect(fruitmix.users.find(x => x.uuid === bob.uuid).username).to.equal('Jack')
               done()
@@ -240,7 +250,7 @@ describe(path.basename(__filename), () => {
           })
           .expect(200)
           .end((err, res) => {
-            if(err) return done(err)
+            if (err) return done(err)
             expect(res.body.username).to.equal('bob')
             expect(fruitmix.users.find(x => x.uuid === bob.uuid).password).to.equal(alice.password)
             done()
@@ -309,13 +319,13 @@ describe(path.basename(__filename), () => {
             .expect(200)
             .end((err, res) => {
               if (err) return done(err)
-              expect(res.body).to.deep.equal({ 
+              expect(res.body).to.deep.equal({
                 uuid: 'cb33b5b3-dd58-470f-8ccc-92aa04d75590',
                 username: 'alice',
                 isFirstUser: true,
                 phicommUserId: 'alice',
                 password: true,
-                smbPassword: true 
+                smbPassword: true
               })
               done()
             })
