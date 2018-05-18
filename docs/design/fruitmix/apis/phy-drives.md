@@ -12,7 +12,8 @@
   - [5.1. 测试](#51-测试)
 - [6. 创建文件夹或文件](#6-创建文件夹或文件)
   - [6.1. 测试](#61-测试)
-    - [qs path](#qs-path)
+    - [6.1.1. qs path](#611-qs-path)
+    - [6.1.2. prelude path](#612-prelude-path)
 - [7. 重命名](#7-重命名)
 - [8. 删除](#8-删除)
   - [8.1. 测试](#81-测试)
@@ -83,27 +84,19 @@ const invalidPaths = [
 
 ## 5.1. 测试
 
-+ 非法参数测试
-  + 非法id测试
-  + 非法path测试
-
-+ 合法参数测试
-
-+ readdir
-  + 包含文件
-  + 包含文件夹
-  + 包含Symlink
-
-+ download file
-  + 下载文件
-
-+ 不支持的文件
-  + Symlink
-
-+ 路径不存在
-  + 父文件夹存在
-  + 父文件夹不存在
-  + 父文件夹是文件
++ id red
++ path red
+  + invalid name 
+  + non-existent 
+    + hello on /
+    + hello/world on /hello (dir)
+    + hello/world on /hello (file)
+  + path is symlink
++ path green
+  + file
+  + directory
+    + empty directory
+    + has file, directory, symlink
 
 # 6. 创建文件夹或文件
 
@@ -123,7 +116,9 @@ file part，name为`file`，filename包含的字符串为新建文件名称，bo
 
 该api支持两种工作模式：通过query string和通过prelude提供path参数，该不同会导致API的执行序有差异。所以我们把SPEC空间分开描述，其中可能有重复测试。
 
-### qs path
+part/op部分为手工代码，只能pick one。未来需要实现agent test，测试组合。
+
+### 6.1.1. qs path
 
 + id red (hello, uuid)
 + id green (uuidde)
@@ -148,56 +143,69 @@ file part，name为`file`，filename包含的字符串为新建文件名称，bo
       + 200 directory no conflict
         + hello on /
         + world on /hello
-      + 403 file conflict
-        + hello on /, /hello is file
-        + hello on /, /hello is dir
-        + world on /hello/world (file)
-        + world on /hello/world (dir)
-      + directory conflict
-        + 403 hello on /hello (file)
-        + 200 hello on /hello (dir)
-        + 403 world on /hello/world (file)
-        + 200 world on /hello/world (dir)
+      + file/directory name conflict
+        + 403 new file hello on / if /hello is file EEXIST
+        + 403 new file hello on / if /hello is directory EISDIR
+        + 403 new file hello on / if /hello os symlink EISSYMLINK
+        + 403 new file world on /hello if /hello/world is file EEXIST
+        + 403 new file world on /hello if /hello/world is directory EISDIR
+        + 403 new file world on /hello if /hello/world is symlink EISSYMLINK
+        + 200 new directory hello on / if /hello is directory 
+        + 200 new directory world on /hello if /hello/world is directory
+        + 403 new directory hello on / if /hello is file EISFILE
+        + 403 new directory world on /hello if /hello/world is file EISFILE
+        + 403 new directory hello on / if /hello is symlink EISSYMLINK
+        + 403 new directory world on /hello if /hello/world is symlink EISSYMLINK        
 
-以上part/op部分为手工代码，只能pick one。未来需要实现agent test，测试组合。
+### 6.1.2. prelude path
 
-prelude path
-+ id
-  + list []
-    + prelude
-    + [directory]
-    + [file]
-
-+ 不存在的id
-
-+ 非法path
-+ path不是文件夹
-  + 文件
-  + Symlink
-
-**one-part**
-
-+ name非法（不是prelude, file, directory)
-
-+ prelude
-  + 空body
-  + JSON不是object（null, string, number, [])
-  + path格式非法
-  + path不是文件夹
-
-只有prelude的情况合法吗？
-
-+ directory
-  + 空body
-  + body不是合法文件名
-
-+ file
-  + filename是空字符串
-  + filename不是合法文件名
-  + 空文件合法吗？
-
-**multipart**
-
++ id red
++ id green (uuidde)
+  + first part
+    + first part is not prelude 
+      + bad name
+      + directory
+      + file
+    + first part is valid prelude
+      + path red, invalid name
+        + 400 [] invalide names
+      + path red, non-existent target
+        + 403 if path hello on /
+        + 403 if path hello/world on /hello (dir)
+        + 403 if path hello/world on /hello (file)
+      + path red, target is file
+        + 403 if path is hello on /hello (file)
+        + 403 if path is hello/world on /hello/world (file)
+      + path green
+        + 200 if prelude is {}
+        + 200 if prelude is { path: '' }
+        + 200 if prelude is { path: 'hello' }
+  + second part
+    + red, second part is invalid
+      + 400 bad name
+      + 400 prelude
+      + 400 invalid dir name
+      + 400 invalid file name
+    + green, no name conflict
+      + 200 file, no conflict
+        + hello on /
+        + world on /hello
+      + 200 directory no conflict
+        + hello on /
+        + world on /hello
+    + red, name conflict
+      + 403 new file hello on / if /hello is file EEXIST
+      + 403 new file hello on / if /hello is directory EISDIR
+      + 403 new file hello on / if /hello os symlink EISSYMLINK
+      + 403 new file world on /hello if /hello/world is file EEXIST
+      + 403 new file world on /hello if /hello/world is directory EISDIR
+      + 403 new file world on /hello if /hello/world is symlink EISSYMLINK
+      + 200 new directory hello on / if /hello is directory 
+      + 200 new directory world on /hello if /hello/world is directory
+      + 403 new directory hello on / if /hello is file EISFILE
+      + 403 new directory world on /hello if /hello/world is file EISFILE
+      + 403 new directory hello on / if /hello is symlink EISSYMLINK
+      + 403 new directory world on /hello if /hello/world is symlink EISSYMLINK   
 
 
 

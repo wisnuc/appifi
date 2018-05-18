@@ -185,6 +185,7 @@ class PartStream extends stream.Writable {
         filename = h.filename
 
         if (part.index === -1 && name !== 'prelude') throw new Error('prelude expected')
+        if (name === 'prelude' && part.index !== -1) throw new Error('prelude twice')
         if (name === 'prelude' || name === 'directory') {
           buffers = []
           part.on('data', handlePartData)
