@@ -47,6 +47,50 @@ const fileENOENT = path => {
   }
 }
 
+const Mkpath = (root, relpath) => path.join(root, relpath)
+
+const Mkdir = (root, relpath) => {
+  let dirPath = path.join(root, relpath) 
+  mkdirp.sync(dirPath)
+  expect(fs.lstatSync(dirPath).isDirectory()).to.be.true
+  return dirPath
+}
+
+const Mkfile = (root, relpath, data) => {
+  Mkdir(root, path.dirname(relpath))
+  let filePath = path.join(root, relpath)
+  fs.writeFileSync(filePath, data)
+  expect(fs.lstatSync(filePath).isFile()).to.be.true
+  return filePath
+}
+
+const Mklink = (root, relpath) => {
+  Mkdir(root, path.dirname(relpath))
+  let linkPath = path.join(root, relpath)
+  fs.symlinkSync('/dev/null', linkPath)
+  expect(fs.lstatSync(linkPath).isSymbolicLink()).to.be.true
+  return linkPath
+}
+
+const ExpectDir = (root, relpath) => {
+  let dirPath = path.join(root, relpath)  
+  expect(fs.lstatSync(dirPath).isDirectory()).to.be.true
+}
+
+const ExpectFile = (root, relpath, data) => {
+  let filePath = path.join(root, relpath)
+  if (data) {
+    expect(fs.readFileSync(filePath).toString()).to.equal(data)
+  } else {
+    expect(fs.lstatSync(filePath).isFile()).to.be.true
+  }
+}
+
+const ExpectFileHash = (root, relpath, hash) => {
+  let filePath = path.join(root, relpath)
+  expect(fps.sync(filePath)).to.equal(hash)
+}
+
 describe(path.basename(__filename), () => {
   const requestToken = (express, userUUID, password, callback) =>
     request(express)
@@ -178,11 +222,20 @@ describe(path.basename(__filename), () => {
 
   }) 
 
-  describe('mkdir and newfile', () => {
-    let fruitmix, app, token, home, fake, boundVolume
+  describe('mkdir and newfile, path via qs', () => {
+   let fruitmix, app, token, home, fake, boundVolume
+
+    const mkdir = Mkdir.bind(null, path.join(tmptest, 'sdde'))
+    const mkfile = Mkfile.bind(null, path.join(tmptest, 'sdde'))
+    const mklink = Mklink.bind(null, path.join(tmptest, 'sdde'))
+    const mkpath = Mkpath.bind(null, path.join(tmptest, 'sdde'))
+    const expectDir = ExpectDir.bind(null, path.join(tmptest, 'sdde'))
+    const expectFile = ExpectFile.bind(null, path.join(tmptest, 'sdde'))
+    const expectFileHash = ExpectFileHash.bind(null, path.join(tmptest, 'sdde'))
 
     const invalidIds = ['hello', fakeNfsAsync.UUIDBC]
     const invalidPaths = ['*', '/hello', 'hello/', 'hello//world'] 
+    const invalidPreludes = ['*', ...['hello', null].map(x => JSON.stringify(x))]
     const invalidFilenames = ['*']
 
     beforeEach(async () => {
@@ -204,6 +257,317 @@ describe(path.basename(__filename), () => {
       fruitmix.nfs.update(fake.storage)
     })
 
+    describe('id red', () => {
+      invalidIds.forEach(iid => {
+        it(`404 if id is ${iid}`, done => {
+          request(app.express)
+            .post(`/phy-drives/${iid}`) // <-- invalid id
+            .set('Authorization', 'JWT ' + token)
+            .query({ path: '' })
+            .field('directory', 'hello')
+            .expect(404)
+            .end(done)
+        }) 
+      })
+    })
+
+    describe('path red, invalid name', () => {
+      invalidPaths.forEach(path => {
+        it(`400 if path is ${path}`, done => {
+          request(app.express)
+            .post(`/phy-drives/${fakeNfsAsync.UUIDDE}`)
+            .set('Authorization', 'JWT ' + token)
+            .query({ path })
+            .field('directory', 'hello')
+            .expect(400)
+            .end(done)
+        })
+      }) 
+    })
+
+    describe('path red, non-existent target', () => {
+      it(`403 if path hello on /`, done => {
+        request(app.express)
+          .post(`/phy-drives/${fakeNfsAsync.UUIDDE}`)
+          .set('Authorization', 'JWT ' + token)
+          .query({ path: 'hello' })
+          .field('directory', 'world')
+          .expect(403)
+          .end(done)
+      })
+
+      it(`403 if path hello/world on /hello (dir)`, done => {
+        let dirPath = path.join(tmptest, 'sdde', 'hello')
+        mkdirp.sync(dirPath)
+        expect(fs.lstatSync(dirPath).isDirectory()).to.be.true 
+        request(app.express)
+          .post(`/phy-drives/${fakeNfsAsync.UUIDDE}`)
+          .set('Authorization', 'JWT ' + token)
+          .query({ path: 'hello/world' })
+          .field('directory', 'world')
+          .expect(403)
+          .end(done)
+      })
+
+      it(`403 if path hello/world on /hello (file)`, done => {
+        let filePath = path.join(tmptest, 'sdde', 'hello')
+        fs.writeFileSync(filePath, 'hello')
+        expect(fs.lstatSync(filePath).isFile()).to.be.true
+        request(app.express)
+          .post(`/phy-drives/${fakeNfsAsync.UUIDDE}`)
+          .set('Authorization', 'JWT ' + token)
+          .query({ path: 'hello/world' })
+          .field('directory', 'world')
+          .expect(403)
+          .end(done)
+      })
+    })
+
+    describe('path red, target is file', () => {
+      it(`403 if path is hello on /hello (file)`, done => {
+        let filePath = path.join(tmptest, 'sdde', 'hello')
+        fs.writeFileSync(filePath, 'hello')
+        expect(fs.lstatSync(filePath).isFile()).to.be.true
+        request(app.express)
+          .post(`/phy-drives/${fakeNfsAsync.UUIDDE}`)
+          .set('Authorization', 'JWT ' + token)
+          .query({ path: 'hello' })
+          .field('directory', 'world')
+          .expect(403)
+          .end(done)
+      })
+
+      it(`403 if path is hello/world on /hello/world (file)`, done => {
+        let dirPath = path.join(tmptest, 'sdde', 'hello')
+        let filePath = path.join(tmptest, 'sdde', 'hello', 'world')
+        mkdirp.sync(dirPath)
+        fs.writeFileSync(filePath, 'hello')
+        expect(fs.lstatSync(filePath).isFile()).to.be.true
+        request(app.express)
+          .post(`/phy-drives/${fakeNfsAsync.UUIDDE}`)
+          .set('Authorization', 'JWT ' + token)
+          .query({ path: 'hello/world' })
+          .field('directory', 'world')
+          .expect(403)
+          .end(done)
+      })
+    })
+
+    describe('part red, invalid field/body', () => {
+      it(`400 if part name is hello (invalid name field)`, done => {
+        request(app.express)
+          .post(`/phy-drives/${fakeNfsAsync.UUIDDE}`)
+          .set('Authorization', 'JWT ' + token)
+          .query({ path: '' })
+          .field('hello', 'world')
+          .expect(400)
+          .end((err, res) => {
+            if (err) return done(err)
+            expect(res.body.index).to.equal(0)
+            done()
+          })
+      })
+
+      invalidFilenames.forEach(iname => 
+        it(`400 if directory part has invalid dir name ${iname}`, done => {
+          request(app.express)
+            .post(`/phy-drives/${fakeNfsAsync.UUIDDE}`)
+            .set('Authorization', 'JWT ' + token)
+            .query({ path: '' })
+            .field('directory', iname)
+            .expect(400)
+            .end((err, res) => {
+              if (err) return done(err)
+              expect(res.body.index).to.equal(0)
+              done()
+            })
+        }))
+
+      invalidFilenames.forEach(iname => 
+        it(`400 if file part has invalid file name ${iname}`, done => {
+          request(app.express)
+            .post(`/phy-drives/${fakeNfsAsync.UUIDDE}`)
+            .set('Authorization', 'JWT ' + token)
+            .query({ path: '' })
+            .attach('file', FILES.alonzo.path, iname)
+            .expect(400)
+            .end((err, res) => {
+              if (err) return done(err)
+              expect(res.body.index).to.equal(0)
+              done()
+            })
+        }))
+    })
+
+    describe('op with name conflict', () => {
+      /**
+      0: expected status code
+      1: op type
+      2: full path
+      3: target type
+      */
+      let tests = [
+        [403, 'file', 'hello', 'file', 'EEXIST'],
+        [403, 'file', 'hello/world', 'file', 'EEXIST'],
+        [403, 'file', 'hello', 'directory', 'EISDIR'],
+        [403, 'file', 'hello/world', 'directory', 'EISDIR'],
+        [403, 'file', 'hello', 'symlink', 'EISSYMLINK'],
+        [403, 'file', 'hello/world', 'symlink', 'EISSYMLINK'], 
+        [200, 'directory', 'hello', 'directory'],
+        [200, 'directory', 'hello/world', 'directory'],
+        [403, 'directory', 'hello', 'file', 'EISFILE'],
+        [403, 'directory', 'hello/world', 'file', 'EISFILE'],
+        [403, 'directory', 'hello', 'symlink', 'EISSYMLINK'],
+        [403, 'directory', 'hello/world', 'symlink', 'EISSYMLINK'],
+      ]
+
+      tests.forEach(t => {
+        let dirname = t[2].slice(0, t[2].lastIndexOf('/') + 1).slice(0, -1)
+        let basename = t[2].split('/').pop()
+
+        it(`${t[0]} new ${t[1]} ${basename} on ${'/' + dirname} if ${'/'+t[2]} is ${t[3]}`, done => {
+
+          if (t[3] === 'directory') {
+            mkdir(t[2])
+          } else if (t[3] === 'file') {
+            mkfile(t[2], basename)
+          } else if (t[3] === 'symlink') {
+            mklink(t[2])
+          } else {
+            throw new Error('unknown type')
+          }
+
+          if (t[1] === 'directory') {
+            request(app.express)
+              .post(`/phy-drives/${fakeNfsAsync.UUIDDE}`)
+              .set('Authorization', 'JWT ' + token)
+              .query({ path: dirname })
+              .field('directory', basename)
+              .expect(t[0])
+              .end((err, res) => {
+                if (err) return done(err)
+                if (t[0] === 200) {
+                  expectDir(t[2])
+                } else {
+                  expect(res.body.code).to.equal(t[4])
+                  expect(res.body.index).to.equal(0)
+                }
+                done()
+              })
+          } else {
+            request(app.express)
+              .post(`/phy-drives/${fakeNfsAsync.UUIDDE}`)
+              .set('Authorization', 'JWT ' + token)
+              .query({ path: dirname })
+              .attach('file', FILES.alonzo.path, basename)
+              .expect(t[0])
+              .end((err, res) => {
+                if (err) return done(err)
+                if (t[0] === 200) {
+                  expectFileHash(t[2], FILES.alonzo.hash)
+                } else {
+                  if (t[4]) expect(res.body.code).to.equal(t[4]) 
+                  expect(res.body.index).to.equal(0)
+                }
+                done()
+              })
+          }
+        })
+
+      })
+    })
+
+    describe('op without conflict', () => {
+      it(`200 new directory hello on /`, done => {
+        request(app.express)
+          .post(`/phy-drives/${fakeNfsAsync.UUIDDE}`)
+          .set('Authorization', 'JWT ' + token)
+          .query({ path: '' })
+          .field('directory', 'hello')
+          .expect(200)
+          .end((err, res) => {
+            if (err) return done(err)
+            let dirPath = path.join(tmptest, 'sdde', 'hello')
+            expect(fs.lstatSync(dirPath).isDirectory()).to.be.true
+            done()
+          })
+      })
+
+      it(`200 new directory world on /hello`, done => {
+        mkdir('hello')
+        request(app.express)
+          .post(`/phy-drives/${fakeNfsAsync.UUIDDE}`)
+          .set('Authorization', 'JWT ' + token)
+          .query({ path: 'hello' })
+          .field('directory', 'world')
+          .expect(200)
+          .end((err, res) => {
+            if (err) return done(err)
+            expectDir('hello/world')
+            done()
+          })
+      })
+
+      it(`200 new file hello on /`, done => {
+        request(app.express)
+          .post(`/phy-drives/${fakeNfsAsync.UUIDDE}`)
+          .set('Authorization', 'JWT ' + token)
+          .query({ path: '' })
+          .attach('file', FILES.alonzo.path, 'hello')
+          .expect(200)
+          .end((err, res) => {
+            if (err) return done(err)
+            expectFileHash('hello', FILES.alonzo.hash)
+            done()
+          })
+      })
+
+      it(`200 new file world on /hello`, done => {
+        mkdir('hello')
+        request(app.express)
+          .post(`/phy-drives/${fakeNfsAsync.UUIDDE}`)
+          .set('Authorization', 'JWT ' + token)
+          .query({ path: 'hello' })
+          .attach('file', FILES.alonzo.path, 'world')
+          .expect(200)
+          .end((err, res) => {
+            if (err) return done(err)
+            expectFileHash('hello/world', FILES.alonzo.hash)
+            done()
+          })
+      })
+    }) 
+
+  })
+
+  describe('mkdir and newfile', () => {
+    let fruitmix, app, token, home, fake, boundVolume
+
+    const invalidIds = ['hello', fakeNfsAsync.UUIDBC]
+    const invalidPaths = ['*', '/hello', 'hello/', 'hello//world'] 
+    const invalidPreludes = ['*', ...['hello', null].map(x => JSON.stringify(x))]
+    const invalidFilenames = ['*']
+
+    beforeEach(async () => {
+      await Promise.delay(100)
+      await rimrafAsync(tmptest)
+      await mkdirpAsync(fruitmixDir)
+      fake = await fakeNfsAsync(tmptest)
+      boundVolume = fake.createBoundVolume(fake.storage, fakeNfsAsync.UUIDBC)
+
+      let userFile = path.join(fruitmixDir, 'users.json')
+      await fs.writeFileAsync(userFile, JSON.stringify([alice], null, '  '))
+
+      let opts = { fruitmixDir, boundVolume }
+      fruitmix = new Fruitmix(opts)
+      app = new App({ fruitmix, log: { skip: 'all', error: 'none' } })
+      await new Promise(resolve => fruitmix.once('FruitmixStarted', () => resolve()))
+      token = await requestTokenAsync(app.express, alice.uuid, 'alice')
+      home = await requestHomeAsync(app.express, alice.uuid, token)
+      fruitmix.nfs.update(fake.storage)
+    })
+
+    // id red
     invalidIds.forEach(iid => {
       it(`404 if id is ${iid}`, done => {
         request(app.express)
@@ -216,6 +580,7 @@ describe(path.basename(__filename), () => {
       }) 
     })
 
+    // path red
     invalidPaths.forEach(path => {
       it(`400 if path is ${path}`, done => {
         request(app.express)
@@ -228,6 +593,7 @@ describe(path.basename(__filename), () => {
       })
     }) 
 
+    // part red 1 invalid name hello
     it(`400 if part name is hello`, done => {
       request(app.express)
         .post(`/phy-drives/${fakeNfsAsync.UUIDDE}`)
@@ -242,6 +608,7 @@ describe(path.basename(__filename), () => {
         })
     })
 
+    // part red 2 invalid dir name
     invalidFilenames.forEach(iname => 
       it(`400 if directory part has invalid dir name ${iname}`, done => {
         request(app.express)
@@ -257,6 +624,7 @@ describe(path.basename(__filename), () => {
           })
       }))
 
+    // part red 3 invalid file name
     invalidFilenames.forEach(iname => 
       it(`400 if file part has invalid file name ${iname}`, done => {
         request(app.express)
@@ -303,16 +671,92 @@ describe(path.basename(__filename), () => {
         })
     })
 
-    // invalid prelude
-/**
-    it(`something`, done => {
+    invalidPreludes.forEach(prelude => {
+      it(`400 if prelude is ${prelude}`, done => {
+        request(app.express)
+          .post(`/phy-drives/${fakeNfsAsync.UUIDDE}`)
+          .set('Authorization', 'JWT ' + token)
+          .field('prelude', prelude)
+          .field('directory', 'hello')
+          .expect(400)
+          .end((err, res) => {
+            if (err) return done(err)
+            expect(res.body.index).to.equal(-1)
+            done()
+          })
+      })
+    }) 
+
+    it(`200 if prelude is {} (defaults to root)`, done => {
       request(app.express)
         .post(`/phy-drives/${fakeNfsAsync.UUIDDE}`)
         .set('Authorization', 'JWT ' + token)
-        .attach('file', 
-    })
-**/
+        .field('prelude', JSON.stringify({}))
+        .expect(200)
+        .end(done)
+    }) 
 
+    it(`200 if prelude is { path: '' } (root)`, done => {
+      request(app.express)
+        .post(`/phy-drives/${fakeNfsAsync.UUIDDE}`)
+        .set('Authorization', 'JWT ' + token)
+        .field('prelude', JSON.stringify({ path: '' }))
+        .expect(200)
+        .end(done)
+    })
+
+    it(`200 if prelude path hello exist`, done => {
+      mkdirp.sync(path.join(tmptest, 'sdde', 'hello'))
+      request(app.express)
+        .post(`/phy-drives/${fakeNfsAsync.UUIDDE}`)
+        .set('Authorization', 'JWT ' + token)
+        .field('prelude', JSON.stringify({ path: 'hello' }))
+        .expect(200)
+        .end(done)
+    })
+
+    it(`403 if prelude path hello non-exist`, done => {
+      request(app.express)
+        .post(`/phy-drives/${fakeNfsAsync.UUIDDE}`)
+        .set('Authorization', 'JWT ' + token)
+        .field('prelude', JSON.stringify({ path: 'hello' }))
+        .expect(403)
+        .end((err, res) => {
+          if (err) return done(err)
+          expect(res.body.index).to.equal(-1)
+          done()
+        })
+    })
+
+    it(`403 if prelude path is a file`, done => {
+      fs.writeFileSync(path.join(tmptest, 'sdde', 'hello'), 'hello')
+      request(app.express)
+        .post(`/phy-drives/${fakeNfsAsync.UUIDDE}`)
+        .set('Authorization', 'JWT ' + token)
+        .field('prelude', JSON.stringify({ path: 'hello' }))
+        .field('directory', 'world')
+        .expect(403)
+        .end((err, res) => {
+          if (err) return done(err)
+          expect(res.body.index).to.equal(-1)
+          done()
+        })
+    })
+
+    it(`200 prelude { path: '' } mkdir hello`, done => {
+      request(app.express)
+        .post(`/phy-drives/${fakeNfsAsync.UUIDDE}`)
+        .set('Authorization', 'JWT ' + token)
+        .field('prelude', JSON.stringify({ path: '' }))
+        .field('directory', 'hello')
+        .expect(200)
+        .end((err, res) => {
+          if (err) return done(err)
+          let dirPath = path.join(tmptest, 'sdde', 'hello')
+          expect(fs.statSync(dirPath).isDirectory()).to.be.true
+          done()
+        })
+    })
   }) 
 
   describe('rename', () => {

@@ -4,6 +4,39 @@ const stream = require('stream')
 const mkdirp = require('mkdirp')
 const sanitize = require('sanitize-filename')
 
+const debug = require('debug')('PartStream')
+
+const EUnsupported = stat => {
+  let err = new Error('target is not a regular file or directory')
+
+  /** from nodejs 8.x LTS doc
+  stats.isFile()
+  stats.isDirectory()
+  stats.isBlockDevice()
+  stats.isCharacterDevice()
+  stats.isSymbolicLink() (only valid with fs.lstat())
+  stats.isFIFO()
+  stats.isSocket()
+  */
+  if (stat.isBlockDevice()) {
+    err.code = 'EISBLOCKDEV'
+  } else if (stat.isCharacterDevice()) {
+    err.code = 'EISCHARDEV'
+  } else if (stat.isSymbolicLink()) {
+    err.code = 'EISSYMLINK'
+  } else if (stat.isFIFO()) {
+    err.code = 'EISFIFO'
+  } else if (stat.isSocket()) {
+    err.code = 'EISSOCKET'
+  } else {
+    err.code = 'EISUNKNOWN'
+  }
+
+  err.xcode = 'EUNSUPPORTED'
+  return err
+}
+
+
 /**
 In a simple test, _write is called one after another, and _final is called
 after the last _write finished. Well sequentialized.
@@ -21,7 +54,6 @@ class PartStream extends stream.Writable {
     this.dirPath = opts.dirPath
     this.handlePrelude = opts.handlePrelude
     this.error = null
-    this.index = this.handlePrelude ? -1 : 0
   }
 
   parseHeader (header) {
@@ -53,7 +85,6 @@ class PartStream extends stream.Writable {
   }
 
   _write (part, _, _callback) {
-    part.index = this.index++
     if (this.error) return _callback(this.error)
 
     let name, filename, buffers, ws
@@ -63,7 +94,8 @@ class PartStream extends stream.Writable {
       _callback(err)
     }
 
-    const error = err => {
+    const handleError = err => {
+      debug('handleError', err.code, err.message)
       err.index = part.index
       part.removeAllListeners()
       part.on('error', () => {})
@@ -75,68 +107,133 @@ class PartStream extends stream.Writable {
       callback(err)
     }
 
-    part.on('error', error)
-
-    part.on('header', header => {
-      try {
-        let h = this.parseHeader(header)
-        name = h.name
-        filename = h.filename
-
-        if (part.index === -1 && name !== 'prelude') throw new Error('prelude expected')
-
-        if (name === 'prelude' || name === 'directory') {
-          buffers = []
-        } else if (name === 'file') {
-          ws = fs.createWriteStream(path.join(this.dirPath, filename))
-          ws.on('error', error)
-          ws.on('finish', () => callback())
-        }
-      } catch (err) {
-        err.index = part.index
-        err.status = 400
-        return error(err)
-      }
-    })
-
-    part.on('data', data => {
+    const handlePartData = data => {
+      debug('handlePartData', part.index)
       if (name === 'prelude' || name === 'directory') {
         buffers.push(data)
       } else if (name === 'file') {
         ws.write(data)
       } else {
-        error(new Error('internal error, unexpected name'))
+        handleError(new Error(`internal error, part on data, unexpected name: ${name}`))
       }
-    })
+    }
 
-    part.on('end', () => {
+    const handlePartEnd = () => {
+      debug('handlePartEnd', part.index)
+
       if (name === 'prelude') {
         let prelude
         try {
           prelude = JSON.parse(Buffer.concat(buffers))
         } catch (err) {
-          return error(err)
+          err.status = 400
+          return handleError(err)
         }
 
         this.handlePrelude(prelude, (err, dirPath) => {
-          if (err) return error(err)
+          if (err) return handleError(err)
           this.dirPath = dirPath
+          callback()
         })
       } else if (name === 'directory') {
         let dirname = Buffer.concat(buffers).toString()
         if (sanitize(dirname) !== dirname) {
           let err = new Error('invalid dir name')
           err.status = 400
-          error(err)
+          handleError(err)
         } else {
-          mkdirp(path.join(this.dirPath, dirname), err => err ? error(err) : callback())
+          let dirPath = path.join(this.dirPath, dirname)
+
+          fs.lstat(dirPath, (err, stats) => {
+            if (err) {
+              if (err.code === 'ENOENT') {
+                mkdirp(dirPath, err => err ? handleError(err) : callback())
+              } else {
+                handleError(err)
+              }
+            } else {
+              let err
+              if (stats.isDirectory()) {
+                callback()
+              } else if (stats.isFile()) {
+                let err = new Error('target is a file')
+                err.code = 'EISFILE'
+                err.status = 403
+                handleError(err)
+              } else {
+                let err = EUnsupported(stats)
+                err.status = 403
+                handleError(err)
+              }
+            }
+          })
+
         }
       } else if (name === 'file') {
         ws.end()
       } else {
-        error(new Error('internal error, unexpected name'))
+        handleError(new Error(`internal error, part on end, unexpected name: ${name}`))
       }
-    })
+    }
+
+    const handlePartHeader = header => {
+      debug('handlePartHeader', part.index)
+
+      try {
+        let h = this.parseHeader(header)
+        name = h.name
+        filename = h.filename
+
+        if (part.index === -1 && name !== 'prelude') throw new Error('prelude expected')
+        if (name === 'prelude' || name === 'directory') {
+          buffers = []
+          part.on('data', handlePartData)
+          part.on('end', handlePartEnd)
+        } else {
+          let filePath = path.join(this.dirPath, filename)
+
+          fs.lstat(filePath, (err, stats) => {
+            if (err) {
+              if (err.code !== 'ENOENT') return handleError(err)
+            } else {
+              let err
+              if (stats.isFile()) {
+                err = new Error('target exists')
+                err.code = 'EEXIST'
+              } else if (stats.isDirectory()) {
+                err = new Error('target is a directory')
+                err.code = 'EISDIR'
+              } else {
+                err = EUnsupported(stats)
+              }
+              err.status = 403
+              return handleError(err)
+            }
+
+            ws = fs.createWriteStream(path.join(this.dirPath, filename))
+            ws.on('error', handleError)
+            ws.on('finish', () => callback())
+
+            part.on('data', handlePartData)
+            part.on('end', handlePartEnd)
+          })
+        }
+      } catch (err) {
+        err.index = part.index
+        err.status = 400
+        return handleError(err)
+      }
+    }
+
+    part.on('error', handleError)
+
+    if (part.header) {
+      handlePartHeader(part.header, false)
+    } else {
+      part.removeAllListeners('header')
+      part.on('header', header => handlePartHeader(header, true))
+    }
+
   }
 }
 

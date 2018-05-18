@@ -203,7 +203,7 @@ const validateName = (name) => {
     error.push(new Error('name is required'))
 
   if (typeof name !== 'string')
-    error.push(new Error('name should be string'))
+    error.push(new Error('name is llegal'))
   
   if (name.length > 256) 
     error.push(new Error('name length should less than 256')) 
