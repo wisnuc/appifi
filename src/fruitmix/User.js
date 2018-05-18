@@ -294,7 +294,7 @@ class User extends EventEmitter {
   PATCH (user, props, callback) {
     if (props.password) {
       let recognized = ['password', 'smbPassword', 'encrypted', 'userUUID']
-      if (Object.getOwnPropertyNames(props).every(k => recognized.includes(k))) {
+      if (!Object.getOwnPropertyNames(props).every(k => recognized.includes(k))) {
         return process.nextTick(() => callback(Object.assign(new Error('too much props in body'), { status: 400 })))
       }
       if (user.uuid !== props.userUUID) return process.nextTick(() => callback(Object.assign(new Error('Permission Denied'), { status: 403 })))
