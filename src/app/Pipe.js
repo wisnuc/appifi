@@ -223,15 +223,23 @@ class Pipe extends EventEmitter {
    */
   apis (opts) {
     const { user, matchRoute, method, query, body, params } = opts
+    const props = Object.assign({}, query, body, params)
+    // postform
     if (matchRoute.verb === 'POSTFORM') {
-      const props = Object.assign({}, query, body, params)
-      // { driveUUID, dirUUID, boundary, length, formdata }
-      // let props = {
-      //   manifest: true
-      // }
-      return this.getResource().pipe(this.ctx.fruitmix().apis[matchRoute.api][method](user, props))
+      // get resource from cloud
+      this.getResource((error, response, body) => {
+        if (!error && response.statusCode === 200) {
+          debug(`get resource resposne body: ${body}`)
+        } else {
+          props.formdata = body.incomingSteam
+          // { driveUUID, dirUUID, boundary, length, formdata }
+          this.ctx.fruitmix().apis[matchRoute.api][method](user, props, (err, data) => {
+            debug('postform', err, data)
+            this.reqCommand(err, data)
+          })
+        }
+      })
     } else {
-      const props = Object.assign({}, query, body, params)
       return this.ctx.fruitmix().apis[matchRoute.api][method](user, props, (err, data) => {
         if (err) return this.reqCommand(err)
         // stream
@@ -299,7 +307,7 @@ class Pipe extends EventEmitter {
       file: fs.createReadStream(absolutePath)
     }
     request.post({
-      url: this.message.packageParams.waitingServer + RESOURCE_URL,
+      url: 'http://sohon2test.phicomm.com' + RESOURCE_URL,
       headers: { Authorization: this.ctx.config.cloudToken },
       formData: formData
     }, (error, response, body) => {
@@ -310,22 +318,20 @@ class Pipe extends EventEmitter {
   }
   /**
    * get resource
-   * @param {object} res
-   * @returns {stream}
+   * @param {object} callback
    * @memberof Pipe
    */
-  getResource (res) {
+  getResource (callback) {
     return request({
-      uri: this.message.packageParams.waitingServer + RESOURCE_URL,
+      uri: 'http://sohon2test.phicomm.com' + RESOURCE_URL,
       method: 'GET',
       headers: { Authorization: this.ctx.config.cloudToken },
       qs: {
         deviceSN: this.ctx.config.device.deviceSN,
         msgId: this.message.msgId,
-        uid: this.message.packageParams.uid,
-        data: res
+        uid: this.message.packageParams.uid
       }
-    })
+    }, callback)
   }
 }
 
