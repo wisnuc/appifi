@@ -94,7 +94,8 @@ if (args.standalone) {
       fruitmixOpts,
       configuration,
       useAlice: !!args["alice"],
-      useServer: true
+      useServer: true,
+      listenProcess: true
     })
   }
 }

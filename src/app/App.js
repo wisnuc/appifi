@@ -129,8 +129,8 @@ class App extends EventEmitter {
         }
       })
     }
-
-    process.on('message', this.handleMessage.bind(this))
+    if (opts.listenProcess)
+      process.on('message', this.handleMessage.bind(this))
   }
 
   handleMessage (msg) {
