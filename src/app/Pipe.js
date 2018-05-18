@@ -301,11 +301,11 @@ class Pipe extends EventEmitter {
   postResource (absolutePath) {
     var formData = {
       // Pass a simple key-value pair
-      deviceSN: this.device.deviceSN,
-      msgId: this.message.msgId,
-      data: {},
+      deviceSN: `${this.ctx.config.device.deviceSN}`,
+      msgId: `${this.message.msgId}`,
       file: fs.createReadStream(absolutePath)
     }
+    // FIXME: resource.on is not function
     request.post({
       url: 'http://sohon2test.phicomm.com' + RESOURCE_URL,
       headers: { Authorization: this.ctx.config.cloudToken },
