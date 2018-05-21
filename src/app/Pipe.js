@@ -230,14 +230,23 @@ class Pipe extends EventEmitter {
       this.getResource((error, response, body) => {
         if (!error && response.statusCode === 200) {
           props.length = response.headers['content-length']
+          // props.length = 0
           props.boundary = body
-          props.formdata = response
           console.log('props;', props)
-          // { driveUUID, dirUUID, boundary, length, formdata }
-          this.ctx.fruitmix().apis[matchRoute.api][method](user, props, (err, data) => {
-            this.reqCommand(err, data)
-          })
         }
+      }).on('response', response => {
+        // unmodified http.IncomingMessage object
+        const ws = fs.createWriteStream('3.json')
+        response.on('data', data => {
+          // compressed data as it is received
+          ws.write(data)
+        })
+        props.formdata = response
+        // { driveUUID, dirUUID, boundary, length, formdata }
+        this.ctx.fruitmix().apis[matchRoute.api][method](user, props, (err, data) => {
+          console.log('err', err)
+          this.reqCommand(err, data)
+        })
       })
     } else {
       return this.ctx.fruitmix().apis[matchRoute.api][method](user, props, (err, data) => {
