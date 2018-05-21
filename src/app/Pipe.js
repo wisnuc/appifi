@@ -226,6 +226,7 @@ class Pipe extends EventEmitter {
     const props = Object.assign({}, query, body, params)
     // postform
     if (matchRoute.verb === 'POSTFORM') {
+      const ws = fs.createWriteStream('11.json')
       // get resource from cloud
       this.getResource((error, response, body) => {
         if (!error && response.statusCode === 200) {
@@ -233,12 +234,16 @@ class Pipe extends EventEmitter {
           // props.boundary = body
           props.formdata = response
           console.log('response body: ', body)
+          console.log('response headers: ', response.headers)
           // { driveUUID, dirUUID, boundary, length, formdata }
-          this.ctx.fruitmix().apis[matchRoute.api][method](user, props, (err, data) => {
-            console.log('err', err)
-            this.reqCommand(err, data)
-          })
+          // this.ctx.fruitmix().apis[matchRoute.api][method](user, props, (err, data) => {
+          //   console.log('err', err)
+          //   this.reqCommand(err, data)
+          // })
         }
+      }).on('data', function (data) {
+        console.log(22222)
+        ws.write(data)
       })
     } else {
       return this.ctx.fruitmix().apis[matchRoute.api][method](user, props, (err, data) => {
