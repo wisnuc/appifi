@@ -229,13 +229,12 @@ class Pipe extends EventEmitter {
       // get resource from cloud
       this.getResource((error, response, body) => {
         if (!error && response.statusCode === 200) {
-          console.log('length encoded the data as: ' + (response.headers['content-length']))
-          debug(`getResource resposne body: ${body}`)
-          props.formdata = response
+          props.length = response.headers['content-length']
           props.boundary = body
+          props.formdata = response
+          console.log('props;', props)
           // { driveUUID, dirUUID, boundary, length, formdata }
           this.ctx.fruitmix().apis[matchRoute.api][method](user, props, (err, data) => {
-            debug('postform', err, data)
             this.reqCommand(err, data)
           })
         }
