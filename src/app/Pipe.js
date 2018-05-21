@@ -229,9 +229,10 @@ class Pipe extends EventEmitter {
       // get resource from cloud
       this.getResource((error, response, body) => {
         if (!error && response.statusCode === 200) {
-          debug(`get resource resposne body: ${body}`)
-        } else {
-          props.formdata = body.incomingSteam
+          console.log('length encoded the data as: ' + (response.headers['content-length']))
+          debug(`getResource resposne body: ${body}`)
+          props.formdata = response
+          props.boundary = body
           // { driveUUID, dirUUID, boundary, length, formdata }
           this.ctx.fruitmix().apis[matchRoute.api][method](user, props, (err, data) => {
             debug('postform', err, data)
@@ -287,7 +288,7 @@ class Pipe extends EventEmitter {
         }
       }, (error, response, body) => {
         if (!error && response.statusCode === 200) {
-          debug(`command resposne body: ${body}`)
+          debug(`reqCommand body: ${body}`)
         }
       })
     }
@@ -305,14 +306,13 @@ class Pipe extends EventEmitter {
       msgId: `${this.message.msgId}`,
       file: fs.createReadStream(absolutePath)
     }
-    // FIXME: resource.on is not function
     request.post({
       url: 'http://sohon2test.phicomm.com' + RESOURCE_URL,
       headers: { Authorization: this.ctx.config.cloudToken },
       formData: formData
     }, (error, response, body) => {
       if (!error && response.statusCode === 200) {
-        debug(`command resposne body: ${body}`)
+        debug(`postResource body: ${body}`)
       }
     })
   }
