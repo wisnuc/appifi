@@ -200,13 +200,17 @@ class Drive extends EventEmitter {
   userCanReadDrive (userUUID, driveUUID) {
     let drv = this.getDrive(driveUUID)
     if (!drv) return false
+    if (drv.isDeleted) return false
     if (drv.type === 'private' && drv.owner === userUUID) return true
     if (drv.type === 'public' && (drv.writelist === '*' || drv.writelist.includes(userUUID))) return true
     return false
   }
 
   LIST (user, props, callback) {
-    this.retrieveDrives(user.uuid, callback)
+    this.retrieveDrives(user.uuid, (err, drives) => {
+      if (err) return callback(err)
+      callback(null, drives.filter(d => !d.isDeleted))
+    })
   }
 
   /**
@@ -219,7 +223,7 @@ class Drive extends EventEmitter {
   GET (user, props, callback) {
     if (!this.userCanReadDrive(user.uuid, props.driveUUID)) return process.nextTick(() => callback(Object.assign(new Error('Permission Denied'), { status: 403 })))
     let drv = this.getDrive(props.driveUUID)
-    if (!drv) return process.nextTick(() => callback(Object.assign(new Error('drive not found'), { status: 403 })))
+    if (!drv || drv.isDeleted) return process.nextTick(() => callback(Object.assign(new Error('drive not found'), { status: 403 })))
     process.nextTick(() => callback(null, drv))
   }
 
@@ -265,7 +269,7 @@ class Drive extends EventEmitter {
     delete props.driveUUID
     try {
       let drive = this.drives.find(drv => drv.uuid === driveUUID)
-      if (!drive) {
+      if (!drive || drive.isDeleted) {
         throw Object.assign(new Error(`drive ${driveUUID} not found`), { status: 404 })
       }
       let recognized
@@ -314,7 +318,7 @@ class Drive extends EventEmitter {
     let driveUUID = props.driveUUID
     if (Object.getOwnPropertyNames(props).length !== 1) return callback(Object.assign(new Error('invalid parameters'), { status: 400 }))
     let drive = this.drives.find(drv => drv.uuid === driveUUID)
-    if (!drive || drive.type !== 'public') return callback(Object.assign(new Error('invalid driveUUID'), { status: 400 }))
+    if (!drive || drive.type !== 'public' || drive.isDeleted) return callback(Object.assign(new Error('invalid driveUUID'), { status: 400 }))
     if (drive.tag === 'built-in') return callback(Object.assign(new Error('built-in drive can not be deleted'), { status: 400 }))
     this.deleteDrive(driveUUID, props, callback)
   }

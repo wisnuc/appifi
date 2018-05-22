@@ -233,10 +233,10 @@ class User extends EventEmitter {
   LIST (user, props, callback) {
     if (!user) {
       // basic info of all users
-      return process.nextTick(() => callback(null, this.users.map(u => this.basicInfo(u))))
+      return process.nextTick(() => callback(null, this.users.filter(u => u.status === USER_STATUS.ACTIVE).map(u => this.basicInfo(u))))
     } else if (user.isFirstUser) {
       // full info of all users
-      return process.nextTick(() => callback(null, this.users.map(u => this.fullInfo(u))))
+      return process.nextTick(() => callback(null, this.users.filter(u => u.status !== USER_STATUS.DELETED).map(u => this.fullInfo(u))))
     } else {
       // full info of the user
       return process.nextTick(() => {
