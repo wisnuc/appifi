@@ -46,14 +46,14 @@ class Drive extends EventEmitter {
     })
   }
 
-  handleVFSDeleted (driveUUID) {
-    let drv = this.drives.find(drv => drv.uuid === driveUUID)
-    if (!drv) return // ignore
-    this.removeDrive(driveUUID, {}, err => {
-      if (err) return // skip, unknown error when remove drive
-      this.user.handleDriveDeleted(drv.owner)
-    })
-  }
+  // handleVFSDeleted (driveUUID) {
+  //   let drv = this.drives.find(drv => drv.uuid === driveUUID)
+  //   if (!drv) return // ignore
+  //   this.removeDrive(driveUUID, {}, err => {
+  //     if (err) return // skip, unknown error when remove drive
+  //     this.user.handleDriveDeleted(drv.owner)
+  //   })
+  // }
 
   handleUserUpdate (users) {
     let deletedUsers = users.filter(u => u.status === this.user.USER_STATUS.DELETED).map(u => u.uuid)

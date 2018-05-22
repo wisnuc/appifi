@@ -167,7 +167,7 @@ class VFS extends EventEmitter {
     toBeDeleted.forEach(uuid => this.forest.deleteRoot(uuid))
 
     // report drive
-    if (toBeRemoved.length) toBeRemoved.forEach(uuid => this.removeRoot(uuid) ? this.drive.handleVFSDeleted(uuid) : false)
+    if (toBeRemoved.length) toBeRemoved.forEach(uuid => debug(`drive:${uuid} be removed;  remove success: ${ this.removeRoot(uuid) }`))
 
     if (!toBeCreated.length) return this.emit('ForestUpdate', Array.from(this.forest.roots.keys()))
 

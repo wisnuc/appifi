@@ -47,12 +47,12 @@ class User extends EventEmitter {
     })
   }
 
-  handleDriveDeleted (userUUID) {
-    this.removeUser(userUUID, err => {
-      console.log('user deleted: ', userUUID)
-      if (err) console.log('user delete failed: ', err)
-    })
-  }
+  // handleDriveDeleted (userUUID) {
+  //   this.removeUser(userUUID, err => {
+  //     console.log('user deleted: ', userUUID)
+  //     if (err) console.log('user delete failed: ', err)
+  //   })
+  // }
 
   getUser (userUUID) {
     return this.users.find(u => u.uuid === userUUID)
