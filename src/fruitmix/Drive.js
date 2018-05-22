@@ -185,13 +185,13 @@ class Drive extends EventEmitter {
     }, callback)
   }
 
-  removeDrive (driveUUID, props, callback) {
-    this.store.save(drives => {
-      let index = drives.findIndex(drv => drv.uuid === driveUUID)
-      if (index === -1) throw Object.assign(new Error('drive not found'), { code: 'ENOENT' })
-      return [...drives.slice(0, index), ...drives.slice(index + 1)]
-    }, callback)
-  }
+  // removeDrive (driveUUID, props, callback) {
+  //   this.store.save(drives => {
+  //     let index = drives.findIndex(drv => drv.uuid === driveUUID)
+  //     if (index === -1) throw Object.assign(new Error('drive not found'), { code: 'ENOENT' })
+  //     return [...drives.slice(0, index), ...drives.slice(index + 1)]
+  //   }, callback)
+  // }
 
   /**
    * @argument userUUID - user uuid
@@ -307,6 +307,16 @@ class Drive extends EventEmitter {
       throw Object.assign(new Error(`requires admin priviledge`), { status: 403 })
     }
     this.updateDrive(driveUUID, props, callback)
+  }
+
+  DELETE (user, props, callback) {
+    if (!user || !user.isFirstUser) return callback(Object.assign(new Error('Permission Denied'), { status: 403 }))
+    let driveUUID = props.driveUUID
+    if (Object.getOwnPropertyNames(props).length !== 1) return callback(Object.assign(new Error('invalid parameters'), { status: 400 }))
+    let drive = this.drives.find(drv => drv.uuid === driveUUID)
+    if (!drive || drive.type !== 'public') return callback(Object.assign(new Error('invalid driveUUID'), { status: 400 }))
+    if (drive.tag === 'built-in') return callback(Object.assign(new Error('built-in drive can not be deleted'), { status: 400 }))
+    this.deleteDrive(driveUUID, props, callback)
   }
 }
 
