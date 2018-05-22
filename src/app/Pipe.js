@@ -229,12 +229,14 @@ class Pipe extends EventEmitter {
       // get resource from cloud
       this.getResource((error, response, body) => {
         if (!error && response.statusCode === 200) {
-          debug(`get resource resposne body: ${body}`)
-        } else {
-          props.formdata = body.incomingSteam
+          props.length = 0
+          props.boundary = response.headers['boundary']
+          props.formdata = response
+          console.log('response body: ', body)
+          console.log('response headers: ', response.headers)
           // { driveUUID, dirUUID, boundary, length, formdata }
           this.ctx.fruitmix().apis[matchRoute.api][method](user, props, (err, data) => {
-            debug('postform', err, data)
+            console.log('err', err)
             this.reqCommand(err, data)
           })
         }
@@ -287,7 +289,7 @@ class Pipe extends EventEmitter {
         }
       }, (error, response, body) => {
         if (!error && response.statusCode === 200) {
-          debug(`command resposne body: ${body}`)
+          debug(`reqCommand body: ${body}`)
         }
       })
     }
@@ -301,9 +303,8 @@ class Pipe extends EventEmitter {
   postResource (absolutePath) {
     var formData = {
       // Pass a simple key-value pair
-      deviceSN: this.device.deviceSN,
-      msgId: this.message.msgId,
-      data: {},
+      deviceSN: `${this.ctx.config.device.deviceSN}`,
+      msgId: `${this.message.msgId}`,
       file: fs.createReadStream(absolutePath)
     }
     request.post({
@@ -312,7 +313,7 @@ class Pipe extends EventEmitter {
       formData: formData
     }, (error, response, body) => {
       if (!error && response.statusCode === 200) {
-        debug(`command resposne body: ${body}`)
+        debug(`postResource body: ${body}`)
       }
     })
   }

@@ -11,6 +11,42 @@ const { isUUID, isNonNullObject } = require('../lib/assertion')
 const PartStream = require('./nfs/PartStream')
 
 /**
+Generate an unsupported file type error from fs.Stats
+
+@param {fs.Stats} stat
+*/
+const EUnsupported = stat => {
+  let err = new Error('target is not a regular file or directory')
+
+  /** from nodejs 8.x LTS doc
+  stats.isFile()
+  stats.isDirectory()
+  stats.isBlockDevice()
+  stats.isCharacterDevice()
+  stats.isSymbolicLink() (only valid with fs.lstat())
+  stats.isFIFO()
+  stats.isSocket()
+  */
+  if (stat.isBlockDevice()) {
+    err.code = 'EISBLOCKDEV'
+  } else if (stat.isCharacterDevice()) {
+    err.code = 'EISCHARDEV'
+  } else if (stat.isSymbolicLink()) {
+    err.code = 'EISSYMLINK'
+  } else if (stat.isFIFO()) {
+    err.code = 'EISFIFO'
+  } else if (stat.isSocket()) {
+    err.code = 'EISSOCKET'
+  } else {
+    err.code = 'EISUNKNOWN'
+  }
+
+  err.xcode = 'EUNSUPPORTED'
+  return err
+}
+
+
+/**
 NFS provides native file system access to users.
 
 @requires User
@@ -66,6 +102,17 @@ class NFS extends EventEmitter {
     })
 
     this.drives = [...vols, ...blks]
+  }
+
+  resolveId (user, props, callback) {
+    let drive = this.drives.find(drv => drv.isVolume ? drv.uuid === props.id : drv.name === props.id)
+    if (!drive) {
+      let err = new Error('drive not found')
+      err.status = 404
+      process.nextTick(() => callback(err))
+    } else {
+      process.nextTick(() => callback(null, drive.mountpoint))
+    }
   }
 
   checkPath (path) {
@@ -179,8 +226,7 @@ class NFS extends EventEmitter {
         } else if (stat.isFile()) {
           callback(null, target)
         } else {
-          let err = new Error('target is neither a regular file nor a directory')
-          err.code = 'EUNSUPPORTED'
+          let err = EUnsupported(stat)
           err.status = 403
           callback(err)
         }
@@ -291,11 +337,16 @@ class NFS extends EventEmitter {
     }
 
     if (props.hasOwnProperty('path')) {
+      debug('props has path')
       this.resolvePath(user, props, (err, target) => 
         err ? callback(err) : lstat(target, err => 
           err ? callback(err) : createPipes(target)))
     } else {
-      createPipes()
+      debug('props has no path')
+      this.resolveId(user, props, (err, mp) => {
+        if (err) return callback(err)
+        createPipes()
+      })
     }
   }
 
