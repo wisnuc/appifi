@@ -10,6 +10,7 @@ const routing = require('./routing')
 
 const COMMAND_URL = `/ResourceManager/nas/callback/command`
 const RESOURCE_URL = `/ResourceManager/nas/callback/resource`
+const RE_BOUNDARY = /^multipart\/.+?(?:; boundary=(?:(?:"(.+)")|(?:([^\s]+))))$/i
 
 const routes = []
 // routing map
@@ -229,8 +230,9 @@ class Pipe extends EventEmitter {
       // get resource from cloud
       this.getResource((error, response, body) => {
         if (!error && response.statusCode === 200) {
-          props.length = 0
-          props.boundary = response.headers['boundary']
+          props.length = response.headers['content-length']
+          const m = RE_BOUNDARY.exec(response.headers['content-type'])
+          props.boundary = m[1] || m[2]
           props.formdata = response
           console.log('response body: ', body)
           console.log('response headers: ', response.headers)
