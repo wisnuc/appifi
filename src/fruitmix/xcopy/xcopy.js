@@ -8,28 +8,27 @@ const debug = require('debug')('xcopy')
 const { Dir, DirCopy, DirMove, DirImport, DirExport } = require('./dirs')
 const { File, FileCopy, FileMove, FileImport, FileExport } = require('./files')
 
-/**
-Xcopy as a namespace
-@namespace XCopy
-*/
 
 /**
-Base class
 
 This is a container of a collection of sub-tasks, organized in a tree.
 */
-class Base extends EventEmitter {
+class XCopy extends EventEmitter {
 
   // if user is not provided, ctx is vfs, otherwise, it is fruitmix
   constructor (ctx, user, policies, src, dst, entries) {
     super()
-    this.ctx = ctx
+
+    this.vfs = vfs
+    this.nfs = nfs
     this.user = user
+
     this.uuid = UUID.v4()
-    this.policies = policies || { dir: [], file: [] }
-    this.src = src
-    this.dst = dst
-    this.entries = entries
+
+    this.src = props.src
+    this.dst = props.dst
+    this.entries = props.entries
+    this.policies = props.policies
 
     this.pendingFiles = new Set()
     this.workingFiles = new Set()
@@ -42,6 +41,8 @@ class Base extends EventEmitter {
     this.readDirs = new Set()
     this.conflictDirs = new Set()
     this.failedDirs = new Set()
+
+    this.root = new Dir (this, 
   }
 
   destroy () {
@@ -306,19 +307,6 @@ class Base extends EventEmitter {
     process.nextTick(() => callback(err))
   }
 
-}
-
-class Copy extends Base {
-
-  constructor (ctx, user, policies, src, dst, xstats) {
-    super(ctx, user, policies, src, dst, xstats)
-    this.mode = 'copy'
-    this.srcDriveUUID = src.drive
-    this.dstDriveUUID = dst.drive
-    let _src = { uuid: src.dir }
-    let _dst = { uuid: dst.dir }
-    this.root = new DirCopy(this, null, _src, _dst, xstats)
-  }
 
   cpdir (src, dst, policy, callback) {
     src.drive = this.srcDriveUUID
@@ -342,20 +330,6 @@ class Copy extends Base {
     }
   }
 
-}
-
-class Move extends Base {
-
-  constructor (ctx, user, policies, src, dst, xstats) {
-    super(ctx, user, policies, src, dst, xstats)
-    this.mode = 'move'
-    this.srcDriveUUID = src.drive
-    this.dstDriveUUID = dst.drive
-    let _src = { uuid: src.dir }
-    let _dst = { uuid: dst.dir }
-    this.root = new DirMove(this, null, _src, _dst, xstats)
-  }
-
   mvdir (src, dst, policy, callback) {
     src.drive = this.srcDriveUUID
     dst.drive = this.dstDriveUUID
@@ -376,29 +350,6 @@ class Move extends Base {
     } else {
       this.ctx.mvfile(src, dst, policy, callback)
     }
-  }
-
-}
-
-class Import extends Base {
-
-  constructor (ctx, user, policies, src, dst, stats) {
-    super(ctx, user, policies, src, dst, stats)
-    this.mode = 'import'
-    this.srcPath = src.path
-    this.dstDriveUUID = dst.drive
-    let _src = { 
-      uuid: UUID.v4(),
-      name: '',
-      path: src.path
-    }
-
-    let _dst = { 
-      uuid: dst.dir,
-      name: ''
-    } 
-
-    this.root = new DirImport(this, null, _src, _dst, stats)
   }
 
   genTmpPath () {
@@ -425,6 +376,67 @@ class Import extends Base {
     }
   }
 
+  clone (src, callback) {
+    src.drive = this.srcDriveUUID
+
+    if (this.user) {
+      this.ctx.clone(this.user, src, callback)
+    } else {
+      this.ctx.clone(src, callback)
+    }
+  }
+}
+
+/**
+class Copy extends Base {
+
+  constructor (ctx, user, policies, src, dst, xstats) {
+    super(ctx, user, policies, src, dst, xstats)
+    this.mode = 'copy'
+    this.srcDriveUUID = src.drive
+    this.dstDriveUUID = dst.drive
+    let _src = { uuid: src.dir }
+    let _dst = { uuid: dst.dir }
+    this.root = new DirCopy(this, null, _src, _dst, xstats)
+  }
+
+}
+
+class Move extends Base {
+
+  constructor (ctx, user, policies, src, dst, xstats) {
+    super(ctx, user, policies, src, dst, xstats)
+    this.mode = 'move'
+    this.srcDriveUUID = src.drive
+    this.dstDriveUUID = dst.drive
+    let _src = { uuid: src.dir }
+    let _dst = { uuid: dst.dir }
+    this.root = new DirMove(this, null, _src, _dst, xstats)
+  }
+
+}
+
+class Import extends Base {
+
+  constructor (ctx, user, policies, src, dst, stats) {
+    super(ctx, user, policies, src, dst, stats)
+    this.mode = 'import'
+    this.srcPath = src.path
+    this.dstDriveUUID = dst.drive
+    let _src = { 
+      uuid: UUID.v4(),
+      name: '',
+      path: src.path
+    }
+
+    let _dst = { 
+      uuid: dst.dir,
+      name: ''
+    } 
+
+    this.root = new DirImport(this, null, _src, _dst, stats)
+  }
+
 }
 
 class Export extends Base {
@@ -447,168 +459,7 @@ class Export extends Base {
     this.root = new DirExport(this, null, _src, _dst, xstats)
   }
 
-  clone (src, callback) {
-    src.drive = this.srcDriveUUID
-
-    if (this.user) {
-      this.ctx.clone(this.user, src, callback)
-    } else {
-      this.ctx.clone(src, callback)
-    }
-  }
 }
+**/
 
-// return formatted policies 
-const formatPolicies = policies => {
-
-  const vs = [undefined, null, 'skip', 'replace', 'rename', 'keep']
-  const obj = { dir: [], file: [] }  
-
-  if (policies === undefined || policies === null) return obj
-
-  if (typeof policies !== 'object') throw new Error('policies is not an object')
-
-  if (policies.hasOwnProperty('dir')) {
-    if (!Array.isArray(policies.dir)) throw new Error('policies.dir is not an array')
-    if (!vs.includes(policies.dir[0])) throw new Error('invalid policies.dir[0]')
-    if (!vs.includes(policies.dir[1])) throw new Error('invalid policies.dir[1]')
-    obj.dir = policies.dir.slice(0, 2)
-  } 
-
-  if (policies.hasOwnProperty('file')) {
-    if (!Array.isArray(policies.file)) throw new Error('policies.file is not an array')
-    if (!vs.includes(policies.file[0])) throw new Error('invalid policies.file[0]')
-    if (!vs.includes(policies.file[1])) throw new Error('invalid policies.file[1]')
-    obj.file = policies.file.slice(0, 2)
-  } 
-
-  return obj
-}
-
-// entries are uuids
-// returns xstats or throw error
-const entriesToXstats = (ctx, user, driveUUID, dirUUID, entries, callback) => {
-
-  const handler = (err, xstats) => {
-    if (err) return callback(err)
-    let found = []    // xstats
-    let missing = []  // uuids
-
-    entries.forEach(uuid => {
-      let x = xstats.find(x => x.uuid === uuid)
-      if (x) {
-        found.push(x)
-      } else {
-        missing.push(uuid)
-      }
-    })
-
-    if (missing.length) {
-      let err = new Error('some entries are missing')
-      err.missing = missing
-      callback(err)
-    } else {
-      callback(null, found)
-    }
-  }
-
-  if (user) {
-    ctx.readdir(user, driveUUID, dirUUID, handler)  
-  } else {
-    ctx.readdir(driveUUID, dirUUID, handler)
-  }
-}
-
-// entries are names
-// returns stats or throw error
-const entriesToStats = (dirPath, entries, callback) => 
-  fs.readdir(dirPath, (err, files) => {
-    if (err) return callback(err)
-
-    if (files.length === 0) {
-      let err = new Error('all entries are missing')
-      err.missing = [...entries]
-      return callback(err)
-    }
-
-    let found = []    // names
-    let missing = []  // names
-
-    entries.forEach(name => files.includes(name) ? found.push(name) : missing.push(name))
-
-    if (missing.length) {
-      let err = new Error('some entries are missing')
-      err.missing = missing
-      callback(err)
-    } else {
-
-      let count = entries.length 
-      let stats = []
-      entries.forEach(name => {
-        fs.lstat(path.join(dirPath, name), (err, stat) => {
-          if (!err) {
-            if (stat.isDirectory()) {
-              stats.push({
-                type: 'directory',
-                name
-              })
-            } else if (stat.isFile()) {
-              stats.push({
-                type: 'file',
-                name,
-                size: stat.size,
-                mtime: stat.mtime.getTime()
-              })
-            } else {
-
-            }
-          }
-
-          if (!--count) callback(null, stats)
-        }) 
-      })
-    }
-  })
-
-
-/**
-Create a xcopy machine.
-
-@param {object} ctx - reference fruitmix or vfs (if user is not provided)
-@param {object} user - user object
-@param {string} mode - copy, move, import, export
-@param {object} src - { drive, dir } or { path }
-@param {object} dst - { drive, dir } or { path }
-@param {object} entries - array of uuid or names to be copied
-@param {object} policies - { dir, file }
-@param {function} callback - `(err, xcopy) => {}`
-*/
-const xcopy = (ctx, user, mode, policies, src, dst, entries, callback) => {
-
-  try {
-    policies = formatPolicies(policies) 
-  } catch (e) {
-    return process.nextTick(() => callback(e))
-  }
-
-  if (user) {
-  } 
-
-  if (mode === 'copy' || mode === 'move' || mode === 'export') {
-    entriesToXstats(ctx, user, src.drive, src.dir, entries, (err, xstats) => {
-      if (err) return callback(err)
-      let X = mode === 'copy' ? Copy : mode === 'move' ? Move : Export
-      callback(null, new X(ctx, user, policies, src, dst, xstats))
-    })
-  } else if (mode === 'import') {
-    entriesToStats(src.path, entries, (err, stats) => {
-      if (err) return callback(err) 
-      callback(null, new Import(ctx, user, policies, src, dst, stats))
-    })
-  }
-}
-
-const createTask = (user, props, callback) => {
-}
-
-module.exports = xcopy
+module.exports = XCopy

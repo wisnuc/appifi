@@ -248,6 +248,16 @@ class VFS extends EventEmitter {
     }
   }
 
+  /**
+  @param {object} user - user
+  @param {object} props
+  */
+  READDIR(user, props, callback) {
+    this.dirGET(user, props, (err, combined) => {
+      if (err) return callback(err)
+      callback(null, combined.entries)
+    })
+  }
 
   /**
   @param {object} user - user
@@ -337,7 +347,7 @@ class VFS extends EventEmitter {
 
   with drive:
 
-  - if sdrive is not found, 404
+  - if drive is not found, 404
   - if drive is deleted, 404
   - if drive is not accessible, 404 
   - if dir not found, 404 (same as w/o drive)

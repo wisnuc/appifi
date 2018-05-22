@@ -217,7 +217,7 @@ The base class of a file subtask
 
 @memberof XCopy
 */
-class File extends Node {
+class XFile extends Node {
   constructor (ctx, parent, src) {
     super(ctx, parent)
     this.src = src
@@ -236,4 +236,4 @@ class File extends Node {
   }
 }
 
-module.exports = File
+module.exports = XFile
