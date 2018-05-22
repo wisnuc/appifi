@@ -229,7 +229,7 @@ class Pipe extends EventEmitter {
       // get resource from cloud
       this.getResource((error, response, body) => {
         if (!error && response.statusCode === 200) {
-          props.length = response.headers['content-length']
+          props.length = 0
           props.boundary = response.headers['boundary']
           props.formdata = response
           console.log('response body: ', body)
