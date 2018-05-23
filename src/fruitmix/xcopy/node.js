@@ -80,9 +80,22 @@ class Node extends EventEmitter {
   /**
   Visit all nodes with function f. Implemented as pre-visitor.
   */
+
+/**
   visit (f) {
     f(this)
     if (this.children) this.children.forEach(c => c.visit(f)) 
+  }
+**/
+
+  visit (f) {
+    for (let i = 0; i < this.children.length; i++) {
+      let x = this.children.visit(f)
+      if (x) return x
+    }
+
+    let x = f(this)
+    if (x) return x
   }
 
   /**

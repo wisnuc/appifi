@@ -15,7 +15,7 @@ class State {
     this.mode = this.ctx.mode
     this.destroyed = false
     this.enter(...args)
-    this.ctx.ctx.indexFile(this.getState(), this.ctx)
+    this.ctx.emit('StateEntered', this.constructor.name)
   }
 
   enter () {}
@@ -26,7 +26,7 @@ class State {
   }
 
   setState (State, ...args) {
-    this.ctx.ctx.unindexFile(this.getState(), this.ctx)
+    // this.ctx.ctx.unindexFile(this.getState(), this.ctx)
     this.exit()
     this.ctx.state = new State(this.ctx, ...args)
   }
@@ -56,22 +56,26 @@ class Pending extends State {
 
 class Working extends State {
   enter () {
-    switch (this.ctx.ctx.mode) {
+    switch (this.ctx.ctx.type) {
       case 'copy': {
         let src = {
-          dir: this.ctx.parent.src.uuid,
+          drive: this.ctx.ctx.src.drive,
+          dir: this.ctx.parent.src.dir,
           uuid: this.ctx.src.uuid,
           name: this.ctx.src.name
         }
 
         let dst = {
-          dir: this.ctx.parent.dst.uuid
+          drive: this.ctx.ctx.dst.drive,
+          dir: this.ctx.parent.dst.dir
         }
 
         let policy = this.ctx.getPolicy()
-        this.ctx.ctx.cpfile(src, dst, policy, (err, xstat, resolved) => {
+
+        this.ctx.ctx.vfs.CPFILE(this.ctx.ctx.user, { src, dst, policy }, (err, xstat, resolved) => {
           if (this.destroyed) return
           if (err && err.code === 'EEXIST') {
+            // TODO detect policy change and retry
             this.setState(Conflict, err, policy)
           } else if (err) {
             this.setState(Failed, err)
@@ -218,10 +222,18 @@ The base class of a file subtask
 @memberof XCopy
 */
 class XFile extends Node {
+
+  /**
+  @param {object} ctx - task context
+  @param {object} parent - parent node, must be an XDir
+  @param {object} src
+  @param {object} [src.uuid] - only required for vfs source
+  @param {ojbect} src.name - required for both vfs and nfs source
+  */
   constructor (ctx, parent, src) {
     super(ctx, parent)
     this.src = src
-    this.state = new Pending(this)
+    this.state = new Working(this)
   }
 
   get type () {

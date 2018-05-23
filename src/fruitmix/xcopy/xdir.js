@@ -5,7 +5,7 @@ const UUID = require('uuid')
 
 const Node = require('./node')
 
-const File = require('./xfile')
+const XFile = require('./xfile')
 const mkdir = require('./lib').mkdir
 
 
@@ -16,7 +16,7 @@ class State {
     this.ctx.state = this
     this.destroyed = false
 
-    this.ctx.ctx.indexDir(this.getState(), this.ctx)
+    // this.ctx.ctx.indexDir(this.getState(), this.ctx)
     this.enter(...args)
   }
 
@@ -27,11 +27,8 @@ class State {
     return this.constructor.name
   }
 
-  setState (state, ...args) {
+  setState (NextState, ...args) {
     this.exit()
-    this.ctx.ctx.unindexDir(this.getState(), this.ctx)
-
-    let NextState = this.ctx[state]
     new NextState(this.ctx, ...args)
   }
 
@@ -39,7 +36,6 @@ class State {
     this.destroyed = true
 
     this.exit()
-    this.ctx.ctx.unindexDir(this.getState(), this.ctx)
   }
 }
 
@@ -59,7 +55,7 @@ The destination directory (`dst`) should be created in this state.
 @memberof XCopy.Dir
 @extends XCopy.State
 */
-class Working extends State {
+class Mkdir extends State {
 
   enter () {
     let [same, diff] = policy
@@ -188,6 +184,80 @@ class Read extends State {
 
 }
 
+class Preparing extends State {
+
+  enter () {
+    this.ctx.readdir((err, stats) => {
+      if (err) {
+        this.setState(Failed)
+      } else {
+
+        let fstats = []
+        let dstats = []
+
+        if (this.ctx.entries) {
+          this.ctx.entries.forEach(entry => {
+            let stat = stats.find(x => x.name === entry)            
+            if (stat) {
+              if (stat.type === 'directory') {
+                dstats.push(stat)
+              } else {
+                fstats.push(stat)
+              }
+            } else {
+              // TODO
+            }
+          })
+        } else {
+          fstats = stats.filter(x => x.type === 'file')
+          dstats = stats.filter(x => x.type === 'directory')
+        }
+
+        if (dstats.length === 0) {
+          this.setState(Parent, dstats, fstats)
+        } else {
+          this.ctx.mkdirs(dstats.map(x => x.name), (err, map) => {
+            if (err) {
+              // TODO
+              this.setState(Failed)
+            } else {
+              dstats.forEach(x => x.dst = map.get(x.name)) 
+              this.setState(Parent, dstats, fstats)
+            }
+          })
+        }
+      }
+    })
+  }
+
+  view () {
+    return {
+      hello: 'world'
+    }
+  }
+}
+
+class Parent extends State {
+
+  /**
+  dstat {
+    dst: { err, stat, resolved }
+  } 
+  */
+  enter (dstats, fstats) {
+    dstats.filter(x => x.dst.err)
+      .forEach(x => this.ctx.children.push(new XDir(this.ctx.ctx, this.ctx, {
+        uuid: x.uuid,
+        name: x.name
+      }, x.dst.err)))
+
+    this.ctx.dstats = dstats.filter(x => !x.dst.err)
+    this.ctx.fstats = fstats
+
+    this.ctx.ctx.reqSched()
+  }
+}
+
 /**
 `Failed` state for directory sub-task
 
@@ -251,24 +321,33 @@ The base class of sub-task for directory.
 @memberof XCopy
 @extends XCopy.Node
 */
-class Dir extends Node {
+class XDir extends Node {
 
   /**
+
+  creating a xdir @ preparing with src, dst, and optional entries
+  creating a xdir @ conflicting with src, err, policy
   
   @param {object} ctx - task container
   @param {Dir} parent - parent dir node
   @param {object} src - source object
-  @param {string} src.drive - source drive uuid or device name
+  @param {string} [src.uuid] - required only if source is vfs object
+  @param {string} src.name - required
+  @parma {object} dst - destination object
+  @param {string} dst.name - required
   */
   constructor (ctx, parent, src, dst, entries) {
     super(ctx, parent)
     this.children = []
     this.src = src
-    if (dst) {
-      this.dst = dst
-      new this.Read(this, entries)
+
+    if (dst instanceof Error) {
+      let err = dst
+      let policy = entries
+      new Conflict(this, err, policy) 
     } else {
-      new this.Pending(this)
+      this.dst = dst
+      new Preparing(this, entries)
     }
   }
 
@@ -299,8 +378,83 @@ class Dir extends Node {
     }
   }
 
+  /**
+  @param {object} stat - either a xstat or a fs.Stats object
+  */
+  createSubTask (stat) {
+    let type = this.ctx.type
+    if (type === 'copy' || type === 'move' || type === 'export') {
+    } else {
+
+    }
+  }
+
+  /**
+  This function is used by scheduler
+
+  @param {number} required
+  @returns actual created
+  */
+  createFileChild (required) {
+    if (this.state.constructor.name !== 'Parent') return 0
+    if (!this.fstats || this.fstats.length === 0) return 0
+
+    let arr = this.fstats.splice(0, required)  
+    arr.forEach(fstat => {
+      let file = new XFile(this.ctx, this, { uuid: fstat.uuid, name: fstat.name })
+
+      file.on('StateEntered', state => {
+        switch (state) {
+          case 'Conflict':
+            // TODO
+            this.ctx.reqSched()
+            break
+          case 'Finished': 
+            // TODO statistic
+            this.children.splice(this.children.indexOf(file)) 
+            this.ctx.reqSched()
+            break
+          default: 
+            break
+        }
+      })
+
+      this.children.push(file)   
+    })
+
+    return arr.length
+  }
+
+  readdir (callback) {
+    if (this.ctx.type === 'copy') {
+      let props = {
+        driveUUID: this.src.drive,
+        dirUUID: this.src.dir
+      }
+      this.ctx.vfs.READDIR(this.ctx.user, props, callback) 
+    } else {
+      let err = new Error('not implemented yet')
+      process.nextTick(() => callback(err))
+    }
+  }
+
+  mkdirs (names, callback) {
+    if (this.ctx.type === 'copy') {
+      let policy = this.getPolicy()
+
+      let props = {
+        driveUUID: this.dst.drive,
+        dirUUID: this.dst.dir,
+        names,
+        policy 
+      }
+
+      this.ctx.vfs.MKDIRS(this.ctx.user, props, callback)
+    }
+  }
 }
 
+/**
 Object.assign(Dir.prototype, { Pending, Working, Reading, Read, Conflict, Finished, Failed })
 
 class DirCopy extends Dir {}
@@ -337,14 +491,6 @@ class DirMove extends Dir {}
 
 DirMove.File = FileMove
 
-/**
-`Working` state for DirMove sub-task
-
-The destination directory (`dst`) should be created in this state.
-
-@memberof XCopy.DirCopy
-@extends XCopy.State
-*/
 DirMove.prototype.Working = class extends Working {
 
   mkdir (policy, callback) {
@@ -384,11 +530,6 @@ DirMove.prototype.Working = class extends Working {
 
 class DirImport extends Dir { 
 
-  /**
-  Returns subtask from native file system stat 
-
-  @override
-  */
   createSubTask (stat) {
     let src = {
       uuid: UUID.v4(),
@@ -407,11 +548,6 @@ class DirImport extends Dir {
 
 DirImport.File = FileImport
 
-/**
-Working state for DirImport
-
-@memeberof XCopy.DirImport
-*/
 DirImport.prototype.Working = class extends Working {
 
   mkdir (policy, callback) {
@@ -434,9 +570,6 @@ DirImport.prototype.Working = class extends Working {
 
 DirImport.prototype.Reading = class extends Reading {
 
-  /**
-  Returns stats of source directory
-  */
   read (callback) {
     let srcPath = this.ctx.src.path
     fs.readdir(srcPath, (err, files) => {
@@ -493,12 +626,8 @@ DirExport.prototype.Working = class extends Working {
   }
 } 
 
+*/
 
-module.exports = {
-  Dir,
-  DirCopy,
-  DirMove,
-  DirImport,
-  DirExport
-}
+
+module.exports = XDir
 

@@ -5,8 +5,8 @@ const EventEmitter = require('events')
 const UUID = require('uuid')
 const debug = require('debug')('xcopy')
 
-const { Dir, DirCopy, DirMove, DirImport, DirExport } = require('./dirs')
-const { File, FileCopy, FileMove, FileImport, FileExport } = require('./files')
+const XDir = require('./xdir')
+const XFile = require('./xfile')
 
 
 /**
@@ -16,13 +16,17 @@ This is a container of a collection of sub-tasks, organized in a tree.
 class XCopy extends EventEmitter {
 
   // if user is not provided, ctx is vfs, otherwise, it is fruitmix
-  constructor (ctx, user, policies, src, dst, entries) {
+  constructor (vfs, nfs, user, props) {
     super()
+
+    let { type, src, dst, entries, policies, stepper } = props
 
     this.vfs = vfs
     this.nfs = nfs
-    this.user = user
+    this.stepper = !!stepper 
 
+    this.type = type
+    this.user = user
     this.uuid = UUID.v4()
 
     this.src = props.src
@@ -42,7 +46,7 @@ class XCopy extends EventEmitter {
     this.conflictDirs = new Set()
     this.failedDirs = new Set()
 
-    this.root = new Dir (this, 
+    this.root = new XDir(this, null, src, dst, entries) 
   }
 
   destroy () {
@@ -195,9 +199,45 @@ class XCopy extends EventEmitter {
   }
 
   reqSched () {
+    if (this.stepper) return
     if (this.scheduled) return
     this.scheduled = true
-    process.nextTick(() => this.schedule())
+    process.nextTick(() => this.step())
+  }
+
+  reqStep () {
+    if (this.sheduled) return
+    this.scheduled = true
+    process.nextTick(() => this.step())
+  }
+
+  step () {
+    this.scheduled = false
+
+
+
+    let limit = 2
+    let count = 0
+
+    const countF = node => {
+      if (node.constructor.name === 'XDir' && node.state.constructor.name === 'Parent') {
+        node.children.filter(c => {
+          if (c.constructor.name === 'XFile' && c.state.constructor.name === 'Working') count++
+        })
+      }
+    }
+
+    this.root.visit(countF)
+    if (count >= limit) return
+
+    const genF = node => {
+      if (node.constructor.name === 'XDir' && node.state.constructor.name === 'Parent') {
+        count += node.createFileChild (limit - count)
+      }
+
+      if (count >= limit) return
+    } 
+    this.root.visit(genF)
   }
 
   activeParents () {
@@ -307,27 +347,11 @@ class XCopy extends EventEmitter {
     process.nextTick(() => callback(err))
   }
 
-
-  cpdir (src, dst, policy, callback) {
-    src.drive = this.srcDriveUUID
-    dst.drive = this.dstDriveUUID
-
-    if (this.user) {
-      this.ctx.cpdir(this.user, src, dst, policy, callback)
-    } else {
-      this.ctx.cpdir(src, dst, policy, callback)
-    }
-  } 
-
+  // obsolete, moved to xfile
   cpfile (src, dst, policy, callback) {
-    src.drive = this.srcDriveUUID
-    dst.drive = this.dstDriveUUID
-
-    if (this.user) {
-      this.ctx.cpfile(this.user, src, dst, policy, callback)
-    } else {
-      this.ctx.cpfile(src, dst, policy, callback)
-    }
+    src.drive = this.src.drive
+    dst.drive = this.dst.drive
+    this.vfs.CPFILE(this.user, { src, dst, policy }, callback)
   }
 
   mvdir (src, dst, policy, callback) {

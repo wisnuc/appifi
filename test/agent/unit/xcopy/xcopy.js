@@ -302,7 +302,8 @@ describe('xcopy task', () => {
         .expect(200)
         .end((err, res) => {
           if (err) return done(err)
-          done()
+
+          setTimeout(() => done(), 1000)
         })
     })
   })

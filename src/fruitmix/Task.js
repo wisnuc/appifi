@@ -104,8 +104,10 @@ class Task {
     // 2. user must has permission for source
     // 3. user must has permission for dst
     // 4. all entries must be found
+    let policies
+
     try {
-      let policies = normalizePolicies(props.policies)
+      policies = normalizePolicies(props.policies)
     } catch (err) {
       err.status = 400
       return process.nextTick(() => callback(err))
@@ -123,7 +125,9 @@ class Task {
       return callback(err)
     }
 
-    let task = new XCopy(this.vfs, this.nfs, user, props)   
+    let newProps = Object.assign({}, props, { policies })
+
+    let task = new XCopy(this.vfs, this.nfs, user, newProps)   
     this.tasks.push(task)
     callback(null, task.view())
   }  
