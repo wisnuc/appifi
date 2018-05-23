@@ -150,6 +150,7 @@ class VFS extends EventEmitter {
         if (!owner || owner.status !== this.user.USER_STATUS.DELETED) return false
         return true
       }
+      if (drv.type === 'public') return true
       return false
     }).map(drv => drv.uuid)
 
@@ -167,7 +168,7 @@ class VFS extends EventEmitter {
     toBeDeleted.forEach(uuid => this.forest.deleteRoot(uuid))
 
     // report drive
-    if (toBeRemoved.length) toBeRemoved.forEach(uuid => this.removeRoot(uuid) ? this.drive.handleVFSDeleted(uuid) : false)
+    if (toBeRemoved.length) toBeRemoved.forEach(uuid => debug(`drive:${uuid} be removed;  remove success: ${ this.removeRoot(uuid) }`))
 
     if (!toBeCreated.length) return this.emit('ForestUpdate', Array.from(this.forest.roots.keys()))
 

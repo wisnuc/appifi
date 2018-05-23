@@ -47,12 +47,12 @@ class User extends EventEmitter {
     })
   }
 
-  handleDriveDeleted (userUUID) {
-    this.removeUser(userUUID, err => {
-      console.log('user deleted: ', userUUID)
-      if (err) console.log('user delete failed: ', err)
-    })
-  }
+  // handleDriveDeleted (userUUID) {
+  //   this.removeUser(userUUID, err => {
+  //     console.log('user deleted: ', userUUID)
+  //     if (err) console.log('user delete failed: ', err)
+  //   })
+  // }
 
   getUser (userUUID) {
     return this.users.find(u => u.uuid === userUUID)
@@ -233,10 +233,10 @@ class User extends EventEmitter {
   LIST (user, props, callback) {
     if (!user) {
       // basic info of all users
-      return process.nextTick(() => callback(null, this.users.map(u => this.basicInfo(u))))
+      return process.nextTick(() => callback(null, this.users.filter(u => u.status === USER_STATUS.ACTIVE).map(u => this.basicInfo(u))))
     } else if (user.isFirstUser) {
       // full info of all users
-      return process.nextTick(() => callback(null, this.users.map(u => this.fullInfo(u))))
+      return process.nextTick(() => callback(null, this.users.filter(u => u.status !== USER_STATUS.DELETED).map(u => this.fullInfo(u))))
     } else {
       // full info of the user
       return process.nextTick(() => {
@@ -294,7 +294,7 @@ class User extends EventEmitter {
   PATCH (user, props, callback) {
     if (props.password) {
       let recognized = ['password', 'smbPassword', 'encrypted', 'userUUID']
-      if (Object.getOwnPropertyNames(props).every(k => recognized.includes(k))) {
+      if (!Object.getOwnPropertyNames(props).every(k => recognized.includes(k))) {
         return process.nextTick(() => callback(Object.assign(new Error('too much props in body'), { status: 400 })))
       }
       if (user.uuid !== props.userUUID) return process.nextTick(() => callback(Object.assign(new Error('Permission Denied'), { status: 403 })))

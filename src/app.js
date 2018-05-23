@@ -47,7 +47,7 @@ if (args.dlna && !isRoot) throw new Error('dlna feature requires root priviledge
 if (args.transmission && !isRoot) throw new Error('transmission feature requires root priviledge')
 
 if (args.mdns && !isRoot) throw new Error('mdns requires root priviledge')
-else {
+if (args.mdns) {
   child.exec(`avahi-set-host-name ${hostname}`)
   child.spawn('avahi-publish-service', ['fakeBootstrap', '_http._tcp', 3000], { stdio: 'ignore' })
 }
@@ -94,7 +94,8 @@ if (args.standalone) {
       fruitmixOpts,
       configuration,
       useAlice: !!args["alice"],
-      useServer: true
+      useServer: true,
+      listenProcess: true
     })
   }
 }

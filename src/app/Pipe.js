@@ -10,6 +10,7 @@ const routing = require('./routing')
 
 const COMMAND_URL = `/ResourceManager/nas/callback/command`
 const RESOURCE_URL = `/ResourceManager/nas/callback/resource`
+const RE_BOUNDARY = /^multipart\/.+?(?:; boundary=(?:(?:"(.+)")|(?:([^\s]+))))$/i
 
 const routes = []
 // routing map
@@ -223,15 +224,26 @@ class Pipe extends EventEmitter {
    */
   apis (opts) {
     const { user, matchRoute, method, query, body, params } = opts
+    const props = Object.assign({}, query, body, params)
+    // postform
     if (matchRoute.verb === 'POSTFORM') {
-      const props = Object.assign({}, query, body, params)
-      // { driveUUID, dirUUID, boundary, length, formdata }
-      // let props = {
-      //   manifest: true
-      // }
-      return this.getResource().pipe(this.ctx.fruitmix().apis[matchRoute.api][method](user, props))
+      // get resource from cloud
+      this.getResource((error, response, body) => {
+        if (!error && response.statusCode === 200) {
+          props.length = response.headers['content-length']
+          const m = RE_BOUNDARY.exec(response.headers['content-type'])
+          props.boundary = m[1] || m[2]
+          props.formdata = response
+          console.log('response body: ', body)
+          console.log('response headers: ', response.headers)
+          // { driveUUID, dirUUID, boundary, length, formdata }
+          this.ctx.fruitmix().apis[matchRoute.api][method](user, props, (err, data) => {
+            console.log('err', err)
+            this.reqCommand(err, data)
+          })
+        }
+      })
     } else {
-      const props = Object.assign({}, query, body, params)
       return this.ctx.fruitmix().apis[matchRoute.api][method](user, props, (err, data) => {
         if (err) return this.reqCommand(err)
         // stream
@@ -279,7 +291,7 @@ class Pipe extends EventEmitter {
         }
       }, (error, response, body) => {
         if (!error && response.statusCode === 200) {
-          debug(`command resposne body: ${body}`)
+          debug(`reqCommand body: ${body}`)
         }
       })
     }
@@ -293,39 +305,36 @@ class Pipe extends EventEmitter {
   postResource (absolutePath) {
     var formData = {
       // Pass a simple key-value pair
-      deviceSN: this.device.deviceSN,
-      msgId: this.message.msgId,
-      data: {},
+      deviceSN: `${this.ctx.config.device.deviceSN}`,
+      msgId: `${this.message.msgId}`,
       file: fs.createReadStream(absolutePath)
     }
     request.post({
-      url: this.message.packageParams.waitingServer + RESOURCE_URL,
+      url: 'http://sohon2test.phicomm.com' + RESOURCE_URL,
       headers: { Authorization: this.ctx.config.cloudToken },
       formData: formData
     }, (error, response, body) => {
       if (!error && response.statusCode === 200) {
-        debug(`command resposne body: ${body}`)
+        debug(`postResource body: ${body}`)
       }
     })
   }
   /**
    * get resource
-   * @param {object} res
-   * @returns {stream}
+   * @param {object} callback
    * @memberof Pipe
    */
-  getResource (res) {
+  getResource (callback) {
     return request({
-      uri: this.message.packageParams.waitingServer + RESOURCE_URL,
+      uri: 'http://sohon2test.phicomm.com' + RESOURCE_URL,
       method: 'GET',
       headers: { Authorization: this.ctx.config.cloudToken },
       qs: {
         deviceSN: this.ctx.config.device.deviceSN,
         msgId: this.message.msgId,
-        uid: this.message.packageParams.uid,
-        data: res
+        uid: this.message.packageParams.uid
       }
-    })
+    }, callback)
   }
 }
 

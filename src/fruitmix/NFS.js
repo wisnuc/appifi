@@ -11,6 +11,42 @@ const { isUUID, isNonNullObject } = require('../lib/assertion')
 const PartStream = require('./nfs/PartStream')
 
 /**
+Generate an unsupported file type error from fs.Stats
+
+@param {fs.Stats} stat
+*/
+const EUnsupported = stat => {
+  let err = new Error('target is not a regular file or directory')
+
+  /** from nodejs 8.x LTS doc
+  stats.isFile()
+  stats.isDirectory()
+  stats.isBlockDevice()
+  stats.isCharacterDevice()
+  stats.isSymbolicLink() (only valid with fs.lstat())
+  stats.isFIFO()
+  stats.isSocket()
+  */
+  if (stat.isBlockDevice()) {
+    err.code = 'EISBLOCKDEV'
+  } else if (stat.isCharacterDevice()) {
+    err.code = 'EISCHARDEV'
+  } else if (stat.isSymbolicLink()) {
+    err.code = 'EISSYMLINK'
+  } else if (stat.isFIFO()) {
+    err.code = 'EISFIFO'
+  } else if (stat.isSocket()) {
+    err.code = 'EISSOCKET'
+  } else {
+    err.code = 'EISUNKNOWN'
+  }
+
+  err.xcode = 'EUNSUPPORTED'
+  return err
+}
+
+
+/**
 NFS provides native file system access to users.
 
 @requires User
@@ -66,6 +102,17 @@ class NFS extends EventEmitter {
     })
 
     this.drives = [...vols, ...blks]
+  }
+
+  resolveId (user, props, callback) {
+    let drive = this.drives.find(drv => drv.isVolume ? drv.uuid === props.id : drv.name === props.id)
+    if (!drive) {
+      let err = new Error('drive not found')
+      err.status = 404
+      process.nextTick(() => callback(err))
+    } else {
+      process.nextTick(() => callback(null, drive.mountpoint))
+    }
   }
 
   checkPath (path) {
@@ -179,8 +226,7 @@ class NFS extends EventEmitter {
         } else if (stat.isFile()) {
           callback(null, target)
         } else {
-          let err = new Error('target is neither a regular file nor a directory')
-          err.code = 'EUNSUPPORTED'
+          let err = EUnsupported(stat)
           err.status = 403
           callback(err)
         }
@@ -192,49 +238,115 @@ class NFS extends EventEmitter {
 
 
   /**
+  Clients have two different ways to provide path arguments to this API.
+  1. provide path in query string.
+  2. or, provide path in prelude part.
+
+
+  This is detected by props.hasOwnProperty('path'). If the property exists, it is considered as
+  case 1. Otherwise, it is case 2.
+
+  Noting that if path is not provided, the client must provide prelude.
+
   @param {object} user
   @param {object} props
   */
   POSTFORM (user, props, callback) {
-    if (props.hasOwnProperty('path')) {
-      this.resolvePath(user, props, (err, target) => {
-        if (err) return callback(err)
-        fs.lstat(target, (err, stats) => {
-          if (err) return callback(err)
-          if (!stats.isDirectory()) {
-            let err = new Error('target is not a directory')
-            err.status = 403
-            return callback(err)
-          }
 
-          const handleError = err => {
-            formdata.unpipe()
-            formdata.removeListener('error', handleError)
-            formdata.on('error', () => {})
-            dicer.removeAllListeners()
-            dicer.on('error', () => {})
-            parts.removeAllListeners()
-            parts.on('error', () => {})
-            parts.destroy()
-            callback(err)
-          }
+    let parts, dicer, index 
+    let formdata = props.formdata
 
-          let parts = new PartStream({ dirPath: target })
-          parts.on('error', handleError)
-          parts.on('finish', () => callback())
-          
-          let dicer = new Dicer({ boundary: props.boundary })
-          dicer.on('part', part => parts.write(part))
-          dicer.on('error', handleError)
-          dicer.on('finish', () => parts.end())
-
-          let formdata = props.formdata
-          formdata.on('error', handleError)
-          formdata.pipe(dicer)
-        })
+    const lstat = (target, callback) => 
+      fs.lstat(target, (err, stats) => {
+        if (err) {
+          err.status = 403
+          callback(err)
+        } else if (!stats.isDirectory()) {
+          let err = new Error('target is not a directory')
+          err.code = 'ENOTDIR'
+          err.status = 403
+          callback(err)
+        } else {
+          callback(null)
+        }
       })
+
+    const handlePrelude = (prelude, callback) => {
+      if (typeof prelude !== 'object' || prelude === null) {
+        let err = new Error('invalid prelude')
+        err.status = 400
+        process.nextTick(() => callback(err))
+      } else {
+        this.resolvePath(user, Object.assign({}, prelude, { id: props.id  }), (err, target) => err
+          ? callback(err)
+          : lstat(target, err => err ? callback(err) : callback(null, target))) 
+      }
+    }
+
+    const handleError = err => {
+      formdata.unpipe()
+      formdata.removeListener('error', handleError)
+      formdata.on('error', () => {})
+      dicer.removeAllListeners()
+      dicer.on('error', () => {})
+      parts.removeAllListeners()
+      parts.on('error', () => {})
+      parts.destroy()
+      callback(err)
+    }
+
+    const createPipes = dirPath => {
+      // index starts from -1 if prelude
+      index = dirPath ? 0 : -1
+
+      if (dirPath) {
+        parts = new PartStream({ dirPath })
+      } else {
+        parts = new PartStream({ handlePrelude })
+      }
+      parts.on('error', handleError)
+      parts.on('finish', () => callback())
+
+      dicer = new Dicer({ boundary: props.boundary })
+      dicer.on('part', part => {
+        part.index = index++
+
+        part.once('header', header => {
+          debug('part early on header', part.index)
+          part.header = header
+        })
+
+        part.on('error', err => {
+          debug('part early on error', part.index)
+          part.error = err
+          part.removeAllListeners('error')
+          part.on('error', () => {})
+        })
+
+        parts.write(part)
+      })
+      dicer.on('error', handleError)
+      dicer.on('finish', () => {
+        debug('dicer finish')
+        parts.end()
+      })
+
+      formdata = props.formdata
+      formdata.on('error', handleError)
+      formdata.pipe(dicer)
+    }
+
+    if (props.hasOwnProperty('path')) {
+      debug('props has path')
+      this.resolvePath(user, props, (err, target) => 
+        err ? callback(err) : lstat(target, err => 
+          err ? callback(err) : createPipes(target)))
     } else {
-      callback(new Error('not implemented'))
+      debug('props has no path')
+      this.resolveId(user, props, (err, mp) => {
+        if (err) return callback(err)
+        createPipes()
+      })
     }
   }
 
