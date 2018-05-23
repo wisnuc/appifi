@@ -150,7 +150,7 @@ class VFS extends EventEmitter {
         if (!owner || owner.status !== this.user.USER_STATUS.DELETED) return false
         return true
       }
-      if (drv.type === 'public') return true
+      if (drv.type === 'public' && drv.isDeleted) return true
       return false
     }).map(drv => drv.uuid)
 
