@@ -126,7 +126,10 @@ class Drive extends EventEmitter {
 
     // TODO create directory
 
-    this.store.save(drives => [...drives, drive],
+    this.store.save(drives => {
+      if (drives.filter(d => d.type === 'public' && !d.isDeleted).length >= 3) throw Object.assign(new Error('There can be only three public drives'))
+      return [...drives, drive]
+    },
       (err, drives) => err ? callback(err) : callback(null, drive))
   }
 
