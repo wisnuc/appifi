@@ -351,12 +351,14 @@ class App extends EventEmitter {
         } else {
           if (opts && opts.needReq) {
             router[method](rpath, stub, auth.jwt(), needReq)
-          }else {
+          } else {
             router[method](rpath, stub, auth.jwt(), authenticated)
           }
         }
       }
     })
+
+    // console.log(router.stack.map(l => l.route))
 
     return router
   }

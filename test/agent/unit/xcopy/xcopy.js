@@ -118,6 +118,13 @@ class User {
       .post(url)
       .set('Authorization', 'JWT ' + this.token)
   }
+
+  patch (url) {
+    return request(this.ctx.app.express)
+      .patch(url)
+      .set('Authorization', 'JWT ' + this.token)
+  }
+
 }
 
 class Watson {
@@ -256,7 +263,9 @@ describe('xcopy task', () => {
     fruitmix.nfs.update(fake.storage)
   })
 
-  it('do something', done => {
+  it('do something', function (done) {
+    this.timeout(10000)
+
     let alice = watson.users.alice
     let alonzo = FILES.alonzo
     let children = [
@@ -286,24 +295,47 @@ describe('xcopy task', () => {
     alice.mktree(alice.home.uuid, alice.home.uuid, children, err => {
       if (err) return done(err)
 
+      let args = {
+        type: 'copy',
+        src: {
+          drive: alice.home.uuid,
+          dir: children[1].xstat.uuid
+        },
+        dst: {
+          drive: alice.home.uuid,
+          dir: children[0].xstat.uuid
+        },
+        entries: ['foo'],
+        stepping: true
+      }
+
+
       alice.post('/tasks')
-        .send({
-          type: 'copy',
-          src: {
-            drive: alice.home.uuid,
-            dir: children[1].xstat.uuid
-          },
-          dst: {
-            drive: alice.home.uuid,
-            dir: children[0].xstat.uuid
-          },
-          entries: ['foo']
-        })
+        .send(args)
         .expect(200)
         .end((err, res) => {
           if (err) return done(err)
+          let task = res.body
+          expect(task.stepping).to.be.true
+          expect(task.steppingState).to.equal('Stopped')
 
-          setTimeout(() => done(), 1000)
+          alice.patch(`/tasks/${task.uuid}`)
+            .send({ op: 'step' })
+            .expect(200)
+            .end((err, res) => {
+              if (err) return done(err)
+
+              console.log(res.body)
+
+              alice.patch(`/tasks/${task.uuid}`)
+                .send({ op: 'watch' })
+                .expect(200)
+                .end((err, res) => {
+                  if (err) return done(err)
+                  console.log(res.body)
+                  setTimeout(() => done(), 1000)
+                })
+            })
         })
     })
   })

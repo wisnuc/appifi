@@ -19,11 +19,19 @@ class XCopy extends EventEmitter {
   constructor (vfs, nfs, user, props) {
     super()
 
-    let { type, src, dst, entries, policies, stepper } = props
+    this.dirLimit = 4
+    this.fileLimit = 2
+
+    let { type, src, dst, entries, policies, stepping } = props
 
     this.vfs = vfs
     this.nfs = nfs
-    this.stepper = !!stepper 
+
+    this.stepping = !!stepping
+
+    // stepping mode specific
+    this.finished = false
+    this.steppingState = 'Stopped' // or 'Stepping'
 
     this.type = type
     this.user = user
@@ -34,19 +42,11 @@ class XCopy extends EventEmitter {
     this.entries = props.entries
     this.policies = props.policies
 
-    this.pendingFiles = new Set()
-    this.workingFiles = new Set()
-    this.conflictFiles = new Set()
-    this.failedFiles = new Set()
-
-    this.pendingDirs = new Set()
-    this.workingDirs = new Set()
-    this.readingDirs = new Set()
-    this.readDirs = new Set()
-    this.conflictDirs = new Set()
-    this.failedDirs = new Set()
-
-    this.root = new XDir(this, null, src, dst, entries) 
+    if (stepping) {
+      this.root = null
+    } else { 
+      this.root = new XDir(this, null, src, dst, entries) 
+    }
   }
 
   destroy () {
@@ -61,211 +61,143 @@ class XCopy extends EventEmitter {
   resume () {
   }
 
-  //////////////////////////////////////////////////////////////////////////////
-  //
-  // state machine
-  //
-  //////////////////////////////////////////////////////////////////////////////
+  /**
+  Visit task tree, return running and conflict tasks
+  */
+  count () {
+    let runningFile = 0
+    let conflictFile = 0
+    let runningDir = 0
+    let conflictDir = 0
 
-  formatDir (dir) {
-    // TODO this does not work for fruit or native fs
-    // it's better to keep a copy of srcName in dir
-    return `${dir.constructor.name} ${dir.srcUUID || dir.srcPath} ${dir.srcName}`
-  }
-
-  formatFile (file) {
-    return `${file.constructor.name} ${file.srcUUID || file.srcPath} ${file.srcName}`
-  }
-
-  indexPendingFile (file) {
-    debug(`${this.formatFile(file)} enter pending`)    
-    this.pendingFiles.add(file) 
-    this.reqSched()
-  }
-
-  unindexPendingFile (file) {
-    debug(`${this.formatFile(file)} exit pending`)    
-    this.pendingFiles.delete(file) 
-  }
-
-  indexWorkingFile (file) {
-    debug(`${this.formatFile(file)} enter working`)    
-    this.workingFiles.add(file)   
-  }
-
-  unindexWorkingFile (file) {
-    debug(`${this.formatFile(file)} exit working`)
-    this.workingFiles.delete(file)
-    this.reqSched()
-  }
-
-  indexFinishedFile (file) {
-    debug(`${this.formatFile(file)} enter finished`) 
-  }
-
-  unindexFinishedFile (file) {
-    debug(`${this.formatFile(file)} exit finished`) 
-  }
-
-  indexConflictFile (file) {
-    debug(`${this.formatFile(file)} enter conflict`)
-    this.conflictFiles.add(file)
-  }
-
-  unindexConflictFile (file) {
-    debug(`${this.formatFile(file)} exit conflict`)
-    this.conflictFiles.delete(file) 
-  }
-
-  indexFailedFile (file) {
-    debug(`${this.formatFile(file)} enter failed`)
-    this.failedFiles.add(file)
-  }
-
-  unindexFailedFile (file) {
-    debug(`${this.formatFile(file)} enter failed`)
-    this.failedFiles.delete(file)
-  }
-
-  indexPendingDir (dir) {
-    debug(`${this.formatDir(dir)} enter pending`)    
-    this.pendingDirs.add(dir)
-    this.reqSched()
-  }
-
-  unindexPendingDir (dir) {
-    debug(`${this.formatDir(dir)} exit pending`)    
-    this.pendingDirs.delete(dir)
-  }
-
-  indexWorkingDir (dir) {
-    debug(`${this.formatDir(dir)} enter making (dst)`)
-    this.workingDirs.add(dir)
-  }
-
-  unindexWorkingDir (dir) {
-    debug(`${this.formatDir(dir)} exit making (dst)`)
-    this.workingDirs.delete(dir)
-    this.reqSched()
-  }
-
-  indexReadingDir (dir) {
-    debug(`${this.formatDir(dir)} enter reading (src)`)
-    this.readingDirs.add(dir)
-  }
-
-  unindexReadingDir (dir) {
-    debug(`${this.formatDir(dir)} exit reading`)
-    this.readingDirs.delete(dir)
-    this.reqSched()
-  }
-
-  indexReadDir (dir) {
-    debug(`${this.formatDir(dir)} enter read`)
-    this.readDirs.add(dir)
-  }
-
-  unindexReadDir (dir) {
-    debug(`${this.formatDir(dir)} exit read`)
-    this.readDirs.delete(dir)
-  }
-
-  indexFinishedDir (dir) {
-    debug(`${this.formatDir(dir)} enter finished`)
-  }
-
-  unindexFinishedDir (dir) {
-    debug(`${this.formatDir(dir)} exit finished`)    
-  }
-
-  indexConflictDir (dir) {
-    debug(`${this.formatDir(dir)} enter conflict`)
-    this.conflictDirs.add(dir)
-  }
-
-  unindexConflictDir (dir) {
-    debug(`${this.formatDir(dir)} exit conflict`)
-    this.conflictDirs.delete(dir)
-  }
-
-  indexFailedDir (dir) {
-    debug(`${this.formatDir(dir)} enter failed`)
-    this.failedDirs.add(dir) 
-  }
-
-  unindexFailedDir (dir) {
-    debug(`${this.formatDir(dir)} exit failed`)
-    this.failedDirs.delete(dir) 
-  }
-
-  reqSched () {
-    if (this.stepper) return
-    if (this.scheduled) return
-    this.scheduled = true
-    process.nextTick(() => this.step())
-  }
-
-  reqStep () {
-    if (this.sheduled) return
-    this.scheduled = true
-    process.nextTick(() => this.step())
-  }
-
-  step () {
-    this.scheduled = false
-
-
-
-    let limit = 2
-    let count = 0
-
-    const countF = node => {
+    const F = node => {
       if (node.constructor.name === 'XDir' && node.state.constructor.name === 'Parent') {
-        node.children.filter(c => {
-          if (c.constructor.name === 'XFile' && c.state.constructor.name === 'Working') count++
+        node.children.forEach(c => {
+          if (c.constructor.name === 'XFile') {
+            let state = c.state.constructor.name
+            if (state === 'Working') {
+              runningFile++
+            } else if (state === 'Conflict') {
+              conflictFile++ 
+            } else {
+              throw new Error('Unexpected xfile state')
+            }
+          } else {
+            let state = c.state.constructor.name
+            if (state === 'Mkdir' || state === 'Preparing') {
+              runningDir++
+            } else if (state === 'Conflict') {
+              conflictDir++
+            } else {
+              throw new Error('Unexpected xdir state')
+            }
+          }
         })
       }
     }
 
-    this.root.visit(countF)
-    if (count >= limit) return
-
-    const genF = node => {
-      if (node.constructor.name === 'XDir' && node.state.constructor.name === 'Parent') {
-        count += node.createFileChild (limit - count)
+    if (this.root) {
+      let state = this.root.state.constructor.name
+      if (state === 'Preparing') {
+        runningDir++
+      } else if (state === 'Parent') {
+        this.root.visit(F)
+      } else {
+        throw new Error('root is in neither Preparing nor Parent state')
       }
+    }
 
-      if (count >= limit) return
-    } 
-    this.root.visit(genF)
+    return { runningFile, conflictFile, runningDir, conflictDir }
   }
 
-  activeParents () {
-    // active parents are dirs containing pending or working files
-    return new Set(Array.from(new Set([...this.pendingFiles, ...this.workingFiles])).map(f => f.parent))
-  }
-
-  // dir pending -> making -> reading -> read
-  schedule () {
+  /** 
+  
+  */
+  sched () {
     this.scheduled = false
 
-    // schedule file job
-    while (this.pendingFiles.size > 0 && this.workingFiles.size < 1) {
-      let file = this.pendingFiles[Symbol.iterator]().next().value
-      file.setState('Working')
-    }
+    let { runningFile, conflictFile, runningDir, conflictDir } = this.count() 
 
-    // schedule dir job
-    while (this.pendingDirs.size > 0 && 
-      this.activeParents().size + this.workingDirs.size + this.readingDirs.size < 2) { 
-      let dir = this.pendingDirs[Symbol.iterator]().next().value
-      dir.setState('Working')  
+    if (runningFile >= this.fileLimit && runningDir >= this.dirLimit) return
+
+    const schedF = node => {
+      if (node.constructor.name === 'XDir' && node.state.constructor.name === 'Parent') {
+        runningFile += node.createSubFile(this.fileLimit - runningFile)
+        runningDir += node.createSubDir(this.dirLimit - runningDir)
+      }
+
+      if (runningFile >= this.fileLimit && runningDir >= this.dirLimit) return true
     } 
 
-    if (this.workingDirs.size + this.readingDirs.size + this.workingFiles.size === 0) {
-      process.nextTick(() => this.emit('stopped'))
+    try {
+    this.root.visit(schedF)
+    } catch (e) {
+      console.log(e)
     }
+  }
 
+  // this function is called internally from sub tasks
+  // in stepping mode, this function is responsible for transition from Stepping to Stopped state
+  // any watch callback should be returned if transition occurred
+  // in non-stepping mode, this function schedule sched
+  reqSched () {
+    if (this.stepping) {
+      if (this.scheduled) return
+      this.scheduled = true
+      process.nextTick(() => {
+        if (this.steppingState !== 'Stepping') {
+          console.log('ERROR: reqSched called @ Stopped state in stepping mode')
+        } else {
+          let { runningFile, runningDir } = this.count()
+          if (runningFile === 0 && runningDir === 0) {
+            this.steppingState = 'Stopped'
+            if (this.watchCallback) { 
+              this.watchCallback(null, this.view())
+              this.watchCallback = null
+            }
+          }
+        }
+      })
+
+    } else {
+      if (this.scheduled) return
+      this.scheduled = true
+      process.nextTick(() => this.sched())
+    }
+  }
+
+  // this function is called externally from clients
+  // step can only be called in 'Stopped' state
+  step (callback) {
+    if (!this.stepping) return process.nextTick(() => callback(null))
+    if (this.finished) return process.nextTick(() => callback(null))
+    if (this.steppingState === 'Stepping') return process.nextTick(() => callback(null))
+    this.steppingState = 'Stepping'
+
+    if (this.root) {
+      this.sched()
+    } else {
+      this.root = new XDir(this, null, this.src, this.dst, this.entries)
+    }
+    callback(null, this.view())
+  }
+
+  // watch can be called in either Stepping or Stopped mode
+  // if stopped, return task view
+  // otherwise, return task view until stopped (step end)
+  watch (callback) {
+
+    console.log('watch >>>>')
+
+    if (!this.stepping) return process.nextTick(() => callback(null))
+    if (this.watchCallback) return process.nextTick(() => callback(null))
+
+    let { runningFile, runningDir } = this.count() 
+    if (runningFile === 0 && runningDir === 0) {
+      process.nextTick(() => callback(null, this.view()))
+    } else {
+      this.watchCallback = callback
+    }
   }
 
   //////////////////////////////////////////////////////////////////////////////
@@ -281,14 +213,20 @@ class XCopy extends EventEmitter {
   view () {
     let nodes = []
     if (this.root) this.root.visit(n => nodes.push(n.view()))
-    return {
+
+    let v = {
       uuid: this.uuid,
       type: this.mode,
       src: this.src,
       dst: this.dst,
       entries: this.entries,
-      nodes
+      nodes,
+
+      stepping: this.stepping
     }
+
+    if (this.stepping) v.steppingState = this.steppingState
+    return v
   }
 
   // this method is used by copy, move and export, but not import
@@ -412,20 +350,6 @@ class XCopy extends EventEmitter {
 }
 
 /**
-class Copy extends Base {
-
-  constructor (ctx, user, policies, src, dst, xstats) {
-    super(ctx, user, policies, src, dst, xstats)
-    this.mode = 'copy'
-    this.srcDriveUUID = src.drive
-    this.dstDriveUUID = dst.drive
-    let _src = { uuid: src.dir }
-    let _dst = { uuid: dst.dir }
-    this.root = new DirCopy(this, null, _src, _dst, xstats)
-  }
-
-}
-
 class Move extends Base {
 
   constructor (ctx, user, policies, src, dst, xstats) {

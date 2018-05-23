@@ -4,10 +4,9 @@ const fs = require('fs')
 const UUID = require('uuid')
 
 const Node = require('./node')
-
 const XFile = require('./xfile')
-const mkdir = require('./lib').mkdir
 
+const mkdir = require('./lib').mkdir
 
 class State {
 
@@ -15,8 +14,6 @@ class State {
     this.ctx = ctx
     this.ctx.state = this
     this.destroyed = false
-
-    // this.ctx.ctx.indexDir(this.getState(), this.ctx)
     this.enter(...args)
   }
 
@@ -34,26 +31,19 @@ class State {
 
   destroy () {
     this.destroyed = true
-
     this.exit()
+  }
+
+  view () {
+    console.log('=====================')
+    console.log(this.ctx)
   }
 }
 
 /**
-`Pending` state for directory sub-task
+Making target directory
 
-@memberof XCopy.Dir
-@extends XCopy.State
-*/
-class Pending extends State { }
-
-/**
-`Working` state for directory sub-task
-
-The destination directory (`dst`) should be created in this state.
-
-@memberof XCopy.Dir
-@extends XCopy.State
+Entering this state when user try to resolve name conflict by single or global policy
 */
 class Mkdir extends State {
 
@@ -115,35 +105,10 @@ class Conflict extends State {
 }
 
 /**
-`Reading` state for directory sub-task
-
-@memberof XCopy.Dir
-@extends XCopy.State
-*/
-class Reading extends State {
-
-  enter () {
-    this.read((err, xstats) => {
-      if (this.destroyed) return 
-      if (err) {
-        this.setState('Failed', err)
-      } else {
-        this.setState('Read', xstats)
-      }
-    })
-  }
-
-  read (callback) {
-    this.ctx.ctx.readdir(this.ctx.src.uuid, callback)
-  }
-}
-
-/**
 `Read` state for directory sub-task
 
-@memberof XCopy.Dir
-@extends XCopy.State
 */
+/**
 class Read extends State {
 
   enter (xstats) {
@@ -183,7 +148,16 @@ class Read extends State {
   }
 
 }
+**/
 
+/**
+Preparing state has target dir ready. 
+
+1. read source dir entries
+2. make corresponding target dir in batch mode
+3. pass fstats, dstats (decorated) to parent if any
+4. or go to finish state
+*/
 class Preparing extends State {
 
   enter () {
@@ -213,16 +187,28 @@ class Preparing extends State {
           dstats = stats.filter(x => x.type === 'directory')
         }
 
-        if (dstats.length === 0) {
+        if (dstats.length === 0 && fstats.length === 0) { // no sub tasks
+          this.setState(Finish)
+        } else if (dstats.length === 0) { // only sub-file tasks
           this.setState(Parent, dstats, fstats)
         } else {
-          this.ctx.mkdirs(dstats.map(x => x.name), (err, map) => {
+          this.ctx.mkdirs(dstats.map(x => x.name), (err, map) => { //
             if (err) {
               // TODO
-              this.setState(Failed)
+              this.setState(Failed, err)
             } else {
               dstats.forEach(x => x.dst = map.get(x.name)) 
-              this.setState(Parent, dstats, fstats)
+
+              // TODO log failed
+
+              // remove failed 
+              let dstats2 = dstats.filter(x => (x.dst.err && x.dst.err.code === 'EEXIST') || !x.dst.err)
+
+              if (dstats2.length === 0 && fstats.length === 0) {
+                this.setState(Finished)
+              } else {
+                this.setState(Parent, dstats2, fstats)
+              }
             }
           })
         }
@@ -245,16 +231,30 @@ class Parent extends State {
   } 
   */
   enter (dstats, fstats) {
+
+    
+    this.ctx.dstats = dstats.filter(x => !x.dst.err)
+    this.ctx.fstats = fstats
+
+    let conflicted = dstats.filter(x => x.dst.err && x.dst.err.code === 'EEXIST') 
+
+    conflicted.forEach(x => {
+  
+    })
+
     dstats.filter(x => x.dst.err)
       .forEach(x => this.ctx.children.push(new XDir(this.ctx.ctx, this.ctx, {
         uuid: x.uuid,
         name: x.name
       }, x.dst.err)))
 
-    this.ctx.dstats = dstats.filter(x => !x.dst.err)
-    this.ctx.fstats = fstats
-
     this.ctx.ctx.reqSched()
+  }
+
+  view () {
+    return {
+      state: 'Parent'
+    }   
   }
 }
 
@@ -269,11 +269,6 @@ class Failed extends State {
   // when directory enter failed
   // all descendant node are destroyed (but not removed)
   enter (err) {
-    this.ctx.ctx.indexFailedDir(this.ctx)
-
-    let children = [...this.ctx.children]
-    children.forEach(c => c.destroy())
-
     this.err = err
   }
 
@@ -294,7 +289,7 @@ class Failed extends State {
 @memberof XCopy.Dir
 @extends XCopy.State
 */
-class Finished extends State {
+class Finish extends State {
 
   enter () {
     // let p = ['keep', 'skip']
@@ -368,25 +363,32 @@ class XDir extends Node {
     ]
   }
 
-  // virtual
-  createSubTask (xstat) {
-    let src = { uuid: xstat.uuid, name: xstat.name }
-    if (xstat.type === 'directory') {
-      return new this.constructor(this.ctx, this, src)
-    } else {
-      return new this.constructor.File(this.ctx, this, src)
-    }
-  }
-
   /**
-  @param {object} stat - either a xstat or a fs.Stats object
-  */
-  createSubTask (stat) {
-    let type = this.ctx.type
-    if (type === 'copy' || type === 'move' || type === 'export') {
-    } else {
+  This function is used by scheduler
 
-    }
+  @param {number} required
+  @returns actual created
+  */
+  createSubDir (required) {
+    if (required === 0) return 0
+    if (this.state.constructor.name !== 'Parent') return 0
+    if (!this.dstats || this.dstats.length === 0) return 0
+   
+    let arr = this.dstats.splice(0, required) 
+    arr.forEach(dstat => {
+      let src = { uuid: dstat.uuid, name: dstat.name }
+      let dst = { uuid: dstat.dst.uuid, name: dstat.dst.name }
+      let dir = new XDir(this.ctx, this, src, dst)
+
+      dir.on('StateEntered', state => {
+        if (state === 'Failed' || state === 'Finish') {
+          dir.destroy()
+          if (this.children.length === 0) this.setState('Finish')
+        }
+      })
+    })
+
+    return arr.length
   }
 
   /**
@@ -395,27 +397,20 @@ class XDir extends Node {
   @param {number} required
   @returns actual created
   */
-  createFileChild (required) {
+  createSubFile (required) {
+    if (required === 0) return 0
     if (this.state.constructor.name !== 'Parent') return 0
     if (!this.fstats || this.fstats.length === 0) return 0
 
     let arr = this.fstats.splice(0, required)  
     arr.forEach(fstat => {
+      // starting from Preparing state
       let file = new XFile(this.ctx, this, { uuid: fstat.uuid, name: fstat.name })
 
       file.on('StateEntered', state => {
-        switch (state) {
-          case 'Conflict':
-            // TODO
-            this.ctx.reqSched()
-            break
-          case 'Finished': 
-            // TODO statistic
-            this.children.splice(this.children.indexOf(file)) 
-            this.ctx.reqSched()
-            break
-          default: 
-            break
+        if (state === 'Failed' || state === 'Finish') {
+          file.destroy()    
+          if (this.children.length === 0) this.setState('Finish')
         }
       })
 

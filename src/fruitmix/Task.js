@@ -139,8 +139,20 @@ class Task {
     }
   }
 
-  PATCHNODE (user, props, callback) {
+  PATCH (user, props, callback) {
+    let op = props.op
 
+    if (op === 'step') {
+      this.tasks.find(t => t.uuid === props.taskUUID).step(callback)
+    } else if (op === 'watch') {
+      this.tasks.find(t => t.uuid === props.taskUUID).watch(callback)
+    } else {
+
+    }
+  }
+
+  PATCHNODE (user, props, callback) {
+    console.log('patch node', user, props)
   }
 
   DELETENODE (user, props, callback) {
