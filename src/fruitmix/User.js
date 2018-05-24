@@ -110,7 +110,7 @@ class User extends EventEmitter {
       let nextUser = Object.assign({}, users[index])
       if (nextUser.status === USER_STATUS.DELETED) throw new Error('deleted user can not update')
       if (username) {
-        if (user.find(u => u.username === username && u.status !== USER_STATUS.DELETED)) throw new Error('username already exist')
+        if (users.find(u => u.username === username && u.status !== USER_STATUS.DELETED)) throw new Error('username already exist')
         nextUser.username = username
       }
       if (status) nextUser.status = status
