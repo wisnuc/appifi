@@ -162,6 +162,10 @@ class Drive extends EventEmitter {
           if (drives.every(d => d.label !== props.label))priv.label = props.label
           else throw new Error('label has already been used')
         }
+
+        if (typeof props.smb === 'boolean') {
+          priv.smb = props.smb
+        }
       }
       return [...drives.slice(0, index), priv, ...drives.slice(index + 1)]
     }, (err, data) => err ? callback(err) : callback(null, data.find(d => d.uuid === driveUUID)))
