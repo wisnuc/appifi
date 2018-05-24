@@ -92,7 +92,7 @@ class Pipe extends EventEmitter {
     }
     if (!user) throw formatError(new Error(`uid: ${phicommUserId}, check user failed`), 401)
     // throw 503 unavailable if fruitmix === null
-    return user
+    return Object.assign({} , user, { remote: true })
 
     // users = fruitmix
     //  ? fruitmix.users

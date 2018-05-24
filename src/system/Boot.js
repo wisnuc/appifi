@@ -79,6 +79,10 @@ class State {
     process.nextTick(() => callback(new Error('invalid state')))
   }
 
+  repair (target, mode, callback)  {
+    process.nextTick(() => callback(new Error('invalid state')))
+  }
+
   // TODO this is a pure function, or maybe static
   createBoundVolume (storage, volume) {
     let devices = volume.devices.map(dev => {
@@ -236,6 +240,10 @@ class Unavailable extends State {
   import (volumeUUID, callback) {
     this.setState(Importing, volumeUUID, callback)
   }
+
+  repair (target, mode, callback)  {
+    this.setState(Repairing, target, mode, callback)
+  }
 }
 
 /**
@@ -343,7 +351,9 @@ class Initializing extends State {
       isAdmin: true,
       phicommUserId: this.ctx.boundUser.phicommUserId,
       password: this.ctx.boundUser.password,
-      status: 'ACTIVE'
+      status: 'ACTIVE',
+      createTime: new Date().getTime(),
+      lastChangeTime: new Date().getTime()
     }]
 
     await mkdirpAsync(tmpDir)
@@ -410,7 +420,38 @@ class Importing extends State {
 for repairing a broken volume
 */
 class Repairing extends State {
+  enter (target, mode, callback) {
+    let storage, volume, boundVolume
+    try {
+      storage = this.ctx.storage
+      if (!storage) throw new Error('storage not available')
+      if (!storage.volumes || !Array.isArray(storage.volumes) || storage.volumes.length === 0) throw new Error('storage.volumes not available')
+      let boundVolume = this.ctx.boundVolume
+      if (!boundVolume) throw new Error('have not bound volume')
+      let volumeUUID = boundVolume.uuid
+      volume = storage.volumes.find(v => v.uuid === volumeUUID)
+      if (!volume) throw new Error('boundVolume not found')
+    } catch (e) {
+      return process.nextTick(() => {
+        this.setState(Probing)
+        callback(e)
+      })
+    }
 
+    let oldMode = boundVolume.usage.data.mode.toLowerCase()
+    let supportMode = ['single', 'raid1']
+    
+    if (oldMode === 'single') {
+      
+    } else if (oldMode === 'raid1') {
+
+    } else {
+      return process.nextTick(() => {
+        this.setState(Probing)
+        callback(new Error('unable boundVolume mode'))
+      })
+    }
+  }
 }
 
 /**
@@ -471,23 +512,6 @@ class Boot extends EventEmitter {
     })
 
     new Probing(this)
-  }
-
-  handleBootstrapMessage (data) {
-    console.log('Bootstrap send data: ', data)
-    let message
-    try {
-      message = JSON.parse(data)
-    } catch (e) {
-      console.log('Bootstrap Message -> JSON parse Error')
-      console.log(data)
-      return 
-    }
-
-    if (message.type === 'APPIFI_ACCOUNT_INFO_MESSAGE') {
-      this.setBoundUser(message.user)
-    }
-
   }
 
   stateName () {

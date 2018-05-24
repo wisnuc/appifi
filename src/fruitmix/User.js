@@ -47,12 +47,22 @@ class User extends EventEmitter {
     })
   }
 
+  /*
   handleDriveDeleted (userUUID) {
     this.removeUser(userUUID, err => {
       console.log('user deleted: ', userUUID)
       if (err) console.log('user delete failed: ', err)
     })
   }
+
+  removeUser (userUUID, callback) {
+    this.store.save(users => {
+      let index = users.findIndex(u => u.uuid === userUUID)
+      if (index === -1) throw new Error('user not found')
+      return [...users.slice(0, index), ...users.slice(index + 1)]
+    }, callback)
+  }
+  */
 
   getUser (userUUID) {
     return this.users.find(u => u.uuid === userUUID)
@@ -81,7 +91,9 @@ class User extends EventEmitter {
         phicommUserId: props.phicommUserId,
         password: props.password,
         smbPassword: props.smbPassword,
-        status: USER_STATUS.ACTIVE
+        status: USER_STATUS.ACTIVE,
+        createTime: new Date().getTime(),
+        lastChangeTime: new Date().getTime()
       }
       return [...users, newUser]
     }, (err, data) => {
@@ -96,14 +108,12 @@ class User extends EventEmitter {
       let index = users.findIndex(u => u.uuid === userUUID)
       if (index === -1) throw new Error('user not found')
       let nextUser = Object.assign({}, users[index])
+      if (nextUser.status === USER_STATUS.DELETED) throw new Error('deleted user can not update')
       if (username) {
-        if (user.find(u => u.username === username)) throw new Error('username already exist')
+        if (user.find(u => u.username === username && u.status !== USER_STATUS.DELETED)) throw new Error('username already exist')
         nextUser.username = username
       }
-      if (status) {
-        if (nextUser.status === USER_STATUS.DELETED) throw new Error('deleted user can not update')
-        nextUser.status = status
-      }
+      if (status) nextUser.status = status
       return [...users.slice(0, index), nextUser, ...users.slice(index + 1)]
     }, (err, data) => {
       if (err) return callback(err)
@@ -111,26 +121,7 @@ class User extends EventEmitter {
     })
   }
 
-  deleteUser (userUUID, callback) {
-    this.store.save(users => {
-      let index = users.findIndex(u => u.uuid === userUUID)
-      if (index === -1) throw new Error('user not found')
-      let user = Object.assign({}, users[index])
-      user.status = USER_STATUS.DELETED
-      return [...users.slice(0, index), user, ...users.slice(index + 1)]
-    }, callback)
-  }
-
-  removeUser (userUUID, callback) {
-    this.store.save(users => {
-      let index = users.findIndex(u => u.uuid === userUUID)
-      if (index === -1) throw new Error('user not found')
-      return [...users.slice(0, index), ...users.slice(index + 1)]
-    }, callback)
-  }
-
   /**
-
   @param {object} props
   @param {string} props.password - password
   @param {string} props.smbPassword - smb password
@@ -157,7 +148,10 @@ class User extends EventEmitter {
       if (index === -1) throw new Error('user not found')
       let nextUser = Object.assign({}, users[index])
       if (password) nextUser.password = encrypted ? password : passwordEncrypt(password, 10)
-      if (smbPassword) nextUser.smbPassword = encrypted ? smbPassword : md4Encrypt(smbPassword)
+      if (smbPassword) {
+        nextUser.smbPassword = encrypted ? smbPassword : md4Encrypt(smbPassword)
+        nextUser.lastChangeTime = new Date().getTime()
+      }
       return [...users.slice(0, index), nextUser, ...users.slice(index + 1)]
     }, (err, data) => {
       if (err) return callback(err)
@@ -233,10 +227,10 @@ class User extends EventEmitter {
   LIST (user, props, callback) {
     if (!user) {
       // basic info of all users
-      return process.nextTick(() => callback(null, this.users.map(u => this.basicInfo(u))))
+      return process.nextTick(() => callback(null, this.users.filter(u => u.status === USER_STATUS.ACTIVE).map(u => this.basicInfo(u))))
     } else if (user.isFirstUser) {
       // full info of all users
-      return process.nextTick(() => callback(null, this.users.map(u => this.fullInfo(u))))
+      return process.nextTick(() => callback(null, this.users.filter(u => u.status !== USER_STATUS.DELETED).map(u => this.fullInfo(u))))
     } else {
       // full info of the user
       return process.nextTick(() => {
@@ -260,7 +254,7 @@ class User extends EventEmitter {
   */
   POST (user, props, callback) {
     if (!isNonNullObject(props)) return callback(Object.assign(new Error('props must be non-null object'), { status: 400 }))
-    let recognized = ['username', 'password', 'smbPassword', 'phicommUserId']
+    let recognized = ['username', 'phicommUserId']
     Object.getOwnPropertyNames(props).forEach(key => {
       if (!recognized.includes(key)) throw Object.assign(new Error(`unrecognized prop name ${key}`), { status: 400 })
     })
@@ -292,12 +286,13 @@ class User extends EventEmitter {
   Implement PATCH
   */
   PATCH (user, props, callback) {
-    if (props.password) {
-      let recognized = ['password', 'smbPassword', 'encrypted', 'userUUID']
+    if (props.password || props.smbPassword) {
+      let recognized = ['password', 'smbPassword', 'userUUID']
       if (!Object.getOwnPropertyNames(props).every(k => recognized.includes(k))) {
         return process.nextTick(() => callback(Object.assign(new Error('too much props in body'), { status: 400 })))
       }
       if (user.uuid !== props.userUUID) return process.nextTick(() => callback(Object.assign(new Error('Permission Denied'), { status: 403 })))
+      props.encrypted = user.remote ? true : false
       this.updatePassword(props.userUUID, props, (err, user) => err ? callback(err) : callback(null, this.fullInfo(user)))
     } else {
       let recognized = ['username', 'status', 'userUUID']
@@ -312,8 +307,9 @@ class User extends EventEmitter {
       let recognizedStatus = [USER_STATUS.ACTIVE, USER_STATUS.INACTIVE, USER_STATUS.DELETED]
 
       if (props.status && !user.isFirstUser ) return callback(Object.assign(new Error('Permission Denied'), { status: 403 }))
+      if (props.status && user.uuid === props.userUUID) return callback(Object.assign(new Error('can not change admin status'), { status: 400 }))
       if (props.status && !recognizedStatus.includes(props.status)) return callback(Object.assign(new Error('unknown status'), { status: 400 }))
-
+      
       if (!user.isFirstUser && user.uuid !== props.userUUID) return process.nextTick(() => callback(Object.assign(new Error('Permission Denied'), { status: 403 })))
       this.updateUser(props.userUUID, props, (err, user) => err ? callback(err) : callback(null, this.fullInfo(user)))
     }
@@ -322,7 +318,7 @@ class User extends EventEmitter {
   DELETE (user, props, callback) {
     if (!isUUID(props.userUUID) || this.users.findIndex(u => u.uuid === props.userUUID) === -1) return callback(Object.assign(new Error('userUUID error'), { status: 400 }))
     if (!user.isFirstUser) return callback(Object.assign(new Error('Permission Denied'), { status: 403 }))
-    this.deleteUser(props.userUUID, callback)
+    this.updateUser(props.userUUID, { status: USER_STATUS.DELETED }, callback)
   }
 }
 
