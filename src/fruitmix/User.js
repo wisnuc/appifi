@@ -92,7 +92,7 @@ class User extends EventEmitter {
         password: props.password,
         smbPassword: props.smbPassword,
         status: USER_STATUS.ACTIVE,
-        ctime: new Date().getTime(),
+        createTime: new Date().getTime(),
         lastChangeTime: new Date().getTime()
       }
       return [...users, newUser]
@@ -108,15 +108,12 @@ class User extends EventEmitter {
       let index = users.findIndex(u => u.uuid === userUUID)
       if (index === -1) throw new Error('user not found')
       let nextUser = Object.assign({}, users[index])
+      if (nextUser.status === USER_STATUS.DELETED) throw new Error('deleted user can not update')
       if (username) {
-        if (user.find(u => u.username === username)) throw new Error('username already exist')
+        if (user.find(u => u.username === username && u.status !== USER_STATUS.DELETED)) throw new Error('username already exist')
         nextUser.username = username
       }
-      if (status) {
-        if (nextUser.status === USER_STATUS.DELETED) throw new Error('deleted user can not update')
-        nextUser.status = status
-      }
-      nextUser.lastChangeTime = new Date().getTime()
+      if (status) nextUser.status = status
       return [...users.slice(0, index), nextUser, ...users.slice(index + 1)]
     }, (err, data) => {
       if (err) return callback(err)
@@ -151,8 +148,10 @@ class User extends EventEmitter {
       if (index === -1) throw new Error('user not found')
       let nextUser = Object.assign({}, users[index])
       if (password) nextUser.password = encrypted ? password : passwordEncrypt(password, 10)
-      if (smbPassword) nextUser.smbPassword = encrypted ? smbPassword : md4Encrypt(smbPassword)
-      nextUser.lastChangeTime = new Date().getTime()
+      if (smbPassword) {
+        nextUser.smbPassword = encrypted ? smbPassword : md4Encrypt(smbPassword)
+        nextUser.lastChangeTime = new Date().getTime()
+      }
       return [...users.slice(0, index), nextUser, ...users.slice(index + 1)]
     }, (err, data) => {
       if (err) return callback(err)
@@ -255,7 +254,7 @@ class User extends EventEmitter {
   */
   POST (user, props, callback) {
     if (!isNonNullObject(props)) return callback(Object.assign(new Error('props must be non-null object'), { status: 400 }))
-    let recognized = ['username', 'password', 'smbPassword', 'phicommUserId']
+    let recognized = ['username', 'phicommUserId']
     Object.getOwnPropertyNames(props).forEach(key => {
       if (!recognized.includes(key)) throw Object.assign(new Error(`unrecognized prop name ${key}`), { status: 400 })
     })
@@ -288,11 +287,12 @@ class User extends EventEmitter {
   */
   PATCH (user, props, callback) {
     if (props.password || props.smbPassword) {
-      let recognized = ['password', 'smbPassword', 'encrypted', 'userUUID']
+      let recognized = ['password', 'smbPassword', 'userUUID']
       if (!Object.getOwnPropertyNames(props).every(k => recognized.includes(k))) {
         return process.nextTick(() => callback(Object.assign(new Error('too much props in body'), { status: 400 })))
       }
       if (user.uuid !== props.userUUID) return process.nextTick(() => callback(Object.assign(new Error('Permission Denied'), { status: 403 })))
+      props.encrypted = user.remote ? true : false
       this.updatePassword(props.userUUID, props, (err, user) => err ? callback(err) : callback(null, this.fullInfo(user)))
     } else {
       let recognized = ['username', 'status', 'userUUID']
@@ -307,8 +307,9 @@ class User extends EventEmitter {
       let recognizedStatus = [USER_STATUS.ACTIVE, USER_STATUS.INACTIVE, USER_STATUS.DELETED]
 
       if (props.status && !user.isFirstUser ) return callback(Object.assign(new Error('Permission Denied'), { status: 403 }))
+      if (props.status && user.uuid === props.userUUID) return callback(Object.assign(new Error('can not change admin status'), { status: 400 }))
       if (props.status && !recognizedStatus.includes(props.status)) return callback(Object.assign(new Error('unknown status'), { status: 400 }))
-
+      
       if (!user.isFirstUser && user.uuid !== props.userUUID) return process.nextTick(() => callback(Object.assign(new Error('Permission Denied'), { status: 403 })))
       this.updateUser(props.userUUID, props, (err, user) => err ? callback(err) : callback(null, this.fullInfo(user)))
     }

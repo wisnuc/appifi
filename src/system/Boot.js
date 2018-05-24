@@ -352,7 +352,7 @@ class Initializing extends State {
       phicommUserId: this.ctx.boundUser.phicommUserId,
       password: this.ctx.boundUser.password,
       status: 'ACTIVE',
-      ctime: new Date().getTime(),
+      createTime: new Date().getTime(),
       lastChangeTime: new Date().getTime()
     }]
 
