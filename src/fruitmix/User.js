@@ -47,12 +47,22 @@ class User extends EventEmitter {
     })
   }
 
-  // handleDriveDeleted (userUUID) {
-  //   this.removeUser(userUUID, err => {
-  //     console.log('user deleted: ', userUUID)
-  //     if (err) console.log('user delete failed: ', err)
-  //   })
-  // }
+  /*
+  handleDriveDeleted (userUUID) {
+    this.removeUser(userUUID, err => {
+      console.log('user deleted: ', userUUID)
+      if (err) console.log('user delete failed: ', err)
+    })
+  }
+
+  removeUser (userUUID, callback) {
+    this.store.save(users => {
+      let index = users.findIndex(u => u.uuid === userUUID)
+      if (index === -1) throw new Error('user not found')
+      return [...users.slice(0, index), ...users.slice(index + 1)]
+    }, callback)
+  }
+  */
 
   getUser (userUUID) {
     return this.users.find(u => u.uuid === userUUID)
@@ -81,7 +91,9 @@ class User extends EventEmitter {
         phicommUserId: props.phicommUserId,
         password: props.password,
         smbPassword: props.smbPassword,
-        status: USER_STATUS.ACTIVE
+        status: USER_STATUS.ACTIVE,
+        ctime: new Date().getTime(),
+        lastChangeTime: new Date().getTime()
       }
       return [...users, newUser]
     }, (err, data) => {
@@ -104,6 +116,7 @@ class User extends EventEmitter {
         if (nextUser.status === USER_STATUS.DELETED) throw new Error('deleted user can not update')
         nextUser.status = status
       }
+      nextUser.lastChangeTime = new Date().getTime()
       return [...users.slice(0, index), nextUser, ...users.slice(index + 1)]
     }, (err, data) => {
       if (err) return callback(err)
@@ -111,26 +124,7 @@ class User extends EventEmitter {
     })
   }
 
-  deleteUser (userUUID, callback) {
-    this.store.save(users => {
-      let index = users.findIndex(u => u.uuid === userUUID)
-      if (index === -1) throw new Error('user not found')
-      let user = Object.assign({}, users[index])
-      user.status = USER_STATUS.DELETED
-      return [...users.slice(0, index), user, ...users.slice(index + 1)]
-    }, callback)
-  }
-
-  removeUser (userUUID, callback) {
-    this.store.save(users => {
-      let index = users.findIndex(u => u.uuid === userUUID)
-      if (index === -1) throw new Error('user not found')
-      return [...users.slice(0, index), ...users.slice(index + 1)]
-    }, callback)
-  }
-
   /**
-
   @param {object} props
   @param {string} props.password - password
   @param {string} props.smbPassword - smb password
@@ -158,6 +152,7 @@ class User extends EventEmitter {
       let nextUser = Object.assign({}, users[index])
       if (password) nextUser.password = encrypted ? password : passwordEncrypt(password, 10)
       if (smbPassword) nextUser.smbPassword = encrypted ? smbPassword : md4Encrypt(smbPassword)
+      nextUser.lastChangeTime = new Date().getTime()
       return [...users.slice(0, index), nextUser, ...users.slice(index + 1)]
     }, (err, data) => {
       if (err) return callback(err)
@@ -292,7 +287,7 @@ class User extends EventEmitter {
   Implement PATCH
   */
   PATCH (user, props, callback) {
-    if (props.password) {
+    if (props.password || props.smbPassword) {
       let recognized = ['password', 'smbPassword', 'encrypted', 'userUUID']
       if (!Object.getOwnPropertyNames(props).every(k => recognized.includes(k))) {
         return process.nextTick(() => callback(Object.assign(new Error('too much props in body'), { status: 400 })))
@@ -322,7 +317,7 @@ class User extends EventEmitter {
   DELETE (user, props, callback) {
     if (!isUUID(props.userUUID) || this.users.findIndex(u => u.uuid === props.userUUID) === -1) return callback(Object.assign(new Error('userUUID error'), { status: 400 }))
     if (!user.isFirstUser) return callback(Object.assign(new Error('Permission Denied'), { status: 403 }))
-    this.deleteUser(props.userUUID, callback)
+    this.updateUser(props.userUUID, { status: USER_STATUS.DELETED }, callback)
   }
 }
 

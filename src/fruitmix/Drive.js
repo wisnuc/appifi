@@ -128,9 +128,11 @@ class Drive extends EventEmitter {
 
     this.store.save(drives => {
       if (drives.filter(d => d.type === 'public' && !d.isDeleted).length >= 3) throw Object.assign(new Error('There can be only three public drives'), { status: 400 })
+      if (props.label && !drives.filter(d => !d.isDeleted).every(d => d.label !== props.label)) {
+        throw Object.assign(new Error('label has already been used'), { status: 400 })
+      }
       return [...drives, drive]
-    },
-      (err, drives) => err ? callback(err) : callback(null, drive))
+    }, (err, drives) => err ? callback(err) : callback(null, drive))
   }
 
   getDrive (driveUUID) {
@@ -144,7 +146,7 @@ class Drive extends EventEmitter {
       let priv = Object.assign({}, drives[index])
       if (priv.type === 'private') {
         if (props.label) {
-          if (drives.every(d => d.label !== props.label)) priv.label = props.label
+          if (drives.filter(d => !d.isDeleted).every(d => d.label !== props.label)) priv.label = props.label
           else throw new Error('label has already been used')
         }
       } else {
@@ -168,7 +170,7 @@ class Drive extends EventEmitter {
   deleteDrive (driveUUID, props, callback) {
     this.store.save(drives => {
       let index = drives.findIndex(drv => drv.uuid === driveUUID)
-      if (index === -1) throw new Error('drive not found')
+      if (index === -1) throw Object.assign(new Error('drive not found'), { status: 400 })
       let drv = Object.assign({}, drives[index])
       drv.isDeleted = true
       let drives2 = drives.map(d => {
@@ -208,7 +210,7 @@ class Drive extends EventEmitter {
     if (drv.type === 'public' && (drv.writelist === '*' || drv.writelist.includes(userUUID))) return true
     return false
   }
-
+ 
   LIST (user, props, callback) {
     this.retrieveDrives(user.uuid, (err, drives) => {
       if (err) return callback(err)
