@@ -317,7 +317,7 @@ class App extends EventEmitter {
       }
 
       const anonymous = (req, res, next) =>
-        this.fruitmix.apis[resource][verb](null,
+        this.fruitmix.users.length ? next() : this.fruitmix.apis[resource][verb](null,
           Object.assign({}, req.query, req.body, req.params), f(res, next))
 
       const authenticated = (req, res, next) =>
