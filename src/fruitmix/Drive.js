@@ -168,8 +168,9 @@ class Drive extends EventEmitter {
   deleteDrive (driveUUID, props, callback) {
     this.store.save(drives => {
       let index = drives.findIndex(drv => drv.uuid === driveUUID)
-      if (index === -1) throw Object.assign(new Error('drive not found'), { status: 400 })
+      if (index === -1) throw Object.assign(new Error('drive not found'), { status: 404 })
       let drv = Object.assign({}, drives[index])
+      if (drv.isDeleted) throw Object.assign(new Error('drive not found'), { status: 404 }) 
       drv.isDeleted = true
       let drives2 = drives
       if (drv === 'private') {  // user been deleted
@@ -188,7 +189,7 @@ class Drive extends EventEmitter {
         })
       }
       return [...drives2.slice(0, index), drv, ...drives2.slice(index + 1)]
-    }, callback)
+    }, (err, data) => err ? callback(err) : callback(null, null))
   }
 
   // removeDrive (driveUUID, props, callback) {
