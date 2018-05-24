@@ -311,7 +311,7 @@ class User extends EventEmitter {
       if (props.status && !recognizedStatus.includes(props.status)) return callback(Object.assign(new Error('unknown status'), { status: 400 }))
       
       if (!user.isFirstUser && user.uuid !== props.userUUID) return process.nextTick(() => callback(Object.assign(new Error('Permission Denied'), { status: 403 })))
-      this.updateUser(props.userUUID, props, (err, user) => err ? callback(err) : callback(null, this.fullInfo(user)))
+      this.updateUser(props.userUUID, props, (err, data) => err ? callback(err) : callback(null, this.fullInfo(data)))
     }
   }
 
