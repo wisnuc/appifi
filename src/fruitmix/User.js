@@ -296,7 +296,7 @@ class User extends EventEmitter {
       this.updatePassword(props.userUUID, props, (err, user) => err ? callback(err) : callback(null, this.fullInfo(user)))
     } else {
       let recognized = ['username', 'status', 'userUUID']
-      if (Object.getOwnPropertyNames(props).every(k => recognized.includes(k))) {
+      if (!Object.getOwnPropertyNames(props).every(k => recognized.includes(k))) {
         return process.nextTick(() => callback(Object.assign(new Error('too much props in body'), { status: 400 })))
       }
       
