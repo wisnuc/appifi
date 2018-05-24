@@ -144,12 +144,7 @@ class Drive extends EventEmitter {
       let index = drives.findIndex(drv => drv.uuid === driveUUID)
       if (index === -1) throw new Error('drive not found')
       let priv = Object.assign({}, drives[index])
-      if (priv.type === 'private') {
-        if (props.label) {
-          if (drives.filter(d => !d.isDeleted).every(d => d.label !== props.label)) priv.label = props.label
-          else throw new Error('label has already been used')
-        }
-      } else {
+      if (priv.type === 'public') {
         if (props.writelist) {
           if (props.writelist === '*' || props.writelist.every(uuid => !!this.users.find(u => u.uuid === uuid))) priv.writelist = props.writelist
           else throw new Error('writelist not all user uuid found')
@@ -158,14 +153,13 @@ class Drive extends EventEmitter {
         //   if (props.readlist === '*' || props.readlist.every(uuid => !!this.users.find(u => u.uuid === uuid))) priv.readlist = props.readlist
         //   else throw new Error('readlist not all user uuid found')
         // }
-        if (props.label) {
-          if (drives.every(d => d.label !== props.label))priv.label = props.label
-          else throw new Error('label has already been used')
-        }
-
-        if (typeof props.smb === 'boolean') {
-          priv.smb = props.smb
-        }
+      }
+      if (typeof props.smb === 'boolean') {
+        priv.smb = props.smb
+      }
+      if (props.label) {
+        if (drives.filter(d => !d.isDeleted).every(d => d.label !== props.label)) priv.label = props.label
+        else throw new Error('label has already been used')
       }
       return [...drives.slice(0, index), priv, ...drives.slice(index + 1)]
     }, (err, data) => err ? callback(err) : callback(null, data.find(d => d.uuid === driveUUID)))
