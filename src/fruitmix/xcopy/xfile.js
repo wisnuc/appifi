@@ -2,6 +2,7 @@ const path = require('path')
 const fs = require('fs')
 
 const rimraf = require('rimraf')
+const debug = require('debug')('xfile')
 
 const Node = require('./node')
 const openwx = require('./lib').openwx
@@ -15,7 +16,11 @@ class State {
     this.mode = this.ctx.mode
     this.destroyed = false
     this.enter(...args)
-    this.ctx.ctx.indexFile(this.getState(), this.ctx)
+    let state = this.constructor.name
+    debug(`${this.ctx.src.name} entered ${state}`)
+    this.ctx.ctx.reqSched()
+
+    this.ctx.emit('StateEntered', state)
   }
 
   enter () {}
@@ -26,13 +31,11 @@ class State {
   }
 
   setState (State, ...args) {
-    this.ctx.ctx.unindexFile(this.getState(), this.ctx)
     this.exit()
     this.ctx.state = new State(this.ctx, ...args)
   }
 
   destroy () {
-    this.ctx.ctx.unindexFile(this.getState(), this.ctx)
     this.exit()
     this.destroyed = true
   }
@@ -43,40 +46,37 @@ class State {
   // this is a conflict state specific method
   updatePolicy (policy) {
   }
-}
 
-/**
-
-*/
-class Pending extends State {
-  run () {
-    this.setState(Working)
+  view () {
   }
 }
 
 class Working extends State {
   enter () {
-    switch (this.ctx.ctx.mode) {
+    switch (this.ctx.ctx.type) {
       case 'copy': {
         let src = {
+          drive: this.ctx.ctx.src.drive,
           dir: this.ctx.parent.src.uuid,
           uuid: this.ctx.src.uuid,
           name: this.ctx.src.name
         }
 
         let dst = {
+          drive: this.ctx.ctx.dst.drive,
           dir: this.ctx.parent.dst.uuid
         }
 
         let policy = this.ctx.getPolicy()
-        this.ctx.ctx.cpfile(src, dst, policy, (err, xstat, resolved) => {
+        this.ctx.ctx.vfs.CPFILE(this.ctx.ctx.user, { src, dst, policy }, (err, xstat, resolved) => {
           if (this.destroyed) return
           if (err && err.code === 'EEXIST') {
+            // TODO detect policy change and retry
             this.setState(Conflict, err, policy)
           } else if (err) {
             this.setState(Failed, err)
           } else {
-            this.setState(Finished)
+            this.setState(Finish)
           }
         })
       } break
@@ -101,7 +101,7 @@ class Working extends State {
           } else if (err) {
             this.setState(Failed, err)
           } else {
-            this.setState(Finished)
+            this.setState(Finish)
           }
         })
       } break
@@ -131,7 +131,7 @@ class Working extends State {
                   this.setState(Failed, err)
                 } else {
                   rimraf(tmpPath, () => {})
-                  this.setState(Finished)
+                  this.setState(Finish)
                 }
               })
             })
@@ -168,10 +168,10 @@ class Working extends State {
 
                   this.ws.on('finish', () => {
                     rimraf(tmpPath, () => {})
-                    this.setState(Finished)
+                    this.setState(Finish)
                   })
                 } else {
-                  this.setState(Finished)
+                  this.setState(Finish)
                 }
               }
             })
@@ -210,18 +210,26 @@ class Failed extends State {
   }
 }
 
-class Finished extends State { }
+class Finish extends State { }
 
 /**
 The base class of a file subtask
 
 @memberof XCopy
 */
-class File extends Node {
+class XFile extends Node {
+
+  /**
+  @param {object} ctx - task context
+  @param {object} parent - parent node, must be an XDir
+  @param {object} src
+  @param {object} [src.uuid] - only required for vfs source
+  @param {ojbect} src.name - required for both vfs and nfs source
+  */
   constructor (ctx, parent, src) {
     super(ctx, parent)
     this.src = src
-    this.state = new Pending(this)
+    this.state = new Working(this)
   }
 
   get type () {
@@ -236,4 +244,4 @@ class File extends Node {
   }
 }
 
-module.exports = File
+module.exports = XFile

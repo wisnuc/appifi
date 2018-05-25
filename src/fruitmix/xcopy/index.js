@@ -608,4 +608,7 @@ const xcopy = (ctx, user, mode, policies, src, dst, entries, callback) => {
   }
 }
 
+const createTask = (user, props, callback) => {
+}
+
 module.exports = xcopy

@@ -64,13 +64,17 @@ const invalidPaths = [
 ```
 # 4. 获取物理盘列表
 
+该API为只读API，返回结果取决于系统内部存储设备状态和访问规则。
+
 ## 4.1. 测试
+
+
 
 # 5. 获取文件或文件夹
 
 参数：
 
-+ id:
++ id: 
 + path: 路径
 
 返回
@@ -86,8 +90,8 @@ const invalidPaths = [
 
 + id red
 + path red
-  + invalid name 
-  + non-existent 
+  + invalid name
+  + non-existent
     + hello on /
     + hello/world on /hello (dir)
     + hello/world on /hello (file)
