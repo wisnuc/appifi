@@ -89,13 +89,14 @@ class Node extends EventEmitter {
 **/
 
   visit (f) {
-    for (let i = 0; i < this.children.length; i++) {
-      let x = this.children.visit(f)
-      if (x) return x
-    }
 
-    let x = f(this)
-    if (x) return x
+    if (this.children) 
+      for (let i = 0; i < this.children.length; i++) {
+        let x = this.children[i].visit(f)
+        if (x) return x
+      }
+
+    return f(this)
   }
 
   /**

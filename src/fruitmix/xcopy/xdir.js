@@ -2,6 +2,7 @@ const rimraf = require('rimraf')
 const fs = require('fs')
 
 const UUID = require('uuid')
+const debug = require('debug')('xdir')
 
 const Node = require('./node')
 const XFile = require('./xfile')
@@ -15,6 +16,12 @@ class State {
     this.ctx.state = this
     this.destroyed = false
     this.enter(...args)
+
+    let state = this.constructor.name
+    debug(`${this.ctx.src.name || '[root]'} entered ${state}`)    
+    this.ctx.ctx.reqSched()
+
+    this.ctx.emit('StateEntered', state)
   }
 
   enter () {}
@@ -35,8 +42,6 @@ class State {
   }
 
   view () {
-    console.log('=====================')
-    console.log(this.ctx)
   }
 }
 
@@ -163,14 +168,14 @@ class Preparing extends State {
   enter () {
     this.ctx.readdir((err, stats) => {
       if (err) {
+        debug(err.message)
         this.setState(Failed)
       } else {
-
         let fstats = []
         let dstats = []
 
-        if (this.ctx.entries) {
-          this.ctx.entries.forEach(entry => {
+        if (this.ctx.parent === null) { // root dir
+          this.ctx.ctx.entries.forEach(entry => {
             let stat = stats.find(x => x.name === entry)            
             if (stat) {
               if (stat.type === 'directory') {
@@ -192,8 +197,10 @@ class Preparing extends State {
         } else if (dstats.length === 0) { // only sub-file tasks
           this.setState(Parent, dstats, fstats)
         } else {
-          this.ctx.mkdirs(dstats.map(x => x.name), (err, map) => { //
+          let names = dstats.map(x => x.name)
+          this.ctx.mkdirs(names, (err, map) => { //
             if (err) {
+              debug('xdir mkdirs failed', err, names)
               // TODO
               this.setState(Failed, err)
             } else {
@@ -237,7 +244,6 @@ class Parent extends State {
     this.ctx.fstats = fstats
 
     let conflicted = dstats.filter(x => x.dst.err && x.dst.err.code === 'EEXIST') 
-
     conflicted.forEach(x => {
   
     })
@@ -247,8 +253,6 @@ class Parent extends State {
         uuid: x.uuid,
         name: x.name
       }, x.dst.err)))
-
-    this.ctx.ctx.reqSched()
   }
 
   view () {
@@ -269,6 +273,7 @@ class Failed extends State {
   // when directory enter failed
   // all descendant node are destroyed (but not removed)
   enter (err) {
+    debug('xdir enter failed state', err.message)
     this.err = err
   }
 
@@ -292,9 +297,12 @@ class Failed extends State {
 class Finish extends State {
 
   enter () {
+
+/**
     // let p = ['keep', 'skip']
     // delete the dir which is keep or skip in DirMove
-    if (this.ctx.constructor.name === 'DirMove') { // && (p.includes(this.ctx.policy[0]) || p.includes(this.ctx.ctx.policies.dir[0]))) {
+    if (this.ctx.constructor.name === 'DirMove') { 
+      // && (p.includes(this.ctx.policy[0]) || p.includes(this.ctx.ctx.policies.dir[0]))) {
       let dirveUUID = this.ctx.ctx.srcDriveUUID
       let dir = this.ctx.ctx.ctx.vfs.getDriveDirSync(dirveUUID, this.ctx.src.uuid)
       let dirPath = this.ctx.ctx.ctx.vfs.absolutePath(dir)
@@ -307,6 +315,8 @@ class Finish extends State {
         }
       }
     }
+
+*/
   }
 }
 
@@ -326,7 +336,7 @@ class XDir extends Node {
   @param {object} ctx - task container
   @param {Dir} parent - parent dir node
   @param {object} src - source object
-  @param {string} [src.uuid] - required only if source is vfs object
+  @param {string} src.uuid - required, as the identifier of this sub task.
   @param {string} src.name - required
   @parma {object} dst - destination object
   @param {string} dst.name - required
@@ -377,13 +387,15 @@ class XDir extends Node {
     let arr = this.dstats.splice(0, required) 
     arr.forEach(dstat => {
       let src = { uuid: dstat.uuid, name: dstat.name }
-      let dst = { uuid: dstat.dst.uuid, name: dstat.dst.name }
+      let dst = { uuid: dstat.dst.stat.uuid, name: dstat.dst.stat.name }
       let dir = new XDir(this.ctx, this, src, dst)
-
       dir.on('StateEntered', state => {
         if (state === 'Failed' || state === 'Finish') {
           dir.destroy()
-          if (this.children.length === 0) this.setState('Finish')
+          if (this.children.length === 0
+            && this.dstats.length === 0
+            && this.fstats.length === 0) 
+            this.setState(Finish)
         }
       })
     })
@@ -404,17 +416,16 @@ class XDir extends Node {
 
     let arr = this.fstats.splice(0, required)  
     arr.forEach(fstat => {
-      // starting from Preparing state
       let file = new XFile(this.ctx, this, { uuid: fstat.uuid, name: fstat.name })
-
       file.on('StateEntered', state => {
         if (state === 'Failed' || state === 'Finish') {
           file.destroy()    
-          if (this.children.length === 0) this.setState('Finish')
+          if (this.children.length === 0
+            && this.dstats.length === 0
+            && this.fstats.length === 0) 
+            this.setState(Finish)
         }
       })
-
-      this.children.push(file)   
     })
 
     return arr.length
@@ -423,9 +434,10 @@ class XDir extends Node {
   readdir (callback) {
     if (this.ctx.type === 'copy') {
       let props = {
-        driveUUID: this.src.drive,
-        dirUUID: this.src.dir
+        driveUUID: this.ctx.src.drive,
+        dirUUID: this.src.uuid
       }
+
       this.ctx.vfs.READDIR(this.ctx.user, props, callback) 
     } else {
       let err = new Error('not implemented yet')
@@ -438,8 +450,8 @@ class XDir extends Node {
       let policy = this.getPolicy()
 
       let props = {
-        driveUUID: this.dst.drive,
-        dirUUID: this.dst.dir,
+        driveUUID: this.ctx.dst.drive,
+        dirUUID: this.dst.uuid,
         names,
         policy 
       }

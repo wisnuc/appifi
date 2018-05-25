@@ -80,7 +80,7 @@ const createApp = opts => {
   // 500 handler
   app.use((err, req, res, next) => {
     if (err) {
-      if (log.error === 'all') {
+      if (log.error === 'all' || process.env.LOGE) {
         console.log(':: ', err)
       }
     }

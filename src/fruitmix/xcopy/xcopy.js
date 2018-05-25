@@ -16,11 +16,21 @@ This is a container of a collection of sub-tasks, organized in a tree.
 class XCopy extends EventEmitter {
 
   // if user is not provided, ctx is vfs, otherwise, it is fruitmix
+
+  /**
+  @param {object} user
+  @param {object} props
+  @param {object} props.src
+  @param {string} props.src.drive - vfs drive uuid or nfs drive id
+  @param {string} props.src.dir - vfs dir uuid or nfs dir path
+  */
   constructor (vfs, nfs, user, props) {
     super()
 
-    this.dirLimit = 4
-    this.fileLimit = 2
+    this.finished = false
+
+    this.dirLimit = props.dirLimit || 4
+    this.fileLimit = props.fileLimit || 2
 
     let { type, src, dst, entries, policies, stepping } = props
 
@@ -30,7 +40,6 @@ class XCopy extends EventEmitter {
     this.stepping = !!stepping
 
     // stepping mode specific
-    this.finished = false
     this.steppingState = 'Stopped' // or 'Stepping'
 
     this.type = type
@@ -43,10 +52,35 @@ class XCopy extends EventEmitter {
     this.policies = props.policies
 
     if (stepping) {
-      this.root = null
+      debug('xcopy started in stepping mode, stopped')
     } else { 
-      this.root = new XDir(this, null, src, dst, entries) 
+      this.createRoot()
     }
+  }
+
+  /**
+  create the root xdir task
+  */
+  createRoot () {
+    let src, dst
+    if (this.type === 'copy' || this.type === 'move') {
+      src = { uuid: this.src.dir, name: '' }
+      dst = { uuid: this.dst.dir, name: '' } 
+    } else {
+      throw new Error('not implemented')
+    }
+
+    let root = new XDir(this, null, src, dst, this.entries)
+    root.on('StateEntered', state => {
+      // root starts from preparing state, it may go to failed state directory, 
+      // or reach finish state via parent. Only these four state is possible.
+      if (state === 'Failed' || state === 'Finish') {
+        this.finished = true 
+        this.root = null
+      }
+    })
+
+    this.root = root
   }
 
   destroy () {
@@ -80,6 +114,9 @@ class XCopy extends EventEmitter {
             } else if (state === 'Conflict') {
               conflictFile++ 
             } else {
+              console.log('== panic >>>>')
+              console.log(c) 
+              console.log('== panic <<<<')
               throw new Error('Unexpected xfile state')
             }
           } else {
@@ -88,7 +125,12 @@ class XCopy extends EventEmitter {
               runningDir++
             } else if (state === 'Conflict') {
               conflictDir++
+            } else if (state === 'Parent') {
+              // do nothing
             } else {
+              console.log('== panic >>>>')
+              console.log(c) 
+              console.log('== panic <<<<')
               throw new Error('Unexpected xdir state')
             }
           }
@@ -103,7 +145,7 @@ class XCopy extends EventEmitter {
       } else if (state === 'Parent') {
         this.root.visit(F)
       } else {
-        throw new Error('root is in neither Preparing nor Parent state')
+        throw new Error(`root is in ${state} state, expected Preparing or Parent`)
       }
     }
 
@@ -142,14 +184,26 @@ class XCopy extends EventEmitter {
   // in non-stepping mode, this function schedule sched
   reqSched () {
     if (this.stepping) {
-      if (this.scheduled) return
+      if (this.scheduled) {
+        // debug('reqSched already triggered')
+        return
+      }
+
+      // debug('reqSched triggered')
       this.scheduled = true
       process.nextTick(() => {
+        this.scheduled = false
         if (this.steppingState !== 'Stepping') {
           console.log('ERROR: reqSched called @ Stopped state in stepping mode')
         } else {
           let { runningFile, runningDir } = this.count()
+
+          // debug(`schedule, running file ${runningFile}, running dir ${runningDir}`)
+
           if (runningFile === 0 && runningDir === 0) {
+
+            debug('step stopped')
+
             this.steppingState = 'Stopped'
             if (this.watchCallback) { 
               this.watchCallback(null, this.view())
@@ -158,7 +212,6 @@ class XCopy extends EventEmitter {
           }
         }
       })
-
     } else {
       if (this.scheduled) return
       this.scheduled = true
@@ -177,7 +230,7 @@ class XCopy extends EventEmitter {
     if (this.root) {
       this.sched()
     } else {
-      this.root = new XDir(this, null, this.src, this.dst, this.entries)
+      this.createRoot()
     }
     callback(null, this.view())
   }
@@ -186,9 +239,6 @@ class XCopy extends EventEmitter {
   // if stopped, return task view
   // otherwise, return task view until stopped (step end)
   watch (callback) {
-
-    console.log('watch >>>>')
-
     if (!this.stepping) return process.nextTick(() => callback(null))
     if (this.watchCallback) return process.nextTick(() => callback(null))
 
@@ -210,9 +260,24 @@ class XCopy extends EventEmitter {
   //  4. destroy (cancel)
   //
   //////////////////////////////////////////////////////////////////////////////
+
+  // in stepping mode, all nodes are pushed into nodes
+  // in non-stepping mode, however, only Working files and 
   view () {
     let nodes = []
-    if (this.root) this.root.visit(n => nodes.push(n.view()))
+    if (this.root) {
+      if (this.stepping) {
+        this.root.visit(n => {
+          nodes.push(n.view())
+        })
+      } else {
+        this.root.visit(n => {
+          if (n.state.constructor.name === 'Conflict' 
+            || (n.constructor.name === 'XFile' && n.state.constructor.name ==='Working'))
+            nodes.push(n.view())
+        })
+      }
+    }
 
     let v = {
       uuid: this.uuid,
@@ -222,6 +287,7 @@ class XCopy extends EventEmitter {
       entries: this.entries,
       nodes,
 
+      finished: this.finished,
       stepping: this.stepping
     }
 

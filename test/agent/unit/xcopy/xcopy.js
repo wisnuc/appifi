@@ -113,6 +113,7 @@ class User {
       .catch(e => callback(e))
   }
 
+
   post (url) {
     return request(this.ctx.app.express)
       .post(url)
@@ -125,6 +126,21 @@ class User {
       .set('Authorization', 'JWT ' + this.token)
   }
 
+  createTask (args, callback) {
+    this.ctx.createTask(this.token, args, callback)
+  }
+
+  async createTaskAsync (args) {
+    return Promise.promisify(this.createTask).bind(this)(args)
+  }
+
+  stepTask (taskUUID, callback) {
+    this.ctx.stepTask(this.token, taskUUID, callback)
+  }
+
+  async stepTaskAsync (taskUUID) {
+    return Promise.promisify(this.stepTask).bind(this)(taskUUID)
+  }
 }
 
 class Watson {
@@ -236,6 +252,41 @@ class Watson {
         callback(null, res.body)
       })
   }
+
+  stepTask(token, taskUUID, callback) {
+    request(this.app.express)
+      .patch(`/tasks/${taskUUID}`)
+      .set('Authorization', 'JWT ' + token)
+      .send({ op: 'step' })
+      .expect(200)
+      .end((err, res) => {
+        if (err) {
+          console.log('ERROR', err, res.body)
+          callback(err)
+        } else {
+          let step = res.body
+          request(this.app.express)
+            .patch(`/tasks/${taskUUID}`)
+            .set('Authorization', 'JWT ' + token)
+            .send({ op: 'watch' })
+            .expect(200)
+            .end((err, res) => {
+              if (err) return callback(err)
+              let watch = res.body
+              callback(null, { step, watch })
+            })
+        }
+      })
+  }
+
+  createTask(token, args, callback) {
+    request(this.app.express)
+      .post('/tasks')
+      .set('Authorization', 'JWT ' + token)
+      .send(args)
+      .expect(200)
+      .end((err, res) => err ? callback(err) : callback(null, res.body))
+  }
 }
 
 describe('xcopy task', () => {
@@ -263,7 +314,7 @@ describe('xcopy task', () => {
     fruitmix.nfs.update(fake.storage)
   })
 
-  it('do something', function (done) {
+  it.skip('do something', function (done) {
     this.timeout(10000)
 
     let alice = watson.users.alice
@@ -319,24 +370,75 @@ describe('xcopy task', () => {
           expect(task.stepping).to.be.true
           expect(task.steppingState).to.equal('Stopped')
 
-          alice.patch(`/tasks/${task.uuid}`)
-            .send({ op: 'step' })
-            .expect(200)
-            .end((err, res) => {
-              if (err) return done(err)
-
-              console.log(res.body)
-
-              alice.patch(`/tasks/${task.uuid}`)
-                .send({ op: 'watch' })
-                .expect(200)
-                .end((err, res) => {
-                  if (err) return done(err)
-                  console.log(res.body)
-                  setTimeout(() => done(), 1000)
-                })
-            })
+          alice.stepTask(task.uuid, (err, rs) => {
+            if (err) return done(err)
+            let { step, watch } = rs
+            console.log(step, watch)
+            done()
+          })
         })
     })
+  })
+
+  it('do something else', async function () {
+    this.timeout(10000)
+
+    let alice = watson.users.alice
+    let alonzo = FILES.alonzo
+    let children = [
+      { type: 'directory', name: 'hello' },
+      { type: 'directory', name: 'world',
+        children: [
+          {
+            type: 'directory',
+            name: 'foo',
+            children: [
+              { type: 'directory', name: 'dir0' },
+              { type: 'directory', name: 'dir1' },
+              { type: 'directory', name: 'dir2' },
+              { type: 'directory', name: 'dir3' },
+              { type: 'directory', name: 'dir4' },
+              { type: 'directory', name: 'dir5' },
+              { type: 'directory', name: 'dir6' },
+              { type: 'directory', name: 'dir7' },
+            ]
+          },
+          { type: 'file', name: 'bar0', file: alonzo.path, size: alonzo.size, sha256: alonzo.hash },
+          { type: 'file', name: 'bar1', file: alonzo.path, size: alonzo.size, sha256: alonzo.hash },
+          { type: 'file', name: 'bar2', file: alonzo.path, size: alonzo.size, sha256: alonzo.hash },
+          { type: 'file', name: 'bar3', file: alonzo.path, size: alonzo.size, sha256: alonzo.hash },
+          { type: 'file', name: 'bar4', file: alonzo.path, size: alonzo.size, sha256: alonzo.hash },
+          { type: 'file', name: 'bar5', file: alonzo.path, size: alonzo.size, sha256: alonzo.hash },
+          { type: 'file', name: 'bar6', file: alonzo.path, size: alonzo.size, sha256: alonzo.hash },
+          { type: 'file', name: 'bar7', file: alonzo.path, size: alonzo.size, sha256: alonzo.hash },
+        ]
+      }
+    ]
+
+    await alice.mktreeAsync(alice.home.uuid, alice.home.uuid, children)
+
+    let args = {
+      type: 'copy',
+      src: {
+        drive: alice.home.uuid,
+        dir: children[1].xstat.uuid
+      },
+      dst: {
+        drive: alice.home.uuid,
+        dir: children[0].xstat.uuid
+      },
+      entries: ['foo', 'bar0', 'bar1', 'bar2', 'bar3', 'bar4', 'bar5', 'bar6', 'bar7'],
+      stepping: true
+    }
+
+    let task, next
+    task = await alice.createTaskAsync(args)
+    console.log(':: task ::', task)
+ 
+    do { 
+      next = await alice.stepTaskAsync(task.uuid)
+      console.log(':: next ::', JSON.stringify(next, null, '  '))
+    } while (!next.watch.finished)
+    
   })
 })

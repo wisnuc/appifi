@@ -1232,9 +1232,6 @@ class VFS extends EventEmitter {
   */
   CPFILE (user, props, callback) {
     let { src, dst, policy } = props
-
-    console.log(src, dst, policy)
-
     this.DIR(user, { driveUUID: src.drive, dirUUID: src.dir }, (err, srcDir) => {
       if (err) return callback(err)
       this.DIR(user, { driveUUID: dst.drive, dirUUID: dst.dir }, (err, dstDir) => {
