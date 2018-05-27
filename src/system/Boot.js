@@ -468,8 +468,9 @@ class Repairing extends State {
         d.name = block.name
       }
     })
-
-    oldDevice = boundVolume.devices.find(d => d.model === volumeDevice[0].model && d.serial === volumeDevice[0].serial)
+    
+    let vd = devices.find(d => d.name === volumeDevice[0].name)
+    oldDevice = boundVolume.devices.find(d => d.model === vd.model && d.serial === vd.serial)
     if (!oldDevice) throw new Error('old device not found')
     oldDevice = Object.assign({}, oldDevice, volumeDevice[0])
 
