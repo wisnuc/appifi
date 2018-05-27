@@ -423,10 +423,10 @@ for repairing a broken volume
 class Repairing extends State {
   enter (devices, mode, callback) {
     this.repairAsync(devices, mode)
-      .then(() => {
+      .then(data => {
         console.log('init success, go to Probing')
         this.setState(Probing)
-        callback(null, null)
+        callback(null, data)
       })
       .catch(e => {
         console.log(e)
@@ -437,7 +437,7 @@ class Repairing extends State {
 
   async repairAsync (devices, mode) {
     
-    let storage, volume, boundVolume, oldDevice, devnames = []
+    let storage, volume, volumeDevice, boundVolume, oldDevice, devnames = []
 
     storage = await probeAsync(this.ctx.conf.storage)
 
@@ -445,12 +445,12 @@ class Repairing extends State {
     if (!boundVolume) throw new Error('have not bound volume')
     if (boundVolume.devices.length !== 2) throw new Error('boundVolume only 1 device')
     let volumeUUID = boundVolume.uuid
-    
+
     volume = storage.volumes.find(v => v.uuid === volumeUUID)
     if (!volume) throw new Error('boundVolume not found')
     if (!volume.missing) throw new Error('volume is complete')
-    if (volume.devices.length !== 1) throw new Error('volume is complete')
-    
+    volumeDevice = volume.devices.filter(d => !!d.name)
+    if (volumeDevice.length !== 1) throw new Error('volume can not repair, no block found')
     // vaildate
     devices.forEach(d => {
       if (isNonEmptyString(d.name)) {
@@ -469,9 +469,10 @@ class Repairing extends State {
       }
     })
 
-    oldDevice = boundVolume.devices.find(d => d.model === volume.devices[0].model && d.serial === volume.devices[0].serial)
+    let vd = devices.find(d => d.name === volumeDevice[0].name)
+    oldDevice = boundVolume.devices.find(d => d.model === vd.model && d.serial === vd.serial)
     if (!oldDevice) throw new Error('old device not found')
-    oldDevice = Object.assign({}, oldDevice, volume.devices[0])
+    oldDevice = Object.assign({}, oldDevice, volumeDevice[0])
 
     console.log('=====================')
     console.log('OldDevice: ', oldDevice)
@@ -482,11 +483,11 @@ class Repairing extends State {
     if (!devices.find(d => d.name === oldDevice.name))
       throw new Error('devices not contain any old device')
 
-    for (let i = 0; i < deivces.length; i++) {
-      let block = storage.blocks.find(blk => blk.name === deivces[i].name)
-      if (!block) throw new Error(`device ${deivces[i]} not found`)
-      if (!block.isDisk) throw new Error(`device ${deivces[i]} is not a disk`)
-      if (block.unformattable) throw new Error(`device ${deivces[i]} is not formattable`)
+    for (let i = 0; i < devices.length; i++) {
+      let block = storage.blocks.find(blk => blk.name === devices[i].name)
+      if (!block) throw new Error(`device ${devices[i]} not found`)
+      if (!block.isDisk) throw new Error(`device ${devices[i]} is not a disk`)
+      if (block.unformattable) throw new Error(`device ${devices[i]} is not formattable`)
       devnames.push(Object.assign(devices[i], { devname:block.devname }))
     }
 
@@ -534,17 +535,34 @@ class Repairing extends State {
         }
       }
     } else {
-      return process.nextTick(() => {
-        this.setState(Probing)
-        callback(new Error('unable boundVolume mode'))
-      })
+      throw new Error('unsupport old mode')
     }
-    await umountBlocksAsync(storage, oldDevice.name)
-    await child.execAsync(`mount -t btrfs UUID=${volume.uuid} ${volume.mountpoint}`)
+
+    storage = await probeAsync(this.ctx.conf.storage)
+    let newVolume = storage.volumes.find(v => v.uuid === volume.uuid)
+    if (!newVolume) throw new Error('cannot find a volume containing expected block name')
+
+    // ensure bound volume data format
+    if (!newVolume.usage || !newVolume.usage.system || !newVolume.usage.metadata || !newVolume.usage.data) {
+      console.log(newVolume)
+      throw new Error('volume usage not properly detected')
+    }
+    console.log('=============')
+    console.log(newVolume)
+    console.log('=============')
+    // update boundVolume
+    let newBoundVolume = this.createBoundVolume(storage, newVolume)
+    console.log('=======newBoundVolume', newBoundVolume)
+    return new Promise((resolve, reject) => {
+      this.ctx.volumeStore.save(newBoundVolume, err => {
+        if (err) {
+          reject(err)
+        } else {
+          resolve(newBoundVolume)
+        }
+      })
+    })
   }
-
-  // update boundVolume
-
 }
 
 /**
@@ -671,7 +689,7 @@ class Boot extends EventEmitter {
   }
 
   repair (device, mode, callback) {
-    this.state.repair(device, mode)
+    this.state.repair(device, mode, callback)
   }
 
   getStorage () {
