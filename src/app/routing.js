@@ -16,7 +16,7 @@ module.exports = {
       ['/:userUUID', 'GET', 'user'],
       ['/:userUUID', 'PATCH', 'user', {
         auth: auth => (req, res, next) =>
-          req.body.password === undefined
+          req.body.password === undefined && req.body.password === undefined
             ? auth.jwt()(req, res, next)
             : auth.basic()(req, res, next)
       }],
@@ -71,6 +71,7 @@ module.exports = {
       ['/', 'LIST', 'task'],
       ['/', 'POST', 'task'],
       ['/:taskUUID', 'GET', 'task'],
+      ['/:taskUUID', 'PATCH', 'task'], // for stepper only
       ['/:taskUUID', 'DELETE', 'task'],
       ['/:taskUUID/nodes/:nodeUUID', 'PATCH', 'taskNode'],
       ['/:taskUUID/nodes/:nodeUUID', 'DELETE', 'taskNode']

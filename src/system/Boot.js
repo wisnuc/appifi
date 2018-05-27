@@ -11,6 +11,7 @@ const mkdirpAsync = Promise.promisify(mkdirp)
 const UUID = require('uuid')
 const debug = require('debug')('Boot')
 
+const { isNonEmptyString } = require('../lib/assertion')
 const DataStore = require('../lib/DataStore')
 const Fruitmix = require('../fruitmix/Fruitmix')
 const { probe, probeAsync, umountBlocksAsync } = require('./storage')
@@ -76,6 +77,10 @@ class State {
   }
 
   import (volumeUUID, callback) {
+    process.nextTick(() => callback(new Error('invalid state')))
+  }
+
+  repair (devices, mode, callback)  {
     process.nextTick(() => callback(new Error('invalid state')))
   }
 
@@ -236,6 +241,10 @@ class Unavailable extends State {
   import (volumeUUID, callback) {
     this.setState(Importing, volumeUUID, callback)
   }
+
+  repair (devices, mode, callback)  {
+    this.setState(Repairing, devices, mode, callback)
+  }
 }
 
 /**
@@ -343,7 +352,9 @@ class Initializing extends State {
       isAdmin: true,
       phicommUserId: this.ctx.boundUser.phicommUserId,
       password: this.ctx.boundUser.password,
-      status: 'ACTIVE'
+      status: 'ACTIVE',
+      createTime: new Date().getTime(),
+      lastChangeTime: new Date().getTime()
     }]
 
     await mkdirpAsync(tmpDir)
@@ -410,6 +421,129 @@ class Importing extends State {
 for repairing a broken volume
 */
 class Repairing extends State {
+  enter (devices, mode, callback) {
+    this.repairAsync(devices, mode)
+      .then(() => {
+        console.log('init success, go to Probing')
+        this.setState(Probing)
+        callback(null, null)
+      })
+      .catch(e => {
+        console.log(e)
+        this.setState(Probing)
+        callback(e)
+      })
+  }
+
+  async repairAsync (devices, mode) {
+    
+    let storage, volume, boundVolume, oldDevice, devnames = []
+
+    storage = await probeAsync(this.ctx.conf.storage)
+
+    boundVolume = this.ctx.volumeStore.data
+    if (!boundVolume) throw new Error('have not bound volume')
+    if (boundVolume.devices.length !== 2) throw new Error('boundVolume only 1 device')
+    let volumeUUID = boundVolume.uuid
+    
+    volume = storage.volumes.find(v => v.uuid === volumeUUID)
+    if (!volume) throw new Error('boundVolume not found')
+    if (!volume.missing) throw new Error('volume is complete')
+    if (volume.devices.length !== 1) throw new Error('volume is complete')
+    
+    // vaildate
+    devices.forEach(d => {
+      if (isNonEmptyString(d.name)) {
+        let block = storage.blocks.find(b => b.name === d.name)
+        if (!block) throw new Error(`device ${ d.name } not found`)
+        if (isNonEmptyString(d.model)) {
+          if (block.model !== d.model) throw new Error(d.name + ' model mismatch')
+          if (block.serial !== d.serial) throw new Error(d.name + ' serial mismatch')
+        }
+        d.model = block.model
+        d.serial = block.serial
+      } else {
+        let block = storage.blocks.find(b => b.model === d.model && b.serial === d.serial)
+        if (!block) throw new Error('device not found')
+        d.name = block.name
+      }
+    })
+
+    oldDevice = boundVolume.devices.find(d => d.model === volume.devices[0].model && d.serial === volume.devices[0].serial)
+    if (!oldDevice) throw new Error('old device not found')
+    oldDevice = Object.assign({}, oldDevice, volume.devices[0])
+
+    console.log('=====================')
+    console.log('OldDevice: ', oldDevice)
+
+    console.log('Devices: ', devices)
+    console.log('=====================')
+
+    if (!devices.find(d => d.name === oldDevice.name))
+      throw new Error('devices not contain any old device')
+
+    for (let i = 0; i < deivces.length; i++) {
+      let block = storage.blocks.find(blk => blk.name === deivces[i].name)
+      if (!block) throw new Error(`device ${deivces[i]} not found`)
+      if (!block.isDisk) throw new Error(`device ${deivces[i]} is not a disk`)
+      if (block.unformattable) throw new Error(`device ${deivces[i]} is not formattable`)
+      devnames.push(Object.assign(devices[i], { devname:block.devname }))
+    }
+
+    let oldMode = boundVolume.usage.data.mode.toLowerCase()
+    let supportMode = ['single', 'raid1']
+    
+    if (supportMode.indexOf(mode) === -1) throw new Error('mode error')
+
+    await umountBlocksAsync(storage, devices.map(d => d.name))
+
+    // mount as degraded
+    try {
+      await child.execAsync(`mount -t btrfs -o degraded ${ oldDevice.path } ${ volume.mountpoint }`)
+    } catch(e) {
+      Promise.delay(100)
+      await child.execAsync(`mount -t btrfs -o degraded ${ oldDevice.path } ${ volume.mountpoint }`)
+    }
+    await child.execAsync('partprobe')
+    if (oldMode === 'single') {
+      if (devices.length == 1) {
+        if (mode !== 'single') throw new Error('Only can make single in one device')
+        await child.execAsync(`btrfs balance start -f -mconvert=single ${ volume.mountpoint }`)
+        await child.execAsync(`btrfs device delete missing ${ volume.mountpoint }`)
+        await child.execAsync(`btrfs balance start -f -mconvert=dup ${ volume.mountpoint }`)
+      } else {
+        let addDevice = devnames.filter(d => d.name !== oldDevice.name ).map(v => v.devname)
+        await child.execAsync(`btrfs device add -f ${ addDevice.join(' ') } ${ volume.mountpoint }`)
+        await child.execAsync(`btrfs device delete missing ${ volume.mountpoint }`)
+        if (!mode === 'single') { // raid1
+          await child.execAsync(`btrfs balance start -f -dconvert=raid1 ${ volume.mountpoint }`)
+        }
+      }
+    } else if (oldMode === 'raid1') {
+      if (devices.length == 1) {
+        if (mode !== 'single') throw new Error('Only can make single in one device')
+        await child.execAsync(`btrfs balance start -f -mconvert=single -dconvert=single ${ volume.mountpoint }`)
+        await child.execAsync(`btrfs device delete missing ${ volume.mountpoint }`)
+        await child.execAsync(`btrfs balance start -f -mconvert=dup ${ volume.mountpoint }`)
+      } else {
+        let addDevice = devnames.filter(d => d.name !== oldDevice.name ).map(v => v.devname)
+        await child.execAsync(`btrfs device add -f ${ addDevice.join(' ') } ${ volume.mountpoint }`)
+        await child.execAsync(`btrfs device delete missing ${ volume.mountpoint }`)
+        if (mode === 'single') { // raid1
+          await child.execAsync(`btrfs balance start -f -dconvert=single  ${ volume.mountpoint }`)
+        }
+      }
+    } else {
+      return process.nextTick(() => {
+        this.setState(Probing)
+        callback(new Error('unable boundVolume mode'))
+      })
+    }
+    await umountBlocksAsync(storage, oldDevice.name)
+    await child.execAsync(`mount -t btrfs UUID=${volume.uuid} ${volume.mountpoint}`)
+  }
+
+  // update boundVolume
 
 }
 
@@ -473,23 +607,6 @@ class Boot extends EventEmitter {
     new Probing(this)
   }
 
-  handleBootstrapMessage (data) {
-    console.log('Bootstrap send data: ', data)
-    let message
-    try {
-      message = JSON.parse(data)
-    } catch (e) {
-      console.log('Bootstrap Message -> JSON parse Error')
-      console.log(data)
-      return 
-    }
-
-    if (message.type === 'APPIFI_ACCOUNT_INFO_MESSAGE') {
-      this.setBoundUser(message.user)
-    }
-
-  }
-
   stateName () {
     return this.state.constructor.name
   }
@@ -551,6 +668,10 @@ class Boot extends EventEmitter {
 
   import (volumeUUID, callback) {
     this.state.import(volumeUUID, callback)
+  }
+
+  repair (device, mode, callback) {
+    this.state.repair(device, mode)
   }
 
   getStorage () {

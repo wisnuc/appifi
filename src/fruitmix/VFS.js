@@ -150,7 +150,7 @@ class VFS extends EventEmitter {
         if (!owner || owner.status !== this.user.USER_STATUS.DELETED) return false
         return true
       }
-      if (drv.type === 'public') return true
+      if (drv.type === 'public' && drv.isDeleted) return true
       return false
     }).map(drv => drv.uuid)
 
@@ -249,6 +249,18 @@ class VFS extends EventEmitter {
     }
   }
 
+  /**
+  @param {object} user - user
+  @param {object} props
+  @param {object} props.driveUUID
+  @param {object} props.dirUUID
+  */
+  READDIR(user, props, callback) {
+    this.dirGET(user, props, (err, combined) => {
+      if (err) return callback(err)
+      callback(null, combined.entries)
+    })
+  }
 
   /**
   @param {object} user - user
@@ -338,7 +350,7 @@ class VFS extends EventEmitter {
 
   with drive:
 
-  - if sdrive is not found, 404
+  - if drive is not found, 404
   - if drive is deleted, 404
   - if drive is not accessible, 404 
   - if dir not found, 404 (same as w/o drive)
@@ -1100,6 +1112,37 @@ class VFS extends EventEmitter {
     })
   }
 
+  /**
+  
+  @param {object} user
+  @param {object} props
+  @param {string} driveUUID
+  @param {string} dirUUID  
+  @param {string[]} names
+  @param {Policy} policy
+  */
+  MKDIRS (user, props, callback) {
+    this.DIR(user, props, (err, dir) => {
+      if (err) return callback(err) 
+      let { names, policy } = props
+      let count = names.length
+      let map = new Map()
+      names.forEach(name => {
+        let target = path.join(this.absolutePath(dir), name)
+        mkdir(target, policy, (err, stat, resolved) => {
+          map.set(name, { err, stat, resolved }) 
+          if (!--count) {
+            // TODO
+            dir.read((err, xstats) => {
+              if (err) return callback(err)
+              callback(null, map)
+            })
+          }
+        })
+      })
+    })
+  }
+
 
   // copy src dir (name) into dst dir
   cpdir (src, dst, policy, callback) {
@@ -1170,6 +1213,54 @@ class VFS extends EventEmitter {
           }
         }
         callback(null)
+      })
+    })
+  }
+
+  /**
+  @param {object} user
+  @param {object} props
+  @param {object} props.src
+  @param {string} props.src.drive - src drive
+  @param {string} props.src.dir - src (parent) dir
+  @param {string} props.src.uuid - src file uuid
+  @param {string} props.src.name - src file name
+  @param {object} props.dst
+  @param {string} props.dst.drive - dst drive
+  @param {string} props.dst.dir - dst (parent) dir
+  @param {Policy} props.policy
+  */
+  CPFILE (user, props, callback) {
+    let { src, dst, policy } = props
+    this.DIR(user, { driveUUID: src.drive, dirUUID: src.dir }, (err, srcDir) => {
+      if (err) return callback(err)
+      this.DIR(user, { driveUUID: dst.drive, dirUUID: dst.dir }, (err, dstDir) => {
+        if (err) return callback(err)
+
+        let srcFilePath = path.join(this.absolutePath(srcDir), src.name)
+        let dstFilePath = path.join(this.absolutePath(dstDir), src.name)
+
+        let tmp = this.genTmpPath()
+        clone(srcFilePath, src.uuid, tmp, (err, xstat) => {
+          if (err) return callback(err)
+          mkfile(dstFilePath, tmp, xstat.hash, policy, (err, xstats, resolved) => {
+            rimraf(tmp, () => {})
+            if (err) return callback(err)
+
+            if (!xstat || (policy[0] === 'skip' && xstat && resolved[0])) return
+            else {
+              try {
+                let attr = JSON.parse(xattr.getSync(srcFilePath, 'user.fruitmix'))
+                attr.uuid = xstats.uuid
+                xattr.setSync(dstFilePath, 'user.fruitmix', JSON.stringify(attr))
+              } catch (e) {
+                if (e.code !== 'ENODATA') return callback(e)
+              }
+            }
+            callback(null)
+          })
+        })
+           
       })
     })
   }

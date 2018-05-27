@@ -218,6 +218,9 @@ class App extends EventEmitter {
         res.status(200).end()
       } else return next(Object.assign(new Error('invalid arg'), { status: 400 }))
     })
+    bootr.patch('/boundVolume', (req, res, next) => 
+      this.boot.repair(req.body.devices, req.body.mode, err => err ? next(err) : res.status(200).end()))
+      
     routers.push(['/boot', bootr])
 
     // token router
@@ -317,7 +320,7 @@ class App extends EventEmitter {
       }
 
       const anonymous = (req, res, next) =>
-        this.fruitmix.apis[resource][verb](null,
+        req.headers['authorization'] ? next() : this.fruitmix.apis[resource][verb](null,
           Object.assign({}, req.query, req.body, req.params), f(res, next))
 
       const authenticated = (req, res, next) =>
@@ -351,12 +354,14 @@ class App extends EventEmitter {
         } else {
           if (opts && opts.needReq) {
             router[method](rpath, stub, auth.jwt(), needReq)
-          }else {
+          } else {
             router[method](rpath, stub, auth.jwt(), authenticated)
           }
         }
       }
     })
+
+    // console.log(router.stack.map(l => l.route))
 
     return router
   }

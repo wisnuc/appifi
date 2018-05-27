@@ -61,8 +61,8 @@ class Drive extends EventEmitter {
     this.store.save(drives => {
       deletedUsers.forEach(userUUID => {
         let drv = drives.find(drv => drv.owner === userUUID && drv.type === 'private')
-        if (!drv) this.user.handleDriveDeleted(userUUID) // report user module
-        else this.deleteDrive(drv.uuid, {}, () => {}) // update drive isDeleted
+        // if (!drv) this.user.handleDriveDeleted(userUUID) // report user module
+        if (drv) this.deleteDrive(drv.uuid, {}, () => {}) // update drive isDeleted
       })
       return drives
     }, () => {})
@@ -126,8 +126,13 @@ class Drive extends EventEmitter {
 
     // TODO create directory
 
-    this.store.save(drives => [...drives, drive],
-      (err, drives) => err ? callback(err) : callback(null, drive))
+    this.store.save(drives => {
+      if (drives.filter(d => d.type === 'public' && !d.isDeleted).length >= 3) throw Object.assign(new Error('There can be only three public drives'), { status: 400 })
+      if (props.label && !drives.filter(d => !d.isDeleted).every(d => d.label !== props.label)) {
+        throw Object.assign(new Error('label has already been used'), { status: 400 })
+      }
+      return [...drives, drive]
+    }, (err, drives) => err ? callback(err) : callback(null, drive))
   }
 
   getDrive (driveUUID) {
@@ -139,24 +144,22 @@ class Drive extends EventEmitter {
       let index = drives.findIndex(drv => drv.uuid === driveUUID)
       if (index === -1) throw new Error('drive not found')
       let priv = Object.assign({}, drives[index])
-      if (priv.type === 'private') {
-        if (props.label) {
-          if (drives.every(d => d.label !== props.label)) priv.label = props.label
-          else throw new Error('label has already been used')
-        }
-      } else {
+      if (priv.type === 'public') {
         if (props.writelist) {
           if (props.writelist === '*' || props.writelist.every(uuid => !!this.users.find(u => u.uuid === uuid))) priv.writelist = props.writelist
           else throw new Error('writelist not all user uuid found')
         }
-        if (props.readlist) {
-          if (props.readlist === '*' || props.readlist.every(uuid => !!this.users.find(u => u.uuid === uuid))) priv.readlist = props.readlist
-          else throw new Error('readlist not all user uuid found')
-        }
-        if (props.label) {
-          if (drives.every(d => d.label !== props.label))priv.label = props.label
-          else throw new Error('label has already been used')
-        }
+        // if (props.readlist) {
+        //   if (props.readlist === '*' || props.readlist.every(uuid => !!this.users.find(u => u.uuid === uuid))) priv.readlist = props.readlist
+        //   else throw new Error('readlist not all user uuid found')
+        // }
+      }
+      if (typeof props.smb === 'boolean') {
+        priv.smb = props.smb
+      }
+      if (props.label) {
+        if (drives.filter(d => !d.isDeleted).every(d => d.label !== props.label)) priv.label = props.label
+        else throw new Error('label has already been used')
       }
       return [...drives.slice(0, index), priv, ...drives.slice(index + 1)]
     }, (err, data) => err ? callback(err) : callback(null, data.find(d => d.uuid === driveUUID)))
@@ -165,24 +168,28 @@ class Drive extends EventEmitter {
   deleteDrive (driveUUID, props, callback) {
     this.store.save(drives => {
       let index = drives.findIndex(drv => drv.uuid === driveUUID)
-      if (index === -1) throw new Error('drive not found')
+      if (index === -1) throw Object.assign(new Error('drive not found'), { status: 404 })
       let drv = Object.assign({}, drives[index])
+      if (drv.isDeleted) throw Object.assign(new Error('drive not found'), { status: 404 }) 
       drv.isDeleted = true
-      let drives2 = drives.map(d => {
-        if (d.type === 'public' && (d.writelist.includes(drv.owner) || d.readlist.includes(drv.owner))) {
-          let dc = Object.assign({}, d)
-          let wl = new Set(dc.writelist)
-          wl.delete(drv.owner)
-          dc.writelist = Array.from(wl).sort()
-          let rl = new Set(dc.readlist)
-          rl.delete(drv.owner)
-          dc.readlist = Array.from(rl).sort()
-          return dc
-        }
-        return d
-      })
+      let drives2 = drives
+      if (drv === 'private') {  // user been deleted
+        drives2 = drives.map(d => {
+          if (d.type === 'public' && (d.writelist.includes(drv.owner) || d.readlist.includes(drv.owner))) {
+            let dc = Object.assign({}, d)
+            let wl = new Set(dc.writelist)
+            wl.delete(drv.owner)
+            dc.writelist = Array.from(wl).sort()
+            let rl = new Set(dc.readlist)
+            rl.delete(drv.owner)
+            dc.readlist = Array.from(rl).sort()
+            return dc
+          }
+          return d
+        })
+      }
       return [...drives2.slice(0, index), drv, ...drives2.slice(index + 1)]
-    }, callback)
+    }, (err, data) => err ? callback(err) : callback(null, null))
   }
 
   // removeDrive (driveUUID, props, callback) {
@@ -205,7 +212,7 @@ class Drive extends EventEmitter {
     if (drv.type === 'public' && (drv.writelist === '*' || drv.writelist.includes(userUUID))) return true
     return false
   }
-
+ 
   LIST (user, props, callback) {
     this.retrieveDrives(user.uuid, (err, drives) => {
       if (err) return callback(err)
@@ -236,13 +243,13 @@ class Drive extends EventEmitter {
    * @param {Function} callback
    */
   POST (user, props, callback) {
-    let recognized = ['writelist', 'readlist', 'label']
+    let recognized = ['writelist', 'label'] // 'readlist',
     try {
       Object.getOwnPropertyNames(props).forEach(name => {
         if (!recognized.includes(name)) {
           throw Object.assign(new Error(`unrecognized prop name ${name}`), { status: 400 })
         }
-        if (name === 'writelist' || name === 'readlist') {
+        if (name === 'writelist') { // || name === 'readlist'
           if (props[name] !== '*' && !Array.isArray(props[name])) {
             throw Object.assign(new Error(`${name} must be either wildcard or an uuid array`), { status: 400 })
           } else {
@@ -273,9 +280,9 @@ class Drive extends EventEmitter {
         throw Object.assign(new Error(`drive ${driveUUID} not found`), { status: 404 })
       }
       let recognized
-
+      
       if (drive.type === 'private' || (drive.type === 'public' && drive.tag === 'built-in')) recognized = ['label', 'smb']
-      else recognized = ['writelist', 'readlist', 'label', 'smb']
+      else recognized = ['writelist', 'label', 'smb'] // 'readlist',
 
       Object.getOwnPropertyNames(props).forEach(key => {
         if (!recognized.includes(key)) {
@@ -304,12 +311,18 @@ class Drive extends EventEmitter {
           props[key] = Array.from(new Set(list)).sort()
         }
       })
+
+      if (drive.type === 'public' && !user.isFirstUser) {
+        throw Object.assign(new Error(`requires admin priviledge`), { status: 403 })
+      }
+
+      if (drive.type === 'private' && user.uuid !== drive.owner) {
+        throw Object.assign(new Error(`only owner can update`), { status: 403 })
+      }
     } catch (e) {
       return process.nextTick(() => callback(e))
     }
-    if (!user.isFirstUser) {
-      throw Object.assign(new Error(`requires admin priviledge`), { status: 403 })
-    }
+
     this.updateDrive(driveUUID, props, callback)
   }
 

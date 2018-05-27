@@ -92,7 +92,7 @@ class Pipe extends EventEmitter {
     }
     if (!user) throw formatError(new Error(`uid: ${phicommUserId}, check user failed`), 401)
     // throw 503 unavailable if fruitmix === null
-    return user
+    return Object.assign({} , user, { remote: true })
 
     // users = fruitmix
     //  ? fruitmix.users
@@ -228,20 +228,18 @@ class Pipe extends EventEmitter {
     // postform
     if (matchRoute.verb === 'POSTFORM') {
       // get resource from cloud
-      this.getResource((error, response, body) => {
-        if (!error && response.statusCode === 200) {
-          props.length = response.headers['content-length']
-          const m = RE_BOUNDARY.exec(response.headers['content-type'])
-          props.boundary = m[1] || m[2]
-          props.formdata = response
-          console.log('response body: ', body)
-          console.log('response headers: ', response.headers)
-          // { driveUUID, dirUUID, boundary, length, formdata }
-          this.ctx.fruitmix().apis[matchRoute.api][method](user, props, (err, data) => {
-            console.log('err', err)
-            this.reqCommand(err, data)
-          })
-        }
+      this.getResource().on('response', response => {
+        props.length = response.headers['content-length']
+        const m = RE_BOUNDARY.exec(response.headers['content-type'])
+        props.boundary = m[1] || m[2]
+        props.formdata = response
+        console.log('response body: ', body)
+        console.log('response headers: ', response.headers)
+        // { driveUUID, dirUUID, boundary, length, formdata }
+        this.ctx.fruitmix().apis[matchRoute.api][method](user, props, (err, data) => {
+          console.log('err', err)
+          this.reqCommand(err, data)
+        })
       })
     } else {
       return this.ctx.fruitmix().apis[matchRoute.api][method](user, props, (err, data) => {
@@ -321,10 +319,9 @@ class Pipe extends EventEmitter {
   }
   /**
    * get resource
-   * @param {object} callback
    * @memberof Pipe
    */
-  getResource (callback) {
+  getResource () {
     return request({
       uri: 'http://sohon2test.phicomm.com' + RESOURCE_URL,
       method: 'GET',
@@ -334,7 +331,7 @@ class Pipe extends EventEmitter {
         msgId: this.message.msgId,
         uid: this.message.packageParams.uid
       }
-    }, callback)
+    })
   }
 }
 
