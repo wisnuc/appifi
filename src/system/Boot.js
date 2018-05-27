@@ -445,11 +445,10 @@ class Repairing extends State {
     if (!boundVolume) throw new Error('have not bound volume')
     if (boundVolume.devices.length !== 2) throw new Error('boundVolume only 1 device')
     let volumeUUID = boundVolume.uuid
-    
+
     volume = storage.volumes.find(v => v.uuid === volumeUUID)
     if (!volume) throw new Error('boundVolume not found')
     if (!volume.missing) throw new Error('volume is complete')
-    if (volume.devices.length !== 2) throw new Error('volume can not repair')
     volumeDevice = volume.device.filter(d => !!d.name)
     if (volumeDevice.length !== 1) throw new Error('volume can not repair, no block found')
     // vaildate
@@ -672,7 +671,7 @@ class Boot extends EventEmitter {
   }
 
   repair (device, mode, callback) {
-    this.state.repair(device, mode)
+    this.state.repair(device, mode, callback)
   }
 
   getStorage () {
