@@ -423,10 +423,10 @@ for repairing a broken volume
 class Repairing extends State {
   enter (devices, mode, callback) {
     this.repairAsync(devices, mode)
-      .then(() => {
+      .then(data => {
         console.log('init success, go to Probing')
         this.setState(Probing)
-        callback(null, null)
+        callback(null, data)
       })
       .catch(e => {
         console.log(e)
