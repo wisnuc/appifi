@@ -136,7 +136,7 @@ describe(path.basename(__filename), () => {
         request(app.express)[item.type](item.url)
           .set('Authorization', 'JWT ' + token)
           .send(item.args)
-          .field('abc', {})
+          // .field('abc', {})
           .expect(item.expectCode)
           .end((err, res) => {
             // if (res.statusCode !== 200) console.log(res.body, err)
