@@ -554,11 +554,11 @@ class Repairing extends State {
     let newBoundVolume = this.createBoundVolume(storage, newVolume)
     console.log('=======newBoundVolume', newBoundVolume)
     return new Promise((resolve, reject) => {
-      this.ctx.volumeStore.save(boundVolume, err => {
+      this.ctx.volumeStore.save(newBoundVolume, err => {
         if (err) {
           reject(err)
         } else {
-          resolve(boundVolume)
+          resolve(newBoundVolume)
         }
       })
     })
