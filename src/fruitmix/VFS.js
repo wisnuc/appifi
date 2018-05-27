@@ -1112,9 +1112,6 @@ class VFS extends EventEmitter {
     })
   }
 
-  MKDIR (user, props, callback) {
-  }
-
   /**
   
   @param {object} user

@@ -82,6 +82,7 @@ class User {
       } else {
         this.ctx.getToken(me.uuid, this.password, (err, token) => {
           if (err) return callback(err)
+          this.uuid = me.uuid
           this.token = token
           callback(null, token)
         })
@@ -224,7 +225,6 @@ class Watson {
       .expect(200)
       .end((err, res) => {
         if (err) return callback(err)
-        console.log(res.body)
         callback(null)
       })
   }
@@ -275,6 +275,7 @@ class Watson {
   }
 
   async mktreeAsync (props) {
+
     let { token, type, drive, dir, children } = props
     let cs = JSON.parse(JSON.stringify(children))
 
@@ -463,32 +464,6 @@ const singletons = {
   ],
 } 
 
-/**
-const children = [
-  { 
-    type: 'directory', 
-    name: 'dst' 
-  },
-  { type: 'directory',
-    name: 'src',
-    children: [
-      {
-        type: 'directory',
-        name: 'foo'
-      },
-      { 
-        type: 'file', 
-        name: 'bar', 
-        file: alonzo.path, 
-        size: alonzo.size, 
-        sha256: alonzo.hash 
-      }
-    ]
-  }
-]
-**/
-
-
 describe('xcopy task', () => {
 
   let watson, user
@@ -513,11 +488,11 @@ describe('xcopy task', () => {
         err ? reject(err) : resolve()))
 
     fruitmix.nfs.update(fake.storage)
-
     user = watson.users.alice
   })
 
   it('copy, file, no conflict', async function () {
+
     let c1 = await user.mktreeAsync({ 
       type: 'vfs', 
       drive: user.home.uuid, 
@@ -574,8 +549,7 @@ describe('xcopy task', () => {
 
 //    let c2 = await user.mktreeAsync({ type: 'nfs', drive: UUIDDE, dir: '', children })
 
-  it('copy, dir, no conflict', async function () {
-    let user = watson.users.alice
+  it('copy, dir, no conflict, 21697e0b', async function () {
     let c1 = await user.mktreeAsync({ 
       type: 'vfs', 
       drive: user.home.uuid, 
@@ -624,8 +598,64 @@ describe('xcopy task', () => {
     // TODO assert file system
   })
 
+  it("copy, file/file, ['skip', null], d3bfeae3", async function () {
+    let c1 = await user.mktreeAsync({ 
+      type: 'vfs', 
+      drive: user.home.uuid, 
+      dir: user.home.uuid,
+      children: singletons.fileFile
+    })
+
+    let copyArgs = {
+      type: 'copy',
+      src: {
+        drive: user.home.uuid,
+        dir: c1[1].xstat.uuid
+      },
+      dst: {
+        drive: user.home.uuid,
+        dir: c1[0].xstat.uuid
+      },
+      entries: ['foo'],
+      stepping: true
+    }
+
+    let task, next
+    task = await user.createTaskAsync(copyArgs)
+
+    assertTask(copyArgs, task)
+
+    next = await user.stepTaskAsync(task.uuid)
+    
+    expect(next.step.nodes.length).to.equal(1)
+    expect(next.step.nodes[0].state).to.equal('Preparing')
+  
+    expect(next.watch.nodes.length).to.equal(1)
+    expect(next.watch.nodes[0].state).to.equal('Parent')
+
+    next = await user.stepTaskAsync(task.uuid)
+
+    expect(next.step.nodes.length).to.equal(2)
+    expect(next.step.nodes[0].state).to.equal('Working')
+    expect(next.step.nodes[1].state).to.equal('Parent')
+
+    expect(next.watch.nodes.length).to.equal(2)
+    expect(next.watch.nodes[0].state).to.equal('Conflict')
+    expect(next.watch.nodes[1].state).to.equal('Parent') 
+
+    let nodeUUID = next.watch.nodes[0].src.uuid
+    let policy = ['skip', null] 
+    next = await user.patchTaskAsync(task.uuid, nodeUUID, { policy })
+    
+    expect(next.patch.nodes.length).to.equal(2)
+    expect(next.patch.nodes[0].state).to.equal('Working')
+
+    expect(next.watch.nodes.length).to.equal(0)
+    expect(next.watch.finished).to.be.true
+
+  })
+
   it("copy, dir/dir, ['skip', null] c8084071", async function () {
-    let user = watson.users.alice
     let c1 = await user.mktreeAsync({ 
       type: 'vfs', 
       drive: user.home.uuid, 
