@@ -468,7 +468,7 @@ class Repairing extends State {
         d.name = block.name
       }
     })
-    
+
     let vd = devices.find(d => d.name === volumeDevice[0].name)
     oldDevice = boundVolume.devices.find(d => d.model === vd.model && d.serial === vd.serial)
     if (!oldDevice) throw new Error('old device not found')
@@ -483,11 +483,11 @@ class Repairing extends State {
     if (!devices.find(d => d.name === oldDevice.name))
       throw new Error('devices not contain any old device')
 
-    for (let i = 0; i < deivces.length; i++) {
-      let block = storage.blocks.find(blk => blk.name === deivces[i].name)
-      if (!block) throw new Error(`device ${deivces[i]} not found`)
-      if (!block.isDisk) throw new Error(`device ${deivces[i]} is not a disk`)
-      if (block.unformattable) throw new Error(`device ${deivces[i]} is not formattable`)
+    for (let i = 0; i < devices.length; i++) {
+      let block = storage.blocks.find(blk => blk.name === devices[i].name)
+      if (!block) throw new Error(`device ${devices[i]} not found`)
+      if (!block.isDisk) throw new Error(`device ${devices[i]} is not a disk`)
+      if (block.unformattable) throw new Error(`device ${devices[i]} is not formattable`)
       devnames.push(Object.assign(devices[i], { devname:block.devname }))
     }
 
@@ -540,7 +540,7 @@ class Repairing extends State {
         callback(new Error('unable boundVolume mode'))
       })
     }
-    await umountBlocksAsync(storage, oldDevice.name)
+    await umountBlocksAsync(storage, [oldDevice.name])
     await child.execAsync(`mount -t btrfs UUID=${volume.uuid} ${volume.mountpoint}`)
   }
 
