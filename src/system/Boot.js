@@ -535,13 +535,8 @@ class Repairing extends State {
         }
       }
     } else {
-      return process.nextTick(() => {
-        this.setState(Probing)
-        callback(new Error('unable boundVolume mode'))
-      })
+      throw new Error('unsupport old mode')
     }
-    await umountBlocksAsync(storage, [oldDevice.name])
-    await child.execAsync(`mount -t btrfs UUID=${volume.uuid} ${volume.mountpoint}`)
 
     storage = await probeAsync(this.ctx.conf.storage)
     let newVolume = storage.volumes.find(v => v.uuid === volume.uuid)
@@ -552,9 +547,12 @@ class Repairing extends State {
       console.log(newVolume)
       throw new Error('volume usage not properly detected')
     }
+    console.log('=============')
+    console.log(newVolume)
+    console.log('=============')
     // update boundVolume
     let newBoundVolume = this.createBoundVolume(storage, newVolume)
-
+    console.log('=======newBoundVolume', newBoundVolume)
     return new Promise((resolve, reject) => {
       this.ctx.volumeStore.save(boundVolume, err => {
         if (err) {
