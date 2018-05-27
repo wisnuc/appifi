@@ -449,8 +449,9 @@ class Repairing extends State {
     volume = storage.volumes.find(v => v.uuid === volumeUUID)
     if (!volume) throw new Error('boundVolume not found')
     if (!volume.missing) throw new Error('volume is complete')
-    if (volume.devices.length !== 1) throw new Error('volume is complete')
-    
+    if (volume.devices.length !== 2) throw new Error('volume can not repair')
+    volumeDevice = volume.device.filter(d => !!d.name)
+    if (volumeDevice.length !== 1) throw new Error('volume can not repair, no block found')
     // vaildate
     devices.forEach(d => {
       if (isNonEmptyString(d.name)) {
@@ -469,9 +470,9 @@ class Repairing extends State {
       }
     })
 
-    oldDevice = boundVolume.devices.find(d => d.model === volume.devices[0].model && d.serial === volume.devices[0].serial)
+    oldDevice = boundVolume.devices.find(d => d.model === volumeDevice[0].model && d.serial === volumeDevice[0].serial)
     if (!oldDevice) throw new Error('old device not found')
-    oldDevice = Object.assign({}, oldDevice, volume.devices[0])
+    oldDevice = Object.assign({}, oldDevice, volumeDevice[0])
 
     console.log('=====================')
     console.log('OldDevice: ', oldDevice)
