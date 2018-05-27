@@ -449,7 +449,7 @@ class Repairing extends State {
     volume = storage.volumes.find(v => v.uuid === volumeUUID)
     if (!volume) throw new Error('boundVolume not found')
     if (!volume.missing) throw new Error('volume is complete')
-    volumeDevice = volume.device.filter(d => !!d.name)
+    volumeDevice = volume.devices.filter(d => !!d.name)
     if (volumeDevice.length !== 1) throw new Error('volume can not repair, no block found')
     // vaildate
     devices.forEach(d => {
