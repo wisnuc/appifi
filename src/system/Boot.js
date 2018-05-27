@@ -542,10 +542,29 @@ class Repairing extends State {
     }
     await umountBlocksAsync(storage, [oldDevice.name])
     await child.execAsync(`mount -t btrfs UUID=${volume.uuid} ${volume.mountpoint}`)
+
+    storage = await probeAsync(this.ctx.conf.storage)
+    let newVolume = storage.volumes.find(v => v.uuid === volume.uuid)
+    if (!newVolume) throw new Error('cannot find a volume containing expected block name')
+
+    // ensure bound volume data format
+    if (!newVolume.usage || !newVolume.usage.system || !newVolume.usage.metadata || !newVolume.usage.data) {
+      console.log(newVolume)
+      throw new Error('volume usage not properly detected')
+    }
+    // update boundVolume
+    let newBoundVolume = this.createBoundVolume(storage, newVolume)
+
+    return new Promise((resolve, reject) => {
+      this.ctx.volumeStore.save(boundVolume, err => {
+        if (err) {
+          reject(err)
+        } else {
+          resolve(boundVolume)
+        }
+      })
+    })
   }
-
-  // update boundVolume
-
 }
 
 /**
