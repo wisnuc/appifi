@@ -437,7 +437,7 @@ class Repairing extends State {
 
   async repairAsync (devices, mode) {
     
-    let storage, volume, boundVolume, oldDevice, devnames = []
+    let storage, volume, volumeDevice, boundVolume, oldDevice, devnames = []
 
     storage = await probeAsync(this.ctx.conf.storage)
 
