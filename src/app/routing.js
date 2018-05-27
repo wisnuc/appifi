@@ -74,7 +74,6 @@ module.exports = {
       ['/:taskUUID', 'PATCH', 'task'], // for stepper only
       ['/:taskUUID', 'DELETE', 'task'],
       ['/:taskUUID/nodes/:nodeUUID', 'PATCH', 'taskNode'],
-      ['/:taskUUID/nodes/:nodeUUID', 'DELETE', 'taskNode']
     ]
   },
 

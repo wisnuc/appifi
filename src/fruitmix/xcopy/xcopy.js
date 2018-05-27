@@ -281,7 +281,7 @@ class XCopy extends EventEmitter {
 
     let v = {
       uuid: this.uuid,
-      type: this.mode,
+      type: this.type,
       src: this.src,
       dst: this.dst,
       entries: this.entries,
@@ -302,6 +302,65 @@ class XCopy extends EventEmitter {
     } else {
       this.ctx.readdir(this.srcDriveUUID, srcDirUUID, callback)
     }
+  }
+
+  updateNode (nodeUUID, props, callback) {
+    if (!this.root) {
+      let err = new Error('node not found') 
+      err.status = 404
+      return process.nextTick(() => callback(err))
+    }
+
+    let node
+    this.root.visit(n => {
+      if (n.src.uuid === nodeUUID) {
+        node = n
+        return true
+      }
+    })
+
+    if (!node) {
+      let err = new Error('node not found')
+      err.status = 404
+      return process.nextTick(() => callback(err))
+    }
+
+    if (node.state.constructor.name !== 'Conflict') {
+      let err = new Error('invalid operation')
+      err.status = 403
+      return process.nextTick(() => callback(err))
+    }
+
+    // In stepping mode, update node is kicking the step machine
+    if (this.stepping && this.steppingState === 'Stopped') {
+      this.steppingState = 'Stepping'
+    }
+
+    node.updatePolicy(props.policy)
+
+    if (props.applyToAll === true) {
+      let { dir, file } = this.policies
+
+      if (node.constructor.name === 'XFile') {
+        let old = [...file]
+        if (policy[0]) file[0] = policy[0]
+        if (policy[1]) file[1] = policy[1]
+        if (file[0] !== old[0] || file[1] !== old[1]) 
+          this.root.visit(n => {
+            if (n.src.uuid !== nodeUUID) n.policyUpdated(file)
+          })
+      } else {
+        let oldPolicy = [...dir]
+        if (policy[0]) dir[0] = policy[0]
+        if (policy[1]) dir[1] = policy[1]
+        if (dir[0] !== old[0] || dir[1] !== old[1]) 
+          this.root.visit(n => {
+            if (n.src.uuid !== nodeUUID) n.policyUpdated(dir)
+          })
+      }
+    }
+
+    process.nextTick(() => callback(null, this.view()))
   }
 
   update (uuid, props, callback) {
@@ -327,26 +386,6 @@ class XCopy extends EventEmitter {
         else [...this.conflictFiles].forEach(n => n.retry())
       }
     } 
-
-    process.nextTick(() => callback(err))
-  }
-
-  delete (uuid, callback) {
-    let err = null
-    let node = this.root.find(n => n.src.uuid === uuid)
-    if (!node) {
-      // idempotent
-    } else if (node.root() === node) {
-      err = new Error(`root node cannot be deleted`)
-      err.code = 'EFORBIDDEN'
-      err.status = 403
-    } else if (node.getState() !== 'Failed') {
-      err = new Error(`node is not in Failed state`)
-      err.code = 'EFORBIDDEN'
-      err.status = 403
-    } else {
-      node.destroy()
-    }
 
     process.nextTick(() => callback(err))
   }

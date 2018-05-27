@@ -26,6 +26,8 @@ const fruitmixDir = path.join(tmptest, 'fruitmix')
 
 const FILES = require('../lib').FILES
 
+const { alonzo, foo } = FILES
+
 const alice = {
   uuid: 'cb33b5b3-dd58-470f-8ccc-92aa04d75590',
   username: 'alice',
@@ -103,8 +105,8 @@ class User {
     this.ctx.mkdir(this.token, drive, dir, name, callback)
   }
 
-  async mktreeAsync (drive, dir, children) {
-    await this.ctx.mktreeAsync(this.token, drive, dir, children)
+  async mktreeAsync (props) {
+    return await this.ctx.mktreeAsync(Object.assign({ token: this.token }, props))
   }
 
   mktree (drive, dir, children, callback) {
@@ -112,7 +114,6 @@ class User {
       .then(() => callback())
       .catch(e => callback(e))
   }
-
 
   post (url) {
     return request(this.ctx.app.express)
@@ -132,6 +133,14 @@ class User {
 
   async createTaskAsync (args) {
     return Promise.promisify(this.createTask).bind(this)(args)
+  }
+
+  patchTask (taskUUID, nodeUUID, args, callback) {
+    this.ctx.patchTask(this.token, taskUUID, nodeUUID, args, callback)
+  }
+
+  async patchTaskAsync (taskUUID, nodeUUID, args) {
+    return Promise.promisify(this.patchTask).bind(this)(taskUUID, nodeUUID, args)
   }
 
   stepTask (taskUUID, callback) {
@@ -206,6 +215,20 @@ class Watson {
       })
   }
 
+  nfsMkdir (token, driveId, dir, name, callback) {
+    request(this.app.express)
+      .post(`/phy-drives/${driveId}`)
+      .set('Authorization', 'JWT ' + token)
+      .query({ path: dir })
+      .field('directory', name)
+      .expect(200)
+      .end((err, res) => {
+        if (err) return callback(err)
+        console.log(res.body)
+        callback(null)
+      })
+  }
+
   newfile (token, driveUUID, dirUUID, name, file, size, sha256, callback) {
     request(this.app.express)
       .post(`/drives/${driveUUID}/dirs/${dirUUID}/entries`)
@@ -218,28 +241,68 @@ class Watson {
       })
   }
 
-  // previsit
+  nfsNewfile (token, driveId, dir, name, file, callback) {
+    request(this.app.express)
+      .post(`/phy-drives/${driveId}`)
+      .set('Authorization', 'JWT ' + token)
+      .query({ path: dir })
+      .attach('file', file, name)
+      .expect(200)
+      .end((err, res) => {
+        if (err) return callback(err)
+        callback(null)
+      })
+  }
+
+  /**
+  @param {string} parent - dir uuid for vfs, dir path for nfs
+  */ 
   async visitNode (node, parent, af) {
+    // vfs api returns xstat, nfs api returns nothing
     let xstat = await af(node, parent)
-    Object.assign(node, { xstat })
+    if (xstat) Object.assign(node, { xstat })
 
     let children = node.children
     if (children) {
-      for (let i = 0; i < children.length; i++) { await this.visitNode(children[i], xstat.uuid, af) }
+      for (let i = 0; i < children.length; i++) { 
+        if (xstat) {
+          await this.visitNode(children[i], xstat.uuid, af)
+        } else {
+          await this.visitNode(children[i], path.join(parent, node.name), af)
+        }
+      }
     }
   }
 
-  async mktreeAsync (token, drive, dir, children) {
-    for (let i = 0; i < children.length; i++) {
-      await this.visitNode(children[i], dir, async ({ type, name, file, size, sha256}, dir) =>
-        type === 'directory'
-          ? new Promise((resolve, reject) =>
-            this.mkdir(token, drive, dir, name, (err, xstat) =>
-              err ? reject(err) : resolve(xstat)))
-          : new Promise((resolve, reject) =>
-            this.newfile(token, drive, dir, name, file, size, sha256, (err, xstat) =>
-              err ? reject(err) : resolve(xstat))))
+  async mktreeAsync (props) {
+    let { token, type, drive, dir, children } = props
+    let cs = JSON.parse(JSON.stringify(children))
+
+    if (type === 'vfs') { 
+      for (let i = 0; i < cs.length; i++) {
+        await this.visitNode(cs[i], dir, async ({ type, name, file, size, sha256 }, dir) => 
+          type === 'directory'
+            ? new Promise((resolve, reject) => 
+                this.mkdir(token, drive, dir, name, (err, xstat) => 
+                  err ? reject(err) : resolve(xstat)))
+            : new Promise((resolve, reject) => 
+                this.newfile(token, drive, dir, name, file, size, sha256, (err, xstat) => 
+                  err ? reject(err) : resolve(xstat))))
+      }
+    } else {
+      for (let i = 0; i < cs.length; i++) {
+        await this.visitNode(cs[i], dir, async ({ type, name, file, size, sha256 }, dir) =>
+          type === 'directory'
+            ? new Promise((resolve, reject) => 
+                this.nfsMkdir(token, drive, dir, name, (err, stat) => 
+                  err ? reject(err) : resolve()))
+            : new Promise((resolve, reject) => 
+                this.nfsNewfile(token, drive, dir, name, file, (err, stat) => 
+                  err ? reject(err) : resolve())))
+      }
     }
+
+    return cs
   }
 
   xcopy (token, props, callback) {
@@ -253,7 +316,7 @@ class Watson {
       })
   }
 
-  stepTask(token, taskUUID, callback) {
+  stepTask (token, taskUUID, callback) {
     request(this.app.express)
       .patch(`/tasks/${taskUUID}`)
       .set('Authorization', 'JWT ' + token)
@@ -279,7 +342,7 @@ class Watson {
       })
   }
 
-  createTask(token, args, callback) {
+  createTask (token, args, callback) {
     request(this.app.express)
       .post('/tasks')
       .set('Authorization', 'JWT ' + token)
@@ -287,10 +350,148 @@ class Watson {
       .expect(200)
       .end((err, res) => err ? callback(err) : callback(null, res.body))
   }
+
+  patchTask (token, taskUUID, nodeUUID, args, callback) {
+    request(this.app.express)
+      .patch(`/tasks/${taskUUID}/nodes/${nodeUUID}`)
+      .set('Authorization', 'JWT ' + token)
+      .send(args)
+      .expect(200)
+      .end((err, res) => {
+        if (err) {
+          console.log('ERROR patchTask', err. res && res.body)
+          callback(err)
+        } else {
+          let patch = res.body
+          request(this.app.express)
+            .patch(`/tasks/${taskUUID}`)
+            .set('Authorization', 'JWT ' + token) 
+            .send({ op: 'watch' })
+            .expect(200)
+            .end((err, res) => {
+              if (err) return callback(err)
+              let watch = res.body
+              callback(null, { patch, watch })
+            })
+        }
+      })
+  }
 }
 
+/**
+This is the create Task operation spec function
+
+@param {object} a - predefined
+@param {object} b - parameter
+
+@returns c
+*/
+const assertTask = (args, task) => {
+
+  if (args.stepping === true) {
+    // missing uuid
+    expect(task.type).to.equal(args.type)
+    expect(task.src).to.deep.equal(args.src)
+    expect(task.dst).to.deep.equal(args.dst)
+    expect(task.entries).to.deep.equal(task.entries)
+    expect(task.nodes).to.deep.equal([])
+    expect(task.finished).to.be.false
+    expect(task.stepping).to.be.true
+    expect(task.steppingState).to.equal('Stopped')
+  } 
+}
+
+const cdir = [{ 
+  type: 'directory', 
+  name: 'foo' 
+}]
+
+const cfoo = [{
+  type: 'file',
+  name: 'foo',
+  file: foo.path,
+  size: foo.size,
+  sha256: foo.hash 
+}]
+
+const calonzo = [{
+  type: 'file',
+  name: 'foo',
+  file: alonzo.path,
+  size: alonzo.size,
+  sha256: alonzo.hash
+}]
+
+/**
+file, no conflict
+dir, no conflict
+
+file, target is file
+file, target is dir
+dir, target is file
+dir, target is dir
+*/
+const singletons = {
+  file: [
+    { type: 'directory', name: 'dst' },
+    { type: 'directory', name: 'src', children: calonzo }
+  ],
+
+  dir: [
+    { type: 'directory', name: 'dst' },
+    { type: 'directory', name: 'src', children: cdir }
+  ],
+
+  fileFile: [
+    { type: 'directory', name: 'dst', children: cfoo },
+    { type: 'directory', name: 'src', children: calonzo } 
+  ],
+
+  fileDir: [
+    { type: 'directory', name: 'dst', children: cdir },
+    { type: 'directory', name: 'src', children: calonzo } 
+  ],
+
+  dirFile: [
+    { type: 'directory', name: 'dst', children: cfoo },
+    { type: 'directory', name: 'src', children: cdir } 
+  ],
+
+  dirDir: [
+    { type: 'directory', name: 'dst', children: cdir },
+    { type: 'directory', name: 'src', children: cdir } 
+  ],
+} 
+
+/**
+const children = [
+  { 
+    type: 'directory', 
+    name: 'dst' 
+  },
+  { type: 'directory',
+    name: 'src',
+    children: [
+      {
+        type: 'directory',
+        name: 'foo'
+      },
+      { 
+        type: 'file', 
+        name: 'bar', 
+        file: alonzo.path, 
+        size: alonzo.size, 
+        sha256: alonzo.hash 
+      }
+    ]
+  }
+]
+**/
+
+
 describe('xcopy task', () => {
-  let watson
+
+  let watson, user
 
   beforeEach(async () => {
     await rimrafAsync(tmptest)
@@ -312,133 +513,166 @@ describe('xcopy task', () => {
         err ? reject(err) : resolve()))
 
     fruitmix.nfs.update(fake.storage)
+
+    user = watson.users.alice
   })
 
-  it.skip('do something', function (done) {
-    this.timeout(10000)
-
-    let alice = watson.users.alice
-    let alonzo = FILES.alonzo
-    let children = [
-      {
-        type: 'directory',
-        name: 'hello'
-      },
-      {
-        type: 'directory',
-        name: 'world',
-        children: [
-          {
-            type: 'directory',
-            name: 'foo'
-          },
-          {
-            type: 'file',
-            name: 'bar',
-            file: alonzo.path,
-            size: alonzo.size,
-            sha256: alonzo.hash
-          }
-        ]
-      }
-    ]
-
-    alice.mktree(alice.home.uuid, alice.home.uuid, children, err => {
-      if (err) return done(err)
-
-      let args = {
-        type: 'copy',
-        src: {
-          drive: alice.home.uuid,
-          dir: children[1].xstat.uuid
-        },
-        dst: {
-          drive: alice.home.uuid,
-          dir: children[0].xstat.uuid
-        },
-        entries: ['foo'],
-        stepping: true
-      }
-
-
-      alice.post('/tasks')
-        .send(args)
-        .expect(200)
-        .end((err, res) => {
-          if (err) return done(err)
-          let task = res.body
-          expect(task.stepping).to.be.true
-          expect(task.steppingState).to.equal('Stopped')
-
-          alice.stepTask(task.uuid, (err, rs) => {
-            if (err) return done(err)
-            let { step, watch } = rs
-            console.log(step, watch)
-            done()
-          })
-        })
+  it('copy, file, no conflict', async function () {
+    let c1 = await user.mktreeAsync({ 
+      type: 'vfs', 
+      drive: user.home.uuid, 
+      dir: user.home.uuid,
+      children: singletons.file
     })
-  })
 
-  it('do something else', async function () {
-    this.timeout(10000)
+    // let c2 = await user.mktreeAsync({ type: 'nfs', drive: UUIDDE, dir: '', children })
 
-    let alice = watson.users.alice
-    let alonzo = FILES.alonzo
-    let children = [
-      { type: 'directory', name: 'hello' },
-      { type: 'directory', name: 'world',
-        children: [
-          {
-            type: 'directory',
-            name: 'foo',
-            children: [
-              { type: 'directory', name: 'dir0' },
-              { type: 'directory', name: 'dir1' },
-              { type: 'directory', name: 'dir2' },
-              { type: 'directory', name: 'dir3' },
-              { type: 'directory', name: 'dir4' },
-              { type: 'directory', name: 'dir5' },
-              { type: 'directory', name: 'dir6' },
-              { type: 'directory', name: 'dir7' },
-            ]
-          },
-          { type: 'file', name: 'bar0', file: alonzo.path, size: alonzo.size, sha256: alonzo.hash },
-          { type: 'file', name: 'bar1', file: alonzo.path, size: alonzo.size, sha256: alonzo.hash },
-          { type: 'file', name: 'bar2', file: alonzo.path, size: alonzo.size, sha256: alonzo.hash },
-          { type: 'file', name: 'bar3', file: alonzo.path, size: alonzo.size, sha256: alonzo.hash },
-          { type: 'file', name: 'bar4', file: alonzo.path, size: alonzo.size, sha256: alonzo.hash },
-          { type: 'file', name: 'bar5', file: alonzo.path, size: alonzo.size, sha256: alonzo.hash },
-          { type: 'file', name: 'bar6', file: alonzo.path, size: alonzo.size, sha256: alonzo.hash },
-          { type: 'file', name: 'bar7', file: alonzo.path, size: alonzo.size, sha256: alonzo.hash },
-        ]
-      }
-    ]
-
-    await alice.mktreeAsync(alice.home.uuid, alice.home.uuid, children)
-
-    let args = {
+    let copyArgs = {
       type: 'copy',
       src: {
-        drive: alice.home.uuid,
-        dir: children[1].xstat.uuid
+        drive: user.home.uuid,
+        dir: c1[1].xstat.uuid
       },
       dst: {
-        drive: alice.home.uuid,
-        dir: children[0].xstat.uuid
+        drive: user.home.uuid,
+        dir: c1[0].xstat.uuid
       },
-      entries: ['foo', 'bar0', 'bar1', 'bar2', 'bar3', 'bar4', 'bar5', 'bar6', 'bar7'],
+      entries: ['foo'],
       stepping: true
     }
 
     let task, next
-    task = await alice.createTaskAsync(args)
-    console.log(':: task ::', task)
- 
-    do { 
-      next = await alice.stepTaskAsync(task.uuid)
-      console.log(':: next ::', JSON.stringify(next, null, '  '))
-    } while (!next.watch.finished)
+    task = await user.createTaskAsync(copyArgs)
+
+    assertTask(copyArgs, task)
+
+    // first
+    next = await user.stepTaskAsync(task.uuid)
+
+    // first step, root @ Preparting
+    expect(next.step.nodes.length).to.equal(1)
+    expect(next.step.nodes[0].state).to.equal('Preparing')
+
+    // first watch, root @ Parent
+    expect(next.watch.nodes.length).to.equal(1)
+    expect(next.watch.nodes[0].state).to.equal('Parent')
+
+    // second
+    next = await user.stepTaskAsync(task.uuid)
+
+    // second step, root @ Parent, foo @ Working
+    expect(next.step.nodes.length === 2)
+    expect(next.step.nodes.find(n => !n.parent).state).to.equal('Parent')
+    expect(next.step.nodes.find(n => n.src.name === 'foo').state).to.equal('Working')
+
+    // second watch, nothing
+    expect(next.watch.nodes.length === 0)
+    expect(next.watch.finished).to.be.true 
     
+    // TODO assert file system 
   })
+
+//    let c2 = await user.mktreeAsync({ type: 'nfs', drive: UUIDDE, dir: '', children })
+
+  it('copy, dir, no conflict', async function () {
+    let user = watson.users.alice
+    let c1 = await user.mktreeAsync({ 
+      type: 'vfs', 
+      drive: user.home.uuid, 
+      dir: user.home.uuid,
+      children: singletons.dir
+    })
+
+    let copyArgs = {
+      type: 'copy',
+      src: {
+        drive: user.home.uuid,
+        dir: c1[1].xstat.uuid
+      },
+      dst: {
+        drive: user.home.uuid,
+        dir: c1[0].xstat.uuid
+      },
+      entries: ['foo'],
+      stepping: true
+    }
+
+    let task, next
+    task = await user.createTaskAsync(copyArgs)
+
+    assertTask(copyArgs, task) 
+
+    next = await user.stepTaskAsync(task.uuid)
+ 
+    // first step, root @ Preparing
+    expect(next.step.nodes.length).to.equal(1)
+    expect(next.step.nodes[0].state).to.equal('Preparing')
+
+    // first watch, root @ Parent
+    expect(next.watch.nodes.length).to.equal(1)
+    expect(next.watch.nodes[0].state).to.equal('Parent')
+
+    next = await user.stepTaskAsync(task.uuid)
+
+    expect(next.step.nodes.length).to.equal(2)
+    expect(next.step.nodes[0].state).to.equal('Preparing')
+    expect(next.step.nodes[1].state).to.equal('Parent')
+
+    expect(next.watch.nodes).to.deep.equal([])
+    expect(next.watch.finished).to.be.true
+
+    // TODO assert file system
+  })
+
+  it("copy, dir/dir, ['skip', null] c8084071", async function () {
+    let user = watson.users.alice
+    let c1 = await user.mktreeAsync({ 
+      type: 'vfs', 
+      drive: user.home.uuid, 
+      dir: user.home.uuid,
+      children: singletons.dirDir
+    })
+
+    let copyArgs = {
+      type: 'copy',
+      src: {
+        drive: user.home.uuid,
+        dir: c1[1].xstat.uuid
+      },
+      dst: {
+        drive: user.home.uuid,
+        dir: c1[0].xstat.uuid
+      },
+      entries: ['foo'],
+      stepping: true
+    }
+
+    let task, next
+    task = await user.createTaskAsync(copyArgs)
+
+    assertTask(copyArgs, task)
+
+    next = await user.stepTaskAsync(task.uuid)
+
+    // first step, root @ Preparing
+    expect(next.step.nodes.length).to.equal(1)
+    expect(next.step.nodes[0].state).to.equal('Preparing')
+
+    // first watch, root @ Parent
+    expect(next.watch.nodes.length).to.equal(2)
+    expect(next.watch.nodes[0].state).to.equal('Conflict')
+    expect(next.watch.nodes[1].state).to.equal('Parent')
+
+    let nodeUUID = next.watch.nodes[0].src.uuid
+    let policy = ['skip', null]
+    next = await user.patchTaskAsync(task.uuid, nodeUUID, { policy })
+
+    expect(next.patch.nodes.length).to.equal(2)
+    expect(next.patch.nodes[0].state).to.equal('Mkdir')
+    
+    expect(next.watch.nodes.length).to.equal(0)
+
+  })
+
+
 })

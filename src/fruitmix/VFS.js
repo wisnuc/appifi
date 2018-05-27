@@ -1112,6 +1112,9 @@ class VFS extends EventEmitter {
     })
   }
 
+  MKDIR (user, props, callback) {
+  }
+
   /**
   
   @param {object} user
@@ -1243,21 +1246,21 @@ class VFS extends EventEmitter {
         let tmp = this.genTmpPath()
         clone(srcFilePath, src.uuid, tmp, (err, xstat) => {
           if (err) return callback(err)
-          mkfile(dstFilePath, tmp, xstat.hash, policy, (err, xstats, resolved) => {
+          mkfile(dstFilePath, tmp, xstat.hash, policy, (err, xstat, resolved) => {
             rimraf(tmp, () => {})
             if (err) return callback(err)
-
-            if (!xstat || (policy[0] === 'skip' && xstat && resolved[0])) return
-            else {
+            if (!xstat || (policy[0] === 'skip' && xstat && resolved[0])) {
+              callback(null)
+            } else {
               try {
                 let attr = JSON.parse(xattr.getSync(srcFilePath, 'user.fruitmix'))
-                attr.uuid = xstats.uuid
+                attr.uuid = xstat.uuid
                 xattr.setSync(dstFilePath, 'user.fruitmix', JSON.stringify(attr))
               } catch (e) {
                 if (e.code !== 'ENODATA') return callback(e)
               }
+              callback(null)
             }
-            callback(null)
           })
         })
            
