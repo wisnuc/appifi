@@ -79,18 +79,19 @@ class Working extends State {
 
       case 'move': {
         let src = {
+          drive: this.ctx.ctx.src.drive,
           dir: this.ctx.parent.src.uuid,
           uuid: this.ctx.src.uuid,
           name: this.ctx.src.name
         }
 
         let dst = {
+          drive: this.ctx.ctx.dst.drive,
           dir: this.ctx.parent.dst.uuid
         }
 
         let policy = this.ctx.getPolicy()
-
-        this.ctx.ctx.mvfile(src, dst, policy, (err, xstat, resolved) => {
+        this.ctx.ctx.vfs.MVFILE(this.ctx.ctx.user, { src, dst, policy }, (err, xstat, resolved) => {
           if (this.destroyed) return
           if (err && err.code === 'EEXIST') {
             this.setState(Conflict, err, policy)
@@ -100,6 +101,7 @@ class Working extends State {
             this.setState(Finish)
           }
         })
+
       } break
 
       case 'import': {

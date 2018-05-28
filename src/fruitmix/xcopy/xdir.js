@@ -95,6 +95,8 @@ class Mkdir extends State {
     })
   }
 
+  /**
+  */
   mkdir (policy, callback) {
     if (this.ctx.ctx.type === 'copy') {
       let name = this.ctx.src.name
@@ -149,52 +151,6 @@ class Conflict extends State {
 }
 
 /**
-`Read` state for directory sub-task
-
-*/
-/**
-class Read extends State {
-
-  enter (xstats) {
-    this.dstats = xstats.filter(x => x.type === 'directory')
-    this.fstats = xstats.filter(x => x.type === 'file')
-    this.next()
-  }
-
-  next () {
-    // if task is distroied, the rest files won't enter task queue
-    if (!this.ctx.ctx) return
-    if (this.fstats.length) {
-      let stat = this.fstats.shift()
-      let sub = this.ctx.createSubTask(stat)
-      sub.once('Conflict', () => this.next())
-      sub.once('Failed', () => this.next())
-      sub.once('Finished', () => (sub.destroy(), this.next()))
-      return
-    }
-
-    if (this.dstats.length) {
-      let stat = this.dstats.shift()
-      let sub = this.ctx.createSubTask(stat)
-      sub.once('Conflict', () => this.next())
-      sub.once('Failed', () => this.next())
-      sub.once('Finished', () => (sub.destroy(), this.next()))
-      return
-    }
-
-    if (this.ctx.children.length === 0) {
-      this.setState('Finished')
-    }
-
-    if (this.fstats.length === 0 && this.dstats.length === 0 && this.ctx.children.length !== 0) {
-      if (this.ctx.parent) this.ctx.parent.state.next()
-    }
-  }
-
-}
-**/
-
-/**
 Preparing state has target dir ready.
 
 1. read source dir entries
@@ -208,7 +164,7 @@ class Preparing extends State {
       if (err) {
         debug(err.message)
         this.setState(Failed)
-      } else {
+      } else if (this.ctx.ctx.type === 'copy') {
         let fstats = []
         let dstats = []
 
@@ -247,6 +203,51 @@ class Preparing extends State {
               // TODO log failed
 
               // remove failed
+              let dstats2 = dstats.filter(x => (x.dst.err && x.dst.err.code === 'EEXIST') || !x.dst.err)
+
+              if (dstats2.length === 0 && fstats.length === 0) {
+                this.setState(Finished)
+              } else {
+                this.setState(Parent, dstats2, fstats)
+              }
+            }
+          })
+        }
+      } else { // move
+        let fstats = []
+        let dstats = []
+
+        if (this.ctx.parent === null) { // root dir
+          this.ctx.ctx.entries.forEach(entry => {
+            let stat = stats.find(x => x.name === entry)
+            if (stat) {
+              if (stat.type === 'directory') {
+                dstats.push(stat)
+              } else {
+                fstats.push(stat)
+              }
+            } else {
+              // TODO
+            }
+          })
+        } else {
+          fstats = stats.filter(x => x.type === 'file')
+          dstats = stats.filter(x => x.type === 'directory')
+        }
+
+        if (dstats.length === 0 && fstats.length === 0) {
+          this.setState(Finish)
+        } else if (dstats.length === 0) {
+          this.setState(Parent, dstats, fstats)
+        } else {
+          let names = dstats.map(x => x.name)
+          this.ctx.mvdirs(names, (err, map) => {
+            if (err) {
+              debug('xdir mvdirs failed', err, names) 
+              this.setState(Failed, err)
+            } else {
+              dstats.forEach(x => x.dst = map.get(x.name))
+
               let dstats2 = dstats.filter(x => (x.dst.err && x.dst.err.code === 'EEXIST') || !x.dst.err)
 
               if (dstats2.length === 0 && fstats.length === 0) {
@@ -475,12 +476,11 @@ class XDir extends Node {
   }
 
   readdir (callback) {
-    if (this.ctx.type === 'copy') {
+    if (this.ctx.type === 'copy' || this.ctx.type === 'move') {
       let props = {
         driveUUID: this.ctx.src.drive,
         dirUUID: this.src.uuid
       }
-
       this.ctx.vfs.READDIR(this.ctx.user, props, callback)
     } else {
       let err = new Error('not implemented yet')
@@ -501,6 +501,13 @@ class XDir extends Node {
 
       this.ctx.vfs.MKDIRS(this.ctx.user, props, callback)
     }
+  }
+
+  mvdirs (names, callback) {
+    let src = { drive: this.ctx.src.drive, dir: this.src.uuid }
+    let dst = { drive: this.ctx.dst.drive, dir: this.dst.uuid }
+    let policy = this.getPolicy()
+    this.ctx.vfs.MVDIRS(this.ctx.user, { src, dst, names, policy }, callback)
   }
 }
 

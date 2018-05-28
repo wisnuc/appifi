@@ -704,5 +704,95 @@ describe('xcopy task', () => {
 
   })
 
+  it('move, file, no conflict', async function () {
+    let c1 = await user.mktreeAsync({
+      type: 'vfs',
+      drive: user.home.uuid,
+      dir: user.home.uuid,
+      children: singletons.file
+    })
+
+    let moveArgs = {
+      type: 'move',
+      src: {
+        drive: user.home.uuid,
+        dir: c1[1].xstat.uuid, 
+      },
+      dst: {
+        drive: user.home.uuid,
+        dir: c1[0].xstat.uuid
+      },
+      entries: ['foo'],
+      stepping: true
+    }
+
+    let task, next
+    task = await user.createTaskAsync(moveArgs)
+
+    assertTask(moveArgs, task)
+
+    next = await user.stepTaskAsync(task.uuid)
+
+    // only file, no mvdirs
+    expect(next.step.nodes.length).to.equal(1)
+    expect(next.step.nodes[0].state).to.equal('Preparing') 
+    expect(next.watch.nodes.length).to.equal(1)
+    expect(next.watch.nodes[0].state).to.equal('Parent')
+
+    next = await user.stepTaskAsync(task.uuid)
+
+    expect(next.step.nodes.length).to.equal(2)
+    expect(next.step.nodes[0].state).to.equal('Working') // moving
+
+    expect(next.watch.nodes.length).to.equal(0) // finish
+  })
+
+  it('move, dir, no conflict, a1ad01e3', async function () {
+    let c1 = await user.mktreeAsync({
+      type: 'vfs',
+      drive: user.home.uuid,
+      dir: user.home.uuid,
+      children: singletons.dir
+    })
+
+    let moveArgs = {
+      type: 'move',
+      src: {
+        drive: user.home.uuid,
+        dir: c1[1].xstat.uuid, 
+      },
+      dst: {
+        drive: user.home.uuid,
+        dir: c1[0].xstat.uuid
+      },
+      entries: ['foo'],
+      stepping: true
+    }
+
+    let task, next
+    task = await user.createTaskAsync(moveArgs)
+
+    assertTask(moveArgs, task)
+
+    next = await user.stepTaskAsync(task.uuid)
+
+    // root preparing
+    expect(next.step.nodes.length).to.equal(1)
+    expect(next.step.nodes[0].state).to.equal('Preparing')
+
+    // root parent
+    expect(next.watch.nodes.length).to.equal(1)
+    expect(next.watch.nodes[0].state).to.equal('Parent')
+
+    next = await user.stepTaskAsync(task.uuid)
+
+    // foo preparing
+    expect(next.step.nodes.length).to.equal(2)
+    expect(next.step.nodes[0].state).to.equal('Preparing')
+
+    // foo finished and root finished
+    expect(next.watch.nodes.length).to.equal(0)
+  })
+
 
 })
