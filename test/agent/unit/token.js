@@ -10,6 +10,7 @@ const createApp = require('src/system/express')
 
 const alice = {
   uuid: 'cb33b5b3-dd58-470f-8ccc-92aa04d75590',
+  status: 'ACTIVE',
   disabled: false,
   password: '$2a$10$nUmDoy9SDdkPlj9yuYf2HulnbtvbF0Ei6rGF1G1UKUkJcldINaJVy' // password: 'alice'
 }
@@ -73,7 +74,7 @@ describe(path.basename(__filename), () => {
         .end(done)
     })
 
-    it("should return alice's token", done => {
+    it("should return alice's token, ab5f170e", done => {
       request(createApp1())
         .get('/token')
         .auth(alice.uuid, 'alice')

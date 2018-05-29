@@ -40,11 +40,7 @@ class State {
     this.destroyed = true
   }
 
-  // this is a pending state specific method
-  run () { }
-
-  // this is a conflict state specific method
-  updatePolicy (policy) {
+  policyUpdated () {
   }
 
   view () {
@@ -83,18 +79,19 @@ class Working extends State {
 
       case 'move': {
         let src = {
+          drive: this.ctx.ctx.src.drive,
           dir: this.ctx.parent.src.uuid,
           uuid: this.ctx.src.uuid,
           name: this.ctx.src.name
         }
 
         let dst = {
+          drive: this.ctx.ctx.dst.drive,
           dir: this.ctx.parent.dst.uuid
         }
 
         let policy = this.ctx.getPolicy()
-
-        this.ctx.ctx.mvfile(src, dst, policy, (err, xstat, resolved) => {
+        this.ctx.ctx.vfs.MVFILE(this.ctx.ctx.user, { src, dst, policy }, (err, xstat, resolved) => {
           if (this.destroyed) return
           if (err && err.code === 'EEXIST') {
             this.setState(Conflict, err, policy)
@@ -104,6 +101,7 @@ class Working extends State {
             this.setState(Finish)
           }
         })
+
       } break
 
       case 'import': {
@@ -187,7 +185,6 @@ class Working extends State {
 
 class Conflict extends State {
   enter (err, policy) {
-    this.ctx.ctx.indexConflictFile(this.ctx)
     this.err = err
     this.policy = policy
   }
@@ -197,10 +194,13 @@ class Conflict extends State {
       error: {
         code: this.err.code,
         xcode: this.err.xcode,
-        message: this.err.message
       },
       policy: this.policy
     }
+  }
+
+  policyUpdated () {
+    this.setState(Working)
   }
 }
 
@@ -229,6 +229,7 @@ class XFile extends Node {
   constructor (ctx, parent, src) {
     super(ctx, parent)
     this.src = src
+    this.policy = [null, null]
     this.state = new Working(this)
   }
 
@@ -241,6 +242,17 @@ class XFile extends Node {
       this.policy[0] || this.ctx.policies.file[0] || null,
       this.policy[1] || this.ctx.policies.file[1] || null
     ]
+  }
+
+  updatePolicy (policy) {
+    if (this.state.constructor.name !== 'Conflict') return
+    this.policy[0] = policy[0] || this.policy[0]
+    this.policy[1] = policy[1] || this.policy[1]
+    this.state.policyUpdated()
+  }
+
+  policyUpdated (policy) {
+    this.state.policyUpdated()
   }
 }
 

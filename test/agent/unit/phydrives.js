@@ -567,6 +567,11 @@ describe(path.basename(__filename), () => {
           .field('directory', 'hello')
           .expect(200)
           .end((err, res) => {
+
+            console.log('======')
+            console.log(res.body)
+            console.log('======')
+
             if (err) return done(err)
             let dirPath = path.join(tmptest, 'sdde', 'hello')
             expect(fs.lstatSync(dirPath).isDirectory()).to.be.true
