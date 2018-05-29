@@ -571,7 +571,7 @@ class Repairing extends State {
     if (supportMode.indexOf(mode) === -1) throw new Error('mode error')
 
     // verify devices and generate 
-    let { volume, devices, oldDevice, devnames } = await this.verifyDevices(devs)
+    let { volume, devices, oldDevice, devnames, oldMode } = await this.verifyDevices(devs)
 
     // mount need repair volume as degraded mode
     await this.mountRVolume(devices.map(d => d.name), oldDevice.path, volume.mountpoint)
