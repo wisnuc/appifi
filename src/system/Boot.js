@@ -229,7 +229,7 @@ class Started extends State {
       props: {}
     }
     this.jobs.push(job)
-    reqSchedJob ()
+    this.reqSchedJob()
   }
 
   exit () {
