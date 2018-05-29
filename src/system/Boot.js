@@ -424,17 +424,18 @@ class Repairing extends State {
   enter (devices, mode, callback) {
     this.repairAsync(devices, mode)
       .then(data => {
-        console.log('init success, go to Probing')
+        console.log('repair success, go to Probing')
         this.setState(Probing)
         callback(null, data)
       })
       .catch(e => {
-        console.log(e)
+        console.log('repair failed, ', e)
         this.setState(Probing)
         callback(e)
       })
   }
-
+  
+  /*  
   async repairAsync (devices, mode) {
     
     let storage, volume, volumeDevice, boundVolume, oldDevice, devnames = []
@@ -540,6 +541,167 @@ class Repairing extends State {
 
     storage = await probeAsync(this.ctx.conf.storage)
     let newVolume = storage.volumes.find(v => v.uuid === volume.uuid)
+    if (!newVolume) throw new Error('cannot find a volume containing expected block name')
+
+    // ensure bound volume data format
+    if (!newVolume.usage || !newVolume.usage.system || !newVolume.usage.metadata || !newVolume.usage.data) {
+      console.log(newVolume)
+      throw new Error('volume usage not properly detected')
+    }
+    console.log('=============')
+    console.log(newVolume)
+    console.log('=============')
+    // update boundVolume
+    let newBoundVolume = this.createBoundVolume(storage, newVolume)
+    console.log('=======newBoundVolume', newBoundVolume)
+    return new Promise((resolve, reject) => {
+      this.ctx.volumeStore.save(newBoundVolume, err => {
+        if (err) {
+          reject(err)
+        } else {
+          resolve(newBoundVolume)
+        }
+      })
+    })
+  }
+  */
+
+  async repairAsync (devices, mode) {
+    let supportMode = ['single', 'raid1']
+    if (supportMode.indexOf(mode) === -1) throw new Error('mode error')
+
+    // verify devices and generate 
+    let { volume, devices, oldDevice, devnames } = await this.verifyDevices(devices)
+
+    // mount need repair volume as degraded mode
+    await this.mountRVolume(devices.map(d => d.name), oldDevice.path, volume.mountpoint)
+
+    // do repair
+    await this.doRepairAsync({ oldMode, devices, mountpoint: volume.mountpoint, devnames, oldDevice }, mode)
+
+    await this.saveBoundVolumeAsync(volume.uuid)
+  }
+
+  /**
+   * step 1 , verify devices
+   * @param {array} devices
+   * {
+   *  volume, // need repair volume
+   *  devices, // devices
+   *  oldDevice, // device in volume which can work again, assgin (boundVolume and volume)
+   *  devnames, // devices items's devnames
+   * } 
+   */
+  async verifyDevices (devices) {
+    let storage, volume, volumeDevice, boundVolume, oldDevice, devnames = []
+
+    storage = await probeAsync(this.ctx.conf.storage)
+
+    boundVolume = this.ctx.volumeStore.data
+    if (!boundVolume) throw new Error('have not bound volume')
+    if (boundVolume.devices.length !== 2) throw new Error('boundVolume only 1 device')
+    let volumeUUID = boundVolume.uuid
+
+    volume = storage.volumes.find(v => v.uuid === volumeUUID)
+    if (!volume) throw new Error('boundVolume not found')
+    if (!volume.missing) throw new Error('volume is complete')
+    volumeDevice = volume.devices.filter(d => !!d.name)
+    if (volumeDevice.length !== 1) throw new Error('volume can not repair, no block found')
+    // vaildate
+    devices.forEach(d => {
+      if (isNonEmptyString(d.name)) {
+        let block = storage.blocks.find(b => b.name === d.name)
+        if (!block) throw new Error(`device ${ d.name } not found`)
+        if (isNonEmptyString(d.model)) {
+          if (block.model !== d.model) throw new Error(d.name + ' model mismatch')
+          if (block.serial !== d.serial) throw new Error(d.name + ' serial mismatch')
+        }
+        d.model = block.model
+        d.serial = block.serial
+      } else {
+        let block = storage.blocks.find(b => b.model === d.model && b.serial === d.serial)
+        if (!block) throw new Error('device not found')
+        d.name = block.name
+      }
+    })
+
+    let vd = devices.find(d => d.name === volumeDevice[0].name)
+    oldDevice = boundVolume.devices.find(d => d.model === vd.model && d.serial === vd.serial)
+    if (!oldDevice) throw new Error('old device not found')
+    oldDevice = Object.assign({}, oldDevice, volumeDevice[0])
+
+    console.log('=====================')
+    console.log('OldDevice: ', oldDevice)
+
+    console.log('Devices: ', devices)
+    console.log('=====================')
+
+    if (!devices.find(d => d.name === oldDevice.name))
+      throw new Error('devices not contain any old device')
+
+    for (let i = 0; i < devices.length; i++) {
+      let block = storage.blocks.find(blk => blk.name === devices[i].name)
+      if (!block) throw new Error(`device ${devices[i]} not found`)
+      if (!block.isDisk) throw new Error(`device ${devices[i]} is not a disk`)
+      if (block.unformattable) throw new Error(`device ${devices[i]} is not formattable`)
+      devnames.push(Object.assign(devices[i], { devname:block.devname }))
+    }
+
+    let oldMode = boundVolume.usage.data.mode.toLowerCase()
+
+    return { volume, devices, oldDevice, devnames, oldMode }
+  }
+
+  async mountRVolume (deviceNames, path, mountpoint) {
+    let storage = await probeAsync(this.ctx.conf.storage)
+    await umountBlocksAsync(storage, deviceNames)
+    // mount as degraded
+    try {
+      await child.execAsync(`mount -t btrfs -o degraded ${ path } ${ mountpoint }`)
+    } catch(e) {
+      Promise.delay(100)
+      await child.execAsync(`mount -t btrfs -o degraded ${ path } ${ mountpoint }`)
+    }
+    await child.execAsync('partprobe')
+  }
+
+  async doRepairAsync ({ oldMode, devices, mountpoint, devnames, oldDevice }, mode) {
+    if (oldMode === 'single') {
+      if (devices.length == 1) {
+        if (mode !== 'single') throw new Error('Only can make single in one device')
+        await child.execAsync(`btrfs balance start -f -mconvert=single ${ mountpoint }`)
+        await child.execAsync(`btrfs device delete missing ${ mountpoint }`)
+        await child.execAsync(`btrfs balance start -f -mconvert=dup ${ mountpoint }`)
+      } else {
+        let addDevice = devnames.filter(d => d.name !== oldDevice.name ).map(v => v.devname)
+        await child.execAsync(`btrfs device add -f ${ addDevice.join(' ') } ${ mountpoint }`)
+        await child.execAsync(`btrfs device delete missing ${ mountpoint }`)
+        if (!mode === 'single') { // raid1
+          await child.execAsync(`btrfs balance start -f -dconvert=raid1 ${ mountpoint }`)
+        }
+      }
+    } else if (oldMode === 'raid1') {
+      if (devices.length == 1) {
+        if (mode !== 'single') throw new Error('Only can make single in one device')
+        await child.execAsync(`btrfs balance start -f -mconvert=single -dconvert=single ${ mountpoint }`)
+        await child.execAsync(`btrfs device delete missing ${ mountpoint }`)
+        await child.execAsync(`btrfs balance start -f -mconvert=dup ${ mountpoint }`)
+      } else {
+        let addDevice = devnames.filter(d => d.name !== oldDevice.name ).map(v => v.devname)
+        await child.execAsync(`btrfs device add -f ${ addDevice.join(' ') } ${ mountpoint }`)
+        await child.execAsync(`btrfs device delete missing ${ mountpoint }`)
+        if (mode === 'single') { // raid1
+          await child.execAsync(`btrfs balance start -f -dconvert=single  ${ mountpoint }`)
+        }
+      }
+    } else {
+      throw new Error('unsupport old mode')
+    }
+  }
+
+  async saveBoundVolumeAsync (volumeUUID) {
+    let storage = await probeAsync(this.ctx.conf.storage)
+    let newVolume = storage.volumes.find(v => v.uuid === volumeUUID)
     if (!newVolume) throw new Error('cannot find a volume containing expected block name')
 
     // ensure bound volume data format
