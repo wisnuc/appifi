@@ -247,9 +247,7 @@ class Preparing extends State {
               this.setState(Failed, err)
             } else {
               dstats.forEach(x => x.dst = map.get(x.name))
-
               let dstats2 = dstats.filter(x => (x.dst.err && x.dst.err.code === 'EEXIST') || !x.dst.err)
-
               if (dstats2.length === 0 && fstats.length === 0) {
                 this.setState(Finished)
               } else {
