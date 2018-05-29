@@ -424,19 +424,44 @@ class Repairing extends State {
   enter (devices, mode, callback) {
     this.repairAsync(devices, mode)
       .then(data => {
-        console.log('init success, go to Probing')
+        console.log('repair success, go to Probing')
         this.setState(Probing)
         callback(null, data)
       })
       .catch(e => {
-        console.log(e)
+        console.log('repair failed, ', e)
         this.setState(Probing)
         callback(e)
       })
   }
 
-  async repairAsync (devices, mode) {
-    
+  async repairAsync (devs, mode) {
+    let supportMode = ['single', 'raid1']
+    if (supportMode.indexOf(mode) === -1) throw new Error('mode error')
+
+    // verify devices and generate 
+    let { volume, devices, oldDevice, devnames, oldMode } = await this.verifyDevices(devs)
+
+    // mount need repair volume as degraded mode
+    await this.mountRVolume(devices.map(d => d.name), oldDevice.path, volume.mountpoint)
+
+    // do repair
+    await this.doRepairAsync({ oldMode, devices, mountpoint: volume.mountpoint, devnames, oldDevice }, mode)
+
+    return await this.saveBoundVolumeAsync(volume.uuid)
+  }
+
+  /**
+   * step 1 , verify devices
+   * @param {array} devices
+   * {
+   *  volume, // need repair volume
+   *  devices, // devices
+   *  oldDevice, // device in volume which can work again, assgin (boundVolume and volume)
+   *  devnames, // devices items's devnames
+   * } 
+   */
+  async verifyDevices (devices) {
     let storage, volume, volumeDevice, boundVolume, oldDevice, devnames = []
 
     storage = await probeAsync(this.ctx.conf.storage)
@@ -492,54 +517,60 @@ class Repairing extends State {
     }
 
     let oldMode = boundVolume.usage.data.mode.toLowerCase()
-    let supportMode = ['single', 'raid1']
-    
-    if (supportMode.indexOf(mode) === -1) throw new Error('mode error')
 
-    await umountBlocksAsync(storage, devices.map(d => d.name))
+    return { volume, devices, oldDevice, devnames, oldMode }
+  }
 
+  async mountRVolume (deviceNames, path, mountpoint) {
+    let storage = await probeAsync(this.ctx.conf.storage)
+    await umountBlocksAsync(storage, deviceNames)
     // mount as degraded
     try {
-      await child.execAsync(`mount -t btrfs -o degraded ${ oldDevice.path } ${ volume.mountpoint }`)
+      await child.execAsync(`mount -t btrfs -o degraded ${ path } ${ mountpoint }`)
     } catch(e) {
       Promise.delay(100)
-      await child.execAsync(`mount -t btrfs -o degraded ${ oldDevice.path } ${ volume.mountpoint }`)
+      await child.execAsync(`mount -t btrfs -o degraded ${ path } ${ mountpoint }`)
     }
     await child.execAsync('partprobe')
+  }
+
+  async doRepairAsync ({ oldMode, devices, mountpoint, devnames, oldDevice }, mode) {
     if (oldMode === 'single') {
       if (devices.length == 1) {
         if (mode !== 'single') throw new Error('Only can make single in one device')
-        await child.execAsync(`btrfs balance start -f -mconvert=single ${ volume.mountpoint }`)
-        await child.execAsync(`btrfs device delete missing ${ volume.mountpoint }`)
-        await child.execAsync(`btrfs balance start -f -mconvert=dup ${ volume.mountpoint }`)
+        await child.execAsync(`btrfs balance start -f -mconvert=single ${ mountpoint }`)
+        await child.execAsync(`btrfs device delete missing ${ mountpoint }`)
+        await child.execAsync(`btrfs balance start -f -mconvert=dup ${ mountpoint }`)
       } else {
         let addDevice = devnames.filter(d => d.name !== oldDevice.name ).map(v => v.devname)
-        await child.execAsync(`btrfs device add -f ${ addDevice.join(' ') } ${ volume.mountpoint }`)
-        await child.execAsync(`btrfs device delete missing ${ volume.mountpoint }`)
+        await child.execAsync(`btrfs device add -f ${ addDevice.join(' ') } ${ mountpoint }`)
+        await child.execAsync(`btrfs device delete missing ${ mountpoint }`)
         if (!mode === 'single') { // raid1
-          await child.execAsync(`btrfs balance start -f -dconvert=raid1 ${ volume.mountpoint }`)
+          await child.execAsync(`btrfs balance start -f -dconvert=raid1 ${ mountpoint }`)
         }
       }
     } else if (oldMode === 'raid1') {
       if (devices.length == 1) {
         if (mode !== 'single') throw new Error('Only can make single in one device')
-        await child.execAsync(`btrfs balance start -f -mconvert=single -dconvert=single ${ volume.mountpoint }`)
-        await child.execAsync(`btrfs device delete missing ${ volume.mountpoint }`)
-        await child.execAsync(`btrfs balance start -f -mconvert=dup ${ volume.mountpoint }`)
+        await child.execAsync(`btrfs balance start -f -mconvert=single -dconvert=single ${ mountpoint }`)
+        await child.execAsync(`btrfs device delete missing ${ mountpoint }`)
+        await child.execAsync(`btrfs balance start -f -mconvert=dup ${ mountpoint }`)
       } else {
         let addDevice = devnames.filter(d => d.name !== oldDevice.name ).map(v => v.devname)
-        await child.execAsync(`btrfs device add -f ${ addDevice.join(' ') } ${ volume.mountpoint }`)
-        await child.execAsync(`btrfs device delete missing ${ volume.mountpoint }`)
+        await child.execAsync(`btrfs device add -f ${ addDevice.join(' ') } ${ mountpoint }`)
+        await child.execAsync(`btrfs device delete missing ${ mountpoint }`)
         if (mode === 'single') { // raid1
-          await child.execAsync(`btrfs balance start -f -dconvert=single  ${ volume.mountpoint }`)
+          await child.execAsync(`btrfs balance start -f -dconvert=single  ${ mountpoint }`)
         }
       }
     } else {
       throw new Error('unsupport old mode')
     }
+  }
 
-    storage = await probeAsync(this.ctx.conf.storage)
-    let newVolume = storage.volumes.find(v => v.uuid === volume.uuid)
+  async saveBoundVolumeAsync (volumeUUID) {
+    let storage = await probeAsync(this.ctx.conf.storage)
+    let newVolume = storage.volumes.find(v => v.uuid === volumeUUID)
     if (!newVolume) throw new Error('cannot find a volume containing expected block name')
 
     // ensure bound volume data format
@@ -547,12 +578,11 @@ class Repairing extends State {
       console.log(newVolume)
       throw new Error('volume usage not properly detected')
     }
-    console.log('=============')
-    console.log(newVolume)
-    console.log('=============')
     // update boundVolume
     let newBoundVolume = this.createBoundVolume(storage, newVolume)
-    console.log('=======newBoundVolume', newBoundVolume)
+    console.log('=======newBoundVolume======')
+    console.log(newBoundVolume)
+    consol.log('============================')
     return new Promise((resolve, reject) => {
       this.ctx.volumeStore.save(newBoundVolume, err => {
         if (err) {
