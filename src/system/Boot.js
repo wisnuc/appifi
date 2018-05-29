@@ -84,6 +84,14 @@ class State {
     process.nextTick(() => callback(new Error('invalid state')))
   }
 
+  add (devices, mode, callback) {
+    process.nextTick(() => callback(new Error('invalid state')))
+  }
+
+  remove (devices, callback) {
+    process.nextTick(() => callback(new Error('invalid state')))
+  }
+
   // TODO this is a pure function, or maybe static
   createBoundVolume (storage, volume) {
     let devices = volume.devices.map(dev => {
@@ -202,9 +210,26 @@ class Starting extends State {
   }
 }
 
+/**
+ * job defined:
+ * {
+ *  type: 'updateBoundVolume' // 'addDevice' / 'removeDevice' / 'updateBoundVolume'
+ *  props: {
+ *    ...
+ *  }
+ *  callback: 'function' // opt
+ * }
+ */
 class Started extends State {
   enter (fruitmix) {
     this.ctx.fruitmix = fruitmix
+    this.jobs = []
+    let job = {
+      type: 'updateBoundVolume',
+      props: {}
+    }
+    this.jobs.push(job)
+    reqSchedJob ()
   }
 
   exit () {
@@ -213,6 +238,163 @@ class Started extends State {
 
   boundUserUpdated () {
     // FIXME
+  }
+
+  reqSchedJob () {
+    if (this.jobScheduled) return
+    this.jobScheduled = true
+    process.nextTick(() => this.scheduleJob())
+  }
+
+  scheduleJob () {
+    if (!this.workingJobs) this.workingJobs = []
+    this.jobScheduled = false
+    if (this.workingJobs.length) return
+    while(this.workingJobs.length === 0 && this.jobs.length) {
+      let job = this.jobs.shift()
+      let doFunc
+      switch (job.type) {
+        case 'updateBoundVolume':
+          doFunc = this.updateBoundVolumeAsync
+          break
+        case 'addDevice':
+          doFunc = this.doAddAsync
+          break
+        case 'removeDevice':
+          doFunc = this.doRemoveAsync
+          break
+        default:
+          break
+      }
+
+      if (doFunc) {
+        this.workingJobs.push(job)
+        doFunc(job.props)
+          .then(data => {
+            console.log('boot started state pass job: ' + job.type)
+            this.workingJobs.pop()
+            if (job.callback) job.callback(null, data)
+            this.reqSchedJob()
+          })
+          .catch(err => {
+            console.log('boot started state fail job: ' + job.type)
+            this.workingJobs.pop()
+            if (job.callback) job.callback(err)
+            this.reqSchedJob()
+          })
+      }
+    }
+  }
+
+  async updateBoundVolumeAsync () {
+    let boundVolume = this.ctx.volumeStore.data
+    let volumeUUID = boundVolume.uuid
+    let volume = this.ctx.storage.volumes.find(v => v.uuid === volumeUUID)
+
+    // fix metadata single
+    if (volume.usage.data.mode === 'single' && volume.usage.metadata.mode !== 'DUP') {
+      await child.execAsync(`btrfs balance start -f -mconvert=dup ${ volume.mountpoint }`)
+      let storage = await probeAsync(this.ctx.conf.storage)
+      this.ctx.storage = storage
+    }
+
+    let newBoundVolume = this.createBoundVolume(this.ctx.storage, volume)
+    return new Promise((resolve, reject) => {
+      this.ctx.volumeStore.save(newBoundVolume, err => {
+        if (err) console.log(err)
+        resolve()
+      })
+    })
+  }
+
+  add (devices, mode, callback) {
+    if (!Array.isArray(devices) || devices.length !== 1) {
+      return callback(new Error('devices must be an one item array'))
+    }
+    
+    if (mode !== 'single' && mode !== 'raid1') {
+      return callback(new Error('device must be eithor single or raid1'))
+    }
+
+    let job = {
+      type: 'addDevice',
+      props: {
+        devices,
+        mode
+      },
+      callback
+    }
+
+    this.jobs.push(job)
+    this.reqSchedJob()
+  }
+
+  async doAddAsync ({ devices, mode }) {
+
+    let storage = await probeAsync(this.ctx.conf.storage)
+    
+    let wantD = devices[0]
+    let volumeUUID = this.ctx.volumeStore.data.uuid
+    let volume = this.ctx.storage.volumes.find(v => v.uuid === volumeUUID)
+    let block = this.ctx.storage.blocks.find(b => b.name === wantD.name)
+
+    if (!block) throw new Error('block not found')
+    if (!volume) throw new Error('volume not found')
+    if (volume.devices.length !== 1) throw new Error('volume has more then one device')
+    if (volume.devices.find(d => d.name === wantD.name)) throw new Error('device has already in volume')
+
+    await child.execAsync(`btrfs device add -f ${ block.devname } ${ volume.mountpoint}`)
+
+    if (mode === 'single') {
+      await child.execAsync(`btrfs balance start -f -mconvert=raid1 ${ volume.mountpoint }`)
+    } else {
+      await child.execAsync(`btrfs balance start -f -dconvert=raid1 ${ volume.mountpoint }`)
+    }
+
+    storage = await probeAsync(this.ctx.conf.storage)
+
+    this.ctx.storage = storage
+
+    await this.updateBoundVolumeAsync()
+    
+  }
+
+  remove (devices, callback) {
+    
+    if (!Array.isArray(devices) || devices.length !== 1) {
+      return callback(new Error('devices must be an one item array'))
+    }
+
+    let job = {
+      type: 'removeDevice',
+      props: {
+        devices
+      },
+      callback
+    }
+
+    this.jobs.push(job)
+    this.reqSchedJob()
+  }
+
+  async doRemoveAsync ({ device }) {
+    let wantD = devices[0]
+    let volumeUUID = this.ctx.volumeStore.data.uuid
+    let volume = this.ctx.storage.volumes.find(v => v.uuid === volumeUUID)
+    if (volume.devices.length !== 2) throw new Error('volume only has one device')
+    
+    let waitD = volume.devices.find(d => d.name === wantD.name)
+    if (!waitD) throw new Error('device not found in volume')
+
+    await child.execAsync(`btrfs balance start -f -mconvert=single -dconvert=single ${ volume.mountpoint }`)
+    await child.execAsync(`btrfs device delete ${ waitD.path } ${ volume.mountpoint }`)
+    await child.execAsync(`btrfs balance start -f -mconvert=dup ${ volume.mountpoint }`)
+
+    storage = await probeAsync(this.ctx.conf.storage)
+
+    this.ctx.storage = storage
+
+    await this.updateBoundVolumeAsync()
   }
 }
 
@@ -718,8 +900,16 @@ class Boot extends EventEmitter {
     this.state.import(volumeUUID, callback)
   }
 
-  repair (device, mode, callback) {
-    this.state.repair(device, mode, callback)
+  repair (devices, mode, callback) {
+    this.state.repair(devices, mode, callback)
+  }
+
+  add (devices, mode, callback) {
+    this.state.add(devices, mode, callback)
+  }
+
+  remove (devices, callback) {
+    this.state.remove(devices, callback)
   }
 
   getStorage () {
