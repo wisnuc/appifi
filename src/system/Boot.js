@@ -434,7 +434,7 @@ class Repairing extends State {
         callback(e)
       })
   }
-  
+
   /*  
   async repairAsync (devices, mode) {
     
@@ -566,12 +566,12 @@ class Repairing extends State {
   }
   */
 
-  async repairAsync (devices, mode) {
+  async repairAsync (devs, mode) {
     let supportMode = ['single', 'raid1']
     if (supportMode.indexOf(mode) === -1) throw new Error('mode error')
 
     // verify devices and generate 
-    let { volume, devices, oldDevice, devnames } = await this.verifyDevices(devices)
+    let { volume, devices, oldDevice, devnames } = await this.verifyDevices(devs)
 
     // mount need repair volume as degraded mode
     await this.mountRVolume(devices.map(d => d.name), oldDevice.path, volume.mountpoint)
