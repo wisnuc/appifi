@@ -346,7 +346,7 @@ class Started extends State {
     if (mode === 'single') {
       await child.execAsync(`btrfs balance start -f -mconvert=raid1 ${ volume.mountpoint }`)
     } else {
-      await child.execAsync(`btrfs balance start -f -dconvert=raid1 ${ volume.mountpoint }`)
+      await child.execAsync(`btrfs balance start -f -dconvert=raid1 -mconvert=raid1 ${ volume.mountpoint }`)
     }
 
     storage = await probeAsync(this.ctx.conf.storage)
