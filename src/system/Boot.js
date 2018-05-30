@@ -343,7 +343,7 @@ class Started extends State {
     if (!volume) throw new Error('volume not found')
     if (volume.devices.length !== 1) throw new Error('volume has more then one device')
     if (volume.devices.find(d => d.name === wantD.name)) throw new Error('device has already in volume')
-
+    await umountBlocksAsync(storage, [ wantD.name ])
     await child.execAsync(`btrfs device add -f ${ block.devname } ${ volume.mountpoint}`)
 
     if (mode === 'single') {
