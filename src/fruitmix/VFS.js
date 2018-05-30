@@ -771,7 +771,7 @@ class VFS extends EventEmitter {
 
       let filePath = path.join(this.absolutePath(dir), name)
       fs.lstat(filePath, (err, stat) => {
-        if (err && (err.code === 'ENOENT' || err.code === 'ENOTDIR')) err.code = 404
+        if (err && (err.code === 'ENOENT' || err.code === 'ENOTDIR')) err.status = 404
         callback(err, filePath)
       })
     })

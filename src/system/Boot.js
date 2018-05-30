@@ -298,7 +298,7 @@ class Started extends State {
       let storage = await probeAsync(this.ctx.conf.storage)
       this.ctx.storage = storage
     }
-    
+
     let newBoundVolume = this.createBoundVolume(this.ctx.storage, volume)
     return new Promise((resolve, reject) => {
       this.ctx.volumeStore.save(newBoundVolume, err => 
@@ -762,7 +762,7 @@ class Repairing extends State {
     let newBoundVolume = this.createBoundVolume(storage, newVolume)
     console.log('=======newBoundVolume======')
     console.log(newBoundVolume)
-    consol.log('============================')
+    console.log('============================')
     return new Promise((resolve, reject) => {
       this.ctx.volumeStore.save(newBoundVolume, err => {
         if (err) {

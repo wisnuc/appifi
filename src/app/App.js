@@ -329,7 +329,7 @@ class App extends EventEmitter {
         } else if (!data) {
           res.status(200).end()
         } else if (typeof data === 'string') {
-          res.status(200).sendFile(data)
+          res.status(200).sendFile(data, { dotfiles: 'allow'})
         } else {
           res.status(200).json(data)
         }
