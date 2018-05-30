@@ -207,11 +207,11 @@ class App extends EventEmitter {
     bootr.post('/boundVolume', (req, res, next) =>
       this.boot.init(req.body.target, req.body.mode, (err, data) =>
         err ? next(err) : res.status(200).json(data)))
-    bootr.put('/', (req, res, next) =>
+    bootr.put('/boundVolume', (req, res, next) =>
       this.boot.import(req.body.volumeUUID, (err, data) =>
         err ? next(err) : res.status(200).json(data)))
     bootr.patch('/', (req, res, next) => {
-      let arg = req.body.arg
+      let arg = req.body
       if (arg.hasOwnProperty('state')) {
         if (arg.state !== 'poweroff' && arg.state !== 'reboot') return next(Object.assign(new Error('invalid state'), { status: 400 }))
         setTimeout(() => child.exec(arg.state), 4000)
