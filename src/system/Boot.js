@@ -301,11 +301,8 @@ class Started extends State {
 
     let newBoundVolume = this.createBoundVolume(this.ctx.storage, volume)
     return new Promise((resolve, reject) => {
-      this.ctx.volumeStore.save(newBoundVolume, err => {
-        if (err) console.log(err)
-        resolve()
-      })
-    })
+      this.ctx.volumeStore.save(newBoundVolume, err => 
+        err ? reject(err) : resolve(newBoundVolume))})
   }
 
   add (devices, mode, callback) {
