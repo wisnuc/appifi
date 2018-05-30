@@ -378,7 +378,7 @@ class Started extends State {
     this.reqSchedJob()
   }
 
-  async doRemoveAsync ({ device }) {
+  async doRemoveAsync ({ devices }) {
     let wantD = devices[0]
     let volumeUUID = this.ctx.volumeStore.data.uuid
     let volume = this.ctx.storage.volumes.find(v => v.uuid === volumeUUID)
