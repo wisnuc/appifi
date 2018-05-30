@@ -255,13 +255,13 @@ class Started extends State {
       let doFunc
       switch (job.type) {
         case 'updateBoundVolume':
-          doFunc = this.updateBoundVolumeAsync
+          doFunc = this.updateBoundVolumeAsync.bind(this)
           break
         case 'addDevice':
-          doFunc = this.doAddAsync
+          doFunc = this.doAddAsync.bind(this)
           break
         case 'removeDevice':
-          doFunc = this.doRemoveAsync
+          doFunc = this.doRemoveAsync.bind(this)
           break
         default:
           break
