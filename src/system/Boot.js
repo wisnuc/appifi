@@ -355,7 +355,7 @@ class Started extends State {
 
     this.ctx.storage = storage
 
-    await this.updateBoundVolumeAsync()
+    return await this.updateBoundVolumeAsync()
     
   }
 
@@ -394,7 +394,7 @@ class Started extends State {
 
     this.ctx.storage = storage
 
-    await this.updateBoundVolumeAsync()
+    return await this.updateBoundVolumeAsync()
   }
 }
 

@@ -218,8 +218,23 @@ class App extends EventEmitter {
         res.status(200).end()
       } else return next(Object.assign(new Error('invalid arg'), { status: 400 }))
     })
-    bootr.patch('/boundVolume', (req, res, next) => 
-      this.boot.repair(req.body.devices, req.body.mode, (err, data) => err ? next(err) : res.status(200).json(data)))
+    bootr.patch('/boundVolume', (req, res, next) => {
+      let op = req.body.op
+      let value = req.body.value
+      switch (op) {
+        case 'repair':
+          this.boot.repair(value.devices, value.mode, (err, data) => err ? next(err) : res.status(200).json(data))
+          break
+        case 'add':
+          this.boot.add(value.devices, value.mode, (err, data) => err ? next(err) : res.status(200).json(data))
+          break
+        case 'remove':
+          this.boot.remove(value.devices, (err, data) => err ? next(err) : res.status(200).json(data))
+        default:
+          next(Object.assign(new Error('op not found: ' + op), { status: 404 }))
+          break
+      }
+    })
       
     routers.push(['/boot', bootr])
 
