@@ -278,6 +278,7 @@ class Started extends State {
           })
           .catch(err => {
             console.log('boot started state fail job: ' + job.type)
+            console.log(err)
             this.workingJobs.pop()
             if (job.callback) job.callback(err)
             this.reqSchedJob()
