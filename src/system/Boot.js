@@ -293,12 +293,12 @@ class Started extends State {
     let volume = this.ctx.storage.volumes.find(v => v.uuid === volumeUUID)
 
     // fix metadata single
-    if (volume.usage.data.mode === 'single' && volume.usage.metadata.mode !== 'DUP') {
+    if (volume.usage.data.mode === 'single' && volume.devices.length === 1 && volume.usage.metadata.mode !== 'DUP') {
       await child.execAsync(`btrfs balance start -f -mconvert=dup ${ volume.mountpoint }`)
       let storage = await probeAsync(this.ctx.conf.storage)
       this.ctx.storage = storage
     }
-
+    
     let newBoundVolume = this.createBoundVolume(this.ctx.storage, volume)
     return new Promise((resolve, reject) => {
       this.ctx.volumeStore.save(newBoundVolume, err => 
