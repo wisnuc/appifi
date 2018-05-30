@@ -391,7 +391,7 @@ class Started extends State {
     await child.execAsync(`btrfs device delete ${ waitD.path } ${ volume.mountpoint }`)
     await child.execAsync(`btrfs balance start -f -mconvert=dup ${ volume.mountpoint }`)
 
-    storage = await probeAsync(this.ctx.conf.storage)
+    let storage = await probeAsync(this.ctx.conf.storage)
 
     this.ctx.storage = storage
 

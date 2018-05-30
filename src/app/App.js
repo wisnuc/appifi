@@ -230,6 +230,7 @@ class App extends EventEmitter {
           break
         case 'remove':
           this.boot.remove(value.devices, (err, data) => err ? next(err) : res.status(200).json(data))
+          break
         default:
           next(Object.assign(new Error('op not found: ' + op), { status: 404 }))
           break
