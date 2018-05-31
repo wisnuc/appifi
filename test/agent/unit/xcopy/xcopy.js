@@ -566,11 +566,9 @@ describe('xcopy task', () => {
 
     next = await user.stepTaskAsync(task.uuid)
  
-    // first step, root @ Preparing
     expect(next.step.nodes.length).to.equal(1)
     expect(next.step.nodes[0].state).to.equal('Preparing')
 
-    // first watch, root @ Parent
     expect(next.watch.nodes.length).to.equal(1)
     expect(next.watch.nodes[0].state).to.equal('Parent')
 
@@ -929,7 +927,66 @@ describe('xcopy task', () => {
     expect(next.watch.nodes[0].state).to.equal('Parent')
 
     next = await user.stepTaskAsync(task.uuid)
-    
-   //  console.log(JSON.stringify(next, null, '  '))
+
+    expect(next.step.nodes.length === 2)
+    expect(next.step.nodes.find(n => !n.parent).state).to.equal('Parent')
+    expect(next.step.nodes.find(n => n.src.name === 'foo').state).to.equal('Working')
+
+    expect(next.watch.nodes.length === 0)
+    expect(next.watch.finished).to.be.true 
   })
+
+  it('export, dir, no conflict, 5653f29c', async function () {
+    let c1 = await user.mktreeAsync({
+      type: 'vfs',
+      drive: user.home.uuid,
+      dir: user.home.uuid,
+      children: singletons.dir
+    })
+
+    let c2 = await user.mktreeAsync({
+      type: 'nfs',
+      drive: UUIDDE,
+      dir: '',
+      children: singletons.dir
+    })
+
+    let exportArgs = {
+      type: 'export',
+      src: {
+        drive: user.home.uuid,
+        dir: c1[1].xstat.uuid,
+        name: c1[1].xstat.name
+      },
+      dst: {
+        drive: UUIDDE,
+        dir: 'dst'
+      },
+      entries: ['foo'],
+      stepping: true
+    } 
+
+    let task, next
+    task = await user.createTaskAsync(exportArgs)
+    assertTask(exportArgs, task)
+
+    next = await user.stepTaskAsync(task.uuid)
+
+    expect(next.step.nodes.length).to.equal(1)
+    expect(next.step.nodes[0].state).to.equal('Preparing')
+
+    expect(next.watch.nodes.length).to.equal(1)
+    expect(next.watch.nodes[0].state).to.equal('Parent')
+
+    next = await user.stepTaskAsync(task.uuid)
+
+    expect(next.step.nodes.length).to.equal(2)
+    expect(next.step.nodes[0].state).to.equal('Preparing')
+    expect(next.step.nodes[1].state).to.equal('Parent')
+
+    expect(next.watch.nodes).to.deep.equal([])
+    expect(next.watch.finished).to.be.true
+  })
+
+ 
 })

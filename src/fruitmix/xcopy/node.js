@@ -139,6 +139,12 @@ class Node extends EventEmitter {
     return arr.join('/')
   }
 
+  dstNamePath () {
+    let arr = []
+    for (let n = this; n; n = n.parent) arr.unshift(n.dst.name)
+    return arr.join('/')
+  }
+
   /**
   Update this node's policy and retry
   */
