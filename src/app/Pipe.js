@@ -87,7 +87,9 @@ class Pipe extends EventEmitter {
   checkUser (phicommUserId) {
     let user
     if (!this.ctx.fruitmix()) {
-      user = this.ctx.boot.view().boundUser
+      user = this.ctx.boot.view().boundUser 
+        ? (this.ctx.boot.view().boundUser.phicommUserId === phicommUserId 
+        ? this.ctx.boot.view().boundUser : null) : null
     } else {
       user = this.ctx.fruitmix().getUserByPhicommUserId(phicommUserId)
     }
