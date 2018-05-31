@@ -106,6 +106,10 @@ class Pipe extends EventEmitter {
   getToken (user) {
     return this.ctx.config.auth().tokenForRemote(user)
   }
+
+  getBootInfo (user) {
+    return this.ctx.boot.view()
+  }
   /**
    * check config
    * @memberof Pipe
@@ -179,9 +183,13 @@ class Pipe extends EventEmitter {
       if (!resource) {
         throw formatError(new Error(`this resource: ${resource}, not support`), 400)
       }
-      // 由于 token 没有 route， so 单独处理 token
+      // 由于 token 没有 route， 单独处理 token
       if (resource === 'token') {
         return this.reqCommand(null, this.getToken(user))
+      }
+
+      if (resource === 'boot') {
+        return this.reqCommand(null, this.getBootInfo())
       }
       // match route path and generate query
       let matchRoute
