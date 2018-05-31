@@ -39,6 +39,7 @@ for (const k in routing) {
 
 const WHITE_LIST = {
   token: 'token',
+  boot: 'boot',
   users: 'user',
   drives: 'drives',
   tags: 'tag',
@@ -86,7 +87,7 @@ class Pipe extends EventEmitter {
   checkUser (phicommUserId) {
     let user
     if (!this.ctx.fruitmix()) {
-      user = this.boot.view().boundUser
+      user = this.ctx.boot.view().boundUser
     } else {
       user = this.ctx.fruitmix().getUserByPhicommUserId(phicommUserId)
     }

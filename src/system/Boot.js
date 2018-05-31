@@ -882,17 +882,21 @@ class Boot extends EventEmitter {
 
   view () {
 
-    let portsPaths= this.storage.ports
+    let storage
+    
+    if (this.storage) {
+      let portsPaths= this.storage.ports
         .map(p => p.path.split('/ata_port').length ? p.path.split('/ata_port')[0] : undefined)
         .filter(x => !!x && x.length)
-    let slots = this.conf.slots.map(s => {
-      let p = portsPaths.find(p => p.endsWith(s))
-      return !!p ? p : undefined
-    })
+      let slots = this.conf.slots.map(s => {
+        let p = portsPaths.find(p => p.endsWith(s))
+        return !!p ? p : undefined
+      })
 
-    let storage = JSON.parse(JSON.stringify(this.storage))
+      let storage = JSON.parse(JSON.stringify(this.storage))
 
-    slots.forEach((value, index) => value ? (storage.blocks.forEach(b => b.path.startsWith(value) ? b.slotNumber = index + 1 : b)) : value)
+      slots.forEach((value, index) => value ? (storage.blocks.forEach(b => b.path.startsWith(value) ? b.slotNumber = index + 1 : b)) : value)
+    }
 
     return {
       state: this.state.constructor.name.toUpperCase(),
