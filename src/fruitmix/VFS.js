@@ -516,10 +516,12 @@ class VFS extends EventEmitter {
 
   @param {object} user
   @param {object} props
-  @param {object} props.name - file name
-  @param {object} props.data - tmp data file
-  @param {object} props.size - file size (not used)
-  @param {object} props.sha256 - file hash
+  @param {string} props.driveUUID - drive uuid
+  @param {string} props.dirUUID - dir uuid
+  @param {string} props.name - file name
+  @param {string} props.data - tmp data file
+  @param {number} props.size - file size (not used)
+  @param {string} props.sha256 - file hash (fingerprint)
   */
   NEWFILE (user, props, callback) {
     let { name, data, size, sha256 } = props

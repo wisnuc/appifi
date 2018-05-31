@@ -234,6 +234,10 @@ class NFS extends EventEmitter {
     })
   }
 
+  READDIR (user, props, callback) {
+    this.GET(user, props, callback)
+  }
+
   /**
   Clients have two different ways to provide path arguments to this API.
   1. provide path in query string.
@@ -380,6 +384,41 @@ class NFS extends EventEmitter {
         callback(err)
       })
     })
+  }
+
+
+  /**
+  This function is intended to support Policy.
+  
+  @param {object} user
+  @param {object} props
+  @param {string} props.id
+  @param {string} props.path
+  @param {string} props.name
+  @param {string} props.data
+  @param {Policy} props.policy
+  */
+  NEWFILE (user, props, callback) {
+    this.resolvePath(user, props, (err, target) => {
+      if (err) return callback(err)
+
+      let dstFilePath = path.join(target, props.name) 
+      openwx(dstFilePath, policy, (err, fd, resolved) => {
+        if (err) {
+          callback(err)
+        } else {
+          let rs = fs.createReadStream(props.data)
+          let ws = fs.createWriteStream(null, { fd })
+
+          ws.on('finish', () => {
+            // callback(
+          })
+
+          rs.pipe(ws)
+
+        }
+      })    
+    }) 
   }
 }
 

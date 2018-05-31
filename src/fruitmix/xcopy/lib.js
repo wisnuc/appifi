@@ -66,7 +66,8 @@ const mkdir = (target, policy, callback) => {
   }) 
 }
 
-
+// this function mimic policy-based file operation in vfs.
+// TODO should be implemented in nfs
 const openwx = (target, policy, callback) => {
   fs.open(target, 'wx', (err, fd) => {
     if (err && err.code === 'EEXIST') {

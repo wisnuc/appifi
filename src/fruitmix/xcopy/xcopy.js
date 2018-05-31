@@ -27,6 +27,9 @@ class XCopy extends EventEmitter {
   constructor (vfs, nfs, user, props) {
     super()
 
+    if (!vfs) throw new Error('vfs is not provided')
+    if (!nfs) throw new Error('nfs is not provided')
+
     this.finished = false
 
     this.dirLimit = props.dirLimit || 4
@@ -51,7 +54,7 @@ class XCopy extends EventEmitter {
     this.entries = props.entries
     this.policies = props.policies
 
-    if (stepping) {
+   if (stepping) {
       debug('xcopy started in stepping mode, stopped')
     } else { 
       this.createRoot()
@@ -66,8 +69,14 @@ class XCopy extends EventEmitter {
     if (this.type === 'copy' || this.type === 'move') {
       src = { uuid: this.src.dir, name: '' }
       dst = { uuid: this.dst.dir, name: '' } 
+    } else if (this.type === 'import') {
+      src = { uuid: UUID.v4(), name: this.src.dir }
+      dst = { uuid: this.dst.dir, name: '' }
+    } else if (this.type === 'export') {
+      src = { uuid: this.src.dir, name: '' }
+      dst = { name: this.dst.dir }
     } else {
-      throw new Error('not implemented')
+      throw new Error('unexpected type')
     }
 
     let root = new XDir(this, null, src, dst, this.entries)

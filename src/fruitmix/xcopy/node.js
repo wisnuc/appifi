@@ -131,6 +131,15 @@ class Node extends EventEmitter {
   }
 
   /**
+  Generate name path from root
+  */
+  namepath () {
+    let arr = []
+    for (let n = this; n; n = n.parent) arr.unshift(n.src.name)
+    return arr.join('/')
+  }
+
+  /**
   Update this node's policy and retry
   */
   update (props) {

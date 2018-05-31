@@ -152,9 +152,6 @@ class Fruitmix extends EventEmitter {
     this.thumbnail = new Thumbnail(path.join(this.fruitmixDir, 'thumbnail'), this.tmpDir)
     this.mediaApi = new MediaApi(this.vfs, this.thumbnail)
 
-    // task
-    this.task = new Task(this.vfs)
-
     this.apis = {
       user: this.user,
       drive: this.drive,
@@ -163,8 +160,6 @@ class Fruitmix extends EventEmitter {
       dirEntry: this.dirEntryApi,
       file: this.fileApi,
       media: this.mediaApi,
-      task: this.task,
-      taskNode: this.task.nodeApi
     }
 
     if (opts.useTransmission) {
@@ -180,16 +175,23 @@ class Fruitmix extends EventEmitter {
 
       this.apis.transmission = this.transmission
     }
+
     // nfs api is optional
     if (this.boundVolume) {
       this.nfs = new NFS({ volumeUUID: this.boundVolume.uuid }, this.user)
       this.apis.nfs = this.nfs
     }
 
+    // task
+    this.task = new Task(this.vfs, this.nfs)
+    Object.assign(this.apis, { task: this.task, taskNode: this.task.nodeApi })
+
     this.user.on('Update', () => {
       process.send && process.send(JSON.stringify({
         type: 'appifi_users',
-        users: this.users.filter(x => !x.isFirstUser && x.status === 'ACTIVE').map(u => { return { uid: u.phicommUserId, createTime: u.createTime }})
+        users: this.users
+          .filter(x => !x.isFirstUser && x.status === 'ACTIVE')
+          .map(u => { return { uid: u.phicommUserId, createTime: u.createTime }})
       }))
       this.emit('FruitmixStarted')
     })

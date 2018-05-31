@@ -6,6 +6,8 @@ const debug = require('debug')('xfile')
 
 const Node = require('./node')
 const openwx = require('./lib').openwx
+const FingerStream = require('../../lib/finger-stream')
+
 
 /**
 Base state class for file
@@ -105,34 +107,67 @@ class Working extends State {
       } break
 
       case 'import': {
-        let tmpPath = this.ctx.ctx.genTmpPath()
-        fs.open(this.ctx.src.path, 'r', (err, fd) => {
+
+        // TODO 1. refactor hash to child process
+        // TODO 2. remove tmp file ???
+
+        let props = {
+          id: this.ctx.ctx.src.drive,
+          path: this.ctx.namepath(),
+        }
+
+        this.ctx.ctx.nfs.GET(this.ctx.ctx.user, props, (err, srcPath) => {
+          if (this.destroyed) return
           if (err) {
-            // TODO
+            this.setState(Failed, err)
           } else {
-            this.rs = fs.createReadStream(null, { fd })
-            this.ws = fs.createWriteStream(tmpPath)
-            this.rs.pipe(this.ws)
-            this.ws.on('finish', () => {
-              let tmp = { path: tmpPath }
-              let dst = {
-                dir: this.ctx.parent.dst.uuid,
-                name: this.ctx.src.name
-              }
+            let dstPath = this.ctx.ctx.vfs.TMPFILE()
+
+            this.rs = fs.createReadStream(srcPath)
+            this.fs = new FingerStream()
+            this.ws = fs.createWriteStream(dstPath)
+
+            let fingerFinished = false
+            let writeStreamFinished = false
+
+            const finish = () => {
+              if (!fingerFinished || !writeStreamFinished) return
 
               let policy = this.ctx.getPolicy()
+              let user = this.ctx.ctx.user
+              let props = {
+                driveUUID: this.ctx.ctx.dst.drive,
+                dirUUID: this.ctx.parent.dst.uuid,
+                name: this.ctx.src.name,
+                data: dstPath, 
+                size: this.ws.bytesWritten,
+                sha256: this.fs.fingerprint,
+                policy,
+              }
 
-              this.ctx.ctx.mkfile(tmp, dst, policy, (err, xstat, resolved) => {
+              this.ctx.ctx.vfs.NEWFILE(user, props, (err, stat, resolved) => {
                 if (err && err.code === 'EEXIST') {
                   this.setState(Conflict, err, policy)
                 } else if (err) {
                   this.setState(Failed, err)
                 } else {
-                  rimraf(tmpPath, () => {})
                   this.setState(Finish)
                 }
               })
+            }
+
+            this.fs.on('finish', () => {
+              fingerFinished = true
+              process.nextTick(finish)
             })
+
+            this.ws.on('finish', () => {
+              writeStreamFinished = true
+              process.nextTick(finish)
+            })
+
+            this.rs.pipe(this.ws)
+            this.rs.pipe(this.fs)
           }
         })
       } break
@@ -161,11 +196,16 @@ class Working extends State {
               } else {
                 if (fd) {
                   this.rs = fs.createReadStream(tmpPath)
+                  this.fs = new FingerStream()
                   this.ws = fs.createWriteStream(null, { fd })
+                  this.rs.pipe(this.fs)
                   this.rs.pipe(this.ws)
 
                   this.ws.on('finish', () => {
                     rimraf(tmpPath, () => {})
+
+                    console.log(this.fs.fingerprint)
+
                     this.setState(Finish)
                   })
                 } else {

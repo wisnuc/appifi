@@ -35,10 +35,12 @@ const normalizePolicies = policies => {
 class Task {
 
   constructor (vfs, nfs) {
+    if (!vfs) throw new Error('vfs is not provided')
+    if (!nfs) throw new Error('nfs is not provided')
+
     this.vfs = vfs
     this.nfs = nfs
     this.tasks = []
-
     this.nodeApi = { 
       PATCH: this.PATCHNODE.bind(this)
     }
