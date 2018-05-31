@@ -59,6 +59,7 @@ const n2 = {
     nonVolumeDir: '/run/phicomm/blocks',
     userProps: ['uuid', 'username', 'isFirstUser', 'phicommUserId']
   },
+  slots: ['ata1', 'ata2'],
   tag: {
     isPrivate: true,
     visibleInPublicDrive: false
