@@ -28,6 +28,7 @@ const alice = {
   smbPassword: '4039730E1BF6E10DD01EAAC983DB4D7C',
   lastChangeTime: 1523867673407,
   isFirstUser: true,
+  status: 'ACTIVE',
   phicommUserId: 'alice'
 }
 

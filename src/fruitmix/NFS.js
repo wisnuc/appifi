@@ -234,9 +234,6 @@ class NFS extends EventEmitter {
     })
   }
 
-  
-
-
   /**
   Clients have two different ways to provide path arguments to this API.
   1. provide path in query string.

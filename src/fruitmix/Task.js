@@ -39,9 +39,8 @@ class Task {
     this.nfs = nfs
     this.tasks = []
 
-    this.nodeApi = {
-      PATCH: this.PATCHNODE.bind(this),
-      DELETE: this.DELETENODE.bind(this)
+    this.nodeApi = { 
+      PATCH: this.PATCHNODE.bind(this)
     }
   }
 
@@ -128,6 +127,7 @@ class Task {
     let newProps = Object.assign({}, props, { policies })
 
     let task = new XCopy(this.vfs, this.nfs, user, newProps)   
+    task.creator = user.uuid
     this.tasks.push(task)
     callback(null, task.view())
   }  
@@ -152,12 +152,17 @@ class Task {
   }
 
   PATCHNODE (user, props, callback) {
-    console.log('patch node', user, props)
+    let task = this.tasks.find(t => t.creator === user.uuid && t.uuid === props.taskUUID) 
+    if (!task) {
+      let err = new Error('task not found')
+      err.status = 404
+      return process.nextTick(() => callback(err))
+    }
+
+    let { policy, applyToAll } = props
+    task.updateNode(props.nodeUUID, { policy, applyToAll }, callback)
   }
 
-  DELETENODE (user, props, callback) {
-  }
-
-}
+} 
 
 module.exports = Task
