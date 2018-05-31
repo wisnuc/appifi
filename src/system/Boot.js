@@ -255,13 +255,13 @@ class Started extends State {
       let doFunc
       switch (job.type) {
         case 'updateBoundVolume':
-          doFunc = this.updateBoundVolumeAsync
+          doFunc = this.updateBoundVolumeAsync.bind(this)
           break
         case 'addDevice':
-          doFunc = this.doAddAsync
+          doFunc = this.doAddAsync.bind(this)
           break
         case 'removeDevice':
-          doFunc = this.doRemoveAsync
+          doFunc = this.doRemoveAsync.bind(this)
           break
         default:
           break
@@ -278,6 +278,7 @@ class Started extends State {
           })
           .catch(err => {
             console.log('boot started state fail job: ' + job.type)
+            console.log(err)
             this.workingJobs.pop()
             if (job.callback) job.callback(err)
             this.reqSchedJob()
@@ -292,7 +293,7 @@ class Started extends State {
     let volume = this.ctx.storage.volumes.find(v => v.uuid === volumeUUID)
 
     // fix metadata single
-    if (volume.usage.data.mode === 'single' && volume.usage.metadata.mode !== 'DUP') {
+    if (volume.usage.data.mode === 'single' && volume.devices.length === 1 && volume.usage.metadata.mode !== 'DUP') {
       await child.execAsync(`btrfs balance start -f -mconvert=dup ${ volume.mountpoint }`)
       let storage = await probeAsync(this.ctx.conf.storage)
       this.ctx.storage = storage
@@ -300,11 +301,8 @@ class Started extends State {
 
     let newBoundVolume = this.createBoundVolume(this.ctx.storage, volume)
     return new Promise((resolve, reject) => {
-      this.ctx.volumeStore.save(newBoundVolume, err => {
-        if (err) console.log(err)
-        resolve()
-      })
-    })
+      this.ctx.volumeStore.save(newBoundVolume, err => 
+        err ? reject(err) : resolve(newBoundVolume))})
   }
 
   add (devices, mode, callback) {
@@ -342,20 +340,20 @@ class Started extends State {
     if (!volume) throw new Error('volume not found')
     if (volume.devices.length !== 1) throw new Error('volume has more then one device')
     if (volume.devices.find(d => d.name === wantD.name)) throw new Error('device has already in volume')
-
+    await umountBlocksAsync(storage, [ wantD.name ])
     await child.execAsync(`btrfs device add -f ${ block.devname } ${ volume.mountpoint}`)
 
     if (mode === 'single') {
       await child.execAsync(`btrfs balance start -f -mconvert=raid1 ${ volume.mountpoint }`)
     } else {
-      await child.execAsync(`btrfs balance start -f -dconvert=raid1 ${ volume.mountpoint }`)
+      await child.execAsync(`btrfs balance start -f -dconvert=raid1 -mconvert=raid1 ${ volume.mountpoint }`)
     }
 
     storage = await probeAsync(this.ctx.conf.storage)
 
     this.ctx.storage = storage
 
-    await this.updateBoundVolumeAsync()
+    return await this.updateBoundVolumeAsync()
     
   }
 
@@ -377,7 +375,7 @@ class Started extends State {
     this.reqSchedJob()
   }
 
-  async doRemoveAsync ({ device }) {
+  async doRemoveAsync ({ devices }) {
     let wantD = devices[0]
     let volumeUUID = this.ctx.volumeStore.data.uuid
     let volume = this.ctx.storage.volumes.find(v => v.uuid === volumeUUID)
@@ -390,11 +388,11 @@ class Started extends State {
     await child.execAsync(`btrfs device delete ${ waitD.path } ${ volume.mountpoint }`)
     await child.execAsync(`btrfs balance start -f -mconvert=dup ${ volume.mountpoint }`)
 
-    storage = await probeAsync(this.ctx.conf.storage)
+    let storage = await probeAsync(this.ctx.conf.storage)
 
     this.ctx.storage = storage
 
-    await this.updateBoundVolumeAsync()
+    return await this.updateBoundVolumeAsync()
   }
 }
 
@@ -764,7 +762,7 @@ class Repairing extends State {
     let newBoundVolume = this.createBoundVolume(storage, newVolume)
     console.log('=======newBoundVolume======')
     console.log(newBoundVolume)
-    consol.log('============================')
+    console.log('============================')
     return new Promise((resolve, reject) => {
       this.ctx.volumeStore.save(newBoundVolume, err => {
         if (err) {

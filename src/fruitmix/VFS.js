@@ -653,7 +653,7 @@ class VFS extends EventEmitter {
       err.status = 400
       process.nextTick(() => callback(err))
     }
-
+    // console.log(user, props, '=================================')
     this.DIR(user, props, (err, dir) => {
       if (err) return callback(err)
 
@@ -697,7 +697,6 @@ class VFS extends EventEmitter {
 
     // normalize
     let tags = Array.from(new Set(props.tags)).sort()
-
     this.DIR(user, props, (err, dir) => {
       if (err) return callback(err)
 
@@ -714,6 +713,7 @@ class VFS extends EventEmitter {
         
         // complementary set
         let newTags = xstat.tags.reduce((acc, id) => tags.includes(id) ? acc : [...acc, id], [])
+        console.log(newTags)
         updateFileTags(filePath, xstat.uuid, newTags, callback)
       }) 
     })
@@ -773,7 +773,7 @@ class VFS extends EventEmitter {
 
       let filePath = path.join(this.absolutePath(dir), name)
       fs.lstat(filePath, (err, stat) => {
-        if (err && (err.code === 'ENOENT' || err.code === 'ENOTDIR')) err.code = 404
+        if (err && (err.code === 'ENOENT' || err.code === 'ENOTDIR')) err.status = 404
         callback(err, filePath)
       })
     })

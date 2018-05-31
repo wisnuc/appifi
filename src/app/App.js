@@ -207,19 +207,35 @@ class App extends EventEmitter {
     bootr.post('/boundVolume', (req, res, next) =>
       this.boot.init(req.body.target, req.body.mode, (err, data) =>
         err ? next(err) : res.status(200).json(data)))
-    bootr.put('/', (req, res, next) =>
+    bootr.put('/boundVolume', (req, res, next) =>
       this.boot.import(req.body.volumeUUID, (err, data) =>
         err ? next(err) : res.status(200).json(data)))
     bootr.patch('/', (req, res, next) => {
-      let arg = req.body.arg
+      let arg = req.body
       if (arg.hasOwnProperty('state')) {
         if (arg.state !== 'poweroff' && arg.state !== 'reboot') return next(Object.assign(new Error('invalid state'), { status: 400 }))
         setTimeout(() => child.exec(arg.state), 4000)
         res.status(200).end()
       } else return next(Object.assign(new Error('invalid arg'), { status: 400 }))
     })
-    bootr.patch('/boundVolume', (req, res, next) => 
-      this.boot.repair(req.body.devices, req.body.mode, (err, data) => err ? next(err) : res.status(200).json(data)))
+    bootr.patch('/boundVolume', (req, res, next) => {
+      let op = req.body.op
+      let value = req.body.value
+      switch (op) {
+        case 'repair':
+          this.boot.repair(value.devices, value.mode, (err, data) => err ? next(err) : res.status(200).json(data))
+          break
+        case 'add':
+          this.boot.add(value.devices, value.mode, (err, data) => err ? next(err) : res.status(200).json(data))
+          break
+        case 'remove':
+          this.boot.remove(value.devices, (err, data) => err ? next(err) : res.status(200).json(data))
+          break
+        default:
+          next(Object.assign(new Error('op not found: ' + op), { status: 404 }))
+          break
+      }
+    })
       
     routers.push(['/boot', bootr])
 
@@ -313,7 +329,7 @@ class App extends EventEmitter {
         } else if (!data) {
           res.status(200).end()
         } else if (typeof data === 'string') {
-          res.status(200).sendFile(data)
+          res.status(200).sendFile(data, { dotfiles: 'allow'})
         } else {
           res.status(200).json(data)
         }

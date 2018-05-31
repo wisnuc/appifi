@@ -17,8 +17,21 @@ const USERS = require('./tmplib').USERS
 const requestTokenAsync = require('./tmplib').requestTokenAsync
 const initUsersAsync = require('./tmplib').initUsersAsync
 
+const getHome = (app, token) => {
+  return new Promise((resolve, reject) => {
+    request(app)
+    .get('/drives')
+    .set('Authorization', 'JWT ' + token)
+    .end((err, res) => {
+      let result = res.body.find(item => item.tag == 'home')
+      if (result) resolve(result.uuid)
+      else reject('...')
+    })
+  })
+}
+
 describe(path.basename(__filename), () => {
-  let fruitmix, app, tokenAlice, tokenBob
+  let fruitmix, app, tokenAlice, tokenBob, aliceHome
 
   // 初始化APP
   const initApp = done => {
@@ -27,6 +40,7 @@ describe(path.basename(__filename), () => {
     fruitmix.on('FruitmixStarted', async () => {
       tokenAlice = await requestTokenAsync(app.express, USERS.alice.uuid, 'alice')
       tokenBob = await requestTokenAsync(app.express, USERS.bob.uuid, 'bob')
+      aliceHome = await getHome(app.express, tokenAlice)
       done()
     })
   }
@@ -105,7 +119,6 @@ describe(path.basename(__filename), () => {
         expected: "expect(res.body.id).to.deep.equal(4);expect(res.body.name).to.deep.equal('tag4')" },
     ]
 
-
     // for (let i = 4; i <= 3500; i++) {
     //   arr.push({
     //     it: '新创建Bob Tag id应该为' + i, type: 'post', url:'/tags', args: {name:'tag' + i, color: '#666'}, expectCode: 200, token: 'bob', 
@@ -123,6 +136,7 @@ describe(path.basename(__filename), () => {
         request(app.express)[item.type](item.url)
           .set('Authorization', 'JWT ' + token)
           .send(item.args)
+          // .field('abc', {})
           .expect(item.expectCode)
           .end((err, res) => {
             // if (res.statusCode !== 200) console.log(res.body, err)
@@ -131,6 +145,7 @@ describe(path.basename(__filename), () => {
           })
       })
     })
+
   })
 
 })
