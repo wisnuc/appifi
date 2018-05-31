@@ -163,7 +163,7 @@ class Fruitmix extends EventEmitter {
     }
 
     if (opts.useTransmission) {
-      // 创建transmisson目录
+      // create Transmission directories
       let transmissionPath = path.join(this.fruitmixDir, 'transmission')
       let torrentTmp = path.join(transmissionPath, 'torrents')
       mkdirp.sync(transmissionPath)
@@ -177,10 +177,18 @@ class Fruitmix extends EventEmitter {
     }
 
     // nfs api is optional
+/**
     if (this.boundVolume) {
       this.nfs = new NFS({ volumeUUID: this.boundVolume.uuid }, this.user)
       this.apis.nfs = this.nfs
     }
+**/
+
+    let nfsOpts = {}
+    if (this.boundVolume) nfsOpts.volumeUUID = this.boundVolume.uuid
+    this.nfs = new NFS(nfsOpts, this.user)
+    this.apis.nfs = this.nfs
+
 
     // task
     this.task = new Task(this.vfs, this.nfs)

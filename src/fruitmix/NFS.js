@@ -187,9 +187,8 @@ class NFS extends EventEmitter {
     super()
 
     if (!isNonNullObject(opts)) throw new Error('opts must be a non-null object')
-    if (!isUUID(opts.volumeUUID)) throw new Error('volumeUUID is not a valid uuid')
 
-    this.volumeUUID = opts.volumeUUID
+    if (opts.volumeUUID) this.volumeUUID = opts.volumeUUID
     this.allowATA = false
     this.allowUSB = true
 
@@ -207,7 +206,7 @@ class NFS extends EventEmitter {
       if (vol.isMissing) return false
       if (!vol.isMounted) return false
       if (vol.isRootFS) return false
-      if (vol.uuid === this.volumeUUID) return false
+      if (this.volumeUUID && vol.uuid === this.volumeUUID) return false
       return true
     })
 
