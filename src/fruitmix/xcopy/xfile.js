@@ -5,7 +5,6 @@ const rimraf = require('rimraf')
 const debug = require('debug')('xfile')
 
 const Node = require('./node')
-const openwx = require('./lib').openwx
 const FingerStream = require('../../lib/finger-stream')
 
 
@@ -173,44 +172,35 @@ class Working extends State {
       } break
 
       case 'export': {
-        let src = {
-          dir: this.ctx.parent.src.uuid,
+        let user = this.ctx.ctx.user
+        let props = {
+          driveUUID: this.ctx.ctx.src.drive,
+          dirUUID: this.ctx.parent.src.uuid,
           uuid: this.ctx.src.uuid,
           name: this.ctx.src.name
         }
 
-        this.ctx.ctx.clone(src, (err, tmpPath) => {
+        this.ctx.ctx.vfs.CLONE(user, props, (err, data) => {
           if (err) {
-            this.setState('Failed', err)
+            this.setState(Failed(err))
           } else {
-            let dstFilePath = path.join(this.ctx.parent.dst.path, this.ctx.src.name)
             let policy = this.ctx.getPolicy()
+            let props = {
+              id: this.ctx.ctx.dst.drive,
+              path: this.ctx.parent.dstNamePath(), // dir path
+              name: this.ctx.src.name,
+              data,
+              policy 
+            }
 
-            openwx(dstFilePath, policy, (err, fd, resolved) => {
+            this.ctx.ctx.nfs.NEWFILE(user, props, (err, _, resolved) => {
+              rimraf(data, () => {})
               if (err && err.code === 'EEXIST') {
-                rimraf(tmpPath, () => {})
                 this.setState(Conflict, err, policy)
               } else if (err) {
-                rimraf(tmpPath, () => {})
                 this.setState(Failed, err)
               } else {
-                if (fd) {
-                  this.rs = fs.createReadStream(tmpPath)
-                  this.fs = new FingerStream()
-                  this.ws = fs.createWriteStream(null, { fd })
-                  this.rs.pipe(this.fs)
-                  this.rs.pipe(this.ws)
-
-                  this.ws.on('finish', () => {
-                    rimraf(tmpPath, () => {})
-
-                    console.log(this.fs.fingerprint)
-
-                    this.setState(Finish)
-                  })
-                } else {
-                  this.setState(Finish)
-                }
+                this.setState(Finish)
               }
             })
           }
@@ -218,7 +208,7 @@ class Working extends State {
       } break
 
       default:
-        throw new Error('invalid mode') // TODO
+        throw new Error('invalid task type') // TODO
     }
   }
 }

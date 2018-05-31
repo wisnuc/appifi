@@ -1391,6 +1391,27 @@ class VFS extends EventEmitter {
     })
   }
 
+  /**
+  @param {object} user
+  @param {object} props
+  @param {string} props.driveUUID
+  @param {string} props.dirUUID
+  @param {string} props.uuid
+  @param {string} props.name
+  */
+  CLONE (user, props, callback) {
+    this.DIR(user, props, (err, target) => {
+      if (err) return callback(err)
+
+      let dstPath = this.TMPFILE()
+      let srcPath = path.join(this.absolutePath(target), props.name)
+      clone(srcPath, props.uuid, dstPath, err => {
+        if (err) return callback(err)
+        callback(null, dstPath)
+      })
+    })
+  }
+
   // readdir
   readdir(driveUUID, dirUUID, callback) {
     let dir

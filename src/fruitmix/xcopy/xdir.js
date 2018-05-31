@@ -7,7 +7,7 @@ const debug = require('debug')('xdir')
 const Node = require('./node')
 const XFile = require('./xfile')
 
-const mkdir = require('./lib').mkdir
+// const mkdir = require('./lib').mkdir
 
 class State {
   constructor (ctx, ...args) {
@@ -195,8 +195,13 @@ class Preparing extends State {
           let type = this.ctx.ctx.type
           let boundF
  
-          if (type === 'copy' || type === 'import') boundF = this.ctx.mkdirs.bind(this.ctx)
-          else if (type === 'move') boundF = this.ctx.mvdirs.bind(this.ctx)
+          if (type === 'copy' || type === 'import') {
+            boundF = this.ctx.mkdirs.bind(this.ctx)
+          } else if (type === 'move') {
+            boundF = this.ctx.mvdirs.bind(this.ctx)
+          } else if (type === 'export') {
+            boundF = this.ctx.mkdirs.bind(this.ctx)
+          }
 
           boundF(names, (err, map) => { //
             if (err) {
@@ -459,6 +464,15 @@ class XDir extends Node {
       }
 
       this.ctx.vfs.MKDIRS(this.ctx.user, props, callback)
+    } else if (this.ctx.type === 'export') {
+      let policy = this.getPolicy() // FIXME this shoudl be global policy
+      let props = {
+        id: this.ctx.dst.drive,
+        path: this.dst.name,
+        names,
+        policy
+      }
+      this.ctx.nfs.MKDIRS(this.ctx.user, props, callback)
     }
   }
 
