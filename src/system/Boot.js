@@ -883,7 +883,7 @@ class Boot extends EventEmitter {
   view () {
 
     let storage
-    
+
     if (this.storage) {
       let portsPaths= this.storage.ports
         .map(p => p.path.split('/ata_port').length ? p.path.split('/ata_port')[0] : undefined)
@@ -893,7 +893,7 @@ class Boot extends EventEmitter {
         return !!p ? p : undefined
       })
 
-      let storage = JSON.parse(JSON.stringify(this.storage))
+      storage = JSON.parse(JSON.stringify(this.storage))
 
       slots.forEach((value, index) => value ? (storage.blocks.forEach(b => b.path.startsWith(value) ? b.slotNumber = index + 1 : b)) : value)
     }
