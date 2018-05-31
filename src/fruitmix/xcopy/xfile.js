@@ -1,12 +1,10 @@
-const path = require('path')
 const fs = require('fs')
 
 const rimraf = require('rimraf')
 const debug = require('debug')('xfile')
 
-const Node = require('./node')
+const XNode = require('./xnode')
 const FingerStream = require('../../lib/finger-stream')
-
 
 /**
 Base state class for file
@@ -102,17 +100,15 @@ class Working extends State {
             this.setState(Finish)
           }
         })
-
       } break
 
       case 'import': {
-
         // TODO 1. refactor hash to child process
         // TODO 2. remove tmp file ???
 
         let props = {
           id: this.ctx.ctx.src.drive,
-          path: this.ctx.namepath(),
+          path: this.ctx.namepath()
         }
 
         this.ctx.ctx.nfs.GET(this.ctx.ctx.user, props, (err, srcPath) => {
@@ -138,10 +134,10 @@ class Working extends State {
                 driveUUID: this.ctx.ctx.dst.drive,
                 dirUUID: this.ctx.parent.dst.uuid,
                 name: this.ctx.src.name,
-                data: dstPath, 
+                data: dstPath,
                 size: this.ws.bytesWritten,
                 sha256: this.fs.fingerprint,
-                policy,
+                policy
               }
 
               this.ctx.ctx.vfs.NEWFILE(user, props, (err, stat, resolved) => {
@@ -190,7 +186,7 @@ class Working extends State {
               path: this.ctx.parent.dstNamePath(), // dir path
               name: this.ctx.src.name,
               data,
-              policy 
+              policy
             }
 
             this.ctx.ctx.nfs.NEWFILE(user, props, (err, _, resolved) => {
@@ -223,7 +219,7 @@ class Conflict extends State {
     return {
       error: {
         code: this.err.code,
-        xcode: this.err.xcode,
+        xcode: this.err.xcode
       },
       policy: this.policy
     }
@@ -243,12 +239,9 @@ class Failed extends State {
 class Finish extends State { }
 
 /**
-The base class of a file subtask
-
-@memberof XCopy
+The base class of a file subtask in xcopy
 */
-class XFile extends Node {
-
+class XFile extends XNode {
   /**
   @param {object} ctx - task context
   @param {object} parent - parent node, must be an XDir
