@@ -16,9 +16,15 @@ const fruitmixDir = path.join(tmptest, 'fruitmix')
 const { requestTokenAsync, initUsersAsync, initFruitFilesAsync, USERS, DRIVES } = require('./tmplib')
 
 const fileArr = [
-  { path: path.join(__dirname, './lib.js')},
-  { path: path.join(__dirname, './drives.js')},
-  { path: path.join(__dirname, './token.js')},
+  { path: path.join(__dirname, './lib.js'), addTags: [], addExpectCode: 400, removeTags: [], removeExpectCode: 400,
+    addExpected: `expect(res.body.message).to.deep.equal("invalid tags")`,
+    removeExpected: `expect(res.body.message).to.deep.equal("invalid tags")`
+  },
+  { path: path.join(__dirname, './users.js'), addTags: [0], removeTags: [0], remainTags:[],
+    removeExpected: `expect(res.body[0].data.tags).to.deep.equal(undefined)`
+  },
+  { path: path.join(__dirname, './drives.js'), addTags: [0, 1], removeTags: [1], remainTags:[0]},
+  { path: path.join(__dirname, './token.js'), addTags: [0, 1, 2], removeTags: [1,2], remainTags:[0]}
 ]
 
 const getHome = (app, token) => {
@@ -62,12 +68,6 @@ const uploadFile = (app, token, driveId, dirId, filePath) => {
   })
 }
 
-// const addTag = (app, token, driveId, dirId, filePath) => {
-//   return new Promise((resolve, reject) => {
-//     request
-//   })
-// }
-
 const tasks = [
   { it: 'alice创建Tag 0', type: 'post', url:'/tags', args: {name:'tag0', color: '#333'}, expectCode: 200, 
     expected: "expect(res.body.id).to.deep.equal(0);expect(res.body.name).to.deep.equal('tag0')" },
@@ -80,22 +80,52 @@ const tasks = [
 ]
 
 fileArr.forEach(item => {
-  let tags = [0]
+  let addTags = item.addTags
   let fileName = path.basename(item.path)
+  let addExpected = item.addExpected? item.addExpected: `expect(res.body[0].data.tags).to.deep.equal([${addTags}])`
+  let addExpectCode = item.addExpectCode? item.addExpectCode: 200
+  let addQueryExpected = addTags.length?
+    `expect(res.body.entries.find(item => item.name === "${fileName}").tags).to.deep.equal([${addTags}])`:
+    `expect(res.body.entries.find(item => item.name === "${fileName}").tags).to.deep.equal(undefined)`
+  let removeTags = item.removeTags
+
+  let removeExpectCode = item.removeExpectCode? item.removeExpectCode: 200
+  let removeExpected = item.removeExpected? item.removeExpected: `expect(res.body[0].data.tags).to.deep.equal([${item.remainTags}])`
+
+  // 给文件添加tags
   tasks.push({
-    it: `${fileName} 添加tag 0`, type: 'post', 
+    it: `${fileName} 添加tag [${addTags}]`, type: 'post', 
     url: `/drives/${DRIVES.alicePrivate.uuid}/dirs/${DRIVES.alicePrivate.uuid}/entries`,
-    field: {key: fileName, value: JSON.stringify({op: 'addTags', tags})},
-    expectCode: 200, 
-    expected: `expect(res.body[0].data.tags).to.deep.equal([${tags}])`
+    field: {key: fileName, value: JSON.stringify({op: 'addTags', tags:addTags})},
+    expectCode: addExpectCode, 
+    expected: addExpected
   })
 
+  // 查询tags
   tasks.push({
-    it: `查询文件 ${fileName} 包含 tag`, type: 'get', 
+    it: `查询文件 ${fileName} 包含 tag [${addTags}]`, type: 'get', 
     url: `/drives/${DRIVES.alicePrivate.uuid}/dirs/${DRIVES.alicePrivate.uuid}`,
     expectCode: 200,
-    expected: `expect(res.body.entries.find(item => item.name === "${fileName}").tags).include(0)`
+    expected: addQueryExpected
   })
+
+  // // 删除tags
+  tasks.push({
+    it: `${fileName} 删除tag [${removeTags}]`, type: 'post',
+    url: `/drives/${DRIVES.alicePrivate.uuid}/dirs/${DRIVES.alicePrivate.uuid}/entries`,
+    field: {key: fileName, value: JSON.stringify({op: 'removeTags', tags: removeTags})},
+    expectCode: 200, 
+    expected: removeExpected
+  })
+
+    // 查询tags
+    tasks.push({
+      it: `查询文件 ${fileName} 包含 tag `, type: 'get', 
+      url: `/drives/${DRIVES.alicePrivate.uuid}/dirs/${DRIVES.alicePrivate.uuid}`,
+      expectCode: 200,
+      expected: ``
+    })
+
 })
 
 describe(path.basename(__filename), () => {
@@ -137,6 +167,7 @@ describe(path.basename(__filename), () => {
           .end((err, res) => {
             // console.log(Array.isArray(res.body[0].data.tags))
             // if (res.statusCode !== 200) console.log(res.body, err)
+            console.log(res.body, err)
             eval(item.expected)
             done()
           })
@@ -149,8 +180,8 @@ describe(path.basename(__filename), () => {
           .send(item.args)
           .expect(item.expectCode)
           .end((err, res) => {
-            if (res.statusCode !== 200) console.log(res.body, err)
-            // console.log(res.body)
+            // if (res.statusCode !== 200) console.log(res.body, err)
+            // console.log(res.body, err)
             eval(item.expected)
             done()
           })
