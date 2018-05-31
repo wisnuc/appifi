@@ -1,6 +1,7 @@
 const EventEmitter = require('events')
 const child = require('child_process')
 const os = require('os')
+const fs = require('fs')
 
 const Boot = require('../system/Boot')
 const Auth = require('../middleware/Auth')
@@ -20,6 +21,8 @@ const { passwordEncrypt } = require('../lib/utils')
 const routing = require('./routing')
 
 const Pipe = require('./Pipe')
+
+const SlotConfPath = '/phi/slots'
 /**
 Create An Application
 
@@ -89,6 +92,16 @@ class App extends EventEmitter {
     } else if (opts.fruitmixOpts) {
       let configuration = opts.configuration
       let fruitmixOpts = opts.fruitmixOpts
+
+      try {
+        let slots
+        if (fs.existsSync(SlotConfPath)) {
+          slots = JSON.parse(fs.readFileSync(SlotConfPath).toString())
+        }
+        if (Array.isArray(slots)) {
+          configuration.slots = slots
+        }
+      } catch(e) {}
 
       this.boot = new Boot({ configuration, fruitmixOpts })
 

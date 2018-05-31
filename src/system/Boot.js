@@ -881,6 +881,19 @@ class Boot extends EventEmitter {
   }
 
   view () {
+    
+    let portsPaths= this.storage.ports
+        .map(p => p.path.split('/ata_port').length ? p.path.split('/ata_port')[0] : undefined)
+        .filter(x => !!x && x.length)
+    let slots = this.conf.slots.map(s => {
+      let p = portsPaths.find(p => p.endsWith(s))
+      return !!p ? p : undefined
+    })
+
+    let storage = Object.assign({}, this.storage)
+
+    slots.forEach((value, index) => value ? (storage.blocks.forEach(b => b.path.startsWith(value) ? b.slotNumber = index + 1 : b)) : value)
+
     return {
       state: this.state.constructor.name.toUpperCase(),
       boundUser: this.boundUser ? { phicommUserId: this.boundUser.phicommUserId } : this.boundUser,
