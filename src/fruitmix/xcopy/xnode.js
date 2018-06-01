@@ -5,7 +5,7 @@ The abstract base class for different type of sub-tasks
 
 @memberof XCopy
 */
-class Node extends EventEmitter {
+class XNode extends EventEmitter {
 
   /**
   Create a node
@@ -182,4 +182,4 @@ class Node extends EventEmitter {
   }
 }
 
-module.exports = Node
+module.exports = XNode

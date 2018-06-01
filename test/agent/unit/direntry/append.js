@@ -79,6 +79,7 @@ const alice = {
   smbPassword: '4039730E1BF6E10DD01EAAC983DB4D7C',
   lastChangeTime: 1523867673407,
   isFirstUser: true,
+  status: 'ACTIVE',
   phicommUserId: 'alice'
 }
 
@@ -89,6 +90,7 @@ const bob = {
   smbPassword: 'B7C899154197E8A2A33121D76A240AB5',
   lastChangeTime: 1523867673407,
   isFirstUser: false,
+  status: 'ACTIVE',
   phicommUserId: 'bob'
 }
 
@@ -99,6 +101,7 @@ const charlie = {
   smbPassword: '8D44C8FF3A4D1979B24BFE29257173AD',
   lastChangeTime: 1523867673407,
   isFirstUser: false,
+  status: 'ACTIVE',
   phicommUserId: 'charlie'
 }
 

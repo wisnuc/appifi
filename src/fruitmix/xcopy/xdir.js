@@ -4,10 +4,8 @@ const fs = require('fs')
 const UUID = require('uuid')
 const debug = require('debug')('xdir')
 
-const Node = require('./node')
+const XNode = require('./xnode')
 const XFile = require('./xfile')
-
-// const mkdir = require('./lib').mkdir
 
 class State {
   constructor (ctx, ...args) {
@@ -320,10 +318,8 @@ class Finish extends State {
 /**
 The base class of sub-task for directory.
 
-@memberof XCopy
-@extends XCopy.Node
 */
-class XDir extends Node {
+class XDir extends XNode {
   /**
 
   creating a xdir @ preparing with src, dst, and optional entries
@@ -484,178 +480,5 @@ class XDir extends Node {
   }
 
 }
-
-/**
-Object.assign(Dir.prototype, { Pending, Working, Reading, Read, Conflict, Finished, Failed })
-
-class DirCopy extends Dir {}
-
-DirCopy.File = FileCopy
-
-DirCopy.prototype.Working = class extends Working {
-
-  mkdir (policy, callback) {
-    let src = { dir: this.ctx.src.uuid }
-    let dst = { dir: this.ctx.parent.dst.uuid }
-    this.ctx.ctx.cpdir(src, dst, policy, (err, xstat, resolved) => {
-      if (err) {
-        callback(err)
-      } else {
-        if (!xstat) return callback(null, null, resolved)
-        let dst2 = { uuid: xstat.uuid, name: xstat.name }
-        callback(null, dst2, resolved)
-      }
-      // if (err && err.code === 'EEXIST') {
-      //   this.setState('Conflict', err, policy)
-      // } else if (err) {
-      //   this.setState('Failed', err)
-      // } else {
-      //   this.setState('Finished')
-      // }
-    })
-  }
-
-}
-
-class DirMove extends Dir {}
-
-DirMove.File = FileMove
-
-DirMove.prototype.Working = class extends Working {
-
-  mkdir (policy, callback) {
-    let src = { dir: this.ctx.src.uuid }
-    let dst = { dir: this.ctx.parent.dst.uuid }
-    this.ctx.ctx.mvdir(src, dst, policy, (err, xstat, resolved) => {
-      if (err) {
-        callback(err)
-      } else {
-        if (!xstat) return callback(null, null, resolved)
-        let dst = { uuid: xstat.uuid, name: xstat.name }
-        callback(null, dst, resolved)
-      }
-
-      // if (err && err.code === 'EEXIST') {
-      //   callback(err)
-      //   this.setState('Conflict', err, policy)
-      // } else if (err) {
-      //   callback(err)
-      //   this.setState('Failed', err)
-      // } else {
-      //   let dst = { uuid: xstat.uuid, name: xstat.name }
-      //   callback(null, dst, resolved)
-      //   this.setState('Finished')
-      // }
-
-      // if (err && err.code === 'EEXIST') {
-      //   this.setState('Conflict', err, policy)
-      // } else if (err) {
-      //   this.setState('Failed', err)
-      // } else {
-      //   this.setState('Finished')
-      // }
-    })
-  }
-}
-
-class DirImport extends Dir {
-
-  createSubTask (stat) {
-    let src = {
-      uuid: UUID.v4(),
-      name: stat.name,
-      path: path.join(this.src.path, stat.name)
-    }
-
-    if (stat.type === 'directory') {
-      return new DirImport(this.ctx, this, src)
-    } else {
-      return new FileImport(this.ctx, this, src)
-    }
-  }
-
-}
-
-DirImport.File = FileImport
-
-DirImport.prototype.Working = class extends Working {
-
-  mkdir (policy, callback) {
-    let dst = {
-      dir: this.ctx.parent.dst.uuid,
-      name: this.ctx.src.name,
-    }
-
-    this.ctx.ctx.mkdir(dst, policy, (err, xstat, resolved) => {
-      if (err) {
-        callback(err)
-      } else {
-        if (!xstat) return callback(null, null, resolved)
-        let dst2 = { uuid: xstat.uuid, name: xstat.name }
-        callback(null, dst2, resolved)
-      }
-    })
-  }
-}
-
-DirImport.prototype.Reading = class extends Reading {
-
-  read (callback) {
-    let srcPath = this.ctx.src.path
-    fs.readdir(srcPath, (err, files) => {
-      if (err) return callback(err)
-      if (files.length === 0) return callback(null, [])
-      let count = files.length
-      let stats = []
-      files.forEach(file => {
-        fs.lstat(path.join(srcPath, file), (err, stat) => {
-          if (!err && (stat.isDirectory() || stat.isFile())) {
-            if (stat.isDirectory()) {
-              stats.push({
-                type: 'directory',
-                name: file
-              })
-            } else {
-              stats.push({
-                type: 'file',
-                name: file,
-                size: stat.size,
-                mtime: stat.mtime.getTime()
-              })
-            }
-          }
-
-          if (!--count) callback(null, stats)
-        })
-      })
-    })
-  }
-
-}
-
-class DirExport extends Dir {}
-
-DirExport.File = FileExport
-
-DirExport.prototype.Working = class extends Working {
-
-  mkdir (policy, callback) {
-    let name = this.ctx.src.name
-    let dstPath = path.join(this.ctx.parent.dst.path, name)
-    mkdir(dstPath, policy, (err, dst, resolved) => {
-      if (err) {
-        callback(err)
-      } else {
-        let dst2 = {
-          name: this.ctx.src.name,
-          path: dst || dstPath
-        }
-        callback(null, dst2, resolved)
-      }
-    })
-  }
-}
-
-*/
 
 module.exports = XDir

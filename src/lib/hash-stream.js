@@ -245,6 +245,8 @@ class IPre extends EventEmitter {
 
 }
 
+/**
+*/
 class IPre2 extends EventEmitter {
 
   constructor(rs, filePath, size, sha256) {
@@ -282,6 +284,9 @@ class IPre2 extends EventEmitter {
         }
       })
     })
+  }
+
+  destroy () {
   }
 }
 
@@ -981,11 +986,12 @@ module.exports = {
 
   createStream: function (rs, filePath, size, sha256) {
     return sha256 
-      ? new IPre2(rs, filePath, size, sha256)
+      ? new IPre(rs, filePath, size, sha256)
       : new IPost(rs, filePath, size)
   }, 
 
   IPre, 
+  IPre2,
   IPost,
   CPre: CPre2,
   CPost 
