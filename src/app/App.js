@@ -234,6 +234,7 @@ class App extends EventEmitter {
     devicer.get('/cpuInfo', (req, res) => res.status(200).json(this.device.cpuInfo()))
     devicer.get('/memInfo', (req, res, next) => this.device.memInfo((err, data) => err ? next(err) : res.status(200).json(data)))
     devicer.get('/speed', (req, res, next) => res.status(200).json(this.device.netDev()))
+    routers.push(['/device', devicer])
     
     // all fruitmix router except token
     Object.keys(routing).forEach(key =>
