@@ -159,7 +159,7 @@ class Device {
   }
 
   updateAliases(newData, oldData) {
-    interfaces((err, its) => {
+    this.interfaces((err, its) => {
       if (err) return
       its.forEach(it => {
         if (it.state !== 'up') return
