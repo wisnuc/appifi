@@ -50,13 +50,6 @@ const probeProcAsync = async (path, multi) => {
     parseMultiSectionOutput(stdout) :
     parseSingleSectionOutput(stdout)
 }
-const parseSingleSectionOutput = stdout =>
-  stdout.toString().split('\n') // split to lines
-  .map(l => l.trim()).filter(l => l.length) // trim and remove empty line
-  .map(l => l.split(':').map(w => w.trim())) // split to word array (kv)
-  .filter(arr => arr.length === 2 && arr[0].length) // filter out non-kv
-  .reduce((obj, arr) => K(obj)(obj[camelCase(arr[0])] = arr[1]), {}) // merge into one object
-
 
 const deviceModel = () => {
   return 'PhiNAS2'
