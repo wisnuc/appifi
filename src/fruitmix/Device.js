@@ -8,6 +8,11 @@ const sysfsNetworkInterfaces = require('../system/networkInterfaces')
 const DataStore = require('../lib/DataStore')
 
 /**
+K combinator
+*/
+const K = x => y => x
+
+/**
 This function change string format 'processor-family' to js style 'processorFamily'
 @param {string} text
 @returns camelCased strings.
