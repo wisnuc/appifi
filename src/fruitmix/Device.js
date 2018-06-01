@@ -117,8 +117,8 @@ class Device {
   constructor(ctx) {
     this.ctx = ctx
 
-    let storeFilePath = path.join(ctx.opts.configuration.chassis.dir, 'aliases')
-    let storeTmpPath = path.join(ctx.opts.configuration.chassis.tmpDir, 'aliases')
+    let storeFilePath = path.join(ctx.opts.configuration.chassis.dir, 'aliases.json')
+    let storeTmpPath = path.join(ctx.opts.configuration.chassis.dTmpDir, 'aliases')
     this.store = new DataStore({
       file: storeFilePath,
       tmpDir: storeTmpPath,
