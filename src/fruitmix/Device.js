@@ -153,12 +153,12 @@ class Device {
   }
 
   updateAliases(newData, oldData) {
-    if (newData.length) {
+    if (newData && newData.length) {
       let newAliases = newData[0]
       if (oldData.length) {
 
       }
-    } else if (oldData.length) {
+    } else if (oldData &&oldData.length) {
 
     }
   }
