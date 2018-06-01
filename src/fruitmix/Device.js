@@ -239,7 +239,7 @@ class Device {
     })
   }
 
-  deleteAliases(props, callback) {
+  deleteAliases(name, callback) {
     this.store.save(data => {
       if (!Array.isArray(data)) throw Object.assign(new Error('aliase not found'), { status: 404 })
       let index = data.findIndex(d => d.name === name)
