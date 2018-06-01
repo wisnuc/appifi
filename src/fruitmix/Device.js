@@ -4,6 +4,7 @@ const os = require('os')
 const path = require('path')
 
 const btrfsUsageAsync = require('../system/btrfsusageAsync')
+const sysfsNetworkInterfaces = require('../system/networkInterfaces')
 const DataStore = require('../lib/DataStore')
 
 /**
