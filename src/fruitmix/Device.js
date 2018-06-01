@@ -140,7 +140,7 @@ class Device {
   startUpdateNetDev() {
     setInterval(() => {
       try {
-        let dev = child.execSync(`cat /proc/net/dev | grep enp | awk '{ print  $2 " " $3 " " $10 " " $11 }'`)
+        let dev = child.execSync(`cat /proc/net/dev | grep enp | awk '{ print  $2 " " $3 " " $10 " " $11 }'`).toString()
         if (dev) dev = dev.split(' ').map(x => x.trim()).filter(x => !!x)
         let speed = {
           receive: {
@@ -159,14 +159,36 @@ class Device {
   }
 
   updateAliases(newData, oldData) {
-    if (newData && newData.length) {
-      let newAliases = newData[0]
-      if (oldData.length) {
-
-      }
-    } else if (oldData &&oldData.length) {
-
-    }
+    interfaces((err, its) => {
+      if (err) return
+      its.forEach(it => {
+        if (it.state !== 'up') return
+    
+        // find out the largest number used
+        let num = it.ipAddresses
+          .reduce((curr, { number }) => (number ? Math.max(number, curr) : curr), 0) + 1
+    
+        // bring up all aliases not up
+        if (it.config && it.config.aliases) {
+          it.config.aliases.forEach((alias) => {
+            if (it.ipAddresses.find(ipAddr => ipAddr.address === alias.split('/')[0])) return
+    
+            child.exec(`ip addr add ${alias} dev ${it.name} label ${it.name}:${num}`)
+            num += 1
+          })
+        }
+    
+        // shutdown all aliases not in config
+        it.ipAddresses.forEach((ipAddr) => {
+          if (!ipAddr.number) return
+    
+          let aliases = it.config && it.config.aliases
+          if (!aliases || !aliases.find(alias => alias.split('/')[0] === ipAddr.address)) {
+            child.exec(`ip addr del ${ipAddr.address} dev ${it.name}:${ipAddr.number}`)
+          }
+        })
+      })
+    })
   }
 
   cpuInfo() {
