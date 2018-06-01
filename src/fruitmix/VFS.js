@@ -640,13 +640,14 @@ class VFS extends EventEmitter {
         throw new Error('invalid tags')
 
       tags.forEach(id => {
-        let tag = this.tags.find(tag => tag.id === id)
+        let tag = this.tags.find(tag => tag.id === id && tag.creator === user.uuid && !tag.deleted)
         if (!tag || tag.creator !== user.uuid) throw new Error(`tag id ${id} not found`)
       })
     } catch (err) {
       err.status = 400
-      process.nextTick(() => callback(err))
+      return process.nextTick(() => callback(err))
     }
+
     // console.log(user, props, '=================================')
     this.DIR(user, props, (err, dir) => {
       if (err) return callback(err)
@@ -681,12 +682,12 @@ class VFS extends EventEmitter {
         throw new Error('invalid tags')
 
       tags.forEach(id => {
-        let tag = this.tags.find(tag => tag.id === id)
+        let tag = this.tags.find(tag => tag.id === id && tag.creator === user.uuid && !tag.deleted)
         if (!tag || tag.creator !== user.uuid) throw new Error(`tag id ${id} not found`)
       })      
     } catch (err) {
       err.status = 400
-      process.nextTick(() => callback(err))
+      return process.nextTick(() => callback(err))
     }
 
     // normalize
@@ -721,12 +722,12 @@ class VFS extends EventEmitter {
         throw new Error('invalid tags')
 
       tags.forEach(id => {
-        let tag = this.tags.find(tag => tag.id === id)
+        let tag = this.tags.find(tag => tag.id === id && tag.creator === user.uuid && !tag.deleted)
         if (!tag || tag.creator !== user.uuid) throw new Error(`tag id ${id} not found`)
       })      
     } catch (err) {
       err.status = 400
-      process.nextTick(() => callback(err))
+      return process.nextTick(() => callback(err))
     }
 
     let tags = Array.from(new Set(props.tags)).sort()
@@ -734,7 +735,7 @@ class VFS extends EventEmitter {
     this.DIR(user, props, (err, dir) => {
       if (err) return callback(err)
 
-      let filePath = path.join(this.absolutePath(dir), props, name)
+      let filePath = path.join(this.absolutePath(dir), props.name)
       readXstat(filePath, (err, xstat) => {
         if (err) return callback(err)  
         if (xstat.type !== 'file') {
@@ -743,18 +744,20 @@ class VFS extends EventEmitter {
           return callback(err)
         }
 
-        // user tag ids
-        let userTags = this.tags
-          .filter(tag => tag.creator === user.uuid)
-          .map(tag => tag.uuid)
+        // // user tag ids
+        // let userTags = this.tags
+        //   .filter(tag => tag.creator === user.uuid)
+        //   .map(tag => tag.uuid)
 
-        // remove all user tags out of old tags
-        let oldTags = xstat.tags
-          ? xstat.tags.reduce((acc, id) => userTags.includes(id) ? acc : [...acc, id])
-          : []
+        //   console.log(userTags)
 
-        let newTags = Array.from(new Set([...oldTags, tags]))
-        updateFileTags(filePath, xstat.uuid, newTags, callback)
+        // // remove all user tags out of old tags
+        // let oldTags = xstat.tags
+        //   ? xstat.tags.reduce((acc, id) => userTags.includes(id) ? acc : [...acc, id])
+        //   : []
+
+        // let newTags = Array.from(new Set([...oldTags, tags]))
+        updateFileTags(filePath, xstat.uuid, tags, callback)
       })
     })
   }

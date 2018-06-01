@@ -472,6 +472,14 @@ class Executing extends State {
           }, (err, xstat) => 
             err ? this.setState(Failed, err) : this.setState(Succeeded, xstat))
           break
+        
+        case 'setTags':
+          this.ctx.ctx.apis.setTags({
+            name: args.name,
+            tags: [...args.tags]
+          }, (err, xstat) => 
+            err ? this.setState(Failed, err) : this.setState(Succeeded, xstat))
+          break
 
         default:
           console.log('invalid job op', args.op)
