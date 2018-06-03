@@ -201,6 +201,9 @@ class Reading extends Base {
     }) 
   }
 
+  /**
+  This is the ONLY place updating in-memory fs object tree.
+  */
   updateChildren (xstats) {
     //total 
     this.dir.dirCount = xstats.filter(x => x.type === 'directory').length
