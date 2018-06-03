@@ -15,6 +15,7 @@ const fruitmixDir = path.join(tmptest, 'fruitmix')
 
 const { requestTokenAsync, initUsersAsync, initFruitFilesAsync, USERS, DRIVES } = require('./tmplib')
 
+// 文件列表
 const fileArr = [
   { path: path.join(__dirname, './lib.js'), addTags: [], addExpectCode: 400, removeTags: [], removeExpectCode: 400,
     addExpected: `expect(res.body.message).to.deep.equal("invalid tags")`,
@@ -27,6 +28,7 @@ const fileArr = [
   { path: path.join(__dirname, './token.js'), addTags: [0, 1, 2], removeTags: [1,2], remainTags:[0]}
 ]
 
+// 获取dirve
 const getHome = (app, token) => {
   return new Promise((resolve, reject) => {
     request(app)
@@ -40,6 +42,7 @@ const getHome = (app, token) => {
   })
 }
 
+// 上传文件
 const uploadFile = (app, token, driveId, dirId, filePath) => {
   return new Promise((resolve, reject) => {
     const hash = crypto.createHash('sha256')
@@ -67,6 +70,7 @@ const uploadFile = (app, token, driveId, dirId, filePath) => {
     fileStream.pipe(hash)
   })
 }
+
 
 const tasks = [
   { it: 'alice创建Tag 0', type: 'post', url:'/tags', args: {name:'tag0', color: '#333'}, expectCode: 200, 

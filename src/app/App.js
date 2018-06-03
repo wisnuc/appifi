@@ -22,6 +22,8 @@ const routing = require('./routing')
 
 const Pipe = require('./Pipe')
 
+const Device = require('../fruitmix/Device')
+
 const SlotConfPath = '/phi/slots'
 /**
 Create An Application
@@ -127,6 +129,8 @@ class App extends EventEmitter {
       boot: this.boot
     })
 
+    this.device = new Device(this)
+
     // create server if required
     if (opts.useServer) {
       this.server = this.express.listen(3000, err => {
@@ -182,41 +186,8 @@ class App extends EventEmitter {
 
     // boot router
     let bootr = express.Router()
-    bootr.get('/', (req, res) => {
-      let total = os.totalmem(), speed, type, free = os.freemem()
-      try {
-        free = child.execSync('free -b')
-          .toString().split('\n')
-          .find(x => x.startsWith('Mem:'))
-          .split(' ')
-          .map(x => x.trim())
-          .filter(x => x.length)
-          .pop()
-        type = child.execSync('dmidecode -t memory |grep -A16 "Memory Device$" |grep "Type: DD*"')
-          .toString().split('\n')
-          .shift()
-          .split(' ')
-          .map(x => x.trim())
-          .filter(x => x.length)
-          .pop()
-        speed = child.execSync('dmidecode -t memory |grep -A16 "Memory Device$" |grep "Speed:.*MHz"')
-          .toString().split('\n')
-          .shift()
-          .split(':')
-          .pop().trim()
-      } catch (e) { }
-      res.status(200).json(Object.assign({}, this.boot.view(), {
-        device: Object.assign({}, this.cloudConf.device, {
-          cpus: os.cpus(),
-          memory: {
-            free,
-            total,
-            speed,
-            type
-          }
-        })
-      }))
-    })
+    bootr.get('/', (req, res) => res.status(200).json(this.boot.view()))
+
     bootr.post('/boundVolume', (req, res, next) =>
       this.boot.init(req.body.target, req.body.mode, (err, data) =>
         err ? next(err) : res.status(200).json(data)))
@@ -256,6 +227,18 @@ class App extends EventEmitter {
     let tokenr = createTokenRouter(this.auth)
     routers.push(['/token', tokenr])
 
+    // boot router
+    let devicer = express.Router()
+
+    devicer.get('/', (req, res, next) => this.device.view((err, data) => err ? next(err) : res.status(200).json(data)))
+    devicer.get('/cpuInfo', (req, res) => res.status(200).json(this.device.cpuInfo()))
+    devicer.get('/memInfo', (req, res, next) => this.device.memInfo((err, data) => err ? next(err) : res.status(200).json(data)))
+    devicer.get('/speed', (req, res, next) => res.status(200).json(this.device.netDev()))
+    devicer.get('/net', (req, res, next) => this.device.interfaces((err, its) => err ? next(err) : res.status(200).json(its)))
+    devicer.post('/net', (req, res, next) => this.device.addAliases(req.body, (err, data) => err ? next(err) : res.status(200).json(data)))
+    devicer.delete('/net/:name', (req, res, next) => this.device.deleteAliases(req.params.name, (err, data)=> err ? next(err) : res.status(200).json(data)))
+    routers.push(['/device', devicer])
+    
     // all fruitmix router except token
     Object.keys(routing).forEach(key =>
       routers.push([routing[key].prefix, this.createRouter(this.auth, routing[key].routes)]))
