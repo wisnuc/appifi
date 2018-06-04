@@ -18,7 +18,7 @@ class UdevMonitor extends EventEmitter {
     this.timer = -1
     this.queue = []
 
-    rl.on('line', line => {
+    this.rl.on('line', line => {
       let t = line.trim()
       if (!t.endsWith('(block)')) return
 
@@ -44,7 +44,7 @@ class UdevMonitor extends EventEmitter {
       }, 150)
     })
 
-    rl.on('close', () => {
+    this.rl.on('close', () => {
       console.log('unexpected close of udev monitor')
       // restart after 5 seconds
       setTimeout(() => this.startMonitor(), 5 * 1000)
