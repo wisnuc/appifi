@@ -77,6 +77,14 @@ class State {
   probe() {
 
   }
+
+  exit() {
+
+  }
+
+  enter () {
+
+  }
 }
 
 class Idle extends State {
