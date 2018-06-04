@@ -14,7 +14,7 @@ class UdevMonitor extends EventEmitter {
     if (this.spawn && !this.spawn.killed) this.spawn.kill()
 
     this.spawn = child.spawn('stdbuf', ['-oL', 'udevadm', 'monitor', '--udev', '-s', 'block'])
-    this.rl = readline.createInterface({ input: spawn.stdout })
+    this.rl = readline.createInterface({ input: this.spawn.stdout })
     this.timer = -1
     this.queue = []
 
