@@ -39,6 +39,7 @@ for (const k in routing) {
 
 const WHITE_LIST = {
   token: 'token',
+  boot: 'boot',
   users: 'user',
   drives: 'drives',
   tags: 'tag',
@@ -86,7 +87,9 @@ class Pipe extends EventEmitter {
   checkUser (phicommUserId) {
     let user
     if (!this.ctx.fruitmix()) {
-      user = this.boot.view().boundUser
+      user = this.ctx.boot.view().boundUser 
+        ? (this.ctx.boot.view().boundUser.phicommUserId === phicommUserId 
+        ? this.ctx.boot.view().boundUser : null) : null
     } else {
       user = this.ctx.fruitmix().getUserByPhicommUserId(phicommUserId)
     }
@@ -105,6 +108,10 @@ class Pipe extends EventEmitter {
    */
   getToken (user) {
     return this.ctx.config.auth().tokenForRemote(user)
+  }
+
+  getBootInfo (user) {
+    return this.ctx.boot.view()
   }
   /**
    * check config
@@ -179,9 +186,13 @@ class Pipe extends EventEmitter {
       if (!resource) {
         throw formatError(new Error(`this resource: ${resource}, not support`), 400)
       }
-      // 由于 token 没有 route， so 单独处理 token
+      // 由于 token 没有 route， 单独处理 token
       if (resource === 'token') {
         return this.reqCommand(null, this.getToken(user))
+      }
+
+      if (resource === 'boot') {
+        return this.reqCommand(null, this.getBootInfo())
       }
       // match route path and generate query
       let matchRoute

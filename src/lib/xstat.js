@@ -101,6 +101,16 @@ const fileMagic6 = (target, callback) =>
     if (err) return callback(err)
     if (type && type.ext === 'jpg') {
       callback(null, 'JPEG')
+    } else if (type && type.ext === 'png') {
+      callback(null, 'PNG')
+    } else if (type && type.ext === 'gif') {
+      callback(null, 'GIF')
+    } else if (type && type.ext === 'bmp') {
+      callback(null, 'BMP')
+    } else if (type && type.ext === '3GP') {
+      callback(null, '3GP')
+    } else if (type && type.ext === 'mp4') {
+      callback(null, 'MP4')
     } else {
       fileMagic1(target, callback)
     }

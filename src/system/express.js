@@ -75,12 +75,12 @@ const createApp = opts => {
   })
 
   // 404 handler
-  app.use((req, res, next) => next(Object.assign(new Error('Not Found'), { status: 404 })))
+  app.use((req, res, next) => next(Object.assign(new Error('404 Not Found'), { status: 404 })))
 
   // 500 handler
   app.use((err, req, res, next) => {
     if (err) {
-      if (log.error === 'all') {
+      if (log.error === 'all' || process.env.LOGE) {
         console.log(':: ', err)
       }
     }

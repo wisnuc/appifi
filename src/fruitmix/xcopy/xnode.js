@@ -5,7 +5,7 @@ The abstract base class for different type of sub-tasks
 
 @memberof XCopy
 */
-class Node extends EventEmitter {
+class XNode extends EventEmitter {
 
   /**
   Create a node
@@ -80,9 +80,23 @@ class Node extends EventEmitter {
   /**
   Visit all nodes with function f. Implemented as pre-visitor.
   */
+
+/**
   visit (f) {
     f(this)
     if (this.children) this.children.forEach(c => c.visit(f)) 
+  }
+**/
+
+  visit (f) {
+
+    if (this.children) 
+      for (let i = 0; i < this.children.length; i++) {
+        let x = this.children[i].visit(f)
+        if (x) return x
+      }
+
+    return f(this)
   }
 
   /**
@@ -114,6 +128,21 @@ class Node extends EventEmitter {
   */
   setState (state) {
     this.state.setState(state)
+  }
+
+  /**
+  Generate name path from root
+  */
+  namepath () {
+    let arr = []
+    for (let n = this; n; n = n.parent) arr.unshift(n.src.name)
+    return arr.join('/')
+  }
+
+  dstNamePath () {
+    let arr = []
+    for (let n = this; n; n = n.parent) arr.unshift(n.dst.name)
+    return arr.join('/')
   }
 
   /**
@@ -153,4 +182,4 @@ class Node extends EventEmitter {
   }
 }
 
-module.exports = Node
+module.exports = XNode

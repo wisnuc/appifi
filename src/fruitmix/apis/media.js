@@ -13,7 +13,6 @@ class MediaApi {
 
   GET (user, props, callback) {
     let { fingerprint, alt } = props 
-
     if (alt === undefined || alt === 'metadata') {
       this.vfs.getMedia(user, { fingerprint }, callback)
     } else if (alt === 'data') {

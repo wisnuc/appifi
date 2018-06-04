@@ -8,7 +8,28 @@ const Dicer = require('dicer')
 const debug = require('debug')('nfs')
 
 const { isUUID, isNonNullObject } = require('../lib/assertion')
+const autoname = require('../lib/autoname')
 const PartStream = require('./nfs/PartStream')
+
+const xcode = stat => {
+  if (stat.isFile()) {
+    return 'EISFILE'
+  } else if (stat.isDirectory()) {
+    return 'EISDIRECTORY'
+  } else if (stat.isBlockDevice()) {
+    return 'EISBLOCKDEV'
+  } else if (stat.isCharacterDevice()) {
+    return 'EISCHARDEV'
+  } else if (stat.isSymbolicLink()) {
+    return 'EISSYMLINK'
+  } else if (stat.isFIFO()) {
+    return 'EISFIFO'
+  } else if (stat.isSocket()) {
+    return 'EISSOCKET'
+  } else {
+    return 'EISUNKNOWN'
+  }
+}
 
 /**
 Generate an unsupported file type error from fs.Stats
@@ -45,6 +66,103 @@ const EUnsupported = stat => {
   return err
 }
 
+/**
+TODO the callback signature is changed, it should return { type, name } from fs.Stats
+*/
+const mkdir = (target, policy, callback) => {
+  fs.mkdir(target, err => {
+    if (err && err.code === 'EEXIST') {
+      fs.lstat(target, (error, stat) => {
+        if (error) return callback(error)
+
+        const same = stat.isDirectory()
+        const diff = !same
+
+        if ((same && policy[0] === 'skip') || (diff && policy[1] === 'skip')) {
+          callback(null, null, [same, diff])
+        } else if (same && policy[0] === 'replace' || diff && policy[1] === 'replace') {
+          rimraf(target, err => {
+            if (err) return callback(err)
+            mkdir(target, policy, err => {
+              if (err) return callback(err)
+              callback(null, null, [same, diff])
+            })
+          }) 
+        } else if (same && policy[0] === 'rename' || diff && policy[1] === 'rename') {
+          let dirname = path.dirname(target)
+          let basename = path.basename(target)
+          fs.readdir(dirname, (error, files) => {
+            if (error) return callback(error)
+            let target2 = path.join(dirname, autoname(basename, files))
+            mkdir(target2, policy, (err, fd) => {
+              if (err) return callback(err)
+              callback(null, target2, [same, diff])
+            })
+          })
+        } else {
+          err.xcode = xcode(stat)
+          callback(err)
+        }
+      })
+    } else if (err) {
+      callback(err)
+    } else {
+      // callback(null, null, [false, false])
+      fs.lstat(target, (err, stat) => err
+        ? callback(err) 
+        : callback(null, {
+            type: 'directory',
+            name: target.split('/').pop()
+          }, [false, false]))
+    }
+  }) 
+}
+
+// this function mimic policy-based file operation in vfs.
+// TODO should be implemented in nfs
+const openwx = (target, policy, callback) => {
+  fs.open(target, 'wx', (err, fd) => {
+    if (err && err.code === 'EEXIST') {
+      fs.lstat(target, (error, stat) => {
+        if (error) return callback(error)
+
+        const same = stat.isFile()  
+        const diff = !same
+
+        if ((same && policy[0] === 'skip') || (diff && policy[1] === 'skip')) {
+          callback(null, null, [same, diff])
+        } else if (same && policy[0] === 'replace' || diff && policy[1] === 'replace') {
+          rimraf(target, err => {
+            if (err) return callback(err)
+            openwx(target, policy, (err, fd) => {
+              if (err) return callback(err)
+              callback(null, fd, [same, diff])
+            })
+          })
+        } else if (same && policy[0] === 'rename' || diff && policy[1] === 'rename') {
+          let dirname = path.dirname(target)
+          let basename = path.basename(target)
+          fs.readdir(dirname, (error, files) => {
+            if (error) return callback(error)
+            let target2 = path.join(dirname, autoname(basename, files))
+            openwx(target2, policy, (err, fd) => {
+              if (err) return callback(err)
+              callback(null, fd, [same, diff])
+            })
+          })
+        } else {
+          err.xcode = xcode(stat) 
+          callback(err)
+        }
+      })
+    } else if (err) {
+      callback(err)
+    } else {
+      callback(null, fd, [false, false])
+    }
+  })
+}
+
 
 /**
 NFS provides native file system access to users.
@@ -69,9 +187,8 @@ class NFS extends EventEmitter {
     super()
 
     if (!isNonNullObject(opts)) throw new Error('opts must be a non-null object')
-    if (!isUUID(opts.volumeUUID)) throw new Error('volumeUUID is not a valid uuid')
 
-    this.volumeUUID = opts.volumeUUID
+    if (opts.volumeUUID) this.volumeUUID = opts.volumeUUID
     this.allowATA = false
     this.allowUSB = true
 
@@ -89,7 +206,7 @@ class NFS extends EventEmitter {
       if (vol.isMissing) return false
       if (!vol.isMounted) return false
       if (vol.isRootFS) return false
-      if (vol.uuid === this.volumeUUID) return false
+      if (this.volumeUUID && vol.uuid === this.volumeUUID) return false
       return true
     })
 
@@ -234,8 +351,9 @@ class NFS extends EventEmitter {
     })
   }
 
-  
-
+  READDIR (user, props, callback) {
+    this.GET(user, props, callback)
+  }
 
   /**
   Clients have two different ways to provide path arguments to this API.
@@ -384,6 +502,84 @@ class NFS extends EventEmitter {
       })
     })
   }
+
+
+  /**
+  This function is intended to support Policy.
+  
+  @param {object} user
+  @param {object} props
+  @param {string} props.id
+  @param {string} props.path
+  @param {string} props.name
+  @param {string} props.data
+  @param {Policy} props.policy
+  */
+  NEWFILE (user, props, callback) {
+    this.resolvePath(user, props, (err, target) => {
+      if (err) return callback(err)
+
+      let dstFilePath = path.join(target, props.name) 
+      openwx(dstFilePath, props.policy, (err, fd, resolved) => {
+        if (err) {
+          callback(err)
+        } else {
+          let rs = fs.createReadStream(props.data)
+          let ws = fs.createWriteStream(null, { fd })
+          ws.on('finish', () => callback(null, null, resolved)) 
+          rs.pipe(ws)
+        }
+      })    
+    }) 
+  }
+
+  /**
+  @param {object} user
+  @param {object} props
+  @param {string} props.id
+  @param {string} props.path
+  @param {string} props.name
+  @param {Policy} props.policy
+  */
+  MKDIR (user, props, callback) {
+    this.resolvePath(user, props, (err, dirPath) => {
+      if (err) return callback(err)
+      
+      let target = path.join(dirPath, props.name)
+      let policy = props.policy || [null, null]
+      mkdir(target, policy, (err, stat, resolved) => {
+        if (err) return callback(err)
+        callback(null, stat, resolved) 
+      })
+    }) 
+  }
+
+  /**
+  @param {object} user
+  @param {object} props
+  @param {string} props.id
+  @param {string} props.path
+  @param {string} props.names
+  @param {string} props.policy 
+  */
+  MKDIRS (user, props, callback) {
+    this.resolvePath(user, props, (err, dirPath) => {
+      if (err) return callback(err)
+      let names = props.names
+      let policy = props.policy || [null, null]
+      let count = names.length
+      let map = new Map()
+
+      names.forEach(name => {
+        let target = path.join(dirPath, name)
+        mkdir(target, policy, (err, stat, resolved) => {
+          map.set(name, { err, stat, resolved })
+          if (!--count) callback(null, map)
+        })
+      })
+    })
+  }
+
 }
 
 module.exports = NFS

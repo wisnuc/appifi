@@ -83,7 +83,7 @@ if (args.standalone) {
     }
 
     let fruitmix = new Fruitmix(fruitmixOpts)
-    let app = new App({ 
+    let app = new App({
       fruitmix, 
       useServer: true,
     })

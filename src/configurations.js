@@ -51,7 +51,8 @@ const n2 = {
     userBinding: true,
     volumeBinding: true,
     dir: '/etc/phicomm',
-    tmpDir: '/etc/phicomm/atmp'
+    tmpDir: '/etc/phicomm/atmp',
+    dTmpDir: '/etc/phicomm/dtmp'
   },
   storage: {
     fruitmixDir: 'phicomm/n2',
@@ -59,6 +60,7 @@ const n2 = {
     nonVolumeDir: '/run/phicomm/blocks',
     userProps: ['uuid', 'username', 'isFirstUser', 'phicommUserId']
   },
+  slots: ['ata1', 'ata2'],
   tag: {
     isPrivate: true,
     visibleInPublicDrive: false

@@ -18,7 +18,7 @@ const log = require('winston')
 const xattr = require('fs-xattr')       // TODO remove
 const { saveObjectAsync } = require('../lib/utils')
 const autoname = require('../lib/autoname')
-const { isSHA256 } = require('../lib/assertion')
+const { isUUID, isSHA256 } = require('../lib/assertion')
 
 const Node = require('./vfs/node')
 const File = require('./vfs/file')
@@ -26,13 +26,7 @@ const Directory = require('./vfs/directory')
 
 const { btrfsConcat, btrfsClone, btrfsClone2 } = require('../lib/btrfs')
 
-const { 
-  readXstat, 
-  forceXstat, 
-  updateFileTags,
-  assertDirXstatSync, 
-  assertFileXstatSync,  
-} = require('../lib/xstat')
+const { readXstat, forceXstat, updateFileTags, assertDirXstatSync, assertFileXstatSync } = require('../lib/xstat')
 
 const Debug = require('debug')
 const smbDebug = Debug('samba')
@@ -226,6 +220,11 @@ class VFS extends EventEmitter {
   }
 
   userCanWriteDir (user, dir) {
+
+    if (user === undefined || dir === undefined) {
+      console.log(new Error())
+    }
+
     let drive = this.drives.find(drv => drv.uuid === dir.root().uuid)
     return drive && userCanWriteDrive(user, drive)
   }
@@ -249,6 +248,18 @@ class VFS extends EventEmitter {
     }
   }
 
+  /**
+  @param {object} user - user
+  @param {object} props
+  @param {object} props.driveUUID
+  @param {object} props.dirUUID
+  */
+  READDIR(user, props, callback) {
+    this.dirGET(user, props, (err, combined) => {
+      if (err) return callback(err)
+      callback(null, combined.entries)
+    })
+  }
 
   /**
   @param {object} user - user
@@ -338,7 +349,7 @@ class VFS extends EventEmitter {
 
   with drive:
 
-  - if sdrive is not found, 404
+  - if drive is not found, 404
   - if drive is deleted, 404
   - if drive is not accessible, 404 
   - if dir not found, 404 (same as w/o drive)
@@ -499,10 +510,12 @@ class VFS extends EventEmitter {
 
   @param {object} user
   @param {object} props
-  @param {object} props.name - file name
-  @param {object} props.data - tmp data file
-  @param {object} props.size - file size (not used)
-  @param {object} props.sha256 - file hash
+  @param {string} props.driveUUID - drive uuid
+  @param {string} props.dirUUID - dir uuid
+  @param {string} props.name - file name
+  @param {string} props.data - tmp data file
+  @param {number} props.size - file size (not used)
+  @param {string} props.sha256 - file hash (fingerprint)
   */
   NEWFILE (user, props, callback) {
     let { name, data, size, sha256 } = props
@@ -627,14 +640,15 @@ class VFS extends EventEmitter {
         throw new Error('invalid tags')
 
       tags.forEach(id => {
-        let tag = this.tags.find(tag => tag.id === id)
+        let tag = this.tags.find(tag => tag.id === id && tag.creator === user.uuid && !tag.deleted)
         if (!tag || tag.creator !== user.uuid) throw new Error(`tag id ${id} not found`)
       })
     } catch (err) {
       err.status = 400
-      process.nextTick(() => callback(err))
+      return process.nextTick(() => callback(err))
     }
 
+    // console.log(user, props, '=================================')
     this.DIR(user, props, (err, dir) => {
       if (err) return callback(err)
 
@@ -668,17 +682,16 @@ class VFS extends EventEmitter {
         throw new Error('invalid tags')
 
       tags.forEach(id => {
-        let tag = this.tags.find(tag => tag.id === id)
+        let tag = this.tags.find(tag => tag.id === id && tag.creator === user.uuid && !tag.deleted)
         if (!tag || tag.creator !== user.uuid) throw new Error(`tag id ${id} not found`)
       })      
     } catch (err) {
       err.status = 400
-      process.nextTick(() => callback(err))
+      return process.nextTick(() => callback(err))
     }
 
     // normalize
     let tags = Array.from(new Set(props.tags)).sort()
-
     this.DIR(user, props, (err, dir) => {
       if (err) return callback(err)
 
@@ -695,6 +708,7 @@ class VFS extends EventEmitter {
         
         // complementary set
         let newTags = xstat.tags.reduce((acc, id) => tags.includes(id) ? acc : [...acc, id], [])
+        console.log(newTags)
         updateFileTags(filePath, xstat.uuid, newTags, callback)
       }) 
     })
@@ -708,12 +722,12 @@ class VFS extends EventEmitter {
         throw new Error('invalid tags')
 
       tags.forEach(id => {
-        let tag = this.tags.find(tag => tag.id === id)
+        let tag = this.tags.find(tag => tag.id === id && tag.creator === user.uuid && !tag.deleted)
         if (!tag || tag.creator !== user.uuid) throw new Error(`tag id ${id} not found`)
       })      
     } catch (err) {
       err.status = 400
-      process.nextTick(() => callback(err))
+      return process.nextTick(() => callback(err))
     }
 
     let tags = Array.from(new Set(props.tags)).sort()
@@ -721,7 +735,7 @@ class VFS extends EventEmitter {
     this.DIR(user, props, (err, dir) => {
       if (err) return callback(err)
 
-      let filePath = path.join(this.absolutePath(dir), props, name)
+      let filePath = path.join(this.absolutePath(dir), props.name)
       readXstat(filePath, (err, xstat) => {
         if (err) return callback(err)  
         if (xstat.type !== 'file') {
@@ -730,18 +744,20 @@ class VFS extends EventEmitter {
           return callback(err)
         }
 
-        // user tag ids
-        let userTags = this.tags
-          .filter(tag => tag.creator === user.uuid)
-          .map(tag => tag.uuid)
+        // // user tag ids
+        // let userTags = this.tags
+        //   .filter(tag => tag.creator === user.uuid)
+        //   .map(tag => tag.uuid)
 
-        // remove all user tags out of old tags
-        let oldTags = xstat.tags
-          ? xstat.tags.reduce((acc, id) => userTags.includes(id) ? acc : [...acc, id])
-          : []
+        //   console.log(userTags)
 
-        let newTags = Array.from(new Set([...oldTags, tags]))
-        updateFileTags(filePath, xstat.uuid, newTags, callback)
+        // // remove all user tags out of old tags
+        // let oldTags = xstat.tags
+        //   ? xstat.tags.reduce((acc, id) => userTags.includes(id) ? acc : [...acc, id])
+        //   : []
+
+        // let newTags = Array.from(new Set([...oldTags, tags]))
+        updateFileTags(filePath, xstat.uuid, tags, callback)
       })
     })
   }
@@ -754,7 +770,7 @@ class VFS extends EventEmitter {
 
       let filePath = path.join(this.absolutePath(dir), name)
       fs.lstat(filePath, (err, stat) => {
-        if (err && (err.code === 'ENOENT' || err.code === 'ENOTDIR')) err.code = 404
+        if (err && (err.code === 'ENOENT' || err.code === 'ENOTDIR')) err.status = 404
         callback(err, filePath)
       })
     })
@@ -1100,6 +1116,36 @@ class VFS extends EventEmitter {
     })
   }
 
+  /**
+  
+  @param {object} user
+  @param {object} props
+  @param {string} driveUUID
+  @param {string} dirUUID  
+  @param {string[]} names
+  @param {Policy} policy
+  */
+  MKDIRS (user, props, callback) {
+    this.DIR(user, props, (err, dir) => {
+      if (err) return callback(err) 
+      let { names, policy } = props
+      let count = names.length
+      let map = new Map()
+      names.forEach(name => {
+        let target = path.join(this.absolutePath(dir), name)
+        mkdir(target, policy, (err, stat, resolved) => {
+          map.set(name, { err, stat, resolved }) 
+          if (!--count) {
+            // TODO
+            dir.read((err, xstats) => {
+              if (err) return callback(err)
+              callback(null, map)
+            })
+          }
+        })
+      })
+    })
+  }
 
   // copy src dir (name) into dst dir
   cpdir (src, dst, policy, callback) {
@@ -1174,6 +1220,54 @@ class VFS extends EventEmitter {
     })
   }
 
+  /**
+  @param {object} user
+  @param {object} props
+  @param {object} props.src
+  @param {string} props.src.drive - src drive
+  @param {string} props.src.dir - src (parent) dir
+  @param {string} props.src.uuid - src file uuid
+  @param {string} props.src.name - src file name
+  @param {object} props.dst
+  @param {string} props.dst.drive - dst drive
+  @param {string} props.dst.dir - dst (parent) dir
+  @param {Policy} props.policy
+  */
+  CPFILE (user, props, callback) {
+    let { src, dst, policy } = props
+    this.DIR(user, { driveUUID: src.drive, dirUUID: src.dir }, (err, srcDir) => {
+      if (err) return callback(err)
+      this.DIR(user, { driveUUID: dst.drive, dirUUID: dst.dir }, (err, dstDir) => {
+        if (err) return callback(err)
+
+        let srcFilePath = path.join(this.absolutePath(srcDir), src.name)
+        let dstFilePath = path.join(this.absolutePath(dstDir), src.name)
+
+        let tmp = this.genTmpPath()
+        clone(srcFilePath, src.uuid, tmp, (err, xstat) => {
+          if (err) return callback(err)
+          mkfile(dstFilePath, tmp, xstat.hash, policy, (err, xstat, resolved) => {
+            rimraf(tmp, () => {})
+            if (err) return callback(err)
+            if (!xstat || (policy[0] === 'skip' && xstat && resolved[0])) {
+              callback(null)
+            } else {
+              try {
+                let attr = JSON.parse(xattr.getSync(srcFilePath, 'user.fruitmix'))
+                attr.uuid = xstat.uuid
+                xattr.setSync(dstFilePath, 'user.fruitmix', JSON.stringify(attr))
+              } catch (e) {
+                if (e.code !== 'ENODATA') return callback(e)
+              }
+              callback(null)
+            }
+          })
+        })
+           
+      })
+    })
+  }
+
   // move src dir into dst dir
   mvdir (src, dst, policy, callback) {
     let srcDir, dstDir
@@ -1207,6 +1301,31 @@ class VFS extends EventEmitter {
     })
   }
 
+  /**
+  @param {object} user
+  @param {object} props
+  @param {
+  */ 
+  MVDIRS (user, props, callback) {
+    let { src, dst, names, policy } = props
+    this.DIR(user, { driveUUID: src.drive, dirUUID: src.dir }, (err, srcDir) => {
+      if (err) return callback(err)
+      this.DIR(user, { driveUUID: dst.drive, dirUUID: dst.dir }, (err, dstDir) => {
+        if (err) return callback(err)
+        let count = names.length 
+        let map = new Map()
+        names.forEach(name => {
+          let oldPath = path.join(this.absolutePath(srcDir), name)
+          let newPath = path.join(this.absolutePath(dstDir), name)
+          mvdir(oldPath, newPath, policy, (err, stat, resolved) => {
+            map.set(name, { err, stat, resolved })
+            if (!--count) srcDir.read(() => dstDir.read(() => callback(null, map)))
+          })
+        })
+      })
+    })
+  }
+
   // move src file into dst dir
   // mvfilec(srcDriveUUID, srcDirUUID, srcFileUUID, srcFileName, dstDriveUUID, dstDirUUID, policy, callback) {
   mvfile (src, dst, policy, callback) {
@@ -1227,6 +1346,28 @@ class VFS extends EventEmitter {
     })
   }
 
+
+  /**
+  @param {object} user
+  @param {object} props
+  @param {object} props.src
+  @param {object} 
+  */
+  MVFILE (user, props, callback) {
+    let { src, dst, policy } = props
+    this.DIR(user, { driveUUID: src.drive, dirUUID: src.dir }, (err, srcDir) => {
+      if (err) return callback(err)
+      this.DIR(user, { driveUUID: dst.drive, dirUUID: dst.dir }, (err, dstDir) => {
+        if (err) return callback(err)
+        let oldPath = path.join(this.absolutePath(srcDir), src.name)
+        let newPath = path.join(this.absolutePath(dstDir), src.name)
+
+        // TODO to do what ???
+        mvfile(oldPath, newPath, policy, callback)
+      })
+    })
+  }
+
   // clone a fruitfs file to tmp dir
   // returns tmp file path
   clone (src, callback) {
@@ -1244,6 +1385,27 @@ class VFS extends EventEmitter {
     clone(srcFilePath, src.uuid, tmpPath, (err, xstat) => {
       if (err) return callback(err)
       callback(null, tmpPath)
+    })
+  }
+
+  /**
+  @param {object} user
+  @param {object} props
+  @param {string} props.driveUUID
+  @param {string} props.dirUUID
+  @param {string} props.uuid
+  @param {string} props.name
+  */
+  CLONE (user, props, callback) {
+    this.DIR(user, props, (err, target) => {
+      if (err) return callback(err)
+
+      let dstPath = this.TMPFILE()
+      let srcPath = path.join(this.absolutePath(target), props.name)
+      clone(srcPath, props.uuid, dstPath, err => {
+        if (err) return callback(err)
+        callback(null, dstPath)
+      })
     })
   }
 
@@ -1272,7 +1434,9 @@ class VFS extends EventEmitter {
   @param {boolean} props.media - if true, returns metadata instead of file 
   */
   visitFilesSync(user, props) {
-    const Throw = (status, message) => { throw Object.assign(new Error(message), { status }) }
+    const Throw = (status, message) => { 
+      throw Object.assign(new Error(message), { status }) 
+    }
 
     if (props.namepath === 'true' && !props.places) 
       Throw(400, 'places must be provided if namepath is true')
@@ -1285,7 +1449,8 @@ class VFS extends EventEmitter {
      
       dirs = split.map(uuid => this.forest.uuidMap.get(uuid))
       if (!dirs.every(dir => !!dir)) Throw(403, 'some places not found')
-      if (!dirs.every(dir => this.userCanWriteDir())) Throw(403, 'some places not accessible')
+      // FIXME
+      // if (!dirs.every(dir => this.userCanWriteDir())) Throw(403, 'some places not accessible')
     } else {
       dirs = this.drives
         .filter(drv => this.userCanWriteDrive(user, drv))
@@ -1302,7 +1467,9 @@ class VFS extends EventEmitter {
 
     if (props.magics) {
       // split, dedup, sort, and uppercase
-      magics = Array.from(new Set(props.magics.split('.').filter(x => !!x))).sort().toUpperCase()
+      let set = new Set(props.magics.split('.').filter(x => !!x))
+      magics = Array.from(set).sort().map(x => x.toUpperCase())
+
     }
    
     let files = [] 
