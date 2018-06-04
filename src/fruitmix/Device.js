@@ -192,9 +192,7 @@ class Device {
   }
 
   cpuInfo() {
-    return {
-      cpus: os.cpus()
-    }
+    return os.cpus()
   }
 
   memInfo(callback) {
