@@ -109,6 +109,8 @@ class App extends EventEmitter {
 
       Object.defineProperty(this, 'fruitmix', { get () { return this.boot.fruitmix } })
 
+      this.device = new Device(this)
+
       if (opts.useAlice) {
         this.boot.setBoundUser({
           phicommUserId: 'alice',
@@ -128,8 +130,6 @@ class App extends EventEmitter {
       config: this.cloudConf,
       boot: this.boot
     })
-
-    this.device = new Device(this)
 
     // create server if required
     if (opts.useServer) {
