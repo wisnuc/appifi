@@ -1,12 +1,20 @@
 const child = require('child_process')
 const EventEmitter = require('events')
 const readline = require('readline')
+const { probe } = require('./storage')
 
 class UdevMonitor extends EventEmitter {
-  constructor (rl) {
+  constructor () {
     super()
+    this.startMonitor()
+  }
 
-    this.rl = rl
+  startMonitor() {
+    if (this.rl && !this.rl.closed) this.rl.close()
+    if (this.spawn && !this.spawn.killed) this.spawn.kill()
+
+    this.spawn = child.spawn('stdbuf', ['-oL', 'udevadm', 'monitor', '--udev', '-s', 'block'])
+    this.rl = readline.createInterface({ input: spawn.stdout })
     this.timer = -1
     this.queue = []
 
@@ -30,7 +38,7 @@ class UdevMonitor extends EventEmitter {
 
       this.queue.push({action, blkpath})
       this.timer = setTimeout(() => {
-        this.emit('events', this.queue)
+        this.emit('update', this.queue)
         this.queue = []
         this.timer = -1
       }, 150)
@@ -38,27 +46,96 @@ class UdevMonitor extends EventEmitter {
 
     rl.on('close', () => {
       console.log('unexpected close of udev monitor')
+      // restart after 5 seconds
+      setTimeout(() => this.startMonitor(), 5 * 1000)
     })
+  }
+
+  destroy() {
+    if (this.rl && !this.rl.closed) this.rl.close()
+    if (this.spawn && !this.spawn.killed) this.spawn.kill()
+    this.rl = null
+    this.spawn = null
+  }
+
+}
+
+
+class State {
+  constructor(ctx, ...args) {
+    this.ctx = ctx
+    this.ctx.state = this
+    this.enter(...args)
+  }
+
+  setState (State, ...args) {
+    this.exit()
+    new State(this.ctx, ...args)
+  }
+
+  probe() {
+
   }
 }
 
-const createUdevMonitor = () => {
-  const spawn = child.spawn('stdbuf', ['-oL', 'udevadm', 'monitor', '--udev', '-s', 'block'])
-  const rl = readline.createInterface({ input: spawn.stdout })
+class Idle {
+  enter () {
 
-  return new UdevMonitor(rl)
+  }
+
+  probe () {
+    this.setState(Pending)
+  }
 }
 
-const udevmon = createUdevMonitor()
+class Pending {
+  enter () {
+    this.timer = setTimeout(() => {
+      this.setState(Probing)
+    }, 5000)
+  }
 
-udevmon.on('events', events => {
-  console.log('udev events', events)
+  probe () {
+    this.setState(Probing)
+  }
 
-  let add = false
-  let remove = false
+  exit () {
+    if (this.timer) clearTimeout(this.timer)
+    this.timer = null
+  }
+}
 
-  events.forEach(evt => {
-    if (evt.action === 'add') add = true
-    if (evt.action === 'remove') remove = true
-  })
-})
+class Probing {
+
+  enter() {
+    this.needProbe = false
+    probe(this.ctx.conf.storage, (err, data) => {
+      if (data) this.ctx.emit('update', data)
+      this.setState(this.needProbe ? Pending : Probing)
+    })
+  }
+
+  exit() {
+
+  }
+
+  probe() {
+    this.needProbe = true
+  }
+}
+
+class StorageUpdater extends EventEmitter {
+  constructor(conf) {
+    this.conf = conf
+    new Idle()
+  }
+
+  probe() {
+    this.state.probe()
+  }
+}
+
+module.exports = {
+  UdevMonitor,
+  StorageUpdater
+}
