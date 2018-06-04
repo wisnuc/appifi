@@ -197,7 +197,7 @@ class User extends EventEmitter {
     : console.log(`user module bound first user to ${boundUser.phicommUserId} successfully`)) 
   }
 
-  destory (callback) {
+  destroy (callback) {
     this.store.destroy(callback)
   }
 

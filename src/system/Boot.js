@@ -15,6 +15,7 @@ const { isNonEmptyString } = require('../lib/assertion')
 const DataStore = require('../lib/DataStore')
 const Fruitmix = require('../fruitmix/Fruitmix')
 const { probe, probeAsync, umountBlocksAsync } = require('./storage')
+const { UdevMonitor, StorageUpdater } = require('./diskmon')
 
 /**
 Boot is the top-level container
@@ -230,10 +231,17 @@ class Started extends State {
     }
     this.jobs.push(job)
     this.reqSchedJob()
+
+    this.udevMonitor = new UdevMonitor()
+    this.udevMonitor.on('update', () => this.ctx.storageUpdater.probe())
   }
 
   exit () {
     this.ctx.fruitmix = null
+    let jobs = [...this.jobs]
+    this.jobs = []
+    jobs.forEach(j => j.callback && j.callback(new Error('exit started state')))
+    this.udevMonitor.destroy()
   }
 
   boundUserUpdated () {
@@ -806,6 +814,7 @@ class Boot extends EventEmitter {
       set (value) {
         let oldValue = this._storage
         this._storage = value
+        if (this.fruitmix) this.fruitmix.setStorage(value)
         process.nextTick(() => this.emit('StorageUpdate', value, oldValue))
       }
     })
@@ -833,6 +842,9 @@ class Boot extends EventEmitter {
     })
 
     new Probing(this)
+    
+    this.storageUpdater = new StorageUpdater(this.conf)
+    this.storageUpdater.on('update', data => this.storage = data)
   }
 
   stateName () {
