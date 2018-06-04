@@ -129,7 +129,7 @@ class StorageUpdater extends EventEmitter {
   constructor(conf) {
     super()
     this.conf = conf
-    new Idle()
+    new Idle(this)
   }
 
   probe() {
