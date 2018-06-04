@@ -250,17 +250,12 @@ class Device {
   }
 
   view(callback) {
-    let info = {
+    return {
       mode: deviceModel(),
       sn: deviceSN(),
       swVersion: softwareVersion(),
       hwVersion: hardwareVersion()
     }
-    this.interfaces((err, its) => {
-      if (err) return callback(err)
-      info.net = its
-      callback(null, info)
-    })
   }
 
   interfaces(callback) {
