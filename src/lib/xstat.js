@@ -28,6 +28,9 @@ const filetype = require('./file-type')
 const EUnsupported = require('./unsupported-file')
 
 const Magic = require('./magic')
+
+const fileMeta = require('./file-meta')
+
 const { isUUID, isSHA256 } = require('./assertion')
 
 /**
@@ -146,8 +149,20 @@ const readXattr = (target, stats, callback) => {
       }
 
       // drop magic if version bumped
+      /** remove magic in future TODO FIXME
       if (Magic.isValidMagic(orig.magic)) {
         attr.magic = orig.magic
+      } else {
+        attr.dirty = undefined
+      }
+      */
+
+      if (orig.magic) {
+        attr.dirty = undefined 
+      }
+
+      if (fileMeta.validate(orig.metadata)) {
+        attr.metadata = orig.metadata
       } else {
         attr.dirty = undefined
       }
@@ -188,7 +203,8 @@ Update target xattr. If target is a file and attr has no magic, create it.
 @param {function(Error, object)} callback
 */
 const updateXattr = (target, attr, isFile, callback) => {
-  if (isFile && !attr.hasOwnProperty('magic')) {
+  if (isFile && !attr.hasOwnProperty('metadata')) {
+/**
     fileMagic(target, (err, magic) => {
       if (err) {
         callback(err)
@@ -197,6 +213,17 @@ const updateXattr = (target, attr, isFile, callback) => {
         xattr.set(target, FRUITMIX, JSON.stringify(attr), err => err
           ? callback(err)
           : callback(null, attr))
+      }
+    })
+**/
+
+    fileMeta(target, (err, metadata) => {
+      if (err) {
+        callback(err)
+      } else {
+        attr.metadata = metadata
+        xattr.set(target, FRUITMIX, JSON.stringify(attr), err => 
+          err ? callback(err) : callback(null, attr))
       }
     })
   } else {
@@ -225,16 +252,18 @@ const createXstat = (target, stats, attr) => {
       name,
       mtime: stats.mtime.getTime()
     }
-  }
-
-  if (stats.isFile()) {
+  } else {
     xstat = {
       uuid: attr.uuid,
       type: 'file',
       name,
       mtime: stats.mtime.getTime(),
       size: stats.size,
-      magic: attr.magic
+    }
+    if (attr.metadata.type !== '_') {
+      let metadata = Object.assign({}, attr.metadata)
+      delete metadata.ver
+      xstat.metadata = metadata
     }
     if (attr.hash) xstat.hash = attr.hash
     if (attr.tags) xstat.tags = attr.tags
