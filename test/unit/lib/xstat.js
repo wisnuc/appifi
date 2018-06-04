@@ -81,7 +81,7 @@ describe(path.basename(__filename) + ' readXstat new', () => {
     UUID.v4.restore()
   })
 
-  it('read unsupported file type (/dev/null)', done => {
+  it('read unsupported file type (/dev/null), a8bc36cc', done => {
     readXstat('/dev/null', (err, xstat) => {
       expect(err).to.be.an('error')
       expect(err.code).to.equal('EISCHARDEV')
