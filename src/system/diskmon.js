@@ -79,7 +79,7 @@ class State {
   }
 }
 
-class Idle {
+class Idle extends State {
   enter () {
 
   }
@@ -89,7 +89,7 @@ class Idle {
   }
 }
 
-class Pending {
+class Pending extends State {
   enter () {
     this.timer = setTimeout(() => {
       this.setState(Probing)
@@ -106,7 +106,7 @@ class Pending {
   }
 }
 
-class Probing {
+class Probing extends State {
 
   enter() {
     this.needProbe = false
