@@ -20,6 +20,7 @@ class UdevMonitor extends EventEmitter {
 
     this.rl.on('line', line => {
       let t = line.trim()
+      console.log(t)
       if (!t.endsWith('(block)')) return
 
       let split = t.split(' ')
