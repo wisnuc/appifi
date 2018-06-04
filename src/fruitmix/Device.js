@@ -249,7 +249,7 @@ class Device {
     }, callback)
   }
 
-  view(callback) {
+  view() {
     return {
       mode: deviceModel(),
       sn: deviceSN(),
