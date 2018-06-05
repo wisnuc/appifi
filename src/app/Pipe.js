@@ -208,7 +208,8 @@ class Pipe extends EventEmitter {
               return this.reqCommand(null, this.device.netDev())
             }
             else if (paths[2] === 'net') {
-              return this.device.interfaces((err, its) => this.reqCommand(err, its))
+              if (verb.toUpperCase() === 'GET') return this.device.interfaces((err, its) => this.reqCommand(err, its))
+              return this.device.addAliases(body, (err, data) => this.reqCommand(err, its))
             }
             else 
               throw formatError(new Error('not found'), 404)
