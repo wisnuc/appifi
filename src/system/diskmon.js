@@ -117,10 +117,17 @@ class Pending extends State {
 class Probing extends State {
 
   enter() {
-    this.needProbe = false
+    this.startProbing()
+  }
+
+  startProbing() {
+    this.needProbe = 0
     probe(this.ctx.conf.storage, (err, data) => {
       if (data) this.ctx.emit('update', data)
-      this.setState(this.needProbe ? Pending : Probing)
+      if (this.needProbe > 1) this.startProbing()
+      else {
+        this.setState(Pending)
+      }
     })
   }
 
@@ -129,7 +136,7 @@ class Probing extends State {
   }
 
   probe() {
-    this.needProbe = true
+    this.needProbe ++
   }
 }
 

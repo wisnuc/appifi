@@ -232,8 +232,8 @@ class Started extends State {
     this.jobs.push(job)
     this.reqSchedJob()
 
-    this.udevMonitor = new UdevMonitor()
-    this.udevMonitor.on('update', () => this.ctx.storageUpdater.probe())
+    // this.udevMonitor = new UdevMonitor()
+    // this.udevMonitor.on('update', () => this.ctx.storageUpdater.probe())
   }
 
   exit () {
@@ -842,9 +842,9 @@ class Boot extends EventEmitter {
     })
 
     new Probing(this)
-    
-    this.storageUpdater = new StorageUpdater(this.conf)
-    this.storageUpdater.on('update', data => this.storage = data)
+
+    // this.storageUpdater = new StorageUpdater(this.conf)
+    // this.storageUpdater.on('update', data => this.storage = data)
   }
 
   stateName () {
