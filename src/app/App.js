@@ -109,6 +109,8 @@ class App extends EventEmitter {
 
       Object.defineProperty(this, 'fruitmix', { get () { return this.boot.fruitmix } })
 
+      this.device = new Device(this)
+
       if (opts.useAlice) {
         this.boot.setBoundUser({
           phicommUserId: 'alice',
@@ -126,10 +128,9 @@ class App extends EventEmitter {
     this.pipe = new Pipe({
       fruitmix: () => this.fruitmix,
       config: this.cloudConf,
-      boot: this.boot
+      boot: this.boot,
+      device: this.device
     })
-
-    this.device = new Device(this)
 
     // create server if required
     if (opts.useServer) {
@@ -186,7 +187,41 @@ class App extends EventEmitter {
 
     // boot router
     let bootr = express.Router()
-    bootr.get('/', (req, res) => res.status(200).json(this.boot.view()))
+    bootr.get('/', (req, res) => {
+      let total = os.totalmem(), speed, type, free = os.freemem()
+      try {
+        free = child.execSync('free -b')
+          .toString().split('\n')
+          .find(x => x.startsWith('Mem:'))
+          .split(' ')
+          .map(x => x.trim())
+          .filter(x => x.length)
+          .pop()
+        type = child.execSync('dmidecode -t memory |grep -A16 "Memory Device$" |grep "Type: DD*"')
+          .toString().split('\n')
+          .shift()
+          .split(' ')
+          .map(x => x.trim())
+          .filter(x => x.length)
+          .pop()
+        speed = child.execSync('dmidecode -t memory |grep -A16 "Memory Device$" |grep "Speed:.*MHz"')
+          .toString().split('\n')
+          .shift()
+          .split(':')
+          .pop().trim()
+      } catch (e) { }
+      res.status(200).json(Object.assign({}, this.boot.view(), {
+        device: Object.assign({}, this.cloudConf.device, {
+          cpus: os.cpus(),
+          memory: {
+            free,
+            total,
+            speed,
+            type
+          }
+        })
+      }))
+    })
 
     bootr.post('/boundVolume', (req, res, next) =>
       this.boot.init(req.body.target, req.body.mode, (err, data) =>
@@ -230,7 +265,7 @@ class App extends EventEmitter {
     // boot router
     let devicer = express.Router()
 
-    devicer.get('/', (req, res, next) => this.device.view((err, data) => err ? next(err) : res.status(200).json(data)))
+    devicer.get('/', (req, res, next) => res.status(200).json(this.device.view()))
     devicer.get('/cpuInfo', (req, res) => res.status(200).json(this.device.cpuInfo()))
     devicer.get('/memInfo', (req, res, next) => this.device.memInfo((err, data) => err ? next(err) : res.status(200).json(data)))
     devicer.get('/speed', (req, res, next) => res.status(200).json(this.device.netDev()))

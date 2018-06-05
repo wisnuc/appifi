@@ -192,9 +192,7 @@ class Device {
   }
 
   cpuInfo() {
-    return {
-      cpus: os.cpus()
-    }
+    return os.cpus()
   }
 
   memInfo(callback) {
@@ -249,18 +247,13 @@ class Device {
     }, callback)
   }
 
-  view(callback) {
-    let info = {
+  view() {
+    return {
       mode: deviceModel(),
       sn: deviceSN(),
       swVersion: softwareVersion(),
       hwVersion: hardwareVersion()
     }
-    this.interfaces((err, its) => {
-      if (err) return callback(err)
-      info.net = its
-      callback(null, info)
-    })
   }
 
   interfaces(callback) {
