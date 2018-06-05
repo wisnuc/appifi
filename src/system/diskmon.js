@@ -126,9 +126,8 @@ class Probing extends State {
     probe(this.ctx.conf.storage, (err, data) => {
       if (data) this.ctx.emit('update', data)
       if (this.needProbe > 1) this.startProbing()
-      else {
-        this.setState(Pending)
-      }
+      else if ((this.needProbe === 1)) this.setState(Pending)
+      else this.setState(Idle)
     })
   }
 
