@@ -175,6 +175,11 @@ class File extends Node {
     this.mtime = xstat.mtime
 
     /**
+    file size
+    */
+    this.size = xstat.size
+
+    /**
     file metadata
     @type {object}
     */

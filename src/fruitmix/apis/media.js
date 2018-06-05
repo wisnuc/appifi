@@ -1,5 +1,7 @@
 const fs = require('fs')
 
+const debug = require('debug')('media-api')
+
 class MediaApi {
 
   constructor (vfs, thumbnail) {
@@ -12,6 +14,8 @@ class MediaApi {
   }
 
   GET (user, props, callback) {
+    debug('get', props)
+
     let { fingerprint, alt } = props 
     if (alt === undefined || alt === 'metadata') {
       this.vfs.getMedia(user, { fingerprint }, callback)

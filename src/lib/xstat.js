@@ -260,13 +260,13 @@ const createXstat = (target, stats, attr) => {
       mtime: stats.mtime.getTime(),
       size: stats.size,
     }
+    if (attr.hash) xstat.hash = attr.hash
+    if (attr.tags) xstat.tags = attr.tags
     if (attr.metadata.type !== '_') {
       let metadata = Object.assign({}, attr.metadata)
       delete metadata.ver
       xstat.metadata = metadata
     }
-    if (attr.hash) xstat.hash = attr.hash
-    if (attr.tags) xstat.tags = attr.tags
   }
 
   return xstat

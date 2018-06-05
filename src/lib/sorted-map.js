@@ -2,8 +2,9 @@ const debug = require('debug')('sorted-map')
 
 /**
 Each element in the array is an object with {
-  key: 
-  queue: []
+  time:  
+  uuid: 
+  file: a file object
 }
 
 */
@@ -12,33 +13,29 @@ class SortedMap {
     this.array = []
   }
 
-  binaryIndexOf (key) {
-    let minIndex = 0
-    let maxIndex = this.array.length - 1
-    let currentIndex
-    let currentKey
+  // key is an array [
+  binaryIndexOf (key1, key2) {
+    let i, k1, k2
 
-    while (minIndex <= maxIndex) {
-      currentIndex = (minIndex + maxIndex) / 2 | 0
-      currentKey = this.array[currentIndex].key
-
-      if (currentKey < key) {
-        minIndex = currentIndex + 1
-      } else if (currentKey > key) {
-        maxIndex = currentIndex - 1
-      } else {
-        return currentIndex
-      }
+    for (let min = 0, max = this.array.length - 1; 
+      (k1 !== key1 && k2 !== key2) && min <= max; 
+      min = (k1 < key1 || (k1===key1 && k2.localeCompare(key2) === -1)) ? i + 1 : min, 
+      max = (k1 > key1 || (k1 === key1 && k2.localeCompare(key2) === 1)) ? i - 1 : max) { 
+      i = (min + max) / 2 | 0
+      k1 = this.array[i].key1,
+      k2 = this.array[i].key2
     }
 
-    return this.array.length
+    return (k1 === key1 && k2 === key2) ? i : this.array.length
   }
 
-  insert (key, val) {
+  insert (key1, key2, val) {
     let index = this.binaryIndexOf(key)
 
     if (this.array[index] && this.array[index].key === key) {
       this.array[index].queue.push(val)
+      // TODO
+      // this.array[index].queue.sort((a, b) => 
     } else {
       this.array.splice(index, 0, { key, queue: [val] })
     }
