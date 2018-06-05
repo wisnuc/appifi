@@ -46,7 +46,8 @@ const WHITE_LIST = {
   files: 'file',
   media: 'media',
   tasks: 'task',
-  'phy-drives': 'nfs'
+  'phy-drives': 'nfs',
+  'device': 'device'
 }
 
 /**
@@ -87,19 +88,15 @@ class Pipe extends EventEmitter {
   checkUser (phicommUserId) {
     let user
     if (!this.ctx.fruitmix()) {
-      user = this.ctx.boot.view().boundUser 
-        ? (this.ctx.boot.view().boundUser.phicommUserId === phicommUserId 
-        ? this.ctx.boot.view().boundUser : null) : null
+      user = this.ctx.boot.view().boundUser
+        ? (this.ctx.boot.view().boundUser.phicommUserId === phicommUserId
+          ? this.ctx.boot.view().boundUser : null) : null
     } else {
       user = this.ctx.fruitmix().getUserByPhicommUserId(phicommUserId)
     }
     if (!user) throw formatError(new Error(`uid: ${phicommUserId}, check user failed`), 401)
     // throw 503 unavailable if fruitmix === null
-    return Object.assign({} , user, { remote: true })
-
-    // users = fruitmix
-    //  ? fruitmix.users
-    //  : [{ phicommUserId: xxxx }]
+    return Object.assign({}, user, { remote: true })
   }
   /**
    * get token for cloud
@@ -255,9 +252,7 @@ class Pipe extends EventEmitter {
       this.apis(opts)
     } catch (err) {
       debug(`pipe message error: `, err)
-      if (this.message && this.message.msgId && this.packageParams && this.packageParams.waitingServer) {
-        this.reqCommand(err)
-      }
+      this.reqCommand(err)
     }
   }
   /**
