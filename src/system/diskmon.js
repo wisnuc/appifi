@@ -2,6 +2,7 @@ const child = require('child_process')
 const EventEmitter = require('events')
 const readline = require('readline')
 const { probe } = require('./storage')
+const debug = require('debug')('udev')
 
 class UdevMonitor extends EventEmitter {
   constructor () {
@@ -15,12 +16,9 @@ class UdevMonitor extends EventEmitter {
 
     this.spawn = child.spawn('stdbuf', ['-oL', 'udevadm', 'monitor', '--udev', '-s', 'block'])
     this.rl = readline.createInterface({ input: this.spawn.stdout })
-    this.timer = -1
-    this.queue = []
 
     this.rl.on('line', line => {
       let t = line.trim()
-      console.log(t)
       if (!t.endsWith('(block)')) return
 
       let split = t.split(' ')
@@ -34,19 +32,15 @@ class UdevMonitor extends EventEmitter {
 
       let action = split[2]
       let blkpath = split[3]
-
-      if (this.timer !== -1) { clearTimeout(this.timer) }
-
-      this.queue.push({action, blkpath})
-      this.timer = setTimeout(() => {
-        this.emit('update', this.queue)
-        this.queue = []
-        this.timer = -1
-      }, 150)
+      debug('*********************************')
+      debug('********　Udev Message ***********')
+      debug('*********************************')
+      debug(t)
+      this.emit('update', {action, blkpath})
     })
 
     this.rl.on('close', () => {
-      console.log('unexpected close of udev monitor')
+      debug('unexpected close of udev monitor')
       // restart after 5 seconds
       setTimeout(() => this.startMonitor(), 5 * 1000)
     })
@@ -66,6 +60,9 @@ class State {
   constructor(ctx, ...args) {
     this.ctx = ctx
     this.ctx.state = this
+    debug('*******************************************')
+    debug(`********　Enter ${ this.constructor.name } state ***********`)
+    debug('*******************************************')
     this.enter(...args)
   }
 
@@ -121,13 +118,17 @@ class Probing extends State {
   }
 
   startProbing() {
+
+    debug('*********************************')
+    debug(`********　Start Probe ***********`)
+    debug('*********************************')
+
     this.needProbe = 0
     probe(this.ctx.conf.storage, (err, data) => {
       if (data) this.ctx.emit('update', data)
       if (this.needProbe > 1) this.startProbing()
-      else {
-        this.setState(Pending)
-      }
+      else if ((this.needProbe === 1)) this.setState(Pending)
+      else this.setState(Idle)
     })
   }
 

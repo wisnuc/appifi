@@ -11,7 +11,6 @@ const routing = require('./routing')
 const COMMAND_URL = `/ResourceManager/nas/callback/command`
 const RESOURCE_URL = `/ResourceManager/nas/callback/resource`
 const RE_BOUNDARY = /^multipart\/.+?(?:; boundary=(?:(?:"(.+)")|(?:([^\s]+))))$/i
-const METHODS = ['GET', 'POST', 'PATCH', 'DELETE']
 
 const routes = []
 // routing map
@@ -188,7 +187,7 @@ class Pipe extends EventEmitter {
       if (resource === 'token') {
         return this.reqCommand(null, this.getToken(user))
       }
-
+      // 单独处理 boot
       if (resource === 'boot') {
         return this.reqCommand(null, this.getBootInfo())
       }
