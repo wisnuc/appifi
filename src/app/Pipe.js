@@ -195,21 +195,21 @@ class Pipe extends EventEmitter {
       if (resource === 'device') {
         switch (paths.length) {
           case 2 :
-            return this.reqCommand(null, this.device.view())
+            return this.reqCommand(null, this.ctx.device.view())
             break
           case 3 :
             if (paths[2] === 'cpuInfo') {
-              return this.reqCommand(null, this.device.cpuInfo())
+              return this.reqCommand(null, this.ctx.device.cpuInfo())
             }
             else if (paths[2] === 'memInfo') {
-              return this.device.memInfo((err, data) => this.reqCommand(err, data))
+              return this.ctx.device.memInfo((err, data) => this.reqCommand(err, data))
             }
             else if (paths[2] === 'speed') {
-              return this.reqCommand(null, this.device.netDev())
+              return this.reqCommand(null, this.ctx.device.netDev())
             }
             else if (paths[2] === 'net') {
-              if (verb.toUpperCase() === 'GET') return this.device.interfaces((err, its) => this.reqCommand(err, its))
-              return this.device.addAliases(body, (err, data) => this.reqCommand(err, its))
+              if (verb.toUpperCase() === 'GET') return this.ctx.device.interfaces((err, its) => this.reqCommand(err, its))
+              return this.ctx.device.addAliases(body, (err, data) => this.reqCommand(err, its))
             }
             else 
               throw formatError(new Error('not found'), 404)
@@ -217,7 +217,7 @@ class Pipe extends EventEmitter {
           case 4 :
             if (paths[2] === 'net') {
               let alias = paths[3]
-              return this.device.deleteAliases(alias, (err, data)=> this.reqCommand(err, data))
+              return this.ctx.device.deleteAliases(alias, (err, data)=> this.reqCommand(err, data))
             }
             else throw formatError(new Error('not found'), 404)
             break
