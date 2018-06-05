@@ -11,6 +11,7 @@ const routing = require('./routing')
 const COMMAND_URL = `/ResourceManager/nas/callback/command`
 const RESOURCE_URL = `/ResourceManager/nas/callback/resource`
 const RE_BOUNDARY = /^multipart\/.+?(?:; boundary=(?:(?:"(.+)")|(?:([^\s]+))))$/i
+const METHODS = ['GET', 'POST', 'PATCH', 'DELETE']
 
 const routes = []
 // routing map
@@ -191,22 +192,27 @@ class Pipe extends EventEmitter {
       if (resource === 'boot') {
         return this.reqCommand(null, this.getBootInfo())
       }
-      // match route path and generate query
-      let matchRoute
-      let method
-      let query = {}
-      for (let route of routes) {
-        const { pathToRegexp, pathParttens } = route
+      // match route path
+      const matchRoutes = []
+      for (const route of routes) {
         // match route
-        if (pathToRegexp.test(urlPath)) {
-          matchRoute = route
-          if (verb === 'GET') {
-            method = route.verb === 'GET' ? 'GET' : 'LIST'
-          } else if (verb === 'POST') {
-            method = route.verb === 'POST' ? 'POST' : 'POSTFORM'
-          } else {
-            method = verb
-          }
+        if (route.pathToRegexp.test(urlPath)) matchRoutes.push(route)
+      }
+      // match route api
+      let method = verb.toUpperCase()
+      const methods = _.map(matchRoutes, 'verb')
+      if (method === 'GET') {
+        method = methods.includes(method) ? method : 'LIST'
+      } else if (method === 'POST') {
+        method = methods.includes(method) ? method : 'POSTFORM'
+      }
+      // generate query
+      const query = {}
+      let matchRoute
+      for (const ms of matchRoutes) {
+        if (ms.verb === method) {
+          matchRoute = ms
+          const { pathToRegexp, pathParttens } = ms
           const unnamedParamters = pathToRegexp.exec(urlPath)
           // generate query
           pathParttens.map((v, index) => {
@@ -236,6 +242,7 @@ class Pipe extends EventEmitter {
       // get resource from cloud
       this.getResource().on('response', response => {
         props.length = response.headers['content-length']
+        // FIXME:
         const m = RE_BOUNDARY.exec(response.headers['content-type'])
         props.boundary = m[1] || m[2]
         props.formdata = response
