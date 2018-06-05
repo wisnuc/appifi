@@ -15,8 +15,6 @@ class UdevMonitor extends EventEmitter {
 
     this.spawn = child.spawn('stdbuf', ['-oL', 'udevadm', 'monitor', '--udev', '-s', 'block'])
     this.rl = readline.createInterface({ input: this.spawn.stdout })
-    this.timer = -1
-    this.queue = []
 
     this.rl.on('line', line => {
       let t = line.trim()
@@ -34,15 +32,10 @@ class UdevMonitor extends EventEmitter {
 
       let action = split[2]
       let blkpath = split[3]
-
-      if (this.timer !== -1) { clearTimeout(this.timer) }
-
-      this.queue.push({action, blkpath})
-      this.timer = setTimeout(() => {
-        this.emit('update', this.queue)
-        this.queue = []
-        this.timer = -1
-      }, 150)
+      console.log('*********************************')
+      console.log('********　Udev Message ***********')
+      console.log('*********************************')
+      this.emit('update', {action, blkpath})
     })
 
     this.rl.on('close', () => {
@@ -66,6 +59,9 @@ class State {
   constructor(ctx, ...args) {
     this.ctx = ctx
     this.ctx.state = this
+    console.log('*******************************************')
+    console.log(`********　Enter ${ this.constructor.name } state ***********`)
+    console.log('*******************************************')
     this.enter(...args)
   }
 
@@ -121,6 +117,11 @@ class Probing extends State {
   }
 
   startProbing() {
+
+    console.log('*********************************')
+    console.log(`********　Start Probe ***********`)
+    console.log('*********************************')
+
     this.needProbe = 0
     probe(this.ctx.conf.storage, (err, data) => {
       if (data) this.ctx.emit('update', data)
