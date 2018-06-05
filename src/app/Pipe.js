@@ -194,6 +194,40 @@ class Pipe extends EventEmitter {
       if (resource === 'boot') {
         return this.reqCommand(null, this.getBootInfo())
       }
+
+      if (resource === 'device') {
+        switch (paths.length) {
+          case 2 :
+            return this.reqCommand(null, this.device.view())
+            break
+          case 3 :
+            if (paths[2] === 'cpuInfo') {
+              return this.reqCommand(null, this.device.cpuInfo())
+            }
+            else if (paths[2] === 'memInfo') {
+              return this.device.memInfo((err, data) => this.reqCommand(err, data))
+            }
+            else if (paths[2] === 'speed') {
+              return this.reqCommand(null, this.device.netDev())
+            }
+            else if (paths[2] === 'net') {
+              return this.device.interfaces((err, its) => this.reqCommand(err, its))
+            }
+            else 
+              throw formatError(new Error('not found'), 404)
+            break
+          case 4 :
+            if (paths[2] === 'net') {
+              let alias = paths[3]
+              return this.device.deleteAliases(alias, (err, data)=> this.reqCommand(err, data))
+            }
+            else throw formatError(new Error('not found'), 404)
+            break
+          default :
+            throw formatError(new Error('not found'), 404)
+            break
+        }
+      }
       // match route path and generate query
       let matchRoute
       let method
