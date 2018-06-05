@@ -314,6 +314,7 @@ class VFS extends EventEmitter {
           mtime: Math.abs(dir.mtime)
         })) 
 
+/**
         if (props.metadata === 'true') {
           const hasMetadata = entry => 
             entry.type === 'file' 
@@ -330,7 +331,7 @@ class VFS extends EventEmitter {
         if (props.counter === 'true') {
           // TODO
         }
-
+*/
         callback(null, { path, entries })
       }
     })

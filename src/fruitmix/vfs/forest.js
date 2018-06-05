@@ -10,6 +10,8 @@ const mkdirp = require('mkdirp')
 const Directory = require('./directory')
 const File = require('./file')
 
+const SortedMap = require('../../lib/sorted-map')
+
 const autoTesting = process.env.hasOwnProperty('NODE_PATH') ? true : false
 
 
@@ -53,7 +55,7 @@ In either case, a `read` on the `Directory` object is enough.
 
 class Forest extends EventEmitter {
 
- constructor (froot, mediaMap) {
+  constructor (froot, mediaMap) {
     super()
 
     /**
@@ -63,9 +65,18 @@ class Forest extends EventEmitter {
     mkdirp.sync(this.dir)
 
     /**
-    fruitmix
+
+    hash => {
+      metadata: {},
+      queue: []
+    }
+
     */
-    this.mediaMap = mediaMap
+    this.metaMap = new Map()
+
+    /**
+    */
+    this.timeMap = new SortedMap()
 
     /**
     The collection of drive cache. Using Map for better performance 
@@ -116,10 +127,12 @@ class Forest extends EventEmitter {
   indexFile (file) {
     debug(`index file ${file.name}`)
     this.fileMap.set(file.uuid, file)
+    this.timeMap.insert(file.getTime(), file)
   }
 
   unindexFile (file) {
     debug(`unindex file ${file.name}`)
+    this.timeMap.remove(file.getTime(), file)
     this.fileMap.delete(file.uuid)
   }
 
@@ -157,17 +170,42 @@ class Forest extends EventEmitter {
 
   fileEnterHashed (file) {
     debug(`file ${file.name} enter hashed`)
-    this.mediaMap.indexFile(file)
+    // this.mediaMap.indexFile(file)
+
+    if (file.metadata) {
+      if (this.metaMap.has(file.hash)) {
+        let val = this.metaMap.get(file.hash)
+        val.queue.push(file)
+        file.metadata = val.metadata
+      } else {
+        this.metaMap.set(file.hash, {
+          metadata: file.metadata,
+          queue: [file]
+        })
+      }
+    }
   }
 
   hashedFileNameUpdated (file) {
     debug(`hashed file ${file.name} name path updated`)
-    this.mediaMap.fileNameUpdated(file)
+    // this.mediaMap.fileNameUpdated(file)
   }
 
   fileExitHashed (file) {
     debug(`file ${file.name} exit hashed`)
-    this.mediaMap.unindexFile(file)
+    // this.mediaMap.unindexFile(file)
+
+    if (file.metadata) {
+      let val = this.metaMap.get(file.hash)
+      if (!val) return // this is an error
+
+      let q = val.queue
+      let index = q.indexOf(file)
+      if (index === -1) return // this is an error
+
+      q.splice(index, 1)
+      if (q.length === 0) this.metaMap.delete(file.hash)
+    }
   }
 
   reqSchedFileHash () {
