@@ -2,6 +2,7 @@ const child = require('child_process')
 const EventEmitter = require('events')
 const readline = require('readline')
 const { probe } = require('./storage')
+const debug = require('debug')('udev')
 
 class UdevMonitor extends EventEmitter {
   constructor () {
@@ -18,7 +19,6 @@ class UdevMonitor extends EventEmitter {
 
     this.rl.on('line', line => {
       let t = line.trim()
-      console.log(t)
       if (!t.endsWith('(block)')) return
 
       let split = t.split(' ')
@@ -32,14 +32,15 @@ class UdevMonitor extends EventEmitter {
 
       let action = split[2]
       let blkpath = split[3]
-      console.log('*********************************')
-      console.log('********　Udev Message ***********')
-      console.log('*********************************')
+      debug('*********************************')
+      debug('********　Udev Message ***********')
+      debug('*********************************')
+      debug(t)
       this.emit('update', {action, blkpath})
     })
 
     this.rl.on('close', () => {
-      console.log('unexpected close of udev monitor')
+      debug('unexpected close of udev monitor')
       // restart after 5 seconds
       setTimeout(() => this.startMonitor(), 5 * 1000)
     })
@@ -59,9 +60,9 @@ class State {
   constructor(ctx, ...args) {
     this.ctx = ctx
     this.ctx.state = this
-    console.log('*******************************************')
-    console.log(`********　Enter ${ this.constructor.name } state ***********`)
-    console.log('*******************************************')
+    debug('*******************************************')
+    debug(`********　Enter ${ this.constructor.name } state ***********`)
+    debug('*******************************************')
     this.enter(...args)
   }
 
@@ -118,9 +119,9 @@ class Probing extends State {
 
   startProbing() {
 
-    console.log('*********************************')
-    console.log(`********　Start Probe ***********`)
-    console.log('*********************************')
+    debug('*********************************')
+    debug(`********　Start Probe ***********`)
+    debug('*********************************')
 
     this.needProbe = 0
     probe(this.ctx.conf.storage, (err, data) => {
