@@ -1,0 +1,11 @@
+----------------------------774534021993395282102474
+Content-Disposition: form-data; name="1"; filename="{"op":"newfile","size":516,"sha256":"5a9c70ceb688554c858d9d0a02c70805946684b61067caba1b6a30708e647d7c"}"
+Content-Type: application/json
+
+{"noCloseConfirm":true,"lastDevice":{"address":"10.10.9.153","deviceSN":"1plp0panrup3jqphe","domain":"phiToLoacl","stationName":"N2-09"},"phi":{"autoLogin":false,"pn":"18817301665","puid":"88648258","token":"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiIsImtpZCI6IjEifQ.eyJ1aWQiOiI4ODY0ODI1OCIsImNvZGUiOiJmZWl4dW4qMTIzLlNIXzIxNDk3NzMiLCJ0eXBlIjoiYWNjZXNzX3Rva2VuIiwiaXNzIjoiUGhpY29tbSIsIm5iZiI6MTUyNjUzODcwOSwiZXhwIjoxNTI3MDU3MTA5LCJyZWZyZXNoVGltZSI6IjIwMTgtMDUtMTkgMTQ6MzE6NDkifQ.KdFY74wQ02hi_ux7bXfVkbH4hLgGsuw4dSmBuzPFy8U"}}
+----------------------------774534021993395282102474
+Content-Disposition: form-data; name="2"; filename="{"op":"newfile","size":516,"sha256":"5a9c70ceb688554c858d9d0a02c70805946684b61067caba1b6a30708e647d7c"}"
+Content-Type: application/json
+
+{"noCloseConfirm":true,"lastDevice":{"address":"10.10.9.153","deviceSN":"1plp0panrup3jqphe","domain":"phiToLoacl","stationName":"N2-09"},"phi":{"autoLogin":false,"pn":"18817301665","puid":"88648258","token":"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiIsImtpZCI6IjEifQ.eyJ1aWQiOiI4ODY0ODI1OCIsImNvZGUiOiJmZWl4dW4qMTIzLlNIXzIxNDk3NzMiLCJ0eXBlIjoiYWNjZXNzX3Rva2VuIiwiaXNzIjoiUGhpY29tbSIsIm5iZiI6MTUyNjUzODcwOSwiZXhwIjoxNTI3MDU3MTA5LCJyZWZyZXNoVGltZSI6IjIwMTgtMDUtMTkgMTQ6MzE6NDkifQ.KdFY74wQ02hi_ux7bXfVkbH4hLgGsuw4dSmBuzPFy8U"}}
+----------------------------774534021993395282102474--

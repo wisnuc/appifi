@@ -46,7 +46,8 @@ const WHITE_LIST = {
   files: 'file',
   media: 'media',
   tasks: 'task',
-  'phy-drives': 'nfs'
+  'phy-drives': 'nfs',
+  'device': 'device'
 }
 
 /**
@@ -87,19 +88,15 @@ class Pipe extends EventEmitter {
   checkUser (phicommUserId) {
     let user
     if (!this.ctx.fruitmix()) {
-      user = this.ctx.boot.view().boundUser 
-        ? (this.ctx.boot.view().boundUser.phicommUserId === phicommUserId 
-        ? this.ctx.boot.view().boundUser : null) : null
+      user = this.ctx.boot.view().boundUser
+        ? (this.ctx.boot.view().boundUser.phicommUserId === phicommUserId
+          ? this.ctx.boot.view().boundUser : null) : null
     } else {
       user = this.ctx.fruitmix().getUserByPhicommUserId(phicommUserId)
     }
     if (!user) throw formatError(new Error(`uid: ${phicommUserId}, check user failed`), 401)
     // throw 503 unavailable if fruitmix === null
-    return Object.assign({} , user, { remote: true })
-
-    // users = fruitmix
-    //  ? fruitmix.users
-    //  : [{ phicommUserId: xxxx }]
+    return Object.assign({}, user, { remote: true })
   }
   /**
    * get token for cloud
@@ -190,26 +187,31 @@ class Pipe extends EventEmitter {
       if (resource === 'token') {
         return this.reqCommand(null, this.getToken(user))
       }
-
+      // 单独处理 boot
       if (resource === 'boot') {
         return this.reqCommand(null, this.getBootInfo())
       }
-      // match route path and generate query
-      let matchRoute
-      let method
-      let query = {}
-      for (let route of routes) {
-        const { pathToRegexp, pathParttens } = route
+      // match route path
+      const matchRoutes = []
+      for (const route of routes) {
         // match route
-        if (pathToRegexp.test(urlPath)) {
-          matchRoute = route
-          if (verb === 'GET') {
-            method = route.verb === 'GET' ? 'GET' : 'LIST'
-          } else if (verb === 'POST') {
-            method = route.verb === 'POST' ? 'POST' : 'POSTFORM'
-          } else {
-            method = verb
-          }
+        if (route.pathToRegexp.test(urlPath)) matchRoutes.push(route)
+      }
+      // match route api
+      let method = verb.toUpperCase()
+      const methods = _.map(matchRoutes, 'verb')
+      if (method === 'GET') {
+        method = methods.includes(method) ? method : 'LIST'
+      } else if (method === 'POST') {
+        method = methods.includes(method) ? method : 'POSTFORM'
+      }
+      // generate query
+      const query = {}
+      let matchRoute
+      for (const ms of matchRoutes) {
+        if (ms.verb === method) {
+          matchRoute = ms
+          const { pathToRegexp, pathParttens } = ms
           const unnamedParamters = pathToRegexp.exec(urlPath)
           // generate query
           pathParttens.map((v, index) => {
@@ -221,9 +223,7 @@ class Pipe extends EventEmitter {
       this.apis(opts)
     } catch (err) {
       debug(`pipe message error: `, err)
-      if (this.message && this.message.msgId && this.packageParams && this.packageParams.waitingServer) {
-        this.reqCommand(err)
-      }
+      this.reqCommand(err)
     }
   }
   /**
@@ -240,12 +240,16 @@ class Pipe extends EventEmitter {
     if (matchRoute.verb === 'POSTFORM') {
       // get resource from cloud
       this.getResource().on('response', response => {
-        props.length = response.headers['content-length']
-        const m = RE_BOUNDARY.exec(response.headers['content-type'])
-        props.boundary = m[1] || m[2]
-        props.formdata = response
-        console.log('response body: ', body)
-        console.log('response headers: ', response.headers)
+        try {
+          props.length = response.headers['content-length']
+          const m = RE_BOUNDARY.exec(response.headers['content-type'])
+          props.boundary = m[1] || m[2]
+          props.formdata = response
+          console.log('response body: ', body)
+          console.log('response headers: ', response.headers)
+        } catch (err) {
+          this.reqCommand(err)
+        }
         // { driveUUID, dirUUID, boundary, length, formdata }
         this.ctx.fruitmix().apis[matchRoute.api][method](user, props, (err, data) => {
           console.log('err', err)
