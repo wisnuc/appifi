@@ -126,7 +126,7 @@ class SambaServer extends events.EventEmitter {
     this.state.setState(Pending)
   }
 
-  GET(callback) {
+  GET(user, props, callback) {
     let status = child.spawnSync('systemctl', ['is-active', 'smbd'])
       .stdout.toString().split('\n').join('')
 

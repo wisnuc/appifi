@@ -50,6 +50,7 @@ class Task {
     this.tasks.filter()
   }
 
+  // useless
   createCopyTask(user, props, callback) {
     let { src, dst } = props
     this.vfs.DIR(user, { driveUUID: dst.drive, dirUUID: dst.dir }, err => {
@@ -113,7 +114,7 @@ class Task {
       err.status = 400
       return process.nextTick(() => callback(err))
     }
-
+    
     if (typeof props.src !== 'object' || props.src === null) {
       let err = new Error('invalid src')
       err.status = 400
