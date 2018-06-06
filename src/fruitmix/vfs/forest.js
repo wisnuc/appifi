@@ -1,16 +1,51 @@
 const path = require('path')
 const EventEmitter = require('events')
 const assert = require('assert')
-const Debug = require('debug')
 
 // short circuit debug (suspect memory leaks)
-const debug = process.env.hasOwnProperty('DEBUG') ? Debug('forest') : () => {}
+const debug = require('debug')
 
 const mkdirp = require('mkdirp')
 const Directory = require('./directory')
 const File = require('./file')
 
+// const SortedMap = require('../../lib/sorted-map')
+
 const autoTesting = process.env.hasOwnProperty('NODE_PATH') ? true : false
+
+class SortedArray {
+  constructor () {
+    this.array = []
+
+    Object.defineProperty(this, 'length', {
+      get () {
+        return this.array.length
+      }
+    })
+  }
+
+  indexOf (time, uuid) {
+    let i, t, id
+    for (let min = 0, max = this.array.length - 1;
+      t !== time && id !== uuid && min <= max;
+      min = t < time || t === time && id.localeCompare(uuid) === -1 ? i + 1 : min,
+      max = t > time || t === time && id.localeCompare(uuid) === 1 ? i - 1 : max) {
+      i = (min + max) / 2 | 0
+      t = this.array[i].getTime()
+      id = this.array[i].uuid
+    }
+
+    return (t === time && id === uuid) ? i : this.array.length
+  }
+
+  insert (file) {
+    this.array.splice(this.indexOf(file.getTime(), file.uuid), 0, file)
+  }
+
+  remove (file) {
+    this.array.splice(this.indexOf(file.getTime(), file.uuid))
+  }
+}
 
 
 /**
@@ -53,7 +88,7 @@ In either case, a `read` on the `Directory` object is enough.
 
 class Forest extends EventEmitter {
 
- constructor (froot, mediaMap) {
+  constructor (froot, mediaMap) {
     super()
 
     /**
@@ -63,9 +98,18 @@ class Forest extends EventEmitter {
     mkdirp.sync(this.dir)
 
     /**
-    fruitmix
+
+    hash => {
+      metadata: {},
+      files: []
+    }
+
     */
-    this.mediaMap = mediaMap
+    this.metaMap = new Map()
+
+    /**
+    */
+    this.timedFiles = new SortedArray()
 
     /**
     The collection of drive cache. Using Map for better performance 
@@ -116,10 +160,12 @@ class Forest extends EventEmitter {
   indexFile (file) {
     debug(`index file ${file.name}`)
     this.fileMap.set(file.uuid, file)
+    this.timedFiles.insert(file)
   }
 
   unindexFile (file) {
     debug(`unindex file ${file.name}`)
+    this.timedFiles.remove(file)
     this.fileMap.delete(file.uuid)
   }
 
@@ -157,17 +203,41 @@ class Forest extends EventEmitter {
 
   fileEnterHashed (file) {
     debug(`file ${file.name} enter hashed`)
-    this.mediaMap.indexFile(file)
+    // this.mediaMap.indexFile(file)
+
+    if (file.metadata) {
+      if (this.metaMap.has(file.hash)) {
+        let val = this.metaMap.get(file.hash)
+        val.files.push(file)
+        file.metadata = val.metadata
+      } else {
+        this.metaMap.set(file.hash, {
+          metadata: file.metadata,
+          files: [file]
+        })
+      }
+    }
   }
 
   hashedFileNameUpdated (file) {
     debug(`hashed file ${file.name} name path updated`)
-    this.mediaMap.fileNameUpdated(file)
+    // this.mediaMap.fileNameUpdated(file)
   }
 
   fileExitHashed (file) {
     debug(`file ${file.name} exit hashed`)
-    this.mediaMap.unindexFile(file)
+    // this.mediaMap.unindexFile(file)
+
+    if (file.metadata) {
+      let val = this.metaMap.get(file.hash)
+      if (!val) return // this is an error
+
+      let index = val.files.indexOf(file)
+      if (index === -1) return // this is an error
+
+      val.files.splice(index, 1)
+      if (val.files.length === 0) this.metaMap.delete(file.hash)
+    }
   }
 
   reqSchedFileHash () {

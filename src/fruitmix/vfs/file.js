@@ -1,14 +1,15 @@
 const assert = require('assert')
+const moment = require('moment')
 
 const debug = require('debug')('fruitmix:file')
 
 const Node = require('./node')
 const xfingerprint = require('../../lib/xfingerprint')
-
 const debugi = require('debug')('fruitmix:indexing')
 
 /**
 File is a in-memory file node maintaining (some) xstat props and related tasks.
+
 
 There are four state combinations for a file in terms of magic and hash props:
 
@@ -37,7 +38,7 @@ In our good old C pattern, only `hashed` and `hashless` are used as explicit sta
 
 // hashFail is a shared extended state accross hashless and hashing state, but neither
 // hashFailed nor hashed state
-class Base {
+class FileState {
  
   constructor (file) {
     // mutual references
@@ -64,7 +65,7 @@ class Base {
 }
 
 // file has no hash and idling
-class Hashless extends Base {
+class Hashless extends FileState {
 
   enter () {
     this.file.ctx.fileEnterHashless(this.file) 
@@ -77,7 +78,7 @@ class Hashless extends Base {
 }
 
 // file has no hash and calculating 
-class Hashing extends Base {
+class Hashing extends FileState {
   
   enter () {
     this.file.ctx.fileEnterHashing(this.file)
@@ -121,7 +122,7 @@ class Hashing extends Base {
 }
 
 // file has no hash and won't try calculation any more
-class HashFailed extends Base {
+class HashFailed extends FileState {
 
   enter () {
     this.file.ctx.fileEnterHashFailed(this.file)
@@ -138,7 +139,7 @@ class HashFailed extends Base {
 }
 
 // when file has hash
-class Hashed extends Base {
+class Hashed extends FileState {
 
   enter () {
     this.file.ctx.fileEnterHashed(this.file)
@@ -159,15 +160,30 @@ class File extends Node {
   constructor (ctx, parent, xstat) {
     super(ctx, parent, xstat)
 
+    /**
+    file uuid
+    */
     this.uuid = xstat.uuid
+
+    /**
+    file name
+    */
     this.name = xstat.name
 
     /**
-    file magic string. For xstat, magic may be a number or a string. But for file object, only string is accepted.
-    Magic change is possible when file content changes. It may changes to another media type or to a number. The latter means this file object is going to be destroyed.
-    @type {string}
     */
-    this.magic = xstat.magic
+    this.mtime = xstat.mtime
+
+    /**
+    file size
+    */
+    this.size = xstat.size
+
+    /**
+    file metadata
+    @type {object}
+    */
+    this.metadata = xstat.metadata
 
     /**
     file hash. Updating file hash is considered to be a state transfer.
@@ -181,6 +197,7 @@ class File extends Node {
     */
     this.tags = xstat.tags
 
+    
     this.ctx.indexFile(this)
 
     if (!this.hash) {
@@ -188,6 +205,14 @@ class File extends Node {
     } else {
       new Hashed(this)
     }
+  }
+
+  getTime () {
+    if (this.metadata) {
+                     
+    }
+
+    return this.mtime
   }
 
   destroy (detach) {

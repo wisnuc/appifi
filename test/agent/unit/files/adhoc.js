@@ -108,11 +108,11 @@ describe(path.basename(__filename), () => {
 
               setTimeout(() => {
 
-              let magics = 'JPEG'
+              let types = 'JPEG'
               request(app.express)
                 .get('/files')
                 .set('Authorization', 'JWT ' + token)
-                .query({ places: home.uuid, magics, metadata: true, namepath: true })
+                .query({ places: home.uuid, types, metadata: true, namepath: true })
                 .expect(200)
                 .end((err, res) => {
                   if (err) return done(err)
@@ -120,7 +120,7 @@ describe(path.basename(__filename), () => {
                   done()
                 })
 
-              }, 1000)
+              }, 500)
 
             }) 
 
