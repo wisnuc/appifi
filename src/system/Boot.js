@@ -542,7 +542,8 @@ class Initializing extends State {
       password: this.ctx.boundUser.password,
       status: 'ACTIVE',
       createTime: new Date().getTime(),
-      lastChangeTime: new Date().getTime()
+      lastChangeTime: new Date().getTime(),
+      phoneNumber: this.ctx.boundUser.phoneNumber
     }]
 
     await mkdirpAsync(tmpDir)
