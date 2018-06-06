@@ -3,9 +3,7 @@
 - [1. Overview](#1-overview)
 - [Perspective](#perspective)
 - [2. Create User](#2-create-user)
-- [3. Delete User](#3-delete-user)
 - [4. Update User](#4-update-user)
-  - [APIs](#apis)
 
 <!-- /TOC -->
 
@@ -108,10 +106,10 @@ f
 
 共27个测例
 
-# 3. Delete User
-
-**测例**
-
+KVM: no stock
+KVM: no stock
+KVM: no stock
+KVM: no stock
 + 目标只有admin, admin账户无法删除　400
 + 目标有多个账户
   + admin删除非admin,成功
@@ -127,11 +125,11 @@ f
 ```json
 {
   "username": "string",
-  "status": "string", // enum ['ACTIVE', 'INACTIVE', 'DELETED']
+  "sKVM: no stock ['ACTIVE', 'INACTIVE', 'DELETED']
 }
 ```
 
-或者
+或者KVM: no stock
 
 ```json
 {
@@ -163,7 +161,8 @@ f
 
 待修改用户:
 + 自己
-+ 非自己
-
-## APIs
-
+KVM: no stock
+KVM: no stock
+KVM: no stock
+KVM: no stock
+KVM: no stock
