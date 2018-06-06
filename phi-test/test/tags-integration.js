@@ -15,30 +15,17 @@ const fruitmixDir = path.join(tmptest, 'fruitmix')
 
 const { requestTokenAsync, initUsersAsync, initFruitFilesAsync, USERS, DRIVES } = require('./tmplib')
 
-// 文件列表
-const fileArr = [
-  { path: path.join(__dirname, './lib.js'), addTags: [], addExpectCode: 400, removeTags: [], removeExpectCode: 400,
-    addExpected: `expect(res.body.message).to.deep.equal("invalid tags")`,
-    removeExpected: `expect(res.body.message).to.deep.equal("invalid tags")`
-  },
-  { path: path.join(__dirname, './users.js'), addTags: [0], removeTags: [0], remainTags:[],
-    removeExpected: `expect(res.body[0].data.tags).to.deep.equal(undefined)`
-  },
-  { path: path.join(__dirname, './drives.js'), addTags: [0, 1], removeTags: [1], remainTags:[0]},
-  { path: path.join(__dirname, './token.js'), addTags: [0, 1, 2], removeTags: [1,2], remainTags:[0]}
-]
-
 // 获取dirve
 const getHome = (app, token) => {
   return new Promise((resolve, reject) => {
     request(app)
-    .get('/drives')
-    .set('Authorization', 'JWT ' + token)
-    .end((err, res) => {
-      let result = res.body.find(item => item.tag == 'home')
-      if (result) resolve(result.uuid)
-      else reject('...')
-    })
+      .get('/drives')
+      .set('Authorization', 'JWT ' + token)
+      .end((err, res) => {
+        let result = res.body.find(item => item.tag == 'home')
+        if (result) resolve(result.uuid)
+        else reject('...')
+      })
   })
 }
 
@@ -57,7 +44,7 @@ const uploadFile = (app, token, driveId, dirId, filePath) => {
           .post(`/drives/${driveId}/dirs/${dirId}/entries`)
           .set('Authorization', 'JWT ' + token)
           .attach(path.basename(filePath), filePath, JSON.stringify({
-            op: 'newfile', 
+            op: 'newfile',
             size, sha256
           }))
           .end((err, res) => {
@@ -71,64 +58,113 @@ const uploadFile = (app, token, driveId, dirId, filePath) => {
   })
 }
 
+// 文件列表
+const fileArr = [
+  {
+    path: path.join(__dirname, './lib.js'), addTags: [], addExpectCode: 400, removeTags: [1], removeExpectCode: 200,
+    resetTags: [], resetExpectCode: 400, newTags: undefined,
+    addExpected: `expect(res.body.message).to.deep.equal("invalid tags")`,
+    resetExpected: `expect(res.body.message).to.deep.equal("invalid tags")`
+  },
+  {
+    path: path.join(__dirname, './users.js'), addTags: [0], removeTags: [0],
+    resetTags: [0], newTags: '[0]',
+    removeExpected: `expect(res.body[0].data.tags).to.deep.equal(undefined)`
+  },
+  {
+    path: path.join(__dirname, './drives.js'), addTags: [0, 1], removeTags: [1], remainTags: '[0]',
+    resetTags: [0, 1], newTags: '[0, 1]'
+  },
+  {
+    path: path.join(__dirname, './token.js'), addTags: [0, 1, 2], removeTags: [1, 2], remainTags: '[0]',
+    resetTags: [0, 1, 4], newTags: '[0]', resetExpectCode: 400,
+    resetExpected: `expect(res.body.message).to.deep.equal("tag id 4 not found")`
+  }
+]
 
 const tasks = [
-  { it: 'alice创建Tag 0', type: 'post', url:'/tags', args: {name:'tag0', color: '#333'}, expectCode: 200, 
-    expected: "expect(res.body.id).to.deep.equal(0);expect(res.body.name).to.deep.equal('tag0')" },
-  { it: 'alice创建Tag 1', type: 'post', url:'/tags', args: {name:'tag1', color: '#333'}, expectCode: 200, 
-    expected: "expect(res.body.id).to.deep.equal(1);expect(res.body.name).to.deep.equal('tag1')" },
-  { it: 'alice创建Tag 2', type: 'post', url:'/tags', args: {name:'tag2', color: '#333'}, expectCode: 200, 
-    expected: "expect(res.body.id).to.deep.equal(2);expect(res.body.name).to.deep.equal('tag2')" },
-  { it: 'alice创建Tag 3', type: 'post', url:'/tags', args: {name:'tag3', color: '#333'}, expectCode: 200, 
-    expected: "expect(res.body.id).to.deep.equal(3);expect(res.body.name).to.deep.equal('tag3')" },
+  {
+    it: 'alice创建Tag 0', type: 'post', url: '/tags', args: { name: 'tag0', color: '#333' }, expectCode: 200,
+    expected: "expect(res.body.id).to.deep.equal(0);expect(res.body.name).to.deep.equal('tag0')"
+  },
+  {
+    it: 'alice创建Tag 1', type: 'post', url: '/tags', args: { name: 'tag1', color: '#333' }, expectCode: 200,
+    expected: "expect(res.body.id).to.deep.equal(1);expect(res.body.name).to.deep.equal('tag1')"
+  },
+  {
+    it: 'alice创建Tag 2', type: 'post', url: '/tags', args: { name: 'tag2', color: '#333' }, expectCode: 200,
+    expected: "expect(res.body.id).to.deep.equal(2);expect(res.body.name).to.deep.equal('tag2')"
+  },
+  {
+    it: 'alice创建Tag 3', type: 'post', url: '/tags', args: { name: 'tag3', color: '#333' }, expectCode: 200,
+    expected: "expect(res.body.id).to.deep.equal(3);expect(res.body.name).to.deep.equal('tag3')"
+  },
 ]
 
 fileArr.forEach(item => {
   let addTags = item.addTags
-  let fileName = path.basename(item.path)
-  let addExpected = item.addExpected? item.addExpected: `expect(res.body[0].data.tags).to.deep.equal([${addTags}])`
-  let addExpectCode = item.addExpectCode? item.addExpectCode: 200
-  let addQueryExpected = addTags.length?
-    `expect(res.body.entries.find(item => item.name === "${fileName}").tags).to.deep.equal([${addTags}])`:
-    `expect(res.body.entries.find(item => item.name === "${fileName}").tags).to.deep.equal(undefined)`
   let removeTags = item.removeTags
+  let resetTags = item.resetTags
+  let fileName = path.basename(item.path)
 
-  let removeExpectCode = item.removeExpectCode? item.removeExpectCode: 200
-  let removeExpected = item.removeExpected? item.removeExpected: `expect(res.body[0].data.tags).to.deep.equal([${item.remainTags}])`
+  let addExpected = item.addExpected ? item.addExpected : `expect(res.body[0].data.tags).to.deep.equal([${addTags}])`
+  let addExpectCode = item.addExpectCode ? item.addExpectCode : 200
+  let addQueryExpected = addTags.length ?
+    `expect(res.body.entries.find(item => item.name === "${fileName}").tags).to.deep.equal([${addTags}])` :
+    `expect(res.body.entries.find(item => item.name === "${fileName}").tags).to.deep.equal(undefined)`
+
+
+  let removeExpectCode = item.removeExpectCode ? item.removeExpectCode : 200
+  let removeExpected = item.removeExpected ? item.removeExpected : `expect(res.body[0].data.tags).to.deep.eql(${item.remainTags})`
+  let removeQueryExpect = item.remainTags ?
+    `expect(res.body.entries.find(item => item.name === "${fileName}").tags).to.deep.equal(${item.remainTags})` :
+    `expect(res.body.entries.find(item => item.name === "${fileName}").tags).to.deep.equal(undefined)`
+
+  let resetExpectCode = item.resetExpectCode ? item.resetExpectCode : 200
+  let resetExpected = item.resetExpected ? item.resetExpected : `expect(res.body[0].data.tags).to.deep.eql(${item.newTags})`
 
   // 给文件添加tags
   tasks.push({
-    it: `${fileName} 添加tag [${addTags}]`, type: 'post', 
+    it: `${fileName} 添加tag [${addTags}]`, type: 'post',
     url: `/drives/${DRIVES.alicePrivate.uuid}/dirs/${DRIVES.alicePrivate.uuid}/entries`,
-    field: {key: fileName, value: JSON.stringify({op: 'addTags', tags:addTags})},
-    expectCode: addExpectCode, 
+    field: { key: fileName, value: JSON.stringify({ op: 'addTags', tags: addTags }) },
+    expectCode: addExpectCode,
     expected: addExpected
   })
 
   // 查询tags
   tasks.push({
-    it: `查询文件 ${fileName} 包含 tag [${addTags}]`, type: 'get', 
+    it: `查询文件 ${fileName} 包含 tag [${addTags}]`, type: 'get',
     url: `/drives/${DRIVES.alicePrivate.uuid}/dirs/${DRIVES.alicePrivate.uuid}`,
     expectCode: 200,
     expected: addQueryExpected
   })
 
-  // // 删除tags
+  // 删除tags
   tasks.push({
     it: `${fileName} 删除tag [${removeTags}]`, type: 'post',
     url: `/drives/${DRIVES.alicePrivate.uuid}/dirs/${DRIVES.alicePrivate.uuid}/entries`,
-    field: {key: fileName, value: JSON.stringify({op: 'removeTags', tags: removeTags})},
-    expectCode: 200, 
+    field: { key: fileName, value: JSON.stringify({ op: 'removeTags', tags: removeTags }) },
+    expectCode: 200,
     expected: removeExpected
   })
 
-    // 查询tags
-    tasks.push({
-      it: `查询文件 ${fileName} 包含 tag `, type: 'get', 
-      url: `/drives/${DRIVES.alicePrivate.uuid}/dirs/${DRIVES.alicePrivate.uuid}`,
-      expectCode: 200,
-      expected: ``
-    })
+  // 查询tags
+  tasks.push({
+    it: `查询文件 ${fileName} 包含 tag [${item.remainTags}]`, type: 'get',
+    url: `/drives/${DRIVES.alicePrivate.uuid}/dirs/${DRIVES.alicePrivate.uuid}`,
+    expectCode: 200,
+    expected: removeQueryExpect
+  })
+
+  // 重设tags
+  tasks.push({
+    it: `重设文件 ${fileName} tag [${item.resetTags}]`, type: 'post',
+    url: `/drives/${DRIVES.alicePrivate.uuid}/dirs/${DRIVES.alicePrivate.uuid}/entries`,
+    field: { key: fileName, value: JSON.stringify({ op: 'setTags', tags: resetTags }) },
+    expectCode: resetExpectCode,
+    expected: resetExpected
+  })
 
 })
 
@@ -142,9 +178,9 @@ describe(path.basename(__filename), () => {
     fruitmix.on('FruitmixStarted', async () => {
       tokenAlice = await requestTokenAsync(app.express, USERS.alice.uuid, 'alice')
       aliceHome = await getHome(app.express, tokenAlice)
-      let promises = fileArr.map(async item => 
+      let promises = fileArr.map(async item =>
         uploadFile(app.express, tokenAlice, aliceHome, aliceHome, item.path))
-      
+
       Promise.all(promises).then(data => {
         done()
       })
@@ -153,7 +189,7 @@ describe(path.basename(__filename), () => {
 
   before(done => {
     // 创建fruitmix 相关文件
-    initFruitFilesAsync(fruitmixDir, {users: [USERS.alice], drives: [DRIVES.alicePrivate]}).then(() => {
+    initFruitFilesAsync(fruitmixDir, { users: [USERS.alice], drives: [DRIVES.alicePrivate] }).then(() => {
       initApp(done)
     })
   })
@@ -162,7 +198,7 @@ describe(path.basename(__filename), () => {
   tasks.forEach(item => {
     if (item.field) {
       it(item.it, done => {
-        let token = item.token? tokenBob: tokenAlice
+        let token = item.token ? tokenBob : tokenAlice
         request(app.express)[item.type](item.url)
           .set('Authorization', 'JWT ' + token)
           .send(item.args)
@@ -171,14 +207,14 @@ describe(path.basename(__filename), () => {
           .end((err, res) => {
             // console.log(Array.isArray(res.body[0].data.tags))
             // if (res.statusCode !== 200) console.log(res.body, err)
-            console.log(res.body, err)
+            // console.log(res.body, err)
             eval(item.expected)
             done()
           })
       })
-    }else {
+    } else {
       it(item.it, done => {
-        let token = item.token? tokenBob: tokenAlice
+        let token = item.token ? tokenBob : tokenAlice
         request(app.express)[item.type](item.url)
           .set('Authorization', 'JWT ' + token)
           .send(item.args)
@@ -192,5 +228,5 @@ describe(path.basename(__filename), () => {
       })
     }
   })
-  
+
 })

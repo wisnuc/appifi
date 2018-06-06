@@ -93,7 +93,8 @@ class User extends EventEmitter {
         smbPassword: props.smbPassword,
         status: USER_STATUS.ACTIVE,
         createTime: new Date().getTime(),
-        lastChangeTime: new Date().getTime()
+        lastChangeTime: new Date().getTime(),
+        phoneNumber: props.phoneNumber
       }
       return [...users, newUser]
     }, (err, data) => {
@@ -219,7 +220,8 @@ class User extends EventEmitter {
       password: !!user.password,
       smbPassword: !!user.smbPassword,
       createTime: user.createTime,
-      status: user.status
+      status: user.status,
+      phoneNumber: user.phoneNumber
     }
   }
 
@@ -256,12 +258,13 @@ class User extends EventEmitter {
   */
   POST (user, props, callback) {
     if (!isNonNullObject(props)) return callback(Object.assign(new Error('props must be non-null object'), { status: 400 }))
-    let recognized = ['username', 'phicommUserId']
+    let recognized = ['username', 'phicommUserId', 'phoneNumber']
     Object.getOwnPropertyNames(props).forEach(key => {
       if (!recognized.includes(key)) throw Object.assign(new Error(`unrecognized prop name ${key}`), { status: 400 })
     })
     if (!isNonEmptyString(props.username)) return callback(Object.assign(new Error('username must be non-empty string'), { status: 400 }))
     if (!isNonEmptyString(props.phicommUserId)) return callback(Object.assign(new Error('phicommUserId must be non-empty string'), { status: 400 }))
+    if (!isNonEmptyString(props.phoneNumber)) return callback(Object.assign(new Error('phoneNumber must be non-empty string'), { status: 400 }))
     if (props.password && !isNonEmptyString(props.password)) return callback(Object.assign(new Error('password must be non-empty string'), { status: 400 }))
     if (this.users.length && (!user || !user.isFirstUser)) return process.nextTick(() => callback(Object.assign(new Error('Permission Denied'), { status: 403 })))
     
