@@ -240,13 +240,16 @@ class Pipe extends EventEmitter {
     if (matchRoute.verb === 'POSTFORM') {
       // get resource from cloud
       this.getResource().on('response', response => {
-        props.length = response.headers['content-length']
-        // FIXME:
-        const m = RE_BOUNDARY.exec(response.headers['content-type'])
-        props.boundary = m[1] || m[2]
-        props.formdata = response
-        console.log('response body: ', body)
-        console.log('response headers: ', response.headers)
+        try {
+          props.length = response.headers['content-length']
+          const m = RE_BOUNDARY.exec(response.headers['content-type'])
+          props.boundary = m[1] || m[2]
+          props.formdata = response
+          console.log('response body: ', body)
+          console.log('response headers: ', response.headers)
+        } catch (err) {
+          this.reqCommand(err)
+        }
         // { driveUUID, dirUUID, boundary, length, formdata }
         this.ctx.fruitmix().apis[matchRoute.api][method](user, props, (err, data) => {
           console.log('err', err)
