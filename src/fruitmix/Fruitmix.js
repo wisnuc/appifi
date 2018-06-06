@@ -206,6 +206,15 @@ class Fruitmix extends EventEmitter {
       this.emit('FruitmixStarted')
     })
 
+    if (opts.useSmb) {
+      this.samba = new Samba(opts, this.user, this.drive)
+      this.user.once('Update', () => {
+        this.samba.state.start(this.user, this.drive)
+      })
+
+      this.apis.samba = this.samba
+    }
+
   }
 
   init (opts) {
