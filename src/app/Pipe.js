@@ -248,7 +248,7 @@ class Pipe extends EventEmitter {
           console.log('response body: ', body)
           console.log('response headers: ', response.headers)
         } catch (err) {
-          this.reqCommand(err)
+          return this.reqCommand(err)
         }
         // { driveUUID, dirUUID, boundary, length, formdata }
         this.ctx.fruitmix().apis[matchRoute.api][method](user, props, (err, data) => {
@@ -288,7 +288,7 @@ class Pipe extends EventEmitter {
     const req = () => {
       if (++count > 2) return
       return request({
-        uri: 'http://sohon2test.phicomm.com' + COMMAND_URL, // this.message.packageParams.waitingServer + COMMAND_URL,
+        uri: 'http://sohon2dev.phicomm.com' + COMMAND_URL, // this.message.packageParams.waitingServer + COMMAND_URL,
         method: 'POST',
         headers: { Authorization: this.ctx.config.cloudToken },
         body: true,
@@ -323,7 +323,7 @@ class Pipe extends EventEmitter {
       file: fs.createReadStream(absolutePath)
     }
     request.post({
-      url: 'http://sohon2test.phicomm.com' + RESOURCE_URL,
+      url: 'http://sohon2dev.phicomm.com' + RESOURCE_URL,
       headers: { Authorization: this.ctx.config.cloudToken },
       formData: formData
     }, (error, response, body) => {
@@ -338,7 +338,7 @@ class Pipe extends EventEmitter {
    */
   getResource () {
     return request({
-      uri: 'http://sohon2test.phicomm.com' + RESOURCE_URL,
+      uri: 'http://sohon2dev.phicomm.com' + RESOURCE_URL,
       method: 'GET',
       headers: { Authorization: this.ctx.config.cloudToken },
       qs: {
