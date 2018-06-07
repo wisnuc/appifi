@@ -16,7 +16,6 @@
  *  You should have received a copy of the GNU General Public License
  *  along with Wisnuc Fruitmix.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 const Promise = require('bluebird')
 const path = require('path')
 const fs = Promise.promisifyAll(require('fs'))
@@ -26,8 +25,12 @@ const xattr = Promise.promisifyAll(require('fs-xattr'))
 const UUID = require('uuid')
 
 const filetype = require('./file-type')
+const EUnsupported = require('./unsupported-file')
 
 const Magic = require('./magic')
+
+const fileMeta = require('./file-meta')
+
 const { isUUID, isSHA256 } = require('./assertion')
 
 /**
@@ -45,41 +48,6 @@ xstat retrieves and stores persistent data in extended attributes.
 
 /** @constant {string} FRUITMIX - `user.fruitmix`, xattr key **/
 const FRUITMIX = 'user.fruitmix'
-
-/**
-Generate an unsupported file type error from fs.Stats
-
-@param {fs.Stats} stat
-*/
-const EUnsupported = stat => {
-  let err = new Error('target is not a regular file or directory')
-
-  /** from nodejs 8.x LTS doc
-  stats.isFile()
-  stats.isDirectory()
-  stats.isBlockDevice()
-  stats.isCharacterDevice()
-  stats.isSymbolicLink() (only valid with fs.lstat())
-  stats.isFIFO()
-  stats.isSocket()
-  */
-  if (stat.isBlockDevice()) {
-    err.code = 'EISBLOCKDEV'
-  } else if (stat.isCharacterDevice()) {
-    err.code = 'EISCHARDEV'
-  } else if (stat.isSymbolicLink()) {
-    err.code = 'EISSYMLINK'
-  } else if (stat.isFIFO()) {
-    err.code = 'EISFIFO'
-  } else if (stat.isSocket()) {
-    err.code = 'EISSOCKET'
-  } else {
-    err.code = 'EISUNKNOWN'
-  }
-
-  err.xcode = 'EUNSUPPORTED'
-  return err
-}
 
 /**
 Return magic by file magic
@@ -181,8 +149,20 @@ const readXattr = (target, stats, callback) => {
       }
 
       // drop magic if version bumped
+      /** remove magic in future TODO FIXME
       if (Magic.isValidMagic(orig.magic)) {
         attr.magic = orig.magic
+      } else {
+        attr.dirty = undefined
+      }
+      */
+
+      if (orig.magic) {
+        attr.dirty = undefined 
+      }
+
+      if (fileMeta.validate(orig.metadata)) {
+        attr.metadata = orig.metadata
       } else {
         attr.dirty = undefined
       }
@@ -223,7 +203,8 @@ Update target xattr. If target is a file and attr has no magic, create it.
 @param {function(Error, object)} callback
 */
 const updateXattr = (target, attr, isFile, callback) => {
-  if (isFile && !attr.hasOwnProperty('magic')) {
+  if (isFile && !attr.hasOwnProperty('metadata')) {
+/**
     fileMagic(target, (err, magic) => {
       if (err) {
         callback(err)
@@ -232,6 +213,17 @@ const updateXattr = (target, attr, isFile, callback) => {
         xattr.set(target, FRUITMIX, JSON.stringify(attr), err => err
           ? callback(err)
           : callback(null, attr))
+      }
+    })
+**/
+
+    fileMeta(target, (err, metadata) => {
+      if (err) {
+        callback(err)
+      } else {
+        attr.metadata = metadata
+        xattr.set(target, FRUITMIX, JSON.stringify(attr), err => 
+          err ? callback(err) : callback(null, attr))
       }
     })
   } else {
@@ -260,19 +252,21 @@ const createXstat = (target, stats, attr) => {
       name,
       mtime: stats.mtime.getTime()
     }
-  }
-
-  if (stats.isFile()) {
+  } else {
     xstat = {
       uuid: attr.uuid,
       type: 'file',
       name,
       mtime: stats.mtime.getTime(),
       size: stats.size,
-      magic: attr.magic
     }
     if (attr.hash) xstat.hash = attr.hash
     if (attr.tags) xstat.tags = attr.tags
+    if (attr.metadata.type !== '_') {
+      let metadata = Object.assign({}, attr.metadata)
+      delete metadata.ver
+      xstat.metadata = metadata
+    }
   }
 
   return xstat

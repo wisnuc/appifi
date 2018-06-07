@@ -50,6 +50,7 @@
     "line-by-line": "^0.1.5",
     "lodash": "^4.17.10",
     "mkdirp": "^0.5.1",
+    "moment": "^2.22.2",
     "morgan": "~1.8.2",
     "mqtt": "^2.14.0",
     "passport": "^0.4.0",

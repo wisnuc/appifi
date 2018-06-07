@@ -207,12 +207,17 @@ class Reading extends Base {
   updateChildren (xstats) {
     //total 
     this.dir.dirCount = xstats.filter(x => x.type === 'directory').length
-    let files = xstats.filter(x => x.type === 'file')
-    this.dir.fileCount = files.length
-    this.dir.fileSize = files.reduce((acc, f) => acc + f.size, 0)
-    
+    this.dir.fileCount = xstats.filter(x => x.type === 'file').length
+    this.dir.fileSzie = xstats.filter(x => x.type === 'file').reduce((acc, f) => acc + f.size, 0)
+
+    // keep all file names 
+    this.dir.unindexedFiles = xstats
+      .filter(x => x.type === 'file' && !x.metadata && !x.tags)
+      .map(x => x.name)
+
     // remove non-interested files
-    xstats = xstats.filter(x => x.type === 'directory' || (x.type === 'file' && (typeof x.magic === 'string' || (Array.isArray(x.tags) && x.tags.length !== 0))))
+    // xstats = xstats.filter(x => x.type === 'directory' || (x.type === 'file' && (typeof x.magic === 'string' || (Array.isArray(x.tags) && x.tags.length !== 0))))
+    xstats = xstats.filter(x => x.type === 'directory' || (x.type === 'file' && (x.metadata || x.tags)))
 
     // convert to a map
     let map = new Map(xstats.map(x => [x.uuid, x]))
@@ -231,12 +236,21 @@ class Reading extends Base {
       let xstat = map.get(child.uuid)
       if (xstat) {
         if (child instanceof File) {
-          if (child.magic === xstat.magic && child.name === xstat.name && child.hash === xstat.hash && isEqualTags(child.tags, xstat.tags)) {
+/**
+          if (child.name === xstat.name && child.hash === xstat.hash && isEqualTags(child.tags, xstat.tags)) {
             // skip
           } else {
             // file update is too complex when magic/name/hash changed
             child.destroy(true) 
             new File(this.dir.ctx, this.dir, xstat)
+          }
+**/
+          if (child.name !== xstat.name || child.hash !== xstat.hash) {
+            // if name or hash changed re-create it, this makes it simple to update indexing
+            child.destroy(true)
+            new File(this.dir.ctx, this.dir, xstat)
+          } else {
+            child.tags = xstat.tags
           }
         } else if (child instanceof Directory) {
           if (child.name !== xstat.name) child.updateName(xstat.name)

@@ -124,7 +124,7 @@ describe(path.basename(__filename), () => {
       await Promise.delay(500)
     })
 
-    it('get (no alt)', done => {
+    it('get (no alt), 922ffdcc', done => {
       request(app.express)
         .get(`/media/${alonzo.hash}`)
         .set('Authorization', 'JWT ' + token)
@@ -132,7 +132,7 @@ describe(path.basename(__filename), () => {
         .end((err, res) => {
           if (err) return done(err)
           expect(res.body).to.deep.equal({
-            m: 'JPEG',
+            type: 'JPEG',
             w: 235,
             h: 314,
             size: alonzo.size
@@ -150,7 +150,7 @@ describe(path.basename(__filename), () => {
         .end((err, res) => {
           if (err) return done(err)
           expect(res.body).to.deep.equal({
-            m: 'JPEG',
+            type: 'JPEG',
             w: 235,
             h: 314,
             size: alonzo.size

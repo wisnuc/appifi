@@ -14,24 +14,30 @@ const rimrafAsync = Promise.promisify(require('rimraf'))
 const IDS = {
 
   alice: {
-    uuid:'9f93db43-02e6-4b26-8fae-7d6f51da12af',
+    uuid: '9f93db43-02e6-4b26-8fae-7d6f51da12af',
     home: 'e2adb5d0-c3c7-4f2a-bd64-3320a1ed0dee',
-    global: {id: "9f93db43-02e6-4b26-8fae-7d6f51da12fa",
-             wx: ["ocMvos6NjeKLIBqg5Mr9QjxrP1FA"]}
+    global: {
+      id: "9f93db43-02e6-4b26-8fae-7d6f51da12fa",
+      wx: ["ocMvos6NjeKLIBqg5Mr9QjxrP1FA"]
+    }
   },
 
   bob: {
     uuid: 'a278930c-261b-4a9c-a296-f99ed00ac089',
     home: 'b7566c69-91f5-4299-b4f4-194df92b01a9',
-    global: {id: "a278930c-261b-4a9c-a296-f99ed00ac980",
-             wx: ["ocMvos6NjeKLIBqg5Mr9QjxrP1FB"]}
+    global: {
+      id: "a278930c-261b-4a9c-a296-f99ed00ac980",
+      wx: ["ocMvos6NjeKLIBqg5Mr9QjxrP1FB"]
+    }
   },
 
   charlie: {
     uuid: 'c12f1332-be48-488b-a3ae-d5f7636c42d6',
     home: '1da855c5-33a9-43b2-a93a-279c6c17ab58',
-    global: {id: "c12f1332-be48-488b-a3ae-d5f7636c462d",
-             wx: ["ocMvos6NjeKLIBqg5Mr9QjxrP1FC"]}
+    global: {
+      id: "c12f1332-be48-488b-a3ae-d5f7636c462d",
+      wx: ["ocMvos6NjeKLIBqg5Mr9QjxrP1FC"]
+    }
   },
 
   david: {
@@ -63,7 +69,7 @@ const FILES = {
   alonzo: {
     name: 'alonzo.jpg',
     path: 'testdata/alonzo.jpg',
-    size: 39499, 
+    size: 39499,
     hash: '8e28737e8cdf679e65714fe2bdbe461c80b2158746f4346b06af75b42f212408'
   },
 
@@ -71,7 +77,7 @@ const FILES = {
     name: 'bar',
     path: 'testdata/bar',
     size: 4,
-    hash: '7d865e959b2466918c9863afca942d0fb89d7c9ac0c99bafc3749504ded97730' 
+    hash: '7d865e959b2466918c9863afca942d0fb89d7c9ac0c99bafc3749504ded97730'
   },
 
   empty: {
@@ -99,14 +105,14 @@ const FILES = {
     name: 'vpai001',
     path: 'testdata/vpai001.jpg',
     size: 4192863,
-    hash: '529e471a71866e439d8892179e4a702cf8529ff32771fcf4654cfdcea68c11fb', 
+    hash: '529e471a71866e439d8892179e4a702cf8529ff32771fcf4654cfdcea68c11fb',
   },
 
   world: {
     name: 'world',
-    path: 'testdata/world', 
+    path: 'testdata/world',
     size: 6,
-    hash: 'e258d248fda94c63753607f7c4494ee0fcbe92f1a76bfdac795c9d84101eb317'  
+    hash: 'e258d248fda94c63753607f7c4494ee0fcbe92f1a76bfdac795c9d84101eb317'
   },
 
   oneByteX: {
@@ -127,14 +133,14 @@ const FILES = {
     name: 'one-giga',
     path: 'test-files/one-giga',
     size: 1024 * 1024 * 1024,
-    hash: 'a728498b7d120ea93ff32f548df489e7e9feeefd5dab7124c12ee3e49ff84a91' 
+    hash: 'a728498b7d120ea93ff32f548df489e7e9feeefd5dab7124c12ee3e49ff84a91'
   },
 
   oneGigaMinus1: {
     name: 'one-giga-minus-1',
     path: 'test-files/one-giga-minus-1',
     size: 1024 * 1024 * 1024 - 1,
-    hash: 'dfbe42ebd0867f5dc8dc602f035237e88984c93a4e0a7ad7f92f462e326fa6f2'  
+    hash: 'dfbe42ebd0867f5dc8dc602f035237e88984c93a4e0a7ad7f92f462e326fa6f2'
   },
 
   oneGigaPlusX: {
@@ -164,7 +170,7 @@ const FILES = {
     size: 1024 * 1024 * 1024 * 2 - 1,
     hash: '881e4980ed2d54067f5c534513b43f408040a615731c9eb76c06ff4945a3e3ae'
   },
-  
+
   twoGigaPlusX: {
     name: 'two-giga-plus-x',
     path: 'test-files/two-giga-plus-x',
@@ -176,35 +182,35 @@ const FILES = {
     name: 'two-and-a-half-giga',
     path: 'test-files/two-and-a-half-giga',
     size: 1024 * 1024 * 1024 * 2 + 512 * 1024 * 1024,
-    hash: 'c4eeea260304c747c4329a10274e7c4256a1bacff6545cada5f03e956f9d2c62' 
+    hash: 'c4eeea260304c747c4329a10274e7c4256a1bacff6545cada5f03e956f9d2c62'
   },
 
   threeGiga: {
     name: 'three-giga',
     path: 'test-files/three-giga',
     size: 1024 * 1024 * 1024 * 3,
-    hash: '31d98188bf9ad4f30e87dce7da1e44bead3ee2b6aca5b4f1b1be483fdc000f58'  
+    hash: '31d98188bf9ad4f30e87dce7da1e44bead3ee2b6aca5b4f1b1be483fdc000f58'
   },
 
   threeGigaMinus1: {
     name: 'three-giga-minus-1',
     path: 'test-files/three-giga-minus-1',
     size: 1024 * 1024 * 1024 * 3 - 1,
-    hash: 'f34af33573a9710b3376013f3d337ef54813d21ef366f845c4ae105df50b6862' 
+    hash: 'f34af33573a9710b3376013f3d337ef54813d21ef366f845c4ae105df50b6862'
   },
 
   threeGigaPlusX: {
     name: 'three-giga-plus-x',
     path: 'test-files/three-giga-plus-x',
     size: 1024 * 1024 * 1024 * 3 + 1,
-    hash: '4f78a807e5b0909a06ce68d58f5dccc581db6bbc51a00bb07148ec599a9d2a32'  
+    hash: '4f78a807e5b0909a06ce68d58f5dccc581db6bbc51a00bb07148ec599a9d2a32'
   },
 
   threeAndAHalfGiga: {
     name: 'three-and-a-half-giga',
     path: 'test-files/three-and-a-half-giga',
     size: 1024 * 1024 * 1024 * 3 + 512 * 1024 * 1024,
-    hash: 'a55587006fb9125fd09e7d8534ab6e7e0e9ec47aa02fc6d8495a3bb43d3968bb' 
+    hash: 'a55587006fb9125fd09e7d8534ab6e7e0e9ec47aa02fc6d8495a3bb43d3968bb'
   },
 
   fourGiga: {
@@ -223,7 +229,7 @@ const FILES = {
 
 }
 
-const stubUserUUID = username => 
+const stubUserUUID = username =>
   sinon.stub(UUID, 'v4')
     .onFirstCall().returns(IDS[username].uuid)
     .onSecondCall().returns(IDS[username].home)
@@ -243,8 +249,8 @@ const createUserAsync = async (username, token, isAdmin) => {
 
   stubUserUUID(username)
   try {
-    let res = await req 
-    let real = res.body.uuid 
+    let res = await req
+    let real = res.body.uuid
     let expected = IDS[username].uuid
     if (real !== expected) throw new Error(`user uuid mismatch, real ${real}, expected ${expected}`)
     return res.body
@@ -304,7 +310,7 @@ const DRIVES = {
 /**
 Retrieve test user's token
 */
-const retrieveTokenAsync = async username => 
+const retrieveTokenAsync = async username =>
   (await request(app)
     .get('/token')
     .auth(IDS[username].uuid, username)).body.token
@@ -319,10 +325,10 @@ const createPublicDriveAsync = async (props, token, uuid) => {
     .set('Authorization', 'JWT ' + token)
     .expect(200)
 
-  sinon.stub(UUID, 'v4').returns(uuid) 
+  sinon.stub(UUID, 'v4').returns(uuid)
   try {
     let res = await req
-    if (res.body.uuid !== uuid) 
+    if (res.body.uuid !== uuid)
       throw new Error(`drive uuid mismatch, real ${res.body.uuid}, expected ${uuid}`)
     return res.body
   }
@@ -350,7 +356,7 @@ const laCloudTokenAsync = async username => {
 
   let res = await request(app)
     .get('/cloudToken')
-    .query({ guid: IDS[username].global.id})
+    .query({ guid: IDS[username].global.id })
     .set('Authorization', 'JWT ' + token)
     .expect(200)
 
@@ -360,7 +366,7 @@ const laCloudTokenAsync = async username => {
 const waCloudTokenAsync = async (username) => {
   let res = await request(app)
     .get('/cloudToken')
-    .query({ guid: IDS[username].global.id})
+    .query({ guid: IDS[username].global.id })
     .expect(200)
   return res.body.token
 }
@@ -402,11 +408,11 @@ const forgeRecords = async (boxUUID, username) => {
   // so there are only two returns can be used
   // in this loop, UUID.v4 is required
   // but only the first two can get a result, this won't influence the data we need
-  for(let i = 0; i < 10; i++) {
+  for (let i = 0; i < 10; i++) {
     let res = await request(app)
       .post(`/boxes/${boxUUID}/tweets`)
       .set('Authorization', 'JWT ' + cloudToken + ' ' + token)
-      .send({comment: 'hello'})
+      .send({ comment: 'hello' })
       .expect(200)
   }
 }
@@ -441,13 +447,13 @@ const createTreeObjectAsync = async dir => {
             result.path.add(fpath)
           } else {
             let size = fs.lstatSync(fpath).size
-            let obj = {fingerprint, path: new Set([fpath]), size}
+            let obj = { fingerprint, path: new Set([fpath]), size }
             hashArr.set(fingerprint, obj)
           }
 
           return ['tree', entry, fingerprint]
         }
-         
+
         if (stat.isFile()) {
           let fingerprint = await fingerprintSimpleAsync(entryPath)
 
@@ -455,7 +461,7 @@ const createTreeObjectAsync = async dir => {
             let result = hashArr.get(fingerprint)
             result.path.add(entryPath)
           } else {
-            let obj = {fingerprint, path: new Set([entryPath]), size: stat.size}
+            let obj = { fingerprint, path: new Set([entryPath]), size: stat.size }
             hashArr.set(fingerprint, obj)
           }
 
@@ -481,12 +487,12 @@ const createTreeObjectAsync = async dir => {
     result.path.add(rootpath)
   } else {
     let size = fs.lstatSync(rootpath).size
-    let obj = {fingerprint: root, path: new Set([rootpath]), size}
+    let obj = { fingerprint: root, path: new Set([rootpath]), size }
     hashArr.set(root, obj)
   }
   // root is the sha256 of rootTree
   // hashArr contains all the file hash and sub tree hash in rootTree(including rootTree hash)
-  return {tmpDir, root, hashArr} 
+  return { tmpDir, root, hashArr }
 }
 
 const storeObjectAsync = async (tree, dir) => {
@@ -500,12 +506,12 @@ const storeObjectAsync = async (tree, dir) => {
   let dst = path.join(dir, digest)
   try {
     let stats = await fs.lstatAsync(dst)
-    return digest  
+    return digest
   }
   catch (e) {
     if (e.code !== 'ENOENT') throw e
   }
-    
+
   await writeFileToDiskAsync(dst, text)
   return digest //{fingerprint: digest, path: dst}
 }
@@ -571,7 +577,7 @@ const createCommitAsync = async (dir, boxUUID, username, props) => {
 
   // root: hash string of a tree obj
   let obj = toUpload.length !== 0 ? Object.assign({ root: result.root, toUpload }, props)
-                                  : Object.assign({ root: result.root}, props)
+    : Object.assign({ root: result.root }, props)
 
   let res = request(app)
     .post(`/boxes/${boxUUID}/commits`)
@@ -582,7 +588,7 @@ const createCommitAsync = async (dir, boxUUID, username, props) => {
     let info = result.hashArr.get(toUpload[i])
     let fpath = [...info.path][0]
 
-    res.attach(toUpload[i], fpath, JSON.stringify({size: info.size, sha256: toUpload[i]}))
+    res.attach(toUpload[i], fpath, JSON.stringify({ size: info.size, sha256: toUpload[i] }))
   }
 
   let commit = (await res.expect(200)).body

@@ -15,10 +15,12 @@ const E = require('../lib/error')
 const Magic = require('../lib/magic')
 
 const log = require('winston')
+const sanitize = require('sanitize-filename')
 const xattr = require('fs-xattr')       // TODO remove
 const { saveObjectAsync } = require('../lib/utils')
 const autoname = require('../lib/autoname')
 const { isUUID, isSHA256 } = require('../lib/assertion')
+
 
 const Node = require('./vfs/node')
 const File = require('./vfs/file')
@@ -114,6 +116,8 @@ class VFS extends EventEmitter {
     Object.defineProperty(this, 'tags', { get () { return this.tag.tags } })
     
     this.forest = new Forest(this.fruitmixDir, opts.mediaMap)
+    this.metaMap = this.forest.metaMap
+    this.timeMap = this.forest.timeMap
   }
 
   /**
@@ -307,30 +311,11 @@ class VFS extends EventEmitter {
         err.status = 500
         callback(err)
       } else {
-
         let path = dir.nodepath().map(dir => ({
           uuid: dir.uuid,
           name: dir.name,
           mtime: Math.abs(dir.mtime)
         })) 
-
-        if (props.metadata === 'true') {
-          const hasMetadata = entry => 
-            entry.type === 'file' 
-            && Magic.isMedia(entry.magic) 
-            && entry.hash 
-            && this.mediaMap.hasMetadata(entry.hash)
-
-          entries.forEach(entry => {
-            if (hasMetadata(entry))
-            entry.metadata = this.mediaMap.getMetadata(entry.hash)
-          })
-        }
-
-        if (props.counter === 'true') {
-          // TODO
-        }
-
         callback(null, { path, entries })
       }
     })
@@ -1527,19 +1512,393 @@ class VFS extends EventEmitter {
     }
   } 
 
+  /**
+  Query process arguments and pass request to iterate or visit accordingly.
+
+  if ordered by time, start, count, end, places, types, tags, namepath
+  if ordered by struct, last, count, places, types, tags, namepath, fileOnly, dirOnly
+
+  @param {object} user
+  @param {object} props
+  @param {string} props.order - newest or oldest, default newest (not used now)
+  @param {string} props.starti - inclusive start
+  @param {string} props.starte - exclusive start
+  @param {string} props.last -
+  @param {string} props.count - number
+  @param {string} props.endi - inclusive end
+  @parma {string} props.ende - exclusive end
+  @param {string} props.places - concatenated uuids separated by dot
+  @param {string} props.types - concatenated types separated by dot
+  @param {string} props.tags - concatenated numbers separated by dot
+  @param {boolean} props.namepath - whether return namepath or not
+  @param {boolean} props.fileOnly
+  @param {boolean} props.dirOnly
+  */
+  QUERY (user, props, callback) {
+    debug('QUERY', props)
+    const UUID_MIN = '00000000-0000-4000-0000-000000000000'
+    const UUID_MAX = 'ffffffff-ffff-4fff-ffff-ffffffffffff'
+  
+    let order
+    let startTime, startUUID, startExclusive
+    let lastIndex, lastPath, fileOnly, dirOnly
+    let count, places, types, tags, name, namepath
+
+    const EInval = message => process.nextTick(() => 
+      callback(Object.assign(new Error(message), { status: 400 })))
+
+    if (props.order) {
+      if (['newest', 'oldest', 'previsit'].includes(props.order)) {
+        order = props.order
+      } else {
+        return EInval('invalid order')
+      }
+    } else {
+      order = 'newest'
+    }
+
+    // ordered by time
+    if (order === 'newest' || order === 'oldest') {
+      if (props.starti) {
+        let split = props.starti.split('.')
+        if (split.length > 2) return EInval('invalid starti')
+
+        startTime = parseInt(split[0])
+        if (!Number.isInteger(startTime)) return EInval('invalid starti')
+
+        if (split.length > 1) {
+          startUUID = split[1]
+          if (!isUUID(startUUID)) return EInval('invalid starti')
+        } else {
+          startUUID = order === 'newest' ? UUID_MAX : UUID_MIN
+        }
+        startExclusive = false
+      } else if (props.starte) {
+        let split = props.starte.split('.') 
+        if (split.length > 2) return EInval('invalid starte')
+
+        startTime = parseInt(split[0])
+        if (!Number.isInteger(startTime)) return EInval('invalid starte')
+
+        if (split.length > 1) {
+          startUUID = split[1]
+          if (!isUUID(startUUID)) return EInval('invalid starte')
+        } else {
+          startUUID = order === 'newest' ? UUID_MAX : UUID_MIN
+        }
+        startExclusive = true
+      }
+    // ordered by fs structure
+    } else {
+      if (props.last) {
+        let dotIndex = props.last.indexOf('.')
+        if (dotIndex === -1) return EInval('invalid last')
+
+        lastIndex = parseInt(props.last.slice(0, index))
+        if (!Number.isInteger(lastIndex) || lastIndex < 0) return EInval('invalid last')
+
+        lastPath = props.last.slice(index + 1)
+        if (!path.isAbsolute(lastPath) || path.normalize(lastPath) !== lastPath) 
+          return EInval('invalid last path')
+      }
+    }
+
+    if (props.count) {
+      count = parseInt(props.count)
+      if (!Number.isInteger(count) || count <= 0) return EInval('invalid count')
+    }
+
+    if (props.places) {
+      places = props.places.split('.')
+      if (!places.every(place => isUUID(place))) return EInval('invalid places') 
+      if (places.length !== Array.from(new Set(places)).length) return EInval('places has duplicate elements')
+
+      for (let i = 0; i < places; i++) {
+        let place = places[i]
+
+        let dir = this.forest.uuidMap.get(place)
+        if (!dir) return EInval(`place ${place} not found`)
+
+        let drive = this.drives.find(d => d.uuid === dir.root().uuid)
+        if (!this.userCanWriteDrive(user, drive)) return EInval(`place ${place} not found`)
+      }
+    }
+
+    if (props.types) {
+      types = props.types.split('.')
+      if (!types.every(type => !!type.length)) return EInval('invalid types')
+    } 
+
+    if (props.tags) {
+      tags = props.tags.split('.').map(ts => parseInt(ts))
+      if (tags.length !== Array.from(new Set(tags)).length) return EInval('invalid tags')
+    }
+
+    if (props.name) name = props.name
+
+    namepath = props.namepath === 'true'
+
+    if (namepath && !places) return EInval('places must be provided if namepath=true')
+
+    if (order === 'newest' || order === 'oldest') {
+      this.iterate(user, { order, startTime, startUUID, startExclusive, 
+        count, places, types, tags, name, namepath }, callback)
+    } else {
+      fileOnly = props.fileOnly === 'true'
+      dirOnly = props.dirOnly === true
+    }
+  }
+
+  /**
+  
+  */
+  iterate (user, props, callback) {
+    debug('iterate', props)
+
+    let { order, startTime, startUUID, startExclusive } = props
+    let { count, places, types, tags, name, namepath } = props
+    let files = this.forest.timedFiles
+    let startIndex
+    let arr = []
+
+    const match = file => {
+      if (tags) {
+        if (!file.tags) return
+        if (!tags.every(tag => file.tags.includes(tag))) return
+      }
+
+      if (types) {
+        if (!file.metadata) return
+        if (!types.includes(file.metadata.type)) return
+      }
+  
+      // TODO optimize performance 
+      if (places) {
+        let uuids = file.nodepath().map(n => n.uuid)
+        if (!places.some(place => uuids.includes(place))) return
+      } else {
+        let drive = this.drives.find(drv => drv.uuid === file.root().uuid) 
+        if (!this.userCanWriteDrive(user, drive)) return
+      }
+
+      if (name && !file.name.includes(name)) return
+
+      let xstat = {
+        uuid: file.uuid,
+        dir: file.parent.uuid,
+        name: file.name, 
+        mtime: file.mtime,
+        size: file.size,
+        hash: file.hash,
+        tags: file.tags,
+        metadata: file.metadata
+      } 
+
+      if (namepath) {
+        // TODO
+      }
+
+      arr.push(xstat)
+    }
+    
+    if (order === 'newest') { // reversed order
+      if (startTime === undefined) {
+        startIndex = files.length - 1
+      } else {
+        startIndex = files.indexOf(startTime, startUUID)
+        if (startIndex === files.length) {
+          startIndex--
+        } else if (startExclusive) {
+          let file = files.array[startIndex]
+          if (file.getTime() === startTime && file.uuid === startUUID) startIndex--
+        }
+      }
+      for (let i = startIndex; i >= 0; i--) {
+        match(files.array[i])
+        if (count && arr.length >= count) break
+      }
+    } else {
+      if (startTime === undefined) {
+        startIndex = 0
+      } else {
+        startIndex = files.indexOf(startTime, startUUID)
+        if (startExclusive && startIndex < files.length) {
+          let file = files.array[startIndex]
+          if (file.getTime() === startTime && file.uuid === startUUID) startIndex++
+        }
+      }
+      for (let i = startIndex; i < files.length; i++) {
+        match(files.array[i])
+        if (count && arr.length >= count) break
+      }
+    }
+
+    process.nextTick(() => callback(null, arr))
+  }
+
+  /**
+  Query returns indexed files that meet the query condition
+
+  @param {object} user
+  @param {object} props
+  @param {string} props.order - newest or oldest, default newest (not used now)
+  @param {string} props.starti - inclusive start
+  @param {string} props.starte - exclusive start
+  @param {string} props.count - number
+  @param {string} props.endi - inclusive end
+  @parma {string} props.ende - exclusive end
+  @param {string} props.places - concatenated uuids separated by dot
+  @param {string} props.types - concatenated types separated by dot
+  @param {string} props.tags - concatenated numbers separated by dot
+  @param {boolean} props.namepath - whether return namepath or not
+  */
+  query (user, props, callback) {
+    debug('query', props)
+
+    const UUID_MIN = '00000000-0000-4000-0000-000000000000'
+    const UUID_MAX = 'ffffffff-ffff-4fff-ffff-ffffffffffff'
+  
+    let startTime, startUUID, startExclusive, count, name
+    let places, types, tags
+    let reversed = true
+
+    if (props.starti) {
+      let split = starti.split('.') 
+      startTime = parseInt(split[0])
+      if (split[1]) {
+        startUUID = split[1]
+      } else {
+        startUUID = reversed ? UUID_MAX : UUID_MIN
+      } 
+      startExclusive = false
+    } else if (props.starte) {
+      let split = starte.split('.')
+      startTime = parseInt(split[0])
+      if (split[1]) {
+        startUUID = split[1]
+      } else {
+        startUUID = reversed ? UUID_MAX : UUID_MIN
+      }
+      startExclusive = true
+    }
+
+    if (props.places) {
+      places = props.places.split('.')
+    }
+
+    if (props.types) {
+      types = props.types.split('.')
+    }
+
+    if (props.tags) {
+      tags = props.tags.split('.').map(x => parseInt(x))
+    }
+
+    if (props.count) {
+      count = parseInt(props.count)
+    }
+
+    if (props.name) {
+      name = props.name
+    }
+
+    let files = this.forest.timedFiles
+    let startIndex 
+    let arr = []
+
+    const match = file => {
+      if (tags) {
+        if (!file.tags) return
+        if (!tags.every(tag => file.tags.includes(tag))) return
+      }
+
+      if (types) {
+        if (!file.metadata) return
+        if (!types.includes(file.metadata.type)) return
+      }
+   
+      if (places) {
+        let uuids = file.nodepath().map(n => n.uuid)
+        if (!places.some(place => uuids.includes(place))) return
+      } else {
+        let drive = this.drives.find(drv => drv.uuid === file.root().uuid) 
+        if (!this.userCanWriteDrive(user, drive)) return
+      }
+
+      if (name) {
+        if (!file.name.includes(name)) return
+      }
+
+      arr.push({
+        uuid: file.uuid,
+        dir: file.parent.uuid,
+        name: file.name, 
+        mtime: file.mtime,
+        size: file.size,
+        hash: file.hash,
+        tags: file.tags,
+        metadata: file.metadata
+      }) 
+    }
+
+    if (reversed) {
+      if (startTime === undefined) {
+        // start from the last one, ignore startExclusive
+        startIndex = files.array.length - 1
+      } else {
+        startIndex = files.indexOf(startTime, startUUID)
+        if (startIndex === files.length) {
+          startIndex--
+        } else if (startExclusive) {
+          // we only take care of exclusive, if decrement required
+          let file = files.array[startIndex]
+          if (file.getTime() === startTime && file.uuid === startUUID) startIndex--
+        }
+      }
+      for (let i = startIndex; i >= 0; i--) match(files.array[i])
+    } else {
+      if (startTime === undefined) {
+        startIndex = 0
+      } else {
+        startIndex = files.indexOf(startTime, startUUID)
+        if (startExclusive && startIndex < files.array.length) {
+          let file = files.array[startIndex]
+          if (file.getTime() === startTime && file.uuid === startUUID) startIndex++
+        }
+      }
+      for (let i = startIndex; i < files.array.length; i++) match(files.array[i])
+    }
+
+    process.nextTick(() => callback(null, arr))
+  }
+
+  /**
+   
+  */
+  search (user, props, callback) {
+  }
+
   getMedia (user, props, callback) {
+    debug('get media', props)
+
     let err, data
     let { fingerprint, file } = props
+
     if (!isSHA256(fingerprint)) {
       err = Object.assign(new Error('invalid hash'), { status: 400 })
-    } else if (!this.mediaMap.hasMetadata(fingerprint)) {
+    } else if (!this.metaMap.has(fingerprint)) {
       err = Object.assign(new Error('media not found'), { status: 404 })
     } else {
       // drive uuids
       let uuids = this.drives.filter(drv => this.userCanWriteDrive(user, drv)).map(drv => drv.uuid)
-      let meta = this.mediaMap.get(fingerprint)
+      let meta = this.metaMap.get(fingerprint)
+
       if (meta.files.some(f => uuids.includes(f.root().uuid))) {
-        data = file ? this.absolutePath(meta.files[0]) : meta.metadata
+        if (file) {
+          data = this.absolutePath(meta.files[0])
+        } else {
+          data = Object.assign({}, meta.metadata, { size: meta.files[0].size })
+        }
       } else {
         err = Object.assign(new Error('permission denied'), { status: 403 })
       }
