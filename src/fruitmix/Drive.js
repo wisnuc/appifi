@@ -59,12 +59,24 @@ class Drive extends EventEmitter {
     let deletedUsers = users.filter(u => u.status === this.user.USER_STATUS.DELETED).map(u => u.uuid)
     if (!deletedUsers.length) return
     this.store.save(drives => {
-      deletedUsers.forEach(userUUID => {
-        let drv = drives.find(drv => drv.owner === userUUID && drv.type === 'private')
-        // if (!drv) this.user.handleDriveDeleted(userUUID) // report user module
-        if (drv) this.deleteDrive(drv.uuid, {}, () => {}) // update drive isDeleted
+      let tmpDrives = JSON.parse(JSON.stringify(drives))
+      
+      tmpDrives.forEach(tD => {
+        if (tD.type === 'private' && deletedUsers.includes(tD.owner)) {
+          tD.isDeleted = true
+        }
+        else if (tD.type === 'public') {
+          deletedUsers.forEach(dU => {
+            let wl = new Set(tD.writelist)
+            wl.delete(dU)
+            tD.writelist = Array.from(wl).sort()
+            let rl = new Set(tD.readlist)
+            rl.delete(dU)
+            tD.readlist = Array.from(rl).sort()
+          })
+        }
       })
-      return drives
+      return tmpDrives
     }, () => {})
   }
 
@@ -165,7 +177,7 @@ class Drive extends EventEmitter {
     }, (err, data) => err ? callback(err) : callback(null, data.find(d => d.uuid === driveUUID)))
   }
 
-  deleteDrive (driveUUID, props, callback) {
+   deleteDrive (driveUUID, props, callback) {
     this.store.save(drives => {
       let index = drives.findIndex(drv => drv.uuid === driveUUID)
       if (index === -1) throw Object.assign(new Error('drive not found'), { status: 404 })

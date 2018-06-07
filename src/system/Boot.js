@@ -201,7 +201,8 @@ class Starting extends State {
     let fruitmixDir = path.join(volume.mountpoint, this.ctx.conf.storage.fruitmixDir)
     let opts = Object.assign({}, this.ctx.fruitmixOpts, {
       fruitmixDir,
-      boundVolume: this.ctx.volumeStore.data
+      boundVolume: this.ctx.volumeStore.data,
+      boundUser: this.ctx.boundUser
     })
     let fruitmix = new Fruitmix(opts)
 

@@ -40,7 +40,8 @@ describe(path.basename(__filename), () => {
             if (err) return done(err)
             expect(res.body).to.deep.equal({
               type: 'JWT',
-              token: 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1dWlkIjoiY2IzM2I1YjMtZGQ1OC00NzBmLThjY2MtOTJhYTA0ZDc1NTkwIn0.0lp4tfIyz4kn1QDJqmZ4pYp0Y5oh-W9ta26yS34qVok'
+              token: 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1dWlkIjoiY2IzM2I1YjMtZGQ1OC00NzBmLThjY2MtOTJhYTA0ZDc1NTkwIn0.0lp4tfIyz4kn1QDJqmZ4pYp0Y5oh-W9ta26yS34qVok',
+              forRemote: false
             })
             done()
           }))
@@ -69,13 +70,15 @@ describe(path.basename(__filename), () => {
                 uuid: 'cb33b5b3-dd58-470f-8ccc-92aa04d75590',
                 username: 'alice',
                 isFirstUser: true,
-                phicommUserId: 'alice'
+                phicommUserId: 'alice',
+                phoneNumber: alice.phoneNumber
               },
               {
                 uuid: '844921ed-bdfd-4bb2-891e-78e358b54869',
                 username: 'bob',
                 isFirstUser: false,
-                phicommUserId: 'bob'
+                phicommUserId: 'bob',
+                phoneNumber: bob.phoneNumber
               }
             ])
             done()
@@ -102,7 +105,10 @@ describe(path.basename(__filename), () => {
                   isFirstUser: true,
                   phicommUserId: 'alice',
                   password: true,
-                  smbPassword: true
+                  smbPassword: true,
+                  status: alice.status,
+                  createTime: alice.createTime,
+                  phoneNumber: alice.phoneNumber
                 },
                 {
                   uuid: '844921ed-bdfd-4bb2-891e-78e358b54869',
@@ -110,7 +116,10 @@ describe(path.basename(__filename), () => {
                   isFirstUser: false,
                   phicommUserId: 'bob',
                   password: true,
-                  smbPassword: true
+                  smbPassword: true,
+                  status: bob.status,
+                  createTime: bob.createTime,
+                  phoneNumber: bob.phoneNumber
                 }])
               done(err)
             })
@@ -137,7 +146,10 @@ describe(path.basename(__filename), () => {
                   isFirstUser: false,
                   phicommUserId: 'bob',
                   password: true,
-                  smbPassword: true
+                  smbPassword: true,
+                  status: bob.status,
+                  createTime: bob.createTime,
+                  phoneNumber: bob.phoneNumber
                 }
               ])
               done()
@@ -157,7 +169,8 @@ describe(path.basename(__filename), () => {
             .set('Authorization', 'JWT ' + token)
             .send({
               username: 'Jack',
-              phicommUserId: 'Jack'
+              phicommUserId: 'Jack',
+              phoneNumber: '12334444555'
             })
             .expect(200)
             .end((err, res) => {
@@ -186,7 +199,8 @@ describe(path.basename(__filename), () => {
             .set('Authorization', 'JWT ' + token)
             .send({
               username: 'Jack',
-              phicommUserId: 'Jack'
+              phicommUserId: 'Jack',
+              phoneNumber: '12255558888'
             })
             .expect(403)
             .end(done)
@@ -325,7 +339,10 @@ describe(path.basename(__filename), () => {
                 isFirstUser: true,
                 phicommUserId: 'alice',
                 password: true,
-                smbPassword: true
+                smbPassword: true,
+                createTime: alice.createTime,
+                phoneNumber: alice.phoneNumber,
+                status: alice.status
               })
               done()
             })
