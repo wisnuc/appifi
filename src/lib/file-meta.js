@@ -156,7 +156,7 @@ const fileType = (path, callback) =>
       if (typeMap.has(type)) {
         callback(null, type)
       } else {
-        calblack(null)
+        callback(null)
       }
     }
   }) 

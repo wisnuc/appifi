@@ -64,7 +64,8 @@ const n2 = {
   tag: {
     isPrivate: true,
     visibleInPublicDrive: false
-  }
+  },
+  alternativeUserId: ['phicommUserId']
 }
 
 
