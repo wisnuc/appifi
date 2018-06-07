@@ -318,13 +318,15 @@ class Pipe extends EventEmitter {
   postResource (absolutePath) {
     var formData = {
       // Pass a simple key-value pair
-      deviceSN: `${this.ctx.config.device.deviceSN}`,
-      msgId: `${this.message.msgId}`,
       file: fs.createReadStream(absolutePath)
     }
     request.post({
       url: 'http://sohon2dev.phicomm.com' + RESOURCE_URL,
       headers: { Authorization: this.ctx.config.cloudToken },
+      qs: {
+        deviceSN: this.ctx.config.device.deviceSN,
+        msgId: this.message.msgId
+      },
       formData: formData
     }, (error, response, body) => {
       if (!error && response.statusCode === 200) {
