@@ -258,8 +258,10 @@ describe(path.basename(__filename), () => {
               setTimeout(() => {
                 let pud = Object.assign({}, public1)
                 pud.writelist = []
-                expect(fruitmix.drive.drives).to.deep.equal([alicePrivate, pud])
-                expect(fruitmix.user.users).to.deep.equal([alice, charlie])
+                let bP = Object.assign({}, bobPrivate, { isDeleted: true })
+                let bb = Object.assign({}, bob, { status: 'DELETED' })
+                expect(fruitmix.drive.drives).to.deep.equal([alicePrivate, bP, pud])
+                expect(fruitmix.user.users).to.deep.equal([alice, bb, charlie])
                 done()
               }, 500)
             })

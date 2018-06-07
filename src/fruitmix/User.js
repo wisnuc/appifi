@@ -187,8 +187,11 @@ class User extends EventEmitter {
           console.log('different than the previous one, exit')
           console.log('===================')
           process.exit(67)
-        } else if (firstUser.password !== boundUser.password) {
-          let newFirstUser = Object.assign({}, firstUser, { password: boundUser.password })
+        } else if (isNonEmptyString(boundUser.phoneNumber) && firstUser.phoneNumber !== boundUser.phoneNumber) {
+          console.log('==============')
+          console.log('update bound user phoneNumber')
+          console.log('==============')
+          let newFirstUser = Object.assign({}, firstUser, { phoneNumber: boundUser.phoneNumber })
           return [
             ...users.slice(0, index),
             newFirstUser,
