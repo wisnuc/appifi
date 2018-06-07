@@ -288,7 +288,8 @@ class User extends EventEmitter {
   Implement GET method
   */
   GET (user, props, callback) {
-    let u = this.getUser(props.userUUID)
+    let userUUID = props.userUUID
+    let u = isUUID(userUUID) ? this.getUser(props.userUUID) : this.users.find(u => u.phicommUserId === props.userUUID)
     if (!u) return process.nextTick(() => callback(Object.assign(new Error('user not found'), { status: 404 })))
     if (user.isFirstUser || user.uuid === u.uuid) return process.nextTick(() => callback(null, this.fullInfo(u)))
     return process.nextTick(Object.assign(new Error('Permission Denied'), { status: 403 }))
@@ -298,15 +299,21 @@ class User extends EventEmitter {
   Implement PATCH
   */
   PATCH (user, props, callback) {
+    let userUUID
+    let devU = isUUID(props.userUUID) ? this.users.find(u => u.uuid === props.userUUID)
+          : this.users.find(u => u.phicommUserId === props.userUUID)
+    if (!devU) return callback(Object.assign(new Error('user not found'), { status: 404 }))
+    userUUID = devU
+
     if (props.password || props.smbPassword) {
       let recognized = ['password', 'smbPassword', 'userUUID', 'encrypted']
       if (!Object.getOwnPropertyNames(props).every(k => recognized.includes(k))) {
         return process.nextTick(() => callback(Object.assign(new Error('too much props in body'), { status: 400 })))
       }
-      if (user.uuid !== props.userUUID) return process.nextTick(() => callback(Object.assign(new Error('Permission Denied'), { status: 403 })))
-      this.updatePassword(props.userUUID, props, (err, user) => err ? callback(err) : callback(null, this.fullInfo(user)))
+      if (user.uuid !== userUUID) return process.nextTick(() => callback(Object.assign(new Error('Permission Denied'), { status: 403 })))
+      this.updatePassword(userUUID, props, (err, user) => err ? callback(err) : callback(null, this.fullInfo(user)))
     } else {
-      let recognized = ['username', 'status', 'userUUID']
+      let recognized = ['username', 'status', 'userUUID', 'phoneNumber']
       if (!Object.getOwnPropertyNames(props).every(k => recognized.includes(k))) {
         return process.nextTick(() => callback(Object.assign(new Error('too much props in body'), { status: 400 })))
       }
@@ -318,18 +325,24 @@ class User extends EventEmitter {
       let recognizedStatus = [USER_STATUS.ACTIVE, USER_STATUS.INACTIVE, USER_STATUS.DELETED]
 
       if (props.status && !user.isFirstUser ) return callback(Object.assign(new Error('Permission Denied'), { status: 403 }))
-      if (props.status && user.uuid === props.userUUID) return callback(Object.assign(new Error('can not change admin status'), { status: 400 }))
+      if (props.status && user.uuid === userUUID) return callback(Object.assign(new Error('can not change admin status'), { status: 400 }))
       if (props.status && !recognizedStatus.includes(props.status)) return callback(Object.assign(new Error('unknown status'), { status: 400 }))
       
-      if (!user.isFirstUser && user.uuid !== props.userUUID) return process.nextTick(() => callback(Object.assign(new Error('Permission Denied'), { status: 403 })))
-      this.updateUser(props.userUUID, props, (err, data) => err ? callback(err) : callback(null, this.fullInfo(data)))
+      if (!user.isFirstUser && user.uuid !== userUUID) return process.nextTick(() => callback(Object.assign(new Error('Permission Denied'), { status: 403 })))
+      this.updateUser(userUUID, props, (err, data) => err ? callback(err) : callback(null, this.fullInfo(data)))
     }
   }
 
   DELETE (user, props, callback) {
-    if (!isUUID(props.userUUID) || this.users.findIndex(u => u.uuid === props.userUUID) === -1) return callback(Object.assign(new Error('userUUID error'), { status: 400 }))
+
+    let userUUID
+    let devU = isUUID(props.userUUID) ? this.users.find(u => u.uuid === props.userUUID)
+          : this.users.find(u => u.phicommUserId === props.userUUID)
+    if (!devU) return callback(Object.assign(new Error('user not found'), { status: 404 }))
+    userUUID = devU     
+    
     if (!user.isFirstUser) return callback(Object.assign(new Error('Permission Denied'), { status: 403 }))
-    this.updateUser(props.userUUID, { status: USER_STATUS.DELETED }, callback)
+    this.updateUser(userUUID, { status: USER_STATUS.DELETED }, callback)
   }
 }
 
