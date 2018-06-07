@@ -77,12 +77,14 @@ class User extends EventEmitter {
     let uuid = UUID.v4()
     this.store.save(users => {
       let isFirstUser = users.length === 0
-      let { username, phicommUserId, password, smbPassword } = props
+      let { username, phicommUserId, password, smbPassword, phoneNumber } = props
       
       let cU = users.find(u => u.username === username)
       if (cU && cU.status !== USER_STATUS.DELETED) throw new Error('username already exist')
       let pU = users.find(u => u.phicommUserId === phicommUserId)
       if (pU && pU.status !== USER_STATUS.DELETED) throw new Error('phicommUserId already exist')
+      let pnU = users.find(u => u.phoneNumber === phoneNumber)
+      if (pnU && pnU.status !== USER_STATUS.DELETED) throw new Error('phoneNumber already exist')
 
       let newUser = {
         uuid,
@@ -104,7 +106,7 @@ class User extends EventEmitter {
   }
 
   updateUser (userUUID, props, callback) {
-    let { username, status } = props
+    let { username, status, phoneNumber } = props
     this.store.save(users => {
       let index = users.findIndex(u => u.uuid === userUUID)
       if (index === -1) throw new Error('user not found')
@@ -113,6 +115,10 @@ class User extends EventEmitter {
       if (username) {
         if (users.find(u => u.username === username && u.status !== USER_STATUS.DELETED)) throw new Error('username already exist')
         nextUser.username = username
+      }
+      if (phoneNumber) {
+        if (users.find(u => u.phoneNumber === phoneNumber && u.status !== USER_STATUS.DELETED)) throw new Error('phoneNumber already exist')
+        nextUser.phoneNumber = phoneNumber
       }
       if (status) nextUser.status = status
       return [...users.slice(0, index), nextUser, ...users.slice(index + 1)]
