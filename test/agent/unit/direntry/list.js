@@ -39,7 +39,8 @@ const alice = {
   smbPassword: '4039730E1BF6E10DD01EAAC983DB4D7C',
   lastChangeTime: 1523867673407,
   isFirstUser: true,
-  phicommUserId: 'alice'
+  phicommUserId: 'alice',
+  status: 'ACTIVE'
 }
 
 const bob = {
@@ -49,7 +50,8 @@ const bob = {
   smbPassword: 'B7C899154197E8A2A33121D76A240AB5',
   lastChangeTime: 1523867673407,
   isFirstUser: false,
-  phicommUserId: 'bob'
+  phicommUserId: 'bob',
+  status: 'ACTIVE'
 }
 
 const charlie = {
@@ -59,7 +61,8 @@ const charlie = {
   smbPassword: '8D44C8FF3A4D1979B24BFE29257173AD',
   lastChangeTime: 1523867673407,
   isFirstUser: false,
-  phicommUserId: 'charlie'
+  phicommUserId: 'charlie',
+  status: 'ACTIVE'
 }
 
 describe(path.basename(__filename), () => {
@@ -79,7 +82,6 @@ describe(path.basename(__filename), () => {
       app = new App({ fruitmix, log: { skip: 'all', error: 'none' } })
       await new Promise(resolve => fruitmix.once('FruitmixStarted', () => resolve()))
       token = await requestTokenAsync(app.express, alice.uuid, 'alice')
-      // home = await requestHomeAsync(app.express, alice.uuid, token)
       home = await requestHomeAsync(app.express, { user: alice, token })
     })
 
