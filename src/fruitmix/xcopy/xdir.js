@@ -238,6 +238,7 @@ class Parent extends State {
     this.ctx.dstats = dstats.filter(x => !x.dst.err)
     this.ctx.fstats = fstats
 
+    // 生成失败文件夹对象
     dstats
       .filter(x => x.dst.err)
       .forEach(x => {
@@ -270,7 +271,7 @@ class Failed extends State {
   // when directory enter failed
   // all descendant node are destroyed (but not removed)
   enter (err) {
-    debug('xdir enter failed state', err.message)
+    debug('xdir enter failed state', err)
     this.err = err
   }
 
@@ -338,6 +339,7 @@ class XDir extends XNode {
     this.children = []
     this.src = src
 
+    // 失败任务处理
     if (dst instanceof Error) {
       let err = dst
       let policy = entries
@@ -394,6 +396,7 @@ class XDir extends XNode {
       let dir = new XDir(this.ctx, this, src, dst)
       dir.on('StateEntered', state => {
         if (state === 'Failed' || state === 'Finish') {
+          // children任务进入失败或或完成状态， 将任务从children中移除
           dir.destroy()
           if (this.children.length === 0 &&
             this.dstats.length === 0 &&

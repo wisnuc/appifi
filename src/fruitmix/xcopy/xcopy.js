@@ -84,7 +84,7 @@ class XCopy extends EventEmitter {
       // root starts from preparing state, it may go to failed state directory, 
       // or reach finish state via parent. Only these four state is possible.
       if (state === 'Failed' || state === 'Finish') {
-        this.finished = true 
+        this.finished = true
         this.root = null
       }
     })
@@ -157,7 +157,7 @@ class XCopy extends EventEmitter {
         throw new Error(`root is in ${state} state, expected Preparing or Parent`)
       }
     }
-
+    debug({ runningFile, conflictFile, runningDir, conflictDir })
     return { runningFile, conflictFile, runningDir, conflictDir }
   }
 
@@ -165,6 +165,7 @@ class XCopy extends EventEmitter {
   
   */
   sched () {
+    if (!this.root) return
     this.scheduled = false
 
     let { runningFile, conflictFile, runningDir, conflictDir } = this.count() 
@@ -177,11 +178,12 @@ class XCopy extends EventEmitter {
         runningDir += node.createSubDir(this.dirLimit - runningDir)
       }
 
+      // 判断是否需要继续visit
       if (runningFile >= this.fileLimit && runningDir >= this.dirLimit) return true
     } 
 
     try {
-    this.root.visit(schedF)
+      this.root.visit(schedF)
     } catch (e) {
       console.log(e)
     }
