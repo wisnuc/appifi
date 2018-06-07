@@ -303,7 +303,7 @@ class User extends EventEmitter {
     let devU = isUUID(props.userUUID) ? this.users.find(u => u.uuid === props.userUUID)
           : this.users.find(u => u.phicommUserId === props.userUUID)
     if (!devU) return callback(Object.assign(new Error('user not found'), { status: 404 }))
-    userUUID = devU
+    userUUID = devU.uuid
 
     if (props.password || props.smbPassword) {
       let recognized = ['password', 'smbPassword', 'userUUID', 'encrypted']
@@ -339,7 +339,7 @@ class User extends EventEmitter {
     let devU = isUUID(props.userUUID) ? this.users.find(u => u.uuid === props.userUUID)
           : this.users.find(u => u.phicommUserId === props.userUUID)
     if (!devU) return callback(Object.assign(new Error('user not found'), { status: 404 }))
-    userUUID = devU     
+    userUUID = devU.uuid    
     
     if (!user.isFirstUser) return callback(Object.assign(new Error('Permission Denied'), { status: 403 }))
     this.updateUser(userUUID, { status: USER_STATUS.DELETED }, callback)
