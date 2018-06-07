@@ -56,6 +56,22 @@ describe(path.basename(__filename), () => {
       await fs.writeFileAsync(usersFile, JSON.stringify([alice, bob], null, '  '))
     })
 
+    it('boundUser phoneNumber update', done => {
+      let newPhoneNumber = '12345566789'
+      let fruitmix = new Fruitmix({ fruitmixDir, boundUser:{
+        phicommUserId: alice.phicommUserId,
+        phoneNumber: newPhoneNumber
+      } })
+      let app = new App({ fruitmix })
+      fruitmix.once('FruitmixStarted', () => {
+        setTimeout(() => {
+          let al = fruitmix.users.find(u => u.uuid === alice.uuid)
+          expect(al.phoneNumber).to.equal(newPhoneNumber)
+          done()
+        }, 200)
+      })
+    })
+
     it('anonymous user GET /users should return [alice, bob] basic info, aa6f1f06', done => {
       let fruitmix = new Fruitmix({ fruitmixDir })
       let app = new App({ fruitmix })

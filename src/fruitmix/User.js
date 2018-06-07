@@ -188,6 +188,13 @@ class User extends EventEmitter {
           console.log('===================')
           process.exit(67)
         } else if (isNonEmptyString(boundUser.phoneNumber) && firstUser.phoneNumber !== boundUser.phoneNumber) {
+          if (users.find(u => u.phoneNumber === boundUser.phoneNumber)) {
+            console.log('==============')
+            console.log('update bound user phoneNumber already exist')
+            console.log('update failed')
+            console.log('==============')
+            return users
+          }
           console.log('==============')
           console.log('update bound user phoneNumber')
           console.log('==============')
