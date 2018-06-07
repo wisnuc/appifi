@@ -213,7 +213,8 @@ class User extends EventEmitter {
       uuid: user.uuid,
       username: user.username,
       isFirstUser: user.isFirstUser,
-      phicommUserId: user.phicommUserId
+      phicommUserId: user.phicommUserId,
+      phoneNumber: user.phoneNumber
     }
   }
 
