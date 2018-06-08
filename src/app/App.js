@@ -175,6 +175,13 @@ class App extends EventEmitter {
       case 'bootstrap_boundUser':
         if (this.boot && message.hasOwnProperty('data')) this.boot.setBoundUser(message.data)
         break
+      case 'bootstrap_unbind':
+        if (this.boot) {
+          return this.boot.volumeStore(null, (err, data) => {
+            process.exit(61)
+          })
+        }
+        break
       default:
         break
     }
