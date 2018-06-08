@@ -22,7 +22,6 @@ const cwd = process.cwd()
 const tmptest = path.join(cwd, 'tmptest')
 const fruitmixDir = path.join(tmptest, 'fruitmix')
 
-
 // node src/utils/md4Encrypt.js alice
 
 const alice = {
@@ -81,51 +80,126 @@ describe(path.basename(__filename), () => {
       home = await requestHomeAsync(app.express, alice.uuid, token)
     })
 
-
-    it('', done => {
-
+    it('time', done => {
       request(app.express)
         .post(`/drives/${home.uuid}/dirs/${home.uuid}/entries`)
         .set('Authorization', 'JWT ' + token)
-        .field('foo', JSON.stringify({ op: 'mkdir' })) 
+        .field('foo', JSON.stringify({ op: 'mkdir' }))
         .expect(200)
         .end((err, res) => {
           if (err) return done(err)
           let foo = res.body[0].data
 
           request(app.express)
-            .post(`/drives/${home.uuid}/dirs/${foo.uuid}/entries`)      
+            .post(`/drives/${home.uuid}/dirs/${foo.uuid}/entries`)
             .set('Authorization', 'JWT ' + token)
             .attach('alonzo.jpg', alonzo.path, JSON.stringify({
               op: 'newfile',
               size: alonzo.size,
-              sha256: alonzo.hash 
+              sha256: alonzo.hash
             }))
             .expect(200)
             .end((err, res) => {
               if (err) return done(err)
 
+              setTimeout(() => {
+                let types = 'JPEG'
+                request(app.express)
+                  .get('/files')
+                  .set('Authorization', 'JWT ' + token)
+                  .query({ places: home.uuid, types, metadata: true, namepath: true })
+                  .expect(200)
+                  .end((err, res) => {
+                    if (err) return done(err)
+                    console.log(res.body)
+                    done()
+                  })
+              }, 200)
+            })
+        })
+    })
+
+    it('visit', done => {
+      request(app.express)
+        .post(`/drives/${home.uuid}/dirs/${home.uuid}/entries`)
+        .set('Authorization', 'JWT ' + token)
+        .field('foo', JSON.stringify({ op: 'mkdir' }))
+        .expect(200)
+        .end((err, res) => {
+          if (err) return done(err)
+          let foo = res.body[0].data
+
+          request(app.express)
+            .post(`/drives/${home.uuid}/dirs/${foo.uuid}/entries`)
+            .set('Authorization', 'JWT ' + token)
+            .attach('alonzo.jpg', alonzo.path, JSON.stringify({
+              op: 'newfile',
+              size: alonzo.size,
+              sha256: alonzo.hash
+            }))
+            .expect(200)
+            .end((err, res) => {
+              if (err) return done(err)
 
               setTimeout(() => {
+                let types = 'JPEG'
+                request(app.express)
+                  .get('/files')
+                  .set('Authorization', 'JWT ' + token)
+                  .query({ order: 'find', places: home.uuid, count: 1 })
+                  .expect(200)
+                  .end((err, res) => {
+                    if (err) return done(err)
 
-              let types = 'JPEG'
-              request(app.express)
-                .get('/files')
-                .set('Authorization', 'JWT ' + token)
-                .query({ places: home.uuid, types, metadata: true, namepath: true })
-                .expect(200)
-                .end((err, res) => {
-                  if (err) return done(err)
-                  console.log(res.body)
-                  done()
-                })
+                    console.log('=====1')
+                    console.log(res.body)
+                    console.log('=====')
 
-              }, 500)
+                    if (!res.body.length) return done() 
+                    let tail = res.body[res.body.length - 1]
+                    let last = [
+                      tail.namepath[0], // index
+                      tail.type,        // type
+                      tail.namepath.slice(1).join('/') // path
+                    ].join('.') 
 
-            }) 
+                    request(app.express)
+                      .get('/files')
+                      .set('Authorization', 'JWT ' + token)
+                      .query({ order: 'find', places: home.uuid, last, count: 1 })
+                      .expect(200)
+                      .end((err, res) => {
+                        if (err) return done(err)
 
+                        console.log('=====2')
+                        console.log(res.body)
+                        console.log('=====')
+
+                        if (!res.body.length) return done()
+                        let tail = res.body[res.body.length - 1] 
+                        let last = [
+                          tail.namepath[0], // index
+                          tail.type,        // type
+                          tail.namepath.slice(1).join('/')
+                        ].join('.')
+
+                        request(app.express)
+                          .get('/files')
+                          .set('Authorization', 'JWT ' + token)
+                          .query({ order: 'find', places: home.uuid, last, count: 1 })
+                          .expect(200)
+                          .end((err, res) => {
+                            if (err) return done(err)
+                            console.log('=====3')
+                            console.log(res.body)
+                            console.log('=====')
+                            done()
+                          })
+                      }) 
+                  })
+              }, 200)
+            })
         })
-
-    })
+    })  
   })
 })

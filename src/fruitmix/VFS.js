@@ -1502,15 +1502,6 @@ class VFS extends EventEmitter {
     }
   }
 
-  visitFiles (user, props, callback) {
-    let r = []
-    try {
-      r = this.visitFilesSync(user, props)
-      process.nextTick(() => callback(null, r))
-    } catch (e) {
-      process.nextTick(() => callback(e))
-    }
-  } 
 
   /**
   Query process arguments and pass request to iterate or visit accordingly.
@@ -1541,14 +1532,14 @@ class VFS extends EventEmitter {
   
     let order
     let startTime, startUUID, startExclusive
-    let lastIndex, lastPath, fileOnly, dirOnly
+    let lastIndex, lastType, lastPath, fileOnly
     let count, places, types, tags, name, namepath
 
     const EInval = message => process.nextTick(() => 
       callback(Object.assign(new Error(message), { status: 400 })))
 
     if (props.order) {
-      if (['newest', 'oldest', 'previsit'].includes(props.order)) {
+      if (['newest', 'oldest', 'find'].includes(props.order)) {
         order = props.order
       } else {
         return EInval('invalid order')
@@ -1557,8 +1548,7 @@ class VFS extends EventEmitter {
       order = 'newest'
     }
 
-    // ordered by time
-    if (order === 'newest' || order === 'oldest') {
+    if (order === 'newest' || order === 'oldest') { // ordered by time
       if (props.starti) {
         let split = props.starti.split('.')
         if (split.length > 2) return EInval('invalid starti')
@@ -1588,18 +1578,27 @@ class VFS extends EventEmitter {
         }
         startExclusive = true
       }
-    // ordered by fs structure
-    } else {
+    } else { // ordered by fs structure
       if (props.last) {
-        let dotIndex = props.last.indexOf('.')
+        let str = props.last
+
+        let dotIndex = str.indexOf('.')
         if (dotIndex === -1) return EInval('invalid last')
 
-        lastIndex = parseInt(props.last.slice(0, index))
+        lastIndex = parseInt(props.last.slice(0, dotIndex))
         if (!Number.isInteger(lastIndex) || lastIndex < 0) return EInval('invalid last')
 
-        lastPath = props.last.slice(index + 1)
-        if (!path.isAbsolute(lastPath) || path.normalize(lastPath) !== lastPath) 
+        str = str.slice(dotIndex + 1)
+        dotIndex = str.indexOf('.')
+        if (dotIndex === -1) return EInval('invalid last')
+        lastType = str.slice(0, dotIndex)
+        if (lastType !== 'directory' && lastType !== 'file') return EInval('invalid last type')
+
+        lastPath = str.slice(dotIndex + 1)
+        if (path.isAbsolute(lastPath) || path.normalize(lastPath) !== lastPath) 
           return EInval('invalid last path')
+
+        lastPath = lastPath.split('/')
       }
     }
 
@@ -1639,13 +1638,19 @@ class VFS extends EventEmitter {
     namepath = props.namepath === 'true'
 
     if (namepath && !places) return EInval('places must be provided if namepath=true')
+    
+    if (!places) {
+      places = this.drives.filter(drv => this.userCanWriteDrive(user, drv)).map(drv => drv.uuid)
+    }
 
     if (order === 'newest' || order === 'oldest') {
       this.iterate(user, { order, startTime, startUUID, startExclusive, 
         count, places, types, tags, name, namepath }, callback)
     } else {
       fileOnly = props.fileOnly === 'true'
-      dirOnly = props.dirOnly === true
+
+      this.visit(user, { order, lastIndex, lastType, lastPath, 
+        count, places, types, tags, name, namepath }, callback)
     }
   }
 
@@ -1673,13 +1678,8 @@ class VFS extends EventEmitter {
       }
   
       // TODO optimize performance 
-      if (places) {
-        let uuids = file.nodepath().map(n => n.uuid)
-        if (!places.some(place => uuids.includes(place))) return
-      } else {
-        let drive = this.drives.find(drv => drv.uuid === file.root().uuid) 
-        if (!this.userCanWriteDrive(user, drive)) return
-      }
+      let uuids = file.nodepath().map(n => n.uuid)
+      if (!places.some(place => uuids.includes(place))) return
 
       if (name && !file.name.includes(name)) return
 
@@ -1737,145 +1737,99 @@ class VFS extends EventEmitter {
   }
 
   /**
-  Query returns indexed files that meet the query condition
-
-  @param {object} user
-  @param {object} props
-  @param {string} props.order - newest or oldest, default newest (not used now)
-  @param {string} props.starti - inclusive start
-  @param {string} props.starte - exclusive start
-  @param {string} props.count - number
-  @param {string} props.endi - inclusive end
-  @parma {string} props.ende - exclusive end
-  @param {string} props.places - concatenated uuids separated by dot
-  @param {string} props.types - concatenated types separated by dot
-  @param {string} props.tags - concatenated numbers separated by dot
-  @param {boolean} props.namepath - whether return namepath or not
   */
-  query (user, props, callback) {
-    debug('query', props)
+  visit (user, props, callback) {
+    debug('visit', props)
 
-    const UUID_MIN = '00000000-0000-4000-0000-000000000000'
-    const UUID_MAX = 'ffffffff-ffff-4fff-ffff-ffffffffffff'
-  
-    let startTime, startUUID, startExclusive, count, name
-    let places, types, tags
-    let reversed = true
-
-    if (props.starti) {
-      let split = starti.split('.') 
-      startTime = parseInt(split[0])
-      if (split[1]) {
-        startUUID = split[1]
-      } else {
-        startUUID = reversed ? UUID_MAX : UUID_MIN
-      } 
-      startExclusive = false
-    } else if (props.starte) {
-      let split = starte.split('.')
-      startTime = parseInt(split[0])
-      if (split[1]) {
-        startUUID = split[1]
-      } else {
-        startUUID = reversed ? UUID_MAX : UUID_MIN
-      }
-      startExclusive = true
-    }
-
-    if (props.places) {
-      places = props.places.split('.')
-    }
-
-    if (props.types) {
-      types = props.types.split('.')
-    }
-
-    if (props.tags) {
-      tags = props.tags.split('.').map(x => parseInt(x))
-    }
-
-    if (props.count) {
-      count = parseInt(props.count)
-    }
-
-    if (props.name) {
-      name = props.name
-    }
-
-    let files = this.forest.timedFiles
-    let startIndex 
+    let { order, lastIndex, lastType, lastPath } = props
+    let { count, places, types, tags, name, namepath, fileOnly } = props
+    
+    let roots = places.map(place => this.forest.uuidMap.get(place)) 
     let arr = []
+    let root, rootIndex
 
-    const match = file => {
-      if (tags) {
-        if (!file.tags) return
-        if (!tags.every(tag => file.tags.includes(tag))) return
+    const f = (node, dir) => {
+      let xstat
+      if (node instanceof Directory) {
+        if (types || tags || fileOnly) return 
+        if (name && !node.name.includes(name)) return
+        xstat = { 
+          uuid: node.uuid, 
+          type: 'directory', 
+          name: node.name 
+        }
+      } else if (node instanceof File) {
+        if (tags) {
+          if (!file.tags) return
+          if (!tags.every(tag => fle.tags.include(tag))) return
+        }
+        if (types) {
+          if (!node.metadata) return 
+          if (!types.includes(file.metadata.type)) return
+        }
+        if (name && !node.name.includes(name)) return
+        xstat = { 
+          uuid: node.uuid,
+          dir: node.parent.uuid,
+          type: 'file',
+          name: node.name,
+          size: node.size,
+          mtime: node.mtime,
+          hash: node.hash,
+          tags: node.tags,
+          metadata: node.metadata
+        } 
+      } else { // string
+        if (tags || types) return
+        if (name && !node.includes(name)) return
+        xstat = {
+          dir: dir.uuid,
+          type: 'file',
+          name: node
+        }
       }
 
-      if (types) {
-        if (!file.metadata) return
-        if (!types.includes(file.metadata.type)) return
-      }
-   
-      if (places) {
-        let uuids = file.nodepath().map(n => n.uuid)
-        if (!places.some(place => uuids.includes(place))) return
-      } else {
-        let drive = this.drives.find(drv => drv.uuid === file.root().uuid) 
-        if (!this.userCanWriteDrive(user, drive)) return
-      }
+      if (xstat) {
+        arr.push(xstat)
+        if (count && arr.length === count) {
+          let nodepath, namepath
 
-      if (name) {
-        if (!file.name.includes(name)) return
-      }
+          if (typeof node === 'object') {
+            nodepath = node.nodepath()
+            namepath = nodepath.slice(nodepath.indexOf(root) + 1).map(n => n.name)
+          } else {
+            nodepath = dir.nodepath() 
+            namepath = nodepath.slice(nodepath.indexOf(root) + 1).map(n => n.name)
+            namepath.push(node)
+          }
 
-      arr.push({
-        uuid: file.uuid,
-        dir: file.parent.uuid,
-        name: file.name, 
-        mtime: file.mtime,
-        size: file.size,
-        hash: file.hash,
-        tags: file.tags,
-        metadata: file.metadata
-      }) 
+          namepath.unshift(rootIndex) 
+          xstat.namepath = namepath
+          return true
+        }
+      }
     }
 
-    if (reversed) {
-      if (startTime === undefined) {
-        // start from the last one, ignore startExclusive
-        startIndex = files.array.length - 1
-      } else {
-        startIndex = files.indexOf(startTime, startUUID)
-        if (startIndex === files.length) {
-          startIndex--
-        } else if (startExclusive) {
-          // we only take care of exclusive, if decrement required
-          let file = files.array[startIndex]
-          if (file.getTime() === startTime && file.uuid === startUUID) startIndex--
-        }
+    if (lastIndex === undefined) {
+      for (rootIndex = 0; rootIndex < roots.length; rootIndex++) {
+        root = roots[rootIndex]
+        if (root.iterate({ namepath: [], type: 'directory' }, f)) break
       }
-      for (let i = startIndex; i >= 0; i--) match(files.array[i])
     } else {
-      if (startTime === undefined) {
-        startIndex = 0
-      } else {
-        startIndex = files.indexOf(startTime, startUUID)
-        if (startExclusive && startIndex < files.array.length) {
-          let file = files.array[startIndex]
-          if (file.getTime() === startTime && file.uuid === startUUID) startIndex++
+
+      debug('visit, last index, type, path', lastIndex, lastType, lastPath)
+
+      rootIndex = lastIndex
+      root = roots[rootIndex]
+      if (!root.iterate({ namepath: lastPath, type: lastType }, f)) {
+        for (rootIndex = lastIndex + 1; rootIndex < roots.length; rootIndex++) {
+          root = roots[rootIndex]
+          if (root.interate({ namepath: [], type: 'directory' }, f)) break
         }
       }
-      for (let i = startIndex; i < files.array.length; i++) match(files.array[i])
     }
 
     process.nextTick(() => callback(null, arr))
-  }
-
-  /**
-   
-  */
-  search (user, props, callback) {
   }
 
   getMedia (user, props, callback) {
