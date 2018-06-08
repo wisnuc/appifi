@@ -211,6 +211,25 @@ class Device {
     }
   }
 
+  timedate(callback) {
+    child.exec('timedatectl', (err, stdout, stderr) => {
+      if (err) {
+        return callback(err)
+      } else {
+        let timedate = stdout
+          .toString()
+          .split('\n')
+          .filter(l => l.length)
+          .reduce((prev, curr) => {
+            let pair = curr.split(': ').map(str => str.trim())
+            prev[pair[0]] = pair[1]
+            return prev
+          }, {})
+        callback(null, timedate)
+      }
+    })
+  }
+
   netDev() {
     return this.netdevs
   }
