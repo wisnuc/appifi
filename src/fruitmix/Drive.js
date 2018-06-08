@@ -65,7 +65,7 @@ class Drive extends EventEmitter {
         if (tD.type === 'private' && deletedUsers.includes(tD.owner)) {
           tD.isDeleted = true
         }
-        else if (tD.type === 'public') {
+        else if (tD.type === 'public'　&& tD.tag !== 'built-in') {
           deletedUsers.forEach(dU => {
             let wl = new Set(tD.writelist)
             wl.delete(dU)
@@ -261,10 +261,10 @@ class Drive extends EventEmitter {
         if (!recognized.includes(name)) {
           throw Object.assign(new Error(`unrecognized prop name ${name}`), { status: 400 })
         }
-        if (name === 'writelist') { // || name === 'readlist'
+        if (name === 'writelist' || name === 'readlist') {  
           if (props[name] !== '*' && !Array.isArray(props[name])) {
             throw Object.assign(new Error(`${name} must be either wildcard or an uuid array`), { status: 400 })
-          } else {
+          } else if (Array.isArray(props[name])){
             if (!props[name].every(uuid => !!this.users.find(u => u.uuid === uuid))) {
               let err = new Error(`${name} not all user uuid found`) // TODO
               err.code = 'EBADREQUEST'
@@ -272,7 +272,8 @@ class Drive extends EventEmitter {
               throw err
             }
             props[name] = Array.from(new Set(props[name])).sort()
-          }
+          }else
+            props[name] = '*'
         }
         if (name === 'label' && typeof props[name] !== 'string') throw Object.assign(new Error(`label must be string`), { status: 400 })
       })
