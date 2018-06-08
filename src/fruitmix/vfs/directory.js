@@ -23,7 +23,6 @@ Directory has four states:
 */
 
 class Base {
-
   constructor (dir, ...args) {
     this.dir = dir
     dir.state = this
@@ -60,12 +59,10 @@ class Base {
   updateName (name) {
     this.dir.name = name
   }
-
 }
 
 // Do nothing, just for log
 class Idle extends Base {
-
   enter () {
     this.dir.ctx.dirEnterIdle(this.dir)
   }
@@ -73,13 +70,10 @@ class Idle extends Base {
   exit () {
     this.dir.ctx.dirExitIdle(this.dir)
   }
-
 }
-
 
 // init may be idle or pending
 class Init extends Base {
-
   enter () {
     this.dir.ctx.dirEnterInit(this.dir)
     this.timer = -1
@@ -93,18 +87,16 @@ class Init extends Base {
   readn (delay) {
     assert(Number.isInteger(delay) && delay > 0)
 
-    clearTimeout(this.timer) 
+    clearTimeout(this.timer)
     this.timer = setTimeout(() => this.readi(), delay)
   }
-
 }
 
-// 
+//
 class Pending extends Base {
-
   enter (delay) {
     assert(Number.isInteger(delay) && delay > 0)
-    
+
     this.dir.ctx.dirEnterPending(this.dir)
     this.readn(delay)
   }
@@ -120,11 +112,9 @@ class Pending extends Base {
     clearTimeout(this.timer)
     this.timer = setTimeout(() => this.readi(), delay)
   }
-
 }
 
 class Reading extends Base {
-
   enter (callbacks = []) {
     this.dir.ctx.dirEnterReading(this.dir)
     this.callbacks = callbacks
@@ -148,7 +138,6 @@ class Reading extends Base {
 
     debug('readdir', dirPath, uuid, _mtime)
     this.readdir = readdir(dirPath, uuid, _mtime, (err, xstats, mtime, transient) => {
-
       // change to debug
       debug('readdir done', err || (xstats ? xstats.length : xstats), mtime, transient)
 
@@ -198,22 +187,23 @@ class Reading extends Base {
           new Idle(this.dir)
         }
       }
-    }) 
+    })
   }
 
   /**
   This is the ONLY place updating in-memory fs object tree.
   */
   updateChildren (xstats) {
-    //total 
+    // total
     this.dir.dirCount = xstats.filter(x => x.type === 'directory').length
     this.dir.fileCount = xstats.filter(x => x.type === 'file').length
     this.dir.fileSzie = xstats.filter(x => x.type === 'file').reduce((acc, f) => acc + f.size, 0)
 
-    // keep all file names 
+    // keep all file names
     this.dir.unindexedFiles = xstats
       .filter(x => x.type === 'file' && !x.metadata && !x.tags)
       .map(x => x.name)
+      .sort()
 
     // remove non-interested files
     // xstats = xstats.filter(x => x.type === 'directory' || (x.type === 'file' && (typeof x.magic === 'string' || (Array.isArray(x.tags) && x.tags.length !== 0))))
@@ -225,10 +215,10 @@ class Reading extends Base {
     // update found child, remove found out of map, then destroy lost
     let dup = Array.from(this.dir.children)
     let isEqualTags = (tags1, tags2) => {
-      if(tags1 === tags2) return true
-      if(tags1 === undefined || tags2 === undefined) return false
-      if(tags1.reduce((acc, c) => tags2.includes(c) ? acc : [...acc, c], []).length) return false
-      if(tags2.reduce((acc, c) => tags1.includes(c) ? acc : [...acc, c], []).length) return false
+      if (tags1 === tags2) return true
+      if (tags1 === undefined || tags2 === undefined) return false
+      if (tags1.reduce((acc, c) => tags2.includes(c) ? acc : [...acc, c], []).length) return false
+      if (tags2.reduce((acc, c) => tags1.includes(c) ? acc : [...acc, c], []).length) return false
       return true
     }
 
@@ -236,12 +226,12 @@ class Reading extends Base {
       let xstat = map.get(child.uuid)
       if (xstat) {
         if (child instanceof File) {
-/**
+          /**
           if (child.name === xstat.name && child.hash === xstat.hash && isEqualTags(child.tags, xstat.tags)) {
             // skip
           } else {
             // file update is too complex when magic/name/hash changed
-            child.destroy(true) 
+            child.destroy(true)
             new File(this.dir.ctx, this.dir, xstat)
           }
 **/
@@ -264,10 +254,10 @@ class Reading extends Base {
     }, [])
     lost.forEach(c => c.destroy(true))
 
-    // create new 
-    map.forEach(x => x.type === 'file' ? 
-      new File(this.dir.ctx, this.dir, x) : 
-      new Directory(this.dir.ctx, this.dir, x))
+    // create new
+    map.forEach(x => x.type === 'file'
+      ? new File(this.dir.ctx, this.dir, x)
+      : new Directory(this.dir.ctx, this.dir, x))
   }
 
   /**
@@ -294,7 +284,7 @@ class Reading extends Base {
   */
   readn (delay) {
     if (Array.isArray(this.pending)) {
-      return
+
     } else if (typeof this.pending === 'number') {
       this.pending = Math.min(this.pending, delay)
     } else {
@@ -317,7 +307,7 @@ class Reading extends Base {
   */
   updateName (name) {
     super.updatename(name)
-    this.restart()    // TODO test root change?
+    this.restart() // TODO test root change?
   }
 
   /**
@@ -330,7 +320,6 @@ class Reading extends Base {
     this.readdir.destroy()
     super.destroy()
   }
-
 }
 
 /**
@@ -341,22 +330,23 @@ In this version, `children` contains only sub directories and files with interes
 Another change is the `Directory` should NOT be directly updated. Instead, external components MUST call `read` method after a file system operation finished.
 */
 class Directory extends Node {
- 
   /**
   @param {Forest} ctx
   @param {Directory} parent - parent `Directory` object
   @param {xstat} xstat
-  */ 
-  constructor(ctx, parent, xstat) {
+  */
+  constructor (ctx, parent, xstat) {
     super(ctx, parent, xstat)
 
     this.children = []
+    this.unindexedFiles = []
+
     this.uuid = xstat.uuid
-    this.name = xstat.name 
+    this.name = xstat.name
     this.mtime = -xstat.mtime
 
     this.fileSize = 0
-    this.fileCount = 0 
+    this.fileCount = 0
     this.dirCount = 0
 
     this.ctx.indexDirectory(this)
@@ -366,13 +356,13 @@ class Directory extends Node {
   /**
   Destructor
   */
-  destroy(detach) {
+  destroy (detach) {
     debug('destroying', this.uuid, this.name, !!detach)
     // why this does not work ???
-    // [...this.children].forEach(child => child.destroy()) 
+    // [...this.children].forEach(child => child.destroy())
     Array.from(this.children).forEach(c => c.destroy())
     this.state.destroy()
-    this.ctx.unindexDirectory(this) 
+    this.ctx.unindexDirectory(this)
     super.destroy(detach)
 
     debug('destroyed', this.uuid, this.name, !!detach)
@@ -389,11 +379,11 @@ class Directory extends Node {
   }
 
   /**
-  Request a `state` operation. 
+  Request a `state` operation.
 
   @param {(function|number)} [x] - may be a callback function or a number
   */
-  read(x) {
+  read (x) {
     if (typeof x === 'function') {
       // console.log(this.state)
       this.state.readc(x)
@@ -421,14 +411,14 @@ class Directory extends Node {
 
   @returns {xstats[]}
   */
-  async readdirAsync() {
-    return new Promise((resolve, reject) => 
+  async readdirAsync () {
+    return new Promise((resolve, reject) =>
       this.readc((err, xstats) => err ? reject(err) : resolve(xstats)))
   }
 
   /**
   */
-  nameWalk(names) {
+  nameWalk (names) {
     if (names.length === 0) return this
     let c = this.children.find(x => x instanceof Directory && x.name === names[0])
     if (!c) {
@@ -448,7 +438,7 @@ class Directory extends Node {
       if (child.name !== xstat.name) {
         child.updateName(name)
       } else {
-        child.read() 
+        child.read()
       }
       return child
     } else {
@@ -460,6 +450,102 @@ class Directory extends Node {
     /// TODO
   }
 
+  /**
+  resumable iterator
+  */
+  iterate (iterator, f) {
+
+    const fileName = f => typeof f === 'object' ? f.name : f
+
+    let dirs = this.children
+      .filter(x => x instanceof Directory)
+      .sort((a, b) => a.name.localeCompare(b.name))
+
+    let indexedFiles = this.children
+      .filter(x => x instanceof File)
+      .sort((a, b) => a.name.localeCompare(b.name))
+
+    let files = [...indexedFiles, ...this.unindexedFiles].sort((a, b) => {
+      let a1 = typeof a === 'string' ? a : a.name
+      let b1 = typeof b === 'string' ? b : b.name
+      return a1.localeCompare(b1)
+    })
+
+    if (!iterator) {
+      if (f(this)) return true
+      for (let i = 0; i < dirs.length; i++) { 
+        if (dirs[i].iterate(null, f)) return true 
+      }
+      for (let i = 0; i < files.length; i++) { 
+        if (f(files[i], this)) return true 
+      }
+    } else {
+      let { type, namepath } = iterator
+
+      if (type !== 'directory' && type !== 'file') throw new Error('invalid type type')
+      if (!Array.isArray(namepath)) throw new Error('invalid namepath type')
+
+      if (namepath.length === 0) {
+        if (type !== 'directory') throw new Error('invalid type')
+
+        // bypass myself for exclusive (aka, I am the last one in previous search)
+        for (let i = 0; i < dirs.length; i++) { 
+          if (dirs[i].iterate(null, f)) return true 
+        }
+        for (let i = 0; i < files.length; i++) { 
+          if (f(files[i], this)) return true 
+        }
+      } else if (namepath.length === 1) {
+        let name = namepath[0]
+        if (type === 'directory') {
+          let index = dirs.findIndex(dir => name.localeCompare(dir.name) <= 0)
+          if (index !== -1) {
+            if (dirs[index].name === name) { // skip same for exclusive
+              if (dirs[index].iterate({ namepath: [], type: 'directory' }, f)) return true
+              for (let i = index + 1; i < dirs.length; i++) { 
+                if (dirs[i].iterate(null, f)) return true 
+              }
+            } else {
+              for (let i = index; i < dirs.length; i++) { 
+                if (dirs[i].iterate(null, f)) return true 
+              }
+            }
+          }
+          for (let i = 0; i < files.length; i++) { 
+            if (f(files[i], this)) return true 
+          }
+        } else {
+          let index = files.findIndex(f => name.localeCompare(fileName(f)) <= 0)
+          if (index !== -1) {
+            if (name === fileName(files[index])) index++ // skip same for exclusive
+            for (let i = index; i < files.length; i++) { 
+              if (f(files[i], this)) return true 
+            }
+          }
+        }
+      } else {
+        let name = namepath[0]
+        let index = dirs.findIndex(dir => name.localeCompare(dir.name) <= 0)
+        if (index !== -1) {
+          if (name === dirs[index].name) { // found and enter
+            if (dirs[index].iterate({ namepath: namepath.slice(1), type }, f)) return true
+          } else {  // continue from next one
+            for (let i = index; i < dirs.length; i++) {
+              if (dirs[i].iterate(null, f)) return true
+            }  
+
+            for (let i = 0; i < files.length; i++) {
+              if (f(files[i], this)) return true
+            }
+          }
+        }
+        
+        for (let i = 0; i < files.length; i++) {
+          if (f(files[i], this)) return true
+        }
+      }
+    }
+  }
 }
 
 Directory.Init = Init
@@ -468,6 +554,3 @@ Directory.Pending = Pending
 Directory.Reading = Reading
 
 module.exports = Directory
-
-
-
