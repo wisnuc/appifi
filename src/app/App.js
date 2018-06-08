@@ -177,7 +177,7 @@ class App extends EventEmitter {
         break
       case 'bootstrap_unbind':
         if (this.boot) {
-          return this.boot.volumeStore(null, (err, data) => {
+          return this.boot.volumeStore.save(null, (err, data) => {
             process.exit(61)
           })
         }
