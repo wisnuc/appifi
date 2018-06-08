@@ -146,7 +146,7 @@ describe(path.basename(__filename), () => {
                 request(app.express)
                   .get('/files')
                   .set('Authorization', 'JWT ' + token)
-                  .query({ order: 'previsit', places: home.uuid, count: 1 })
+                  .query({ order: 'find', places: home.uuid, count: 1 })
                   .expect(200)
                   .end((err, res) => {
                     if (err) return done(err)
@@ -166,7 +166,7 @@ describe(path.basename(__filename), () => {
                     request(app.express)
                       .get('/files')
                       .set('Authorization', 'JWT ' + token)
-                      .query({ order: 'previsit', places: home.uuid, last, count: 1 })
+                      .query({ order: 'find', places: home.uuid, last, count: 1 })
                       .expect(200)
                       .end((err, res) => {
                         if (err) return done(err)
@@ -186,7 +186,7 @@ describe(path.basename(__filename), () => {
                         request(app.express)
                           .get('/files')
                           .set('Authorization', 'JWT ' + token)
-                          .query({ order: 'previsit', places: home.uuid, last, count: 1 })
+                          .query({ order: 'find', places: home.uuid, last, count: 1 })
                           .expect(200)
                           .end((err, res) => {
                             if (err) return done(err)

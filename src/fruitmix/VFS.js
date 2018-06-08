@@ -1539,7 +1539,7 @@ class VFS extends EventEmitter {
       callback(Object.assign(new Error(message), { status: 400 })))
 
     if (props.order) {
-      if (['newest', 'oldest', 'previsit'].includes(props.order)) {
+      if (['newest', 'oldest', 'find'].includes(props.order)) {
         order = props.order
       } else {
         return EInval('invalid order')
