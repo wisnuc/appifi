@@ -59,12 +59,24 @@ class Drive extends EventEmitter {
     let deletedUsers = users.filter(u => u.status === this.user.USER_STATUS.DELETED).map(u => u.uuid)
     if (!deletedUsers.length) return
     this.store.save(drives => {
-      deletedUsers.forEach(userUUID => {
-        let drv = drives.find(drv => drv.owner === userUUID && drv.type === 'private')
-        // if (!drv) this.user.handleDriveDeleted(userUUID) // report user module
-        if (drv) this.deleteDrive(drv.uuid, {}, () => {}) // update drive isDeleted
+      let tmpDrives = JSON.parse(JSON.stringify(drives))
+      
+      tmpDrives.forEach(tD => {
+        if (tD.type === 'private' && deletedUsers.includes(tD.owner)) {
+          tD.isDeleted = true
+        }
+        else if (tD.type === 'public'　&& tD.tag !== 'built-in') {
+          deletedUsers.forEach(dU => {
+            let wl = new Set(tD.writelist)
+            wl.delete(dU)
+            tD.writelist = Array.from(wl).sort()
+            let rl = new Set(tD.readlist)
+            rl.delete(dU)
+            tD.readlist = Array.from(rl).sort()
+          })
+        }
       })
-      return drives
+      return tmpDrives
     }, () => {})
   }
 
@@ -165,7 +177,7 @@ class Drive extends EventEmitter {
     }, (err, data) => err ? callback(err) : callback(null, data.find(d => d.uuid === driveUUID)))
   }
 
-  deleteDrive (driveUUID, props, callback) {
+   deleteDrive (driveUUID, props, callback) {
     this.store.save(drives => {
       let index = drives.findIndex(drv => drv.uuid === driveUUID)
       if (index === -1) throw Object.assign(new Error('drive not found'), { status: 404 })
@@ -249,10 +261,10 @@ class Drive extends EventEmitter {
         if (!recognized.includes(name)) {
           throw Object.assign(new Error(`unrecognized prop name ${name}`), { status: 400 })
         }
-        if (name === 'writelist') { // || name === 'readlist'
+        if (name === 'writelist' || name === 'readlist') {  
           if (props[name] !== '*' && !Array.isArray(props[name])) {
             throw Object.assign(new Error(`${name} must be either wildcard or an uuid array`), { status: 400 })
-          } else {
+          } else if (Array.isArray(props[name])){
             if (!props[name].every(uuid => !!this.users.find(u => u.uuid === uuid))) {
               let err = new Error(`${name} not all user uuid found`) // TODO
               err.code = 'EBADREQUEST'
@@ -260,7 +272,8 @@ class Drive extends EventEmitter {
               throw err
             }
             props[name] = Array.from(new Set(props[name])).sort()
-          }
+          }else
+            props[name] = '*'
         }
         if (name === 'label' && typeof props[name] !== 'string') throw Object.assign(new Error(`label must be string`), { status: 400 })
       })
