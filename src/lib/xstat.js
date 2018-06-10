@@ -218,9 +218,6 @@ const updateXattr = (target, attr, isFile, callback) => {
 **/
 
     fileMeta(target, (err, metadata) => {
-
-      console.log('fileMeta', target, err || metadata)
-
       if (err) {
         callback(err)
       } else {
