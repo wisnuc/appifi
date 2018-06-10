@@ -451,11 +451,10 @@ class Directory extends Node {
   }
 
   /**
-  resumable iterator
   */
-  iterate (iterator, f) {
+  iterate (itor, F) {
 
-    const fileName = f => typeof f === 'object' ? f.name : f
+    const fileName = file => typeof file === 'object' ? file.name : file
 
     let dirs = this.children
       .filter(x => x instanceof Directory)
@@ -471,16 +470,16 @@ class Directory extends Node {
       return a1.localeCompare(b1)
     })
 
-    if (!iterator) {
-      if (f(this)) return true
+    if (!itor) {
+      if (F(this)) return true
       for (let i = 0; i < dirs.length; i++) { 
-        if (dirs[i].iterate(null, f)) return true 
+        if (dirs[i].iterate(null, F)) return true 
       }
       for (let i = 0; i < files.length; i++) { 
-        if (f(files[i], this)) return true 
+        if (F(files[i], this)) return true 
       }
     } else {
-      let { type, namepath } = iterator
+      let { type, namepath } = itor
 
       if (type !== 'directory' && type !== 'file') throw new Error('invalid type type')
       if (!Array.isArray(namepath)) throw new Error('invalid namepath type')
@@ -490,10 +489,10 @@ class Directory extends Node {
 
         // bypass myself for exclusive (aka, I am the last one in previous search)
         for (let i = 0; i < dirs.length; i++) { 
-          if (dirs[i].iterate(null, f)) return true 
+          if (dirs[i].iterate(null, F)) return true 
         }
         for (let i = 0; i < files.length; i++) { 
-          if (f(files[i], this)) return true 
+          if (F(files[i], this)) return true 
         }
       } else if (namepath.length === 1) {
         let name = namepath[0]
@@ -501,25 +500,25 @@ class Directory extends Node {
           let index = dirs.findIndex(dir => name.localeCompare(dir.name) <= 0)
           if (index !== -1) {
             if (dirs[index].name === name) { // skip same for exclusive
-              if (dirs[index].iterate({ namepath: [], type: 'directory' }, f)) return true
+              if (dirs[index].iterate({ namepath: [], type: 'directory' }, F)) return true
               for (let i = index + 1; i < dirs.length; i++) { 
-                if (dirs[i].iterate(null, f)) return true 
+                if (dirs[i].iterate(null, F)) return true 
               }
             } else {
               for (let i = index; i < dirs.length; i++) { 
-                if (dirs[i].iterate(null, f)) return true 
+                if (dirs[i].iterate(null, F)) return true 
               }
             }
           }
           for (let i = 0; i < files.length; i++) { 
-            if (f(files[i], this)) return true 
+            if (F(files[i], this)) return true 
           }
         } else {
           let index = files.findIndex(f => name.localeCompare(fileName(f)) <= 0)
           if (index !== -1) {
             if (name === fileName(files[index])) index++ // skip same for exclusive
             for (let i = index; i < files.length; i++) { 
-              if (f(files[i], this)) return true 
+              if (F(files[i], this)) return true 
             }
           }
         }
@@ -528,20 +527,20 @@ class Directory extends Node {
         let index = dirs.findIndex(dir => name.localeCompare(dir.name) <= 0)
         if (index !== -1) {
           if (name === dirs[index].name) { // found and enter
-            if (dirs[index].iterate({ namepath: namepath.slice(1), type }, f)) return true
+            if (dirs[index].iterate({ namepath: namepath.slice(1), type }, F)) return true
           } else {  // continue from next one
             for (let i = index; i < dirs.length; i++) {
-              if (dirs[i].iterate(null, f)) return true
+              if (dirs[i].iterate(null, F)) return true
             }  
 
             for (let i = 0; i < files.length; i++) {
-              if (f(files[i], this)) return true
+              if (F(files[i], this)) return true
             }
           }
         }
         
         for (let i = 0; i < files.length; i++) {
-          if (f(files[i], this)) return true
+          if (F(files[i], this)) return true
         }
       }
     }

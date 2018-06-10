@@ -13,15 +13,15 @@ const chai = require('chai').use(require('chai-as-promised'))
 const expect = chai.expect
 
 const FILES = require('../lib').FILES
-const { alonzo } = FILES
+const { alonzo, hello } = FILES
 
 const Fruitmix = require('src/fruitmix/Fruitmix')
 const App = require('src/app/App')
+const Watson = require('phi-test/lib/watson')
 
 const cwd = process.cwd()
 const tmptest = path.join(cwd, 'tmptest')
 const fruitmixDir = path.join(tmptest, 'fruitmix')
-
 // node src/utils/md4Encrypt.js alice
 
 const alice = {
@@ -31,6 +31,7 @@ const alice = {
   smbPassword: '4039730E1BF6E10DD01EAAC983DB4D7C',
   lastChangeTime: 1523867673407,
   isFirstUser: true,
+  createTime: 1523867673407,
   status: 'ACTIVE',
   phicommUserId: 'alice'
 }
@@ -118,88 +119,63 @@ describe(path.basename(__filename), () => {
             })
         })
     })
+  })
 
-    it('visit', done => {
-      request(app.express)
-        .post(`/drives/${home.uuid}/dirs/${home.uuid}/entries`)
-        .set('Authorization', 'JWT ' + token)
-        .field('foo', JSON.stringify({ op: 'mkdir' }))
-        .expect(200)
-        .end((err, res) => {
-          if (err) return done(err)
-          let foo = res.body[0].data
+  describe('async', () => {
+    let watson, user
 
-          request(app.express)
-            .post(`/drives/${home.uuid}/dirs/${foo.uuid}/entries`)
-            .set('Authorization', 'JWT ' + token)
-            .attach('alonzo.jpg', alonzo.path, JSON.stringify({
-              op: 'newfile',
-              size: alonzo.size,
-              sha256: alonzo.hash
-            }))
-            .expect(200)
-            .end((err, res) => {
-              if (err) return done(err)
+    beforeEach(async () => {
+      await rimrafAsync(tmptest)
+      await mkdirpAsync(fruitmixDir)
 
-              setTimeout(() => {
-                let types = 'JPEG'
-                request(app.express)
-                  .get('/files')
-                  .set('Authorization', 'JWT ' + token)
-                  .query({ order: 'find', places: home.uuid, count: 1 })
-                  .expect(200)
-                  .end((err, res) => {
-                    if (err) return done(err)
+      let userFile = path.join(fruitmixDir, 'users.json')
+      await fs.writeFileAsync(userFile, JSON.stringify([alice], null, '  '))
 
-                    console.log('=====1')
-                    console.log(res.body)
-                    console.log('=====')
+      let fruitmix = new Fruitmix({ fruitmixDir })
+      let app = new App({ fruitmix, log: { skip: 'all', error: 'none' } })
+      await new Promise(res => fruitmix.once('FruitmixStarted', () => res()))
 
-                    if (!res.body.length) return done() 
-                    let tail = res.body[res.body.length - 1]
-                    let last = [
-                      tail.namepath[0], // index
-                      tail.type,        // type
-                      tail.namepath.slice(1).join('/') // path
-                    ].join('.') 
+      watson = new Watson({ app }) 
+      await new Promise((res, rej) => watson.login('alice', 'alice', err => err ? rej(err) : res()))
+      user = watson.users.alice
+    })
 
-                    request(app.express)
-                      .get('/files')
-                      .set('Authorization', 'JWT ' + token)
-                      .query({ order: 'find', places: home.uuid, last, count: 1 })
-                      .expect(200)
-                      .end((err, res) => {
-                        if (err) return done(err)
+    it('visit async', async () => {
+      let tree = await user.mktreeAsync({
+        type: 'vfs',
+        drive: user.home.uuid,
+        dir: user.home.uuid,
+        children: [
+          {   
+            type: 'directory', 
+            name: 'foo',
+            children: [
+              {
+                type: 'directory',
+                name: 'bar'
+              },
+              {
+                type: 'file',
+                name: 'alonzo',
+                file: alonzo.path,
+                size: alonzo.size,
+                sha256: alonzo.hash
+              },
+              {
+                type: 'file',
+                name: 'hello',
+                file: hello.path,
+                size: hello.size,
+                sha256: hello.hash            
+              }
+            ]
+          }
+        ]
+      }) 
 
-                        console.log('=====2')
-                        console.log(res.body)
-                        console.log('=====')
-
-                        if (!res.body.length) return done()
-                        let tail = res.body[res.body.length - 1] 
-                        let last = [
-                          tail.namepath[0], // index
-                          tail.type,        // type
-                          tail.namepath.slice(1).join('/')
-                        ].join('.')
-
-                        request(app.express)
-                          .get('/files')
-                          .set('Authorization', 'JWT ' + token)
-                          .query({ order: 'find', places: home.uuid, last, count: 1 })
-                          .expect(200)
-                          .end((err, res) => {
-                            if (err) return done(err)
-                            console.log('=====3')
-                            console.log(res.body)
-                            console.log('=====')
-                            done()
-                          })
-                      }) 
-                  })
-              }, 200)
-            })
-        })
-    })  
+      let r = await user.getFilesStepByStep({ places: user.home.uuid }, 1)
+      console.log(JSON.stringify(tree, null, '  '))
+      console.log(r)
+    })
   })
 })

@@ -1644,59 +1644,64 @@ class VFS extends EventEmitter {
     }
 
     if (order === 'newest' || order === 'oldest') {
-      this.iterate(user, { order, startTime, startUUID, startExclusive, 
+      this.iterateList(user, { order, startTime, startUUID, startExclusive, 
         count, places, types, tags, name, namepath }, callback)
     } else {
       fileOnly = props.fileOnly === 'true'
 
-      this.visit(user, { order, lastIndex, lastType, lastPath, 
-        count, places, types, tags, name, namepath }, callback)
+      let args = { order, lastIndex, lastType, lastPath, count, places, types, tags, name }
+
+      let range = { lastIndex, lastType, lastPath, count }
+      let condition = { places, types, tags, name }
+
+      this.iterateTreeAsync(user, range, condition)
+        .then(arr => callback(null, arr))
+        .catch(e => callback(e))
     }
   }
 
   /**
   
   */
-  iterate (user, props, callback) {
+  iterateList (user, props, callback) {
     debug('iterate', props)
 
     let { order, startTime, startUUID, startExclusive } = props
-    let { count, places, types, tags, name, namepath } = props
+    let { count, places, types, tags, name } = props
     let files = this.forest.timedFiles
     let startIndex
     let arr = []
 
     const match = file => {
-      if (tags) {
-        if (!file.tags) return
-        if (!tags.every(tag => file.tags.includes(tag))) return
-      }
+      if (name && !file.name.includes(name)) return
 
       if (types) {
         if (!file.metadata) return
         if (!types.includes(file.metadata.type)) return
       }
-  
-      // TODO optimize performance 
-      let uuids = file.nodepath().map(n => n.uuid)
-      if (!places.some(place => uuids.includes(place))) return
 
-      if (name && !file.name.includes(name)) return
+      if (tags) {
+        if (!file.tags) return
+        if (!tags.every(tag => file.tags.includes(tag))) return
+      }
 
+      let uuids = file.nodepath().map(n => n.uuid).slice(0, -1)
+      let index = places.findIndex(place => uuids.includes(place))
+      if (index === -1) return
+
+      let namepath = file.nodepath().map(n => n.name).slice(uuids.indexOf(places[index]) + 1)
       let xstat = {
         uuid: file.uuid,
-        dir: file.parent.uuid,
+        pdir: file.parent.uuid,
         name: file.name, 
-        mtime: file.mtime,
         size: file.size,
+        mtime: file.mtime,
         hash: file.hash,
         tags: file.tags,
-        metadata: file.metadata
+        metadata: file.metadata,
+        place: index,
+        namepath 
       } 
-
-      if (namepath) {
-        // TODO
-      }
 
       arr.push(xstat)
     }
@@ -1737,26 +1742,29 @@ class VFS extends EventEmitter {
   }
 
   /**
-  */
-  visit (user, props, callback) {
-    debug('visit', props)
+  This function has a weird concurrency. One async function parallels with a bunch of callbacks
 
-    let { order, lastIndex, lastType, lastPath } = props
-    let { count, places, types, tags, name, namepath, fileOnly } = props
+  */
+  iterateTreeSync (user, range, condition) {
+
+    let { lastIndex, lastType, lastPath, count } = range
+    let { places, types, tags, name, fileOnly } = condition
     
     let roots = places.map(place => this.forest.uuidMap.get(place)) 
     let arr = []
     let root, rootIndex
 
-    const f = (node, dir) => {
+    const F = (node, dir) => {
       let xstat
       if (node instanceof Directory) {
         if (types || tags || fileOnly) return 
         if (name && !node.name.includes(name)) return
         xstat = { 
           uuid: node.uuid, 
+          pdir: node.parent.uuid,
           type: 'directory', 
-          name: node.name 
+          name: node.name, 
+          mtime: Math.abs(node.mtime),
         }
       } else if (node instanceof File) {
         if (tags) {
@@ -1770,7 +1778,7 @@ class VFS extends EventEmitter {
         if (name && !node.name.includes(name)) return
         xstat = { 
           uuid: node.uuid,
-          dir: node.parent.uuid,
+          pdir: node.parent.uuid,
           type: 'file',
           name: node.name,
           size: node.size,
@@ -1783,53 +1791,105 @@ class VFS extends EventEmitter {
         if (tags || types) return
         if (name && !node.includes(name)) return
         xstat = {
-          dir: dir.uuid,
+          pdir: dir,
           type: 'file',
-          name: node
+          name: node,
         }
       }
 
       if (xstat) {
-        arr.push(xstat)
-        if (count && arr.length === count) {
-          let nodepath, namepath
+        let nodepath, namepath
 
-          if (typeof node === 'object') {
-            nodepath = node.nodepath()
-            namepath = nodepath.slice(nodepath.indexOf(root) + 1).map(n => n.name)
-          } else {
-            nodepath = dir.nodepath() 
-            namepath = nodepath.slice(nodepath.indexOf(root) + 1).map(n => n.name)
-            namepath.push(node)
-          }
-
-          namepath.unshift(rootIndex) 
-          xstat.namepath = namepath
-          return true
+        if (typeof node === 'object') {
+          nodepath = node.nodepath()
+          namepath = nodepath.slice(nodepath.indexOf(root) + 1).map(n => n.name)
+        } else {
+          nodepath = dir.nodepath() 
+          namepath = nodepath.slice(nodepath.indexOf(root) + 1).map(n => n.name)
+          namepath.push(node)
         }
+        
+        xstat.place = rootIndex
+        xstat.namepath = namepath
+
+        arr.push(xstat)
+        if (arr.length === count) return true
       }
     }
 
     if (lastIndex === undefined) {
       for (rootIndex = 0; rootIndex < roots.length; rootIndex++) {
         root = roots[rootIndex]
-        if (root.iterate({ namepath: [], type: 'directory' }, f)) break
+        if (root.iterate({ namepath: [], type: 'directory' }, F)) break
       }
     } else {
-
-      debug('visit, last index, type, path', lastIndex, lastType, lastPath)
-
       rootIndex = lastIndex
       root = roots[rootIndex]
-      if (!root.iterate({ namepath: lastPath, type: lastType }, f)) {
+      if (!(root.iterate({ namepath: lastPath, type: lastType }, F))) {
         for (rootIndex = lastIndex + 1; rootIndex < roots.length; rootIndex++) {
           root = roots[rootIndex]
-          if (root.interate({ namepath: [], type: 'directory' }, f)) break
+          if (root.iterate({ namepath: [], type: 'directory' }, F)) break
         }
       }
     }
 
-    process.nextTick(() => callback(null, arr))
+    return arr
+  }
+
+  resolveUnindexedFiles (candidates, callback) {
+    let count = 0
+    candidates.forEach((xstat, index) => {
+      if (xstat.hasOwnProperty('uuid')) return 
+      count++
+
+      let filePath = path.join(this.absolutePath(xstat.pdir), xstat.name)
+      fs.lstat(filePath, (err, stat) => {
+        if (err || !stat.isFile()) {
+          candidates[index] = null
+        } else {
+          candidates[index] = {
+            pdir: xstat.pdir.uuid,
+            type: 'file',
+            name: xstat.name,
+            size: stat.size,
+            mtime: stat.mtime.getTime(),
+            place: xstat.place,
+            namepath: xstat.namepath
+          }
+        }
+        if (!--count) callback(null, candidates.filter(x => !!x))
+      }) 
+    })
+
+    if (!count) process.nextTick(() => callback(null, candidates))
+  }
+
+  // TODO async is not necessary
+  async resolveUnindexedFilesAsync (candidates) {
+    return Promise.promisify(this.resolveUnindexedFiles).bind(this)(candidates) 
+  }
+
+  // TODO async is not necessary
+  async iterateTreeAsync (user, range, condition) {
+    let count = range.count
+    let arr = []
+    let rng = range
+
+    do {
+      let candidates = this.iterateTreeSync(user, rng, condition)
+      if (candidates.length === 0) return arr
+      if (candidates.length < rng.count) 
+        return [...arr, ...await this.resolveUnindexedFilesAsync(candidates)]
+
+      let tail = candidates[candidates.length - 1]
+
+      // preserve REAL tail
+      rng = { lastIndex: tail.place, lastType: tail.type, lastPath: tail.namepath }
+      arr = [...arr, ...await this.resolveUnindexedFilesAsync(candidates)]
+      rng.count = count - arr.length
+    } while (rng.count) 
+
+    return arr
   }
 
   getMedia (user, props, callback) {
