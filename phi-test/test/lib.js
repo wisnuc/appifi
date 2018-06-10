@@ -101,6 +101,13 @@ const FILES = {
     hash: '5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03'
   },
 
+  pdf: {
+    name: 'pdf.pdf',
+    path: 'testdata/pdf.pdf',
+    size: 433994,
+    hash: 'ebb031c3945e884e695dbc63c52a5efcd075375046c49729980073585ee13c52',  
+  },
+
   vpai001: {
     name: 'vpai001',
     path: 'testdata/vpai001.jpg',

@@ -28,6 +28,7 @@ const argList = [
   ['Model', '', 'model'],
   ['GPSPosition', '', 'gps'],
   ['Duration', '', 'dur', parseFloat],
+  ['PlayDuration', '', 'dur', parseFloat],
   ['Rotation', '', 'rot', parseInt],
 ]
 
@@ -75,21 +76,41 @@ const videoArgs = Object.freeze([
   'Model',
   'GPSPosition',
   'Duration',
+  'PlayDuration',
   'Rotation'
+])
+
+const docArgs = Object.freeze([
 ])
 
 /**
 Declarative definition of each type
 */
 const typeList = [
+  // image
   ['JPEG', 2, stillImageProps],
   ['PNG', 2, stillImageProps],
-  ['BMP', 2, basicStillImageProps],
   ['GIF', 2, basicStillImageProps],
-  ['3GP', 2, videoArgs],
+  ['BMP', 2, basicStillImageProps],
+  // video
+  ['RM', 2, videoArgs],
+  ['RMVB', 2, videoArgs],
+  ['WMV', 2, videoArgs],
+  ['AVI', 2, videoArgs],
   ['MP4', 2, videoArgs],
+  ['3GP', 2, videoArgs],
   ['MOV', 2, videoArgs],
+  // doc
+  ['DOC', 2, docArgs],
+  ['DOCX', 2, docArgs],
+  ['XLS', 2, docArgs], 
+  ['XLSX', 2, docArgs],
+  ['PPT', 2, docArgs],
+  ['PPTX', 2, docArgs],
+  ['PDF', 2, docArgs]
 ]
+
+
 
 /**
 
@@ -171,7 +192,8 @@ const fileMeta = (path, callback) =>
     if (err) return callback(err)
     if (!type || !typeMap.has(type)) return callback(null, nullType)
 
-    child.exec(`exiftool ${genArgs(type)} ${path}`, (err, stdout) => {
+    let cmd = `exiftool ${genArgs(type)} ${path}`
+    child.exec(cmd, (err, stdout) => {
       /**
       treat err.code === 1 as error, probably a race
       */
@@ -179,7 +201,7 @@ const fileMeta = (path, callback) =>
      
       let typeVal = typeMap.get(type)
       let obj = { type, ver: typeVal.ver  } 
-      let dirty = false
+      let dirty = true // TODO originally false, change to true for type only file such as pdf
       stdout.split('\n')
         .map(l => l.trim())
         .filter(l => !!l.length)

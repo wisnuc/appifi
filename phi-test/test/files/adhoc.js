@@ -13,7 +13,7 @@ const chai = require('chai').use(require('chai-as-promised'))
 const expect = chai.expect
 
 const FILES = require('../lib').FILES
-const { alonzo, hello } = FILES
+const { alonzo, hello, pdf } = FILES
 
 const Fruitmix = require('src/fruitmix/Fruitmix')
 const App = require('src/app/App')
@@ -167,11 +167,20 @@ describe(path.basename(__filename), () => {
                 file: hello.path,
                 size: hello.size,
                 sha256: hello.hash            
+              },
+              {
+                type: 'file',
+                name: pdf.name,
+                file: pdf.path,
+                size: pdf.size,
+                sha256: pdf.hash
               }
             ]
           }
         ]
       }) 
+
+      await Promise.delay(1000)
 
       let r = await user.getFilesStepByStep({ places: user.home.uuid }, 1)
       console.log(JSON.stringify(tree, null, '  '))
