@@ -175,6 +175,13 @@ class App extends EventEmitter {
       case 'bootstrap_boundUser':
         if (this.boot && message.hasOwnProperty('data')) this.boot.setBoundUser(message.data)
         break
+      case 'bootstrap_unbind':
+        if (this.boot) {
+          return this.boot.volumeStore.save(null, (err, data) => {
+            process.exit(61)
+          })
+        }
+        break
       default:
         break
     }
@@ -269,7 +276,8 @@ class App extends EventEmitter {
     devicer.get('/cpuInfo', (req, res) => res.status(200).json(this.device.cpuInfo()))
     devicer.get('/memInfo', (req, res, next) => this.device.memInfo((err, data) => err ? next(err) : res.status(200).json(data)))
     devicer.get('/speed', (req, res, next) => res.status(200).json(this.device.netDev()))
-    devicer.get('/usage', (req, res, next) => this.device.usageInfo((err, data) => err ? next(err) : res.status(200).json(data)))
+    // devicer.get('/usage', (req, res, next) => this.device.usageInfo((err, data) => err ? next(err) : res.status(200).json(data)))
+    devicer.get('/timedate', (req, res, next) => this.device.timedate((err, data) => err ? next(err) : res.status(200).json(data)))
     devicer.get('/net', (req, res, next) => this.device.interfaces((err, its) => err ? next(err) : res.status(200).json(its)))
     devicer.post('/net', (req, res, next) => this.device.addAliases(req.body, (err, data) => err ? next(err) : res.status(200).json(data)))
     devicer.delete('/net/:name', (req, res, next) => this.device.deleteAliases(req.params.name, (err, data)=> err ? next(err) : res.status(200).json(data)))

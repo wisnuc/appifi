@@ -13,8 +13,6 @@ const debug = require('debug')('samba')
 
 const rsyslogPath = '/etc/rsyslog.d/99-smbaudit.conf'
 
-const nosmb = !!process.argv.find(arg => arg === '--disable-smb') || process.env.NODE_PATH !== undefined
-
 // samba 服务
 class SambaServer extends events.EventEmitter {
   constructor(opts, user, drive) {
