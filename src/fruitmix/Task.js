@@ -142,10 +142,12 @@ class Task {
   }  
 
   DELETE (user, props, callback) {
-    let index = this.tasks.findIndex(t => t.user.uuid === user.uuid && t.uuid === taskUUID)
+    let index = this.tasks.findIndex(t => t.user.uuid === user.uuid && t.uuid === props.taskUUID)
     if (index !== -1) {
-      
-    }
+      let result = this.tasks.splice(index, 1)
+      result[0].destroy()
+      callback(null, this.tasks.map(item => item.view()))
+    } else callback(new Error('not fount task'))
   }
 
   PATCH (user, props, callback) {

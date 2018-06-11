@@ -58,6 +58,7 @@ class Mkdir extends State {
     if (same === 'keep') same = 'skip'
 
     this.mkdir([same, diff], (err, dst, resolved) => {
+      console.log(err, 'err exist?', resolved)
       if (this.destroyed) return
       if (err && err.code === 'EEXIST') {
         this.setState(Conflict, err, policy)
@@ -240,14 +241,14 @@ class Preparing extends State {
 class Parent extends State {
   /**
   dstat {
-    dst: { err, stat, resolved }
+    dst: { err, stat, resolved }diff
   }
   */
   enter (dstats, fstats) {
     this.ctx.dstats = dstats.filter(x => !x.dst.err)
     this.ctx.fstats = fstats
 
-    // 生成失败文件夹对象
+    // 创建失败文件夹在sche之前创建
     dstats
       .filter(x => x.dst.err)
       .forEach(x => {
