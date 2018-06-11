@@ -276,7 +276,8 @@ describe(path.basename(__filename), () => {
           let file = path.join(tmptest, 'tmpfile')
           fs.writeFileSync(file, res.body)
           let size = sizeOf(file)
-          console.log(size)
+          expect(size.height).to.equal(200)
+          expect(size.type).to.equal('jpg')
           done()
         })
     })
@@ -298,10 +299,38 @@ describe(path.basename(__filename), () => {
           let file = path.join(tmptest, 'tmpfile')
           fs.writeFileSync(file, res.body)
           let size = sizeOf(file)
-          console.log(size)
+          expect(size).to.deep.equal({
+            width: 200,
+            height: 200,
+            type: 'jpg'
+          })
           done()
         })
     })
 
+    it('get alonzo via random, 75e85b2b', done => {
+      request(app.express)
+        .get(`/media/${alonzo.hash}`)
+        .set('Authorization', 'JWT ' + token)
+        .query({
+          alt: 'random'
+        })
+        .end((err, res) => {
+          if (err) return done(err)
+
+          let random = res.body.random          
+          request(app.express)
+            .get(`/media/${random}`)
+            .buffer()
+            .end((err, res) => {
+              if (err) return done(err)
+
+              let hash = crypto.createHash('sha256').update(res.body).digest('hex')
+              expect(hash).to.equal(alonzo.hash)
+              done()
+            })
+
+        })
+    }) 
   })
 })

@@ -1910,22 +1910,27 @@ class VFS extends EventEmitter {
       err = Object.assign(new Error('media not found'), { status: 404 })
     } else {
       // drive uuids
-      let uuids = this.drives.filter(drv => this.userCanWriteDrive(user, drv)).map(drv => drv.uuid)
-      let meta = this.metaMap.get(fingerprint)
 
-      if (meta.files.some(f => uuids.includes(f.root().uuid))) {
-        let metadata = Object.assign({}, meta.metadata, { size: meta.files[0].size })
-        let filePath = this.absolutePath(meta.files[0])
+      if (user) {
+        let uuids = this.drives.filter(drv => this.userCanWriteDrive(user, drv)).map(drv => drv.uuid)
+        let meta = this.metaMap.get(fingerprint)
 
-        if (file) {
-          data = filePath
-        } else if (both) {
-          data = { metadata, path: filePath }
+        if (meta.files.some(f => uuids.includes(f.root().uuid))) {
+          let metadata = Object.assign({}, meta.metadata, { size: meta.files[0].size })
+          let filePath = this.absolutePath(meta.files[0])
+
+          if (file) {
+            data = filePath
+          } else if (both) {
+            data = { metadata, path: filePath }
+          } else {
+            data = metadata
+          }
         } else {
-          data = metadata
+          err = Object.assign(new Error('permission denied'), { status: 403 })
         }
       } else {
-        err = Object.assign(new Error('permission denied'), { status: 403 })
+        data = this.absolutePath(this.metaMap.get(fingerprint).files[0])
       }
     }
 

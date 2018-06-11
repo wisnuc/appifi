@@ -61,7 +61,12 @@ module.exports = {
     prefix: '/media',
     routes: [
       ['/', 'LIST', 'media'],
-      ['/:fingerprint', 'GET', 'media']
+      ['/:fingerprint', 'GET', 'media', {
+        auth: auth => (req, res, next) => 
+          /[a-f0-9]{160}/.test(req.params.fingerprint) 
+            ? next() 
+            : auth.jwt()(req, res, next)
+      }]
     ]
   },
 
