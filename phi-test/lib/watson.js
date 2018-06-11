@@ -102,7 +102,7 @@ class User {
     let x, last, arr = []
 
     while (true) {
-      x = await this.getFilesAsync(Object.assign({ order: 'find', last, count: step }))
+      x = await this.getFilesAsync(Object.assign({ order: 'find', last, count: step }, args))
       arr = [...arr, ...x]
       if (x.length < step) return arr
 
