@@ -125,6 +125,7 @@ const typeList = [
   ['RA', 2, audioArgs],
   ['WMA', 2, audioArgs],
   ['MP3', 2, audioArgs],
+  ['OGG', 2, audioArgs],
   ['MKA', 2, audioArgs],
   ['WAV', 2, audioArgs],
   ['APE', 2, audioArgs],
