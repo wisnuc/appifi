@@ -207,10 +207,19 @@ class Preparing extends State {
               // TODO
               this.setState(Failed, err)
             } else {
+              
               dstats.forEach(x => x.dst = map.get(x.name))
               let dstats2 = dstats.filter(x => (x.dst.err && x.dst.err.code === 'EEXIST') || !x.dst.err)
+              
+              // 针对move操作, 如果child node 移动成功， 从列表中移除
+              if (type === 'move') {
+                dstats2 = dstats2.filter(x => (x.dst.err && x.dst.err.code === 'EEXIST'))
+                console.log('in dir preparing & dstats length is ' + dstats2.length + ' & fstats length is ' + fstats.length)
+              }
+
+
               if (dstats2.length === 0 && fstats.length === 0) {
-                this.setState(Finished)
+                this.setState(Finish)
               } else {
                 this.setState(Parent, dstats2, fstats)
               }
