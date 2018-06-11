@@ -51,7 +51,7 @@ class Task {
   }
 
   GET (user, props, callback) {
-    let result = this.tasks.find(item => item.uuid !== props.taskUUID)
+    let result = this.tasks.find(item => item.uuid == props.taskUUID)
     if (!result) callback(new Error('task not found')) 
     else callback(null, result.view())
   }
@@ -117,7 +117,6 @@ class Task {
     try {
       policies = normalizePolicies(props.policies)
     } catch (err) {
-      console.log(err)
       err.status = 400
       return process.nextTick(() => callback(err))
     }
