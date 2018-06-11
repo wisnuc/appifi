@@ -88,7 +88,15 @@ const geometry = (width, height, modifier) => {
 }
 
 // generate convert args
-const genArgs = (src, tmp, opts) => {
+const genArgs = (src, tmp, opts, type) => {
+
+  if (type === 'JPEG') type = 'JPG'
+  let ext = path.extname(src).slice(1).toUpperCase()
+  
+  if (ext !== type) {
+    src = `${type.toLowerCase()}:${src}`
+  } 
+
   let args = []
   args.push(src + '[0]')
   if (opts.autoOrient) args.push('-auto-orient')
@@ -156,8 +164,8 @@ class Thumbnail extends EventEmitter {
       this.converting.push(x)
 
       x.tmp = path.join(this.tmpDir, UUID.v4() + '.jpg')
-
-      spawn('convert', genArgs(x.file, x.tmp, x.opts), err => {
+      let args = genArgs(x.file, x.tmp, x.opts, x.type)
+      spawn('convert', args, err => {
         // converting ->
         this.converting.splice(this.converting.indexOf(x), 1)
 
@@ -207,7 +215,8 @@ class Thumbnail extends EventEmitter {
   }
 
   // props is a thumb props
-  convert (props, file, callback) {
+  convert (props, file, type, callback) {
+
     // find existing job by key
     let job = [
       ...this.pending,
@@ -219,7 +228,7 @@ class Thumbnail extends EventEmitter {
       job.cbs.push(callback)
     } else {
       // create new job
-      job = Object.assign({}, props, { file, cbs: [callback] })
+      job = Object.assign({}, props, { type, file, cbs: [callback] })
       this.push(job)
     }
 

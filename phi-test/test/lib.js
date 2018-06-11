@@ -101,6 +101,13 @@ const FILES = {
     hash: '5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03'
   },
 
+  mate9: {
+    name: 'mate 9.mp4',
+    path: 'testdata/mate9.mp4',
+    size: 5767760,
+    hash: 'ddd065b26f08f3995a4b890035a1fc25e0128064e50fc4099447f946923fd071'   
+  },
+
   pdf: {
     name: 'pdf.pdf',
     path: 'testdata/pdf.pdf',
@@ -113,6 +120,13 @@ const FILES = {
     path: 'testdata/vpai001.jpg',
     size: 4192863,
     hash: '529e471a71866e439d8892179e4a702cf8529ff32771fcf4654cfdcea68c11fb',
+  },
+
+  wslv: {
+    name: 'wslv.dll',
+    path: 'testdata/wslv.dll',
+    size: 100304,
+    hash: 'bec5d0e318a4cf2971013df537ccddb060da0611bd9ab57abc94705a67a92191'   
   },
 
   world: {

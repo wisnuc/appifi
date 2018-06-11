@@ -87,8 +87,10 @@ describe(path.basename(__filename), () => {
 
   const requestHomeAsync = Promise.promisify(requestHome)
 
-    let fruitmix, app, token, home, url
-    let alonzo = FILES.alonzo
+  let fruitmix, app, token, home, url
+  let alonzo = FILES.alonzo
+  let mate9 = FILES.mate9
+  let wslv = FILES.wslv
 
   describe('alonzo', () => {
     let fruitmix, app, token, home, url
@@ -116,6 +118,32 @@ describe(path.basename(__filename), () => {
             op: 'newfile',
             size: alonzo.size,
             sha256: alonzo.hash
+          }))
+          .expect(200)
+          .end(err => err ? rej(err) : res())
+      })
+
+      await new Promise((res, rej) => {
+        request(app.express)
+          .post(url)
+          .set('Authorization', 'JWT ' + token)
+          .attach(mate9.name, mate9.path, JSON.stringify({
+            op: 'newfile',
+            size: mate9.size,
+            sha256: mate9.hash
+          }))
+          .expect(200)
+          .end(err => err ? rej(err) : res())
+      })
+
+      await new Promise((res, rej) => {
+        request(app.express)
+          .post(url)
+          .set('Authorization', 'JWT ' + token)
+          .attach(wslv.name, wslv.path, JSON.stringify({
+            op: 'newfile',
+            size: wslv.size,
+            sha256: wslv.hash
           }))
           .expect(200)
           .end(err => err ? rej(err) : res())
@@ -227,6 +255,50 @@ describe(path.basename(__filename), () => {
           fs.writeFileSync(file, res.body)
           let size = sizeOf(file)
           expect(size.height).to.equal(160)
+          done()
+        })
+    })
+
+    it('get mate9 thumbnail, 160x160 should return something, 27438344', done => {
+      request(app.express)
+        .get(`/media/${mate9.hash}`)
+        .set('Authorization', 'JWT ' + token)
+        .query({
+          alt: 'thumbnail',
+          width: 200,
+          height: 200,
+          modifier: 'caret',
+          autoOrient: 'true'
+        })
+        .buffer()
+        .end((err, res) => {
+          if (err) return done(err)
+          let file = path.join(tmptest, 'tmpfile')
+          fs.writeFileSync(file, res.body)
+          let size = sizeOf(file)
+          console.log(size)
+          done()
+        })
+    })
+
+    it('get wslv.dll thumbnail, 160x160 should return something, 6af695de', done => {
+      request(app.express)
+        .get(`/media/${wslv.hash}`)
+        .set('Authorization', 'JWT ' + token)
+        .query({
+          alt: 'thumbnail',
+          width: 200,
+          height: 200,
+          modifier: 'caret',
+          autoOrient: 'true'
+        })
+        .buffer()
+        .end((err, res) => {
+          if (err) return done(err)
+          let file = path.join(tmptest, 'tmpfile')
+          fs.writeFileSync(file, res.body)
+          let size = sizeOf(file)
+          console.log(size)
           done()
         })
     })

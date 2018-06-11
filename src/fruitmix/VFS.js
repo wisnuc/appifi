@@ -1892,11 +1892,17 @@ class VFS extends EventEmitter {
     return arr
   }
 
+  /**
+  @param {object} props
+  @param {string} props.fingerprint - media hash / fingerprint
+  @param {boolean} props.file - if true, return file path
+  @param {boolean} props.both - if true, return both meta and file path
+  */
   getMedia (user, props, callback) {
     debug('get media', props)
 
     let err, data
-    let { fingerprint, file } = props
+    let { fingerprint, file, both } = props
 
     if (!isSHA256(fingerprint)) {
       err = Object.assign(new Error('invalid hash'), { status: 400 })
@@ -1908,10 +1914,15 @@ class VFS extends EventEmitter {
       let meta = this.metaMap.get(fingerprint)
 
       if (meta.files.some(f => uuids.includes(f.root().uuid))) {
+        let metadata = Object.assign({}, meta.metadata, { size: meta.files[0].size })
+        let filePath = this.absolutePath(meta.files[0])
+
         if (file) {
-          data = this.absolutePath(meta.files[0])
+          data = filePath
+        } else if (both) {
+          data = { metadata, path: filePath }
         } else {
-          data = Object.assign({}, meta.metadata, { size: meta.files[0].size })
+          data = metadata
         }
       } else {
         err = Object.assign(new Error('permission denied'), { status: 403 })

@@ -28,12 +28,12 @@ class MediaApi {
       if (props.modifiers) q.modifiers = props.modifiers
       if (props.autoOrient) q.autoOrient = props.autoOrient
       
-      this.vfs.getMedia(user, { fingerprint, file: true }, (err, fpath) => {
+      this.vfs.getMedia(user, { fingerprint, both: true }, (err, both) => {
         if (err) return callback(err)  
         let tps = this.thumbnail.genProps(fingerprint, q)
         fs.lstat(tps.path, (err, stat) => {
           if (err && err.code === 'ENOENT') {
-            this.thumbnail.convert(tps, fpath, callback)
+            this.thumbnail.convert(tps, both.path, both.metadata.type, callback)
           } else if (err) {
             callback(err)
           } else {
