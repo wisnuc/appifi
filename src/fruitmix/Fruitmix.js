@@ -98,6 +98,7 @@ class Fruitmix extends EventEmitter {
 
     this.boundUser = opts.boundUser
     this.boundVolume = opts.boundVolume
+    this.boot = opts.boot
 
     // setup user module
     this.user = new User({
@@ -188,6 +189,7 @@ class Fruitmix extends EventEmitter {
 
     let nfsOpts = {}
     if (this.boundVolume) nfsOpts.volumeUUID = this.boundVolume.uuid
+    if (this.boot) nfsOpts.boot = this.boot
     this.nfs = new NFS(nfsOpts, this.user)
     this.apis.nfs = this.nfs
 

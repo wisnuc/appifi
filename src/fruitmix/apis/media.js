@@ -62,7 +62,7 @@ class MediaApi {
             } else if (err) {
               callback(err)
             } else {
-              callback(null, fpath)
+              callback(null, tps.path)
             }
           })
         })  

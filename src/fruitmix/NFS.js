@@ -189,6 +189,8 @@ class NFS extends EventEmitter {
     if (!isNonNullObject(opts)) throw new Error('opts must be a non-null object')
 
     if (opts.volumeUUID) this.volumeUUID = opts.volumeUUID
+    if (opts.boot) this.boot = opts.boot
+    
     this.allowATA = false
     this.allowUSB = true
 

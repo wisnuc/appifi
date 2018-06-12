@@ -27,9 +27,14 @@ const argList = [
   ['Make', '', 'make'],
   ['Model', '', 'model'],
   ['GPSPosition', '', 'gps'],
-  ['Duration', '', 'dur', parseFloat],
-  ['PlayDuration', '', 'dur', parseFloat],
+  ['Duration', '#', 'dur', parseFloat],
+  ['PlayDuration', '#', 'dur', parseFloat],
   ['Rotation', '', 'rot', parseInt],
+  ['Title', '', 'title'],
+  ['Artist', '', 'artist'],
+  ['Album', '', 'album'],
+  ['Year',  '', 'year'],
+  ['Genre', '', 'genre'] 
 ]
 
 Object.freeze(argList)
@@ -83,6 +88,16 @@ const videoArgs = Object.freeze([
 const docArgs = Object.freeze([
 ])
 
+const audioArgs = Object.freeze([
+  'Title',
+  'Artist',
+  'Album',
+  'Year',
+  'Genre',
+  'Duration',
+  'PlayDuration'
+])
+
 /**
 Declarative definition of each type
 */
@@ -92,14 +107,30 @@ const typeList = [
   ['PNG', 2, stillImageProps],
   ['GIF', 2, basicStillImageProps],
   ['BMP', 2, basicStillImageProps],
+  ['TIFF', 2, basicStillImageProps],
+
   // video
   ['RM', 2, videoArgs],
   ['RMVB', 2, videoArgs],
   ['WMV', 2, videoArgs],
   ['AVI', 2, videoArgs],
+  ['MPEG', 2, videoArgs],
   ['MP4', 2, videoArgs],
   ['3GP', 2, videoArgs],
   ['MOV', 2, videoArgs],
+  ['FLV', 2, videoArgs],
+  ['MKV', 2, videoArgs],
+
+  // audio
+  ['RA', 2, audioArgs],
+  ['WMA', 2, audioArgs],
+  ['MP3', 2, audioArgs],
+  ['OGG', 2, audioArgs],
+  ['MKA', 2, audioArgs],
+  ['WAV', 2, audioArgs],
+  ['APE', 2, audioArgs],
+  ['FLAC', 2, audioArgs],
+
   // doc
   ['DOC', 2, docArgs],
   ['DOCX', 2, docArgs],
