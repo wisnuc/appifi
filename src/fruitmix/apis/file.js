@@ -5,9 +5,12 @@ class FileApi {
   }
 
   LIST (user, props, callback) {
-    // this.vfs.visitFiles(user, props, callback)
     this.vfs.QUERY(user, props, callback)
   }
+ 
+  GET (user, props, callback) {
+    
+  } 
 }
 
 

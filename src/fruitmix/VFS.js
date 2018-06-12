@@ -1521,7 +1521,6 @@ class VFS extends EventEmitter {
   @param {string} props.places - concatenated uuids separated by dot
   @param {string} props.types - concatenated types separated by dot
   @param {string} props.tags - concatenated numbers separated by dot
-  @param {boolean} props.namepath - whether return namepath or not
   @param {boolean} props.fileOnly
   @param {boolean} props.dirOnly
   */
@@ -1537,6 +1536,21 @@ class VFS extends EventEmitter {
 
     const EInval = message => process.nextTick(() => 
       callback(Object.assign(new Error(message), { status: 400 })))
+
+    if (!props.places) return EInval('places not provided')
+    places = props.places.split('.')
+    if (!places.every(place => isUUID(place))) return EInval('invalid places') 
+    if (places.length !== Array.from(new Set(places)).length) return EInval('places has duplicate elements')
+
+    for (let i = 0; i < places; i++) {
+      let place = places[i]
+
+      let dir = this.forest.uuidMap.get(place)
+      if (!dir) return EInval(`place ${place} not found`)
+
+      let drive = this.drives.find(d => d.uuid === dir.root().uuid)
+      if (!this.userCanWriteDrive(user, drive)) return EInval(`place ${place} not found`)
+    }
 
     if (props.order) {
       if (['newest', 'oldest', 'find'].includes(props.order)) {
@@ -1607,23 +1621,19 @@ class VFS extends EventEmitter {
       if (!Number.isInteger(count) || count <= 0) return EInval('invalid count')
     }
 
-    if (props.places) {
-      places = props.places.split('.')
-      if (!places.every(place => isUUID(place))) return EInval('invalid places') 
-      if (places.length !== Array.from(new Set(places)).length) return EInval('places has duplicate elements')
+    if (props.class) {
+      if (!['image', 'video', 'audio', 'document'].includes(props.class)) return EInval('invalid class')
 
-      for (let i = 0; i < places; i++) {
-        let place = places[i]
-
-        let dir = this.forest.uuidMap.get(place)
-        if (!dir) return EInval(`place ${place} not found`)
-
-        let drive = this.drives.find(d => d.uuid === dir.root().uuid)
-        if (!this.userCanWriteDrive(user, drive)) return EInval(`place ${place} not found`)
+      if (props.class === 'image') {
+        types = ['JPEG', 'PNG', 'GIF', 'TIFF', 'BMP']
+      } else if (props.class === 'video') {
+        types = ['RM', 'RMVB', 'WMV', 'AVI', 'MPEG', 'MP4', '3GP', 'MOV', 'FLV', 'MKV']
+      } else if (props.class === 'audio') {
+        types = ['RA', 'WMA', 'MP3', 'MKA', 'WAV', 'APE', 'FLAC']
+      } else if (props.class === 'document') {
+        types = ['DOC', 'DOCX', 'XLS', 'XLSX', 'PPT', 'PPTX', 'PDF']
       }
-    }
-
-    if (props.types) {
+    } else if (props.types) {
       types = props.types.split('.')
       if (!types.every(type => !!type.length)) return EInval('invalid types')
     } 
@@ -1634,14 +1644,6 @@ class VFS extends EventEmitter {
     }
 
     if (props.name) name = props.name
-
-    namepath = props.namepath === 'true'
-
-    if (namepath && !places) return EInval('places must be provided if namepath=true')
-    
-    if (!places) {
-      places = this.drives.filter(drv => this.userCanWriteDrive(user, drv)).map(drv => drv.uuid)
-    }
 
     if (order === 'newest' || order === 'oldest') {
       this.iterateList(user, { order, startTime, startUUID, startExclusive, 
@@ -1892,11 +1894,17 @@ class VFS extends EventEmitter {
     return arr
   }
 
+  /**
+  @param {object} props
+  @param {string} props.fingerprint - media hash / fingerprint
+  @param {boolean} props.file - if true, return file path
+  @param {boolean} props.both - if true, return both meta and file path
+  */
   getMedia (user, props, callback) {
     debug('get media', props)
 
     let err, data
-    let { fingerprint, file } = props
+    let { fingerprint, file, both } = props
 
     if (!isSHA256(fingerprint)) {
       err = Object.assign(new Error('invalid hash'), { status: 400 })
@@ -1904,17 +1912,27 @@ class VFS extends EventEmitter {
       err = Object.assign(new Error('media not found'), { status: 404 })
     } else {
       // drive uuids
-      let uuids = this.drives.filter(drv => this.userCanWriteDrive(user, drv)).map(drv => drv.uuid)
-      let meta = this.metaMap.get(fingerprint)
 
-      if (meta.files.some(f => uuids.includes(f.root().uuid))) {
-        if (file) {
-          data = this.absolutePath(meta.files[0])
+      if (user) {
+        let uuids = this.drives.filter(drv => this.userCanWriteDrive(user, drv)).map(drv => drv.uuid)
+        let meta = this.metaMap.get(fingerprint)
+
+        if (meta.files.some(f => uuids.includes(f.root().uuid))) {
+          let metadata = Object.assign({}, meta.metadata, { size: meta.files[0].size })
+          let filePath = this.absolutePath(meta.files[0])
+
+          if (file) {
+            data = filePath
+          } else if (both) {
+            data = { metadata, path: filePath }
+          } else {
+            data = metadata
+          }
         } else {
-          data = Object.assign({}, meta.metadata, { size: meta.files[0].size })
+          err = Object.assign(new Error('permission denied'), { status: 403 })
         }
       } else {
-        err = Object.assign(new Error('permission denied'), { status: 403 })
+        data = this.absolutePath(this.metaMap.get(fingerprint).files[0])
       }
     }
 

@@ -23,10 +23,10 @@ const normalizePolicies = policies => {
 
   if (policies.hasOwnProperty('file')) {
     let file = policies.file
-    if (!Array.isArray(dir)) throw Error('invalid file policy')
-    if (!ps.includes[dir[0]]) throw new Error('invalid same file policy') 
-    if (!ps.includes[dir[1]]) throw new Error('invalid diff file policy')
-    obj.file = [dir[0], dir[1]].map(p => p || null)
+    if (!Array.isArray(file)) throw Error('invalid file policy')
+    if (!ps.includes[file[0]]) throw new Error('invalid same file policy') 
+    if (!ps.includes[file[1]]) throw new Error('invalid diff file policy')
+    obj.file = [file[0], file[1]].map(p => p || null)
   }
 
   return obj
@@ -47,7 +47,13 @@ class Task {
   }
 
   LIST (user, props, callback) {
-    this.tasks.filter()
+    callback(null, this.tasks.map(item => item.view()))
+  }
+
+  GET (user, props, callback) {
+    let result = this.tasks.find(item => item.uuid == props.taskUUID)
+    if (!result) callback(new Error('task not found')) 
+    else callback(null, result.view())
   }
 
   // useless
@@ -136,10 +142,12 @@ class Task {
   }  
 
   DELETE (user, props, callback) {
-    let index = this.tasks.findIndex(t => t.user.uuid === user.uuid && t.uuid === taskUUID)
+    let index = this.tasks.findIndex(t => t.user.uuid === user.uuid && t.uuid === props.taskUUID)
     if (index !== -1) {
-      
-    }
+      let result = this.tasks.splice(index, 1)
+      result[0].destroy()
+      callback(null, this.tasks.map(item => item.view()))
+    } else callback(new Error('not fount task'))
   }
 
   PATCH (user, props, callback) {

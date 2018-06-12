@@ -58,6 +58,7 @@ class Mkdir extends State {
     if (same === 'keep') same = 'skip'
 
     this.mkdir([same, diff], (err, dst, resolved) => {
+      console.log(err, 'err exist?', resolved)
       if (this.destroyed) return
       if (err && err.code === 'EEXIST') {
         this.setState(Conflict, err, policy)
@@ -207,10 +208,19 @@ class Preparing extends State {
               // TODO
               this.setState(Failed, err)
             } else {
+              
               dstats.forEach(x => x.dst = map.get(x.name))
               let dstats2 = dstats.filter(x => (x.dst.err && x.dst.err.code === 'EEXIST') || !x.dst.err)
+              
+              // 针对move操作, 如果child node 移动成功， 从列表中移除
+              if (type === 'move') {
+                dstats2 = dstats2.filter(x => (x.dst.err && x.dst.err.code === 'EEXIST'))
+                console.log('in dir preparing & dstats length is ' + dstats2.length + ' & fstats length is ' + fstats.length)
+              }
+
+
               if (dstats2.length === 0 && fstats.length === 0) {
-                this.setState(Finished)
+                this.setState(Finish)
               } else {
                 this.setState(Parent, dstats2, fstats)
               }
@@ -231,14 +241,14 @@ class Preparing extends State {
 class Parent extends State {
   /**
   dstat {
-    dst: { err, stat, resolved }
+    dst: { err, stat, resolved }diff
   }
   */
   enter (dstats, fstats) {
     this.ctx.dstats = dstats.filter(x => !x.dst.err)
     this.ctx.fstats = fstats
 
-    // 生成失败文件夹对象
+    // 创建失败文件夹在sche之前创建
     dstats
       .filter(x => x.dst.err)
       .forEach(x => {
