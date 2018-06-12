@@ -202,7 +202,8 @@ class Starting extends State {
     let opts = Object.assign({}, this.ctx.fruitmixOpts, {
       fruitmixDir,
       boundVolume: this.ctx.volumeStore.data,
-      boundUser: this.ctx.boundUser
+      boundUser: this.ctx.boundUser,
+      boot: this.ctx
     })
     let fruitmix = new Fruitmix(opts)
 
@@ -939,6 +940,24 @@ class Boot extends EventEmitter {
 
   remove (devices, callback) {
     this.state.remove(devices, callback)
+  }
+
+  async ejectUSBAsync (target) {
+    if (!this.storage) throw new Error('no storage')
+    let block = this.storage.blocks.find(b => b.name === target)
+    if (!block) throw new Error('block not found')
+    if (!block.isUSB) throw new Error('block not usb device')
+    if(!block.isPartitioned) {
+      if (block.isMounted) {
+        await child.execSAsync(`udisksctl unmount -b ${ block.devname }`)
+      }
+      await child.execAsync(`udisksctl power-off -b ${ block.devname }`)
+    } else {
+      let subBlocks = this.storage.blocks.filter(b => b.parentName === target)
+      if (!subBlocks.length) throw new Error('subBlock not found')
+      subBlock.filter(s => s.isMounted).forEach(s => await child.execAsync(`udisksctl unmount -b ${ s.devname }`))
+      subBlocks.forEach(s => await child.execAsync(`udisksctl power-off -b ${ s.devname }`))
+    }
   }
 
   getStorage () {
