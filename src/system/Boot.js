@@ -202,12 +202,13 @@ class Starting extends State {
     let opts = Object.assign({}, this.ctx.fruitmixOpts, {
       fruitmixDir,
       boundVolume: this.ctx.volumeStore.data,
-      boundUser: this.ctx.boundUser
+      boundUser: this.ctx.boundUser,
+      boot: this.ctx
     })
     let fruitmix = new Fruitmix(opts)
 
     fruitmix.setStorage(this.ctx.storage)
-     
+
     fruitmix.once('FruitmixStarted', () => this.setState(Started, fruitmix))
   }
 }
@@ -310,7 +311,7 @@ class Started extends State {
 
     let newBoundVolume = this.createBoundVolume(this.ctx.storage, volume)
     return new Promise((resolve, reject) => {
-      this.ctx.volumeStore.save(newBoundVolume, err => 
+      this.ctx.volumeStore.save(newBoundVolume, err =>
         err ? reject(err) : resolve(newBoundVolume))})
   }
 
@@ -318,7 +319,7 @@ class Started extends State {
     if (!Array.isArray(devices) || devices.length !== 1) {
       return callback(new Error('devices must be an one item array'))
     }
-    
+
     if (mode !== 'single' && mode !== 'raid1') {
       return callback(new Error('device must be eithor single or raid1'))
     }
@@ -339,7 +340,7 @@ class Started extends State {
   async doAddAsync ({ devices, mode }) {
 
     let storage = await probeAsync(this.ctx.conf.storage)
-    
+
     let wantD = devices[0]
     let volumeUUID = this.ctx.volumeStore.data.uuid
     let volume = this.ctx.storage.volumes.find(v => v.uuid === volumeUUID)
@@ -363,11 +364,11 @@ class Started extends State {
     this.ctx.storage = storage
 
     return await this.updateBoundVolumeAsync()
-    
+
   }
 
   remove (devices, callback) {
-    
+
     if (!Array.isArray(devices) || devices.length !== 1) {
       return callback(new Error('devices must be an one item array'))
     }
@@ -389,7 +390,7 @@ class Started extends State {
     let volumeUUID = this.ctx.volumeStore.data.uuid
     let volume = this.ctx.storage.volumes.find(v => v.uuid === volumeUUID)
     if (volume.devices.length !== 2) throw new Error('volume only has one device')
-    
+
     let waitD = volume.devices.find(d => d.name === wantD.name)
     if (!waitD) throw new Error('device not found in volume')
 
@@ -629,7 +630,7 @@ class Repairing extends State {
     let supportMode = ['single', 'raid1']
     if (supportMode.indexOf(mode) === -1) throw new Error('mode error')
 
-    // verify devices and generate 
+    // verify devices and generate
     let { volume, devices, oldDevice, devnames, oldMode } = await this.verifyDevices(devs)
 
     // mount need repair volume as degraded mode
@@ -649,7 +650,7 @@ class Repairing extends State {
    *  devices, // devices
    *  oldDevice, // device in volume which can work again, assgin (boundVolume and volume)
    *  devnames, // devices items's devnames
-   * } 
+   * }
    */
   async verifyDevices (devices) {
     let storage, volume, volumeDevice, boundVolume, oldDevice, devnames = []
@@ -940,6 +941,24 @@ class Boot extends EventEmitter {
   remove (devices, callback) {
     this.state.remove(devices, callback)
   }
+
+  // async ejectUSBAsync (target) {
+  //   if (!this.storage) throw new Error('no storage')
+  //   let block = this.storage.blocks.find(b => b.name === target)
+  //   if (!block) throw new Error('block not found')
+  //   if (!block.isUSB) throw new Error('block not usb device')
+  //   if(!block.isPartitioned) {
+  //     if (block.isMounted) {
+  //       await child.execSAsync(`udisksctl unmount -b ${ block.devname }`)
+  //     }
+  //     await child.execAsync(`udisksctl power-off -b ${ block.devname }`)
+  //   } else {
+  //     let subBlocks = this.storage.blocks.filter(b => b.parentName === target)
+  //     if (!subBlocks.length) throw new Error('subBlock not found')
+  //     subBlock.filter(s => s.isMounted).forEach(s => await child.execAsync(`udisksctl unmount -b ${ s.devname }`))
+  //     subBlocks.forEach(s => await child.execAsync(`udisksctl power-off -b ${ s.devname }`))
+  //   }
+  // }
 
   getStorage () {
   }

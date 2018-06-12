@@ -159,7 +159,7 @@ class App extends EventEmitter {
       console.log('Bootstrap Message -> JSON parse Error')
       console.log(msg)
       return
-    }
+    } 
     switch (message.type) {
       case 'pip':
         this.pipe.handleMessage(message)
