@@ -58,7 +58,6 @@ class Mkdir extends State {
     if (same === 'keep') same = 'skip'
 
     this.mkdir([same, diff], (err, dst, resolved) => {
-      console.log(err, 'err exist?', resolved)
       if (this.destroyed) return
       if (err && err.code === 'EEXIST') {
         this.setState(Conflict, err, policy)
@@ -81,12 +80,13 @@ class Mkdir extends State {
           this.setState(Reading)
         }
 */
-
+        // skip policy
         if (policy[0] === 'skip' && resolved[0]) { // skip policy resolved
           this.setState(Finish)
         } else if (policy[1] === 'skip' && resolved[1]) {
           this.setState(Finish)
         } else {
+          // keep policy
           this.ctx.dst = { uuid: dst.uuid, name: dst.name }
           this.setState(Preparing)
         }
@@ -193,7 +193,7 @@ class Preparing extends State {
           let names = dstats.map(x => x.name)
           let type = this.ctx.ctx.type
           let boundF
- 
+          let policy = this.ctx.getGlobalPolicy()
           if (type === 'copy' || type === 'import') {
             boundF = this.ctx.mkdirs.bind(this.ctx)
           } else if (type === 'move') {
@@ -208,9 +208,17 @@ class Preparing extends State {
               // TODO
               this.setState(Failed, err)
             } else {
-              
+              console.log(map)
               dstats.forEach(x => x.dst = map.get(x.name))
-              let dstats2 = dstats.filter(x => (x.dst.err && x.dst.err.code === 'EEXIST') || !x.dst.err)
+
+              
+              let dstats2 = dstats.filter(x => {
+                // 剔除 policy 为 skip 的文件夹
+                if (x.dst.resolved && x.dst.resolved[0] && policy[0] === 'skip') return false
+                if (x.dst.resolved && x.dst.resolved[1] && policy[1] === 'skip') return false
+                
+                return (x.dst.err && x.dst.err.code === 'EEXIST') || !x.dst.err
+              })
               
               // 针对move操作, 如果child node 移动成功， 从列表中移除
               if (type === 'move') {
@@ -247,8 +255,9 @@ class Parent extends State {
   enter (dstats, fstats) {
     this.ctx.dstats = dstats.filter(x => !x.dst.err)
     this.ctx.fstats = fstats
-
-    // 创建失败文件夹在sche之前创建
+    console.log(dstats)
+    console.log(fstats)
+    // 创建失败文件夹 在sche之前创建
     dstats
       .filter(x => x.dst.err)
       .forEach(x => {
@@ -377,6 +386,13 @@ class XDir extends XNode {
     ]
   }
 
+  getGlobalPolicy () {
+    return [
+     this.ctx.policies.dir[0] || null,
+     this.ctx.policies.dir[1] || null
+    ]
+  }
+
   updatePolicy (policy) {
     if (this.state.constructor.name !== 'Conflict') return
     this.policy[0] = policy[0] || this.policy[0]
@@ -464,17 +480,20 @@ class XDir extends XNode {
 
   mkdirs (names, callback) {
     if (this.ctx.type === 'copy' || this.ctx.type === 'import') {
-      let policy = this.getPolicy() // FIXME this should be global policy, not local one
+      let policy = this.getGlobalPolicy() // FIXME this should be global policy, not local one
+      let [same, diff] = policy
+      if (same === 'keep') same = 'skip'
+      console.log(`文件夹 ${this.src.name} 创建子文件夹策略 ${[same, diff]}`)
       let props = {
         driveUUID: this.ctx.dst.drive,
         dirUUID: this.dst.uuid,
         names,
-        policy
+        policy : [same, diff]
       }
 
       this.ctx.vfs.MKDIRS(this.ctx.user, props, callback)
     } else if (this.ctx.type === 'export') {
-      let policy = this.getPolicy() // FIXME this shoudl be global policy
+      let policy = this.getGlobalPolicy() // FIXME this shoudl be global policy
       let props = {
         id: this.ctx.dst.drive,
         path: this.dst.name,

@@ -282,6 +282,57 @@ describe(path.basename(__filename), () => {
         })
     })
 
+    it('get mate9 thumbnail, twice, 160x160 should return something, c7cd18f4', done => {
+      request(app.express)
+        .get(`/media/${mate9.hash}`)
+        .set('Authorization', 'JWT ' + token)
+        .query({
+          alt: 'thumbnail',
+          width: 200,
+          height: 200,
+          modifier: 'caret',
+          autoOrient: 'true'
+        })
+        .buffer()
+        .end((err, res) => {
+          if (err) return done(err)
+          let file = path.join(tmptest, 'tmpfile')
+          fs.writeFileSync(file, res.body)
+
+          console.log(res.body.length)
+
+          let size = sizeOf(file)
+          expect(size.height).to.equal(200)
+          expect(size.type).to.equal('jpg')
+
+          request(app.express)
+            .get(`/media/${mate9.hash}`)
+            .set('Authorization', 'JWT ' + token)
+            .query({
+              alt: 'thumbnail',
+              width: 200,
+              height: 200,
+              modifier: 'caret',
+              autoOrient: 'true'
+            })
+            .buffer()
+            .end((err, res) => {
+              if (err) return done(err)
+              let file = path.join(tmptest, 'tmpfile')
+              fs.writeFileSync(file, res.body)
+
+              console.log(res.body.length)
+
+              let size = sizeOf(file)
+              expect(size.height).to.equal(200)
+              expect(size.type).to.equal('jpg')
+
+              done()
+            }) 
+        })
+    })
+
+
     it('get wslv.dll thumbnail, 160x160 should return something, 6af695de', done => {
       request(app.express)
         .get(`/media/${wslv.hash}`)
