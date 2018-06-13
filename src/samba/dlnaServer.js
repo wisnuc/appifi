@@ -117,6 +117,7 @@ class Initialize extends State {
       let mediaPath = this.getMediaPath()
       if (!mediaPath) throw new Error('get public path failed')
       let conf = confGen(mediaPath)
+      debug(conf)
       await child.execAsync('chown minidlna:minidlna /var/cache/minidlna')
       await fs.writeFileAsync(dlnaConfPath, conf)
       await child.execAsync('systemctl enable minidlna')
