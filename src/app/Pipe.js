@@ -243,7 +243,7 @@ class Pipe extends EventEmitter {
         }
       }
       const opts = { user, matchRoute, method, query, body, params }
-      this.apis(opts)
+      this.apis(message, opts)
     } catch (err) {
       debug(`pipe message error: `, err)
       this.reqCommand(message, err)
