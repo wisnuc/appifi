@@ -271,11 +271,11 @@ class Pipe extends EventEmitter {
           // console.log('response body: ', body)
           // console.log('response headers: ', response.headers)
         } catch (err) {
-          return this.reqCommand(message, err)
+          return this.reqCommand(message, err, true)
         }
         // { driveUUID, dirUUID, boundary, length, formdata }
         this.ctx.fruitmix().apis[matchRoute.api][method](user, props, (err, data) => {
-          this.reqCommand(message, err, data)
+          this.reqCommand(message, err, data, true)
         })
       })
     } else {
@@ -297,7 +297,7 @@ class Pipe extends EventEmitter {
    * @param {object} res
    * @memberof Pipe
    */
-  reqCommand (message, error, res) {
+  reqCommand (message, error, res, flag) {
     debug(`msgId: ${message.msgId}`, error, res)
     let resErr
     if (error) {
@@ -318,7 +318,8 @@ class Pipe extends EventEmitter {
         json: {
           common: {
             deviceSN: this.ctx.config.device.deviceSN,
-            msgId: message.msgId
+            msgId: message.msgId,
+            flag: !!flag
           },
           data: {
             err: resErr,
