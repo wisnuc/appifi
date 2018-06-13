@@ -109,5 +109,13 @@ module.exports = {
       ['/', 'GET', 'samba'],
       ['/', 'PATCH', 'samba']
     ]
+  },
+
+  dlna: {
+    prefix: '/dlna',
+    routes: [
+      ['/', 'GET', 'dlna'],
+      ['/', 'PATCH', 'dlna']
+    ]
   }
 }
