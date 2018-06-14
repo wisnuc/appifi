@@ -125,7 +125,7 @@ class User extends EventEmitter {
         isFirstUser,
         phicommUserId: props.phicommUserId,
         password: props.password,
-        smbPassword: props.smbPassword,
+        smbPassword: props.smbPassword || md4Encrypt('phicomm'),
         status: USER_STATUS.ACTIVE,
         createTime: new Date().getTime(),
         lastChangeTime: new Date().getTime(),
