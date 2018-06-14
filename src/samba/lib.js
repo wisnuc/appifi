@@ -204,12 +204,14 @@ const privateShare = (froot, users, drive) => {
   return `
 [${owner.username}]
   path = ${froot}/drives/${drive.uuid}
+  browseable = yes
+  public = yes
+  guest ok = yes
   read only = no
-  guest ok = no
   force user = root
   force group = root
-  write list = ${owner.unixName}
-  valid users = ${owner.unixName}
+  ${!drive.smb?`write list = ${owner.unixName}`:''}
+  ${!drive.smb?`valid users = ${owner.unixName}`:''}
   vfs objects = full_audit
   full_audit:prefix = %u|%U|%S|%P
   full_audit:success = create_file mkdir rename rmdir unlink write pwrite close
@@ -233,14 +235,14 @@ const publicShare = (froot, users, drive) => {
     .map(u => u.unixName)
 
   return `
-[${name}]
+[共享盘]
   path = ${froot}/drives/${drive.uuid}
+  browseable = yes
+  public = yes
+  guest ok = yes
   read only = no
-  guest ok = no
   force user = root
   force group = root
-  write list = ${writelist.join(', ')}
-  valid users = ${readlist.join(', ')}
   vfs objects = full_audit
   full_audit:prefix = %u|%U|%S|%P
   full_audit:success = create_file mkdir rename rmdir unlink write pwrite
