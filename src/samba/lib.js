@@ -48,7 +48,7 @@ const transfer = (users, drives) => {
 // returns users
 const processUsersAsync = async users => {
   // 将disable用户从数组中移除
-  users = users.filter(u => u.status === 'ACTIVE')
+  users = users.filter(u => u.status === 'ACTIVE' && !!u.smbPassword)
 
   // 生成系统用户名
   users.forEach(u => 
