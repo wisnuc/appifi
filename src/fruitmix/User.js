@@ -31,20 +31,53 @@ class User extends EventEmitter {
     super()
     this.conf = opts.configuration
     this.fruitmixDir = opts.fruitmixDir
-
     this.store = new DataStore({
       file: opts.file,
       tmpDir: opts.tmpDir,
       isArray: true
     })
 
+    // observe chassis change
+    if (opts.chassisId) {
+      this.chassisId = opts.chassisId
+      this.chassisStore = new DataStore({
+        file: opts.chassisFile,
+        tmpDir: opts.chassisTmpDir,
+        isArray: true
+      })
+      this.chassisStore.on('Update', this.chassisUpdate.bind(this))
+
+      Object.defineProperty(this, 'chassis', {
+        get () {
+          return this.chassisStore.data || []
+        }
+      })
+    }
+
     this.store.on('Update', (...args) => this.emit('Update', ...args))
 
     Object.defineProperty(this, 'users', {
       get () {
-        return this.store.data
+        return this.store.data || []
       }
     })
+  }
+
+  chassisUpdate () {
+    if (!this.chassisId) return
+    if (!this.chassis.length) {
+      return this.chassisStore.save(data => {
+        return [chassisId]
+      }, () => {})
+    }
+    let lastChassisId = this.chassis[0]
+    if (lastChassisId !== this.chassisId) {
+      this.store.save(users => {
+        users.filter(u => !u.isFirstUser && u.status === USER_STATUS.ACTIVE)
+          .map(u => u.status = USER_STATUS.INACTIVE)
+        return users
+      }, () => {})
+    }
   }
 
   /*
