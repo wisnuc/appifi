@@ -947,21 +947,29 @@ class Boot extends EventEmitter {
     let block = this.storage.blocks.find(b => b.name === target)
     if (!block) throw new Error('block not found')
     if (!block.isUSB) throw new Error('block not usb device')
-    if(!block.isPartitioned) {
+    if (block.isPartitioned) { // parent block
+      let subBlocks = this.storage.blocks.filter(b => b.parentName === target)
+      if (!subBlocks.length) throw new Error('block is partitioned, but subBlock not found')
+      let mountedSB = subBlock.filter(s => s.isMounted)
+      for (let i = 0; i < mountedSB.length; i++) {
+        await child.execAsync(`udisksctl unmount -b ${ mountedSB[i].devname }`)
+      }
+      await child.execAsync(`udisksctl power-off -b ${ subBlocks[0].devname }`)
+      
+    } else if (block.isPartition) {//sub block
+      if (!isNonEmptyString(block.parentName)) throw new Error('block is partition, but parentName not found')
+      let subBlocks = this.storage.blocks.filter(b => b.parentName === block.parentName)
+      let mountedSB = subBlock.filter(s => s.isMounted)
+      for (let i = 0; i < mountedSB.length; i++) {
+        await child.execAsync(`udisksctl unmount -b ${ mountedSB[i].devname }`)
+      }
+      await child.execAsync(`udisksctl power-off -b ${ block.devname }`)
+
+    } else {
       if (block.isMounted) {
         await child.execAsync(`udisksctl unmount -b ${ block.devname }`)
       }
       await child.execAsync(`udisksctl power-off -b ${ block.devname }`)
-    } else {
-      let subBlocks = this.storage.blocks.filter(b => b.parentName === target)
-      if (!subBlocks.length) throw new Error('subBlock not found')
-      let mountedSB = subBlock.filter(s => s.isMounted)
-      for (let i = 0; i < mountedSB.length; i++) {
-        await child.execAsync(`udisksctl unmount -b ${ s.devname }`)
-      }
-      for (let i = 0; i < mountedSB.length; i++) {
-        await child.execAsync(`udisksctl power-off -b ${ s.devname }`)
-      }
     }
   }
 
