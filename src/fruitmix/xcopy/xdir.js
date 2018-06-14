@@ -48,7 +48,7 @@ class State {
 /**
 Making target directory
 
-Entering this state when user try to resolve name conflict by single or global policy
+Entering this state when user try to resolve name conflict by single or global policy
 */
 class Mkdir extends State {
   enter () {
@@ -114,6 +114,8 @@ class Mkdir extends State {
           callback(err, stat, resolved)
         }
       })
+    } else if (this.ctx.ctx.type === 'move') {
+      let name = this.ctx.src.name
     } else {
       let err = new Error('not implemented yet')
       err.status = 500
@@ -208,7 +210,6 @@ class Preparing extends State {
               // TODO
               this.setState(Failed, err)
             } else {
-              console.log(map)
               dstats.forEach(x => x.dst = map.get(x.name))
 
               
@@ -255,8 +256,8 @@ class Parent extends State {
   enter (dstats, fstats) {
     this.ctx.dstats = dstats.filter(x => !x.dst.err)
     this.ctx.fstats = fstats
-    console.log(dstats)
-    console.log(fstats)
+    // console.log(dstats)
+    // console.log(fstats)
     // 创建失败文件夹 在sche之前创建
     dstats
       .filter(x => x.dst.err)
@@ -483,7 +484,7 @@ class XDir extends XNode {
       let policy = this.getGlobalPolicy() // FIXME this should be global policy, not local one
       let [same, diff] = policy
       if (same === 'keep') same = 'skip'
-      console.log(`文件夹 ${this.src.name} 创建子文件夹策略 ${[same, diff]}`)
+      // console.log(`文件夹 ${this.src.name} 创建子文件夹策略 ${[same, diff]}`)
       let props = {
         driveUUID: this.ctx.dst.drive,
         dirUUID: this.dst.uuid,

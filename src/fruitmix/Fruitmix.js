@@ -215,18 +215,11 @@ class Fruitmix extends EventEmitter {
 
     if (opts.useSmb) {
       this.samba = new Samba(opts, this.user, this.drive)
-      this.user.once('Update', () => {
-        this.samba.state.start(this.user, this.drive)
-      })
-
       this.apis.samba = this.samba
     }
 
     if (opts.useDlna) {
       this.dlna = new Dlna(opts, this.user, this.drive, this.vfs)
-      // this.drive.once('Update', () => {
-      //   this.dlna.state.start()
-      // })
       this.apis.dlna = this.dlna
     }
 

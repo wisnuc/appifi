@@ -34,7 +34,7 @@ class DlnaServer extends events.EventEmitter {
   }
 
   update() {
-    this.state.start()
+    if (this.isActive()) this.state.start()
   }
 
   isActive() {
@@ -59,11 +59,8 @@ class DlnaServer extends events.EventEmitter {
     if (!ops.includes(props.op)) callback(new Error('unkonw operation'))
     else if (props.op === 'close') this.state.setState(Pending, callback)
     else {
-      if (this.state.constructor.name === 'Working') {
-        let error = new Error('dlna has been started')
-        error.status = 401
-        callback(error)
-      } else this.state.start(callback)
+      if (this.state.constructor.name === 'Working') callback(null)
+      else this.state.start(callback)
     }
   }
 }
@@ -97,9 +94,9 @@ class Pending extends State {
 }
 
 class Working extends State {
-  async exit() {
+  exit() {
     try {
-      await child.execAsync('systemctl stop minidlna')
+      child.execSync('systemctl stop minidlna')
     } catch (e) { console.log(e) }
   }
 }
@@ -118,10 +115,10 @@ class Initialize extends State {
       if (!mediaPath) throw new Error('get public path failed')
       let conf = confGen(mediaPath)
       debug(conf)
-      await child.execAsync('chown minidlna:minidlna /var/cache/minidlna')
+      child.execSync('chown minidlna:minidlna /var/cache/minidlna')
       await fs.writeFileAsync(dlnaConfPath, conf)
-      await child.execAsync('systemctl enable minidlna')
-      await child.execAsync('systemctl restart minidlna')
+      child.execSync('systemctl enable minidlna')
+      child.execSync('systemctl restart minidlna')
       debug('dlna start!')
       this.callbacks.forEach(call => call(null))
       this.setState(Working)
