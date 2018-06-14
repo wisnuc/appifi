@@ -210,8 +210,8 @@ const privateShare = (froot, users, drive) => {
   read only = no
   force user = root
   force group = root
-  ${!drive.smb?`write list = ${owner.unixName}`:''}
-  ${!drive.smb?`valid users = ${owner.unixName}`:''}
+  ${drive.smb?`write list = ${owner.unixName}`:''}
+  ${drive.smb?`valid users = ${owner.unixName}`:''}
   vfs objects = full_audit
   full_audit:prefix = %u|%U|%S|%P
   full_audit:success = create_file mkdir rename rmdir unlink write pwrite close
