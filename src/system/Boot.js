@@ -426,10 +426,10 @@ class Started extends State {
       return callback(Object.assign(new Error('props error'), { status: 400 }))
     }
     this.uninstalling = true
+    let boundVolumeUUID = this.ctx.volumeStore.data.uuid
     this.ctx.volumeStore.save(null, (err, data) => {
       if (err) return callback(err)
       if (!!props.format) {
-        let boundVolumeUUID = this.ctx.volumeStore.data.uuid
         let volume = this.ctx.storage.volumes.find(v => v.uuid === boundVolumeUUID)
         let fruitmixDir = path.join(volume.mountpoint, this.ctx.conf.storage.fruitmixDir)
         rimraf(fruitmixDir, err => {
