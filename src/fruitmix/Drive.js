@@ -127,6 +127,11 @@ class Drive extends EventEmitter {
   }
 
   createPublicDrive (props, callback) {
+    if (Array.isArray(props.writelist)) {
+      let tmpWL = new Set(props.writelist)
+      tmpWL.add(this.user.users.find(u => u.isFirstUser).uuid)
+      props.writelist = Array.from(tmpWL)
+    }
     let drive = {
       uuid: UUID.v4(),
       type: 'public',
@@ -158,6 +163,11 @@ class Drive extends EventEmitter {
       let priv = Object.assign({}, drives[index])
       if (priv.type === 'public') {
         if (props.writelist) {
+          if (Array.isArray(props.writelist)) {
+            let tmpWL = new Set(props.writelist)
+            tmpWL.add(this.user.users.find(u => u.isFirstUser).uuid)
+            props.writelist = Array.from(tmpWL)
+          }                  
           if (props.writelist === '*' || props.writelist.every(uuid => !!this.users.find(u => u.uuid === uuid))) priv.writelist = props.writelist
           else throw new Error('writelist not all user uuid found')
         }
