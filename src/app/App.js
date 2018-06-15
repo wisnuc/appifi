@@ -262,6 +262,10 @@ class App extends EventEmitter {
           break
       }
     })
+
+    bootr.delete('/boundVolume', (req, res,next) => 
+      this.boot.uninstall(req.user, req.body, err => 
+        err ? next(err) : res.status(200).end()))
       
     routers.push(['/boot', bootr])
 
