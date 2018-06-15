@@ -415,6 +415,7 @@ class Started extends State {
   uninstall(props, cb) {
     let callback = (err) => {
       this.uninstalling = false
+      console.log(err)
       cb(err)
     }
     if (this.uninstalling) return callback(new Error('station in uninstalling'))
@@ -425,7 +426,7 @@ class Started extends State {
       return callback(Object.assign(new Error('props error'), { status: 400 }))
     }
     this.uninstalling = true
-    this.boot.volumeStore.save(null, (err, data) => {
+    this.ctx.volumeStore.save(null, (err, data) => {
       if (err) return callback(err)
       if (!!props.format) {
         let boundVolumeUUID = this.ctx.volumeStore.data.uuid
