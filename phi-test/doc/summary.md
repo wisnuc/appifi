@@ -30,7 +30,7 @@ PS: 带 * 符号的优先级高
 
 # 3. phi-test 交付计划安排
 
-## 3.1 Token
+## 3.1. Token
 模块名称: Token
 完成时间: 2018.6.13 - 2018.6.15
 
@@ -49,7 +49,6 @@ PS: 带 * 符号的优先级高
 
 [pipe](pipe.md)
 
-# 5. 项目部署
-
-step1:
+# 5. 环境部署
+[Windows下源码启动Phi-Bootstrap项目](https://github.com/wisnuc/phi-doc/blob/master/Install-Phi-Bootstrap-in-Windows.md)
 
