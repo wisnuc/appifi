@@ -181,6 +181,10 @@ class Working extends State {
   }
 }
 
+class Failed extends State {
+  enter(err) { this.error = err }
+}
+
 class Initialize extends State {
   // 启动samba服务
   async enter(callback) {
@@ -189,18 +193,24 @@ class Initialize extends State {
     this.name = 'initialize'
     this.callbacks = []
     if (callback) this.callbacks.push(callback)
-    await rsyslogAsync()
-    
-    let x = transfer(user.users, drive.drives)
-    let userArr = await processUsersAsync(x.users)
-    let driveArr = await processDrivesAsync(x.users, x.drives)
-    await genSmbConfAsync(this.ctx.froot, userArr, driveArr)
-    await child.execAsync('systemctl enable nmbd')
-    await child.execAsync('systemctl enable smbd')
-    await child.execAsync('systemctl restart smbd')
-    await child.execAsync('systemctl restart nmbd')
-    this.callbacks.forEach(call => call(null))
-    this.setState(Working)
+
+    try {
+      await rsyslogAsync()
+      let x = transfer(user.users, drive.drives)
+      let userArr = await processUsersAsync(x.users)
+      let driveArr = await processDrivesAsync(x.users, x.drives)
+      await genSmbConfAsync(this.ctx.froot, userArr, driveArr)
+      await child.execAsync('systemctl enable nmbd')
+      await child.execAsync('systemctl enable smbd')
+      await child.execAsync('systemctl restart smbd')
+      await child.execAsync('systemctl restart nmbd')
+      this.callbacks.forEach(call => call(null))
+      this.setState(Working)
+    } catch (e) {
+      console.log('error in initialize')
+      this.setState(Failed)
+    }
+
   }
 
   start(callback, next) {
