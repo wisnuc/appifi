@@ -67,7 +67,7 @@ class User extends EventEmitter {
     if (!this.chassisId) return
     if (!this.chassis.length) {
       return this.chassisStore.save(data => {
-        return [chassisId]
+        return [this.chassisId]
       }, () => {})
     }
     let lastChassisId = this.chassis[0]
