@@ -93,6 +93,10 @@ class State {
     process.nextTick(() => callback(new Error('invalid state')))
   }
 
+  uninstall (props, callback) {
+    process.nextTick(() => callback(new Error('invalid state')))
+  }
+
   // TODO this is a pure function, or maybe static
   createBoundVolume (storage, volume) {
     let devices = volume.devices.map(dev => {
@@ -236,6 +240,8 @@ class Started extends State {
 
     this.udevMonitor = new UdevMonitor()
     this.udevMonitor.on('update', () => this.ctx.storageUpdater.probe())
+
+    this.uninstalling = false
   }
 
   exit () {
@@ -316,6 +322,7 @@ class Started extends State {
   }
 
   add (devices, mode, callback) {
+    if (this.uninstalling) return callback(new Error('station in uninstalling'))
     if (!Array.isArray(devices) || devices.length !== 1) {
       return callback(new Error('devices must be an one item array'))
     }
@@ -368,7 +375,7 @@ class Started extends State {
   }
 
   remove (devices, callback) {
-
+    if (this.uninstalling) return callback(new Error('station in uninstalling'))
     if (!Array.isArray(devices) || devices.length !== 1) {
       return callback(new Error('devices must be an one item array'))
     }
@@ -403,6 +410,39 @@ class Started extends State {
     this.ctx.storage = storage
 
     return await this.updateBoundVolumeAsync()
+  }
+
+  uninstall(props, cb) {
+    let callback = (err) => {
+      this.uninstalling = false
+      cb(err)
+    }
+    if (this.uninstalling) return callback(new Error('station in uninstalling'))
+    if (this.jobs.length) {
+      return callback(new Error('station busy'))
+    }
+    if (props.format && typeof props.format !== 'boolean') {
+      return callback(Object.assign(new Error('props error'), { status: 400 }))
+    }
+    this.uninstalling = true
+    this.boot.volumeStore.save(null, (err, data) => {
+      if (err) return callback(err)
+      if (!!props.format) {
+        let boundVolumeUUID = this.ctx.volumeStore.data.uuid
+        let volume = this.ctx.storage.volumes.find(v => v.uuid === boundVolumeUUID)
+        let fruitmixDir = path.join(volume.mountpoint, this.ctx.conf.storage.fruitmixDir)
+        rimraf(fruitmixDir, err => {
+          if (err) cb(err)
+          else cb(null)
+          setTimeout(() => {
+            this.uninstalling = false
+            process.exit(61)
+          }, 200)
+        })
+      } else {
+        callback(null)
+      }
+    })
   }
 }
 
@@ -891,6 +931,11 @@ class Boot extends EventEmitter {
   }
 
   setBoundUser (user) {
+    if (user && this.boundUser && this.boundUser.phicommUserId !== user.phicommUserId) {
+      console.log('====== boundUser runtime change =====')
+      console.log('====== fruitmix exit =====')
+      process.exit(61)
+    }
     this.boundUser = user
     this.state.boundUserUpdated()
   }
@@ -940,6 +985,22 @@ class Boot extends EventEmitter {
 
   remove (devices, callback) {
     this.state.remove(devices, callback)
+  }
+
+  // 格式化磁盘
+  // 删除磁盘卷绑定关系
+  /**
+   * 
+   * @param {*} user 
+   * @param {*} props
+   * @param {boolean} props.format 
+   * @param {*} callback 
+   */
+  uninstall (user, props,callback) {
+    // if (!user || !user.phicommUserId || user.phicommUserId !== this.boundUser.phicommUserId) {
+    //   return process.nextTick(() => callback(Object.assign(new Error('Permission Denied'), { status: 403 })))
+    // }
+    this.state.uninstall(props, callback)
   }
 
   async ejectUSBAsync (target) {
