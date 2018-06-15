@@ -73,8 +73,12 @@ class User extends EventEmitter {
     let lastChassisId = this.chassis[0]
     if (lastChassisId !== this.chassisId) {
       this.store.save(users => {
-        users.filter(u => !u.isFirstUser && u.status === USER_STATUS.ACTIVE)
-          .map(u => u.status = USER_STATUS.INACTIVE)
+        users.filter(u => u.status === USER_STATUS.ACTIVE)
+          .forEach(u => {
+            if (!u.isFirstUser) u.status = USER_STATUS.INACTIVE
+            u.password = undefined
+            u.smbPassword = undefined
+          })
         return users
       }, () => {})
     }
