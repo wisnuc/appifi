@@ -235,7 +235,7 @@ const publicShare = (froot, users, drive) => {
     .map(u => u.unixName)
 
   return `
-[共享盘]
+[${name}]
   path = ${froot}/drives/${drive.uuid}
   browseable = yes
   public = yes
@@ -243,6 +243,8 @@ const publicShare = (froot, users, drive) => {
   read only = no
   force user = root
   force group = root
+  ${drive.tag === 'built-in'? '': `write list = ${writelist.join(', ')}`}
+  ${drive.tag === 'built-in'? '': `valid users = ${readlist.join(', ')}`}
   vfs objects = full_audit
   full_audit:prefix = %u|%U|%S|%P
   full_audit:success = create_file mkdir rename rmdir unlink write pwrite
