@@ -232,8 +232,11 @@ class Preparing extends State {
                 console.log('in dir preparing & dstats length is ' + dstats2.length + ' & fstats length is ' + fstats.length)
               }
 
-              if (dstats2.length === 0 && fstats.length === 0) this.setState(Finish)
-              else this.setState(Parent, dstats2, fstats)
+              if (dstats2.length === 0 && fstats.length === 0) {
+                this.setState(Finish)
+              } else {
+                this.setState(Parent, dstats2, fstats)
+              }
               
             }
           })
