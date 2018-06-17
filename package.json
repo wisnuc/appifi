@@ -90,7 +90,6 @@
     "istanbul": "^0.4.5",
     "js-yaml": "^3.11.0",
     "jsdoc": "^3.5.5",
-    "jsdoc-baseline": "https://github.com/hegemonic/baseline/tarball/master",
     "jsdoc-strip-async-await": "^0.1.0",
     "mocha": "^3.5.0",
     "nodemon": "^1.17.4",
@@ -98,7 +97,7 @@
     "raw-loader": "^0.5.1",
     "sinon": "^3.2.1",
     "sloc": "^0.2.0",
-    "supertest": "^3.0.0",
+    "supertest": "^3.1.0",
     "uglifyjs-webpack-plugin": "^0.4.6",
     "webpack": "^3.5.5"
   },
