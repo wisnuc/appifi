@@ -93,6 +93,10 @@ class State {
     process.nextTick(() => callback(new Error('invalid state')))
   }
 
+  uninstall (props, callback) {
+    process.nextTick(() => callback(new Error('invalid state')))
+  }
+
   // TODO this is a pure function, or maybe static
   createBoundVolume (storage, volume) {
     let devices = volume.devices.map(dev => {
@@ -236,6 +240,8 @@ class Started extends State {
 
     this.udevMonitor = new UdevMonitor()
     this.udevMonitor.on('update', () => this.ctx.storageUpdater.probe())
+
+    this.uninstalling = false
   }
 
   exit () {
@@ -316,6 +322,7 @@ class Started extends State {
   }
 
   add (devices, mode, callback) {
+    if (this.uninstalling) return callback(new Error('station in uninstalling'))
     if (!Array.isArray(devices) || devices.length !== 1) {
       return callback(new Error('devices must be an one item array'))
     }
@@ -368,7 +375,7 @@ class Started extends State {
   }
 
   remove (devices, callback) {
-
+    if (this.uninstalling) return callback(new Error('station in uninstalling'))
     if (!Array.isArray(devices) || devices.length !== 1) {
       return callback(new Error('devices must be an one item array'))
     }
@@ -403,6 +410,40 @@ class Started extends State {
     this.ctx.storage = storage
 
     return await this.updateBoundVolumeAsync()
+  }
+
+  uninstall(props, cb) {
+    let callback = (err) => {
+      this.uninstalling = false
+      console.log(err)
+      cb(err)
+    }
+    if (this.uninstalling) return callback(new Error('station in uninstalling'))
+    if (this.jobs.length) {
+      return callback(new Error('station busy'))
+    }
+    if (props.format && typeof props.format !== 'boolean') {
+      return callback(Object.assign(new Error('props error'), { status: 400 }))
+    }
+    this.uninstalling = true
+    let boundVolumeUUID = this.ctx.volumeStore.data.uuid
+    this.ctx.volumeStore.save(null, (err, data) => {
+      if (err) return callback(err)
+      if (!!props.format) {
+        let volume = this.ctx.storage.volumes.find(v => v.uuid === boundVolumeUUID)
+        let fruitmixDir = path.join(volume.mountpoint, this.ctx.conf.storage.fruitmixDir)
+        rimraf(fruitmixDir, err => {
+          if (err) cb(err)
+          else cb(null)
+          setTimeout(() => {
+            this.uninstalling = false
+            process.exit(61)
+          }, 200)
+        })
+      } else {
+        callback(null)
+      }
+    })
   }
 }
 
@@ -891,6 +932,11 @@ class Boot extends EventEmitter {
   }
 
   setBoundUser (user) {
+    if (user && this.boundUser && this.boundUser.phicommUserId !== user.phicommUserId) {
+      console.log('====== boundUser runtime change =====')
+      console.log('====== fruitmix exit =====')
+      process.exit(61)
+    }
     this.boundUser = user
     this.state.boundUserUpdated()
   }
@@ -942,23 +988,52 @@ class Boot extends EventEmitter {
     this.state.remove(devices, callback)
   }
 
-  // async ejectUSBAsync (target) {
-  //   if (!this.storage) throw new Error('no storage')
-  //   let block = this.storage.blocks.find(b => b.name === target)
-  //   if (!block) throw new Error('block not found')
-  //   if (!block.isUSB) throw new Error('block not usb device')
-  //   if(!block.isPartitioned) {
-  //     if (block.isMounted) {
-  //       await child.execSAsync(`udisksctl unmount -b ${ block.devname }`)
-  //     }
-  //     await child.execAsync(`udisksctl power-off -b ${ block.devname }`)
-  //   } else {
-  //     let subBlocks = this.storage.blocks.filter(b => b.parentName === target)
-  //     if (!subBlocks.length) throw new Error('subBlock not found')
-  //     subBlock.filter(s => s.isMounted).forEach(s => await child.execAsync(`udisksctl unmount -b ${ s.devname }`))
-  //     subBlocks.forEach(s => await child.execAsync(`udisksctl power-off -b ${ s.devname }`))
-  //   }
-  // }
+  // 格式化磁盘
+  // 删除磁盘卷绑定关系
+  /**
+   * 
+   * @param {*} user 
+   * @param {*} props
+   * @param {boolean} props.format 
+   * @param {*} callback 
+   */
+  uninstall (user, props,callback) {
+    // if (!user || !user.phicommUserId || user.phicommUserId !== this.boundUser.phicommUserId) {
+    //   return process.nextTick(() => callback(Object.assign(new Error('Permission Denied'), { status: 403 })))
+    // }
+    this.state.uninstall(props, callback)
+  }
+
+  async ejectUSBAsync (target) {
+    if (!this.storage) throw new Error('no storage')
+    let block = this.storage.blocks.find(b => b.name === target)
+    if (!block) throw new Error('block not found')
+    if (!block.isUSB) throw new Error('block not usb device')
+    if (block.isPartitioned) { // parent block
+      let subBlocks = this.storage.blocks.filter(b => b.parentName === target)
+      if (!subBlocks.length) throw new Error('block is partitioned, but subBlock not found')
+      let mountedSB = subBlock.filter(s => s.isMounted)
+      for (let i = 0; i < mountedSB.length; i++) {
+        await child.execAsync(`udisksctl unmount -b ${ mountedSB[i].devname }`)
+      }
+      await child.execAsync(`udisksctl power-off -b ${ subBlocks[0].devname }`)
+      
+    } else if (block.isPartition) {//sub block
+      if (!isNonEmptyString(block.parentName)) throw new Error('block is partition, but parentName not found')
+      let subBlocks = this.storage.blocks.filter(b => b.parentName === block.parentName)
+      let mountedSB = subBlock.filter(s => s.isMounted)
+      for (let i = 0; i < mountedSB.length; i++) {
+        await child.execAsync(`udisksctl unmount -b ${ mountedSB[i].devname }`)
+      }
+      await child.execAsync(`udisksctl power-off -b ${ block.devname }`)
+
+    } else {
+      if (block.isMounted) {
+        await child.execAsync(`udisksctl unmount -b ${ block.devname }`)
+      }
+      await child.execAsync(`udisksctl power-off -b ${ block.devname }`)
+    }
+  }
 
   getStorage () {
   }

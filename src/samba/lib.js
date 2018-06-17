@@ -48,7 +48,7 @@ const transfer = (users, drives) => {
 // returns users
 const processUsersAsync = async users => {
   // 将disable用户从数组中移除
-  users = users.filter(u => u.status === 'ACTIVE')
+  users = users.filter(u => u.status === 'ACTIVE' && !!u.smbPassword)
 
   // 生成系统用户名
   users.forEach(u => 
@@ -204,12 +204,14 @@ const privateShare = (froot, users, drive) => {
   return `
 [${owner.username}]
   path = ${froot}/drives/${drive.uuid}
+  browseable = yes
+  public = yes
+  guest ok = yes
   read only = no
-  guest ok = no
   force user = root
   force group = root
-  write list = ${owner.unixName}
-  valid users = ${owner.unixName}
+  ${drive.smb?`write list = ${owner.unixName}`:''}
+  ${drive.smb?`valid users = ${owner.unixName}`:''}
   vfs objects = full_audit
   full_audit:prefix = %u|%U|%S|%P
   full_audit:success = create_file mkdir rename rmdir unlink write pwrite close
@@ -235,12 +237,14 @@ const publicShare = (froot, users, drive) => {
   return `
 [${name}]
   path = ${froot}/drives/${drive.uuid}
+  browseable = yes
+  public = yes
+  guest ok = yes
   read only = no
-  guest ok = no
   force user = root
   force group = root
-  write list = ${writelist.join(', ')}
-  valid users = ${readlist.join(', ')}
+  ${drive.tag === 'built-in'? '': `write list = ${writelist.join(', ')}`}
+  ${drive.tag === 'built-in'? '': `valid users = ${readlist.join(', ')}`}
   vfs objects = full_audit
   full_audit:prefix = %u|%U|%S|%P
   full_audit:success = create_file mkdir rename rmdir unlink write pwrite

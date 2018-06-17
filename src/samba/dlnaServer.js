@@ -6,6 +6,8 @@ const child = Promise.promisifyAll(require('child_process'))
 
 const debug = require('debug')('dlna')
 
+const dlnaConfPath = '/etc/minidlna.conf'
+
 const confGen = mediaPath => `
   media_dir=${mediaPath}
   log_dir=/var/log
@@ -17,17 +19,14 @@ const confGen = mediaPath => `
 `
 
 class DlnaServer extends events.EventEmitter {
-  constructor(opts, user, drive) {
+  constructor(opts, user, drive, vfs) {
     super()
     this.froot = opts.fruitmixDir
     this.user = user
     this.drive = drive
+    this.vfs = vfs
 
     new Pending(this)
-
-    this.user.on('Update', (data) => {
-      this.update()
-    })
 
     this.drive.on('Update', (data) => {
       this.update()
@@ -35,7 +34,7 @@ class DlnaServer extends events.EventEmitter {
   }
 
   update() {
-    this.state.start()
+    if (this.isActive()) this.state.start()
   }
 
   isActive() {
@@ -47,6 +46,21 @@ class DlnaServer extends events.EventEmitter {
     catch(e) {
       debug(e)
       return false
+    }
+  }
+
+  GET(user, props, callback) {
+    let isActive = this.isActive()
+    callback(null, { isActive })
+  }
+
+  PATCH (user, props, callback) {
+    let ops = ['close', "start"]
+    if (!ops.includes(props.op)) callback(new Error('unkonw operation'))
+    else if (props.op === 'close') this.state.setState(Pending, callback)
+    else {
+      if (this.state.constructor.name === 'Working') callback(null)
+      else this.state.start(callback)
     }
   }
 }
@@ -68,46 +82,62 @@ class State {
 
   exit() { }
 
-  start(user, drive, callback) {
-    this.setState(Initialize, user, drive, callback)
+  start(callback) {
+    this.setState(Initialize, this.user, this.drive, callback)
   }
 }
 
 class Pending extends State {
   enter(callback) {
-    this.name = 'pending'
     if (callback) process.nextTick(() => callback(null))
   }
 }
 
 class Working extends State {
-  enter() { this.name = 'working' }
-
-  async exit() {
-    await child.execAsync('systemctl stop smbd')
-    await child.execAsync('systemctl stop nmbd')
+  exit() {
+    try {
+      child.execSync('systemctl stop minidlna')
+    } catch (e) { console.log(e) }
   }
+}
+
+class Failed extends State {
+  enter(err) { this.error = err }
 }
 
 class Initialize extends State {
   // 启动dlna服务
   async enter(user, drive, callback) {
-    this.name = 'initialize'
-    this.next = false
-
-    let conf = confGen(mediaPath)
-    await child.execAsync('chown minidlna:minidlna /var/cache/minidlna')
-    await fs.writeFileAsync(dlnaConfPath, conf)
-    await child.execAsync('systemctl enable minidlna')
-    await Promise.delay(1000)
-    await child.execAsync('systemctl restart minidlna')
-    debug('dlna start!')
-
-    if (this.next) this.setState(Initialize, user, drive)
-    else this.setState(Working)
+    this.callbacks = []
+    if (callback) this.callbacks.push(callback)
+    try {
+      let mediaPath = this.getMediaPath()
+      if (!mediaPath) throw new Error('get public path failed')
+      let conf = confGen(mediaPath)
+      debug(conf)
+      child.execSync('chown minidlna:minidlna /var/cache/minidlna')
+      await fs.writeFileAsync(dlnaConfPath, conf)
+      child.execSync('systemctl enable minidlna')
+      child.execSync('systemctl restart minidlna')
+      debug('dlna start!')
+      this.callbacks.forEach(call => call(null))
+      this.setState(Working)
+    } catch (e) {
+      debug(e)
+      this.setState(Failed, e)
+    }
   }
 
-  start() {
-    this.next = true
+  getMediaPath() {
+    let publicDrive = this.ctx.drive.drives.find(item => 
+      item.tag === 'built-in' && item.type === 'public')
+    if (publicDrive) return path.join(this.ctx.froot, 'drives', publicDrive.uuid)
+    else return null
+  }
+
+  start(callback) {
+    this.callbacks.push(callback)
   }
 }
+
+module.exports = DlnaServer

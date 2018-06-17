@@ -31,20 +31,57 @@ class User extends EventEmitter {
     super()
     this.conf = opts.configuration
     this.fruitmixDir = opts.fruitmixDir
-
     this.store = new DataStore({
       file: opts.file,
       tmpDir: opts.tmpDir,
       isArray: true
     })
 
+    // observe chassis change
+    if (opts.chassisId) {
+      this.chassisId = opts.chassisId
+      this.chassisStore = new DataStore({
+        file: opts.chassisFile,
+        tmpDir: opts.chassisTmpDir,
+        isArray: true
+      })
+      this.chassisStore.on('Update', this.chassisUpdate.bind(this))
+
+      Object.defineProperty(this, 'chassis', {
+        get () {
+          return this.chassisStore.data || []
+        }
+      })
+    }
+
     this.store.on('Update', (...args) => this.emit('Update', ...args))
 
     Object.defineProperty(this, 'users', {
       get () {
-        return this.store.data
+        return this.store.data || []
       }
     })
+  }
+
+  chassisUpdate () {
+    if (!this.chassisId) return
+    if (!this.chassis.length) {
+      return this.chassisStore.save(data => {
+        return [this.chassisId]
+      }, () => {})
+    }
+    let lastChassisId = this.chassis[0]
+    if (lastChassisId !== this.chassisId) {
+      this.store.save(users => {
+        users.filter(u => u.status === USER_STATUS.ACTIVE)
+          .forEach(u => {
+            if (!u.isFirstUser) u.status = USER_STATUS.INACTIVE
+            u.password = undefined
+            u.smbPassword = undefined
+          })
+        return users
+      }, () => {})
+    }
   }
 
   /*
@@ -92,7 +129,7 @@ class User extends EventEmitter {
         isFirstUser,
         phicommUserId: props.phicommUserId,
         password: props.password,
-        smbPassword: props.smbPassword,
+        smbPassword: props.smbPassword || md4Encrypt('phicomm'),
         status: USER_STATUS.ACTIVE,
         createTime: new Date().getTime(),
         lastChangeTime: new Date().getTime(),
@@ -106,7 +143,7 @@ class User extends EventEmitter {
   }
 
   updateUser (userUUID, props, callback) {
-    let { username, status, phoneNumber } = props
+    let { username, status, phoneNumber, smbPassword } = props
     this.store.save(users => {
       let index = users.findIndex(u => u.uuid === userUUID)
       if (index === -1) throw new Error('user not found')
@@ -119,6 +156,10 @@ class User extends EventEmitter {
       if (phoneNumber) {
         if (users.find(u => u.phoneNumber === phoneNumber && u.status !== USER_STATUS.DELETED)) throw new Error('phoneNumber already exist')
         nextUser.phoneNumber = phoneNumber
+      }
+      if (smbPassword) {
+        nextUser.smbPassword = md4Encrypt(smbPassword)
+        nextUser.lastChangeTime = new Date().getTime()
       }
       if (status) nextUser.status = status
       return [...users.slice(0, index), nextUser, ...users.slice(index + 1)]
@@ -138,9 +179,9 @@ class User extends EventEmitter {
     try {
       if (!isUUID(userUUID)) throw new Error(`userUUID ${userUUID} is not a valid uuid`)
       if (!isNonNullObject(props)) throw new Error('props is not a non-null object')
-      if (props.password !== undefined && !isNonEmptyString(props.password)) throw new Error('password must be a non-empty string if provided')
-      if (props.smbPassword !== undefined && !isNonEmptyString(props.smbPassword)) throw new Error('smbPassword must be a non-empty string if provided')
-      if (!props.password && !props.smbPassword) throw new Error('both password and smbPassword undefined')
+      if (!isNonEmptyString(props.password)) throw new Error('password must be a non-empty string if provided')
+      // if (props.smbPassword !== undefined && !isNonEmptyString(props.smbPassword)) throw new Error('smbPassword must be a non-empty string if provided')
+      // if (!props.password && !props.smbPassword) throw new Error('both password and smbPassword undefined')
       if (props.encrypted !== undefined && typeof props.encrypted !== 'boolean') throw new Error('encrypted must be either true or false')
 
       // TODO props validation should be in router, I guess
@@ -149,16 +190,16 @@ class User extends EventEmitter {
     }
     // props.encrypted = !!props.encrypted
 
-    let { password, smbPassword, encrypted } = props
+    let { password, encrypted } = props
     this.store.save(users => {
       let index = users.findIndex(u => u.uuid === userUUID)
       if (index === -1) throw new Error('user not found')
       let nextUser = Object.assign({}, users[index])
       if (password) nextUser.password = encrypted ? password : passwordEncrypt(password, 10)
-      if (smbPassword) {
-        nextUser.smbPassword = encrypted ? smbPassword : md4Encrypt(smbPassword)
-        nextUser.lastChangeTime = new Date().getTime()
-      }
+      // if (smbPassword) {
+      //   nextUser.smbPassword = encrypted ? smbPassword : md4Encrypt(smbPassword)
+      //   nextUser.lastChangeTime = new Date().getTime()
+      // }
       return [...users.slice(0, index), nextUser, ...users.slice(index + 1)]
     }, (err, data) => {
       if (err) return callback(err)
@@ -248,7 +289,7 @@ class User extends EventEmitter {
   LIST (user, props, callback) {
     if (!user) {
       // basic info of all users
-      return process.nextTick(() => callback(null, this.users.filter(u => u.status === USER_STATUS.ACTIVE).map(u => this.basicInfo(u))))
+      return process.nextTick(() => callback(null, this.users.filter(u => u.status === USER_STATUS.ACTIVE).map(u => this.fullInfo(u))))
     } else if (user.isFirstUser) {
       // full info of all users
       return process.nextTick(() => callback(null, this.users.filter(u => u.status !== USER_STATUS.DELETED).map(u => this.fullInfo(u))))
@@ -315,15 +356,15 @@ class User extends EventEmitter {
     if (!devU) return callback(Object.assign(new Error('user not found'), { status: 404 }))
     userUUID = devU.uuid
 
-    if (props.password || props.smbPassword) {
-      let recognized = ['password', 'smbPassword', 'userUUID', 'encrypted']
+    if (props.password) {
+      let recognized = ['password', 'userUUID', 'encrypted']
       if (!Object.getOwnPropertyNames(props).every(k => recognized.includes(k))) {
         return process.nextTick(() => callback(Object.assign(new Error('too much props in body'), { status: 400 })))
       }
       if (user.uuid !== userUUID) return process.nextTick(() => callback(Object.assign(new Error('Permission Denied'), { status: 403 })))
       this.updatePassword(userUUID, props, (err, user) => err ? callback(err) : callback(null, this.fullInfo(user)))
     } else {
-      let recognized = ['username', 'status', 'userUUID', 'phoneNumber']
+      let recognized = ['username', 'status', 'userUUID', 'phoneNumber', 'smbPassword']
       if (!Object.getOwnPropertyNames(props).every(k => recognized.includes(k))) {
         return process.nextTick(() => callback(Object.assign(new Error('too much props in body'), { status: 400 })))
       }

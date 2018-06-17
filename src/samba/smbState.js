@@ -114,28 +114,32 @@ class SambaServer extends events.EventEmitter {
   }
 
   update() {
-    let status = child.spawnSync('systemctl', ['is-active', 'smbd'])
-      .stdout.toString().split('\n').join('')
-
-    if (status === 'active') this.state.start(this.user, this.drive)
+    debug('update')
+    if (this.isActive()) this.state.start()
   }
 
   stop() {
     this.state.setState(Pending)
   }
 
-  GET(user, props, callback) {
+  isActive() {
     let status = child.spawnSync('systemctl', ['is-active', 'smbd'])
       .stdout.toString().split('\n').join('')
+    return status === 'active' ? true : false
+  }
 
-    callback(null, { status })
+  GET(user, props, callback) {
+    callback(null, { isActive: this.isActive() })
   }
 
   PATCH (user, props, callback) {
     let ops = ['close', "start"]
     if (!ops.includes(props.op)) callback(new Error('unkonw operation'))
     else if (props.op === 'close') this.state.setState(Pending, callback)
-    else this.state.start(this.user, this.drive, callback)
+    else {
+      if (this.state.constructor.name == 'Working') callback(null)
+      else this.state.start(callback)
+    }
   }
 }
 
@@ -156,8 +160,8 @@ class State {
   
   exit() {}
 
-  start(user, drive, callback) {
-    this.setState(Initialize, user, drive, callback)
+  start(callback) {
+    this.setState(Initialize, callback)
   }
 }
 
@@ -171,35 +175,48 @@ class Pending extends State {
 class Working extends State {
   enter() { this.name = 'working' }
   
-  async exit() {
-    await child.execAsync('systemctl stop smbd')
-    await child.execAsync('systemctl stop nmbd')
+  exit() {
+    child.execSync('systemctl stop smbd')
+    child.execSync('systemctl stop nmbd')
   }
+}
+
+class Failed extends State {
+  enter(err) { this.error = err }
 }
 
 class Initialize extends State {
   // 启动samba服务
-  async enter(user, drive, callback) {
+  async enter(callback) {
+    let user = this.ctx.user
+    let drive = this.ctx.drive
     this.name = 'initialize'
-    this.next = false
-    await rsyslogAsync()
-    
-    let x = transfer(user.users, drive.drives)
-    let userArr = await processUsersAsync(x.users)
-    let driveArr = await processDrivesAsync(x.users, x.drives)
-    await genSmbConfAsync(this.ctx.froot, userArr, driveArr)
-    await child.execAsync('systemctl enable nmbd')
-    await child.execAsync('systemctl enable smbd')
-    await child.execAsync('systemctl restart smbd')
-    await child.execAsync('systemctl restart nmbd')
-    
-    if (callback) process.nextTick(() => callback(null))
-    if (this.next) this.setState(Initialize, user, drive)
-    else this.setState(Working)
+    this.callbacks = []
+    if (callback) this.callbacks.push(callback)
+
+    try {
+      await rsyslogAsync()
+      let x = transfer(user.users, drive.drives)
+      let userArr = await processUsersAsync(x.users)
+      let driveArr = await processDrivesAsync(x.users, x.drives)
+      await genSmbConfAsync(this.ctx.froot, userArr, driveArr)
+      await child.execAsync('systemctl enable nmbd')
+      await child.execAsync('systemctl enable smbd')
+      await child.execAsync('systemctl restart smbd')
+      await child.execAsync('systemctl restart nmbd')
+      this.callbacks.forEach(call => call(null))
+      this.setState(Working)
+    } catch (e) {
+      console.log('error in initialize')
+      this.setState(Failed)
+    }
+
   }
 
-  start() {
-    this.next = true
+  start(callback, next) {
+    if (callback) {
+      this.callbacks.push(callback)
+    }
   }
 }
 

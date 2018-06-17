@@ -147,7 +147,7 @@ class Task {
       let result = this.tasks.splice(index, 1)
       result[0].destroy()
       callback(null, this.tasks.map(item => item.view()))
-    } else callback(new Error('not fount task'))
+    } else callback(Object.assign(new Error('not fount task'), {status: 404}))
   }
 
   PATCH (user, props, callback) {

@@ -105,11 +105,13 @@ class App extends EventEmitter {
         }
       } catch(e) {}
 
+      this.device = new Device(this)
+
+      fruitmixOpts.chassisId = this.device.view().sn
+
       this.boot = new Boot({ configuration, fruitmixOpts })
 
       Object.defineProperty(this, 'fruitmix', { get () { return this.boot.fruitmix } })
-
-      this.device = new Device(this)
 
       if (opts.useAlice) {
         this.boot.setBoundUser({
@@ -262,6 +264,10 @@ class App extends EventEmitter {
           break
       }
     })
+
+    bootr.delete('/boundVolume', (req, res,next) => 
+      this.boot.uninstall(req.user, req.body, err => 
+        err ? next(err) : res.status(200).end()))
       
     routers.push(['/boot', bootr])
 

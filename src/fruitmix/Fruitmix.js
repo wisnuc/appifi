@@ -24,6 +24,7 @@ const FileApi = require('./apis/file')
 const MediaApi = require('./apis/media')
 const Task = require('./Task')
 const Samba = require('../samba/smbState')
+const Dlna = require('../samba/dlnaServer')
 const Transmission = require('../transmission/manager')
 
 /**
@@ -102,8 +103,11 @@ class Fruitmix extends EventEmitter {
 
     // setup user module
     this.user = new User({
+      chassisId: opts.chassisId,
       file: path.join(this.fruitmixDir, 'users.json'),
       tmpDir: path.join(this.fruitmixDir, 'tmp', 'users'),
+      chassisFile: path.join(this.fruitmixDir, 'chassis.json'),
+      chassisTmpDir: path.join(this.fruitmixDir, 'tmp', 'chassis'),
       isArray: true
     })
 
@@ -165,6 +169,7 @@ class Fruitmix extends EventEmitter {
       media: this.mediaApi,
     }
 
+    // 绑定transmission
     if (opts.useTransmission) {
       // create Transmission directories
       let transmissionPath = path.join(this.fruitmixDir, 'transmission')
@@ -210,11 +215,12 @@ class Fruitmix extends EventEmitter {
 
     if (opts.useSmb) {
       this.samba = new Samba(opts, this.user, this.drive)
-      this.user.once('Update', () => {
-        this.samba.state.start(this.user, this.drive)
-      })
-
       this.apis.samba = this.samba
+    }
+
+    if (opts.useDlna) {
+      this.dlna = new Dlna(opts, this.user, this.drive, this.vfs)
+      this.apis.dlna = this.dlna
     }
 
   }

@@ -106,19 +106,13 @@ class Pipe extends EventEmitter {
   getToken (user) {
     return this.ctx.config.auth().tokenForRemote(user)
   }
-
+  /**
+   * get boot info
+   * @param {object} user
+   * @return {object} bootInfo
+   */
   getBootInfo (user) {
     return this.ctx.boot.view()
-  }
-  /**
-   * check config
-   * @memberof Pipe
-   */
-  checkConfig () {
-    const config = this.ctx.config
-    if (!config || !config.device || !config.cloudToken) {
-      throw formatError(new Error('pipe have no cloudConf'), 400)
-    }
   }
   /**
    * check message properties
@@ -164,7 +158,6 @@ class Pipe extends EventEmitter {
     if (!data.urlPath) {
       throw formatError(new Error(`this msgId: ${msgId}, data have no urlPath`), 400)
     }
-    this.message = message
   }
   /**
    * handle message from pipe
@@ -172,8 +165,6 @@ class Pipe extends EventEmitter {
    */
   handleMessage (message) {
     try {
-      // firstly, check config
-      this.checkConfig()
       this.checkMessage(message)
       const user = this.checkUser(message.packageParams.uid)
       // reponse to cloud
@@ -185,36 +176,36 @@ class Pipe extends EventEmitter {
       }
       // 由于 token 没有 route， 单独处理 token
       if (resource === 'token') {
-        return this.reqCommand(null, this.getToken(user))
+        return this.reqCommand(message, null, this.getToken(user))
       }
       // 单独处理 boot
       if (resource === 'boot') {
-        return this.reqCommand(null, this.getBootInfo())
+        return this.reqCommand(message, null, this.getBootInfo())
       }
 
       if (resource === 'device') {
         switch (paths.length) {
           case 2:
-            return this.reqCommand(null, this.ctx.device.view())
+            return this.reqCommand(message, null, this.ctx.device.view())
           case 3:
             if (paths[2] === 'cpuInfo') {
-              return this.reqCommand(null, this.ctx.device.cpuInfo())
+              return this.reqCommand(message, null, this.ctx.device.cpuInfo())
             } else if (paths[2] === 'memInfo') {
-              return this.ctx.device.memInfo((err, data) => this.reqCommand(err, data))
+              return this.ctx.device.memInfo((err, data) => this.reqCommand(message, err, data))
             } else if (paths[2] === 'speed') {
-              return this.reqCommand(null, this.ctx.device.netDev())
+              return this.reqCommand(message, null, this.ctx.device.netDev())
             } else if (paths[2] === 'net') {
-              if (verb.toUpperCase() === 'GET') return this.ctx.device.interfaces((err, its) => this.reqCommand(err, its))
-              return this.ctx.device.addAliases(body, (err, data) => this.reqCommand(err, data))
+              if (verb.toUpperCase() === 'GET') return this.ctx.device.interfaces((err, its) => this.reqCommand(message, err, its))
+              return this.ctx.device.addAliases(body, (err, data) => this.reqCommand(message, err, data))
             } else if (paths[2] === 'timedate') {
-              return this.ctx.device.timedate((err, data) => this.reqCommand(err, data))
+              return this.ctx.device.timedate((err, data) => this.reqCommand(message, err, data))
             } else {
               throw formatError(new Error('not found'), 404)
             }
           case 4:
             if (paths[2] === 'net') {
               let alias = paths[3]
-              return this.ctx.device.deleteAliases(alias, (err, data) => this.reqCommand(err, data))
+              return this.ctx.device.deleteAliases(alias, (err, data) => this.reqCommand(message, err, data))
             } else {
               throw formatError(new Error('not found'), 404)
             }
@@ -252,10 +243,10 @@ class Pipe extends EventEmitter {
         }
       }
       const opts = { user, matchRoute, method, query, body, params }
-      this.apis(opts)
+      this.apis(message, opts)
     } catch (err) {
       debug(`pipe message error: `, err)
-      this.reqCommand(err)
+      this.reqCommand(message, err)
     }
   }
   /**
@@ -265,38 +256,37 @@ class Pipe extends EventEmitter {
    * @returns
    * @memberof Pipe
    */
-  apis (opts) {
+  apis (message, opts) {
     const { user, matchRoute, method, query, body, params } = opts
     const props = Object.assign({}, query, body, params)
     // postform
     if (matchRoute.verb === 'POSTFORM') {
       // get resource from cloud
-      this.getResource().on('response', response => {
+      this.getResource(message).on('response', response => {
         try {
           props.length = response.headers['content-length']
           const m = RE_BOUNDARY.exec(response.headers['content-type'])
           props.boundary = m[1] || m[2]
           props.formdata = response
-          console.log('response body: ', body)
-          console.log('response headers: ', response.headers)
+          // console.log('response body: ', body)
+          // console.log('response headers: ', response.headers)
         } catch (err) {
-          return this.reqCommand(err)
+          return this.reqCommand(message, err, true)
         }
         // { driveUUID, dirUUID, boundary, length, formdata }
         this.ctx.fruitmix().apis[matchRoute.api][method](user, props, (err, data) => {
-          console.log('err', err)
-          this.reqCommand(err, data)
+          this.reqCommand(message, err, data, true)
         })
       })
     } else {
       return this.ctx.fruitmix().apis[matchRoute.api][method](user, props, (err, data) => {
-        if (err) return this.reqCommand(err)
+        if (err) return this.reqCommand(message, err)
         // stream
         if (typeof data === 'string' && path.isAbsolute(data)) {
-          this.postResource(data)
+          this.postResource(message, data)
         } else {
           // json
-          this.reqCommand(null, data)
+          this.reqCommand(message, null, data)
         }
       })
     }
@@ -307,7 +297,8 @@ class Pipe extends EventEmitter {
    * @param {object} res
    * @memberof Pipe
    */
-  reqCommand (error, res) {
+  reqCommand (message, error, res, flag) {
+    debug(`msgId: ${message.msgId}`, error, res)
     let resErr
     if (error) {
       error = formatError(error)
@@ -327,7 +318,8 @@ class Pipe extends EventEmitter {
         json: {
           common: {
             deviceSN: this.ctx.config.device.deviceSN,
-            msgId: this.message.msgId
+            msgId: message.msgId,
+            flag: !!flag
           },
           data: {
             err: resErr,
@@ -347,7 +339,7 @@ class Pipe extends EventEmitter {
    * @param {string} absolutePath
    * @memberof Pipe
    */
-  postResource (absolutePath) {
+  postResource (message, absolutePath) {
     var formData = {
       // Pass a simple key-value pair
       file: fs.createReadStream(absolutePath)
@@ -357,7 +349,7 @@ class Pipe extends EventEmitter {
       headers: { Authorization: this.ctx.config.cloudToken },
       qs: {
         deviceSN: this.ctx.config.device.deviceSN,
-        msgId: this.message.msgId
+        msgId: message.msgId
       },
       formData: formData
     }, (error, response, body) => {
@@ -370,15 +362,15 @@ class Pipe extends EventEmitter {
    * get resource
    * @memberof Pipe
    */
-  getResource () {
+  getResource (message) {
     return request({
       uri: 'http://sohon2test.phicomm.com' + RESOURCE_URL,
       method: 'GET',
       headers: { Authorization: this.ctx.config.cloudToken },
       qs: {
         deviceSN: this.ctx.config.device.deviceSN,
-        msgId: this.message.msgId,
-        uid: this.message.packageParams.uid
+        msgId: message.msgId,
+        uid: message.packageParams.uid
       }
     })
   }
