@@ -170,7 +170,7 @@ class Preparing extends State {
         let fstats = []
         let dstats = []
 
-        // root node 需要筛选子任务
+        // filter children for root node
         if (this.ctx.parent === null) {
           this.ctx.ctx.entries.forEach(entry => {
             let stat = stats.find(x => x.name === entry)
@@ -191,20 +191,50 @@ class Preparing extends State {
         }
 
         if (dstats.length === 0 && fstats.length === 0) { // no sub tasks
-          this.setState(Finish)
+          this.setState(Finish) // TODO
         } else if (dstats.length === 0) { // only sub-file tasks
           this.setState(Parent, dstats, fstats)
-        } else { // 存在文件夹子任务， 先创建文件夹，根据结果进行后续操作
+        } else { 
+          /**
+
+          1 overview
+
+          batch processing sub-dirs
+
+          1. copy     mkdirs in vfs
+          2. move     mvdirs in vfs   pre-clean
+          3. icopy    mkdirs in vfs
+          4. imove    mkdirs in vfs   post-clean
+          5. ecopy    mkdirs in nfs
+          6. emove    mkdirs in nfs   post-clean
+          7. ncopy    mkdirs in nfs
+          8. nmove1   mkdirs in nfs   post-clean    when src & dst @ diff fs
+             nmove2   mvdirs in nfs   pre-clean     when src & dst @ same fs
+
+
+          2 generating child node by passing successively made or moved dir stats to Parent
+
+          (effective) copy will generate child unless skip policy resolved (either same or diff)
+          (effective) move will NOT generate child unless keep resolved
+
+          */
           let boundF 
           let names = dstats.map(x => x.name)
           let type = this.ctx.ctx.type
           let policy = this.ctx.getGlobalPolicy()
-          if (type === 'copy' || type === 'import') {
+
+
+
+          
+
+          if (type === 'copy' || type === 'icopy') {
             boundF = this.ctx.mkdirs.bind(this.ctx)
           } else if (type === 'move') {
             boundF = this.ctx.mvdirs.bind(this.ctx)
-          } else if (type === 'export') {
+          } else if (type === 'ecopy' || type === 'emove') {
             boundF = this.ctx.mkdirs.bind(this.ctx)
+          } else {
+            console.log(new Error(`type ${type} not supported`))
           }
 
           boundF(names, (err, map) => {
@@ -229,7 +259,6 @@ class Preparing extends State {
                   let keepStation = x.dst.resolved && x.dst.resolved[0] && policy[0] === 'keep'
                   return conflictStation || keepStation
                 })
-                console.log('in dir preparing & dstats length is ' + dstats2.length + ' & fstats length is ' + fstats.length)
               }
 
               if (dstats2.length === 0 && fstats.length === 0) {
@@ -467,29 +496,35 @@ class XDir extends XNode {
     return arr.length
   }
 
+  // readdir from src dir
   readdir(callback) {
-    if (this.ctx.type === 'copy' || this.ctx.type === 'move' || this.ctx.type === 'export') {
+    let type = this.ctx.type
+    if (type === 'copy' || type === 'move' || type === 'ecopy' || type === 'emove') {
       let props = {
         driveUUID: this.ctx.src.drive,
         dirUUID: this.src.uuid
       }
       this.ctx.vfs.READDIR(this.ctx.user, props, callback)
-    } else if (this.ctx.type === 'import') {
+    } else if (type === 'icopy' || type === 'imove' || type === 'ncopy' || type === 'nmove') {
       let props = {
         id: this.ctx.src.drive,
         path: this.namepath()
       }
 
       this.ctx.nfs.READDIR(this.ctx.user, props, callback)
+    } else {
+      process.nextTick(() => callback(new Error(`unsupported type ${type}`)))  
     }
   }
 
+  // this function 
   mkdirs(names, callback) {
-    if (this.ctx.type === 'copy' || this.ctx.type === 'import') {
-      let policy = this.getGlobalPolicy() // FIXME this should be global policy, not local one
+    let type = this.ctx.type 
+    let policy = this.getGlobalPolicy()
+
+    if (type === 'copy' || type === 'icopy') {
       let [same, diff] = policy
       if (same === 'keep') same = 'skip'
-      // console.log(`文件夹 ${this.src.name} 创建子文件夹策略 ${[same, diff]}`)
       let props = {
         driveUUID: this.ctx.dst.drive,
         dirUUID: this.dst.uuid,
@@ -498,8 +533,7 @@ class XDir extends XNode {
       }
 
       this.ctx.vfs.MKDIRS(this.ctx.user, props, callback)
-    } else if (this.ctx.type === 'export') {
-      let policy = this.getGlobalPolicy() // FIXME this shoudl be global policy
+    } else if (type === 'ecopy' || type === 'emove') {
       let props = {
         id: this.ctx.dst.drive,
         path: this.dst.name,

@@ -98,10 +98,7 @@ class Working extends State {
           this.setState(Finish)
         }
       })
-    } else if (type === 'import') {
-      // TODO 1. refactor hash to child process
-      // TODO 2. remove tmp file ???
-
+    } else if (type === 'icopy' || type === 'imove') {
       let props = {
         id: this.ctx.ctx.src.drive,
         path: this.ctx.namepath()
@@ -161,7 +158,7 @@ class Working extends State {
           this.rs.pipe(this.fs)
         }
       })
-    } else if (type === 'export') {
+    } else if (type === 'ecopy' || type === 'emove') {
       let user = this.ctx.ctx.user
       let props = {
         driveUUID: this.ctx.ctx.src.drive,
@@ -190,11 +187,28 @@ class Working extends State {
             } else if (err) {
               this.setState(Failed, err)
             } else {
-              this.setState(Finish)
+              if (type === 'emove') {
+                let props = {
+                  driveUUID: this.ctx.ctx.src.drive,
+                  dirUUID: this.ctx.parent.src.uuid,
+                  uuid: this.ctx.src.uuid,
+                  name: this.ctx.src.name 
+                }
+                // error is neglected
+                this.ctx.ctx.vfs.REMOVE(user, props, () => this.setState(Finish))
+              } else {
+                this.setState(Finish)
+              }
             }
           })
         }
       })
+    } else if (type === 'ncopy' || type === 'nmove') {
+      if (type === 'ncopy' || this.ctx.ctx.src.id !== this.ctx.ctx.dst.id) {
+         
+      } else {
+        
+      }
     } else {
       throw new Error('invalid task type') // TODO
     }

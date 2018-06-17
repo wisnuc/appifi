@@ -69,11 +69,14 @@ class XCopy extends EventEmitter {
     if (this.type === 'copy' || this.type === 'move') {
       src = { uuid: this.src.dir, name: '' }
       dst = { uuid: this.dst.dir, name: '' } 
-    } else if (this.type === 'import') {
+    } else if (this.type === 'icopy' || this.type === 'imove') {
       src = { uuid: UUID.v4(), name: this.src.dir }
       dst = { uuid: this.dst.dir, name: '' }
-    } else if (this.type === 'export') {
+    } else if (this.type === 'ecopy' || this.type === 'emove') {
       src = { uuid: this.src.dir, name: '' }
+      dst = { name: this.dst.dir }
+    } else if (this.type === 'ncopy' || this.type === 'nmove') {
+      src = { uuid: UUID.v4(), name: this.src.dir }
       dst = { name: this.dst.dir }
     } else {
       throw new Error('unexpected type')
@@ -306,7 +309,7 @@ class XCopy extends EventEmitter {
     return v
   }
 
-  // this method is used by copy, move and export, but not import
+  // this method is used by copy, move and ecopy, but not icopy
   readdir(srcDirUUID, callback) {
     if (this.user) {
       this.ctx.readdir(this.user, this.srcDriveUUID, srcDirUUID, callback)

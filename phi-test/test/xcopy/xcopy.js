@@ -420,24 +420,14 @@ describe('xcopy task', () => {
     expect(next.step.nodes.length).to.equal(1)
     expect(next.step.nodes[0].state).to.equal('Preparing')
 
-    // root parent
-    console.log(next.watch)
-
-    expect(next.watch.nodes.length).to.equal(1)
-
-    // expect(next.watch.nodes[0].state).to.equal('Parent')
-
-    // next = await user.stepTaskAsync(task.uuid)
-
-    // foo preparing
-    // expect(next.step.nodes.length).to.equal(2)
-    // expect(next.step.nodes[0].state).to.equal('Preparing')
-
-    // foo finished and root finished
-    // expect(next.watch.nodes.length).to.equal(0)
+    /**
+    move won't generate sub tasks if succeed.
+    */
+    expect(next.watch.nodes.length).to.equal(0)
+    expect(next.watch.finished).to.equal(true)
   })
 
-  it('import, file, no conflict, 2fddf273', async function () {
+  it('import/icopy, file, no conflict, 2fddf273', async function () {
     let c1 = await user.mktreeAsync({
       type: 'vfs',
       drive: user.home.uuid,
@@ -453,7 +443,7 @@ describe('xcopy task', () => {
     })
 
     let importArgs = {
-      type: 'import',
+      type: 'icopy',
       src: {
         drive: UUIDDE,
         dir: 'src'
@@ -505,7 +495,7 @@ describe('xcopy task', () => {
     })
 
     let importArgs = {
-      type: 'import',
+      type: 'icopy',
       src: {
         drive: UUIDDE,
         dir: 'src'
@@ -541,7 +531,7 @@ describe('xcopy task', () => {
     expect(next.watch.finished).to.be.true
   })
 
-  it('export, file, no conflict', async function () {
+  it('ecopy, file, no conflict', async function () {
     let c1 = await user.mktreeAsync({
       type: 'vfs',
       drive: user.home.uuid,
@@ -557,7 +547,7 @@ describe('xcopy task', () => {
     })
 
     let exportArgs = {
-      type: 'export',
+      type: 'ecopy',
       src: {
         drive: user.home.uuid,
         dir: c1[1].xstat.uuid,
@@ -593,7 +583,57 @@ describe('xcopy task', () => {
     expect(next.watch.finished).to.be.true
   })
 
-  it('export, dir, no conflict, 5653f29c', async function () {
+  it('emove, file, no conflict, 25413294', async function () {
+    let c1 = await user.mktreeAsync({
+      type: 'vfs',
+      drive: user.home.uuid,
+      dir: user.home.uuid,
+      children: singletons.file
+    })
+
+    let c2 = await user.mktreeAsync({
+      type: 'nfs',
+      drive: UUIDDE,
+      dir: '',
+      children: singletons.file
+    })
+
+    let emoveArgs = {
+      type: 'emove',
+      src: {
+        drive: user.home.uuid,
+        dir: c1[1].xstat.uuid,
+        name: c1[1].xstat.name
+      },
+      dst: {
+        drive: UUIDDE,
+        dir: 'dst'
+      },
+      entries: ['foo'],
+      stepping: true
+    }
+
+    let task, next
+    task = await user.createTaskAsync(emoveArgs)
+
+    assertTask(emoveArgs, task)
+    next = await user.stepTaskAsync(task.uuid)
+  
+    expect(next.step.nodes.length).to.equal(1)  
+    expect(next.step.nodes[0].state).to.equal('Preparing')
+    expect(next.watch.nodes.length).to.equal(1)
+    expect(next.watch.nodes[0].state).to.equal('Parent')
+
+    next = await user.stepTaskAsync(task.uuid)
+
+    expect(next.step.nodes.length).to.equal(2)
+    expect(next.step.nodes.find(n => !n.parent).state).to.equal('Parent')
+    expect(next.step.nodes.find(n => n.src.name === 'foo').state).to.equal('Working')
+    expect(next.watch.nodes.length).to.equal(0)
+    expect(next.watch.finished).to.equal(true)
+  })
+
+  it('ecopy, dir, no conflict, 5653f29c', async function () {
     let c1 = await user.mktreeAsync({
       type: 'vfs',
       drive: user.home.uuid,
@@ -609,7 +649,7 @@ describe('xcopy task', () => {
     })
 
     let exportArgs = {
-      type: 'export',
+      type: 'ecopy',
       src: {
         drive: user.home.uuid,
         dir: c1[1].xstat.uuid,
@@ -644,4 +684,57 @@ describe('xcopy task', () => {
     expect(next.watch.nodes).to.deep.equal([])
     expect(next.watch.finished).to.be.true
   })
+
+  it('emove, dir, no conflict, 5a98623f', async function () {
+    let c1 = await user.mktreeAsync({
+      type: 'vfs',
+      drive: user.home.uuid,
+      dir: user.home.uuid,
+      children: singletons.dir
+    })
+
+    let c2 = await user.mktreeAsync({
+      type: 'nfs',
+      drive: UUIDDE,
+      dir: '',
+      children: singletons.dir
+    })
+
+    let exportArgs = {
+      type: 'emove',
+      src: {
+        drive: user.home.uuid,
+        dir: c1[1].xstat.uuid,
+        name: c1[1].xstat.name
+      },
+      dst: {
+        drive: UUIDDE,
+        dir: 'dst'
+      },
+      entries: ['foo'],
+      stepping: true
+    }
+
+    let task, next
+    task = await user.createTaskAsync(exportArgs)
+    assertTask(exportArgs, task)
+
+    next = await user.stepTaskAsync(task.uuid)
+
+    expect(next.step.nodes.length).to.equal(1)
+    expect(next.step.nodes[0].state).to.equal('Preparing')
+
+    expect(next.watch.nodes.length).to.equal(1)
+    expect(next.watch.nodes[0].state).to.equal('Parent')
+
+    next = await user.stepTaskAsync(task.uuid)
+
+    expect(next.step.nodes.length).to.equal(2)
+    expect(next.step.nodes[0].state).to.equal('Preparing')
+    expect(next.step.nodes[1].state).to.equal('Parent')
+
+    expect(next.watch.nodes).to.deep.equal([])
+    expect(next.watch.finished).to.be.true
+  })
+
 })

@@ -118,6 +118,10 @@ const mkdir = (target, policy, callback) => {
   }) 
 }
 
+const mvdir = (oldPath, newPath, policy, callback) => {
+  // fs.link
+}
+
 // this function mimic policy-based file operation in vfs.
 // TODO should be implemented in nfs
 const openwx = (target, policy, callback) => {
@@ -580,6 +584,35 @@ class NFS extends EventEmitter {
         })
       })
     })
+  }
+
+  /**
+  @param {object} user
+  @param {object} props
+  @param {string} props.id
+  @param {string} props.srcPath
+  @param {string} props.dstPath 
+  @param {string[]} props.names
+  @param {Policy} props.policy
+  */
+  MVDIRS (user, props, callback) {
+    let { names, policy } = props
+    this.resolvePath(user, { id: props.id, path: props.srcPath }, (err, srcDirPath) => {
+      if (err) return callback(err)
+      this.resolvePath(user, { id: props.id, path: props.dstPath }, (err, dstDirPath) => {
+        if (err) return callback(err) 
+        let count = names.length
+        let map = new Map()
+        names.forEach(name => {
+          let oldPath = path.join(srcDirPath, name)
+          let dstPath = path.join(dstDirPath, name)
+          mvdir(oldPath, newPath, policy, (err, stat, resolved) => {
+            map.set(name, { err, stat, resovled })
+            if (!--count) callback(null, map)
+          })
+        })
+      }) 
+    }) 
   }
 
 }
