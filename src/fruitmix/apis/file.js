@@ -9,7 +9,7 @@ class FileApi {
   }
  
   GET (user, props, callback) {
-    
+    this.vfs.GETFILE(user, props, callback)    
   } 
 }
 

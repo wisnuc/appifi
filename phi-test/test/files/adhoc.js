@@ -186,5 +186,28 @@ describe(path.basename(__filename), () => {
       console.log(JSON.stringify(tree, null, '  '))
       console.log(r)
     })
+
+    it ('visit rename visit', async () => {
+      let tree = await user.mktreeAsync({
+        type: 'vfs',
+        drive: user.home.uuid,
+        dir: user.home.uuid,
+        children: [
+          {
+            type: 'file',
+            name: alonzo.name,
+            file: alonzo.path,
+            size: alonzo.size,
+            sha256: alonzo.hash
+          }
+        ]
+      }) 
+
+      await Promise.delay(200)
+
+      let r = await user.getFilesAsync({ order: 'find', places: user.home.uuid })
+
+      console.log(r)
+    })
   })
 })

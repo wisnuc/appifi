@@ -1687,6 +1687,7 @@ class VFS extends EventEmitter {
         if (!tags.every(tag => file.tags.includes(tag))) return
       }
 
+      // search and rename and search again will crash here FIXME
       let uuids = file.nodepath().map(n => n.uuid).slice(0, -1)
       let index = places.findIndex(place => uuids.includes(place))
       if (index === -1) return
@@ -1939,6 +1940,10 @@ class VFS extends EventEmitter {
     process.nextTick(() => callback(err, data))
   }  
 
+  getFileByUUID (user, props, callback) {
+
+    console.log(props)
+  }
 }
 
 module.exports = VFS
