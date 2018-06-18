@@ -815,9 +815,9 @@ class NFS extends EventEmitter {
         let map = new Map()
         names.forEach(name => {
           let oldPath = path.join(srcDirPath, name)
-          let dstPath = path.join(dstDirPath, name)
+          let newPath = path.join(dstDirPath, name)
           mvdir(oldPath, newPath, policy, (err, stat, resolved) => {
-            map.set(name, { err, stat, resovled })
+            map.set(name, { err, stat, resolved })
             if (!--count) callback(null, map)
           })
         })
@@ -847,6 +847,21 @@ class NFS extends EventEmitter {
         mvfile(oldPath, newPath, policy, callback)
       })
     })
+  }
+
+  /**
+  This function calls rmdir to remove an directory, the directory won't be removed if non-empty
+
+  @param {object} user
+  @param {object} props
+  @param {object} props.drive
+  @param {object} props.dir
+  */
+  RMDIR (user, props, callback) {
+    this.resolvePath(user, { id: props.drive, path: props.dir }, (err, dirPath) => {
+      if (err) return callback(err)
+      fs.rmdir(dirPath, () => callback(null))
+    }) 
   }
 }
 

@@ -8,7 +8,7 @@ const XNode = require('./xnode')
 const XFile = require('./xfile')
 
 class State {
-  constructor(ctx, ...args) {
+  constructor (ctx, ...args) {
     this.ctx = ctx
     this.ctx.state = this
     this.destroyed = false
@@ -21,27 +21,27 @@ class State {
     this.ctx.emit('StateEntered', state)
   }
 
-  enter() { }
-  exit() { }
+  enter () { }
+  exit () { }
 
-  getState() {
+  getState () {
     return this.constructor.name
   }
 
-  setState(NextState, ...args) {
+  setState (NextState, ...args) {
     this.exit()
     new NextState(this.ctx, ...args)
   }
 
-  destroy() {
+  destroy () {
     this.destroyed = true
     this.exit()
   }
 
-  policyUpdated() {
+  policyUpdated () {
   }
 
-  view() {
+  view () {
   }
 }
 
@@ -51,7 +51,7 @@ Making target directory
 Entering this state when user try to resolve name conflict by single or global policy
 */
 class Mkdir extends State {
-  enter() {
+  enter () {
     let policy = this.ctx.getPolicy()
     let [same, diff] = policy
     let type = this.ctx.ctx.type
@@ -64,8 +64,8 @@ class Mkdir extends State {
       // 文件夹操作成功，根据操作类型及策略进行后续操作
 
       // skip 策略， 直接进入完成状态
-      if ((policy[0] === 'skip' && resolved[0])
-        || (policy[1] === 'skip' && resolved[1])) return this.setState(Finish)
+      if ((policy[0] === 'skip' && resolved[0]) ||
+        (policy[1] === 'skip' && resolved[1])) return this.setState(Finish)
 
       // 移动操作，在冲突情况下，除了keep策略，其他策略完成后直接进入完成状态
       if (type === 'move') {
@@ -76,13 +76,12 @@ class Mkdir extends State {
       // 其他策略情况下，文件夹node进入preparing状态
       this.ctx.dst = { uuid: dst.uuid, name: dst.name }
       this.setState(Preparing)
-      
     })
   }
 
   /**
   */
-  mkdir(policy, callback) {
+  mkdir (policy, callback) {
     if (this.ctx.ctx.type === 'copy') {
       let name = this.ctx.src.name
       let props = {
@@ -132,12 +131,12 @@ class Mkdir extends State {
 @extends XCopy.State
 */
 class Conflict extends State {
-  enter(err, policy) {
+  enter (err, policy) {
     this.err = err
     this.policy = policy
   }
 
-  view() {
+  view () {
     return {
       error: {
         code: this.err.code,
@@ -147,7 +146,7 @@ class Conflict extends State {
     }
   }
 
-  policyUpdated() {
+  policyUpdated () {
     this.setState(Mkdir)
   }
 }
@@ -161,8 +160,8 @@ Preparing state has target dir ready.
 4. or go to finish state
 */
 class Preparing extends State {
-  enter() {
-    this.ctx.readdir((err, stats) => {
+  enter () {
+    this.readdir((err, stats) => {
       if (err) {
         debug(err.message)
         this.setState(Failed)
@@ -181,9 +180,8 @@ class Preparing extends State {
                 fstats.push(stat)
               }
             } else {
-              // TODO
+              // ignore missing
             }
-            
           })
         } else {
           fstats = stats.filter(x => x.type === 'file')
@@ -191,26 +189,56 @@ class Preparing extends State {
         }
 
         if (dstats.length === 0 && fstats.length === 0) { // no sub tasks
-          this.setState(Finish) // TODO
+          /**
+          literal move, effective copy should clean src
+          including imove, emove, and nmove between distinct drives
+          */
+          let user = this.ctx.ctx.user
+          let type = this.ctx.ctx.type
+          if (type === 'imove' 
+            || type  === 'emove' 
+            || (type === 'nmove' && this.ctx.ctx.src.drive !== this.ctx.ctx.dst.drive)) {
+            if (type === 'emove') {   // src is in vfs
+              let props = {
+                driveUUID: this.ctx.ctx.src.drive,
+                dirUUID: this.ctx.src.uuid,
+                name: this.ctx.src.name   // display only
+              } 
+
+              this.ctx.ctx.vfs.RMDIR(user, props, err => {
+                if (err) {
+                  this.setState(Failed, err)
+                } else {
+                  this.setState(Finish)
+                }
+              })
+            } else {  // src is in nfs
+              let props = {
+                drive: this.ctx.ctx.src.drive,
+                dir: this.ctx.namepath()
+              }
+
+              this.ctx.ctx.nfs.RMDIR(user, props, err => {
+                if (err) {
+                  this.setState(Failed, err)
+                } else {
+                  this.setState(Finish)
+                }
+              })
+            }
+          } else {
+            this.setState(Finish) // TODO
+          }
         } else if (dstats.length === 0) { // only sub-file tasks
           this.setState(Parent, dstats, fstats)
-        } else { 
+        } else {
+          return this.batch(dstats, fstats)
+
           /**
 
           1 overview
 
           batch processing sub-dirs
-
-          1. copy     mkdirs in vfs
-          2. move     mvdirs in vfs   pre-clean
-          3. icopy    mkdirs in vfs
-          4. imove    mkdirs in vfs   post-clean
-          5. ecopy    mkdirs in nfs
-          6. emove    mkdirs in nfs   post-clean
-          7. ncopy    mkdirs in nfs
-          8. nmove1   mkdirs in nfs   post-clean    when src & dst @ diff fs
-             nmove2   mvdirs in nfs   pre-clean     when src & dst @ same fs
-
 
           2 generating child node by passing successively made or moved dir stats to Parent
 
@@ -218,14 +246,10 @@ class Preparing extends State {
           (effective) move will NOT generate child unless keep resolved
 
           */
-          let boundF 
+          let boundF
           let names = dstats.map(x => x.name)
           let type = this.ctx.ctx.type
           let policy = this.ctx.getGlobalPolicy()
-
-
-
-          
 
           if (type === 'copy' || type === 'icopy') {
             boundF = this.ctx.mkdirs.bind(this.ctx)
@@ -244,7 +268,7 @@ class Preparing extends State {
               this.setState(Failed, err)
             } else {
               dstats.forEach(x => x.dst = map.get(x.name))
-              
+
               // 剔除 policy 为 skip 的文件夹
               let dstats2 = dstats.filter(x => {
                 if (x.dst.resolved && x.dst.resolved[0] && policy[0] === 'skip') return false
@@ -266,7 +290,6 @@ class Preparing extends State {
               } else {
                 this.setState(Parent, dstats2, fstats)
               }
-              
             }
           })
         }
@@ -274,24 +297,147 @@ class Preparing extends State {
     })
   }
 
-  view() {
-    return {
-      hello: 'world'
+  readdir (callback) {
+    let type = this.ctx.ctx.type
+    let user = this.ctx.ctx.user
+    let props, fs
+    if (type === 'copy' || type === 'move' || type === 'ecopy' || type === 'emove') {
+      props = {
+        driveUUID: this.ctx.ctx.src.drive,
+        dirUUID: this.ctx.src.uuid
+      }
+      fs = this.ctx.ctx.vfs
+    } else if (type === 'icopy' || type === 'imove' || type === 'ncopy' || type === 'nmove') {
+      props = {
+        id: this.ctx.ctx.src.drive,
+        path: this.ctx.namepath()
+      }
+      fs = this.ctx.ctx.nfs
+    } else {
+      let err = new Error(`unsupported type ${type}`)
+      return process.nextTick(() => callback(err))
     }
+
+    fs.READDIR(user, props, callback)
+  } 
+
+  
+  // mkdirs or mvdirs in batch mode
+  batch (dstats, fstats) {
+    let user = this.ctx.ctx.user
+    let type = this.ctx.ctx.type    
+    let _policy = this.ctx.getGlobalPolicy()
+    let policy = [_policy[0] === 'keep' ? 'skip' : _policy[0], _policy[1]]
+    let names = dstats.map(x => x.name)
+    let props, f
+
+    const sameNfsDrive = () => this.ctx.ctx.src.drive === this.ctx.ctx.dst.drive
+
+    /**
+    1. copy     mkdirs in vfs
+    2. move     mvdirs in vfs
+    3. icopy    mkdirs in vfs
+    4. imove    mkdirs in vfs   post-clean
+    5. ecopy    mkdirs in nfs
+    6. emove    mkdirs in nfs   post-clean
+    7. ncopy    mkdirs in nfs
+    8. nmove1   mkdirs in nfs   post-clean    when src & dst @ diff fs
+       nmove2   mvdirs in nfs                 when src & dst @ same fs
+    */
+    if (type === 'copy' || type === 'icopy' || type === 'imove') {  // mkdirs in vfs
+      props = {
+        driveUUID: this.ctx.ctx.dst.drive,
+        dirUUID: this.ctx.dst.uuid,
+        names,
+        policy
+      }
+      f = this.ctx.ctx.vfs.MKDIRS.bind(this.ctx.ctx.vfs)
+    } else if (type === 'move') {                                   // mvdirs in vfs
+      props = {
+        src: { drive: this.ctx.ctx.src.drive, dir: this.ctx.src.uuid },
+        dst: { drive: this.ctx.ctx.dst.drive, dir: this.ctx.dst.uuid },
+        names,
+        policy
+      }
+      f = this.ctx.ctx.vfs.MVDIRS.bind(this.ctx.ctx.vfs)
+    } else if (type === 'nmove' && sameNfsDrive()) {                // mvdirs in nfs
+      props = {
+        id: this.ctx.ctx.src.drive,
+        srcPath: this.ctx.namepath(),
+        dstPath: this.ctx.dstNamePath(),
+        names,
+        policy
+      }
+      f = this.ctx.ctx.nfs.MVDIRS.bind(this.ctx.ctx.nfs)
+    } else {                                                        // mkdirs in nfs
+      props = {
+        id: this.ctx.ctx.dst.drive,
+        path: this.ctx.dstNamePath(),        
+        names,
+        policy
+      }
+      f = this.ctx.ctx.nfs.MKDIRS.bind(this.ctx.ctx.nfs)
+    }
+
+    f(user, props, (err, map) => {
+      if (err) {
+        debug('Preparing, batch mkdir/mvdir failed', err, names)
+        return this.setState(Failed, err)
+      }
+
+      /**
+      annotate {
+        dst: { err, stat, resolved }
+      }
+      */
+      dstats.forEach(x => x.dst = map.get(x.name))
+
+      // we consider effective copy and effective move, instead of literal ones
+      if (type === 'move' || (type === 'nmove' && sameNfsDrive())) {
+        // 1. err dropped
+        // 2. conflict will generate child
+        // 3. successful move does NOT generate child dir job, unless keep resolved 
+        dstats = dstats.filter(x => {
+          if (x.dst.err) {
+            return x.dst.err.code === 'EEXIST'
+          } else {
+            if (_policy[0] === 'keep' && x.dst.resolved[0]) return true
+            return false
+          }
+        })        
+      } else {
+        // 1. err dropped
+        // 2. conflict will generate child
+        // 3. successful copy does generate child dir job, unless skipped 
+        dstats = dstats.filter(x => {
+          if (x.dst.err) {
+            return x.dst.err.code === 'EEXIST'
+          } else {
+            if (_policy[0] === 'skip' && x.dst.resolved[0]) return false
+            if (_policy[1] === 'skip' && x.dst.resolved[1]) return false
+            return true
+          }
+        })
+      }
+
+      if (dstats.length === 0 && fstats.length === 0) {
+        this.setState(Finish)
+      } else {
+        this.setState(Parent, dstats, fstats) 
+      }
+    })
   }
 }
 
 class Parent extends State {
   /**
   dstat {
-    dst: { err, stat, resolved }diff
+    dst: { err, stat, resolved }
   }
   */
-  enter(dstats, fstats) {
+  enter (dstats, fstats) {
     this.ctx.dstats = dstats.filter(x => !x.dst.err)
     this.ctx.fstats = fstats
-    // console.log(dstats)
-    // console.log(fstats)
     // 创建失败文件夹 在sche之前创建
     dstats
       .filter(x => x.dst.err)
@@ -300,15 +446,15 @@ class Parent extends State {
         dir.on('StateEntered', state => {
           if (state === 'Failed' || state === 'Finish') {
             dir.destroy()
-            if (this.ctx.children.length === 0
-              && this.ctx.dstats.length === 0
-              && this.ctx.fstats.length === 0) this.ctx.setState(Finish)
+            if (this.ctx.children.length === 0 &&
+              this.ctx.dstats.length === 0 &&
+              this.ctx.fstats.length === 0) this.ctx.setState(Finish)
           }
         })
       })
   }
 
-  view() {
+  view () {
     return {
       state: 'Parent'
     }
@@ -324,12 +470,12 @@ class Parent extends State {
 class Failed extends State {
   // when directory enter failed
   // all descendant node are destroyed (but not removed)
-  enter(err) {
+  enter (err) {
     debug('xdir enter failed state', err)
     this.err = err
   }
 
-  view() {
+  view () {
     return {
       error: {
         code: this.err.code,
@@ -346,7 +492,7 @@ class Failed extends State {
 @extends XCopy.State
 */
 class Finish extends State {
-  enter() {
+  enter () {
 
     /**
     // let p = ['keep', 'skip']
@@ -388,7 +534,7 @@ class XDir extends XNode {
   @parma {object} dst - destination object
   @param {string} dst.name - required
   */
-  constructor(ctx, parent, src, dst, entries) {
+  constructor (ctx, parent, src, dst, entries) {
     super(ctx, parent)
     this.children = []
     this.src = src
@@ -404,38 +550,38 @@ class XDir extends XNode {
     }
   }
 
-  get type() {
+  get type () {
     return 'directory'
   }
 
-  destroy() {
+  destroy () {
     let children = [...this.children]
     children.forEach(c => c.destroy())
     super.destroy()
   }
 
-  getPolicy() {
+  getPolicy () {
     return [
       this.policy[0] || this.ctx.policies.dir[0] || null,
       this.policy[1] || this.ctx.policies.dir[1] || null
     ]
   }
 
-  getGlobalPolicy() {
+  getGlobalPolicy () {
     return [
       this.ctx.policies.dir[0] || null,
       this.ctx.policies.dir[1] || null
     ]
   }
 
-  updatePolicy(policy) {
+  updatePolicy (policy) {
     if (this.state.constructor.name !== 'Conflict') return
     this.policy[0] = policy[0] || this.policy[0]
     this.policy[1] = policy[1] || this.policy[1]
     this.state.policyUpdated()
   }
 
-  policyUpdated(policy) {
+  policyUpdated (policy) {
     this.state.policyUpdated()
   }
 
@@ -445,7 +591,7 @@ class XDir extends XNode {
   @param {number} required
   @returns actual created
   */
-  createSubDir(required) {
+  createSubDir (required) {
     if (required === 0) return 0
     if (this.state.constructor.name !== 'Parent') return 0
     if (!this.dstats || this.dstats.length === 0) return 0
@@ -475,7 +621,7 @@ class XDir extends XNode {
   @param {number} required
   @returns actual created
   */
-  createSubFile(required) {
+  createSubFile (required) {
     if (required === 0) return 0
     if (this.state.constructor.name !== 'Parent') return 0
     if (!this.fstats || this.fstats.length === 0) return 0
@@ -496,30 +642,9 @@ class XDir extends XNode {
     return arr.length
   }
 
-  // readdir from src dir
-  readdir(callback) {
+  // this function
+  mkdirs (names, callback) {
     let type = this.ctx.type
-    if (type === 'copy' || type === 'move' || type === 'ecopy' || type === 'emove') {
-      let props = {
-        driveUUID: this.ctx.src.drive,
-        dirUUID: this.src.uuid
-      }
-      this.ctx.vfs.READDIR(this.ctx.user, props, callback)
-    } else if (type === 'icopy' || type === 'imove' || type === 'ncopy' || type === 'nmove') {
-      let props = {
-        id: this.ctx.src.drive,
-        path: this.namepath()
-      }
-
-      this.ctx.nfs.READDIR(this.ctx.user, props, callback)
-    } else {
-      process.nextTick(() => callback(new Error(`unsupported type ${type}`)))  
-    }
-  }
-
-  // this function 
-  mkdirs(names, callback) {
-    let type = this.ctx.type 
     let policy = this.getGlobalPolicy()
 
     if (type === 'copy' || type === 'icopy') {
@@ -544,7 +669,7 @@ class XDir extends XNode {
     }
   }
 
-  mvdirs(names, callback) {
+  mvdirs (names, callback) {
     let src = { drive: this.ctx.src.drive, dir: this.src.uuid }
     let dst = { drive: this.ctx.dst.drive, dir: this.dst.uuid }
     let policy = this.getGlobalPolicy()
@@ -552,7 +677,6 @@ class XDir extends XNode {
     if (same === 'keep') same = 'skip'
     this.ctx.vfs.MVDIRS(this.ctx.user, { src, dst, names, policy: [same, diff] }, callback)
   }
-
 }
 
 module.exports = XDir

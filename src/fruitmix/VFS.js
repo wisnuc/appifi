@@ -1289,7 +1289,13 @@ class VFS extends EventEmitter {
   /**
   @param {object} user
   @param {object} props
-  @param {
+  @param {object} props.src
+  @param {string} props.src.drive
+  @param {string} props.src.dir
+  @param {object} props.dst
+  @param {string} props.dst.drive
+  @param {string} props.dst.dir
+  @param {Policy} props.policy
   */ 
   MVDIRS (user, props, callback) {
     let { src, dst, names, policy } = props
@@ -1392,6 +1398,32 @@ class VFS extends EventEmitter {
         callback(null, dstPath)
       })
     })
+  }
+
+  /**
+  This function calls rmdir to remove an directory, the directory won't be removed if non-empty
+
+  @param {object} user
+  @param {object} props
+  @param {string} props.driveUUID
+  @param {string} props.dirUUID
+  @param {string} props.name - for debug/display only
+  */
+  RMDIR (user, props, callback) {
+    this.DIR(user, props, (err, dir) => {
+      if (err) return callback(err) 
+      if (!dir.parent) {
+        let err = new Error('root dir cannot be removed')
+        callback(err) 
+      } else {
+        let pdir = dir.parent
+        let dirPath = this.absolutePath(dir)
+        fs.rmdir(dirPath, err => {
+          callback(null)
+          if (!err) pdir.read() // FIXME pdir may be off tree or destroyed
+        }) 
+      }
+    }) 
   }
 
   // readdir

@@ -70,11 +70,8 @@ describe(path.basename(__filename), () => {
           name: 'src',
           children: [
             {
-              type: 'file',
+              type: 'directory',
               name: 'foo',
-              file: foo.path,
-              size: foo.size,
-              sha256: foo.hash 
             }
           ]
         }
@@ -112,7 +109,6 @@ describe(path.basename(__filename), () => {
     it('copy', async function () {
       let srcDirUUID = home.find(x => x.name === 'src').xstat.uuid
       let dstDirUUID = home.find(x => x.name === 'dst').xstat.uuid
-
       let args = {
         type: 'copy',
         src: { drive: user.home.uuid, dir: srcDirUUID },
@@ -128,8 +124,6 @@ describe(path.basename(__filename), () => {
 
       expect(src.entries[0].name).to.equal('foo')
       expect(dst.entries[0].name).to.equal('foo')
-
-      // TODO hash dropped
     })
 
     it('move', async function () {
