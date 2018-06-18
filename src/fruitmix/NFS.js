@@ -118,10 +118,6 @@ const mkdir = (target, policy, callback) => {
   }) 
 }
 
-const mvdir = (oldPath, newPath, policy, callback) => {
-  // fs.link
-}
-
 // this function mimic policy-based file operation in vfs.
 // TODO should be implemented in nfs
 const openwx = (target, policy, callback) => {
@@ -167,6 +163,179 @@ const openwx = (target, policy, callback) => {
   })
 }
 
+// no recursive
+const mvfile = (oldPath, newPath, policy, callback) => 
+  // stat target parent
+  fs.lstat(path.dirname(newPath), (err, stat) => {
+    if (err) {
+      callback(err)
+    } else if (!stat.isDirectory()) {
+      let err = new Error('target parent is not a directory')
+      err.code = 'ENOTDIR'
+      callback(err)
+    } else {
+      // stat target
+      fs.lstat(newPath, (err, stat) => {
+        if (err && err.code === 'ENOENT') {
+          fs.rename(oldPath, newPath, err => {
+            if (err) {
+              callback(err)
+            } else {
+              callback(null, null, [false, false])
+            }
+          })
+        } else if (err) {
+          callback(err) 
+        } else {
+          // resolve conflict
+          let same = stat.isFile()
+          let diff = !same
+
+          if (same && policy[0] === 'skip') {
+            callback(null, null, [true, false])
+          } else if (diff && policy[1] === 'skip') {
+            callback(null, null, [false, true])
+          } else if (same && policy[0] === 'rename' || diff && policy[1] === 'rename') {
+            let dirname = path.dirname(newPath)
+            let basename = path.basename(newPath)
+            fs.readdir(dirname, (err, names) => {
+              if (err) return callback(err)
+              let newPath2 = path.join(dirname, autoname(basename, names))
+              fs.rename(oldPath, newPath2, err => {
+                if (err) {
+                  callback(err)
+                } else {
+                  callback(null, null, [same, diff])
+                }
+              })
+            })
+          } else if (same && policy[0] === 'replace' || diff && policy[1] === 'replace') {
+            rimraf(newPath, err => {
+              if (err) return callback(err)
+              fs.rename(oldPath, newPath, err => {
+                if (err) {
+                  calblack(err)
+                } else {
+                  callback(null, null, [same, diff])
+                }
+              })
+            })
+          } else {
+            // code is EEXIST
+            // xcode is EISDIR, EISFILE etc
+            let err = new Error('target exists')
+            err.code = 'EEXIST'
+            if (stat.isFile()) {
+              err.xcode = 'EISFILE'
+            } else if (stat.isDirectory()) {
+              err.xcode = 'EISDIR'
+            } else if (stat.isBlockDevice()) {
+              err.xcode = 'EISBLOCKDEV'
+            } else if (stat.isCharacterDevice()) {
+              err.xcode = 'EISCHARDEV'
+            } else if (stat.isSymbolicLink()) {
+              err.xcode = 'EISSYMLINK'
+            } else if (stat.isFIFO()) {
+              err.xcode = 'EISFIFO'
+            } else if (stat.isSocket()) {
+              err.xcode = 'EISSOCKET'
+            } else {
+              err.xcode = 'EISUNKNOWN'
+            }
+            callback(err)
+          }
+        }
+      })
+    }
+  })
+
+const mvdir = (oldPath, newPath, policy, callback) => 
+  // stat target parent
+  fs.lstat(path.dirname(newPath), (err, stat) => {
+    if (err) {
+      callback(err)
+    } else if (!stat.isDirectory()) {
+      let err = new Error('target parent is not a directory')
+      err.code = 'ENOTDIR'
+      callback(err)
+    } else {
+      // stat target 
+
+      let type = 'directory'
+      let name = path.basename(newPath)
+
+      fs.lstat(newPath, (err, stat) => {
+        if (err && err.code === 'ENOENT') {
+          fs.rename(oldPath, newPath, err => {
+            if (err) {
+              callback(err)
+            } else {
+              callback(null, { type, name }, [false, false])
+            }
+          })
+        } else if (err) {
+          callback(err)
+        } else {
+          // resolve conflict
+          let same = stat.isDirectory()
+          let diff = !same
+         
+          if (same && policy[0] === 'skip') {
+            callback(null, { type, name }, [true, false])
+          } else if (diff && policy[1] === 'skip') {
+            callback(null, { type, name }, [false, true])
+          } else if (same && policy[0] === 'rename' || diff && policy[1] === 'rename') {
+            let dirname = path.dirname(newPath)
+            fs.readdir(dirname, (err, names) => {
+              if (err) return callback(err)
+              let newName = autoname(name, names)
+              fs.rename(oldPath, path.join(dirname, newName), err => {
+                if (err) {
+                  callback(err)
+                } else {
+                  callback(null, { type, name: newName }, [same, diff])
+                }
+              })
+            })
+          } else if (same && policy[0] === 'replace' || diff && policy[1] === 'replace') {
+            rimraf(newPath, err => {
+              if (err) return callback(err)
+              fs.rename(oldPath, newPath, err => {
+                if (err) {
+                  callback(err)
+                } else {
+                  callback(null, { type, name }, [same, diff])
+                }
+              })
+            })
+          } else {
+            // code is EEXIST
+            // xcode is EISDIR, EISFILE etc
+            let err = new Error('target exists')
+            err.code = 'EEXIST'
+            if (stat.isFile()) {
+              err.xcode = 'EISFILE'
+            } else if (stat.isDirectory()) {
+              err.xcode = 'EISDIR'
+            } else if (stat.isBlockDevice()) {
+              err.xcode = 'EISBLOCKDEV'
+            } else if (stat.isCharacterDevice()) {
+              err.xcode = 'EISCHARDEV'
+            } else if (stat.isSymbolicLink()) {
+              err.xcode = 'EISSYMLINK'
+            } else if (stat.isFIFO()) {
+              err.xcode = 'EISFIFO'
+            } else if (stat.isSocket()) {
+              err.xcode = 'EISSOCKET'
+            } else {
+              err.xcode = 'EISUNKNOWN'
+            }
+            callback(err)
+          }
+        }
+      })
+    }
+  })
 
 /**
 NFS provides native file system access to users.
@@ -339,7 +508,7 @@ class NFS extends EventEmitter {
                               : stat.isCharacterDevice() ? 'char'
                                 : stat.isBlockDevice() ? 'block' : 'unknown',
                     size: stat.size,
-                    ctime: stat.ctime.getTime()
+                    mtime: stat.mtime.getTime()
                   })
                 }
                 if (!--count) callback(null, arr) // TODO sort
@@ -492,6 +661,8 @@ class NFS extends EventEmitter {
   /**
   @param {object} user
   @param {object} props
+  @param {string} props.id
+  @param {string} props.path
   */
   DELETE (user, props, callback) {
     this.resolvePath(user, props, (err, target) => {
@@ -512,6 +683,10 @@ class NFS extends EventEmitter {
 
   /**
   This function is intended to support Policy.
+
+  TODO
+  This function is different from that of nfs, which is an atomic operation.
+  Instead, a file descriptor is return via callback for user to stream data.
   
   @param {object} user
   @param {object} props
@@ -537,6 +712,41 @@ class NFS extends EventEmitter {
         }
       })    
     }) 
+  }
+
+  /**
+  this function returns { rs, ws }, resolved
+
+  @param {object} user
+  @param {object} props
+  @param {object} props.src
+  @param {string} props.src.drive
+  @param {string} props.src.dir
+  @param {string} props.src.name
+  @param {object} props.dst
+  @param {string} props.dst.drive
+  @param {string} props.dst.dir
+  @param {Policy} props.policy
+  */
+  CPFILE (user, props, callback) {
+    let { src, dst, policy } = props
+    this.resolvePath(user, { id: src.drive, path: src.dir } , (err, srcDirPath) => {
+      if (err) return callback(err)
+      this.resolvePath(user, { id: dst.drive, path: dst.dir }, (err, dstDirPath) => {
+        if (err) return callback(err)
+        let srcFilePath = path.join(srcDirPath, props.src.name)
+        let dstFilePath = path.join(dstDirPath, props.src.name)
+        openwx(dstFilePath, props.policy, (err, fd, resolved) => {
+          if (err) {
+            callback(err)
+          } else {
+            let rs = fs.createReadStream(srcFilePath)
+            let ws = fs.createWriteStream(null, { fd })
+            callback(null, { rs, ws }, resolved)
+          }
+        })
+      })
+    })
   }
 
   /**
@@ -615,6 +825,29 @@ class NFS extends EventEmitter {
     }) 
   }
 
+  /**
+  move a single file from srcPath (dir) to dstPath (dir)  
+
+  @param {object} user
+  @param {object} props
+  @param {string} props.id
+  @param {string} props.srcPath
+  @parma {string} props.dstPath
+  @param {string} props.name
+  @param {Policy} props.policy
+  */
+  MVFILE (user, props, callback) {
+    let { name, policy } = props
+    this.resolvePath(user, { id: props.id, path: props.srcPath }, (err, srcDirPath) => {
+      if (err) return callback(err)
+      this.resolvePath(user, { id: props.id, path: props.dstPath }, (err, dstDirPath) => {
+        if (err) return callback(err)
+        let oldPath = path.join(srcDirPath, name) 
+        let newPath = path.join(dstDirPath, name)
+        mvfile(oldPath, newPath, policy, callback)
+      })
+    })
+  }
 }
 
 module.exports = NFS

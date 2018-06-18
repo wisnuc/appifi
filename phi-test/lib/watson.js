@@ -33,6 +33,7 @@ class User {
       if (err) return callback(err)
       this.drives = drives
       this.home = this.drives.find(d => d.type === 'private' && d.tag === 'home')
+      this.pub = this.drives.find(d => d.type === 'public' && d.tag === 'built-in')
       callback(null, drives)
     })
   }
@@ -66,11 +67,35 @@ class User {
       .set('Authorization', 'JWT ' + this.token)
   }
 
+  listDir (driveUUID, dirUUID, callback) {
+    this.ctx.listDir(this.token, driveUUID, dirUUID, callback)
+  }
+
+  async listDirAsync (driveUUID, dirUUID) {
+    return Promise.promisify(this.listDir).bind(this)(driveUUID, dirUUID)
+  }
+
+  listNfsDir (driveId, dirPath, callback) {
+    this.ctx.listNfsDir(this.token, driveId, dirPath, callback)
+  }
+
+  async listNfsDirAsync (driveId, dirPath) {
+    return Promise.promisify(this.listNfsDir).bind(this)(driveId, dirPath)
+  }
+
   createTask (args, callback) {
     this.ctx.createTask(this.token, args, callback)
   }
 
   async createTaskAsync (args) {
+    return Promise.promisify(this.createTask).bind(this)(args)
+  }
+
+  getTask(uuid, callback) {
+    this.ctx.getTask(this.token, uuid, callback)
+  }
+
+  async getTask(taskUUID) {
     return Promise.promisify(this.createTask).bind(this)(args)
   }
 
@@ -149,6 +174,25 @@ class Watson {
       .set('Authorization', 'JWT ' + token)
       .expect(200)
       .end((err, res) => err ? callback(err) : callback(null, res.body))
+  }
+
+  listDir (token, driveUUID, dirUUID, callback) {
+    request(this.app.express)
+      .get(`/drives/${driveUUID}/dirs/${dirUUID}`)
+      .set('Authorization', 'JWT ' + token)
+      .expect(200)
+      .end((err, res) => err ? callback(err) : callback(null, res.body))
+  }
+
+  // TODO
+  listNfsDir (token, driveId, dirPath, callback) {
+    request(this.app.express)
+      .get(`/phy-drives/${driveId}`)
+      .set('Authorization', 'JWT ' + token)  
+      .query({ path: dirPath })
+      .expect(200)
+      .end((err, res) => err ? callback(err) : callback(null, res.body))
+      
   }
 
   getFiles (token, args, callback) {
@@ -315,6 +359,14 @@ class Watson {
       .post('/tasks')
       .set('Authorization', 'JWT ' + token)
       .send(args)
+      .expect(200)
+      .end((err, res) => err ? callback(err) : callback(null, res.body))
+  }
+
+  getTask (token, taskUUID, callback) {
+    request(this.app.express)
+      .get(`/tasks/${taskUUID}`)
+      .set('Authorization', 'JWT ' + token)
       .expect(200)
       .end((err, res) => err ? callback(err) : callback(null, res.body))
   }
