@@ -96,7 +96,7 @@ class XCopy extends EventEmitter {
   }
 
   destroy () {
-    this.root.destroy()
+    if (this.root) this.root.destroy()
   }
 
   // not implemented TODO
