@@ -207,7 +207,7 @@ class Starting extends State {
       fruitmixDir,
       boundVolume: this.ctx.volumeStore.data,
       boundUser: this.ctx.boundUser,
-      boot: this.ctx
+      ejectHandler: this.ctx.ejectUSBAsync.bind(this.ctx)
     })
     let fruitmix = new Fruitmix(opts)
 

@@ -2,6 +2,7 @@ const child = require('child_process')
 const fs = require('fs')
 const os = require('os')
 const path = require('path')
+const uuid = require('uuid')
 
 const btrfsUsageAsync = require('../system/btrfsusageAsync')
 const sysfsNetworkInterfaces = require('../system/networkInterfaces')
@@ -334,6 +335,28 @@ class Device {
 
       callback(null, its)
     })
+  }
+
+  resetToFactory(callback) {
+    let fileP = '/mnt/reserved/fw_ver_release.json'
+    fs.readFile(fileP, (err, data) => {
+      if (err) return callback(err)
+      let config = JSON.parse(data.toString())
+      config.action = '1'
+      let tmpP = path.join(ctx.opts.configuration.chassis.dTmpDir, uuid.v4())
+      fs.writeFile(tmpP, JSON.stringify(config, null, '  '), err => {
+        if (err) return callback(err)
+        fs.rename(tmpP, fileP, err => {
+          if (err) return callback(err)
+          setTimeout(() => child.exec('reboot'), 1000)
+          callback(null)
+        })
+      })
+    })
+  }
+
+  sleepMode (props, callback) {
+    
   }
 }
 
