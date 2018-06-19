@@ -2,6 +2,7 @@ const child = require('child_process')
 const fs = require('fs')
 const os = require('os')
 const path = require('path')
+const uuid = require('uuid')
 
 const btrfsUsageAsync = require('../system/btrfsusageAsync')
 const sysfsNetworkInterfaces = require('../system/networkInterfaces')
@@ -196,8 +197,23 @@ class Device {
   }
 
   memInfo(callback) {
+    let type, speed
+    try {
+      type = child.execSync('dmidecode -t memory |grep -A16 "Memory Device$" |grep "Type: DD*"')
+        .toString().split('\n')
+        .shift()
+        .split(' ')
+        .map(x => x.trim())
+        .filter(x => x.length)
+        .pop()
+      speed = child.execSync('dmidecode -t memory |grep -A16 "Memory Device$" |grep "Speed:.*MHz"')
+        .toString().split('\n')
+        .shift()
+        .split(':')
+        .pop().trim()
+    } catch (e) { }
     probeProcAsync('meminfo', false)
-      .then(data => callback(null, data))
+      .then(data => callback(null, Object.assign(data, { Speed: speed, Type: type })))
       .catch(callback)
   }
 
@@ -334,6 +350,28 @@ class Device {
 
       callback(null, its)
     })
+  }
+
+  resetToFactory(callback) {
+    let fileP = '/mnt/reserved/fw_ver_release.json'
+    fs.readFile(fileP, (err, data) => {
+      if (err) return callback(err)
+      let config = JSON.parse(data.toString())
+      config.action = '1'
+      let tmpP = path.join(ctx.opts.configuration.chassis.dTmpDir, uuid.v4())
+      fs.writeFile(tmpP, JSON.stringify(config, null, '  '), err => {
+        if (err) return callback(err)
+        fs.rename(tmpP, fileP, err => {
+          if (err) return callback(err)
+          setTimeout(() => child.exec('reboot'), 1000)
+          callback(null)
+        })
+      })
+    })
+  }
+
+  sleepMode (props, callback) {
+
   }
 }
 

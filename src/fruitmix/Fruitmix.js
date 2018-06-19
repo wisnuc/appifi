@@ -99,7 +99,7 @@ class Fruitmix extends EventEmitter {
 
     this.boundUser = opts.boundUser
     this.boundVolume = opts.boundVolume
-    this.boot = opts.boot
+    this.ejectHandler = opts.ejectHandler
 
     // setup user module
     this.user = new User({

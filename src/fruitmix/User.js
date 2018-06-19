@@ -3,6 +3,7 @@ const UUID = require('uuid')
 const { isUUID, isNonNullObject, isNonEmptyString } = require('../lib/assertion')
 const DataStore = require('../lib/DataStore')
 const { passwordEncrypt, md4Encrypt } = require('../lib/utils')
+const request = require('superagent')
 
 const USER_STATUS = {
   ACTIVE: 'ACTIVE',
@@ -115,7 +116,7 @@ class User extends EventEmitter {
     this.store.save(users => {
       let isFirstUser = users.length === 0
       let { username, phicommUserId, password, smbPassword, phoneNumber } = props
-      
+
       let cU = users.find(u => u.username === username)
       if (cU && cU.status !== USER_STATUS.DELETED) throw new Error('username already exist')
       let pU = users.find(u => u.phicommUserId === phicommUserId)
@@ -170,10 +171,11 @@ class User extends EventEmitter {
   }
 
   /**
-  @param {object} props
-  @param {string} props.password - password
-  @param {string} props.smbPassword - smb password
-  @param {boolean} [props.encrypted] - if true, both passwords are considered to be encrypted
+  * TODO: to be test
+  * request bootstrap
+  * @param {string} userUUID
+  * @param {object} props { password, encrypted }  - if true, both passwords are considered to be encrypted
+  * @param {function} callback
   */
   updatePassword (userUUID, props, callback) {
     try {
@@ -188,23 +190,29 @@ class User extends EventEmitter {
     } catch (e) {
       return process.nextTick(() => callback(e))
     }
-    // props.encrypted = !!props.encrypted
-
-    let { password, encrypted } = props
-    this.store.save(users => {
-      let index = users.findIndex(u => u.uuid === userUUID)
-      if (index === -1) throw new Error('user not found')
-      let nextUser = Object.assign({}, users[index])
-      if (password) nextUser.password = encrypted ? password : passwordEncrypt(password, 10)
-      // if (smbPassword) {
-      //   nextUser.smbPassword = encrypted ? smbPassword : md4Encrypt(smbPassword)
-      //   nextUser.lastChangeTime = new Date().getTime()
-      // }
-      return [...users.slice(0, index), nextUser, ...users.slice(index + 1)]
-    }, (err, data) => {
-      if (err) return callback(err)
-      return callback(null, data.find(x => x.uuid === userUUID))
-    })
+    request
+      .patch('http://localhost:3001/v1/user/password')
+      .set('Accept', 'application/json')
+      .send(props)
+      .end((err, res) => {
+        if (err) callback(err)
+        console.log('update', res.body)
+        this.store.save(users => {
+          let index = users.findIndex(u => u.uuid === userUUID)
+          if (index === -1) throw new Error('user not found')
+          let nextUser = Object.assign({}, users[index])
+          // if (password) nextUser.password = encrypted ? password : passwordEncrypt(password, 10)
+          nextUser.password = res.body.password
+          // if (smbPassword) {
+          //   nextUser.smbPassword = encrypted ? smbPassword : md4Encrypt(smbPassword)
+          //   nextUser.lastChangeTime = new Date().getTime()
+          // }
+          return [...users.slice(0, index), nextUser, ...users.slice(index + 1)]
+        }, (err, data) => {
+          if (err) return callback(err)
+          return callback(null, data.find(x => x.uuid === userUUID))
+        })
+      })
   }
 
   bindFirstUser (boundUser) {
@@ -221,15 +229,19 @@ class User extends EventEmitter {
           status: USER_STATUS.ACTIVE
         }]
       } else {
-        let firstUser = users[index]
+        let firstUser = Object.assign({}, users[index])
+        if (boundUser.password) {
+          firstUser.password = boundUser.password
+        }
         if (firstUser.phicommUserId !== boundUser.phicommUserId) {
           console.log('===================')
           console.log('This is not an error, but fruitmix received a bound user')
           console.log('different than the previous one, exit')
           console.log('===================')
           process.exit(67)
-        } else if (isNonEmptyString(boundUser.phoneNumber) && firstUser.phoneNumber !== boundUser.phoneNumber) {
-          if (users.find(u => u.phoneNumber === boundUser.phoneNumber)) {
+        } 
+        if (isNonEmptyString(boundUser.phoneNumber) && firstUser.phoneNumber !== boundUser.phoneNumber) {
+          if (users.find(u => u.phoneNumber === boundUser.phoneNumber && u.status !== USER_STATUS.DELETED)) {
             console.log('==============')
             console.log('update bound user phoneNumber already exist')
             console.log('update failed')
@@ -239,20 +251,18 @@ class User extends EventEmitter {
           console.log('==============')
           console.log('update bound user phoneNumber')
           console.log('==============')
-          let newFirstUser = Object.assign({}, firstUser, { phoneNumber: boundUser.phoneNumber })
-          return [
-            ...users.slice(0, index),
-            newFirstUser,
-            ...users.slice(index + 1)
-          ]
-        } else {
-          return users // no change
-        }
+          firstUser.phoneNumber = boundUser.phoneNumber 
+        } 
+        return [
+          ...users.slice(0, index),
+          newFirstUser,
+          ...users.slice(index + 1)
+        ]
       }
-    }, 
-    err => err 
+    },
+    err => err
     ? console.log(`user module failed to bind first user to ${boundUser.phicommUserId}`)
-    : console.log(`user module bound first user to ${boundUser.phicommUserId} successfully`)) 
+    : console.log(`user module bound first user to ${boundUser.phicommUserId} successfully`))
   }
 
   destroy (callback) {
@@ -325,7 +335,7 @@ class User extends EventEmitter {
     if (!isNonEmptyString(props.phoneNumber)) return callback(Object.assign(new Error('phoneNumber must be non-empty string'), { status: 400 }))
     if (props.password && !isNonEmptyString(props.password)) return callback(Object.assign(new Error('password must be non-empty string'), { status: 400 }))
     if (this.users.length && (!user || !user.isFirstUser)) return process.nextTick(() => callback(Object.assign(new Error('Permission Denied'), { status: 403 })))
-    
+
     let u = this.users.find(u => u.username === props.username)
     if (u && u.status !== USER_STATUS.DELETED) return callback(Object.assign(new Error('username exist'), { status: 400 }))
 
@@ -368,9 +378,9 @@ class User extends EventEmitter {
       if (!Object.getOwnPropertyNames(props).every(k => recognized.includes(k))) {
         return process.nextTick(() => callback(Object.assign(new Error('too much props in body'), { status: 400 })))
       }
-      
+
       if (props.username && !isNonEmptyString(props.username)) return callback(Object.assign(new Error('username must be non-empty string'), { status: 400 }))
-      
+
       let u = this.users.find(u => u.username === props.username)
       if (u && u.status !== USER_STATUS.DELETED) return callback(Object.assign(new Error('username exist'), { status: 400 }))
       let recognizedStatus = [USER_STATUS.ACTIVE, USER_STATUS.INACTIVE, USER_STATUS.DELETED]
@@ -378,7 +388,7 @@ class User extends EventEmitter {
       if (props.status && !user.isFirstUser ) return callback(Object.assign(new Error('Permission Denied'), { status: 403 }))
       if (props.status && user.uuid === userUUID) return callback(Object.assign(new Error('can not change admin status'), { status: 400 }))
       if (props.status && !recognizedStatus.includes(props.status)) return callback(Object.assign(new Error('unknown status'), { status: 400 }))
-      
+
       if (!user.isFirstUser && user.uuid !== userUUID) return process.nextTick(() => callback(Object.assign(new Error('Permission Denied'), { status: 403 })))
       this.updateUser(userUUID, props, (err, data) => err ? callback(err) : callback(null, this.fullInfo(data)))
     }
@@ -390,8 +400,8 @@ class User extends EventEmitter {
     let devU = isUUID(props.userUUID) ? this.users.find(u => u.uuid === props.userUUID)
           : this.users.find(u => u.phicommUserId === props.userUUID)
     if (!devU) return callback(Object.assign(new Error('user not found'), { status: 404 }))
-    userUUID = devU.uuid    
-    
+    userUUID = devU.uuid
+
     if (!user.isFirstUser) return callback(Object.assign(new Error('Permission Denied'), { status: 403 }))
     this.updateUser(userUUID, { status: USER_STATUS.DELETED }, callback)
   }
