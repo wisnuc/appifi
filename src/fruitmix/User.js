@@ -191,7 +191,7 @@ class User extends EventEmitter {
       return process.nextTick(() => callback(e))
     }
     request
-      .patch('localhost:3001/v1/user/password')
+      .patch('http://localhost:3001/v1/user/password')
       .set('Accept', 'application/json')
       .send({ props: props })
       .end((err, res) => {
