@@ -193,7 +193,7 @@ class User extends EventEmitter {
     request
       .patch('http://localhost:3001/v1/user/password')
       .set('Accept', 'application/json')
-      .send({ props: props })
+      .send(props)
       .end((err, res) => {
         if (err) callback(err)
         console.log('update', res.body)
