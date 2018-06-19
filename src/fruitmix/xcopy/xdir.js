@@ -227,7 +227,7 @@ class Preparing extends State {
               })
             }
           } else {
-            this.setState(Finish) // TODO
+            this.setState(Finish)
           }
         } else if (dstats.length === 0) { // only sub-file tasks
           this.setState(Parent, dstats, fstats)
@@ -421,7 +421,7 @@ class Preparing extends State {
       }
 
       if (dstats.length === 0 && fstats.length === 0) {
-        this.setState(Finish)
+        this.setState(Finish) // TODO ???
       } else {
         this.setState(Parent, dstats, fstats) 
       }
