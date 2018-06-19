@@ -229,15 +229,19 @@ class User extends EventEmitter {
           status: USER_STATUS.ACTIVE
         }]
       } else {
-        let firstUser = users[index]
+        let firstUser = Object.assign({}, users[index])
+        if (boundUser.password) {
+          firstUser.password = boundUser.password
+        }
         if (firstUser.phicommUserId !== boundUser.phicommUserId) {
           console.log('===================')
           console.log('This is not an error, but fruitmix received a bound user')
           console.log('different than the previous one, exit')
           console.log('===================')
           process.exit(67)
-        } else if (isNonEmptyString(boundUser.phoneNumber) && firstUser.phoneNumber !== boundUser.phoneNumber) {
-          if (users.find(u => u.phoneNumber === boundUser.phoneNumber)) {
+        } 
+        if (isNonEmptyString(boundUser.phoneNumber) && firstUser.phoneNumber !== boundUser.phoneNumber) {
+          if (users.find(u => u.phoneNumber === boundUser.phoneNumber && u.status !== USER_STATUS.DELETED)) {
             console.log('==============')
             console.log('update bound user phoneNumber already exist')
             console.log('update failed')
@@ -247,15 +251,13 @@ class User extends EventEmitter {
           console.log('==============')
           console.log('update bound user phoneNumber')
           console.log('==============')
-          let newFirstUser = Object.assign({}, firstUser, { phoneNumber: boundUser.phoneNumber })
-          return [
-            ...users.slice(0, index),
-            newFirstUser,
-            ...users.slice(index + 1)
-          ]
-        } else {
-          return users // no change
-        }
+          firstUser.phoneNumber = boundUser.phoneNumber 
+        } 
+        return [
+          ...users.slice(0, index),
+          newFirstUser,
+          ...users.slice(index + 1)
+        ]
       }
     },
     err => err
