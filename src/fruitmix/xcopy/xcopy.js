@@ -172,7 +172,14 @@ class XCopy extends EventEmitter {
   
   */
   sched () {
-    if (!this.root) return
+    if (!this.root) {
+      if (this.watchCallback) {
+        this.watchCallback(null, this.view())
+        this.watchCallback = null
+      }
+      return
+    }
+
     this.scheduled = false
 
     let { runningFile, conflictFile, runningDir, conflictDir } = this.count() 
@@ -193,6 +200,14 @@ class XCopy extends EventEmitter {
       this.root.visit(schedF)
     } catch (e) {
       console.log(e)
+    }
+
+    if (this.watchCallback) {
+      let { runningFile, runningDir } = this.count()
+      if (runningFile === 0 && runningDir === 0) {
+        this.watchCallback(null, this.view())
+        this.watchCallback = null
+      }
     }
   }
 
@@ -257,7 +272,7 @@ class XCopy extends EventEmitter {
   // if stopped, return task view
   // otherwise, return task view until stopped (step end)
   watch (callback) {
-    if (!this.stepping) return process.nextTick(() => callback(null))
+    // if (!this.stepping) return process.nextTick(() => callback(null))
     if (this.watchCallback) return process.nextTick(() => callback(null))
 
     let { runningFile, runningDir } = this.count() 

@@ -99,10 +99,19 @@ class User {
     return Promise.promisify(this.getTask).bind(this)(taskUUID)
   }
 
+  updateTask (taskUUID, nodeUUID, args, callback) {
+    this.ctx.updateTask(this.token, taskUUID, nodeUUID, args, callback)
+  }
+
+  async updateTaskAsync (taskUUID, nodeUUID, args) {
+    return Promise.promisify(this.updateTask).bind(this)(taskUUID, nodeUUID, args)
+  }
+
   patchTask (taskUUID, nodeUUID, args, callback) {
     this.ctx.patchTask(this.token, taskUUID, nodeUUID, args, callback)
   }
 
+  /** patch task returns patch and watch **/
   async patchTaskAsync (taskUUID, nodeUUID, args) {
     return Promise.promisify(this.patchTask).bind(this)(taskUUID, nodeUUID, args)
   }
@@ -384,6 +393,15 @@ class Watson {
     request(this.app.express)
       .get(`/tasks/${taskUUID}`)
       .set('Authorization', 'JWT ' + token)
+      .expect(200)
+      .end((err, res) => err ? callback(err) : callback(null, res.body))
+  }
+
+  updateTask (token, taskUUID, nodeUUID, args, callback) {
+    request(this.app.express)
+      .patch(`/tasks/${taskUUID}/nodes/${nodeUUID}`)
+      .set('Authorization', 'JWT ' + token)
+      .send(args)
       .expect(200)
       .end((err, res) => err ? callback(err) : callback(null, res.body))
   }

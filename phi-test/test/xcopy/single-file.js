@@ -121,7 +121,7 @@ describe(path.basename(__filename), () => {
       }
 
       let task = await user.createTaskAsync(args)
-      await Promise.delay(500)
+      await user.watchTaskAsync(task.uuid)
 
       let src = await user.listDirAsync(user.home.uuid, srcDirUUID)
       let dst = await user.listDirAsync(user.home.uuid, dstDirUUID)
@@ -144,7 +144,7 @@ describe(path.basename(__filename), () => {
       }
 
       let task = await user.createTaskAsync(args)
-      await Promise.delay(500)
+      await user.watchTaskAsync(task.uuid)
 
       let src = await user.listDirAsync(user.home.uuid, srcDirUUID)
       let dst = await user.listDirAsync(user.home.uuid, dstDirUUID)
@@ -165,7 +165,7 @@ describe(path.basename(__filename), () => {
       }
 
       let task = await user.createTaskAsync(args)
-      await Promise.delay(500)
+      await user.watchTaskAsync(task.uuid)
 
       let src = await user.listNfsDirAsync(UUIDDE, srcDirPath)
       let dst = await user.listDirAsync(user.home.uuid, dstDirUUID)
@@ -186,7 +186,7 @@ describe(path.basename(__filename), () => {
       }
 
       let task = await user.createTaskAsync(args)
-      await Promise.delay(500)
+      await user.watchTaskAsync(task.uuid)
 
       let src = await user.listNfsDirAsync(UUIDDE, srcDirPath)
       let dst = await user.listDirAsync(user.home.uuid, dstDirUUID)
@@ -207,7 +207,7 @@ describe(path.basename(__filename), () => {
       }
 
       let task = await user.createTaskAsync(args)
-      await Promise.delay(500)
+      await user.watchTaskAsync(task.uuid)
 
       let src = await user.listDirAsync(user.home.uuid, srcDirUUID)
       let dst = await user.listNfsDirAsync(UUIDDE, dstDirPath)
@@ -228,7 +228,7 @@ describe(path.basename(__filename), () => {
       }
 
       let task = await user.createTaskAsync(args)
-      await Promise.delay(500)
+      await user.watchTaskAsync(task.uuid)
 
       let src = await user.listDirAsync(user.home.uuid, srcDirUUID)
       let dst = await user.listNfsDirAsync(UUIDDE, dstDirPath)
@@ -246,7 +246,7 @@ describe(path.basename(__filename), () => {
       }
 
       let task = await user.createTaskAsync(args)
-      await Promise.delay(500)
+      await user.watchTaskAsync(task.uuid)
 
       let src = await user.listNfsDirAsync(UUIDDE, 'src')
       let dst = await user.listNfsDirAsync(UUIDF, 'dst')
@@ -264,7 +264,7 @@ describe(path.basename(__filename), () => {
       }
 
       let task = await user.createTaskAsync(args)
-      await Promise.delay(500)
+      await user.watchTaskAsync(task.uuid)
 
       let src = await user.listNfsDirAsync(UUIDDE, 'src')
       let dst = await user.listNfsDirAsync(UUIDF, 'dst')
@@ -282,7 +282,7 @@ describe(path.basename(__filename), () => {
       }
 
       let task = await user.createTaskAsync(args)
-      await Promise.delay(500)
+      await user.watchTaskAsync(task.uuid)
 
       let src = await user.listNfsDirAsync(UUIDDE, 'src')
       let dst = await user.listNfsDirAsync(UUIDDE, 'dst')
@@ -376,8 +376,6 @@ describe(path.basename(__filename), () => {
     })
 
     it('copy, 04c01d23', async function () {
-      this.timeout(10000)
-
       let srcDirUUID = home.find(x => x.name === 'src').xstat.uuid
       let dstDirUUID = home.find(x => x.name === 'dst').xstat.uuid
 
@@ -391,21 +389,14 @@ describe(path.basename(__filename), () => {
 
       let task
       task = await user.createTaskAsync(args)
-      await Promise.delay(500)
-
-      task = await user.getTaskAsync(task.uuid)
-
+      task = await user.watchTaskAsync(task.uuid)
       expect(task.nodes.length).to.equal(1)
       expect(task.nodes[0].state).to.equal('Conflict')
       expect(task.nodes[0].error.code).to.equal('EEXIST')
       expect(task.nodes[0].error.xcode).to.equal('EISFILE')
 
-
-      await user.patchTaskAsync(task.uuid, task.nodes[0].src.uuid, { policy: ['skip', null] })
-      await Promise.delay(500)
-
-      task = await user.getTaskAsync(task.uuid)
-
+      task = await user.updateTaskAsync(task.uuid, task.nodes[0].src.uuid, { policy: ['skip', null] })
+      task = await user.watchTaskAsync(task.uuid)
       expect(task.nodes.length).to.equal(0)
       expect(task.finished).to.equal(true)
 
