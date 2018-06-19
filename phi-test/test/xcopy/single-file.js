@@ -290,5 +290,118 @@ describe(path.basename(__filename), () => {
       expect(src.length).to.equal(0)
       expect(dst[0].name).to.equal('foo')
     })
-  })
+  }) /** end of no conflict **/
+
+  describe('conflict file', () => {
+    let watson, user, home, pub, n1, n2
+
+    beforeEach(async () => {
+      await rimrafAsync(tmptest)
+      await mkdirpAsync(fruitmixDir)
+      let fake = await fakeNfsAsync(tmptest)
+      let boundVolume = fake.createBoundVolume(fake.storage, fakeNfsAsync.UUIDBC)
+
+      let userFile = path.join(fruitmixDir, 'users.json')
+      await fs.writeFileAsync(userFile, JSON.stringify([alice], null, '  '))
+
+      let opts = { fruitmixDir, boundVolume }
+      let fruitmix = new Fruitmix(opts)
+      let app = new App({ fruitmix, log: { skip: 'all', error: 'none' } })
+      await new Promise(resolve => fruitmix.once('FruitmixStarted', () => resolve()))
+
+      watson = new Watson({ app })
+      await new Promise((resolve, reject) =>
+        watson.login('alice', 'alice', err =>
+          err ? reject(err) : resolve()))
+
+      fruitmix.nfs.update(fake.storage)
+      user = watson.users.alice
+
+      let children = [
+        { 
+          type: 'directory', 
+          name: 'dst', 
+          children: [
+            {
+              type: 'file',
+              name: 'foo',
+              file: alonzo.path,
+              size: alonzo.size,
+              sha256: alonzo.hash
+            }
+          ]
+        },
+        { 
+          type: 'directory',
+          name: 'src',
+          children: [
+            {
+              type: 'file',
+              name: 'foo',
+              file: foo.path,
+              size: foo.size,
+              sha256: foo.hash 
+            }
+          ]
+        }
+      ] 
+
+      home = await user.mktreeAsync({
+        type: 'vfs',
+        drive: user.home.uuid,
+        dir: user.home.uuid,
+        children
+      })
+
+      pub = await user.mktreeAsync({
+        type: 'vfs',
+        drive: user.pub.uuid,
+        dir: user.pub.uuid,
+        children 
+      })
+
+      n1 = await user.mktreeAsync({
+        type: 'nfs',
+        drive: UUIDDE,
+        dir: '',
+        children
+      })
+
+      n2 = await user.mktreeAsync({
+        type: 'nfs',
+        drive: UUIDF,
+        dir: '',
+        children
+      })
+    })
+
+    it('copy', async function () {
+      let srcDirUUID = home.find(x => x.name === 'src').xstat.uuid
+      let dstDirUUID = home.find(x => x.name === 'dst').xstat.uuid
+
+      let args = {
+        type: 'copy',
+        src: { drive: user.home.uuid, dir: srcDirUUID },
+        dst: { drive: user.home.uuid, dir: dstDirUUID },
+        entries: ['foo'],
+      }
+
+      let task
+      task = await user.createTaskAsync(args)
+      await Promise.delay(500)
+
+      task = await user.getTask(task.uuid)
+
+      console.log(task)
+/**
+      let src = await user.listDirAsync(user.home.uuid, srcDirUUID)
+      let dst = await user.listDirAsync(user.home.uuid, dstDirUUID)
+
+      expect(src.entries[0].name).to.equal('foo')
+      expect(dst.entries[0].name).to.equal('foo')
+**/
+
+    }) 
+
+  }) 
 })
