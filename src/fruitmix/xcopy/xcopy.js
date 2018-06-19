@@ -45,6 +45,10 @@ class XCopy extends EventEmitter {
     // stepping mode specific
     this.steppingState = 'Stopped' // or 'Stepping'
 
+    // backward compatible for a few weeks TODO
+    if (type === 'import') type === 'icopy'
+    if (type === 'export') type === 'ecopy'
+
     this.type = type
     this.user = user
     this.uuid = UUID.v4()
