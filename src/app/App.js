@@ -279,6 +279,16 @@ class App extends EventEmitter {
     let devicer = express.Router()
 
     devicer.get('/', (req, res, next) => res.status(200).json(this.device.view()))
+    devicer.patch('/', (req, res, next) => {
+      let arg = req.body.op
+      if (arg === 'reset') {
+        this.device.resetToFactory(err => err ? next(err) : res.status(200).end())
+      } else if (arg === 'sleep') {
+        
+      } else {
+        next(Object.assign(new Error('invalid arg'), { status: 400 }))
+      }
+    })
     devicer.get('/cpuInfo', (req, res) => res.status(200).json(this.device.cpuInfo()))
     devicer.get('/memInfo', (req, res, next) => this.device.memInfo((err, data) => err ? next(err) : res.status(200).json(data)))
     devicer.get('/speed', (req, res, next) => res.status(200).json(this.device.netDev()))

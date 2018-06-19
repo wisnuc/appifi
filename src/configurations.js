@@ -50,9 +50,9 @@ const n2 = {
   chassis: {
     userBinding: true,
     volumeBinding: true,
-    dir: '/etc/phicomm',
-    tmpDir: '/etc/phicomm/atmp',
-    dTmpDir: '/etc/phicomm/dtmp'
+    dir: '/mnt/reserved/userdata//phicomm',
+    tmpDir: '/mnt/reserved/userdata//phicomm/atmp',
+    dTmpDir: '/mnt/reserved/userdata//phicomm/dtmp'
   },
   storage: {
     fruitmixDir: 'phicomm/n2',
