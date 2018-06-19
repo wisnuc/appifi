@@ -197,8 +197,23 @@ class Device {
   }
 
   memInfo(callback) {
+    let type, speed
+    try {
+      type = child.execSync('dmidecode -t memory |grep -A16 "Memory Device$" |grep "Type: DD*"')
+        .toString().split('\n')
+        .shift()
+        .split(' ')
+        .map(x => x.trim())
+        .filter(x => x.length)
+        .pop()
+      speed = child.execSync('dmidecode -t memory |grep -A16 "Memory Device$" |grep "Speed:.*MHz"')
+        .toString().split('\n')
+        .shift()
+        .split(':')
+        .pop().trim()
+    } catch (e) { }
     probeProcAsync('meminfo', false)
-      .then(data => callback(null, data))
+      .then(data => callback(null, Object.assign(data, { Speed: speed, Type: type })))
       .catch(callback)
   }
 
@@ -356,7 +371,7 @@ class Device {
   }
 
   sleepMode (props, callback) {
-    
+
   }
 }
 
