@@ -375,7 +375,9 @@ describe(path.basename(__filename), () => {
       })
     })
 
-    it('copy', async function () {
+    it('copy, 04c01d23', async function () {
+      this.timeout(10000)
+
       let srcDirUUID = home.find(x => x.name === 'src').xstat.uuid
       let dstDirUUID = home.find(x => x.name === 'dst').xstat.uuid
 
@@ -386,14 +388,29 @@ describe(path.basename(__filename), () => {
         entries: ['foo'],
       }
 
+
       let task
       task = await user.createTaskAsync(args)
       await Promise.delay(500)
 
-      task = await user.getTask(task.uuid)
+      task = await user.getTaskAsync(task.uuid)
 
-      console.log(task)
+      expect(task.nodes.length).to.equal(1)
+      expect(task.nodes[0].state).to.equal('Conflict')
+      expect(task.nodes[0].error.code).to.equal('EEXIST')
+      expect(task.nodes[0].error.xcode).to.equal('EISFILE')
+
+
+      await user.patchTaskAsync(task.uuid, task.nodes[0].src.uuid, { policy: ['skip', null] })
+      await Promise.delay(500)
+
+      task = await user.getTaskAsync(task.uuid)
+
+      expect(task.nodes.length).to.equal(0)
+      expect(task.finished).to.equal(true)
+
 /**
+      TODO
       let src = await user.listDirAsync(user.home.uuid, srcDirUUID)
       let dst = await user.listDirAsync(user.home.uuid, dstDirUUID)
 
@@ -401,7 +418,7 @@ describe(path.basename(__filename), () => {
       expect(dst.entries[0].name).to.equal('foo')
 **/
 
-    }) 
+    })
 
   }) 
 })

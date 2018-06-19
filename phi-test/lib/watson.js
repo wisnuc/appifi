@@ -91,12 +91,12 @@ class User {
     return Promise.promisify(this.createTask).bind(this)(args)
   }
 
-  getTask(uuid, callback) {
-    this.ctx.getTask(this.token, uuid, callback)
+  getTask(taskUUID, callback) {
+    this.ctx.getTask(this.token, taskUUID, callback)
   }
 
-  async getTask(taskUUID) {
-    return Promise.promisify(this.createTask).bind(this)(args)
+  async getTaskAsync(taskUUID) {
+    return Promise.promisify(this.getTask).bind(this)(taskUUID)
   }
 
   patchTask (taskUUID, nodeUUID, args, callback) {
@@ -113,6 +113,14 @@ class User {
 
   async stepTaskAsync (taskUUID) {
     return Promise.promisify(this.stepTask).bind(this)(taskUUID)
+  }
+
+  watchTask (taskUUID, callback) {
+    this.ctx.watchTask(this.token, taskUUID, callback)
+  }
+
+  async watchTaskAsync (taskUUID) {
+    return Promise.promisify(this.watchTask).bind(this)(taskUUID)
   }
 
   getFiles (args, callback) {
@@ -352,6 +360,15 @@ class Watson {
             })
         }
       })
+  }
+
+  watchTask (token, taskUUID, callback) {
+    request(this.app.express)
+      .patch(`/tasks/${taskUUID}`)
+      .set('Authorization', 'JWT ' + token)
+      .send({ op: 'watch' })
+      .expect(200)
+      .end((err, res) => err ? callback(err) : callback(null, res.body))
   }
 
   createTask (token, args, callback) {
