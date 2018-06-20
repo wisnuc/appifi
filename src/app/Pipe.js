@@ -8,7 +8,7 @@ const debug = require('debug')('pipe')
 
 const routing = require('./routing')
 
-const BASE_URL = process.argv.find('--devCloud')
+const BASE_URL = process.argv.includes('--devCloud')
   ? 'http://sohon2dev.phicomm.com/ResourceManager/nas/callback/'
   : 'http://sohon2test.phicomm.com/ResourceManager/nas/callback/'
 const RE_BOUNDARY = /^multipart\/.+?(?:; boundary=(?:(?:"(.+)")|(?:([^\s]+))))$/i
