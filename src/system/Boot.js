@@ -437,6 +437,7 @@ class Started extends State {
           else cb(null)
           setTimeout(() => {
             this.uninstalling = false
+            if (props.reset) return child.exec('reboot', () => {})
             process.exit(61)
           }, 200)
         })
@@ -998,10 +999,42 @@ class Boot extends EventEmitter {
    * @param {*} callback 
    */
   uninstall (user, props,callback) {
+    // FIXME:
     // if (!user || !user.phicommUserId || user.phicommUserId !== this.boundUser.phicommUserId) {
     //   return process.nextTick(() => callback(Object.assign(new Error('Permission Denied'), { status: 403 })))
     // }
-    this.state.uninstall(props, callback)
+    
+    if (props.reset && typeof props.reset !== 'boolean') {
+      return callback(Object.assign(new Error('props error'), { status: 400 }))
+    }
+    // if reset , do reset first, auto reboot false
+    if (props.reset) {
+      this.resetToFactory(user, !!props.format, err => {
+        if (err) return callback(err)
+        if (props.format) {
+          this.state.uninstall(props, callback)
+        }
+      })
+    } else
+      this.state.uninstall(props, callback)
+  }
+
+  resetToFactory(user, autoReboot, callback) {
+    let fileP = '/mnt/reserved/fw_ver_release.json'
+    fs.readFile(fileP, (err, data) => {
+      if (err) return callback(err)
+      let config = JSON.parse(data.toString())
+      config.action = '1'
+      let tmpP = path.join(ctx.opts.configuration.chassis.dTmpDir, uuid.v4())
+      fs.writeFile(tmpP, JSON.stringify(config, null, '  '), err => {
+        if (err) return callback(err)
+        fs.rename(tmpP, fileP, err => {
+          if (err) return callback(err)
+          if (autoReboot) setTimeout(() => child.exec('reboot'), 1000)
+          callback(null)
+        })
+      })
+    })
   }
 
   async ejectUSBAsync (target) {
