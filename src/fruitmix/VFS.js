@@ -2021,6 +2021,7 @@ class VFS extends EventEmitter {
       let tmpDir = path.join(this.tmpDir, UUID.v4())
       let dirPath = path.join(this.driveDir, root.uuid)
       try {
+        mkdirp.sync(tmpDir)
         let attr = JSON.parse(xattr.getSync(dirPath, 'user.fruitmix'))
         xattr.setSync(tmpDir, 'user.fruitmix', JSON.stringify(attr))
         rimraf.sync(dirPath)
