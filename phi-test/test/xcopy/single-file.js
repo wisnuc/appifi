@@ -375,7 +375,7 @@ describe(path.basename(__filename), () => {
       })
     })
 
-    it('copy, 04c01d23', async function () {
+    it('copy, skip', async function () {
       let srcDirUUID = home.find(x => x.name === 'src').xstat.uuid
       let dstDirUUID = home.find(x => x.name === 'dst').xstat.uuid
 
@@ -385,7 +385,6 @@ describe(path.basename(__filename), () => {
         dst: { drive: user.home.uuid, dir: dstDirUUID },
         entries: ['foo'],
       }
-
 
       let task
       task = await user.createTaskAsync(args)
@@ -400,16 +399,44 @@ describe(path.basename(__filename), () => {
       expect(task.nodes.length).to.equal(0)
       expect(task.finished).to.equal(true)
 
-/**
-      TODO
+      // TODO
       let src = await user.listDirAsync(user.home.uuid, srcDirUUID)
       let dst = await user.listDirAsync(user.home.uuid, dstDirUUID)
 
       expect(src.entries[0].name).to.equal('foo')
       expect(dst.entries[0].name).to.equal('foo')
-**/
-
     })
 
+    it('move, skip', async function () {
+      let srcDirUUID = home.find(x => x.name === 'src').xstat.uuid
+      let dstDirUUID = home.find(x => x.name === 'dst').xstat.uuid
+
+      let args = {
+        type: 'move',
+        src: { drive: user.home.uuid, dir: srcDirUUID },
+        dst: { drive: user.home.uuid, dir: dstDirUUID },
+        entries: ['foo'],
+      }
+
+      let task
+      task = await user.createTaskAsync(args)
+      task = await user.watchTaskAsync(task.uuid)
+      expect(task.nodes.length).to.equal(1)
+      expect(task.nodes[0].state).to.equal('Conflict')
+      expect(task.nodes[0].error.code).to.equal('EEXIST')
+      expect(task.nodes[0].error.xcode).to.equal('EISFILE')
+
+      task = await user.updateTaskAsync(task.uuid, task.nodes[0].src.uuid, { policy: ['skip', null] })
+      task = await user.watchTaskAsync(task.uuid)
+      expect(task.nodes.length).to.equal(0)
+      expect(task.finished).to.equal(true)
+
+      // TODO
+      let src = await user.listDirAsync(user.home.uuid, srcDirUUID)
+      let dst = await user.listDirAsync(user.home.uuid, dstDirUUID)
+
+      expect(src.entries[0].name).to.equal('foo')
+      expect(dst.entries[0].name).to.equal('foo')
+    })
   }) 
 })
