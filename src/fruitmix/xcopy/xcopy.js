@@ -172,6 +172,8 @@ class XCopy extends EventEmitter {
   
   */
   sched () {
+    debug('sched')
+
     if (!this.root) {
       if (this.watchCallback) {
         this.watchCallback(null, this.view())
@@ -216,6 +218,8 @@ class XCopy extends EventEmitter {
   // any watch callback should be returned if transition occurred
   // in non-stepping mode, this function schedule sched
   reqSched () {
+    debug('req sched')
+
     if (this.stepping) {
       if (this.scheduled) {
         // debug('reqSched already triggered')
@@ -272,6 +276,7 @@ class XCopy extends EventEmitter {
   // if stopped, return task view
   // otherwise, return task view until stopped (step end)
   watch (callback) {
+    debug('watch')
     // if (!this.stepping) return process.nextTick(() => callback(null))
     if (this.watchCallback) return process.nextTick(() => callback(null))
 

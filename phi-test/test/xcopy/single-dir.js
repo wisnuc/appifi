@@ -38,6 +38,8 @@ const alice = {
   phicommUserId: 'alice'
 }
 
+const J = x => JSON.stringify(x, null, '  ')
+
 describe(path.basename(__filename), () => {
   describe('no conflict', () => {
     let watson, user, home, pub, n1, n2
@@ -284,5 +286,166 @@ describe(path.basename(__filename), () => {
       expect(src.length).to.equal(0)
       expect(dst[0].name).to.equal('foo')
     })
+  })
+
+  describe('conflict dir', () => {
+    let watson, user, home, pub, n1, n2
+
+    beforeEach(async () => {
+      await rimrafAsync(tmptest)
+      await mkdirpAsync(fruitmixDir)
+      let fake = await fakeNfsAsync(tmptest)
+      let boundVolume = fake.createBoundVolume(fake.storage, fakeNfsAsync.UUIDBC)
+
+      let userFile = path.join(fruitmixDir, 'users.json')
+      await fs.writeFileAsync(userFile, JSON.stringify([alice], null, '  '))
+
+      let opts = { fruitmixDir, boundVolume }
+      let fruitmix = new Fruitmix(opts)
+      let app = new App({ fruitmix, log: { skip: 'all', error: 'none' } })
+      await new Promise(resolve => fruitmix.once('FruitmixStarted', () => resolve()))
+
+      watson = new Watson({ app })
+      await new Promise((resolve, reject) =>
+        watson.login('alice', 'alice', err =>
+          err ? reject(err) : resolve()))
+
+      fruitmix.nfs.update(fake.storage)
+      user = watson.users.alice
+
+      let children = [
+        { 
+          type: 'directory', 
+          name: 'dst', 
+          children: [
+            {
+              type: 'directory',
+              name: 'foo'
+            }
+          ]
+        },
+        { 
+          type: 'directory',
+          name: 'src',
+          children: [
+            {
+              type: 'directory',
+              name: 'foo',
+            }
+          ]
+        }
+      ] 
+
+      home = await user.mktreeAsync({
+        type: 'vfs',
+        drive: user.home.uuid,
+        dir: user.home.uuid,
+        children
+      })
+
+      pub = await user.mktreeAsync({
+        type: 'vfs',
+        drive: user.pub.uuid,
+        dir: user.pub.uuid,
+        children 
+      })
+
+      n1 = await user.mktreeAsync({
+        type: 'nfs',
+        drive: UUIDDE,
+        dir: '',
+        children
+      })
+
+      n2 = await user.mktreeAsync({
+        type: 'nfs',
+        drive: UUIDF,
+        dir: '',
+        children
+      })
+    })
+
+    it('copy, skip', async () => {
+      let srcDirUUID = home.find(x => x.name === 'src').xstat.uuid
+      let dstDirUUID = home.find(x => x.name === 'dst').xstat.uuid
+      let args = {
+        type: 'copy',
+        src: { drive: user.home.uuid, dir: srcDirUUID },
+        dst: { drive: user.home.uuid, dir: dstDirUUID },
+        entries: ['foo'],
+      }
+
+      let task = await user.createTaskAsync(args)
+      task = await user.watchTaskAsync(task.uuid)
+      expect(task.nodes.length).to.equal(1)
+      expect(task.nodes[0].state).to.equal('Conflict')
+      expect(task.nodes[0].error.code).to.equal('EEXIST')
+      expect(task.nodes[0].error.xcode).to.equal('EISDIR')
+
+      task = await user.updateTaskAsync(task.uuid, task.nodes[0].src.uuid, { policy: ['skip', null] }) 
+      task = await user.watchTaskAsync(task.uuid)
+
+      let src = await user.listDirAsync(user.home.uuid, srcDirUUID)
+      let dst = await user.listDirAsync(user.home.uuid, dstDirUUID)
+
+      expect(src.entries[0].name).to.equal('foo')
+      expect(dst.entries[0].name).to.equal('foo')
+    })
+
+    it('move, skip', async () => {
+      let srcDirUUID = home.find(x => x.name === 'src').xstat.uuid
+      let dstDirUUID = home.find(x => x.name === 'dst').xstat.uuid
+      let args = {
+        type: 'move',
+        src: { drive: user.home.uuid, dir: srcDirUUID },
+        dst: { drive: user.home.uuid, dir: dstDirUUID },
+        entries: ['foo'],
+      }
+
+      let task = await user.createTaskAsync(args)
+      task = await user.watchTaskAsync(task.uuid)
+      expect(task.nodes.length).to.equal(1)
+      expect(task.nodes[0].state).to.equal('Conflict')
+      expect(task.nodes[0].error.code).to.equal('EEXIST')
+      expect(task.nodes[0].error.xcode).to.equal('EISDIR')
+
+      task = await user.updateTaskAsync(task.uuid, task.nodes[0].src.uuid, { policy: ['skip', null] }) 
+      task = await user.watchTaskAsync(task.uuid)
+
+      let src = await user.listDirAsync(user.home.uuid, srcDirUUID)
+      let dst = await user.listDirAsync(user.home.uuid, dstDirUUID)
+
+      expect(src.entries[0].name).to.equal('foo')
+      expect(dst.entries[0].name).to.equal('foo')
+    })
+
+    it('icopy, skip', async function () {
+      let srcDirPath = 'src'
+      let dstDirUUID = home.find(x => x.name === 'dst').xstat.uuid
+
+      let args = {
+        type: 'icopy',
+        src: { drive: UUIDDE, dir: srcDirPath },
+        dst: { drive: user.home.uuid, dir: dstDirUUID },
+        entries: ['foo']
+      }
+
+      let task = await user.createTaskAsync(args)
+      task = await user.watchTaskAsync(task.uuid)
+      expect(task.nodes.length).to.equal(1)
+      expect(task.nodes[0].state).to.equal('Conflict')
+      expect(task.nodes[0].error.code).to.equal('EEXIST')
+      expect(task.nodes[0].error.xcode).to.equal('EISDIR')
+
+      task = await user.updateTaskAsync(task.uuid, task.nodes[0].src.uuid, { policy: ['skip', null] }) 
+      task = await user.watchTaskAsync(task.uuid)
+
+      let src = await user.listNfsDirAsync(UUIDDE, srcDirPath)
+      let dst = await user.listDirAsync(user.home.uuid, dstDirUUID)
+
+      expect(src[0].name).to.equal('foo') 
+      expect(dst.entries[0].name).to.equal('foo')
+    })
+
   })
 })
