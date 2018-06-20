@@ -101,75 +101,90 @@ Entering this state when user try to resolve name conflict by single or global 
 */
 class Mkdir extends State {
   enter () {
-    let policy = this.ctx.getPolicy()
-    let [same, diff] = policy
-    let type = this.ctx.ctx.type
-    if (same === 'keep') same = 'skip'
+    let task = this.ctx.ctx
+    let dir = this.ctx
+    let pdir = dir.parent
 
-    this.mkdir([same, diff], (err, dst, resolved) => {
-      if (this.destroyed) return
-      if (err && err.code === 'EEXIST') return this.setState(Conflict, err, policy)
-      if (err) return this.setState(Failed, err)
-      // 文件夹操作成功，根据操作类型及策略进行后续操作
+    let { user, type, vfs, nfs } = task
+    let srcDrive = task.src.drive
+    let dstDrive = task.dst.drive
+    let name = dir.src.name 
+    let names = [name]
 
-      // skip 策略， 直接进入完成状态
-      if ((policy[0] === 'skip' && resolved[0]) ||
-        (policy[1] === 'skip' && resolved[1])) return this.setState(Finish)
+    let _policy = dir.getPolicy()
+    let policy = [_policy[0] === 'keep' ? 'skip' : _policy[0], _policy[1]]
 
-      // 移动操作，在冲突情况下，除了keep策略，其他策略完成后直接进入完成状态
-      if (type === 'move') {
-        if (policy[0] !== 'keep') return this.setState(Finish)
-        else if (!resolved[0]) return this.setState(Finish)
-      }
+    let props, f
 
-      // 其他策略情况下，文件夹node进入preparing状态
-      this.ctx.dst = { uuid: dst.uuid, name: dst.name }
-      this.setState(Preparing)
-    })
-  }
-
-  /**
-  */
-  mkdir (policy, callback) {
-    if (this.ctx.ctx.type === 'copy') {
-      let name = this.ctx.src.name
-      let props = {
-        driveUUID: this.ctx.ctx.dst.drive,
+    if (type === 'copy' || type === 'icopy' || type === 'imove') {
+      props = {
+        driveUUID: dstDrive,
         dirUUID: this.ctx.parent.dst.uuid,
-        names: [name],
+        names,
         policy
       }
-
-      this.ctx.ctx.vfs.MKDIRS(this.ctx.ctx.user, props, (err, map) => {
-        if (err) {
-          callback(err)
-        } else {
-          let { err, stat, resolved } = map.get(name)
-          callback(err, stat, resolved)
-        }
-      })
-    } else if (this.ctx.ctx.type === 'move') {
-      try {
-        let name = this.ctx.src.name
-        let names = [name]
-        let src = { drive: this.ctx.ctx.src.drive, dir: this.ctx.parent.src.uuid }
-        let dst = { drive: this.ctx.ctx.dst.drive, dir: this.ctx.parent.dst.uuid }
-        this.ctx.ctx.vfs.MVDIRS(this.ctx.ctx.user, { src, dst, names, policy }, (err, map) => {
-          if (err) callback(err)
-          else {
-            let { err, stat, resolved } = map.get(name)
-            callback(err, stat, resolved)
-          }
-        })
-      } catch (err) {
-        debug(err)
-        callback(err)
+      f = vfs.MKDIRS.bind(vfs)
+    } else if (type === 'move') {
+      props = {
+        src: { drive: srcDrive, dir: pdir.src.uuid },
+        dst: { drive: dstDrive, dir: pdir.dst.uuid },
+        names,
+        policy
       }
+      f = vfs.MVDIRS.bind(vfs)
+    } else if (type === 'nmove' && srcDrive === dstDrive) {
+      props = {
+        id: srcDrive,
+        srcPath: pdir.namepath(),
+        dstPath: pdir.dstNamePath(),
+        names,
+        policy
+      }
+      f = nfs.MVDIRS.bind(nfs)
     } else {
-      let err = new Error('not implemented yet')
-      err.status = 500
-      callback(err)
+      props = {
+        id: dstDrive,
+        path: pdir.dstNamePath(),
+        names,
+        policy
+      }
+      f = nfs.MKDIRS.bind(nfs)
     }
+
+    f(user, props, (err, map) => {
+      // TODO destroy
+      if (err) {
+        callback(err)
+      } else {
+        let { err, stat, resolved } = map.get(name)
+        if (err) {
+          if (err.code === 'EEXIST') {
+            this.setState(Conflict, err, _policy)
+          } else {
+            this.setState(Failed, err)
+          }
+        } else {
+          if (type === 'move' || type === 'nmove' && srcDrive === dstDrive) {
+            // 3. successful move does NOT generate child job, unless keep resovled 
+            if (_policy[0] === 'keep' && resolved[0] === true) {
+              this.ctx.dst = { uuid: stat.uuid, name: stat.name }
+              this.setState(Preparing)
+            } else {
+              this.tryFinish()
+            }
+          } else {
+            // 3. successful copy generates child dir job, unless skipped resovled
+            if ((_policy[0] === 'skip' && resolved[0] === true)
+              || (_policy[1] === 'skip' && resolved[1] === true)) {
+              this.tryFinish()
+            } else {
+              this.ctx.dst = { uuid: stat.uuid, name: stat.name }
+              this.setState(Preparing)
+            }
+          }
+        } 
+      }
+    })
   }
 }
 
@@ -266,31 +281,7 @@ class Preparing extends State {
       }
     })
   }
-  /**
-  readdir (callback) {
-    let type = this.ctx.ctx.type
-    let user = this.ctx.ctx.user
-    let props, fs
-    if (type === 'copy' || type === 'move' || type === 'ecopy' || type === 'emove') {
-      props = {
-        driveUUID: this.ctx.ctx.src.drive,
-        dirUUID: this.ctx.src.uuid
-      }
-      fs = this.ctx.ctx.vfs
-    } else if (type === 'icopy' || type === 'imove' || type === 'ncopy' || type === 'nmove') {
-      props = {
-        id: this.ctx.ctx.src.drive,
-        path: this.ctx.namepath()
-      }
-      fs = this.ctx.ctx.nfs
-    } else {
-      let err = new Error(`unsupported type ${type}`)
-      return process.nextTick(() => callback(err))
-    }
 
-    fs.READDIR(user, props, callback)
-  }
-*/
   // mkdirs or mvdirs in batch mode
   batch (dstats, fstats) {
     let user = this.ctx.ctx.user
@@ -411,7 +402,10 @@ class Parent extends State {
     dstats
       .filter(x => x.dst.err)
       .forEach(x => {
-        let dir = new XDir(this.ctx.ctx, this.ctx, { uuid: x.uuid, name: x.name }, x.dst.err)
+        let dir = new XDir(this.ctx.ctx, this.ctx, {
+          uuid: x.uuid || UUID.v4(),
+          name: x.name
+        }, x.dst.err)
         dir.on('StateEntered', state => {
           if (state === 'Failed' || state === 'Finish') {
             dir.destroy()
@@ -430,10 +424,6 @@ class Parent extends State {
   }
 }
 
-/**
-`Failed` state for directory sub-task
-
-*/
 class Failed extends State {
   // when directory enter failed
   // all descendant node are destroyed (but not removed)
@@ -473,6 +463,9 @@ class XDir extends XNode {
     this.children = []
     this.src = src
 
+    // TODO
+    if (!src.uuid) console.log(new Error('src no uuid'))
+
     // 失败任务处理
     if (dst instanceof Error) {
       let err = dst
@@ -509,6 +502,7 @@ class XDir extends XNode {
   }
 
   updatePolicy (policy) {
+    debug(`${this.src.name} updatePolicy`, policy)
     if (this.state.constructor.name !== 'Conflict') return
     this.policy[0] = policy[0] || this.policy[0]
     this.policy[1] = policy[1] || this.policy[1]
@@ -532,7 +526,7 @@ class XDir extends XNode {
 
     let arr = this.dstats.splice(0, required)
     arr.forEach(dstat => {
-      let src = { uuid: dstat.uuid, name: dstat.name }
+      let src = { uuid: dstat.uuid || UUID.v4(), name: dstat.name }
       let dst = { uuid: dstat.dst.stat.uuid, name: dstat.dst.stat.name }
       let dir = new XDir(this.ctx, this, src, dst)
       dir.on('StateEntered', state => {
