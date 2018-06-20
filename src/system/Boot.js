@@ -1045,7 +1045,7 @@ class Boot extends EventEmitter {
     if (block.isPartitioned) { // parent block
       let subBlocks = this.storage.blocks.filter(b => b.parentName === target)
       if (!subBlocks.length) throw new Error('block is partitioned, but subBlock not found')
-      let mountedSB = subBlock.filter(s => s.isMounted)
+      let mountedSB = subBlocks.filter(s => s.isMounted)
       for (let i = 0; i < mountedSB.length; i++) {
         await child.execAsync(`udisksctl unmount -b ${ mountedSB[i].devname }`)
       }
@@ -1054,7 +1054,7 @@ class Boot extends EventEmitter {
     } else if (block.isPartition) {//sub block
       if (!isNonEmptyString(block.parentName)) throw new Error('block is partition, but parentName not found')
       let subBlocks = this.storage.blocks.filter(b => b.parentName === block.parentName)
-      let mountedSB = subBlock.filter(s => s.isMounted)
+      let mountedSB = subBlocks.filter(s => s.isMounted)
       for (let i = 0; i < mountedSB.length; i++) {
         await child.execAsync(`udisksctl unmount -b ${ mountedSB[i].devname }`)
       }
