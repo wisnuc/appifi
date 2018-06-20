@@ -14,6 +14,10 @@ class DirApi {
   GET(user, props, callback) {
     this.vfs.dirGET(user, props, callback)
   }
+
+  PATCH(user, props, callback) {
+    this.vfs.dirFormat(user, props, callback)
+  }
 }
 
 module.exports = DirApi
