@@ -649,7 +649,7 @@ class NFS extends EventEmitter {
   */
   PATCH (user, props, callback) {
     if (props.op) {
-      if (op === 'eject' && this.ejectHandler) {
+      if (props.op === 'eject' && this.ejectHandler) {
         return this.ejectHandler(props.id)
           .then(() => callback(null))
           .catch(callback)
