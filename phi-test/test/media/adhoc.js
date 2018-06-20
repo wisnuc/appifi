@@ -10,6 +10,7 @@ const rimrafAsync = Promise.promisify(rimraf)
 const UUID = require('uuid')
 const ioctl = require('ioctl')
 const xattr = require('fs-xattr')
+const fileType = require('file-type')
 const { isUUID } = require('validator')
 const sizeOf = require('image-size')
 
@@ -299,8 +300,6 @@ describe(path.basename(__filename), () => {
           let file = path.join(tmptest, 'tmpfile')
           fs.writeFileSync(file, res.body)
 
-          console.log(res.body.length)
-
           let size = sizeOf(file)
           expect(size.height).to.equal(200)
           expect(size.type).to.equal('jpg')
@@ -321,17 +320,32 @@ describe(path.basename(__filename), () => {
               let file = path.join(tmptest, 'tmpfile')
               fs.writeFileSync(file, res.body)
 
-              console.log(res.body.length)
-
               let size = sizeOf(file)
               expect(size.height).to.equal(200)
               expect(size.type).to.equal('jpg')
 
-              done()
+              request(app.express)
+                .get(`/media/${mate9.hash}`)
+                .set('Authorization', 'JWT ' + token)
+                .query({
+                  alt: 'thumbnail',
+                  width: 200,
+                  height: 200,
+                  modifier: 'caret',
+                  autoOrient: true,
+                  vthumb: true 
+                })
+                .buffer()
+                .end((err, res) => {
+                  if (err) return done(err)
+                  let file = path.join(tmptest, 'tmpfile')
+                  fs.writeFileSync(file, res.body)
+                  expect(fileType(res.body).ext).to.equal('mp4')
+                  done()
+                })
             }) 
         })
     })
-
 
     it('get wslv.dll thumbnail, 160x160 should return something, 6af695de', done => {
       request(app.express)

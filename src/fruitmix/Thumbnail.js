@@ -89,13 +89,12 @@ const geometry = (width, height, modifier) => {
 
 // generate convert args
 const genArgs = (src, tmp, opts, type) => {
-
   if (type === 'JPEG') type = 'JPG'
   let ext = path.extname(src).slice(1).toUpperCase()
-  
+
   if (ext !== type) {
     src = `${type.toLowerCase()}:${src}`
-  } 
+  }
 
   let args = []
   args.push(src + '[0]')
@@ -140,7 +139,6 @@ class Thumbnail extends EventEmitter {
 
     this.pending = []
     this.converting = []
-    this.renaming = []
 
     this.concurrency = concurrency || 4
     this.destroyed = false
@@ -163,34 +161,105 @@ class Thumbnail extends EventEmitter {
       let x = this.pending.shift()
       this.converting.push(x)
 
-      x.tmp = path.join(this.tmpDir, UUID.v4() + '.jpg')
-      let args = genArgs(x.file, x.tmp, x.opts, x.type)
-      spawn('convert', args, err => {
-        // converting ->
-        this.converting.splice(this.converting.indexOf(x), 1)
+      /**
+      This list must be kept in sync with video format defined in lib/file-meta
+      */
+      const video = ['RM', 'RMVB', 'WMV', 'AVI', 'MPEG', 'MP4', '3GP', 'MOV', 'FLV', 'MKV']
 
-        if (err) {
-          // -> 0
-          x.cbs.forEach(cb => cb(err))
-          x.cbs = []
-        } else {
-          // -> renaming
-          this.renaming.push(x)
+      if (video.includes(x.metadata.type)) {
+        // 1. generate 15s (at most) mp4 video thumbnail as tmp1 (.mp4)
+        // 2. move tmp1 to target named suffixed -v
+        // 3. generate jpg thumbnail from video as tmp2 (.jpg)
+        // 4. move tmp2 to target named key
+        x.tmp1 = path.join(this.tmpDir, UUID.v4() + '.mp4')
+        x.pathv = x.path + '-v' 
 
-          fs.rename(x.tmp, x.path, err => {
-            // renaming -> 0
-            this.renaming.splice(this.renaming.indexOf(x), 1)
-            x.cbs.forEach(cb => err ? cb(err) : cb(null, x.path))
-            x.cbs = []
+        let origWidth = x.metadata.w
+        let origHeight = x.metadata.h
+        let expectedWidth = x.opts.width
+        let expectedHeight = x.opts.height
 
-            // no schedule
-            this.emit('step', 'rename', x)
-          })
+        // 1. keep aspect ratio
+        // 2. avoid up scale
+        // 3. no crop (client side crop)
+        let width, height, scale
+
+        if (expectedWidth >= origWidth && expectedHeight >= origHeight) {
+          width = origWidth
+          height = origHeight
+        } else if (x.opts.caret) {  // fill expected rectangle
+          if (Math.floor(expectedWidth / origWidth * origHeight) >= expectedHeight) {
+            scale = `scale=${expectedWidth}:-2`
+          } else {
+            scale = `scale=-2:${expectedHeight}`
+          }
+        } else {  // contained in expected rectangle
+          if (Math.floor(expectedWidth / origWidth * origHeight) <= expectedHeight) {
+            scale = `scale=${expectedWidth}:-2`
+          } else {
+            scale = `scale=-2:${expectedHeight}`
+          }
         }
 
-        this.schedule()
-        this.emit('step', 'convert', x)
-      })
+        /* ffmpeg -loglevel quiet -y -t 15 -i rmvb-sample01.rmvb -an -vf scale=200:200 thumb.mp4 */
+        spawn('ffmpeg', [
+          '-loglevel', 'quiet', '-y', '-t', '15', '-i', x.file, 
+          '-an', '-vf', scale, x.tmp1
+        ], err => {
+          if (err) {
+            this.converting.splice(this.converting.indexOf(x), 1)
+            x.cbs.forEach(cb => cb(err))
+            x.cbs = []
+            this.schedule()
+          } else {
+            fs.rename(x.tmp1, x.pathv, err => {
+              if (err) {
+                this.converting.splice(this.converting.indexOf(x), 1)
+                x.cbs.forEach(cb => cb(err))
+                x.cbs = []
+                this.schedule()
+              } else {
+                x.tmp2 = path.join(this.tmpDir, UUID.v4() + '.jpg')
+                let args = genArgs(x.pathv, x.tmp2, x.opts, x.type)
+                spawn('convert', args, err => {
+                  if (err) {
+                    this.converting.splice(this.converting.indexOf(x), 1)
+                    x.cbs.forEach(cb => cb(err))
+                    x.cbs = []
+                    this.schedule()
+                  } else {
+                    fs.rename(x.tmp2, x.path, err => {
+                      this.converting.splice(this.converting.indexOf(x), 1)
+                      x.cbs.forEach(cb => err ? cb(err) : cb(null, x.path))
+                      x.cbs = []
+                      this.schedule()
+                    }) 
+                  }
+                })
+              }
+            })
+          } 
+        })
+
+      } else {
+        x.tmp = path.join(this.tmpDir, UUID.v4() + '.jpg')
+        let args = genArgs(x.file, x.tmp, x.opts, x.type)
+        spawn('convert', args, err => {
+          if (err) {
+            this.converting.splice(this.converting.indexOf(x), 1)
+            x.cbs.forEach(cb => cb(err))
+            x.cbs = []
+            this.schedule()
+          } else {
+            fs.rename(x.tmp, x.path, err => {
+              this.converting.splice(this.converting.indexOf(x), 1)
+              x.cbs.forEach(cb => err ? cb(err) : cb(null, x.path))
+              x.cbs = []
+              this.schedule()
+            })
+          }
+        })
+      }
     }
   }
 
@@ -205,7 +274,6 @@ class Thumbnail extends EventEmitter {
     if (!isNonNullObject(query)) throw new Error('invalid query')
     let opts = parseQuery(query)
     let key = genKey(fingerprint, opts)
-
     return {
       fingerprint,
       opts,
@@ -215,20 +283,20 @@ class Thumbnail extends EventEmitter {
   }
 
   // props is a thumb props
-  convert (props, file, type, callback) {
+  convert (props, file, metadata, callback) {
+    debug('convert', metadata, props)
 
     // find existing job by key
     let job = [
       ...this.pending,
       ...this.converting,
-      ...this.renaming
     ].find(j => j.key === props.key)
 
     if (job) {
       job.cbs.push(callback)
     } else {
       // create new job
-      job = Object.assign({}, props, { type, file, cbs: [callback] })
+      job = Object.assign({}, props, { type: metadata.type, metadata, file, cbs: [callback] })
       this.push(job)
     }
 

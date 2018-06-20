@@ -55,14 +55,28 @@ class MediaApi {
         
         this.vfs.getMedia(user, { fingerprint, both: true }, (err, both) => {
           if (err) return callback(err)  
+
+          /**
+          This list must be kept in sync with video format defined in lib/file-meta
+          */
+          const isVideo = ['RM', 'RMVB', 'WMV', 'AVI', 'MPEG', 'MP4', '3GP', 'MOV', 'FLV', 'MKV']
+            .includes(both.metadata.type)
+
+          /** workaround, drop auto-orient option for video **/
+          if (isVideo) q.autoOrient = undefined
           let tps = this.thumbnail.genProps(fingerprint, q)
+
           fs.lstat(tps.path, (err, stat) => {
             if (err && err.code === 'ENOENT') {
-              this.thumbnail.convert(tps, both.path, both.metadata.type, callback)
+              this.thumbnail.convert(tps, both.path, both.metadata, callback)
             } else if (err) {
               callback(err)
             } else {
-              callback(null, tps.path)
+              if (isVideo && props.vthumb === 'true') {
+                callback(null, tps.path + '-v')
+              } else {
+                callback(null, tps.path)
+              }
             }
           })
         })  
