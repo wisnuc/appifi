@@ -3,10 +3,12 @@ const fs = require('fs')
 const os = require('os')
 const path = require('path')
 const uuid = require('uuid')
+const debug = require('debug')('device')
 
 const btrfsUsageAsync = require('../system/btrfsusageAsync')
 const sysfsNetworkInterfaces = require('../system/networkInterfaces')
 const DataStore = require('../lib/DataStore')
+const { isNonEmptyString } = require('../lib/assertion')
 
 /**
 K combinator
@@ -118,15 +120,27 @@ class Device {
   constructor(ctx) {
     this.ctx = ctx
 
-    let storeFilePath = path.join(ctx.opts.configuration.chassis.dir, 'aliases.json')
-    let storeTmpPath = path.join(ctx.opts.configuration.chassis.dTmpDir, 'aliases')
+    let aliasesFilePath = path.join(ctx.opts.configuration.chassis.dir, 'aliases.json')
+    let aliasesTmpPath = path.join(ctx.opts.configuration.chassis.dTmpDir, 'aliases')
+
+    let sleepModeFilePath = path.join(ctx.opts.configuration.chassis.dir, 'sleep.json')
+    let sleepModeTmpPath = path.join(ctx.opts.configuration.chassis.dTmpDir, 'sleep')
+
     this.store = new DataStore({
-      file: storeFilePath,
-      tmpDir: storeTmpPath,
+      file: aliasesFilePath,
+      tmpDir: aliasesTmpPath,
       isArray: true
     })
 
+    this.sleepStore = new DataStore({
+      file: sleepModeFilePath,
+      tmpDir: sleepModeTmpPath,
+      isArray: false
+    })
+
     this.store.on('Update', (...args) => this.updateAliases(...args))
+
+    this.sleepStore.on('Update', (...args) => this.sleepConfUpdate(...args))
 
     Object.defineProperty(this, 'aliases', {
       get() {
@@ -134,8 +148,76 @@ class Device {
       }
     })
 
+    Object.defineProperty(this, 'sleepConf', {
+      get() {
+        return this.sleepStore.data
+      }
+    })
+
     this.netdevs = []
     this.startUpdateNetDev()
+  }
+
+  sleepConfUpdate() {
+    let time_range = (beginTime, endTime) => {
+      let strb = beginTime.split (":");
+      if (strb.length != 2) {
+        return false
+      }
+      let stre = endTime.split (":");
+      if (stre.length != 2) {
+        return false
+      }
+
+      let startArgs = strb.map(x => (x.trim(), parseInt(x)))
+      let endArgs = stre.map(x => (x.trim(), parseInt(x)))
+      let isStartLarge = startArgs[0] > endArgs[0]
+        ? true : (startArgs[0] === endArgs[0]
+          ? (startArgs[1] > endArgs[1]
+            ? true : false) 
+            : false)
+
+      let b = new Date () // begin
+      let e = new Date () // end
+      let n = new Date () // now
+     
+      b.setHours (strb[0])
+      b.setMinutes (strb[1])
+      e.setHours (stre[0])
+      e.setMinutes (stre[1])
+            
+      if (!isStartLarge) {
+        if (n.getTime () - b.getTime () > 0 && n.getTime () - e.getTime () < 0) {
+          return true
+        } else {
+          return false
+        }
+      } else {
+        if (n.getTime () - b.getTime () > 0 || n.getTime () - e.getTime () < 0) {
+          return true
+        } else {
+          return false
+        }
+      }
+    }
+    debug('sleepConf update')
+    clearInterval(this.sleepModeInterval)
+    if (this.sleepConf) {
+      this.sleepModeInterval = setInterval(() => {
+        let sleepConf = this.sleepConf
+        debug(' sleep interval ')
+        if (!sleepConf) {
+          child.exec('kill -SIGUSR2 `pidof fanlogic`​', err => debug('start nomal mode, err: ', err))
+        } else {
+          let { start, end } = this.sleepConf
+          let shouldSleepMode = time_range(start, end)
+          child.exec('kill -SIGUSR' + (shouldSleepMode ? '1' : '2') + ' `pidof fanlogic`​', err => 
+            debug('start sleep mode, err: ', err))
+        }
+      }, 60 * 1000)
+    } else {
+      child.exec('kill -SIGUSR2 `pidof fanlogic`​', err => debug('start nomal sleep mode, err: ', err))
+    }
   }
 
   startUpdateNetDev() {
@@ -213,7 +295,7 @@ class Device {
         .pop().trim()
     } catch (e) { }
     probeProcAsync('meminfo', false)
-      .then(data => callback(null, Object.assign(data, { Speed: speed, Type: type })))
+      .then(data => callback(null, Object.assign(data, { speed, type })))
       .catch(callback)
   }
 
@@ -352,26 +434,31 @@ class Device {
     })
   }
 
-  resetToFactory(callback) {
-    let fileP = '/mnt/reserved/fw_ver_release.json'
-    fs.readFile(fileP, (err, data) => {
-      if (err) return callback(err)
-      let config = JSON.parse(data.toString())
-      config.action = '1'
-      let tmpP = path.join(ctx.opts.configuration.chassis.dTmpDir, uuid.v4())
-      fs.writeFile(tmpP, JSON.stringify(config, null, '  '), err => {
-        if (err) return callback(err)
-        fs.rename(tmpP, fileP, err => {
-          if (err) return callback(err)
-          setTimeout(() => child.exec('reboot'), 1000)
-          callback(null)
-        })
-      })
-    })
-  }
-
-  sleepMode (props, callback) {
-
+  updateSleepMode (user, props, callback) {
+    let { status, start, end } = props
+    if (typeof status !== 'boolean') {
+      return callback(Object.assign(new Error('error status'), { status: 400 }))
+    }
+    // close sleepMode
+    if (!status) {
+      this.sleepStore.save(null, callback)
+    } else {
+      if (!isNonEmptyString(start) ||!isNonEmptyString(end)) {
+        return callback(Object.assign(new Error('error start or end'), { status: 400 }))
+      } 
+      let startArgs = start.split(':').map(x => x.trim()).filter(x => Number.isInteger(parseInt(x)) &&  parseInt(x) >= 0)
+      let endArgs = end.split(':').map(x => x.trim()).filter(x => Number.isInteger(parseInt(x)))
+      if (startArgs.length !== 2 || endArgs.length !== 2) {
+        return callback(Object.assign(new Error('start or end format error'), { status: 400 }))
+      }
+      if (startArgs[0] === endArgs[0] && startArgs[1] == endArgs[1]) {
+        return callback(Object.assign(new Error('start equal end'), { status: 400 }))
+      }
+      if (parseInt(startArgs[0]) >= 24 || parseInt(endArgs[0]) >= 24 || parseInt(endArgs[1]) >= 60 || parseInt(startArgs[1]) >= 60) {
+        return callback(Object.assign(new Error('start and end must be 0:00 ~ 23:59'), { status: 400 }))
+      }
+      this.sleepStore.save({ start, end }, callback)
+    }
   }
 }
 

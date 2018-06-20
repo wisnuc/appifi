@@ -33,6 +33,7 @@ module.exports = {
       ['/:driveUUID', 'PATCH', 'drive'],
       ['/:driveUUID', 'DELETE', 'drive'],
       ['/:driveUUID/dirs/:dirUUID', 'GET', 'dir'],
+      ['/:driveUUID/dirs/:dirUUID', 'PATCH', 'dir'],
       ['/:driveUUID/dirs/:dirUUID/entries', 'POSTFORM', 'dirEntry'],
       ['/:driveUUID/dirs/:dirUUID/entries/:fileUUID', 'GET', 'dirEntry']
     ]

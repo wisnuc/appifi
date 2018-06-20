@@ -1976,6 +1976,63 @@ class VFS extends EventEmitter {
 
     console.log(props)
   }
+
+  dirFormat (user, props, callback) {
+    if (props.driveUUID !== props.dirUUID) return callback(Object.assign(new Error('invaild dirUUID'), { status: 400 }))
+
+    let dir, root, drive
+
+    // find dir
+    dir = this.forest.uuidMap.get(props.dirUUID)
+    if (!dir) {
+      let err = new Error('dir not found')
+      err.status = 404
+      return process.nextTick(() => callback(err))
+    }
+
+    // find root
+    root = dir.root()
+   
+    // find drive 
+    drive = this.drives.find(d => d.uuid === root.uuid)
+
+    /**
+    If driveUUID is provided, the corresponding drive must contains dir.
+    */
+    if (props.driveUUID && props.driveUUID !== drive.uuid) {
+      let err = new Error('drive does not contain dir')
+      err.status = 403
+      return process.nextTick(() => callback(err))
+    }
+
+    if (!this.userCanWriteDrive(user, drive)) {
+      let err = new Error('permission denied') 
+      err.status = 403      // TODO 404?
+      return process.nextTick(() => callback(err))
+    }
+
+    if (drive.type !== 'private') {
+      let err = new Error('permission denied') 
+      err.status = 403      // TODO 404?
+      return process.nextTick(() => callback(err))
+    }
+
+    if (props.op && props.op === 'format') {
+      let tmpDir = path.join(this.tmpDir, UUID.v4())
+      let dirPath = path.join(this.driveDir, root.uuid)
+      try {
+        mkdirp.sync(tmpDir)
+        let attr = JSON.parse(xattr.getSync(dirPath, 'user.fruitmix'))
+        xattr.setSync(tmpDir, 'user.fruitmix', JSON.stringify(attr))
+        rimraf.sync(dirPath)
+        fs.renameSync(tmpDir, dirPath)
+        return dir.read(callback)
+      } catch (e) {
+        return callback(e)
+      }
+    }
+    return callback(new Error('invaild op'))
+  }
 }
 
 module.exports = VFS
