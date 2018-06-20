@@ -140,7 +140,7 @@ class Device {
 
     this.store.on('Update', (...args) => this.updateAliases(...args))
 
-    this.sleepStore.on('Update', (...args) => this.sleepConfUpdate(...args).bind(this))
+    this.sleepStore.on('Update', (...args) => this.sleepConfUpdate(...args))
 
     Object.defineProperty(this, 'aliases', {
       get() {
