@@ -27,7 +27,6 @@ CreateApp parses args and create the App accordingly.
 --transmission                use transmission
 --webtorrent                  use webtorrent
 
-
 @module createApp
 */
 
