@@ -200,18 +200,19 @@ class Device {
         }
       }
     }
-
+    debug('sleepConf update')
     clearInterval(this.sleepModeInterval)
     if (this.sleepConf) {
       this.sleepModeInterval = setInterval(() => {
         let sleepConf = this.sleepConf
+        debug(' sleep interval ')
         if (!sleepConf) {
-          child.exec('kill -SIGUSR2 `pidof fanlogic`​', err => debug('start nomal sleep mode, err: ', err))
+          child.exec('kill -SIGUSR2 `pidof fanlogic`​', err => debug('start nomal mode, err: ', err))
         } else {
           let { start, end } = this.sleepConf
           let shouldSleepMode = time_range(start, end)
-          child.exec('kill -SIGUSR' + shouldSleepMode ? '1' : '2' + ' `pidof fanlogic`​', err => 
-            debug('start nomal sleep mode, err: ', err))
+          child.exec('kill -SIGUSR' + (shouldSleepMode ? '1' : '2') + ' `pidof fanlogic`​', err => 
+            debug('start sleep mode, err: ', err))
         }
       }, 60 * 1000)
     } else {
