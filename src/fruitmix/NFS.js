@@ -1,5 +1,6 @@
 const path = require('path')
 const fs = require('fs')
+const child = require('child_process')
 const EventEmitter = require('events')
 
 const rimraf = require('rimraf')
@@ -372,6 +373,8 @@ class NFS extends EventEmitter {
     1. can be a volume, a standalone disk, or a partition
     */
     this.drives = []
+
+    this.fruitfs = null
   }
 
   update (storage) {
@@ -381,7 +384,10 @@ class NFS extends EventEmitter {
       if (vol.isMissing) return false
       if (!vol.isMounted) return false
       if (vol.isRootFS) return false
-      if (this.volumeUUID && vol.uuid === this.volumeUUID) return false
+      if (this.volumeUUID && vol.uuid === this.volumeUUID) {
+        this.fruitfs = vol
+        return false
+      }
       return true
     })
 
@@ -465,22 +471,80 @@ class NFS extends EventEmitter {
   @param {object} props
   */
   LIST (user, props, callback) {
-    let drives = this.drives.map(drv => drv.isVolume
-      ? { id: drv.uuid, type: drv.fileSystemType }
-      : { id: drv.name, type: drv.fileSystemType, isUSB: drv.isUSB })
-    process.nextTick(() => callback(null, drives))
+    const drvToPhy = drv => {
+      let phy = {
+        id: drv.isVolume ? drv.uuid : drv.name,
+        type: drv.fileSystemType
+      }
+
+      if (drv.isVolume && drv.uuid === this.volumeUUID) phy.isFruitFS = true
+      if (drv.isUSB) phy.isUSB = true
+      return phy
+    }
+
+    if (props.usage === 'true') {
+      let drives = [this.fruitfs, ...this.drives]
+      let count = drives.length
+      let arr = []
+
+      drives.forEach(drv => {
+        let phy = drvToPhy(drv) 
+        arr.push(phy)
+
+        child.exec(`df -P "${drv.mountpoint}"`, (err, stdout) => {
+          if (!err) {
+            let lines = stdout.toString().trim().split('\n')
+            if (lines.length === 2) {
+              let xs = lines[1].split(' ').filter(x => !!x)
+              if (xs.length === 6) {
+                phy.usage = {
+                  total: parseInt(xs[1]),
+                  used: parseInt(xs[2]),
+                  available: parseInt(xs[3]) 
+                }
+              }
+            }
+          } else {
+            console.log(err)
+          }
+
+          if (!--count) callback(null, arr)
+        })
+      })
+    } else {
+      process.nextTick(() => callback(null, this.drives.map(drvToPhy)))
+    }
   }
+
 
   /**
   read a dir or download a file
-
-
 
   @param {object} props
   @param {string} props.id - volume uuid or block name
   @param {string} props.path - relative path
   */
   GET (user, props, callback) {
+    const fileType = stat => {
+      if (stat.isFile()) {
+        return 'file'
+      } else if (stat.isDirectory()) {
+        return 'directory'
+      } else if (stat.isSymbolicLink()) {
+        return 'symlink'
+      } else if (stat.isSocket()) {
+        return 'socket'
+      } else if (stat.isFIFO()) {
+        return 'fifo'
+      } else if (stat.isCharacterDevice()) {
+        return 'char'
+      } else if (stat.isBlockDevice()) {
+        return 'block'
+      } else {
+        return 'unknown'
+      }
+    } 
+
     debug('GET', user, props)
     this.resolvePath(user, props, (err, target) => {
       if (err) return callback(err)
@@ -500,13 +564,7 @@ class NFS extends EventEmitter {
                 if (!err) {
                   arr.push({
                     name: entry,
-                    type: stat.isFile() ? 'file'
-                      : stat.isDirectory() ? 'directory'
-                        : stat.isSymbolicLink() ? 'link'
-                          : stat.isSocket() ? 'socket'
-                            : stat.isFIFO() ? 'fifo'
-                              : stat.isCharacterDevice() ? 'char'
-                                : stat.isBlockDevice() ? 'block' : 'unknown',
+                    type: fileType(stat),
                     size: stat.size,
                     mtime: stat.mtime.getTime()
                   })
@@ -648,14 +706,14 @@ class NFS extends EventEmitter {
   @param {object} props
   */
   PATCH (user, props, callback) {
-    if (props.op) {
+    if (props.op) { // TODO TO BE REMOVED
       if (props.op === 'eject' && this.ejectHandler) {
         return this.ejectHandler(props.id)
           .then(() => callback(null))
           .catch(callback)
       }
       return callback(new Error('invalid op'))
-    } else 
+    } else { 
       this.resolvePaths(user, props, (err, paths) => {
         if (err) return callback(err)
         let { oldPath, newPath } = paths
@@ -664,6 +722,7 @@ class NFS extends EventEmitter {
           callback(err)
         })
       })
+    }
   }
 
   /**
@@ -676,15 +735,25 @@ class NFS extends EventEmitter {
     this.resolvePath(user, props, (err, target) => {
       if (err) return callback(err)
       if (props.path === undefined || props.path === '') {
+        if (this.ejectHandler) {
+          this.ejectHandler(props.id)
+            .then(() => callback(null))
+            .catch(callback)
+        } else {
+          let err = new Error('operation is not supported')
+          err.status = 403
+          process.nextTick(() => callback(err))
+        }
+      } else if (props.path === '') {
         let err = new Error('root cannot be deleted')
         err.status = 400
-        return process.nextTick(() => callback(err))
+        process.nextTick(() => callback(err))
+      } else {
+        rimraf(target, err => {
+          if (err) err.status = 403
+          callback(err)
+        })
       }
-
-      rimraf(target, err => {
-        if (err) err.status = 403
-        callback(err)
-      })
     })
   }
 

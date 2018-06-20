@@ -169,7 +169,7 @@ describe(path.basename(__filename), () => {
   })
 
   describe('get drive list', () => {
-    it('should list drives', done => {
+    it('should list drives, dec655c5', done => {
       request(app.express)
         .get(`/phy-drives`)
         .set('Authorization', 'JWT ' + token)
@@ -185,6 +185,19 @@ describe(path.basename(__filename), () => {
               { id: 'sdi5', type: 'ext4' },
               { id: 'sdi6', type: 'ntfs' },
               { id: 'sdi7', type: 'vfat' } ])
+          done()
+        })
+    })
+
+    it('should list drives, 54c7d9ef', done => {
+      request(app.express)
+        .get(`/phy-drives`)
+        .set('Authorization', 'JWT ' + token)
+        .query({ usage: true })
+        .expect(200)
+        .end((err, res) => {
+          if (err) return done(err)
+          console.log(res.body)
           done()
         })
     })
@@ -311,7 +324,7 @@ describe(path.basename(__filename), () => {
             expect(arr.length).to.equal(3)
             expect(arr.find(entry => entry.name === 'hello').type).to.equal('directory')
             expect(arr.find(entry => entry.name === 'world').type).to.equal('file')
-            expect(arr.find(entry => entry.name === 'foo').type).to.equal('link')
+            expect(arr.find(entry => entry.name === 'foo').type).to.equal('symlink')
             done()
           })
       })
@@ -331,7 +344,7 @@ describe(path.basename(__filename), () => {
             expect(arr.length).to.equal(3)
             expect(arr.find(entry => entry.name === 'world').type).to.equal('directory')
             expect(arr.find(entry => entry.name === 'foo').type).to.equal('file')
-            expect(arr.find(entry => entry.name === 'bar').type).to.equal('link')
+            expect(arr.find(entry => entry.name === 'bar').type).to.equal('symlink')
             done()
           })
       })

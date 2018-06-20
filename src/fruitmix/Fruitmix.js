@@ -22,6 +22,7 @@ const DirApi = require('./apis/dir')
 const DirEntryApi = require('./apis/dir-entry')
 const FileApi = require('./apis/file')
 const MediaApi = require('./apis/media')
+const StatsApi = require('./apis/stats')
 const Task = require('./Task')
 const Samba = require('../samba/smbState')
 const Dlna = require('../samba/dlnaServer')
@@ -159,6 +160,8 @@ class Fruitmix extends EventEmitter {
     this.thumbnail = new Thumbnail(path.join(this.fruitmixDir, 'thumbnail'), this.tmpDir)
     this.mediaApi = new MediaApi(this.vfs, this.thumbnail)
 
+    this.statsApi = new StatsApi(this.vfs)
+
     this.apis = {
       user: this.user,
       drive: this.drive,
@@ -167,6 +170,7 @@ class Fruitmix extends EventEmitter {
       dirEntry: this.dirEntryApi,
       file: this.fileApi,
       media: this.mediaApi,
+      stats: this.statsApi,
     }
 
     // 绑定transmission

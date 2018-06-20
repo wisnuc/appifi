@@ -95,6 +95,13 @@ module.exports = {
     ]
   },
 
+  fruitmix: {
+    prefix: '/fruitmix',
+    routes: [
+      ['/stats', 'GET', 'stats']
+    ]
+  },
+
   transmission: {
     prefix: '/transmission',
     routes: [
