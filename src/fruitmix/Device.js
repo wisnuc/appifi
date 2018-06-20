@@ -140,7 +140,7 @@ class Device {
 
     this.store.on('Update', (...args) => this.updateAliases(...args))
 
-    this.sleepStore.on('Update', (...args) => this.sleepConfUpdate(...args))
+    this.sleepStore.on('Update', (...args) => this.sleepConfUpdate(...args).bind(this))
 
     Object.defineProperty(this, 'aliases', {
       get() {
@@ -214,6 +214,8 @@ class Device {
             debug('start nomal sleep mode, err: ', err))
         }
       }, 60 * 1000)
+    } else {
+      child.exec('kill -SIGUSR2 `pidof fanlogic`​', err => debug('start nomal sleep mode, err: ', err))
     }
   }
 
