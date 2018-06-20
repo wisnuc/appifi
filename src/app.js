@@ -31,7 +31,7 @@ CreateApp parses args and create the App accordingly.
 @module createApp
 */
 
-let isRoot = process.getuid && process.getuid() === 0 
+let isRoot = process.getuid && process.getuid() === 0
 let args = (getArgs(process.argv)).options
 
 const hostname = `wisnuc-generic-deadbeef${UUID.v4().split('-').join('').slice(0, 16)}`
@@ -39,7 +39,7 @@ const hostname = `wisnuc-generic-deadbeef${UUID.v4().split('-').join('').slice(0
 console.log(args)
 
 // only standalone && fruitmix-only mode allows non-priviledged user
-if (!(args.standalone && args["fruitmix-only"]) && !isRoot) 
+if (!(args.standalone && args['fruitmix-only']) && !isRoot)
   throw new Error('boot module requires root priviledge')
 
 if (args.smb && !isRoot) throw new Error('smb feature requires root priviledge')
@@ -53,7 +53,7 @@ if (args.mdns) {
 }
 
 let fruitmixOpts = {
-  useSmb: !!args.smb, 
+  useSmb: !!args.smb,
   useDlna: !!args.dlna,
   useTransmission: !!args.transmission,
 }
@@ -64,9 +64,9 @@ let appOpts
 
 // in standalone mode
 if (args.standalone) {
-  if (args["fruitmix-only"]) {
-    if (args["fruitmix-dir"]) {
-      fruitmixOpts.fruitmixDir = args["fruitmix-dir"]
+  if (args['fruitmix-only']) {
+    if (args['fruitmix-dir']) {
+      fruitmixOpts.fruitmixDir = args['fruitmix-dir']
 
     } else {
       let cwd = process.cwd()
@@ -78,13 +78,13 @@ if (args.standalone) {
     if (!!args['alice']) {
       fruitmixOpts.boundUser = {
         phicommUserId: 'alice',
-        password: passwordEncrypt('alice', 10) 
+        password: passwordEncrypt('alice', 10)
       }
     }
 
     let fruitmix = new Fruitmix(fruitmixOpts)
     let app = new App({
-      fruitmix, 
+      fruitmix,
       useServer: true,
     })
   } else {
@@ -93,7 +93,7 @@ if (args.standalone) {
     let app = new App({
       fruitmixOpts,
       configuration,
-      useAlice: !!args["alice"],
+      useAlice: !!args['alice'],
       useServer: true,
       listenProcess: true
     })
