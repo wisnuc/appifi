@@ -210,8 +210,8 @@ class Device {
         } else {
           let { start, end } = this.sleepConf
           let shouldSleepMode = time_range(start, end)
-          child.exec('kill -SIGUSR' + shouldSleepMode ? '1' : '2' + ' `pidof fanlogic`​', err 
-              => debug('start nomal sleep mode, err: ', err))
+          child.exec('kill -SIGUSR' + shouldSleepMode ? '1' : '2' + ' `pidof fanlogic`​', err => 
+            debug('start nomal sleep mode, err: ', err))
         }
       }, 60 * 1000)
     }
