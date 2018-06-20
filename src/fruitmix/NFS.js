@@ -362,7 +362,7 @@ class NFS extends EventEmitter {
     if (!isNonNullObject(opts)) throw new Error('opts must be a non-null object')
 
     if (opts.volumeUUID) this.volumeUUID = opts.volumeUUID
-    if (opts.boot) this.boot = opts.boot
+    if (opts.ejectHandler) this.ejectHandler = opts.ejectHandler
     
     this.allowATA = false
     this.allowUSB = true
@@ -467,7 +467,7 @@ class NFS extends EventEmitter {
   LIST (user, props, callback) {
     let drives = this.drives.map(drv => drv.isVolume
       ? { id: drv.uuid, type: drv.fileSystemType }
-      : { id: drv.name, type: drv.fileSystemType })
+      : { id: drv.name, type: drv.fileSystemType, isUSB: drv.isUSB })
     process.nextTick(() => callback(null, drives))
   }
 
@@ -648,14 +648,22 @@ class NFS extends EventEmitter {
   @param {object} props
   */
   PATCH (user, props, callback) {
-    this.resolvePaths(user, props, (err, paths) => {
-      if (err) return callback(err)
-      let { oldPath, newPath } = paths
-      fs.rename(oldPath, newPath, err => {
-        if (err) err.status = 403
-        callback(err)
+    if (props.op) {
+      if (op === 'eject' && this.ejectHandler) {
+        return this.ejectHandler(props.id)
+          .then(() => callback(null))
+          .catch(callback)
+      }
+      return callback(new Error('invalid op'))
+    } else 
+      this.resolvePaths(user, props, (err, paths) => {
+        if (err) return callback(err)
+        let { oldPath, newPath } = paths
+        fs.rename(oldPath, newPath, err => {
+          if (err) err.status = 403
+          callback(err)
+        })
       })
-    })
   }
 
   /**

@@ -213,7 +213,7 @@ class Device {
         .pop().trim()
     } catch (e) { }
     probeProcAsync('meminfo', false)
-      .then(data => callback(null, Object.assign(data, { Speed: speed, Type: type })))
+      .then(data => callback(null, Object.assign(data, { speed, type })))
       .catch(callback)
   }
 

@@ -194,7 +194,7 @@ class Fruitmix extends EventEmitter {
 
     let nfsOpts = {}
     if (this.boundVolume) nfsOpts.volumeUUID = this.boundVolume.uuid
-    if (this.boot) nfsOpts.boot = this.boot
+    if (this.ejectHandler) nfsOpts.ejectHandler = this.ejectHandler
     this.nfs = new NFS(nfsOpts, this.user)
     this.apis.nfs = this.nfs
 
