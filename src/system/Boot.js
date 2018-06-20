@@ -1010,7 +1010,13 @@ class Boot extends EventEmitter {
     // if reset , do reset first, auto reboot false
     if (props.reset) {
       this.resetToFactory(user, !!props.format, err => {
-        if (err) return callback(err)
+        if (err) {
+          console.log('===========================')
+          console.log('factory reset error')
+          console.log('not error if not n2 device')
+          console.log('===========================')
+          console.log(err)
+        }
         if (props.format) {
           this.state.uninstall(props, callback)
         }
