@@ -158,7 +158,9 @@ class Task {
     } else if (op === 'watch') {
       this.tasks.find(t => t.uuid === props.taskUUID).watch(callback)
     } else {
-
+      let err = new Error('unsupported op')
+      err.status = 403 
+      process.nextTick(() => callback(err))
     }
   }
 

@@ -117,7 +117,7 @@ describe(path.basename(__filename), () => {
       }
 
       let task = await user.createTaskAsync(args)
-      await Promise.delay(500)
+      await user.watchTaskAsync(task.uuid)
 
       let src = await user.listDirAsync(user.home.uuid, srcDirUUID)
       let dst = await user.listDirAsync(user.home.uuid, dstDirUUID)
@@ -138,7 +138,7 @@ describe(path.basename(__filename), () => {
       }
 
       let task = await user.createTaskAsync(args)
-      await Promise.delay(500)
+      await user.watchTaskAsync(task.uuid)
 
       let src = await user.listDirAsync(user.home.uuid, srcDirUUID)
       let dst = await user.listDirAsync(user.home.uuid, dstDirUUID)
@@ -159,7 +159,7 @@ describe(path.basename(__filename), () => {
       }
 
       let task = await user.createTaskAsync(args)
-      await Promise.delay(500)
+      await user.watchTaskAsync(task.uuid)
 
       let src = await user.listNfsDirAsync(UUIDDE, srcDirPath)
       let dst = await user.listDirAsync(user.home.uuid, dstDirUUID)
@@ -180,7 +180,7 @@ describe(path.basename(__filename), () => {
       }
 
       let task = await user.createTaskAsync(args)
-      await Promise.delay(500)
+      await user.watchTaskAsync(task.uuid)
 
       let src = await user.listNfsDirAsync(UUIDDE, srcDirPath)
       let dst = await user.listDirAsync(user.home.uuid, dstDirUUID)
@@ -201,7 +201,7 @@ describe(path.basename(__filename), () => {
       }
 
       let task = await user.createTaskAsync(args)
-      await Promise.delay(500)
+      await user.watchTaskAsync(task.uuid)
 
       let src = await user.listDirAsync(user.home.uuid, srcDirUUID)
       let dst = await user.listNfsDirAsync(UUIDDE, dstDirPath)
@@ -222,7 +222,7 @@ describe(path.basename(__filename), () => {
       }
 
       let task = await user.createTaskAsync(args)
-      await Promise.delay(500)
+      await user.watchTaskAsync(task.uuid)
 
       let src = await user.listDirAsync(user.home.uuid, srcDirUUID)
       let dst = await user.listNfsDirAsync(UUIDDE, dstDirPath)
@@ -240,7 +240,7 @@ describe(path.basename(__filename), () => {
       }
 
       let task = await user.createTaskAsync(args)
-      await Promise.delay(500)
+      await user.watchTaskAsync(task.uuid)
 
       let src = await user.listNfsDirAsync(UUIDDE, 'src')
       let dst = await user.listNfsDirAsync(UUIDF, 'dst')
@@ -258,7 +258,7 @@ describe(path.basename(__filename), () => {
       }
 
       let task = await user.createTaskAsync(args)
-      await Promise.delay(500)
+      await user.watchTaskAsync(task.uuid)
 
       let src = await user.listNfsDirAsync(UUIDDE, 'src')
       let dst = await user.listNfsDirAsync(UUIDF, 'dst')
@@ -276,7 +276,7 @@ describe(path.basename(__filename), () => {
       }
 
       let task = await user.createTaskAsync(args)
-      await Promise.delay(500)
+      await user.watchTaskAsync(task.uuid)
 
       let src = await user.listNfsDirAsync(UUIDDE, 'src')
       let dst = await user.listNfsDirAsync(UUIDDE, 'dst')
