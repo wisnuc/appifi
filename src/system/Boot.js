@@ -1010,7 +1010,13 @@ class Boot extends EventEmitter {
     // if reset , do reset first, auto reboot false
     if (props.reset) {
       this.resetToFactory(user, !!props.format, err => {
-        if (err) return callback(err)
+        if (err) {
+          console.log('===========================')
+          console.log('factory reset error')
+          console.log('not error if not n2 device')
+          console.log('===========================')
+          console.log(err)
+        }
         if (props.format) {
           this.state.uninstall(props, callback)
         }
@@ -1045,7 +1051,7 @@ class Boot extends EventEmitter {
     if (block.isPartitioned) { // parent block
       let subBlocks = this.storage.blocks.filter(b => b.parentName === target)
       if (!subBlocks.length) throw new Error('block is partitioned, but subBlock not found')
-      let mountedSB = subBlock.filter(s => s.isMounted)
+      let mountedSB = subBlocks.filter(s => s.isMounted)
       for (let i = 0; i < mountedSB.length; i++) {
         await child.execAsync(`udisksctl unmount -b ${ mountedSB[i].devname }`)
       }
@@ -1054,7 +1060,7 @@ class Boot extends EventEmitter {
     } else if (block.isPartition) {//sub block
       if (!isNonEmptyString(block.parentName)) throw new Error('block is partition, but parentName not found')
       let subBlocks = this.storage.blocks.filter(b => b.parentName === block.parentName)
-      let mountedSB = subBlock.filter(s => s.isMounted)
+      let mountedSB = subBlocks.filter(s => s.isMounted)
       for (let i = 0; i < mountedSB.length; i++) {
         await child.execAsync(`udisksctl unmount -b ${ mountedSB[i].devname }`)
       }
