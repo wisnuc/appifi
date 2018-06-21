@@ -6,6 +6,8 @@ const assert = require('assert')
 const debug = require('debug')
 
 const mkdirp = require('mkdirp')
+
+const SortedArray = require('../../lib/sorted-array')
 const Directory = require('./directory')
 const File = require('./file')
 
@@ -13,6 +15,7 @@ const File = require('./file')
 
 const autoTesting = process.env.hasOwnProperty('NODE_PATH') ? true : false
 
+/**
 class SortedArray {
   constructor () {
     this.array = []
@@ -67,6 +70,7 @@ class SortedArray {
     console.log('removed', this.array.length, this.array.map(x => x.name))
   }
 }
+*/
 
 
 /**

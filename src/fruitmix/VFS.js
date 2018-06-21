@@ -1745,7 +1745,7 @@ class VFS extends EventEmitter {
       if (startTime === undefined) {
         startIndex = files.length - 1
       } else {
-        startIndex = files.indexOf(startTime, startUUID)
+        startIndex = files.indexOfByKey(startTime, startUUID)
         if (startIndex === files.length) {
           startIndex--
         } else if (startExclusive) {
@@ -1761,7 +1761,7 @@ class VFS extends EventEmitter {
       if (startTime === undefined) {
         startIndex = 0
       } else {
-        startIndex = files.indexOf(startTime, startUUID)
+        startIndex = files.indexOfByKey(startTime, startUUID)
         if (startExclusive && startIndex < files.length) {
           let file = files.array[startIndex]
           if (file.getTime() === startTime && file.uuid === startUUID) startIndex++

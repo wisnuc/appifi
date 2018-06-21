@@ -39,6 +39,19 @@ class SortedArray {
     }
   }
 
+  // TODO this may be replaced by defining time property (getter) for file
+  indexOfByKey (time, uuid) {
+    let file = { 
+      time, 
+      uuid, 
+      getTime: function () {
+        return this.time
+      } 
+    }
+
+    return this.indexOf(file)
+  }
+
   insert (file) {
     let index = this.indexOf(file)
     // this, of course, won't happen in normal case
