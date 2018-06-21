@@ -43,7 +43,7 @@ class SortedArray {
     // this, of course, won't happen in normal case
     if (this.array(index) === file) {
       console.log(file)
-      throw new Error('file already in indices')
+      throw new Error('sorted array, insert, file already in indices')
     } else {
       this.array.splice(index, 0, file)
     }
@@ -51,9 +51,9 @@ class SortedArray {
 
   remove (file) {
     let index = this.indexOf(file.getTime(), file.uuid)
-    if (this.array(index !== file) {
+    if (this.array(index !== file)) {
       console.log(file)
-      throw new Error('file is not in indices')
+      throw new Error('sorted array, remove, file is not in indices')
     } else {
       this.array.splice(index, 1)
     }
