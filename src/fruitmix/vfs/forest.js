@@ -39,11 +39,24 @@ class SortedArray {
   }
 
   insert (file) {
-    this.array.splice(this.indexOf(file.getTime(), file.uuid), 0, file)
+    let index = this.indexOf(file.getTime(), file.uuid)
+    // this, of course, won't happen in normal case
+    if (this.array(index) === file) {
+      console.log(file)
+      throw new Error('file already in indices')
+    } else {
+      this.array.splice(index, 0, file)
+    }
   }
 
   remove (file) {
-    this.array.splice(this.indexOf(file.getTime(), file.uuid))
+    let index = this.indexOf(file.getTime(), file.uuid)
+    if (this.array(index !== file) {
+      console.log(file)
+      throw new Error('file is not in indices')
+    } else {
+      this.array.splice(index, 1)
+    }
   }
 }
 
