@@ -95,7 +95,8 @@ class Task {
   
   @param {object} user
   @param {object} props
-  @param {string} props.mode - 'copy', 'move', 'import', 'export', etc.
+  @param {string} props.mode - 'copy', 'move', 'icopy', 'imove', 'ecopy', 'emove', 'ncopy', 'nmove',
+                               'sink', 
   @param {object} props.src - object representing src dir
   @param {string} props.src.drive - vfs drive uuid or nfs drive id
   @param {string} props.src.dir - vfs dir uuid or nfs path

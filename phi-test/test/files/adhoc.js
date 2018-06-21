@@ -195,7 +195,6 @@ describe(path.basename(__filename), () => {
           .expect(200)
           .end((err, res) => {
             if (err) return reject(err)
-            console.log(res.body)
             resolve(res.body)
           })
       })
@@ -253,7 +252,6 @@ describe(path.basename(__filename), () => {
       }) 
 
       let r = await user.getFilesStepByStepVisitAsync({ places: user.home.uuid }, 1)
-      console.log(JSON.stringify(tree, null, '  '))
       console.log(r)
     })
 
