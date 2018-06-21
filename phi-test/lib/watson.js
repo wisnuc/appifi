@@ -140,7 +140,7 @@ class User {
     return Promise.promisify(this.getFiles).bind(this)(args)
   }
 
-  async getFilesStepByStep (args, step) {
+  async getFilesStepByStepVisitAsync (args, step) {
     let x, last, arr = []
 
     while (true) {

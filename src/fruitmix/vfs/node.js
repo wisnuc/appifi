@@ -10,6 +10,10 @@ class Node {
   @param {Forest} ctx - Forest singleton
   */
   constructor(ctx, parent) {
+    if (!ctx) {
+      throw new Error('node constructor: no ctx!')
+    }
+
     this.ctx = ctx
     this.parent = null
     this.attach(parent)
@@ -102,7 +106,10 @@ class Node {
   Returns an array of node along path, starting from root node
   */
   nodepath() {
-    if (!this.ctx) throw new Error('node.nodepath: node is already destroyed')
+    if (!this.ctx) {
+      console.log(this)
+      throw new Error('node.nodepath: node is already destroyed')
+    }
     let q = []
     for (let n = this; n !== null; n = n.parent) q.unshift(n)
     return q 
