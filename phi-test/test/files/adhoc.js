@@ -187,7 +187,7 @@ describe(path.basename(__filename), () => {
       console.log(r)
     })
 
-    it ('visit rename visit', async () => {
+    it('visit visit', async () => {
       let tree = await user.mktreeAsync({
         type: 'vfs',
         drive: user.home.uuid,
@@ -195,19 +195,96 @@ describe(path.basename(__filename), () => {
         children: [
           {
             type: 'file',
-            name: alonzo.name,
+            name: 'a',
+            file: alonzo.path,
+            size: alonzo.size,
+            sha256: alonzo.hash
+          },
+          {
+            type: 'file',
+            name: 'b',
             file: alonzo.path,
             size: alonzo.size,
             sha256: alonzo.hash
           }
         ]
-      }) 
+      })
 
       await Promise.delay(200)
 
-      let r = await user.getFilesAsync({ order: 'find', places: user.home.uuid })
+      let r, tail, last
 
+      r = await user.getFilesAsync({ order: 'find', places: user.home.uuid, count: 1 })
+      console.log(r)
+      tail = r[0]
+      last = [tail.place, tail.type, tail.namepath.join('/')].join('.') 
+
+      r = await user.getFilesAsync({ order: 'find', places: user.home.uuid, last, count: 1})
+      console.log(r)
+
+      tail = r[0]
+      last = [tail.place, tail.type, tail.namepath.join('/')].join('.')
+
+      r = await user.getFilesAsync({ order: 'find', places: user.home.uuid, last, count: 1})
       console.log(r)
     })
+
+    it('visit rename visit', async () => {
+      let tree = await user.mktreeAsync({
+        type: 'vfs',
+        drive: user.home.uuid,
+        dir: user.home.uuid,
+        children: [
+          {
+            type: 'file',
+            name: 'b',
+            file: alonzo.path,
+            size: alonzo.size,
+            sha256: alonzo.hash
+          },
+          {
+            type: 'file',
+            name: 'c',
+            file: alonzo.path,
+            size: alonzo.size,
+            sha256: alonzo.hash
+          }
+        ]
+      })
+
+      await Promise.delay(200)
+
+      let r, tail, last
+
+      r = await user.getFilesAsync({ order: 'find', places: user.home.uuid, count: 1 })
+      console.log(r)
+      tail = r[0]
+      last = [tail.place, tail.type, tail.namepath.join('/')].join('.') 
+
+      await new Promise((resolve, reject) => {
+        request(watson.app.express)
+          .post(`/drives/${user.home.uuid}/dirs/${user.home.uuid}/entries`)
+          .set('Authorization', 'JWT ' + user.token)
+          .field('c', JSON.stringify({ op: 'remove' }))
+          .expect(200)
+          .end((err, res) => {
+            if (err) return reject(err)
+            console.log(res.body)
+            resolve(res.body)
+          })
+      })
+
+      r = await user.getFilesAsync({ order: 'find', places: user.home.uuid, last, count: 1})
+      console.log(r)
+
+      if (r.length === 0) return
+
+      tail = r[0]
+      last = [tail.place, tail.type, tail.namepath.join('/')].join('.')
+
+      r = await user.getFilesAsync({ order: 'find', places: user.home.uuid, last, count: 1})
+      console.log(r)
+    })
+
   })
 })
