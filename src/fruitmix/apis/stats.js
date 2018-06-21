@@ -2,8 +2,8 @@
 
 const ImageTypes = ['JPEG', 'PNG', 'GIF', 'BMP', 'TIFF']
 const VideoTypes = ['RM', 'RMVB', 'WMV', 'AVI', 'MPEG', 'MP4', '3GP', 'MOV', 'FLV', 'MKV']
-const AudioType = ['RA', 'WMA', 'MP3', 'OGG', 'MKA', 'WAV', 'APE', 'FLAC']
-const DocType = ['DOC', 'DOCX', 'XLS', 'XLSX', 'PPT', 'PPTX', 'PDF']
+const AudioTypes = ['RA', 'WMA', 'MP3', 'OGG', 'MKA', 'WAV', 'APE', 'FLAC']
+const DocTypes = ['DOC', 'DOCX', 'XLS', 'XLSX', 'PPT', 'PPTX', 'PDF']
 
 class Stats {
   constructor (vfs) {
@@ -28,7 +28,7 @@ class Stats {
       } else if (AudioTypes.includes(type)) {
         audio.count++
         audio.totalSize += file.size
-      } else if (DocType.includes(type)) {
+      } else if (DocTypes.includes(type)) {
         document.count++
         document.totalSize += file.size
       }
