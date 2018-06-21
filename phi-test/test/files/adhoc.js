@@ -140,7 +140,7 @@ describe(path.basename(__filename), () => {
       user = watson.users.alice
     })
 
-    it('visit async', async () => {
+    it('newest', async function () {
       let tree = await user.mktreeAsync({
         type: 'vfs',
         drive: user.home.uuid,
@@ -180,9 +180,80 @@ describe(path.basename(__filename), () => {
         ]
       }) 
 
-      await Promise.delay(1000)
+      console.log(JSON.stringify(tree, null, '  '))
 
-      let r = await user.getFilesStepByStep({ places: user.home.uuid }, 1)
+      let r, starte 
+      r = await user.getFilesAsync({ places: user.home.uuid, count: 1})       
+      console.log(r)
+
+      await new Promise((resolve, reject) => {
+
+        let fooUUID = tree[0].xstat.uuid
+
+        request(watson.app.express)
+          .post(`/drives/${user.home.uuid}/dirs/${fooUUID}/entries`)
+          .set('Authorization', 'JWT ' + user.token)
+          .field('alonzo|church', JSON.stringify({ op: 'rename' }))
+          .expect(200)
+          .end((err, res) => {
+            if (err) return reject(err)
+            console.log(res.body)
+            resolve(res.body)
+          })
+      })
+
+
+      starte = `${r[0].mtime}.${r[0].uuid}`
+      r = await user.getFilesAsync({ places: user.home.uuid, starte, count: 1 })
+      console.log(r)
+
+      starte = `${r[0].mtime}.${r[0].uuid}`
+      r = await user.getFilesAsync({ places: user.home.uuid, starte, count: 1 })
+      console.log(r)
+    })
+
+    it('step by step (find) async', async function () {
+      this.timeout(10000)
+      let tree = await user.mktreeAsync({
+        type: 'vfs',
+        drive: user.home.uuid,
+        dir: user.home.uuid,
+        children: [
+          {   
+            type: 'directory', 
+            name: 'foo',
+            children: [
+              {
+                type: 'directory',
+                name: 'bar'
+              },
+              {
+                type: 'file',
+                name: 'alonzo',
+                file: alonzo.path,
+                size: alonzo.size,
+                sha256: alonzo.hash
+              },
+              {
+                type: 'file',
+                name: 'hello',
+                file: hello.path,
+                size: hello.size,
+                sha256: hello.hash            
+              },
+              {
+                type: 'file',
+                name: pdf.name,
+                file: pdf.path,
+                size: pdf.size,
+                sha256: pdf.hash
+              }
+            ]
+          }
+        ]
+      }) 
+
+      let r = await user.getFilesStepByStepVisitAsync({ places: user.home.uuid }, 1)
       console.log(JSON.stringify(tree, null, '  '))
       console.log(r)
     })

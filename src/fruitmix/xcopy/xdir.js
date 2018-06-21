@@ -425,20 +425,8 @@ class Parent extends State {
 }
 
 class Failed extends State {
-  // when directory enter failed
-  // all descendant node are destroyed (but not removed)
   enter (err) {
-    debug('xdir enter failed state', err)
     this.err = err
-  }
-
-  view () {
-    return {
-      error: {
-        code: this.err.code,
-        message: this.err.message
-      }
-    }
   }
 }
 
@@ -475,10 +463,6 @@ class XDir extends XNode {
       this.dst = dst
       new Preparing(this, entries)
     }
-  }
-
-  get type () {
-    return 'directory'
   }
 
   destroy () {
@@ -536,7 +520,6 @@ class XDir extends XNode {
           if (this.children.length === 0 &&
             this.dstats.length === 0 &&
             this.fstats.length === 0) {
-            // this.setState(Finish)
             this.state.tryFinish()
           }
         }
@@ -566,7 +549,7 @@ class XDir extends XNode {
           if (this.children.length === 0 &&
             this.dstats.length === 0 &&
             this.fstats.length === 0) {
-            this.setState(Finish)
+            this.state.tryFinish()
           }
         }
       })
