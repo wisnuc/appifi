@@ -89,6 +89,8 @@ if (args.standalone) {
   } else {
     let configuration = configurations.phicomm.n2
     console.log('configuration', configuration)
+    fruitmixOpts.useSmb = !!args.smb || configuration.smbAutoStart
+    fruitmixOpts.useDlna = !!args.dlna || configuration.dlnaAutoStart
     let app = new App({
       fruitmixOpts,
       configuration,
