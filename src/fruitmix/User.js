@@ -261,7 +261,7 @@ class User extends EventEmitter {
       }
     },
     err => err
-    ? console.log(`user module failed to bind first user to ${boundUser.phicommUserId}`)
+    ? console.log(`user module failed to bind first user to ${boundUser.phicommUserId}`, err)
     : console.log(`user module bound first user to ${boundUser.phicommUserId} successfully`))
   }
 

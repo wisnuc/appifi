@@ -1978,7 +1978,7 @@ class VFS extends EventEmitter {
   }
 
   dirFormat (user, props, callback) {
-    if (props.driveUUID !== props.dirUUID) return callback(Object.assign(new Error('invaild dirUUID'), { status: 400 }))
+    if (props.driveUUID !== props.dirUUID) return callback(Object.assign(new Error('invalid dirUUID'), { status: 400 }))
 
     let dir, root, drive
 
@@ -2031,7 +2031,7 @@ class VFS extends EventEmitter {
         return callback(e)
       }
     }
-    return callback(new Error('invaild op'))
+    return callback(new Error('invalid op'))
   }
 }
 
