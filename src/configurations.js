@@ -65,7 +65,9 @@ const n2 = {
     isPrivate: true,
     visibleInPublicDrive: false
   },
-  alternativeUserId: ['phicommUserId']
+  alternativeUserId: ['phicommUserId'],
+  smbAutoStart: true,
+  dlnaAutoStart: true
 }
 
 

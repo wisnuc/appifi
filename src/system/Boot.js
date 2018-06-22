@@ -429,7 +429,7 @@ class Started extends State {
     let boundVolumeUUID = this.ctx.volumeStore.data.uuid
     this.ctx.volumeStore.save(null, (err, data) => {
       if (err) return callback(err)
-      if (!!props.format) {
+      if (props.format) {
         let volume = this.ctx.storage.volumes.find(v => v.uuid === boundVolumeUUID)
         let fruitmixDir = path.join(volume.mountpoint, this.ctx.conf.storage.fruitmixDir)
         rimraf(fruitmixDir, err => {
@@ -437,9 +437,18 @@ class Started extends State {
           else cb(null)
           setTimeout(() => {
             this.uninstalling = false
-            if (props.reset) return child.exec('reboot', () => {})
+            if (props.reset) {
+              console.log('========================')
+              console.log('uninstall success')
+              console.log('reset success')
+              console.log('reboot')
+              console.log('========================')
+              return child.exec('reboot', err => {
+                if (err) console.log(err)
+              })
+            }
             process.exit(61)
-          }, 200)
+          }, 50)
         })
       } else {
         callback(null)
@@ -1007,9 +1016,10 @@ class Boot extends EventEmitter {
     if (props.reset && typeof props.reset !== 'boolean') {
       return callback(Object.assign(new Error('props error'), { status: 400 }))
     }
+    props.format = !!props.format
     // if reset , do reset first, auto reboot false
     if (props.reset) {
-      this.resetToFactory(user, !!props.format, err => {
+      this.resetToFactory(user, !props.format, err => {
         if (err) {
           console.log('===========================')
           console.log('factory reset error')
@@ -1029,15 +1039,30 @@ class Boot extends EventEmitter {
     let fileP = '/mnt/reserved/fw_ver_release.json'
     fs.readFile(fileP, (err, data) => {
       if (err) return callback(err)
-      let config = JSON.parse(data.toString())
+      let config
+      try { 
+        config = JSON.parse(data.toString())
+      } catch(e) {
+        return callback(e)
+      }
       config.action = '1'
-      let tmpP = path.join(ctx.opts.configuration.chassis.dTmpDir, uuid.v4())
+      let tmpP = path.join(this.conf.chassis.tmpDir, UUID.v4())
+      let command = 'chattr -i /mnt/reserved/fw_ver_release.json'
+      // command = command + `cat ${ tmpP } | jq . > /mnt/reserved/fw_ver_release.json;\n`
+      // command = command + 'rm /tmp/release.json;\n'
+      // command = command + 'chattr +i /mnt/reserved/fw_ver_release.json;\n'
+      // command = command + 'sleep 5; reboot'
+      // child.exec(command)
       fs.writeFile(tmpP, JSON.stringify(config, null, '  '), err => {
         if (err) return callback(err)
-        fs.rename(tmpP, fileP, err => {
+        child.exec('chattr -i /mnt/reserved/fw_ver_release.json', err => {
           if (err) return callback(err)
-          if (autoReboot) setTimeout(() => child.exec('reboot'), 1000)
-          callback(null)
+          fs.rename(tmpP, fileP, err => {
+            child.exec('chattr +i /mnt/reserved/fw_ver_release.json')
+            if (err) return callback(err)
+            if (autoReboot) setTimeout(() => child.exec('reboot'), 1000)
+            callback(null)
+          })
         })
       })
     })
