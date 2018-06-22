@@ -429,7 +429,7 @@ class Started extends State {
     let boundVolumeUUID = this.ctx.volumeStore.data.uuid
     this.ctx.volumeStore.save(null, (err, data) => {
       if (err) return callback(err)
-      if (!!props.format) {
+      if (props.format) {
         let volume = this.ctx.storage.volumes.find(v => v.uuid === boundVolumeUUID)
         let fruitmixDir = path.join(volume.mountpoint, this.ctx.conf.storage.fruitmixDir)
         rimraf(fruitmixDir, err => {
