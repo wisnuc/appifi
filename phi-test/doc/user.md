@@ -1,17 +1,19 @@
 <!-- TOC -->
 
-- [1. Overview](#1-overview)
-- [Perspective](#perspective)
-- [2. Create User](#2-create-user)
-- [4. Update User](#4-update-user)
+- [1. 概述](#1-概述)
+- [2. 依赖](#2-依赖)
+- [3. 参数](#3-参数)
+- [4. 创建新用户](#4-创建新用户)
+  - [4.1. 测试](#41-测试)
+- [5. 获取用户信息](#5-获取用户信息)
+- [6. 修改用户信息](#6-修改用户信息)
+  - [6.1. 测试](#61-测试)
+- [7. 获取用户列表](#7-获取用户列表)
 
 <!-- /TOC -->
 
-# 1. Overview
-
-basic
-
-full
+# 1. 概述
+`users`接口， 对外开放
 
 测试操作
 
@@ -32,16 +34,57 @@ full
   + 测试password/smbPassword参数组合
   + 测试混合参数
 
-# Perspective
-
 1. 从api角度说，资源模块之间的关系也存在
 2. 这部分spec属于集成测试的范畴
 
-# 2. Create User
+# 2. 依赖
+？？？
 
-参数使用json格式
+# 3. 参数
+uuid
 
-合法字段：
+Fruitmix系统为每个用户自动分配一个本地标识；使用version 4 UUID格式，a-f字符必须为小写。
+
+username
+
+用于显示的用户名，目前缺乏详细的功能和合法性定义。
+
+字符串，最大长度不超过256字符（Unicode），不支持不可打印字符，包括回车，但允许空格。
+
+password
+
+用户的离线密码，以bcrypt格式密文存储，salt长度10；该属性不会提供给客户端。
+
+smbPassword
+
+md4格式的密文，按照phicomm设计，该密码不与password同步；该属性不会提供给客户端。
+
+lastChangeTime
+
+该字段为最后一次修改samba密码的时间，是smb服务需要的。
+
+isFirstUser
+
+布尔类型；仅第一个用户该值为true，表示它是系统内权限最高的管理员；其他所有用户该值为false。
+
+createTime
+
+自然数（含0），本地用户的创建时间。
+
+status
+
+字符串/枚举类型，表示用户的状态。合法值包括ACTIVE，INACTIVE，和DELETED；其中ACTIVE和INACTIVE的用户会向客户端返回；DELETED用户仅系统内部使用，不会返回给客户端。
+
+phicommUserId
+
+该本地用户绑定的斐讯用户Id。
+
+phoneNumber
+
+该本地用户绑定的手机号
+
+# 4. 创建新用户
+仅管理员可以访问该操作，需提供：
 
 ```json
 {
@@ -51,6 +94,8 @@ full
   "phicommUserId": "number string", //required
 }
 ```
+
+## 4.1. 测试
 
 name
 status: active/inactive/deleted
@@ -76,8 +121,6 @@ d
 ```
 
 f
-
-
 
 
 **测例**
@@ -118,8 +161,9 @@ KVM: no stock
 
 共两个目标,4个测例
 
-# 4. Update User
+# 5. 获取用户信息
 
+# 6. 修改用户信息
 参数:
 
 ```json
@@ -140,6 +184,8 @@ KVM: no stock
 ```
 
 上述两种参数互斥, 不可同时修改
+
+## 6.1. 测试
 
 **测例**
 
@@ -166,3 +212,8 @@ KVM: no stock
 KVM: no stock
 KVM: no stock
 KVM: no stock
+
+# 7. 获取用户列表
+
+
+

@@ -6,6 +6,8 @@ const assert = require('assert')
 const debug = require('debug')
 
 const mkdirp = require('mkdirp')
+
+const SortedArray = require('../../lib/sorted-array')
 const Directory = require('./directory')
 const File = require('./file')
 
@@ -13,6 +15,7 @@ const File = require('./file')
 
 const autoTesting = process.env.hasOwnProperty('NODE_PATH') ? true : false
 
+/**
 class SortedArray {
   constructor () {
     this.array = []
@@ -39,13 +42,35 @@ class SortedArray {
   }
 
   insert (file) {
-    this.array.splice(this.indexOf(file.getTime(), file.uuid), 0, file)
+    console.log('insert', file.name, this.array.length)    
+
+    let index = this.indexOf(file.getTime(), file.uuid)
+    // this, of course, won't happen in normal case
+    if (this.array[index] === file) {
+      console.log(file)
+      throw new Error('sorted array, insert, file already in indices')
+    } else {
+      this.array.splice(index, 0, file)
+    }
+
+    console.log('inserted', this.array.length, this.array.map(x => x.name))
   }
 
   remove (file) {
-    this.array.splice(this.indexOf(file.getTime(), file.uuid))
+    console.log('remove', file.name)
+
+    let index = this.indexOf(file.getTime(), file.uuid)
+    if (this.array[index] !== file) {
+      console.log(file)
+      throw new Error('sorted array, remove, file is not in indices')
+    } else {
+      this.array.splice(index, 1)
+    }
+
+    console.log('removed', this.array.length, this.array.map(x => x.name))
   }
 }
+*/
 
 
 /**

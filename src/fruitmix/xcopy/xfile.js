@@ -318,12 +318,12 @@ class Conflict extends State {
 }
 
 class Failed extends State {
-  enter (e) {
-    this.error = e
+  enter (err) {
+    this.error = err
   }
 }
 
-class Finish extends State { }
+class Finish extends State {}
 
 /**
 The base class of a file subtask in xcopy
@@ -341,10 +341,6 @@ class XFile extends XNode {
     this.src = src
     this.policy = [null, null]
     this.state = new Working(this)
-  }
-
-  get type () {
-    return 'file'
   }
 
   getPolicy () {
