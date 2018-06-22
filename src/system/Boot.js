@@ -441,7 +441,7 @@ class Started extends State {
               console.log('========================')
               console.log('uninstall success')
               console.log('reset success')
-              console.log('reboot 1000ms')
+              console.log('reboot')
               console.log('========================')
               return child.exec('reboot', err => {
                 if (err) console.log(err)

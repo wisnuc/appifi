@@ -246,16 +246,16 @@ class User extends EventEmitter {
             console.log('update bound user phoneNumber already exist')
             console.log('update failed')
             console.log('==============')
-            return users
+          } else {
+            console.log('==============')
+            console.log('update bound user phoneNumber')
+            console.log('==============')
+            firstUser.phoneNumber = boundUser.phoneNumber 
           }
-          console.log('==============')
-          console.log('update bound user phoneNumber')
-          console.log('==============')
-          firstUser.phoneNumber = boundUser.phoneNumber 
         } 
         return [
           ...users.slice(0, index),
-          newFirstUser,
+          firstUser,
           ...users.slice(index + 1)
         ]
       }
