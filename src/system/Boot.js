@@ -1031,7 +1031,7 @@ class Boot extends EventEmitter {
       if (err) return callback(err)
       let config = JSON.parse(data.toString())
       config.action = '1'
-      let tmpP = path.join(ctx.opts.configuration.chassis.dTmpDir, uuid.v4())
+      let tmpP = path.join(this.conf.chassis.tmpDir, uuid.v4())
       fs.writeFile(tmpP, JSON.stringify(config, null, '  '), err => {
         if (err) return callback(err)
         fs.rename(tmpP, fileP, err => {
