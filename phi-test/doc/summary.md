@@ -30,9 +30,8 @@ PS: 带 * 符号的优先级高
 step1 安装依赖包:
 ```bash
 $ npm install
-
 ```
 step2 运行测例:
-‵‵`bash
+```bash
 $ npm run mocha phi-test/test/
 ```

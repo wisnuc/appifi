@@ -16,7 +16,7 @@ const { USERS, initUsersAsync, initFruitFilesAsync } = require('./tmplib')
 const { alice, bob, charlie } = USERS
 
 /**
- * TODO: mock cloud server in oder to test request result from NAS to cloud.
+ * mock cloud server in oder to test request result from NAS to cloud.
  */
 describe(path.basename(__filename), () => {
   beforeEach(async () => {

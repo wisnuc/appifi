@@ -100,7 +100,9 @@ class Drive extends EventEmitter {
             tag: 'home',
             label: '',
             isDeleted: false,
-            smb: true
+            smb: true,
+            ctime: new Date().getTime(),
+            mtime: new Date().getTime()
           })
         }
 
@@ -112,7 +114,9 @@ class Drive extends EventEmitter {
             readlist: '*',
             label: '',
             tag: 'built-in',
-            smb: true
+            smb: true,
+            ctime: new Date().getTime(),
+            mtime: new Date().getTime()
           })
         }
         return newDrives
@@ -138,7 +142,9 @@ class Drive extends EventEmitter {
       writelist: props.writelist || [],
       readlist: props.readlist || [],
       label: props.label || '',
-      smb: true
+      smb: true,
+      ctime: new Date().getTime(),
+      mtime: new Date().getTime()
     }
 
     // TODO create directory
@@ -183,6 +189,7 @@ class Drive extends EventEmitter {
         if (drives.filter(d => !d.isDeleted).every(d => d.label !== props.label)) priv.label = props.label
         else throw new Error('label has already been used')
       }
+      priv.mtime = new Date().getTime()
       return [...drives.slice(0, index), priv, ...drives.slice(index + 1)]
     }, (err, data) => err ? callback(err) : callback(null, data.find(d => d.uuid === driveUUID)))
   }
@@ -194,6 +201,7 @@ class Drive extends EventEmitter {
       let drv = Object.assign({}, drives[index])
       if (drv.isDeleted) throw Object.assign(new Error('drive not found'), { status: 404 }) 
       drv.isDeleted = true
+      drv.mtime = new Date().getTime()
       let drives2 = drives
       if (drv === 'private') {  // user been deleted
         drives2 = drives.map(d => {
@@ -205,6 +213,7 @@ class Drive extends EventEmitter {
             let rl = new Set(dc.readlist)
             rl.delete(drv.owner)
             dc.readlist = Array.from(rl).sort()
+            dc.mtime = new Date().getTime()
             return dc
           }
           return d
