@@ -24,22 +24,6 @@ describe(path.basename(__filename), () => {
       await mkdirpAsync(path.join(tmptest, 'd1', 'd2', 'd3'))
     })
 
-    it('d1/d2/d3', done => {
-      let result = []
-      find(tmptest, [], 'd', 1, [], null, result, () => {
-        console.log(result)
-        done()
-      })
-    })
-
-    it('d1/d2/d3', done => {
-      let result = [] 
-      find(tmptest, [], 'd', 1, ['d1'], 'directory', result, () => {
-        console.log(result)
-        done()
-      })
-    })
-
     it('d1/d2/d3, all', async () => {
       let result = []
       await findAsync(tmptest, [], 'd', 400, [], null, result)
