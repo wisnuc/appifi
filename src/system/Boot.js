@@ -320,60 +320,60 @@ class Started extends State {
       this.ctx.volumeStore.save(newBoundVolume, err =>
         err ? reject(err) : resolve(newBoundVolume))})
   }
+  /*
+    add (devices, mode, callback) {
+      if (this.uninstalling) return callback(new Error('station in uninstalling'))
+      if (!Array.isArray(devices) || devices.length !== 1) {
+        return callback(new Error('devices must be an one item array'))
+      }
 
-  add (devices, mode, callback) {
-    if (this.uninstalling) return callback(new Error('station in uninstalling'))
-    if (!Array.isArray(devices) || devices.length !== 1) {
-      return callback(new Error('devices must be an one item array'))
+      if (mode !== 'single' && mode !== 'raid1') {
+        return callback(new Error('device must be eithor single or raid1'))
+      }
+
+      let job = {
+        type: 'addDevice',
+        props: {
+          devices,
+          mode
+        },
+        callback
+      }
+
+      this.jobs.push(job)
+      this.reqSchedJob()
     }
 
-    if (mode !== 'single' && mode !== 'raid1') {
-      return callback(new Error('device must be eithor single or raid1'))
+    async doAddAsync ({ devices, mode }) {
+
+      let storage = await probeAsync(this.ctx.conf.storage)
+
+      let wantD = devices[0]
+      let volumeUUID = this.ctx.volumeStore.data.uuid
+      let volume = this.ctx.storage.volumes.find(v => v.uuid === volumeUUID)
+      let block = this.ctx.storage.blocks.find(b => b.name === wantD.name)
+
+      if (!block) throw new Error('block not found')
+      if (!volume) throw new Error('volume not found')
+      if (volume.devices.length !== 1) throw new Error('volume has more then one device')
+      if (volume.devices.find(d => d.name === wantD.name)) throw new Error('device has already in volume')
+      await umountBlocksAsync(storage, [ wantD.name ])
+      await child.execAsync(`btrfs device add -f ${ block.devname } ${ volume.mountpoint}`)
+
+      if (mode === 'single') {
+        await child.execAsync(`btrfs balance start -f -mconvert=raid1 ${ volume.mountpoint }`)
+      } else {
+        await child.execAsync(`btrfs balance start -f -dconvert=raid1 -mconvert=raid1 ${ volume.mountpoint }`)
+      }
+
+      storage = await probeAsync(this.ctx.conf.storage)
+
+      this.ctx.storage = storage
+
+      return await this.updateBoundVolumeAsync()
+
     }
-
-    let job = {
-      type: 'addDevice',
-      props: {
-        devices,
-        mode
-      },
-      callback
-    }
-
-    this.jobs.push(job)
-    this.reqSchedJob()
-  }
-
-  async doAddAsync ({ devices, mode }) {
-
-    let storage = await probeAsync(this.ctx.conf.storage)
-
-    let wantD = devices[0]
-    let volumeUUID = this.ctx.volumeStore.data.uuid
-    let volume = this.ctx.storage.volumes.find(v => v.uuid === volumeUUID)
-    let block = this.ctx.storage.blocks.find(b => b.name === wantD.name)
-
-    if (!block) throw new Error('block not found')
-    if (!volume) throw new Error('volume not found')
-    if (volume.devices.length !== 1) throw new Error('volume has more then one device')
-    if (volume.devices.find(d => d.name === wantD.name)) throw new Error('device has already in volume')
-    await umountBlocksAsync(storage, [ wantD.name ])
-    await child.execAsync(`btrfs device add -f ${ block.devname } ${ volume.mountpoint}`)
-
-    if (mode === 'single') {
-      await child.execAsync(`btrfs balance start -f -mconvert=raid1 ${ volume.mountpoint }`)
-    } else {
-      await child.execAsync(`btrfs balance start -f -dconvert=raid1 -mconvert=raid1 ${ volume.mountpoint }`)
-    }
-
-    storage = await probeAsync(this.ctx.conf.storage)
-
-    this.ctx.storage = storage
-
-    return await this.updateBoundVolumeAsync()
-
-  }
-
+  */
   remove (devices, callback) {
     if (this.uninstalling) return callback(new Error('station in uninstalling'))
     if (!Array.isArray(devices) || devices.length !== 1) {
@@ -429,7 +429,7 @@ class Started extends State {
     let boundVolumeUUID = this.ctx.volumeStore.data.uuid
     this.ctx.volumeStore.save(null, (err, data) => {
       if (err) return callback(err)
-      if (!!props.format) {
+      if (props.format) {
         let volume = this.ctx.storage.volumes.find(v => v.uuid === boundVolumeUUID)
         let fruitmixDir = path.join(volume.mountpoint, this.ctx.conf.storage.fruitmixDir)
         rimraf(fruitmixDir, err => {
@@ -437,9 +437,18 @@ class Started extends State {
           else cb(null)
           setTimeout(() => {
             this.uninstalling = false
-            if (props.reset) return child.exec('reboot', () => {})
+            if (props.reset) {
+              console.log('========================')
+              console.log('uninstall success')
+              console.log('reset success')
+              console.log('reboot')
+              console.log('========================')
+              return child.exec('reboot', err => {
+                if (err) console.log(err)
+              })
+            }
             process.exit(61)
-          }, 200)
+          }, 50)
         })
       } else {
         callback(null)
@@ -474,42 +483,108 @@ class Unavailable extends State {
     this.setState(Importing, volumeUUID, callback)
   }
 
-  repair (devices, mode, callback)  {
+  repair (devices, mode, callback) {
     this.setState(Repairing, devices, mode, callback)
+  }
+
+  add (devices, mode, callback) {
+    this.setState(Adding, devices, mode, callback)
+  }
+}
+
+class Adding extends State {
+  enter (devices, mode, callback) {
+    this.doAddAsync(devices, mode)
+      .then(boundVolume => {
+        console.log('add success, go to Probing')
+        this.setState(Probing)
+        callback(null, boundVolume)
+      })
+      .catch(err => {0
+        console.log('add failed, go to Probing')
+        this.setState(Probing)
+        callback(err)
+      })
+  }
+
+  async doAddAsync (devices, mode) {
+    let storage = await probeAsync(this.ctx.conf.storage)
+    // can only add one device
+    let wantD = devices[0]
+    let volumeUUID = this.ctx.volumeStore.data.uuid
+    let volume = this.ctx.storage.volumes.find(v => v.uuid === volumeUUID)
+    let block = this.ctx.storage.blocks.find(b => b.name === wantD.name)
+
+    if (!block) throw new Error('block not found')
+    if (!volume) throw new Error('volume not found')
+    if (volume.devices.length !== 1) throw new Error('volume has more then one device')
+    if (volume.devices.find(d => d.name === wantD.name)) throw new Error('device has already in volume')
+    await umountBlocksAsync(storage, [ wantD.name ])
+    await child.execAsync(`btrfs device add -f ${ block.devname } ${ volume.mountpoint}`)
+
+    if (mode === 'single') {
+      await child.execAsync(`btrfs balance start -f -mconvert=raid1 ${ volume.mountpoint }`)
+    } else {
+      await child.execAsync(`btrfs balance start -f -dconvert=raid1 -mconvert=raid1 ${ volume.mountpoint }`)
+    }
+
+    storage = await probeAsync(this.ctx.conf.storage)
+
+    this.ctx.storage = storage
+
+    return await this.updateBoundVolumeAsync()
+  }
+
+  async updateBoundVolumeAsync () {
+    let boundVolume = this.ctx.volumeStore.data
+    let volumeUUID = boundVolume.uuid
+    let volume = this.ctx.storage.volumes.find(v => v.uuid === volumeUUID)
+
+    // fix metadata single
+    if (volume.usage.data.mode === 'single' && volume.devices.length === 1 && volume.usage.metadata.mode !== 'DUP') {
+      await child.execAsync(`btrfs balance start -f -mconvert=dup ${ volume.mountpoint }`)
+      let storage = await probeAsync(this.ctx.conf.storage)
+      this.ctx.storage = storage
+    }
+
+    let newBoundVolume = this.createBoundVolume(this.ctx.storage, volume)
+    return new Promise((resolve, reject) => {
+      this.ctx.volumeStore.save(newBoundVolume, err =>
+        err ? reject(err) : resolve(newBoundVolume))})
   }
 }
 
 /**
-for wisnuc legacy, single '/etc/wisnuc.json' file is used.
-for wisnuc/phicomm
-  <chassisDir>    // located on emmc
-    user.json     // single file in json format, maintained by bootstrap, not appifi; for wisnuc, this file
-                  // does NOT exist
-    volume        // single file containing volume UUID
-    <volumeUUID>
-      storage.json
-      users.json
-      drives.json
-      tags.json
+  for wisnuc legacy, single '/etc/wisnuc.json' file is used.
+  for wisnuc/phicomm
+    <chassisDir>    // located on emmc
+      user.json     // single file in json format, maintained by bootstrap, not appifi; for wisnuc, this file
+                    // does NOT exist
+      volume        // single file containing volume UUID
+      <volumeUUID>
+        storage.json
+        users.json
+        drives.json
+        tags.json
 
-for tmp
-  <chassisDir>
-    atmp          // used by appifi
-    btmp          // used by bootstrap
+  for tmp
+    <chassisDir>
+      atmp          // used by appifi
+      btmp          // used by bootstrap
 */
 
 /**
-`Initialization` is an exclusive process to create the bound volume through the following steps:
+  `Initialization` is an exclusive process to create the bound volume through the following steps:
 
-1. probe and get the latest storage status.
-2. umount devices
-3. mkfs.btrfs
-4. probe again (this is because there is a bug in mkfs.btrfs output and the output format changes)
-5. find newly created volume containing given devices
-6. create users.json in a temporary directory and then rename the directory to prevent leaving an empty fruitmix dir.
-7. save volume information into store.
+  1. probe and get the latest storage status.
+  2. umount devices
+  3. mkfs.btrfs
+  4. probe again (this is because there is a bug in mkfs.btrfs output and the output format changes)
+  5. find newly created volume containing given devices
+  6. create users.json in a temporary directory and then rename the directory to prevent leaving an empty fruitmix dir.
+  7. save volume information into store.
 
-The callers shall validate arguments before state transition.
+  The callers shall validate arguments before state transition.
 */
 class Initializing extends State {
   // target should be valid!
@@ -925,6 +1000,10 @@ class Boot extends EventEmitter {
     if (vol.missing) return false // bound volume has missing device
     if (!Array.isArray(vol.users)) return false // users.json not ready
 
+    // if add or remove device, jump to unavailiable state
+    let slotBlocks = this.view().storage.blocks.filter(b => b.slotNumber)
+    if (slotBlocks.length !== this.volumeStore.data.devices.length) return false 
+
     let firstUser = vol.users.find(u => u.isFirstUser === true)
     if (!firstUser) return false // firstUser not found
     if (firstUser.phicommUserId !== this.boundUser.phicommUserId) return false
@@ -1007,13 +1086,14 @@ class Boot extends EventEmitter {
     if (props.reset && typeof props.reset !== 'boolean') {
       return callback(Object.assign(new Error('props error'), { status: 400 }))
     }
+    props.format = !!props.format
     // if reset , do reset first, auto reboot false
     if (props.reset) {
-      this.resetToFactory(user, !!props.format, err => {
+      this.resetToFactory(user, !props.format, err => {
         if (err) {
           console.log('===========================')
           console.log('factory reset error')
-          console.log('not error if not n2 device')
+          console.log('maybe not error if not n2 device')
           console.log('===========================')
           console.log(err)
         }
@@ -1029,15 +1109,30 @@ class Boot extends EventEmitter {
     let fileP = '/mnt/reserved/fw_ver_release.json'
     fs.readFile(fileP, (err, data) => {
       if (err) return callback(err)
-      let config = JSON.parse(data.toString())
+      let config
+      try { 
+        config = JSON.parse(data.toString())
+      } catch(e) {
+        return callback(e)
+      }
       config.action = '1'
-      let tmpP = path.join(ctx.opts.configuration.chassis.dTmpDir, uuid.v4())
+      let tmpP = path.join(this.conf.chassis.tmpDir, UUID.v4())
+      let command = 'chattr -i /mnt/reserved/fw_ver_release.json'
+      // command = command + `cat ${ tmpP } | jq . > /mnt/reserved/fw_ver_release.json;\n`
+      // command = command + 'rm /tmp/release.json;\n'
+      // command = command + 'chattr +i /mnt/reserved/fw_ver_release.json;\n'
+      // command = command + 'sleep 5; reboot'
+      // child.exec(command)
       fs.writeFile(tmpP, JSON.stringify(config, null, '  '), err => {
         if (err) return callback(err)
-        fs.rename(tmpP, fileP, err => {
+        child.exec('chattr -i /mnt/reserved/fw_ver_release.json', err => {
           if (err) return callback(err)
-          if (autoReboot) setTimeout(() => child.exec('reboot'), 1000)
-          callback(null)
+          fs.rename(tmpP, fileP, err => {
+            child.exec('chattr +i /mnt/reserved/fw_ver_release.json')
+            if (err) return callback(err)
+            if (autoReboot) setTimeout(() => child.exec('reboot'), 1000)
+            callback(null)
+          })
         })
       })
     })

@@ -93,6 +93,7 @@ class XCopy extends EventEmitter {
       if (state === 'Failed' || state === 'Finish') {
         this.finished = true
         this.root = null
+        process.nextTick(() => this.emit('finish'))
       }
     })
 

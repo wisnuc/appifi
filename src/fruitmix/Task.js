@@ -52,42 +52,11 @@ class Task {
 
   GET (user, props, callback) {
     let result = this.tasks.find(item => item.uuid == props.taskUUID)
-    if (!result) callback(new Error('task not found')) 
-    else callback(null, result.view())
-  }
-
-  // useless
-  createCopyTask(user, props, callback) {
-    let { src, dst } = props
-    this.vfs.DIR(user, { driveUUID: dst.drive, dirUUID: dst.dir }, err => {
-      if (err) return callback(err)
-      this.vfs.READDIR(user, { driveUUID: src.drive, dirUUID: src.dir }, (err, xstats) => {
-        try {
-          let xs = props.entries.reduce((xs, ent) => {
-            let x = xstats.find(x => x.name === ent)
-            if (!x) throw new Error(`entry name ${ent} not found`)
-            return [...xs, x]
-          }, [])
-          callback(null, new XCopy(vfs, nfs, user, props))
-        } catch (err) {
-          console.log(err)
-          err.status = 400
-          callback(err)
-        }
-      })
-    })
-  }
-
-  createMoveTask(user, props, callback) {
-    // same as copy, almost
-  }
-
-  createImportTask(user, props, callback) {
-    this.vfs.DIR(user) 
-  }
-
-  createExportTask(user, props, callback) {
-    // this.nfs
+    if (!result) {
+      callback(new Error('task not found')) 
+    } else {
+      callback(null, result.view())
+    }
   }
 
   /**
@@ -95,7 +64,8 @@ class Task {
   
   @param {object} user
   @param {object} props
-  @param {string} props.mode - 'copy', 'move', 'import', 'export', etc.
+  @param {boolean} props.batch - if provided, must be true
+  @param {string} props.mode - 'copy', 'move', 'icopy', 'imove', 'ecopy', 'emove', 'ncopy', 'nmove',
   @param {object} props.src - object representing src dir
   @param {string} props.src.drive - vfs drive uuid or nfs drive id
   @param {string} props.src.dir - vfs dir uuid or nfs path
@@ -108,23 +78,22 @@ class Task {
   @param {object} policies.file - global file policy, defaults to [null, null]
   */
   POST (user, props, callback) {
-    // 1. policies must be valid
-    // 2. user must has permission for source
-    // 3. user must has permission for dst
-    // 4. all entries must be found
-    let policies
+    let batch = props.batch === 'true'
 
-    try {
-      policies = normalizePolicies(props.policies)
-    } catch (err) {
-      err.status = 400
-      return process.nextTick(() => callback(err))
-    }
-    
-    if (typeof props.src !== 'object' || props.src === null) {
-      let err = new Error('invalid src')
-      err.status = 400
-      return callback(err)
+    if (batch) {
+      if (!Array.isArray(props.srcs) 
+        || srcs.length === 0 
+        || !srcs.every(src => src && typeof src === 'object')) {
+        let err = new Error('invalid srcs')
+        err.status = 400 
+        return callback(err)
+      }
+    } else {
+      if (typeof props.src !== 'object' || props.src === null) {
+        let err = new Error('invalid src')
+        err.status = 400
+        return callback(err)
+      }
     }
 
     if (typeof props.dst !== 'object' || props.dst === null) {
@@ -133,10 +102,20 @@ class Task {
       return callback(err)
     }
 
-    let newProps = Object.assign({}, props, { policies })
+    let task, policies
+    if (batch) {
+      policies = []
+      task = new XSink(this.vfs, this.nfs, user, Object.assign({}, props, { policies }))
+    } else {
+      try {
+        policies = normalizePolicies(props.policies)
+      } catch (err) {
+        err.status = 400
+        return process.nextTick(() => callback(err))
+      }
+      task = new XCopy(this.vfs, this.nfs, user, Object.assign({}, props, { policies }))
+    }
 
-    let task = new XCopy(this.vfs, this.nfs, user, newProps)   
-    task.creator = user.uuid
     this.tasks.push(task)
     callback(null, task.view())
   }  
@@ -147,7 +126,9 @@ class Task {
       let result = this.tasks.splice(index, 1)
       result[0].destroy()
       callback(null, this.tasks.map(item => item.view()))
-    } else callback(Object.assign(new Error('not fount task'), {status: 404}))
+    } else {
+      callback(Object.assign(new Error('not fount task'), {status: 404}))
+    }
   }
 
   PATCH (user, props, callback) {
@@ -165,7 +146,7 @@ class Task {
   }
 
   PATCHNODE (user, props, callback) {
-    let task = this.tasks.find(t => t.creator === user.uuid && t.uuid === props.taskUUID) 
+    let task = this.tasks.find(t => t.user.uuid === user.uuid && t.uuid === props.taskUUID) 
     if (!task) {
       let err = new Error('task not found')
       err.status = 404

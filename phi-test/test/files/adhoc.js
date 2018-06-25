@@ -180,16 +180,14 @@ describe(path.basename(__filename), () => {
         ]
       }) 
 
-      console.log(JSON.stringify(tree, null, '  '))
+      // console.log(JSON.stringify(tree, null, '  '))
 
       let r, starte 
       r = await user.getFilesAsync({ places: user.home.uuid, count: 1})       
       console.log(r)
 
       await new Promise((resolve, reject) => {
-
         let fooUUID = tree[0].xstat.uuid
-
         request(watson.app.express)
           .post(`/drives/${user.home.uuid}/dirs/${fooUUID}/entries`)
           .set('Authorization', 'JWT ' + user.token)
@@ -197,15 +195,15 @@ describe(path.basename(__filename), () => {
           .expect(200)
           .end((err, res) => {
             if (err) return reject(err)
-            console.log(res.body)
             resolve(res.body)
           })
       })
 
-
       starte = `${r[0].mtime}.${r[0].uuid}`
       r = await user.getFilesAsync({ places: user.home.uuid, starte, count: 1 })
       console.log(r)
+
+      if (r.length === 0) return
 
       starte = `${r[0].mtime}.${r[0].uuid}`
       r = await user.getFilesAsync({ places: user.home.uuid, starte, count: 1 })
@@ -254,7 +252,6 @@ describe(path.basename(__filename), () => {
       }) 
 
       let r = await user.getFilesStepByStepVisitAsync({ places: user.home.uuid }, 1)
-      console.log(JSON.stringify(tree, null, '  '))
       console.log(r)
     })
 

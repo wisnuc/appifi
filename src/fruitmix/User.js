@@ -191,22 +191,18 @@ class User extends EventEmitter {
       return process.nextTick(() => callback(e))
     }
     request
-      .patch('http://localhost:3001/v1/user/password')
+      .patch('http://127.0.0.1:3001/v1/user/password')
       .set('Accept', 'application/json')
       .send(props)
+      .timeout(30 * 1000)
       .end((err, res) => {
-        if (err) callback(err)
+        if (err) return callback(err)
         console.log('update', res.body)
         this.store.save(users => {
           let index = users.findIndex(u => u.uuid === userUUID)
           if (index === -1) throw new Error('user not found')
           let nextUser = Object.assign({}, users[index])
-          // if (password) nextUser.password = encrypted ? password : passwordEncrypt(password, 10)
           nextUser.password = res.body.password
-          // if (smbPassword) {
-          //   nextUser.smbPassword = encrypted ? smbPassword : md4Encrypt(smbPassword)
-          //   nextUser.lastChangeTime = new Date().getTime()
-          // }
           return [...users.slice(0, index), nextUser, ...users.slice(index + 1)]
         }, (err, data) => {
           if (err) return callback(err)
@@ -230,9 +226,8 @@ class User extends EventEmitter {
         }]
       } else {
         let firstUser = Object.assign({}, users[index])
-        if (boundUser.password) {
-          firstUser.password = boundUser.password
-        }
+        // maybe undefined
+        firstUser.password = boundUser.password
         if (firstUser.phicommUserId !== boundUser.phicommUserId) {
           console.log('===================')
           console.log('This is not an error, but fruitmix received a bound user')
@@ -246,22 +241,22 @@ class User extends EventEmitter {
             console.log('update bound user phoneNumber already exist')
             console.log('update failed')
             console.log('==============')
-            return users
+          } else {
+            console.log('==============')
+            console.log('update bound user phoneNumber')
+            console.log('==============')
+            firstUser.phoneNumber = boundUser.phoneNumber 
           }
-          console.log('==============')
-          console.log('update bound user phoneNumber')
-          console.log('==============')
-          firstUser.phoneNumber = boundUser.phoneNumber 
         } 
         return [
           ...users.slice(0, index),
-          newFirstUser,
+          firstUser,
           ...users.slice(index + 1)
         ]
       }
     },
     err => err
-    ? console.log(`user module failed to bind first user to ${boundUser.phicommUserId}`)
+    ? console.log(`user module failed to bind first user to ${boundUser.phicommUserId}`, err)
     : console.log(`user module bound first user to ${boundUser.phicommUserId} successfully`))
   }
 

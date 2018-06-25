@@ -197,39 +197,7 @@ class App extends EventEmitter {
     // boot router
     let bootr = express.Router()
     bootr.get('/', (req, res) => {
-      let total = os.totalmem(), speed, type, free = os.freemem()
-      try {
-        free = child.execSync('free -b')
-          .toString().split('\n')
-          .find(x => x.startsWith('Mem:'))
-          .split(' ')
-          .map(x => x.trim())
-          .filter(x => x.length)
-          .pop()
-        type = child.execSync('dmidecode -t memory |grep -A16 "Memory Device$" |grep "Type: DD*"')
-          .toString().split('\n')
-          .shift()
-          .split(' ')
-          .map(x => x.trim())
-          .filter(x => x.length)
-          .pop()
-        speed = child.execSync('dmidecode -t memory |grep -A16 "Memory Device$" |grep "Speed:.*MHz"')
-          .toString().split('\n')
-          .shift()
-          .split(':')
-          .pop().trim()
-      } catch (e) { }
-      res.status(200).json(Object.assign({}, this.boot.view(), {
-        device: Object.assign({}, this.cloudConf.device, {
-          cpus: os.cpus(),
-          memory: {
-            free,
-            total,
-            speed,
-            type
-          }
-        })
-      }))
+      res.status(200).json(this.boot.view())
     })
 
     bootr.post('/boundVolume', (req, res, next) =>
