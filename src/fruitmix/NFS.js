@@ -11,6 +11,7 @@ const debug = require('debug')('nfs')
 const { isUUID, isNonNullObject } = require('../lib/assertion')
 const autoname = require('../lib/autoname')
 const PartStream = require('./nfs/PartStream')
+const find = require('./nfs/find')
 
 const xcode = stat => {
   if (stat.isFile()) {
@@ -523,6 +524,11 @@ class NFS extends EventEmitter {
   @param {object} props
   @param {string} props.id - volume uuid or block name
   @param {string} props.path - relative path
+
+  @param {string} props.token - if provided, considered to be a find
+  @param {string} props.lastPath - path string relative to path
+  @param {string} props.lastType - directory or file
+
   */
   GET (user, props, callback) {
     const fileType = stat => {
@@ -554,31 +560,70 @@ class NFS extends EventEmitter {
           if (err.code === 'ENOENT' || err.code === 'ENOTDIR') err.status = 403
           callback(err)
         } else if (stat.isDirectory()) {
-          fs.readdir(target, (err, entries) => {
-            if (err) return callback(err)
-            if (entries.length === 0) return callback(null, [])
-            let count = entries.length
-            let arr = []
-            entries.forEach(entry => {
-              fs.lstat(path.join(target, entry), (err, stat) => {
-                if (!err) {
-                  arr.push({
-                    name: entry,
-                    type: fileType(stat),
-                    size: stat.size,
-                    mtime: stat.mtime.getTime()
-                  })
-                }
-                if (!--count) callback(null, arr) // TODO sort
+          if (props.name) {
+            let root = target
+            let token = props.name
+            let count = parseInt(props.count)
+            if (!Number.isInteger(count) || count === 0 || count > 5000) count = 5000
+
+            let last
+            if (props.last) {
+              let lastType, lastPath
+              if (props.last.startsWith('directory.')) {
+                lastType = 'directory'
+                lastPath = props.last.slice('directory.'.length).split('/').filter(x => !!x) 
+              } else if (props.last.startsWith('file.')) {
+                lastType = 'file'
+                lastPath = props.last.slice('file.'.length).split('/').filtr(x => !!x)
+              } else {
+                let err = new Error('invalid last')
+                err.status = 400
+                return callback(err)
+              }
+
+              last = { type: lastType, namepath: lastPath }
+            } 
+
+            find(root, token, count, last, callback)  
+          } else {
+            fs.readdir(target, (err, entries) => {
+              if (err) return callback(err)
+              if (entries.length === 0) return callback(null, [])
+              let count = entries.length
+              let arr = []
+              entries.forEach(entry => {
+                fs.lstat(path.join(target, entry), (err, stat) => {
+                  if (!err) {
+                    arr.push({
+                      name: entry,
+                      type: fileType(stat),
+                      size: stat.size,
+                      mtime: stat.mtime.getTime()
+                    })
+                  }
+                  if (!--count) callback(null, arr) // TODO sort
+                })
               })
             })
-          })
+          }
         } else if (stat.isFile()) {
-          callback(null, target)
+          if (props.token) {
+            let err = new Error('target is not a dir')
+            err.status = 403
+            callback(err)
+          } else {
+            callback(null, target)
+          }
         } else {
-          let err = EUnsupported(stat)
-          err.status = 403
-          callback(err)
+          if (props.token) {
+            let err = new Error('target is not a dir')
+            err.status = 403
+            callback(err)
+          } else {
+            let err = EUnsupported(stat)
+            err.status = 403
+            callback(err)
+          }
         }
       })
     })
@@ -939,6 +984,17 @@ class NFS extends EventEmitter {
       if (err) return callback(err)
       fs.rmdir(dirPath, () => callback(null))
     }) 
+  }
+
+
+  /**
+  @param {string} root - root dir
+  @param {string} [last - a relative path
+  @param {number} count 
+  @param {string} name - containing string
+  */
+  find (root, last, count, name) {
+
   }
 }
 
