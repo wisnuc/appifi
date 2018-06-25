@@ -25,24 +25,20 @@ describe(path.basename(__filename), () => {
     })
 
     it('d1/d2/d3, all', async () => {
-      let result = []
-      await findAsync(tmptest, [], 'd', 400, [], null, result)
+      let result = await findAsync(tmptest, 'd', 400, null)
       console.log(result)
     })
 
     it ('d1/d2/d3, 36771f9e', async () => {
       let result 
 
-      result = []
-      await findAsync(tmptest, [], 'd', 1, [], null, result)
+      result = await findAsync(tmptest, 'd', 1, null)
       console.log('1', result)
 
-      result = []
-      await findAsync(tmptest, [], 'd', 1, ['d1'], 'directory', result)
+      result = await findAsync(tmptest, 'd', 1, result.pop())
       console.log('2', result)
 
-      result = []
-      await findAsync(tmptest, [], 'd', 1, ['d1', 'd2'], 'directory', result)
+      result = await findAsync(tmptest, 'd', 1, result.pop())
       console.log('3', result)
     })
   })
