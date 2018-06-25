@@ -1186,7 +1186,7 @@ class Boot extends EventEmitter {
     if (props.hasOwnProperty('state')) {
       if (props.state !== 'poweroff' && props.state !== 'reboot') return callback(Object.assign(new Error('invalid state'), { status: 400 }))
       setTimeout(() => child.exec(props.state), 4000)
-      res.status(200).end()
+      callback(null)
     } else return callback(Object.assign(new Error('invalid props'), { status: 400 }))
   }
 
