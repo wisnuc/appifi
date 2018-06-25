@@ -190,14 +190,13 @@ class User extends EventEmitter {
     } catch (e) {
       return process.nextTick(() => callback(e))
     }
-    console.log('start change password')
     request
-      .patch('http://localhost:3001/v1/user/password')
+      .patch('http://127.0.0.1:3001/v1/user/password')
       .set('Accept', 'application/json')
       .send(props)
+      .timeout(30 * 1000)
       .end((err, res) => {
-        console.log('bootstrap response update password')
-        if (err) callback(err)
+        if (err) return callback(err)
         console.log('update', res.body)
         this.store.save(users => {
           let index = users.findIndex(u => u.uuid === userUUID)
