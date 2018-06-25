@@ -196,24 +196,21 @@ class App extends EventEmitter {
 
     // boot router
     let bootr = express.Router()
-    bootr.get('/', (req, res) => {
-      res.status(200).json(this.boot.view())
-    })
+    bootr.get('/', (req, res) => 
+      res.status(200).json(this.boot.view()))
+
+    bootr.patch('/', (req, res, next) => 
+      this.boot.PATCH_BOOT(req.user, req.body, err => 
+        err ? next(err) : res.status(200).end()))
 
     bootr.post('/boundVolume', (req, res, next) =>
       this.boot.init(req.body.target, req.body.mode, (err, data) =>
         err ? next(err) : res.status(200).json(data)))
+
     bootr.put('/boundVolume', (req, res, next) =>
       this.boot.import(req.body.volumeUUID, (err, data) =>
         err ? next(err) : res.status(200).json(data)))
-    bootr.patch('/', (req, res, next) => {
-      let arg = req.body
-      if (arg.hasOwnProperty('state')) {
-        if (arg.state !== 'poweroff' && arg.state !== 'reboot') return next(Object.assign(new Error('invalid state'), { status: 400 }))
-        setTimeout(() => child.exec(arg.state), 4000)
-        res.status(200).end()
-      } else return next(Object.assign(new Error('invalid arg'), { status: 400 }))
-    })
+        
     bootr.patch('/boundVolume', (req, res, next) => {
       let op = req.body.op
       let value = req.body.value

@@ -1182,6 +1182,14 @@ class Boot extends EventEmitter {
     this.init(target, mode, callback)
   }
 
+  PATCH_BOOT (user, props, callback) {
+    if (props.hasOwnProperty('state')) {
+      if (props.state !== 'poweroff' && props.state !== 'reboot') return callback(Object.assign(new Error('invalid state'), { status: 400 }))
+      setTimeout(() => child.exec(props.state), 4000)
+      callback(null)
+    } else return callback(Object.assign(new Error('invalid props'), { status: 400 }))
+  }
+
 }
 
 module.exports = Boot

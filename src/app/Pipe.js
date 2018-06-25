@@ -184,8 +184,11 @@ class Pipe extends EventEmitter {
         return this.reqCommand(message, null, this.getToken(user))
       }
       // 单独处理 boot
-      if (resource === 'boot') {
-        return this.reqCommand(message, null, this.getBootInfo())
+      if (resource === 'boot' && paths.length === 2) {
+        if (verb.toUpperCase() === 'GET') return this.reqCommand(message, null, this.getBootInfo())
+        else if (verb.toUpperCase() === 'PATCH') {
+          return this.ctx.boot.PATCH_BOOT(user, body, err => this.reqCommand(message, err, {}))
+        }
       }
 
       if (resource === 'device') {
@@ -204,7 +207,10 @@ class Pipe extends EventEmitter {
               return this.ctx.device.addAliases(body, (err, data) => this.reqCommand(message, err, data))
             } else if (paths[2] === 'timedate') {
               return this.ctx.device.timedate((err, data) => this.reqCommand(message, err, data))
-            } else {
+            } else if (paths[2] === 'sleep') {
+              if (verb.toUpperCase() === 'GET') return this.reqCommand(message, null, this.ctx.device.sleepConf)
+              return this.ctx.device.updateSleepMode(user, body, (err, data) => this.reqCommand(message, err, data))
+            }else {
               throw formatError(new Error('not found'), 404)
             }
           case 4:
