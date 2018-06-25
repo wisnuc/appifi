@@ -940,6 +940,17 @@ class NFS extends EventEmitter {
       fs.rmdir(dirPath, () => callback(null))
     }) 
   }
+
+
+  /**
+  @param {string} root - root dir
+  @param {string} [last - a relative path
+  @param {number} count 
+  @param {string} name - containing string
+  */
+  find (root, last, count, name) {
+
+  }
 }
 
 module.exports = NFS
