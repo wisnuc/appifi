@@ -49,7 +49,10 @@ const WHITE_LIST = {
   media: 'media',
   tasks: 'task',
   'phy-drives': 'nfs',
-  device: 'device'
+  device: 'device',
+  fruitmix: 'fruitmix',
+  samba: 'samba',
+  dlna: 'dlna'
 }
 
 /**
