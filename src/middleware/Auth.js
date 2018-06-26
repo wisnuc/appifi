@@ -166,7 +166,8 @@ class Auth {
       type: 'JWT',
       forRemote: false,
       token: jwt.encode({
-        uuid: user.uuid
+        uuid: user.uuid,
+        phicommUserId: user.phicommUserId
       }, this.secret)
     }
   }

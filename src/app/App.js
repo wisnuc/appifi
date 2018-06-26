@@ -103,6 +103,7 @@ class App extends EventEmitter {
         if (Array.isArray(slots)) {
           configuration.slots = slots
         }
+        console.log('update slots: ', configuration.slots)
       } catch(e) {}
 
       this.device = new Device(this)
