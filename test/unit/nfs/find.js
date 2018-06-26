@@ -35,7 +35,9 @@ describe(path.basename(__filename), () => {
       result = await findAsync(tmptest, 'd', 1, null)
       console.log('1', result)
 
-      result = await findAsync(tmptest, 'd', 1, result.pop())
+      console.log(result.pop())
+
+      result = await findAsync(tmptest, 'd', 1, { type: 'directory', namepath: ['d9'] })
       console.log('2', result)
 
       result = await findAsync(tmptest, 'd', 1, result.pop())

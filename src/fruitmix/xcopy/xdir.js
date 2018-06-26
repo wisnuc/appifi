@@ -95,9 +95,9 @@ class State {
 }
 
 /**
-Making target directory
+Making (or Moving) target directory
 
-Entering this state when user try to resolve name conflict by single or global policy
+Entering this state when user try to resolve name conflict by single or global policy
 */
 class Mkdir extends State {
   enter () {

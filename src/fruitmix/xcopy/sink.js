@@ -64,6 +64,10 @@ results for visiting / search
     place: 0,
     namepath: [ 'foo', 'pdf.pdf' ] } ]
 
+results for nfs search 
+
+[ { type: 'directory', name: 'd2', namepath: [ 'd1', 'd2' ] },
+  { type: 'directory', name: 'd3', namepath: [ 'd1', 'd2', 'd3' ] } ]
 */
 
 
@@ -79,10 +83,8 @@ class Sink extends EventEmitter {
 
   constructor (vfs, nfs, user, props) {
     super()
-
     if (!vfs) throw new Error('vfs is not provided')
     if (!nfs) throw new Error('nfs is not provided')
-
     this.vfs = vfs
     this.nfs = nfs
     this.user = user
@@ -91,7 +93,6 @@ class Sink extends EventEmitter {
     this.dst = props.dst
     this.task = null
     this.allFinished = false
-
     this.next()
   }
 
@@ -145,10 +146,9 @@ class Sink extends EventEmitter {
     }
   }
 
-  // TODO
   destroy () {
+    if (this.task) this.task.destroy()
   }
-
 }
 
 module.exports = Sink

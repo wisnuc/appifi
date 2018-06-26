@@ -37,10 +37,12 @@ const find = (root, namepath, token, maxCount, last, result, callback) =>
           let files = arr.filter(x => x.type === 'file').sort(compare)
           if (last && last.namepath.length) {
             if (last.namepath.length > 1 || (last.namepath.length === 1 && last.type === 'directory')) {
-              dirs = dirs.slice(dirs.findIndex(x => x.name.localeCompare(last.namepath[0]) >= 0))
+              let index = dirs.findIndex(x => x.name.localeCompare(last.namepath[0]) >= 0)
+              dirs = index === -1 ? [] : dirs.slice(index) 
             } else {
               dirs = []
-              files = files.slice(files.findIndex(x => x.name.localCompare(last.namepath[0]) >= 0))
+              let index = files.slice(files.findIndex(x => x.name.localCompare(last.namepath[0]) >= 0))
+              files = index === -1 ? [] : files.slice(index)
             }
           }
 
