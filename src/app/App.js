@@ -98,7 +98,7 @@ class App extends EventEmitter {
       try {
         let slots
         if (fs.existsSync(SlotConfPath)) {
-          slots = JSON.parse(fs.readFileSync(SlotConfPath).toString())
+          slots = JSON.parse(fs.readFileSync(SlotConfPath).toString().trim())
         }
         if (Array.isArray(slots)) {
           configuration.slots = slots
