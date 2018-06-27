@@ -85,6 +85,7 @@ class User extends EventEmitter {
         console.log('chassisId change:', users)
         return users
       }, err => {
+        if (err) return console.log('update users to INACTIVE status error', err)
         return this.chassisStore.save(data => {
           return [lastChassisId, ...data]
         }, () => {})
