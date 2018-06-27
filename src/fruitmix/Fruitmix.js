@@ -104,11 +104,11 @@ class Fruitmix extends EventEmitter {
 
     // setup user module
     this.user = new User({
-      chassisId: opts.chassisId,
+      boundVolumeId: this.boundVolume.id,
       file: path.join(this.fruitmixDir, 'users.json'),
       tmpDir: path.join(this.fruitmixDir, 'tmp', 'users'),
-      chassisFile: path.join(this.fruitmixDir, 'chassis.json'),
-      chassisTmpDir: path.join(this.fruitmixDir, 'tmp', 'chassis'),
+      chassisFile: path.join(this.fruitmixDir, 'boundVolumes.json'),
+      chassisTmpDir: path.join(this.fruitmixDir, 'tmp', 'boundVolumes'),
       isArray: true
     })
 

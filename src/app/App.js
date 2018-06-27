@@ -108,8 +108,6 @@ class App extends EventEmitter {
 
       this.device = new Device(this)
 
-      fruitmixOpts.chassisId = this.device.view().sn
-
       this.boot = new Boot({ configuration, fruitmixOpts })
 
       Object.defineProperty(this, 'fruitmix', { get () { return this.boot.fruitmix } })

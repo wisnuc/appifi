@@ -38,9 +38,9 @@ class User extends EventEmitter {
       isArray: true
     })
 
-    // observe chassis change
-    if (opts.chassisId) {
-      this.chassisId = opts.chassisId
+    // observe boundVolume change
+    if (opts.boundVolumeId) {
+      this.chassisId = opts.boundVolumeId
       this.chassisStore = new DataStore({
         file: opts.chassisFile,
         tmpDir: opts.chassisTmpDir,
@@ -76,9 +76,11 @@ class User extends EventEmitter {
       this.store.save(users => {
         users.filter(u => u.status === USER_STATUS.ACTIVE)
           .forEach(u => {
-            if (!u.isFirstUser) u.status = USER_STATUS.INACTIVE
-            u.password = undefined
-            u.smbPassword = undefined
+            if (!u.isFirstUser) {
+              u.status = USER_STATUS.INACTIVE
+              u.password = undefined
+              u.smbPassword = undefined
+            }
           })
         return users
       }, () => {})
