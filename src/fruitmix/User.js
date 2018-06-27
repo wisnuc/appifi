@@ -82,8 +82,13 @@ class User extends EventEmitter {
               u.smbPassword = undefined
             }
           })
+        console.log('chassisId change:', users)
         return users
-      }, () => {})
+      }, err => {
+        return this.chassisStore.save(data => {
+          return [lastChassisId, ...data]
+        }, () => {})
+      })
     }
   }
 
