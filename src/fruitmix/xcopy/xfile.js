@@ -319,6 +319,7 @@ class Conflict extends State {
 
 class Failed extends State {
   enter (err) {
+    if (process.env.LOGE) debug(err)
     this.error = err
   }
 }
