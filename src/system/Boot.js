@@ -98,7 +98,7 @@ class State {
   }
 
   // TODO this is a pure function, or maybe static
-  createBoundVolume (storage, volume, boundVoulmeId) {
+  createBoundVolume (storage, volume, boundVolumeId) {
     let devices = volume.devices.map(dev => {
       let blk = storage.blocks.find(blk => blk.name === dev.name)
       return {
