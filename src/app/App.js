@@ -108,8 +108,6 @@ class App extends EventEmitter {
 
       this.device = new Device(this)
 
-      fruitmixOpts.chassisId = this.device.view().sn
-
       this.boot = new Boot({ configuration, fruitmixOpts })
 
       Object.defineProperty(this, 'fruitmix', { get () { return this.boot.fruitmix } })
@@ -181,7 +179,7 @@ class App extends EventEmitter {
       case 'bootstrap_unbind':
         if (this.boot) {
           return this.boot.volumeStore.save(null, (err, data) => {
-            process.exit(61)
+            setTimeout(() => process.exit(61), 100)
           })
         }
         break

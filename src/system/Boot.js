@@ -98,7 +98,7 @@ class State {
   }
 
   // TODO this is a pure function, or maybe static
-  createBoundVolume (storage, volume) {
+  createBoundVolume (storage, volume, boundVolumeId) {
     let devices = volume.devices.map(dev => {
       let blk = storage.blocks.find(blk => blk.name === dev.name)
       return {
@@ -114,6 +114,7 @@ class State {
     return {
       devices,
       label: volume.label,
+      id: boundVolumeId || UUID.v4(),
       uuid: volume.uuid,
       total: volume.total,
       usage: {
@@ -315,7 +316,7 @@ class Started extends State {
       this.ctx.storage = storage
     }
 
-    let newBoundVolume = this.createBoundVolume(this.ctx.storage, volume)
+    let newBoundVolume = this.createBoundVolume(this.ctx.storage, volume, boundVolume.id)
     return new Promise((resolve, reject) => {
       this.ctx.volumeStore.save(newBoundVolume, err =>
         err ? reject(err) : resolve(newBoundVolume))})
@@ -547,7 +548,7 @@ class Adding extends State {
       this.ctx.storage = storage
     }
 
-    let newBoundVolume = this.createBoundVolume(this.ctx.storage, volume)
+    let newBoundVolume = this.createBoundVolume(this.ctx.storage, volume, boundVolume.id)
     return new Promise((resolve, reject) => {
       this.ctx.volumeStore.save(newBoundVolume, err =>
         err ? reject(err) : resolve(newBoundVolume))})
@@ -887,7 +888,7 @@ class Repairing extends State {
       throw new Error('volume usage not properly detected')
     }
     // update boundVolume
-    let newBoundVolume = this.createBoundVolume(storage, newVolume)
+    let newBoundVolume = this.createBoundVolume(storage, newVolume, this.ctx.volumeStore.data.id)
     console.log('=======newBoundVolume======')
     console.log(newBoundVolume)
     console.log('============================')
