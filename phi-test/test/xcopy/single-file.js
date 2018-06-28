@@ -39,7 +39,102 @@ const alice = {
 }
 
 describe(path.basename(__filename), () => {
-  describe('no conflict', () => {
+  describe('no conflict, root to root', () => {
+    let watson, user, home, pub, n1, n2
+
+    beforeEach(async () => {
+      await rimrafAsync(tmptest)
+      await mkdirpAsync(fruitmixDir)
+      let fake = await fakeNfsAsync(tmptest)
+      let boundVolume = fake.createBoundVolume(fake.storage, fakeNfsAsync.UUIDBC)
+
+      let userFile = path.join(fruitmixDir, 'users.json')
+      await fs.writeFileAsync(userFile, JSON.stringify([alice], null, '  '))
+
+      let opts = { fruitmixDir, boundVolume }
+      let fruitmix = new Fruitmix(opts)
+      let app = new App({ fruitmix, log: { skip: 'all', error: 'none' } })
+      await new Promise(resolve => fruitmix.once('FruitmixStarted', () => resolve()))
+
+      watson = new Watson({ app })
+      await new Promise((resolve, reject) =>
+        watson.login('alice', 'alice', err =>
+          err ? reject(err) : resolve()))
+
+      fruitmix.nfs.update(fake.storage)
+      user = watson.users.alice
+
+      let children = [
+        {
+          type: 'file',
+          name: 'foo',
+          file: foo.path,
+          size: foo.size,
+          sha256: foo.hash 
+        }
+      ]
+
+      home = await user.mktreeAsync({
+        type: 'vfs',
+        drive: user.home.uuid,
+        dir: user.home.uuid,
+        children
+      })
+/**
+      pub = await user.mktreeAsync({
+        type: 'vfs',
+        drive: user.pub.uuid,
+        dir: user.pub.uuid,
+        children 
+      })
+*/
+      n1 = await user.mktreeAsync({
+        type: 'nfs',
+        drive: UUIDDE,
+        dir: '',
+        children
+      })
+
+/*
+      n2 = await user.mktreeAsync({
+        type: 'nfs',
+        drive: UUIDF,
+        dir: '',
+        children
+      })
+*/
+    })
+
+    it('copy', async function () {
+      let args = {
+        type: 'copy',
+        src: { drive: user.home.uuid, dir: user.home.uuid },
+        dst: { drive: user.pub.uuid, dir: user.pub.uuid },
+        entries: ['foo']
+      }
+
+      let task = await user.createTaskAsync(args)
+      await user.watchTaskAsync(task.uuid)
+
+      console.log('TODO: no assertion')
+    }) 
+
+    it('icopy', async function () {
+      let args = {
+        type: 'icopy',
+        src: { drive: UUIDDE, dir: '' },
+        dst: { drive: user.pub.uuid, dir: user.pub.uuid },
+        entries: ['foo']
+      } 
+
+      let task = await user.createTaskAsync(args)
+      await user.watchTaskAsync(task.uuid)
+
+      console.log('TODO: no assertion')
+    })
+  })
+
+  describe('no conflict, src -> dst', () => {
     let watson, user, home, pub, n1, n2
 
     beforeEach(async () => {
@@ -108,6 +203,8 @@ describe(path.basename(__filename), () => {
         children
       })
     })
+
+
 
     it('copy', async function () {
       let srcDirUUID = home.find(x => x.name === 'src').xstat.uuid

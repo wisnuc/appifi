@@ -1,22 +1,21 @@
-//
-// constructing a bipartite graph
-// stage node and policy node
-//
-// stage node is the node representing a stage
-// policy node is the node representing a policy that can resolve the first conflict
-// 
-
 // an inefficient way to deep clone
 const deep = obj => JSON.parse(JSON.stringify(obj))
 
 /**
+There are three kinds of node, in xtree
 
+1) a s node which has a st and a dt
+2) if 
 */
 
 
 class Node {
 }
 
+
+/**
+
+*/
 class StageNode extends Node {
   constructor (st, dt, entries) {
     this.st = deep(st)
