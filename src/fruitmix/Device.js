@@ -295,10 +295,10 @@ class Device {
     } else {
       if (this.cpuInfo.length === 1) {
         prev.forEach((c, index) => {
-          c.times.user -= this.cpuInfo[0][index].times.user
-          c.times.nice -= this.cpuInfo[0][index].times.nice
-          c.times.sys -= this.cpuInfo[0][index].times.sys
-          c.times.idle -= this.cpuInfo[0][index].times.idle
+          c.times.user -= this.cpuInfos[0][index].times.user
+          c.times.nice -= this.cpuInfos[0][index].times.nice
+          c.times.sys -= this.cpuInfos[0][index].times.sys
+          c.times.idle -= this.cpuInfos[0][index].times.idle
         })
         return callback(null, prev)
       } else {
