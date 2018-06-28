@@ -1131,7 +1131,7 @@ class Boot extends EventEmitter {
           fs.rename(tmpP, fileP, err => {
             child.exec('chattr +i /mnt/reserved/fw_ver_release.json')
             if (err) return callback(err)
-            if (autoReboot) setTimeout(() => child.exec('reboot'), 1000)
+            if (autoReboot) setTimeout(() => child.exec('reboot'), 200)
             callback(null)
           })
         })
