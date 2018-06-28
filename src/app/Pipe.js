@@ -197,7 +197,7 @@ class Pipe extends EventEmitter {
             return this.reqCommand(message, null, this.ctx.device.view())
           case 3:
             if (paths[2] === 'cpuInfo') {
-              return this.reqCommand(message, null, this.ctx.device.cpuInfo())
+              return this.ctx.device.cpuInfo((err, data) => this.reqCommand(message, err, data))
             } else if (paths[2] === 'memInfo') {
               return this.ctx.device.memInfo((err, data) => this.reqCommand(message, err, data))
             } else if (paths[2] === 'speed') {

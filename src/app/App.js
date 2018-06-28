@@ -243,7 +243,7 @@ class App extends EventEmitter {
     let devicer = express.Router()
 
     devicer.get('/', (req, res, next) => res.status(200).json(this.device.view()))
-    devicer.get('/cpuInfo', (req, res) => res.status(200).json(this.device.cpuInfo()))
+    devicer.get('/cpuInfo', (req, res) => this.device.cpuInfo((err, data) => err ? next(err): res.status(200).json(data)))
     devicer.get('/memInfo', (req, res, next) => this.device.memInfo((err, data) => err ? next(err) : res.status(200).json(data)))
     devicer.get('/speed', (req, res, next) => res.status(200).json(this.device.netDev()))
     // devicer.get('/usage', (req, res, next) => this.device.usageInfo((err, data) => err ? next(err) : res.status(200).json(data)))

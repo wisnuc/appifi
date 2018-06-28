@@ -274,8 +274,18 @@ class Device {
     })
   }
 
-  cpuInfo() {
-    return os.cpus()
+  cpuInfo(callback) {
+    let prev =  os.cpus()
+    setTimeout(() => {
+      let cpuInfo = os.cpus()
+      cpuInfo.forEach((c, index) => {
+        c.times.user -= prev[index].times.user
+        c.times.nice -= prev[index].times.nice
+        c.times.sys -= prev[index].times.sys
+        c.times.idle -= prev[index].times.idle
+      })
+      return callback(null, cpuInfo)
+    }, 50)
   }
 
   memInfo(callback) {
