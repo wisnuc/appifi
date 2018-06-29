@@ -74,11 +74,11 @@ const hardwareVersion = () => {
 
 let releases
 try {
-  releases = JSON.parse(fs.readdirSync('/mnt/reserved/fw_ver_release.json').toString())
+  releases = JSON.parse(fs.readFileSync('/mnt/reserved/fw_ver_release.json').toString())
 } catch(e) {
   console.log('==========================')
   console.log('Error: ENOENT fw_ver_release')
-  console.log('user default version')
+  console.log('use default version')
   console.log('==========================')
 }
 
