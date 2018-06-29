@@ -72,7 +72,7 @@ const hardwareVersion = () => {
   return 'v1.0.0'
 }
 
-const releases
+let releases
 try {
   releases = JSON.parse(fs.readdirSync('/mnt/reserved/fw_ver_release.json').toString())
 } catch(e) {
