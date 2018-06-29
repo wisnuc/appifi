@@ -72,6 +72,16 @@ const hardwareVersion = () => {
   return 'v1.0.0'
 }
 
+const releases
+try {
+  releases = JSON.parse(fs.readdirSync('/mnt/reserved/fw_ver_release.json').toString())
+} catch(e) {
+  console.log('==========================')
+  console.log('Error: ENOENT fw_ver_release')
+  console.log('user default version')
+  console.log('==========================')
+}
+
 const _device = (() => {
   let sn, key, cert
   try {
@@ -405,10 +415,10 @@ class Device {
 
   view() {
     return {
-      mode: deviceModel(),
+      model: (releases && releases.model) || deviceModel(),
       sn: deviceSN(),
-      swVersion: softwareVersion(),
-      hwVersion: hardwareVersion()
+      swVersion: (releases && releases.fw_ver) || softwareVersion(),
+      hwVersion: (releases && releases.hw_ver) || hardwareVersion()
     }
   }
 
