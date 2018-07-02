@@ -136,7 +136,7 @@ const processUsersAsync = async users => {
 
   // creat user map
   text = users
-    .map(u => `${u.unixName} = "${u.username}"`)
+    .map(u => `${u.unixName} = "${u.phoneNumber}"`)
     .join('\n')
     
   await fs.writeFileAsync('/etc/smbusermap', text)
@@ -202,7 +202,7 @@ const privateShare = (froot, users, drive) => {
   if (!owner) return ''
 
   return `
-[${owner.username}]
+[${owner.phoneNumber}]
   path = ${froot}/drives/${drive.uuid}
   browseable = yes
   public = yes
