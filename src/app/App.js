@@ -179,7 +179,8 @@ class App extends EventEmitter {
       case 'bootstrap_unbind':
         if (this.boot) {
           return this.boot.volumeStore.save(null, (err, data) => {
-            setTimeout(() => process.exit(61), 100)
+            this.boot.fruitmix = undefined // stop listen fruitmix api
+            setTimeout(() => process.exit(61), 300)
           })
         }
         break

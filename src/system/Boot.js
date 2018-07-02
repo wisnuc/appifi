@@ -449,7 +449,7 @@ class Started extends State {
               })
             }
             process.exit(61)
-          }, 50)
+          }, 100)
         })
       } else {
         callback(null)
@@ -1131,7 +1131,7 @@ class Boot extends EventEmitter {
           fs.rename(tmpP, fileP, err => {
             child.exec('chattr +i /mnt/reserved/fw_ver_release.json')
             if (err) return callback(err)
-            if (autoReboot) setTimeout(() => child.exec('reboot'), 200)
+            if (autoReboot) setTimeout(() => child.exec('reboot'), 100)
             callback(null)
           })
         })
@@ -1192,7 +1192,7 @@ class Boot extends EventEmitter {
   PATCH_BOOT (user, props, callback) {
     if (props.hasOwnProperty('state')) {
       if (props.state !== 'poweroff' && props.state !== 'reboot') return callback(Object.assign(new Error('invalid state'), { status: 400 }))
-      setTimeout(() => child.exec(props.state), 4000)
+      setTimeout(() => child.exec(props.state), 2000)
       callback(null)
     } else return callback(Object.assign(new Error('invalid props'), { status: 400 }))
   }
