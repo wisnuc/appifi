@@ -343,6 +343,9 @@ class App extends EventEmitter {
         } else if (typeof data === 'string') {
           res.status(200).sendFile(data, { dotfiles: 'allow'})
         } else {
+          if (verb === 'LIST' && resource === 'nfs') {
+            res.nolog = true
+          }
           res.status(200).json(data)
         }
       }
