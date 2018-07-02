@@ -252,7 +252,7 @@ class App extends EventEmitter {
     devicer.post('/net', (req, res, next) => this.device.addAliases(req.body, (err, data) => err ? next(err) : res.status(200).json(data)))
     devicer.delete('/net/:name', (req, res, next) => this.device.deleteAliases(req.params.name, (err, data) => err ? next(err) : res.status(200).json(data)))
     devicer.get('/sleep', (req, res, next) => res.status(200).json(Object.assign({}, this.device.sleepConf)))
-    devicer.patch('/sleep', (req, res, next) => this.device.updateSleepMode(req.user, req.body, (err, data) =>
+    devicer.patch('/sleep', this.auth.jwt(), (req, res, next) => this.device.updateSleepMode(req.user, req.body, (err, data) =>
         err ? next(err) : res.status(200).json(data)))
     routers.push(['/device', devicer])
     // all fruitmix router except token

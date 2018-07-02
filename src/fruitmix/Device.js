@@ -484,6 +484,7 @@ class Device {
   }
 
   updateSleepMode (user, props, callback) {
+    if (!user || !user.isFirstUser) return callback(Object.assign(new Error('Permission Denied'), { status:403 }))
     let { status, start, end } = props
     if (typeof status !== 'boolean') {
       return callback(Object.assign(new Error('error status'), { status: 400 }))
