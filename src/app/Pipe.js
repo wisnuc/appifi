@@ -201,7 +201,9 @@ class Pipe extends EventEmitter {
               return this.ctx.device.cpuInfo((err, data) => this.reqCommand(message, err, data))
             } else if (paths[2] === 'memInfo' && verb.toUpperCase() === 'GET') {
               return this.ctx.device.memInfo((err, data) => this.reqCommand(message, err, data))
-            } else if (paths[2] === 'speed' && verb.toUpperCase() === 'GET') {
+            } else if (paths[2] === 'net') {
+              if (verb.toUpperCase() === 'GET') return this.ctx.device.interfaces((err, its) => this.reqCommand(message, err, its))
+            }  else if (paths[2] === 'speed' && verb.toUpperCase() === 'GET') {
               return this.reqCommand(message, null, this.ctx.device.netDev())
             } else if (paths[2] === 'timedate' && verb.toUpperCase() === 'GET') {
               return this.ctx.device.timedate((err, data) => this.reqCommand(message, err, data))
