@@ -175,7 +175,8 @@ class User extends EventEmitter {
         status: USER_STATUS.ACTIVE,
         createTime: new Date().getTime(),
         lastChangeTime: new Date().getTime(),
-        phoneNumber: props.phoneNumber
+        phoneNumber: props.phoneNumber,
+        itime: new Date().getTime() // inviteTime, serve for check invite timeout 
       }
       return [...users, newUser]
     }, (err, data) => {

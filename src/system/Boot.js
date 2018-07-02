@@ -208,7 +208,7 @@ class Starting extends State {
       fruitmixDir,
       boundVolume: this.ctx.volumeStore.data,
       boundUser: this.ctx.boundUser,
-      ejectHandler: this.ctx.ejectUSBAsync.bind(this.ctx)
+      ejectHandler: this.ctx.ejectUSB.bind(this.ctx)
     })
     let fruitmix = new Fruitmix(opts)
 
@@ -1168,6 +1168,12 @@ class Boot extends EventEmitter {
       }
       await child.execAsync(`udisksctl power-off -b ${ block.devname }`)
     }
+  }
+
+  ejectUSB　(target, callback) {
+    this.ejectUSBAsync(target)
+      .then(() => callback(null))
+      .catch(e => callback(e))
   }
 
   getStorage () {
