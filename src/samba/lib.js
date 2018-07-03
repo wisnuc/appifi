@@ -193,7 +193,9 @@ const globalSection = `
   netbios name = SAMBA
   map to guest = Bad User
   log file = /var/log/samba/%m
-  log level = 1
+  log level = 0
+  syslog = 1
+  syslog only = yes
 `
 
 // samba 配置文件 私有云盘配置

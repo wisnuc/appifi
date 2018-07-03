@@ -10,6 +10,7 @@ const mkdirp = require('mkdirp')
 const mkdirpAsync = Promise.promisify(mkdirp)
 const UUID = require('uuid')
 const debug = require('debug')('Boot')
+const deepEqual = require('fast-deep-equal')
 
 const { isNonEmptyString } = require('../lib/assertion')
 const DataStore = require('../lib/DataStore')
@@ -965,7 +966,27 @@ class Boot extends EventEmitter {
     new Probing(this)
 
     this.storageUpdater = new StorageUpdater(this.conf)
-    this.storageUpdater.on('update', data => this.storage = data)
+    this.storageUpdater.on('update', this.storageUpdate.bind(this))
+  }
+
+  storageUpdate (data) {
+    if (this.stateName().toUpperCase() === 'STARTED') {
+      let prvVol = this.storage.volumes.find(v => v.uuid === this.volumeStore.data.uuid)
+      let vol = data.volumes.find(v => v.uuid === this.volumeStore.data.uuid)
+      let prvObj = Object.assign({}, {
+        missing: prvVol.missing, 
+        devices: prvVol.devices
+      })
+      let volObj = Object.assign({}, {
+        missing: vol.missing, 
+        devices: vol.devices
+      })
+      if (!vol || !deepEqual(prvObj, volObj)) {
+        // vol mismatch 
+        process.exit(61)
+      }
+    }
+    this.storage = data
   }
 
   stateName () {

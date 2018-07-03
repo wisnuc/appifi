@@ -480,6 +480,7 @@ class NFS extends EventEmitter {
 
       if (drv.isVolume && drv.uuid === this.volumeUUID) phy.isFruitFS = true
       if (drv.isUSB) phy.isUSB = true
+      if (drv.mountpoint) phy.mountpoint = drv.mountpoint
       return phy
     }
 
