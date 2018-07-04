@@ -1,3 +1,6 @@
+const debug = require('debug')('autoname')
+
+// FIXME for file names starting with dot (.)
 const decompose = name => {
   let main, ext, stem, number
  
@@ -22,11 +25,17 @@ const decompose = name => {
   return { stem, ext, number }
 }
 
+/**
+autoname generates a new name based on given source name and existing (target) names
+
+
+*/
 const autoname = (name, names) => {
 
   if (!names.includes(name)) return name
 
   let { stem, ext, number } = decompose(name)
+
   let max = names
     .reduce((num, y) => {
       let o = decompose(y)

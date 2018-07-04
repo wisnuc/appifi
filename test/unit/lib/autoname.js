@@ -31,12 +31,12 @@ describe(path.basename(__filename), () => {
     done()
   })
 
-  it('a [a, a (0), a(1), a(4)] => a (5)', done => {
+  it('a [a, a (0), a (1), a (4)] => a (5)', done => {
     expect(autoname('a', ['a', 'a (0)', 'a (1)', 'a (4)'])).to.equal('a (5)')
     done()
   })
 
-  it('a [a, a (4), a(100)] => a (5)', done => {
+  it('a [a, a (4), a(100)] => a (5), a(100) has no space', done => {
     expect(autoname('a', ['a', 'a (4)', 'a(100)'])).to.equal('a (5)')
     done()
   })
