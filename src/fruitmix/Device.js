@@ -65,11 +65,21 @@ const deviceModel = () => {
 }
 
 const softwareVersion = () => {
-  return 'v1.0.0'
+  return '1.0.0'
 }
 
 const hardwareVersion = () => {
-  return 'v1.0.0'
+  return '1.0.0'
+}
+
+let releases
+try {
+  releases = JSON.parse(fs.readFileSync('/mnt/reserved/fw_ver_release.json').toString())
+} catch(e) {
+  console.log('==========================')
+  console.log('Error: ENOENT fw_ver_release')
+  console.log('use default version')
+  console.log('==========================')
 }
 
 const _device = (() => {
@@ -155,6 +165,11 @@ class Device {
     })
 
     this.netdevs = []
+    this.cpuInfos = []
+    setInterval(() => {
+      this.cpuInfos.unshift(os.cpus())
+      this.cpuInfos = this.cpuInfos.slice(0, 2)
+    }, 3000)
     this.startUpdateNetDev()
   }
 
@@ -274,8 +289,42 @@ class Device {
     })
   }
 
-  cpuInfo() {
-    return os.cpus()
+  cpuInfo(callback) {
+    let prev =  os.cpus()
+    if (!this.cpuInfos.length) {
+      setTimeout(() => {
+        let cpuInfo = os.cpus()
+        cpuInfo.forEach((c, index) => {
+          c.times.user -= prev[index].times.user
+          c.times.nice -= prev[index].times.nice
+          c.times.sys -= prev[index].times.sys
+          c.times.idle -= prev[index].times.idle
+        })
+        return callback(null, cpuInfo)
+      }, 200)
+    } else {
+      if (this.cpuInfo.length === 1) {
+        prev.forEach((c, index) => {
+          c.times.user -= this.cpuInfos[0][index].times.user
+          c.times.nice -= this.cpuInfos[0][index].times.nice
+          c.times.sys -= this.cpuInfos[0][index].times.sys
+          c.times.idle -= this.cpuInfos[0][index].times.idle
+        })
+        return callback(null, prev)
+      } else {
+        let prevCpu = this.cpuInfos[1]
+        let cpuInfo = this.cpuInfos[0].map(c => {
+          let cpu = Object.assign({} ,c)
+          cpu.times = {}
+          cpu.times.user = c.times.user - prevCpu.times.user
+          cpu.times.nice = c.times.nice - prevCpu.times.nice
+          cpu.times.sys = c.times.sys - prevCpu.times.sys
+          cpu.times.idle = c.times.idle - prevCpu.times.idle
+          return cpu
+        })
+        return callback(null, cpuInfo)
+      }
+    }
   }
 
   memInfo(callback) {
@@ -366,10 +415,10 @@ class Device {
 
   view() {
     return {
-      mode: deviceModel(),
+      model: (releases && releases.model) || deviceModel(),
       sn: deviceSN(),
-      swVersion: softwareVersion(),
-      hwVersion: hardwareVersion()
+      swVersion: (releases && releases.fw_ver) || softwareVersion(),
+      hwVersion: (releases && releases.hw_ver) || hardwareVersion()
     }
   }
 
@@ -435,6 +484,7 @@ class Device {
   }
 
   updateSleepMode (user, props, callback) {
+    if (!user || !user.isFirstUser) return callback(Object.assign(new Error('Permission Denied'), { status:403 }))
     let { status, start, end } = props
     if (typeof status !== 'boolean') {
       return callback(Object.assign(new Error('error status'), { status: 400 }))

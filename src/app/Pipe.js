@@ -189,37 +189,32 @@ class Pipe extends EventEmitter {
         else if (verb.toUpperCase() === 'PATCH') {
           return this.ctx.boot.PATCH_BOOT(user, body, err => this.reqCommand(message, err, {}))
         }
+        throw formatError(new Error('not found'), 404)
       }
 
       if (resource === 'device') {
         switch (paths.length) {
           case 2:
-            return this.reqCommand(message, null, this.ctx.device.view())
+            if (verb.toUpperCase() === 'GET') return this.reqCommand(message, null, this.ctx.device.view())
           case 3:
-            if (paths[2] === 'cpuInfo') {
-              return this.reqCommand(message, null, this.ctx.device.cpuInfo())
-            } else if (paths[2] === 'memInfo') {
+            if (paths[2] === 'cpuInfo' && verb.toUpperCase() === 'GET') {
+              return this.ctx.device.cpuInfo((err, data) => this.reqCommand(message, err, data))
+            } else if (paths[2] === 'memInfo' && verb.toUpperCase() === 'GET') {
               return this.ctx.device.memInfo((err, data) => this.reqCommand(message, err, data))
-            } else if (paths[2] === 'speed') {
-              return this.reqCommand(message, null, this.ctx.device.netDev())
             } else if (paths[2] === 'net') {
               if (verb.toUpperCase() === 'GET') return this.ctx.device.interfaces((err, its) => this.reqCommand(message, err, its))
-              return this.ctx.device.addAliases(body, (err, data) => this.reqCommand(message, err, data))
-            } else if (paths[2] === 'timedate') {
+            }  else if (paths[2] === 'speed' && verb.toUpperCase() === 'GET') {
+              return this.reqCommand(message, null, this.ctx.device.netDev())
+            } else if (paths[2] === 'timedate' && verb.toUpperCase() === 'GET') {
               return this.ctx.device.timedate((err, data) => this.reqCommand(message, err, data))
             } else if (paths[2] === 'sleep') {
-              if (verb.toUpperCase() === 'GET') return this.reqCommand(message, null, this.ctx.device.sleepConf)
-              return this.ctx.device.updateSleepMode(user, body, (err, data) => this.reqCommand(message, err, data))
-            }else {
-              throw formatError(new Error('not found'), 404)
+              if (verb.toUpperCase() === 'GET') {
+                return this.reqCommand(message, null, this.ctx.device.sleepConf)
+              } else if (verb.toUpperCase() === 'PATCH') {
+                return this.ctx.device.updateSleepMode(user, body, (err, data) => this.reqCommand(message, err, data))
+              }
             }
-          case 4:
-            if (paths[2] === 'net') {
-              let alias = paths[3]
-              return this.ctx.device.deleteAliases(alias, (err, data) => this.reqCommand(message, err, data))
-            } else {
-              throw formatError(new Error('not found'), 404)
-            }
+            throw formatError(new Error('not found'), 404)
           default:
             throw formatError(new Error('not found'), 404)
         }

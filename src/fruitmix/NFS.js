@@ -480,6 +480,7 @@ class NFS extends EventEmitter {
 
       if (drv.isVolume && drv.uuid === this.volumeUUID) phy.isFruitFS = true
       if (drv.isUSB) phy.isUSB = true
+      if (drv.mountpoint) phy.mountpoint = drv.mountpoint
       return phy
     }
 
@@ -753,9 +754,7 @@ class NFS extends EventEmitter {
   PATCH (user, props, callback) {
     if (props.op) { // TODO TO BE REMOVED
       if (props.op === 'eject' && this.ejectHandler) {
-        return this.ejectHandler(props.id)
-          .then(() => callback(null))
-          .catch(callback)
+        return this.ejectHandler(props.id, callback)
       }
       return callback(new Error('invalid op'))
     } else { 
@@ -781,9 +780,7 @@ class NFS extends EventEmitter {
       if (err) return callback(err)
       if (props.path === undefined || props.path === '') {
         if (this.ejectHandler) {
-          this.ejectHandler(props.id)
-            .then(() => callback(null))
-            .catch(callback)
+          this.ejectHandler(props.id, callback)
         } else {
           let err = new Error('operation is not supported')
           err.status = 403

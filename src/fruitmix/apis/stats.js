@@ -18,7 +18,7 @@ class Stats {
 
     let map = this.vfs.forest.fileMap     
     for (const [uuid, file] of map) {
-      let type = file.metadata.type
+      let type = file.metadata && file.metadata.type
       if (ImageTypes.includes(type)) {
         image.count++
         image.totalSize += file.size

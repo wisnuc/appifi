@@ -10,6 +10,7 @@ const mkdirp = require('mkdirp')
 const mkdirpAsync = Promise.promisify(mkdirp)
 const UUID = require('uuid')
 const debug = require('debug')('Boot')
+const deepEqual = require('fast-deep-equal')
 
 const { isNonEmptyString } = require('../lib/assertion')
 const DataStore = require('../lib/DataStore')
@@ -208,7 +209,7 @@ class Starting extends State {
       fruitmixDir,
       boundVolume: this.ctx.volumeStore.data,
       boundUser: this.ctx.boundUser,
-      ejectHandler: this.ctx.ejectUSBAsync.bind(this.ctx)
+      ejectHandler: this.ctx.ejectUSB.bind(this.ctx)
     })
     let fruitmix = new Fruitmix(opts)
 
@@ -449,7 +450,7 @@ class Started extends State {
               })
             }
             process.exit(61)
-          }, 50)
+          }, 100)
         })
       } else {
         callback(null)
@@ -965,7 +966,27 @@ class Boot extends EventEmitter {
     new Probing(this)
 
     this.storageUpdater = new StorageUpdater(this.conf)
-    this.storageUpdater.on('update', data => this.storage = data)
+    this.storageUpdater.on('update', this.storageUpdate.bind(this))
+  }
+
+  storageUpdate (data) {
+    // if (this.stateName().toUpperCase() === 'STARTED') {
+    //   let prvVol = this.storage.volumes.find(v => v.uuid === this.volumeStore.data.uuid)
+    //   let vol = data.volumes.find(v => v.uuid === this.volumeStore.data.uuid)
+    //   let prvObj = Object.assign({}, {
+    //     missing: prvVol.missing, 
+    //     devices: prvVol.devices
+    //   })
+    //   let volObj = Object.assign({}, {
+    //     missing: vol.missing, 
+    //     devices: vol.devices
+    //   })
+    //   if (!vol || !deepEqual(prvObj, volObj)) {
+    //     // vol mismatch 
+    //     process.exit(61)
+    //   }
+    // }
+    this.storage = data
   }
 
   stateName () {
@@ -1131,7 +1152,7 @@ class Boot extends EventEmitter {
           fs.rename(tmpP, fileP, err => {
             child.exec('chattr +i /mnt/reserved/fw_ver_release.json')
             if (err) return callback(err)
-            if (autoReboot) setTimeout(() => child.exec('reboot'), 1000)
+            if (autoReboot) setTimeout(() => child.exec('reboot'), 100)
             callback(null)
           })
         })
@@ -1170,6 +1191,12 @@ class Boot extends EventEmitter {
     }
   }
 
+  ejectUSB　(target, callback) {
+    this.ejectUSBAsync(target)
+      .then(() => callback(null))
+      .catch(e => callback(e))
+  }
+
   getStorage () {
   }
 
@@ -1186,7 +1213,7 @@ class Boot extends EventEmitter {
   PATCH_BOOT (user, props, callback) {
     if (props.hasOwnProperty('state')) {
       if (props.state !== 'poweroff' && props.state !== 'reboot') return callback(Object.assign(new Error('invalid state'), { status: 400 }))
-      setTimeout(() => child.exec(props.state), 4000)
+      setTimeout(() => child.exec(props.state), 2000)
       callback(null)
     } else return callback(Object.assign(new Error('invalid props'), { status: 400 }))
   }

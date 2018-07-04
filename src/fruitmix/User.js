@@ -11,6 +11,26 @@ const USER_STATUS = {
   DELETED: 'DELETED'
 }
 
+const INACTIVE_REASON = {
+  IMPORT: 'import',
+  TIMEOUT: 'timeout'
+}
+
+/**
+ * user in INACTIVE state
+ * * user object have `reason` property
+ *    * if `reason` equal number `import`, becourse of import
+ *    * if equal number `timeout`, because of invite timeout  
+ * * admin do
+ */
+
+/**
+ * user in ACTIVE state
+ * * user object have `itime` property
+ *    * user have not be confirmed
+ * * active user
+ */
+
 /**
 
 The corresponding test file is test/unit/fruitmix/user.js
@@ -155,7 +175,8 @@ class User extends EventEmitter {
         status: USER_STATUS.ACTIVE,
         createTime: new Date().getTime(),
         lastChangeTime: new Date().getTime(),
-        phoneNumber: props.phoneNumber
+        phoneNumber: props.phoneNumber,
+        itime: new Date().getTime() // inviteTime, serve for check invite timeout 
       }
       return [...users, newUser]
     }, (err, data) => {

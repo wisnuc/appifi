@@ -136,7 +136,7 @@ const processUsersAsync = async users => {
 
   // creat user map
   text = users
-    .map(u => `${u.unixName} = "${u.username}"`)
+    .map(u => `${u.unixName} = "${u.phoneNumber}"`)
     .join('\n')
     
   await fs.writeFileAsync('/etc/smbusermap', text)
@@ -193,7 +193,9 @@ const globalSection = `
   netbios name = SAMBA
   map to guest = Bad User
   log file = /var/log/samba/%m
-  log level = 1
+  log level = 0
+  syslog = 1
+  syslog only = yes
 `
 
 // samba 配置文件 私有云盘配置
@@ -202,7 +204,7 @@ const privateShare = (froot, users, drive) => {
   if (!owner) return ''
 
   return `
-[${owner.username}]
+[${owner.phoneNumber}]
   path = ${froot}/drives/${drive.uuid}
   browseable = yes
   public = yes

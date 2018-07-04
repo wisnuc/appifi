@@ -179,7 +179,8 @@ class App extends EventEmitter {
       case 'bootstrap_unbind':
         if (this.boot) {
           return this.boot.volumeStore.save(null, (err, data) => {
-            setTimeout(() => process.exit(61), 100)
+            this.boot.fruitmix = undefined // stop listen fruitmix api
+            setTimeout(() => process.exit(61), 300)
           })
         }
         break
@@ -243,16 +244,15 @@ class App extends EventEmitter {
     let devicer = express.Router()
 
     devicer.get('/', (req, res, next) => res.status(200).json(this.device.view()))
-    devicer.get('/cpuInfo', (req, res) => res.status(200).json(this.device.cpuInfo()))
-    devicer.get('/memInfo', (req, res, next) => this.device.memInfo((err, data) => err ? next(err) : res.status(200).json(data)))
+    devicer.get('/cpuInfo', (req, res) => (res.nolog = true, this.device.cpuInfo((err, data) => err ? next(err): res.status(200).json(data))))
+    devicer.get('/memInfo', (req, res, next) => (res.nolog = true, this.device.memInfo((err, data) => err ? next(err) : res.status(200).json(data))))
     devicer.get('/speed', (req, res, next) => res.status(200).json(this.device.netDev()))
-    // devicer.get('/usage', (req, res, next) => this.device.usageInfo((err, data) => err ? next(err) : res.status(200).json(data)))
     devicer.get('/timedate', (req, res, next) => this.device.timedate((err, data) => err ? next(err) : res.status(200).json(data)))
     devicer.get('/net', (req, res, next) => this.device.interfaces((err, its) => err ? next(err) : res.status(200).json(its)))
-    devicer.post('/net', (req, res, next) => this.device.addAliases(req.body, (err, data) => err ? next(err) : res.status(200).json(data)))
-    devicer.delete('/net/:name', (req, res, next) => this.device.deleteAliases(req.params.name, (err, data) => err ? next(err) : res.status(200).json(data)))
+    // devicer.post('/net', (req, res, next) => this.device.addAliases(req.body, (err, data) => err ? next(err) : res.status(200).json(data)))
+    // devicer.delete('/net/:name', (req, res, next) => this.device.deleteAliases(req.params.name, (err, data) => err ? next(err) : res.status(200).json(data)))
     devicer.get('/sleep', (req, res, next) => res.status(200).json(Object.assign({}, this.device.sleepConf)))
-    devicer.patch('/sleep', (req, res, next) => this.device.updateSleepMode(req.user, req.body, (err, data) =>
+    devicer.patch('/sleep', this.auth.jwt(), (req, res, next) => this.device.updateSleepMode(req.user, req.body, (err, data) =>
         err ? next(err) : res.status(200).json(data)))
     routers.push(['/device', devicer])
     // all fruitmix router except token
@@ -343,6 +343,9 @@ class App extends EventEmitter {
         } else if (typeof data === 'string') {
           res.status(200).sendFile(data, { dotfiles: 'allow'})
         } else {
+          if (verb === 'LIST' && resource === 'nfs') {
+            res.nolog = true
+          }
           res.status(200).json(data)
         }
       }

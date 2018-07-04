@@ -33,7 +33,7 @@ CreateApp parses args and create the App accordingly.
 let isRoot = process.getuid && process.getuid() === 0
 let args = (getArgs(process.argv)).options
 
-const hostname = `wisnuc-generic-deadbeef${UUID.v4().split('-').join('').slice(0, 16)}`
+const hostname = `phi-generic-deadbeef${UUID.v4().split('-').join('').slice(0, 16)}`
 
 console.log(args)
 
@@ -46,10 +46,10 @@ if (args.dlna && !isRoot) throw new Error('dlna feature requires root priviledge
 if (args.transmission && !isRoot) throw new Error('transmission feature requires root priviledge')
 
 if (args.mdns && !isRoot) throw new Error('mdns requires root priviledge')
-if (args.mdns) {
-  child.exec(`avahi-set-host-name ${hostname}`)
-  child.spawn('avahi-publish-service', ['fakeBootstrap', '_http._tcp', 3000], { stdio: 'ignore' })
-}
+// if (args.mdns) {
+//   child.exec(`avahi-set-host-name ${hostname}`)
+//   child.spawn('avahi-publish-service', ['Phicomm Boostrap', '_http._tcp', 3000], { stdio: 'ignore' })
+// }
 
 let fruitmixOpts = {
   useSmb: !!args.smb,
