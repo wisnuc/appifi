@@ -68,6 +68,18 @@ describe(path.basename(__filename), () => {
       return t
     }
 
+    const filter = (t, f) => {
+      t.children = t.children.filter(c => f(c)) 
+      t.children.filter(c => c.type === 'directory').forEach(d => filter(d, f))
+      return t
+    }
+
+    const visit = (t, f) => {
+      f(t)
+      if (t.children) t.children.forEach(c => visit(c, f))
+      return t
+    }
+
     beforeEach(async () => {
       await rimrafAsync(tmptest)
       await mkdirpAsync(fruitmixDir)
@@ -96,11 +108,14 @@ describe(path.basename(__filename), () => {
         src: {
           type: 'vfs',
           drive: user.home.uuid,
-          dir: [],
+          dir: ['bear'],
           children: [
             {
-              type: 'directory',
-              name: 'foo'
+              type: 'file',
+              name: alonzo.name,
+              file: alonzo.path,
+              size: alonzo.size,
+              sha256: alonzo.hash
             }
           ] 
         },
@@ -131,19 +146,46 @@ describe(path.basename(__filename), () => {
       }
 
       let task = await user.createTaskAsync(targ)
-      await user.watchTaskAsync(task.uuid)
 
-      let stree = { type: 'directory', name: '', children: await user.treeAsync(src) }
-      let sstree = strip(clone(stree), ['uuid', 'mtime'])
-      expect(sstree).to.deep.equal(strip(clone(stages[0].st), ['path', 'status']))
+      while (stages.length) {
+        let stage = stages.shift() 
+        let view = await user.watchTaskAsync(task.uuid)
 
-      let dtree = { type: 'directory', name: '', children: await user.treeAsync(dst) }
-      let sdtree = strip(clone(stree), ['uuid', 'mtime'])
-      expect(sdtree).to.deep.equal(strip(clone(stages[0].dt), ['path', 'status']))
+        let stm = clone(stage.st)
+        visit(stm, n => {
+          if (n.type === 'file') {
+            if (n.sha256) {
+              n.hash = n.sha256
+              delete n.sha256
+            } 
+            delete n.file 
+          }
+          delete n.path
+          delete n.status        
+        })
 
+        let props = ['uuid', 'mtime', 'metadata']
+        let std = strip({ type: 'directory', name: '', children: await user.treeAsync(src) }, props)
+        expect(std).to.deep.equal(stm)
+
+        let dtm = clone(stage.dt)
+        visit(dtm, n => {
+          if (n.type === 'file') {
+            if (n.sha256) {
+              n.hash = n.sha256
+              delete n.sha256
+            }
+            delete n.file
+          }
+          delete n.path      
+          delete n.status
+        })
+
+        let dtd = strip({ type: 'directory', name: '', children: await user.treeAsync(dst) }, props)
+        expect(dtd).to.deep.equal(dtm)
+      }
 
     })
-
   })
 })
 
