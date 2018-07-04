@@ -42,7 +42,6 @@ const prepare = (node, parent) => {
 */
 const init = arg => {
   let arg2 = clone(arg)
-  let type = arg2.type
   let st = prepare(arg2.st)
   let dt = prepare(arg2.dt)
   let policies = arg2.policies || { dir: [null, null], file: [null, null] }
@@ -50,7 +49,7 @@ const init = arg => {
   // resolve manually
   st.status = 'kept'
 
-  return copymove({ type, st, dt, policies })
+  return copymove({ st, dt, policies })
 }
 
 /**
@@ -83,9 +82,7 @@ const findByPath = (t, path) =>
 copy all copi
 */
 const copymove = si => {
-  let { type, st, dt, policies } = si
-
-  if (!type) throw new Error('invalid type')
+  let { st, dt, policies } = si
 
   // resolve
   const resolve = (sc, dc) => {
@@ -121,7 +118,7 @@ const copymove = si => {
       delete sc.status
       Object.keys(dc).forEach(k => delete dc[k])
       Object.assign(dc, sc)
-      sc.status = type === 'copy' ? 'copied' : 'moved'
+      sc.status = 'copied'
     } else if (p === 'rename') {
       delete sc.status
       let sp = findByPath(st, dirname(sc.path))
@@ -132,7 +129,7 @@ const copymove = si => {
       dp.children.push(Object.assign({}, sc, { name }))
       dp.children.sort(sortF)
       sc.rename = name
-      sc.status = type === 'copy' ? 'copied' : 'moved'
+      sc.status = 'copied'
     } else if (p) {
       throw new Error('bad policy')
     }
@@ -158,7 +155,7 @@ const copymove = si => {
         let dc = d.children.find(dc => dc.name === sc.name)
         if (!dc) {
           d.children.push(clone(sc))
-          sc.status = type === 'copy' ? 'copied' : 'moved'
+          sc.status = 'copied'
         } else {
           sc.status = 'conflict'
           resolve(sc, dc)
@@ -171,7 +168,7 @@ const copymove = si => {
 
   visit(st)
 
-  return { type, st, dt, policies }
+  return { st, dt, policies }
 }
 
 /**
@@ -179,7 +176,6 @@ const copymove = si => {
 @returns an array of (duplicated si) with resolution for conflict node designated by given path
 */
 const resolve = (si, path) => {
-  if (!si.type) throw new Error('si has no type')
   let s = findByPath(si.st, path)
   if (!s) throw new Error('conflict src not found')
   let d = findByPath(si.dt, path)
@@ -219,14 +215,13 @@ const resolve = (si, path) => {
     s.policy = r.policy
     if (r.applyToAll) policies = r.policies
 
-    return Object.assign(copymove({ type: si.type, st, dt, policies }), { resolution: r })
+    return Object.assign(copymove({ st, dt, policies }), { resolution: r })
   })
 }
 
 /**
 
 @param {object} arg
-@param {object} arg.type - copy or move
 @param {object} arg.st
 @param {object} arg.dt
 @param {object} arg.policies
@@ -252,6 +247,7 @@ const generate = arg => {
 }
 
 module.exports = {
+  clone,
   init, // init s0 to stopped state
   getConflicts, // find the conflict one
   copymove,

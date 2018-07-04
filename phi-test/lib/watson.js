@@ -55,6 +55,10 @@ class User {
       .catch(e => callback(e))
   }
 
+  async mkpathAsync (props) {
+    return this.ctx.mkpathAsync(Object.assign({ token: this.token }, props))
+  }
+
   post (url) {
     return request(this.ctx.app.express)
       .post(url)
@@ -81,6 +85,29 @@ class User {
 
   async listNfsDirAsync (driveId, dirPath) {
     return Promise.promisify(this.listNfsDir).bind(this)(driveId, dirPath)
+  }
+
+  async treeAsync (props) {
+    let { type, drive, dir } = props
+    if (type === 'vfs') {
+      let children = (await this.listDirAsync(drive, dir)).entries
+      for (let i = 0; i < children.length; i++) {
+        if (children[i].type === 'directory') {
+          children[i].children = await this.treeAsync({ type, drive, dir: children[i].uuid })
+        }
+      }
+      return children
+    } else if (type === 'nfs') {
+      let children = await this.listNfsAsync(drive, dir)
+      for (let i = 0; i < children.length; i++) {
+        if (children[i].type === 'directory') {
+          children[i].children = await this.treeAsync({ type, drive, dir: path.join(dir, children[i].name) })
+        }
+      }
+      return children
+    } else {
+      throw new Error('invalid type')
+    }
   }
 
   createTask (args, callback) {
@@ -332,6 +359,28 @@ class Watson {
     }
 
     return cs
+  }
+
+  async mkpathAsync (props) {
+    let { token, type, drive, dir, namepath } = props
+    if (!Array.isArray(namepath) || namepath.length === 0 || !namepath.every(name => typeof name === 'string'))
+      throw new Error('invalid namepath')
+
+    let cdir = dir
+    for (let i = 0; i < namepath.length; i++) {
+      if (type === 'vfs') {
+        let xstat = await new Promise((resolve, reject) => 
+          this.mkdir(token, drive, cdir, namepath[i], (err, xstat) => 
+            err ? reject(err) : resolve(xstat)))
+        cdir = xstat.uuid
+      } else {
+        await new Promise((resolve, reject) => 
+          this.nfsMkdir(token, drive, cdir, namepath[i], err => 
+            err ? reject(err) : resolve()))
+        cdir = path.join(cdir, namepath[i]) 
+      }
+    }
+    return cdir 
   }
 
   xcopy (token, props, callback) {

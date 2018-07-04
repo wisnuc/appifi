@@ -16,7 +16,8 @@ const fakeNfsAsync = require('test/lib/nfs')
 const { UUIDDE, UUIDF } = fakeNfsAsync
 
 const Watson = require('phi-test/lib/watson')
-const { copy, expand } = require('src/fruitmix/xtree/expand')
+const { generate } = require('src/fruitmix/xcopy/xtree')
+
 
 const cwd = process.cwd()
 const tmptest = path.join(cwd, 'tmptest')
@@ -38,9 +39,34 @@ const alice = {
   phicommUserId: 'alice'
 }
 
+const clone = x => JSON.parse(JSON.stringify(x))
+
 describe(path.basename(__filename), () => {
-  describe('no conflict', () => {
+  describe('no conflict, single file copy', () => {
     let watson, user, home, pub, n1, n2
+
+    // create tree before test
+    const prepareTree = async _t => {
+      let t = clone(_t)
+      t.dir = t.dir.length === 0 
+        ? t.type === 'vfs' ? t.drive : ''
+        : await user.mkpathAsync({
+            type: t.type,
+            drive: t.drive,
+            dir: t.type === 'vfs' ? t.drive : '',
+            namepath: t.dir 
+          })
+
+      if (t.children.length) await user.mktreeAsync(t)
+      return t
+    }
+
+    // strip off props for each node
+    const strip = (t, props) => {
+      props.forEach(p => { delete t[p] })
+      if (t.children) t.children.forEach(c => strip(c, props))
+      return t
+    }
 
     beforeEach(async () => {
       await rimrafAsync(tmptest)
@@ -63,82 +89,59 @@ describe(path.basename(__filename), () => {
 
       fruitmix.nfs.update(fake.storage)
       user = watson.users.alice
-
-      let children = [
-        { type: 'directory', name: 'dst' },
-        { type: 'directory',
-          name: 'src',
-          children: [
-            {
-              type: 'directory',
-              name: 'foo',
-            }
-          ]
-        }
-      ] 
-
-      home = await user.mktreeAsync({
-        type: 'vfs',
-        drive: user.home.uuid,
-        dir: user.home.uuid,
-        children
-      })
-
-      pub = await user.mktreeAsync({
-        type: 'vfs',
-        drive: user.pub.uuid,
-        dir: user.pub.uuid,
-        children 
-      })
-
-      n1 = await user.mktreeAsync({
-        type: 'nfs',
-        drive: UUIDDE,
-        dir: '',
-        children
-      })
-
-      n2 = await user.mktreeAsync({
-        type: 'nfs',
-        drive: UUIDF,
-        dir: '',
-        children
-      })
     })
-  
-    it('copy single dir', async function () {
 
-      let root = {
-        st: {
-          type: 'directory',
-          name: '',
+    it('copy single dir', async function () {
+      let testdata = {
+        src: {
+          type: 'vfs',
+          drive: user.home.uuid,
+          dir: [],
           children: [
             {
               type: 'directory',
-              name: 'foo',
-              children: []
+              name: 'foo'
             }
-          ]   
+          ] 
         },
-        dt: {
-          type: 'directory',
-          name: '',
-          children: []
-        }
-        
+        dst: {
+          type: 'vfs',
+          drive: user.pub.uuid, 
+          dir: ['bar'],
+          children: [
+          ]
+        },
+      }
+
+      let src = await prepareTree(testdata.src) 
+      let dst = await prepareTree(testdata.dst)
+
+      let arg = {
+        st: { type: 'directory', name: '', children: src.children },
+        dt: { type: 'directory', name: '', children: dst.children }
       } 
 
-      let xtree = copy(root)
+      let stages = generate(arg)[0]
+       
+      let targ = {
+        type: 'copy',
+        src: { drive: src.drive, dir: src.dir },
+        dst: { drive: dst.drive, dir: dst.dir },
+        entries: src.children.map(c => c.name)
+      }
 
-      console.log('======')
-      console.log(JSON.stringify(xtree, null, '  '))
-      console.log('======')
+      let task = await user.createTaskAsync(targ)
+      await user.watchTaskAsync(task.uuid)
 
-      let groot = { xtree }
+      let stree = { type: 'directory', name: '', children: await user.treeAsync(src) }
+      let sstree = strip(clone(stree), ['uuid', 'mtime'])
+      expect(sstree).to.deep.equal(strip(clone(stages[0].st), ['path', 'status']))
 
-      expand(groot)
-        
-      console.log(groot)
+      let dtree = { type: 'directory', name: '', children: await user.treeAsync(dst) }
+      let sdtree = strip(clone(stree), ['uuid', 'mtime'])
+      expect(sdtree).to.deep.equal(strip(clone(stages[0].dt), ['path', 'status']))
+
+
     })
 
   })
