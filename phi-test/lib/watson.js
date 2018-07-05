@@ -98,7 +98,7 @@ class User {
       }
       return children
     } else if (type === 'nfs') {
-      let children = await this.listNfsAsync(drive, dir)
+      let children = await this.listNfsDirAsync(drive, dir)
       for (let i = 0; i < children.length; i++) {
         if (children[i].type === 'directory') {
           children[i].children = await this.treeAsync({ type, drive, dir: path.join(dir, children[i].name) })

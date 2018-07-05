@@ -598,7 +598,7 @@ class NFS extends EventEmitter {
                     arr.push({
                       name: entry,
                       type: fileType(stat),
-                      size: stat.size,
+                      size: stat.isFile() ? stat.size : undefined,
                       mtime: stat.mtime.getTime()
                     })
                   }

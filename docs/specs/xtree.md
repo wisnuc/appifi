@@ -14,8 +14,9 @@
     - [2.3.4. Non-Conflict Xcopy Node](#234-non-conflict-xcopy-node)
     - [2.3.5. Conflict Xcopy Node](#235-conflict-xcopy-node)
     - [2.3.6. Policy Node](#236-policy-node)
-  - [2.3.7. Reduction](#237-reduction)
-    - [2.3.8. apply-to-all](#238-apply-to-all)
+  - [2.4. Reduction](#24-reduction)
+    - [2.4.1. apply-to-all](#241-apply-to-all)
+  - [2.5. Extraction](#25-extraction)
 
 <!-- /TOC -->
 
@@ -231,7 +232,7 @@ f(p.policy, p.parent) where p is the policy node
 
 (TBD)
 
-## 2.3.7. Reduction
+## 2.4. Reduction
 
 在应用了上述expansion逻辑后，通过递归，xtree的root节点展开成完整的tree。
 
@@ -243,13 +244,35 @@ f(p.policy, p.parent) where p is the policy node
 
 xtree的第一个reducible node是root node；经过第一次的reduce操作后，可能有其他的red node节点成为reducible node。这个过程迭代进行，直到xtree上没有red node（此时也不会有black node），此时得到的xtree，就是一次xcopy任务的结果。其中每一次reduce操作，相当于一次policy设置。
 
-### 2.3.8. apply-to-all
+### 2.4.1. apply-to-all
 
 apply-to-all是一个动态操作；它和xtree无关。
 
 该操作解释成：apply-to-all并不是在reduce具体某一个red node，而是同时reduce所有可以用该policy reduce的全部red node；
 
 注意它不是只影响reducible节点，作为一个全局设置，当一个非reducible节点成为reducible节点时，如果全局策略生效，它也被自动reduce。
+
+## 2.5. Extraction
+
+Extraction是从xtree开始，抽取所有可能的reduction过程的过程。
+
+假定xtree的3中颜色的node都可以标注一个数字。从leaf node开始。
+
+首先把所有的leaf node都标注为1。
+
+parent node有这样几种情况：
+
+1. xcopy node包含xcopy node，此时parent node的数字是所有children的数字的乘积（无关事件，使用multiplication rule）；
+2. policy node有唯一的white node作为其child，policy node的数字就是white node的数字；
+3. red node （conflict node）包含black node（policy node），policy之间是互斥关系，所以应用addtion rule，即每个red node的数值是它所有children的数字之和；
+
+经过这样的计算之后root node的数字就是全部可能的Reduction结果数量。
+
+
+
+
+
+
 
 
 
