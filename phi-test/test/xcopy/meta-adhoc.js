@@ -16,8 +16,7 @@ const fakeNfsAsync = require('test/lib/nfs')
 const { UUIDDE, UUIDF } = fakeNfsAsync
 
 const Watson = require('phi-test/lib/watson')
-const { generate } = require('src/fruitmix/xcopy/xtree')
-
+const { sortF, generate } = require('src/fruitmix/xcopy/xtree')
 
 const cwd = process.cwd()
 const tmptest = path.join(cwd, 'tmptest')
@@ -41,65 +40,167 @@ const alice = {
 
 const clone = x => JSON.parse(JSON.stringify(x))
 
-describe(path.basename(__filename), () => {
-    let watson, user, home, pub, n1, n2
+const drivePairs = [
+  {
+    src: { type: 'vfs', drive: 'home' },
+    dst: { type: 'vfs', drive: 'pub' }
+  },
+  {
+    src: { type: 'vfs', drive: 'home' },
+    dst: { type: 'nfs', drive: 'u1' }
+  },
+  {
+    src: { type: 'nfs', drive: 'u1' },
+    dst: { type: 'vfs', drive: 'home' }
+  },
+  {
+    src: { type: 'nfs', drive: 'u1' },
+    dst: { type: 'nfs', drive: 'u1' }
+  },
+  {
+    src: { type: 'nfs', drive: 'u1' },
+    dst: { type: 'nfs', drive: 'u2' }
+  }
+]
 
-    // create tree before test
-    /** 
+const dirPairs = [
+  { src: [], dst: [] },
+  { src: ['foo'], dst: [] },
+  { src: [], dst: ['hello'] },
+  { src: ['foo'], dst: ['hello'] },
+  { src: ['foo', 'bar'], dst: ['hello', 'world'] },
+  { src: ['common', 'foo'], dst: ['common', 'hello'] },
+  { src: ['common', 'foo', 'bar'], dst: ['common', 'hello', 'world'] }
+]
+
+const contexts = []
+drivePairs.forEach(drivePair => dirPairs.forEach(dirPair => {
+  let { src, dst } = drivePair
+
+  // bypass cases that src path contains dst path or vice versa
+  if (src.drive === dst.drive) {
+    let srcDir = dirPair.src
+    let dstDir = dirPair.dst
+    if (srcDir.length === 0 || dstDir.length === 0) return
+    if (srcDir.every((s, i) => s === dstDir[i]) || dstDir.every((d, i) => d === srcDir[i])) return
+  }
+
+  let prefix
+  if (src.type === 'vfs' && dst.type === 'vfs') {
+    prefix = ''
+  } else if (src.type === 'vfs' && dst.type === 'nfs') {
+    prefix = 'e'
+  } else if (src.type === 'nfs' && dst.type === 'vfs') {
+    prefix = 'i'
+  } else if (src.type === 'nfs' && dst.type === 'nfs') {
+    prefix = 'n'
+  } else {
+    throw new Error(`invalid src or dst type in drivePair, ${drivePair}`)
+  }
+
+  contexts.push({
+    type: prefix + 'copy',
+    src: Object.assign({}, drivePair.src, { dir: dirPair.src }),
+    dst: Object.assign({}, drivePair.dst, { dir: dirPair.dst })
+  })
+  contexts.push({
+    type: prefix + 'move',
+    src: Object.assign({}, drivePair.src, { dir: dirPair.src }),
+    dst: Object.assign({}, drivePair.dst, { dir: dirPair.dst })
+  })
+}))
+
+describe(path.basename(__filename), () => {
+  let watson, user, home, pub, n1, n2
+
+  // create tree before test
+  /**
       return object {
         type: 'vfs' or 'nfs',
         drive: 'home',            <- translate into drive UUID or drive Id
-        dir: ['hello', 'world'],  <- translate into dir uuid or dir pat (via mkpath) 
+        dir: ['hello', 'world'],  <- translate into dir uuid or dir pat (via mkpath)
         chilren                   <- create tree in target fs (vai mktree)
       }
     */
-    const prepareTreeAsync = async _t => {
-      let t = clone(_t)
-      if (t.drive === 'home') {
-        t.drive = user.home.uuid
-      } else if (t.drive === 'pub') {
-        t.drive = user.pub.uuid
-      } else if (t.drive === 'u1') {
-        t.drive = UUIDDE
-      } else if (t.drive === 'u2') {
-        t.drive = UUIDF
+  const prepareTreeAsync = async _t => {
+    let t = clone(_t)
+    if (t.drive === 'home') {
+      t.drive = user.home.uuid
+    } else if (t.drive === 'pub') {
+      t.drive = user.pub.uuid
+    } else if (t.drive === 'u1') {
+      t.drive = UUIDDE
+    } else if (t.drive === 'u2') {
+      t.drive = UUIDF
+    } else {
+      throw new Error(`unrecognized drive name ${t.drive}`)
+    }
+
+    t.dir = t.dir.length === 0
+      ? t.type === 'vfs' ? t.drive : ''
+      : await user.mkpathAsync({
+        type: t.type,
+        drive: t.drive,
+        dir: t.type === 'vfs' ? t.drive : '',
+        namepath: t.dir
+      })
+
+    if (t.children.length) await user.mktreeAsync(t)
+    return t
+  }
+
+  /**
+  1. remove extra props according to type, and move
+  */
+  const formatMetaTree = (type, tree, move) => {
+    // postvisit
+    const visit = n => {
+      if (n.type === 'directory') {
+        if (move) n.children = n.children.filter(c => c.status !== 'copied')
+        n.children.forEach(c => visit(c))
+      } else if (n.type === 'file') {
+        if (type === 'vfs') n.hash = n.sha256
+        delete n.sha256
+        delete n.file
       } else {
-        throw new Error(`unrecognized drive name ${t.drive}`)
+        throw new Error('invalid metadata node type')
       }
+      delete n.path
+      delete n.status
+    }
+    visit(tree)
+    return tree
+  }
 
-      t.dir = t.dir.length === 0 
-        ? t.type === 'vfs' ? t.drive : ''
-        : await user.mkpathAsync({
-            type: t.type,
-            drive: t.drive,
-            dir: t.type === 'vfs' ? t.drive : '',
-            namepath: t.dir 
-          })
+  /**
+  children is from either vfs or nfs via user.treeAsync
+  1. extra props should be removed
+  2. should be sort
+  */
+  const formatTree = (type, children) => {
+    let t = { type: 'directory', name: '', children }
 
-      if (t.children.length) await user.mktreeAsync(t)
-      return t
+    const visit = node => {
+      delete node.uuid
+      delete node.mtime
+      if (node.type === 'directory') {
+        node.children = node.children || []
+        node.children.sort(sortF)
+        node.children.forEach(c => visit(c))
+      } else if (node.type === 'file') {
+        delete node.metadata
+        if (type === 'nfs') delete node.hash
+      } else {
+        throw new Error('invalid data node type')
+      }
     }
 
-    // strip off props for each node
-    const strip = (t, props) => {
-      props.forEach(p => { delete t[p] })
-      if (t.children) t.children.forEach(c => strip(c, props))
-      return t
-    }
+    visit(t)
+    return t
+  }
 
-    const filter = (t, f) => {
-      t.children = t.children.filter(c => f(c)) 
-      t.children.filter(c => c.type === 'directory').forEach(d => filter(d, f))
-      return t
-    }
-
-    const visit = (t, f) => {
-      f(t)
-      if (t.children) t.children.forEach(c => visit(c, f))
-      return t
-    }
-
-    const metaArg = {
+  const metaArgs = [
+    {
       st: {
         type: 'directory',
         name: '',
@@ -114,7 +215,45 @@ describe(path.basename(__filename), () => {
             file: alonzo.path,
             size: alonzo.size,
             sha256: alonzo.hash
+          }
+        ]
+      },
+      dt: {
+        type: 'directory',
+        name: '',
+        children: [
+        ]
+      },
+      policies: {
+        dir: [null, null],
+        file: [null, null]
+      }
+    },
+    {
+      st: {
+        type: 'directory',
+        name: '',
+        children: [
+          {
+            type: 'directory',
+            name: 'dir001',
+            children: [
+              {
+                type: 'file',
+                name: alonzo.name,
+                file: alonzo.path,
+                size: alonzo.size,
+                sha256: alonzo.hash
+              }
+            ]
           },
+          {
+            type: 'file',
+            name: alonzo.name,
+            file: alonzo.path,
+            size: alonzo.size,
+            sha256: alonzo.hash
+          }
         ]
       },
       dt: {
@@ -128,119 +267,55 @@ describe(path.basename(__filename), () => {
         file: [null, null]
       }
     }
+  ]
 
-    let metaLanguage = generate(metaArg) 
+  beforeEach(async function () {
+    await rimrafAsync(tmptest)
+    await mkdirpAsync(fruitmixDir)
+    let fake = await fakeNfsAsync(tmptest)
+    let boundVolume = fake.createBoundVolume(fake.storage, fakeNfsAsync.UUIDBC)
 
-    let drivePairs = [
-      { 
-        src: { type: 'vfs', drive: 'home' }, 
-        dst: { type: 'vfs', drive: 'pub' },
-      },
-      {
-        src: { type: 'vfs', drive: 'home' },
-        dst: { type: 'nfs', drive: 'u1' }
-      },
-      {
-        src: { type: 'nfs', drive: 'u1' },
-        dst: { type: 'vfs', drive: 'home' },
-      },
-      {
-        src: { type: 'nfs', drive: 'u1' },
-        dst: { type: 'nfs', drive: 'u1' }
-      },
-      {
-        src: { type: 'nfs', drive: 'u1' },
-        dst: { type: 'nfs', drive: 'u2' }
-      }
-    ]
+    let userFile = path.join(fruitmixDir, 'users.json')
+    await fs.writeFileAsync(userFile, JSON.stringify([alice], null, '  '))
 
-    let dirPairs = [
-      { src: [], dst: [] },
-      { src: ['foo'], dst: [] },
-      { src: [], dst: ['hello'] },
-      { src: ['foo'], dst: ['hello'] },
-      { src: ['foo', 'bar'], dst: ['hello', 'world'] },
-      { src: ['common', 'foo'], dst: ['common', 'hello'] },
-      { src: ['common', 'foo', 'bar'], dst: ['common', 'hello', 'world'] }
-    ]
+    let opts = { fruitmixDir, boundVolume }
+    let fruitmix = new Fruitmix(opts)
+    let app = new App({ fruitmix, log: { skip: 'all', error: 'none' } })
+    await new Promise(resolve => fruitmix.once('FruitmixStarted', () => resolve()))
 
-    let contexts = []
-    drivePairs.forEach(drivePair => dirPairs.forEach(dirPair => {
-      let { src, dst } = drivePair
-     
-      // bypass cases that src path contains dst path or vice versa
-      if (src.drive === dst.drive) {
-        let srcDir = dirPair.src
-        let dstDir = dirPair.dst
-        if (srcDir.length === 0 || dstDir.length === 0) return
-        if (srcDir.every((s, i) => s === dstDir[i]) || dstDir.every((d, i) => d === srcDir[i])) return
-      }
+    watson = new Watson({ app })
+    await new Promise((resolve, reject) =>
+      watson.login('alice', 'alice', err => err ? reject(err) : resolve()))
 
-      let prefix
-      if (src.type === 'vfs' && dst.type === 'vfs') {
-        prefix = ''
-      } else if (src.type === 'vfs' && dst.type === 'nfs') {
-        prefix = 'e'
-      } else if (src.type === 'nfs' && dst.type === 'vfs') {
-        prefix = 'i'
-      } else if (src.type === 'nfs' && dst.type === 'nfs') {
-        prefix = 'n'
-      } else {
-        throw new Error(`invalid src or dst type in drivePair, ${drivePair}`)
-      }
+    fruitmix.nfs.update(fake.storage)
+    user = watson.users.alice
+  })
 
-      contexts.push({
-        type: prefix + 'copy', 
-        src: Object.assign({}, drivePair.src, { dir: dirPair.src }),
-        dst: Object.assign({}, drivePair.dst, { dir: dirPair.dst }) 
-      })
-      contexts.push({
-        type: prefix + 'move', 
-        src: Object.assign({}, drivePair.src, { dir: dirPair.src }),
-        dst: Object.assign({}, drivePair.dst, { dir: dirPair.dst }) 
-      })
-    })) 
+  let number = 0
+  const padNum = num => '0'.repeat(5 - num.toString().length) + num
 
-    beforeEach(async function () {
-      await rimrafAsync(tmptest)
-      await mkdirpAsync(fruitmixDir)
-      let fake = await fakeNfsAsync(tmptest)
-      let boundVolume = fake.createBoundVolume(fake.storage, fakeNfsAsync.UUIDBC)
-
-      let userFile = path.join(fruitmixDir, 'users.json')
-      await fs.writeFileAsync(userFile, JSON.stringify([alice], null, '  '))
-
-      let opts = { fruitmixDir, boundVolume }
-      let fruitmix = new Fruitmix(opts)
-      let app = new App({ fruitmix, log: { skip: 'all', error: 'none' } })
-      await new Promise(resolve => fruitmix.once('FruitmixStarted', () => resolve()))
-
-      watson = new Watson({ app })
-      await new Promise((rs, rj) => watson.login('alice', 'alice', err => err ? rj(err) : rs()))
-
-      fruitmix.nfs.update(fake.storage)
-      user = watson.users.alice
-    })
-
-    let number = 0
-    const padNum = num => '0'.repeat(4 - num.toString().length) + num
-
-    metaLanguage.forEach(_stages => {
+  metaArgs.forEach(metaArg => {
+    generate(metaArg).forEach(_stages => {
       contexts.forEach(ctx => {
-        it(`${padNum(number++)} ${ctx.type} from ${ctx.src.drive}:/${ctx.src.dir.join('/')} to ${ctx.dst.drive}:/${ctx.dst.dir.join('/')}`, async function () {
+        let srcPathStr = `${ctx.src.drive}:/${ctx.src.dir.join('/')}`
+        let dstPathStr = `${ctx.dst.drive}:/${ctx.dst.dir.join('/')}`
+        it(`${padNum(number++)} ${ctx.type} from ${srcPathStr} to ${dstPathStr}`, async function () {
           let src = await prepareTreeAsync(Object.assign({}, ctx.src, { children: metaArg.st.children }))
           let dst = await prepareTreeAsync(Object.assign({}, ctx.dst, { children: metaArg.dt.children }))
+
           let stages = [..._stages]
           let task = await user.createTaskAsync({
             type: ctx.type,
             src: { drive: src.drive, dir: src.dir },
             dst: { drive: dst.drive, dir: dst.dir },
             entries: src.children.map(c => c.name)
-          }) 
+          })
+
+          console.log(JSON.stringify(stages, null, '  '))
 
           let stage, view
           while (stages.length) {
-            stage = stages.shift() 
+            stage = stages.shift()
             view = await user.watchTaskAsync(task.uuid)
 
             console.log(view)
@@ -248,61 +323,20 @@ describe(path.basename(__filename), () => {
             if (stages.length) {
               expect(view.finished).to.equal(false)
             } else {
+              expect(view.nodes).to.deep.equal([])
               expect(view.finished).to.equal(true)
             }
 
-            /**
-            if src is vfs, assert hash, otherwise drop hash.
-            if op is move, drop copied
-
-            if dst is vfs, assert hash, otherwise drop hash. (both)
-
-            stm is src meta
-            std is src data
-            dtm is dst meta
-            dtd is dst data
-            */
-
-            let stm = clone(stage.st)
-            if (ctx.type.includes('move')) {
-              filter(stm, n => n.status !== 'copied')
-            }
-
-            visit(stm, n => {
-              if (n.type === 'file') {
-                if (n.sha256) {
-                  n.hash = n.sha256
-                  delete n.sha256
-                } 
-                delete n.file 
-              }
-              delete n.path
-              delete n.status        
-            })
-
-            let props = ['uuid', 'mtime', 'metadata']
-            let std = strip({ type: 'directory', name: '', children: await user.treeAsync(src) }, props)
-
+            let stm = formatMetaTree(src.type, clone(stage.st), ctx.type.includes('move'))
+            let std = formatTree(src.type, await user.treeAsync(src))
             expect(std).to.deep.equal(stm)
 
-            let dtm = clone(stage.dt)
-            visit(dtm, n => {
-              if (n.type === 'file') {
-                if (n.sha256) {
-                  n.hash = n.sha256
-                  delete n.sha256
-                }
-                delete n.file
-              }
-              delete n.path      
-              delete n.status
-            })
-
-            let dtd = strip({ type: 'directory', name: '', children: await user.treeAsync(dst) }, props)
+            let dtm = formatMetaTree(dst.type, clone(stage.dt))
+            let dtd = formatTree(dst.type, await user.treeAsync(dst))
             expect(dtd).to.deep.equal(dtm)
           }
         })
       })
     })
+  })
 })
-

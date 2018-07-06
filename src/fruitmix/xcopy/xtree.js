@@ -248,6 +248,7 @@ const generate = arg => {
 
 module.exports = {
   clone,
+  sortF,
   init, // init s0 to stopped state
   getConflicts, // find the conflict one
   copymove,
