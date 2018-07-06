@@ -138,7 +138,7 @@ class XCopy extends EventEmitter {
             }
           } else {
             let state = c.state.constructor.name
-            if (state === 'Mkdir' || state === 'Preparing') {
+            if (state === 'Mkdir' || state === 'Preparing' || state === 'Finishing') {
               runningDir++
             } else if (state === 'Conflict') {
               conflictDir++
@@ -208,6 +208,7 @@ class XCopy extends EventEmitter {
     if (this.watchCallback) {
       let { runningFile, runningDir } = this.count()
       if (runningFile === 0 && runningDir === 0) {
+        debug('watch callback returns')
         this.watchCallback(null, this.view())
         this.watchCallback = null
       }
@@ -312,8 +313,9 @@ class XCopy extends EventEmitter {
       } else {
         this.root.visit(n => {
           if (n.state.constructor.name === 'Conflict' 
-            || (n.constructor.name === 'XFile' && n.state.constructor.name ==='Working'))
+            || (n.constructor.name === 'XFile' && n.state.constructor.name ==='Working')) {
             nodes.push(n.view())
+          }
         })
       }
     }
@@ -398,8 +400,6 @@ class XCopy extends EventEmitter {
     node.updatePolicy(props.policy)
 
     if (props.applyToAll === true) {
-      console.log(`更新Policies之前 全局文件策略 ${this.policies.file}`)
-      console.log(`更新Policies之前 全局夹策略 ${this.policies.dir}`)
       let { dir, file } = this.policies
 
       if (node.constructor.name === 'XFile') {
@@ -407,7 +407,6 @@ class XCopy extends EventEmitter {
         if (policy[0]) file[0] = policy[0]
         if (policy[1]) file[1] = policy[1]
         if (file[0] !== old[0] || file[1] !== old[1])
-        console.log(`更新Policies之后 全局文件策略 ${this.policies.file}`)
           this.root.visit(n => {
             if (n.src.uuid !== nodeUUID) n.policyUpdated(file)
           })
@@ -416,7 +415,6 @@ class XCopy extends EventEmitter {
         if (policy[0]) dir[0] = policy[0]
         if (policy[1]) dir[1] = policy[1]
         if (dir[0] !== old[0] || dir[1] !== old[1])
-        console.log(`更新Policies之后 全局文件夹策略 ${this.policies.dir}`)
           this.root.visit(n => {
             if (n.src.uuid !== nodeUUID) n.policyUpdated(dir)
           })

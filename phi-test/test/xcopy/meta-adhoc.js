@@ -16,7 +16,7 @@ const fakeNfsAsync = require('test/lib/nfs')
 const { UUIDDE, UUIDF } = fakeNfsAsync
 
 const Watson = require('phi-test/lib/watson')
-const { sortF, generate } = require('src/fruitmix/xcopy/xtree')
+const { sortF, getConflicts, generate } = require('src/fruitmix/xcopy/xtree')
 
 const cwd = process.cwd()
 const tmptest = path.join(cwd, 'tmptest')
@@ -165,6 +165,8 @@ describe(path.basename(__filename), () => {
       } else {
         throw new Error('invalid metadata node type')
       }
+      delete n.policy // TODO why append policy to metadata
+      delete n.rename
       delete n.path
       delete n.status
     }
@@ -207,8 +209,32 @@ describe(path.basename(__filename), () => {
         children: [
           {
             type: 'directory',
+            name: 'dir001',
+            children: []
+          },
+          {
+            type: 'file',
+            name: alonzo.name,
+            file: alonzo.path,
+            size: alonzo.size,
+            sha256: alonzo.hash
+          }
+        ]
+      },
+      dt: { type: 'directory', name: '', children: [] },
+      policies: { dir: [null, null], file: [null, null] }
+    },
+    {
+      st: {
+        type: 'directory',
+        name: '',
+        children: [
+/**
+          {
+            type: 'directory',
             name: 'dir001'
           },
+*/
           {
             type: 'file',
             name: alonzo.name,
@@ -222,13 +248,18 @@ describe(path.basename(__filename), () => {
         type: 'directory',
         name: '',
         children: [
+          {
+            type: 'file',
+            name: alonzo.name,
+            file: alonzo.path,
+            size: alonzo.size,
+            sha256: alonzo.hash
+          }
         ]
       },
-      policies: {
-        dir: [null, null],
-        file: [null, null]
-      }
+      policies: { dir: [null, null], file: [null, null] }
     },
+/**
     {
       st: {
         type: 'directory',
@@ -239,8 +270,25 @@ describe(path.basename(__filename), () => {
             name: 'dir001',
             children: [
               {
+                type: 'directory',
+                name: 'dir002',
+                children: [
+                  {
+                    type: 'directory',
+                    name: 'dir003'
+                  },
+                  {
+                    type: 'file',
+                    name: 'file003',
+                    file: alonzo.path,
+                    size: alonzo.size,
+                    sha256: alonzo.hash
+                  }
+                ]
+              },
+              {
                 type: 'file',
-                name: alonzo.name,
+                name: 'file002',
                 file: alonzo.path,
                 size: alonzo.size,
                 sha256: alonzo.hash
@@ -249,7 +297,7 @@ describe(path.basename(__filename), () => {
           },
           {
             type: 'file',
-            name: alonzo.name,
+            name: 'file001',
             file: alonzo.path,
             size: alonzo.size,
             sha256: alonzo.hash
@@ -267,6 +315,7 @@ describe(path.basename(__filename), () => {
         file: [null, null]
       }
     }
+*/
   ]
 
   beforeEach(async function () {
@@ -292,14 +341,14 @@ describe(path.basename(__filename), () => {
   })
 
   let number = 0
-  const padNum = num => '0'.repeat(5 - num.toString().length) + num
+  const padNum = num => '0'.repeat(6 - num.toString().length) + num
 
   metaArgs.forEach(metaArg => {
     generate(metaArg).forEach(_stages => {
       contexts.forEach(ctx => {
         let srcPathStr = `${ctx.src.drive}:/${ctx.src.dir.join('/')}`
         let dstPathStr = `${ctx.dst.drive}:/${ctx.dst.dir.join('/')}`
-        it(`${padNum(number++)} ${ctx.type} from ${srcPathStr} to ${dstPathStr}`, async function () {
+        it(`${padNum(number++)} ${ctx.type} from ${srcPathStr} to ${dstPathStr} `, async function () {
           let src = await prepareTreeAsync(Object.assign({}, ctx.src, { children: metaArg.st.children }))
           let dst = await prepareTreeAsync(Object.assign({}, ctx.dst, { children: metaArg.dt.children }))
 
@@ -308,24 +357,20 @@ describe(path.basename(__filename), () => {
             type: ctx.type,
             src: { drive: src.drive, dir: src.dir },
             dst: { drive: dst.drive, dir: dst.dir },
-            entries: src.children.map(c => c.name)
+            entries: src.children.map(c => c.name),
+            policies: metaArgs.policies
           })
 
+/**
+          console.log('======')
           console.log(JSON.stringify(stages, null, '  '))
+          console.log('======')
+*/
 
           let stage, view
           while (stages.length) {
             stage = stages.shift()
             view = await user.watchTaskAsync(task.uuid)
-
-            console.log(view)
-
-            if (stages.length) {
-              expect(view.finished).to.equal(false)
-            } else {
-              expect(view.nodes).to.deep.equal([])
-              expect(view.finished).to.equal(true)
-            }
 
             let stm = formatMetaTree(src.type, clone(stage.st), ctx.type.includes('move'))
             let std = formatTree(src.type, await user.treeAsync(src))
@@ -334,6 +379,32 @@ describe(path.basename(__filename), () => {
             let dtm = formatMetaTree(dst.type, clone(stage.dt))
             let dtd = formatTree(dst.type, await user.treeAsync(dst))
             expect(dtd).to.deep.equal(dtm)
+
+            if (stages.length) {
+
+/**
+              console.log('------------------ >>>>')
+              console.log('view', JSON.stringify(view, null, '  '))
+              console.log('stage', JSON.stringify(stage, null, '  '))
+              console.log('next stage', JSON.stringify(stages[0], null, '  '))
+              console.log('------------------ <<<<')
+*/
+
+              expect(view.finished).to.equal(false)
+
+              // pick first conflict
+              let c0 = getConflicts(stage.st)[0]
+              expect(c0).to.be.an('object')
+              expect(c0.path.slice(1)).to.equal(view.nodes[0].src.path)
+
+              let { policy, applyToAll } = stages[0].resolution
+              await user.updateTaskAsync(task.uuid, view.nodes[0].src.uuid, { policy, applyToAll })
+          
+            } else {
+              expect(view.nodes).to.deep.equal([])
+              expect(view.finished).to.equal(true)
+            }
+
           }
         })
       })

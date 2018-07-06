@@ -823,6 +823,8 @@ class NFS extends EventEmitter {
       openwx(dstFilePath, props.policy, (err, fd, resolved) => {
         if (err) {
           callback(err)
+        } else if (fd === null) { // in case resolved to skip
+          callback(null, null, resolved)
         } else {
           let rs = fs.createReadStream(props.data)
           let ws = fs.createWriteStream(null, { fd })
@@ -858,6 +860,8 @@ class NFS extends EventEmitter {
         openwx(dstFilePath, props.policy, (err, fd, resolved) => {
           if (err) {
             callback(err)
+          } else if (fd === null) {
+            callback(null, null, resolved)
           } else {
             let rs = fs.createReadStream(srcFilePath)
             let ws = fs.createWriteStream(null, { fd })

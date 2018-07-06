@@ -17,7 +17,6 @@ class State {
     let state = this.constructor.name
     debug(`${this.ctx.src.name || '[root]'} entered ${state}`)
     this.ctx.ctx.reqSched()
-
     this.ctx.emit('StateEntered', state)
   }
 
@@ -46,6 +45,8 @@ class State {
 
   //
   tryFinish () {
+    debug('tryFinish')
+
     let task = this.ctx.ctx
     let dir = this.ctx
 
@@ -60,6 +61,8 @@ class State {
     if (dir.parent === null) { // no rmdir for root
       this.setState(Finish)
     } else if (type === 'imove' || type === 'emove' || (type === 'nmove' && srcDrive !== dstDrive)) {
+      this.setState(Finishing)
+/**
       if (type === 'emove') { // src is in vfs
         let props = {
           driveUUID: srcDrive,
@@ -88,6 +91,7 @@ class State {
           }
         })
       }
+*/
     } else {
       this.setState(Finish)
     }
@@ -427,6 +431,49 @@ class Parent extends State {
 class Failed extends State {
   enter (err) {
     this.err = err
+  }
+}
+
+class Finishing extends State {
+  enter () {
+    let task = this.ctx.ctx 
+    let dir = this.ctx
+    let { user, type, vfs, nfs } = task
+    let srcDrive = task.src.drive
+    let dstDrive = task.dst.drive
+
+    if (type === 'imove' || type === 'emove' || (type === 'nmove' && srcDrive !== dstDrive)) {
+      if (type === 'emove') { // src is in vfs
+        let props = {
+          driveUUID: srcDrive,
+          dirUUID: dir.src.uuid,
+          name: dir.src.name // for display only
+        }
+
+        vfs.RMDIR(user, props, err => {
+          if (err) {
+            this.setState(Failed, err)
+          } else {
+            this.setState(Finish)
+          }
+        })
+      } else { // src is in nfs
+        let props = {
+          drive: srcDrive,
+          dir: dir.namepath()
+        }
+
+        nfs.RMDIR(user, props, err => {
+          if (err) {
+            this.setState(Failed, err)
+          } else {
+            this.setState(Finish)
+          }
+        })
+      }
+    } else {
+      let err = new Error('invalid state transfer, should go to finish state')
+    }
   }
 }
 

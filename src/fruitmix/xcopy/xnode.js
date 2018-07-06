@@ -132,6 +132,13 @@ class XNode extends EventEmitter {
     return arr.join('/')
   }
 
+  relpath () {
+    if (!this.parent) return ''
+    let arr = []
+    for (let n = this; n.parent; n = n.parent) arr.unshift(n.src.name)
+    return arr.join('/')
+  }
+
   dstNamePath () {
     let arr = []
     for (let n = this; n; n = n.parent) arr.unshift(n.dst.name)
@@ -166,7 +173,7 @@ class XNode extends EventEmitter {
     let obj = {
       type: this.type,
       parent: this.parent && this.parent.src.uuid,
-      src: this.src,
+      src: Object.assign({}, this.src, { path: this.relpath() }),
       dst: this.dst,
       policy: this.policy,
       state: this.state.getState()
