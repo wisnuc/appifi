@@ -144,14 +144,17 @@ class Working extends State {
                 // TODO rimraf file
                
                 if (type === 'imove') {
-                  let user = this.ctx.ctx.user                 
-                  let props = {
-                    id: this.ctx.ctx.src.drive,
-                    path: this.ctx.namepath()
+                  if ((policy[0] === 'skip' && resolved[0]) || (policy[1] === 'skip' && resolved[1])) {
+                    this.setState(Finish)
+                  } else {
+                    let user = this.ctx.ctx.user                 
+                    let props = {
+                      id: this.ctx.ctx.src.drive,
+                      path: this.ctx.namepath()
+                    }
+                    // ignore error
+                    this.ctx.ctx.nfs.DELETE(user, props, () => this.setState(Finish))
                   }
-
-                  // ignore error
-                  this.ctx.ctx.nfs.DELETE(user, props, () => this.setState(Finish))
                 } else {
                   this.setState(Finish)
                 }
@@ -202,6 +205,8 @@ class Working extends State {
               this.setState(Conflict, err, policy)
             } else if (err) {
               this.setState(Failed, err)
+            } else if ((policy[0] === 'skip' && resolved[0]) || (policy[1] === 'skip' && resolved[1])) {
+              this.setState(Finish)
             } else {
               if (type === 'emove') {
                 let props = {
@@ -259,6 +264,8 @@ class Working extends State {
             this.setState(Conflict, err, policy)
           } else if (err) {
             this.setState(Failed, err)
+          } else if ((policy[0] === 'skip' && resolved[0]) || (policy[1] === 'skip' && resolved[1])) {
+            this.setState(Finish)
           } else {
             let { rs, ws } = streams
 

@@ -177,6 +177,7 @@ class XCopy extends EventEmitter {
 
     if (!this.root) {
       if (this.watchCallback) {
+        debug('watch returns after finished')
         this.watchCallback(null, this.view())
         this.watchCallback = null
       }

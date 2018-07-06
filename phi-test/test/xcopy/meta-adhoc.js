@@ -229,12 +229,20 @@ describe(path.basename(__filename), () => {
         type: 'directory',
         name: '',
         children: [
-/**
           {
             type: 'directory',
-            name: 'dir001'
+            name: 'dir001',
+            children: [
+              {
+                type: 'file',
+                name: 'alonzo',
+                file: alonzo.path,
+                size: alonzo.size,
+                sha256: alonzo.hash
+              }
+            ]
           },
-*/
+/**
           {
             type: 'file',
             name: alonzo.name,
@@ -242,6 +250,7 @@ describe(path.basename(__filename), () => {
             size: alonzo.size,
             sha256: alonzo.hash
           }
+*/
         ]
       },
       dt: {
@@ -249,12 +258,27 @@ describe(path.basename(__filename), () => {
         name: '',
         children: [
           {
+            type: 'directory',
+            name: 'dir001',
+            children: [
+              {
+                type: 'file',
+                name: 'alonzo',
+                file: alonzo.path,
+                size: alonzo.size,
+                sha256: alonzo.hash
+              }
+            ]
+          },
+/*
+          {
             type: 'file',
             name: alonzo.name,
             file: alonzo.path,
             size: alonzo.size,
             sha256: alonzo.hash
           }
+*/
         ]
       },
       policies: { dir: [null, null], file: [null, null] }
@@ -344,7 +368,9 @@ describe(path.basename(__filename), () => {
   const padNum = num => '0'.repeat(6 - num.toString().length) + num
 
   metaArgs.forEach(metaArg => {
-    generate(metaArg).forEach(_stages => {
+    let language = generate(metaArg)
+    console.log('language count', language.length)
+    language.forEach(_stages => {
       contexts.forEach(ctx => {
         let srcPathStr = `${ctx.src.drive}:/${ctx.src.dir.join('/')}`
         let dstPathStr = `${ctx.dst.drive}:/${ctx.dst.dir.join('/')}`
@@ -374,6 +400,9 @@ describe(path.basename(__filename), () => {
 
             let stm = formatMetaTree(src.type, clone(stage.st), ctx.type.includes('move'))
             let std = formatTree(src.type, await user.treeAsync(src))
+
+//            console.log('stm', stm)
+
             expect(std).to.deep.equal(stm)
 
             let dtm = formatMetaTree(dst.type, clone(stage.dt))
@@ -398,6 +427,9 @@ describe(path.basename(__filename), () => {
               expect(c0.path.slice(1)).to.equal(view.nodes[0].src.path)
 
               let { policy, applyToAll } = stages[0].resolution
+              let arg  = { policy, applyToAll }
+
+//              console.log('update task', arg)
               await user.updateTaskAsync(task.uuid, view.nodes[0].src.uuid, { policy, applyToAll })
           
             } else {
