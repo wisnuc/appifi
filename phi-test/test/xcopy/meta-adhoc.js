@@ -237,7 +237,7 @@ describe(path.basename(__filename), () => {
             children: [
               {
                 type: 'file',
-                name: 'alonzo',
+                name: 'church.jpg',
                 file: alonzo.path,
                 size: alonzo.size,
                 sha256: alonzo.hash
@@ -263,13 +263,14 @@ describe(path.basename(__filename), () => {
             children: [
               {
                 type: 'file',
-                name: 'alonzo',
+                name: 'church.jpg',
                 file: alonzo.path,
                 size: alonzo.size,
                 sha256: alonzo.hash
               }
             ]
           },
+/**
           {
             type: 'file',
             name: alonzo.name,
@@ -277,6 +278,7 @@ describe(path.basename(__filename), () => {
             size: alonzo.size,
             sha256: alonzo.hash
           }
+*/
         ]
       },
       policies: { dir: [null, null], file: [null, null] }
@@ -373,6 +375,8 @@ describe(path.basename(__filename), () => {
         let srcPathStr = `${ctx.src.drive}:/${ctx.src.dir.join('/')}`
         let dstPathStr = `${ctx.dst.drive}:/${ctx.dst.dir.join('/')}`
         it(`${padNum(number++)} ${ctx.type} from ${srcPathStr} to ${dstPathStr} `, async function () {
+          this.timeout(10000)
+
           let src = await prepareTreeAsync(Object.assign({}, ctx.src, { children: metaArg.st.children }))
           let dst = await prepareTreeAsync(Object.assign({}, ctx.dst, { children: metaArg.dt.children }))
 

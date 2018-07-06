@@ -205,7 +205,8 @@ class Working extends State {
               this.setState(Conflict, err, policy)
             } else if (err) {
               this.setState(Failed, err)
-            } else if ((policy[0] === 'skip' && resolved[0]) || (policy[1] === 'skip' && resolved[1])) {
+            } else if ((policy[0] === 'skip' && resolved[0]) 
+              || (policy[1] === 'skip' && resolved[1])) {
               this.setState(Finish)
             } else {
               if (type === 'emove') {
@@ -226,7 +227,8 @@ class Working extends State {
         }
       })
     } else if (type === 'ncopy' || type === 'nmove') {
-      if (type === 'nmove' && this.ctx.ctx.src.drive === this.ctx.ctx.dst.drive) { // by rename
+      if (type === 'nmove' 
+        && this.ctx.ctx.src.drive === this.ctx.ctx.dst.drive) { // by rename
         let user = this.ctx.ctx.user
         let policy = this.ctx.getPolicy()
         let props = {

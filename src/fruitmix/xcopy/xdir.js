@@ -60,7 +60,9 @@ class State {
     */
     if (dir.parent === null) { // no rmdir for root
       this.setState(Finish)
-    } else if (type === 'imove' || type === 'emove' || (type === 'nmove' && srcDrive !== dstDrive)) {
+    } else if (type === 'imove' 
+      || type === 'emove' 
+      || (type === 'nmove' && srcDrive !== dstDrive)) {
       this.setState(Finishing)
 /**
       if (type === 'emove') { // src is in vfs
@@ -168,7 +170,7 @@ class Mkdir extends State {
             this.setState(Failed, err)
           }
         } else {
-          if (type === 'move' || type === 'nmove' && srcDrive === dstDrive) {
+          if (type === 'move' || (type === 'nmove' && srcDrive === dstDrive)) {
             // 3. successful move does NOT generate child job, unless keep resovled 
             if (_policy[0] === 'keep' && resolved[0] === true) {
               this.ctx.dst = { uuid: stat.uuid, name: stat.name }
@@ -182,6 +184,8 @@ class Mkdir extends State {
               || (_policy[1] === 'skip' && resolved[1] === true)) {
               this.tryFinish()
             } else {
+              // console.log(policy, _policy)
+              // console.log(err, map)
               this.ctx.dst = { uuid: stat.uuid, name: stat.name }
               this.setState(Preparing)
             }
@@ -237,10 +241,14 @@ class Preparing extends State {
     let dstDrive = task.dst.drive
     let props, fs
 
-    if (type === 'copy' || type === 'move' || type === 'ecopy' || type === 'emove') {
+    if (type === 'copy' 
+      || type === 'move' 
+      || type === 'ecopy' 
+      || type === 'emove') {
       props = { driveUUID: srcDrive, dirUUID: dir.src.uuid }
       fs = vfs
-    } else if (type === 'icopy' || type === 'imove' || type === 'ncopy' || type === 'nmove') {
+    } else if (type === 'icopy' 
+      || type === 'imove' || type === 'ncopy' || type === 'nmove') {
       props = { id: srcDrive, path: dir.namepath() }
       fs = nfs
     } else {
@@ -402,7 +410,8 @@ class Parent extends State {
   enter (dstats, fstats) {
     this.ctx.dstats = dstats.filter(x => !x.dst.err)
     this.ctx.fstats = fstats
-    // 创建失败文件夹 在sche之前创建
+
+    // all faild dirs enter conflict
     dstats
       .filter(x => x.dst.err)
       .forEach(x => {
@@ -442,7 +451,8 @@ class Finishing extends State {
     let srcDrive = task.src.drive
     let dstDrive = task.dst.drive
 
-    if (type === 'imove' || type === 'emove' || (type === 'nmove' && srcDrive !== dstDrive)) {
+    if (type === 'imove' 
+      || type === 'emove' || (type === 'nmove' && srcDrive !== dstDrive)) {
       if (type === 'emove') { // src is in vfs
         let props = {
           driveUUID: srcDrive,
@@ -481,7 +491,6 @@ class Finish extends State {}
 
 class XDir extends XNode {
   /**
-
   creating a xdir @ preparing with src, dst, and optional entries
   creating a xdir @ conflicting with src, err, policy
 
@@ -501,7 +510,6 @@ class XDir extends XNode {
     // TODO
     if (!src.uuid) console.log(new Error('src no uuid'))
 
-    // 失败任务处理
     if (dst instanceof Error) {
       let err = dst
       let policy = entries
@@ -562,7 +570,6 @@ class XDir extends XNode {
       let dir = new XDir(this.ctx, this, src, dst)
       dir.on('StateEntered', state => {
         if (state === 'Failed' || state === 'Finish') {
-          // children任务进入失败或或完成状态， 将任务从children中移除
           dir.destroy()
           if (this.children.length === 0 &&
             this.dstats.length === 0 &&
