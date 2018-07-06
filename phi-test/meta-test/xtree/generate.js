@@ -4,23 +4,29 @@ const { expect } = require('chai')
 const { 
   init, 
   copy, 
+  findByPath,
   getConflicts,
+  resolve,
   generate 
 } = require('src/fruitmix/xcopy/xtree')
 
 describe(path.basename(__filename), () => {
 
-  it('init', done => {
-
+  it('generate', done => {
     let arg = {
-      type: 'move',
       st: {
         type: 'directory',
         name: '',
         children: [
           {
-            type: 'file',
-            name: 'foo'
+            type: 'directory',
+            name: 'foo',
+            children: [
+              {
+                type: 'file',
+                name: 'alonzo',
+              }
+            ]
           }
         ]
       },
@@ -31,19 +37,87 @@ describe(path.basename(__filename), () => {
           {
             type: 'directory',
             name: 'foo',
+            children: [
+              {
+                type: 'file',
+                name: 'alonzo',
+              }
+            ]
           }
         ]
       }
-    } 
+    }
 
-
-    let xss = generate(arg)
-    xss.forEach(xs => {
-      console.log('---------------------- >')
-      xs.forEach(x => console.log(JSON.stringify(x, null, '  ')))
-    })
-
+    let language = generate(arg)
+    console.log(language.length)
+    console.log(language)
     done()
   })
+
+  it.skip('resolve', done => {
+    let si = 
+      {
+        "st": {
+          "type": "directory",
+          "name": "",
+          "children": [
+            {
+              "type": "directory",
+              "name": "foo",
+              "children": [
+                {
+                  "type": "file",
+                  "name": "alonzo",
+                  "path": "/foo/alonzo",
+                  "status": "conflict",
+                  "policy": ['rename', null]
+                }
+              ],
+              "path": "/foo",
+              "status": "kept",
+              "policy": [
+                "keep",
+                null
+              ]
+            }
+          ],
+          "path": "/",
+          "status": "kept"
+        },
+        "dt": {
+          "type": "directory",
+          "name": "",
+          "children": [
+            {
+              "type": "directory",
+              "name": "foo",
+              "children": [
+                {
+                  "type": "file",
+                  "name": "alonzo",
+                  "path": "/foo/alonzo"
+                }
+              ],
+              "path": "/foo"
+            }
+          ],
+          "path": "/"
+        },
+        "policies": {
+          "dir": [
+            null,
+            null
+          ],
+          "file": [
+            null,
+            null
+          ]
+        } 
+    }
+
+    let rs = resolve(si, '/foo')
+    console.log(JSON.stringify(rs, null, '  '))
+  })
+
 })
 

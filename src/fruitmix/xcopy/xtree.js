@@ -75,8 +75,21 @@ const getConflicts = (t, acc = []) => {
 @param {string} path - tree node path
 @returns node with given path, or null
 */
+
+/**
 const findByPath = (t, path) => 
   t.path === path ? t : t.type === 'directory' ? t.children.find(c => findByPath(c, path)) : null
+*/
+
+const findByPath = (t, path) => {
+  if (t.path === path) return t
+  if (t.type === 'directory') {
+    for (let i = 0; i < t.children.length; i++) {
+      let x = findByPath(t.children[i], path)
+      if (x) return x
+    }
+  }
+}
 
 /**
 copy all copi
@@ -215,6 +228,20 @@ const resolve = (si, path) => {
     s.policy = r.policy
     if (r.applyToAll) policies = r.policies
 
+/**
+    let node
+    let before = { st, dt, policies }
+   
+    node = findByPath(before.st, path) 
+    console.log('before', path, node.type, node.policy, node.status)
+    console.log(JSON.stringify(node, null, '  '))
+    console.log(JSON.stringify(before.st, null, '  '))
+
+    let after = copymove(clone(before))
+    node = findByPath(after.st, path)
+    console.log('after', path, node.type, node.policy, node.status)
+*/
+
     return Object.assign(copymove({ st, dt, policies }), { resolution: r })
   })
 }
@@ -233,6 +260,9 @@ const generate = arg => {
 
   while (working.length) {
     let xs = working.shift()
+
+    if (xs.length > 3) return xs
+
     let last = xs[xs.length - 1]
     let conflicts = getConflicts(last.st)
     if (conflicts.length === 0) {
@@ -249,6 +279,7 @@ const generate = arg => {
 module.exports = {
   clone,
   sortF,
+  findByPath,
   init, // init s0 to stopped state
   getConflicts, // find the conflict one
   copymove,
