@@ -202,6 +202,7 @@ describe(path.basename(__filename), () => {
   }
 
   const metaArgs = [
+/**
     {
       st: {
         type: 'directory',
@@ -224,6 +225,7 @@ describe(path.basename(__filename), () => {
       dt: { type: 'directory', name: '', children: [] },
       policies: { dir: [null, null], file: [null, null] }
     },
+*/
     {
       st: {
         type: 'directory',
@@ -242,7 +244,6 @@ describe(path.basename(__filename), () => {
               }
             ]
           },
-/**
           {
             type: 'file',
             name: alonzo.name,
@@ -250,7 +251,6 @@ describe(path.basename(__filename), () => {
             size: alonzo.size,
             sha256: alonzo.hash
           }
-*/
         ]
       },
       dt: {
@@ -270,7 +270,6 @@ describe(path.basename(__filename), () => {
               }
             ]
           },
-/*
           {
             type: 'file',
             name: alonzo.name,
@@ -278,7 +277,6 @@ describe(path.basename(__filename), () => {
             size: alonzo.size,
             sha256: alonzo.hash
           }
-*/
         ]
       },
       policies: { dir: [null, null], file: [null, null] }

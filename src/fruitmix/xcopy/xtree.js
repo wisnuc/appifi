@@ -260,9 +260,6 @@ const generate = arg => {
 
   while (working.length) {
     let xs = working.shift()
-
-    if (xs.length > 3) return xs
-
     let last = xs[xs.length - 1]
     let conflicts = getConflicts(last.st)
     if (conflicts.length === 0) {
