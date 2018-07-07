@@ -16,16 +16,17 @@ const normalizePolicies = policies => {
   if (policies.hasOwnProperty('dir')) {
     let dir = policies.dir
     if (!Array.isArray(dir)) throw Error('invalid dir policy')
-    if (!pss.includes[dir[0]]) throw new Error('invalid same dir policy') 
-    if (!ps.includes[dir[1]]) throw new Error('invalid diff dir policy')
+
+    if (!pss.includes(dir[0])) throw new Error('invalid same dir policy') 
+    if (!ps.includes(dir[1])) throw new Error('invalid diff dir policy')
     obj.dir = [dir[0], dir[1]].map(p => p || null)
   }
 
   if (policies.hasOwnProperty('file')) {
     let file = policies.file
     if (!Array.isArray(file)) throw Error('invalid file policy')
-    if (!ps.includes[file[0]]) throw new Error('invalid same file policy') 
-    if (!ps.includes[file[1]]) throw new Error('invalid diff file policy')
+    if (!ps.includes(file[0])) throw new Error('invalid same file policy') 
+    if (!ps.includes(file[1])) throw new Error('invalid diff file policy')
     obj.file = [file[0], file[1]].map(p => p || null)
   }
 

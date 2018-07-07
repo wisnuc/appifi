@@ -281,7 +281,7 @@ describe(path.basename(__filename), () => {
 */
         ]
       },
-      policies: { dir: [null, null], file: [null, null] }
+      policies: { dir: ['keep', null], file: [null, null] }
     },
 /**
     {
@@ -381,12 +381,13 @@ describe(path.basename(__filename), () => {
           let dst = await prepareTreeAsync(Object.assign({}, ctx.dst, { children: metaArg.dt.children }))
 
           let stages = [..._stages]
+
           let task = await user.createTaskAsync({
             type: ctx.type,
             src: { drive: src.drive, dir: src.dir },
             dst: { drive: dst.drive, dir: dst.dir },
             entries: src.children.map(c => c.name),
-            policies: metaArgs.policies
+            policies: metaArg.policies
           })
 
 /**

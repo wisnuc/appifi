@@ -271,7 +271,7 @@ class Preparing extends State {
   batch (dstats, fstats) {
     let user = this.ctx.ctx.user
     let type = this.ctx.ctx.type
-    let _policy = this.ctx.getGlobalPolicy()
+    let _policy = this.ctx.getGlobalPolicy()  // TODO need this function ???
     let policy = [_policy[0] === 'keep' ? 'skip' : _policy[0], _policy[1]]
     let names = dstats.map(x => x.name)
     let props, f
@@ -332,10 +332,14 @@ class Preparing extends State {
 
       /**
       annotate {
+        policy: // required by parent state
         dst: { err, stat, resolved }
       }
       */
-      dstats.forEach(x => x.dst = map.get(x.name))
+      dstats.forEach(x => {
+        x.policy = _policy
+        x.dst = map.get(x.name)
+      })
 
       // we consider effective copy and effective move, instead of literal ones
       if (type === 'move' || (type === 'nmove' && sameNfsDrive())) {
@@ -347,7 +351,6 @@ class Preparing extends State {
             return x.dst.err.code === 'EEXIST'
           } else {
             if (_policy[0] === 'keep' && x.dst.resolved[0]) {
-              // TODO not tested
               x.kept = true
               return true
             } else {
@@ -388,6 +391,8 @@ class Parent extends State {
   enter (dstats, fstats) {
     this.ctx.dstats = dstats.filter(x => !x.dst.err)
     this.ctx.fstats = fstats
+
+    // console.log(JSON.stringify(this.ctx.dstats, null, '  '))
 
     // all faild dirs enter conflict
     dstats
@@ -549,6 +554,9 @@ class XDir extends XNode {
       let src = { uuid: dstat.uuid || UUID.v4(), name: dstat.name }
       let dst = { uuid: dstat.dst.stat.uuid, name: dstat.dst.stat.name }
       let dir = new XDir(this.ctx, this, src, dst)
+      // quick fix
+      if (dstat.policy[0] === 'keep' && dstat.dst.resolved[0] === true) dir.kept = true
+
       dir.on('StateEntered', state => {
         if (state === 'Failed' || state === 'Finish') {
           dir.destroy()
