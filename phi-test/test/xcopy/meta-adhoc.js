@@ -270,7 +270,6 @@ describe(path.basename(__filename), () => {
               }
             ]
           },
-/**
           {
             type: 'file',
             name: alonzo.name,
@@ -278,10 +277,9 @@ describe(path.basename(__filename), () => {
             size: alonzo.size,
             sha256: alonzo.hash
           }
-*/
         ]
       },
-      policies: { dir: ['keep', null], file: [null, null] }
+      policies: { dir: [null, null], file: [null, null] }
     },
 /**
     {
@@ -376,12 +374,9 @@ describe(path.basename(__filename), () => {
         let dstPathStr = `${ctx.dst.drive}:/${ctx.dst.dir.join('/')}`
         it(`${padNum(number++)} ${ctx.type} from ${srcPathStr} to ${dstPathStr} `, async function () {
           this.timeout(10000)
-
           let src = await prepareTreeAsync(Object.assign({}, ctx.src, { children: metaArg.st.children }))
           let dst = await prepareTreeAsync(Object.assign({}, ctx.dst, { children: metaArg.dt.children }))
-
           let stages = [..._stages]
-
           let task = await user.createTaskAsync({
             type: ctx.type,
             src: { drive: src.drive, dir: src.dir },
@@ -390,60 +385,41 @@ describe(path.basename(__filename), () => {
             policies: metaArg.policies
           })
 
-/**
-          console.log('======')
-          console.log(JSON.stringify(stages, null, '  '))
-          console.log('======')
-*/
-
           let stage, view
           while (stages.length) {
-            // console.log('stages.length', stages.length)
-
             stage = stages.shift()
             view = await user.watchTaskAsync(task.uuid)
-
-            // let stm = formatMetaTree(src.type, clone(stage.st), ctx.type.includes('move'))
             let stm = formatMetaTree(src.type, ctx.type.includes('move')
               ? shake(clone(stage.st))
               : clone(stage.st))
             let std = formatTree(src.type, await user.treeAsync(src))
-            
-            // console.log('before std === stm')
-            // console.log('std =>', JSON.stringify(std, null, '  '))
-            // console.log('stm =>', JSON.stringify(stm, null, '  '))
             expect(std).to.deep.equal(stm)
-            // console.log('after std === stm')
 
             let dtm = formatMetaTree(dst.type, clone(stage.dt))
             let dtd = formatTree(dst.type, await user.treeAsync(dst))
             expect(dtd).to.deep.equal(dtm)
 
-            // console.log('dtd => ', JSON.stringify(dtd, null, '  '))
-
             if (stages.length) {
               expect(view.finished).to.equal(false)
 
-              // pick first conflict
               let c0 = getConflicts(stage.st)[0]
               expect(c0).to.be.an('object')
               expect(c0.path.slice(1)).to.equal(view.nodes[0].src.path)
 
               let { policy, applyToAll } = stages[0].resolution
               let arg  = { policy, applyToAll }
-
               await user.updateTaskAsync(task.uuid, view.nodes[0].src.uuid, { policy, applyToAll })
-          
             } else {
               expect(view.nodes).to.deep.equal([])
               expect(view.finished).to.equal(true)
-
-              // console.log("-- end --")
             }
 
           }
         })
       })
     })
-  })
+  }) // end of metaArgs.forEach
+
+  console.log('test count', number)
+
 })
