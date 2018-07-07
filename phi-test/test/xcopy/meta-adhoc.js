@@ -16,7 +16,7 @@ const fakeNfsAsync = require('test/lib/nfs')
 const { UUIDDE, UUIDF } = fakeNfsAsync
 
 const Watson = require('phi-test/lib/watson')
-const { sortF, getConflicts, generate } = require('src/fruitmix/xcopy/xtree')
+const { sortF, getConflicts, shake, generate } = require('src/fruitmix/xcopy/xtree')
 
 const cwd = process.cwd()
 const tmptest = path.join(cwd, 'tmptest')
@@ -152,11 +152,11 @@ describe(path.basename(__filename), () => {
   /**
   1. remove extra props according to type, and move
   */
-  const formatMetaTree = (type, tree, move) => {
+  const formatMetaTree = (type, tree) => {
     // postvisit
     const visit = n => {
       if (n.type === 'directory') {
-        if (move) n.children = n.children.filter(c => c.status !== 'copied')
+        // if (move) n.children = n.children.filter(c => c.status !== 'copied')
         n.children.forEach(c => visit(c))
       } else if (n.type === 'file') {
         if (type === 'vfs') n.hash = n.sha256
@@ -397,30 +397,30 @@ describe(path.basename(__filename), () => {
 
           let stage, view
           while (stages.length) {
+            // console.log('stages.length', stages.length)
+
             stage = stages.shift()
             view = await user.watchTaskAsync(task.uuid)
 
-            let stm = formatMetaTree(src.type, clone(stage.st), ctx.type.includes('move'))
+            // let stm = formatMetaTree(src.type, clone(stage.st), ctx.type.includes('move'))
+            let stm = formatMetaTree(src.type, ctx.type.includes('move')
+              ? shake(clone(stage.st))
+              : clone(stage.st))
             let std = formatTree(src.type, await user.treeAsync(src))
-
-//            console.log('stm', stm)
-
+            
+            // console.log('before std === stm')
+            // console.log('std =>', JSON.stringify(std, null, '  '))
+            // console.log('stm =>', JSON.stringify(stm, null, '  '))
             expect(std).to.deep.equal(stm)
+            // console.log('after std === stm')
 
             let dtm = formatMetaTree(dst.type, clone(stage.dt))
             let dtd = formatTree(dst.type, await user.treeAsync(dst))
             expect(dtd).to.deep.equal(dtm)
 
+            // console.log('dtd => ', JSON.stringify(dtd, null, '  '))
+
             if (stages.length) {
-
-/**
-              console.log('------------------ >>>>')
-              console.log('view', JSON.stringify(view, null, '  '))
-              console.log('stage', JSON.stringify(stage, null, '  '))
-              console.log('next stage', JSON.stringify(stages[0], null, '  '))
-              console.log('------------------ <<<<')
-*/
-
               expect(view.finished).to.equal(false)
 
               // pick first conflict
@@ -431,12 +431,13 @@ describe(path.basename(__filename), () => {
               let { policy, applyToAll } = stages[0].resolution
               let arg  = { policy, applyToAll }
 
-//              console.log('update task', arg)
               await user.updateTaskAsync(task.uuid, view.nodes[0].src.uuid, { policy, applyToAll })
           
             } else {
               expect(view.nodes).to.deep.equal([])
               expect(view.finished).to.equal(true)
+
+              // console.log("-- end --")
             }
 
           }

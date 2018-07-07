@@ -45,7 +45,7 @@ class State {
 
   //
   tryFinish () {
-    debug('tryFinish')
+    debug(`${this.ctx.src.name} tryFinish`)
 
     let task = this.ctx.ctx
     let dir = this.ctx
@@ -62,38 +62,10 @@ class State {
       this.setState(Finish)
     } else if (type === 'imove' 
       || type === 'emove' 
-      || (type === 'nmove' && srcDrive !== dstDrive)) {
+      || (type === 'nmove' && srcDrive !== dstDrive)
+      || (type === 'move' && this.ctx.kept === true)
+      || (type === 'nmove' && srcDrive === dstDrive && this.ctx.kept === true)) {
       this.setState(Finishing)
-/**
-      if (type === 'emove') { // src is in vfs
-        let props = {
-          driveUUID: srcDrive,
-          dirUUID: dir.src.uuid,
-          name: dir.src.name // for display only
-        }
-
-        vfs.RMDIR(user, props, err => {
-          if (err) {
-            this.setState(Failed, err)
-          } else {
-            this.setState(Finish)
-          }
-        })
-      } else { // src is in nfs
-        let props = {
-          drive: srcDrive,
-          dir: dir.namepath()
-        }
-
-        nfs.RMDIR(user, props, err => {
-          if (err) {
-            this.setState(Failed, err)
-          } else {
-            this.setState(Finish)
-          }
-        })
-      }
-*/
     } else {
       this.setState(Finish)
     }
@@ -173,6 +145,7 @@ class Mkdir extends State {
           if (type === 'move' || (type === 'nmove' && srcDrive === dstDrive)) {
             // 3. successful move does NOT generate child job, unless keep resovled 
             if (_policy[0] === 'keep' && resolved[0] === true) {
+              this.ctx.kept = true
               this.ctx.dst = { uuid: stat.uuid, name: stat.name }
               this.setState(Preparing)
             } else {
@@ -373,8 +346,13 @@ class Preparing extends State {
           if (x.dst.err) {
             return x.dst.err.code === 'EEXIST'
           } else {
-            if (_policy[0] === 'keep' && x.dst.resolved[0]) return true
-            return false
+            if (_policy[0] === 'keep' && x.dst.resolved[0]) {
+              // TODO not tested
+              x.kept = true
+              return true
+            } else {
+              return false
+            }
           }
         })
       } else {
@@ -452,8 +430,11 @@ class Finishing extends State {
     let dstDrive = task.dst.drive
 
     if (type === 'imove' 
-      || type === 'emove' || (type === 'nmove' && srcDrive !== dstDrive)) {
-      if (type === 'emove') { // src is in vfs
+      || type === 'emove' 
+      || (type === 'nmove' && srcDrive !== dstDrive)
+      || (type === 'move' && this.ctx.kept === true)
+      || (type === 'nmove' && srcDrive === dstDrive && this.ctx.kept === true)) {
+      if (type === 'move' || type === 'emove') { // src is in vfs
         let props = {
           driveUUID: srcDrive,
           dirUUID: dir.src.uuid,

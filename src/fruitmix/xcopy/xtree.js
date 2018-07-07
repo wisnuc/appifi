@@ -228,22 +228,23 @@ const resolve = (si, path) => {
     s.policy = r.policy
     if (r.applyToAll) policies = r.policies
 
-/**
-    let node
-    let before = { st, dt, policies }
-   
-    node = findByPath(before.st, path) 
-    console.log('before', path, node.type, node.policy, node.status)
-    console.log(JSON.stringify(node, null, '  '))
-    console.log(JSON.stringify(before.st, null, '  '))
-
-    let after = copymove(clone(before))
-    node = findByPath(after.st, path)
-    console.log('after', path, node.type, node.policy, node.status)
-*/
-
     return Object.assign(copymove({ st, dt, policies }), { resolution: r })
   })
+}
+
+// remove copied
+const shake = t => {
+  // post visit
+  const visit = n => {
+    n.children.filter(c => c.type === 'directory').forEach(c => visit(c))
+    n.children = n.children.filter(c => {
+      if (c.status === 'copied') return false
+      if (c.type === 'directory' && c.status === 'kept' && c.children.length === 0) return false
+      return true
+    })
+  }
+  visit(t)
+  return t
 }
 
 /**
@@ -281,5 +282,6 @@ module.exports = {
   getConflicts, // find the conflict one
   copymove,
   resolve, // resolve the conflict, generate result
+  shake,
   generate // external method
 }
