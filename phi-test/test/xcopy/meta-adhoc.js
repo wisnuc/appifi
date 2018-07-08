@@ -65,12 +65,12 @@ const drivePairs = [
 
 const dirPairs = [
   { src: [], dst: [] },
-  { src: ['foo'], dst: [] },
-  { src: [], dst: ['hello'] },
+//  { src: ['foo'], dst: [] },
+//  { src: [], dst: ['hello'] },
   { src: ['foo'], dst: ['hello'] },
-  { src: ['foo', 'bar'], dst: ['hello', 'world'] },
-  { src: ['common', 'foo'], dst: ['common', 'hello'] },
-  { src: ['common', 'foo', 'bar'], dst: ['common', 'hello', 'world'] }
+//  { src: ['foo', 'bar'], dst: ['hello', 'world'] },
+//  { src: ['common', 'foo'], dst: ['common', 'hello'] },
+//  { src: ['common', 'foo', 'bar'], dst: ['common', 'hello', 'world'] }
 ]
 
 const contexts = []
@@ -236,6 +236,10 @@ describe(path.basename(__filename), () => {
             name: 'dir001',
             children: [
               {
+                type: 'directory',
+                name: 'dir002'
+              },
+              {
                 type: 'file',
                 name: 'church.jpg',
                 file: alonzo.path,
@@ -262,6 +266,10 @@ describe(path.basename(__filename), () => {
             name: 'dir001',
             children: [
               {
+                type: 'directory',
+                name: 'dir002'
+              },
+              {
                 type: 'file',
                 name: 'church.jpg',
                 file: alonzo.path,
@@ -279,7 +287,7 @@ describe(path.basename(__filename), () => {
           }
         ]
       },
-      policies: { dir: [null, null], file: [null, null] }
+      policies: { dir: ['keep', null], file: [null, null] }
     },
 /**
     {
@@ -404,7 +412,12 @@ describe(path.basename(__filename), () => {
 
               let c0 = getConflicts(stage.st)[0]
               expect(c0).to.be.an('object')
+
+              // console.log('====== >>>>>>')
+              // console.log('stage.st', JSON.stringify(stage.st, null, '    '))
+              // console.log('view', JSON.stringify(view, null, '    '))
               expect(c0.path.slice(1)).to.equal(view.nodes[0].src.path)
+              // console.log('====== <<<<<<')
 
               let { policy, applyToAll } = stages[0].resolution
               let arg  = { policy, applyToAll }

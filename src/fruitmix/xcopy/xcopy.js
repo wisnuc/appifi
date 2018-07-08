@@ -313,8 +313,13 @@ class XCopy extends EventEmitter {
         })
       } else {
         this.root.visit(n => {
+/**
           if (n.state.constructor.name === 'Conflict' 
             || (n.constructor.name === 'XFile' && n.state.constructor.name ==='Working')) {
+            nodes.push(n.view())
+          }
+*/
+          if (n.state.constructor.name === 'Conflict') {
             nodes.push(n.view())
           }
         })

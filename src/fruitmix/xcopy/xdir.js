@@ -490,6 +490,7 @@ class XDir extends XNode {
   */
   constructor (ctx, parent, src, dst, entries) {
     super(ctx, parent)
+    Object.defineProperty(this, 'type', { get () { return 'directory' } })
     this.children = []
     this.src = src
 

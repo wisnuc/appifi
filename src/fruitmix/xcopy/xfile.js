@@ -346,6 +346,7 @@ class XFile extends XNode {
   */
   constructor (ctx, parent, src) {
     super(ctx, parent)
+    Object.defineProperty(this, 'type', { get () { return 'file' } })
     this.src = src
     this.policy = [null, null]
     this.state = new Working(this)

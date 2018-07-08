@@ -1,9 +1,11 @@
 const EventEmitter = require('events')
 
-/**
-The abstract base class for different type of sub-tasks
+const sortF = (a, b) => a.type !== b.type
+  ? a.type === 'directory' ? -1 : 1 
+  : a.src.name.localeCompare(b.src.name) 
 
-@memberof XCopy
+/**
+The base class for xdir and xfile
 */
 class XNode extends EventEmitter {
 
@@ -78,17 +80,15 @@ class XNode extends EventEmitter {
   }
 
   /**
-  Visit all nodes with function f. Implemented as pre-visitor.
+  pre-visit all nodes with function f.
   */
-
   visit (f) {
     if (this.children) {
-      for (let i = 0; i < this.children.length; i++) {
-        let x = this.children[i].visit(f)
-        if (x) return x
-      }
+      let children = this.children
+      children.sort(sortF)
+      children.forEach(c => c.visit(f))
     }
-    return f(this)
+    f(this)
   }
 
   /**
@@ -123,7 +123,7 @@ class XNode extends EventEmitter {
   }
 
   /**
-  Generate name path from root
+  namepath is used for vfs/nfs operation
   */
   namepath () {
     let arr = []
@@ -132,6 +132,9 @@ class XNode extends EventEmitter {
     return arr.join('/')
   }
 
+  /**
+  relpath is used for view
+  */
   relpath () {
     if (!this.parent) return ''
     let arr = []
@@ -161,7 +164,8 @@ class XNode extends EventEmitter {
   */
   retry () {
     let s = this.getState()
-    if (s === 'Conflict' || s === 'Failed') {
+    if (s === 'Conflict') {
+      // FIXME 
       this.setState('Working')
     }
   }
