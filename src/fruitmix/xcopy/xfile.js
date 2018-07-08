@@ -18,7 +18,6 @@ class State {
     let state = this.constructor.name
     debug(`${this.ctx.src.name} entered ${state}`)
     this.ctx.ctx.reqSched()
-
     this.ctx.emit('StateEntered', state)
   }
 
@@ -227,8 +226,7 @@ class Working extends State {
         }
       })
     } else if (type === 'ncopy' || type === 'nmove') {
-      if (type === 'nmove' 
-        && this.ctx.ctx.src.drive === this.ctx.ctx.dst.drive) { // by rename
+      if (type === 'nmove' && this.ctx.ctx.src.drive === this.ctx.ctx.dst.drive) { // by rename
         let user = this.ctx.ctx.user
         let policy = this.ctx.getPolicy()
         let props = {
