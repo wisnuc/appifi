@@ -1,12 +1,9 @@
-const path = require('path')
-const fs = require('fs')
 const EventEmitter = require('events')
 
 const UUID = require('uuid')
 const debug = require('debug')('xcopy')
 
 const XDir = require('./xdir')
-const XFile = require('./xfile')
 
 /**
 This is a container of a collection of sub-tasks, organized in a tree.
@@ -41,17 +38,17 @@ class XCopy extends EventEmitter {
     this.steppingState = 'Stopped' // or 'Stepping'
 
     // backward compatible for a few weeks TODO
-    if (type === 'import') type === 'icopy'
-    if (type === 'export') type === 'ecopy'
+    if (type === 'import') type = 'icopy'
+    if (type === 'export') type = 'ecopy'
 
     this.type = type
     this.user = user
     this.uuid = UUID.v4()
 
-    this.src = props.src
-    this.dst = props.dst
-    this.entries = props.entries
-    this.policies = props.policies
+    this.src = src
+    this.dst = dst
+    this.entries = entries
+    this.policies = policies
 
     if (stepping) {
       debug('xcopy started in stepping mode, stopped')
@@ -171,7 +168,7 @@ class XCopy extends EventEmitter {
 
     this.scheduled = false
 
-    let { runningFile, conflictFile, runningDir, conflictDir } = this.count()
+    let { runningFile, runningDir } = this.count()
 
     if (runningFile >= this.fileLimit && runningDir >= this.dirLimit) return
 
@@ -184,11 +181,7 @@ class XCopy extends EventEmitter {
       if (runningFile >= this.fileLimit && runningDir >= this.dirLimit) return true
     }
 
-    try {
-      this.root.visit(schedF)
-    } catch (e) {
-      console.log(e)
-    }
+    this.root.visit(schedF)
 
     if (this.watchCallback) {
       let { runningFile, runningDir } = this.count()
@@ -240,6 +233,7 @@ class XCopy extends EventEmitter {
     if (!this.stepping) return process.nextTick(() => callback(null))
     if (this.finished) return process.nextTick(() => callback(null))
     if (this.steppingState === 'Stepping') return process.nextTick(() => callback(null))
+
     this.steppingState = 'Stepping'
 
     if (this.root) {
@@ -266,17 +260,6 @@ class XCopy extends EventEmitter {
     }
   }
 
-  /// ///////////////////////////////////////////////////////////////////////////
-  //
-  //  external/api interface
-  //
-  //  1. view hierarchy
-  //  2. update policy
-  //  3. pause / resume (not implemented)
-  //  4. destroy (cancel)
-  //
-  /// ///////////////////////////////////////////////////////////////////////////
-
   // in stepping mode, all nodes are pushed into nodes
   // in non-stepping mode, however, only Working files and
   view () {
@@ -287,15 +270,16 @@ class XCopy extends EventEmitter {
           nodes.push(n.view())
         })
       } else {
+        let { runningFile, runningDir } = this.count()
         this.root.visit(n => {
-          /**
-          if (n.state.constructor.name === 'Conflict'
-            || (n.constructor.name === 'XFile' && n.state.constructor.name ==='Working')) {
-            nodes.push(n.view())
-          }
-*/
-          if (n.state.constructor.name === 'Conflict') {
-            nodes.push(n.view())
+          if (runningFile || runningDir) {
+            if (n.stateName() !== 'Conflict') {
+              nodes.push(n.view())
+            }
+          } else {
+            if (n.stateName() === 'Conflict') {
+              nodes.push(n.view())
+            }
           }
         })
       }
@@ -308,7 +292,6 @@ class XCopy extends EventEmitter {
       dst: this.dst,
       entries: this.entries,
       nodes,
-
       finished: this.finished,
       stepping: this.stepping
     }
@@ -325,10 +308,7 @@ class XCopy extends EventEmitter {
     }
 
     let { policy } = props
-    let node
-    this.root.visit(n => {
-      if (n.src.uuid === nodeUUID) node = n
-    })
+    let node = this.root.find(n => n.src.uuid === nodeUUID)
 
     // node not exist
     if (!node) {

@@ -101,7 +101,7 @@ class Working extends State {
                 this.tryConflict(err, policy)
               } else if (err) {
                 this.setState(Failed, err)
-              } else { // TODO rimraf file
+              } else { // TODO rimraf file ???
                 if (type === 'imove') {
                   if (this.isSkipped(policy, resolved)) {
                     this.setState(Finish)

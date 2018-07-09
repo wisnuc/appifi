@@ -225,8 +225,8 @@ class Preparing extends State {
     }
 
     fs.READDIR(user, props, (err, stats) => {
+      if (this.isDestroyed()) return
       if (err) {
-        debug(err.message)
         this.setState(Failed)
       } else {
         let fstats = []
@@ -313,6 +313,7 @@ class Preparing extends State {
     }
 
     f(user, props, (err, map) => {
+      if (this.isDestroyed()) return
       if (err) {
         debug('Preparing, batch mkdir/mvdir failed', err, names)
         return this.setState(Failed, err)

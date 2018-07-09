@@ -59,14 +59,14 @@ class XNode extends EventEmitter {
 
   /**
   Visit tree nodes with function f and returns the first node on which f evaluates true.
-  @param {function} f - function that applys to node
+  @param {function} f - function that applys to node, return truthy or falsy value
   */
   find (f) {
-    if (f(this) === true) return this
+    if (f(this)) return this
     if (this.children) {
-      for (let index in this.children) {
-        let obj = this.children[index].find(f)
-        if (obj) return obj
+      for (let i = 0; i < this.children.length; i++) {
+        let found = this.children[i].find(f)
+        if (found) return found
       }
     }
   }
