@@ -12,10 +12,10 @@ class State {
     this.ctx = ctx
     this.enter(...args)
 
-    let state = this.constructor.name
-    debug(`${this.ctx.src.name || '[root]'} entered ${state}`)
+    debug(`${this.ctx.src.name || '[root]'} entered ${this.constructor.name}`)
+
     this.ctx.ctx.reqSched()
-    this.ctx.emit('StateEntered', state)
+    this.ctx.emit('StateEntered', this.constructor.name)
   }
 
   isDestroyed () {
@@ -166,12 +166,6 @@ class Mkdir extends State {
   }
 }
 
-/**
-`Conflict` state for directory sub-task
-
-@memberof XCopy.Dir
-@extends XCopy.State
-*/
 class Conflict extends State {
   enter (err, policy) {
     this.err = err
@@ -270,8 +264,11 @@ class Preparing extends State {
 
   // mkdirs or mvdirs in batch mode
   batch (dstats, fstats) {
-    let user = this.ctx.ctx.user
-    let type = this.ctx.ctx.type
+    let task = this.ctx.ctx
+    let dir = this.ctx
+    let { type, user, vfs, nfs } = task
+    let srcDrive = task.src.drive
+    let dstDrive = task.dst.drive
     let _policy = this.ctx.getGlobalPolicy()
     let policy = [_policy[0] === 'keep' ? 'skip' : _policy[0], _policy[1]]
     let names = dstats.map(x => x.name)
@@ -291,38 +288,28 @@ class Preparing extends State {
        nmove2   mvdirs in nfs                 when src & dst @ same fs
     */
     if (type === 'copy' || type === 'icopy' || type === 'imove') { // mkdirs in vfs
-      props = {
-        driveUUID: this.ctx.ctx.dst.drive,
-        dirUUID: this.ctx.dst.uuid,
-        names,
-        policy
-      }
-      f = this.ctx.ctx.vfs.MKDIRS.bind(this.ctx.ctx.vfs)
+      props = { driveUUID: dstDrive, dirUUID: dir.dst.uuid, names, policy }
+      f = vfs.MKDIRS.bind(vfs)
     } else if (type === 'move') { // mvdirs in vfs
       props = {
-        src: { drive: this.ctx.ctx.src.drive, dir: this.ctx.src.uuid },
-        dst: { drive: this.ctx.ctx.dst.drive, dir: this.ctx.dst.uuid },
+        src: { drive: srcDrive, dir: dir.src.uuid },
+        dst: { drive: dstDrive, dir: dir.dst.uuid },
         names,
         policy
       }
-      f = this.ctx.ctx.vfs.MVDIRS.bind(this.ctx.ctx.vfs)
+      f = vfs.MVDIRS.bind(vfs)
     } else if (type === 'nmove' && sameNfsDrive()) { // mvdirs in nfs
       props = {
-        id: this.ctx.ctx.src.drive,
-        srcPath: this.ctx.namepath(),
-        dstPath: this.ctx.dstNamePath(),
+        id: srcDrive,
+        srcPath: dir.namepath(),
+        dstPath: dir.dstNamePath(),
         names,
         policy
       }
-      f = this.ctx.ctx.nfs.MVDIRS.bind(this.ctx.ctx.nfs)
+      f = nfs.MVDIRS.bind(nfs)
     } else { // mkdirs in nfs
-      props = {
-        id: this.ctx.ctx.dst.drive,
-        path: this.ctx.dstNamePath(),
-        names,
-        policy
-      }
-      f = this.ctx.ctx.nfs.MKDIRS.bind(this.ctx.ctx.nfs)
+      props = { id: dstDrive, path: dir.dstNamePath(), names, policy }
+      f = nfs.MKDIRS.bind(nfs)
     }
 
     f(user, props, (err, map) => {
@@ -384,38 +371,12 @@ class Preparing extends State {
 }
 
 class Parent extends State {
-  /**
-  dstat {
-    dst: { err, stat, resolved }
-  }
-  */
+  // dstat { dst: { err, stat, resolved } }
   enter (dstats, fstats) {
     this.ctx.dstats = dstats.filter(x => !x.dst.err)
     this.ctx.fstats = fstats
-
-    // all faild dirs enter conflict
-    dstats
-      .filter(x => x.dst.err)
-      .forEach(x => {
-        let dir = new XDir(this.ctx.ctx, this.ctx, {
-          uuid: x.uuid || UUID.v4(),
-          name: x.name
-        }, x.dst.err)
-        dir.on('StateEntered', state => {
-          if (state === 'Failed' || state === 'Finish') {
-            dir.destroy()
-            if (this.ctx.children.length === 0 &&
-              this.ctx.dstats.length === 0 &&
-              this.ctx.fstats.length === 0) this.tryFinish()
-          }
-        })
-      })
-  }
-
-  view () {
-    return {
-      state: 'Parent'
-    }
+    dstats.filter(dstat => dstat.dst.err)
+      .forEach(dstat => this.ctx.createConflictSubDir(dstat))
   }
 }
 
@@ -480,10 +441,7 @@ class XDir extends XNode {
     Object.defineProperty(this, 'type', { value: 'directory', writable: false })
     this.children = []
     this.src = src
-
-    // TODO
-    if (!src.uuid) console.log(new Error('src no uuid'))
-
+    if (!src.uuid) src.uuid = UUID.v4()
     if (dst instanceof Error) {
       let err = dst
       let policy = entries
@@ -495,8 +453,7 @@ class XDir extends XNode {
   }
 
   destroy () {
-    let children = [...this.children]
-    children.forEach(c => c.destroy())
+    this.children.forEach(c => c.destroy())
     super.destroy()
   }
 
@@ -515,6 +472,28 @@ class XDir extends XNode {
   }
 
   /**
+  This function is used when entering Parent state
+  */
+  createConflictSubDir (dstat) {
+    let dir = new XDir(this.ctx, this, {
+      uuid: dstat.uuid || UUID.v4(),
+      name: dstat.name
+    }, dstat.dst.err)
+
+    dir.on('StateEntered', state => {
+      if (state === 'Failed' || state === 'Finish') {
+        dir.destroy()
+        this.children.splice(this.children.indexOf(dir), 1)
+        if (this.children.length === 0 &&
+          this.dstats.length === 0 &&
+          this.fstats.length === 0) this.state.tryFinish()
+      }
+    })
+
+    this.children.push(dir)
+  }
+
+  /**
   This function is used by scheduler
 
   @param {number} required
@@ -530,12 +509,14 @@ class XDir extends XNode {
       let src = { uuid: dstat.uuid || UUID.v4(), name: dstat.name }
       let dst = { uuid: dstat.dst.stat.uuid, name: dstat.dst.stat.name }
       let dir = new XDir(this.ctx, this, src, dst)
+
       // quick fix
       if (dstat.policy[0] === 'keep' && dstat.dst.resolved[0] === true) dir.kept = true
 
       dir.on('StateEntered', state => {
         if (state === 'Failed' || state === 'Finish') {
           dir.destroy()
+          this.children.splice(this.children.indexOf(dir), 1)
           if (this.children.length === 0 &&
             this.dstats.length === 0 &&
             this.fstats.length === 0) {
@@ -543,6 +524,8 @@ class XDir extends XNode {
           }
         }
       })
+
+      this.children.push(dir)
     })
     return arr.length
   }
@@ -564,6 +547,7 @@ class XDir extends XNode {
       file.on('StateEntered', state => {
         if (state === 'Failed' || state === 'Finish') {
           file.destroy()
+          this.children.splice(this.children.indexOf(file), 1)
           if (this.children.length === 0 &&
             this.dstats.length === 0 &&
             this.fstats.length === 0) {
@@ -571,6 +555,7 @@ class XDir extends XNode {
           }
         }
       })
+      this.children.push(file)
     })
 
     return arr.length

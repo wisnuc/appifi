@@ -447,6 +447,8 @@ describe(path.basename(__filename), () => {
               // console.log('====== >>>>>>')
               // console.log('stage.st', JSON.stringify(stage.st, null, '    '))
               // console.log('view', JSON.stringify(view, null, '    '))
+              // console.log(view.nodes)
+
               expect(c0.path.slice(1)).to.equal(view.nodes[0].src.path)
               // console.log('====== <<<<<<')
 

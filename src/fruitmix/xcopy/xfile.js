@@ -11,10 +11,10 @@ class State {
     this.ctx = ctx
     this.enter(...args)
 
-    let state = this.constructor.name
-    debug(`${this.ctx.src.name} entered ${state}`)
+    debug(`${this.ctx.src.name} entered ${this.constructor.name}`)
+
     this.ctx.ctx.reqSched()
-    this.ctx.emit('StateEntered', state)
+    this.ctx.emit('StateEntered', this.constructor.name)
   }
 
   isDestroyed () {

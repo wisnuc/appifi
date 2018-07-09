@@ -13,14 +13,10 @@ class XNode extends EventEmitter {
   @param {object} ctx - ctx should be the containing task.
   @param {object} parent - parent directory or null.
   */
-  constructor (ctx, parent) {
+  constructor (ctx, parent = null) {
     super()
     this.ctx = ctx
-    if (parent) {
-      this.attach(parent)
-    } else {
-      this.parent = null
-    }
+    this.parent = parent
     this.policy = []
   }
 
@@ -31,7 +27,6 @@ class XNode extends EventEmitter {
   destroy () {
     this.state.destroy()
     this.ctx = null
-    if (this.parent) this.detach()
   }
 
   /**
@@ -39,34 +34,6 @@ class XNode extends EventEmitter {
   */
   isDestroyed () {
     return this.ctx === null
-  }
-
-  /**
-  Attach to parent node
-  @param {object} parent - parent directory
-  */
-  attach (parent) {
-    if (this.parent) {
-      let err = new Error('not already attached')
-      console.log(err)
-      throw err
-    }
-    this.parent = parent
-    parent.children.push(this)
-  }
-
-  /**
-  Detach from parent node
-  */
-  detach () {
-    let index = this.parent.children.indexOf(this)
-    if (index === -1) {
-      let err = new Error("node not found in parent's children")
-      console.log(err)
-      throw err
-    }
-    this.parent.children.splice(index, 1)
-    this.parent = null
   }
 
   /**
@@ -96,7 +63,6 @@ class XNode extends EventEmitter {
   */
   find (f) {
     if (f(this) === true) return this
-    // if (this.children) return this.children.find(c => c.find(f))
     if (this.children) {
       for (let index in this.children) {
         let obj = this.children[index].find(f)

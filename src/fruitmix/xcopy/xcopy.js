@@ -53,9 +53,9 @@ class XCopy extends EventEmitter {
     this.entries = props.entries
     this.policies = props.policies
 
-   if (stepping) {
+    if (stepping) {
       debug('xcopy started in stepping mode, stopped')
-    } else { 
+    } else {
       this.createRoot()
     }
   }
@@ -67,7 +67,7 @@ class XCopy extends EventEmitter {
     let src, dst
     if (this.type === 'copy' || this.type === 'move') {
       src = { uuid: this.src.dir, name: '' }
-      dst = { uuid: this.dst.dir, name: '' } 
+      dst = { uuid: this.dst.dir, name: '' }
     } else if (this.type === 'icopy' || this.type === 'imove') {
       src = { uuid: UUID.v4(), name: this.src.dir }
       dst = { uuid: this.dst.dir, name: '' }
@@ -83,7 +83,7 @@ class XCopy extends EventEmitter {
 
     let root = new XDir(this, null, src, dst, this.entries)
     root.on('StateEntered', state => {
-      // root starts from preparing state, it may go to failed state directory, 
+      // root starts from preparing state, it may go to failed state directory,
       // or reach finish state via parent. Only these four state is possible.
       if (state === 'Failed' || state === 'Finish') {
         this.finished = true
@@ -117,10 +117,10 @@ class XCopy extends EventEmitter {
             if (state === 'Working') {
               runningFile++
             } else if (state === 'Conflict') {
-              conflictFile++ 
+              conflictFile++
             } else {
               console.log('== panic >>>>')
-              console.log(c) 
+              console.log(c)
               console.log('== panic <<<<')
               throw new Error('Unexpected xfile state')
             }
@@ -134,7 +134,7 @@ class XCopy extends EventEmitter {
               // do nothing
             } else {
               console.log('== panic >>>>')
-              console.log(c) 
+              console.log(c)
               console.log('== panic <<<<')
               throw new Error('Unexpected xdir state')
             }
@@ -171,7 +171,7 @@ class XCopy extends EventEmitter {
 
     this.scheduled = false
 
-    let { runningFile, conflictFile, runningDir, conflictDir } = this.count() 
+    let { runningFile, conflictFile, runningDir, conflictDir } = this.count()
 
     if (runningFile >= this.fileLimit && runningDir >= this.dirLimit) return
 
@@ -182,7 +182,7 @@ class XCopy extends EventEmitter {
       }
 
       if (runningFile >= this.fileLimit && runningDir >= this.dirLimit) return true
-    } 
+    }
 
     try {
       this.root.visit(schedF)
@@ -220,7 +220,7 @@ class XCopy extends EventEmitter {
           if (runningFile === 0 && runningDir === 0) {
             debug('step stopped')
             this.steppingState = 'Stopped'
-            if (this.watchCallback) { 
+            if (this.watchCallback) {
               this.watchCallback(null, this.view())
               this.watchCallback = null
             }
@@ -258,7 +258,7 @@ class XCopy extends EventEmitter {
     // if (!this.stepping) return process.nextTick(() => callback(null))
     if (this.watchCallback) return process.nextTick(() => callback(null))
 
-    let { runningFile, runningDir } = this.count() 
+    let { runningFile, runningDir } = this.count()
     if (runningFile === 0 && runningDir === 0) {
       process.nextTick(() => callback(null, this.view()))
     } else {
@@ -266,7 +266,7 @@ class XCopy extends EventEmitter {
     }
   }
 
-  //////////////////////////////////////////////////////////////////////////////
+  /// ///////////////////////////////////////////////////////////////////////////
   //
   //  external/api interface
   //
@@ -275,10 +275,10 @@ class XCopy extends EventEmitter {
   //  3. pause / resume (not implemented)
   //  4. destroy (cancel)
   //
-  //////////////////////////////////////////////////////////////////////////////
+  /// ///////////////////////////////////////////////////////////////////////////
 
   // in stepping mode, all nodes are pushed into nodes
-  // in non-stepping mode, however, only Working files and 
+  // in non-stepping mode, however, only Working files and
   view () {
     let nodes = []
     if (this.root) {
@@ -288,8 +288,8 @@ class XCopy extends EventEmitter {
         })
       } else {
         this.root.visit(n => {
-/**
-          if (n.state.constructor.name === 'Conflict' 
+          /**
+          if (n.state.constructor.name === 'Conflict'
             || (n.constructor.name === 'XFile' && n.state.constructor.name ==='Working')) {
             nodes.push(n.view())
           }
@@ -319,7 +319,7 @@ class XCopy extends EventEmitter {
 
   updateNode (nodeUUID, props, callback) {
     if (!this.root) {
-      let err = new Error('node not found') 
+      let err = new Error('node not found')
       err.status = 404
       return process.nextTick(() => callback(err))
     }
@@ -374,7 +374,6 @@ class XCopy extends EventEmitter {
 
     process.nextTick(() => callback(null, this.view()))
   }
-
 }
 
 module.exports = XCopy
