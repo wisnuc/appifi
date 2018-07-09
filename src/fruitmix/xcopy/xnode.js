@@ -1,14 +1,13 @@
 const EventEmitter = require('events')
 
 const sortF = (a, b) => a.type !== b.type
-  ? a.type === 'directory' ? -1 : 1 
-  : a.src.name.localeCompare(b.src.name) 
+  ? a.type === 'directory' ? -1 : 1
+  : a.src.name.localeCompare(b.src.name)
 
 /**
 The base class for xdir and xfile
 */
 class XNode extends EventEmitter {
-
   /**
   Create a node
   @param {object} ctx - ctx should be the containing task.
@@ -26,7 +25,7 @@ class XNode extends EventEmitter {
   }
 
   /**
-  Destroy a node. 
+  Destroy a node.
   ctx is reset and could be used to determine if a node is destroyed.
   */
   destroy () {
@@ -52,7 +51,7 @@ class XNode extends EventEmitter {
       console.log(err)
       throw err
     }
-    this.parent = parent   
+    this.parent = parent
     parent.children.push(this)
   }
 
@@ -62,7 +61,7 @@ class XNode extends EventEmitter {
   detach () {
     let index = this.parent.children.indexOf(this)
     if (index === -1) {
-      let err = new Error("node not found in parent's children")  
+      let err = new Error("node not found in parent's children")
       console.log(err)
       throw err
     }
@@ -98,7 +97,7 @@ class XNode extends EventEmitter {
   find (f) {
     if (f(this) === true) return this
     // if (this.children) return this.children.find(c => c.find(f))
-    if (this.children) { 
+    if (this.children) {
       for (let index in this.children) {
         let obj = this.children[index].find(f)
         if (obj) return obj
@@ -160,13 +159,13 @@ class XNode extends EventEmitter {
   }
 
   /**
-  Go to Working state 
-  if current state is Conflict or Failed. Otherwise, do nothing. 
+  Go to Working state
+  if current state is Conflict or Failed. Otherwise, do nothing.
   */
   retry () {
     let s = this.stateName()
     if (s === 'Conflict') {
-      // FIXME 
+      // FIXME
       this.setState('Working')
     }
   }

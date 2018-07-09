@@ -212,7 +212,8 @@ class Working extends State {
         })
       }
     } else {
-      throw new Error('invalid task type') // TODO
+      let err = new Error('invalid task type')
+      this.setState(Failed, err)
     }
   }
 
@@ -221,14 +222,14 @@ class Working extends State {
   }
 
   // err.code must be EEXIST
-  tryConflict(err, policy) {
-    let p = this.getPolicy() 
+  tryConflict (err, policy) {
+    let p = this.getPolicy()
     if (p[0] === policy[0] && p[1] === policy[1]) {
       this.setState(Conflict, err, policy)
     } else {
       this.setState(Working)
     }
-  } 
+  }
 }
 
 class Conflict extends State {
@@ -259,7 +260,7 @@ class Conflict extends State {
 
 class Failed extends State {
   enter (err) {
-    if (process.env.LOGE) console.log(err)
+    if (process.env.LOGE) console.log('xfile failed', err)
     this.error = err
   }
 }
@@ -288,7 +289,6 @@ class XFile extends XNode {
       this.policy[1] || this.ctx.policies.file[1] || null
     ]
   }
-
 }
 
 module.exports = XFile

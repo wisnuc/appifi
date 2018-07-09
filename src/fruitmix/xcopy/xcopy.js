@@ -8,7 +8,6 @@ const debug = require('debug')('xcopy')
 const XDir = require('./xdir')
 const XFile = require('./xfile')
 
-
 /**
 This is a container of a collection of sub-tasks, organized in a tree.
 */
@@ -99,14 +98,6 @@ class XCopy extends EventEmitter {
   destroy () {
     if (this.root) this.root.destroy()
     this.root = null
-  }
-
-  // not implemented TODO
-  pause () {
-  } 
-
-  // not implemented TODO
-  resume () {
   }
 
   /**
