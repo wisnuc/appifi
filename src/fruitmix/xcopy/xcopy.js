@@ -10,13 +10,9 @@ const XFile = require('./xfile')
 
 
 /**
-
 This is a container of a collection of sub-tasks, organized in a tree.
 */
 class XCopy extends EventEmitter {
-
-  // if user is not provided, ctx is vfs, otherwise, it is fruitmix
-
   /**
   @param {object} user
   @param {object} props
@@ -102,6 +98,7 @@ class XCopy extends EventEmitter {
 
   destroy () {
     if (this.root) this.root.destroy()
+    this.root = null
   }
 
   // not implemented TODO
@@ -169,9 +166,6 @@ class XCopy extends EventEmitter {
     return { runningFile, conflictFile, runningDir, conflictDir }
   }
 
-  /** 
-  
-  */
   sched () {
     debug('sched')
 
@@ -196,7 +190,6 @@ class XCopy extends EventEmitter {
         runningDir += node.createSubDir(this.dirLimit - runningDir)
       }
 
-      // 判断是否需要继续visit
       if (runningFile >= this.fileLimit && runningDir >= this.dirLimit) return true
     } 
 
@@ -224,12 +217,8 @@ class XCopy extends EventEmitter {
     debug('req sched')
 
     if (this.stepping) {
-      if (this.scheduled) {
-        // debug('reqSched already triggered')
-        return
-      }
+      if (this.scheduled) return
 
-      // debug('reqSched triggered')
       this.scheduled = true
       process.nextTick(() => {
         this.scheduled = false
@@ -237,13 +226,8 @@ class XCopy extends EventEmitter {
           console.log('ERROR: reqSched called @ Stopped state in stepping mode')
         } else {
           let { runningFile, runningDir } = this.count()
-
-          // debug(`schedule, running file ${runningFile}, running dir ${runningDir}`)
-
           if (runningFile === 0 && runningDir === 0) {
-
             debug('step stopped')
-
             this.steppingState = 'Stopped'
             if (this.watchCallback) { 
               this.watchCallback(null, this.view())
@@ -342,15 +326,6 @@ class XCopy extends EventEmitter {
     return v
   }
 
-  // this method is used by copy, move and ecopy, but not icopy
-  readdir(srcDirUUID, callback) {
-    if (this.user) {
-      this.ctx.readdir(this.user, this.srcDriveUUID, srcDirUUID, callback)
-    } else {
-      this.ctx.readdir(this.srcDriveUUID, srcDirUUID, callback)
-    }
-  }
-
   updateNode (nodeUUID, props, callback) {
     if (!this.root) {
       let err = new Error('node not found') 
@@ -361,10 +336,7 @@ class XCopy extends EventEmitter {
     let { policy } = props
     let node
     this.root.visit(n => {
-      if (n.src.uuid === nodeUUID) {
-        node = n
-        return true
-      }
+      if (n.src.uuid === nodeUUID) node = n
     })
 
     // node not exist
@@ -388,9 +360,9 @@ class XCopy extends EventEmitter {
       return process.nextTick(() => callback(err))
     }
 
-    // 
-    if (Array.isArray(policy) && (policy[1] === 'keep' || (node.constructor.name == 'XFile' && policy[0] === 'keep'))) {
-      let err = new Error('file or diff policy can not be keep')
+    // keep can only be same for dir
+    if (policy[1] === 'keep' || (policy[0] === 'keep' && node.type === 'file')) {
+      let err = new Error('keep can only be used as same policy for dir')
       err.status = 400
       return process.nextTick(() => callback(err))
     }
@@ -403,25 +375,10 @@ class XCopy extends EventEmitter {
     node.updatePolicy(props.policy)
 
     if (props.applyToAll === true) {
-      let { dir, file } = this.policies
-
-      if (node.constructor.name === 'XFile') {
-        let old = [...file]
-        if (policy[0]) file[0] = policy[0]
-        if (policy[1]) file[1] = policy[1]
-        if (file[0] !== old[0] || file[1] !== old[1])
-          this.root.visit(n => {
-            if (n.src.uuid !== nodeUUID) n.policyUpdated(file)
-          })
-      } else {
-        let old = [...dir]
-        if (policy[0]) dir[0] = policy[0]
-        if (policy[1]) dir[1] = policy[1]
-        if (dir[0] !== old[0] || dir[1] !== old[1])
-          this.root.visit(n => {
-            if (n.src.uuid !== nodeUUID) n.policyUpdated(dir)
-          })
-      }
+      let name = node.type === 'file' ? 'file' : 'dir'
+      this.policies[name][0] = policy[0] || this.policies[name][0]
+      this.policies[name][1] = policy[1] || this.policies[name][1]
+      this.root.visit(n => n.type === node.type && n.updatePolicy())
     }
 
     process.nextTick(() => callback(null, this.view()))

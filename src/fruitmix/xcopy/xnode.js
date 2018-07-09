@@ -101,7 +101,7 @@ class XNode extends EventEmitter {
     if (this.children) { 
       for (let index in this.children) {
         let obj = this.children[index].find(f)
-        if(obj) return obj
+        if (obj) return obj
       }
     }
   }
@@ -142,6 +142,9 @@ class XNode extends EventEmitter {
     return arr.join('/')
   }
 
+  /**
+  dstNamePath is used for vfs/nfs operation
+  */
   dstNamePath () {
     let arr = []
     for (let n = this; n; n = n.parent) arr.unshift(n.dst.name)
@@ -150,13 +153,10 @@ class XNode extends EventEmitter {
   }
 
   /**
-  Update this node's policy and retry
+  update policy, policy may be undefined (global policy updated)
   */
-  update (props) {
-    let policy = props.policy 
-    this.policy[0] = policy[0] || this.policy[0]
-    this.policy[1] = policy[1] || this.policy[1]
-    this.retry()
+  updatePolicy (policy) {
+    this.state.updatePolicy(policy)
   }
 
   /**
@@ -174,16 +174,14 @@ class XNode extends EventEmitter {
   Returns view
   */
   view () {
-    let obj = {
+    return Object.assign({
       type: this.type,
       parent: this.parent && this.parent.src.uuid,
       src: Object.assign({}, this.src, { path: this.relpath() }),
       dst: this.dst,
       policy: this.policy,
       state: this.state.getState()
-    }
-
-    return Object.assign(obj, this.state.view())    
+    }, this.state.view())
   }
 }
 

@@ -44,7 +44,7 @@ class State {
     this.exit()
   }
 
-  policyUpdated () {
+  updatePolicy () {
   }
 
   view () {
@@ -60,7 +60,6 @@ class Working extends State {
     let dstDrive = task.dst.drive
     let uuid = this.ctx.src.uuid
     let name = this.ctx.src.name
-
     let pdir = this.ctx.parent
 
     if (type === 'copy' || type === 'move') {
@@ -255,7 +254,12 @@ class Conflict extends State {
     }
   }
 
-  policyUpdated () {
+  updatePolicy (policy) {
+    if (policy) {
+      let p = this.ctx.policy
+      p[0] = policy[0] || p[0]
+      p[1] = policy[1] || p[1]
+    }
     this.setState(Working)
   }
 }
@@ -292,16 +296,6 @@ class XFile extends XNode {
     ]
   }
 
-  updatePolicy (policy) {
-    if (this.state.constructor.name !== 'Conflict') return
-    this.policy[0] = policy[0] || this.policy[0]
-    this.policy[1] = policy[1] || this.policy[1]
-    this.state.policyUpdated()
-  }
-
-  policyUpdated (policy) {
-    this.state.policyUpdated()
-  }
 }
 
 module.exports = XFile

@@ -37,8 +37,8 @@ class State {
     this.exit()
   }
 
-  policyUpdated () {
-  }
+  updatePolicy () {
+  } 
 
   view () {
   }
@@ -82,7 +82,6 @@ class Mkdir extends State {
     let task = this.ctx.ctx
     let dir = this.ctx
     let pdir = dir.parent
-
     let { user, type, vfs, nfs } = task
     let srcDrive = task.src.drive
     let dstDrive = task.dst.drive
@@ -191,7 +190,12 @@ class Conflict extends State {
     }
   }
 
-  policyUpdated () {
+  updatePolicy (policy) {
+    if (policy) {
+      let p = this.ctx.policy
+      p[0] = policy[0] || p[0]
+      p[1] = policy[1] || p[1]
+    }
     this.setState(Mkdir)
   }
 }
@@ -490,7 +494,7 @@ class XDir extends XNode {
   */
   constructor (ctx, parent, src, dst, entries) {
     super(ctx, parent)
-    Object.defineProperty(this, 'type', { get () { return 'directory' } })
+    Object.defineProperty(this, 'type', { value: 'directory', writable: false })
     this.children = []
     this.src = src
 
@@ -525,18 +529,6 @@ class XDir extends XNode {
       this.ctx.policies.dir[0] || null,
       this.ctx.policies.dir[1] || null
     ]
-  }
-
-  updatePolicy (policy) {
-    debug(`${this.src.name} updatePolicy`, policy)
-    if (this.state.constructor.name !== 'Conflict') return
-    this.policy[0] = policy[0] || this.policy[0]
-    this.policy[1] = policy[1] || this.policy[1]
-    this.state.policyUpdated()
-  }
-
-  policyUpdated (policy) {
-    this.state.policyUpdated()
   }
 
   /**
