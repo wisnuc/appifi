@@ -109,8 +109,8 @@ class XNode extends EventEmitter {
   /**
   Returns current state name
   */
-  getState () {
-    return this.state.getState()
+  stateName () {
+    return this.state.constructor.name
   }
 
   /**
@@ -160,10 +160,11 @@ class XNode extends EventEmitter {
   }
 
   /**
-  Go to Working state if current state is Conflict or Failed. Otherwise, do nothing. 
+  Go to Working state 
+  if current state is Conflict or Failed. Otherwise, do nothing. 
   */
   retry () {
-    let s = this.getState()
+    let s = this.stateName()
     if (s === 'Conflict') {
       // FIXME 
       this.setState('Working')
@@ -180,7 +181,7 @@ class XNode extends EventEmitter {
       src: Object.assign({}, this.src, { path: this.relpath() }),
       dst: this.dst,
       policy: this.policy,
-      state: this.state.getState()
+      state: this.stateName()
     }, this.state.view())
   }
 }

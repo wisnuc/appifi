@@ -6,14 +6,11 @@ const debug = require('debug')('xfile')
 const XNode = require('./xnode')
 const FingerStream = require('../../lib/finger-stream')
 
-/**
-Base state class for file
-*/
 class State {
   constructor (ctx, ...args) {
     this.ctx = ctx
-    this.mode = this.ctx.mode
     this.enter(...args)
+
     let state = this.constructor.name
     debug(`${this.ctx.src.name} entered ${state}`)
     this.ctx.ctx.reqSched()
@@ -30,10 +27,6 @@ class State {
 
   enter () {}
   exit () {}
-
-  getState () {
-    return this.constructor.name
-  }
 
   setState (State, ...args) {
     this.exit()

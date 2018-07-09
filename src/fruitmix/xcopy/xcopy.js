@@ -119,10 +119,10 @@ class XCopy extends EventEmitter {
     let conflictDir = 0
 
     const F = node => {
-      if (node.constructor.name === 'XDir' && node.state.constructor.name === 'Parent') {
+      if (node.type === 'directory' && node.stateName() === 'Parent') {
         node.children.forEach(c => {
-          if (c.constructor.name === 'XFile') {
-            let state = c.state.constructor.name
+          if (c.type === 'file') {
+            let state = c.stateName()
             if (state === 'Working') {
               runningFile++
             } else if (state === 'Conflict') {
@@ -134,7 +134,7 @@ class XCopy extends EventEmitter {
               throw new Error('Unexpected xfile state')
             }
           } else {
-            let state = c.state.constructor.name
+            let state = c.stateName()
             if (state === 'Mkdir' || state === 'Preparing' || state === 'Finishing') {
               runningDir++
             } else if (state === 'Conflict') {
@@ -153,7 +153,7 @@ class XCopy extends EventEmitter {
     }
 
     if (this.root) {
-      let state = this.root.state.constructor.name
+      let state = this.root.stateName()
       if (state === 'Preparing') {
         runningDir++
       } else if (state === 'Parent') {
@@ -185,7 +185,7 @@ class XCopy extends EventEmitter {
     if (runningFile >= this.fileLimit && runningDir >= this.dirLimit) return
 
     const schedF = node => {
-      if (node.constructor.name === 'XDir' && node.state.constructor.name === 'Parent') {
+      if (node.type === 'directory' && node.stateName() === 'Parent') {
         runningFile += node.createSubFile(this.fileLimit - runningFile)
         runningDir += node.createSubDir(this.dirLimit - runningDir)
       }
@@ -347,7 +347,7 @@ class XCopy extends EventEmitter {
     }
 
     // node not conflicting
-    if (node.state.constructor.name !== 'Conflict') {
+    if (node.stateName() !== 'Conflict') {
       let err = new Error('invalid operation')
       err.status = 403
       return process.nextTick(() => callback(err))

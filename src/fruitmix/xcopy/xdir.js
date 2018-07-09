@@ -11,7 +11,6 @@ class State {
   constructor (ctx, ...args) {
     this.ctx = ctx
     this.ctx.state = this
-    this.destroyed = false
     this.enter(...args)
 
     let state = this.constructor.name
@@ -20,20 +19,23 @@ class State {
     this.ctx.emit('StateEntered', state)
   }
 
+  isDestroyed () {
+    return this.ctx.isDestroyed()
+  }
+
+  getPolicy () {
+    return this.ctx.getPolicy()
+  }
+
   enter () { }
   exit () { }
 
-  getState () {
-    return this.constructor.name
-  }
-
-  setState (NextState, ...args) {
+  setState (State, ...args) {
     this.exit()
-    new NextState(this.ctx, ...args)
+    this.ctx.state = new State(this.ctx, ...args)
   }
 
   destroy () {
-    this.destroyed = true
     this.exit()
   }
 
@@ -539,7 +541,7 @@ class XDir extends XNode {
   */
   createSubDir (required) {
     if (required === 0) return 0
-    if (this.state.constructor.name !== 'Parent') return 0
+    if (this.stateName() !== 'Parent') return 0
     if (!this.dstats || this.dstats.length === 0) return 0
 
     let arr = this.dstats.splice(0, required)
@@ -573,7 +575,7 @@ class XDir extends XNode {
   */
   createSubFile (required) {
     if (required === 0) return 0
-    if (this.state.constructor.name !== 'Parent') return 0
+    if (this.stateName() !== 'Parent') return 0
     if (!this.fstats || this.fstats.length === 0) return 0
 
     let arr = this.fstats.splice(0, required)
