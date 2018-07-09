@@ -367,21 +367,21 @@ class XCopy extends EventEmitter {
       }
     })
 
-    // 节点不存在
+    // node not exist
     if (!node) {
       let err = new Error('node not found')
       err.status = 404
       return process.nextTick(() => callback(err))
     }
 
-    // 节点不处于冲突状态
+    // node not conflicting
     if (node.state.constructor.name !== 'Conflict') {
       let err = new Error('invalid operation')
       err.status = 403
       return process.nextTick(() => callback(err))
     }
 
-    // policy 不为数组
+    // policy not array
     if (!policy || !Array.isArray(policy)) {
       let err = new Error('policy should be array')
       err.status = 400
@@ -389,10 +389,7 @@ class XCopy extends EventEmitter {
     }
 
     // 
-    if (Array.isArray(policy) 
-      && (policy[1] === 'keep' 
-        || (node.constructor.name == 'XFile' && policy[0] === 'keep')
-      ) ) {
+    if (Array.isArray(policy) && (policy[1] === 'keep' || (node.constructor.name == 'XFile' && policy[0] === 'keep'))) {
       let err = new Error('file or diff policy can not be keep')
       err.status = 400
       return process.nextTick(() => callback(err))
