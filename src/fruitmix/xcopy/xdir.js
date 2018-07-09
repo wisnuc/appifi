@@ -1,5 +1,5 @@
-const rimraf = require('rimraf')
-const fs = require('fs')
+// const rimraf = require('rimraf')
+// const fs = require('fs')
 
 const UUID = require('uuid')
 const debug = require('debug')('xdir')
@@ -10,7 +10,6 @@ const XFile = require('./xfile')
 class State {
   constructor (ctx, ...args) {
     this.ctx = ctx
-    this.ctx.state = this
     this.enter(...args)
 
     let state = this.constructor.name
@@ -45,14 +44,11 @@ class State {
   view () {
   }
 
-  //
   tryFinish () {
     debug(`${this.ctx.src.name} tryFinish`)
-
     let task = this.ctx.ctx
     let dir = this.ctx
-
-    let { user, type, vfs, nfs } = task
+    let { type } = task
     let srcDrive = task.src.drive
     let dstDrive = task.dst.drive
 
@@ -131,9 +127,9 @@ class Mkdir extends State {
     }
 
     f(user, props, (err, map) => {
-      // TODO destroy
+      if (this.isDestroyed()) return
       if (err) {
-        callback(err)
+        this.setState(Failed, err)
       } else {
         let { err, stat, resolved } = map.get(name)
         if (err) {
@@ -217,7 +213,6 @@ class Preparing extends State {
 
     let { user, type, vfs, nfs, entries } = task
     let srcDrive = task.src.drive
-    let dstDrive = task.dst.drive
     let props, fs
 
     if (type === 'copy' ||
@@ -231,8 +226,8 @@ class Preparing extends State {
       props = { id: srcDrive, path: dir.namepath() }
       fs = nfs
     } else {
-      let err = new Error(`unsupported type ${type}`)
-      return process.nextTick(() => callback(err))
+      let err = new Error(`invalid task type ${type}`)
+      return this.setState(Failed, err)
     }
 
     fs.READDIR(user, props, (err, stats) => {
@@ -437,15 +432,14 @@ class Finishing extends State {
     let dir = this.ctx
     let { user, type, vfs, nfs } = task
     let srcDrive = task.src.drive
-    let dstDrive = task.dst.drive
     if (type === 'move' || type === 'emove') { // src is in vfs
       let props = {
         driveUUID: srcDrive,
         dirUUID: dir.src.uuid,
         name: dir.src.name // for display only
       }
-
       vfs.RMDIR(user, props, err => {
+        if (this.isDestroyed()) return
         if (err) {
           this.setState(Failed, err)
         } else {
@@ -455,6 +449,7 @@ class Finishing extends State {
     } else { // src is in nfs
       let props = { drive: srcDrive, dir: dir.namepath() }
       nfs.RMDIR(user, props, err => {
+        if (this.isDestroyed()) return
         if (err) {
           this.setState(Failed, err)
         } else {
@@ -492,10 +487,10 @@ class XDir extends XNode {
     if (dst instanceof Error) {
       let err = dst
       let policy = entries
-      new Conflict(this, err, policy)
+      this.state = new Conflict(this, err, policy)
     } else {
       this.dst = dst
-      new Preparing(this, entries)
+      this.state = new Preparing(this, entries)
     }
   }
 

@@ -212,7 +212,7 @@ class Working extends State {
         })
       }
     } else {
-      let err = new Error('invalid task type')
+      let err = new Error(`invalid task type ${type}`)
       this.setState(Failed, err)
     }
   }

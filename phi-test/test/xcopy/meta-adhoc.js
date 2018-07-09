@@ -1,4 +1,5 @@
 const Promise = require('bluebird')
+
 const path = require('path')
 const fs = Promise.promisifyAll(require('fs'))
 const mkdirp = require('mkdirp')
@@ -123,6 +124,7 @@ describe(path.basename(__filename), () => {
       }
     */
   const prepareTreeAsync = async _t => {
+  try {
     let t = clone(_t)
     if (t.drive === 'home') {
       t.drive = user.home.uuid
@@ -147,6 +149,10 @@ describe(path.basename(__filename), () => {
 
     if (t.children.length) await user.mktreeAsync(t)
     return t
+  } catch (e) {
+    console.log('error in prepareTreeAsync', e)
+    throw e
+  }
   }
 
   /**
@@ -237,7 +243,13 @@ describe(path.basename(__filename), () => {
             children: [
               {
                 type: 'directory',
-                name: 'dir002'
+                name: 'dir002',
+                children: [
+                  {
+                    type: 'directory',
+                    name: 'dir003'
+                  }
+                ]
               },
               {
                 type: 'file',
@@ -267,7 +279,13 @@ describe(path.basename(__filename), () => {
             children: [
               {
                 type: 'directory',
-                name: 'dir002'
+                name: 'dir002',
+                children: [
+                  {
+                    type: 'directory',
+                    name: 'dir003'
+                  }
+                ]
               },
               {
                 type: 'file',
@@ -287,7 +305,7 @@ describe(path.basename(__filename), () => {
           }
         ]
       },
-      policies: { dir: ['keep', null], file: [null, null] }
+      policies: { dir: [null, null], file: [null, null] }
     },
 /**
     {
@@ -382,8 +400,21 @@ describe(path.basename(__filename), () => {
         let dstPathStr = `${ctx.dst.drive}:/${ctx.dst.dir.join('/')}`
         it(`${padNum(number++)} ${ctx.type} from ${srcPathStr} to ${dstPathStr} `, async function () {
           this.timeout(10000)
-          let src = await prepareTreeAsync(Object.assign({}, ctx.src, { children: metaArg.st.children }))
-          let dst = await prepareTreeAsync(Object.assign({}, ctx.dst, { children: metaArg.dt.children }))
+          let src, dst
+          try {
+            src = await prepareTreeAsync(Object.assign({}, ctx.src, { children: metaArg.st.children }))
+          } catch (e) {
+            console.log('error when preparing src tree')
+            throw e
+          }
+
+          try {
+            dst = await prepareTreeAsync(Object.assign({}, ctx.dst, { children: metaArg.dt.children }))
+          } catch (e) {
+            console.log('error when preparing dst tree')
+            throw e
+          }
+
           let stages = [..._stages]
           let task = await user.createTaskAsync({
             type: ctx.type,
