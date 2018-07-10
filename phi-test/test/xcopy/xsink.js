@@ -159,6 +159,8 @@ describe(path.basename(__filename), () => {
           })
       }) 
 
+      console.log(task)
+
       await Promise.delay(2000)
 
       let task2 = await new Promise((resolve, reject) => {
@@ -441,7 +443,6 @@ describe(path.basename(__filename), () => {
               dir: x.namepath.join('/'),
               name,
             }
-            console.log(entry)
             return entry
           }),
          

@@ -44,6 +44,7 @@ class XCopy extends EventEmitter {
     this.type = type
     this.user = user
     this.uuid = UUID.v4()
+    this.autoClean = props.autoClean
 
     this.src = src
     this.dst = dst

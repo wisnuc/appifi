@@ -118,6 +118,13 @@ class Task {
       task = new XCopy(this.vfs, this.nfs, user, Object.assign({}, props, { policies }))
     }
 
+    if (task.autoClean) {
+      task.on('finish', () => {
+        let index = this.tasks.indexOf(task)
+        if (index !== -1) this.tasks.splice(index, 1)
+      })
+    }
+
     this.tasks.push(task)
     callback(null, task.view())
   }  

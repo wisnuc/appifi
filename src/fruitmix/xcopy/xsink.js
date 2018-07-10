@@ -92,11 +92,13 @@ class XSink extends EventEmitter {
     super()
     if (!vfs) throw new Error('vfs is not provided')
     if (!nfs) throw new Error('nfs is not provided')
-    this.uuid = UUID.v4()
     this.vfs = vfs
     this.nfs = nfs
     this.user = user
     this.type = props.type
+    this.uuid = UUID.v4()
+    this.autoClean = props.autoClean
+
     this.entries = props.entries
     this.dst = props.dst
     this.task = null
@@ -134,13 +136,22 @@ class XSink extends EventEmitter {
   }
 
   view () {
+    let current = null
+
+    if (this.task) {
+      current = Object.assign({}, this.task.view())
+      delete current.uuid
+      delete current.type
+      delete current.dst
+    }
+
     return { 
       uuid: this.uuid,
       batch: true,
       type: this.type,
       entries: this.entries,
       dst: this.dst,
-      current: this.task ? this.task.view() : null,
+      current,
       allFinished: this.allFinished
     }
   }
