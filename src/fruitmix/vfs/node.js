@@ -10,9 +10,7 @@ class Node {
   @param {Forest} ctx - Forest singleton
   */
   constructor(ctx, parent) {
-    if (!ctx) {
-      throw new Error('node constructor: no ctx!')
-    }
+    if (!ctx) throw new Error('node constructor: no ctx!')
 
     this.ctx = ctx
     this.parent = null

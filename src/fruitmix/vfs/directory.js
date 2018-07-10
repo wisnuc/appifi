@@ -197,7 +197,7 @@ class Reading extends Base {
     // total
     this.dir.dirCount = xstats.filter(x => x.type === 'directory').length
     this.dir.fileCount = xstats.filter(x => x.type === 'file').length
-    this.dir.fileSzie = xstats.filter(x => x.type === 'file').reduce((acc, f) => acc + f.size, 0)
+    this.dir.fileSize = xstats.filter(x => x.type === 'file').reduce((acc, f) => acc + f.size, 0)
 
     // keep all file names
     this.dir.unindexedFiles = xstats
