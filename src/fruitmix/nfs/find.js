@@ -1,7 +1,7 @@
 const path = require('path')
 const fs = require('fs')
 
-const compare = (a, b) => a.localeCompare(a.name, b.name)
+const compare = (a, b) => a.name.localeCompare(b.name)
 
 /**
 This is an asynchronous recursive function

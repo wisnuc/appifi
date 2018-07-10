@@ -227,7 +227,7 @@ class Preparing extends State {
     fs.READDIR(user, props, (err, stats) => {
       if (this.isDestroyed()) return
       if (err) {
-        this.setState(Failed)
+        this.setState(Failed, err)
       } else {
         let fstats = []
         let dstats = []
@@ -383,7 +383,7 @@ class Parent extends State {
 
 class Failed extends State {
   enter (err) {
-    if (process.env.LOGE) console.log('xdir failed', err)
+    if (process.env.LOGE) console.log('xdir failed', err.message)
     this.error = err
   }
 }
