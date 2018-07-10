@@ -150,9 +150,8 @@ class Mkdir extends State {
             }
           } else {
             // 3. successful copy generates child dir job, unless skipped resovled
-            if ((_policy[0] === 'skip' && resolved[0] === true) ||
-              (_policy[1] === 'skip' && resolved[1] === true)) {
-              this.tryFinish()
+            if ((_policy[0] === 'skip' && resolved[0] === true) || (_policy[1] === 'skip' && resolved[1] === true)) {
+              this.setState(Finish)
             } else {
               // console.log(policy, _policy)
               // console.log(err, map)

@@ -5,6 +5,8 @@ const debug = require('debug')('xcopy')
 
 const XDir = require('./xdir')
 
+const verbose = !!process.env.VERBOSE
+
 /**
 This is a container of a collection of sub-tasks, organized in a tree.
 */
@@ -37,7 +39,7 @@ class XCopy extends EventEmitter {
     // stepping mode specific
     this.steppingState = 'Stopped' // or 'Stepping'
 
-    // backward compatible for a few weeks TODO
+    // backward compatible for a few weeks
     if (type === 'import') type = 'icopy'
     if (type === 'export') type = 'ecopy'
 
@@ -151,16 +153,17 @@ class XCopy extends EventEmitter {
         throw new Error(`root is in ${state} state, expected Preparing or Parent`)
       }
     }
-    debug({ runningFile, conflictFile, runningDir, conflictDir })
+    
+    if (verbose) debug({ runningFile, conflictFile, runningDir, conflictDir })
     return { runningFile, conflictFile, runningDir, conflictDir }
   }
 
   sched () {
-    debug('sched')
+    if (verbose) debug('sched')
 
     if (!this.root) {
       if (this.watchCallback) {
-        debug('watch returns after finished')
+        debug('<< watch callback returns after finished')
         this.watchCallback(null, this.view())
         this.watchCallback = null
       }
@@ -187,7 +190,7 @@ class XCopy extends EventEmitter {
     if (this.watchCallback) {
       let { runningFile, runningDir } = this.count()
       if (runningFile === 0 && runningDir === 0) {
-        debug('watch callback returns')
+        debug('<< watch callback returns')
         this.watchCallback(null, this.view())
         this.watchCallback = null
       }
@@ -199,7 +202,7 @@ class XCopy extends EventEmitter {
   // any watch callback should be returned if transition occurred
   // in non-stepping mode, this function schedule sched
   reqSched () {
-    debug('req sched')
+    if (verbose) debug('req sched')
 
     if (this.stepping) {
       if (this.scheduled) return
@@ -249,7 +252,7 @@ class XCopy extends EventEmitter {
   // if stopped, return task view
   // otherwise, return task view until stopped (step end)
   watch (callback) {
-    debug('watch')
+    debug('>> watch')
     // if (!this.stepping) return process.nextTick(() => callback(null))
     if (this.watchCallback) return process.nextTick(() => callback(null))
 
@@ -343,6 +346,8 @@ class XCopy extends EventEmitter {
     if (this.stepping && this.steppingState === 'Stopped') {
       this.steppingState = 'Stepping'
     }
+
+    debug(`update ${node.src.name} with`, policy)
 
     node.updatePolicy(props.policy)
 
