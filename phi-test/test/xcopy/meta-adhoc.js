@@ -1,12 +1,14 @@
 const Promise = require('bluebird')
-
 const path = require('path')
 const fs = Promise.promisifyAll(require('fs'))
+
+const UUID = require('uuid')
 const mkdirp = require('mkdirp')
 const mkdirpAsync = Promise.promisify(mkdirp)
 const rimraf = require('rimraf')
 const rimrafAsync = Promise.promisify(rimraf)
 
+const sinon = require('sinon')
 const chai = require('chai').use(require('chai-as-promised'))
 const expect = chai.expect
 
@@ -405,6 +407,9 @@ describe(path.basename(__filename), () => {
             src = await prepareTreeAsync(Object.assign({}, ctx.src, { children: metaArg.st.children }))
           } catch (e) {
             console.log('error when preparing src tree')
+
+            await Promise.delay(1000)
+
             throw e
           }
 
@@ -443,14 +448,7 @@ describe(path.basename(__filename), () => {
 
               let c0 = getConflicts(stage.st)[0]
               expect(c0).to.be.an('object')
-
-              // console.log('====== >>>>>>')
-              // console.log('stage.st', JSON.stringify(stage.st, null, '    '))
-              // console.log('view', JSON.stringify(view, null, '    '))
-              // console.log(view.nodes)
-
               expect(c0.path.slice(1)).to.equal(view.nodes[0].src.path)
-              // console.log('====== <<<<<<')
 
               let { policy, applyToAll } = stages[0].resolution
               let arg  = { policy, applyToAll }

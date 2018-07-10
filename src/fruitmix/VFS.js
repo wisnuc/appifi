@@ -248,7 +248,8 @@ class VFS extends EventEmitter {
     if (dir) {
       dir.read(callback)
     } else {
-      process.nextTick(() => callback(new Error('dir not found')))
+      let err = new Error('dir not found')
+      process.nextTick(() => callback(new Error(err)))
     }
   }
 
@@ -404,6 +405,9 @@ class VFS extends EventEmitter {
       if (!props.policy) props.policy = [null, null]
  
       let target = path.join(this.absolutePath(dir), props.name)
+      /**
+      FIXME: This function is problematic. readXattr may race!
+      */
       mkdir(target, props.policy, (err, xstat, resolved) => {
         if (err) return callback(err)
 

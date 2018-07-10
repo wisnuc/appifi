@@ -79,7 +79,6 @@ class DirEntryApi {
 
     this.vfs.DIR(user, dirProps, err => {
       if (err) return callback(err)
-
       let opts = { boundary, length, formdata }
       let form = new IncomingForm(opts, this.bindApis(user, dirProps)) 
       form.once('finish', () => {
@@ -92,7 +91,7 @@ class DirEntryApi {
           : null
 
         debug('form finished', err, form.result)
-        this.vfs.tryDirRead (dirUUID, () => callback(form.error, form.result))
+        this.vfs.tryDirRead(dirUUID, () => callback(form.error, form.result))
       })
     }) 
   }
