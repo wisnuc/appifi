@@ -154,7 +154,7 @@ const mountNonVolumesAsync = async (nonVolumeDir, blocks, mounts) => {
     if ((blk.props.devtype === 'disk' && !blk.props.id_part_table_type) ||
       blk.props.devtype === 'partition') {
       if (blk.props.id_fs_usage === 'filesystem' &&
-        ['ext4', 'ntfs', 'vfat'].indexOf(blk.props.id_fs_type) !== -1 &&
+        ['ext2', 'ext3', 'ext4', 'ntfs', 'vfat', 'exfat'].indexOf(blk.props.id_fs_type) !== -1 &&
         !mounts.find(mnt => mnt.device === blk.props.devname)) {
         return true
       }
@@ -165,7 +165,12 @@ const mountNonVolumesAsync = async (nonVolumeDir, blocks, mounts) => {
 
   return Promise.all(unmounted.map(async (blk) => {
     try {
-      if (blk.props.id_bus === 'usb') {
+      // detect usb drive connected by usb-sata bridge
+      let ss = blk.sysfsProps.map(x => x.subsystems)
+        .filter(x => !!x)
+        .reverse()
+
+      if (blk.props.id_bus === 'usb' || ss.includes('usb')) {
         await child.execAsync(`udisksctl mount --block-device ${blk.props.devname} --no-user-interaction`)
       } else {
         const dir = `${nonVolumeDir}/${blk.name}`
@@ -297,9 +302,20 @@ Annotate bus information for all block devices
 */
 const statBlocksBus = blocks =>
   blocks.forEach((blk) => {
+    let subsystems = blk.sysfsProps
+      .map(x => x.subsystems)
+      .filter(x => !!x)
+      .filter((x, i, arr) => {
+        if (i === 0) return true
+        if (x === arr[i - 1]) return false
+        return true
+      })
+      .reverse()
+
+    blk.stats.subsystemPath = subsystems
     blk.stats.idBus = blk.props.id_bus
 
-    if (blk.props.id_bus === 'usb') {
+    if (blk.props.id_bus === 'usb' || subsystems.includes('usb')) {
       blk.stats.isUSB = true
     } else if (blk.props.id_bus === 'ata') {
       blk.stats.isATA = true
