@@ -11,17 +11,6 @@ const readdir = require('./readdir')
 const Debug = require('debug')
 const debug = process.env.hasOwnProperty('DEBUG') ? Debug('directory') : () => {}
 
-/**
-Directory has four states:
-
-+ Idle
-+ Init (with or without a timer)
-+ Pending
-+ Reading
-
-@module Directory
-*/
-
 class Base {
   constructor (dir, ...args) {
     this.dir = dir
@@ -61,7 +50,6 @@ class Base {
   }
 }
 
-// Do nothing, just for log
 class Idle extends Base {
   enter () {
     this.dir.ctx.dirEnterIdle(this.dir)
@@ -72,7 +60,6 @@ class Idle extends Base {
   }
 }
 
-// init may be idle or pending
 class Init extends Base {
   enter () {
     this.dir.ctx.dirEnterInit(this.dir)
@@ -92,7 +79,6 @@ class Init extends Base {
   }
 }
 
-//
 class Pending extends Base {
   enter (delay) {
     assert(Number.isInteger(delay) && delay > 0)
@@ -137,6 +123,7 @@ class Reading extends Base {
     let _mtime = this.callbacks.length === 0 ? this.dir.mtime : null
 
     debug('readdir', dirPath, uuid, _mtime)
+
     this.readdir = readdir(dirPath, uuid, _mtime, (err, xstats, mtime, transient) => {
       // change to debug
       debug('readdir done', err || (xstats ? xstats.length : xstats), mtime, transient)
@@ -168,10 +155,7 @@ class Reading extends Base {
           this.dir.mtime = mtime
         }
 
-        if (transient) {
-          // console.log('readdir: transient state detected')
-          this.readn(1000)
-        }
+        if (transient) this.readn(1000)
       }
 
       this.callbacks.forEach(callback => callback(err, xstats))
@@ -428,7 +412,7 @@ class Directory extends Node {
     }
   }
 
-  // this function is used by external components
+  // this function is used by external components TODO who?
   // that operates on underlying file system
   // it should be called right after a readXstat is performed
   // this function returns Directory object
@@ -544,6 +528,28 @@ class Directory extends Node {
         }
       }
     }
+  }
+
+  /**
+  recursively stats directory
+  */
+  stats () {
+    let dirCount = this.dirCount
+    let fileCount = this.fileCount
+    let fileTotalSize = this.fileSize
+
+    if (this.children) {
+      this.children.forEach(x => {
+        if (x instanceof Directory) {
+          let stats = x.stats()
+          dirCount += stats.dirCount
+          fileCount += stats.fileCount
+          fileTotalSize += stats.fileTotalSize
+        } 
+      })
+    } 
+
+    return { dirCount, fileCount, fileTotalSize }
   }
 }
 
