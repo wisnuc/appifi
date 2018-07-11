@@ -430,10 +430,6 @@ class Directory extends Node {
     }
   }
 
-  updateFileChild (xstat) {
-    /// TODO
-  }
-
   /**
   */
   iterate (itor, F) {
