@@ -194,6 +194,8 @@ const readXattr = (target, stats, callback) => {
   })
 }
 
+const readXattrAsync = Promise.promisify(readXattr)
+
 /**
 Update target xattr. If target is a file and attr has no magic, create it.
 
@@ -232,6 +234,8 @@ const updateXattr = (target, attr, isFile, callback) => {
       : callback(null, attr))
   }
 }
+
+const updateXattrAsync = Promise.promisify(updateXattr)
 
 /**
 Create a xstat object from fs.Stats and attr
@@ -273,11 +277,19 @@ const createXstat = (target, stats, attr) => {
 }
 
 /**
+This is not the best solution for readXstat race. TODO
+However, the best solution requires all fs operations avoid putting attr-less object
+into underlying vfs. A spinlock is a must simpler solution.
+spinlock
+*/
+const lockset = new Set()
+
+/**
 Read xstat of target file
 
 @param {string} target - directory or file path
 */
-const readXstat = (target, callback) =>
+const readXstat1 = (target, callback) =>
   fs.lstat(target, (err, stats) => {
     if (err) {
       callback(err)
@@ -301,6 +313,30 @@ const readXstat = (target, callback) =>
       })
     }
   })
+
+const readXstatAsync = async target => {
+  let stats = await fs.lstatAsync(target)
+  if (!stats.isDirectory() && !stats.isFile()) throw EUnsupported(stats)
+
+  while (lockset.has(target)) await Promise.delay(0)
+  lockset.add(target)
+  try {
+    let attr = await readXattrAsync(target, stats) 
+    if (attr.hasOwnProperty('dirty')) {
+      attr = await updateXattrAsync(target, attr, stats.isFile()) 
+    }
+    return createXstat(target, stats, attr)
+  } finally {
+    lockset.delete(target)
+  } 
+}
+
+const readXstat2 = (target, callback) => 
+  readXstatAsync(target)
+    .then(xstat => callback(null, xstat)) 
+    .catch(err => callback(err))
+
+const readXstat = readXstat2
 
 /**
 Set xattr forcefully
