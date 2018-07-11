@@ -117,13 +117,12 @@ const mountVolumesAsync = async (volumeDir, volumes, mounts) => {
 
   return Promise.all(unmounted.map(async vol => {
     try {
-//      const mountpoint = `/run/wisnuc/volumes/${vol.uuid}`
       const mountpoint = path.join(volumeDir, vol.uuid)
       await mkdirpAsync(mountpoint)
 
       const cmd = vol.missing
         ? `mount -t btrfs -o degraded,ro UUID=${vol.uuid} ${mountpoint}`
-        : `mount -t btrfs UUID=${vol.uuid} ${mountpoint}`
+        : `mount -t btrfs -o autodefrag UUID=${vol.uuid} ${mountpoint}`
 
       await child.execAsync(cmd)
     } catch (e) {
