@@ -20,6 +20,7 @@ const NFS = require('./NFS')
 const Tag = require('../tags/Tag')
 const DirApi = require('./apis/dir')
 const DirEntryApi = require('./apis/dir-entry')
+const DirStatsApi = require('./apis/dir-stats')
 const FileApi = require('./apis/file')
 const MediaApi = require('./apis/media')
 const StatsApi = require('./apis/stats')
@@ -152,6 +153,7 @@ class Fruitmix extends EventEmitter {
     // dir & dirEntry api
     this.dirApi = new DirApi(this.vfs)
     this.dirEntryApi = new DirEntryApi(this.vfs)
+    this.dirStatsApi = new DirStatsApi(this.vfs)
 
     // file api
     this.fileApi = new FileApi(this.vfs)
@@ -168,6 +170,7 @@ class Fruitmix extends EventEmitter {
       tag: this.tag,
       dir: this.dirApi,
       dirEntry: this.dirEntryApi,
+      dirStats: this.dirStatsApi,
       file: this.fileApi,
       media: this.mediaApi,
       stats: this.statsApi,

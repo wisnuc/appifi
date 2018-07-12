@@ -253,7 +253,6 @@ const shake = t => {
 @param {object} arg.st
 @param {object} arg.dt
 @param {object} arg.policies
-@param {(string|null)[]}
 */
 const generate = arg => {
   let finished = []

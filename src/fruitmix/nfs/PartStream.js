@@ -1,6 +1,7 @@
 const path = require('path')
 const fs = require('fs')
 const stream = require('stream')
+const rimraf = require('rimraf')
 const mkdirp = require('mkdirp')
 const sanitize = require('sanitize-filename')
 
@@ -74,12 +75,14 @@ class PartStream extends stream.Writable {
     if (x.length === 2) {
       if (name !== 'directory' && name !== 'prelude') throw new Error('invalid name')
     } else {
-      if (name !== 'file') throw new Error('invalid name')
-      if (x[2].length <= 'filename=""'.length) throw new Error('invalid filename field')
-      if (!x[2].startsWith('filename="') || !x[2].endsWith('"')) throw new Error('invalid filename field')
-
-      filename = x[2].slice(10, -1)
-      if (sanitize(filename) !== filename) throw new Error('invalid filename')
+      if (name === 'file' || name === 'remove') {
+        if (x[2].length <= 'filename=""'.length) throw new Error('invalid filename field')
+        if (!x[2].startsWith('filename="') || !x[2].endsWith('"')) throw new Error('invalid filename field')
+        filename = x[2].slice(10, -1)
+        if (sanitize(filename) !== filename) throw new Error('invalid filename')
+      } else {
+        throw new Error('invalid name')      
+      }
     }
     return { name, filename }
   }
@@ -171,6 +174,9 @@ class PartStream extends stream.Writable {
         }
       } else if (name === 'file') {
         ws.end()
+      } else if (name === 'remove') {
+        let target = path.join(this.dirPath, filename) 
+        rimraf(target, err => err ? handleError(err) : callback())
       } else {
         handleError(new Error(`internal error, part on end, unexpected name: ${name}`))
       }
@@ -190,9 +196,11 @@ class PartStream extends stream.Writable {
           buffers = []
           part.on('data', handlePartData)
           part.on('end', handlePartEnd)
+        } else if (name === 'remove') {
+          part.on('data', () => {}) 
+          part.on('end', handlePartEnd) 
         } else {
           let filePath = path.join(this.dirPath, filename)
-
           fs.lstat(filePath, (err, stats) => {
             if (err) {
               if (err.code !== 'ENOENT') return handleError(err)

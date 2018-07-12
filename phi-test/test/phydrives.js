@@ -580,11 +580,6 @@ describe(path.basename(__filename), () => {
           .field('directory', 'hello')
           .expect(200)
           .end((err, res) => {
-
-            console.log('======')
-            console.log(res.body)
-            console.log('======')
-
             if (err) return done(err)
             let dirPath = path.join(tmptest, 'sdde', 'hello')
             expect(fs.lstatSync(dirPath).isDirectory()).to.be.true
@@ -1041,6 +1036,37 @@ describe(path.basename(__filename), () => {
     })
   })
 
+  describe('remove (path via qs) edadbf94', () => {
+    it(`200 new dir hello on / and remove`, done => {
+      request(app.express)
+        .post(`/phy-drives/${UUIDDE}`)
+        .set('Authorization', 'JWT ' + token)
+        .query({ path: '' })
+        .field('directory', 'hello')
+        .expect(200)
+        .end((err, res) => {
+          if (err) return done(err)
+          let dirPath = path.join(tmptest, 'sdde', 'hello')
+          expect(fs.lstatSync(dirPath).isDirectory()).to.be.true
+
+          request(app.express)
+            .post(`/phy-drives/${UUIDDE}`)
+            .set('Authorization', 'JWT ' + token)
+            .query({ path: '' })
+            .attach('remove', Buffer.alloc(0), 'hello')
+            .expect(200)
+            .end((err, res) => {
+              if (err) return done(err)
+              let dirPath = path.join(tmptest, 'sdde')
+              expect(fs.readdirSync(dirPath)).to.deep.equal([])
+              done()
+            })
+
+
+        })
+    })
+  })
+
   describe('rename', () => {
     invalidIds.forEach(iid => {
       it(`404 if id is ${iid}`, done => {
@@ -1223,4 +1249,5 @@ describe(path.basename(__filename), () => {
         })
     })
   })
+
 })

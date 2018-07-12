@@ -34,6 +34,7 @@ module.exports = {
       ['/:driveUUID', 'DELETE', 'drive'],
       ['/:driveUUID/dirs/:dirUUID', 'GET', 'dir'],
       ['/:driveUUID/dirs/:dirUUID', 'PATCH', 'dir'],
+      ['/:driveUUID/dirs/:dirUUID/stats', 'GET', 'dirStats'],
       ['/:driveUUID/dirs/:dirUUID/entries', 'POSTFORM', 'dirEntry'],
       ['/:driveUUID/dirs/:dirUUID/entries/:fileUUID', 'GET', 'dirEntry']
     ]

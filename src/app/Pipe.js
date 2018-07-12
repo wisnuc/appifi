@@ -259,7 +259,6 @@ class Pipe extends EventEmitter {
    * local apis
    * @param {object} opts
    * @param {function} callback
-   * @returns
    * @memberof Pipe
    */
   apis (message, opts) {

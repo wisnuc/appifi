@@ -751,6 +751,9 @@ class VFS extends EventEmitter {
     })
   }
 
+  DIRSTATS (user, props, callback) {
+    this.DIR(user, props, (err, dir) => err ? callback(err) : callback(null, dir.stats()))
+  }
 
   DIRENTRY_GET (user, props, callback) {
     this.DIR(user, props, (err, dir) => {
