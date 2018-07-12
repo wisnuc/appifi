@@ -153,7 +153,7 @@ const mountNonVolumesAsync = async (nonVolumeDir, blocks, mounts) => {
     if ((blk.props.devtype === 'disk' && !blk.props.id_part_table_type) ||
       blk.props.devtype === 'partition') {
       if (blk.props.id_fs_usage === 'filesystem' &&
-        ['ext2', 'ext3', 'ext4', 'ntfs', 'vfat', 'exfat'].indexOf(blk.props.id_fs_type) !== -1 &&
+        ['ext2', 'ext3', 'ext4', 'ntfs', 'vfat', 'exfat', 'hfsplus'].indexOf(blk.props.id_fs_type) !== -1 &&
         !mounts.find(mnt => mnt.device === blk.props.devname)) {
         return true
       }
