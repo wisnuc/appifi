@@ -196,6 +196,7 @@ class Pipe extends EventEmitter {
         switch (paths.length) {
           case 2:
             if (verb.toUpperCase() === 'GET') return this.reqCommand(message, null, this.ctx.device.view())
+            break
           case 3:
             if (paths[2] === 'cpuInfo' && verb.toUpperCase() === 'GET') {
               return this.ctx.device.cpuInfo((err, data) => this.reqCommand(message, err, data))
@@ -203,7 +204,7 @@ class Pipe extends EventEmitter {
               return this.ctx.device.memInfo((err, data) => this.reqCommand(message, err, data))
             } else if (paths[2] === 'net') {
               if (verb.toUpperCase() === 'GET') return this.ctx.device.interfaces((err, its) => this.reqCommand(message, err, its))
-            }  else if (paths[2] === 'speed' && verb.toUpperCase() === 'GET') {
+            } else if (paths[2] === 'speed' && verb.toUpperCase() === 'GET') {
               return this.reqCommand(message, null, this.ctx.device.netDev())
             } else if (paths[2] === 'timedate' && verb.toUpperCase() === 'GET') {
               return this.ctx.device.timedate((err, data) => this.reqCommand(message, err, data))
@@ -345,18 +346,17 @@ class Pipe extends EventEmitter {
    * @memberof Pipe
    */
   postResource (message, absolutePath) {
-    var formData = {
-      // Pass a simple key-value pair
-      file: fs.createReadStream(absolutePath)
-    }
     request.post({
       url: `${BASE_URL}${message.packageParams.waitingServer}/resource`,
-      headers: { Authorization: this.ctx.config.cloudToken },
+      headers: {
+        Authorization: this.ctx.config.cloudToken,
+        'content-type': 'application/octet-stream'
+      },
       qs: {
         deviceSN: this.ctx.config.device.deviceSN,
         msgId: message.msgId
       },
-      formData: formData
+      body: fs.createReadStream(absolutePath)
     }, (error, response, body) => {
       if (!error && response.statusCode === 200) {
         debug(`postResource body: ${body}`)
