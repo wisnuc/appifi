@@ -339,6 +339,7 @@ const statBlocksMountSwap = (blocks, volumes, mounts, swaps) =>
       const volume = blockVolume(blk, volumes)
       if (volume && volume.stats.isMounted) {
         blk.stats.isMounted = true
+        blk.stats.isMountedRO = volume.stats.isMountedRO
         blk.stats.mountpoint = volume.stats.mountpoint
         if (volume.stats.isRootFS) { blk.stats.isRootFS = true }
       }
@@ -348,6 +349,7 @@ const statBlocksMountSwap = (blocks, volumes, mounts, swaps) =>
       const mount = mounts.find(mnt => mnt.device === blk.props.devname)
       if (mount) {
         blk.stats.isMounted = true
+        blk.stats.isMountedRO = mount.opts.includes('ro')
         blk.stats.mountpoint = mount.mountpoint
         if (mount.mountpoint === '/') { blk.stats.isRootFS = true }
       } else if (typeof blk.mountError === 'string') {
@@ -441,6 +443,7 @@ const statVolumes = storage => {
     const mount = volumeMount(vol, mounts)
     if (mount) {
       vol.stats.isMounted = true
+      vol.stats.isMountedRO = mount.opts.includes('ro')
       vol.stats.mountpoint = mount.mountpoint
       if (mount.mountpoint === '/') vol.stats.isRootFS = true
     }
