@@ -136,6 +136,20 @@ const FILES = {
     hash: 'e258d248fda94c63753607f7c4494ee0fcbe92f1a76bfdac795c9d84101eb317'
   },
 
+  wmvSample: {
+    name: 'sample.wmv',
+    path: 'testdata/sample.wmv',
+    size: 554297,
+    hash: '60084bf1d83c48fa33c46a0d51346b11a62a3a8112fa7cf1115479cd96f42353' 
+  },
+
+  wmaSample: {
+    name: 'sample.wma',
+    path: 'testdata/sample.wma',
+    size: 609666,
+    hash: '9638e4192961cb133afed8efb40dc256e8b280427c042d09596cce8bd1d7b2e0'    
+  }, 
+
   oneByteX: {
     name: 'one-byte-x',
     path: 'test-files/one-byte-x',

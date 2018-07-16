@@ -98,6 +98,10 @@ const audioArgs = Object.freeze([
   'PlayDuration'
 ])
 
+const asfArgs = Object.freeze([
+  
+])
+
 /**
 Declarative definition of each type
 */
@@ -205,7 +209,19 @@ const fileType = (path, callback) =>
       let index = s.indexOf(':')
       if (index === -1) return callback(null)
       let type = s.slice(index + 1).trim()
-      if (typeMap.has(type)) {
+      if (type === 'ASF') {
+        child.exec(`exiftool -S -VideoCodecName '${path}'`, (err, stdout) => {
+          if (err) {
+            callback(err)
+          } else {
+            if (stdout.trim().length === 0) {
+              callback(null, 'WMA')
+            } else {
+              callback(null, 'WMV')
+            }
+          }
+        })
+      } else if (typeMap.has(type)) {
         callback(null, type)
       } else {
         callback(null)
