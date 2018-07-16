@@ -161,6 +161,8 @@ describe(path.basename(__filename), () => {
     ['rename', 'rename']
   ]
 
+  const boundVolume = { id: '5ebd8a1a-34e9-4801-bbef-d3b2d8775cdc' }
+
   describe('alice home, invalid name, size, sha256, policy', () => {
     let fruitmix, app, token, home, url
     let alonzo = FILES.alonzo
@@ -173,7 +175,7 @@ describe(path.basename(__filename), () => {
       let userFile = path.join(fruitmixDir, 'users.json')
       await fs.writeFileAsync(userFile, JSON.stringify([alice], null, '  '))
 
-      fruitmix = new Fruitmix({ fruitmixDir })
+      fruitmix = new Fruitmix({ fruitmixDir, boundVolume })
       app = new App({ fruitmix, log: { skip: 'all', error: 'none' } })
       await new Promise(resolve => fruitmix.once('FruitmixStarted', () => resolve()))
       token = await requestTokenAsync(app.express, alice.uuid, 'alice')
@@ -303,7 +305,7 @@ describe(path.basename(__filename), () => {
       let userFile = path.join(fruitmixDir, 'users.json')
       await fs.writeFileAsync(userFile, JSON.stringify([alice], null, '  '))
 
-      fruitmix = new Fruitmix({ fruitmixDir })
+      fruitmix = new Fruitmix({ fruitmixDir, boundVolume })
       app = new App({ fruitmix, log: { skip: 'all', error: 'none' } })
       await new Promise(resolve => fruitmix.once('FruitmixStarted', () => resolve()))
       token = await requestTokenAsync(app.express, alice.uuid, 'alice')
@@ -328,6 +330,8 @@ describe(path.basename(__filename), () => {
           .end((err, res) => {
             if (err) return done(err)
             let target = path.join(fruitmixDir, 'drives', home.uuid, file.name)
+            let xstat = retrieveXstat(target)
+            delete xstat.metadata
             expect(res.body[0]).to.deep.include({
               type: 'file',
               name: file.name,
@@ -336,7 +340,7 @@ describe(path.basename(__filename), () => {
               sha256: file.hash,
               policy: [null, null],
               resolved: [false, false],
-              data: retrieveXstat(target)
+              data: xstat
             })
             done()
           })
@@ -357,6 +361,8 @@ describe(path.basename(__filename), () => {
           .end((err, res) => {
             if (err) return done(err)
             let target = path.join(fruitmixDir, 'drives', home.uuid, file.name)
+            let xstat = retrieveXstat(target)
+            delete xstat.metadata
             expect(res.body[0]).to.deep.include({
               type: 'file',
               name: file.name,
@@ -365,7 +371,7 @@ describe(path.basename(__filename), () => {
               sha256: file.hash,
               policy: [null, null],
               resolved: [false, false],
-              data: retrieveXstat(target)
+              data: xstat
             })
             done()
           })
@@ -373,4 +379,48 @@ describe(path.basename(__filename), () => {
     })
   })
 
+  describe('batch small files', function (done) {
+    let fruitmix, app, token, home, url
+    let { empty, oneByteX, halfGiga, oneGigaMinus1, oneGiga } = FILES
+
+    beforeEach(async () => {
+      await Promise.delay(100)
+      await rimrafAsync(tmptest)
+      await mkdirpAsync(fruitmixDir)
+
+      let userFile = path.join(fruitmixDir, 'users.json')
+      await fs.writeFileAsync(userFile, JSON.stringify([alice], null, '  '))
+
+      fruitmix = new Fruitmix({ fruitmixDir, boundVolume })
+      app = new App({ fruitmix, log: { skip: 'all', error: 'none' } })
+      await new Promise(resolve => fruitmix.once('FruitmixStarted', () => resolve()))
+      token = await requestTokenAsync(app.express, alice.uuid, 'alice')
+      home = await requestHomeAsync(app.express, alice.uuid, token)
+      url = `/drives/${home.uuid}/dirs/${home.uuid}/entries`
+    })
+
+    it('timing many one byte files, ecddd3fa', function (done) {
+      this.timeout(0)
+
+      let r = request(app.express)
+        .post(url)
+        .set('Authorization', 'JWT ' + token)
+
+      let file = oneByteX
+      for (let i = 0; i < 256; i++) {
+        r.attach(file.name + i, file.path, JSON.stringify({
+          op: 'newfile',
+          size: file.size,
+          sha256: file.hash
+        }))
+      }
+
+      r.expect(200).end((err, res) => {
+        if (err) return done(err)
+        // console.log(res.body)
+        done()
+      })
+      
+    })
+  }) 
 })

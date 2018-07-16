@@ -119,7 +119,7 @@ class Heading extends State {
       this.ctx.predecessor = this.ctx.ctx.jobs
         .slice(0, this.ctx.ctx.jobs.indexOf(this.ctx))
         .reverse()
-        .find(j => j.args.toName === j.args.fromName)
+        .find(j => j.args.toName === this.ctx.args.fromName)
 
       // go to next state
       if (this.ctx.args.type === 'file') {
@@ -317,6 +317,7 @@ class Piping extends State {
 
     this.hs = HashStream.createStream(part, data, size, sha256, false)
     this.hs.on('finish', err => {
+
       if (err) {
         if (err.code === 'EOVERSIZE' || err.code === 'EUNDERSIZE' || err.code === 'ESHA256MISMATCH') {
           err.status = 400
@@ -358,6 +359,10 @@ Pending field or file job
 Go to failed or executing when job finished. Ignore destroy
 */
 class Pending extends State {
+
+  enter () {
+    debug('enter pending')
+  }
 
   onJobFailed (job) {
     if (job === this.ctx.predecessor) this.setState(Failed, new Error('predecessor failed'))
@@ -662,7 +667,6 @@ class IncomingForm extends EventEmitter {
     this.party.on('error', this.errorHandler)
     this.party.on('finish', () => {
       // Noting that party may finish in error
-
       this.error = this.error || this.party.error
       if (this.error) {
         this.error.result = this.party.result()
