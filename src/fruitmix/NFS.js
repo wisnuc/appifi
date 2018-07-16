@@ -483,7 +483,8 @@ class NFS extends EventEmitter {
     const drvToPhy = drv => {
       let phy = {
         id: drv.isVolume ? drv.uuid : drv.name,
-        type: drv.fileSystemType
+        type: drv.fileSystemType,
+        readOnly: drv.isMountedRO
       }
 
       if (drv.isVolume && drv.uuid === this.volumeUUID) phy.isFruitFS = true
