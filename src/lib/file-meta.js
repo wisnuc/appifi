@@ -1,5 +1,9 @@
 const child = require('child_process')
 
+const ExifTool = require('./exiftool3')
+
+const exiftool = new ExifTool()
+
 /**
 all versions starts from 2 for testing
 */
@@ -199,7 +203,8 @@ Returns a predefined type string, or undefined
 `-S` for very short output
 */
 const fileType = (path, callback) => 
-  child.exec(`exiftool -S -FileType '${path}'`, (err, stdout) => {
+//  child.exec(`exiftool -S -FileType '${path}'`, (err, stdout) => {
+  exiftool.request(path, ['-FileType'], (err, stdout) => {
     if (err && err.code === 1) {
       callback(null)
     } else if (err) {
@@ -210,7 +215,8 @@ const fileType = (path, callback) =>
       if (index === -1) return callback(null)
       let type = s.slice(index + 1).trim()
       if (type === 'ASF') {
-        child.exec(`exiftool -S -VideoCodecName '${path}'`, (err, stdout) => {
+        // child.exec(`exiftool -S -VideoCodecName '${path}'`, (err, stdout) => {
+        exiftool.request(path, ['-VideoCodecName'], (err, stdout) => {
           if (err) {
             callback(err)
           } else {
