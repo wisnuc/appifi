@@ -234,7 +234,8 @@ class Device {
         }
       }, 60 * 1000)
     } else {
-      child.exec('kill -SIGUSR2 `pidof fanlogic`​', err => debug('start nomal sleep mode, err: ', err))
+      child.exec('kill -SIGUSR2 `pidof fanlogic`​', err => debug('start nomal mode fanlogic, err: ', err))
+      child.exec('kill -SIGUSR2 `pidof ledlogic`', err => debug('start nomal mode ledlogic, err: ', err))
     }
   }
 
