@@ -1,5 +1,9 @@
 const child = require('child_process')
 
+const ExifTool = require('./exiftool3')
+
+const exiftool = new ExifTool()
+
 /**
 all versions starts from 2 for testing
 */
@@ -98,6 +102,10 @@ const audioArgs = Object.freeze([
   'PlayDuration'
 ])
 
+const asfArgs = Object.freeze([
+  
+])
+
 /**
 Declarative definition of each type
 */
@@ -189,13 +197,15 @@ const genArgs = type => typeMap.get(type).argList
   }, ['-S'])
   .join(' ')
 
+
 /**
 Returns a predefined type string, or undefined
 
 `-S` for very short output
 */
 const fileType = (path, callback) => 
-  child.exec(`exiftool -S -FileType '${path}'`, (err, stdout) => {
+//  child.exec(`exiftool -S -FileType '${path}'`, (err, stdout) => {
+  exiftool.request(path, ['FileType'], (err, stdout) => {
     if (err && err.code === 1) {
       callback(null)
     } else if (err) {
@@ -205,7 +215,20 @@ const fileType = (path, callback) =>
       let index = s.indexOf(':')
       if (index === -1) return callback(null)
       let type = s.slice(index + 1).trim()
-      if (typeMap.has(type)) {
+      if (type === 'ASF') {
+        // child.exec(`exiftool -S -VideoCodecName '${path}'`, (err, stdout) => {
+        exiftool.request(path, ['VideoCodecName'], (err, stdout) => {
+          if (err) {
+            callback(err)
+          } else {
+            if (stdout.trim().length === 0) {
+              callback(null, 'WMA')
+            } else {
+              callback(null, 'WMV')
+            }
+          }
+        })
+      } else if (typeMap.has(type)) {
         callback(null, type)
       } else {
         callback(null)
@@ -224,7 +247,8 @@ const fileMeta = (path, callback) =>
     if (!type || !typeMap.has(type)) return callback(null, nullType)
 
     let cmd = `exiftool ${genArgs(type)} ${path}`
-    child.exec(cmd, (err, stdout) => {
+    // child.exec(cmd, (err, stdout) => {
+    exiftool.request(path, typeMap.get(type).argList, (err, stdout) => { 
       /**
       treat err.code === 1 as error, probably a race
       */

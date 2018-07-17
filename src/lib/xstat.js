@@ -325,7 +325,8 @@ const readXstatAsync = async target => {
     if (attr.hasOwnProperty('dirty')) {
       attr = await updateXattrAsync(target, attr, stats.isFile()) 
     }
-    return createXstat(target, stats, attr)
+    let xstat = createXstat(target, stats, attr)
+    return xstat
   } finally {
     lockset.delete(target)
   } 

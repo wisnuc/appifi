@@ -69,7 +69,6 @@
     "ursa": "^0.9.4",
     "uuid": "^3.1.0",
     "validator": "^8.1.0",
-    "webtorrent": "^0.98.20",
     "winston": "^3.0.0-rc4",
     "xxhash": "^0.2.4",
     "xxhashjs": "^0.2.1"
