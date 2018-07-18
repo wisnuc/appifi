@@ -112,6 +112,13 @@ class State {
       }
     })
 
+    // report boundVolume update, bootstrap to restart peerstar
+    // TODO: bad here
+    process.send && process.send(JSON.stringify({
+      type: 'appifi_boundVolume_update',
+      data: {}
+    }))
+
     return {
       devices,
       label: volume.label,
