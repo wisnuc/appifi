@@ -17,7 +17,9 @@ class ExifTool {
 
     this.lines = []
 
-    this.spawn = child.spawn('exiftool', ['-stay_open', 'true', '-@', '-'])
+    let args = ['-stay_open', 'true', '-@', '-']
+    let opts = { stdio: ['pipe', 'pipe', 'ignore'] }
+    this.spawn = child.spawn('exiftool', args, opts)
     this.rl = readline.createInterface({ input: this.spawn.stdout })
     this.rl.on('line', line => {
       if (line.trim() === '{ready}') {

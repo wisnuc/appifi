@@ -409,6 +409,11 @@ class NFS extends EventEmitter {
     })
 
     this.drives = [...vols, ...blks]
+    this.emit('usb', blks.filter(x => x.isUSB).map(x => ({
+      name: x.name.slice(2),
+      mountpoint: x.mountpoint,
+      readOnly: !!x.isMountedRO
+    })))
   }
 
   resolveId (user, props, callback) {
