@@ -1220,6 +1220,12 @@ class Boot extends EventEmitter {
   PATCH_BOOT (user, props, callback) {
     if (props.hasOwnProperty('state')) {
       if (props.state !== 'poweroff' && props.state !== 'reboot') return callback(Object.assign(new Error('invalid state'), { status: 400 }))
+      if (props.state === 'poweroff') {
+        child.exec('service ledlogic stop', () => {})
+        child.exec('ecioctl -s led red off', () => {})
+        child.exec('ecioctl -s led blue off', () => {})
+        child.exec('ecioctl -s led yellow blink 1', () => {})
+      }
       setTimeout(() => child.exec(props.state), 2000)
       callback(null)
     } else return callback(Object.assign(new Error('invalid props'), { status: 400 }))
