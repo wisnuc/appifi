@@ -1,6 +1,7 @@
 const Promise = require('bluebird')
 const path = require('path')
 const fs = Promise.promisifyAll(require('fs'))
+const child = require('child_process')
 const EventEmitter = require('events')
 const crypto = require('crypto')
 
@@ -123,6 +124,10 @@ class Fruitmix extends EventEmitter {
     if (this.boundUser) {
       this.user.bindFirstUser(this.boundUser)
     }
+
+    this.balanceTimer = setInterval(() => {
+      child.exec(`btrfs balance start ${ this.fruitmixDir }`, err => console.log('balance error: ', err))
+    }, 24 * 1000 * 60 * 60)
 
     this.drive = new Drive({
       file: path.join(this.fruitmixDir, 'drives.json'),
