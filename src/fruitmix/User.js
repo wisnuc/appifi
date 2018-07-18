@@ -171,7 +171,7 @@ class User extends EventEmitter {
         isFirstUser,
         phicommUserId: props.phicommUserId,
         password: props.password,
-        smbPassword: props.smbPassword || md4Encrypt('phicomm'),
+        smbPassword: props.smbPassword,
         status: USER_STATUS.ACTIVE,
         createTime: new Date().getTime(),
         lastChangeTime: new Date().getTime(),
@@ -372,12 +372,6 @@ class User extends EventEmitter {
     if (!isNonEmptyString(props.phoneNumber)) return callback(Object.assign(new Error('phoneNumber must be non-empty string'), { status: 400 }))
     if (props.password && !isNonEmptyString(props.password)) return callback(Object.assign(new Error('password must be non-empty string'), { status: 400 }))
     if (this.users.length && (!user || !user.isFirstUser)) return process.nextTick(() => callback(Object.assign(new Error('Permission Denied'), { status: 403 })))
-
-    let u = this.users.find(u => u.username === props.username)
-    if (u && u.status !== USER_STATUS.DELETED) return callback(Object.assign(new Error('username exist'), { status: 400 }))
-
-    let pU = this.users.find(u => u.phicommUserId === props.phicommUserId)
-    if (u && u.status !== USER_STATUS.DELETED) return callback(Object.assign(new Error('phicommUserId exist'), { status: 400 }))
 
     this.createUser(props, (err, user) => err ? callback(err) : callback(null, this.fullInfo(user)))
   }
