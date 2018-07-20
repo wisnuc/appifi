@@ -192,10 +192,6 @@ const globalSection = `
   workgroup = WORKGROUP
   netbios name = SAMBA
   map to guest = Bad User
-  log file = /var/log/samba/%m
-  log level = 0
-  syslog = 1
-  syslog only = yes
 `
 
 // samba 配置文件 私有云盘配置
@@ -256,7 +252,19 @@ const publicShare = (froot, users, drive) => {
 `
 }
 
-const genSmbConfAsync = async (froot, users, drives) => {
+const usbShare = usb => `
+
+[usb.${usb.name}]
+  path = ${usb.mountpoint}
+  browseable = yes
+  public = yes
+  guest ok = yes
+  read only = ${usb.readOnly ? 'yes' : 'no'}
+  force user = root
+  force group = root
+`
+
+const genSmbConfAsync = async (froot, users, drives, usbs) => {
   let text = globalSection
   let conf = drives.reduce((t, drive) => {
     if (drive.type === 'private') {
@@ -265,7 +273,9 @@ const genSmbConfAsync = async (froot, users, drives) => {
       return t + publicShare(froot, users, drive)
     }
   }, text)
-  await fs.writeFileAsync('/etc/samba/smb.conf', conf)
+ 
+  let conf2 = usbs.reduce((t, usb) => t + usbShare(usb), conf) 
+  await fs.writeFileAsync('/etc/samba/smb.conf', conf2)
 }
 
 module.exports = {
