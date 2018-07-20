@@ -138,7 +138,7 @@ class User extends EventEmitter {
           .end((err, res) => {
             if (err || (res.body && res.body.error !== '0')) return debug(err)
             debug('lookupCloudUsers: ', res.body)
-            if(!res.body.result || !res.body.result)
+            if(!res.body.result || !Array.isArray(res.body.result.userList)) return
             let result = res.body.result.userList.filter(u => u.inviteStatus === 'timeout' || u.inviteStatus === 'reject')
             if(!result.length) return
             this.storeSave(users => {
