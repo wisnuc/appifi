@@ -133,12 +133,13 @@ class User extends EventEmitter {
       if(this.cloudConf.cloudToken) {
         debug(this.cloudConf.cloudToken)
         request
-          .get('https://sohon2test.phicomm.com/StationData/nas/getInfo')
+          .get('http://sohon2test.phicomm.com/StationManager/nas/getInfo')
           .set('Authorization', this.cloudConf.cloudToken)
           .end((err, res) => {
             if (err || (res.body && res.body.error !== '0')) return debug(err)
             debug('lookupCloudUsers: ', res.body)
-            let result = res.body.result.filter(u => u.inviteStatus === 'timeout' || u.inviteStatus === 'reject')
+            if(!res.body.result || !res.body.result)
+            let result = res.body.result.userList.filter(u => u.inviteStatus === 'timeout' || u.inviteStatus === 'reject')
             if(!result.length) return
             this.storeSave(users => {
               result.forEach(r => {
@@ -148,7 +149,7 @@ class User extends EventEmitter {
                   user.reason = r.inviteStatus === 'timeout' ? INACTIVE_REASON.TIMEOUT : INACTIVE_REASON.REJECT
                 }
               })
-              return users
+              return [...users]
             }, err => err ? debug('lookupCloudUsers failed:', err) : debug('lookupCloudUsers success'))
           })
       }
