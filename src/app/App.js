@@ -94,6 +94,7 @@ class App extends EventEmitter {
     } else if (opts.fruitmixOpts) {
       let configuration = opts.configuration
       let fruitmixOpts = opts.fruitmixOpts
+      fruitmixOpts.cloudConf = this.cloudConf
 
       try {
         let slots
