@@ -85,6 +85,9 @@ class User extends EventEmitter {
         return this.store.data || []
       }
     })
+
+    // start polling cloud users status
+    this.lookupCloudUsers()
   }
 
   chassisUpdate () {
