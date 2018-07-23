@@ -72,9 +72,10 @@ const hardwareVersion = () => {
   return '1.0.0'
 }
 
-let releases
+let releases, swVer
 try {
   releases = JSON.parse(fs.readFileSync('/mnt/reserved/fw_ver_release.json').toString())
+  swVer = fs.readFileSync('/etc/version').toString().trim()
 } catch(e) {
   console.log('==========================')
   console.log('Error: ENOENT fw_ver_release')
@@ -429,7 +430,7 @@ class Device {
     return {
       model: (releases && releases.model) || deviceModel(),
       sn: deviceSN(),
-      swVersion: (releases && releases.fw_ver) || softwareVersion(),
+      swVersion: swVer || softwareVersion(),
       hwVersion: (releases && releases.hw_ver) || hardwareVersion()
     }
   }
