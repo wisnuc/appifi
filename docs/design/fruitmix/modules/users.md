@@ -55,6 +55,24 @@ User {
 }
 ```
 
+```json
+[
+  {
+    "uuid": "2f807518-d466-44fa-b83e-607a67e72dbc",
+    "username": "admin",
+    "isFirstUser": true,
+    "isAdmin": true,
+    "createTime": 1531897406978,
+    "phicommUserId": "88648501",
+    "phoneNumber": "15618429080",
+    "password": "$2a$10$ezAaVok9HZVJUfH5PHcYGeuMf938sMl7BrfEFtuECBg4jc41EQgk2",
+    "smbPassword": "32ED87BDB5FDC5E9CBA88547376818D4",
+    "lastChangeTime": 1531897414625,
+    "status": "ACTIVE"
+  }
+]
+```
+
 **uuid**
 
 + 强制
