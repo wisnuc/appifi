@@ -813,6 +813,12 @@ class NFS extends EventEmitter {
     })
   }
 
+  REMOVE (user, props, callback) {
+    let id = props.drive
+    let p = path.join(props.dir, props.name)
+    this.DELETE(user, { id, path: p }, callback)
+  }
+
 
   /**
   This function is intended to support Policy.
