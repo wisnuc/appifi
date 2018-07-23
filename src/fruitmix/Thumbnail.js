@@ -221,7 +221,10 @@ class Thumbnail extends EventEmitter {
               } else {
                 x.tmp2 = path.join(this.tmpDir, UUID.v4() + '.jpg')
                 let args = genArgs(x.pathv, x.tmp2, x.opts, x.type)
-                spawn('convert', args, err => {
+                // ref: https://www.imagemagick.org/script/command-line-options.php#limit
+                // -limit memory 32MiB -limit map 64MiB
+                let _args = ['-limit', 'memory', '32MiB', '-limit', 'map', '64MiB', ...args]
+                spawn('convert', _args, err => {
                   if (err) {
                     this.converting.splice(this.converting.indexOf(x), 1)
                     x.cbs.forEach(cb => cb(err))
