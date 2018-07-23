@@ -1,5 +1,6 @@
 const XCopy = require('./xcopy/xcopy')
 const XSink = require('./xcopy/xsink')
+const XRemove = require('./xcopy/xremove')
 
 /**
 @param {object} policies - policies provided by client
@@ -69,7 +70,7 @@ class Task {
   @param {object} user
   @param {object} props
   @param {boolean} props.batch - if provided, must be true
-  @param {string} props.mode - 'copy', 'move', 'icopy', 'imove', 'ecopy', 'emove', 'ncopy', 'nmove',
+  @param {string} props.type - 'copy', 'move', 'icopy', 'imove', 'ecopy', 'emove', 'ncopy', 'nmove',
   @param {object} props.src - object representing src dir
   @param {string} props.src.drive - vfs drive uuid or nfs drive id
   @param {string} props.src.dir - vfs dir uuid or nfs path
@@ -99,7 +100,9 @@ class Task {
       }
     }
 
-    if (typeof props.dst !== 'object' || props.dst === null) {
+    if (batch === true && (props.type === 'remove' || props.type === 'nremove')) {
+      // bypass remove
+    } else if (typeof props.dst !== 'object' || props.dst === null) {
       let err = new Error('invalid dst')
       err.status = 400
       return callback(err)
@@ -107,7 +110,11 @@ class Task {
 
     let task, policies
     if (batch) {
-      task = new XSink(this.vfs, this.nfs, user, Object.assign({}, props))
+      if (props.type === 'remove' || props.type === 'nremove') {
+        task = new XRemove(this.vfs, this.nfs, user, Object.assign({}, props))
+      } else {
+        task = new XSink(this.vfs, this.nfs, user, Object.assign({}, props))
+      }
     } else {
       try {
         policies = normalizePolicies(props.policies)
