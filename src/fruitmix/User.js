@@ -4,6 +4,7 @@ const { isUUID, isNonNullObject, isNonEmptyString } = require('../lib/assertion'
 const DataStore = require('../lib/DataStore')
 const { passwordEncrypt, md4Encrypt } = require('../lib/utils')
 const request = require('superagent')
+const debug = require('debug')('appifi:user')
 
 const USER_STATUS = {
   ACTIVE: 'ACTIVE',
@@ -13,7 +14,8 @@ const USER_STATUS = {
 
 const INACTIVE_REASON = {
   IMPORT: 'import',
-  TIMEOUT: 'timeout'
+  TIMEOUT: 'timeout',
+  REJECT: 'reject'
 }
 
 /**
@@ -51,6 +53,7 @@ class User extends EventEmitter {
   constructor (opts) {
     super()
     this.conf = opts.configuration
+    this.cloudConf = opts.cloudConf
     this.fruitmixDir = opts.fruitmixDir
     this.store = new DataStore({
       file: opts.file,
@@ -82,6 +85,9 @@ class User extends EventEmitter {
         return this.store.data || []
       }
     })
+
+    // start polling cloud users status
+    this.lookupCloudUsers()
   }
 
   chassisUpdate () {
@@ -98,6 +104,7 @@ class User extends EventEmitter {
           .forEach(u => {
             if (!u.isFirstUser) {
               u.status = USER_STATUS.INACTIVE
+              u.reason = INACTIVE_REASON.IMPORT
               u.password = undefined
               u.smbPassword = undefined
             }
@@ -113,27 +120,50 @@ class User extends EventEmitter {
     }
   }
 
-  /*
-  handleDriveDeleted (userUUID) {
-    this.removeUser(userUUID, err => {
-      console.log('user deleted: ', userUUID)
-      if (err) console.log('user delete failed: ', err)
-    })
-  }
 
-  removeUser (userUUID, callback) {
-    this.store.save(users => {
-      let index = users.findIndex(u => u.uuid === userUUID)
-      if (index === -1) throw new Error('user not found')
-      return [...users.slice(0, index), ...users.slice(index + 1)]
-    }, callback)
+  /**
+   * lookupCloudUsers
+   * 定期每十分钟轮训一次云端
+   * 获取用户左箭头列表
+   * 排查邀请用户中，超时或拒绝的用户
+   * 把这些用户的状态设置为`inactive`且设置原因
+   */
+  lookupCloudUsers () {
+    setInterval(() => {
+      if(this.cloudConf.cloudToken) {
+        debug(this.cloudConf.cloudToken)
+        request
+          .get('http://sohon2test.phicomm.com/StationManager/nas/getInfo')
+          .set('Authorization', this.cloudConf.cloudToken)
+          .end((err, res) => {
+            if (err || (res.body && res.body.error !== '0')) return debug(err)
+            debug('lookupCloudUsers: ', res.body)
+            if(!res.body.result || !Array.isArray(res.body.result.userList)) return
+            let result = res.body.result.userList.filter(u => u.inviteStatus === 'timeout' || u.inviteStatus === 'reject')
+            if(!result.length) return
+            this.storeSave(users => {
+              result.forEach(r => {
+                let user = users.find(u => u.phicommUserId === r.uid)
+                if (user && user.status === USER_STATUS.ACTIVE) {
+                  user.status = USER_STATUS.INACTIVE
+                  user.reason = r.inviteStatus === 'timeout' ? INACTIVE_REASON.TIMEOUT : INACTIVE_REASON.REJECT
+                }
+              })
+              return [...users]
+            }, err => err ? debug('lookupCloudUsers failed:', err) : debug('lookupCloudUsers success'))
+          })
+      }
+    }, 1000 * 60 * 10)
   }
-  */
 
   getUser (userUUID) {
     return this.users.find(u => u.uuid === userUUID)
   }
 
+  /**
+   * data 为数组或者方法
+   * 所有的存储任务提交前先检查约束条件是否都过关
+   */
   storeSave(data, callback) {
     this.store.save(users => {
       let changeData = typeof data === 'function' ? data(users) : data
@@ -143,6 +173,12 @@ class User extends EventEmitter {
           throw Object.assign(new Error('active users max 10'), { status: 400 })
         }
       }
+      // clean reason
+      changeData.forEach(u => {
+        if (u.status !== USER_STATUS.INACTIVE && u.reason) {
+          u.reason = undefined
+        }
+      })
       return changeData
     }, callback)
   }

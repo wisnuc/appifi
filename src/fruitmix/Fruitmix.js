@@ -111,7 +111,8 @@ class Fruitmix extends EventEmitter {
       tmpDir: path.join(this.fruitmixDir, 'tmp', 'users'),
       chassisFile: path.join(this.fruitmixDir, 'boundVolumes.json'),
       chassisTmpDir: path.join(this.fruitmixDir, 'tmp', 'boundVolumes'),
-      isArray: true
+      isArray: true,
+      cloudConf: opts.cloudConf
     })
 
     // set a getter method for this.users
