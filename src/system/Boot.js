@@ -456,7 +456,7 @@ class Started extends State {
                 if (err) console.log(err)
               })
             }
-            process.exit(61)
+            else process.exit(61)
           }, 100)
         })
       } else {
