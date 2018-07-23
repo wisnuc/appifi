@@ -72,9 +72,10 @@ const hardwareVersion = () => {
   return '1.0.0'
 }
 
-let releases
+let releases, swVer
 try {
   releases = JSON.parse(fs.readFileSync('/mnt/reserved/fw_ver_release.json').toString())
+  swVer = fs.readFileSync('/etc/version').toString().trim()
 } catch(e) {
   console.log('==========================')
   console.log('Error: ENOENT fw_ver_release')
@@ -217,25 +218,33 @@ class Device {
     }
     debug('sleepConf update')
     clearInterval(this.sleepModeInterval)
+    let fanPid, ledPid
     if (this.sleepConf) {
       this.sleepModeInterval = setInterval(() => {
         let sleepConf = this.sleepConf
         debug(' sleep interval ')
-        if (!sleepConf) {
-          child.exec('kill -SIGUSR2 `pidof fanlogic`​', err => debug('start nomal mode fanlogic, err: ', err))
-          child.exec('kill -SIGUSR2 `pidof ledlogic`', err => debug('start nomal mode ledlogic, err: ', err))
-        } else {
-          let { start, end } = this.sleepConf
-          let shouldSleepMode = time_range(start, end)
-          child.exec('kill -SIGUSR' + (shouldSleepMode ? '1' : '2') + ' `pidof fanlogic`​', err => 
-            debug('start sleep mode, err: ', err))
-          child.exec('kill -SIGUSR' + (shouldSleepMode ? '1' : '2') + ' `pidof ledlogic`​', err => 
-            debug('start sleep mode, err: ', err))
-        }
+        try {
+          fanPid = child.execSync('pidof fanlogic').toString().trim()
+          ledPid = child.execSync('pidof ledlogic').toString().trim()
+          if (!sleepConf) {
+            child.spawnSync('kill', ['-SIGUSR2​', fanPid])
+            child.spawnSync('kill', ['-SIGUSR2', ledPid])
+          } else {
+            let { start, end } = this.sleepConf
+            let shouldSleepMode = time_range(start, end)
+            let signal = '-SIGUSR' + (shouldSleepMode ? '1' : '2')
+            child.spawnSync('kill', [signal, fanPid])
+            child.spawnSync('kill', [signal, ledPid])
+          }
+        } catch (e) {}
       }, 60 * 1000)
     } else {
-      child.exec('kill -SIGUSR2 `pidof fanlogic`​', err => debug('start nomal mode fanlogic, err: ', err))
-      child.exec('kill -SIGUSR2 `pidof ledlogic`', err => debug('start nomal mode ledlogic, err: ', err))
+      try {
+        fanPid = child.execSync('pidof fanlogic').toString().trim()
+        ledPid = child.execSync('pidof ledlogic').toString().trim()
+        child.spawnSync('kill', ['-SIGUSR2​', fanPid])
+        child.spawnSync('kill', ['-SIGUSR2', ledPid])
+      } catch(e) {}
     }
   }
 
@@ -421,7 +430,7 @@ class Device {
     return {
       model: (releases && releases.model) || deviceModel(),
       sn: deviceSN(),
-      swVersion: (releases && releases.fw_ver) || softwareVersion(),
+      swVersion: swVer || softwareVersion(),
       hwVersion: (releases && releases.hw_ver) || hardwareVersion()
     }
   }
