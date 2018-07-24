@@ -143,8 +143,8 @@ class User extends EventEmitter {
             if(!result.length) return
             this.storeSave(users => {
               result.forEach(r => {
-                let user = users.find(u => u.phicommUserId === r.uid)
-                if (user && user.status === USER_STATUS.ACTIVE) {
+                let user = users.find(u => u.phicommUserId === r.uid && user.status === USER_STATUS.ACTIVE)
+                if (user) {
                   user.status = USER_STATUS.INACTIVE
                   user.reason = r.inviteStatus === 'timeout' ? INACTIVE_REASON.TIMEOUT : INACTIVE_REASON.REJECT
                 }
