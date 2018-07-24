@@ -217,35 +217,30 @@ class Device {
       }
     }
     debug('sleepConf update')
-    clearInterval(this.sleepModeInterval)
+    clearTimeout(this.sleepModeTimer)
+    debug('************************')
     let fanPid, ledPid
-    if (this.sleepConf) {
-      this.sleepModeInterval = setInterval(() => {
-        let sleepConf = this.sleepConf
-        debug(' sleep interval ')
-        try {
-          fanPid = child.execSync('pidof fanlogic').toString().trim()
-          ledPid = child.execSync('pidof ledlogic').toString().trim()
-          if (!sleepConf) {
-            child.spawnSync('kill', ['-SIGUSR2​', fanPid])
-            child.spawnSync('kill', ['-SIGUSR2', ledPid])
-          } else {
-            let { start, end } = this.sleepConf
-            let shouldSleepMode = time_range(start, end)
-            let signal = '-SIGUSR' + (shouldSleepMode ? '1' : '2')
-            child.spawnSync('kill', [signal, fanPid])
-            child.spawnSync('kill', [signal, ledPid])
-          }
-        } catch (e) {}
-      }, 60 * 1000)
-    } else {
-      try {
-        fanPid = child.execSync('pidof fanlogic').toString().trim()
-        ledPid = child.execSync('pidof ledlogic').toString().trim()
-        child.spawnSync('kill', ['-SIGUSR2​', fanPid])
-        child.spawnSync('kill', ['-SIGUSR2', ledPid])
-      } catch(e) {}
+    try {
+      fanPid = child.execSync('pidof fanlogic').toString().trim()
+      ledPid = child.execSync('pidof ledlogic').toString().trim()
+      if (this.sleepConf) {
+          let { start, end } = this.sleepConf
+          let shouldSleepMode = time_range(start, end)
+          let signal = '-SIGUSR' + (shouldSleepMode ? '1' : '2')
+          debug('************************')
+          debug('************  ', shouldSleepMode)
+          debug('************************')
+          child.spawnSync('kill', [signal, fanPid])
+          child.spawnSync('kill', [signal, ledPid])
+      } else {
+          child.spawnSync('kill', ['-SIGUSR2​', fanPid])
+          child.spawnSync('kill', ['-SIGUSR2', ledPid])
+      }
+    } catch(e) {
+      console.log(e)
     }
+
+    this.sleepModeTimer = setTimeout(this.sleepConfUpdate.bind(this), 1000 * 60)
   }
 
   startUpdateNetDev() {
@@ -510,7 +505,7 @@ class Device {
         return callback(Object.assign(new Error('error start or end'), { status: 400 }))
       } 
       let startArgs = start.split(':').map(x => x.trim()).filter(x => Number.isInteger(parseInt(x)) &&  parseInt(x) >= 0)
-      let endArgs = end.split(':').map(x => x.trim()).filter(x => Number.isInteger(parseInt(x)))
+      let endArgs = end.split(':').map(x => x.trim()).filter(x => Number.isInteger(parseInt(x)) &&  parseInt(x) >= 0)
       if (startArgs.length !== 2 || endArgs.length !== 2) {
         return callback(Object.assign(new Error('start or end format error'), { status: 400 }))
       }
