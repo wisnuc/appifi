@@ -362,7 +362,8 @@ class User extends EventEmitter {
       smbPassword: !!user.smbPassword,
       createTime: user.createTime,
       status: user.status,
-      phoneNumber: user.phoneNumber
+      phoneNumber: user.phoneNumber,
+      reason: user.reason
     }
   }
 
