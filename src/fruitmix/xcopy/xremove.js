@@ -1,5 +1,4 @@
 const EventEmitter = require('events')
-
 const UUID = require('uuid')
 const debug = require('debug')('xsink')
 

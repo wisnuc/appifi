@@ -1,6 +1,7 @@
 const path = require('path')
 const fs = require('fs')
 const child = require('child_process')
+const os = require('os')
 const UUID = require('uuid')
 
 const mkdirp = require('mkdirp')
@@ -100,3 +101,9 @@ if (args.standalone) {
     })
   }
 }
+
+// print freemem per 60s
+setInterval(() => console.log('process info:', Object.assign({
+  uptime: process.uptime(),
+  freemem: os.freemem()
+}, process.memoryUsage())), 60 * 1000)

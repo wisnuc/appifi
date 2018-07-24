@@ -1130,7 +1130,10 @@ describe(path.basename(__filename), () => {
         .send({ oldPath: 'hello', newPath: 'world' })
         .expect(200)
         .end((err, res) => {
-          if (err) return done(err)
+          if (err) {
+            console.log(err)
+            return done(err)
+          }
           expect(fileENOENT(hello)).to.be.true
           expect(fs.readFileSync(world).toString()).to.equal('hello')
           done()
