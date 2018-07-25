@@ -521,8 +521,8 @@ class NFS extends EventEmitter {
               }
               if (drv.isVolume && drv.isBtrfs) {
                 let total
-                let sizeArr = vol.devices.map(d => d.size).sort((a, b) => a > b ? 1 : a < b ? -1 : 0)
-                if (vol.usage && vol.usage.data && vol.usage.data.mode.toLowerCase() === 'raid1') {
+                let sizeArr = drv.devices.map(d => d.size).sort((a, b) => a > b ? 1 : a < b ? -1 : 0)
+                if (drv.usage && drv.usage.data && drv.usage.data.mode.toLowerCase() === 'raid1') {
                   let max = sizeArr.pop()
                   let offmax = sizeArr.reduce((acc, a) => a + acc, 0)
                   total = max > offmax ? offmax : (offmax + max)/2
@@ -535,7 +535,6 @@ class NFS extends EventEmitter {
           } else {
             console.log(err)
           }
-
           if (!--count) callback(null, arr)
         })
       })
