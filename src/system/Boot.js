@@ -1247,7 +1247,7 @@ class Boot extends EventEmitter {
             let usage = {
               total: parseInt(xs[1]),
               used: parseInt(xs[2]),
-              available: parseInt(xs[3]) 
+              available: parseInt(xs[3])
             }
             let total
             let sizeArr = vol.devices.map(d => d.size).sort((a, b) => a > b ? 1 : a < b ? -1 : 0)
@@ -1258,7 +1258,7 @@ class Boot extends EventEmitter {
             } else {
               total = sizeArr.reduce((acc, a) => a + acc, 0)
             }
-            usage.total = total
+            usage.total = total / 1024
             callback(null, usage)
           }
         }
