@@ -237,7 +237,7 @@ class Device {
           child.spawnSync('kill', ['-SIGUSR2', ledPid])
       }
     } catch(e) {
-      console.log(e)
+      debug(e)
     }
 
     this.sleepModeTimer = setTimeout(this.sleepConfUpdate.bind(this), 1000 * 60)
