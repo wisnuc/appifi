@@ -61,7 +61,9 @@ const btrfsFiShowUUID = async (uuid) => {
   return vol
 }
 
-module.exports = async () => {
+module.exports = async uuid => {
+  if (uuid) return btrfsFiShowUUID(uuid)
+
   let cmd = 'btrfs fi show | grep -P \'^Label: \' | sed -n -e \'s/^.*uuid: //p\''
 
   // FIXME btrfs fi show returns success exit code and nothing if not root

@@ -128,6 +128,7 @@ class Drive extends EventEmitter {
             readlist: '*',
             label: '',
             tag: 'built-in',
+            isDeleted: false,
             smb: true,
             ctime: new Date().getTime(),
             mtime: new Date().getTime()

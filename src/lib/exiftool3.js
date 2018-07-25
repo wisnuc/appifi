@@ -1,16 +1,26 @@
+const fs = require('fs')
 const child = require('child_process')
 const readline = require('readline')
 
 class ExifTool {
-
-  constructor() {
+  constructor () {
     this.reqs = []
+
+    try {
+      fs.lstatSync('/phi/exiftool/exiftool')
+      this.exiftool = '/phi/exiftool/exiftool'
+      console.log('exiftool: use custom exiftool')
+    } catch (e) {
+      this.exiftool = 'exiftool'
+      console.log('exiftool: use global exiftool')
+    }
+
     this.restart()
   }
 
   restart () {
     if (this.spawn) {
-      this.rl.removeAllListeners() 
+      this.rl.removeAllListeners()
       this.spawn.removeAllListeners()
       this.spawn.on('error', () => {})
     }
@@ -19,7 +29,7 @@ class ExifTool {
 
     let args = ['-stay_open', 'true', '-@', '-']
     let opts = { stdio: ['pipe', 'pipe', 'ignore'] }
-    this.spawn = child.spawn('exiftool', args, opts)
+    this.spawn = child.spawn(this.exiftool, args, opts)
     this.rl = readline.createInterface({ input: this.spawn.stdout })
     this.rl.on('line', line => {
       if (line.trim() === '{ready}') {
@@ -38,7 +48,7 @@ class ExifTool {
     })
 
     this.spawn.on('exit', (code, signal) => {
-      console.log(`exiftool exit with code ${code} and signal ${signal}`, )
+      console.log(`exiftool exit with code ${code} and signal ${signal}`)
       this.restart()
     })
   }
@@ -46,10 +56,10 @@ class ExifTool {
   request (file, args, callback) {
     this.reqs.push({ file, args, callback })
     this.sched()
-  } 
+  }
 
   sched () {
-    if (this.callback || !this.reqs.length) return   
+    if (this.callback || !this.reqs.length) return
 
     let { file, args, callback } = this.reqs.shift()
 
@@ -60,7 +70,6 @@ class ExifTool {
 
     this.callback = callback
   }
-
-} 
+}
 
 module.exports = ExifTool
