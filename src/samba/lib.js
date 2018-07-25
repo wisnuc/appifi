@@ -1,11 +1,9 @@
 const Promise = require('bluebird')
-const path = require('path')
 const fs = Promise.promisifyAll(require('fs'))
 const child = Promise.promisifyAll(require('child_process'))
 const mkdirpAsync = Promise.promisify(require('mkdirp'))
 const rimrafAsync = Promise.promisify(require('rimraf'))
 const debug = require('debug')('samba')
-
 
 const rsyslogPath = '/etc/rsyslog.d/99-smbaudit.conf'
 // 调用rsyslog服务，记录samba信息
@@ -23,7 +21,7 @@ const rsyslogAsync = async () => {
   await fs.writeFileAsync(rsyslogPath, text)
 
   try {
-    await child.execAsync('systemctl restart rsyslog')  
+    await child.execAsync('systemctl restart rsyslog')
   } catch (e) {
     console.log('rsyslogd restart error, neglected', e)
   }
@@ -35,15 +33,15 @@ const transfer = (users, drives) => {
   let uids = userArr.map(u => u.uuid)
   let driveArr = drives.map(d => Object.assign({}, d))
   driveArr.forEach(d => {
-    if(d.writelist === '*') d.writelist = uids
-    if(d.readlist === '*') d.readlist = uids
+    if (d.writelist === '*') d.writelist = uids
+    if (d.readlist === '*') d.readlist = uids
   })
   return { users: userArr, drives: driveArr }
 }
 
-// this function 
-// 1. sync /etc/passwd, 
-// 2. sync smb passwd db, 
+// this function
+// 1. sync /etc/passwd,
+// 2. sync smb passwd db,
 // 3. generate user map
 // returns users
 const processUsersAsync = async users => {
@@ -51,9 +49,10 @@ const processUsersAsync = async users => {
   users = users.filter(u => u.status === 'ACTIVE' && !!u.smbPassword)
 
   // 生成系统用户名
-  users.forEach(u => 
-    u.unixName = ['x', ...u.uuid.split('-').map((s, i) => i === 2 ? s.slice(1) : s)].join(''))
-  
+  users.forEach(u => {
+    u.unixName = ['x', ...u.uuid.split('-').map((s, i) => i === 2 ? s.slice(1) : s)].join('')
+  })
+
   // 获取与本地用户对于的系统用户列表
   let sysUsers = await retrieveSysUsersAsync()
   debug('get system users\n')
@@ -74,10 +73,10 @@ const processUsersAsync = async users => {
   let newNames = users
     .filter(fu => !sysUsers.find(su => su.name === fu.unixName))
     .map(fu => fu.unixName)
-  
+
   for (let i = 0; i < newNames.length; i++) {
     try {
-      let cmd = 'adduser --disabled-password --disabled-login --no-create-home --gecos ",,," ' + 
+      let cmd = 'adduser --disabled-password --disabled-login --no-create-home --gecos ",,," ' +
         `--gid 65534 ${newNames[i]}`
       await child.execAsync(cmd)
     } catch (e) {
@@ -86,21 +85,21 @@ const processUsersAsync = async users => {
   }
 
   debug('after add system users')
-  
+
   // 将新生成的系统用户ID赋予本地用户
-  sysUsers = await retrieveSysUsersAsync()  
+  sysUsers = await retrieveSysUsersAsync()
   users = users.reduce((acc, fu) => {
-    let su = sysUsers.find(su => su.name === fu.unixName) 
+    let su = sysUsers.find(su => su.name === fu.unixName)
     if (su) {
       fu.unixUID = su.id
       acc.push(fu)
     }
     return acc
   }, [])
-  
 
   // 获取现有的samba用户
-  smbUsers = await retrieveSmbUsersAsync()
+  let smbUsers = await retrieveSmbUsersAsync()
+
   debug('get samba users')
   debug(smbUsers)
   // 删除现有的samba用户
@@ -111,6 +110,7 @@ const processUsersAsync = async users => {
       console.log(`error deleting smb user ${smbUsers[i].name}`)
     }
   }
+
   debug('after remove samba user')
   // 创建samba用户
   let text = users
@@ -126,7 +126,6 @@ const processUsersAsync = async users => {
     })
     .join('\n')
 
-
   await mkdirpAsync('/run/wisnuc/smb')
   await fs.writeFileAsync('/run/wisnuc/smb/tmp', text)
   await child.execAsync('pdbedit -i smbpasswd:/run/wisnuc/smb/tmp')
@@ -138,7 +137,7 @@ const processUsersAsync = async users => {
   text = users
     .map(u => `${u.unixName} = "${u.phoneNumber}"`)
     .join('\n')
-    
+
   await fs.writeFileAsync('/etc/smbusermap', text)
   return users
 }
@@ -158,7 +157,7 @@ const retrieveSysUsersAsync = async () => {
       }
     })
     .filter(u => !!u)
-    .filter(u => /^x[0-9a-f]{31}$/.test(u.name)) //31位长度的用户名是NAS用户对应UUID
+    .filter(u => /^x[0-9a-f]{31}$/.test(u.name)) // 31位长度的用户名是NAS用户对应UUID
 }
 
 const retrieveSmbUsersAsync = async () => {
@@ -174,18 +173,18 @@ const retrieveSmbUsersAsync = async () => {
         uid: parseInt(split[1]),
         md4: split[3],
         lct: split[5]
-      } 
+      }
     })
     .filter(u => !!u)
 }
 
 const processDrivesAsync = async (users, drives) => {
   // TODO check names
-  return drives.filter(drive => drive.smb)
-  
+  // return drives.filter(drive => drive.smb)
+  return drives
 }
 
-// samba 配置文件 头部信息
+// smb.conf global section
 const globalSection = `
 [global]
   username map = /etc/smbusermap
@@ -194,22 +193,28 @@ const globalSection = `
   map to guest = Bad User
 `
 
-// samba 配置文件 私有云盘配置
+// smb.conf share section for private share
+// share name is user's phone number
+// share is public (guest ok) and has no write list or valid users if drive.smb = false
+// otherwise, share access requires password
 const privateShare = (froot, users, drive) => {
   let owner = users.find(u => u.uuid === drive.owner)
   if (!owner) return ''
 
+  let anonymous = drive.smb === false
+
+  // TODO why close audited?
   return `
+
 [${owner.phoneNumber}]
   path = ${froot}/drives/${drive.uuid}
   browseable = yes
-  public = yes
-  guest ok = yes
+  guest ok = ${anonymous ? 'yes' : 'no'}
   read only = no
   force user = root
   force group = root
-  ${drive.smb?`write list = ${owner.unixName}`:''}
-  ${drive.smb?`valid users = ${owner.unixName}`:''}
+  ${anonymous ? '' : `write list = ${owner.unixName}`}
+  ${anonymous ? '' : `valid users = ${owner.unixName}`}
   vfs objects = full_audit
   full_audit:prefix = %u|%U|%S|%P
   full_audit:success = create_file mkdir rename rmdir unlink write pwrite close
@@ -219,9 +224,10 @@ const privateShare = (froot, users, drive) => {
 `
 }
 
-// samba 配置文件 公共盘配置
+// smb.conf share section for public share
+// share name is drive label or first 8 characters of drive uuid
 const publicShare = (froot, users, drive) => {
-  let name = drive.label || drive.uuid.slice(0, 8) 
+  let name = drive.label || drive.uuid.slice(0, 8)
   let writelist = drive.writelist
     .map(uuid => users.find(u => u.uuid === uuid))
     .filter(u => !!u)
@@ -232,17 +238,19 @@ const publicShare = (froot, users, drive) => {
     .filter(u => !!u)
     .map(u => u.unixName)
 
+  let anonymous = drive.tag === 'built-in' || drive.smb === false
+
   return `
+
 [${name}]
   path = ${froot}/drives/${drive.uuid}
   browseable = yes
-  public = yes
-  guest ok = yes
+  guest ok = ${anonymous ? 'yes' : 'no'}
   read only = no
   force user = root
   force group = root
-  ${drive.tag === 'built-in'? '': `write list = ${writelist.join(', ')}`}
-  ${drive.tag === 'built-in'? '': `valid users = ${readlist.join(', ')}`}
+  ${anonymous ? '' : `write list = ${writelist.join(', ')}`}
+  ${anonymous ? '' : `valid users = ${readlist.join(', ')}`}
   vfs objects = full_audit
   full_audit:prefix = %u|%U|%S|%P
   full_audit:success = create_file mkdir rename rmdir unlink write pwrite
@@ -257,7 +265,6 @@ const usbShare = usb => `
 [usb.${usb.name}]
   path = ${usb.mountpoint}
   browseable = yes
-  public = yes
   guest ok = yes
   read only = ${usb.readOnly ? 'yes' : 'no'}
   force user = root
@@ -273,8 +280,8 @@ const genSmbConfAsync = async (froot, users, drives, usbs) => {
       return t + publicShare(froot, users, drive)
     }
   }, text)
- 
-  let conf2 = usbs.reduce((t, usb) => t + usbShare(usb), conf) 
+
+  let conf2 = usbs.reduce((t, usb) => t + usbShare(usb), conf)
   await fs.writeFileAsync('/etc/samba/smb.conf', conf2)
 }
 

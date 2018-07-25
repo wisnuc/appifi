@@ -94,7 +94,7 @@ class Detecting extends State {
   enter () {
     this.enterAsync()
       .then(x => this.setState(x ? Started : Stopped))
-      .catch(e => this.setState(Failed))
+      .catch(e => this.setState(Failed, e))
   }
 
   // return boolean value indicating started (true) or stopped (false)
@@ -116,7 +116,7 @@ class Starting extends State {
       .catch(e => {
         console.log('error starting smbd service', e.message)
         this.cbs.forEach(cb => cb(e))
-        this.setState(Failed)
+        this.setState(Failed, e)
       })
   }
 
@@ -162,8 +162,12 @@ class Started extends State {
     let users = await processUsersAsync(x.users)
     if (this.exited) return
 
+    debug('refresh users', users)
+
     let drives = await processDrivesAsync(x.users, x.drives)
     if (this.exited) return
+
+    debug('refresh drives', drives)
 
     await genSmbConfAsync(this.ctx.froot, users, drives, this.ctx.usbs)
     if (this.exited) return
@@ -228,6 +232,7 @@ class Stopped extends State {
 
 class Failed extends State {
   enter(err) { 
+    debug('failed', err.message)
     this.error = err 
   }
 }

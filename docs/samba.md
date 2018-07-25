@@ -57,6 +57,8 @@ fruitmix使用samba的user map功能，将用户的fruitmix用户名map到它的
 
 samba用户也可以使用上述Linux系统用户帐号直接访问samba，但不具有实用价值。
 
+Phicomm版本：将用户手机号码（`user.phoneNumber`）map到其Linux系统用户名。
+
 ### 1.2.3. 密码
 
 samba登录使用和fruitmix同样的用户密码。fruitmix不会保留该密码的明文，但会保留该密码的密文（对应fruitmix和samba是两个不同的密文，因为使用的加密算法不同）。
@@ -72,7 +74,7 @@ fruitmix在配置samba服务的时候会自动注入该密文到samba的密码�
 
 在samba服务中，两类虚拟云盘均会自动创建samba share，并应用和fruimtmix内置访问权限相同的访问权限。
 
-fruitmix的虚拟云盘不具有文件夹或文件级的细粒度访问权限控制，对应的samba服务也不提供类似功能，访问权限以盘为单位。fruitmix和samba服务也不使用Linux的acl访问控制。
+vfs不具有文件夹或文件级的细粒度访问权限控制，对应的samba服务也不提供类似功能，访问权限以盘为单位。fruitmix和samba服务也不使用Linux的acl访问控制。
 
 对私有虚拟云盘，对应的share名称是该用户的用户名。
 
@@ -146,3 +148,46 @@ pdbedit -x ${username}
 pdbedit -i smbpasswd:${smbUserFile}
 ```
 
+```
+[
+  "11lp0panr33334328"
+]
+
+[
+  {
+    "uuid": "2f807518-d466-44fa-b83e-607a67e72dbc",
+    "username": "admin",
+    "isFirstUser": true,
+    "isAdmin": true,
+    "phicommUserId": "88648501",
+    "status": "ACTIVE",
+    "createTime": 1531897406978,
+    "lastChangeTime": 1531897414625,
+    "phoneNumber": "15618429080",
+    "password": "$2a$10$ezAaVok9HZVJUfH5PHcYGeuMf938sMl7BrfEFtuECBg4jc41EQgk2",
+    "smbPassword": "32ED87BDB5FDC5E9CBA88547376818D4"
+  }
+]
+
+[
+  {
+    "uuid": "66d97023-22dd-48a5-899b-a977b46e8f14",
+    "type": "private",
+    "owner": "2f807518-d466-44fa-b83e-607a67e72dbc",
+    "tag": "home",
+    "label": "",
+    "isDeleted": false,
+    "smb": true
+  },
+  {
+    "uuid": "e22f5124-8b17-4156-8eb1-4d79915c8af2",
+    "type": "public",
+    "writelist": "*",
+    "readlist": "*",
+    "label": "",
+    "tag": "built-in",
+    "isDeleted": false,
+    "smb": true
+  }
+]
+```

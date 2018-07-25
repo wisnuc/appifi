@@ -34,7 +34,8 @@ const alice = {
   isFirstUser: true,
   createTime: 1523867673407,
   status: 'ACTIVE',
-  phicommUserId: 'alice'
+  phicommUserId: 'alice',
+  phoneNumber: '15615615656'
 }
 
 const { UUIDDE } = fakeNfsAsync
@@ -63,6 +64,8 @@ describe(path.basename(__filename), () => {
   })
 
   it('usb plug and unplug, nfs event', async function () {
+    this.timeout(10000)
+
     let fruitmix = watson.app.fruitmix
     let nfs = fruitmix.nfs
 
@@ -93,18 +96,26 @@ describe(path.basename(__filename), () => {
         mountpoint: '/home/wisnuc/appifi/tmptest/sdi2',
         readOnly: false 
       },
-      { name: 'i3',
+      { 
+        name: 'i3',
         mountpoint: '/home/wisnuc/appifi/tmptest/sdi3',
-        readOnly: false },
-      { name: 'i5',
+        readOnly: false 
+      },
+      { 
+        name: 'i5',
         mountpoint: '/home/wisnuc/appifi/tmptest/sdi5',
-        readOnly: false },
-      { name: 'i6',
+        readOnly: false 
+      },
+      { 
+        name: 'i6',
         mountpoint: '/home/wisnuc/appifi/tmptest/sdi6',
-        readOnly: false },
-      { name: 'i7',
+        readOnly: false 
+      },
+      { 
+        name: 'i7',
         mountpoint: '/home/wisnuc/appifi/tmptest/sdi7',
-        readOnly: false }
+        readOnly: false 
+      }
     ])
 
     usb = await new Promise((resolve, reject) => {
@@ -115,4 +126,28 @@ describe(path.basename(__filename), () => {
     expect(usb).to.deep.equal([])
   })
 
+  it('hello', async function () {
+    this.timeout(0) 
+
+    await new Promise((resolve, reject) => {
+      request(watson.app.express)
+        .patch(`/drives/${user.home.uuid}`)
+        .set('Authorization', 'JWT ' + user.token)
+        .send({ smb: false })
+        .expect(200)
+        .end((err, res) => err ? reject(err) : resolve(res.body))
+    })
+
+    let drives = await new Promise((resolve, reject) => {
+      request(watson.app.express)
+        .get('/drives')
+        .set('Authorization', 'JWT ' + user.token)
+        .expect(200)
+        .end((err, res) => err ? reject(err) : resolve(res.body))
+    })
+
+    console.log('drives', drives)
+
+    await Promise.delay(10000)
+  })  
 })
