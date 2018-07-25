@@ -181,7 +181,7 @@ class App extends EventEmitter {
         if (this.boot) {
           return this.boot.volumeStore.save(null, (err, data) => {
             this.boot.fruitmix = undefined // stop listen fruitmix api
-            setTimeout(() => process.exit(61), 300)
+            setTimeout(() => process.exit(61), 1000)
           })
         }
         break

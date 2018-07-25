@@ -1127,9 +1127,8 @@ class Boot extends EventEmitter {
           console.log('===========================')
           console.log(err)
         }
-        if (props.format) {
-          this.state.uninstall(props, callback)
-        }
+        if (props.format) return this.state.uninstall(props, callback)
+        return callback(err)
       })
     } else
       this.state.uninstall(props, callback)
@@ -1147,7 +1146,7 @@ class Boot extends EventEmitter {
       }
       config.action = '1'
       let tmpP = path.join(this.conf.chassis.tmpDir, UUID.v4())
-      let command = 'chattr -i /mnt/reserved/fw_ver_release.json'
+      // let command = 'chattr -i /mnt/reserved/fw_ver_release.json'
       // command = command + `cat ${ tmpP } | jq . > /mnt/reserved/fw_ver_release.json;\n`
       // command = command + 'rm /tmp/release.json;\n'
       // command = command + 'chattr +i /mnt/reserved/fw_ver_release.json;\n'
@@ -1160,6 +1159,7 @@ class Boot extends EventEmitter {
           fs.rename(tmpP, fileP, err => {
             child.exec('chattr +i /mnt/reserved/fw_ver_release.json')
             if (err) return callback(err)
+            console.log('do auto reboot: ', autoReboot)
             if (autoReboot) setTimeout(() => child.exec('reboot'), 100)
             callback(null)
           })
