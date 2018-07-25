@@ -204,7 +204,7 @@ class App extends EventEmitter {
       this.boot.PATCH_BOOT(req.user, req.body, err =>
         err ? next(err) : res.status(200).end()))
 
-    bootr.get('/boundVolume', (req, res, next) => 
+    bootr.get('/boundVolume/space', (req, res, next) => 
       this.boot.GET_BoundVolume(req.user, (err, data) =>
         err ? next(err) : res.status(200).json(data)))
 
