@@ -17,6 +17,7 @@ const DataStore = require('../lib/DataStore')
 const Fruitmix = require('../fruitmix/Fruitmix')
 const { probe, probeAsync, umountBlocksAsync } = require('./storage')
 const { UdevMonitor, StorageUpdater } = require('./diskmon')
+const btrfsUsageAsync = require('./btrfsusageAsync')
 
 /**
 Boot is the top-level container
@@ -1229,6 +1230,17 @@ class Boot extends EventEmitter {
       setTimeout(() => child.exec(props.state), 2000)
       callback(null)
     } else return callback(Object.assign(new Error('invalid props'), { status: 400 }))
+  }
+
+  GET_BoundVolume (user, callback) {
+    if (!this.volumeStore.data) return callback(new Error('no bound volume')) // no bound volume
+
+    let vol = this.storage.volumes.find(v => v.uuid === this.volumeStore.data.uuid)
+    if (!vol) return callback(new Error('bound volume not found'))  // bound volume not found
+
+    btrfsUsageAsync(vol.mountpoint)
+      .then(data => callback(null, data))
+      .catch(callback)
   }
 
 }
