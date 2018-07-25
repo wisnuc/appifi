@@ -181,7 +181,7 @@ class App extends EventEmitter {
         if (this.boot) {
           return this.boot.volumeStore.save(null, (err, data) => {
             this.boot.fruitmix = undefined // stop listen fruitmix api
-            setTimeout(() => process.exit(61), 300)
+            setTimeout(() => process.exit(61), 1000)
           })
         }
         break
@@ -201,8 +201,12 @@ class App extends EventEmitter {
       res.status(200).json(this.boot.view()))
 
     bootr.patch('/', (req, res, next) => 
-      this.boot.PATCH_BOOT(req.user, req.body, err => 
+      this.boot.PATCH_BOOT(req.user, req.body, err =>
         err ? next(err) : res.status(200).end()))
+
+    bootr.get('/boundVolume/space', (req, res, next) => 
+      this.boot.GET_BoundVolume(req.user, (err, data) =>
+        err ? next(err) : res.status(200).json(data)))
 
     bootr.post('/boundVolume', (req, res, next) =>
       this.boot.init(req.body.target, req.body.mode, (err, data) =>

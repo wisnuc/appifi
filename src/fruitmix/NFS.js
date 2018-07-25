@@ -516,14 +516,25 @@ class NFS extends EventEmitter {
                 phy.usage = {
                   total: parseInt(xs[1]),
                   used: parseInt(xs[2]),
-                  available: parseInt(xs[3]) 
+                  available: parseInt(xs[3])
                 }
+              }
+              if (drv.isVolume && drv.isBtrfs) {
+                let total
+                let sizeArr = drv.devices.map(d => d.size).sort((a, b) => a > b ? 1 : a < b ? -1 : 0)
+                if (drv.usage && drv.usage.data && drv.usage.data.mode.toLowerCase() === 'raid1') {
+                  let max = sizeArr.pop()
+                  let offmax = sizeArr.reduce((acc, a) => a + acc, 0)
+                  total = max > offmax ? offmax : (offmax + max)/2
+                } else {
+                  total = sizeArr.reduce((acc, a) => a + acc, 0)
+                }
+                phy.usage.total = total / 1024
               }
             }
           } else {
             console.log(err)
           }
-
           if (!--count) callback(null, arr)
         })
       })

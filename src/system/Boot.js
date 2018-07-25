@@ -17,6 +17,7 @@ const DataStore = require('../lib/DataStore')
 const Fruitmix = require('../fruitmix/Fruitmix')
 const { probe, probeAsync, umountBlocksAsync } = require('./storage')
 const { UdevMonitor, StorageUpdater } = require('./diskmon')
+const btrfsUsageAsync = require('./btrfsusageAsync')
 
 /**
 Boot is the top-level container
@@ -1126,9 +1127,8 @@ class Boot extends EventEmitter {
           console.log('===========================')
           console.log(err)
         }
-        if (props.format) {
-          this.state.uninstall(props, callback)
-        }
+        if (props.format) return this.state.uninstall(props, callback)
+        return callback(err)
       })
     } else
       this.state.uninstall(props, callback)
@@ -1146,7 +1146,7 @@ class Boot extends EventEmitter {
       }
       config.action = '1'
       let tmpP = path.join(this.conf.chassis.tmpDir, UUID.v4())
-      let command = 'chattr -i /mnt/reserved/fw_ver_release.json'
+      // let command = 'chattr -i /mnt/reserved/fw_ver_release.json'
       // command = command + `cat ${ tmpP } | jq . > /mnt/reserved/fw_ver_release.json;\n`
       // command = command + 'rm /tmp/release.json;\n'
       // command = command + 'chattr +i /mnt/reserved/fw_ver_release.json;\n'
@@ -1159,6 +1159,7 @@ class Boot extends EventEmitter {
           fs.rename(tmpP, fileP, err => {
             child.exec('chattr +i /mnt/reserved/fw_ver_release.json')
             if (err) return callback(err)
+            console.log('do auto reboot: ', autoReboot)
             if (autoReboot) setTimeout(() => child.exec('reboot'), 100)
             callback(null)
           })
@@ -1229,6 +1230,42 @@ class Boot extends EventEmitter {
       setTimeout(() => child.exec(props.state), 2000)
       callback(null)
     } else return callback(Object.assign(new Error('invalid props'), { status: 400 }))
+  }
+
+  GET_BoundVolume (user, callback) {
+    if (!this.volumeStore.data) return callback(new Error('no bound volume')) // no bound volume
+
+    let vol = this.storage.volumes.find(v => v.uuid === this.volumeStore.data.uuid)
+    if (!vol) return callback(new Error('bound volume not found'))  // bound volume not found
+    if (vol.isMissing) return callback(new Error('bound volume has missing device')) 
+    child.exec(`df -P "${vol.mountpoint}"`, (err, stdout) => {
+      if (!err) {
+        let lines = stdout.toString().trim().split('\n')
+        if (lines.length === 2) {
+          let xs = lines[1].split(' ').filter(x => !!x)
+          if (xs.length === 6) {
+            let usage = {
+              total: parseInt(xs[1]),
+              used: parseInt(xs[2]),
+              available: parseInt(xs[3])
+            }
+            let total
+            let sizeArr = vol.devices.map(d => d.size).sort((a, b) => a > b ? 1 : a < b ? -1 : 0)
+            if (vol.usage && vol.usage.data && vol.usage.data.mode.toLowerCase() === 'raid1') {
+              let max = sizeArr.pop()
+              let offmax = sizeArr.reduce((acc, a) => a + acc, 0)
+              total = max > offmax ? offmax : (offmax + max)/2
+            } else {
+              total = sizeArr.reduce((acc, a) => a + acc, 0)
+            }
+            usage.total = total / 1024
+            callback(null, usage)
+          }
+        }
+      } else {
+        callback(err)
+      }
+    })
   }
 
 }
