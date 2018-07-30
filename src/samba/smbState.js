@@ -144,6 +144,7 @@ class Started extends State {
     this.state = 'refreshing'
     this.refreshAsync()
       .then(() => {})
+      // TODO error message: cannot read property 'map' of undefined
       .catch(e => console.log('samba refresh error', e.message))
       .then(() => {
         if (this.exited) return
@@ -209,8 +210,15 @@ class Stopping extends State {
         this.cbs.forEach(cb => cb(err))
         this.setState(Failed, err)
       } else {
-        this.cbs.forEach(cb => cb(null))
-        this.setState(Stopped)
+        child.exec('systemctl disable smbd', err => {
+          if (err) {
+            this.cbs.forEach(cb => cb(err))
+            this.setState(Failed, err)
+          } else {
+            this.cbs.forEach(cb => cb(null))
+            this.setState(Stopped)
+          }
+        })
       }
     })
   }
@@ -343,9 +351,7 @@ class Samba extends EventEmitter {
     })
 
     udp.on('error', err => {
-      console.log('fruitmix udp server error', err)
-      // should restart with back-off TODO
-      //TODO: retry ？？
+      if (!process.env.NODE_PATH || process.env.LOGE) console.log('smbaudit udp server error', err)
       udp.close()
       this.udpServer = undefined
     })
