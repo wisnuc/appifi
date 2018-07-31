@@ -126,10 +126,6 @@ class Fruitmix extends EventEmitter {
       this.user.bindFirstUser(this.boundUser)
     }
 
-    this.balanceTimer = setInterval(() => {
-      child.exec(`btrfs balance start ${ this.fruitmixDir }`, err => console.log('balance error: ', err))
-    }, 24 * 1000 * 60 * 60)
-
     this.drive = new Drive({
       file: path.join(this.fruitmixDir, 'drives.json'),
       tmpDir: path.join(this.fruitmixDir, 'tmp', 'drives')

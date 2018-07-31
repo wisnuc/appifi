@@ -252,6 +252,15 @@ class Started extends State {
     this.udevMonitor.on('update', () => this.ctx.storageUpdater.probe())
 
     this.uninstalling = false
+
+    this.balanceTimer = setInterval(() => {
+      console.log('============== start balance ======')
+      child.exec(`btrfs balance start ${ fruitmix.fruitmixDir }`, err => {
+        console.log('balance error: ', err)
+        console.log('mountpoint: ' + fruitmix.fruitmixDir)
+        console.log('============== end balance ======')
+      })
+    }, 24 * 1000 * 60 * 60)
   }
 
   exit () {
@@ -260,6 +269,7 @@ class Started extends State {
     this.jobs = []
     jobs.forEach(j => j.callback && j.callback(new Error('exit started state')))
     this.udevMonitor.destroy()
+    clearInterval(this.balanceTimer)
   }
 
   boundUserUpdated () {
