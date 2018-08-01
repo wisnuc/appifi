@@ -346,7 +346,7 @@ class Pipe extends EventEmitter {
    * @memberof Pipe
    */
   postResource (message, absolutePath) {
-    let body = message.data.body
+    let body = message.data.params
     let start, end
     if (body && body.header && body.header.range) {
       const rangeArr = body.header.range.split('-').filter(x => !!x)
