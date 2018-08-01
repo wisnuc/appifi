@@ -1003,22 +1003,23 @@ class Boot extends EventEmitter {
   }
 
   storageUpdate (data) {
-    // if (this.stateName().toUpperCase() === 'STARTED') {
-    //   let prvVol = this.storage.volumes.find(v => v.uuid === this.volumeStore.data.uuid)
-    //   let vol = data.volumes.find(v => v.uuid === this.volumeStore.data.uuid)
-    //   let prvObj = Object.assign({}, {
-    //     missing: prvVol.missing, 
-    //     devices: prvVol.devices
-    //   })
-    //   let volObj = Object.assign({}, {
-    //     missing: vol.missing, 
-    //     devices: vol.devices
-    //   })
-    //   if (!vol || !deepEqual(prvObj, volObj)) {
-    //     // vol mismatch 
-    //     process.exit(61)
-    //   }
-    // }
+    if (this.stateName().toUpperCase() === 'STARTED') {
+      let prvVol = this.storage.volumes.find(v => v.uuid === this.volumeStore.data.uuid)
+      let vol = data.volumes.find(v => v.uuid === this.volumeStore.data.uuid)
+      if (vol.isMissing) return process.exit(61)
+      let prvObj = Object.assign({}, {
+        missing: prvVol.missing, 
+        devices: prvVol.devices
+      })
+      let volObj = Object.assign({}, {
+        missing: vol.missing, 
+        devices: vol.devices
+      })
+      if (!vol || !deepEqual(prvObj, volObj)) {
+        // vol mismatch 
+        process.exit(61)
+      }
+    }
     this.storage = data
   }
 
