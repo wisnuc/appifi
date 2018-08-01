@@ -253,12 +253,27 @@ class Started extends State {
 
     this.uninstalling = false
 
+    // do balance 
     this.balanceTimer = setInterval(() => {
       console.log('============== start balance ======')
       child.exec(`btrfs balance start ${ fruitmix.fruitmixDir }`, err => {
         console.log('balance error: ', err)
         console.log('mountpoint: ' + fruitmix.fruitmixDir)
         console.log('============== end balance ======')
+        if (err) {
+          console.log('========== start duage=0 balance =======')
+          child.exec(`btrfs balance start -dusage=0 ${ fruitmix.fruitmixDir }`, err => {
+            console.log('balance error: ', err)
+            console.log('============== end duage=0 balance ======')
+            if (err) {
+              console.log('========== start muage=0 balance =======')
+              child.exec(`btrfs balance start -musage=0 ${ fruitmix.fruitmixDir }`, err => {
+                console.log('balance error: ', err)
+                console.log('============== end muage=0 balance ======')
+              })
+            }
+          })
+        }
       })
     }, 24 * 1000 * 60 * 60)
   }
