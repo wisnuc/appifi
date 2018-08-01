@@ -355,7 +355,7 @@ class Pipe extends EventEmitter {
       }
       if (rangeArr.length === 2) {
         start = parseInt(rangeArr[0])
-        end = parseInt(rangeArr[1])
+        end = parseInt(rangeArr[1]) - 1
       }
       console.log('required range stream: ', start, '  ', end)
     }
