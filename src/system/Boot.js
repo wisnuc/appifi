@@ -252,6 +252,30 @@ class Started extends State {
     this.udevMonitor.on('update', () => this.ctx.storageUpdater.probe())
 
     this.uninstalling = false
+
+    // do balance 
+    this.balanceTimer = setInterval(() => {
+      console.log('============== start balance ======')
+      child.exec(`btrfs balance start ${ fruitmix.fruitmixDir }`, err => {
+        console.log('balance error: ', err)
+        console.log('mountpoint: ' + fruitmix.fruitmixDir)
+        console.log('============== end balance ======')
+        if (err) {
+          console.log('========== start duage=0 balance =======')
+          child.exec(`btrfs balance start -dusage=0 ${ fruitmix.fruitmixDir }`, err => {
+            console.log('balance error: ', err)
+            console.log('============== end duage=0 balance ======')
+            if (err) {
+              console.log('========== start muage=0 balance =======')
+              child.exec(`btrfs balance start -musage=0 ${ fruitmix.fruitmixDir }`, err => {
+                console.log('balance error: ', err)
+                console.log('============== end muage=0 balance ======')
+              })
+            }
+          })
+        }
+      })
+    }, 24 * 1000 * 60 * 60)
   }
 
   exit () {
@@ -260,6 +284,7 @@ class Started extends State {
     this.jobs = []
     jobs.forEach(j => j.callback && j.callback(new Error('exit started state')))
     this.udevMonitor.destroy()
+    clearInterval(this.balanceTimer)
   }
 
   boundUserUpdated () {
@@ -978,22 +1003,23 @@ class Boot extends EventEmitter {
   }
 
   storageUpdate (data) {
-    // if (this.stateName().toUpperCase() === 'STARTED') {
-    //   let prvVol = this.storage.volumes.find(v => v.uuid === this.volumeStore.data.uuid)
-    //   let vol = data.volumes.find(v => v.uuid === this.volumeStore.data.uuid)
-    //   let prvObj = Object.assign({}, {
-    //     missing: prvVol.missing, 
-    //     devices: prvVol.devices
-    //   })
-    //   let volObj = Object.assign({}, {
-    //     missing: vol.missing, 
-    //     devices: vol.devices
-    //   })
-    //   if (!vol || !deepEqual(prvObj, volObj)) {
-    //     // vol mismatch 
-    //     process.exit(61)
-    //   }
-    // }
+    if (this.stateName().toUpperCase() === 'STARTED') {
+      let prvVol = this.storage.volumes.find(v => v.uuid === this.volumeStore.data.uuid)
+      let vol = data.volumes.find(v => v.uuid === this.volumeStore.data.uuid)
+      if (vol.isMissing) return process.exit(61)
+      let prvObj = Object.assign({}, {
+        missing: prvVol.missing, 
+        devices: prvVol.devices
+      })
+      let volObj = Object.assign({}, {
+        missing: vol.missing, 
+        devices: vol.devices
+      })
+      if (!vol || !deepEqual(prvObj, volObj)) {
+        // vol mismatch 
+        process.exit(61)
+      }
+    }
     this.storage = data
   }
 

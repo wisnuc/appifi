@@ -157,7 +157,7 @@ class User extends EventEmitter {
   }
 
   getUser (userUUID) {
-    return this.users.find(u => u.uuid === userUUID)
+    return this.users.find(u => u.uuid === userUUID && u.status === USER_STATUS.ACTIVE)
   }
 
   /**
@@ -418,7 +418,7 @@ class User extends EventEmitter {
   */
   GET (user, props, callback) {
     let userUUID = props.userUUID
-    let u = isUUID(userUUID) ? this.getUser(props.userUUID) : this.users.find(u => u.phicommUserId === props.userUUID)
+    let u = isUUID(userUUID) ? this.getUser(props.userUUID) : this.users.find(u => u.phicommUserId === props.userUUID && u.status === USER_STATUS.ACTIVE)
     if (!u) return process.nextTick(() => callback(Object.assign(new Error('user not found'), { status: 404 })))
     if (user.isFirstUser || user.uuid === u.uuid) return process.nextTick(() => callback(null, this.fullInfo(u)))
     return process.nextTick(Object.assign(new Error('Permission Denied'), { status: 403 }))
@@ -429,8 +429,8 @@ class User extends EventEmitter {
   */
   PATCH (user, props, callback) {
     let userUUID
-    let devU = isUUID(props.userUUID) ? this.users.find(u => u.uuid === props.userUUID)
-          : this.users.find(u => u.phicommUserId === props.userUUID)
+    let devU = isUUID(props.userUUID) ? this.users.find(u => u.uuid === props.userUUID && u.status === USER_STATUS.ACTIVE)
+          : this.users.find(u => u.phicommUserId === props.userUUID && u.status === USER_STATUS.ACTIVE)
     if (!devU) return callback(Object.assign(new Error('user not found'), { status: 404 }))
     userUUID = devU.uuid
 
@@ -465,8 +465,8 @@ class User extends EventEmitter {
   DELETE (user, props, callback) {
 
     let userUUID
-    let devU = isUUID(props.userUUID) ? this.users.find(u => u.uuid === props.userUUID)
-          : this.users.find(u => u.phicommUserId === props.userUUID)
+    let devU = isUUID(props.userUUID) ? this.users.find(u => u.uuid === props.userUUID && u.status === USER_STATUS.ACTIVE)
+          : this.users.find(u => u.phicommUserId === props.userUUID && u.status === USER_STATUS.ACTIVE)
     if (!devU) return callback(Object.assign(new Error('user not found'), { status: 404 }))
     userUUID = devU.uuid
 

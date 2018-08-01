@@ -346,6 +346,19 @@ class Pipe extends EventEmitter {
    * @memberof Pipe
    */
   postResource (message, absolutePath) {
+    let body = message.data.params
+    let start, end
+    if (body && body.header && body.header.range) {
+      const rangeArr = body.header.range.split('-').filter(x => !!x)
+      if (rangeArr.length === 1) {
+        start = parseInt(rangeArr[0])
+      }
+      if (rangeArr.length === 2) {
+        start = parseInt(rangeArr[0])
+        end = parseInt(rangeArr[1]) - 1
+      }
+      console.log('required range stream: ', start, '  ', end)
+    }
     request.post({
       url: `${BASE_URL}${message.packageParams.waitingServer}/resource`,
       headers: {
@@ -356,7 +369,7 @@ class Pipe extends EventEmitter {
         deviceSN: this.ctx.config.device.deviceSN,
         msgId: message.msgId
       },
-      body: fs.createReadStream(absolutePath)
+      body: fs.createReadStream(absolutePath, { start, end })
     }, (error, response, body) => {
       if (!error && response.statusCode === 200) {
         debug(`postResource body: ${body}`)
