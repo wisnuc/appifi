@@ -2,7 +2,7 @@ const EventEmitter = require('events')
 const UUID = require('uuid')
 const { isUUID, isNonNullObject, isNonEmptyString } = require('../lib/assertion')
 const DataStore = require('../lib/DataStore')
-const { passwordEncrypt, md4Encrypt } = require('../lib/utils')
+const { passwordEncrypt, md4Encrypt } = require('../lib/utils') // eslint-disable-line
 const request = require('superagent')
 const debug = require('debug')('appifi:user')
 
@@ -22,7 +22,7 @@ const INACTIVE_REASON = {
  * user in INACTIVE state
  * * user object have `reason` property
  *    * if `reason` equal number `import`, becourse of import
- *    * if equal number `timeout`, because of invite timeout  
+ *    * if equal number `timeout`, because of invite timeout
  * * admin do
  */
 
@@ -120,7 +120,6 @@ class User extends EventEmitter {
     }
   }
 
-
   /**
    * lookupCloudUsers
    * 定期每十分钟轮训一次云端
@@ -130,7 +129,7 @@ class User extends EventEmitter {
    */
   lookupCloudUsers () {
     setInterval(() => {
-      if(this.cloudConf.cloudToken) {
+      if (this.cloudConf.cloudToken) {
         debug(this.cloudConf.cloudToken)
         request
           .get('http://sohon2test.phicomm.com/StationManager/nas/getInfo')
@@ -138,12 +137,12 @@ class User extends EventEmitter {
           .end((err, res) => {
             if (err || (res.body && res.body.error !== '0')) return debug(err)
             debug('lookupCloudUsers: ', res.body)
-            if(!res.body.result || !Array.isArray(res.body.result.userList)) return
+            if (!res.body.result || !Array.isArray(res.body.result.userList)) return
             let result = res.body.result.userList.filter(u => u.inviteStatus === 'timeout' || u.inviteStatus === 'reject')
-            if(!result.length) return
+            if (!result.length) return
             this.storeSave(users => {
               result.forEach(r => {
-                let user = users.find(u => u.phicommUserId === r.uid && user.status === USER_STATUS.ACTIVE)
+                let user = users.find(u => u.phicommUserId === r.uid && u.status === USER_STATUS.ACTIVE)
                 if (user) {
                   user.status = USER_STATUS.INACTIVE
                   user.reason = r.inviteStatus === 'timeout' ? INACTIVE_REASON.TIMEOUT : INACTIVE_REASON.REJECT
@@ -157,14 +156,14 @@ class User extends EventEmitter {
   }
 
   getUser (userUUID) {
-    return this.users.find(u => u.uuid === userUUID && u.status === USER_STATUS.ACTIVE)
+    return this.users.find(u => u.uuid === userUUID && u.status !== USER_STATUS.DELETED)
   }
 
   /**
    * data 为数组或者方法
    * 所有的存储任务提交前先检查约束条件是否都过关
    */
-  storeSave(data, callback) {
+  storeSave (data, callback) {
     this.store.save(users => {
       let changeData = typeof data === 'function' ? data(users) : data
       // check rules
@@ -192,7 +191,7 @@ class User extends EventEmitter {
     let uuid = UUID.v4()
     this.storeSave(users => {
       let isFirstUser = users.length === 0
-      let { username, phicommUserId, password, smbPassword, phoneNumber } = props
+      let { username, phicommUserId, password, smbPassword, phoneNumber } = props // eslint-disable-line
 
       let cU = users.find(u => u.username === username)
       if (cU && cU.status !== USER_STATUS.DELETED) throw new Error('username already exist')
@@ -212,7 +211,7 @@ class User extends EventEmitter {
         createTime: new Date().getTime(),
         lastChangeTime: new Date().getTime(),
         phoneNumber: props.phoneNumber,
-        itime: new Date().getTime() // inviteTime, serve for check invite timeout 
+        itime: new Date().getTime() // inviteTime, serve for check invite timeout
       }
       return [...users, newUser]
     }, (err, data) => {
@@ -312,7 +311,7 @@ class User extends EventEmitter {
           console.log('different than the previous one, exit')
           console.log('===================')
           process.exit(67)
-        } 
+        }
         if (isNonEmptyString(boundUser.phoneNumber) && firstUser.phoneNumber !== boundUser.phoneNumber) {
           if (users.find(u => u.phoneNumber === boundUser.phoneNumber && u.status !== USER_STATUS.DELETED)) {
             console.log('==============')
@@ -323,9 +322,9 @@ class User extends EventEmitter {
             console.log('==============')
             console.log('update bound user phoneNumber')
             console.log('==============')
-            firstUser.phoneNumber = boundUser.phoneNumber 
+            firstUser.phoneNumber = boundUser.phoneNumber
           }
-        } 
+        }
         return [
           ...users.slice(0, index),
           firstUser,
@@ -334,8 +333,8 @@ class User extends EventEmitter {
       }
     },
     err => err
-    ? console.log(`user module failed to bind first user to ${boundUser.phicommUserId}`, err)
-    : console.log(`user module bound first user to ${boundUser.phicommUserId} successfully`))
+      ? console.log(`user module failed to bind first user to ${boundUser.phicommUserId}`, err)
+      : console.log(`user module bound first user to ${boundUser.phicommUserId} successfully`))
   }
 
   destroy (callback) {
@@ -418,7 +417,7 @@ class User extends EventEmitter {
   */
   GET (user, props, callback) {
     let userUUID = props.userUUID
-    let u = isUUID(userUUID) ? this.getUser(props.userUUID) : this.users.find(u => u.phicommUserId === props.userUUID && u.status === USER_STATUS.ACTIVE)
+    let u = isUUID(userUUID) ? this.getUser(props.userUUID) : this.users.find(u => u.phicommUserId === props.userUUID && u.status !== USER_STATUS.DELETED)
     if (!u) return process.nextTick(() => callback(Object.assign(new Error('user not found'), { status: 404 })))
     if (user.isFirstUser || user.uuid === u.uuid) return process.nextTick(() => callback(null, this.fullInfo(u)))
     return process.nextTick(Object.assign(new Error('Permission Denied'), { status: 403 }))
@@ -429,8 +428,8 @@ class User extends EventEmitter {
   */
   PATCH (user, props, callback) {
     let userUUID
-    let devU = isUUID(props.userUUID) ? this.users.find(u => u.uuid === props.userUUID && u.status === USER_STATUS.ACTIVE)
-          : this.users.find(u => u.phicommUserId === props.userUUID && u.status === USER_STATUS.ACTIVE)
+    let devU = isUUID(props.userUUID) ? this.users.find(u => u.uuid === props.userUUID && u.status !== USER_STATUS.DELETED)
+      : this.users.find(u => u.phicommUserId === props.userUUID && u.status !== USER_STATUS.DELETED)
     if (!devU) return callback(Object.assign(new Error('user not found'), { status: 404 }))
     userUUID = devU.uuid
 
@@ -453,7 +452,7 @@ class User extends EventEmitter {
       if (u && u.status !== USER_STATUS.DELETED) return callback(Object.assign(new Error('username exist'), { status: 400 }))
       let recognizedStatus = [USER_STATUS.ACTIVE, USER_STATUS.INACTIVE, USER_STATUS.DELETED]
 
-      if (props.status && !user.isFirstUser ) return callback(Object.assign(new Error('Permission Denied'), { status: 403 }))
+      if (props.status && !user.isFirstUser) return callback(Object.assign(new Error('Permission Denied'), { status: 403 }))
       if (props.status && user.uuid === userUUID) return callback(Object.assign(new Error('can not change admin status'), { status: 400 }))
       if (props.status && !recognizedStatus.includes(props.status)) return callback(Object.assign(new Error('unknown status'), { status: 400 }))
 
@@ -463,10 +462,9 @@ class User extends EventEmitter {
   }
 
   DELETE (user, props, callback) {
-
     let userUUID
-    let devU = isUUID(props.userUUID) ? this.users.find(u => u.uuid === props.userUUID && u.status === USER_STATUS.ACTIVE)
-          : this.users.find(u => u.phicommUserId === props.userUUID && u.status === USER_STATUS.ACTIVE)
+    let devU = isUUID(props.userUUID) ? this.users.find(u => u.uuid === props.userUUID && u.status !== USER_STATUS.DELETED)
+      : this.users.find(u => u.phicommUserId === props.userUUID && u.status !== USER_STATUS.DELETED)
     if (!devU) return callback(Object.assign(new Error('user not found'), { status: 404 }))
     userUUID = devU.uuid
 
