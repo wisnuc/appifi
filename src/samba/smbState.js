@@ -8,8 +8,7 @@ const dgram = require('dgram')
 const mkdirpAsync = Promise.promisify(require('mkdirp'))
 const rimrafAsync = Promise.promisify(require('rimraf'))
 
-const { rsyslogAsync, transfer, processUsersAsync, 
-  processDrivesAsync, genSmbConfAsync } = require('./lib')
+const { rsyslogAsync, processUsersAsync, genSmbConfAsync } = require('./lib')
 
 const debug = require('debug')('samba')
 
@@ -145,7 +144,7 @@ class Started extends State {
     this.refreshAsync()
       .then(() => {})
       // TODO error message: cannot read property 'map' of undefined
-      .catch(e => console.log('samba refresh error', e.message))
+      .catch(e => console.log('samba refresh error', e))
       .then(() => {
         if (this.exited) return
         if (this.again) {
@@ -159,22 +158,82 @@ class Started extends State {
   }
 
   async refreshAsync () {
-    let x = transfer(this.ctx.user.users, this.ctx.drive.drives)
-    let users = await processUsersAsync(x.users)
-    if (this.exited) return
+    let froot = this.ctx.froot
 
-    debug('refresh users', users)
+    // clone active users (including users without smb password)
+    let users = JSON.parse(JSON.stringify(this.ctx.user.users.filter(u => u.status === 'ACTIVE')))
 
-    let drives = await processDrivesAsync(x.users, x.drives)
-    if (this.exited) return
+    // annotate unix username
+    users.forEach(u => {
+      u.unixName = ['x', ...u.uuid.split('-').map((s, i) => i === 2 ? s.slice(1) : s)].join('')
+    }) 
 
-    debug('refresh drives', drives)
+    // clone drives and generate shares
+    let shares = this.ctx.drive.drives
+      .filter(d => !d.isDeleted)
+      .map((drive, idx, arr) => {
+        let { uuid } = drive
 
-    await genSmbConfAsync(this.ctx.froot, users, drives, this.ctx.usbs)
-    if (this.exited) return
+        if (drive.type === 'public') { // public
+          if (drive.tag === 'built-in') { // built-in
+            return {
+              uuid,
+              name: '默认共享盘',
+              anonymous: true,
+            }
+          } else { // other public
+            let pubs = arr.filter(d => d.type === 'public' && d.tag !== 'built-in')
+            let x = {
+              uuid,
+              name: drive.label || '共享盘' + (pubs.indexOf(drive) + 1),
+            }
+
+            if (Array.isArray(drive.writelist)) {
+              x.anonymous = false
+              x.writelist = drive.writelist
+                .map(uuid => users.find(u => u.uuid === uuid))
+                .filter(u => !!u)
+                .map(u => u.unixName)
+            } else {
+              x.anonymous = true
+            }
+            return x
+          }
+        } else {  // private
+          let user = users.find(u => u.uuid === drive.owner)
+          if (!user) return
+          if (drive.smb === true) { // priviledged
+            if (!user.smbPassword) return // forbidden
+            return {
+              uuid,
+              name: user.phoneNumber,
+              anonymous: false,
+              writelist: [user.unixName]
+            }
+          } else {
+            return { // anonymous
+              uuid,
+              name: user.phoneNumber,
+              anonymous: true
+            }
+          }
+        }
+      })
+      .filter(x => !!x)
+      .map(x => {
+        x.path = `${froot}/drives/${x.uuid}`
+        return x
+      })
+
+    debug('refreshing users', users)
+    await processUsersAsync(users)
+
+    debug('refreshing shares', shares, this.ctx.usbs)
+    await genSmbConfAsync(shares, this.ctx.usbs)
 
     // theoretically, this command force all services to reload config (smbd, nmbd, winbindd etc)
-    await child.execAsync('smbcontrol all reload-config')
+    // await child.execAsync('smbcontrol all reload-config')
+    await child.execAsync('systemctl restart smbd')
   }
 
   exit () {

@@ -42,7 +42,7 @@ const Bob = {
   uuid: '620970c1-589a-4ed5-b94c-838b2b498583',
   username: 'bob',
   password: '$2a$10$nUmDoy9SDdkPlj9yuYf2HulnbtvbF0Ei6rGF1G1UKUkJcldINaJVy',
-  smbPassword: '4039730E1BF6E10DD01EAAC983DB4D7C',
+  smbPassword: 'B7C899154197E8A2A33121D76A240AB5',
   lastChangeTime: 1523867673407,
   isFirstUser: false,
   createTime: 1523867673407,
@@ -55,7 +55,7 @@ const Charlie = {
   uuid: '1b5f9a45-a2c6-40c4-821c-7c7fcf02df84',
   username: 'charlie',
   password: '$2a$10$nUmDoy9SDdkPlj9yuYf2HulnbtvbF0Ei6rGF1G1UKUkJcldINaJVy',
-  smbPassword: '4039730E1BF6E10DD01EAAC983DB4D7C',
+  smbPassword: '8D44C8FF3A4D1979B24BFE29257173AD',
   lastChangeTime: 1523867673407,
   isFirstUser: false,
   createTime: 1523867673407,
@@ -94,7 +94,7 @@ const Frank = {
   uuid: '1f04fc16-8299-4449-93a2-1cb17eb5e004',
   username: 'frank',
   password: '$2a$10$nUmDoy9SDdkPlj9yuYf2HulnbtvbF0Ei6rGF1G1UKUkJcldINaJVy',
-  smbPassword: '4039730E1BF6E10DD01EAAC983DB4D7C',
+  smbPassword: '2FAF5F4A6E588F18F1F84616DA5BA9A7',
   lastChangeTime: 1523867673407,
   isFirstUser: false,
   createTime: 1523867673407,
@@ -107,7 +107,7 @@ const Grace = {
   uuid: '74d9fd2d-a371-4f66-b3cd-06322d8a488d',
   username: 'grace',
   password: '$2a$10$nUmDoy9SDdkPlj9yuYf2HulnbtvbF0Ei6rGF1G1UKUkJcldINaJVy',
-  smbPassword: '4039730E1BF6E10DD01EAAC983DB4D7C',
+  smbPassword: 'E7DEF634283A9C5823D8BDF1C0D5D65E',
   lastChangeTime: 1523867673407,
   isFirstUser: false,
   createTime: 1523867673407,
@@ -144,6 +144,17 @@ const browse = callback => child.exec('smbclient -gNL localhost', (err, stdout, 
 })
 
 const browseAsync = Promise.promisify(browse)
+
+const access = (name, user, pass, callback) =>
+  child.exec(`smbclient -U ${user} \\\\\\\\localhost\\\\${name} ${pass} -c ls`, (err, stdout, stderr) => 
+    callback(null, { err, stdout, stderr }))
+
+const accessAsync = Promise.promisify(access)
+
+const nopass = (name, callback) => child.exec(`smbclient -N \\\\\\\\localhost\\\\${name} -c ls`, callback)
+
+const nopassAsync = Promise.promisify(nopass)
+
 
 describe(path.basename(__filename), () => {
 
@@ -355,9 +366,8 @@ describe(path.basename(__filename), () => {
     await Promise.delay(3000)
 
     let list = await browseAsync()  
-    console.log(list.sort())
 
-    expect(list).to.deep.equal([
+    expect(list.sort()).to.deep.equal([
       Alice.phoneNumber,
       Bob.phoneNumber,
       Charlie.phoneNumber,
@@ -366,5 +376,71 @@ describe(path.basename(__filename), () => {
       'hello',
       'world'
     ].sort())
+
+    // everybody can access charlie's and eve's drive, as well as built-in
+    
+    await nopassAsync(Charlie.phoneNumber) 
+    await nopassAsync(Eve.phoneNumber)
+    await nopassAsync('默认共享盘')
+
+    let r
+
+    // alice can access her drive
+    r = await accessAsync(Alice.phoneNumber, Alice.phoneNumber, 'alice')
+    expect(r.err).to.equal(null)
+
+    // bob cannot access alice's drive
+    r = await accessAsync(Alice.phoneNumber, Bob.phoneNumber, 'bob')
+    expect(r.err).to.be.an('error')
+    expect(r.stdout).to.includes('NT_STATUS_ACCESS_DENIED')
+
+    // bob can access his drive
+    r = await accessAsync(Bob.phoneNumber, Bob.phoneNumber, 'bob')
+    expect(r.err).to.equal(null)
+    
+    // alice cannot access bob's drive
+    r = await accessAsync(Bob.phoneNumber, Alice.phoneNumber, 'alice')
+    expect(r.err).to.be.an('error')
+    expect(r.stdout).to.includes('NT_STATUS_ACCESS_DENIED')
+
+    // alice and bob can access hello, but not charlie, david, eve, frank, grace
+    r = await accessAsync('hello', Alice.phoneNumber, 'alice')
+    expect(r.err).to.equal(null)
+
+    r = await accessAsync('hello', Bob.phoneNumber, 'bob')
+    expect(r.err).to.equal(null)
+
+    r = await accessAsync('hello', Charlie.phoneNumber, 'charlie')
+    expect(r.err).to.be.an('error')
+    expect(r.stdout).to.includes('NT_STATUS_ACCESS_DENIED')
+
+    r = await accessAsync('hello', Frank.phoneNumber, 'frank')
+    expect(r.err).to.be.an('error')
+    expect(r.stdout).to.includes('NT_STATUS_ACCESS_DENIED')
+
+    r = await accessAsync('hello', Grace.phoneNumber, 'grace')
+    expect(r.err).to.be.an('error')
+    expect(r.stdout).to.includes('NT_STATUS_ACCESS_DENIED')
+
+
+    // alice and charlie can access world, but not bob
+    r = await accessAsync('world', Alice.phoneNumber, 'alice')
+    expect(r.err).to.equal(null)
+
+    r = await accessAsync('world', Charlie.phoneNumber, 'charlie')
+    expect(r.err).to.equal(null)
+
+    r = await accessAsync('world', Bob.phoneNumber, 'bob')
+    expect(r.err).to.be.an('error')
+    expect(r.stdout).to.includes('NT_STATUS_ACCESS_DENIED')
+
+    r = await accessAsync('hello', Frank.phoneNumber, 'frank')
+    expect(r.err).to.be.an('error')
+    expect(r.stdout).to.includes('NT_STATUS_ACCESS_DENIED')
+
+    r = await accessAsync('hello', Grace.phoneNumber, 'grace')
+    expect(r.err).to.be.an('error')
+    expect(r.stdout).to.includes('NT_STATUS_ACCESS_DENIED')
+
   })
 })
