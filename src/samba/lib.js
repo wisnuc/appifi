@@ -5,29 +5,6 @@ const mkdirpAsync = Promise.promisify(require('mkdirp'))
 const rimrafAsync = Promise.promisify(require('rimraf'))
 const debug = require('debug')('samba')
 
-const rsyslogPath = '/etc/rsyslog.d/99-smbaudit.conf'
-
-// 调用rsyslog服务，记录samba信息
-const rsyslogAsync = async () => {
-  const text = 'LOCAL7.*    @127.0.0.1:3721'
-
-  let data
-  try {
-    data = await fs.readFileAsync(rsyslogPath)
-    if (data.toString() === text) return
-  } catch (e) {
-    if (e.code !== 'ENOENT') throw e
-  }
-
-  await fs.writeFileAsync(rsyslogPath, text)
-
-  try {
-    await child.execAsync('systemctl restart rsyslog')
-  } catch (e) {
-    console.log('rsyslogd restart error, neglected', e)
-  }
-}
-
 /**
 retrieve linux users from /etc/passwd
 */

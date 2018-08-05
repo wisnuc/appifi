@@ -26,8 +26,8 @@ const FileApi = require('./apis/file')
 const MediaApi = require('./apis/media')
 const StatsApi = require('./apis/stats')
 const Task = require('./Task')
-const Samba = require('../samba/smbState')
-const Dlna = require('../samba/dlnaServer')
+const Samba = require('../samba/samba')
+const Dlna = require('../samba/dlna')
 const Transmission = require('../transmission/manager')
 
 /**
