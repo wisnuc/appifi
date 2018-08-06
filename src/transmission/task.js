@@ -1,7 +1,8 @@
 const fs = require('fs')
 const path = require('path')
 const { execSync } = require('child_process')
-const getFruit = require('../fruitmix')
+// const getFruit = require('../fruitmix')
+const getFruit = () => null // TODO
 const { clone } = require('../lib/btrfs')
 
 class State {

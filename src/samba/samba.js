@@ -1,19 +1,20 @@
 const Promise = require('bluebird')
 const path = require('path')
-const events = require('events')
-const dgram = require('dgram')
 const fs = Promise.promisifyAll(require('fs'))
 const child = Promise.promisifyAll(require('child_process'))
+const EventEmitter = require('events')
+const dgram = require('dgram')
+
 const mkdirpAsync = Promise.promisify(require('mkdirp'))
 const rimrafAsync = Promise.promisify(require('rimraf'))
+
+// const { processUsersAsync, genSmbConfAsync } = require('./lib')
 
 const debug = require('debug')('samba')
 
 const rsyslogPath = '/etc/rsyslog.d/99-smbaudit.conf'
 
-const nosmb = !!process.argv.find(arg => arg === '--disable-smb') || process.env.NODE_PATH !== undefined
-
-// this function update rsyslog conf
+// 调用rsyslog服务，记录samba信息
 const rsyslogAsync = async () => {
   const text = 'LOCAL7.*    @127.0.0.1:3721'
 
@@ -28,12 +29,15 @@ const rsyslogAsync = async () => {
   await fs.writeFileAsync(rsyslogPath, text)
 
   try {
-    await child.execAsync('systemctl restart rsyslog')  
+    await child.execAsync('systemctl restart rsyslog')
   } catch (e) {
     console.log('rsyslogd restart error, neglected', e)
   }
 }
 
+/**
+retrieve linux users from /etc/passwd
+*/
 const retrieveSysUsersAsync = async () => {
   let data = await fs.readFileAsync('/etc/passwd')
   return data.toString().split('\n')
@@ -48,9 +52,12 @@ const retrieveSysUsersAsync = async () => {
       }
     })
     .filter(u => !!u)
-    .filter(u => /^x[0-9a-f]{31}$/.test(u.name))
+    .filter(u => /^x[0-9a-f]{31}$/.test(u.name)) // 31位长度的用户名是NAS用户对应UUID
 }
 
+/**
+retrieve smb users using pdbedit
+*/
 const retrieveSmbUsersAsync = async () => {
   let stdout = await child.execAsync('pdbedit -Lw')
   return stdout.toString().split('\n')
@@ -64,28 +71,27 @@ const retrieveSmbUsersAsync = async () => {
         uid: parseInt(split[1]),
         md4: split[3],
         lct: split[5]
-      } 
+      }
     })
     .filter(u => !!u)
 }
 
-// this function 
-// 1. sync /etc/passwd, 
-// 2. sync smb passwd db, 
+
+// this function
+// 1. sync /etc/passwd,
+// 2. sync smb passwd db,
 // 3. generate user map
 // returns users
-const processUsersAsync = async users => {
-  // remove disabled users
-  users = users.filter(u => !u.disabled)
+const processUsersAsync = async _users => {
+  // filter out users without smb password
+  users = _users.filter(u => !!u.smbPassword)
 
-  // generate unix name 
-  users.forEach(u => 
-    u.unixName = ['x', ...u.uuid.split('-').map((s, i) => i === 2 ? s.slice(1) : s)].join(''))
-  
-  // retrieve
+  // 获取与本地用户对于的系统用户列表
   let sysUsers = await retrieveSysUsersAsync()
+  debug('get system users\n')
+  debug(sysUsers)
 
-  // remove old users
+  // 将系统用户删除
   let outdated = sysUsers.filter(su => !users.find(fu => fu.unixName === su.name))
   for (let i = 0; i < outdated.length; i++) {
     try {
@@ -93,16 +99,18 @@ const processUsersAsync = async users => {
     } catch (e) {
       console.log(`error deleting user ${outdated[i].name}`)
     }
-  } 
+  }
 
-  // add new users to system
+  debug('after remove system users')
+
+  // 将本地用户添加至系统用户
   let newNames = users
     .filter(fu => !sysUsers.find(su => su.name === fu.unixName))
     .map(fu => fu.unixName)
-  
+
   for (let i = 0; i < newNames.length; i++) {
     try {
-      let cmd = 'adduser --disabled-password --disabled-login --no-create-home --gecos ",,," ' + 
+      let cmd = 'adduser --disabled-password --disabled-login --no-create-home --gecos ",,," ' +
         `--gid 65534 ${newNames[i]}`
       await child.execAsync(cmd)
     } catch (e) {
@@ -110,10 +118,12 @@ const processUsersAsync = async users => {
     }
   }
 
-  // retrieve system users again and filter out fusers without corresponding sys user (say, failed to create)
+  debug('after add system users')
+
+  // 将新生成的系统用户ID赋予本地用户
   sysUsers = await retrieveSysUsersAsync()
   users = users.reduce((acc, fu) => {
-    let su = sysUsers.find(su => su.name === fu.unixName) 
+    let su = sysUsers.find(su => su.name === fu.unixName)
     if (su) {
       fu.unixUID = su.id
       acc.push(fu)
@@ -121,9 +131,13 @@ const processUsersAsync = async users => {
     return acc
   }, [])
 
-  // retrieve smb users
-  smbUsers = await retrieveSmbUsersAsync()
-  // clean smb users
+  // 获取现有的samba用户
+  let smbUsers = await retrieveSmbUsersAsync()
+
+  debug('get samba users')
+  debug(smbUsers)
+
+  // 删除现有的samba用户
   for (let i = 0; i < smbUsers.length; i++) {
     try {
       await child.execAsync(`pdbedit -x ${smbUsers[i].name}`)
@@ -131,7 +145,10 @@ const processUsersAsync = async users => {
       console.log(`error deleting smb user ${smbUsers[i].name}`)
     }
   }
-  // create all smbusers
+
+  debug('after remove samba user')
+
+  // 创建samba用户
   let text = users
     .map(u => {
       return [
@@ -145,80 +162,42 @@ const processUsersAsync = async users => {
     })
     .join('\n')
 
-  debug('samba passwd db', text)
-
   await mkdirpAsync('/run/wisnuc/smb')
   await fs.writeFileAsync('/run/wisnuc/smb/tmp', text)
   await child.execAsync('pdbedit -i smbpasswd:/run/wisnuc/smb/tmp')
   await rimrafAsync('/run/wisnuc/smb')
 
+  debug('after create samba user')
+
   // creat user map
   text = users
-    .map(u => `${u.unixName} = "${u.username}"`)
+    .map(u => `${u.unixName} = "${u.phoneNumber}"`)
     .join('\n')
-    
+
   await fs.writeFileAsync('/etc/smbusermap', text)
   return users
 }
 
-const processDrivesAsync = async (users, drives) => {
-  // TODO check names
-  return drives
-}
-
+// smb.conf global section
 const globalSection = `
 [global]
   username map = /etc/smbusermap
   workgroup = WORKGROUP
   netbios name = SAMBA
   map to guest = Bad User
-  log file = /var/log/samba/%m
-  log level = 1
 `
 
-const privateShare = (froot, users, drive) => {
-  let owner = users.find(u => u.uuid === drive.owner)
-  if (!owner) return ''
+const priviledgedShare = share => `
 
-  return `
-[${owner.username}]
-  path = ${froot}/drives/${drive.uuid}
-  read only = no
+[${share.name}]
+  path = ${share.path}
+  browseable = yes
   guest ok = no
+  read only = no
   force user = root
   force group = root
-  write list = ${owner.unixName}
-  valid users = ${owner.unixName}
-  vfs objects = full_audit
-  full_audit:prefix = %u|%U|%S|%P
-  full_audit:success = create_file mkdir rename rmdir unlink write pwrite close
-  full_audit:failure = connect
-  full_audit:facility = LOCAL7
-  full_audit:priority = ALERT
-`
-}
-
-const publicShare = (froot, users, drive) => {
-  let name = drive.label || drive.uuid.slice(0, 8) 
-  let writelist = drive.writelist
-    .map(uuid => users.find(u => u.uuid === uuid))
-    .filter(u => !!u)
-    .map(u => u.unixName)
-
-  let readlist = [...drive.writelist, ...drive.readlist]
-    .map(uuid => users.find(u => u.uuid === uuid))
-    .filter(u => !!u)
-    .map(u => u.unixName)
-
-  return `
-[${name}]
-  path = ${froot}/drives/${drive.uuid}
-  read only = no
-  guest ok = no
-  force user = root
-  force group = root
-  write list = ${writelist.join(', ')}
-  valid users = ${readlist.join(', ')}
+  write list = ${share.writelist.join(', ')}
+  valid users = ${share.writelist.join(', ')}
   vfs objects = full_audit
   full_audit:prefix = %u|%U|%S|%P
   full_audit:success = create_file mkdir rename rmdir unlink write pwrite
@@ -226,30 +205,377 @@ const publicShare = (froot, users, drive) => {
   full_audit:facility = LOCAL7
   full_audit:priority = ALERT
 `
-}
 
-const genSmbConfAsync = async (froot, users, drives) => {
+const anonymousShare = share => `
+
+[${share.name}]
+  path = ${share.path}
+  browseable = yes
+  guest ok = yes
+  read only = no
+  force user = root
+  force group = root
+  vfs objects = full_audit
+  full_audit:prefix = %u|%U|%S|%P
+  full_audit:success = create_file mkdir rename rmdir unlink write pwrite
+  full_audit:failure = connect
+  full_audit:facility = LOCAL7
+  full_audit:priority = ALERT
+`
+
+const usbShare = usb => `
+
+[usb.${usb.name}]
+  path = ${usb.mountpoint}
+  browseable = yes
+  guest ok = yes
+  read only = ${usb.readOnly ? 'yes' : 'no'}
+  force user = root
+  force group = root
+`
+
+const genSmbConfAsync = async (shares, usbs) => {
   let text = globalSection
-  let conf = drives.reduce((t, drive) => {
-    if (drive.type === 'private') {
-      return t + privateShare(froot, users, drive)
-    } else {
-      return t + publicShare(froot, users, drive)
-    }
-  }, text)
-  await fs.writeFileAsync('/etc/samba/smb.conf', conf)
+  shares.forEach(share => text += share.anonymous 
+    ? anonymousShare(share) 
+    : priviledgedShare(share))
+  usbs.forEach(usb => text += usbShare(usb))
+  await fs.writeFileAsync('/etc/samba/smb.conf', text)
 }
 
-class SambaServer extends events.EventEmitter {
-  constructor(fpath) {
-    super()
-    this.froot = fpath
-    this.udpServer = undefined
-    this.startUdpServer(() => {}) //  FIXME: error?
-    this.isStop = true
+
+const isEnabled = (name, callback) => 
+  child.exec(`systemctl is-enabled ${name}`, (err, stdout) => {
+    if (err) {
+      if (err.killed === false && 
+        err.code === 1 && 
+        err.signal === null && 
+        stdout.trim() === 'disabled') {
+        callback(null, false)
+      } else {
+        callback(err)
+      }
+    } else {
+      if (stdout.trim() === 'enabled') {
+        callback(null, true)
+      } else {
+        callback(new Error(`unknown state: ${stdout.trim()}`))
+      }
+    }
+  })
+
+const isEnabledAsync = Promise.promisify(isEnabled)
+
+const isActive = (name, callback) => 
+  child.exec(`systemctl is-active ${name}`, (err, stdout) => {
+    if (err) {
+      if (err.killed === false &&
+        err.code === 3 &&
+        err.signal === null &&
+        stdout.trim() === 'inactive') {
+        callback(null, false)
+      } else {
+        callback(err)
+      }
+    } else {
+      if (stdout.trim() === 'active') {
+        callback(null, true)
+      } else {
+        callback(new Error(`unknown state: ${stdout.trim()}`))
+      }
+    }
+  })
+
+const isActiveAsync = Promise.promisify(isActive)
+
+
+
+class State {
+  constructor(ctx, ...args) {
+    this.ctx = ctx
+    this.enter(...args)
+    debug(`enter ${this.constructor.name} state`)
   }
 
-  startUdpServer(callback) {
+  setState(State, ...args) {
+    this.exit()
+    this.ctx.state = new State(this.ctx, ...args)
+  }
+
+  enter() {}
+  
+  exit() {}
+
+  start (callback) {
+    let err = new Error('operation not permitted in current state')
+    err.status = 403
+    process.nextTick(() => callback(err))
+  }
+
+  stop (callback) {
+    let err = new Error('operation not permitted in current state')
+    err.status = 403
+    process.nextTick(() => callback(err))
+  }
+
+  update () {}
+}
+
+class Detecting extends State {
+  enter () {
+    this.enterAsync()
+      .then(x => this.setState(x ? Started : Stopped))
+      .catch(e => this.setState(Failed, e))
+  }
+
+  // return boolean value indicating started (true) or stopped (false)
+  async enterAsync () {
+    if (!(await isEnabledAsync('smbd'))) return false
+    await child.execAsync('systemctl start smbd')      
+    return true
+  }
+}
+
+class Starting extends State {
+  enter (callback) {
+    this.cbs = [callback]  
+    this.startAsync()
+      .then(() => {
+        this.cbs.forEach(cb => cb(null))
+        this.setState(Started)
+      })
+      .catch(e => {
+        console.log('error starting smbd service', e.message)
+        this.cbs.forEach(cb => cb(e))
+        this.setState(Failed, e)
+      })
+  }
+
+  async startAsync () {
+    await child.execAsync('systemctl enable smbd') 
+    await child.execAsync('systemctl start smbd')
+  }
+
+  start (callback) {
+    this.cbs.push(callback)
+  }
+}
+
+// state -> sub state, idle, pending, refreshing
+// again -> refresh again
+class Started extends State {
+  enter () {
+    this.timer = null
+    this.again = false
+    this.refresh() 
+  }
+
+  refresh () {
+    debug('refreshing smb conf')
+    this.state = 'refreshing'
+    this.refreshAsync()
+      .then(() => {})
+      // TODO error message: cannot read property 'map' of undefined
+      .catch(e => console.log('samba refresh error', e))
+      .then(() => {
+        if (this.exited) return
+        if (this.again) {
+          this.again = false
+          this.state = 'pending'
+          this.timer = setTimeout(() => this.refresh(), 500)
+        } else {
+          this.state = 'idle'
+        }
+      })
+  }
+
+  async refreshAsync () {
+    let froot = this.ctx.froot
+
+    // clone active users (including users without smb password)
+    let users = JSON.parse(JSON.stringify(this.ctx.user.users.filter(u => u.status === 'ACTIVE')))
+
+    // annotate unix username
+    users.forEach(u => {
+      u.unixName = ['x', ...u.uuid.split('-').map((s, i) => i === 2 ? s.slice(1) : s)].join('')
+    }) 
+
+    // clone drives and generate shares
+    let shares = this.ctx.drive.drives
+      .filter(d => !d.isDeleted)
+      .map((drive, idx, arr) => {
+        let { uuid } = drive
+
+        if (drive.type === 'public') { // public
+          if (drive.tag === 'built-in') { // built-in
+            return {
+              uuid,
+              name: '默认共享盘',
+              anonymous: true,
+            }
+          } else { // other public
+            let pubs = arr.filter(d => d.type === 'public' && d.tag !== 'built-in')
+            let x = {
+              uuid,
+              name: drive.label || '共享盘' + (pubs.indexOf(drive) + 1),
+            }
+
+            if (Array.isArray(drive.writelist)) {
+              x.anonymous = false
+              x.writelist = drive.writelist
+                .map(uuid => users.find(u => u.uuid === uuid))
+                .filter(u => !!u)
+                .map(u => u.unixName)
+            } else {
+              x.anonymous = true
+            }
+            return x
+          }
+        } else {  // private
+          let user = users.find(u => u.uuid === drive.owner)
+          if (!user) return
+          if (drive.smb === true) { // priviledged
+            if (!user.smbPassword) return // forbidden
+            return {
+              uuid,
+              name: user.phoneNumber,
+              anonymous: false,
+              writelist: [user.unixName]
+            }
+          } else {
+            return { // anonymous
+              uuid,
+              name: user.phoneNumber,
+              anonymous: true
+            }
+          }
+        }
+      })
+      .filter(x => !!x)
+      .map(x => {
+        x.path = `${froot}/drives/${x.uuid}`
+        return x
+      })
+
+    debug('refreshing users', users)
+    await processUsersAsync(users)
+
+    debug('refreshing shares', shares, this.ctx.usbs)
+    await genSmbConfAsync(shares, this.ctx.usbs)
+
+    // theoretically, this command force all services to reload config (smbd, nmbd, winbindd etc)
+    // await child.execAsync('smbcontrol all reload-config')
+    await child.execAsync('systemctl restart smbd')
+  }
+
+  exit () {
+    if (this.state === 'refreshing') {
+      this.exited = true
+    } else if (this.state === 'pending') {
+      clearTimeout(this.timer)
+    } 
+  }
+
+  stop (callback) {
+    this.setState(Stopping, callback)
+  }
+
+  update () {
+    if (this.state === 'refreshing') {
+      this.again = true
+    } else if (this.state === 'pending') {
+      clearTimeout(this.timer)
+      this.timer = setTimeout(() => this.refresh(), 500)
+    } else {
+      this.state = 'pending'
+      this.timer = setTimeout(() => this.refresh(), 500) 
+    }
+  } 
+}
+
+class Stopping extends State {
+  enter (callback) {
+    this.cbs = [callback]
+    child.exec('systemctl stop smbd', err => {
+      if (err) {
+        this.cbs.forEach(cb => cb(err))
+        this.setState(Failed, err)
+      } else {
+        child.exec('systemctl disable smbd', err => {
+          if (err) {
+            this.cbs.forEach(cb => cb(err))
+            this.setState(Failed, err)
+          } else {
+            this.cbs.forEach(cb => cb(null))
+            this.setState(Stopped)
+          }
+        })
+      }
+    })
+  }
+
+  stop (callback) {
+    this.cbs.push(callback)
+  }
+}
+
+class Stopped extends State {
+  start (callback) {
+    this.setState(Starting, callback)
+  }
+
+  stop (callback) {
+    process.nextTick(() => callback(null))
+  }
+}
+
+class Failed extends State {
+  enter(err) { 
+    debug('failed', err.message)
+    this.error = err 
+  }
+}
+
+class Samba extends EventEmitter {
+  constructor(opts, user, drive, vfs, nfs) {
+    super()
+    this.froot = opts.fruitmixDir
+    this.user = user
+    this.drive = drive
+    this.vfs = vfs
+    this.nfs = nfs
+    this.usbs = []
+
+    this.nfs.on('usb', usbs => {
+      this.usbs = usbs
+      this.update() 
+    })
+
+    this.user.on('Update', () => this.update())
+    this.drive.on('Update', () => this.update())
+
+    // TODO this should be put in started state
+    rsyslogAsync().then(() => {}).catch(e => console.log('error update rsyslog conf'))
+
+    this.startUdpServer()
+    this.state = new Detecting(this)
+
+    console.log('samba module started')
+  }
+
+  update() {
+    this.state.update()
+  }
+
+  stop() {
+    this.state.stop(callback)
+  }
+
+  start (callback) {
+    this.state.start(callback)
+  }
+
+  startUdpServer() {
     let udp = dgram.createSocket('udp4')
     this.udpServer = udp
     udp.on('listening', () => {
@@ -261,42 +587,11 @@ class SambaServer extends events.EventEmitter {
       const token = ' smbd_audit: '
 
       let text = message.toString()
-      // SAMBA_AUDIT(text)
-      //
-      // enter into folder 'aaa', then create a new file named 'bbb', then edit it.
-      //
-      // samba audit like below:
-      // <185>Jun 16 11:01:14 wisnuc-virtual-machine smbd_audit: root|a|a (home)|/run/wisnuc/volumes/56b.../wisnuc/fruitmix/drives/21b...|create_file|ok|0x100080|file|open|aaa/bbb.txt
-      //
-      // arr[0]: root
-      // arr[1]: a
-      // arr[2]: a (home)
-      // arr[3]: /run/wisnuc/volumes/56b.../wisnuc/fruitmix/drives/21b...
-      // arr[4]: create_file
-      // arr[5]: ok
-      // arr[6]: 0x100080
-      // arr[7]: file
-      // arr[8]: open
-      // arr[9]: aaa/bbb.txt
-      //
-      // user: a
-      // share: a (home)
-      // abspath: /run/wisnuc/volumes/56b.../wisnuc/fruitmix/drives/21b...
-      // op: create_file
 
       let tidx = text.indexOf(' smbd_audit: ')
       if (tidx === -1) return
 
       let arr = text.trim().slice(tidx + token.length).split('|')
-
-      // for(var i = 0; i < arr.length; i++){
-      //   SAMBA_AUDIT(`arr[${i}]: ` + arr[i])
-      // }
-
-      // %u <- user
-      // %U <- represented user
-      // %S <- share
-      // %P <- path
 
       if (arr.length < 6 || arr[0] !== 'root' || arr[5] !== 'ok') return
 
@@ -305,14 +600,6 @@ class SambaServer extends events.EventEmitter {
       let abspath = arr[3]
       let op = arr[4]
       let arg0, arg1
-
-      // create_file arg0
-      // mkdir arg0
-      // rename arg0 arg1 (file or directory)
-      // rmdir arg0 (delete directory)
-      // unlink arg0 (delete file)
-      // write (not used anymore)
-      // pwrite
 
       switch (op) {
         case 'create_file':
@@ -352,89 +639,34 @@ class SambaServer extends events.EventEmitter {
 
       //TODO: emit message
       this.emit('SambaServerNewAudit', audit)
-      // this.driveList.audit(abspath, arg0, arg1)
     })
 
     udp.on('error', err => {
-      console.log('fruitmix udp server error', err)
-      // should restart with back-off TODO
-      //TODO: retry ？？
+      if (!process.env.NODE_PATH || process.env.LOGE) console.log('smbaudit udp server error', err)
       udp.close()
       this.udpServer = undefined
     })
 
-    udp.bind('3721', '127.0.0.1', callback)
+    udp.bind('3721', '127.0.0.1', ()=>{})
   }
 
-  async startAsync(users, drives) {
-    this.isStop = false
-    await rsyslogAsync()
-    let x = this.transfer(users, drives)
-    let userArr = await processUsersAsync(x.users)
-    let driveArr = await processDrivesAsync(x.users, x.drives) 
-    await genSmbConfAsync(this.froot, userArr, driveArr)
-    await this.restartAsync()
-    debug('smbd start!!!') 
+  GET(user, props, callback) {
+    callback(null, { state: this.state.constructor.name })
   }
 
-  transfer(users, drives) {
-    let userArr = users.map(u => Object.assign({}, u))
-    let uids = userArr.map(u => u.uuid)
-    let driveArr = drives.map(d => Object.assign({}, d))
-    driveArr.forEach(d => {
-      if(d.writelist === '*') d.writelist = uids
-      if(d.readlist === '*') d.readlist = uids
-    })
-    return { users: userArr, drives: driveArr }
-  }
-
-  async stopAsync() {
-    this.isStop = true
-    await child.execAsync('systemctl stop smbd')
-    await child.execAsync('systemctl stop nmbd')
-  }
-
-  async restartAsync() {
-    await rsyslogAsync() // ?
-    await child.execAsync('systemctl enable nmbd')
-    await child.execAsync('systemctl enable smbd')
-    await Promise.delay(1000)
-    await child.execAsync('systemctl restart smbd')
-    await child.execAsync('systemctl restart nmbd')
-  }
-
-  async updateAsync(users, drives) {
-    if(this.isStop) return
-    let x = this.transfer(users, drives)
-    let userArr = await processUsersAsync(x.users)
-    let driveArr = await processDrivesAsync(x.users, x.drives)  
-    await genSmbConfAsync(this.froot, userArr, driveArr)
-    await this.restartAsync()
-  }
-
-  isActive() {
-    try {
-      let status = child.spawnSync('systemctl', ['is-active', 'smbd']).stdout.toString()
-      status = status.split('\n').join('')
-      return status === 'active' ? true : false
-    } 
-    catch(e) {
-      debug(e)
-      return false
+  PATCH (user, props, callback) {
+    if (props.op === 'start') {
+      this.state.start(callback)
+    } else if (props.op === 'stop') {
+      this.state.stop(callback)
+    } else {
+      let err = new Error('invalid op')
+      err.status = 400
+      process.nextTick(() => callback(err))
     }
-  }
-
-  destory() {
-    if(this.udpServer) {
-      this.udpServer.removeAllListeners()
-      this.udpServer.on('error', () => {})
-      this.udpServer.close()
-      this.udpServer = undefined
-    }
-    this.stopAsync().then(() => {})
-    this.froot = undefined
   }
 
 }
 
-module.exports = SambaServer
+module.exports = Samba
+
