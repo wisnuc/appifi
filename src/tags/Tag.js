@@ -234,11 +234,11 @@ const validateRepetition = (name, creator, names, type) => {
   let result = null
 
   if (type) {
-    if (names.some(t => t.name == name && t.creator == creator)) {
+    if (names.some(t => t.name == name && t.creator == creator && !t.deleted)) {
       result = new Error('name has already been used') 
     }   
   } else {
-    if (!names.every(t => t.name !== props.name)) {
+    if (!names.every(t => t.name !== props.name && !t.deleted)) {
       result = new Error('name has already been used') 
     }
   }
