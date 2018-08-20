@@ -1186,8 +1186,13 @@ class Boot extends EventEmitter {
             child.exec('chattr +i /mnt/reserved/fw_ver_release.json')
             if (err) return callback(err)
             console.log('do auto reboot: ', autoReboot)
-            if (autoReboot) setTimeout(() => child.exec('reboot'), 100)
-            callback(null)
+            
+            let volumeDir = path.join(this.conf.chassis.dir)
+            rimraf(volumeDir, err => {
+              if (err) console.log('clean 2th partition failed: ', err)
+              if (autoReboot) setTimeout(() => child.exec('reboot'), 100)
+              callback(null)
+            })
           })
         })
       })
