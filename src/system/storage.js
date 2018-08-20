@@ -18,6 +18,15 @@ const probeSwapsAsync = require('./procSwapsAsync')
 const probeVolumesAsync = require('./btrfsfishowAsync')
 const probeUsageAsync = require('./btrfsusageAsync')
 
+let tntfs
+
+try {
+  tntfs = !!child.execSync('lsmod | grep tntfs').toString().trim().split(' ').filter(x => !!x).length
+  console.log('[info] use tuxera ntfs driver')
+} catch (e) {
+  tntfs = false
+}
+
 /**
 This module probes all storage devices and users.json file on mounted healthy 
 and annotates extra information, including:
@@ -170,7 +179,11 @@ const mountNonVolumesAsync = async (nonVolumeDir, blocks, mounts) => {
         .reverse()
 
       if (blk.props.id_bus === 'usb' || ss.includes('usb')) {
-        await child.execAsync(`udisksctl mount --block-device ${blk.props.devname} --no-user-interaction`)
+        if (blk.props.id_fs_type === 'ntfs' && tntfs) {
+          await child.execAsync(`udisksctl mount --block-device ${blk.props.devname} --filesystem-type tntfs --no-user-interaction`)
+        } else {
+          await child.execAsync(`udisksctl mount --block-device ${blk.props.devname} --no-user-interaction`)
+        }
       } else {
         const dir = `${nonVolumeDir}/${blk.name}`
         await mkdirpAsync(dir)
