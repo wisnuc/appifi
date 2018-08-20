@@ -185,6 +185,7 @@ const globalSection = `
   workgroup = WORKGROUP
   netbios name = SAMBA
   map to guest = Bad User
+
 `
 
 const priviledgedShare = share => `
@@ -400,6 +401,13 @@ class Started extends State {
       u.unixName = ['x', ...u.uuid.split('-').map((s, i) => i === 2 ? s.slice(1) : s)].join('')
     }) 
 
+/**
+    console.log('>>>>>>')
+    console.log(this.ctx.user.users)
+    console.log(this.ctx.drive.drives)
+    console.log('<<<<<<')
+*/
+
     // clone drives and generate shares
     let shares = this.ctx.drive.drives
       .filter(d => !d.isDeleted)
@@ -465,7 +473,23 @@ class Started extends State {
 
     // theoretically, this command force all services to reload config (smbd, nmbd, winbindd etc)
     // await child.execAsync('smbcontrol all reload-config')
-    await child.execAsync('systemctl restart smbd')
+    // reload won't reload user change ???
+
+    try {
+      await child.execAsync('systemctl restart smbd')
+    } catch (e) {
+      console.log('failed to restart smbd, retry after 5s')
+      await Promise.delay(5000)
+
+      try {
+        await child.execAsync('systemctl restart smbd')
+      } catch (e) {
+        console.log('failed to restart smbd again', e)
+        throw e
+      }
+    }
+
+    debug('smbd restarted')
   }
 
   exit () {
