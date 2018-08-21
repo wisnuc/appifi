@@ -443,4 +443,25 @@ describe(path.basename(__filename), () => {
     expect(r.stdout).to.includes('NT_STATUS_ACCESS_DENIED')
 
   })
+
+  /**
+  NAS-329 & NAS-330 deleted share should not be seen from smbclient, 
+  this is asserted by drive foo in above tests.
+
+  NAS-332 & NAS-367 user change smb password, it should take effect. This requires one test case.
+  
+  NAS-371 misunderstanding on PFL
+
+  NAS-373 start samba should return success if already started
+  */
+
+
+  it('alice changes her samba password and new password should take effect', async function () {
+       
+  }) 
+
+  it('bob changes his samba password and new password should take effect', async function () {
+
+  })
+ 
 })
