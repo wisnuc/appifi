@@ -206,7 +206,6 @@ Returns a predefined type string, or undefined
 */
 const fileType = (path, callback) => 
   exiftool.request(path, ['FileType'], (err, stdout) => {
-    console.log(err || stdout)
     if (err && err.code === 1) {
       callback(null)
     } else if (err) {
