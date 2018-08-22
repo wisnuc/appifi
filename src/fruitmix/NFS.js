@@ -533,7 +533,7 @@ class NFS extends EventEmitter {
               }
             }
           } else {
-            console.log(err)
+            if (!process.env.NODE_PATH) console.log(err)
           }
           if (!--count) callback(null, arr)
         })
@@ -789,9 +789,9 @@ class NFS extends EventEmitter {
       let policy = props.policy
       if (policy) {
         let valids = [undefined, null, 'skip', 'replace', 'rename']
-        if (!Array.isArray(policy) || 
-          valids.includes(policy[0]) || 
-          valids.includes(policy[1])) {
+        if (Array.isArray(policy) && valids.includes(policy[0]) && valids.includes(policy[1])) {
+          // bypass
+        } else {
           let err = new Error('invalid policy')
           err.status = 400
           return process.nextTick(() => callback(err))
