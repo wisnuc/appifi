@@ -116,6 +116,7 @@ const typeList = [
   ['GIF', 2, basicStillImageProps],
   ['BMP', 2, basicStillImageProps],
   ['TIFF', 2, basicStillImageProps],
+  ['HEIC', 2, basicStillImageProps],
 
   // video
   ['RM', 2, videoArgs],
@@ -204,8 +205,8 @@ Returns a predefined type string, or undefined
 `-S` for very short output
 */
 const fileType = (path, callback) => 
-//  child.exec(`exiftool -S -FileType '${path}'`, (err, stdout) => {
   exiftool.request(path, ['FileType'], (err, stdout) => {
+    console.log(err || stdout)
     if (err && err.code === 1) {
       callback(null)
     } else if (err) {
@@ -216,7 +217,6 @@ const fileType = (path, callback) =>
       if (index === -1) return callback(null)
       let type = s.slice(index + 1).trim()
       if (type === 'ASF') {
-        // child.exec(`exiftool -S -VideoCodecName '${path}'`, (err, stdout) => {
         exiftool.request(path, ['VideoCodecName'], (err, stdout) => {
           if (err) {
             callback(err)
@@ -246,8 +246,6 @@ const fileMeta = (path, callback) =>
     if (err) return callback(err)
     if (!type || !typeMap.has(type)) return callback(null, nullType)
 
-    let cmd = `exiftool ${genArgs(type)} ${path}`
-    // child.exec(cmd, (err, stdout) => {
     exiftool.request(path, typeMap.get(type).argList, (err, stdout) => { 
       /**
       treat err.code === 1 as error, probably a race

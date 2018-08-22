@@ -80,6 +80,13 @@ const FILES = {
     hash: '7d865e959b2466918c9863afca942d0fb89d7c9ac0c99bafc3749504ded97730'
   },
 
+  c001heic: {
+    name: 'c001.heic',
+    path: 'testdata/C001.heic',
+    size: 1323715,
+    hash: 'b191d6e925eae9970a682d4f4795f3540a68ab74e3e709f20288f1369a559e04'
+  },
+
   empty: {
     name: 'empty',
     path: 'testdata/empty',
