@@ -85,6 +85,7 @@ class PartStream extends stream.Writable {
       }
     }
     return { name, filename }
+
   }
 
   _write (part, _, _callback) {
@@ -114,8 +115,8 @@ class PartStream extends stream.Writable {
       debug('handlePartData', part.index)
       if (name === 'prelude' || name === 'directory') {
         buffers.push(data)
-      } else if (name === 'file') {
-        ws.write(data)
+//      } else if (name === 'file') {
+//        ws.write(data)
       } else {
         handleError(new Error(`internal error, part on data, unexpected name: ${name}`))
       }
@@ -173,7 +174,7 @@ class PartStream extends stream.Writable {
 
         }
       } else if (name === 'file') {
-        ws.end()
+        // ws.end()
       } else if (name === 'remove') {
         let target = path.join(this.dirPath, filename) 
         rimraf(target, err => err ? handleError(err) : callback())
@@ -222,9 +223,9 @@ class PartStream extends stream.Writable {
             ws = fs.createWriteStream(path.join(this.dirPath, filename))
             ws.on('error', handleError)
             ws.on('finish', () => callback())
-
-            part.on('data', handlePartData)
-            part.on('end', handlePartEnd)
+            // part.on('data', handlePartData)
+            // part.on('end', handlePartEnd)
+            part.pipe(ws) 
           })
         }
       } catch (err) {
