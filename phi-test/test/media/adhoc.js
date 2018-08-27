@@ -22,6 +22,9 @@ const expect = chai.expect
 const Fruitmix = require('src/fruitmix/Fruitmix')
 const App = require('src/app/App')
 
+const fakeNfsAsync = require('test/lib/nfs')
+const { UUIDBC, UUIDDE } = fakeNfsAsync
+
 const cwd = process.cwd()
 const tmptest = path.join(cwd, 'tmptest')
 const fruitmixDir = path.join(tmptest, 'fruitmix')
@@ -88,10 +91,11 @@ describe(path.basename(__filename), () => {
 
   const requestHomeAsync = Promise.promisify(requestHome)
 
-  let fruitmix, app, token, home, url
+  let fruitmix, app, token, home, fake, boundVolume, url
   let alonzo = FILES.alonzo
   let mate9 = FILES.mate9
   let wslv = FILES.wslv
+  let c001 = FILES.c001heic
 
   describe('alonzo', () => {
     let fruitmix, app, token, home, url
@@ -100,11 +104,13 @@ describe(path.basename(__filename), () => {
     beforeEach(async function () {
       await rimrafAsync(tmptest)
       await mkdirpAsync(fruitmixDir)
+      fake = await fakeNfsAsync(tmptest) 
+      boundVolume = fake.createBoundVolume(fake.storage, fakeNfsAsync.UUIDBC)
 
       let userFile = path.join(fruitmixDir, 'users.json')
       await fs.writeFileAsync(userFile, JSON.stringify([alice], null, '  '))
 
-      fruitmix = new Fruitmix({ fruitmixDir })
+      fruitmix = new Fruitmix({ fruitmixDir, boundVolume })
       app = new App({ fruitmix, log: { skip: 'all', error: 'none' } })
       await new Promise(resolve => fruitmix.once('FruitmixStarted', () => resolve()))
       token = await requestTokenAsync(app.express, alice.uuid, 'alice')
@@ -145,6 +151,19 @@ describe(path.basename(__filename), () => {
             op: 'newfile',
             size: wslv.size,
             sha256: wslv.hash
+          }))
+          .expect(200)
+          .end(err => err ? rej(err) : res())
+      })
+
+      await new Promise((res, rej) => {
+        request(app.express)
+          .post(url)
+          .set('Authorization', 'JWT ' + token)
+          .attach(c001.name, c001.path, JSON.stringify({
+            op: 'newfile',
+            size: c001.size,
+            sha256: c001.hash
           }))
           .expect(200)
           .end(err => err ? rej(err) : res())
@@ -373,6 +392,46 @@ describe(path.basename(__filename), () => {
         })
     })
 
+/**
+    it('get list should contain c001', done => {
+      request(app.express)
+        .get(`/media`)
+        .set('Authorization', 'JWT ' + token)
+        .expect(200)
+        .end((err, res) => {
+          if (err) return done(err)
+          console.log(res.body)
+          done()
+        })
+    })
+*/
+
+    it('get c001 thumbnail, 160x160 should return something', done => {
+      request(app.express)
+        .get(`/media/${c001.hash}`)
+        .set('Authorization', 'JWT ' + token)
+        .query({
+          alt: 'thumbnail',
+          width: 200,
+          height: 200,
+          modifier: 'caret',
+          autoOrient: 'true'
+        })
+        .buffer()
+        .end((err, res) => {
+          if (err) return done(err)
+          let file = path.join(tmptest, 'tmpfile')
+          fs.writeFileSync(file, res.body)
+          let size = sizeOf(file) 
+          expect(size).to.deep.equal({
+            width: 150,
+            height: 200,
+            type: 'jpg'
+          })
+          done()
+        })
+    })
+
     it('get alonzo via random, 75e85b2b', done => {
       request(app.express)
         .get(`/media/${alonzo.hash}`)
@@ -399,3 +458,5 @@ describe(path.basename(__filename), () => {
     }) 
   })
 })
+
+

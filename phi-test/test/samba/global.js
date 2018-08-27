@@ -42,6 +42,12 @@ const { UUIDDE } = fakeNfsAsync
 
 const browse = callback => child.exec('smbclient -gNL localhost', (err, stdout, stderr) => {
   if (err) {
+    if (err) {
+      console.log('smbclient error >>>>')
+      console.log('[err]', err.message.trim())
+      console.log('[stdout]', stdout.trim())
+      console.log('smbclient error <<<<')
+    }
     callback(err)
   } else {
     let xs = stdout.split('\n')
@@ -57,8 +63,13 @@ const browse = callback => child.exec('smbclient -gNL localhost', (err, stdout, 
 
 const browseAsync = Promise.promisify(browse)
 
-
 describe(path.basename(__filename), () => {
+
+  // wait a long time for settling
+  afterEach(async function () {
+    this.timeout(0)
+    await Promise.delay(3000)
+  })
 
   let watson, user, fake
 
@@ -82,10 +93,15 @@ describe(path.basename(__filename), () => {
     user = watson.users.alice
   }
 
-  it('smb is started before starting fruitmix', async function () {
+  /**
+  setup: enable and start smbd
+  test: read samba state, res.body.state should be 'Started'
+  */
+  it('smb is started before starting fruitmix, 7b208cf8', async function () {
+    this.timeout(0)
+
     let stdout
 
-    this.timeout(0)
     await child.execAsync('systemctl enable smbd')
     await child.execAsync('systemctl start smbd')
     await Promise.delay(1000)
@@ -108,10 +124,14 @@ describe(path.basename(__filename), () => {
     expect(x.state).to.equal('Started')
   })
 
-  it('smb is stopped before starting fruitmix', async function () {
-    let stdout
-
+  /**
+  setup: stop and disable smbd
+  test: start app and read samba state through api. res.body.state should be 'Stopped'
+  */
+  it('smb is stopped before starting fruitmix, 3ce4728e', async function () {
     this.timeout(0)
+
+    let stdout
 
     await child.execAsync('systemctl stop smbd')
     await child.execAsync('systemctl disable smbd')
@@ -165,16 +185,32 @@ describe(path.basename(__filename), () => {
     expect(x.state).to.equal('Stopped')
   })
 
-  it('rm smb.conf, start smb before starting fruitmix, stop & start again, cb4b6dc5', async function () {
-    let stdout, shares, body
+  /**
+  setup 1: enable and start smbd without smb.conf
+  assert 1 : shares should be []
 
+  setup 2: start app
+  assert 2: read samba state. should be 'Started' 
+  assert 3: (wait) browse shares, should return alice and default.
+  
+  setup 3: stop samba via api 
+  assert 4: read samba state. should be 'Stopped'
+  assert 5: smbd inactive and disabled
+
+  setup 4: start samba via api
+  assert 6: read samba state. should be 'Started'
+  assert 7: (wait) browse shares. should return alice and default
+  */
+  it('rm smb.conf, start smb before starting fruitmix, stop & start again, cb4b6dc5', async function () {
     this.timeout(0)
+
+    let stdout, shares, body
 
     // rm smb.conf
     await fs.writeFileAsync('/etc/samba/smb.conf', '\n')
     await child.execAsync('systemctl enable smbd')
     await child.execAsync('systemctl start smbd')
-    await Promise.delay(1000)
+    await Promise.delay(5000)
 
     stdout = await child.execAsync('systemctl is-enabled smbd')
     expect(stdout.trim()).to.equal('enabled')
@@ -182,13 +218,16 @@ describe(path.basename(__filename), () => {
     stdout = await child.execAsync('systemctl is-active smbd')
     expect(stdout.trim()).to.equal('active')
 
-    shares = await browseAsync()
+    await Promise.delay(5000)
 
-    // assert shares cleaned
+    // assert 1
+    shares = await browseAsync()
     expect(shares).to.deep.equal([])
 
+    // start app
     await prepareAsync()
 
+    // assert 2
     body = await new Promise((resolve, reject) => 
       request(watson.app.express)
         .get('/samba')
@@ -198,12 +237,12 @@ describe(path.basename(__filename), () => {
 
     expect(body.state).to.equal('Started')
 
-    await Promise.delay(1000)
-
+    // assert 3
+    await Promise.delay(5000)
     shares = await browseAsync()
     expect(shares.sort()).to.deep.equal([alice.phoneNumber, '默认共享盘'].sort()) 
 
-    // stop via patch
+    // setup 3: stop via patch
     await new Promise((resolve, reject) => 
       request(watson.app.express)
         .patch('/samba')
@@ -212,7 +251,7 @@ describe(path.basename(__filename), () => {
         .expect(200)
         .end((err, res) => err ? reject(err) : resolve(res.body)))
 
-    // assert stopped via api
+    // assert 4
     body = await new Promise((resolve, reject) => 
       request(watson.app.express)
         .get('/samba')
@@ -222,7 +261,7 @@ describe(path.basename(__filename), () => {
 
     expect(body.state).to.equal('Stopped')
 
-    // assert stopped in system 
+    // assert 5
     stdout = await new Promise((resolve, reject) => {
       child.exec('systemctl is-active smbd', (err, stdout, stderr) => {
         if (err &&
@@ -238,7 +277,6 @@ describe(path.basename(__filename), () => {
         }
       })
     })
-   
     expect(stdout.trim()).to.equal('inactive') 
 
     stdout = await new Promise((resolve, reject) => {
@@ -256,10 +294,9 @@ describe(path.basename(__filename), () => {
         }
       })
     })
-
     expect(stdout.trim()).to.equal('disabled')
 
-    // start via patch
+    // setup 4
     await new Promise((resolve, reject) => 
       request(watson.app.express) 
         .patch('/samba')
@@ -268,34 +305,37 @@ describe(path.basename(__filename), () => {
         .expect(200)
         .end((err, res) => err ? reject(err) : resolve(res.body)))
 
-    // assert started via api
+    // assert 6
     body = await new Promise((resolve, reject) => 
       request(watson.app.express)
         .get('/samba')
         .set('Authorization', 'JWT ' + user.token)
         .expect(200)
         .end((err, res) => err ? reject(err) : resolve(res.body)))
-
     expect(body.state).to.equal('Started')
 
-    await Promise.delay(1000)
-
+    // assert 7
+    await Promise.delay(5000)
     shares = await browseAsync()  
-
     expect(shares.sort()).to.deep.equal([alice.phoneNumber, '默认共享盘'].sort())
   })
 
+  /**
+
+  */
   it('rm smb.conf, stop smb before starting fruitmix, start and stop again, 910ac6bf', async function () {
     let stdout, shares, body
 
     this.timeout(0)   
 
-    // rm smb.conf
+    // rm smb.conf, stop and disable smbd 
     await fs.writeFileAsync('/etc/samba/smb.conf', '\n')
     await child.execAsync('systemctl stop smbd')
     await child.execAsync('systemctl disable smbd')
-    await Promise.delay(1000)
 
+    await Promise.delay(5000)
+
+    // assert smbd inactive
     stdout = await new Promise((resolve, reject) => {
       child.exec('systemctl is-active smbd', (err, stdout, stderr) => {
         if (err &&
@@ -311,9 +351,9 @@ describe(path.basename(__filename), () => {
         }
       })
     })
-   
     expect(stdout.trim()).to.equal('inactive') 
 
+    // assert smbd disabled
     stdout = await new Promise((resolve, reject) => {
       child.exec('systemctl is-enabled smbd', (err, stdout, stderr) => {
         if (err &&
@@ -329,21 +369,21 @@ describe(path.basename(__filename), () => {
         }
       })
     })
-
     expect(stdout.trim()).to.equal('disabled')
 
+    // start app
     await prepareAsync()
 
+    // assert stopped
     body = await new Promise((resolve, reject) => 
       request(watson.app.express)
         .get('/samba')
         .set('Authorization', 'JWT ' + user.token)
         .expect(200)
         .end((err, res) => err ? reject(err) : resolve(res.body)))
-
     expect(body.state).to.equal('Stopped')
 
-    // start via patch  
+    // start via api
     await new Promise((resolve, reject) => 
       request(watson.app.express)
         .patch('/samba')
@@ -359,22 +399,22 @@ describe(path.basename(__filename), () => {
         .set('Authorization', 'JWT ' + user.token)
         .expect(200)
         .end((err, res) => err ? reject(err) : resolve(res.body)))
-
     expect(body.state).to.equal('Started')
 
     // assert started in system
     stdout = await child.execAsync('systemctl is-active smbd')
     expect(stdout.trim()).to.equal('active')
 
+    // assert enabled in system
     stdout = await child.execAsync('systemctl is-enabled smbd')
     expect(stdout.trim()).to.equal('enabled')
 
-    await Promise.delay(1000)
-
+    // wait, assert shares includes alice and default
+    await Promise.delay(5000)
     shares = await browseAsync()
     expect(shares.sort()).to.deep.equal([alice.phoneNumber, '默认共享盘'])
 
-    // stop via patch
+    // stop via api
     await new Promise((resolve, reject) =>
       request(watson.app.express)
         .patch('/samba')
@@ -390,9 +430,11 @@ describe(path.basename(__filename), () => {
         .set('Authorization', 'JWT ' + user.token)
         .expect(200)
         .end((err, res) => err ? reject(err) : resolve(res.body)))
-
     expect(body.state).to.equal('Stopped')
 
+    await Promise.delay(5000)
+
+    // assert inactive
     stdout = await new Promise((resolve, reject) => {
       child.exec('systemctl is-active smbd', (err, stdout, stderr) => {
         if (err &&
@@ -408,9 +450,9 @@ describe(path.basename(__filename), () => {
         }
       })
     })
-   
     expect(stdout.trim()).to.equal('inactive') 
 
+    // assert disabled
     stdout = await new Promise((resolve, reject) => {
       child.exec('systemctl is-enabled smbd', (err, stdout, stderr) => {
         if (err &&
@@ -426,7 +468,6 @@ describe(path.basename(__filename), () => {
         }
       })
     })
-
     expect(stdout.trim()).to.equal('disabled')
   }) 
 

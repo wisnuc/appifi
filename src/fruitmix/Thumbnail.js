@@ -7,6 +7,7 @@ const crypto = require('crypto')
 
 const UUID = require('uuid')
 const mkdirp = require('mkdirp')
+const rimraf = require('rimraf')
 
 const debug = require('debug')('thumbnail')
 
@@ -245,23 +246,64 @@ class Thumbnail extends EventEmitter {
         })
 
       } else {
-        x.tmp = path.join(this.tmpDir, UUID.v4() + '.jpg')
-        let args = genArgs(x.file, x.tmp, x.opts, x.type)
-        spawn('convert', args, err => {
-          if (err) {
-            this.converting.splice(this.converting.indexOf(x), 1)
-            x.cbs.forEach(cb => cb(err))
-            x.cbs = []
-            this.schedule()
-          } else {
-            fs.rename(x.tmp, x.path, err => {
+
+        if (x.type === 'HEIC') {
+          // 
+          // x.tifigtmp = path.join(this.tmpDir, UUID.v4() + '.jpg')
+          // console.log(x) 
+
+          x.tifig = path.join(this.tmpDir, UUID.v4() + '.jpg')
+          child.exec(`tifig '${x.file}' ${x.tifig}`, err => {
+            if (err) {
+              rimraf(x.tifig, () => {})
               this.converting.splice(this.converting.indexOf(x), 1)
-              x.cbs.forEach(cb => err ? cb(err) : cb(null, x.path))
+              x.cbs.forEach(cb => cb(err))
               x.cbs = []
               this.schedule()
-            })
-          }
-        })
+            } else {
+              x.tmp = path.join(this.tmpDir, UUID.v4() + '.jpg')
+              let args = genArgs(x.tifig, x.tmp, x.opts, x.type)
+              spawn('convert', args, err => {
+                rimraf(x.tifig, () => {})
+                if (err) {
+                  this.converting.splice(this.converting.indexOf(x), 1)
+                  x.cbs.forEach(cb => cb(err))
+                  x.cbs = []
+                  this.schedule()
+                } else {
+                  fs.rename(x.tmp, x.path, err => {
+                    this.converting.splice(this.converting.indexOf(x), 1)
+                    x.cbs.forEach(cb => err ? cb(err) : cb(null, x.path))
+                    x.cbs = []
+                    this.schedule()
+                  })
+                }
+              })
+              
+            }
+          })
+
+        } else {
+
+          x.tmp = path.join(this.tmpDir, UUID.v4() + '.jpg')
+          let args = genArgs(x.file, x.tmp, x.opts, x.type)
+          spawn('convert', args, err => {
+            if (err) {
+              this.converting.splice(this.converting.indexOf(x), 1)
+              x.cbs.forEach(cb => cb(err))
+              x.cbs = []
+              this.schedule()
+            } else {
+              fs.rename(x.tmp, x.path, err => {
+                this.converting.splice(this.converting.indexOf(x), 1)
+                x.cbs.forEach(cb => err ? cb(err) : cb(null, x.path))
+                x.cbs = []
+                this.schedule()
+              })
+            }
+          })
+
+        }
       }
     }
   }

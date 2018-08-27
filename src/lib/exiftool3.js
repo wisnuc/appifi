@@ -1,3 +1,4 @@
+const path = require('path')
 const fs = require('fs')
 const child = require('child_process')
 const readline = require('readline')
@@ -7,8 +8,9 @@ class ExifTool {
     this.reqs = []
 
     try {
-      fs.lstatSync('/phi/exiftool/exiftool')
-      this.exiftool = '/phi/exiftool/exiftool'
+      let fpath = path.resolve(path.join(__dirname, '..', 'exiftool', 'exiftool'))
+      fs.lstatSync(fpath)
+      this.exiftool = fpath
       console.log('exiftool: use custom exiftool')
     } catch (e) {
       this.exiftool = 'exiftool'

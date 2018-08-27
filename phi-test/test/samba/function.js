@@ -167,7 +167,8 @@ describe(path.basename(__filename), () => {
     let boundVolume = fake.createBoundVolume(fake.storage, fakeNfsAsync.UUIDBC)
 
     let userFile = path.join(fruitmixDir, 'users.json')
-    await fs.writeFileAsync(userFile, JSON.stringify([Alice, Bob, Charlie, David, Eve, Frank, Grace], null, '  '))
+    await fs.writeFileAsync(userFile, 
+      JSON.stringify([Alice, Bob, Charlie, David, Eve, Frank, Grace], null, '  '))
 
     let fruitmix = new Fruitmix({ fruitmixDir, boundVolume, useSmb: true })
     let app = new App({ fruitmix, log: { skip: 'all', error: 'none' } })
@@ -443,4 +444,130 @@ describe(path.basename(__filename), () => {
     expect(r.stdout).to.includes('NT_STATUS_ACCESS_DENIED')
 
   })
+
+  /**
+  NAS-329 & NAS-330 deleted share should not be seen from smbclient, 
+  this is asserted by drive foo in above tests.
+
+  NAS-332 & NAS-367 user change smb password, it should take effect. This requires one test case.
+  
+  NAS-371 misunderstanding on PFL
+
+  NAS-373 start samba should return success if already started
+  */
+
+
+  it('alice changes her samba password and new password should take effect, 1b8c34de', async function () {
+    this.timeout(0)  
+
+    let stdout, body, shares
+
+    await fs.writeFileAsync('/etc/samba/smb.conf', '\n')
+    await child.execAsync('systemctl stop smbd')
+    await child.execAsync('systemctl disable smbd')
+    await Promise.delay(1000)
+
+    stdout = await new Promise((resolve, reject) => {
+      child.exec('systemctl is-active smbd', (err, stdout, stderr) => {
+        if (err &&
+          err.killed === false &&
+          err.code === 3 &&
+          err.signal === null &&
+          stdout.trim() === 'inactive') {
+          resolve(stdout)
+        } else if (err) {
+          reject(err)
+        } else {
+          reject(new Error(stdout.trim()))
+        }
+      })
+    })
+   
+    expect(stdout.trim()).to.equal('inactive') 
+
+    stdout = await new Promise((resolve, reject) => {
+      child.exec('systemctl is-enabled smbd', (err, stdout, stderr) => {
+        if (err &&
+          err.killed === false &&
+          err.code === 1 &&
+          err.signal === null &&
+          stdout.trim() === 'disabled') {
+          resolve(stdout)
+        } else if (err) {
+          reject(err)
+        } else {
+          reject(new Error(stdout.trim()))
+        }
+      })
+    })
+
+    expect(stdout.trim()).to.equal('disabled')
+
+    await rimrafAsync(tmptest)
+    await mkdirpAsync(fruitmixDir)
+    fake = await fakeNfsAsync(tmptest)
+    let boundVolume = fake.createBoundVolume(fake.storage, fakeNfsAsync.UUIDBC)
+
+    let userFile = path.join(fruitmixDir, 'users.json')
+    let userData = [Alice, Bob]
+    await fs.writeFileAsync(userFile, JSON.stringify(userData, null, '  '))
+
+    let fruitmix = new Fruitmix({ fruitmixDir, boundVolume, useSmb: true })
+    let app = new App({ fruitmix, log: { skip: 'all', error: 'none' } })
+    await new Promise(res => fruitmix.once('FruitmixStarted', () => res()))
+
+    fruitmix.nfs.update(fake.storage)
+
+    watson = new Watson({ app })
+
+    await new Promise((resolve, reject) => 
+      watson.login('alice', 'alice', err => err ? reject(err) : resolve()))
+
+    alice = watson.users.alice
+
+    // start samba
+    await new Promise((resolve, reject) => 
+      request(watson.app.express)
+        .patch('/samba')
+        .set('Authorization', 'JWT ' + alice.token)
+        .send({ op: 'start' })
+        .expect(200)
+        .end((err, res) => err ? reject(err) : resolve(res.body)))
+
+    await Promise.delay(1000)
+
+    body = await new Promise((resolve, reject) => 
+      request(watson.app.express)
+        .patch(`/users/${alice.uuid}`)
+        .set('Authorization', 'JWT ' + alice.token)
+        .send({
+          smbPassword: 'newPassword'
+        })
+        .expect(200)
+        .end((err, res) => err ? reject(err) : resolve(res.body)))
+
+    console.log(body)
+
+    await Promise.delay(3000)
+
+    shares = await browseAsync()
+    expect(shares.sort()).to.deep.equal([
+      Alice.phoneNumber,
+      '默认共享盘'
+    ])
+
+    // old password should fail
+    let r = await accessAsync(Alice.phoneNumber, Alice.phoneNumber, 'alice')
+    expect(r.stdout.toString()).to.includes('NT_STATUS_LOGON_FAILURE')
+
+    // new password should succeed
+    r = await accessAsync(Alice.phoneNumber, Alice.phoneNumber, 'newPassword')
+    expect(r.err).to.equal(null)
+  }) 
+
+/**
+  it('bob changes his samba password and new password should take effect, 53937856', async function () {
+    
+  })
+*/ 
 })
