@@ -468,22 +468,20 @@ class Started extends State {
         let volume = this.ctx.storage.volumes.find(v => v.uuid === boundVolumeUUID)
         let fruitmixDir = path.join(volume.mountpoint, this.ctx.conf.storage.fruitmixDir)
         rimraf(fruitmixDir, err => {
+          this.uninstalling = false
           if (err) cb(err)
           else cb(null)
-          setTimeout(() => {
-            this.uninstalling = false
-            if (props.reset) {
-              console.log('========================')
-              console.log('uninstall success')
-              console.log('reset success')
-              console.log('reboot')
-              console.log('========================')
-              return child.exec('reboot', err => {
-                if (err) console.log(err)
-              })
-            }
-            else process.exit(61)
-          }, 100)
+          if (props.reset) {
+            console.log('========================')
+            console.log('uninstall success')
+            console.log('reset success')
+            console.log('reboot')
+            console.log('========================')
+            return child.exec('reboot', err => {
+              if (err) console.log(err)
+            })
+          }
+          else process.exit(61)
         })
       } else {
         callback(null)
@@ -1156,8 +1154,10 @@ class Boot extends EventEmitter {
         if (props.format) return this.state.uninstall(props, callback)
         return callback(err)
       })
-    } else
+    } else if (props.format)
       this.state.uninstall(props, callback)
+    else 
+      callback(new Error('no operation'))
   }
 
   resetToFactory(user, autoReboot, callback) {
@@ -1186,13 +1186,16 @@ class Boot extends EventEmitter {
             child.exec('chattr +i /mnt/reserved/fw_ver_release.json')
             if (err) return callback(err)
             console.log('do auto reboot: ', autoReboot)
-            
             let volumeDir = path.join(this.conf.chassis.dir)
-            rimraf(volumeDir, err => {
-              if (err) console.log('clean 2th partition failed: ', err)
-              if (autoReboot) setTimeout(() => child.exec('reboot'), 100)
+            if (autoReboot) {
+              rimraf(volumeDir, err => {
+                if (err) console.log('clean 2th partition failed: ', err)
+                if (autoReboot) setTimeout(() => child.exec('reboot'), 100)
+                callback(null)
+              })
+            } else {
               callback(null)
-            })
+            }
           })
         })
       })
