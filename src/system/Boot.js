@@ -29,9 +29,9 @@ class State {
     this.ctx = ctx
     this.ctx.state = this
 
-    debug('=== entering ===', this.constructor.name)
+    console.log('=== Boot entering ===', this.constructor.name)
     this.enter(...args)
-    debug('=== entered ===', this.constructor.name)
+    console.log('=== Boot entered ===', this.constructor.name)
 
     this.ctx.emit('StateEntered', this.constructor.name)
   }
