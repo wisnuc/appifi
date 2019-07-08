@@ -83,7 +83,7 @@
     "ink-docstrap": "^1.3.2",
     "istanbul": "^0.4.5",
     "jsdoc": "^3.5.5",
-    "jsdoc-baseline": "https://github.com/hegemonic/baseline/tarball/master",
+    "jsdoc-baseline": "https://github.com/hegemonic/baseline/tarball/222e13a",
     "jsdoc-strip-async-await": "^0.1.0",
     "mocha": "^3.5.0",
     "nodemon": "^1.12.0",
