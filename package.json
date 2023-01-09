@@ -52,7 +52,7 @@
     "mqtt": "^2.14.0",
     "passport": "^0.4.0",
     "passport-http": "^0.3.0",
-    "passport-jwt": "^3.0.0",
+    "passport-jwt": "^4.0.1",
     "passport-strategy": "^1.0.0",
     "read-chunk": "^2.1.0",
     "rimraf": "^2.6.1",
